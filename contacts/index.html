@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3DVR Contacts</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="https://fav.farm/🧠" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="color-scheme" content="dark light">
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-10 backdrop-blur bg-gray-900/90 border-b border-white/10">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+      <a href="../index.html" class="text-sm text-gray-300 hover:text-white">← Portal</a>
+      <h1 class="text-xl sm:text-2xl font-bold">Contacts <span class="text-teal-400">· 3DVR</span></h1>
+      <span id="spaceBadge" class="hidden text-xs px-2 py-1 rounded bg-white/10">personal</span>
+      <div class="ms-auto flex items-center gap-2">
+        <span id="userDisplay" class="text-sm text-gray-300"></span>
+        <button id="btnLogout" class="hidden bg-rose-600 hover:bg-rose-700 text-white text-sm px-3 py-1.5 rounded">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 grid gap-6 md:grid-cols-[320px,1fr]">
+
+    <!-- Settings / Space / Backup -->
+    <section class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
+      <h2 class="text-lg font-semibold mb-2">Space</h2>
+      <select id="spaceSelect" class="w-full p-2 rounded text-black">
+        <option value="personal" selected>Personal (private to your account)</option>
+        <option value="org-3dvr">Org: 3DVR (shared demo)</option>
+        <option value="public-demo">Public demo (guest)</option>
+      </select>
+      <p class="text-xs text-gray-400 mt-2">
+        Signed-in users save to <code>user.get('contacts')</code>. “Org: 3DVR” and “Public demo”
+        are shared (unencrypted) spaces for quick collaboration/testing.
+      </p>
+
+      <hr class="my-4 border-white/10">
+
+      <h3 class="text-base font-semibold mb-2">Backup</h3>
+      <div class="flex flex-wrap gap-2">
+        <button id="btnExportJSON" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded">Export JSON</button>
+        <button id="btnExportCSV" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded">Export CSV</button>
+        <label class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded cursor-pointer">
+          Import JSON
+          <input id="importFile" type="file" accept="application/json" class="hidden">
+        </label>
+      </div>
+
+      <hr class="my-4 border-white/10">
+
+      <h3 class="text-base font-semibold mb-2">Signed-in status</h3>
+      <p class="text-sm text-gray-300" id="signedStatus">Checking…</p>
+      <button id="btnGoSignIn" class="mt-2 bg-teal-700 hover:bg-teal-800 px-3 py-2 rounded hidden">Go to Sign-In</button>
+    </section>
+
+    <!-- Right column -->
+    <section class="grid gap-6">
+      <!-- Add Contact -->
+      <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
+        <h2 class="text-lg font-semibold mb-3">Add Contact</h2>
+        <form id="contactForm" class="grid gap-2 md:grid-cols-2">
+          <input id="name" class="p-2 rounded text-black" placeholder="Name" />
+          <input id="email" class="p-2 rounded text-black" placeholder="Email" type="email"/>
+          <input id="phone" class="p-2 rounded text-black" placeholder="Phone" />
+          <input id="company" class="p-2 rounded text-black" placeholder="Company" />
+          <input id="role" class="p-2 rounded text-black" placeholder="Role (lead, client, friend…)" />
+          <input id="tags" class="p-2 rounded text-black" placeholder="Tags (comma separated)" />
+          <select id="status" class="p-2 rounded text-black">
+            <option value="">Status (optional)</option>
+            <option>Lead</option><option>Prospect</option><option>Active</option>
+            <option>Paused</option><option>Lost</option><option>Friend</option>
+          </select>
+          <input id="nextFollowUp" type="date" class="p-2 rounded text-black" />
+          <textarea id="notes" class="md:col-span-2 p-2 rounded text-black" placeholder="Notes"></textarea>
+          <div class="md:col-span-2 flex gap-2">
+            <button type="submit" class="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded">Save</button>
+            <button type="button" id="btnReset" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">Reset</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
+        <div class="grid gap-2 md:grid-cols-[1fr,200px,200px] items-end">
+          <div>
+            <label class="text-sm text-gray-300">Search</label>
+            <input id="search" placeholder="Name, email, company, tags…" class="w-full p-2 rounded text-black" />
+          </div>
+          <div>
+            <label class="text-sm text-gray-300">Status</label>
+            <select id="filterStatus" class="w-full p-2 rounded text-black">
+              <option value="">Any</option>
+              <option>Lead</option><option>Prospect</option><option>Active</option>
+              <option>Paused</option><option>Lost</option><option>Friend</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-gray-300">Follow-up</label>
+            <select id="filterFollow" class="w-full p-2 rounded text-black">
+              <option value="">All</option>
+              <option value="overdue">Overdue</option>
+              <option value="today">Due today</option>
+              <option value="week">Due this week</option>
+              <option value="none">No follow-up</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Contacts</h2>
+          <div id="count" class="text-sm text-gray-300"></div>
+        </div>
+        <div id="contactList" class="grid gap-3"></div>
+        <div class="mt-4 flex items-center justify-center gap-2">
+          <button id="prevPage" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm disabled:opacity-40" disabled>Prev</button>
+          <span id="pageInfo" class="text-sm text-gray-300">1/1</span>
+          <button id="nextPage" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm disabled:opacity-40" disabled>Next</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-sm text-gray-400">
+    Linked with 3DVR Portal auth. Roadmap: calendar bridge, org ACL, email sequences.
+  </footer>
+
+<script>
+/* ---------- Gun & session reuse ---------- */
+const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+const user = gun.user();
+
+// Reuse portal's localStorage flags:
+const ls = localStorage;
+const signedIn = ls.getItem('signedIn') === 'true';
+const guest = ls.getItem('guest') === 'true';
+const alias = ls.getItem('alias') || '';
+const username = ls.getItem('username') || '';
+const password = ls.getItem('password') || '';
+
+// Keep tab session alive if already authed in this tab:
+user.recall({ sessionStorage: true });
+
+const userDisplay = document.getElementById('userDisplay');
+const btnLogout = document.getElementById('btnLogout');
+const signedStatus = document.getElementById('signedStatus');
+const btnGoSignIn = document.getElementById('btnGoSignIn');
+
+// Silent auth if we have creds from the portal:
+if (signedIn && alias && password) {
+  user.auth(alias, password, ack => {
+    if (ack && ack.err) {
+      signedStatus.textContent = 'Signed-in data present but auth failed. You can still use Public demo space.';
+      btnGoSignIn.classList.remove('hidden');
+    } else {
+      onSignedIn(username, alias);
+    }
+  });
+} else if (guest) {
+  signedStatus.textContent = 'Guest mode — using Public demo space.';
+  onGuest();
+} else {
+  signedStatus.textContent = 'Not signed in. You can still use Public demo space.';
+  btnGoSignIn.classList.remove('hidden');
+}
+btnGoSignIn.addEventListener('click', () => location.href = '../sign-in.html');
+
+btnLogout.addEventListener('click', () => {
+  try { user.leave(); } catch {}
+  ls.removeItem('signedIn'); ls.removeItem('alias'); ls.removeItem('username'); ls.removeItem('password');
+  location.reload();
+});
+
+function onSignedIn(username, alias) {
+  userDisplay.textContent = `Signed in as ${username} (${alias})`;
+  btnLogout.classList.remove('hidden');
+  signedStatus.textContent = 'Signed in (personal space available).';
+}
+function onGuest() {
+  userDisplay.textContent = 'Guest';
+}
+
+/* ---------- Space selection ---------- */
+const spaceSelect = document.getElementById('spaceSelect');
+const spaceBadge = document.getElementById('spaceBadge');
+
+let currentSpace = user.is ? 'personal' : 'public-demo';
+spaceSelect.value = currentSpace;
+spaceBadge.textContent = currentSpace;
+spaceBadge.classList.remove('hidden');
+
+spaceSelect.addEventListener('change', () => {
+  currentSpace = spaceSelect.value;
+  spaceBadge.textContent = currentSpace;
+  tearDownSpace();
+  contactsIndex = {};
+  listEl.innerHTML = '';
+  attachSpace();
+});
+
+/* ---------- Nodes ---------- */
+const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
+function spaceNode() {
+  if (currentSpace === 'personal' && user.is) return user.get('contacts');
+  if (currentSpace === 'org-3dvr') return gun.get(ORG_SPACE_KEY).get('contacts');
+  return gun.get('contacts-public'); // public demo/guest
+}
+
+/* ---------- Form & UI refs ---------- */
+const form = document.getElementById('contactForm');
+const listEl = document.getElementById('contactList');
+const btnReset = document.getElementById('btnReset');
+const searchEl = document.getElementById('search');
+const filterStatusEl = document.getElementById('filterStatus');
+const filterFollowEl = document.getElementById('filterFollow');
+const countEl = document.getElementById('count');
+const prevPageBtn = document.getElementById('prevPage');
+const nextPageBtn = document.getElementById('nextPage');
+const pageInfo = document.getElementById('pageInfo');
+const btnExportJSON = document.getElementById('btnExportJSON');
+const btnExportCSV = document.getElementById('btnExportCSV');
+const importFile = document.getElementById('importFile');
+
+/* ---------- State ---------- */
+let contactsIndex = {};
+let unsubscribers = [];
+let page = 1;
+const PAGE_SIZE = 20;
+
+function nowISO(){ return new Date().toISOString(); }
+function ymd(d){ return d.toISOString().slice(0,10); }
+
+/* ---------- Space attach ---------- */
+attachSpace();
+function tearDownSpace(){
+  try { unsubscribers.forEach(fn => fn && fn.off && fn.off()); } catch {}
+  unsubscribers = [];
+}
+function attachSpace(){
+  const node = spaceNode();
+  const sub = node.map().on((data, id) => {
+    if (!data) { delete contactsIndex[id]; scheduleRender(); return; }
+    contactsIndex[id] = { ...(contactsIndex[id]||{}), ...data };
+    scheduleRender();
+  });
+  unsubscribers.push(sub);
+  page = 1;
+}
+
+/* ---------- Create / Update / Delete ---------- */
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const id = crypto.randomUUID();
+  const contact = {
+    id,
+    name: gi('name'),
+    email: gi('email'),
+    phone: gi('phone'),
+    company: gi('company'),
+    role: gi('role'),
+    tags: gi('tags'),
+    status: gv('status'),
+    nextFollowUp: gv('nextFollowUp'),
+    notes: gv('notes'),
+    created: nowISO(),
+    updated: nowISO(),
+    lastContacted: '',
+    activityCount: 0
+  };
+  spaceNode().get(id).put(contact);
+  form.reset();
+});
+btnReset.addEventListener('click', ()=> form.reset());
+
+function updateContact(id, patch){
+  const merged = { ...(contactsIndex[id]||{}), ...patch, updated: nowISO() };
+  spaceNode().get(id).put(merged);
+}
+function deleteContact(id){
+  spaceNode().get(id).put(null);
+  delete contactsIndex[id];
+  updateList();
+}
+
+/* ---------- Filters & pagination ---------- */
+searchEl.addEventListener('input', debounce(()=>{ page=1; updateList(); }, 200));
+filterStatusEl.addEventListener('change', ()=>{ page=1; updateList(); });
+filterFollowEl.addEventListener('change', ()=>{ page=1; updateList(); });
+
+prevPageBtn.addEventListener('click', ()=>{ if(page>1){ page--; updateList(); }});
+nextPageBtn.addEventListener('click', ()=>{ page++; updateList(); });
+
+function applyFilters(items){
+  const q = searchEl.value.trim().toLowerCase();
+  const fS = filterStatusEl.value;
+  const fF = filterFollowEl.value;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  return items.filter(c=>{
+    const hay = `${c.name||''} ${c.email||''} ${c.phone||''} ${c.company||''} ${c.role||''} ${c.tags||''} ${c.notes||''}`.toLowerCase();
+    if(q && !hay.includes(q)) return false;
+    if(fS && (c.status||'') !== fS) return false;
+
+    if(fF){
+      const nf = c.nextFollowUp ? new Date(c.nextFollowUp) : null;
+      if(fF==='none'){ if(nf) return false; }
+      if(fF==='overdue'){ if(!nf || nf >= today) return false; }
+      if(fF==='today'){
+        if(!nf) return false;
+        const d0 = new Date(nf); d0.setHours(0,0,0,0);
+        if(d0.getTime() !== today.getTime()) return false;
+      }
+      if(fF==='week'){
+        if(!nf) return false;
+        const end = new Date(today); end.setDate(end.getDate()+7);
+        if(!(nf >= today && nf <= end)) return false;
+      }
+    }
+    return true;
+  }).sort((a,b)=>{
+    const aNF = a.nextFollowUp || '';
+    const bNF = b.nextFollowUp || '';
+    if(aNF && bNF && aNF !== bNF) return aNF < bNF ? -1 : 1;
+    if(aNF && !bNF) return -1;
+    if(!aNF && bNF) return 1;
+    return (b.updated||'').localeCompare(a.updated||'');
+  });
+}
+
+function updateList(){
+  const all = Object.values(contactsIndex);
+  const filtered = applyFilters(all);
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if(page > totalPages) page = totalPages;
+
+  const start = (page-1)*PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+  listEl.innerHTML = pageItems.map(renderCard).join('') || `<p class="text-gray-400">No contacts yet.</p>`;
+
+  // wire actions
+  pageItems.forEach(c=>{
+    eid(`edit-${c.id}`)?.addEventListener('click', ()=>openEdit(c.id));
+    eid(`del-${c.id}`)?.addEventListener('click', ()=>confirmDelete(c.id));
+    eid(`touch-${c.id}`)?.addEventListener('click', ()=>logTouch(c.id));
+    eid(`follow-${c.id}`)?.addEventListener('click', ()=>quickFollowUp(c.id));
+  });
+
+  countEl.textContent = `${total} contact${total===1?'':'s'} · page ${page}/${totalPages}`;
+  pageInfo.textContent = `${page}/${totalPages}`;
+  prevPageBtn.disabled = (page<=1);
+  nextPageBtn.disabled = (page>=totalPages);
+}
+
+let renderTimer=null;
+function scheduleRender(){ clearTimeout(renderTimer); renderTimer=setTimeout(updateList, 40); }
+
+/* ---------- Card UI ---------- */
+function renderCard(c){
+  const overdue = c.nextFollowUp && new Date(c.nextFollowUp) < new Date(new Date().toDateString());
+  const today = c.nextFollowUp && new Date(c.nextFollowUp).toDateString() === new Date().toDateString();
+  const tags = (c.tags||'').split(',').map(t=>t.trim()).filter(Boolean)
+    .map(t=>`<span class="text-xs px-2 py-0.5 rounded bg-white/10">${hx(t)}</span>`).join(' ');
+
+  const email = c.email ? `<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(c.email)}">${hx(c.email)}</a>` : '';
+  const phone = c.phone ? `<a class="underline hover:no-underline" href="tel:${encodeURIComponent(c.phone)}">${hx(c.phone)}</a>` : '';
+
+  return `
+  <div class="bg-gray-800 p-4 rounded-lg border border-white/10" id="${c.id}">
+    <div class="flex flex-col sm:flex-row gap-3 sm:items-start">
+      <div class="flex-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h3 class="text-lg font-bold">${hx(c.name||'(no name)')}</h3>
+          ${c.status?`<span class="text-xs px-2 py-0.5 rounded bg-teal-700/60 border border-teal-400/30">${hx(c.status)}</span>`:''}
+          ${overdue?`<span class="text-xs px-2 py-0.5 rounded bg-rose-700/60 border border-rose-400/30">Overdue</span>`:(today?`<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/30">Due today</span>`:'')}
+        </div>
+        <p class="text-sm text-gray-300 mt-0.5">
+          ${email}${(email && (c.role||c.company))?' · ':''}${hx([c.role,c.company].filter(Boolean).join(' @ '))}
+          ${phone?` · ${phone}`:''}
+        </p>
+        ${tags?`<div class="mt-2 flex flex-wrap gap-1">${tags}</div>`:''}
+        ${c.notes?`<p class="text-sm text-gray-300 mt-2 whitespace-pre-wrap">${hx(c.notes)}</p>`:''}
+
+        <div class="text-xs text-gray-400 mt-2 grid gap-1 sm:grid-cols-2">
+          ${c.lastContacted?`<div>Last contacted: ${ago(c.lastContacted)}</div>`:`<div>Last contacted: —</div>`}
+          <div>Next follow-up: ${c.nextFollowUp||'—'}</div>
+          <div>Updated: ${c.updated?ago(c.updated):'—'}</div>
+          <div>Touches: ${c.activityCount||0}</div>
+        </div>
+      </div>
+      <div class="shrink-0 flex flex-wrap gap-2">
+        <button id="touch-${c.id}" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm">Log touch</button>
+        <button id="follow-${c.id}" class="bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded text-sm">+7d</button>
+        <button id="edit-${c.id}" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1.5 rounded text-sm">Edit</button>
+        <button id="del-${c.id}" class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded text-sm">Delete</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openEdit(id){
+  const c = contactsIndex[id]; if(!c) return;
+  const el = document.getElementById(id);
+  el.innerHTML = `
+    <form id="editForm-${id}" class="grid gap-2">
+      <div class="grid md:grid-cols-2 gap-2">
+        ${it(`e-name-${id}`, c.name,'Name')}
+        ${it(`e-email-${id}`, c.email,'Email')}
+        ${it(`e-phone-${id}`, c.phone,'Phone')}
+        ${it(`e-company-${id}`, c.company,'Company')}
+        ${it(`e-role-${id}`, c.role,'Role')}
+        ${it(`e-tags-${id}`, c.tags,'Tags')}
+        <select id="e-status-${id}" class="p-2 rounded text-black">
+          ${['','Lead','Prospect','Active','Paused','Lost','Friend'].map(s=>`<option ${s===(c.status||'')?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <input id="e-next-${id}" type="date" class="p-2 rounded text-black" value="${ha(c.nextFollowUp||'')}">
+      </div>
+      <textarea id="e-notes-${id}" class="p-2 rounded text-black" rows="4" placeholder="Notes">${hx(c.notes||'')}</textarea>
+      <div class="flex gap-2">
+        <button class="bg-green-600 hover:bg-green-700 px-3 py-2 rounded" type="submit">Save</button>
+        <button type="button" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded" onclick="scheduleRender()">Cancel</button>
+      </div>
+    </form>`;
+  eid(`editForm-${id}`).addEventListener('submit', e=>{
+    e.preventDefault();
+    updateContact(id, {
+      name: gv(`e-name-${id}`),
+      email: gv(`e-email-${id}`),
+      phone: gv(`e-phone-${id}`),
+      company: gv(`e-company-${id}`),
+      role: gv(`e-role-${id}`),
+      tags: gv(`e-tags-${id}`),
+      status: gv(`e-status-${id}`),
+      nextFollowUp: gv(`e-next-${id}`),
+      notes: gv(`e-notes-${id}`)
+    });
+  });
+}
+function confirmDelete(id){
+  const c = contactsIndex[id];
+  if(c && confirm(`Delete ${c.name||'this contact'}?`)) deleteContact(id);
+}
+function logTouch(id){
+  const c = contactsIndex[id]; if(!c) return;
+  updateContact(id, { lastContacted: nowISO(), activityCount: (c.activityCount||0)+1 });
+}
+function quickFollowUp(id){
+  const c = contactsIndex[id]; if(!c) return;
+  const base = c.nextFollowUp ? new Date(c.nextFollowUp) : new Date();
+  base.setDate(base.getDate()+7);
+  updateContact(id, { nextFollowUp: ymd(base) });
+}
+
+/* ---------- Export / Import ---------- */
+btnExportJSON.addEventListener('click', ()=>{
+  const data = Object.values(contactsIndex);
+  download(`contacts-${currentSpace}-${Date.now()}.json`, JSON.stringify(data, null, 2), 'application/json');
+});
+btnExportCSV.addEventListener('click', ()=>{
+  const rows = Object.values(contactsIndex);
+  const cols = ['id','name','email','phone','company','role','tags','status','nextFollowUp','notes','created','updated','lastContacted','activityCount'];
+  const header = cols.join(',');
+  const lines = rows.map(r=>cols.map(k=>csvCell(r[k])).join(','));
+  download(`contacts-${currentSpace}-${Date.now()}.csv`, [header, ...lines].join('\n'), 'text/csv');
+});
+importFile.addEventListener('change', async e=>{
+  const f = e.target.files?.[0]; if(!f) return;
+  try{
+    const text = await f.text();
+    const arr = JSON.parse(text);
+    if(!Array.isArray(arr)) throw new Error('Invalid JSON');
+    arr.forEach(rec=>{
+      if(!rec.id) rec.id = crypto.randomUUID();
+      if(!rec.created) rec.created = nowISO();
+      rec.updated = nowISO();
+      spaceNode().get(rec.id).put(rec);
+    });
+    alert(`Imported ${arr.length} contacts.`);
+  }catch(err){
+    alert('Import failed: ' + err.message);
+  }finally{
+    importFile.value = '';
+  }
+});
+
+/* ---------- Helpers ---------- */
+function gi(id){ return (document.getElementById(id)?.value || '').trim(); }
+function gv(id){ return (document.getElementById(id)?.value || '').trim(); }
+function eid(id){ return document.getElementById(id); }
+function it(id, val, ph){ return `<input id="${id}" class="p-2 rounded text-black" value="${ha(val||'')}" placeholder="${ha(ph)}">`; }
+
+function debounce(fn, ms){ let t=null; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+function ago(iso){ const d=new Date(iso); const s=((Date.now()-d)/1000)|0;
+  if(s<60) return `${s}s ago`; const m=(s/60)|0; if(m<60) return `${m}m ago`;
+  const h=(m/60)|0; if(h<24) return `${h}h ago`; const days=(h/24)|0; if(days<30) return `${days}d ago`;
+  return d.toLocaleDateString();
+}
+function hx(str){ return String(str).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function ha(str){ return String(str).replace(/"/g,'&quot;'); }
+function csvCell(v){
+  if(v==null) return '';
+  const s=String(v).replace(/"/g,'""');
+  if(/[",\n]/.test(s)) return `"${s}"`; return s;
+}
+function download(filename, data, type){
+  const blob = new Blob([data], {type});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+/* Initial render once listeners start */
+let firstRenderTimer = setTimeout(updateList, 200);
+</script>
+
+</body>
+</html>
