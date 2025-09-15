@@ -7,6 +7,13 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <link rel="stylesheet" href="index-style.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0e1116">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+  
 </head>
 
 <body>
@@ -77,6 +84,47 @@
 </script>
 
 <script src="navbar.js"></script>
+
+
+  <!-- PWA install button (hidden until eligible) -->
+<button id="installBtn" style="position:fixed;right:1rem;bottom:1rem;display:none;z-index:9999;">
+  ⬇️ Install 3DVR Portal
+</button>
+
+<script>
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+        .catch(err => console.error('SW registration failed:', err));
+    });
+  }
+
+  // Handle install prompt (Android/Desktop)
+  let deferredPrompt;
+  const installBtn = document.getElementById('installBtn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'inline-block';
+  });
+
+  installBtn?.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+    console.log('Install choice:', outcome);
+  });
+
+  // Optional: hide button if already installed
+  window.addEventListener('appinstalled', () => {
+    installBtn.style.display = 'none';
+  });
+</script>
+
 
 </body>
 </html>
