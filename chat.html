@@ -238,7 +238,6 @@
 <script>
 const gun = Gun([
   'https://gun-relay-3dvr.fly.dev/gun',          // 👈 primary
-  'https://gun-manhattan.herokuapp.com/gun'      // 👈 backup
 ]);
 let currentRoom = 'general';
 let chat = gun.get('3dvr-chat').get(currentRoom);
