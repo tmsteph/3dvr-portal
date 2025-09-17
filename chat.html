@@ -87,6 +87,28 @@
       background: #5ca0d3;
     }
 
+    #notification-settings {
+      background: #fff;
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      text-align: center;
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 20px;
+    }
+
+    #notification-settings button {
+      margin-top: 10px;
+    }
+
+    #notification-status {
+      display: block;
+      margin-top: 5px;
+      color: #555;
+      font-size: 0.95rem;
+    }
+
     #room-select {
       margin-bottom: 20px;
       text-align: center;
@@ -180,6 +202,12 @@
   <p>💬 You earn <strong>+1 point</strong> for every message you send!</p>
 </header>
 
+<div id="notification-settings">
+  <strong>🔔 Chat notifications</strong>
+  <span id="notification-status">Checking permissions…</span>
+  <button id="notification-toggle" onclick="toggleNotifications()">Enable Notifications</button>
+</div>
+
 <div id="profile-mini">
   <p><strong>Username:</strong> <span id="current-username">Loading...</span></p>
   <input type="text" id="new-username" placeholder="New username...">
@@ -214,6 +242,12 @@ const gun = Gun([
 ]);
 let currentRoom = 'general';
 let chat = gun.get('3dvr-chat').get(currentRoom);
+
+const notificationToggleButton = document.getElementById('notification-toggle');
+const notificationStatusText = document.getElementById('notification-status');
+const notificationsSupported = 'Notification' in window;
+const notificationsPreferenceKey = 'chatNotificationsEnabled';
+let notificationsEnabled = false;
 
 const userId = localStorage.getItem('userId') || (() => {
   const id = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -314,10 +348,12 @@ function loadRoom(roomName) {
         message.username = name || message.sender;
         messages[id] = message;
         displayMessages();
+        maybeNotifyNewMessage(message, id);
       });
     } else {
       messages[id] = message;
       displayMessages();
+      maybeNotifyNewMessage(message, id);
     }
   });
 }
@@ -328,6 +364,101 @@ function changeRoom() {
 }
 
 loadRoom(currentRoom);
+
+function initNotifications() {
+  if (!notificationToggleButton || !notificationStatusText) return;
+
+  if (!notificationsSupported) {
+    notificationToggleButton.style.display = 'none';
+    notificationStatusText.textContent = 'Notifications are not supported in this browser.';
+    return;
+  }
+
+  const savedPreference = localStorage.getItem(notificationsPreferenceKey) === 'true';
+  if (savedPreference && Notification.permission === 'granted') {
+    notificationsEnabled = true;
+  }
+
+  updateNotificationUI();
+}
+
+function updateNotificationUI() {
+  if (!notificationToggleButton || !notificationStatusText) return;
+
+  if (!notificationsSupported) {
+    notificationToggleButton.style.display = 'none';
+    notificationStatusText.textContent = 'Notifications are not supported in this browser.';
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    notificationToggleButton.disabled = true;
+    notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
+    return;
+  }
+
+  notificationToggleButton.disabled = false;
+  notificationToggleButton.textContent = notificationsEnabled ? 'Disable Notifications' : 'Enable Notifications';
+
+  if (notificationsEnabled && Notification.permission === 'granted') {
+    notificationStatusText.textContent = 'Notifications are on. We will alert you about new messages.';
+  } else {
+    notificationStatusText.textContent = 'Notifications are off. Click enable to stay updated.';
+  }
+}
+
+function toggleNotifications() {
+  if (!notificationsSupported) return;
+
+  if (notificationsEnabled) {
+    notificationsEnabled = false;
+    localStorage.setItem(notificationsPreferenceKey, 'false');
+    updateNotificationUI();
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    notificationsEnabled = true;
+    localStorage.setItem(notificationsPreferenceKey, 'true');
+    updateNotificationUI();
+    return;
+  }
+
+  Notification.requestPermission().then(permission => {
+    notificationsEnabled = permission === 'granted';
+    localStorage.setItem(notificationsPreferenceKey, notificationsEnabled ? 'true' : 'false');
+
+    if (permission === 'denied') {
+      notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
+    }
+
+    updateNotificationUI();
+  });
+}
+
+function maybeNotifyNewMessage(message, id) {
+  if (!notificationsEnabled || !notificationsSupported) return;
+  if (!message || message.sender === userId) return;
+  if (document.visibilityState === 'visible') return;
+  if (Notification.permission !== 'granted') return;
+
+  const username = message.username || message.sender || 'Someone';
+  const preview = (message.text || '').trim();
+  const notificationBody = preview.length > 120 ? `${preview.slice(0, 117)}...` : preview;
+
+  try {
+    const notification = new Notification(`${username} in #${currentRoom}`, {
+      body: notificationBody || 'New message',
+      tag: `${currentRoom}-${id}`
+    });
+
+    setTimeout(() => notification.close(), 8000);
+  } catch (error) {
+    console.error('Unable to show notification', error);
+  }
+}
+
+initNotifications();
 </script>
 
 </body>
