@@ -126,6 +126,56 @@ body.landing {
   font-size: 1rem;
 }
 
+.app-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.6rem 0 0;
+}
+
+.app-search__input {
+  flex: 1 1 260px;
+  min-width: 220px;
+  padding: 0.85rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--surface-border);
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--color-text);
+  font-size: 1rem;
+  box-shadow: 0 24px 60px rgba(4, 9, 20, 0.45);
+  transition: border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    background var(--transition-base);
+}
+
+.app-search__input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.app-search__input:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.75);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.app-search__hint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.app-search__empty {
+  margin: 0.75rem 0 0;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
+.app-card[hidden] {
+  display: none;
+}
+
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -344,6 +394,10 @@ footer a {
 @media (max-width: 640px) {
   .landing-shell {
     padding: 5rem 1rem 3.5rem;
+  }
+
+  .app-search__hint {
+    width: 100%;
   }
 
   .hero-eyebrow {
