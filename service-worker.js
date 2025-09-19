@@ -1,13 +1,14 @@
 /* service-worker.js */
 
 // Increment this to bust old caches when you deploy
-const STATIC_CACHE = '3dvr-static-v1';
+const STATIC_CACHE = '3dvr-static-v2';
 const HTML_CACHE = '3dvr-html-v1';
 
 // What to cache at install (add your CSS/JS/assets here)
 const STATIC_ASSETS = [
   '/',                     // App shell (Start URL)
   '/index-style.css',
+  '/styles/global.css',
   '/navbar.js',
   '/manifest.webmanifest',
   '/icons/icon-192.png',

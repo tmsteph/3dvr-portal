@@ -4,31 +4,24 @@
 
 function createNavbar() {
   const nav = document.createElement('div');
-  nav.style.position = 'fixed';
-  nav.style.top = '10px';
-  nav.style.right = '10px';
-  nav.style.background = 'rgba(255, 215, 0, 0.1)';
-  nav.style.border = '1px solid gold';
-  nav.style.borderRadius = '8px';
-  nav.style.padding = '10px 15px';
-  nav.style.zIndex = '9999';
-  nav.style.display = 'flex';
-  nav.style.alignItems = 'center';
-  nav.style.gap = '10px';
-  nav.style.fontSize = '1rem';
+  nav.className = 'floating-identity';
+  nav.setAttribute('aria-label', 'Account status');
+
+  const stats = document.createElement('div');
+  stats.className = 'floating-identity__stats';
 
   const usernameSpan = document.createElement('span');
-  const scoreSpan = document.createElement('span');
-  const button = document.createElement('button');
+  usernameSpan.className = 'floating-identity__label';
 
-  button.style.background = 'gold';
-  button.style.color = '#003366';
-  button.style.border = 'none';
-  button.style.borderRadius = '6px';
-  button.style.padding = '5px 10px';
-  button.style.cursor = 'pointer';
-  button.style.fontWeight = 'bold';
-  button.style.transition = '0.3s ease';
+  const scoreSpan = document.createElement('span');
+  scoreSpan.className = 'floating-identity__value';
+
+  stats.appendChild(usernameSpan);
+  stats.appendChild(scoreSpan);
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'floating-identity__button';
   button.innerText = 'Sign Out';
 
   button.addEventListener('click', () => {
@@ -40,10 +33,19 @@ function createNavbar() {
     window.location.href = 'index.html';
   });
 
-  nav.appendChild(usernameSpan);
-  nav.appendChild(scoreSpan);
+  nav.appendChild(stats);
   nav.appendChild(button);
-  document.body.appendChild(nav);
+
+  const topButtons = document.querySelector('.top-buttons');
+  const landingShell = document.querySelector('.landing-shell');
+
+  if (topButtons) {
+    topButtons.insertAdjacentElement('afterend', nav);
+  } else if (landingShell) {
+    landingShell.insertAdjacentElement('afterbegin', nav);
+  } else {
+    document.body.appendChild(nav);
+  }
 
   const signedIn = localStorage.getItem('signedIn');
   const guest = localStorage.getItem('guest');
