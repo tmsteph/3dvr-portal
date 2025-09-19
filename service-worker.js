@@ -1,8 +1,9 @@
 /* service-worker.js */
 
 // Increment this to bust old caches when you deploy
-const STATIC_CACHE = '3dvr-static-v2';
-const HTML_CACHE = '3dvr-html-v1';
+const CACHE_VERSION = 'v3';
+const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
+const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 
 // What to cache at install (add your CSS/JS/assets here)
 const STATIC_ASSETS = [
@@ -16,9 +17,29 @@ const STATIC_ASSETS = [
   '/icons/maskable-512.png'
 ];
 
+const createReloadedRequests = (assets) =>
+  assets.map((asset) => new Request(asset, { cache: 'reload' }));
+
+const networkFirst = async (req) => {
+  try {
+    const fresh = await fetch(req);
+    if (fresh && fresh.ok) {
+      const cache = await caches.open(STATIC_CACHE);
+      cache.put(req, fresh.clone());
+    }
+    return fresh;
+  } catch (error) {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    throw error;
+  }
+};
+
 self.addEventListener('install', (event) => {
+  const assetsToCache = createReloadedRequests(STATIC_ASSETS);
+
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(assetsToCache))
   );
   self.skipWaiting();
 });
@@ -38,6 +59,7 @@ self.addEventListener('activate', (event) => {
 const isHTML = (req) => req.headers.get('accept')?.includes('text/html');
 const isGunRealtime = (url) => url.includes('/gun') || url.startsWith('wss://') || url.startsWith('ws://');
 const isAPI = (url) => url.includes('/api/'); // adjust if you add APIs
+const isStyleRequest = (req) => req.destination === 'style';
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
@@ -49,6 +71,11 @@ self.addEventListener('fetch', (event) => {
   // Don’t touch Gun/WebSocket or dynamic APIs
   if (isGunRealtime(url.href) || req.destination === 'websocket' || isAPI(url.pathname)) {
     return; // let network handle it
+  }
+
+  if (isStyleRequest(req)) {
+    event.respondWith(networkFirst(req));
+    return;
   }
 
   if (isHTML(req)) {
