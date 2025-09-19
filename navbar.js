@@ -35,7 +35,17 @@ function createNavbar() {
 
   nav.appendChild(stats);
   nav.appendChild(button);
-  document.body.appendChild(nav);
+
+  const topButtons = document.querySelector('.top-buttons');
+  const landingShell = document.querySelector('.landing-shell');
+
+  if (topButtons) {
+    topButtons.insertAdjacentElement('afterend', nav);
+  } else if (landingShell) {
+    landingShell.insertAdjacentElement('afterbegin', nav);
+  } else {
+    document.body.appendChild(nav);
+  }
 
   const signedIn = localStorage.getItem('signedIn');
   const guest = localStorage.getItem('guest');

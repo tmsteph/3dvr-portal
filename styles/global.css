@@ -225,7 +225,16 @@ body.theme-dark::after {
   }
 
   .top-buttons {
-    max-width: calc(100% - 1rem);
+    flex-direction: column;
+    align-items: stretch;
+    width: min(100%, 420px);
+    padding: 1rem;
+    gap: 0.65rem;
     margin-bottom: 2rem;
+    border-radius: var(--radius-lg);
+  }
+
+  .top-buttons a {
+    width: 100%;
   }
 }
