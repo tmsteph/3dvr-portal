@@ -44,45 +44,58 @@
           </div>
           <p>Everything you need to collaborate, compete, and grow lives here. Pick an app to get started in seconds.</p>
         </div>
+        <div class="app-search" role="search">
+          <input
+            type="search"
+            id="appSearch"
+            class="app-search__input"
+            placeholder="Search apps…"
+            aria-label="Search apps"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <span class="app-search__hint" aria-hidden="true">Press / or Ctrl + K to jump here</span>
+        </div>
+        <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
         <div class="app-grid">
           <a href="notes.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">📝</span>
-            <span class="app-card__title">Shared Notes</span>
+            <span class="app-card__title">Notes</span>
             <span class="app-card__meta">Collaborate in real time with the community.</span>
           </a>
           <a href="chat.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">💬</span>
-            <span class="app-card__title">Group Chat</span>
+            <span class="app-card__title">Chat</span>
             <span class="app-card__meta">Stay in the loop and ship ideas faster.</span>
           </a>
           <a href="tasks.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">✅</span>
-            <span class="app-card__title">Task Board</span>
+            <span class="app-card__title">Tasks</span>
             <span class="app-card__meta">Plan, assign, and celebrate team wins.</span>
           </a>
           <a href="games.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🎮</span>
-            <span class="app-card__title">Mini Game Hub</span>
+            <span class="app-card__title">Games</span>
             <span class="app-card__meta">Compete, sharpen skills, and earn bonus points.</span>
           </a>
           <a href="profile.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">👤</span>
-            <span class="app-card__title">Profile Wallet</span>
+            <span class="app-card__title">Profile</span>
             <span class="app-card__meta">Track your progress and manage your rewards.</span>
           </a>
           <a href="education.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🎓</span>
-            <span class="app-card__title">Education Hub</span>
+            <span class="app-card__title">Learn</span>
             <span class="app-card__meta">Unlock new lessons and level up your skills.</span>
           </a>
           <a href="rewards.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🏆</span>
-            <span class="app-card__title">Earn Points</span>
+            <span class="app-card__title">Rewards</span>
             <span class="app-card__meta">Complete challenges to unlock real perks.</span>
           </a>
           <a href="website-builder.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🛠️</span>
-            <span class="app-card__title">Website Builder</span>
+            <span class="app-card__title">Sites</span>
             <span class="app-card__meta">Launch lightweight pages for your projects.</span>
           </a>
           <a href="https://portal.3dvr.tech/contacts" class="app-card">
@@ -152,6 +165,7 @@
       localStorage.setItem('guest', 'true');
       authModal.style.display = 'none';
       authModal.setAttribute('aria-hidden', 'true');
+      window.dispatchEvent(new Event('auth-modal:closed'));
     }
   </script>
 
@@ -187,6 +201,101 @@
     window.addEventListener('appinstalled', () => {
       installBtn.style.display = 'none';
     });
+
+    const appSearchInput = document.getElementById('appSearch');
+    const appCards = Array.from(document.querySelectorAll('.app-card'));
+    const appSearchEmpty = document.getElementById('appSearchEmpty');
+
+    const updateAppFilter = (value = '') => {
+      const query = value.trim().toLowerCase();
+      let visibleCount = 0;
+
+      appCards.forEach((card) => {
+        const titleText = card
+          .querySelector('.app-card__title')
+          ?.textContent?.toLowerCase() ?? '';
+        const metaText = card
+          .querySelector('.app-card__meta')
+          ?.textContent?.toLowerCase() ?? '';
+        const matches = !query || titleText.includes(query) || metaText.includes(query);
+
+        card.hidden = !matches;
+        if (matches) {
+          visibleCount += 1;
+        }
+      });
+
+      if (appSearchEmpty) {
+        appSearchEmpty.hidden = visibleCount > 0;
+      }
+    };
+
+    const getAuthModal = () => document.getElementById('auth-modal');
+
+    const isAuthModalVisible = () => {
+      const authModal = getAuthModal();
+      return authModal?.getAttribute('aria-hidden') === 'false';
+    };
+
+    const focusSearch = () => {
+      if (!appSearchInput) return;
+      if (document.activeElement !== appSearchInput) {
+        try {
+          appSearchInput.focus({ preventScroll: true });
+        } catch (err) {
+          appSearchInput.focus();
+        }
+      }
+      appSearchInput.select();
+    };
+
+    const focusSearchWhenReady = () => {
+      if (!appSearchInput || isAuthModalVisible()) return;
+      window.requestAnimationFrame(() => focusSearch());
+    };
+
+    appSearchInput?.addEventListener('input', (event) => {
+      updateAppFilter(event.target.value);
+    });
+
+    appSearchInput?.addEventListener('search', (event) => {
+      updateAppFilter(event.target.value);
+    });
+
+    appSearchInput?.addEventListener('focus', (event) => {
+      event.target.select();
+    });
+
+    appSearchInput?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+
+      const firstVisibleCard = appCards.find((card) => !card.hidden);
+      if (!firstVisibleCard) return;
+
+      event.preventDefault();
+      firstVisibleCard.focus();
+      firstVisibleCard.click();
+    });
+
+    window.addEventListener('keydown', (event) => {
+      const isSlash = event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey;
+      const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
+
+      if ((isSlash || isCommandK) && document.activeElement !== appSearchInput) {
+        event.preventDefault();
+        focusSearch();
+      }
+    });
+
+    window.addEventListener('load', () => {
+      focusSearchWhenReady();
+    });
+
+    window.addEventListener('auth-modal:closed', () => {
+      focusSearchWhenReady();
+    });
+
+    updateAppFilter(appSearchInput?.value ?? '');
   </script>
 </body>
 </html>
