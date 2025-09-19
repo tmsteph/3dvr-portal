@@ -6,6 +6,7 @@
   <title>3DVR Portal</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <link rel="stylesheet" href="styles/global.css">
   <link rel="stylesheet" href="index-style.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0e1116">
@@ -13,118 +14,179 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
-  
 </head>
+<body class="landing theme-dark">
+  <div class="landing-shell">
+    <nav class="top-buttons" aria-label="3DVR quick links">
+      <a href="https://3dvr.tech">🏠 3DVR Home</a>
+      <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+      <a href="https://3dvr-portal.vercel.app/free-trial.html" target="_blank" rel="noopener">🎁 Free Plan</a>
+      <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 Contribute on GitHub</a>
+      <a href="https://portal.3dvr.tech/share.html">Share via QR Code</a>
+    </nav>
 
-<body>
+    <main class="landing-content">
+      <section class="hero" aria-labelledby="landing-title">
+        <span class="hero-eyebrow">Open Metaverse Community</span>
+        <h1 id="landing-title">Welcome to the 3DVR Portal</h1>
+        <p class="hero-tagline">Earn, play, and build the future of the web together.</p>
+        <div class="hero-actions">
+          <a href="sign-in.html" class="cta primary">Start earning</a>
+          <a href="free-trial.html" class="cta ghost" target="_blank" rel="noopener">Explore plans</a>
+        </div>
+      </section>
 
-<div class="top-buttons">
-  <a href="https://3dvr.tech">🏠 3DVR Home</a>
-  <a href="https://3dvr.tech/#subscribe" target="_blank">⭐ Subscribe</a>
-  <a href="https://3dvr-portal.vercel.app/free-trial.html" target="_blank">🎁 Free Plan</a>
-  <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 Contribute on GitHub</a>
-  <a href="https://portal.3dvr.tech/share.html">Share via QR Code</a>
-</div>
+      <section class="app-hub" aria-labelledby="app-hub-title">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Launchpad</span>
+            <h2 id="app-hub-title">Your apps, ready to go</h2>
+          </div>
+          <p>Everything you need to collaborate, compete, and grow lives here. Pick an app to get started in seconds.</p>
+        </div>
+        <div class="app-grid">
+          <a href="notes.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">📝</span>
+            <span class="app-card__title">Shared Notes</span>
+            <span class="app-card__meta">Collaborate in real time with the community.</span>
+          </a>
+          <a href="chat.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">💬</span>
+            <span class="app-card__title">Group Chat</span>
+            <span class="app-card__meta">Stay in the loop and ship ideas faster.</span>
+          </a>
+          <a href="tasks.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">✅</span>
+            <span class="app-card__title">Task Board</span>
+            <span class="app-card__meta">Plan, assign, and celebrate team wins.</span>
+          </a>
+          <a href="games.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🎮</span>
+            <span class="app-card__title">Mini Game Hub</span>
+            <span class="app-card__meta">Compete, sharpen skills, and earn bonus points.</span>
+          </a>
+          <a href="profile.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">👤</span>
+            <span class="app-card__title">Profile Wallet</span>
+            <span class="app-card__meta">Track your progress and manage your rewards.</span>
+          </a>
+          <a href="education.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🎓</span>
+            <span class="app-card__title">Education Hub</span>
+            <span class="app-card__meta">Unlock new lessons and level up your skills.</span>
+          </a>
+          <a href="rewards.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🏆</span>
+            <span class="app-card__title">Earn Points</span>
+            <span class="app-card__meta">Complete challenges to unlock real perks.</span>
+          </a>
+          <a href="website-builder.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🛠️</span>
+            <span class="app-card__title">Website Builder</span>
+            <span class="app-card__meta">Launch lightweight pages for your projects.</span>
+          </a>
+          <a href="https://portal.3dvr.tech/contacts" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">📇</span>
+            <span class="app-card__title">Contacts</span>
+            <span class="app-card__meta">Keep teammates and partners close.</span>
+          </a>
+        </div>
+      </section>
 
-<header>
-  <h1>Welcome to the 3DVR Portal</h1>
-  <p>Earn, Play, and Build the Future!</p>
-</header>
+      <section class="info-panels" aria-label="How points work">
+        <article class="info-card">
+          <h3>🌟 Earn Points. Unlock Rewards.</h3>
+          <p>At 3DVR, everything you do helps you grow. Play, learn, and contribute while your progress syncs across every device.</p>
+          <p>Use your points to unlock exclusive educational content, special services, and even future cash-out opportunities.</p>
+        </article>
+        <article class="info-card">
+          <h3>How to build momentum</h3>
+          <ul>
+            <li><strong>Play</strong> games in the hub to sharpen skills and climb the leaderboard.</li>
+            <li><strong>Collaborate</strong> in shared notes, chat, and tasks to support the mission.</li>
+            <li><strong>Subscribe</strong> or share the portal to unlock pro tools and new rewards.</li>
+          </ul>
+          <p class="info-card__footer">🎯 Build your profile, contribute to the community, and be rewarded along the way.</p>
+        </article>
+      </section>
+    </main>
 
-<div class="info">
-  <h2>🌟 Earn Points. Unlock Rewards.</h2>
-  <p>At 3DVR, everything you do helps you grow!</p>
-  <p><strong>Earn points</strong> by playing games, participating in chats, and subscribing to support our mission.</p>
-  <p>Use your points to unlock exclusive educational content, special services, and even future cash-out opportunities!</p>
-  <p>🎯 Build your profile, contribute to the community, and be rewarded along the way.</p>
-</div>
+    <footer>
+      3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
+    </footer>
+  </div>
 
-<div class="grid">
-  <a href="notes.html" class="card">Shared Notes</a>
-  <a href="chat.html" class="card">Group Chat</a>
-  <a href="tasks.html" class="card">Task Board</a>
-  <a href="games.html" class="card">Mini Game Hub</a>
-  <a href="profile.html" class="card">Profile Wallet</a>
-  <a href="education.html" class="card">Education Hub</a>
-  <a href="rewards.html" class="card">Earn Points</a>
-  <a href="website-builder.html" class="card">Website Builder</a>
-  <a href="https://portal.3dvr.tech/contacts" class="card">Contacts</a>
-</div>
+  <div id="auth-modal" class="auth-modal" aria-hidden="true">
+    <div class="auth-modal__panel" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+      <h2 id="auth-modal-title">Sign in to save your progress</h2>
+      <p>Create an account to sync your points across all your devices.</p>
+      <div class="auth-modal__actions">
+        <button type="button" class="cta primary" onclick="window.location.href='sign-in.html'">Sign in / Create account</button>
+        <button type="button" class="cta ghost" onclick="continueAsGuest()">Continue as guest</button>
+      </div>
+    </div>
+  </div>
 
-<footer>
-  3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
-</footer>
+  <button id="installBtn" class="install-btn cta primary" type="button">⬇️ Install 3DVR Portal</button>
 
-<div id="auth-modal" style="display: none;">
-  <h2>Sign In to Save Your Progress</h2>
-  <p>Create an account to sync your points across all your devices!</p>
-  <button onclick="window.location.href='sign-in.html'">Sign In / Create Account</button>
-  <button class="guest-btn" onclick="continueAsGuest()">Continue as Guest</button>
-</div>
+  <script>
+    const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+    const user = gun.user();
 
-<script>
-  const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
-  const user = gun.user();
-
-  window.addEventListener('load', () => {
-    const signedIn = localStorage.getItem('signedIn');
-    const guest = localStorage.getItem('guest');
-    const username = localStorage.getItem('username');
-    const password = localStorage.getItem('password');
-
-    if (!signedIn && !guest) {
-      document.getElementById('auth-modal').style.display = 'flex';
-    }
-  });
-
-  function continueAsGuest() {
-    localStorage.setItem('guest', 'true');
-    document.getElementById('auth-modal').style.display = 'none';
-  }
-</script>
-
-<script src="navbar.js"></script>
-
-
-  <!-- PWA install button (hidden until eligible) -->
-<button id="installBtn" style="position:fixed;right:1rem;bottom:1rem;display:none;z-index:9999;">
-  ⬇️ Install 3DVR Portal
-</button>
-
-<script>
-  // Register service worker
-  if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
-        .catch(err => console.error('SW registration failed:', err));
+      const signedIn = localStorage.getItem('signedIn');
+      const guest = localStorage.getItem('guest');
+      const authModal = document.getElementById('auth-modal');
+
+      if (!signedIn && !guest) {
+        authModal.style.display = 'flex';
+        authModal.setAttribute('aria-hidden', 'false');
+      } else {
+        authModal.style.display = 'none';
+        authModal.setAttribute('aria-hidden', 'true');
+      }
     });
-  }
 
-  // Handle install prompt (Android/Desktop)
-  let deferredPrompt;
-  const installBtn = document.getElementById('installBtn');
+    function continueAsGuest() {
+      const authModal = document.getElementById('auth-modal');
+      localStorage.setItem('guest', 'true');
+      authModal.style.display = 'none';
+      authModal.setAttribute('aria-hidden', 'true');
+    }
+  </script>
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = 'inline-block';
-  });
+  <script src="navbar.js"></script>
 
-  installBtn?.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    installBtn.style.display = 'none';
-    console.log('Install choice:', outcome);
-  });
+  <script>
+    const installBtn = document.getElementById('installBtn');
 
-  // Optional: hide button if already installed
-  window.addEventListener('appinstalled', () => {
-    installBtn.style.display = 'none';
-  });
-</script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+          .catch(err => console.error('SW registration failed:', err));
+      });
+    }
 
+    let deferredPrompt;
 
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'inline-flex';
+    });
+
+    installBtn?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+      console.log('Install choice:', outcome);
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installBtn.style.display = 'none';
+    });
+  </script>
 </body>
 </html>
