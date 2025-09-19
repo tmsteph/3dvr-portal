@@ -2,8 +2,10 @@
   "name": "3dvr-portal",
   "version": "1.0.0",
   "description": "Main portal for 3dvr.tech with Stripe webhooks and email notifications",
+  "type": "module",
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "test": "node --test"
   },
   "dependencies": {
     "stripe": "^12.17.0",
