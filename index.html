@@ -18,61 +18,24 @@
 <body class="landing theme-dark">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="landing-shell">
-    <header class="landing-header" role="banner">
-      <div class="landing-header__inner">
-        <a class="landing-header__brand" href="index.html">
-          <span class="landing-header__logo" aria-hidden="true">🌌</span>
-          <span class="landing-header__text">
-            <span class="landing-header__title">3DVR Portal</span>
-            <span class="landing-header__subtitle">Open Metaverse Community</span>
-          </span>
-        </a>
-        <button
-          class="landing-header__toggle"
-          type="button"
-          aria-expanded="false"
-          aria-controls="landing-navigation"
-        >
-          <span class="landing-header__toggle-icon" aria-hidden="true"></span>
-          <span class="landing-header__toggle-text">Menu</span>
-        </button>
-        <nav class="landing-header__nav" id="landing-navigation" aria-label="Main navigation">
-          <ul class="landing-header__links">
-            <li><a class="landing-header__link" href="#apps">Apps</a></li>
-            <li>
-              <a class="landing-header__link" href="https://portal.3dvr.tech/contacts">Contacts</a>
-            </li>
-            <li><a class="landing-header__link" href="share.html">Share</a></li>
-            <li>
-              <a
-                class="landing-header__link"
-                href="https://3dvr.tech"
-                target="_blank"
-                rel="noopener"
-              >3DVR.Tech</a>
-            </li>
-            <li>
-              <a
-                class="landing-header__link"
-                href="https://github.com/tmsteph/3dvr-portal"
-                target="_blank"
-                rel="noopener"
-              >GitHub</a>
-            </li>
-          </ul>
-          <div class="landing-header__actions">
-            <a
-              class="landing-header__action-link"
-              href="https://3dvr.tech/#subscribe"
-              target="_blank"
-              rel="noopener"
-            >Subscribe</a>
-            <a class="cta ghost" href="free-trial.html" target="_blank" rel="noopener">Free Plan</a>
-            <a class="cta primary" href="sign-in.html">Sign in</a>
-          </div>
-        </nav>
-      </div>
-    </header>
+    <div class="top-nav top-nav--expanded">
+      <button
+        class="top-nav__toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="landingQuickLinks"
+      >
+        <span class="top-nav__toggle-icon" aria-hidden="true"></span>
+        <span class="top-nav__toggle-text">Menu</span>
+      </button>
+      <nav class="top-buttons" id="landingQuickLinks" aria-label="3DVR quick links">
+        <a href="https://3dvr.tech">🏠 3DVR Home</a>
+        <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+        <a href="https://3dvr-portal.vercel.app/free-trial.html" target="_blank" rel="noopener">🎁 Free Plan</a>
+        <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 Contribute on GitHub</a>
+        <a href="https://portal.3dvr.tech/share.html">Share via QR Code</a>
+      </nav>
+    </div>
 
     <main id="mainContent" class="landing-content">
       <section class="hero" aria-labelledby="landing-title">
@@ -85,7 +48,7 @@
         </div>
       </section>
 
-      <section id="apps" class="app-hub" aria-labelledby="app-hub-title">
+      <section class="app-hub" aria-labelledby="app-hub-title">
         <div class="section-heading">
           <div>
             <span class="eyebrow">Launchpad</span>
@@ -251,47 +214,45 @@
       installBtn.style.display = 'none';
     });
 
-    const landingHeader = document.querySelector('.landing-header');
-    const landingNav = document.getElementById('landing-navigation');
-    const landingNavToggle = document.querySelector('.landing-header__toggle');
+    const topNav = document.querySelector('.top-nav');
+    const topNavToggle = document.querySelector('.top-nav__toggle');
+    const topNavLinks = document.getElementById('landingQuickLinks');
+    const desktopQuery = window.matchMedia('(min-width: 721px)');
 
-    if (landingNav && landingNavToggle) {
-      const toggleText = landingNavToggle.querySelector('.landing-header__toggle-text');
-
+    if (topNav && topNavToggle && topNavLinks) {
       const setNavExpanded = (expanded) => {
-        landingNavToggle.setAttribute('aria-expanded', String(expanded));
-        if (toggleText) {
-          toggleText.textContent = expanded ? 'Close' : 'Menu';
+        topNavToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        topNav.classList.toggle('top-nav--expanded', expanded);
+        topNav.classList.toggle('top-nav--collapsed', !expanded);
+
+        if (expanded || desktopQuery.matches) {
+          topNavLinks.removeAttribute('hidden');
+        } else {
+          topNavLinks.setAttribute('hidden', '');
         }
-        landingNav.classList.toggle('landing-header__nav--open', expanded);
-        landingHeader?.classList.toggle('landing-header--open', expanded);
       };
 
-      landingNavToggle.addEventListener('click', () => {
-        const isExpanded = landingNavToggle.getAttribute('aria-expanded') === 'true';
-        setNavExpanded(!isExpanded);
-      });
-
-      window.addEventListener('resize', () => {
-        if (window.innerWidth > 768) {
-          setNavExpanded(false);
+      const syncNavWithViewport = () => {
+        if (desktopQuery.matches) {
+          setNavExpanded(true);
+        } else {
+          const expanded = topNavToggle.getAttribute('aria-expanded') === 'true';
+          setNavExpanded(expanded);
         }
+      };
+
+      topNavToggle.addEventListener('click', () => {
+        const expanded = topNavToggle.getAttribute('aria-expanded') === 'true';
+        setNavExpanded(!expanded);
       });
 
-      window.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && landingNav.classList.contains('landing-header__nav--open')) {
-          setNavExpanded(false);
-          landingNavToggle.focus();
-        }
-      });
+      syncNavWithViewport();
 
-      landingNav.querySelectorAll('a').forEach((link) => {
-        link.addEventListener('click', () => {
-          if (landingNav.classList.contains('landing-header__nav--open')) {
-            setNavExpanded(false);
-          }
-        });
-      });
+      if (typeof desktopQuery.addEventListener === 'function') {
+        desktopQuery.addEventListener('change', syncNavWithViewport);
+      } else if (typeof desktopQuery.addListener === 'function') {
+        desktopQuery.addListener(syncNavWithViewport);
+      }
     }
 
     const appSearchInput = document.getElementById('appSearch');
