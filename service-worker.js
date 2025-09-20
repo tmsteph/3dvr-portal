@@ -1,7 +1,7 @@
 /* service-worker.js */
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 
@@ -33,6 +33,35 @@ const networkFirst = async (req) => {
     if (cached) return cached;
     throw error;
   }
+};
+
+const staleWhileRevalidate = (event, cacheName) => {
+  event.respondWith((async () => {
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(event.request);
+
+    const fetchPromise = fetch(event.request, { cache: 'reload' })
+      .then((res) => {
+        if (res && (res.ok || res.type === 'opaque')) {
+          cache.put(event.request, res.clone());
+        }
+        return res;
+      })
+      .catch(() => null);
+
+    if (cached) {
+      event.waitUntil(fetchPromise);
+      return cached;
+    }
+
+    const fresh = await fetchPromise;
+    if (fresh) return fresh;
+
+    const fallback = await cache.match(event.request);
+    if (fallback) return fallback;
+
+    return Response.error();
+  })());
 };
 
 self.addEventListener('install', (event) => {
@@ -90,18 +119,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets
+  if (['script', 'image', 'font'].includes(req.destination)) {
+    staleWhileRevalidate(event, STATIC_CACHE);
+    return;
+  }
+
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req).then((res) => {
-        const resClone = res.clone();
-        // Optionally restrict what gets cached
-        if (['script', 'style', 'image', 'font'].includes(req.destination)) {
-          caches.open(STATIC_CACHE).then((cache) => cache.put(req, resClone));
-        }
-        return res;
-      });
-    })
+    fetch(req).catch(() => caches.match(req))
   );
 });
