@@ -16,16 +16,28 @@
   <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
 </head>
 <body class="landing theme-dark">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="landing-shell">
-    <nav class="top-buttons" aria-label="3DVR quick links">
-      <a href="https://3dvr.tech">🏠 3DVR Home</a>
-      <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
-      <a href="https://3dvr-portal.vercel.app/free-trial.html" target="_blank" rel="noopener">🎁 Free Plan</a>
-      <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 Contribute on GitHub</a>
-      <a href="https://portal.3dvr.tech/share.html">Share via QR Code</a>
-    </nav>
+    <div class="top-nav top-nav--collapsed">
+      <button
+        class="top-nav__toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="landingQuickLinks"
+      >
+        <span class="top-nav__toggle-icon" aria-hidden="true"></span>
+        <span class="top-nav__toggle-text">Menu</span>
+      </button>
+      <nav class="top-buttons" id="landingQuickLinks" aria-label="3DVR quick links">
+        <a href="https://3dvr.tech">🏠 3DVR Home</a>
+        <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+        <a href="https://3dvr-portal.vercel.app/free-trial.html" target="_blank" rel="noopener">🎁 Free Plan</a>
+        <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 Contribute on GitHub</a>
+        <a href="https://portal.3dvr.tech/share.html">Share via QR Code</a>
+      </nav>
+    </div>
 
-    <main class="landing-content">
+    <main id="mainContent" class="landing-content">
       <section class="hero" aria-labelledby="landing-title">
         <span class="hero-eyebrow">Open Metaverse Community</span>
         <h1 id="landing-title">Welcome to the 3DVR Portal</h1>
@@ -201,6 +213,47 @@
     window.addEventListener('appinstalled', () => {
       installBtn.style.display = 'none';
     });
+
+    const topNav = document.querySelector('.top-nav');
+    const topNavToggle = document.querySelector('.top-nav__toggle');
+    const topNavLinks = document.getElementById('landingQuickLinks');
+    const desktopQuery = window.matchMedia('(min-width: 721px)');
+
+    if (topNav && topNavToggle && topNavLinks) {
+      const setNavExpanded = (expanded) => {
+        topNavToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        topNav.classList.toggle('top-nav--expanded', expanded);
+        topNav.classList.toggle('top-nav--collapsed', !expanded);
+
+        if (expanded || desktopQuery.matches) {
+          topNavLinks.removeAttribute('hidden');
+        } else {
+          topNavLinks.setAttribute('hidden', '');
+        }
+      };
+
+      const syncNavWithViewport = () => {
+        if (desktopQuery.matches) {
+          setNavExpanded(true);
+        } else {
+          const expanded = topNavToggle.getAttribute('aria-expanded') === 'true';
+          setNavExpanded(expanded);
+        }
+      };
+
+      topNavToggle.addEventListener('click', () => {
+        const expanded = topNavToggle.getAttribute('aria-expanded') === 'true';
+        setNavExpanded(!expanded);
+      });
+
+      syncNavWithViewport();
+
+      if (typeof desktopQuery.addEventListener === 'function') {
+        desktopQuery.addEventListener('change', syncNavWithViewport);
+      } else if (typeof desktopQuery.addListener === 'function') {
+        desktopQuery.addListener(syncNavWithViewport);
+      }
+    }
 
     const appSearchInput = document.getElementById('appSearch');
     const appCards = Array.from(document.querySelectorAll('.app-card'));

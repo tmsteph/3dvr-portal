@@ -37,10 +37,13 @@ function createNavbar() {
   nav.appendChild(button);
 
   const topButtons = document.querySelector('.top-buttons');
+  const landingHeader = document.querySelector('.landing-header');
   const landingShell = document.querySelector('.landing-shell');
 
   if (topButtons) {
     topButtons.insertAdjacentElement('afterend', nav);
+  } else if (landingHeader) {
+    landingHeader.insertAdjacentElement('afterend', nav);
   } else if (landingShell) {
     landingShell.insertAdjacentElement('afterbegin', nav);
   } else {
