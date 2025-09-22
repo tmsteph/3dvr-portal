@@ -45,18 +45,10 @@
         <div class="hero-actions">
           <a href="sign-in.html" class="cta primary">Start earning</a>
           <a href="free-trial.html" class="cta ghost" target="_blank" rel="noopener">Explore plans</a>
-        </div>
-        <div class="hero-search" role="search" aria-label="Quickly search available apps">
-          <input
-            type="search"
-            id="appSearchTop"
-            class="app-search__input hero-search__input"
-            placeholder="Search apps…"
-            aria-label="Search apps"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <span class="app-search__hint hero-search__hint" aria-hidden="true">Press / or Ctrl + K to jump to search</span>
+          <button type="button" class="cta ghost hero-actions__search" id="appSearchTrigger">
+            <span>Jump to app search</span>
+            <span class="hero-actions__search-icon" aria-hidden="true">↓</span>
+          </button>
         </div>
       </section>
 
@@ -75,10 +67,11 @@
             class="app-search__input"
             placeholder="Search apps…"
             aria-label="Search apps"
+            aria-describedby="appSearchHint"
             autocomplete="off"
             spellcheck="false"
           />
-          <span class="app-search__hint" aria-hidden="true">Results update as you type</span>
+          <span id="appSearchHint" class="app-search__hint">Press / or Ctrl + K to jump here · Results update as you type.</span>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
         <div class="app-grid">
@@ -267,9 +260,8 @@
       }
     }
 
-    const appSearchTopInput = document.getElementById('appSearchTop');
     const appSearchInput = document.getElementById('appSearch');
-    const appSearchInputs = [appSearchTopInput, appSearchInput].filter(Boolean);
+    const appSearchTrigger = document.getElementById('appSearchTrigger');
     const appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
     const appHubSection = document.querySelector('.app-hub');
@@ -303,15 +295,6 @@
       }
     };
 
-    const syncSearchValues = (value, sourceInput = null) => {
-      appSearchInputs.forEach((input) => {
-        if (!input || input === sourceInput) return;
-        if (input.value !== value) {
-          input.value = value;
-        }
-      });
-    };
-
     const scrollAppsIntoView = () => {
       if (!appHubSection) return;
       const prefersReducedMotion = prefersReducedMotionQuery?.matches;
@@ -319,9 +302,8 @@
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
         block: 'start',
       });
+      hasScrolledToApps = true;
     };
-
-    const getPrimarySearchInput = () => appSearchTopInput ?? appSearchInput;
 
     const getAuthModal = () => document.getElementById('auth-modal');
 
@@ -330,28 +312,23 @@
       return authModal?.getAttribute('aria-hidden') === 'false';
     };
 
-    const focusSearch = () => {
-      const targetInput = getPrimarySearchInput();
-      if (!targetInput) return;
-      if (document.activeElement !== targetInput) {
+    const focusSearch = ({ scroll = true } = {}) => {
+      if (!appSearchInput || isAuthModalVisible()) return;
+      if (document.activeElement !== appSearchInput) {
         try {
-          targetInput.focus({ preventScroll: true });
+          appSearchInput.focus({ preventScroll: true });
         } catch (err) {
-          targetInput.focus();
+          appSearchInput.focus();
         }
       }
-      targetInput.select();
-    };
-
-    const focusSearchWhenReady = () => {
-      const targetInput = getPrimarySearchInput();
-      if (!targetInput || isAuthModalVisible()) return;
-      window.requestAnimationFrame(() => focusSearch());
+      appSearchInput.select();
+      if (scroll) {
+        scrollAppsIntoView();
+      }
     };
 
     const handleSearchInput = (event) => {
       const value = event.target?.value ?? '';
-      syncSearchValues(value, event.target);
       updateAppFilter(value);
 
       const trimmedValue = value.trim();
@@ -360,8 +337,7 @@
         return;
       }
 
-      if (event.target === appSearchTopInput && !hasScrolledToApps) {
-        hasScrolledToApps = true;
+      if (!hasScrolledToApps) {
         scrollAppsIntoView();
       }
     };
@@ -377,20 +353,26 @@
       firstVisibleCard.click();
     };
 
-    appSearchInputs.forEach((input) => {
-      input.addEventListener('input', handleSearchInput);
-      input.addEventListener('search', handleSearchInput);
-      input.addEventListener('focus', (event) => {
+    if (appSearchInput) {
+      appSearchInput.addEventListener('input', handleSearchInput);
+      appSearchInput.addEventListener('search', handleSearchInput);
+      appSearchInput.addEventListener('focus', (event) => {
         event.target.select();
       });
-      input.addEventListener('keydown', handleSearchKeydown);
-    });
+      appSearchInput.addEventListener('keydown', handleSearchKeydown);
+    }
+
+    if (appSearchTrigger) {
+      appSearchTrigger.addEventListener('click', () => {
+        focusSearch();
+      });
+    }
 
     window.addEventListener('keydown', (event) => {
       const isSlash = event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey;
       const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
 
-      const isSearchActive = appSearchInputs.includes(document.activeElement);
+      const isSearchActive = document.activeElement === appSearchInput;
 
       if ((isSlash || isCommandK) && !isSearchActive) {
         event.preventDefault();
@@ -398,17 +380,7 @@
       }
     });
 
-    window.addEventListener('load', () => {
-      focusSearchWhenReady();
-    });
-
-    window.addEventListener('auth-modal:closed', () => {
-      focusSearchWhenReady();
-    });
-
-    const initialSearchValue =
-      getPrimarySearchInput()?.value ?? appSearchInput?.value ?? '';
-    syncSearchValues(initialSearchValue);
+    const initialSearchValue = appSearchInput?.value ?? '';
     updateAppFilter(initialSearchValue);
   </script>
 </body>

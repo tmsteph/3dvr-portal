@@ -161,22 +161,6 @@ body.landing {
   margin-top: 0.75rem;
 }
 
-.hero-search {
-  display: grid;
-  justify-items: center;
-  gap: 0.6rem;
-  width: min(540px, 100%);
-  margin: 0 auto;
-}
-
-.hero-search__input {
-  width: 100%;
-}
-
-.hero-search__hint {
-  text-align: center;
-}
-
 .cta {
   display: inline-flex;
   align-items: center;
@@ -219,6 +203,24 @@ body.landing {
   border-color: var(--accent-strong);
   color: var(--accent-strong);
   background: rgba(56, 189, 248, 0.18);
+}
+
+.hero-actions__search {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: var(--accent-strong);
+}
+
+.hero-actions__search:hover {
+  background: rgba(56, 189, 248, 0.24);
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+
+.hero-actions__search-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  transform: translateY(1px);
 }
 
 .section-heading {
