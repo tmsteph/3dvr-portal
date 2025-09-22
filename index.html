@@ -42,13 +42,28 @@
         <span class="hero-eyebrow">Open Metaverse Community</span>
         <h1 id="landing-title">Welcome to the 3DVR Portal</h1>
         <p class="hero-tagline">Earn, play, and build the future of the web together.</p>
+        <div
+          class="hero-search"
+          role="search"
+          aria-label="Filter app list"
+          data-app-search-container
+        >
+          <input
+            type="search"
+            id="appSearch"
+            class="app-search__input hero-search__input"
+            placeholder="Search apps…"
+            aria-label="Search apps"
+            aria-describedby="appSearchHint"
+            autocomplete="off"
+            spellcheck="false"
+            data-app-search-input
+          />
+          <span id="appSearchHint" class="app-search__hint hero-search__hint">Press / or Ctrl + K to jump here · Results update as you type.</span>
+        </div>
         <div class="hero-actions">
           <a href="sign-in.html" class="cta primary">Start earning</a>
           <a href="free-trial.html" class="cta ghost" target="_blank" rel="noopener">Explore plans</a>
-          <button type="button" class="cta ghost hero-actions__search" id="appSearchTrigger">
-            <span>Jump to app search</span>
-            <span class="hero-actions__search-icon" aria-hidden="true">↓</span>
-          </button>
         </div>
       </section>
 
@@ -59,19 +74,6 @@
             <h2 id="app-hub-title">Your apps, ready to go</h2>
           </div>
           <p>Everything you need to collaborate, compete, and grow lives here. Pick an app to get started in seconds.</p>
-        </div>
-        <div class="app-search" role="search" aria-label="Filter app list">
-          <input
-            type="search"
-            id="appSearch"
-            class="app-search__input"
-            placeholder="Search apps…"
-            aria-label="Search apps"
-            aria-describedby="appSearchHint"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <span id="appSearchHint" class="app-search__hint">Press / or Ctrl + K to jump here · Results update as you type.</span>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
         <div class="app-grid">
@@ -260,11 +262,16 @@
       }
     }
 
-    const appSearchInput = document.getElementById('appSearch');
-    const appSearchTrigger = document.getElementById('appSearchTrigger');
+    const searchInputs = Array.from(
+      document.querySelectorAll('[data-app-search-input]')
+    );
+    const primarySearchInput = searchInputs[0];
     const appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
-    const appHubSection = document.querySelector('.app-hub');
+    const heroSearchContainer = document.querySelector(
+      '[data-app-search-container]'
+    );
+    const appGrid = document.querySelector('.app-grid');
     const prefersReducedMotionQuery =
       typeof window.matchMedia === 'function'
         ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -295,12 +302,33 @@
       }
     };
 
+    const syncSearchInputs = (value, source) => {
+      searchInputs.forEach((input) => {
+        if (input === source) return;
+        if (input.value !== value) {
+          input.value = value;
+        }
+      });
+    };
+
     const scrollAppsIntoView = () => {
-      if (!appHubSection) return;
+      if (!appGrid) return;
       const prefersReducedMotion = prefersReducedMotionQuery?.matches;
-      appHubSection.scrollIntoView({
+      let offset = 80;
+
+      if (heroSearchContainer) {
+        const styles = window.getComputedStyle(heroSearchContainer);
+        const marginTop = Number.parseFloat(styles.marginTop) || 0;
+        const marginBottom = Number.parseFloat(styles.marginBottom) || 0;
+        offset = heroSearchContainer.offsetHeight + marginTop + marginBottom + 16;
+      }
+
+      const gridTop = appGrid.getBoundingClientRect().top + window.pageYOffset;
+      const targetTop = Math.max(gridTop - offset, 0);
+
+      window.scrollTo({
+        top: targetTop,
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
-        block: 'start',
       });
       hasScrolledToApps = true;
     };
@@ -312,16 +340,16 @@
       return authModal?.getAttribute('aria-hidden') === 'false';
     };
 
-    const focusSearch = ({ scroll = true } = {}) => {
-      if (!appSearchInput || isAuthModalVisible()) return;
-      if (document.activeElement !== appSearchInput) {
+    const focusSearch = ({ scroll = false } = {}) => {
+      if (!primarySearchInput || isAuthModalVisible()) return;
+      if (document.activeElement !== primarySearchInput) {
         try {
-          appSearchInput.focus({ preventScroll: true });
+          primarySearchInput.focus({ preventScroll: true });
         } catch (err) {
-          appSearchInput.focus();
+          primarySearchInput.focus();
         }
       }
-      appSearchInput.select();
+      primarySearchInput.select();
       if (scroll) {
         scrollAppsIntoView();
       }
@@ -329,6 +357,7 @@
 
     const handleSearchInput = (event) => {
       const value = event.target?.value ?? '';
+      syncSearchInputs(value, event.target);
       updateAppFilter(value);
 
       const trimmedValue = value.trim();
@@ -353,26 +382,20 @@
       firstVisibleCard.click();
     };
 
-    if (appSearchInput) {
-      appSearchInput.addEventListener('input', handleSearchInput);
-      appSearchInput.addEventListener('search', handleSearchInput);
-      appSearchInput.addEventListener('focus', (event) => {
+    searchInputs.forEach((input) => {
+      input.addEventListener('input', handleSearchInput);
+      input.addEventListener('search', handleSearchInput);
+      input.addEventListener('focus', (event) => {
         event.target.select();
       });
-      appSearchInput.addEventListener('keydown', handleSearchKeydown);
-    }
-
-    if (appSearchTrigger) {
-      appSearchTrigger.addEventListener('click', () => {
-        focusSearch();
-      });
-    }
+      input.addEventListener('keydown', handleSearchKeydown);
+    });
 
     window.addEventListener('keydown', (event) => {
       const isSlash = event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey;
       const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
 
-      const isSearchActive = document.activeElement === appSearchInput;
+      const isSearchActive = searchInputs.includes(document.activeElement);
 
       if ((isSlash || isCommandK) && !isSearchActive) {
         event.preventDefault();
@@ -380,7 +403,20 @@
       }
     });
 
-    const initialSearchValue = appSearchInput?.value ?? '';
+    const focusSearchWhenReady = () => {
+      if (!primarySearchInput || isAuthModalVisible()) return;
+      window.requestAnimationFrame(() => focusSearch());
+    };
+
+    window.addEventListener('load', () => {
+      focusSearchWhenReady();
+    });
+
+    window.addEventListener('auth-modal:closed', () => {
+      focusSearchWhenReady();
+    });
+
+    const initialSearchValue = primarySearchInput?.value ?? '';
     updateAppFilter(initialSearchValue);
   </script>
 </body>
