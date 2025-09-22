@@ -313,20 +313,37 @@
       });
     };
 
-    const scrollAppsIntoView = () => {
-      if (!appGrid) return;
+    const scrollAppsIntoView = ({ alignSearch = false } = {}) => {
       const prefersReducedMotion = prefersReducedMotionQuery?.matches;
-      let offset = 80;
+      let targetTop;
 
-      if (searchPanel) {
+      if (alignSearch && searchPanel) {
         const styles = window.getComputedStyle(searchPanel);
+        const stickyTop = Number.parseFloat(styles.top) || 0;
         const marginTop = Number.parseFloat(styles.marginTop) || 0;
-        const marginBottom = Number.parseFloat(styles.marginBottom) || 0;
-        offset = searchPanel.offsetHeight + marginTop + marginBottom + 16;
+        const searchTop =
+          searchPanel.getBoundingClientRect().top + window.pageYOffset;
+
+        targetTop = Math.max(searchTop - stickyTop - marginTop, 0);
       }
 
-      const gridTop = appGrid.getBoundingClientRect().top + window.pageYOffset;
-      const targetTop = Math.max(gridTop - offset, 0);
+      if (targetTop == null && appGrid) {
+        let offset = 80;
+
+        if (searchPanel) {
+          const styles = window.getComputedStyle(searchPanel);
+          const marginTop = Number.parseFloat(styles.marginTop) || 0;
+          const marginBottom = Number.parseFloat(styles.marginBottom) || 0;
+
+          offset = searchPanel.offsetHeight + marginTop + marginBottom + 16;
+        }
+
+        const gridTop =
+          appGrid.getBoundingClientRect().top + window.pageYOffset;
+        targetTop = Math.max(gridTop - offset, 0);
+      }
+
+      if (targetTop == null) return;
 
       window.scrollTo({
         top: targetTop,
@@ -350,7 +367,7 @@
       return rect.top < viewportHeight && rect.bottom > 0;
     };
 
-    const focusSearch = ({ scroll = false } = {}) => {
+    const focusSearch = ({ scroll = false, alignSearch = false } = {}) => {
       if (!primarySearchInput || isAuthModalVisible()) return;
       if (document.activeElement !== primarySearchInput) {
         try {
@@ -361,7 +378,7 @@
       }
       primarySearchInput.select();
       if (scroll) {
-        scrollAppsIntoView();
+        scrollAppsIntoView({ alignSearch });
       }
     };
 
@@ -377,7 +394,7 @@
       }
 
       if (!hasScrolledToApps) {
-        scrollAppsIntoView();
+        scrollAppsIntoView({ alignSearch: true });
       }
     };
 
@@ -404,7 +421,7 @@
     searchTriggers.forEach((trigger) => {
       trigger.addEventListener('click', (event) => {
         event.preventDefault();
-        focusSearch({ scroll: true });
+        focusSearch({ scroll: true, alignSearch: true });
       });
     });
 
