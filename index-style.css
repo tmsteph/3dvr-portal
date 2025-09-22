@@ -161,6 +161,22 @@ body.landing {
   margin-top: 0.75rem;
 }
 
+.hero-search {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  width: min(540px, 100%);
+  margin: 0 auto;
+}
+
+.hero-search__input {
+  width: 100%;
+}
+
+.hero-search__hint {
+  text-align: center;
+}
+
 .cta {
   display: inline-flex;
   align-items: center;
