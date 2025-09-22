@@ -41,39 +41,40 @@
       <section class="hero" aria-labelledby="landing-title">
         <span class="hero-eyebrow">Open Metaverse Community</span>
         <h1 id="landing-title">Welcome to the 3DVR Portal</h1>
-        <p class="hero-tagline">Earn, play, and build the future of the web together.</p>
-        <div
-          class="hero-search"
-          role="search"
-          aria-label="Filter app list"
-          data-app-search-container
-        >
-          <input
-            type="search"
-            id="appSearch"
-            class="app-search__input hero-search__input"
-            placeholder="Search apps…"
-            aria-label="Search apps"
-            aria-describedby="appSearchHint"
-            autocomplete="off"
-            spellcheck="false"
-            data-app-search-input
-          />
-          <span id="appSearchHint" class="app-search__hint hero-search__hint">Press / or Ctrl + K to jump here · Results update as you type.</span>
-        </div>
+        <p class="hero-tagline">Launch straight into the apps that power the community and keep everyone in sync.</p>
         <div class="hero-actions">
-          <a href="sign-in.html" class="cta primary">Start earning</a>
+          <button type="button" class="cta primary" data-app-search-trigger>Browse apps</button>
+          <a href="sign-in.html" class="cta ghost">Start earning</a>
           <a href="free-trial.html" class="cta ghost" target="_blank" rel="noopener">Explore plans</a>
         </div>
       </section>
 
       <section class="app-hub" aria-labelledby="app-hub-title">
-        <div class="section-heading">
-          <div>
+        <div class="app-hub__header">
+          <div class="app-hub__intro">
             <span class="eyebrow">Launchpad</span>
             <h2 id="app-hub-title">Your apps, ready to go</h2>
+            <p>Everything you need to collaborate, compete, and grow lives here. Pick an app to get started in seconds.</p>
           </div>
-          <p>Everything you need to collaborate, compete, and grow lives here. Pick an app to get started in seconds.</p>
+          <div
+            class="app-search"
+            role="search"
+            aria-label="Filter app list"
+            data-app-search-container
+          >
+            <input
+              type="search"
+              id="appSearch"
+              class="app-search__input"
+              placeholder="Search apps…"
+              aria-label="Search apps"
+              aria-describedby="appSearchHint"
+              autocomplete="off"
+              spellcheck="false"
+              data-app-search-input
+            />
+            <span id="appSearchHint" class="app-search__hint">Press / or Ctrl + K to jump here · Results update as you type.</span>
+          </div>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
         <div class="app-grid">
@@ -268,8 +269,9 @@
     const primarySearchInput = searchInputs[0];
     const appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
-    const heroSearchContainer = document.querySelector(
-      '[data-app-search-container]'
+    const searchPanel = document.querySelector('[data-app-search-container]');
+    const searchTriggers = Array.from(
+      document.querySelectorAll('[data-app-search-trigger]')
     );
     const appGrid = document.querySelector('.app-grid');
     const prefersReducedMotionQuery =
@@ -316,11 +318,11 @@
       const prefersReducedMotion = prefersReducedMotionQuery?.matches;
       let offset = 80;
 
-      if (heroSearchContainer) {
-        const styles = window.getComputedStyle(heroSearchContainer);
+      if (searchPanel) {
+        const styles = window.getComputedStyle(searchPanel);
         const marginTop = Number.parseFloat(styles.marginTop) || 0;
         const marginBottom = Number.parseFloat(styles.marginBottom) || 0;
-        offset = heroSearchContainer.offsetHeight + marginTop + marginBottom + 16;
+        offset = searchPanel.offsetHeight + marginTop + marginBottom + 16;
       }
 
       const gridTop = appGrid.getBoundingClientRect().top + window.pageYOffset;
@@ -338,6 +340,14 @@
     const isAuthModalVisible = () => {
       const authModal = getAuthModal();
       return authModal?.getAttribute('aria-hidden') === 'false';
+    };
+
+    const isSearchPanelInView = () => {
+      if (!searchPanel) return false;
+      const rect = searchPanel.getBoundingClientRect();
+      const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight || 0;
+      return rect.top < viewportHeight && rect.bottom > 0;
     };
 
     const focusSearch = ({ scroll = false } = {}) => {
@@ -391,6 +401,13 @@
       input.addEventListener('keydown', handleSearchKeydown);
     });
 
+    searchTriggers.forEach((trigger) => {
+      trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        focusSearch({ scroll: true });
+      });
+    });
+
     window.addEventListener('keydown', (event) => {
       const isSlash = event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey;
       const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
@@ -405,6 +422,7 @@
 
     const focusSearchWhenReady = () => {
       if (!primarySearchInput || isAuthModalVisible()) return;
+      if (!isSearchPanelInView()) return;
       window.requestAnimationFrame(() => focusSearch());
     };
 
