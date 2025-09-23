@@ -42,31 +42,6 @@
         <span class="hero-eyebrow">Open Metaverse Community</span>
         <h1 id="landing-title">Welcome to the 3DVR Portal</h1>
         <p class="hero-tagline">Launch straight into the apps that power the community and keep everyone in sync.</p>
-        <div
-          class="hero-search"
-          role="search"
-          aria-labelledby="heroSearchLabel"
-          data-app-search-hero
-        >
-          <label id="heroSearchLabel" class="hero-search__label" for="heroAppSearch">
-            Find your next app
-          </label>
-          <div class="hero-search__field">
-            <input
-              type="search"
-              id="heroAppSearch"
-              class="hero-search__input"
-              placeholder="Search apps…"
-              aria-describedby="heroAppSearchHint"
-              autocomplete="off"
-              spellcheck="false"
-              data-app-search-input
-            />
-            <span id="heroAppSearchHint" class="hero-search__hint">
-              Start typing to jump to the apps below. Results update instantly.
-            </span>
-          </div>
-        </div>
         <div class="hero-actions">
           <button type="button" class="cta primary" data-app-search-trigger>Browse apps</button>
           <a href="sign-in.html" class="cta ghost">Start earning</a>
@@ -289,15 +264,11 @@
       }
     }
 
-    const searchInputs = Array.from(
-      document.querySelectorAll('[data-app-search-input]')
-    );
-    const stickySearchPanel = document.querySelector(
+    const searchContainer = document.querySelector(
       '[data-app-search-container][data-app-search-sticky]'
     );
-    const stickySearchInput =
-      stickySearchPanel?.querySelector('[data-app-search-input]') ?? null;
-    const primarySearchInput = stickySearchInput ?? searchInputs[0];
+    const searchInput =
+      searchContainer?.querySelector('[data-app-search-input]') ?? null;
     const appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
     const searchTriggers = Array.from(
@@ -334,15 +305,6 @@
       }
     };
 
-    const syncSearchInputs = (value, source) => {
-      searchInputs.forEach((input) => {
-        if (input === source) return;
-        if (input.value !== value) {
-          input.value = value;
-        }
-      });
-    };
-
     const toPixels = (value) => {
       const parsed = Number.parseFloat(value);
       return Number.isNaN(parsed) ? 0 : parsed;
@@ -351,16 +313,16 @@
     const getFirstVisibleCard = () => appCards.find((card) => !card.hidden);
 
     const ensureSearchAndCardsVisible = () => {
-      if (!stickySearchPanel) return;
+      if (!searchContainer) return;
 
-      const styles = window.getComputedStyle(stickySearchPanel);
+      const styles = window.getComputedStyle(searchContainer);
       const stickyTop = toPixels(styles.top);
       const marginBottom = toPixels(styles.marginBottom);
       const desiredGap = 16;
-      const searchRect = stickySearchPanel.getBoundingClientRect();
+      const searchRect = searchContainer.getBoundingClientRect();
 
       if (searchRect.top < stickyTop) {
-        const adjust = searchRect.top - stickyTop;
+        const adjust = stickyTop - searchRect.top;
         window.scrollBy({ top: adjust, behavior: 'auto' });
       }
 
@@ -377,43 +339,32 @@
     };
 
     const scrollAppsIntoView = ({ alignSearch = false } = {}) => {
-      const prefersReducedMotion = prefersReducedMotionQuery?.matches;
-      const firstVisibleCard = getFirstVisibleCard();
+      if (!searchContainer && !appGrid) return;
+
+      const prefersReducedMotion = Boolean(prefersReducedMotionQuery?.matches);
       let targetTop;
 
-      if (alignSearch && stickySearchPanel) {
-        const styles = window.getComputedStyle(stickySearchPanel);
+      if (alignSearch && searchContainer) {
+        const styles = window.getComputedStyle(searchContainer);
         const stickyTop = toPixels(styles.top);
         const marginTop = toPixels(styles.marginTop);
-        const marginBottom = toPixels(styles.marginBottom);
         const searchTop =
-          stickySearchPanel.getBoundingClientRect().top + window.pageYOffset;
-        const searchHeight = stickySearchPanel.offsetHeight;
+          searchContainer.getBoundingClientRect().top + window.pageYOffset;
 
         targetTop = Math.max(searchTop - stickyTop - marginTop, 0);
-
-        if (firstVisibleCard) {
-          const cardTop =
-            firstVisibleCard.getBoundingClientRect().top + window.pageYOffset;
-          const desiredGap = 16;
-          const cardTarget =
-            cardTop -
-            (stickyTop + searchHeight + marginBottom + desiredGap);
-          if (Number.isFinite(cardTarget)) {
-            targetTop = Math.min(targetTop, Math.max(cardTarget, 0));
-          }
-        }
       }
 
+      const firstVisibleCard = getFirstVisibleCard();
+
       if (targetTop == null && firstVisibleCard) {
-        const styles = stickySearchPanel
-          ? window.getComputedStyle(stickySearchPanel)
+        const styles = searchContainer
+          ? window.getComputedStyle(searchContainer)
           : null;
         const marginTop = styles ? toPixels(styles.marginTop) : 0;
         const marginBottom = styles ? toPixels(styles.marginBottom) : 0;
         const stickyTop = styles ? toPixels(styles.top) : 0;
-        const searchHeight = stickySearchPanel
-          ? stickySearchPanel.offsetHeight
+        const searchHeight = searchContainer
+          ? searchContainer.offsetHeight
           : 0;
         const desiredGap = 16;
         const offset =
@@ -426,14 +377,14 @@
       if (targetTop == null && appGrid) {
         let offset = 80;
 
-        if (stickySearchPanel) {
-          const styles = window.getComputedStyle(stickySearchPanel);
+        if (searchContainer) {
+          const styles = window.getComputedStyle(searchContainer);
           const marginTop = toPixels(styles.marginTop);
           const marginBottom = toPixels(styles.marginBottom);
           const stickyTop = toPixels(styles.top);
 
           offset =
-            stickySearchPanel.offsetHeight +
+            searchContainer.offsetHeight +
             marginTop +
             marginBottom +
             stickyTop +
@@ -453,7 +404,7 @@
       });
       hasScrolledToApps = true;
 
-      if (alignSearch && stickySearchPanel) {
+      if (alignSearch && searchContainer) {
         const delay = prefersReducedMotion ? 0 : 280;
         window.setTimeout(() => {
           ensureSearchAndCardsVisible();
@@ -469,23 +420,23 @@
     };
 
     const isStickySearchInView = () => {
-      if (!stickySearchPanel) return false;
-      const rect = stickySearchPanel.getBoundingClientRect();
+      if (!searchContainer) return false;
+      const rect = searchContainer.getBoundingClientRect();
       const viewportHeight =
         window.innerHeight || document.documentElement.clientHeight || 0;
       return rect.top < viewportHeight && rect.bottom > 0;
     };
 
     const focusSearch = ({ scroll = false, alignSearch = false } = {}) => {
-      if (!primarySearchInput || isAuthModalVisible()) return;
-      if (document.activeElement !== primarySearchInput) {
+      if (!searchInput || isAuthModalVisible()) return;
+      if (document.activeElement !== searchInput) {
         try {
-          primarySearchInput.focus({ preventScroll: true });
+          searchInput.focus({ preventScroll: true });
         } catch (err) {
-          primarySearchInput.focus();
+          searchInput.focus();
         }
       }
-      primarySearchInput.select();
+      searchInput.select();
       if (scroll) {
         scrollAppsIntoView({ alignSearch });
       }
@@ -493,7 +444,6 @@
 
     const handleSearchInput = (event) => {
       const value = event.target?.value ?? '';
-      syncSearchInputs(value, event.target);
       updateAppFilter(value);
 
       const trimmedValue = value.trim();
@@ -502,24 +452,8 @@
         return;
       }
 
-      const shouldTransferFocus =
-        !hasScrolledToApps &&
-        stickySearchInput &&
-        event.target !== stickySearchInput;
-
       if (!hasScrolledToApps) {
         scrollAppsIntoView({ alignSearch: true });
-
-        if (shouldTransferFocus) {
-          window.requestAnimationFrame(() => {
-            try {
-              stickySearchInput.focus({ preventScroll: true });
-            } catch (err) {
-              stickySearchInput.focus();
-            }
-            stickySearchInput.select();
-          });
-        }
       }
     };
 
@@ -534,14 +468,14 @@
       firstVisibleCard.click();
     };
 
-    searchInputs.forEach((input) => {
-      input.addEventListener('input', handleSearchInput);
-      input.addEventListener('search', handleSearchInput);
-      input.addEventListener('focus', (event) => {
+    if (searchInput) {
+      searchInput.addEventListener('input', handleSearchInput);
+      searchInput.addEventListener('search', handleSearchInput);
+      searchInput.addEventListener('focus', (event) => {
         event.target.select();
       });
-      input.addEventListener('keydown', handleSearchKeydown);
-    });
+      searchInput.addEventListener('keydown', handleSearchKeydown);
+    }
 
     searchTriggers.forEach((trigger) => {
       trigger.addEventListener('click', (event) => {
@@ -554,7 +488,7 @@
       const isSlash = event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey;
       const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
 
-      const isSearchActive = searchInputs.includes(document.activeElement);
+      const isSearchActive = document.activeElement === searchInput;
 
       if ((isSlash || isCommandK) && !isSearchActive) {
         event.preventDefault();
@@ -563,7 +497,7 @@
     });
 
     const focusSearchWhenReady = () => {
-      if (!primarySearchInput || isAuthModalVisible()) return;
+      if (!searchInput || isAuthModalVisible()) return;
       if (!isStickySearchInView()) return;
       window.requestAnimationFrame(() => focusSearch());
     };
@@ -576,10 +510,7 @@
       focusSearchWhenReady();
     });
 
-    const initialSearchValue = primarySearchInput?.value ?? '';
-    if (primarySearchInput) {
-      syncSearchInputs(initialSearchValue, primarySearchInput);
-    }
+    const initialSearchValue = searchInput?.value ?? '';
     updateAppFilter(initialSearchValue);
   </script>
 </body>
