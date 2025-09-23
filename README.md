@@ -63,3 +63,20 @@ You can sign up, join the chat, and start contributing right now — no download
 git clone https://github.com/tmsteph/3dvr-portal.git
 cd 3dvr-portal
 open index.html
+```
+
+### Backfill legacy Gun data
+
+The admin dashboard now relies on the Fly.io Gun relay. If you need to migrate
+historical records from the legacy Manhattan relay, run the provided script:
+
+```bash
+npm install
+npm run migrate:gun
+```
+
+The script connects to both relays, copies the `3dvr-portal` collections used by
+the admin dashboard (user profiles, stats, admin roster, and admin requests),
+and reports how many records were moved. After the migration completes, reload
+the admin dashboard to confirm historical users appear via the Fly.io relay
+only.
