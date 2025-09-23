@@ -2,130 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0; url=admin/" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin Panel - 3DVR</title>
-  <link rel="stylesheet" href="styles.css" /> <!-- Optional: use shared styles -->
+  <title>3DVR Admin Portal</title>
   <style>
     body {
-      font-family: 'Poppins', sans-serif;
       margin: 0;
-      background: #f5f7fa;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #0f172a;
+      color: #f1f5f9;
+      text-align: center;
       padding: 20px;
     }
 
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-
-    .admin-section {
-      max-width: 800px;
-      margin: 40px auto;
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    }
-
-    .admin-section h2 {
-      margin-top: 0;
-      color: #555;
-    }
-
-    .admin-section p {
-      color: #666;
-    }
-
-    .admin-btn {
-      background: #66c2b0;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-
-    .admin-btn:hover {
-      background: #5ca0d3;
+    a {
+      color: #38bdf8;
     }
   </style>
 </head>
 <body>
-  <div id="auth-check" style="text-align:center; padding: 50px;">
-    <p>🔐 Checking admin credentials...</p>
+  <div>
+    <h1>Redirecting to the admin portal...</h1>
+    <p>If you are not redirected automatically, <a href="admin/">click here</a>.</p>
   </div>
-
-  <div id="admin-panel" style="display:none;">
-    <h1>Admin Panel</h1>
-    <div class="admin-section">
-      <h2>🔒 Access Controls</h2>
-      <p>Welcome, Admin. Manage critical system data here.</p>
-      <button class="admin-btn" onclick="alert('Feature coming soon')">View Logs</button>
-      <button class="admin-btn" onclick="alert('Feature coming soon')">Manage Users</button>
-      <button class="admin-btn" onclick="alert('Feature coming soon')">Reset Points</button>
-    </div>
-  </div>
-
-  <div class="admin-section">
-    <h2>⚙️ System Parameters</h2>
-    <label for="openai-url">OPENAI_ASSISTANT_URL:</label><br>
-    <input type="text" id="openai-url" style="width: 100%; padding: 8px; margin: 10px 0;" />
-    <button onclick="saveAssistantUrl()">Save URL</button>
-    <p id="save-status" style="color: green;"></p>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script>
-    const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
-    const user = gun.user();
-
-    const storedUsername = localStorage.getItem('username');
-    const storedPassword = localStorage.getItem('password');
-    const storedAlias = localStorage.getItem('alias');
-
-    console.log('username: ', storedUsername);
-    console.log('password: ', storedPassword);
-
-    const ADMIN_USERNAME = 'admin3dvr';
-    const ADMIN_PASSWORD = 'secureadminpass';
-
-    if (storedUsername === ADMIN_USERNAME && storedPassword === ADMIN_PASSWORD) {
-      // Try to authenticate
-      user.auth(storedAlias, storedPassword, ack => {
-        if (ack.err) {
-          document.getElementById('auth-check').innerHTML = '<p>❌ Authentication failed. Access denied.</p>';
-        } else {
-          document.getElementById('auth-check').style.display = 'none';
-          document.getElementById('admin-panel').style.display = 'block';
-        }
-      });
-    } else {
-      document.getElementById('auth-check').innerHTML = '<p>❌ Unauthorized. You must be logged in as admin.</p>';
-    }
-
-    function saveAssistantUrl() {
-    const newUrl = document.getElementById('openai-url').value;
-    gun.get('system').get('OPENAI_ASSISTANT_URL').put(newUrl, ack => {
-      if (!ack.err) {
-        document.getElementById('save-status').innerText = '✅ URL saved successfully!';
-        setTimeout(() => document.getElementById('save-status').innerText = '', 3000);
-      } else {
-        document.getElementById('save-status').innerText = '❌ Failed to save.';
-      }
-    });
-  }
-    
-  window.addEventListener('load', () => {
-    gun.get('system').get('OPENAI_ASSISTANT_URL').once(url => {
-      if (url) {
-        document.getElementById('openai-url').value = url;
-      }
-    });
-  });
+    window.location.replace('admin/');
   </script>
 </body>
-
 </html>
