@@ -355,7 +355,11 @@
   </div>
 
   <script>
-  const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+  const gun = Gun({
+    peers: [
+      'https://gun-relay-3dvr.fly.dev/gun'
+    ]
+  });
   const user = gun.user();
   const portalRoot = gun.get('3dvr-portal');
   const portalAdmins = portalRoot.get('admins');
