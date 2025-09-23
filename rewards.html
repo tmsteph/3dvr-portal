@@ -50,12 +50,14 @@
   <script>
     const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
     const user = gun.user();
+    const portalRoot = gun.get('3dvr-portal');
     const logDiv = document.getElementById('log');
 
     function completeTask() {
       user.get('points').once(p => {
         const newPoints = (p || 0) + 100;
         user.get('points').put(newPoints);
+        syncPublicPoints(newPoints);
         user.get('log').set({
           task: 'Completed task',
           time: Date.now()
@@ -68,7 +70,9 @@
       logDiv.innerHTML = '<strong>Your Task History:</strong><br>';
 
       user.get('points').once(p => {
-        logDiv.innerHTML += `Total Points: ${p || 0}<br><br>`;
+        const total = p || 0;
+        logDiv.innerHTML += `Total Points: ${total}<br><br>`;
+        syncPublicPoints(total);
       });
 
       user.get('log').map().once(data => {
@@ -86,6 +90,18 @@
         updateLog();
       }
     });
+
+    function syncPublicPoints(totalPoints) {
+      const alias = localStorage.getItem('alias');
+      if (!alias) return;
+      const displayName = localStorage.getItem('username') || alias.replace('@3dvr', '');
+      portalRoot.get('userStats').get(alias).put({
+        alias,
+        username: displayName,
+        points: totalPoints,
+        lastUpdated: Date.now()
+      });
+    }
   </script>
 </body>
 </html>

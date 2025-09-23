@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3DVR Admin Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f7fb;
+    --card-bg: #ffffff;
+    --text-primary: #1e2a3b;
+    --text-secondary: #4f5b6a;
+    --accent: #2f80ed;
+    --accent-soft: rgba(47, 128, 237, 0.1);
+    --danger: #d64550;
+    --success: #27ae60;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 20px;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+  }
+
+  .page {
+    width: min(1100px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  header {
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: white;
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+  }
+
+  header h1 {
+    margin: 0 0 8px;
+    font-size: clamp(1.5rem, 2vw + 1rem, 2.4rem);
+  }
+
+  header p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .status-message {
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: var(--accent-soft);
+    color: var(--text-secondary);
+    border: 1px solid rgba(47, 128, 237, 0.2);
+    display: none;
+  }
+
+  .status-message.show {
+    display: block;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  }
+
+  .text-muted {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .metric-card {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .metric-card h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .metric-value {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+  }
+
+  thead {
+    background: #eef3fb;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  th, td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    font-size: 0.95rem;
+  }
+
+  tbody tr:hover {
+    background: rgba(47, 128, 237, 0.06);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 18px;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .list-item {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.86);
+  }
+
+  .list-item .info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .list-item .info span {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 10px 20px rgba(47, 128, 237, 0.2);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(47, 128, 237, 0.3);
+  }
+
+  .btn-outline {
+    background: white;
+    color: var(--text-primary);
+    border: 1px solid rgba(15, 23, 42, 0.12);
+  }
+
+  .btn-danger {
+    background: var(--danger);
+    color: white;
+    box-shadow: 0 10px 20px rgba(214, 69, 80, 0.18);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  label {
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  input, textarea {
+    border-radius: 10px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 90px;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  @media (max-width: 640px) {
+    body {
+      padding: 16px;
+    }
+
+    .list-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .actions {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>3DVR Admin Portal</h1>
+      <p>Monitor community metrics and manage trusted administrators.</p>
+    </header>
+
+    <div id="status" class="status-message"></div>
+
+    <section id="request-card" class="card hidden" aria-live="polite">
+      <h2>Request Admin Access</h2>
+      <p id="request-status" class="text-muted"></p>
+      <div class="form-group">
+        <label for="request-reason">Why should you be an admin?</label>
+        <textarea id="request-reason" placeholder="Share a quick note for tmsteph"></textarea>
+      </div>
+      <div class="actions">
+        <button id="request-button" class="btn-primary" type="button">Submit Request</button>
+      </div>
+    </section>
+
+    <section id="dashboard" class="hidden" aria-live="polite">
+      <div class="card">
+        <h2>Community Snapshot</h2>
+        <div class="metrics">
+          <div class="card metric-card">
+            <h3>Total Registered Users</h3>
+            <div id="total-users" class="metric-value">--</div>
+          </div>
+          <div class="card metric-card">
+            <h3>Total Points Awarded</h3>
+            <div id="total-points" class="metric-value">--</div>
+          </div>
+          <div class="card metric-card">
+            <h3>Pending Admin Requests</h3>
+            <div id="pending-count" class="metric-value">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>User Points Overview</h2>
+        <div class="table-wrapper">
+          <table aria-describedby="total-users">
+            <thead>
+              <tr>
+                <th scope="col">Username</th>
+                <th scope="col">Alias</th>
+                <th scope="col">Points</th>
+                <th scope="col">Last Updated</th>
+                <th scope="col">Last Login</th>
+              </tr>
+            </thead>
+            <tbody id="user-table">
+              <tr class="empty-state">
+                <td colspan="5">Awaiting user data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Current Admins</h2>
+        <div id="admin-list" class="list" aria-live="polite"></div>
+        <div id="add-admin" class="hidden" style="margin-top: 16px;">
+          <h3>Promote a new admin</h3>
+          <p class="text-muted">Enter a username or alias (ex: tmsteph or tmsteph@3dvr).</p>
+          <div class="form-group">
+            <label for="new-admin">Account</label>
+            <input id="new-admin" type="text" placeholder="username or alias" />
+          </div>
+          <div class="actions" style="margin-top: 10px;">
+            <button id="add-admin-button" class="btn-primary" type="button">Add Admin</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Admin Requests</h2>
+        <div id="request-list" class="list" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+  const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+  const user = gun.user();
+  const portalRoot = gun.get('3dvr-portal');
+  const portalAdmins = portalRoot.get('admins');
+  const adminRequests = portalRoot.get('adminRequests');
+  const userIndex = portalRoot.get('userIndex');
+  const userStats = portalRoot.get('userStats');
+
+  const alias = localStorage.getItem('alias');
+  const password = localStorage.getItem('password');
+  const username = localStorage.getItem('username');
+
+  const ROOT_ADMIN_ALIAS = 'tmsteph@3dvr';
+
+  const userRecords = {};
+  const pointsRecords = {};
+  const adminRecords = {};
+  const requestRecords = {};
+
+  let isAdmin = false;
+  let isRootAdmin = false;
+
+  const statusEl = document.getElementById('status');
+  const dashboardEl = document.getElementById('dashboard');
+  const requestCardEl = document.getElementById('request-card');
+  const requestStatusEl = document.getElementById('request-status');
+  const requestButton = document.getElementById('request-button');
+  const requestReason = document.getElementById('request-reason');
+  const userTable = document.getElementById('user-table');
+  const totalUsersEl = document.getElementById('total-users');
+  const totalPointsEl = document.getElementById('total-points');
+  const pendingCountEl = document.getElementById('pending-count');
+  const adminListEl = document.getElementById('admin-list');
+  const addAdminSection = document.getElementById('add-admin');
+  const addAdminInput = document.getElementById('new-admin');
+  const addAdminButton = document.getElementById('add-admin-button');
+  const requestListEl = document.getElementById('request-list');
+
+  function init() {
+    ensureRootAdmin();
+
+    if (!alias || !password) {
+      setStatus('Please sign in to manage the admin portal.');
+      showElement(requestCardEl);
+      requestCardEl.querySelector('textarea').disabled = true;
+      requestButton.disabled = true;
+      return;
+    }
+
+    setStatus('Verifying admin credentials...');
+    user.auth(alias, password, ack => {
+      if (ack.err) {
+        setStatus('Authentication failed. Please sign in again.');
+        localStorage.removeItem('signedIn');
+        return;
+      }
+      checkAdminStatus();
+    });
+  }
+
+  function ensureRootAdmin() {
+    portalAdmins.get(ROOT_ADMIN_ALIAS).once(data => {
+      if (!data) {
+        portalAdmins.get(ROOT_ADMIN_ALIAS).put({
+          alias: ROOT_ADMIN_ALIAS,
+          username: 'tmsteph',
+          addedAt: Date.now(),
+          addedBy: 'system'
+        });
+      }
+    });
+  }
+
+  function checkAdminStatus() {
+    portalAdmins.get(alias).once(data => {
+      isAdmin = Boolean(data);
+      isRootAdmin = alias === ROOT_ADMIN_ALIAS;
+
+      if (isAdmin) {
+        setStatus('');
+        showDashboard();
+      } else {
+        showRequestForm();
+      }
+    });
+  }
+
+  function showDashboard() {
+    hideElement(requestCardEl);
+    showElement(dashboardEl);
+    if (isRootAdmin) {
+      showElement(addAdminSection);
+    }
+    subscribeToData();
+  }
+
+  function showRequestForm() {
+    showElement(requestCardEl);
+    hideElement(dashboardEl);
+    requestButton.disabled = false;
+    requestCardEl.querySelector('textarea').disabled = false;
+    requestStatusEl.innerText = 'Only existing admins can approve new admins. Your request will be sent to tmsteph.';
+    adminRequests.get(alias).once(data => {
+      if (!data) return;
+      requestStatusEl.innerText = buildRequestMessage(data);
+      requestReason.value = data.reason || '';
+      const status = data.status || 'pending';
+      if (status === 'pending' || status === 'approved') {
+        requestButton.disabled = true;
+        requestReason.disabled = true;
+      }
+    });
+  }
+
+  function subscribeToData() {
+    userIndex.map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        delete userRecords[key];
+      } else {
+        userRecords[key] = {
+          ...userRecords[key],
+          ...data
+        };
+      }
+      renderUsers();
+    });
+
+    userStats.map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        delete pointsRecords[key];
+      } else {
+        pointsRecords[key] = {
+          ...pointsRecords[key],
+          ...data
+        };
+      }
+      renderUsers();
+    });
+
+    portalAdmins.map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        delete adminRecords[key];
+      } else {
+        adminRecords[key] = {
+          ...adminRecords[key],
+          ...data
+        };
+      }
+      renderAdmins();
+    });
+
+    adminRequests.map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        delete requestRecords[key];
+      } else {
+        requestRecords[key] = {
+          ...requestRecords[key],
+          ...data
+        };
+      }
+      renderRequests();
+    });
+  }
+
+  function renderUsers() {
+    const aliasSet = new Set([
+      ...Object.keys(userRecords),
+      ...Object.keys(pointsRecords)
+    ]);
+    const aliases = Array.from(aliasSet);
+    if (!aliases.length) {
+      userTable.innerHTML = '<tr class="empty-state"><td colspan="5">No registered users yet.</td></tr>';
+      totalUsersEl.innerText = '0';
+      totalPointsEl.innerText = '0';
+      return;
+    }
+
+    const rows = aliases.map(id => {
+      const profile = userRecords[id] || {};
+      const stats = pointsRecords[id] || {};
+      return {
+        alias: id,
+        username: profile.username || stats.username || id.replace('@3dvr', ''),
+        points: Number(stats.points || 0),
+        lastUpdated: stats.lastUpdated,
+        lastLogin: profile.lastLogin,
+        createdAt: profile.createdAt
+      };
+    });
+
+    rows.sort((a, b) => b.points - a.points);
+
+    const totalPoints = rows.reduce((sum, item) => sum + (item.points || 0), 0);
+    totalUsersEl.innerText = aliasSet.size.toString();
+    totalPointsEl.innerText = totalPoints.toString();
+
+    userTable.innerHTML = rows.map(record => `
+      <tr>
+        <td>${escapeHtml(record.username)}</td>
+        <td>${escapeHtml(record.alias)}</td>
+        <td>${record.points}</td>
+        <td>${formatDate(record.lastUpdated)}</td>
+        <td>${formatDate(record.lastLogin)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderAdmins() {
+    const entries = Object.values(adminRecords)
+      .filter(Boolean)
+      .sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+
+    if (!entries.length) {
+      adminListEl.innerHTML = '<div class="empty-state">No admins have been recorded yet.</div>';
+      return;
+    }
+
+    adminListEl.innerHTML = entries.map(item => {
+      const who = item.addedBy === 'system' ? 'system' : escapeHtml(item.addedBy || 'unknown');
+      return `
+        <div class="list-item">
+          <div class="info">
+            <strong>${escapeHtml(item.username || item.alias || '')}</strong>
+            <span>${escapeHtml(item.alias || '')}</span>
+            <span>Added ${formatDate(item.addedAt)} by ${who}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderRequests() {
+    const entries = Object.entries(requestRecords)
+      .map(([key, value]) => ({ key, ...value }))
+      .sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0));
+
+    const pending = entries.filter(item => item.status === 'pending' || !item.status);
+    pendingCountEl.innerText = pending.length.toString();
+
+    if (!entries.length) {
+      requestListEl.innerHTML = '<div class="empty-state">No admin requests so far.</div>';
+      return;
+    }
+
+    requestListEl.innerHTML = entries.map(item => {
+      const status = item.status || 'pending';
+      const badges = {
+        pending: '<span style="color: var(--accent); font-weight: 600;">Pending</span>',
+        approved: '<span style="color: var(--success); font-weight: 600;">Approved</span>',
+        denied: '<span style="color: var(--danger); font-weight: 600;">Denied</span>'
+      };
+      const actions = isRootAdmin && status === 'pending' ? `
+        <div class="actions">
+          <button class="btn-primary" data-action="approve" data-alias="${escapeAttr(item.key)}">Approve</button>
+          <button class="btn-outline" data-action="deny" data-alias="${escapeAttr(item.key)}">Deny</button>
+        </div>
+      ` : '';
+
+      const reviewed = item.reviewedBy ? `<span>Reviewed by ${escapeHtml(item.reviewedBy)} on ${formatDate(item.reviewedAt)}</span>` : '';
+
+      return `
+        <div class="list-item">
+          <div class="info">
+            <strong>${escapeHtml(item.username || item.alias || '')}</strong>
+            <span>${escapeHtml(item.alias || '')}</span>
+            <span>${badges[status] || status}</span>
+            ${item.reason ? `<span>Reason: ${escapeHtml(item.reason)}</span>` : ''}
+            <span>Requested on ${formatDate(item.requestedAt)}</span>
+            ${reviewed}
+          </div>
+          ${actions}
+        </div>
+      `;
+    }).join('');
+
+    if (isRootAdmin) {
+      requestListEl.querySelectorAll('button[data-action]').forEach(button => {
+        button.addEventListener('click', event => {
+          const action = event.currentTarget.dataset.action;
+          const targetAlias = event.currentTarget.dataset.alias;
+          if (action === 'approve') {
+            approveRequest(targetAlias);
+          } else if (action === 'deny') {
+            denyRequest(targetAlias);
+          }
+        });
+      });
+    }
+  }
+
+  function approveRequest(targetAlias) {
+    const record = requestRecords[targetAlias];
+    if (!record) return;
+    promoteToAdmin(targetAlias, record);
+    adminRequests.get(targetAlias).get('status').put('approved');
+    adminRequests.get(targetAlias).get('reviewedBy').put(alias);
+    adminRequests.get(targetAlias).get('reviewedAt').put(Date.now());
+    setStatus(`${targetAlias} is now an admin.`);
+  }
+
+  function denyRequest(targetAlias) {
+    adminRequests.get(targetAlias).get('status').put('denied');
+    adminRequests.get(targetAlias).get('reviewedBy').put(alias);
+    adminRequests.get(targetAlias).get('reviewedAt').put(Date.now());
+    setStatus(`Denied admin request for ${targetAlias}.`);
+  }
+
+  function promoteToAdmin(targetAlias, record) {
+    const cleanAlias = normalizeAlias(targetAlias);
+    const displayName = record?.username || cleanAlias.replace('@3dvr', '');
+    portalAdmins.get(cleanAlias).put({
+      alias: cleanAlias,
+      username: displayName,
+      addedAt: Date.now(),
+      addedBy: alias
+    });
+  }
+
+  function setStatus(message) {
+    if (!message) {
+      statusEl.classList.remove('show');
+      statusEl.innerText = '';
+      return;
+    }
+    statusEl.classList.add('show');
+    statusEl.innerText = message;
+  }
+
+  function showElement(element) {
+    element.classList.remove('hidden');
+  }
+
+  function hideElement(element) {
+    element.classList.add('hidden');
+  }
+
+  function formatDate(timestamp) {
+    if (!timestamp) return '—';
+    try {
+      return new Date(Number(timestamp)).toLocaleString();
+    } catch (error) {
+      return '—';
+    }
+  }
+
+  function escapeHtml(value) {
+    return (value || '').toString()
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, '&#96;');
+  }
+
+  function normalizeAlias(value) {
+    if (!value) return '';
+    const trimmed = value.trim();
+    return trimmed.includes('@') ? trimmed : `${trimmed}@3dvr`;
+  }
+
+  function buildRequestMessage(data) {
+    const status = data.status || 'pending';
+    if (status === 'approved') {
+      return 'Your admin request has already been approved.';
+    }
+    if (status === 'denied') {
+      return 'Your admin request was declined. Contact tmsteph for more details.';
+    }
+    return 'You already have a pending request. We will notify tmsteph.';
+  }
+
+  requestButton.addEventListener('click', () => {
+    if (!alias) {
+      setStatus('Please sign in before requesting admin access.');
+      return;
+    }
+    const reason = requestReason.value.trim();
+    adminRequests.get(alias).put({
+      alias,
+      username: username || alias.replace('@3dvr', ''),
+      reason,
+      status: 'pending',
+      requestedAt: Date.now()
+    });
+    setStatus('Request submitted. tmsteph will review it soon.');
+    requestButton.disabled = true;
+    requestReason.disabled = true;
+  });
+
+  addAdminButton.addEventListener('click', () => {
+    if (!isRootAdmin) return;
+    const value = addAdminInput.value.trim();
+    if (!value) {
+      setStatus('Enter a username or alias to promote.');
+      return;
+    }
+    const normalized = normalizeAlias(value);
+    const reference = userRecords[normalized] || pointsRecords[normalized] || {};
+    const displayName = reference.username || value.replace('@3dvr', '');
+    portalAdmins.get(normalized).put({
+      alias: normalized,
+      username: displayName,
+      addedAt: Date.now(),
+      addedBy: alias
+    });
+    adminRequests.get(normalized).get('status').put('approved');
+    adminRequests.get(normalized).get('reviewedBy').put(alias);
+    adminRequests.get(normalized).get('reviewedAt').put(Date.now());
+    addAdminInput.value = '';
+    setStatus(`${displayName} promoted to admin.`);
+  });
+
+  window.addEventListener('load', init);
+  </script>
+</body>
+</html>
