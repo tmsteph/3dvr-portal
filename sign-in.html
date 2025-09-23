@@ -48,9 +48,12 @@
 <button onclick="continueAsGuest()" style="margin-top: 20px; background: none; border: 1px solid gold; color: gold;">Continue as Guest</button>
 
 <script>
-const gun = Gun([
-  'https://gun-manhattan.herokuapp.com/gun'
-]);
+const gun = Gun({
+  peers: [
+    'https://gun-relay-3dvr.fly.dev/gun',
+    'https://gun-manhattan.herokuapp.com/gun'
+  ]
+});
 const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
 
