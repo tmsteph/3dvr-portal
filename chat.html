@@ -45,27 +45,6 @@
       margin-bottom: 20px;
     }
 
-    #profile-mini input {
-      padding: 8px;
-      width: 70%;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-
-    #profile-mini button {
-      padding: 8px 16px;
-      background: #66c2b0;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    #profile-mini button:hover {
-      background: #5ca0d3;
-    }
-
     #notification-settings {
       background: #fff;
       border-radius: 12px;
@@ -189,8 +168,6 @@
 
 <div id="profile-mini">
   <p><strong>Username:</strong> <span id="current-username">Loading...</span></p>
-  <input type="text" id="new-username" placeholder="New username...">
-  <button onclick="updateUsername()">Save</button>
 </div>
 
 <div id="room-select">
@@ -227,6 +204,9 @@ const notificationsSupported = 'Notification' in window;
 const notificationsPreferenceKey = 'chatNotificationsEnabled';
 let notificationsEnabled = false;
 
+const currentUsernameEl = document.getElementById('current-username');
+let cachedUsername = '';
+
 const userId = localStorage.getItem('userId') || (() => {
   const id = 'user_' + Math.random().toString(36).substr(2, 9);
   localStorage.setItem('userId', id);
@@ -247,19 +227,72 @@ if (currentRoom === 'general') {
   });
 }
 
-function updateUsername() {
-  const name = document.getElementById('new-username').value.trim();
-  if (name) {
-    user.get('username').put(name);
-    document.getElementById('new-username').value = '';
-  }
-}
+const initialUsername = derivePreferredUsername();
+applyUsernameToUI(initialUsername);
 
-user.get('username').on(name => {
-  if (name) {
-    document.getElementById('current-username').innerText = name;
+user.get('username').once(existingName => {
+  const resolvedName = derivePreferredUsername(existingName);
+  applyUsernameToUI(resolvedName);
+  const normalizedExisting = typeof existingName === 'string' ? existingName.trim() : '';
+  if (normalizedExisting !== resolvedName) {
+    user.get('username').put(resolvedName);
   }
 });
+
+user.get('username').on(name => {
+  const normalized = typeof name === 'string' ? name.trim() : '';
+  if (!normalized) return;
+  applyUsernameToUI(normalized);
+});
+
+function applyUsernameToUI(name) {
+  const normalized = typeof name === 'string' ? name.trim() : '';
+  const finalName = normalized || 'Guest';
+  cachedUsername = finalName;
+  if (!currentUsernameEl) return;
+  currentUsernameEl.innerText = finalName;
+}
+
+function derivePreferredUsername(existingName) {
+  const storedUsername = (localStorage.getItem('username') || '').trim();
+  if (storedUsername) return storedUsername;
+
+  const aliasValue = (localStorage.getItem('alias') || '').trim();
+  const aliasName = aliasValue
+    ? (aliasValue.includes('@') ? aliasValue.split('@')[0] : aliasValue)
+    : '';
+
+  const existing = typeof existingName === 'string' ? existingName.trim() : '';
+  if (aliasName && (!existing || isGeneratedName(existing))) {
+    return aliasName;
+  }
+
+  if (existing) return existing;
+
+  if (aliasName) return aliasName;
+
+  const suffix = extractIdSuffix(userId);
+  const baseLabel = 'Guest';
+  return suffix ? `${baseLabel} ${suffix}` : baseLabel;
+}
+
+function extractIdSuffix(id) {
+  if (!id) return '';
+  const parts = id.split('_');
+  const lastPart = parts[parts.length - 1] || '';
+  return lastPart.slice(-4).toUpperCase();
+}
+
+function isGeneratedName(name) {
+  if (!name) return false;
+  const lower = name.toLowerCase();
+  return lower === 'guest' ||
+    lower.startsWith('guest ') ||
+    lower.startsWith('guest_') ||
+    lower === 'user' ||
+    lower.startsWith('user ') ||
+    lower.startsWith('user_');
+}
 
 function sendMessage() {
   const input = document.getElementById('message-input');
@@ -269,6 +302,7 @@ function sendMessage() {
   chat.set({
     text,
     sender: userId,
+    username: cachedUsername,
     createdAt: Date.now()
   });
 
@@ -304,7 +338,8 @@ function displayMessages() {
     msgDiv.className = 'message';
     msgDiv.id = id;
 
-    const username = message.username || (message.sender || 'Anonymous');
+    const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
+      (message.sender || 'Anonymous');
     const time = message.createdAt ? timeAgoOrFullDate(message.createdAt) : '';
 
     msgDiv.innerHTML = `<div><strong>${username}:</strong> ${message.text}</div><div class="meta">${time}</div>`;
@@ -322,8 +357,22 @@ function loadRoom(roomName) {
     if (!message || messages[id]) return;
 
     if (message.sender) {
+      const existingUsername = typeof message.username === 'string'
+        ? message.username.trim()
+        : '';
+      if (existingUsername) {
+        message.username = existingUsername;
+        messages[id] = message;
+        displayMessages();
+        maybeNotifyNewMessage(message, id);
+        return;
+      }
+
       gun.get('3dvr-users').get(message.sender).get('username').once(name => {
-        message.username = name || message.sender;
+        const resolvedUsername = typeof name === 'string'
+          ? name.trim()
+          : '';
+        message.username = resolvedUsername || message.sender;
         messages[id] = message;
         displayMessages();
         maybeNotifyNewMessage(message, id);
@@ -420,7 +469,9 @@ function maybeNotifyNewMessage(message, id) {
   if (document.visibilityState === 'visible') return;
   if (Notification.permission !== 'granted') return;
 
-  const username = message.username || message.sender || 'Someone';
+  const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
+    message.sender ||
+    'Someone';
   const preview = (message.text || '').trim();
   const notificationBody = preview.length > 120 ? `${preview.slice(0, 117)}...` : preview;
 
