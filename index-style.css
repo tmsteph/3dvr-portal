@@ -113,7 +113,7 @@ body.landing {
 .landing-content {
   display: flex;
   flex-direction: column;
-  gap: 4rem;
+  gap: 3rem;
 }
 
 .hero {
@@ -151,6 +151,29 @@ body.landing {
   max-width: 640px;
   color: var(--color-text-muted);
   font-size: 1.15rem;
+}
+
+.app-hub__header {
+  display: grid;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.app-hub__intro {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.app-hub__intro h2 {
+  margin: 0.35rem 0 0;
+  font-size: clamp(2rem, 1.6vw + 1.3rem, 2.6rem);
+}
+
+.app-hub__intro p {
+  margin: 0;
+  max-width: 520px;
+  color: var(--color-text-muted);
+  font-size: 1rem;
 }
 
 .hero-actions {
@@ -205,37 +228,25 @@ body.landing {
   background: rgba(56, 189, 248, 0.18);
 }
 
-.section-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.section-heading h2 {
-  margin: 0.35rem 0 0;
-  font-size: clamp(2rem, 1.6vw + 1.3rem, 2.6rem);
-}
-
-.section-heading p {
-  margin: 0;
-  max-width: 420px;
-  color: var(--color-text-muted);
-  font-size: 1rem;
-}
-
 .app-search {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 1.6rem 0 0;
+  position: sticky;
+  top: clamp(0.75rem, 2vw, 1.5rem);
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.25rem 1.5rem;
+  margin: 0;
+  width: min(100%, 420px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  box-shadow: 0 28px 70px rgba(4, 9, 20, 0.55);
+  backdrop-filter: blur(16px);
+  z-index: 20;
 }
 
 .app-search__input {
-  flex: 1 1 260px;
-  min-width: 220px;
+  width: 100%;
+  min-width: 0;
   padding: 0.85rem 1.2rem;
   border-radius: 999px;
   border: 1px solid var(--surface-border);
@@ -260,6 +271,7 @@ body.landing {
 }
 
 .app-search__hint {
+  text-align: left;
   font-size: 0.85rem;
   color: var(--color-text-muted);
   opacity: 0.85;
@@ -293,6 +305,7 @@ body.landing {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.6rem;
+  margin-top: 1.6rem;
 }
 
 .app-card {
@@ -514,6 +527,15 @@ footer a {
   .hero-actions {
     justify-content: flex-start;
   }
+
+  .app-hub__header {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    align-items: end;
+  }
+
+  .app-search {
+    justify-self: end;
+  }
 }
 
 @media (max-width: 640px) {
@@ -521,11 +543,20 @@ footer a {
     padding: 5rem 1rem 3.5rem;
   }
 
-  .app-search__hint {
+  .hero-eyebrow {
     width: 100%;
   }
 
-  .hero-eyebrow {
+  .app-hub__header {
+    gap: 1.25rem;
+  }
+
+  .app-search {
+    width: 100%;
+    padding: 1.1rem 1.25rem;
+  }
+
+  .app-search__hint {
     width: 100%;
   }
 

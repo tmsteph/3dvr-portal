@@ -41,32 +41,41 @@
       <section class="hero" aria-labelledby="landing-title">
         <span class="hero-eyebrow">Open Metaverse Community</span>
         <h1 id="landing-title">Welcome to the 3DVR Portal</h1>
-        <p class="hero-tagline">Earn, play, and build the future of the web together.</p>
+        <p class="hero-tagline">Launch straight into the apps that power the community and keep everyone in sync.</p>
         <div class="hero-actions">
-          <a href="sign-in.html" class="cta primary">Start earning</a>
+          <button type="button" class="cta primary" data-app-search-trigger>Browse apps</button>
+          <a href="sign-in.html" class="cta ghost">Start earning</a>
           <a href="free-trial.html" class="cta ghost" target="_blank" rel="noopener">Explore plans</a>
         </div>
       </section>
 
       <section class="app-hub" aria-labelledby="app-hub-title">
-        <div class="section-heading">
-          <div>
+        <div class="app-hub__header">
+          <div class="app-hub__intro">
             <span class="eyebrow">Launchpad</span>
             <h2 id="app-hub-title">Your apps, ready to go</h2>
+            <p>Everything you need to collaborate, compete, and grow lives here. Pick an app to get started in seconds.</p>
           </div>
-          <p>Everything you need to collaborate, compete, and grow lives here. Pick an app to get started in seconds.</p>
-        </div>
-        <div class="app-search" role="search">
-          <input
-            type="search"
-            id="appSearch"
-            class="app-search__input"
-            placeholder="Search apps…"
-            aria-label="Search apps"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <span class="app-search__hint" aria-hidden="true">Press / or Ctrl + K to jump here</span>
+          <div
+            class="app-search"
+            role="search"
+            aria-label="Filter app list"
+            data-app-search-container
+            data-app-search-sticky
+          >
+            <input
+              type="search"
+              id="appSearch"
+              class="app-search__input"
+              placeholder="Search apps…"
+              aria-label="Search apps"
+              aria-describedby="appSearchHint"
+              autocomplete="off"
+              spellcheck="false"
+              data-app-search-input
+            />
+            <span id="appSearchHint" class="app-search__hint">Press / or Ctrl + K to jump here · Results update as you type.</span>
+          </div>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
         <div class="app-grid">
@@ -255,9 +264,22 @@
       }
     }
 
-    const appSearchInput = document.getElementById('appSearch');
+    const searchContainer = document.querySelector(
+      '[data-app-search-container][data-app-search-sticky]'
+    );
+    const searchInput =
+      searchContainer?.querySelector('[data-app-search-input]') ?? null;
     const appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
+    const searchTriggers = Array.from(
+      document.querySelectorAll('[data-app-search-trigger]')
+    );
+    const appGrid = document.querySelector('.app-grid');
+    const prefersReducedMotionQuery =
+      typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-reduced-motion: reduce)')
+        : null;
+    let hasScrolledToApps = false;
 
     const updateAppFilter = (value = '') => {
       const query = value.trim().toLowerCase();
@@ -283,6 +305,113 @@
       }
     };
 
+    const toPixels = (value) => {
+      const parsed = Number.parseFloat(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    const getFirstVisibleCard = () => appCards.find((card) => !card.hidden);
+
+    const ensureSearchAndCardsVisible = () => {
+      if (!searchContainer) return;
+
+      const styles = window.getComputedStyle(searchContainer);
+      const stickyTop = toPixels(styles.top);
+      const marginBottom = toPixels(styles.marginBottom);
+      const desiredGap = 16;
+      const searchRect = searchContainer.getBoundingClientRect();
+
+      if (searchRect.top < stickyTop) {
+        const adjust = stickyTop - searchRect.top;
+        window.scrollBy({ top: adjust, behavior: 'auto' });
+      }
+
+      const firstVisibleCard = getFirstVisibleCard();
+      if (!firstVisibleCard) return;
+
+      const cardRect = firstVisibleCard.getBoundingClientRect();
+      const desiredTop = searchRect.bottom + marginBottom + desiredGap;
+
+      if (cardRect.top < desiredTop) {
+        const adjust = desiredTop - cardRect.top;
+        window.scrollBy({ top: adjust, behavior: 'auto' });
+      }
+    };
+
+    const scrollAppsIntoView = ({ alignSearch = false } = {}) => {
+      if (!searchContainer && !appGrid) return;
+
+      const prefersReducedMotion = Boolean(prefersReducedMotionQuery?.matches);
+      let targetTop;
+
+      if (alignSearch && searchContainer) {
+        const styles = window.getComputedStyle(searchContainer);
+        const stickyTop = toPixels(styles.top);
+        const marginTop = toPixels(styles.marginTop);
+        const searchTop =
+          searchContainer.getBoundingClientRect().top + window.pageYOffset;
+
+        targetTop = Math.max(searchTop - stickyTop - marginTop, 0);
+      }
+
+      const firstVisibleCard = getFirstVisibleCard();
+
+      if (targetTop == null && firstVisibleCard) {
+        const styles = searchContainer
+          ? window.getComputedStyle(searchContainer)
+          : null;
+        const marginTop = styles ? toPixels(styles.marginTop) : 0;
+        const marginBottom = styles ? toPixels(styles.marginBottom) : 0;
+        const stickyTop = styles ? toPixels(styles.top) : 0;
+        const searchHeight = searchContainer
+          ? searchContainer.offsetHeight
+          : 0;
+        const desiredGap = 16;
+        const offset =
+          searchHeight + marginTop + marginBottom + stickyTop + desiredGap;
+        const cardTop =
+          firstVisibleCard.getBoundingClientRect().top + window.pageYOffset;
+        targetTop = Math.max(cardTop - offset, 0);
+      }
+
+      if (targetTop == null && appGrid) {
+        let offset = 80;
+
+        if (searchContainer) {
+          const styles = window.getComputedStyle(searchContainer);
+          const marginTop = toPixels(styles.marginTop);
+          const marginBottom = toPixels(styles.marginBottom);
+          const stickyTop = toPixels(styles.top);
+
+          offset =
+            searchContainer.offsetHeight +
+            marginTop +
+            marginBottom +
+            stickyTop +
+            16;
+        }
+
+        const gridTop =
+          appGrid.getBoundingClientRect().top + window.pageYOffset;
+        targetTop = Math.max(gridTop - offset, 0);
+      }
+
+      if (targetTop == null) return;
+
+      window.scrollTo({
+        top: targetTop,
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+      hasScrolledToApps = true;
+
+      if (alignSearch && searchContainer) {
+        const delay = prefersReducedMotion ? 0 : 280;
+        window.setTimeout(() => {
+          ensureSearchAndCardsVisible();
+        }, delay);
+      }
+    };
+
     const getAuthModal = () => document.getElementById('auth-modal');
 
     const isAuthModalVisible = () => {
@@ -290,55 +419,88 @@
       return authModal?.getAttribute('aria-hidden') === 'false';
     };
 
-    const focusSearch = () => {
-      if (!appSearchInput) return;
-      if (document.activeElement !== appSearchInput) {
+    const isStickySearchInView = () => {
+      if (!searchContainer) return false;
+      const rect = searchContainer.getBoundingClientRect();
+      const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight || 0;
+      return rect.top < viewportHeight && rect.bottom > 0;
+    };
+
+    const focusSearch = ({ scroll = false, alignSearch = false } = {}) => {
+      if (!searchInput || isAuthModalVisible()) return;
+      if (document.activeElement !== searchInput) {
         try {
-          appSearchInput.focus({ preventScroll: true });
+          searchInput.focus({ preventScroll: true });
         } catch (err) {
-          appSearchInput.focus();
+          searchInput.focus();
         }
       }
-      appSearchInput.select();
+      searchInput.select();
+      if (scroll) {
+        scrollAppsIntoView({ alignSearch });
+      }
     };
 
-    const focusSearchWhenReady = () => {
-      if (!appSearchInput || isAuthModalVisible()) return;
-      window.requestAnimationFrame(() => focusSearch());
+    const handleSearchInput = (event) => {
+      const value = event.target?.value ?? '';
+      updateAppFilter(value);
+
+      const trimmedValue = value.trim();
+      if (!trimmedValue) {
+        hasScrolledToApps = false;
+        return;
+      }
+
+      if (!hasScrolledToApps) {
+        scrollAppsIntoView({ alignSearch: true });
+      }
     };
 
-    appSearchInput?.addEventListener('input', (event) => {
-      updateAppFilter(event.target.value);
-    });
-
-    appSearchInput?.addEventListener('search', (event) => {
-      updateAppFilter(event.target.value);
-    });
-
-    appSearchInput?.addEventListener('focus', (event) => {
-      event.target.select();
-    });
-
-    appSearchInput?.addEventListener('keydown', (event) => {
+    const handleSearchKeydown = (event) => {
       if (event.key !== 'Enter') return;
 
-      const firstVisibleCard = appCards.find((card) => !card.hidden);
+      const firstVisibleCard = getFirstVisibleCard();
       if (!firstVisibleCard) return;
 
       event.preventDefault();
       firstVisibleCard.focus();
       firstVisibleCard.click();
+    };
+
+    if (searchInput) {
+      searchInput.addEventListener('input', handleSearchInput);
+      searchInput.addEventListener('search', handleSearchInput);
+      searchInput.addEventListener('focus', (event) => {
+        event.target.select();
+      });
+      searchInput.addEventListener('keydown', handleSearchKeydown);
+    }
+
+    searchTriggers.forEach((trigger) => {
+      trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        focusSearch({ scroll: true, alignSearch: true });
+      });
     });
 
     window.addEventListener('keydown', (event) => {
       const isSlash = event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey;
       const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
 
-      if ((isSlash || isCommandK) && document.activeElement !== appSearchInput) {
+      const isSearchActive = document.activeElement === searchInput;
+
+      if ((isSlash || isCommandK) && !isSearchActive) {
         event.preventDefault();
         focusSearch();
       }
     });
+
+    const focusSearchWhenReady = () => {
+      if (!searchInput || isAuthModalVisible()) return;
+      if (!isStickySearchInView()) return;
+      window.requestAnimationFrame(() => focusSearch());
+    };
 
     window.addEventListener('load', () => {
       focusSearchWhenReady();
@@ -348,7 +510,8 @@
       focusSearchWhenReady();
     });
 
-    updateAppFilter(appSearchInput?.value ?? '');
+    const initialSearchValue = searchInput?.value ?? '';
+    updateAppFilter(initialSearchValue);
   </script>
 </body>
 </html>
