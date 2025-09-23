@@ -166,10 +166,61 @@
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
     const user = gun.user();
+    user.recall({ sessionStorage: true });
+
+    function ensureGuestId() {
+      const legacyId = localStorage.getItem('userId');
+      if (legacyId && !localStorage.getItem('guestId')) {
+        localStorage.setItem('guestId', legacyId);
+      }
+      if (legacyId) {
+        localStorage.removeItem('userId');
+      }
+      let guestId = localStorage.getItem('guestId');
+      if (!guestId) {
+        guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('guestId', guestId);
+      }
+      if (!localStorage.getItem('guestDisplayName')) {
+        localStorage.setItem('guestDisplayName', 'Guest');
+      }
+      return guestId;
+    }
+
+    function restoreAuthIfPossible() {
+      const signedIn = localStorage.getItem('signedIn') === 'true';
+      const alias = localStorage.getItem('alias');
+      const password = localStorage.getItem('password');
+
+      if (signedIn && alias && password) {
+        localStorage.removeItem('guest');
+        if (!user.is) {
+          user.auth(alias, password, ack => {
+            if (ack && ack.err) {
+              console.warn('Session restore failed', ack.err);
+              localStorage.removeItem('signedIn');
+              localStorage.removeItem('alias');
+              localStorage.removeItem('username');
+              localStorage.removeItem('password');
+            }
+          });
+        }
+      } else if (signedIn) {
+        localStorage.removeItem('signedIn');
+        localStorage.removeItem('alias');
+        localStorage.removeItem('password');
+      }
+    }
+
+    restoreAuthIfPossible();
+
+    if (localStorage.getItem('guest') === 'true') {
+      ensureGuestId();
+    }
 
     window.addEventListener('load', () => {
-      const signedIn = localStorage.getItem('signedIn');
-      const guest = localStorage.getItem('guest');
+      const signedIn = localStorage.getItem('signedIn') === 'true';
+      const guest = localStorage.getItem('guest') === 'true';
       const authModal = document.getElementById('auth-modal');
 
       if (!signedIn && !guest) {
@@ -179,10 +230,15 @@
         authModal.style.display = 'none';
         authModal.setAttribute('aria-hidden', 'true');
       }
+
+      if (guest) {
+        ensureGuestId();
+      }
     });
 
     function continueAsGuest() {
       const authModal = document.getElementById('auth-modal');
+      ensureGuestId();
       localStorage.setItem('guest', 'true');
       authModal.style.display = 'none';
       authModal.setAttribute('aria-hidden', 'true');
