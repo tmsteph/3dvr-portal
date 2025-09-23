@@ -2,7 +2,51 @@
 // DO NOT re-create Gun or user here!
 // Just use the global one from index.html.
 
+function aliasToDisplay(alias) {
+  const normalized = typeof alias === 'string' ? alias.trim() : '';
+  if (!normalized) return '';
+  if (normalized.includes('@')) {
+    return normalized.split('@')[0];
+  }
+  return normalized;
+}
+
+function normalizeScore(value) {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.round(numeric));
+}
+
+function ensureGuestId() {
+  const legacyId = localStorage.getItem('userId');
+  if (legacyId && !localStorage.getItem('guestId')) {
+    localStorage.setItem('guestId', legacyId);
+  }
+  if (legacyId) {
+    localStorage.removeItem('userId');
+  }
+  const existing = localStorage.getItem('guestId');
+  if (existing) {
+    if (!localStorage.getItem('guestDisplayName')) {
+      localStorage.setItem('guestDisplayName', 'Guest');
+    }
+    return existing;
+  }
+  const id = `guest_${Math.random().toString(36).substr(2, 9)}`;
+  localStorage.setItem('guestId', id);
+  if (!localStorage.getItem('guestDisplayName')) {
+    localStorage.setItem('guestDisplayName', 'Guest');
+  }
+  return id;
+}
+
 function createNavbar() {
+  try {
+    user.recall({ sessionStorage: true });
+  } catch (err) {
+    console.warn('Unable to recall user session', err);
+  }
+
   const nav = document.createElement('div');
   nav.className = 'floating-identity';
   nav.setAttribute('aria-label', 'Account status');
@@ -25,11 +69,19 @@ function createNavbar() {
   button.innerText = 'Sign Out';
 
   button.addEventListener('click', () => {
-    user.leave();
+    try {
+      user.leave();
+    } catch (err) {
+      console.warn('Error signing out', err);
+    }
     localStorage.removeItem('signedIn');
-    localStorage.removeItem('guest');
+    localStorage.removeItem('alias');
     localStorage.removeItem('username');
     localStorage.removeItem('password');
+    localStorage.removeItem('guest');
+    localStorage.removeItem('guestId');
+    localStorage.removeItem('guestDisplayName');
+    localStorage.removeItem('userId');
     window.location.href = 'index.html';
   });
 
@@ -50,29 +102,67 @@ function createNavbar() {
     document.body.appendChild(nav);
   }
 
-  const signedIn = localStorage.getItem('signedIn');
-  const guest = localStorage.getItem('guest');
+  const isSignedIn = localStorage.getItem('signedIn') === 'true';
+  const isGuest = !isSignedIn && localStorage.getItem('guest') === 'true';
+  let latestDisplayName = '';
+  let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
 
-  if (signedIn) {
+  function updateNameDisplay() {
+    if (latestDisplayName) {
+      usernameSpan.innerText = `👤 ${latestDisplayName}`;
+      return;
+    }
+    if (isSignedIn) {
+      const stored = (localStorage.getItem('username') || '').trim();
+      const fallback = stored || aliasDisplay || 'Guest';
+      usernameSpan.innerText = `👤 ${fallback}`;
+      return;
+    }
+    if (isGuest) {
+      const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
+      const fallbackName = guestStored || aliasDisplay || 'Guest';
+      usernameSpan.innerText = `👤 ${fallbackName}`;
+      return;
+    }
+    usernameSpan.innerText = '👤 Guest';
+  }
+
+  function updateScoreDisplay(score) {
+    scoreSpan.innerText = `⭐ ${normalizeScore(score)}`;
+  }
+
+  updateNameDisplay();
+  updateScoreDisplay(0);
+
+  if (isSignedIn) {
     user.get('alias').on(alias => {
-      usernameSpan.innerText = `👤 ${alias || 'Loading...'}`;
+      aliasDisplay = aliasToDisplay(alias);
+      updateNameDisplay();
+    });
+    user.get('username').on(name => {
+      const normalized = typeof name === 'string' ? name.trim() : '';
+      latestDisplayName = normalized;
+      if (normalized) {
+        localStorage.setItem('username', normalized);
+      }
+      updateNameDisplay();
     });
     user.get('score').on(score => {
-      scoreSpan.innerText = `⭐ ${score || 0}`;
+      updateScoreDisplay(score);
     });
-  } else if (guest) {
-    const guestId = localStorage.getItem('guestId') || (() => {
-      const id = 'guest_' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('guestId', id);
-      return id;
-    })();
+  } else if (isGuest) {
+    const guestId = ensureGuestId();
     const guestProfile = gun.get('3dvr-guests').get(guestId);
-
     guestProfile.get('username').on(name => {
-      usernameSpan.innerText = `👤 ${name || 'Guest'}`;
+      const normalized = typeof name === 'string' ? name.trim() : '';
+      latestDisplayName = normalized;
+      if (normalized) {
+        localStorage.setItem('guestDisplayName', normalized);
+      }
+      updateNameDisplay();
     });
     guestProfile.get('score').on(score => {
-      scoreSpan.innerText = `⭐ ${score || 0}`;
+      updateScoreDisplay(score);
     });
   } else {
     usernameSpan.innerText = '👤 Guest';

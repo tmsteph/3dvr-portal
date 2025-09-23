@@ -112,8 +112,64 @@ function finishLogin(username, alias, password) {
   localStorage.setItem('username', username);
   localStorage.setItem('alias', alias);
   localStorage.setItem('password', password);
-  recordUserProfile(username, alias);
-  window.location.href = 'index.html';
+  localStorage.removeItem('guest');
+  migrateGuestProgress()
+    .catch(err => {
+      console.error('Guest migration failed', err);
+    })
+    .then(() => {
+      recordUserProfile(username, alias);
+      window.location.href = 'index.html';
+    });
+}
+
+function clearGuestSession() {
+  localStorage.removeItem('guest');
+  localStorage.removeItem('guestId');
+  localStorage.removeItem('guestDisplayName');
+  localStorage.removeItem('userId');
+}
+
+function sanitizeScore(value) {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.round(numeric));
+}
+
+function migrateGuestProgress() {
+  return new Promise(resolve => {
+    const guestId = localStorage.getItem('guestId');
+    if (!guestId) {
+      clearGuestSession();
+      resolve();
+      return;
+    }
+
+    const guestProfile = gun.get('3dvr-guests').get(guestId);
+    guestProfile.once(snapshot => {
+      const guestName = snapshot && typeof snapshot.username === 'string'
+        ? snapshot.username.trim()
+        : '';
+      const guestScore = sanitizeScore(snapshot && snapshot.score);
+
+      if (guestName) {
+        user.get('username').put(guestName);
+        localStorage.setItem('username', guestName);
+      }
+
+      if (guestScore) {
+        user.get('score').once(current => {
+          const currentScore = sanitizeScore(current);
+          if (guestScore > currentScore) {
+            user.get('score').put(guestScore);
+          }
+        });
+      }
+
+      clearGuestSession();
+      resolve();
+    });
+  });
 }
 
 function recordUserProfile(username, alias) {
