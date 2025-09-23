@@ -42,6 +42,31 @@
         <span class="hero-eyebrow">Open Metaverse Community</span>
         <h1 id="landing-title">Welcome to the 3DVR Portal</h1>
         <p class="hero-tagline">Launch straight into the apps that power the community and keep everyone in sync.</p>
+        <div
+          class="hero-search"
+          role="search"
+          aria-labelledby="heroSearchLabel"
+          data-app-search-hero
+        >
+          <label id="heroSearchLabel" class="hero-search__label" for="heroAppSearch">
+            Find your next app
+          </label>
+          <div class="hero-search__field">
+            <input
+              type="search"
+              id="heroAppSearch"
+              class="hero-search__input"
+              placeholder="Search apps…"
+              aria-describedby="heroAppSearchHint"
+              autocomplete="off"
+              spellcheck="false"
+              data-app-search-input
+            />
+            <span id="heroAppSearchHint" class="hero-search__hint">
+              Start typing to jump to the apps below. Results update instantly.
+            </span>
+          </div>
+        </div>
         <div class="hero-actions">
           <button type="button" class="cta primary" data-app-search-trigger>Browse apps</button>
           <a href="sign-in.html" class="cta ghost">Start earning</a>
@@ -61,6 +86,7 @@
             role="search"
             aria-label="Filter app list"
             data-app-search-container
+            data-app-search-sticky
           >
             <input
               type="search"
@@ -266,10 +292,14 @@
     const searchInputs = Array.from(
       document.querySelectorAll('[data-app-search-input]')
     );
-    const primarySearchInput = searchInputs[0];
+    const stickySearchPanel = document.querySelector(
+      '[data-app-search-container][data-app-search-sticky]'
+    );
+    const stickySearchInput =
+      stickySearchPanel?.querySelector('[data-app-search-input]') ?? null;
+    const primarySearchInput = stickySearchInput ?? searchInputs[0];
     const appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
-    const searchPanel = document.querySelector('[data-app-search-container]');
     const searchTriggers = Array.from(
       document.querySelectorAll('[data-app-search-trigger]')
     );
@@ -313,29 +343,101 @@
       });
     };
 
+    const toPixels = (value) => {
+      const parsed = Number.parseFloat(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    const getFirstVisibleCard = () => appCards.find((card) => !card.hidden);
+
+    const ensureSearchAndCardsVisible = () => {
+      if (!stickySearchPanel) return;
+
+      const styles = window.getComputedStyle(stickySearchPanel);
+      const stickyTop = toPixels(styles.top);
+      const marginBottom = toPixels(styles.marginBottom);
+      const desiredGap = 16;
+      const searchRect = stickySearchPanel.getBoundingClientRect();
+
+      if (searchRect.top < stickyTop) {
+        const adjust = searchRect.top - stickyTop;
+        window.scrollBy({ top: adjust, behavior: 'auto' });
+      }
+
+      const firstVisibleCard = getFirstVisibleCard();
+      if (!firstVisibleCard) return;
+
+      const cardRect = firstVisibleCard.getBoundingClientRect();
+      const desiredTop = searchRect.bottom + marginBottom + desiredGap;
+
+      if (cardRect.top < desiredTop) {
+        const adjust = desiredTop - cardRect.top;
+        window.scrollBy({ top: adjust, behavior: 'auto' });
+      }
+    };
+
     const scrollAppsIntoView = ({ alignSearch = false } = {}) => {
       const prefersReducedMotion = prefersReducedMotionQuery?.matches;
+      const firstVisibleCard = getFirstVisibleCard();
       let targetTop;
 
-      if (alignSearch && searchPanel) {
-        const styles = window.getComputedStyle(searchPanel);
-        const stickyTop = Number.parseFloat(styles.top) || 0;
-        const marginTop = Number.parseFloat(styles.marginTop) || 0;
+      if (alignSearch && stickySearchPanel) {
+        const styles = window.getComputedStyle(stickySearchPanel);
+        const stickyTop = toPixels(styles.top);
+        const marginTop = toPixels(styles.marginTop);
+        const marginBottom = toPixels(styles.marginBottom);
         const searchTop =
-          searchPanel.getBoundingClientRect().top + window.pageYOffset;
+          stickySearchPanel.getBoundingClientRect().top + window.pageYOffset;
+        const searchHeight = stickySearchPanel.offsetHeight;
 
         targetTop = Math.max(searchTop - stickyTop - marginTop, 0);
+
+        if (firstVisibleCard) {
+          const cardTop =
+            firstVisibleCard.getBoundingClientRect().top + window.pageYOffset;
+          const desiredGap = 16;
+          const cardTarget =
+            cardTop -
+            (stickyTop + searchHeight + marginBottom + desiredGap);
+          if (Number.isFinite(cardTarget)) {
+            targetTop = Math.min(targetTop, Math.max(cardTarget, 0));
+          }
+        }
+      }
+
+      if (targetTop == null && firstVisibleCard) {
+        const styles = stickySearchPanel
+          ? window.getComputedStyle(stickySearchPanel)
+          : null;
+        const marginTop = styles ? toPixels(styles.marginTop) : 0;
+        const marginBottom = styles ? toPixels(styles.marginBottom) : 0;
+        const stickyTop = styles ? toPixels(styles.top) : 0;
+        const searchHeight = stickySearchPanel
+          ? stickySearchPanel.offsetHeight
+          : 0;
+        const desiredGap = 16;
+        const offset =
+          searchHeight + marginTop + marginBottom + stickyTop + desiredGap;
+        const cardTop =
+          firstVisibleCard.getBoundingClientRect().top + window.pageYOffset;
+        targetTop = Math.max(cardTop - offset, 0);
       }
 
       if (targetTop == null && appGrid) {
         let offset = 80;
 
-        if (searchPanel) {
-          const styles = window.getComputedStyle(searchPanel);
-          const marginTop = Number.parseFloat(styles.marginTop) || 0;
-          const marginBottom = Number.parseFloat(styles.marginBottom) || 0;
+        if (stickySearchPanel) {
+          const styles = window.getComputedStyle(stickySearchPanel);
+          const marginTop = toPixels(styles.marginTop);
+          const marginBottom = toPixels(styles.marginBottom);
+          const stickyTop = toPixels(styles.top);
 
-          offset = searchPanel.offsetHeight + marginTop + marginBottom + 16;
+          offset =
+            stickySearchPanel.offsetHeight +
+            marginTop +
+            marginBottom +
+            stickyTop +
+            16;
         }
 
         const gridTop =
@@ -350,6 +452,13 @@
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
       });
       hasScrolledToApps = true;
+
+      if (alignSearch && stickySearchPanel) {
+        const delay = prefersReducedMotion ? 0 : 280;
+        window.setTimeout(() => {
+          ensureSearchAndCardsVisible();
+        }, delay);
+      }
     };
 
     const getAuthModal = () => document.getElementById('auth-modal');
@@ -359,9 +468,9 @@
       return authModal?.getAttribute('aria-hidden') === 'false';
     };
 
-    const isSearchPanelInView = () => {
-      if (!searchPanel) return false;
-      const rect = searchPanel.getBoundingClientRect();
+    const isStickySearchInView = () => {
+      if (!stickySearchPanel) return false;
+      const rect = stickySearchPanel.getBoundingClientRect();
       const viewportHeight =
         window.innerHeight || document.documentElement.clientHeight || 0;
       return rect.top < viewportHeight && rect.bottom > 0;
@@ -393,15 +502,31 @@
         return;
       }
 
+      const shouldTransferFocus =
+        !hasScrolledToApps &&
+        stickySearchInput &&
+        event.target !== stickySearchInput;
+
       if (!hasScrolledToApps) {
         scrollAppsIntoView({ alignSearch: true });
+
+        if (shouldTransferFocus) {
+          window.requestAnimationFrame(() => {
+            try {
+              stickySearchInput.focus({ preventScroll: true });
+            } catch (err) {
+              stickySearchInput.focus();
+            }
+            stickySearchInput.select();
+          });
+        }
       }
     };
 
     const handleSearchKeydown = (event) => {
       if (event.key !== 'Enter') return;
 
-      const firstVisibleCard = appCards.find((card) => !card.hidden);
+      const firstVisibleCard = getFirstVisibleCard();
       if (!firstVisibleCard) return;
 
       event.preventDefault();
@@ -439,7 +564,7 @@
 
     const focusSearchWhenReady = () => {
       if (!primarySearchInput || isAuthModalVisible()) return;
-      if (!isSearchPanelInView()) return;
+      if (!isStickySearchInView()) return;
       window.requestAnimationFrame(() => focusSearch());
     };
 
@@ -452,6 +577,9 @@
     });
 
     const initialSearchValue = primarySearchInput?.value ?? '';
+    if (primarySearchInput) {
+      syncSearchInputs(initialSearchValue, primarySearchInput);
+    }
     updateAppFilter(initialSearchValue);
   </script>
 </body>
