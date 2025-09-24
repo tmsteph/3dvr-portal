@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>3DVR - Sign In</title>
+  <title>3DVR Portal – Sign In or Sign Up</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <style>
@@ -296,9 +296,9 @@
     <div class="auth-wrapper">
       <section class="auth-card" aria-labelledby="auth-title">
         <div class="auth-header">
-          <span class="auth-eyebrow">3dvr portal</span>
-          <h1 id="auth-title">Create your immersive account</h1>
-          <p>Unlock synced progress, track your achievements, and carry your VR journey across every device.</p>
+          <span class="auth-eyebrow">3DVR Portal</span>
+          <h1 id="auth-title">Sign in or sign up</h1>
+          <p>Access your open web workspace, sync your progress, and build alongside the community powering our open-source tech company.</p>
         </div>
         <form onsubmit="event.preventDefault(); signIn();" aria-describedby="auth-title">
           <div>
@@ -310,23 +310,23 @@
             <input type="password" id="password" name="password" placeholder="Create a secure passphrase" autocomplete="current-password" required>
           </div>
           <div class="actions">
-            <button type="submit" class="primary-button">Sign in or create account</button>
+            <button type="submit" class="primary-button">Sign in or sign up</button>
             <button type="button" class="guest-button" onclick="continueAsGuest()">Continue as guest</button>
           </div>
           <p class="disclaimer">We use decentralized GUN.js storage. Your credentials are encrypted before leaving your device.</p>
         </form>
       </section>
-      <aside class="auth-aside" aria-label="3dvr benefits">
+      <aside class="auth-aside" aria-label="3dvr portal benefits">
         <div class="badge-row">
           <span class="badge">Encrypted sync</span>
-          <span class="badge">No downloads</span>
+          <span class="badge">Open source</span>
         </div>
         <div class="feature-list">
           <div class="feature-item">
             <div class="feature-icon" aria-hidden="true">🎯</div>
             <div>
-              <h3>Personalized progress</h3>
-              <p>Resume challenges exactly where you left off and celebrate every milestone you unlock.</p>
+              <h3>Unified workspace</h3>
+              <p>Pick up projects right where you left them and keep every tool in your web app stack within reach.</p>
             </div>
           </div>
           <div class="feature-item">
@@ -339,8 +339,8 @@
           <div class="feature-item">
             <div class="feature-icon" aria-hidden="true">🌐</div>
             <div>
-              <h3>Seamless collaboration</h3>
-              <p>Instantly access shared team spaces and leaderboards without juggling multiple logins.</p>
+              <h3>Collaborate in the open</h3>
+              <p>Join shared spaces, ship updates faster, and contribute to our open-source ecosystem from anywhere.</p>
             </div>
           </div>
         </div>
