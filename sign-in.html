@@ -7,234 +7,534 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <style>
+    :root {
+      color-scheme: dark;
+      --bg-primary: #050d1a;
+      --bg-secondary: rgba(10, 26, 53, 0.8);
+      --bg-card: rgba(8, 18, 35, 0.86);
+      --accent: #f0c75e;
+      --accent-strong: #ffd577;
+      --text-primary: #f8fbff;
+      --text-secondary: rgba(248, 251, 255, 0.72);
+      --border-color: rgba(240, 199, 94, 0.28);
+      --shadow-soft: 0 40px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
+      margin: 0;
+      min-height: 100vh;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to bottom right, #003366, #001a33);
-      color: gold;
+      background: radial-gradient(circle at top, #0f284d 0%, #050d1a 50%, #02060d 100%);
+      color: var(--text-primary);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      padding: 48px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: '';
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.35;
+      z-index: 0;
+    }
+
+    body::before {
+      background: #1c69ff;
+      top: -160px;
+      left: -120px;
+    }
+
+    body::after {
+      background: #ff7a59;
+      bottom: -180px;
+      right: -140px;
+    }
+
+    main {
+      width: 100%;
+      max-width: 1000px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .auth-wrapper {
+      display: grid;
+      grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+      gap: 0;
+      background: var(--bg-secondary);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(26px);
+    }
+
+    .auth-card {
+      padding: 48px 40px;
+      background: var(--bg-card);
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .auth-header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .auth-eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      font-size: 0.75rem;
+      color: var(--accent);
+    }
+
+    .auth-header h1 {
       margin: 0;
-      padding: 20px;
+      font-size: clamp(1.9rem, 2.5vw, 2.4rem);
+      font-weight: 700;
+      line-height: 1.1;
     }
-    input, button {
-      margin: 10px;
-      padding: 10px;
-      border-radius: 8px;
+
+    .auth-header p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: rgba(248, 251, 255, 0.75);
+      letter-spacing: 0.03em;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(9, 20, 38, 0.8);
+      color: var(--text-primary);
+      font-size: 1rem;
+      transition: border 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input::placeholder {
+      color: rgba(248, 251, 255, 0.45);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(240, 199, 94, 0.2);
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .primary-button {
+      width: 100%;
+      padding: 15px 18px;
       border: none;
-      width: 250px;
-    }
-    button {
-      background: gold;
-      color: #003366;
-      font-weight: bold;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #1a2233;
+      font-weight: 700;
+      font-size: 1rem;
       cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    button:hover {
-      background: #ffd700;
+
+    .primary-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 30px rgba(240, 199, 94, 0.32);
+    }
+
+    .guest-button {
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--accent-strong);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: border 0.2s ease, color 0.2s ease, background 0.2s ease;
+    }
+
+    .guest-button:hover {
+      border-color: rgba(240, 199, 94, 0.6);
+      color: #ffe6b0;
+      background: rgba(240, 199, 94, 0.08);
+    }
+
+    .disclaimer {
+      font-size: 0.75rem;
+      color: rgba(248, 251, 255, 0.45);
+      line-height: 1.5;
+    }
+
+    .auth-aside {
+      position: relative;
+      padding: 48px 44px;
+      background: linear-gradient(180deg, rgba(10, 32, 63, 0.85) 0%, rgba(5, 13, 26, 0.9) 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      border-left: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .feature-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 18px;
+    }
+
+    .feature-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .feature-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(240, 199, 94, 0.16);
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+      color: var(--accent);
+    }
+
+    .feature-item h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .feature-item p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .badge {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(240, 199, 94, 0.16);
+      color: var(--accent);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 920px) {
+      .auth-wrapper {
+        grid-template-columns: 1fr;
+      }
+
+      .auth-aside {
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 32px 12px;
+      }
+
+      .auth-card,
+      .auth-aside {
+        padding: 32px 24px;
+      }
+
+      .auth-header h1 {
+        font-size: 1.8rem;
+      }
     }
   </style>
 </head>
 <body>
+  <main>
+    <div class="auth-wrapper">
+      <section class="auth-card" aria-labelledby="auth-title">
+        <div class="auth-header">
+          <span class="auth-eyebrow">3dvr portal</span>
+          <h1 id="auth-title">Create your immersive account</h1>
+          <p>Unlock synced progress, track your achievements, and carry your VR journey across every device.</p>
+        </div>
+        <form onsubmit="event.preventDefault(); signIn();" aria-describedby="auth-title">
+          <div>
+            <label for="username">Display name</label>
+            <input type="text" id="username" name="username" placeholder="e.g. cosmic-explorer" autocomplete="username" required>
+          </div>
+          <div>
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Create a secure passphrase" autocomplete="current-password" required>
+          </div>
+          <div class="actions">
+            <button type="submit" class="primary-button">Sign in or create account</button>
+            <button type="button" class="guest-button" onclick="continueAsGuest()">Continue as guest</button>
+          </div>
+          <p class="disclaimer">We use decentralized GUN.js storage. Your credentials are encrypted before leaving your device.</p>
+        </form>
+      </section>
+      <aside class="auth-aside" aria-label="3dvr benefits">
+        <div class="badge-row">
+          <span class="badge">Encrypted sync</span>
+          <span class="badge">No downloads</span>
+        </div>
+        <div class="feature-list">
+          <div class="feature-item">
+            <div class="feature-icon" aria-hidden="true">🎯</div>
+            <div>
+              <h3>Personalized progress</h3>
+              <p>Resume challenges exactly where you left off and celebrate every milestone you unlock.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon" aria-hidden="true">🛡️</div>
+            <div>
+              <h3>Secure by design</h3>
+              <p>Your identity lives on the decentralized GUN network so you stay in control of your data.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon" aria-hidden="true">🌐</div>
+            <div>
+              <h3>Seamless collaboration</h3>
+              <p>Instantly access shared team spaces and leaderboards without juggling multiple logins.</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
 
-<h1>Sign In / Create Account</h1>
+  <script>
+    const gun = Gun({
+      peers: [
+        'https://gun-relay-3dvr.fly.dev/gun'
+      ]
+    });
+    const user = gun.user();
+    const portalRoot = gun.get('3dvr-portal');
 
-<input type="text" id="username" placeholder="Username">
-<input type="password" id="password" placeholder="Password">
+    function signIn() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
 
-<button onclick="signIn()">Sign In / Create</button>
-<button onclick="continueAsGuest()" style="margin-top: 20px; background: none; border: 1px solid gold; color: gold;">Continue as Guest</button>
+      if (!username || !password) {
+        alert("Please enter both username and password.");
+        return;
+      }
 
-<script>
-const gun = Gun({
-  peers: [
-    'https://gun-relay-3dvr.fly.dev/gun'
-  ]
-});
-const user = gun.user();
-const portalRoot = gun.get('3dvr-portal');
+      const alias = username + "@3dvr";
+      console.log("🛠️ Attempting to authorize user:", alias);
 
-function signIn() {
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value.trim();
+      // Attempt to sign in
+      user.auth(alias, password, loginAck => {
+        if (loginAck.err) {
+          console.warn("❌ Login failed:", loginAck.err);
+          console.log("Login failed. Trying to create a new account...");
+          // Attempt to create user
+          user.create(alias, password, createAck => {
+            if (createAck.err) {
+              if (createAck.err.includes("User already created")) {
+                alert("⚠️ That username is taken. Please check your password or try logging in.");
+                console.warn("⚠️ User exists, password is likely incorrect.");
+              } else {
+                console.error("❌ Error creating account:", createAck.err);
+                alert("❌ Account creation failed: " + createAck.err);
+              }
+              return;
+            }
+            console.log("✅ User created:", alias);
+            // Retry auth after creation
+            setTimeout(() => {
+              user.auth(alias, password, authAck => {
+                if (authAck.err) {
+                  console.error("❌ Auth after creation failed:", authAck.err);
+                  alert("⚠️ Auth failed after creating account. Please try again.");
+                } else {
+                  console.log("✅ Authenticated after account creation.");
+                  finishLogin(username, alias, password);
+                }
+              });
+            }, 500);
+          });
 
-  if (!username || !password) {
-    alert("Please enter both username and password.");
-    return;
-  }
+        } else {
+          console.log("✅ Logged in existing user.");
+          finishLogin(username, alias, password);
+        }
+      });
+    }
 
-  const alias = username + "@3dvr";
-  console.log("🛠️ Attempting to authorize user:", alias);
+    function finishLogin(username, alias, password) {
+      localStorage.setItem('signedIn', 'true');
+      localStorage.setItem('username', username);
+      localStorage.setItem('alias', alias);
+      localStorage.setItem('password', password);
+      localStorage.removeItem('guest');
+      migrateGuestProgress()
+        .catch(err => {
+          console.error('Guest migration failed', err);
+        })
+        .then(() => ensureUserTotalsConsistency())
+        .catch(err => {
+          console.error('Failed to sync user totals', err);
+        })
+        .then(() => {
+          recordUserProfile(username, alias);
+          window.location.href = 'index.html';
+        });
+    }
 
-  // Attempt to sign in
-  user.auth(alias, password, loginAck => {
-    if (loginAck.err) {
-      console.warn("❌ Login failed:", loginAck.err);
-      console.log("Login failed. Trying to create a new account...");
-      // Attempt to create user
-      user.create(alias, password, createAck => {
-        if (createAck.err) {
-          if (createAck.err.includes("User already created")) {
-            alert("⚠️ That username is taken. Please check your password or try logging in.");
-            console.warn("⚠️ User exists, password is likely incorrect.");
-          } else {
-            console.error("❌ Error creating account:", createAck.err);
-            alert("❌ Account creation failed: " + createAck.err);
+    function clearGuestSession() {
+      localStorage.removeItem('guest');
+      localStorage.removeItem('guestId');
+      localStorage.removeItem('guestDisplayName');
+      localStorage.removeItem('userId');
+    }
+
+    function sanitizeScore(value) {
+      const numeric = typeof value === 'number' ? value : Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.round(numeric));
+    }
+
+    function ensureUserTotalsConsistency() {
+      return new Promise(resolve => {
+        let scoreValue;
+        let pointsValue;
+        let resolved = false;
+
+        function safeResolve() {
+          if (resolved) return;
+          resolved = true;
+          resolve();
+        }
+
+        function trySync() {
+          if (scoreValue === undefined || pointsValue === undefined) return;
+          const normalizedScore = sanitizeScore(scoreValue);
+          const normalizedPoints = sanitizeScore(pointsValue);
+          const best = Math.max(normalizedScore, normalizedPoints);
+          if (normalizedScore !== best) {
+            user.get('score').put(best);
           }
+          if (normalizedPoints !== best) {
+            user.get('points').put(best);
+          }
+          safeResolve();
+        }
+
+        user.get('score').once(value => {
+          scoreValue = value;
+          trySync();
+        });
+
+        user.get('points').once(value => {
+          pointsValue = value;
+          trySync();
+        });
+
+        setTimeout(safeResolve, 1500);
+      });
+    }
+
+    function migrateGuestProgress() {
+      return new Promise(resolve => {
+        const guestId = localStorage.getItem('guestId');
+        if (!guestId) {
+          clearGuestSession();
+          resolve();
           return;
         }
-        console.log("✅ User created:", alias);
-        // Retry auth after creation
-        setTimeout(() => {
-          user.auth(alias, password, authAck => {
-            if (authAck.err) {
-              console.error("❌ Auth after creation failed:", authAck.err);
-              alert("⚠️ Auth failed after creating account. Please try again.");
-            } else {
-              console.log("✅ Authenticated after account creation.");
-              finishLogin(username, alias, password);
-            }
-          });
-        }, 500);
-      });
 
-    } else {
-      console.log("✅ Logged in existing user.");
-      finishLogin(username, alias, password);
-    }
-  });
-}
-  
-function finishLogin(username, alias, password) {
-  localStorage.setItem('signedIn', 'true');
-  localStorage.setItem('username', username);
-  localStorage.setItem('alias', alias);
-  localStorage.setItem('password', password);
-  localStorage.removeItem('guest');
-  migrateGuestProgress()
-    .catch(err => {
-      console.error('Guest migration failed', err);
-    })
-    .then(() => ensureUserTotalsConsistency())
-    .catch(err => {
-      console.error('Failed to sync user totals', err);
-    })
-    .then(() => {
-      recordUserProfile(username, alias);
-      window.location.href = 'index.html';
-    });
-}
+        const guestProfile = gun.get('3dvr-guests').get(guestId);
+        guestProfile.once(snapshot => {
+          const guestName = snapshot && typeof snapshot.username === 'string'
+            ? snapshot.username.trim()
+            : '';
+          const guestScore = sanitizeScore(snapshot && snapshot.score);
 
-function clearGuestSession() {
-  localStorage.removeItem('guest');
-  localStorage.removeItem('guestId');
-  localStorage.removeItem('guestDisplayName');
-  localStorage.removeItem('userId');
-}
-
-function sanitizeScore(value) {
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.round(numeric));
-}
-
-function ensureUserTotalsConsistency() {
-  return new Promise(resolve => {
-    let scoreValue;
-    let pointsValue;
-    let resolved = false;
-
-    function safeResolve() {
-      if (resolved) return;
-      resolved = true;
-      resolve();
-    }
-
-    function trySync() {
-      if (scoreValue === undefined || pointsValue === undefined) return;
-      const normalizedScore = sanitizeScore(scoreValue);
-      const normalizedPoints = sanitizeScore(pointsValue);
-      const best = Math.max(normalizedScore, normalizedPoints);
-      if (normalizedScore !== best) {
-        user.get('score').put(best);
-      }
-      if (normalizedPoints !== best) {
-        user.get('points').put(best);
-      }
-      safeResolve();
-    }
-
-    user.get('score').once(value => {
-      scoreValue = value;
-      trySync();
-    });
-
-    user.get('points').once(value => {
-      pointsValue = value;
-      trySync();
-    });
-
-    setTimeout(safeResolve, 1500);
-  });
-}
-
-function migrateGuestProgress() {
-  return new Promise(resolve => {
-    const guestId = localStorage.getItem('guestId');
-    if (!guestId) {
-      clearGuestSession();
-      resolve();
-      return;
-    }
-
-    const guestProfile = gun.get('3dvr-guests').get(guestId);
-    guestProfile.once(snapshot => {
-      const guestName = snapshot && typeof snapshot.username === 'string'
-        ? snapshot.username.trim()
-        : '';
-      const guestScore = sanitizeScore(snapshot && snapshot.score);
-
-      if (guestName) {
-        user.get('username').put(guestName);
-        localStorage.setItem('username', guestName);
-      }
-
-      if (guestScore) {
-        user.get('score').once(current => {
-          const currentScore = sanitizeScore(current);
-          if (guestScore > currentScore) {
-            user.get('score').put(guestScore);
+          if (guestName) {
+            user.get('username').put(guestName);
+            localStorage.setItem('username', guestName);
           }
+
+          if (guestScore) {
+            user.get('score').once(current => {
+              const currentScore = sanitizeScore(current);
+              if (guestScore > currentScore) {
+                user.get('score').put(guestScore);
+              }
+            });
+          }
+
+          clearGuestSession();
+          resolve();
         });
-      }
+      });
+    }
 
-      clearGuestSession();
-      resolve();
-    });
-  });
-}
+    function recordUserProfile(username, alias) {
+      if (!alias) return;
+      const node = portalRoot.get('userIndex').get(alias);
+      node.once(data => {
+        const createdAt = data && data.createdAt ? data.createdAt : Date.now();
+        node.put({
+          username,
+          alias,
+          createdAt,
+          lastLogin: Date.now()
+        });
+      });
+    }
 
-function recordUserProfile(username, alias) {
-  if (!alias) return;
-  const node = portalRoot.get('userIndex').get(alias);
-  node.once(data => {
-    const createdAt = data && data.createdAt ? data.createdAt : Date.now();
-    node.put({
-      username,
-      alias,
-      createdAt,
-      lastLogin: Date.now()
-    });
-  });
-}
-
-function continueAsGuest() {
-  localStorage.setItem('guest', 'true');
-  window.location.href = 'index.html';
-}
-</script>
-
+    function continueAsGuest() {
+      localStorage.setItem('guest', 'true');
+      window.location.href = 'index.html';
+    }
+  </script>
 </body>
 </html>
