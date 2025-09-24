@@ -26,16 +26,17 @@
 
     body {
       margin: 0;
-      min-height: 100vh;
+      min-height: 100dvh;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: radial-gradient(circle at top, #0f284d 0%, #050d1a 50%, #02060d 100%);
       color: var(--text-primary);
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 48px 16px;
+      padding: clamp(32px, 7vh, 72px) 16px;
       position: relative;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
     body::before,
@@ -48,6 +49,7 @@
       filter: blur(120px);
       opacity: 0.35;
       z-index: 0;
+      pointer-events: none;
     }
 
     body::before {
@@ -63,13 +65,14 @@
     }
 
     main {
-      width: 100%;
-      max-width: 1000px;
+      width: min(100%, 960px);
+      margin: 0 auto;
       position: relative;
       z-index: 1;
     }
 
     .auth-wrapper {
+      width: 100%;
       display: grid;
       grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
       gap: 0;
@@ -287,6 +290,12 @@
 
       .auth-header h1 {
         font-size: 1.8rem;
+      }
+    }
+
+    @media (max-height: 720px) {
+      body {
+        align-items: flex-start;
       }
     }
   </style>
