@@ -63,13 +63,15 @@
 
     function getStoredTotal(callback) {
       user.get('score').once(score => {
-        if (score === undefined || score === null) {
-          user.get('points').once(points => {
-            callback(normalizePoints(points));
-          });
+        if (score !== undefined && score !== null) {
+          callback(normalizePoints(score));
           return;
         }
-        callback(normalizePoints(score));
+        user.get('points').once(points => {
+          const fallbackTotal = normalizePoints(points);
+          persistUserTotals(fallbackTotal);
+          callback(fallbackTotal);
+        });
       });
     }
 

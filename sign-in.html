@@ -117,6 +117,10 @@ function finishLogin(username, alias, password) {
     .catch(err => {
       console.error('Guest migration failed', err);
     })
+    .then(() => ensureUserTotalsConsistency())
+    .catch(err => {
+      console.error('Failed to sync user totals', err);
+    })
     .then(() => {
       recordUserProfile(username, alias);
       window.location.href = 'index.html';
@@ -134,6 +138,46 @@ function sanitizeScore(value) {
   const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric)) return 0;
   return Math.max(0, Math.round(numeric));
+}
+
+function ensureUserTotalsConsistency() {
+  return new Promise(resolve => {
+    let scoreValue;
+    let pointsValue;
+    let resolved = false;
+
+    function safeResolve() {
+      if (resolved) return;
+      resolved = true;
+      resolve();
+    }
+
+    function trySync() {
+      if (scoreValue === undefined || pointsValue === undefined) return;
+      const normalizedScore = sanitizeScore(scoreValue);
+      const normalizedPoints = sanitizeScore(pointsValue);
+      const best = Math.max(normalizedScore, normalizedPoints);
+      if (normalizedScore !== best) {
+        user.get('score').put(best);
+      }
+      if (normalizedPoints !== best) {
+        user.get('points').put(best);
+      }
+      safeResolve();
+    }
+
+    user.get('score').once(value => {
+      scoreValue = value;
+      trySync();
+    });
+
+    user.get('points').once(value => {
+      pointsValue = value;
+      trySync();
+    });
+
+    setTimeout(safeResolve, 1500);
+  });
 }
 
 function migrateGuestProgress() {
