@@ -203,6 +203,7 @@ const notificationStatusText = document.getElementById('notification-status');
 const notificationsSupported = 'Notification' in window;
 const notificationsPreferenceKey = 'chatNotificationsEnabled';
 let notificationsEnabled = false;
+let serviceWorkerRegistration = null;
 
 const currentUsernameEl = document.getElementById('current-username');
 let cachedUsername = '';
@@ -401,6 +402,22 @@ function initNotifications() {
     return;
   }
 
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistration().then(existingRegistration => {
+      if (existingRegistration) {
+        serviceWorkerRegistration = existingRegistration;
+        return existingRegistration;
+      }
+      return navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+        .then(registration => {
+          serviceWorkerRegistration = registration;
+          return registration;
+        });
+    }).catch(error => {
+      console.error('Service worker registration failed for chat notifications', error);
+    });
+  }
+
   const savedPreference = localStorage.getItem(notificationsPreferenceKey) === 'true';
   if (savedPreference && Notification.permission === 'granted') {
     notificationsEnabled = true;
@@ -475,16 +492,50 @@ function maybeNotifyNewMessage(message, id) {
   const preview = (message.text || '').trim();
   const notificationBody = preview.length > 120 ? `${preview.slice(0, 117)}...` : preview;
 
-  try {
-    const notification = new Notification(`${username} in #${currentRoom}`, {
-      body: notificationBody || 'New message',
-      tag: `${currentRoom}-${id}`
-    });
+  const title = `${username} in #${currentRoom}`;
+  const options = {
+    body: notificationBody || 'New message',
+    tag: `${currentRoom}-${id}`
+  };
 
-    setTimeout(() => notification.close(), 8000);
-  } catch (error) {
-    console.error('Unable to show notification', error);
+  const fallbackToPageNotification = () => {
+    try {
+      const notification = new Notification(title, options);
+      setTimeout(() => notification.close(), 8000);
+    } catch (error) {
+      console.error('Unable to show notification', error);
+    }
+  };
+
+  if (!('serviceWorker' in navigator)) {
+    fallbackToPageNotification();
+    return;
   }
+
+  const attemptServiceWorkerNotification = registration => {
+    if (!registration || typeof registration.showNotification !== 'function') {
+      fallbackToPageNotification();
+      return;
+    }
+
+    registration.showNotification(title, options).catch(() => {
+      fallbackToPageNotification();
+    });
+  };
+
+  if (serviceWorkerRegistration) {
+    attemptServiceWorkerNotification(serviceWorkerRegistration);
+    return;
+  }
+
+  navigator.serviceWorker.ready
+    .then(registration => {
+      serviceWorkerRegistration = registration;
+      attemptServiceWorkerNotification(registration);
+    })
+    .catch(() => {
+      fallbackToPageNotification();
+    });
 }
 
 initNotifications();
