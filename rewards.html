@@ -61,12 +61,30 @@
       return Math.max(0, Math.round(numeric));
     }
 
+    function getStoredTotal(callback) {
+      user.get('score').once(score => {
+        if (score === undefined || score === null) {
+          user.get('points').once(points => {
+            callback(normalizePoints(points));
+          });
+          return;
+        }
+        callback(normalizePoints(score));
+      });
+    }
+
+    function persistUserTotals(total) {
+      const safeTotal = normalizePoints(total);
+      user.get('score').put(safeTotal);
+      user.get('points').put(safeTotal);
+      syncPublicPoints(safeTotal);
+      return safeTotal;
+    }
+
     function completeTask() {
-      user.get('points').once(p => {
-        const currentPoints = normalizePoints(p);
-        const newPoints = currentPoints + 100;
-        user.get('points').put(newPoints);
-        syncPublicPoints(newPoints);
+      getStoredTotal(currentPoints => {
+        const updatedTotal = currentPoints + 100;
+        persistUserTotals(updatedTotal);
         user.get('log').set({
           task: 'Completed task',
           time: Date.now()
@@ -78,8 +96,7 @@
     function updateLog() {
       logDiv.innerHTML = '<strong>Your Task History:</strong><br>';
 
-      user.get('points').once(p => {
-        const total = normalizePoints(p);
+      getStoredTotal(total => {
         logDiv.innerHTML += `Total Points: ${total}<br><br>`;
         syncPublicPoints(total);
       });
