@@ -34,10 +34,9 @@
       align-items: center;
       justify-content: center;
       --inline-pad: clamp(16px, 4vw, 32px);
+      --safe-inline: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
       padding-block: clamp(32px, 7vh, 72px);
-      padding-inline: var(--inline-pad);
-      padding-inline-start: max(var(--inline-pad), env(safe-area-inset-left, 0px));
-      padding-inline-end: max(var(--inline-pad), env(safe-area-inset-right, 0px));
+      padding-inline: calc(var(--inline-pad) + var(--safe-inline));
       position: relative;
       overflow-x: hidden;
       overflow-y: auto;
