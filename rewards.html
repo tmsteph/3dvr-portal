@@ -53,9 +53,18 @@
     const portalRoot = gun.get('3dvr-portal');
     const logDiv = document.getElementById('log');
 
+    function normalizePoints(value) {
+      const numeric = typeof value === 'number' ? value : Number(value);
+      if (!Number.isFinite(numeric)) {
+        return 0;
+      }
+      return Math.max(0, Math.round(numeric));
+    }
+
     function completeTask() {
       user.get('points').once(p => {
-        const newPoints = (p || 0) + 100;
+        const currentPoints = normalizePoints(p);
+        const newPoints = currentPoints + 100;
         user.get('points').put(newPoints);
         syncPublicPoints(newPoints);
         user.get('log').set({
@@ -70,7 +79,7 @@
       logDiv.innerHTML = '<strong>Your Task History:</strong><br>';
 
       user.get('points').once(p => {
-        const total = p || 0;
+        const total = normalizePoints(p);
         logDiv.innerHTML += `Total Points: ${total}<br><br>`;
         syncPublicPoints(total);
       });
@@ -92,13 +101,14 @@
     });
 
     function syncPublicPoints(totalPoints) {
+      const safeTotal = normalizePoints(totalPoints);
       const alias = localStorage.getItem('alias');
       if (!alias) return;
       const displayName = localStorage.getItem('username') || alias.replace('@3dvr', '');
       portalRoot.get('userStats').get(alias).put({
         alias,
         username: displayName,
-        points: totalPoints,
+        points: safeTotal,
         lastUpdated: Date.now()
       });
     }
