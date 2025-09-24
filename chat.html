@@ -202,8 +202,17 @@ const notificationToggleButton = document.getElementById('notification-toggle');
 const notificationStatusText = document.getElementById('notification-status');
 const notificationsSupported = 'Notification' in window;
 const notificationsPreferenceKey = 'chatNotificationsEnabled';
+const notificationIconPath = '/icons/icon-192.png';
 let notificationsEnabled = false;
 let serviceWorkerRegistration = null;
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data && event.data.type === 'notification-clicked') {
+      window.focus();
+    }
+  });
+}
 
 const currentUsernameEl = document.getElementById('current-username');
 let cachedUsername = '';
@@ -465,6 +474,7 @@ function toggleNotifications() {
     notificationsEnabled = true;
     localStorage.setItem(notificationsPreferenceKey, 'true');
     updateNotificationUI();
+    sendNotificationPreview();
     return;
   }
 
@@ -477,30 +487,58 @@ function toggleNotifications() {
     }
 
     updateNotificationUI();
+
+    if (permission === 'granted') {
+      sendNotificationPreview();
+    }
   });
 }
 
-function maybeNotifyNewMessage(message, id) {
+async function attemptServiceWorkerNotification(registration, title, options) {
+  if (!registration) return false;
+
+  try {
+    if (registration.active && typeof registration.active.postMessage === 'function') {
+      registration.active.postMessage({
+        type: 'show-notification',
+        payload: { title, options }
+      });
+      return true;
+    }
+
+    if (typeof registration.showNotification === 'function') {
+      await registration.showNotification(title, options);
+      return true;
+    }
+  } catch (error) {
+    console.error('Service worker notification attempt failed', error);
+  }
+
+  return false;
+}
+
+async function showChatNotification(title, options = {}, config = {}) {
   if (!notificationsEnabled || !notificationsSupported) return;
-  if (!message || message.sender === userId) return;
-  if (document.visibilityState === 'visible') return;
-  if (Notification.permission !== 'granted') return;
+  if (!title || Notification.permission !== 'granted') return;
 
-  const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
-    message.sender ||
-    'Someone';
-  const preview = (message.text || '').trim();
-  const notificationBody = preview.length > 120 ? `${preview.slice(0, 117)}...` : preview;
+  const { requireHidden = true } = config;
+  if (requireHidden && document.visibilityState === 'visible') return;
 
-  const title = `${username} in #${currentRoom}`;
-  const options = {
-    body: notificationBody || 'New message',
-    tag: `${currentRoom}-${id}`
+  const enrichedOptions = {
+    ...options,
+    icon: options.icon || notificationIconPath,
+    badge: options.badge || notificationIconPath,
+    timestamp: Date.now(),
+    data: {
+      ...options.data,
+      url: options.data?.url || `/chat.html#${currentRoom}`,
+      room: currentRoom
+    }
   };
 
   const fallbackToPageNotification = () => {
     try {
-      const notification = new Notification(title, options);
+      const notification = new Notification(title, enrichedOptions);
       setTimeout(() => notification.close(), 8000);
     } catch (error) {
       console.error('Unable to show notification', error);
@@ -512,30 +550,58 @@ function maybeNotifyNewMessage(message, id) {
     return;
   }
 
-  const attemptServiceWorkerNotification = registration => {
-    if (!registration || typeof registration.showNotification !== 'function') {
-      fallbackToPageNotification();
-      return;
-    }
-
-    registration.showNotification(title, options).catch(() => {
-      fallbackToPageNotification();
-    });
-  };
-
-  if (serviceWorkerRegistration) {
-    attemptServiceWorkerNotification(serviceWorkerRegistration);
+  if (await attemptServiceWorkerNotification(serviceWorkerRegistration, title, enrichedOptions)) {
     return;
   }
 
-  navigator.serviceWorker.ready
-    .then(registration => {
-      serviceWorkerRegistration = registration;
-      attemptServiceWorkerNotification(registration);
-    })
-    .catch(() => {
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    serviceWorkerRegistration = registration;
+
+    const success = await attemptServiceWorkerNotification(registration, title, enrichedOptions);
+    if (!success) {
       fallbackToPageNotification();
-    });
+    }
+  } catch (error) {
+    console.error('Service worker readiness error', error);
+    fallbackToPageNotification();
+  }
+}
+
+function sendNotificationPreview() {
+  showChatNotification(
+    'Chat notifications enabled',
+    {
+      body: 'We will let you know when someone posts a new message.',
+      tag: 'chat-notification-preview',
+      data: { messageId: 'preview' }
+    },
+    { requireHidden: false }
+  );
+}
+
+function maybeNotifyNewMessage(message, id) {
+  if (!message || message.sender === userId) return;
+
+  const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
+    message.sender ||
+    'Someone';
+
+  const rawPreview = typeof message.text === 'string'
+    ? message.text.trim()
+    : String(message.text || '').trim();
+  const notificationBody = rawPreview.length > 160 ? `${rawPreview.slice(0, 157)}...` : rawPreview;
+
+  const title = `${username} in #${currentRoom}`;
+  const options = {
+    body: notificationBody || 'New message',
+    tag: `${currentRoom}-${id}`,
+    data: {
+      messageId: id
+    }
+  };
+
+  showChatNotification(title, options, { requireHidden: true });
 }
 
 initNotifications();

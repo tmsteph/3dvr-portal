@@ -128,3 +128,38 @@ self.addEventListener('fetch', (event) => {
     fetch(req).catch(() => caches.match(req))
   );
 });
+
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+
+  const { type, payload } = data;
+  if (type !== 'show-notification') return;
+
+  const title = payload?.title;
+  const options = payload?.options || {};
+  if (!title) return;
+
+  self.registration.showNotification(title, options).catch((error) => {
+    console.error('Service worker failed to display notification', error);
+  });
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification?.data?.url || '/chat.html';
+
+  event.waitUntil((async () => {
+    const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of allClients) {
+      if (client.url.includes(targetUrl) && 'focus' in client) {
+        client.postMessage({ type: 'notification-clicked' });
+        return client.focus();
+      }
+    }
+
+    if (clients.openWindow) {
+      return clients.openWindow(targetUrl);
+    }
+  })());
+});
