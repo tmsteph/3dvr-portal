@@ -33,7 +33,11 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: clamp(32px, 7vh, 72px) 16px;
+      --inline-pad: clamp(16px, 4vw, 32px);
+      padding-block: clamp(32px, 7vh, 72px);
+      padding-inline: var(--inline-pad);
+      padding-inline-start: max(var(--inline-pad), env(safe-area-inset-left, 0px));
+      padding-inline-end: max(var(--inline-pad), env(safe-area-inset-right, 0px));
       position: relative;
       overflow-x: hidden;
       overflow-y: auto;
@@ -69,6 +73,8 @@
       margin: 0 auto;
       position: relative;
       z-index: 1;
+      display: flex;
+      justify-content: center;
     }
 
     .auth-wrapper {
@@ -82,6 +88,7 @@
       overflow: hidden;
       box-shadow: var(--shadow-soft);
       backdrop-filter: blur(26px);
+      margin: 0 auto;
     }
 
     .auth-card {
@@ -270,6 +277,8 @@
     @media (max-width: 920px) {
       .auth-wrapper {
         grid-template-columns: 1fr;
+        max-width: 520px;
+        justify-items: stretch;
       }
 
       .auth-aside {
@@ -544,6 +553,28 @@
       localStorage.setItem('guest', 'true');
       window.location.href = 'index.html';
     }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const usernameInput = document.getElementById('username');
+      if (usernameInput) {
+        try {
+          usernameInput.focus({ preventScroll: true });
+        } catch (err) {
+          usernameInput.focus();
+        }
+        usernameInput.select();
+      }
+
+      const passwordInput = document.getElementById('password');
+      if (passwordInput) {
+        passwordInput.addEventListener('keydown', event => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            signIn();
+          }
+        });
+      }
+    });
   </script>
 </body>
 </html>
