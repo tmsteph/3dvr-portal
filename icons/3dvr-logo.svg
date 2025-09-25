@@ -1,55 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 320" role="img" aria-labelledby="title desc">
   <title id="title">3DVR logo</title>
-  <desc id="desc">Outline of VR goggles with colorful rings and 3DVR wordmark</desc>
+  <desc id="desc">Minimal VR goggles with trailing neon waves and 3DVR wordmark</desc>
   <defs>
-    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#20e0bb" />
-      <stop offset="50%" stop-color="#38bdf8" />
-      <stop offset="100%" stop-color="#f472b6" />
+    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1fe0ba" />
+      <stop offset="45%" stop-color="#2dd4ff" />
+      <stop offset="100%" stop-color="#f44fae" />
     </linearGradient>
     <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#1dd9a5" />
-      <stop offset="50%" stop-color="#2dd4bf" />
-      <stop offset="100%" stop-color="#38bdf8" />
+      <stop offset="0%" stop-color="#18deb0" />
+      <stop offset="50%" stop-color="#25d6ef" />
+      <stop offset="100%" stop-color="#f44fae" />
     </linearGradient>
-    <linearGradient id="strapGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="100%" stop-color="#c084fc" />
+    <linearGradient id="goggleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d9dee6" />
+      <stop offset="50%" stop-color="#d0d7e2" />
+      <stop offset="100%" stop-color="#c6cedc" />
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.35" />
-    </filter>
   </defs>
-  <g filter="url(#shadow)">
+  <g fill="none" stroke="url(#goggleGradient)" stroke-width="10" stroke-linejoin="round">
     <path
-      d="M48 74c0-19.33 15.67-35 35-35h154c19.33 0 35 15.67 35 35v36c0 19.33-15.67 35-35 35h-64.5l-24.3 19.8a10 10 0 0 1-16.2-7.8V145H83c-19.33 0-35-15.67-35-35V74Z"
-      fill="#060b16"
-      stroke="url(#strapGradient)"
-      stroke-width="8"
-      stroke-linejoin="round"
-    />
-    <rect x="80" y="70" width="80" height="60" rx="18" fill="#0f172a" stroke="#38bdf8" stroke-width="6" />
-    <rect x="170" y="70" width="80" height="60" rx="18" fill="#0f172a" stroke="#2dd4bf" stroke-width="6" />
-    <path
-      d="M64 62c4-18 20-30 39-30h114c19 0 35 12 39 30"
-      fill="none"
-      stroke="url(#strapGradient)"
-      stroke-width="8"
+      d="M118 96h276c30 0 54 24 54 54v24c0 30-24 54-54 54h-88l-26 26c-10 10-26 3-26-11v-15H144c-30 0-54-24-54-54v-24c0-30 24-54 54-54Z"
       stroke-linecap="round"
     />
+    <path d="M170 120c-18 0-32 14-32 32v12c0 18 14 32 32 32h58c4 0 8 2 10 5 8 11 22 19 38 19s30-8 38-19c2-3 6-5 10-5h58c18 0 32-14 32-32v-12c0-18-14-32-32-32Z" />
   </g>
-  <g fill="none" stroke="url(#glow)" stroke-width="10" stroke-linecap="round">
-    <path d="M258 38c26 6 46 30 46 57s-20 51-46 57" opacity="0.45" />
-    <path d="M278 28c33 8 58 36 58 67s-25 59-58 67" opacity="0.3" />
-    <path d="M298 18c40 10 70 42 70 77s-30 67-70 77" opacity="0.15" />
+  <g fill="none" stroke="url(#waveGradient)" stroke-width="14" stroke-linecap="round">
+    <path d="M362 66c48 10 82 52 82 98s-34 88-82 98" opacity="0.55" />
+    <path d="M396 46c64 12 108 62 108 118s-44 106-108 118" opacity="0.35" />
+    <path d="M430 26c84 16 140 74 140 138s-56 122-140 138" opacity="0.18" />
   </g>
   <text
-    x="40"
-    y="186"
+    x="122"
+    y="280"
     font-family="'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
-    font-size="60"
-    font-weight="700"
-    letter-spacing="4"
+    font-size="96"
+    font-weight="600"
+    letter-spacing="6"
     fill="url(#textGradient)"
   >3DVR</text>
 </svg>
