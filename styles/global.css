@@ -186,6 +186,9 @@ body.theme-dark::after {
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.95rem;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .floating-identity__label {
@@ -194,6 +197,11 @@ body.theme-dark::after {
 
 .floating-identity__value {
   opacity: 0.8;
+}
+
+.floating-identity__stats:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .floating-identity__button {
