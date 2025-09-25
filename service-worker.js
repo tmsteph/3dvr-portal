@@ -11,6 +11,7 @@ const STATIC_ASSETS = [
   '/index-style.css',
   '/styles/global.css',
   '/navbar.js',
+  '/score.js',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

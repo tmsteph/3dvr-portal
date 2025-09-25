@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3DVR - Memory Match</title>
 <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+<script src="score.js"></script>
 <link rel="stylesheet" href="styles/global.css">
 <style>
 body {
@@ -106,12 +107,11 @@ footer {
 
 <script>
 const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
-const userId = localStorage.getItem('userId') || (() => {
-  const id = 'user_' + Math.random().toString(36).substr(2, 9);
-  localStorage.setItem('userId', id);
-  return id;
-})();
-const user = gun.get('3dvr-users').get(userId);
+const portalUser = gun.user();
+const portalRoot = gun.get('3dvr-portal');
+const scoreManager = window.ScoreSystem
+  ? window.ScoreSystem.getManager({ gun, user: portalUser, portalRoot })
+  : null;
 
 const board = document.getElementById('board');
 const message = document.getElementById('message');
@@ -188,10 +188,9 @@ function winGame() {
   message.innerText = "🎉 You Won! +50 Score!";
   resetBtn.style.display = 'block';
 
-  user.get('score').once(current => {
-    const newScore = (current || 0) + 50;
-    user.get('score').put(newScore);
-  });
+  if (scoreManager) {
+    scoreManager.increment(50);
+  }
 }
 
 function resetGame() {

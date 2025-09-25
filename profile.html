@@ -6,6 +6,7 @@
   <title>3DVR - Profile</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <style>
     body {
@@ -124,59 +125,71 @@
 <script>
 const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
 const user = gun.user();
-user.recall({ sessionStorage: true });
+const portalRoot = gun.get('3dvr-portal');
 
-let activeProfile = user;
+let isSignedIn = localStorage.getItem('signedIn') === 'true';
+if (!isSignedIn && window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+  window.ScoreSystem.ensureGuestIdentity();
+}
+
+const scoreManager = window.ScoreSystem
+  ? window.ScoreSystem.getManager({ gun, user, portalRoot })
+  : null;
+
+let authState = scoreManager
+  ? scoreManager.getState()
+  : (window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function'
+    ? window.ScoreSystem.computeAuthState()
+    : { mode: 'anon' });
+
+isSignedIn = authState.mode === 'user';
+let isGuest = authState.mode === 'guest';
+
+let activeProfile = scoreManager ? scoreManager.getNode() : null;
 let latestProfileName = '';
 let aliasName = '';
-let isSignedIn = localStorage.getItem('signedIn') === 'true';
 let portalStoredName = (localStorage.getItem('username') || '').trim();
 let guestStoredName = (localStorage.getItem('guestDisplayName') || '').trim();
+let scoreUnsubscribe = null;
 
 const usernameEl = document.getElementById('username');
 const scoreEl = document.getElementById('score');
 const levelEl = document.getElementById('level');
 const progressEl = document.getElementById('progress');
 
+function aliasToDisplay(alias) {
+  const normalized = typeof alias === 'string' ? alias.trim() : '';
+  if (!normalized) return '';
+  return normalized.includes('@') ? normalized.split('@')[0] : normalized;
+}
+
 function computeDisplayName() {
   if (latestProfileName) return latestProfileName;
   if (isSignedIn) {
     if (portalStoredName) return portalStoredName;
     if (aliasName) return aliasName;
-  } else {
-    if (guestStoredName) return guestStoredName;
+    return 'Guest';
   }
-  if (!isSignedIn && aliasName) return aliasName;
-  return 'Guest';
+  if (isGuest) {
+    if (guestStoredName) return guestStoredName;
+    return aliasName || 'Guest';
+  }
+  return aliasName || 'Guest';
 }
 
 function applyDisplayName() {
   usernameEl.innerText = computeDisplayName();
 }
 
-function handleProfileName(name) {
-  const normalized = typeof name === 'string' ? name.trim() : '';
-  latestProfileName = normalized;
-  if (normalized) {
-    if (isSignedIn) {
-      portalStoredName = normalized;
-      localStorage.setItem('username', portalStoredName);
-    } else {
-      guestStoredName = normalized;
-      localStorage.setItem('guestDisplayName', guestStoredName);
-    }
-  }
-  applyDisplayName();
-}
-
-function normalizeScore(value) {
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.round(numeric));
-}
-
 function updateProfile(scoreValue) {
-  const safeScore = normalizeScore(scoreValue);
+  const safeScore = window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function'
+    ? window.ScoreSystem.sanitizeScore(scoreValue)
+    : (() => {
+      const numeric = typeof scoreValue === 'number' ? scoreValue : Number(scoreValue);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.round(numeric));
+    })();
+
   scoreEl.innerText = safeScore;
 
   let level = 'Explorer';
@@ -197,49 +210,31 @@ function updateProfile(scoreValue) {
   progressEl.style.width = `${Math.max(0, Math.min(progress, 100))}%`;
 }
 
-function watchProfile(node) {
-  node.get('username').on(handleProfileName);
-  node.get('score').on(updateProfile);
-}
-
-function ensureGuestDefaults(node) {
-  const fallbackName = guestStoredName || 'Guest';
-  node.get('username').once(name => {
-    const normalized = typeof name === 'string' ? name.trim() : '';
-    if (!normalized) {
-      node.get('username').put(fallbackName);
-      latestProfileName = fallbackName;
-      applyDisplayName();
+function handleProfileName(name) {
+  const normalized = typeof name === 'string' ? name.trim() : '';
+  latestProfileName = normalized;
+  if (normalized) {
+    if (isSignedIn) {
+      portalStoredName = normalized;
+      localStorage.setItem('username', portalStoredName);
+    } else if (isGuest) {
+      guestStoredName = normalized;
+      localStorage.setItem('guestDisplayName', guestStoredName);
     }
-  });
-  node.get('score').once(score => {
-    const numericValue = Number(score);
-    if (!Number.isFinite(numericValue)) {
-      node.get('score').put(0);
-      updateProfile(0);
-    } else {
-      updateProfile(numericValue);
-    }
-  });
-}
-
-function aliasToDisplay(alias) {
-  const normalized = typeof alias === 'string' ? alias.trim() : '';
-  if (!normalized) return '';
-  if (normalized.includes('@')) {
-    return normalized.split('@')[0];
   }
-  return normalized;
-}
-
-function setAliasDisplay(alias) {
-  const display = aliasToDisplay(alias);
-  if (!display) return;
-  aliasName = display;
   applyDisplayName();
 }
 
-function migrateLegacyGuestId() {
+function ensureGuestProfileNode() {
+  if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+    const guestId = window.ScoreSystem.ensureGuestIdentity();
+    if (!guestStoredName) {
+      guestStoredName = 'Guest';
+      localStorage.setItem('guestDisplayName', guestStoredName);
+    }
+    return gun.get('3dvr-guests').get(guestId);
+  }
+
   const legacyId = localStorage.getItem('userId');
   if (legacyId && !localStorage.getItem('guestId')) {
     localStorage.setItem('guestId', legacyId);
@@ -247,62 +242,89 @@ function migrateLegacyGuestId() {
   if (legacyId) {
     localStorage.removeItem('userId');
   }
-}
 
-function setupGuestProfile() {
-  isSignedIn = false;
-  portalStoredName = '';
-  aliasName = '';
-  migrateLegacyGuestId();
-  const guestId = localStorage.getItem('guestId') || (() => {
-    const id = `guest_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('guestId', id);
-    return id;
-  })();
+  let guestId = localStorage.getItem('guestId');
+  if (!guestId) {
+    guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('guestId', guestId);
+  }
   localStorage.setItem('guest', 'true');
-
-  activeProfile = gun.get('3dvr-guests').get(guestId);
   if (!guestStoredName) {
     guestStoredName = 'Guest';
     localStorage.setItem('guestDisplayName', guestStoredName);
   }
-  latestProfileName = '';
-  applyDisplayName();
-  ensureGuestDefaults(activeProfile);
-  watchProfile(activeProfile);
+  return gun.get('3dvr-guests').get(guestId);
 }
 
-function finalizeSignedInProfile() {
-  isSignedIn = true;
-  portalStoredName = (localStorage.getItem('username') || '').trim();
-  localStorage.removeItem('guest');
-  localStorage.removeItem('guestDisplayName');
-  localStorage.removeItem('guestId');
-  guestStoredName = '';
-  latestProfileName = '';
-  activeProfile = user;
-  user.get('alias').once(setAliasDisplay);
-  user.get('alias').on(setAliasDisplay);
-  watchProfile(activeProfile);
-  activeProfile.get('score').once(score => {
-    const numericValue = Number(score);
-    if (!Number.isFinite(numericValue)) {
-      activeProfile.get('score').put(0);
-      updateProfile(0);
-    } else {
-      updateProfile(numericValue);
+function watchUsername(node) {
+  if (!node) return;
+  node.get('username').on(handleProfileName);
+  node.get('username').once(name => {
+    const normalized = typeof name === 'string' ? name.trim() : '';
+    if (normalized) {
+      handleProfileName(normalized);
+      return;
     }
+    const fallback = isSignedIn
+      ? (portalStoredName || aliasName || 'Guest')
+      : (guestStoredName || 'Guest');
+    node.get('username').put(fallback);
+    handleProfileName(fallback);
   });
-  applyDisplayName();
 }
 
-const signedInAlias = localStorage.getItem('alias');
+function subscribeToScore() {
+  if (!scoreManager) {
+    updateProfile(0);
+    return;
+  }
+  if (scoreUnsubscribe) return;
+  scoreUnsubscribe = scoreManager.subscribe(updateProfile);
+  scoreManager.whenReady().then(value => updateProfile(value));
+}
+
+function initializeSignedInProfile() {
+  isSignedIn = true;
+  isGuest = false;
+  localStorage.removeItem('guest');
+  localStorage.removeItem('guestId');
+  localStorage.removeItem('guestDisplayName');
+  guestStoredName = '';
+  activeProfile = user;
+
+  try {
+    user.recall({ sessionStorage: true });
+  } catch (err) {
+    console.warn('Unable to recall user session', err);
+  }
+
+  user.get('alias').on(value => {
+    aliasName = aliasToDisplay(value);
+    applyDisplayName();
+  });
+
+  watchUsername(activeProfile);
+  applyDisplayName();
+  subscribeToScore();
+}
+
+function initializeGuestProfile() {
+  isSignedIn = false;
+  isGuest = true;
+  aliasName = '';
+  activeProfile = ensureGuestProfileNode();
+  watchUsername(activeProfile);
+  applyDisplayName();
+  subscribeToScore();
+}
+
+const signedInAlias = (localStorage.getItem('alias') || '').trim();
 const signedInPassword = localStorage.getItem('password');
 
 if (isSignedIn && signedInAlias && signedInPassword) {
-  setAliasDisplay(signedInAlias);
+  aliasName = aliasToDisplay(signedInAlias);
   if (user.is) {
-    finalizeSignedInProfile();
+    initializeSignedInProfile();
   } else {
     user.auth(signedInAlias, signedInPassword, ack => {
       if (ack && ack.err) {
@@ -311,28 +333,30 @@ if (isSignedIn && signedInAlias && signedInPassword) {
         localStorage.removeItem('alias');
         localStorage.removeItem('username');
         localStorage.removeItem('password');
-        setupGuestProfile();
+        initializeGuestProfile();
       } else {
-        finalizeSignedInProfile();
+        initializeSignedInProfile();
       }
     });
   }
 } else {
-  setupGuestProfile();
+  initializeGuestProfile();
 }
 
 function saveUsername() {
   const nameInput = document.getElementById('name-input');
   const name = nameInput.value.trim();
-  if (!name) return;
+  if (!name || !activeProfile) return;
+
   latestProfileName = name;
   if (isSignedIn) {
     portalStoredName = name;
     localStorage.setItem('username', portalStoredName);
-  } else {
+  } else if (isGuest) {
     guestStoredName = name;
     localStorage.setItem('guestDisplayName', guestStoredName);
   }
+
   applyDisplayName();
   activeProfile.get('username').put(name);
   nameInput.value = '';
@@ -340,12 +364,8 @@ function saveUsername() {
 
 function addPoints(amount) {
   const bonus = Number(amount);
-  if (!Number.isFinite(bonus) || bonus <= 0) return;
-  activeProfile.get('score').once(current => {
-    const base = normalizeScore(current);
-    const updated = base + bonus;
-    activeProfile.get('score').put(updated);
-  });
+  if (!Number.isFinite(bonus) || bonus <= 0 || !scoreManager) return;
+  scoreManager.increment(bonus);
 }
 
 function resetProfile() {
@@ -354,6 +374,9 @@ function resetProfile() {
       user.leave();
     } catch (err) {
       console.warn('Error signing out user', err);
+    }
+    if (window.ScoreSystem && typeof window.ScoreSystem.resetManager === 'function') {
+      window.ScoreSystem.resetManager();
     }
     localStorage.removeItem('signedIn');
     localStorage.removeItem('alias');

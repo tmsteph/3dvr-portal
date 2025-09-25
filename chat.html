@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3DVR - Group Chat</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <style>
     body {
@@ -195,6 +196,11 @@
 const gun = Gun([
   'https://gun-relay-3dvr.fly.dev/gun',          // 👈 primary
 ]);
+const portalUser = gun.user();
+const portalRoot = gun.get('3dvr-portal');
+const scoreManager = window.ScoreSystem
+  ? window.ScoreSystem.getManager({ gun, user: portalUser, portalRoot })
+  : null;
 let currentRoom = 'general';
 let chat = gun.get('3dvr-chat').get(currentRoom);
 
@@ -222,7 +228,7 @@ const userId = localStorage.getItem('userId') || (() => {
   localStorage.setItem('userId', id);
   return id;
 })();
-const user = gun.get('3dvr-users').get(userId);
+const chatProfile = gun.get('3dvr-users').get(userId);
 
 // Auto import old chats into General (only runs if in General and no messages exist)
 if (currentRoom === 'general') {
@@ -240,16 +246,16 @@ if (currentRoom === 'general') {
 const initialUsername = derivePreferredUsername();
 applyUsernameToUI(initialUsername);
 
-user.get('username').once(existingName => {
+chatProfile.get('username').once(existingName => {
   const resolvedName = derivePreferredUsername(existingName);
   applyUsernameToUI(resolvedName);
   const normalizedExisting = typeof existingName === 'string' ? existingName.trim() : '';
   if (normalizedExisting !== resolvedName) {
-    user.get('username').put(resolvedName);
+    chatProfile.get('username').put(resolvedName);
   }
 });
 
-user.get('username').on(name => {
+chatProfile.get('username').on(name => {
   const normalized = typeof name === 'string' ? name.trim() : '';
   if (!normalized) return;
   applyUsernameToUI(normalized);
@@ -318,10 +324,9 @@ function sendMessage() {
 
   input.value = '';
 
-  user.get('score').once(currentScore => {
-    const newScore = (currentScore || 0) + 1;
-    user.get('score').put(newScore);
-  });
+  if (scoreManager) {
+    scoreManager.increment(1);
+  }
 }
 
 const messages = {};
