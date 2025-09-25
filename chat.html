@@ -209,8 +209,202 @@ const notificationStatusText = document.getElementById('notification-status');
 const notificationsSupported = 'Notification' in window;
 const notificationsPreferenceKey = 'chatNotificationsEnabled';
 const notificationIconPath = '/icons/icon-192.png';
+const notificationStateStorageKey = 'chatNotificationState';
+const INITIAL_SYNC_GRACE_MS = 1500;
 let notificationsEnabled = false;
 let serviceWorkerRegistration = null;
+let currentRoomStream = null;
+const roomInitialSyncTimers = {};
+const notifiedMessageIdsByRoom = {};
+const notifiedMessageQueueByRoom = {};
+
+function loadNotificationState() {
+  try {
+    const raw = localStorage.getItem(notificationStateStorageKey);
+    if (!raw) {
+      return { rooms: {} };
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return { rooms: {} };
+    }
+
+    if (!parsed.rooms || typeof parsed.rooms !== 'object') {
+      parsed.rooms = {};
+    }
+
+    Object.keys(parsed.rooms).forEach(room => {
+      const roomState = parsed.rooms[room];
+      if (!roomState || typeof roomState !== 'object') {
+        parsed.rooms[room] = {
+          lastSeenTimestamp: 0,
+          lastSeenMessageIds: [],
+          initialSync: true,
+          initialSyncCutoff: 0
+        };
+        return;
+      }
+
+      if (typeof roomState.lastSeenTimestamp !== 'number' || !Number.isFinite(roomState.lastSeenTimestamp)) {
+        roomState.lastSeenTimestamp = 0;
+      }
+
+      if (!Array.isArray(roomState.lastSeenMessageIds)) {
+        roomState.lastSeenMessageIds = [];
+      }
+
+      roomState.initialSync = Boolean(roomState.initialSync);
+      roomState.initialSyncCutoff = typeof roomState.initialSyncCutoff === 'number'
+        ? roomState.initialSyncCutoff
+        : 0;
+    });
+
+    return parsed;
+  } catch (error) {
+    console.warn('Unable to load notification state', error);
+    return { rooms: {} };
+  }
+}
+
+const notificationState = loadNotificationState();
+
+function persistNotificationState() {
+  try {
+    localStorage.setItem(notificationStateStorageKey, JSON.stringify(notificationState));
+  } catch (error) {
+    console.warn('Failed to persist notification state', error);
+  }
+}
+
+function getRoomNotificationState(room) {
+  if (!notificationState.rooms || typeof notificationState.rooms !== 'object') {
+    notificationState.rooms = {};
+  }
+
+  if (!notificationState.rooms[room]) {
+    notificationState.rooms[room] = {
+      lastSeenTimestamp: 0,
+      lastSeenMessageIds: [],
+      initialSync: true,
+      initialSyncCutoff: 0
+    };
+  } else {
+    const roomState = notificationState.rooms[room];
+    if (typeof roomState.lastSeenTimestamp !== 'number' || !Number.isFinite(roomState.lastSeenTimestamp)) {
+      roomState.lastSeenTimestamp = 0;
+    }
+    if (!Array.isArray(roomState.lastSeenMessageIds)) {
+      roomState.lastSeenMessageIds = [];
+    }
+    if (typeof roomState.initialSync !== 'boolean') {
+      roomState.initialSync = true;
+    }
+    if (typeof roomState.initialSyncCutoff !== 'number' || !Number.isFinite(roomState.initialSyncCutoff)) {
+      roomState.initialSyncCutoff = 0;
+    }
+  }
+
+  return notificationState.rooms[room];
+}
+
+function updateRoomStateWithMessage(roomState, createdAt, id) {
+  if (!roomState) return;
+
+  const timestamp = typeof createdAt === 'number' && Number.isFinite(createdAt)
+    ? createdAt
+    : 0;
+
+  if (!timestamp) {
+    if (id) {
+      const ids = roomState.lastSeenMessageIds;
+      if (!ids.includes(id)) {
+        ids.push(id);
+        if (ids.length > 10) {
+          ids.splice(0, ids.length - 10);
+        }
+      }
+    }
+    return;
+  }
+
+  if (!roomState.lastSeenTimestamp || timestamp > roomState.lastSeenTimestamp) {
+    roomState.lastSeenTimestamp = timestamp;
+    roomState.lastSeenMessageIds = id ? [id] : [];
+    return;
+  }
+
+  if (timestamp === roomState.lastSeenTimestamp && id) {
+    const ids = roomState.lastSeenMessageIds;
+    if (!ids.includes(id)) {
+      ids.push(id);
+      if (ids.length > 10) {
+        ids.splice(0, ids.length - 10);
+      }
+    }
+  }
+}
+
+function clearInitialSyncTimer(room) {
+  const timer = roomInitialSyncTimers[room];
+  if (timer) {
+    clearTimeout(timer);
+    delete roomInitialSyncTimers[room];
+  }
+}
+
+function beginRoomNotificationSync(room) {
+  const roomState = getRoomNotificationState(room);
+  roomState.initialSync = true;
+  roomState.initialSyncCutoff = Date.now();
+  persistNotificationState();
+
+  clearInitialSyncTimer(room);
+  roomInitialSyncTimers[room] = setTimeout(() => {
+    const state = getRoomNotificationState(room);
+    state.initialSync = false;
+    state.initialSyncCutoff = 0;
+    if (!state.lastSeenTimestamp || state.lastSeenTimestamp < Date.now()) {
+      state.lastSeenTimestamp = Math.max(state.lastSeenTimestamp || 0, Date.now());
+      if (!Array.isArray(state.lastSeenMessageIds)) {
+        state.lastSeenMessageIds = [];
+      }
+    }
+    persistNotificationState();
+  }, INITIAL_SYNC_GRACE_MS);
+}
+
+const MAX_TRACKED_NOTIFICATIONS = 200;
+
+function hasMessageBeenNotified(room, id) {
+  if (!id) return false;
+  const set = notifiedMessageIdsByRoom[room];
+  return set ? set.has(id) : false;
+}
+
+function markMessageNotified(room, id) {
+  if (!id) return;
+
+  if (!notifiedMessageIdsByRoom[room]) {
+    notifiedMessageIdsByRoom[room] = new Set();
+    notifiedMessageQueueByRoom[room] = [];
+  }
+
+  const set = notifiedMessageIdsByRoom[room];
+  const queue = notifiedMessageQueueByRoom[room];
+
+  if (set.has(id)) return;
+
+  set.add(id);
+  queue.push(id);
+
+  if (queue.length > MAX_TRACKED_NOTIFICATIONS) {
+    const oldest = queue.shift();
+    if (oldest) {
+      set.delete(oldest);
+    }
+  }
+}
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
@@ -331,6 +525,18 @@ function sendMessage() {
 
 const messages = {};
 
+function resetNotifiedStateForRoom(room) {
+  if (!room) return;
+  const set = notifiedMessageIdsByRoom[room];
+  const queue = notifiedMessageQueueByRoom[room];
+  if (set) {
+    set.clear();
+  }
+  if (queue) {
+    queue.length = 0;
+  }
+}
+
 function timeAgoOrFullDate(timestamp) {
   const now = Date.now();
   const diff = Math.floor((now - timestamp) / 1000);
@@ -366,9 +572,18 @@ function loadRoom(roomName) {
   const messagesDiv = document.getElementById('messages');
   messagesDiv.innerHTML = '';
   Object.keys(messages).forEach(key => delete messages[key]);
+  resetNotifiedStateForRoom(roomName);
+  beginRoomNotificationSync(roomName);
+
+  if (currentRoomStream && typeof currentRoomStream.off === 'function') {
+    currentRoomStream.off();
+  }
 
   chat = gun.get('3dvr-chat').get(roomName);
-  chat.map().on((message, id) => {
+  const roomStream = chat.map();
+  currentRoomStream = roomStream;
+
+  roomStream.on((message, id) => {
     if (!message || messages[id]) return;
 
     if (message.sender) {
@@ -588,6 +803,51 @@ function sendNotificationPreview() {
 function maybeNotifyNewMessage(message, id) {
   if (!message || message.sender === userId) return;
 
+  const roomState = getRoomNotificationState(currentRoom);
+  const cutoff = roomState.initialSyncCutoff || 0;
+  const createdAt = typeof message.createdAt === 'number' && Number.isFinite(message.createdAt)
+    ? message.createdAt
+    : null;
+
+  if (roomState.initialSync) {
+    const isHistorical = createdAt !== null && cutoff && createdAt <= cutoff;
+    if (isHistorical) {
+      updateRoomStateWithMessage(roomState, createdAt, id);
+      markMessageNotified(currentRoom, id);
+      persistNotificationState();
+      return;
+    }
+
+    if (!createdAt && cutoff && Date.now() - cutoff < INITIAL_SYNC_GRACE_MS) {
+      markMessageNotified(currentRoom, id);
+      return;
+    }
+
+    roomState.initialSync = false;
+    roomState.initialSyncCutoff = 0;
+    persistNotificationState();
+  }
+
+  if (hasMessageBeenNotified(currentRoom, id)) {
+    return;
+  }
+
+  const effectiveTimestamp = createdAt !== null ? createdAt : Date.now();
+  const lastTimestamp = roomState.lastSeenTimestamp || 0;
+  const ids = Array.isArray(roomState.lastSeenMessageIds)
+    ? roomState.lastSeenMessageIds
+    : (roomState.lastSeenMessageIds = []);
+
+  if (createdAt !== null) {
+    if (effectiveTimestamp < lastTimestamp) {
+      return;
+    }
+
+    if (effectiveTimestamp === lastTimestamp && ids.includes(id)) {
+      return;
+    }
+  }
+
   const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
     message.sender ||
     'Someone';
@@ -607,6 +867,9 @@ function maybeNotifyNewMessage(message, id) {
   };
 
   showChatNotification(title, options, { requireHidden: true });
+  markMessageNotified(currentRoom, id);
+  updateRoomStateWithMessage(roomState, effectiveTimestamp, id);
+  persistNotificationState();
 }
 
 initNotifications();
