@@ -147,8 +147,12 @@ const alias = ls.getItem('alias') || '';
 const username = ls.getItem('username') || '';
 const password = ls.getItem('password') || '';
 
-// Keep tab session alive if already authed in this tab:
-user.recall({ sessionStorage: true });
+// Keep session alive across standalone/browser contexts:
+try {
+  user.recall({ sessionStorage: true, localStorage: true });
+} catch (err) {
+  console.warn('Unable to recall user session', err);
+}
 
 const userDisplay = document.getElementById('userDisplay');
 const btnLogout = document.getElementById('btnLogout');
