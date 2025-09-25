@@ -127,6 +127,7 @@
       this._readyResolvers = [];
       this._scoreHandler = null;
       this._pointsHandler = null;
+      this._authPromise = null;
 
       if (!Number.isFinite(this.current)) {
         this.current = 0;
@@ -137,7 +138,13 @@
         return;
       }
 
-      this.bootstrap();
+      this._ensureUserAuth()
+        .catch(err => {
+          console.warn('Failed to ensure user auth for score manager', err);
+        })
+        .finally(() => {
+          this.bootstrap();
+        });
     }
 
     resolveNode() {
@@ -187,6 +194,43 @@
       } catch (err) {
         console.warn('Failed to subscribe to score updates', err);
       }
+    }
+
+    _ensureUserAuth() {
+      if (this.state.mode !== 'user' || !this.user) {
+        return Promise.resolve();
+      }
+      if (this.user.is) {
+        return Promise.resolve();
+      }
+      if (this._authPromise) {
+        return this._authPromise;
+      }
+
+      const alias = (localStorage.getItem('alias') || '').trim();
+      const password = localStorage.getItem('password') || '';
+
+      if (!alias || !password) {
+        return Promise.resolve();
+      }
+
+      this._authPromise = new Promise(resolve => {
+        try {
+          this.user.auth(alias, password, ack => {
+            if (ack && ack.err) {
+              console.warn('Auto-auth failed for score manager', ack.err);
+            }
+            this._authPromise = null;
+            resolve();
+          });
+        } catch (err) {
+          console.warn('Unexpected error during score auto-auth', err);
+          this._authPromise = null;
+          resolve();
+        }
+      });
+
+      return this._authPromise;
     }
 
     _handleRemoteValue(value, field) {
