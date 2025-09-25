@@ -24,6 +24,10 @@
       box-sizing: border-box;
     }
 
+    html {
+      overflow-x: hidden;
+    }
+
     body {
       margin: 0;
       min-height: 100dvh;
@@ -321,12 +325,12 @@
         </div>
         <form onsubmit="event.preventDefault(); signIn();" aria-describedby="auth-title">
           <div>
-            <label for="username">Display name</label>
-            <input type="text" id="username" name="username" placeholder="e.g. cosmic-explorer" autocomplete="username" required>
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="Enter your username" autocomplete="username" required>
           </div>
           <div>
             <label for="password">Password</label>
-            <input type="password" id="password" name="password" placeholder="Create a secure passphrase" autocomplete="current-password" required>
+            <input type="password" id="password" name="password" placeholder="Enter your password or passphrase" autocomplete="current-password" required>
           </div>
           <div class="actions">
             <button type="submit" class="primary-button">Sign in or sign up</button>
