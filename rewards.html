@@ -6,6 +6,7 @@
   <title>3DVR Rewards</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="score.js"></script>
   <style>
     body {
       font-family: 'Poppins', sans-serif;
@@ -51,85 +52,52 @@
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
     const user = gun.user();
     const portalRoot = gun.get('3dvr-portal');
+    const scoreManager = window.ScoreSystem
+      ? window.ScoreSystem.getManager({ gun, user, portalRoot })
+      : null;
+    const scoreNode = scoreManager ? scoreManager.getNode() : null;
     const logDiv = document.getElementById('log');
 
-    function normalizePoints(value) {
-      const numeric = typeof value === 'number' ? value : Number(value);
-      if (!Number.isFinite(numeric)) {
-        return 0;
-      }
-      return Math.max(0, Math.round(numeric));
-    }
-
-    function getStoredTotal(callback) {
-      user.get('score').once(score => {
-        if (score !== undefined && score !== null) {
-          callback(normalizePoints(score));
-          return;
-        }
-        user.get('points').once(points => {
-          const fallbackTotal = normalizePoints(points);
-          persistUserTotals(fallbackTotal);
-          callback(fallbackTotal);
-        });
-      });
-    }
-
-    function persistUserTotals(total) {
-      const safeTotal = normalizePoints(total);
-      user.get('score').put(safeTotal);
-      user.get('points').put(safeTotal);
-      syncPublicPoints(safeTotal);
-      return safeTotal;
-    }
-
     function completeTask() {
-      getStoredTotal(currentPoints => {
-        const updatedTotal = currentPoints + 100;
-        persistUserTotals(updatedTotal);
-        user.get('log').set({
+      if (!scoreManager) {
+        logDiv.innerHTML = 'Please sign in first.';
+        return;
+      }
+      scoreManager.increment(100);
+      if (scoreNode) {
+        scoreNode.get('log').set({
           task: 'Completed task',
           time: Date.now()
         });
-        updateLog();
-      });
+      }
+      updateLog();
     }
 
     function updateLog() {
+      if (!scoreManager) {
+        logDiv.innerHTML = 'Please sign in first.';
+        return;
+      }
+
+      const total = scoreManager.getCurrent();
       logDiv.innerHTML = '<strong>Your Task History:</strong><br>';
+      logDiv.innerHTML += `Total Points: ${total}<br><br>`;
 
-      getStoredTotal(total => {
-        logDiv.innerHTML += `Total Points: ${total}<br><br>`;
-        syncPublicPoints(total);
-      });
-
-      user.get('log').map().once(data => {
-        if (data?.task) {
-          const date = new Date(data.time).toLocaleString();
-          logDiv.innerHTML += `- ${data.task} on ${date}<br>`;
-        }
-      });
+      if (scoreNode) {
+        scoreNode.get('log').map().once(data => {
+          if (data?.task) {
+            const date = new Date(data.time).toLocaleString();
+            logDiv.innerHTML += `- ${data.task} on ${date}<br>`;
+          }
+        });
+      }
     }
 
-    user.recall({ sessionStorage: true }, ack => {
-      if (ack.err) {
-        logDiv.innerHTML = 'Please sign in first.';
-      } else {
-        updateLog();
-      }
-    });
-
-    function syncPublicPoints(totalPoints) {
-      const safeTotal = normalizePoints(totalPoints);
-      const alias = localStorage.getItem('alias');
-      if (!alias) return;
-      const displayName = localStorage.getItem('username') || alias.replace('@3dvr', '');
-      portalRoot.get('userStats').get(alias).put({
-        alias,
-        username: displayName,
-        points: safeTotal,
-        lastUpdated: Date.now()
-      });
+    if (scoreManager) {
+      scoreManager.subscribe(() => updateLog());
+      scoreManager.whenReady().then(() => updateLog());
+    } else {
+      logDiv.innerHTML = 'Please sign in first.';
     }
   </script>
 </body>

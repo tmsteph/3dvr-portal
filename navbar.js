@@ -11,35 +11,6 @@ function aliasToDisplay(alias) {
   return normalized;
 }
 
-function normalizeScore(value) {
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.round(numeric));
-}
-
-function ensureGuestId() {
-  const legacyId = localStorage.getItem('userId');
-  if (legacyId && !localStorage.getItem('guestId')) {
-    localStorage.setItem('guestId', legacyId);
-  }
-  if (legacyId) {
-    localStorage.removeItem('userId');
-  }
-  const existing = localStorage.getItem('guestId');
-  if (existing) {
-    if (!localStorage.getItem('guestDisplayName')) {
-      localStorage.setItem('guestDisplayName', 'Guest');
-    }
-    return existing;
-  }
-  const id = `guest_${Math.random().toString(36).substr(2, 9)}`;
-  localStorage.setItem('guestId', id);
-  if (!localStorage.getItem('guestDisplayName')) {
-    localStorage.setItem('guestDisplayName', 'Guest');
-  }
-  return id;
-}
-
 function createNavbar() {
   try {
     user.recall({ sessionStorage: true });
@@ -73,6 +44,9 @@ function createNavbar() {
       user.leave();
     } catch (err) {
       console.warn('Error signing out', err);
+    }
+    if (window.ScoreSystem) {
+      window.ScoreSystem.resetManager();
     }
     localStorage.removeItem('signedIn');
     localStorage.removeItem('alias');
@@ -127,12 +101,30 @@ function createNavbar() {
     usernameSpan.innerText = '👤 Guest';
   }
 
+  function normalizeScore(value) {
+    if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
+      return window.ScoreSystem.sanitizeScore(value);
+    }
+    const numeric = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.round(numeric));
+  }
+
   function updateScoreDisplay(score) {
     scoreSpan.innerText = `⭐ ${normalizeScore(score)}`;
   }
 
   updateNameDisplay();
-  updateScoreDisplay(0);
+
+  const scoreManager = window.ScoreSystem
+    ? window.ScoreSystem.getManager({ gun, user, portalRoot: gun.get('3dvr-portal') })
+    : null;
+
+  updateScoreDisplay(scoreManager ? scoreManager.getCurrent() : 0);
+
+  if (scoreManager) {
+    scoreManager.subscribe(updateScoreDisplay);
+  }
 
   if (isSignedIn) {
     user.get('alias').on(alias => {
@@ -147,11 +139,27 @@ function createNavbar() {
       }
       updateNameDisplay();
     });
-    user.get('score').on(score => {
-      updateScoreDisplay(score);
-    });
   } else if (isGuest) {
-    const guestId = ensureGuestId();
+    const guestId = window.ScoreSystem
+      ? window.ScoreSystem.ensureGuestIdentity()
+      : (() => {
+        const legacyId = localStorage.getItem('userId');
+        if (legacyId && !localStorage.getItem('guestId')) {
+          localStorage.setItem('guestId', legacyId);
+        }
+        if (legacyId) {
+          localStorage.removeItem('userId');
+        }
+        let generated = localStorage.getItem('guestId');
+        if (!generated) {
+          generated = `guest_${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem('guestId', generated);
+        }
+        if (!localStorage.getItem('guestDisplayName')) {
+          localStorage.setItem('guestDisplayName', 'Guest');
+        }
+        return generated;
+      })();
     const guestProfile = gun.get('3dvr-guests').get(guestId);
     guestProfile.get('username').on(name => {
       const normalized = typeof name === 'string' ? name.trim() : '';
@@ -160,9 +168,6 @@ function createNavbar() {
         localStorage.setItem('guestDisplayName', normalized);
       }
       updateNameDisplay();
-    });
-    guestProfile.get('score').on(score => {
-      updateScoreDisplay(score);
     });
   } else {
     usernameSpan.innerText = '👤 Guest';
