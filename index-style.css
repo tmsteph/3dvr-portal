@@ -41,6 +41,57 @@ body.landing {
   margin-bottom: 2.5rem;
 }
 
+.top-nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--identity-bg);
+  border: 1px solid var(--identity-border);
+  box-shadow: var(--identity-shadow);
+  color: var(--identity-text);
+  text-decoration: none;
+  transition: transform var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.top-nav__brand:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 28px 60px rgba(8, 15, 35, 0.45);
+}
+
+.top-nav__brand:focus-visible {
+  outline: none;
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.35),
+    0 28px 60px rgba(8, 15, 35, 0.45);
+}
+
+.top-nav__brand-logo {
+  width: 72px;
+  height: 72px;
+  display: block;
+}
+
+.top-nav__brand-text {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.top-nav__brand-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.top-nav__brand-tagline {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: currentColor;
+  opacity: 0.75;
+}
+
 .top-nav__toggle {
   display: none;
   align-items: center;
@@ -478,6 +529,11 @@ footer a {
   .top-nav {
     width: 100%;
     align-items: stretch;
+  }
+
+  .top-nav__brand {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .top-nav__toggle {
