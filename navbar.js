@@ -26,8 +26,11 @@ function createNavbar() {
   nav.className = 'floating-identity';
   nav.setAttribute('aria-label', 'Account status');
 
-  const stats = document.createElement('div');
+  const stats = document.createElement('a');
   stats.className = 'floating-identity__stats';
+  stats.href = 'profile.html#profile';
+  stats.setAttribute('aria-label', 'View your profile details');
+  stats.title = 'Go to your profile';
 
   const usernameSpan = document.createElement('span');
   usernameSpan.className = 'floating-identity__label';
