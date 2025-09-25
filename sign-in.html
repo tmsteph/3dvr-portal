@@ -36,10 +36,9 @@
       --inline-pad: clamp(16px, 4vw, 32px);
       --safe-left: max(env(safe-area-inset-left, 0px), 0px);
       --safe-right: max(env(safe-area-inset-right, 0px), 0px);
+      --safe-inline: max(var(--safe-left), var(--safe-right));
       padding-block: clamp(32px, 7vh, 72px);
-      padding-inline: var(--inline-pad);
-      padding-left: calc(var(--inline-pad) + var(--safe-left));
-      padding-right: calc(var(--inline-pad) + var(--safe-right));
+      padding-inline: calc(var(--inline-pad) + var(--safe-inline));
       position: relative;
       overflow-x: hidden;
       overflow-y: auto;
