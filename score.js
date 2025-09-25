@@ -9,6 +9,39 @@
     return Math.max(0, Math.round(numeric));
   }
 
+  function recallUserSession(targetUser, { useLocal = true, useSession = true } = {}) {
+    const user = targetUser;
+    if (!user || typeof user.recall !== 'function') {
+      return false;
+    }
+
+    const recallOptions = {};
+    if (useSession) recallOptions.sessionStorage = true;
+    if (useLocal) recallOptions.localStorage = true;
+
+    if (!Object.keys(recallOptions).length) {
+      return false;
+    }
+
+    try {
+      user.recall(recallOptions);
+      return true;
+    } catch (err) {
+      console.warn('Failed to recall user session with combined storage', err);
+    }
+
+    if (useLocal && useSession) {
+      try {
+        user.recall({ localStorage: true });
+        return true;
+      } catch (fallbackErr) {
+        console.warn('Fallback recall from localStorage failed', fallbackErr);
+      }
+    }
+
+    return false;
+  }
+
   function aliasToCacheKey(alias) {
     const normalized = typeof alias === 'string' ? alias.trim() : '';
     if (!normalized) return 'user';
@@ -161,12 +194,8 @@
     }
 
     bootstrap() {
-      try {
-        if (this.state.mode === 'user' && this.user) {
-          this.user.recall({ sessionStorage: true });
-        }
-      } catch (err) {
-        console.warn('Failed to recall user session', err);
+      if (this.state.mode === 'user' && this.user) {
+        recallUserSession(this.user);
       }
 
       this._attachRealtime();
@@ -410,6 +439,7 @@
     sanitizeScore,
     ensureGuestIdentity,
     computeAuthState,
+    recallUserSession,
     getManager(context = {}) {
       if (!this._manager) {
         this._manager = new ScoreManager(context);

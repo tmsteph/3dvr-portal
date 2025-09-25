@@ -6,6 +6,7 @@
   <title>3DVR Portal</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <link rel="stylesheet" href="index-style.css">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -167,7 +168,15 @@
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
     const user = gun.user();
-    user.recall({ sessionStorage: true });
+    if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
+      window.ScoreSystem.recallUserSession(user);
+    } else {
+      try {
+        user.recall({ sessionStorage: true, localStorage: true });
+      } catch (err) {
+        console.warn('Unable to recall user session', err);
+      }
+    }
 
     function ensureGuestId() {
       const legacyId = localStorage.getItem('userId');
@@ -247,7 +256,6 @@
     }
   </script>
 
-  <script src="score.js"></script>
   <script src="navbar.js"></script>
 
   <script>

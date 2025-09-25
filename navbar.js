@@ -12,10 +12,14 @@ function aliasToDisplay(alias) {
 }
 
 function createNavbar() {
-  try {
-    user.recall({ sessionStorage: true });
-  } catch (err) {
-    console.warn('Unable to recall user session', err);
+  if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
+    window.ScoreSystem.recallUserSession(user);
+  } else {
+    try {
+      user.recall({ sessionStorage: true, localStorage: true });
+    } catch (err) {
+      console.warn('Unable to recall user session', err);
+    }
   }
 
   const nav = document.createElement('div');
