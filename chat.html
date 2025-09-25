@@ -218,6 +218,133 @@ const roomInitialSyncTimers = {};
 const notifiedMessageIdsByRoom = {};
 const notifiedMessageQueueByRoom = {};
 
+const CHAT_USER_ROOT = '3dvr-users';
+const CHAT_GUEST_ROOT = '3dvr-guests';
+
+function safeGetStorage(key) {
+  try {
+    return localStorage.getItem(key) || '';
+  } catch (error) {
+    console.warn(`Unable to read ${key} from storage`, error);
+    return '';
+  }
+}
+
+function safeSetStorage(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn(`Unable to store ${key} in storage`, error);
+  }
+}
+
+function safeRemoveStorage(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.warn(`Unable to remove ${key} from storage`, error);
+  }
+}
+
+function resolveChatIdentity() {
+  try {
+    const signedIn = safeGetStorage('signedIn') === 'true';
+    let guestId = '';
+
+    if (!signedIn) {
+      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+        guestId = window.ScoreSystem.ensureGuestIdentity() || '';
+      }
+
+      if (!guestId) {
+        guestId = safeGetStorage('guestId').trim();
+      }
+
+      if (!guestId) {
+        const legacyId = safeGetStorage('userId').trim();
+        if (legacyId) {
+          guestId = legacyId;
+          safeSetStorage('guestId', guestId);
+          safeRemoveStorage('userId');
+        }
+      }
+
+      if (guestId) {
+        safeSetStorage('guest', 'true');
+        if (!safeGetStorage('guestDisplayName')) {
+          safeSetStorage('guestDisplayName', 'Guest');
+        }
+        return {
+          id: guestId,
+          type: 'guest',
+          profileRoot: CHAT_GUEST_ROOT,
+          storageKey: 'guestId'
+        };
+      }
+    }
+
+    let storedUserId = safeGetStorage('userId').trim();
+    if (!storedUserId) {
+      const prefix = signedIn ? 'user' : 'guest';
+      storedUserId = `${prefix}_${Math.random().toString(36).substr(2, 9)}`;
+      safeSetStorage('userId', storedUserId);
+    }
+
+    return {
+      id: storedUserId,
+      type: signedIn ? 'user' : 'legacy',
+      profileRoot: CHAT_USER_ROOT,
+      storageKey: 'userId'
+    };
+  } catch (error) {
+    console.warn('Failed to resolve chat identity', error);
+  }
+
+  const fallbackId = `user_${Math.random().toString(36).substr(2, 9)}`;
+  return {
+    id: fallbackId,
+    type: 'legacy',
+    profileRoot: CHAT_USER_ROOT,
+    storageKey: 'userId'
+  };
+}
+
+function fetchSenderUsername(senderId, handler) {
+  if (typeof handler !== 'function') return;
+  if (!senderId) {
+    handler('');
+    return;
+  }
+
+  const readGuestName = callback => {
+    gun.get(CHAT_GUEST_ROOT).get(senderId).get('username').once(name => {
+      const normalized = typeof name === 'string' ? name.trim() : '';
+      callback(normalized);
+    });
+  };
+
+  const readUserName = callback => {
+    gun.get(CHAT_USER_ROOT).get(senderId).get('username').once(name => {
+      const normalized = typeof name === 'string' ? name.trim() : '';
+      callback(normalized);
+    });
+  };
+
+  const looksLikeGuest = typeof senderId === 'string' && senderId.startsWith('guest_');
+  const firstReader = looksLikeGuest ? readGuestName : readUserName;
+  const fallbackReader = looksLikeGuest ? readUserName : readGuestName;
+
+  firstReader(name => {
+    if (name) {
+      handler(name);
+      return;
+    }
+    fallbackReader(fallbackName => {
+      handler(fallbackName || '');
+    });
+  });
+}
+
 function loadNotificationState() {
   try {
     const raw = localStorage.getItem(notificationStateStorageKey);
@@ -417,12 +544,10 @@ if ('serviceWorker' in navigator) {
 const currentUsernameEl = document.getElementById('current-username');
 let cachedUsername = '';
 
-const userId = localStorage.getItem('userId') || (() => {
-  const id = 'user_' + Math.random().toString(36).substr(2, 9);
-  localStorage.setItem('userId', id);
-  return id;
-})();
-const chatProfile = gun.get('3dvr-users').get(userId);
+const chatIdentity = resolveChatIdentity();
+const userId = chatIdentity.id;
+const isGuestIdentity = chatIdentity.type === 'guest';
+const chatProfile = gun.get(chatIdentity.profileRoot).get(userId);
 
 // Auto import old chats into General (only runs if in General and no messages exist)
 if (currentRoom === 'general') {
@@ -440,46 +565,73 @@ if (currentRoom === 'general') {
 const initialUsername = derivePreferredUsername();
 applyUsernameToUI(initialUsername);
 
-chatProfile.get('username').once(existingName => {
-  const resolvedName = derivePreferredUsername(existingName);
-  applyUsernameToUI(resolvedName);
-  const normalizedExisting = typeof existingName === 'string' ? existingName.trim() : '';
-  if (normalizedExisting !== resolvedName) {
-    chatProfile.get('username').put(resolvedName);
-  }
-});
+if (chatProfile && typeof chatProfile.get === 'function') {
+  chatProfile.get('username').once(existingName => {
+    const resolvedName = derivePreferredUsername(existingName);
+    applyUsernameToUI(resolvedName);
+    const normalizedExisting = typeof existingName === 'string' ? existingName.trim() : '';
+    if (normalizedExisting !== resolvedName) {
+      chatProfile.get('username').put(resolvedName);
+    }
+  });
 
-chatProfile.get('username').on(name => {
-  const normalized = typeof name === 'string' ? name.trim() : '';
-  if (!normalized) return;
-  applyUsernameToUI(normalized);
-});
+  chatProfile.get('username').on(name => {
+    const normalized = typeof name === 'string' ? name.trim() : '';
+    if (!normalized) return;
+    applyUsernameToUI(normalized);
+  });
+}
 
 function applyUsernameToUI(name) {
   const normalized = typeof name === 'string' ? name.trim() : '';
   const finalName = normalized || 'Guest';
   cachedUsername = finalName;
+  if (normalized) {
+    if (isGuestIdentity) {
+      safeSetStorage('guestDisplayName', normalized);
+    } else {
+      safeSetStorage('username', normalized);
+    }
+  } else {
+    if (isGuestIdentity) {
+      safeSetStorage('guestDisplayName', 'Guest');
+    } else {
+      safeRemoveStorage('username');
+    }
+  }
   if (!currentUsernameEl) return;
   currentUsernameEl.innerText = finalName;
 }
 
 function derivePreferredUsername(existingName) {
-  const storedUsername = (localStorage.getItem('username') || '').trim();
-  if (storedUsername) return storedUsername;
+  const normalizedExisting = typeof existingName === 'string' ? existingName.trim() : '';
+  const storedGuestName = isGuestIdentity ? safeGetStorage('guestDisplayName').trim() : '';
+  const storedUsername = safeGetStorage('username').trim();
 
-  const aliasValue = (localStorage.getItem('alias') || '').trim();
+  if (isGuestIdentity && storedGuestName) {
+    return storedGuestName;
+  }
+
+  if (!isGuestIdentity && storedUsername) {
+    return storedUsername;
+  }
+
+  const aliasValue = safeGetStorage('alias').trim();
   const aliasName = aliasValue
     ? (aliasValue.includes('@') ? aliasValue.split('@')[0] : aliasValue)
     : '';
 
-  const existing = typeof existingName === 'string' ? existingName.trim() : '';
-  if (aliasName && (!existing || isGeneratedName(existing))) {
+  if (aliasName && (!normalizedExisting || isGeneratedName(normalizedExisting))) {
     return aliasName;
   }
 
-  if (existing) return existing;
+  if (normalizedExisting) return normalizedExisting;
 
   if (aliasName) return aliasName;
+
+  if (isGuestIdentity && storedGuestName) {
+    return storedGuestName;
+  }
 
   const suffix = extractIdSuffix(userId);
   const baseLabel = 'Guest';
@@ -598,11 +750,9 @@ function loadRoom(roomName) {
         return;
       }
 
-      gun.get('3dvr-users').get(message.sender).get('username').once(name => {
-        const resolvedUsername = typeof name === 'string'
-          ? name.trim()
-          : '';
-        message.username = resolvedUsername || message.sender;
+      fetchSenderUsername(message.sender, resolvedName => {
+        const finalName = resolvedName || message.sender;
+        message.username = finalName;
         messages[id] = message;
         displayMessages();
         maybeNotifyNewMessage(message, id);
