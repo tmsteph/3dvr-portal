@@ -110,33 +110,31 @@
       border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
-    #notification-settings {
-      text-align: left;
+    .panel-card h3 {
+      margin: 0 0 12px;
+      font-size: 1.05rem;
+      color: #f8fafc;
     }
 
-    #notification-settings strong {
-      display: block;
-      font-size: 1rem;
-      margin-bottom: 6px;
+    .panel-card ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
-    #notification-settings button {
-      margin-top: 14px;
+    .panel-card li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      color: rgba(226, 232, 240, 0.8);
+      line-height: 1.45;
     }
 
-    #notification-status {
-      display: block;
-      margin-top: 6px;
-      color: #cbd5f5;
-      font-size: 0.95rem;
-    }
-
-    #profile-mini {
-      text-align: left;
-    }
-
-    #profile-mini strong {
-      color: #38bdf8;
+    .panel-card li span {
+      font-size: 1.1rem;
     }
 
     .chat-main {
@@ -156,42 +154,74 @@
       backdrop-filter: blur(12px);
     }
 
+    .chat-top-panel {
+      position: sticky;
+      top: -24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding-bottom: 18px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 65%, rgba(15, 23, 42, 0));
+      backdrop-filter: blur(14px);
+      z-index: 2;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
     .chat-room-header {
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 20px;
+      gap: 18px;
+      align-items: flex-start;
     }
 
     .chat-room-title {
-      flex: 1 1 240px;
+      flex: 1 1 260px;
     }
 
     .chat-room-title h2 {
       margin: 0;
-      font-size: 1.4rem;
+      font-size: 1.45rem;
       font-weight: 600;
       color: #f8fafc;
     }
 
     .chat-room-title p {
-      margin: 6px 0 0;
-      color: rgba(226, 232, 240, 0.7);
+      margin: 8px 0 0;
+      color: rgba(226, 232, 240, 0.75);
       font-size: 0.95rem;
     }
 
-    #room-select {
-      flex: 1;
-      text-align: left;
+    .chat-meta-panels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      width: 100%;
     }
 
-    #room-select label {
+    #room-select,
+    .chat-identity,
+    #notification-settings {
+      flex: 1 1 220px;
+      background: rgba(15, 23, 42, 0.65);
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);
+    }
+
+    #room-select label,
+    .meta-label {
       display: block;
       font-weight: 600;
-      margin-bottom: 6px;
       color: #e2e8f0;
+      font-size: 0.95rem;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
     }
 
     #room-select select {
@@ -206,6 +236,35 @@
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
+    .chat-identity-value {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #38bdf8;
+    }
+
+    #notification-settings {
+      text-align: left;
+    }
+
+    .meta-support,
+    #notification-settings p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: rgba(226, 232, 240, 0.75);
+      line-height: 1.4;
+    }
+
+    #notification-toggle {
+      align-self: flex-start;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+    }
+
+    #notification-status {
+      font-size: 0.85rem;
+      color: rgba(226, 232, 240, 0.75);
+    }
+
     #room-select select:focus {
       border-color: #38bdf8;
       box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
@@ -215,14 +274,12 @@
     #new-message {
       display: flex;
       gap: 12px;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
       align-items: center;
-      position: sticky;
-      top: -24px;
-      background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 55%, rgba(15, 23, 42, 0));
-      backdrop-filter: blur(12px);
-      z-index: 2;
+      padding: 18px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);
     }
 
     input[type="text"],
@@ -338,6 +395,10 @@
       .chat-main {
         order: 1;
       }
+
+      .chat-meta-panels {
+        flex-direction: column;
+      }
     }
 
     @media (max-width: 640px) {
@@ -375,38 +436,62 @@
 
 <main class="chat-layout">
   <aside class="chat-sidebar">
-    <div id="notification-settings" class="panel-card">
-      <strong>🔔 Chat notifications</strong>
-      <span id="notification-status">Checking permissions…</span>
-      <button id="notification-toggle" onclick="toggleNotifications()">Enable Notifications</button>
+    <div class="panel-card">
+      <h3>Rooms at a glance</h3>
+      <ul>
+        <li><span>🌎</span><span><strong>General:</strong> Daily updates and community announcements.</span></li>
+        <li><span>💡</span><span><strong>Ideas:</strong> Workshop product concepts and feature pitches.</span></li>
+        <li><span>🛟</span><span><strong>Support:</strong> Ask questions and get unstuck fast.</span></li>
+        <li><span>🎲</span><span><strong>Random:</strong> Celebrate wins, share inspiration, and connect.</span></li>
+      </ul>
     </div>
 
-    <div id="profile-mini" class="panel-card">
-      <p><strong>Username:</strong> <span id="current-username">Loading...</span></p>
+    <div class="panel-card">
+      <h3>Community rhythm</h3>
+      <ul>
+        <li><span>🗓️</span><span>Host stand-ups in <strong>#general</strong> to keep everyone aligned.</span></li>
+        <li><span>✨</span><span>Use threads and mentions to spotlight teammates.</span></li>
+        <li><span>📌</span><span>Bookmark decisions so the next person has full context.</span></li>
+      </ul>
     </div>
   </aside>
 
   <section class="chat-main">
     <div class="chat-main-card">
-      <div class="chat-room-header">
-        <div class="chat-room-title">
-          <h2>Live conversations</h2>
-          <p>Switch rooms to jump between community spaces.</p>
+      <div class="chat-top-panel">
+        <div class="chat-room-header">
+          <div class="chat-room-title">
+            <h2>Live conversations</h2>
+            <p>Switch rooms to jump between community spaces.</p>
+          </div>
         </div>
-        <div id="room-select">
-          <label for="room">Select room</label>
-          <select id="room" onchange="changeRoom()">
-            <option value="general">🌎 General</option>
-            <option value="ideas">💡 Ideas</option>
-            <option value="support">🛟 Support</option>
-            <option value="random">🎲 Random</option>
-          </select>
+        <div class="chat-meta-panels">
+          <div id="room-select">
+            <label for="room">Select room</label>
+            <p class="meta-support">Hop between spaces without losing context.</p>
+            <select id="room" onchange="changeRoom()">
+              <option value="general">🌎 General</option>
+              <option value="ideas">💡 Ideas</option>
+              <option value="support">🛟 Support</option>
+              <option value="random">🎲 Random</option>
+            </select>
+          </div>
+          <div class="chat-identity">
+            <span class="meta-label">You</span>
+            <span class="chat-identity-value" id="current-username">Loading...</span>
+            <span class="meta-support">Share your best ideas and collaborate in real time.</span>
+          </div>
+          <div id="notification-settings">
+            <span class="meta-label">Notifications</span>
+            <p>Stay in the loop when new messages arrive.</p>
+            <button id="notification-toggle" onclick="toggleNotifications()">Enable Notifications</button>
+            <span id="notification-status">Checking permissions…</span>
+          </div>
         </div>
-      </div>
-
-      <div id="new-message">
-        <input type="text" id="message-input" placeholder="Type your message..." />
-        <button onclick="sendMessage()">Send</button>
+        <div id="new-message">
+          <input type="text" id="message-input" placeholder="Type your message..." />
+          <button onclick="sendMessage()">Send</button>
+        </div>
       </div>
 
       <div id="messages"></div>
