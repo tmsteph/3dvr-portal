@@ -215,8 +215,14 @@
     #new-message {
       display: flex;
       gap: 12px;
-      margin-top: 20px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
       align-items: center;
+      position: sticky;
+      top: -24px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 55%, rgba(15, 23, 42, 0));
+      backdrop-filter: blur(12px);
+      z-index: 2;
     }
 
     input[type="text"],
@@ -398,12 +404,12 @@
         </div>
       </div>
 
-      <div id="messages"></div>
-
       <div id="new-message">
         <input type="text" id="message-input" placeholder="Type your message..." />
         <button onclick="sendMessage()">Send</button>
       </div>
+
+      <div id="messages"></div>
     </div>
   </section>
 </main>
