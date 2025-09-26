@@ -9,315 +9,252 @@
   <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: 'Poppins', sans-serif;
-      background: radial-gradient(circle at top, #334155, #0f172a 55%);
+      background: radial-gradient(circle at top, #1f2937 0%, #0f172a 65%);
       color: #e2e8f0;
-      min-height: 100vh;
       margin: 0;
-      padding: 40px 20px 32px;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      position: relative;
+      padding: 32px 20px 40px;
+      gap: 32px;
     }
 
-    body::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(120% 120% at 0% 0%, rgba(14, 165, 233, 0.25), transparent 60%),
-        radial-gradient(120% 120% at 100% 0%, rgba(59, 130, 246, 0.2), transparent 65%),
-        radial-gradient(120% 120% at 100% 100%, rgba(16, 185, 129, 0.25), transparent 55%);
-      pointer-events: none;
-      z-index: 0;
+    a {
+      color: inherit;
     }
 
-    body > * {
-      position: relative;
-      z-index: 1;
+    .page-width {
+      width: 100%;
+      max-width: 1120px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      min-height: 0;
     }
 
-    .top-buttons {
+    .utility-links {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 28px;
-      width: 100%;
-      max-width: 1100px;
     }
 
-    .top-buttons a {
-      background: rgba(148, 163, 184, 0.15);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(148, 163, 184, 0.25);
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+      white-space: nowrap;
+    }
+
+    .utility-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
       border-radius: 999px;
-      padding: 10px 18px;
-      color: #e2e8f0;
+      background: rgba(148, 163, 184, 0.16);
+      border: 1px solid rgba(148, 163, 184, 0.28);
       text-decoration: none;
       font-weight: 500;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      transition: border-color 0.2s ease, transform 0.2s ease;
     }
 
-    .top-buttons a:hover {
-      transform: translateY(-1px);
+    .utility-links a:hover {
       border-color: rgba(148, 163, 184, 0.5);
-      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+      transform: translateY(-1px);
     }
 
     header {
-      text-align: center;
-      margin-bottom: 28px;
-      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
     header h1 {
-      font-size: 2.75rem;
       margin: 0;
-      letter-spacing: -0.02em;
+      font-size: clamp(2rem, 2.6vw, 2.75rem);
+      letter-spacing: -0.01em;
     }
 
     header p {
-      color: #cbd5f5;
-      font-size: 1.1rem;
-      margin-top: 12px;
+      margin: 0;
+      color: rgba(226, 232, 240, 0.8);
+      font-size: 1rem;
     }
 
     header strong {
       color: #38bdf8;
     }
 
-    .chat-layout {
-      display: grid;
-      grid-template-columns: 320px minmax(0, 1fr);
-      gap: 24px;
-      width: 100%;
-      max-width: 1100px;
+    main {
       flex: 1;
+      display: grid;
+      grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+      gap: 24px;
+      min-height: 0;
     }
 
-    .chat-sidebar {
+    aside {
       display: flex;
       flex-direction: column;
       gap: 18px;
+      min-height: 0;
     }
 
-    .panel-card {
-      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+    .sidebar-card {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.2);
       border-radius: 18px;
       padding: 20px;
-      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.4);
-      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
-    .panel-card h3 {
-      margin: 0 0 12px;
+    .sidebar-card h3 {
+      margin: 0;
       font-size: 1.05rem;
       color: #f8fafc;
     }
 
-    .panel-card ul {
+    .sidebar-card ul {
       list-style: none;
-      margin: 0;
       padding: 0;
+      margin: 0;
       display: flex;
       flex-direction: column;
       gap: 10px;
+      color: rgba(226, 232, 240, 0.8);
     }
 
-    .panel-card li {
-      display: flex;
-      align-items: flex-start;
+    .sidebar-card li {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr);
       gap: 10px;
-      color: rgba(226, 232, 240, 0.8);
       line-height: 1.45;
     }
 
-    .panel-card li span {
-      font-size: 1.1rem;
-    }
-
-    .chat-main {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chat-main-card {
-      background: rgba(15, 23, 42, 0.8);
-      border-radius: 22px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.5);
+    .conversation {
+      background: rgba(15, 23, 42, 0.88);
       border: 1px solid rgba(148, 163, 184, 0.25);
-      backdrop-filter: blur(12px);
-    }
-
-    .chat-top-panel {
-      position: sticky;
-      top: -24px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      padding-bottom: 18px;
-      background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 65%, rgba(15, 23, 42, 0));
+      border-radius: 22px;
+      box-shadow: 0 28px 60px rgba(15, 23, 42, 0.55);
       backdrop-filter: blur(14px);
-      z-index: 2;
-      margin-bottom: 12px;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-    }
-
-    .chat-room-header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 18px;
-      align-items: flex-start;
-    }
-
-    .chat-room-title {
-      flex: 1 1 260px;
-    }
-
-    .chat-room-title h2 {
-      margin: 0;
-      font-size: 1.45rem;
-      font-weight: 600;
-      color: #f8fafc;
-    }
-
-    .chat-room-title p {
-      margin: 8px 0 0;
-      color: rgba(226, 232, 240, 0.75);
-      font-size: 0.95rem;
-    }
-
-    .chat-meta-panels {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      width: 100%;
-    }
-
-    #room-select,
-    .chat-identity,
-    #notification-settings {
-      flex: 1 1 220px;
-      background: rgba(15, 23, 42, 0.65);
-      border-radius: 16px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      padding: 16px;
+      padding: 26px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);
+      gap: 20px;
+      min-height: 0;
     }
 
-    #room-select label,
-    .meta-label {
-      display: block;
-      font-weight: 600;
-      color: #e2e8f0;
-      font-size: 0.95rem;
-      letter-spacing: 0.01em;
-      text-transform: uppercase;
+    .conversation-header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
-    #room-select select {
-      width: 100%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: 1rem;
-      background: rgba(15, 23, 42, 0.85);
+    .conversation-header h2 {
+      margin: 0;
+      font-size: 1.6rem;
       color: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      appearance: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .chat-identity-value {
+    .conversation-header p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.75);
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.72);
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      padding: 16px;
+      min-height: 0;
+    }
+
+    .field-label {
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.7);
+    }
+
+    .field-value {
       font-size: 1.05rem;
       font-weight: 600;
       color: #38bdf8;
+      word-break: break-word;
     }
 
-    #notification-settings {
-      text-align: left;
-    }
-
-    .meta-support,
-    #notification-settings p {
+    .field-hint {
       margin: 0;
       font-size: 0.85rem;
-      color: rgba(226, 232, 240, 0.75);
+      color: rgba(226, 232, 240, 0.7);
       line-height: 1.4;
     }
 
-    #notification-toggle {
-      align-self: flex-start;
-      padding: 10px 18px;
-      font-size: 0.95rem;
-    }
-
-    #notification-status {
-      font-size: 0.85rem;
-      color: rgba(226, 232, 240, 0.75);
-    }
-
-    #room-select select:focus {
-      border-color: #38bdf8;
-      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
-      outline: none;
-    }
-
-    #new-message {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      padding: 18px;
-      border-radius: 16px;
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);
-    }
-
-    input[type="text"],
-    button,
-    select {
+    select,
+    input,
+    button {
       font-family: inherit;
     }
 
+    select,
     input[type="text"] {
-      flex: 1;
-      padding: 14px 16px;
-      border-radius: 14px;
-      font-size: 1rem;
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
       border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.9);
       color: #f8fafc;
+      font-size: 1rem;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    input[type="text"]::placeholder {
-      color: rgba(226, 232, 240, 0.6);
-    }
-
+    select:focus,
     input[type="text"]:focus {
+      outline: none;
       border-color: #38bdf8;
       box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
-      outline: none;
     }
 
     button {
-      padding: 14px 20px;
-      font-size: 1rem;
-      border-radius: 14px;
+      align-self: flex-start;
+      padding: 12px 18px;
+      border-radius: 12px;
       border: none;
       background: linear-gradient(135deg, #38bdf8, #22d3ee);
       color: #0f172a;
       font-weight: 600;
       cursor: pointer;
+      font-size: 0.95rem;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
@@ -326,10 +263,33 @@
       box-shadow: 0 12px 24px rgba(34, 211, 238, 0.35);
     }
 
+    form#new-message {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.72);
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      padding: 16px;
+    }
+
+    form#new-message button {
+      white-space: nowrap;
+    }
+
     #messages {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
       padding-right: 6px;
+    }
+
+    #messages:focus-visible {
+      outline: 2px solid #38bdf8;
+      outline-offset: 2px;
     }
 
     #messages::-webkit-scrollbar {
@@ -345,10 +305,8 @@
       background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(14, 165, 233, 0.08));
       border-radius: 16px;
       padding: 16px 18px;
-      margin-bottom: 12px;
-      box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.3);
       color: #f8fafc;
-      backdrop-filter: blur(6px);
+      box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.26);
       transition: transform 0.2s ease;
     }
 
@@ -361,13 +319,12 @@
     }
 
     .meta {
+      margin-top: 6px;
       font-size: 0.8rem;
       color: rgba(226, 232, 240, 0.7);
-      margin-top: 6px;
     }
 
     footer {
-      margin-top: 48px;
       font-size: 0.85rem;
       color: rgba(226, 232, 240, 0.7);
       text-align: center;
@@ -384,128 +341,122 @@
     }
 
     @media (max-width: 1024px) {
-      .chat-layout {
+      body {
+        padding: 28px 16px 32px;
+      }
+
+      main {
         grid-template-columns: 1fr;
       }
 
-      .chat-sidebar {
+      aside {
         order: 2;
       }
 
-      .chat-main {
+      .conversation {
         order: 1;
       }
 
-      .chat-meta-panels {
+      .control-grid {
+        grid-template-columns: 1fr;
+      }
+
+      form#new-message {
         flex-direction: column;
-      }
-    }
-
-    @media (max-width: 640px) {
-      body {
-        padding: 32px 16px 24px;
+        align-items: stretch;
       }
 
-      .chat-main-card {
-        padding: 20px;
-      }
-
-      #new-message {
-        flex-direction: column;
-      }
-
-      button {
+      form#new-message button {
         width: 100%;
       }
     }
   </style>
 </head>
 <body>
+  <div class="page-width">
+    <nav class="utility-links" aria-label="Quick links">
+      <a href="index.html">🏠 Portal Home</a>
+      <a href="profile.html">🧑 Profile</a>
+      <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noreferrer">⭐ Subscribe</a>
+      <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noreferrer">🚀 Contribute on GitHub</a>
+    </nav>
 
-<div class="top-buttons">
-  <a href="index.html">🏠 Portal Home</a>
-  <a href="profile.html">🧑 Profile</a>
-  <a href="https://3dvr.tech/#subscribe" target="_blank">⭐ Subscribe</a>
-  <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 Contribute on GitHub</a>
-</div>
+    <header>
+      <h1>Group Chat</h1>
+      <p>💬 You earn <strong>+1 point</strong> for every message you send.</p>
+    </header>
 
-<header>
-  <h1>Group Chat</h1>
-  <p>💬 You earn <strong>+1 point</strong> for every message you send!</p>
-</header>
+    <main>
+      <aside>
+        <section class="sidebar-card">
+          <h3>Rooms at a glance</h3>
+          <ul>
+            <li><span>🌎</span><span><strong>General:</strong> Daily updates and community announcements.</span></li>
+            <li><span>💡</span><span><strong>Ideas:</strong> Workshop product concepts and feature pitches.</span></li>
+            <li><span>🛟</span><span><strong>Support:</strong> Ask questions and get unstuck fast.</span></li>
+            <li><span>🎲</span><span><strong>Random:</strong> Celebrate wins, share inspiration, and connect.</span></li>
+          </ul>
+        </section>
 
-<main class="chat-layout">
-  <aside class="chat-sidebar">
-    <div class="panel-card">
-      <h3>Rooms at a glance</h3>
-      <ul>
-        <li><span>🌎</span><span><strong>General:</strong> Daily updates and community announcements.</span></li>
-        <li><span>💡</span><span><strong>Ideas:</strong> Workshop product concepts and feature pitches.</span></li>
-        <li><span>🛟</span><span><strong>Support:</strong> Ask questions and get unstuck fast.</span></li>
-        <li><span>🎲</span><span><strong>Random:</strong> Celebrate wins, share inspiration, and connect.</span></li>
-      </ul>
-    </div>
+        <section class="sidebar-card">
+          <h3>Community rhythm</h3>
+          <ul>
+            <li><span>🗓️</span><span>Host stand-ups in <strong>#general</strong> to keep everyone aligned.</span></li>
+            <li><span>✨</span><span>Use mentions to spotlight teammates and unblock decisions.</span></li>
+            <li><span>📌</span><span>Bookmark takeaways so newcomers land with full context.</span></li>
+          </ul>
+        </section>
+      </aside>
 
-    <div class="panel-card">
-      <h3>Community rhythm</h3>
-      <ul>
-        <li><span>🗓️</span><span>Host stand-ups in <strong>#general</strong> to keep everyone aligned.</span></li>
-        <li><span>✨</span><span>Use threads and mentions to spotlight teammates.</span></li>
-        <li><span>📌</span><span>Bookmark decisions so the next person has full context.</span></li>
-      </ul>
-    </div>
-  </aside>
-
-  <section class="chat-main">
-    <div class="chat-main-card">
-      <div class="chat-top-panel">
-        <div class="chat-room-header">
-          <div class="chat-room-title">
-            <h2>Live conversations</h2>
-            <p>Switch rooms to jump between community spaces.</p>
-          </div>
+      <section class="conversation" aria-labelledby="conversation-title">
+        <div class="conversation-header">
+          <h2 id="conversation-title">Live conversations</h2>
+          <p>Switch rooms, catch up on the scrollback, and drop a note right away.</p>
         </div>
-        <div class="chat-meta-panels">
-          <div id="room-select">
-            <label for="room">Select room</label>
-            <p class="meta-support">Hop between spaces without losing context.</p>
+
+        <div class="control-grid">
+          <label class="field" id="room-select">
+            <span class="field-label">Room</span>
             <select id="room" onchange="changeRoom()">
               <option value="general">🌎 General</option>
               <option value="ideas">💡 Ideas</option>
               <option value="support">🛟 Support</option>
               <option value="random">🎲 Random</option>
             </select>
+            <p class="field-hint">Hop between conversations without losing context.</p>
+          </label>
+
+          <div class="field chat-identity">
+            <span class="field-label">You</span>
+            <span class="field-value" id="current-username">Loading…</span>
+            <p class="field-hint">Messages here earn community points.</p>
           </div>
-          <div class="chat-identity">
-            <span class="meta-label">You</span>
-            <span class="chat-identity-value" id="current-username">Loading...</span>
-            <span class="meta-support">Share your best ideas and collaborate in real time.</span>
-          </div>
-          <div id="notification-settings">
-            <span class="meta-label">Notifications</span>
-            <p>Stay in the loop when new messages arrive.</p>
-            <button id="notification-toggle" onclick="toggleNotifications()">Enable Notifications</button>
-            <span id="notification-status">Checking permissions…</span>
+
+          <div class="field" id="notification-settings">
+            <span class="field-label">Notifications</span>
+            <button id="notification-toggle" type="button" onclick="toggleNotifications()">Enable Notifications</button>
+            <span class="field-hint" id="notification-status">Checking permissions…</span>
           </div>
         </div>
-        <div id="new-message">
-          <input type="text" id="message-input" placeholder="Type your message..." />
-          <button onclick="sendMessage()">Send</button>
-        </div>
-      </div>
 
-      <div id="messages"></div>
-    </div>
-  </section>
-</main>
+        <form id="new-message" autocomplete="off">
+          <label for="message-input" class="sr-only">Message</label>
+          <input type="text" id="message-input" name="message" placeholder="Type your message…" aria-label="Message" />
+          <button type="submit">Send</button>
+        </form>
 
-<footer>
-  3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
-</footer>
+        <div id="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+      </section>
+    </main>
+  </div>
 
-<script>
+  <footer>
+    3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
+  </footer>
+
+  <script>
 const gun = Gun([
-  'https://gun-relay-3dvr.fly.dev/gun',          // 👈 primary
+  'https://gun-relay-3dvr.fly.dev/gun',
 ]);
 const portalRoot = gun.get('3dvr-portal');
 const gunSupportsUser = typeof gun.user === 'function';
@@ -519,29 +470,32 @@ const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager 
   : null;
 let currentRoom = 'general';
 let chat = gun.get('3dvr-chat').get(currentRoom);
-
-const notificationToggleButton = document.getElementById('notification-toggle');
-const notificationStatusText = document.getElementById('notification-status');
-const notificationsSupported = 'Notification' in window;
-const notificationsPreferenceKey = 'chatNotificationsEnabled';
-const notificationIconPath = '/icons/icon-192.png';
-const notificationStateStorageKey = 'chatNotificationState';
-const INITIAL_SYNC_GRACE_MS = 1500;
-let notificationsEnabled = false;
-let serviceWorkerRegistration = null;
+let userId = '';
+let cachedUsername = 'Guest';
 let currentRoomStream = null;
-const roomInitialSyncTimers = {};
+let isGuestIdentity = false;
 const notifiedMessageIdsByRoom = {};
 const notifiedMessageQueueByRoom = {};
+const roomInitialSyncTimers = {};
+const notificationStateStorageKey = '3dvrChatNotificationState_v1';
+const notificationToggleButton = document.getElementById('notification-toggle');
+const notificationStatusText = document.getElementById('notification-status');
+const currentUsernameEl = document.getElementById('current-username');
+const messageForm = document.getElementById('new-message');
+const notificationsSupported = 'Notification' in window && 'serviceWorker' in navigator;
 
-const CHAT_USER_ROOT = '3dvr-users';
-const CHAT_GUEST_ROOT = '3dvr-guests';
+if (messageForm) {
+  messageForm.addEventListener('submit', event => {
+    event.preventDefault();
+    sendMessage();
+  });
+}
 
 function safeGetStorage(key) {
   try {
     return localStorage.getItem(key) || '';
   } catch (error) {
-    console.warn(`Unable to read ${key} from storage`, error);
+    console.warn('Unable to read from storage', error);
     return '';
   }
 }
@@ -550,7 +504,7 @@ function safeSetStorage(key, value) {
   try {
     localStorage.setItem(key, value);
   } catch (error) {
-    console.warn(`Unable to store ${key} in storage`, error);
+    console.warn('Unable to write to storage', error);
   }
 }
 
@@ -558,108 +512,90 @@ function safeRemoveStorage(key) {
   try {
     localStorage.removeItem(key);
   } catch (error) {
-    console.warn(`Unable to remove ${key} from storage`, error);
+    console.warn('Unable to remove from storage', error);
   }
 }
 
-function resolveChatIdentity() {
-  try {
-    const signedIn = safeGetStorage('signedIn') === 'true';
-    let guestId = '';
-
-    if (!signedIn) {
-      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-        guestId = window.ScoreSystem.ensureGuestIdentity() || '';
-      }
-
-      if (!guestId) {
-        guestId = safeGetStorage('guestId').trim();
-      }
-
-      if (!guestId) {
-        const legacyId = safeGetStorage('userId').trim();
-        if (legacyId) {
-          guestId = legacyId;
-          safeSetStorage('guestId', guestId);
-          safeRemoveStorage('userId');
-        }
-      }
-
-      if (guestId) {
-        safeSetStorage('guest', 'true');
-        if (!safeGetStorage('guestDisplayName')) {
-          safeSetStorage('guestDisplayName', 'Guest');
-        }
-        return {
-          id: guestId,
-          type: 'guest',
-          profileRoot: CHAT_GUEST_ROOT,
-          storageKey: 'guestId'
-        };
-      }
-    }
-
-    let storedUserId = safeGetStorage('userId').trim();
-    if (!storedUserId) {
-      const prefix = signedIn ? 'user' : 'guest';
-      storedUserId = `${prefix}_${Math.random().toString(36).substr(2, 9)}`;
-      safeSetStorage('userId', storedUserId);
-    }
-
-    return {
-      id: storedUserId,
-      type: signedIn ? 'user' : 'legacy',
-      profileRoot: CHAT_USER_ROOT,
-      storageKey: 'userId'
-    };
-  } catch (error) {
-    console.warn('Failed to resolve chat identity', error);
-  }
-
-  const fallbackId = `user_${Math.random().toString(36).substr(2, 9)}`;
-  return {
-    id: fallbackId,
-    type: 'legacy',
-    profileRoot: CHAT_USER_ROOT,
-    storageKey: 'userId'
-  };
-}
-
-function fetchSenderUsername(senderId, handler) {
-  if (typeof handler !== 'function') return;
-  if (!senderId) {
-    handler('');
+function fetchSenderUsername(senderId, callback) {
+  if (!gunSupportsUser || !senderId) {
+    callback('');
     return;
   }
 
-  const readGuestName = callback => {
-    gun.get(CHAT_GUEST_ROOT).get(senderId).get('username').once(name => {
-      const normalized = typeof name === 'string' ? name.trim() : '';
-      callback(normalized);
+  try {
+    gun.user(senderId).get('alias').once(alias => {
+      if (typeof alias === 'string' && alias.trim()) {
+        callback(alias.trim());
+      } else {
+        callback('');
+      }
     });
-  };
+  } catch (error) {
+    console.warn('Failed to fetch alias', error);
+    callback('');
+  }
+}
 
-  const readUserName = callback => {
-    gun.get(CHAT_USER_ROOT).get(senderId).get('username').once(name => {
-      const normalized = typeof name === 'string' ? name.trim() : '';
-      callback(normalized);
-    });
-  };
+function loadUser() {
+  if (!portalUser) {
+    isGuestIdentity = true;
+    const storedGuestId = safeGetStorage('guestId');
+    if (storedGuestId) {
+      userId = storedGuestId;
+    } else {
+      userId = `guest_${Math.random().toString(36).slice(2, 10)}`;
+      safeSetStorage('guestId', userId);
+    }
+    const storedGuestName = safeGetStorage('guestDisplayName').trim();
+    cachedUsername = storedGuestName || derivePreferredUsername('');
+    applyUsernameToUI(cachedUsername);
+    return;
+  }
 
-  const looksLikeGuest = typeof senderId === 'string' && senderId.startsWith('guest_');
-  const firstReader = looksLikeGuest ? readGuestName : readUserName;
-  const fallbackReader = looksLikeGuest ? readUserName : readGuestName;
-
-  firstReader(name => {
-    if (name) {
-      handler(name);
+  portalUser.recall({ sessionStorage: true }, ({ err }) => {
+    if (err) {
+      console.warn('Error recalling user', err);
+      isGuestIdentity = true;
+      userId = `guest_${Math.random().toString(36).slice(2, 10)}`;
+      safeSetStorage('guestId', userId);
+      cachedUsername = derivePreferredUsername('');
+      applyUsernameToUI(cachedUsername);
       return;
     }
-    fallbackReader(fallbackName => {
-      handler(fallbackName || '');
+
+    portalUser.auth(safeGetStorage('alias'), safeGetStorage('pass'), authResult => {
+      if (authResult && authResult.err) {
+        console.warn('Auth error', authResult.err);
+        isGuestIdentity = true;
+        userId = `guest_${Math.random().toString(36).slice(2, 10)}`;
+        safeSetStorage('guestId', userId);
+        cachedUsername = derivePreferredUsername('');
+        applyUsernameToUI(cachedUsername);
+        return;
+      }
+
+      const alias = safeGetStorage('alias');
+      const pub = safeGetStorage('pub');
+      if (alias && pub) {
+        userId = pub;
+        isGuestIdentity = false;
+        fetchSenderUsername(userId, name => {
+          const preferred = derivePreferredUsername(name);
+          cachedUsername = preferred;
+          applyUsernameToUI(preferred);
+        });
+      } else {
+        isGuestIdentity = true;
+        userId = `guest_${Math.random().toString(36).slice(2, 10)}`;
+        safeSetStorage('guestId', userId);
+        cachedUsername = derivePreferredUsername('');
+        applyUsernameToUI(cachedUsername);
+      }
     });
   });
 }
+
+loadUser();
 
 function loadNotificationState() {
   try {
@@ -799,102 +735,242 @@ function clearInitialSyncTimer(room) {
 function beginRoomNotificationSync(room) {
   const roomState = getRoomNotificationState(room);
   roomState.initialSync = true;
-  roomState.initialSyncCutoff = Date.now();
-  persistNotificationState();
-
   clearInitialSyncTimer(room);
   roomInitialSyncTimers[room] = setTimeout(() => {
     const state = getRoomNotificationState(room);
     state.initialSync = false;
-    state.initialSyncCutoff = 0;
-    if (!state.lastSeenTimestamp || state.lastSeenTimestamp < Date.now()) {
-      state.lastSeenTimestamp = Math.max(state.lastSeenTimestamp || 0, Date.now());
-      if (!Array.isArray(state.lastSeenMessageIds)) {
-        state.lastSeenMessageIds = [];
-      }
-    }
+    state.initialSyncCutoff = Date.now();
     persistNotificationState();
-  }, INITIAL_SYNC_GRACE_MS);
+  }, 4000);
 }
 
-const MAX_TRACKED_NOTIFICATIONS = 200;
-
-function hasMessageBeenNotified(room, id) {
-  if (!id) return false;
-  const set = notifiedMessageIdsByRoom[room];
-  return set ? set.has(id) : false;
+function markRoomAsSeen(room, message) {
+  const state = getRoomNotificationState(room);
+  if (!state) return;
+  updateRoomStateWithMessage(state, message.createdAt, message.id);
+  persistNotificationState();
 }
 
-function markMessageNotified(room, id) {
-  if (!id) return;
+function showNotification(message, id) {
+  if (!notificationsSupported || Notification.permission !== 'granted') return;
 
-  if (!notifiedMessageIdsByRoom[room]) {
-    notifiedMessageIdsByRoom[room] = new Set();
-    notifiedMessageQueueByRoom[room] = [];
+  const bodyParts = [];
+  if (message.username) {
+    bodyParts.push(`${message.username}:`);
+  }
+  bodyParts.push(message.text || 'New message');
+  const body = bodyParts.join(' ');
+
+  navigator.serviceWorker.ready.then(registration => {
+    registration.showNotification('3DVR Chat', {
+      body,
+      tag: `chat-${currentRoom}-${id}`,
+      data: { room: currentRoom, messageId: id },
+      icon: 'icons/icon-192.png',
+      badge: 'icons/icon-96.png'
+    });
+  }).catch(error => {
+    console.warn('Notification failed', error);
+  });
+}
+
+function maybeNotifyNewMessage(message, id) {
+  if (!message || !id) return;
+  const roomState = getRoomNotificationState(currentRoom);
+  if (!roomState) return;
+
+  if (roomState.initialSync) {
+    updateRoomStateWithMessage(roomState, message.createdAt, id);
+    return;
   }
 
+  const cutoff = roomState.initialSyncCutoff || 0;
+  if (message.createdAt && message.createdAt <= cutoff) {
+    updateRoomStateWithMessage(roomState, message.createdAt, id);
+    return;
+  }
+
+  const queue = notifiedMessageQueueByRoom[currentRoom] || (notifiedMessageQueueByRoom[currentRoom] = []);
+  const seenIds = notifiedMessageIdsByRoom[currentRoom] || (notifiedMessageIdsByRoom[currentRoom] = new Set());
+
+  if (seenIds.has(id)) {
+    return;
+  }
+
+  seenIds.add(id);
+  queue.push({ id, message });
+
+  if (queue.length > 3) {
+    const removed = queue.shift();
+    if (removed) {
+      seenIds.delete(removed.id);
+    }
+  }
+
+  showNotification(message, id);
+  updateRoomStateWithMessage(roomState, message.createdAt, id);
+  persistNotificationState();
+}
+
+const messages = {};
+
+function resetNotifiedStateForRoom(room) {
+  if (!room) return;
   const set = notifiedMessageIdsByRoom[room];
   const queue = notifiedMessageQueueByRoom[room];
-
-  if (set.has(id)) return;
-
-  set.add(id);
-  queue.push(id);
-
-  if (queue.length > MAX_TRACKED_NOTIFICATIONS) {
-    const oldest = queue.shift();
-    if (oldest) {
-      set.delete(oldest);
-    }
+  if (set) {
+    set.clear();
+  }
+  if (queue) {
+    queue.length = 0;
   }
 }
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data && event.data.type === 'notification-clicked') {
-      window.focus();
-    }
-  });
+function timeAgoOrFullDate(timestamp) {
+  const now = Date.now();
+  const diff = Math.floor((now - timestamp) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  const mins = Math.floor(diff / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const date = new Date(timestamp);
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-const currentUsernameEl = document.getElementById('current-username');
-let cachedUsername = '';
+function displayMessages() {
+  const messagesDiv = document.getElementById('messages');
+  messagesDiv.innerHTML = '';
 
-const chatIdentity = resolveChatIdentity();
-const userId = chatIdentity.id;
-const isGuestIdentity = chatIdentity.type === 'guest';
-const chatProfile = gun.get(chatIdentity.profileRoot).get(userId);
+  const sorted = Object.entries(messages).sort(([, a], [, b]) => (b.createdAt || 0) - (a.createdAt || 0));
+  for (const [id, message] of sorted) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'message';
+    msgDiv.id = id;
 
-// Auto import old chats into General (only runs if in General and no messages exist)
-if (currentRoom === 'general') {
-  gun.get('3dvr-chat').map().once((message, id) => {
-    if (!message) return;
-    chat.get(id).once(existing => {
-      if (!existing) {
-        chat.get(id).put(message);
-        console.log('Imported old message:', id);
+    const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
+      (message.sender || 'Anonymous');
+    const time = message.createdAt ? timeAgoOrFullDate(message.createdAt) : '';
+
+    msgDiv.innerHTML = `<div><strong>${username}:</strong> ${message.text}</div><div class="meta">${time}</div>`;
+    messagesDiv.appendChild(msgDiv);
+  }
+
+  messagesDiv.scrollTop = 0;
+}
+
+function loadRoom(roomName) {
+  const messagesDiv = document.getElementById('messages');
+  messagesDiv.innerHTML = '';
+  Object.keys(messages).forEach(key => delete messages[key]);
+  resetNotifiedStateForRoom(roomName);
+  beginRoomNotificationSync(roomName);
+
+  if (currentRoomStream && typeof currentRoomStream.off === 'function') {
+    currentRoomStream.off();
+  }
+
+  chat = gun.get('3dvr-chat').get(roomName);
+  const roomStream = chat.map();
+  currentRoomStream = roomStream;
+
+  roomStream.on((message, id) => {
+    if (!message || messages[id]) return;
+
+    if (message.sender) {
+      const existingUsername = typeof message.username === 'string'
+        ? message.username.trim()
+        : '';
+      if (existingUsername) {
+        message.username = existingUsername;
+        messages[id] = message;
+        displayMessages();
+        maybeNotifyNewMessage(message, id);
+        return;
       }
-    });
+
+      fetchSenderUsername(message.sender, resolvedName => {
+        const finalName = resolvedName || message.sender;
+        message.username = finalName;
+        messages[id] = message;
+        displayMessages();
+        maybeNotifyNewMessage(message, id);
+      });
+    } else {
+      messages[id] = message;
+      displayMessages();
+      maybeNotifyNewMessage(message, id);
+    }
   });
 }
 
-const initialUsername = derivePreferredUsername();
-applyUsernameToUI(initialUsername);
+function changeRoom() {
+  currentRoom = document.getElementById('room').value;
+  loadRoom(currentRoom);
+}
 
-if (chatProfile && typeof chatProfile.get === 'function') {
-  chatProfile.get('username').once(existingName => {
-    const resolvedName = derivePreferredUsername(existingName);
-    applyUsernameToUI(resolvedName);
-    const normalizedExisting = typeof existingName === 'string' ? existingName.trim() : '';
-    if (normalizedExisting !== resolvedName) {
-      chatProfile.get('username').put(resolvedName);
+loadRoom(currentRoom);
+
+function initNotifications() {
+  if (!notificationToggleButton || !notificationStatusText) return;
+
+  if (!notificationsSupported) {
+    notificationToggleButton.style.display = 'none';
+    notificationStatusText.textContent = 'Notifications are not supported in this browser.';
+    return;
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(() => {
+      notificationStatusText.textContent = 'Notifications are ready when you are.';
+    }).catch(() => {
+      notificationStatusText.textContent = 'Notifications require service worker support.';
+    });
+  }
+
+  if (Notification.permission === 'granted') {
+    notificationToggleButton.textContent = 'Notifications Enabled';
+    notificationToggleButton.disabled = true;
+    notificationToggleButton.setAttribute('aria-disabled', 'true');
+    notificationStatusText.textContent = 'Notifications are enabled.';
+  } else if (Notification.permission === 'denied') {
+    notificationToggleButton.style.display = 'none';
+    notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
+  } else {
+    notificationToggleButton.disabled = false;
+    notificationToggleButton.removeAttribute('aria-disabled');
+    notificationToggleButton.style.display = '';
+    notificationStatusText.textContent = 'Enable push updates for new chat activity.';
+  }
+}
+
+initNotifications();
+
+function toggleNotifications() {
+  if (!notificationsSupported || !notificationToggleButton || !notificationStatusText) return;
+
+  if (Notification.permission === 'granted') {
+    notificationStatusText.textContent = 'Notifications are already enabled. You can disable them in your browser settings.';
+    return;
+  }
+
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      notificationToggleButton.textContent = 'Notifications Enabled';
+      notificationToggleButton.disabled = true;
+      notificationToggleButton.setAttribute('aria-disabled', 'true');
+      notificationStatusText.textContent = 'Notifications are enabled.';
+    } else if (permission === 'denied') {
+      notificationToggleButton.style.display = 'none';
+      notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
+    } else {
+      notificationToggleButton.disabled = false;
+      notificationToggleButton.removeAttribute('aria-disabled');
+      notificationToggleButton.style.display = '';
+      notificationStatusText.textContent = 'Enable push updates for new chat activity.';
     }
-  });
-
-  chatProfile.get('username').on(name => {
-    const normalized = typeof name === 'string' ? name.trim() : '';
-    if (!normalized) return;
-    applyUsernameToUI(normalized);
+  }).catch(() => {
+    notificationStatusText.textContent = 'Unable to change notification settings right now.';
   });
 }
 
@@ -991,355 +1067,37 @@ function sendMessage() {
   }
 }
 
-const messages = {};
+function initKeyboardShortcuts() {
+  const input = document.getElementById('message-input');
+  if (!input) return;
 
-function resetNotifiedStateForRoom(room) {
-  if (!room) return;
-  const set = notifiedMessageIdsByRoom[room];
-  const queue = notifiedMessageQueueByRoom[room];
-  if (set) {
-    set.clear();
-  }
-  if (queue) {
-    queue.length = 0;
-  }
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
+    }
+  });
 }
 
-function timeAgoOrFullDate(timestamp) {
-  const now = Date.now();
-  const diff = Math.floor((now - timestamp) / 1000);
-  if (diff < 60) return `${diff}s ago`;
-  const mins = Math.floor(diff / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const date = new Date(timestamp);
-  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-}
+initKeyboardShortcuts();
 
-function displayMessages() {
-  const messagesDiv = document.getElementById('messages');
-  messagesDiv.innerHTML = '';
-
-  const sorted = Object.entries(messages).sort(([, a], [, b]) => (b.createdAt || 0) - (a.createdAt || 0));
-  for (const [id, message] of sorted) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = 'message';
-    msgDiv.id = id;
-
-    const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
-      (message.sender || 'Anonymous');
-    const time = message.createdAt ? timeAgoOrFullDate(message.createdAt) : '';
-
-    msgDiv.innerHTML = `<div><strong>${username}:</strong> ${message.text}</div><div class="meta">${time}</div>`;
-    messagesDiv.appendChild(msgDiv);
+function loadStoredUsername() {
+  const stored = safeGetStorage('username').trim();
+  if (stored) {
+    cachedUsername = stored;
+    applyUsernameToUI(stored);
   }
 }
 
-function loadRoom(roomName) {
-  const messagesDiv = document.getElementById('messages');
-  messagesDiv.innerHTML = '';
-  Object.keys(messages).forEach(key => delete messages[key]);
+loadStoredUsername();
+
+function setupRoomObserver(roomName) {
+  if (!roomName) return;
   resetNotifiedStateForRoom(roomName);
   beginRoomNotificationSync(roomName);
-
-  if (currentRoomStream && typeof currentRoomStream.off === 'function') {
-    currentRoomStream.off();
-  }
-
-  chat = gun.get('3dvr-chat').get(roomName);
-  const roomStream = chat.map();
-  currentRoomStream = roomStream;
-
-  roomStream.on((message, id) => {
-    if (!message || messages[id]) return;
-
-    if (message.sender) {
-      const existingUsername = typeof message.username === 'string'
-        ? message.username.trim()
-        : '';
-      if (existingUsername) {
-        message.username = existingUsername;
-        messages[id] = message;
-        displayMessages();
-        maybeNotifyNewMessage(message, id);
-        return;
-      }
-
-      fetchSenderUsername(message.sender, resolvedName => {
-        const finalName = resolvedName || message.sender;
-        message.username = finalName;
-        messages[id] = message;
-        displayMessages();
-        maybeNotifyNewMessage(message, id);
-      });
-    } else {
-      messages[id] = message;
-      displayMessages();
-      maybeNotifyNewMessage(message, id);
-    }
-  });
 }
 
-function changeRoom() {
-  currentRoom = document.getElementById('room').value;
-  loadRoom(currentRoom);
-}
-
-loadRoom(currentRoom);
-
-function initNotifications() {
-  if (!notificationToggleButton || !notificationStatusText) return;
-
-  if (!notificationsSupported) {
-    notificationToggleButton.style.display = 'none';
-    notificationStatusText.textContent = 'Notifications are not supported in this browser.';
-    return;
-  }
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistration().then(existingRegistration => {
-      if (existingRegistration) {
-        serviceWorkerRegistration = existingRegistration;
-        return existingRegistration;
-      }
-      return navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
-        .then(registration => {
-          serviceWorkerRegistration = registration;
-          return registration;
-        });
-    }).catch(error => {
-      console.error('Service worker registration failed for chat notifications', error);
-    });
-  }
-
-  const savedPreference = localStorage.getItem(notificationsPreferenceKey) === 'true';
-  if (savedPreference && Notification.permission === 'granted') {
-    notificationsEnabled = true;
-  }
-
-  updateNotificationUI();
-}
-
-function updateNotificationUI() {
-  if (!notificationToggleButton || !notificationStatusText) return;
-
-  if (!notificationsSupported) {
-    notificationToggleButton.style.display = 'none';
-    notificationStatusText.textContent = 'Notifications are not supported in this browser.';
-    return;
-  }
-
-  if (Notification.permission === 'denied') {
-    notificationToggleButton.disabled = true;
-    notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
-    return;
-  }
-
-  notificationToggleButton.disabled = false;
-  notificationToggleButton.textContent = notificationsEnabled ? 'Disable Notifications' : 'Enable Notifications';
-
-  if (notificationsEnabled && Notification.permission === 'granted') {
-    notificationStatusText.textContent = 'Notifications are on. We will alert you about new messages.';
-  } else {
-    notificationStatusText.textContent = 'Notifications are off. Click enable to stay updated.';
-  }
-}
-
-function toggleNotifications() {
-  if (!notificationsSupported) return;
-
-  if (notificationsEnabled) {
-    notificationsEnabled = false;
-    localStorage.setItem(notificationsPreferenceKey, 'false');
-    updateNotificationUI();
-    return;
-  }
-
-  if (Notification.permission === 'granted') {
-    notificationsEnabled = true;
-    localStorage.setItem(notificationsPreferenceKey, 'true');
-    updateNotificationUI();
-    sendNotificationPreview();
-    return;
-  }
-
-  Notification.requestPermission().then(permission => {
-    notificationsEnabled = permission === 'granted';
-    localStorage.setItem(notificationsPreferenceKey, notificationsEnabled ? 'true' : 'false');
-
-    if (permission === 'denied') {
-      notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
-    }
-
-    updateNotificationUI();
-
-    if (permission === 'granted') {
-      sendNotificationPreview();
-    }
-  });
-}
-
-async function attemptServiceWorkerNotification(registration, title, options) {
-  if (!registration) return false;
-
-  try {
-    if (registration.active && typeof registration.active.postMessage === 'function') {
-      registration.active.postMessage({
-        type: 'show-notification',
-        payload: { title, options }
-      });
-      return true;
-    }
-
-    if (typeof registration.showNotification === 'function') {
-      await registration.showNotification(title, options);
-      return true;
-    }
-  } catch (error) {
-    console.error('Service worker notification attempt failed', error);
-  }
-
-  return false;
-}
-
-async function showChatNotification(title, options = {}, config = {}) {
-  if (!notificationsEnabled || !notificationsSupported) return;
-  if (!title || Notification.permission !== 'granted') return;
-
-  const { requireHidden = true } = config;
-  if (requireHidden && document.visibilityState === 'visible') return;
-
-  const enrichedOptions = {
-    ...options,
-    icon: options.icon || notificationIconPath,
-    badge: options.badge || notificationIconPath,
-    timestamp: Date.now(),
-    data: {
-      ...options.data,
-      url: options.data?.url || `/chat.html#${currentRoom}`,
-      room: currentRoom
-    }
-  };
-
-  const fallbackToPageNotification = () => {
-    try {
-      const notification = new Notification(title, enrichedOptions);
-      setTimeout(() => notification.close(), 8000);
-    } catch (error) {
-      console.error('Unable to show notification', error);
-    }
-  };
-
-  if (!('serviceWorker' in navigator)) {
-    fallbackToPageNotification();
-    return;
-  }
-
-  if (await attemptServiceWorkerNotification(serviceWorkerRegistration, title, enrichedOptions)) {
-    return;
-  }
-
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    serviceWorkerRegistration = registration;
-
-    const success = await attemptServiceWorkerNotification(registration, title, enrichedOptions);
-    if (!success) {
-      fallbackToPageNotification();
-    }
-  } catch (error) {
-    console.error('Service worker readiness error', error);
-    fallbackToPageNotification();
-  }
-}
-
-function sendNotificationPreview() {
-  showChatNotification(
-    'Chat notifications enabled',
-    {
-      body: 'We will let you know when someone posts a new message.',
-      tag: 'chat-notification-preview',
-      data: { messageId: 'preview' }
-    },
-    { requireHidden: false }
-  );
-}
-
-function maybeNotifyNewMessage(message, id) {
-  if (!message || message.sender === userId) return;
-
-  const roomState = getRoomNotificationState(currentRoom);
-  const cutoff = roomState.initialSyncCutoff || 0;
-  const createdAt = typeof message.createdAt === 'number' && Number.isFinite(message.createdAt)
-    ? message.createdAt
-    : null;
-
-  if (roomState.initialSync) {
-    const isHistorical = createdAt !== null && cutoff && createdAt <= cutoff;
-    if (isHistorical) {
-      updateRoomStateWithMessage(roomState, createdAt, id);
-      markMessageNotified(currentRoom, id);
-      persistNotificationState();
-      return;
-    }
-
-    if (!createdAt && cutoff && Date.now() - cutoff < INITIAL_SYNC_GRACE_MS) {
-      markMessageNotified(currentRoom, id);
-      return;
-    }
-
-    roomState.initialSync = false;
-    roomState.initialSyncCutoff = 0;
-    persistNotificationState();
-  }
-
-  if (hasMessageBeenNotified(currentRoom, id)) {
-    return;
-  }
-
-  const effectiveTimestamp = createdAt !== null ? createdAt : Date.now();
-  const lastTimestamp = roomState.lastSeenTimestamp || 0;
-  const ids = Array.isArray(roomState.lastSeenMessageIds)
-    ? roomState.lastSeenMessageIds
-    : (roomState.lastSeenMessageIds = []);
-
-  if (createdAt !== null) {
-    if (effectiveTimestamp < lastTimestamp) {
-      return;
-    }
-
-    if (effectiveTimestamp === lastTimestamp && ids.includes(id)) {
-      return;
-    }
-  }
-
-  const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
-    message.sender ||
-    'Someone';
-
-  const rawPreview = typeof message.text === 'string'
-    ? message.text.trim()
-    : String(message.text || '').trim();
-  const notificationBody = rawPreview.length > 160 ? `${rawPreview.slice(0, 157)}...` : rawPreview;
-
-  const title = `${username} in #${currentRoom}`;
-  const options = {
-    body: notificationBody || 'New message',
-    tag: `${currentRoom}-${id}`,
-    data: {
-      messageId: id
-    }
-  };
-
-  showChatNotification(title, options, { requireHidden: true });
-  markMessageNotified(currentRoom, id);
-  updateRoomStateWithMessage(roomState, effectiveTimestamp, id);
-  persistNotificationState();
-}
-
-initNotifications();
-</script>
-
+setupRoomObserver(currentRoom);
+  </script>
 </body>
 </html>
