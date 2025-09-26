@@ -11,140 +11,345 @@
   <style>
     body {
       font-family: 'Poppins', sans-serif;
-      background: #e9f0f5;
-      color: #222;
+      background: radial-gradient(circle at top, #334155, #0f172a 55%);
+      color: #e2e8f0;
       min-height: 100vh;
       margin: 0;
-      padding: 20px;
+      padding: 40px 20px 32px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(120% 120% at 0% 0%, rgba(14, 165, 233, 0.25), transparent 60%),
+        radial-gradient(120% 120% at 100% 0%, rgba(59, 130, 246, 0.2), transparent 65%),
+        radial-gradient(120% 120% at 100% 100%, rgba(16, 185, 129, 0.25), transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .top-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .top-buttons a {
+      background: rgba(148, 163, 184, 0.15);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 999px;
+      padding: 10px 18px;
+      color: #e2e8f0;
+      text-decoration: none;
+      font-weight: 500;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .top-buttons a:hover {
+      transform: translateY(-1px);
+      border-color: rgba(148, 163, 184, 0.5);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
     }
 
     header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 28px;
+      max-width: 720px;
     }
 
     header h1 {
-      font-size: 2.5rem;
+      font-size: 2.75rem;
       margin: 0;
+      letter-spacing: -0.02em;
     }
 
     header p {
-      color: #555;
+      color: #cbd5f5;
       font-size: 1.1rem;
+      margin-top: 12px;
     }
 
-    #profile-mini {
-      background: #fff;
-      border-radius: 12px;
-      padding: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-      text-align: center;
+    header strong {
+      color: #38bdf8;
+    }
+
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 24px;
       width: 100%;
-      max-width: 500px;
-      margin-bottom: 20px;
+      max-width: 1100px;
+      flex: 1;
+    }
+
+    .chat-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
     #notification-settings {
-      background: #fff;
-      border-radius: 12px;
-      padding: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-      text-align: center;
-      width: 100%;
-      max-width: 500px;
-      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    #notification-settings strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 6px;
     }
 
     #notification-settings button {
-      margin-top: 10px;
+      margin-top: 14px;
     }
 
     #notification-status {
       display: block;
-      margin-top: 5px;
-      color: #555;
+      margin-top: 6px;
+      color: #cbd5f5;
+      font-size: 0.95rem;
+    }
+
+    #profile-mini {
+      text-align: left;
+    }
+
+    #profile-mini strong {
+      color: #38bdf8;
+    }
+
+    .chat-main {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-main-card {
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 22px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      backdrop-filter: blur(12px);
+    }
+
+    .chat-room-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .chat-room-title {
+      flex: 1 1 240px;
+    }
+
+    .chat-room-title h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .chat-room-title p {
+      margin: 6px 0 0;
+      color: rgba(226, 232, 240, 0.7);
       font-size: 0.95rem;
     }
 
     #room-select {
-      margin-bottom: 20px;
-      text-align: center;
+      flex: 1;
+      text-align: left;
+    }
+
+    #room-select label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #e2e8f0;
     }
 
     #room-select select {
-      padding: 10px;
-      border-radius: 8px;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
       font-size: 1rem;
+      background: rgba(15, 23, 42, 0.85);
+      color: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      appearance: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #room-select select:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+      outline: none;
     }
 
     #new-message {
       display: flex;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 20px;
-      width: 100%;
-      max-width: 700px;
+      gap: 12px;
+      margin-top: 20px;
+      align-items: center;
     }
 
-    input[type="text"], button {
-      padding: 10px;
-      font-size: 1rem;
-      border-radius: 8px;
-      border: none;
+    input[type="text"],
+    button,
+    select {
+      font-family: inherit;
     }
 
     input[type="text"] {
-      flex-grow: 1;
+      flex: 1;
+      padding: 14px 16px;
+      border-radius: 14px;
+      font-size: 1rem;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.85);
+      color: #f8fafc;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input[type="text"]::placeholder {
+      color: rgba(226, 232, 240, 0.6);
+    }
+
+    input[type="text"]:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+      outline: none;
     }
 
     button {
-      background: #66c2b0;
-      color: white;
-      font-weight: bold;
+      padding: 14px 20px;
+      font-size: 1rem;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, #38bdf8, #22d3ee);
+      color: #0f172a;
+      font-weight: 600;
       cursor: pointer;
-      transition: 0.3s;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     button:hover {
-      background: #5ca0d3;
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(34, 211, 238, 0.35);
     }
 
     #messages {
-      flex-grow: 1;
+      flex: 1;
       overflow-y: auto;
-      max-width: 700px;
-      width: 100%;
+      padding-right: 6px;
+    }
+
+    #messages::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #messages::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 999px;
     }
 
     .message {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      color: #333;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(14, 165, 233, 0.08));
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.3);
+      color: #f8fafc;
+      backdrop-filter: blur(6px);
+      transition: transform 0.2s ease;
+    }
+
+    .message:hover {
+      transform: translateY(-1px);
+    }
+
+    .message strong {
+      color: #38bdf8;
     }
 
     .meta {
       font-size: 0.8rem;
-      color: #888;
-      margin-top: 5px;
+      color: rgba(226, 232, 240, 0.7);
+      margin-top: 6px;
     }
 
     footer {
-      margin-top: 40px;
-      margin-bottom: 10px;
-      font-size: 0.8rem;
-      color: #888;
+      margin-top: 48px;
+      font-size: 0.85rem;
+      color: rgba(226, 232, 240, 0.7);
       text-align: center;
     }
 
     footer a {
-      color: #5ca0d3;
+      color: #38bdf8;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    footer a:hover {
       text-decoration: underline;
+    }
+
+    @media (max-width: 1024px) {
+      .chat-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .chat-sidebar {
+        order: 2;
+      }
+
+      .chat-main {
+        order: 1;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 32px 16px 24px;
+      }
+
+      .chat-main-card {
+        padding: 20px;
+      }
+
+      #new-message {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -162,32 +367,46 @@
   <p>💬 You earn <strong>+1 point</strong> for every message you send!</p>
 </header>
 
-<div id="notification-settings">
-  <strong>🔔 Chat notifications</strong>
-  <span id="notification-status">Checking permissions…</span>
-  <button id="notification-toggle" onclick="toggleNotifications()">Enable Notifications</button>
-</div>
+<main class="chat-layout">
+  <aside class="chat-sidebar">
+    <div id="notification-settings" class="panel-card">
+      <strong>🔔 Chat notifications</strong>
+      <span id="notification-status">Checking permissions…</span>
+      <button id="notification-toggle" onclick="toggleNotifications()">Enable Notifications</button>
+    </div>
 
-<div id="profile-mini">
-  <p><strong>Username:</strong> <span id="current-username">Loading...</span></p>
-</div>
+    <div id="profile-mini" class="panel-card">
+      <p><strong>Username:</strong> <span id="current-username">Loading...</span></p>
+    </div>
+  </aside>
 
-<div id="room-select">
-  <label for="room">Select Room:</label>
-  <select id="room" onchange="changeRoom()">
-    <option value="general">🌎 General</option>
-    <option value="ideas">💡 Ideas</option>
-    <option value="support">🛟 Support</option>
-    <option value="random">🎲 Random</option>
-  </select>
-</div>
+  <section class="chat-main">
+    <div class="chat-main-card">
+      <div class="chat-room-header">
+        <div class="chat-room-title">
+          <h2>Live conversations</h2>
+          <p>Switch rooms to jump between community spaces.</p>
+        </div>
+        <div id="room-select">
+          <label for="room">Select room</label>
+          <select id="room" onchange="changeRoom()">
+            <option value="general">🌎 General</option>
+            <option value="ideas">💡 Ideas</option>
+            <option value="support">🛟 Support</option>
+            <option value="random">🎲 Random</option>
+          </select>
+        </div>
+      </div>
 
-<div id="new-message">
-  <input type="text" id="message-input" placeholder="Type your message..." />
-  <button onclick="sendMessage()">Send</button>
-</div>
+      <div id="messages"></div>
 
-<div id="messages"></div>
+      <div id="new-message">
+        <input type="text" id="message-input" placeholder="Type your message..." />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </section>
+</main>
 
 <footer>
   3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
