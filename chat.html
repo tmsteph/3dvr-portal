@@ -29,6 +29,16 @@
       </p>
       <div class="chat-hero__meta">
         <span class="chat-hero__reward">💬 Earn <strong>+1 point</strong> for every message you send.</span>
+        <div
+          id="chat-score"
+          class="chat-hero__score"
+          role="status"
+          aria-live="polite"
+          aria-label="Your current score"
+        >
+          <span class="chat-hero__score-label">Your Score</span>
+          <span id="chat-score-value" class="chat-hero__score-value">0</span>
+        </div>
       </div>
     </header>
 
@@ -140,6 +150,8 @@ const activeRoomNameEl = document.getElementById('active-room-name');
 const activeRoomDescriptionEl = document.getElementById('active-room-description');
 const roomDescriptionEl = document.getElementById('room-description');
 const roomSelectEl = document.getElementById('room');
+const chatScoreContainer = document.getElementById('chat-score');
+const chatScoreValueEl = document.getElementById('chat-score-value');
 const ROOM_DETAILS = {
   general: {
     label: '#general',
@@ -158,6 +170,34 @@ const ROOM_DETAILS = {
     description: 'Celebrate wins, share memes, and connect between sprints.'
   }
 };
+
+function sanitizeScoreDisplay(value) {
+  if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
+    return window.ScoreSystem.sanitizeScore(value);
+  }
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.round(numeric));
+}
+
+function updateChatScoreDisplay(value) {
+  if (!chatScoreValueEl) {
+    return;
+  }
+  const safeScore = sanitizeScoreDisplay(value);
+  chatScoreValueEl.innerText = safeScore;
+  if (chatScoreContainer) {
+    chatScoreContainer.setAttribute('data-ready', 'true');
+  }
+}
+
+if (chatScoreContainer && chatScoreValueEl) {
+  if (scoreManager && typeof scoreManager.subscribe === 'function') {
+    scoreManager.subscribe(updateChatScoreDisplay);
+  } else {
+    updateChatScoreDisplay(0);
+  }
+}
 
 const notificationToggleButton = document.getElementById('notification-toggle');
 const notificationStatusText = document.getElementById('notification-status');
