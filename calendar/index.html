@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Portal – Calendar Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/calendar/calendar.css">
+</head>
+<body>
+  <header class="calendar-header">
+    <a class="calendar-header__back" href="../index.html">⬅ Back to Portal</a>
+    <h1 class="calendar-header__title">Calendar Hub</h1>
+    <p class="calendar-header__subtitle">
+      Connect your Google and Outlook calendars, manage events, and keep your schedule in sync.
+    </p>
+  </header>
+
+  <main class="calendar-shell">
+    <section class="panel" aria-labelledby="connections-title">
+      <div class="panel__header">
+        <h2 id="connections-title">Account Connections</h2>
+        <p class="panel__intro">
+          Authenticate with Google or Outlook using OAuth and paste the access token below. We store the
+          values locally so you can quickly reconnect while developing the integration.
+        </p>
+      </div>
+
+      <div class="connection-grid">
+        <article class="connection-card" aria-labelledby="google-connection-title">
+          <div class="connection-card__header">
+            <h3 id="google-connection-title">Google Calendar</h3>
+            <span class="connection-card__status" data-status="google">Disconnected</span>
+          </div>
+          <form class="connection-card__form" data-provider="google">
+            <label class="field">
+              <span class="field__label">Access token</span>
+              <textarea name="accessToken" rows="3" required placeholder="ya29.a0AWY..." aria-describedby="google-token-help"></textarea>
+            </label>
+            <label class="field">
+              <span class="field__label">Calendar ID (optional)</span>
+              <input type="text" name="calendarId" placeholder="primary">
+            </label>
+            <p class="field__help" id="google-token-help">
+              Generate tokens via Google OAuth 2.0. Use a test project and enable the Calendar API. Tokens
+              are saved in your browser only.
+            </p>
+            <div class="connection-card__actions">
+              <button type="submit">Save connection</button>
+              <button type="button" class="button-secondary" data-action="disconnect" data-provider="google">Disconnect</button>
+            </div>
+          </form>
+          <details class="connection-card__details">
+            <summary>Need help?</summary>
+            <ol>
+              <li>Create an OAuth 2.0 client in the Google Cloud console.</li>
+              <li>Authorize the playground or your dev app with the <code>https://www.googleapis.com/auth/calendar</code> scope.</li>
+              <li>Paste the returned <strong>access_token</strong> here. Refresh tokens can be rotated manually for now.</li>
+            </ol>
+          </details>
+        </article>
+
+        <article class="connection-card" aria-labelledby="outlook-connection-title">
+          <div class="connection-card__header">
+            <h3 id="outlook-connection-title">Outlook / Microsoft 365</h3>
+            <span class="connection-card__status" data-status="outlook">Disconnected</span>
+          </div>
+          <form class="connection-card__form" data-provider="outlook">
+            <label class="field">
+              <span class="field__label">Access token</span>
+              <textarea name="accessToken" rows="3" required placeholder="EwBwA8l6B..." aria-describedby="outlook-token-help"></textarea>
+            </label>
+            <label class="field">
+              <span class="field__label">Mailbox (optional)</span>
+              <input type="email" name="mailbox" placeholder="user@contoso.com">
+            </label>
+            <p class="field__help" id="outlook-token-help">
+              Create an Azure AD app registration with Calendars.ReadWrite delegated permissions and paste the
+              access token here. Microsoft Graph endpoints are proxied through our API folder.
+            </p>
+            <div class="connection-card__actions">
+              <button type="submit">Save connection</button>
+              <button type="button" class="button-secondary" data-action="disconnect" data-provider="outlook">Disconnect</button>
+            </div>
+          </form>
+          <details class="connection-card__details">
+            <summary>Need help?</summary>
+            <ol>
+              <li>Register a single-page application in Azure.</li>
+              <li>Grant delegated permissions for <code>Calendars.ReadWrite</code> and <code>offline_access</code>.</li>
+              <li>Use the OAuth 2.0 authorization code flow to fetch tokens, then paste the <strong>access_token</strong> here.</li>
+            </ol>
+          </details>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="event-sync-title">
+      <div class="panel__header">
+        <h2 id="event-sync-title">Event Sync</h2>
+        <p class="panel__intro">
+          Fetch events from connected providers and push new ones back. Choose a provider below to get
+          started.
+        </p>
+      </div>
+
+      <form class="sync-controls" id="event-sync-form">
+        <fieldset class="sync-controls__group">
+          <legend>Provider</legend>
+          <label class="chip">
+            <input type="radio" name="provider" value="google" checked>
+            <span>Google</span>
+          </label>
+          <label class="chip">
+            <input type="radio" name="provider" value="outlook">
+            <span>Outlook</span>
+          </label>
+        </fieldset>
+
+        <fieldset class="sync-controls__group">
+          <legend>Time range</legend>
+          <label class="field">
+            <span class="field__label">From</span>
+            <input type="datetime-local" name="timeMin">
+          </label>
+          <label class="field">
+            <span class="field__label">To</span>
+            <input type="datetime-local" name="timeMax">
+          </label>
+          <label class="field">
+            <span class="field__label">Max events</span>
+            <input type="number" name="maxResults" min="1" max="100" value="20">
+          </label>
+        </fieldset>
+
+        <div class="sync-controls__actions">
+          <button type="button" data-action="fetch-events">Fetch events</button>
+          <button type="button" data-action="refresh-status">Refresh status</button>
+        </div>
+      </form>
+
+      <div class="event-results" aria-live="polite">
+        <div class="event-results__empty" data-empty>
+          <p>No events yet. Fetch from Google or Outlook to preview them here.</p>
+        </div>
+        <ul class="event-results__list" data-event-list></ul>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="create-event-title">
+      <div class="panel__header">
+        <h2 id="create-event-title">Create quick events</h2>
+        <p class="panel__intro">
+          Use the form below to push a single event to the selected provider. We will use the stored access token
+          when calling our lightweight API proxy.
+        </p>
+      </div>
+
+      <form class="create-event-form" id="create-event-form">
+        <div class="create-event-form__row">
+          <label class="field">
+            <span class="field__label">Title</span>
+            <input type="text" name="title" required placeholder="Sprint planning">
+          </label>
+          <label class="field">
+            <span class="field__label">Provider</span>
+            <select name="provider">
+              <option value="google">Google</option>
+              <option value="outlook">Outlook</option>
+            </select>
+          </label>
+        </div>
+        <div class="create-event-form__row">
+          <label class="field">
+            <span class="field__label">Start</span>
+            <input type="datetime-local" name="start" required>
+          </label>
+          <label class="field">
+            <span class="field__label">End</span>
+            <input type="datetime-local" name="end" required>
+          </label>
+          <label class="field">
+            <span class="field__label">Timezone</span>
+            <input type="text" name="timeZone" value="UTC" required>
+          </label>
+        </div>
+        <label class="field">
+          <span class="field__label">Description</span>
+          <textarea name="description" rows="3" placeholder="Add agenda and dial-in details"></textarea>
+        </label>
+        <button type="submit">Create event</button>
+      </form>
+
+      <div class="log" aria-live="polite" data-log></div>
+    </section>
+  </main>
+
+  <template id="event-template">
+    <li class="event-card">
+      <div class="event-card__header">
+        <h3 data-field="title"></h3>
+        <span class="event-card__provider" data-field="provider"></span>
+      </div>
+      <dl class="event-card__meta">
+        <div>
+          <dt>Starts</dt>
+          <dd data-field="start"></dd>
+        </div>
+        <div>
+          <dt>Ends</dt>
+          <dd data-field="end"></dd>
+        </div>
+      </dl>
+      <p class="event-card__description" data-field="description"></p>
+      <a class="event-card__link" data-field="link" href="#" target="_blank" rel="noreferrer noopener">Open in calendar</a>
+    </li>
+  </template>
+
+  <script src="/calendar/calendar.js" type="module"></script>
+</body>
+</html>

@@ -27,6 +27,7 @@ If you believe in empowering people to create together and own what they build �
 - **Realtime Group Chat:** Connect with the community and collaborate live.
 - **Task & Notes Apps:** Plan, discuss, and organize project work together.
 - **Mini Games & Demos:** Explore multiplayer-first coding through fun experiments.
+- **Calendar Hub (beta):** Connect Google and Outlook calendars using OAuth tokens and sync events in one place.
 - **Membership Support (coming soon):** Fund the platform and unlock rewards with our $20/month supporter plan.
 
 Everything is **100% open-source using HTML, CSS, and JS** — forkable, hackable, remixable.
@@ -63,3 +64,15 @@ You can sign up, join the chat, and start contributing right now — no download
 git clone https://github.com/tmsteph/3dvr-portal.git
 cd 3dvr-portal
 open index.html
+```
+
+### Calendar Hub developer preview
+
+The new calendar prototype lives at `calendar/index.html`. To experiment with Google or Outlook:
+
+1. Generate OAuth tokens using your own developer accounts (Google Cloud or Azure).
+2. Open the Calendar Hub page locally and paste the access tokens into the connection cards.
+3. Use the **Fetch events** button to call the lightweight proxy in `/api/calendar` and list your upcoming events.
+4. Use the **Create quick events** form to push meetings back to the connected provider.
+
+Tokens are stored in `localStorage` only, making it easy to iterate while you wire up a production-ready OAuth flow.
