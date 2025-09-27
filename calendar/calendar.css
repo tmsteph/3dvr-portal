@@ -325,6 +325,18 @@ button:hover {
   text-decoration: underline;
 }
 
+.event-card__footer {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.event-card__delete {
+  font-size: 0.9rem;
+  padding: 10px 16px;
+}
+
 .create-event-form {
   display: flex;
   flex-direction: column;
@@ -335,6 +347,28 @@ button:hover {
   display: grid;
   gap: 18px;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.create-event-form__sync {
+  border: 1px solid rgba(212, 222, 238, 0.8);
+  border-radius: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+}
+
+.create-event-form__sync legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+
+.create-event-form__sync p {
+  color: var(--calendar-muted);
+  flex-basis: 100%;
+  font-size: 0.9rem;
+  margin: 0;
 }
 
 .log {

@@ -15,14 +15,76 @@
     <a class="calendar-header__back" href="../index.html">⬅ Back to Portal</a>
     <h1 class="calendar-header__title">Calendar Hub</h1>
     <p class="calendar-header__subtitle">
-      Connect your Google and Outlook calendars, manage events, and keep your schedule in sync.
+      Manage your schedule directly in the portal. Events live in your local calendar first, with optional
+      syncs to Google or Outlook when you need them.
     </p>
   </header>
 
   <main class="calendar-shell">
+    <section class="panel" aria-labelledby="local-calendar-title">
+      <div class="panel__header">
+        <h2 id="local-calendar-title">My local calendar</h2>
+        <p class="panel__intro">
+          Add events that stay in this browser by default. When you want to share them with another service,
+          you can trigger an optional sync without leaving this page.
+        </p>
+      </div>
+
+      <form class="create-event-form" id="create-event-form">
+        <div class="create-event-form__row">
+          <label class="field">
+            <span class="field__label">Title</span>
+            <input type="text" name="title" required placeholder="Sprint planning">
+          </label>
+          <label class="field">
+            <span class="field__label">Start</span>
+            <input type="datetime-local" name="start" required>
+          </label>
+          <label class="field">
+            <span class="field__label">End</span>
+            <input type="datetime-local" name="end" required>
+          </label>
+        </div>
+        <div class="create-event-form__row">
+          <label class="field">
+            <span class="field__label">Timezone</span>
+            <input type="text" name="timeZone" required>
+          </label>
+          <label class="field">
+            <span class="field__label">Description</span>
+            <textarea name="description" rows="3" placeholder="Add agenda and dial-in details"></textarea>
+          </label>
+        </div>
+
+        <fieldset class="create-event-form__sync">
+          <legend>Optional sync</legend>
+          <p>Select the services that should also receive this event after it is stored locally.</p>
+          <label class="chip">
+            <input type="checkbox" name="syncProviders" value="google">
+            <span>Google</span>
+          </label>
+          <label class="chip">
+            <input type="checkbox" name="syncProviders" value="outlook">
+            <span>Outlook</span>
+          </label>
+        </fieldset>
+
+        <button type="submit">Save event</button>
+      </form>
+
+      <div class="event-results" aria-live="polite">
+        <div class="event-results__empty" data-empty>
+          <p>No events yet. Add one above or import from Google/Outlook when you're ready.</p>
+        </div>
+        <ul class="event-results__list" data-event-list></ul>
+      </div>
+
+      <div class="log" aria-live="polite" data-log></div>
+    </section>
+
     <section class="panel" aria-labelledby="connections-title">
       <div class="panel__header">
-        <h2 id="connections-title">Account Connections</h2>
+        <h2 id="connections-title">Optional account connections</h2>
         <p class="panel__intro">
           Authenticate with Google or Outlook using OAuth and paste the access token below. We store the
           values locally so you can quickly reconnect while developing the integration.
@@ -100,10 +162,10 @@
 
     <section class="panel" aria-labelledby="event-sync-title">
       <div class="panel__header">
-        <h2 id="event-sync-title">Event Sync</h2>
+        <h2 id="event-sync-title">Import from external calendars</h2>
         <p class="panel__intro">
-          Fetch events from connected providers and push new ones back. Choose a provider below to get
-          started.
+          Pull events from connected providers when you want to copy them into your local calendar. Choose a
+          provider below to start an import.
         </p>
       </div>
 
@@ -137,64 +199,10 @@
         </fieldset>
 
         <div class="sync-controls__actions">
-          <button type="button" data-action="fetch-events">Fetch events</button>
+          <button type="button" data-action="fetch-events">Import events</button>
           <button type="button" data-action="refresh-status">Refresh status</button>
         </div>
       </form>
-
-      <div class="event-results" aria-live="polite">
-        <div class="event-results__empty" data-empty>
-          <p>No events yet. Fetch from Google or Outlook to preview them here.</p>
-        </div>
-        <ul class="event-results__list" data-event-list></ul>
-      </div>
-    </section>
-
-    <section class="panel" aria-labelledby="create-event-title">
-      <div class="panel__header">
-        <h2 id="create-event-title">Create quick events</h2>
-        <p class="panel__intro">
-          Use the form below to push a single event to the selected provider. We will use the stored access token
-          when calling our lightweight API proxy.
-        </p>
-      </div>
-
-      <form class="create-event-form" id="create-event-form">
-        <div class="create-event-form__row">
-          <label class="field">
-            <span class="field__label">Title</span>
-            <input type="text" name="title" required placeholder="Sprint planning">
-          </label>
-          <label class="field">
-            <span class="field__label">Provider</span>
-            <select name="provider">
-              <option value="google">Google</option>
-              <option value="outlook">Outlook</option>
-            </select>
-          </label>
-        </div>
-        <div class="create-event-form__row">
-          <label class="field">
-            <span class="field__label">Start</span>
-            <input type="datetime-local" name="start" required>
-          </label>
-          <label class="field">
-            <span class="field__label">End</span>
-            <input type="datetime-local" name="end" required>
-          </label>
-          <label class="field">
-            <span class="field__label">Timezone</span>
-            <input type="text" name="timeZone" value="UTC" required>
-          </label>
-        </div>
-        <label class="field">
-          <span class="field__label">Description</span>
-          <textarea name="description" rows="3" placeholder="Add agenda and dial-in details"></textarea>
-        </label>
-        <button type="submit">Create event</button>
-      </form>
-
-      <div class="log" aria-live="polite" data-log></div>
     </section>
   </main>
 
@@ -215,7 +223,10 @@
         </div>
       </dl>
       <p class="event-card__description" data-field="description"></p>
-      <a class="event-card__link" data-field="link" href="#" target="_blank" rel="noreferrer noopener">Open in calendar</a>
+      <div class="event-card__footer">
+        <a class="event-card__link" data-field="link" href="#" target="_blank" rel="noreferrer noopener">Open in calendar</a>
+        <button type="button" class="event-card__delete button-secondary" data-action="delete-event">Remove</button>
+      </div>
     </li>
   </template>
 
