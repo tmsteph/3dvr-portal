@@ -27,6 +27,14 @@ const state = {
   localEvents: []
 };
 
+const GUN_RELAY_URL = 'https://gun-relay-3dvr.fly.dev/gun';
+const gun = typeof Gun === 'function' ? Gun([GUN_RELAY_URL]) : null;
+const portalRoot = gun ? gun.get('3dvr-portal') : null;
+const calendarRoot = portalRoot ? portalRoot.get('calendar') : null;
+const calendarOwnerKey = calendarRoot ? resolveCalendarOwnerKey() : null;
+const gunEvents = calendarOwnerKey ? calendarRoot.get('users').get(calendarOwnerKey).get('events') : null;
+let isGunApplying = false;
+
 const statusElements = new Map(
   Array.from(document.querySelectorAll('[data-status]')).map(el => [el.dataset.status, el])
 );
@@ -37,6 +45,221 @@ const logPanel = document.querySelector('[data-log]');
 const eventTemplate = document.getElementById('event-template');
 const syncForm = document.getElementById('event-sync-form');
 const createEventForm = document.getElementById('create-event-form');
+
+function slugifyKey(value, fallback = '') {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!normalized) {
+    return fallback;
+  }
+  const slug = normalized.replace(/[^a-z0-9_-]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '');
+  return slug || fallback;
+}
+
+function ensureCalendarGuestId() {
+  try {
+    const legacyId = localStorage.getItem('userId');
+    if (legacyId && !localStorage.getItem('guestId')) {
+      localStorage.setItem('guestId', legacyId);
+    }
+    if (legacyId) {
+      localStorage.removeItem('userId');
+    }
+    let guestId = localStorage.getItem('guestId');
+    if (!guestId) {
+      guestId = `guest_${Math.random().toString(36).slice(2, 11)}`;
+      localStorage.setItem('guestId', guestId);
+    }
+    if (!localStorage.getItem('guestDisplayName')) {
+      localStorage.setItem('guestDisplayName', 'Guest');
+    }
+    localStorage.setItem('guest', 'true');
+    return guestId;
+  } catch (err) {
+    console.warn('Unable to ensure guest identity for calendar sync', err);
+    return 'guest';
+  }
+}
+
+function resolveCalendarOwnerKey() {
+  const signedIn = localStorage.getItem('signedIn') === 'true';
+  const alias = (localStorage.getItem('alias') || '').trim();
+  const username = (localStorage.getItem('username') || '').trim();
+  if (signedIn) {
+    const aliasKey = slugifyKey(alias || username, '');
+    if (aliasKey) {
+      return `user:${aliasKey}`;
+    }
+  }
+  if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+    const guestId = window.ScoreSystem.ensureGuestIdentity();
+    if (guestId) {
+      return `guest:${slugifyKey(guestId, 'guest')}`;
+    }
+  }
+  const fallbackGuestId = ensureCalendarGuestId();
+  return `guest:${slugifyKey(fallbackGuestId, 'guest')}`;
+}
+
+function stripGunMeta(value) {
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripGunMeta);
+  }
+  const result = {};
+  Object.entries(value).forEach(([key, current]) => {
+    if (key === '_') {
+      return;
+    }
+    result[key] = stripGunMeta(current);
+  });
+  return result;
+}
+
+function normalizeSyncedProviders(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean);
+  }
+  if (value && typeof value === 'object') {
+    return Object.keys(value)
+      .sort()
+      .map(key => (typeof value[key] === 'string' ? value[key].trim() : ''))
+      .filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function sanitizeMetadata(metadata) {
+  if (!metadata || typeof metadata !== 'object') {
+    return {};
+  }
+  const cleaned = {};
+  Object.entries(metadata).forEach(([key, value]) => {
+    if (key === '_' || value === undefined) {
+      return;
+    }
+    if (key === 'syncedProviders') {
+      const providers = normalizeSyncedProviders(value);
+      if (providers.length) {
+        cleaned.syncedProviders = providers;
+      }
+      return;
+    }
+    if (value === null) {
+      cleaned[key] = null;
+      return;
+    }
+    if (Array.isArray(value)) {
+      const normalized = value
+        .map(item => (typeof item === 'object' ? sanitizeMetadata(item) : item))
+        .filter(item => item !== undefined);
+      if (normalized.length) {
+        cleaned[key] = normalized;
+      }
+      return;
+    }
+    if (typeof value === 'object') {
+      const nested = sanitizeMetadata(value);
+      if (Object.keys(nested).length) {
+        cleaned[key] = nested;
+      }
+      return;
+    }
+    cleaned[key] = value;
+  });
+  return cleaned;
+}
+
+function prepareEventForGun(event) {
+  if (!event || typeof event !== 'object' || !event.id) {
+    return null;
+  }
+  const metadata = sanitizeMetadata(event.metadata);
+  const payload = {
+    id: event.id,
+    provider: event.provider,
+    title: event.title,
+    description: event.description,
+    start: event.start,
+    end: event.end,
+    timeZone: event.timeZone,
+    link: event.link,
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt
+  };
+  if (Object.keys(metadata).length) {
+    payload.metadata = metadata;
+  } else {
+    payload.metadata = {};
+  }
+  return payload;
+}
+
+function syncEventsToGun(events, previousIds = new Set()) {
+  if (!gunEvents) {
+    return;
+  }
+  events.forEach(event => {
+    const payload = prepareEventForGun(event);
+    if (!payload) {
+      return;
+    }
+    gunEvents.get(payload.id).put(payload);
+    previousIds.delete(payload.id);
+  });
+  previousIds.forEach(id => {
+    gunEvents.get(id).put(null);
+  });
+}
+
+function setupGunSync() {
+  if (!gunEvents) {
+    console.info('3DVR calendar relay unavailable; continuing with local-only events.');
+    return;
+  }
+
+  gunEvents.map().on((raw, id) => {
+    if (!id) {
+      return;
+    }
+    if (raw == null) {
+      if (!state.localEvents.some(event => event.id === id)) {
+        return;
+      }
+      isGunApplying = true;
+      deleteLocalEvent(id, { skipGunSync: true, silent: true });
+      isGunApplying = false;
+      return;
+    }
+    if (!raw || typeof raw !== 'object') {
+      return;
+    }
+    const sanitized = normalizeStoredEvent({ ...stripGunMeta(raw), id });
+    if (!sanitized) {
+      return;
+    }
+    const hasExisting = state.localEvents.some(event => event.id === sanitized.id);
+    const nextList = hasExisting
+      ? state.localEvents.map(event => (event.id === sanitized.id ? { ...event, ...sanitized } : event))
+      : [...state.localEvents, sanitized];
+    isGunApplying = true;
+    writeLocalEvents(nextList, { skipGunSync: true });
+    isGunApplying = false;
+  });
+
+  if (state.localEvents.length) {
+    syncEventsToGun(state.localEvents);
+  }
+}
 
 function readConnection(provider) {
   const config = PROVIDERS[provider];
@@ -133,20 +356,28 @@ function normalizeStoredEvent(raw) {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
-  const provider = raw.provider === 'google' || raw.provider === 'outlook' ? raw.provider : 'local';
+  const cleaned = stripGunMeta(raw);
+  const provider = cleaned.provider === 'google' || cleaned.provider === 'outlook' ? cleaned.provider : 'local';
   const now = new Date().toISOString();
+  const metadata = sanitizeMetadata(cleaned.metadata);
   const base = {
-    id: typeof raw.id === 'string' ? raw.id : generateLocalId(provider),
+    id:
+      typeof cleaned.id === 'string' && cleaned.id.trim()
+        ? cleaned.id.trim()
+        : generateLocalId(provider),
     provider,
-    title: typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : 'Untitled event',
-    description: typeof raw.description === 'string' ? raw.description : '',
-    start: typeof raw.start === 'string' ? raw.start : raw.start === null ? null : '',
-    end: typeof raw.end === 'string' ? raw.end : raw.end === null ? null : '',
-    timeZone: typeof raw.timeZone === 'string' ? raw.timeZone : '',
-    link: typeof raw.link === 'string' ? raw.link : '',
-    metadata: raw.metadata && typeof raw.metadata === 'object' ? raw.metadata : {},
-    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : now,
-    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : now
+    title:
+      typeof cleaned.title === 'string' && cleaned.title.trim()
+        ? cleaned.title.trim()
+        : 'Untitled event',
+    description: typeof cleaned.description === 'string' ? cleaned.description : '',
+    start: typeof cleaned.start === 'string' ? cleaned.start : cleaned.start === null ? null : '',
+    end: typeof cleaned.end === 'string' ? cleaned.end : cleaned.end === null ? null : '',
+    timeZone: typeof cleaned.timeZone === 'string' ? cleaned.timeZone : '',
+    link: typeof cleaned.link === 'string' ? cleaned.link : '',
+    metadata,
+    createdAt: typeof cleaned.createdAt === 'string' ? cleaned.createdAt : now,
+    updatedAt: typeof cleaned.updatedAt === 'string' ? cleaned.updatedAt : now
   };
   return base;
 }
@@ -179,11 +410,13 @@ function readLocalEvents() {
   }
 }
 
-function writeLocalEvents(events) {
+function writeLocalEvents(events, options = {}) {
+  const { skipGunSync = false } = options;
   const normalized = Array.isArray(events)
     ? events.map(normalizeStoredEvent).filter(Boolean)
     : [];
   const sorted = sortEvents(normalized);
+  const previousIds = new Set(state.localEvents.map(event => event.id));
   state.localEvents = sorted;
   try {
     localStorage.setItem(LOCAL_EVENTS_KEY, JSON.stringify(sorted));
@@ -191,6 +424,9 @@ function writeLocalEvents(events) {
     console.warn('Unable to persist local events', err);
   }
   renderEvents();
+  if (gunEvents && !skipGunSync && !isGunApplying) {
+    syncEventsToGun(sorted, previousIds);
+  }
 }
 
 function hydrateLocalEvents() {
@@ -459,7 +695,7 @@ async function handleFetchEvents() {
   }
 }
 
-function updateLocalEvent(eventId, patch) {
+function updateLocalEvent(eventId, patch, options = {}) {
   const list = state.localEvents.map(entry => {
     if (entry.id !== eventId) {
       return entry;
@@ -475,17 +711,19 @@ function updateLocalEvent(eventId, patch) {
       updatedAt: new Date().toISOString()
     };
   });
-  writeLocalEvents(list);
+  writeLocalEvents(list, options);
 }
 
-function deleteLocalEvent(id) {
+function deleteLocalEvent(id, options = {}) {
   if (!id) return;
   const remaining = state.localEvents.filter(event => event.id !== id);
   if (remaining.length === state.localEvents.length) {
     return;
   }
-  writeLocalEvents(remaining);
-  showLog('Event removed from your local calendar.', 'info');
+  writeLocalEvents(remaining, options);
+  if (!options.silent) {
+    showLog('Event removed from your local calendar.', 'info');
+  }
 }
 
 function handleEventListClick(event) {
@@ -705,4 +943,8 @@ hydrateState();
 hydrateLocalEvents();
 hydrateCreateFormDefaults();
 bindEvents();
-showLog('Ready to manage your local calendar. Connect Google or Outlook to sync when needed.');
+setupGunSync();
+const readyMessage = gunEvents
+  ? 'Ready to manage your calendar. Local events sync through the 3DVR relay and can connect to Google or Outlook when needed.'
+  : 'Ready to manage your local calendar. Connect Google or Outlook to sync when needed.';
+showLog(readyMessage);
