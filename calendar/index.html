@@ -72,6 +72,42 @@
         <button type="submit">Save event</button>
       </form>
 
+      <section class="calendar-visual" aria-labelledby="calendar-visual-title">
+        <div class="calendar-visual__header">
+          <button
+            type="button"
+            class="calendar-visual__nav button-secondary"
+            data-calendar-nav="prev"
+            aria-label="Show previous month"
+          >
+            ‹
+          </button>
+          <div class="calendar-visual__title-group">
+            <h3 id="calendar-visual-title" data-calendar-title></h3>
+            <p class="calendar-visual__hint">Events saved locally appear on this monthly snapshot.</p>
+          </div>
+          <button
+            type="button"
+            class="calendar-visual__nav button-secondary"
+            data-calendar-nav="next"
+            aria-label="Show next month"
+          >
+            ›
+          </button>
+        </div>
+        <p class="calendar-visual__live" aria-live="polite" data-calendar-live></p>
+        <div class="calendar-visual__weekdays" aria-hidden="true">
+          <span data-calendar-weekday="0">Sun</span>
+          <span data-calendar-weekday="1">Mon</span>
+          <span data-calendar-weekday="2">Tue</span>
+          <span data-calendar-weekday="3">Wed</span>
+          <span data-calendar-weekday="4">Thu</span>
+          <span data-calendar-weekday="5">Fri</span>
+          <span data-calendar-weekday="6">Sat</span>
+        </div>
+        <div class="calendar-visual__grid" role="grid" aria-labelledby="calendar-visual-title" data-calendar-grid></div>
+      </section>
+
       <div class="event-results" aria-live="polite">
         <div class="event-results__empty" data-empty>
           <p>No events yet. Add one above or import from Google/Outlook when you're ready.</p>

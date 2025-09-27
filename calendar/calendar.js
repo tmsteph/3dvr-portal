@@ -21,10 +21,29 @@ const PROVIDER_LABELS = {
 };
 
 const DEFAULT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const MONTH_YEAR_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: 'long',
+  year: 'numeric'
+});
+const FULL_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric'
+});
+const SHORT_WEEKDAY_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short'
+});
+const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  hour: 'numeric',
+  minute: '2-digit'
+});
+const DAYS_PER_WEEK = 7;
+const WEEKS_PER_VIEW = 6;
 
 const state = {
   connections: new Map(),
-  localEvents: []
+  localEvents: [],
+  calendarViewDate: startOfMonth(new Date())
 };
 
 const statusElements = new Map(
@@ -37,6 +56,45 @@ const logPanel = document.querySelector('[data-log]');
 const eventTemplate = document.getElementById('event-template');
 const syncForm = document.getElementById('event-sync-form');
 const createEventForm = document.getElementById('create-event-form');
+const calendarTitle = document.querySelector('[data-calendar-title]');
+const calendarGrid = document.querySelector('[data-calendar-grid]');
+const calendarLiveRegion = document.querySelector('[data-calendar-live]');
+const calendarWeekdayLabels = Array.from(
+  document.querySelectorAll('[data-calendar-weekday]')
+);
+const calendarNavButtons = Array.from(
+  document.querySelectorAll('[data-calendar-nav]')
+);
+
+function startOfDay(value = new Date()) {
+  const date = value instanceof Date ? new Date(value) : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return new Date();
+  }
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function startOfMonth(value = new Date()) {
+  const date = startOfDay(value);
+  date.setDate(1);
+  return date;
+}
+
+function toDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isSameDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
 
 function readConnection(provider) {
   const config = PROVIDERS[provider];
@@ -191,12 +249,14 @@ function writeLocalEvents(events) {
     console.warn('Unable to persist local events', err);
   }
   renderEvents();
+  renderCalendar();
 }
 
 function hydrateLocalEvents() {
   const events = sortEvents(readLocalEvents());
   state.localEvents = events;
   renderEvents();
+  renderCalendar();
 }
 
 function withTimeZoneLabel(text, timeZone) {
@@ -241,6 +301,143 @@ function renderEvents(events = state.localEvents) {
     }
     eventList.appendChild(fragment);
   });
+}
+
+function formatEventTimeForCalendar(value) {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return TIME_FORMATTER.format(date);
+  } catch (err) {
+    console.warn('Unable to format event time for calendar', value, err);
+    return '';
+  }
+}
+
+function buildEventMap(events = []) {
+  const map = new Map();
+  events.forEach(event => {
+    if (!event || !event.start) {
+      return;
+    }
+    const date = new Date(event.start);
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+    const key = toDateKey(date);
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+    map.get(key).push(event);
+  });
+  map.forEach(list => {
+    list.sort((a, b) => parseEventDate(a.start) - parseEventDate(b.start));
+  });
+  return map;
+}
+
+function updateCalendarLiveRegion(message) {
+  if (!calendarLiveRegion) return;
+  calendarLiveRegion.textContent = message;
+}
+
+function renderCalendar() {
+  if (!calendarGrid || !calendarTitle) return;
+  const baseDate = state.calendarViewDate instanceof Date ? state.calendarViewDate : new Date();
+  const viewDate = startOfMonth(baseDate);
+  state.calendarViewDate = viewDate;
+  const monthTitle = MONTH_YEAR_FORMATTER.format(viewDate);
+  calendarTitle.textContent = monthTitle;
+  updateCalendarLiveRegion(`Showing ${monthTitle}`);
+  const firstOfMonth = new Date(viewDate);
+  const firstDayOffset = firstOfMonth.getDay();
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(firstOfMonth.getDate() - firstDayOffset);
+  const today = startOfDay(new Date());
+  const eventsByDay = buildEventMap(state.localEvents);
+  calendarGrid.innerHTML = '';
+  for (let index = 0; index < WEEKS_PER_VIEW * DAYS_PER_WEEK; index += 1) {
+    const current = new Date(gridStart);
+    current.setDate(gridStart.getDate() + index);
+    const cell = document.createElement('div');
+    cell.className = 'calendar-visual__cell';
+    cell.setAttribute('role', 'gridcell');
+    const inMonth = current.getMonth() === viewDate.getMonth();
+    if (!inMonth) {
+      cell.classList.add('calendar-visual__cell--outside');
+    }
+    const isoKey = toDateKey(current);
+    const eventsForDay = eventsByDay.get(isoKey) || [];
+    if (isSameDay(current, today)) {
+      cell.classList.add('calendar-visual__cell--today');
+      cell.setAttribute('aria-current', 'date');
+    }
+    if (eventsForDay.length) {
+      cell.classList.add('calendar-visual__cell--has-events');
+    }
+    const dateLabel = document.createElement('span');
+    dateLabel.className = 'calendar-visual__date';
+    dateLabel.textContent = String(current.getDate());
+    cell.appendChild(dateLabel);
+    if (eventsForDay.length) {
+      const eventList = document.createElement('ul');
+      eventList.className = 'calendar-visual__events';
+      eventsForDay.slice(0, 3).forEach(event => {
+        const item = document.createElement('li');
+        item.className = 'calendar-visual__event';
+        const timeLabel = formatEventTimeForCalendar(event.start);
+        if (timeLabel) {
+          const time = document.createElement('span');
+          time.className = 'calendar-visual__time';
+          time.textContent = timeLabel;
+          item.appendChild(time);
+        }
+        const title = document.createElement('span');
+        title.textContent = event.title || 'Untitled event';
+        item.appendChild(title);
+        eventList.appendChild(item);
+      });
+      if (eventsForDay.length > 3) {
+        const more = document.createElement('li');
+        more.className = 'calendar-visual__event calendar-visual__event--more';
+        more.textContent = `+${eventsForDay.length - 3} more`;
+        eventList.appendChild(more);
+      }
+      cell.appendChild(eventList);
+    }
+    const labelParts = [FULL_DATE_FORMATTER.format(current)];
+    if (eventsForDay.length) {
+      labelParts.push(`${eventsForDay.length} event${eventsForDay.length === 1 ? '' : 's'}`);
+    }
+    cell.setAttribute('aria-label', labelParts.join(', '));
+    calendarGrid.appendChild(cell);
+  }
+}
+
+function hydrateCalendarWeekdays() {
+  if (!calendarWeekdayLabels.length) return;
+  calendarWeekdayLabels.forEach(label => {
+    const index = Number.parseInt(label.dataset.calendarWeekday, 10);
+    if (!Number.isInteger(index)) {
+      return;
+    }
+    const reference = new Date(Date.UTC(2023, 0, 1 + index));
+    label.textContent = SHORT_WEEKDAY_FORMATTER.format(reference);
+  });
+}
+
+function stepCalendarMonth(offset = 0) {
+  if (!Number.isFinite(offset) || offset === 0) {
+    return;
+  }
+  const baseDate = state.calendarViewDate instanceof Date ? state.calendarViewDate : new Date();
+  const next = new Date(baseDate);
+  next.setMonth(next.getMonth() + offset);
+  state.calendarViewDate = startOfMonth(next);
+  renderCalendar();
 }
 
 function normalizeEvent(entry) {
@@ -699,8 +896,16 @@ function bindEvents() {
   if (eventList) {
     eventList.addEventListener('click', handleEventListClick);
   }
+
+  calendarNavButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const direction = button.dataset.calendarNav === 'prev' ? -1 : 1;
+      stepCalendarMonth(direction);
+    });
+  });
 }
 
+hydrateCalendarWeekdays();
 hydrateState();
 hydrateLocalEvents();
 hydrateCreateFormDefaults();
