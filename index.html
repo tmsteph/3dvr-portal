@@ -129,6 +129,115 @@
         </div>
       </section>
 
+      <section class="gamified-dashboard" aria-labelledby="gamified-dashboard-title">
+        <div class="gamified-dashboard__header">
+          <span class="eyebrow">Play to progress</span>
+          <h2 id="gamified-dashboard-title">Level up your portal adventure</h2>
+          <p>Track your XP, complete daily quests, and keep your streak alive to unlock bigger boosts.</p>
+        </div>
+        <div class="gamified-dashboard__grid">
+          <article class="gamified-card level-card" aria-labelledby="level-card-title">
+            <div class="level-card__heading">
+              <h3 id="level-card-title">Current level</h3>
+              <span class="level-card__badge" data-level-badge>Level 1 · Rookie</span>
+            </div>
+            <p class="level-card__subtitle" data-level-subtitle>Earn 100 XP to reach Level 2.</p>
+            <div
+              class="level-progress"
+              role="progressbar"
+              aria-live="polite"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+              data-level-progress-container
+            >
+              <div class="level-progress__fill" data-level-progress></div>
+              <span class="level-progress__glow" aria-hidden="true"></span>
+            </div>
+            <dl class="level-card__stats">
+              <div>
+                <dt>XP earned</dt>
+                <dd data-level-current>0</dd>
+              </div>
+              <div>
+                <dt>Next unlock</dt>
+                <dd data-level-next>Level 2 · Explorer</dd>
+              </div>
+            </dl>
+            <p class="level-card__hint">Play any game or complete quests to boost your XP faster.</p>
+          </article>
+          <article class="gamified-card quest-card" aria-labelledby="quest-card-title">
+            <h3 id="quest-card-title">Daily quests</h3>
+            <p class="quest-card__subtitle">Finish all three to earn a streak bonus.</p>
+            <ol class="quest-list" data-quest-list>
+              <li class="quest-item">
+                <label class="quest-item__label">
+                  <input type="checkbox" data-quest-id="play-game" data-quest-xp="50" />
+                  <span class="quest-item__details">
+                    <span class="quest-title">Jump into any mini game</span>
+                    <span class="quest-reward">+50 XP</span>
+                  </span>
+                </label>
+              </li>
+              <li class="quest-item">
+                <label class="quest-item__label">
+                  <input type="checkbox" data-quest-id="share-update" data-quest-xp="30" />
+                  <span class="quest-item__details">
+                    <span class="quest-title">Drop a progress update in chat</span>
+                    <span class="quest-reward">+30 XP</span>
+                  </span>
+                </label>
+              </li>
+              <li class="quest-item">
+                <label class="quest-item__label">
+                  <input type="checkbox" data-quest-id="team-boost" data-quest-xp="40" />
+                  <span class="quest-item__details">
+                    <span class="quest-title">Team up on a shared task</span>
+                    <span class="quest-reward">+40 XP</span>
+                  </span>
+                </label>
+              </li>
+            </ol>
+            <div
+              class="quest-progress"
+              role="progressbar"
+              aria-live="polite"
+              aria-valuemin="0"
+              aria-valuemax="3"
+              aria-valuenow="0"
+              data-quest-progress-container
+            >
+              <span class="quest-progress__fill" data-quest-progress-fill></span>
+            </div>
+            <p class="quest-card__progress" data-quest-progress>0 / 3 quests complete</p>
+          </article>
+          <article class="gamified-card streak-card" aria-labelledby="streak-card-title">
+            <div class="streak-card__heading">
+              <h3 id="streak-card-title">Streak tracker</h3>
+              <span class="streak-card__icon" aria-hidden="true">🔥</span>
+            </div>
+            <p class="streak-card__value" data-streak-count>No active streak yet</p>
+            <div
+              class="streak-meter"
+              role="progressbar"
+              aria-live="polite"
+              aria-valuemin="0"
+              aria-valuemax="7"
+              aria-valuenow="0"
+              data-streak-meter
+            >
+              <span class="streak-meter__fill" data-streak-fill></span>
+            </div>
+            <p class="streak-card__subtitle" data-streak-bonus>Complete today's quests to ignite your streak.</p>
+            <ul class="streak-card__rewards">
+              <li><strong>Day 1:</strong> 1.1× XP boost for 24 hours</li>
+              <li><strong>Day 3:</strong> Mystery reward drop</li>
+              <li><strong>Day 7:</strong> Featured community spotlight</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
       <section class="info-panels" aria-label="How points work">
         <article class="info-card">
           <h3>🌟 Earn Points. Unlock Rewards.</h3>
@@ -168,6 +277,7 @@
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
     const user = gun.user();
+    const portalRoot = gun.get('3dvr-portal');
     if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
       window.ScoreSystem.recallUserSession(user);
     } else {
@@ -254,6 +364,373 @@
       authModal.setAttribute('aria-hidden', 'true');
       window.dispatchEvent(new Event('auth-modal:closed'));
     }
+  </script>
+
+  <script>
+    (function initGamifiedDashboard() {
+      const levelBadge = document.querySelector('[data-level-badge]');
+      if (!levelBadge) return;
+
+      const levelSubtitle = document.querySelector('[data-level-subtitle]');
+      const levelProgressFill = document.querySelector('[data-level-progress]');
+      const levelProgressContainer = document.querySelector('[data-level-progress-container]');
+      const levelCurrent = document.querySelector('[data-level-current]');
+      const levelNext = document.querySelector('[data-level-next]');
+      const questList = document.querySelector('[data-quest-list]');
+      const questInputs = questList
+        ? Array.from(questList.querySelectorAll('input[data-quest-id]'))
+        : [];
+      const questProgressText = document.querySelector('[data-quest-progress]');
+      const questProgressFill = document.querySelector('[data-quest-progress-fill]');
+      const questProgressContainer = document.querySelector('[data-quest-progress-container]');
+      const questCard = document.querySelector('.quest-card');
+      const streakCard = document.querySelector('.streak-card');
+      const streakCount = document.querySelector('[data-streak-count]');
+      const streakBonus = document.querySelector('[data-streak-bonus]');
+      const streakMeter = document.querySelector('[data-streak-meter]');
+      const streakFill = document.querySelector('[data-streak-fill]');
+
+      if (
+        !levelSubtitle ||
+        !levelProgressFill ||
+        !levelCurrent ||
+        !levelNext ||
+        !questProgressText ||
+        !questProgressFill ||
+        !streakCount ||
+        !streakBonus ||
+        !streakFill
+      ) {
+        return;
+      }
+
+      levelProgressFill.style.width = '0%';
+      questProgressFill.style.width = '0%';
+      streakFill.style.width = '0%';
+
+      const levelTiers = [
+        { level: 1, xp: 0, label: 'Rookie' },
+        { level: 2, xp: 150, label: 'Explorer' },
+        { level: 3, xp: 450, label: 'Innovator' },
+        { level: 4, xp: 900, label: 'Architect' },
+        { level: 5, xp: 1500, label: 'Visionary' },
+      ];
+      const overflowStep = 600;
+
+      const questDefinitions = questInputs.map((input) => ({
+        id: input.dataset.questId ?? '',
+        xp: Number.parseInt(input.dataset.questXp ?? '0', 10) || 0,
+        input,
+        label: input.closest('.quest-item__label') ?? null,
+      }));
+      const totalQuestXp = questDefinitions.reduce((total, quest) => total + quest.xp, 0);
+
+      const questStateKey = '3dvr:dailyQuests';
+      const streakStateKey = '3dvr:questStreak';
+
+      const safeParseJson = (value) => {
+        if (!value) return null;
+        try {
+          return JSON.parse(value);
+        } catch (err) {
+          return null;
+        }
+      };
+
+      const getTodayIso = () => new Date().toISOString().slice(0, 10);
+      const toMidnightMs = (isoDate) => {
+        if (!isoDate) return Number.NaN;
+        return Date.parse(`${isoDate}T00:00:00Z`);
+      };
+      const diffInDays = (currentIso, previousIso) => {
+        if (!currentIso || !previousIso) {
+          return Number.POSITIVE_INFINITY;
+        }
+        const current = toMidnightMs(currentIso);
+        const previous = toMidnightMs(previousIso);
+        if (Number.isNaN(current) || Number.isNaN(previous)) {
+          return Number.POSITIVE_INFINITY;
+        }
+        return Math.round((current - previous) / 86400000);
+      };
+
+      const todayIso = getTodayIso();
+
+      const applyCompletionFilter = (state) => {
+        const validIds = new Set(questDefinitions.map((quest) => quest.id));
+        const unique = [];
+        state.completed.forEach((id) => {
+          if (validIds.has(id) && !unique.includes(id)) {
+            unique.push(id);
+          }
+        });
+        state.completed = unique;
+      };
+
+      const loadQuestState = () => {
+        const stored = safeParseJson(localStorage.getItem(questStateKey));
+        const base = {
+          date: todayIso,
+          completed: [],
+        };
+        if (!stored || stored.date !== todayIso) {
+          return base;
+        }
+        if (Array.isArray(stored.completed)) {
+          base.completed = stored.completed.slice();
+        }
+        applyCompletionFilter(base);
+        return base;
+      };
+
+      const saveQuestState = (state) => {
+        localStorage.setItem(
+          questStateKey,
+          JSON.stringify({ date: todayIso, completed: state.completed })
+        );
+      };
+
+      const loadStreakState = () => {
+        const stored = safeParseJson(localStorage.getItem(streakStateKey));
+        const streak = {
+          count: 0,
+          lastCompleted: null,
+        };
+        if (stored) {
+          if (Number.isFinite(stored.count)) {
+            streak.count = Math.max(0, Math.round(stored.count));
+          }
+          if (typeof stored.lastCompleted === 'string') {
+            streak.lastCompleted = stored.lastCompleted;
+          }
+        }
+        if (diffInDays(todayIso, streak.lastCompleted) > 1) {
+          streak.count = 0;
+          streak.lastCompleted = null;
+        }
+        return streak;
+      };
+
+      const saveStreakState = (state) => {
+        localStorage.setItem(
+          streakStateKey,
+          JSON.stringify({
+            count: state.count,
+            lastCompleted: state.lastCompleted,
+          })
+        );
+      };
+
+      const formatNumber = (value) => {
+        try {
+          return new Intl.NumberFormat().format(value);
+        } catch (err) {
+          return String(value);
+        }
+      };
+
+      const updateLevelUi = (rawScore) => {
+        const score = Number.isFinite(rawScore) ? rawScore : 0;
+        let current = levelTiers[0];
+        let nextTier = levelTiers[1];
+
+        for (let index = 0; index < levelTiers.length; index += 1) {
+          const tier = levelTiers[index];
+          const upcoming = levelTiers[index + 1];
+          if (score >= tier.xp) {
+            current = tier;
+            nextTier = upcoming ?? null;
+          } else {
+            nextTier = tier;
+            break;
+          }
+        }
+
+        if (!nextTier) {
+          const overflow = Math.max(0, score - current.xp);
+          const extraLevels = Math.floor(overflow / overflowStep);
+          const remainder = overflow % overflowStep;
+          const dynamicCurrentLevel = current.level + extraLevels;
+          const dynamicCurrentXp = current.xp + extraLevels * overflowStep;
+          current = {
+            level: dynamicCurrentLevel,
+            xp: dynamicCurrentXp,
+            label: dynamicCurrentLevel > levelTiers[levelTiers.length - 1].level
+              ? 'Legend'
+              : current.label,
+          };
+          nextTier = {
+            level: dynamicCurrentLevel + 1,
+            xp: dynamicCurrentXp + overflowStep,
+            label: 'Legend',
+          };
+          const nextProgress = overflowStep
+            ? Math.min(1, remainder / overflowStep)
+            : 1;
+          const percent = Math.round(nextProgress * 100);
+          levelProgressFill.style.width = `${percent}%`;
+          levelProgressContainer?.setAttribute('aria-valuenow', String(percent));
+          levelProgressContainer?.setAttribute(
+            'aria-valuetext',
+            `Progress ${percent}% towards Level ${nextTier.level}`
+          );
+        } else {
+          const range = Math.max(1, nextTier.xp - current.xp);
+          const progress = Math.min(1, Math.max(0, (score - current.xp) / range));
+          const percent = Math.round(progress * 100);
+          levelProgressFill.style.width = `${percent}%`;
+          levelProgressContainer?.setAttribute('aria-valuenow', String(percent));
+          levelProgressContainer?.setAttribute(
+            'aria-valuetext',
+            `Progress ${percent}% towards Level ${nextTier.level}`
+          );
+        }
+
+        const remainingXp = Math.max(0, nextTier ? nextTier.xp - score : 0);
+        levelBadge.textContent = `Level ${current.level} · ${current.label}`;
+        levelCurrent.textContent = formatNumber(score);
+        if (nextTier) {
+          levelNext.textContent = `Level ${nextTier.level} · ${nextTier.label}`;
+          if (remainingXp > 0) {
+            levelSubtitle.textContent = `Earn ${formatNumber(remainingXp)} XP to reach Level ${nextTier.level}.`;
+          } else {
+            levelSubtitle.textContent = `You're moments away from unlocking Level ${nextTier.level}.`;
+          }
+        } else {
+          levelNext.textContent = 'Legend tier engaged';
+          levelSubtitle.textContent = 'You have surpassed every tier. Keep stacking XP to dominate the leaderboard!';
+        }
+      };
+
+      let questState = loadQuestState();
+      saveQuestState(questState);
+      let streakState = loadStreakState();
+      saveStreakState(streakState);
+
+      const updateStreakUi = () => {
+        const streakCountValue = Math.max(0, streakState.count);
+        const capped = Math.min(streakCountValue, 7);
+        const percent = Math.round((capped / 7) * 100);
+        streakFill.style.width = `${percent}%`;
+        streakMeter?.setAttribute('aria-valuenow', String(capped));
+        if (streakCountValue > 0) {
+          streakCard?.classList.add('streak-card--active');
+          streakCount.textContent = `${streakCountValue}-day streak`;
+          const bonusMultiplier = 1 + Math.min(streakCountValue, 5) * 0.05;
+          streakBonus.textContent = `Enjoy a ${bonusMultiplier.toFixed(2)}× XP multiplier on completed quests.`;
+        } else {
+          streakCard?.classList.remove('streak-card--active');
+          streakCount.textContent = 'No active streak yet';
+          streakBonus.textContent = 'Complete today\'s quests to ignite your streak.';
+        }
+      };
+
+      const applyQuestStateToInputs = () => {
+        const allComplete = questState.completed.length === questDefinitions.length && questDefinitions.length > 0;
+        questDefinitions.forEach((quest) => {
+          const isComplete = questState.completed.includes(quest.id);
+          if (quest.input) {
+            quest.input.checked = isComplete;
+            quest.input.disabled = allComplete;
+            if (allComplete) {
+              quest.input.setAttribute('aria-disabled', 'true');
+            } else {
+              quest.input.removeAttribute('aria-disabled');
+            }
+          }
+          if (quest.label) {
+            quest.label.classList.toggle('quest-item__label--checked', isComplete);
+          }
+        });
+        questCard?.classList.toggle('quest-card--complete', allComplete);
+      };
+
+      const updateQuestProgress = () => {
+        applyCompletionFilter(questState);
+        const completed = questDefinitions.filter((quest) => questState.completed.includes(quest.id));
+        const completedCount = completed.length;
+        const earnedXp = completed.reduce((total, quest) => total + quest.xp, 0);
+        const remaining = Math.max(0, totalQuestXp - earnedXp);
+        const progress = questDefinitions.length
+          ? Math.min(1, Math.max(0, completedCount / questDefinitions.length))
+          : 0;
+        const percent = Math.round(progress * 100);
+        questProgressFill.style.width = `${percent}%`;
+        questProgressContainer?.setAttribute('aria-valuenow', String(completedCount));
+        questProgressContainer?.setAttribute(
+          'aria-valuetext',
+          `${completedCount} of ${questDefinitions.length} quests complete`
+        );
+        const progressTextParts = [`${completedCount} / ${questDefinitions.length} quests complete`];
+        if (earnedXp > 0) {
+          progressTextParts.push(`+${formatNumber(earnedXp)} XP banked`);
+        }
+        if (remaining > 0) {
+          progressTextParts.push(`${formatNumber(remaining)} XP remaining`);
+        } else if (questDefinitions.length > 0 && completedCount === questDefinitions.length) {
+          progressTextParts.push('Bonus unlocked!');
+        }
+        questProgressText.textContent = progressTextParts.join(' · ');
+
+        const allComplete = questDefinitions.length > 0 && completedCount === questDefinitions.length;
+        questCard?.classList.toggle('quest-card--complete', allComplete);
+        if (allComplete) {
+          questDefinitions.forEach((quest) => {
+            if (quest.input) {
+              quest.input.checked = true;
+              quest.input.disabled = true;
+              quest.input.setAttribute('aria-disabled', 'true');
+            }
+          });
+          if (streakState.lastCompleted !== todayIso) {
+            const dayGap = diffInDays(todayIso, streakState.lastCompleted);
+            if (dayGap === 1) {
+              streakState.count += 1;
+            } else {
+              streakState.count = 1;
+            }
+            streakState.lastCompleted = todayIso;
+            saveStreakState(streakState);
+          }
+        }
+        updateStreakUi();
+      };
+
+      applyQuestStateToInputs();
+      updateQuestProgress();
+
+      questDefinitions.forEach((quest) => {
+        if (!quest.input) return;
+        quest.input.addEventListener('change', () => {
+          const id = quest.id;
+          if (!id) return;
+          if (quest.input.checked) {
+            if (!questState.completed.includes(id)) {
+              questState.completed.push(id);
+            }
+          } else {
+            questState.completed = questState.completed.filter((value) => value !== id);
+          }
+          applyCompletionFilter(questState);
+          saveQuestState(questState);
+          applyQuestStateToInputs();
+          updateQuestProgress();
+        });
+      });
+
+      const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
+        ? window.ScoreSystem.getManager({ gun, user, portalRoot })
+        : null;
+
+      if (scoreManager && typeof scoreManager.subscribe === 'function') {
+        scoreManager.subscribe((value) => {
+          updateLevelUi(Number.isFinite(value) ? value : Number(value) || 0);
+        });
+      } else {
+        const cached = localStorage.getItem('fallbackScore');
+        updateLevelUi(Number.parseInt(cached ?? '0', 10) || 0);
+      }
+    })();
   </script>
 
   <script src="navbar.js"></script>
