@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 320" role="img" aria-labelledby="title desc">
+  <title id="title">3DVR logo</title>
+  <desc id="desc">Minimal VR goggles with trailing neon waves and 3DVR wordmark</desc>
+  <defs>
+    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1fe0ba" />
+      <stop offset="45%" stop-color="#2dd4ff" />
+      <stop offset="100%" stop-color="#f44fae" />
+    </linearGradient>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#18deb0" />
+      <stop offset="50%" stop-color="#25d6ef" />
+      <stop offset="100%" stop-color="#f44fae" />
+    </linearGradient>
+    <linearGradient id="goggleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d9dee6" />
+      <stop offset="50%" stop-color="#d0d7e2" />
+      <stop offset="100%" stop-color="#c6cedc" />
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#goggleGradient)" stroke-width="10" stroke-linejoin="round">
+    <path
+      d="M118 96h276c30 0 54 24 54 54v24c0 30-24 54-54 54h-88l-26 26c-10 10-26 3-26-11v-15H144c-30 0-54-24-54-54v-24c0-30 24-54 54-54Z"
+      stroke-linecap="round"
+    />
+    <path d="M170 120c-18 0-32 14-32 32v12c0 18 14 32 32 32h58c4 0 8 2 10 5 8 11 22 19 38 19s30-8 38-19c2-3 6-5 10-5h58c18 0 32-14 32-32v-12c0-18-14-32-32-32Z" />
+  </g>
+  <g fill="none" stroke="url(#waveGradient)" stroke-width="14" stroke-linecap="round">
+    <path d="M362 66c48 10 82 52 82 98s-34 88-82 98" opacity="0.55" />
+    <path d="M396 46c64 12 108 62 108 118s-44 106-108 118" opacity="0.35" />
+    <path d="M430 26c84 16 140 74 140 138s-56 122-140 138" opacity="0.18" />
+  </g>
+  <text
+    x="122"
+    y="280"
+    font-family="'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+    font-size="96"
+    font-weight="600"
+    letter-spacing="6"
+    fill="url(#textGradient)"
+  >3DVR</text>
+</svg>
