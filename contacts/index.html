@@ -51,7 +51,14 @@
           Import JSON
           <input id="importFile" type="file" accept="application/json" class="hidden">
         </label>
+        <label class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded cursor-pointer">
+          Upload contacts
+          <input id="bulkImport" type="file" accept=".csv,.vcf,text/csv,text/vcard,text/x-vcard" class="hidden" multiple>
+        </label>
       </div>
+      <p class="mt-2 text-xs text-gray-400">
+        Export a CSV or vCard file from Apple Contacts, Android/Google, Gmail, or Outlook and upload it here.
+      </p>
 
       <hr class="my-4 border-white/10">
 
@@ -233,6 +240,7 @@ const pageInfo = document.getElementById('pageInfo');
 const btnExportJSON = document.getElementById('btnExportJSON');
 const btnExportCSV = document.getElementById('btnExportCSV');
 const importFile = document.getElementById('importFile');
+const bulkImport = document.getElementById('bulkImport');
 
 /* ---------- State ---------- */
 let contactsIndex = {};
@@ -497,6 +505,32 @@ importFile.addEventListener('change', async e=>{
   }
 });
 
+bulkImport.addEventListener('change', async e=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  try {
+    let total = 0;
+    for (const file of files) {
+      const text = await file.text();
+      const parsed = parseContactFile(text, file.name);
+      if(!parsed.length) continue;
+      parsed.forEach(rec=>{
+        if(!rec.id) rec.id = crypto.randomUUID();
+        if(!rec.created) rec.created = nowISO();
+        rec.updated = nowISO();
+        spaceNode().get(rec.id).put(rec);
+      });
+      total += parsed.length;
+    }
+    alert(total ? `Imported ${total} contact${total===1?'':'s'} from uploaded file(s).` : 'No contacts detected in the uploaded files.');
+  } catch(err) {
+    console.error(err);
+    alert('Upload failed: ' + err.message);
+  } finally {
+    bulkImport.value = '';
+  }
+});
+
 /* ---------- Helpers ---------- */
 function gi(id){ return (document.getElementById(id)?.value || '').trim(); }
 function gv(id){ return (document.getElementById(id)?.value || '').trim(); }
@@ -515,6 +549,125 @@ function csvCell(v){
   if(v==null) return '';
   const s=String(v).replace(/"/g,'""');
   if(/[",\n]/.test(s)) return `"${s}"`; return s;
+}
+function parseContactFile(text, filename=''){
+  const lower = filename.toLowerCase();
+  if(lower.endsWith('.vcf') || /BEGIN:VCARD/i.test(text)) return parseVCard(text);
+  return parseCSVContacts(text);
+}
+function parseVCard(text){
+  const cards = text.split(/BEGIN:VCARD/i).slice(1).map(chunk=>chunk.split(/END:VCARD/i)[0]||'');
+  return cards.map(card=>card.split(/\r?\n/)).map(lines=>{
+    const unfolded = [];
+    lines.forEach(line=>{
+      if(line==null) return;
+      if(line.startsWith(' ') || line.startsWith('\t')){
+        unfolded[unfolded.length-1] = (unfolded[unfolded.length-1]||'') + line.slice(1);
+      } else {
+        unfolded.push(line);
+      }
+    });
+    const data = {};
+    unfolded.forEach(raw=>{
+      if(!raw) return;
+      const [keyPart, ...rest] = raw.split(':');
+      if(!rest.length) return;
+      const value = rest.join(':').trim();
+      const key = keyPart.split(';')[0].toUpperCase();
+      if(key==='FN') data.name = decodeVCard(value, keyPart);
+      if(key==='EMAIL') data.email = decodeVCard(value, keyPart);
+      if(key==='TEL') data.phone = decodeVCard(value, keyPart);
+      if(key==='ORG') data.company = decodeVCard(value, keyPart);
+      if(key==='TITLE') data.role = decodeVCard(value, keyPart);
+      if(key==='NOTE') data.notes = decodeVCard(value, keyPart);
+    });
+    data.tags = '';
+    return normalizeImportedContact(data);
+  }).filter(Boolean);
+}
+function decodeVCard(value, meta=''){
+  let result = value;
+  if(/ENCODING=QUOTED-PRINTABLE/i.test(meta)){
+    result = result.replace(/=\r?\n/g, '').replace(/=([0-9A-F]{2})/gi, (_, hex)=>String.fromCharCode(parseInt(hex,16)));
+  }
+  result = result.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g,'\\');
+  return result.trim();
+}
+function parseCSVContacts(text){
+  const rows = text.split(/\r?\n/).filter(line=>line.trim().length>0);
+  if(!rows.length) return [];
+  const header = csvSplit(rows.shift());
+  const cols = header.map(h=>h.trim().toLowerCase());
+  return rows.map(row=>{
+    const values = csvSplit(row);
+    const data = {};
+    cols.forEach((col, idx)=>{
+      const val = values[idx]||'';
+      const norm = col.replace(/\s+\d+\s*-\s*/g, ' ').trim();
+      if(['name','full name'].includes(norm)) data.name = val;
+      if(['first name','firstname','given name'].includes(norm)) data.firstName = val;
+      if(['last name','lastname','surname','family name'].includes(norm)) data.lastName = val;
+      if(norm.includes('email') || norm.includes('e-mail')) data.email = val;
+      if(norm.includes('phone')||norm.includes('mobile')||norm.includes('telephone')) data.phone = val;
+      if(['company','organization','organisation','org','organization name','organisation name'].includes(norm)) data.company = val;
+      if(['title','job title','position','role','organization title','organisation title'].includes(norm)) data.role = val;
+      if(norm.includes('note')) data.notes = val;
+      if(norm.includes('tag')||norm.includes('label')||norm.includes('group membership')) data.tags = val;
+    });
+    return normalizeImportedContact(data);
+  }).filter(Boolean);
+}
+function csvSplit(line){
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for(let i=0;i<line.length;i++){
+    const char = line[i];
+    if(inQuotes){
+      if(char==='"'){
+        if(line[i+1]==='"'){
+          current+='"';
+          i++;
+        } else {
+          inQuotes=false;
+        }
+      } else {
+        current+=char;
+      }
+    } else {
+      if(char==='"'){
+        inQuotes=true;
+      } else if(char===','){
+        result.push(current.trim());
+        current='';
+      } else {
+        current+=char;
+      }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+function normalizeImportedContact(raw){
+  if(!raw) return null;
+  const name = raw.name || [raw.firstName, raw.lastName].filter(Boolean).join(' ').trim();
+  if(!(name || raw.email || raw.phone)) return null;
+  return {
+    id: crypto.randomUUID(),
+    name: name || '',
+    email: (raw.email||'').trim(),
+    phone: (raw.phone||'').trim(),
+    company: (raw.company||'').trim(),
+    role: (raw.role||'').trim(),
+    tags: (raw.tags||'').trim(),
+    status: '',
+    nextFollowUp: '',
+    notes: (raw.notes||'').trim(),
+    created: nowISO(),
+    updated: nowISO(),
+    lastContacted: '',
+    activityCount: 0
+  };
 }
 function download(filename, data, type){
   const blob = new Blob([data], {type});
