@@ -74,7 +74,36 @@ body.chat-page {
 
 .chat-hero__meta {
   display: flex;
+  align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.chat-hero__score {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius-md);
+  background: rgba(45, 212, 191, 0.18);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  box-shadow: 0 24px 42px rgba(4, 11, 24, 0.45);
+  text-align: center;
+  min-width: 180px;
+}
+
+.chat-hero__score-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.chat-hero__score-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #5eead4;
 }
 
 .chat-hero__reward {
