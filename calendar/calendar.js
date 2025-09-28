@@ -22,9 +22,27 @@ const PROVIDER_LABELS = {
 
 const DEFAULT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+function startOfMonth(date) {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  result.setDate(1);
+  return result;
+}
+
+function startOfDay(date) {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
 const state = {
   connections: new Map(),
   localEvents: []
+};
+
+const calendarState = {
+  viewDate: startOfMonth(new Date()),
+  weekStartsOn: 0
 };
 
 const GUN_RELAY_URL = 'https://gun-relay-3dvr.fly.dev/gun';
@@ -45,6 +63,22 @@ const logPanel = document.querySelector('[data-log]');
 const eventTemplate = document.getElementById('event-template');
 const syncForm = document.getElementById('event-sync-form');
 const createEventForm = document.getElementById('create-event-form');
+const calendarDayNames = document.querySelector('[data-calendar-day-names]');
+const calendarGrid = document.querySelector('[data-calendar-grid]');
+const calendarCurrentLabel = document.querySelector('[data-calendar-current]');
+const calendarTodayButton = document.querySelector('[data-calendar-today]');
+const calendarNavButtons = document.querySelectorAll('[data-calendar-nav]');
+
+const calendarMonthFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'long',
+  year: 'numeric'
+});
+const calendarWeekdayFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short'
+});
+const calendarFullDateFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'full'
+});
 
 function slugifyKey(value, fallback = '') {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -442,7 +476,127 @@ function withTimeZoneLabel(text, timeZone) {
   return `${text} (${timeZone})`;
 }
 
+function getWeekdayIndex(day) {
+  return (day - calendarState.weekStartsOn + 7) % 7;
+}
+
+function formatCalendarTime(value, timeZone) {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    const options = { hour: 'numeric', minute: '2-digit' };
+    if (timeZone) {
+      options.timeZone = timeZone;
+    }
+    const formatter = new Intl.DateTimeFormat(undefined, options);
+    return formatter.format(date);
+  } catch (err) {
+    console.warn('Unable to format calendar time', value, err);
+    return '';
+  }
+}
+
+function renderCalendarDayNames() {
+  if (!calendarDayNames) return;
+  calendarDayNames.innerHTML = '';
+  const reference = new Date(Date.UTC(2023, 0, 1));
+  for (let index = 0; index < 7; index += 1) {
+    const weekday = (calendarState.weekStartsOn + index) % 7;
+    const date = new Date(reference);
+    date.setUTCDate(reference.getUTCDate() + weekday);
+    const cell = document.createElement('div');
+    cell.className = 'calendar-view__day-name';
+    cell.textContent = calendarWeekdayFormatter.format(date);
+    cell.setAttribute('aria-hidden', 'true');
+    calendarDayNames.appendChild(cell);
+  }
+}
+
+function renderCalendar(events = state.localEvents) {
+  if (calendarCurrentLabel) {
+    calendarCurrentLabel.textContent = calendarMonthFormatter.format(calendarState.viewDate);
+  }
+  if (!calendarGrid) return;
+  const monthStart = startOfMonth(calendarState.viewDate || new Date());
+  const gridStart = new Date(monthStart);
+  const offset = getWeekdayIndex(monthStart.getDay());
+  gridStart.setDate(gridStart.getDate() - offset);
+  calendarGrid.innerHTML = '';
+  const normalizedEvents = Array.isArray(events) ? events : [];
+  const todayKey = startOfDay(new Date()).getTime();
+
+  for (let index = 0; index < 42; index += 1) {
+    const cellDate = new Date(gridStart);
+    cellDate.setDate(gridStart.getDate() + index);
+    const cellDayTime = startOfDay(cellDate).getTime();
+    const cell = document.createElement('div');
+    cell.classList.add('calendar-view__day');
+    if (cellDate.getMonth() !== monthStart.getMonth()) {
+      cell.classList.add('calendar-view__day--muted');
+    }
+    if (cellDayTime === todayKey) {
+      cell.classList.add('calendar-view__day--today');
+    }
+
+    const dayNumber = document.createElement('p');
+    dayNumber.className = 'calendar-view__date';
+    dayNumber.textContent = String(cellDate.getDate());
+    cell.appendChild(dayNumber);
+
+    const eventsForDay = normalizedEvents.filter(event => {
+      if (!event || typeof event.start !== 'string' || !event.start) {
+        return false;
+      }
+      const eventDate = new Date(event.start);
+      if (Number.isNaN(eventDate.getTime())) {
+        return false;
+      }
+      return startOfDay(eventDate).getTime() === cellDayTime;
+    });
+
+    if (eventsForDay.length) {
+      cell.classList.add('calendar-view__day--has-events');
+      const list = document.createElement('ul');
+      list.className = 'calendar-view__events';
+      eventsForDay.slice(0, 3).forEach(event => {
+        const item = document.createElement('li');
+        item.className = 'calendar-view__event';
+        const timeLabel = formatCalendarTime(event.start, event.timeZone);
+        if (timeLabel) {
+          const time = document.createElement('span');
+          time.className = 'calendar-view__event-time';
+          time.textContent = timeLabel;
+          item.appendChild(time);
+        }
+        item.appendChild(document.createTextNode(event.title || 'Untitled event'));
+        list.appendChild(item);
+      });
+      if (eventsForDay.length > 3) {
+        const more = document.createElement('li');
+        more.className = 'calendar-view__more';
+        more.textContent = `+${eventsForDay.length - 3} more`;
+        list.appendChild(more);
+      }
+      cell.appendChild(list);
+    }
+
+    const labelParts = [calendarFullDateFormatter.format(cellDate)];
+    if (eventsForDay.length === 1) {
+      labelParts.push('1 event');
+    } else if (eventsForDay.length > 1) {
+      labelParts.push(`${eventsForDay.length} events`);
+    }
+    cell.setAttribute('aria-label', labelParts.join(', '));
+    cell.dataset.date = cellDate.toISOString().slice(0, 10);
+    calendarGrid.appendChild(cell);
+  }
+}
+
 function renderEvents(events = state.localEvents) {
+  renderCalendar(events);
   if (!eventList || !eventTemplate) return;
   eventList.innerHTML = '';
   const normalized = events.map(normalizeEvent).filter(Boolean);
@@ -910,6 +1064,23 @@ function hydrateCreateFormDefaults() {
   }
 }
 
+function changeCalendarMonth(offset) {
+  const next = new Date(calendarState.viewDate);
+  next.setMonth(next.getMonth() + offset);
+  calendarState.viewDate = startOfMonth(next);
+  renderCalendar();
+}
+
+function goToCalendarToday() {
+  calendarState.viewDate = startOfMonth(new Date());
+  renderCalendar();
+}
+
+function initializeCalendarView() {
+  renderCalendarDayNames();
+  renderCalendar();
+}
+
 function bindEvents() {
   document
     .querySelectorAll('.connection-card__form')
@@ -937,8 +1108,20 @@ function bindEvents() {
   if (eventList) {
     eventList.addEventListener('click', handleEventListClick);
   }
+
+  calendarNavButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const direction = button.dataset.calendarNav === 'next' ? 1 : -1;
+      changeCalendarMonth(direction);
+    });
+  });
+
+  if (calendarTodayButton) {
+    calendarTodayButton.addEventListener('click', goToCalendarToday);
+  }
 }
 
+initializeCalendarView();
 hydrateState();
 hydrateLocalEvents();
 hydrateCreateFormDefaults();
