@@ -248,15 +248,15 @@ function writeLocalEvents(events) {
   } catch (err) {
     console.warn('Unable to persist local events', err);
   }
-  renderEvents();
-  renderCalendar();
+  renderEvents(sorted);
+  renderCalendar(sorted);
 }
 
 function hydrateLocalEvents() {
   const events = sortEvents(readLocalEvents());
   state.localEvents = events;
-  renderEvents();
-  renderCalendar();
+  renderEvents(events);
+  renderCalendar(events);
 }
 
 function withTimeZoneLabel(text, timeZone) {
@@ -344,7 +344,7 @@ function updateCalendarLiveRegion(message) {
   calendarLiveRegion.textContent = message;
 }
 
-function renderCalendar() {
+function renderCalendar(events = state.localEvents) {
   if (!calendarGrid || !calendarTitle) return;
   const baseDate = state.calendarViewDate instanceof Date ? state.calendarViewDate : new Date();
   const viewDate = startOfMonth(baseDate);
@@ -357,7 +357,7 @@ function renderCalendar() {
   const gridStart = new Date(firstOfMonth);
   gridStart.setDate(firstOfMonth.getDate() - firstDayOffset);
   const today = startOfDay(new Date());
-  const eventsByDay = buildEventMap(state.localEvents);
+  const eventsByDay = buildEventMap(events);
   calendarGrid.innerHTML = '';
   for (let index = 0; index < WEEKS_PER_VIEW * DAYS_PER_WEEK; index += 1) {
     const current = new Date(gridStart);
