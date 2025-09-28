@@ -72,6 +72,25 @@
         <button type="submit">Save event</button>
       </form>
 
+      <div class="calendar-view" aria-labelledby="calendar-view-title">
+        <div class="calendar-view__header">
+          <div>
+            <h3 id="calendar-view-title">Monthly overview</h3>
+            <p class="calendar-view__subtitle">See your saved events at a glance.</p>
+          </div>
+          <div class="calendar-view__controls" role="group" aria-label="Change month">
+            <button type="button" class="button-secondary" data-calendar-nav="prev" aria-label="Previous month">‹</button>
+            <button type="button" class="button-secondary" data-calendar-today>Today</button>
+            <button type="button" class="button-secondary" data-calendar-nav="next" aria-label="Next month">›</button>
+          </div>
+        </div>
+        <p class="calendar-view__current" data-calendar-current aria-live="polite"></p>
+        <div class="calendar-view__grid" role="grid" aria-describedby="calendar-view-title">
+          <div class="calendar-view__day-names" data-calendar-day-names role="row"></div>
+          <div class="calendar-view__days" data-calendar-grid role="rowgroup"></div>
+        </div>
+      </div>
+
       <div class="event-results" aria-live="polite">
         <div class="event-results__empty" data-empty>
           <p>No events yet. Add one above or import from Google/Outlook when you're ready.</p>
