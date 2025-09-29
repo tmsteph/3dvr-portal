@@ -33,8 +33,14 @@ body.chat-page {
   position: relative;
   z-index: 1;
   width: min(1100px, 100%);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: clamp(1.75rem, 2vw, 2.5rem);
+}
+
+.chat-layout {
+  /* Bring the chat interface above the hero without changing DOM order */
+  order: -1;
 }
 
 .chat-hero {
