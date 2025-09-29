@@ -13,6 +13,21 @@
 <body class="theme-dark chat-page">
   <a class="skip-link" href="#chatMain">Skip to chat</a>
 
+  <div
+    id="chat-floating-meta"
+    class="chat-floating-meta"
+    role="status"
+    aria-live="polite"
+    aria-label="Your chat info"
+  >
+    <span id="chat-floating-username" class="chat-floating-meta__name">Guest</span>
+    <span class="chat-floating-meta__divider" aria-hidden="true">•</span>
+    <span class="chat-floating-meta__score">
+      <span class="sr-only">Score</span>
+      <span id="chat-floating-score-value" aria-hidden="true">0</span>
+    </span>
+  </div>
+
   <div class="top-buttons" role="navigation" aria-label="3DVR quick links">
     <a href="index.html">🏠 Portal Home</a>
     <a href="profile.html">🧑 Profile</a>
@@ -155,6 +170,9 @@ const roomDescriptionEl = document.getElementById('room-description');
 const roomSelectEl = document.getElementById('room');
 const chatScoreContainer = document.getElementById('chat-score');
 const chatScoreValueEl = document.getElementById('chat-score-value');
+const chatFloatingMetaEl = document.getElementById('chat-floating-meta');
+const chatFloatingUsernameEl = document.getElementById('chat-floating-username');
+const chatFloatingScoreValueEl = document.getElementById('chat-floating-score-value');
 const ROOM_DETAILS = {
   general: {
     label: '#general',
@@ -184,13 +202,18 @@ function sanitizeScoreDisplay(value) {
 }
 
 function updateChatScoreDisplay(value) {
-  if (!chatScoreValueEl) {
-    return;
-  }
   const safeScore = sanitizeScoreDisplay(value);
-  chatScoreValueEl.innerText = safeScore;
+  if (chatScoreValueEl) {
+    chatScoreValueEl.innerText = safeScore;
+  }
   if (chatScoreContainer) {
     chatScoreContainer.setAttribute('data-ready', 'true');
+  }
+  if (chatFloatingScoreValueEl) {
+    chatFloatingScoreValueEl.innerText = safeScore;
+  }
+  if (chatFloatingMetaEl) {
+    chatFloatingMetaEl.setAttribute('data-ready', 'true');
   }
 }
 
@@ -613,8 +636,12 @@ function applyUsernameToUI(name) {
       safeRemoveStorage('username');
     }
   }
-  if (!currentUsernameEl) return;
-  currentUsernameEl.innerText = finalName;
+  if (currentUsernameEl) {
+    currentUsernameEl.innerText = finalName;
+  }
+  if (chatFloatingUsernameEl) {
+    chatFloatingUsernameEl.innerText = finalName;
+  }
 }
 
 function derivePreferredUsername(existingName) {
