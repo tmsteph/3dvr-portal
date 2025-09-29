@@ -2,6 +2,7 @@
   const SCORE_CACHE_PREFIX = '3dvr:score:';
   const GUEST_ROOT = '3dvr-guests';
   const PORTAL_ROOT_KEY = '3dvr-portal';
+  const PENDING_SUFFIX = ':pending';
 
   function sanitizeScore(value) {
     const numeric = typeof value === 'number' ? value : Number(value);
@@ -141,6 +142,43 @@
     }
   }
 
+  function pendingCacheKeyForState(state) {
+    return `${cacheKeyForState(state)}${PENDING_SUFFIX}`;
+  }
+
+  function readPendingScore(state) {
+    try {
+      const key = pendingCacheKeyForState(state);
+      const raw = localStorage.getItem(key);
+      if (!raw) return 0;
+      return sanitizeScore(raw);
+    } catch (err) {
+      console.warn('Unable to read pending score', err);
+      return 0;
+    }
+  }
+
+  function writePendingScore(state, score) {
+    try {
+      const key = pendingCacheKeyForState(state);
+      if (!score) {
+        localStorage.removeItem(key);
+        return;
+      }
+      localStorage.setItem(key, String(sanitizeScore(score)));
+    } catch (err) {
+      console.warn('Unable to write pending score', err);
+    }
+  }
+
+  function clearPendingScore(state) {
+    try {
+      localStorage.removeItem(pendingCacheKeyForState(state));
+    } catch (err) {
+      console.warn('Unable to clear pending score', err);
+    }
+  }
+
   function displayNameFromAlias(alias) {
     const normalized = typeof alias === 'string' ? alias.trim() : '';
     if (!normalized) return '';
@@ -156,14 +194,26 @@
       this.node = this.resolveNode();
       this.listeners = new Set();
       this.current = readCachedScore(this.state);
+      this.pending = readPendingScore(this.state);
       this.ready = false;
       this._readyResolvers = [];
       this._scoreHandler = null;
       this._pointsHandler = null;
       this._authPromise = null;
+      this._handleOnline = null;
+      this._handleStorage = null;
 
       if (!Number.isFinite(this.current)) {
         this.current = 0;
+      }
+
+      if (!Number.isFinite(this.pending)) {
+        this.pending = 0;
+      }
+
+      if (this.pending > this.current) {
+        this.current = this.pending;
+        writeCachedScore(this.state, this.current);
       }
 
       if (!this.node) {
@@ -178,6 +228,17 @@
         .finally(() => {
           this.bootstrap();
         });
+
+      if (typeof window !== 'undefined') {
+        this._handleOnline = () => {
+          this._flushPendingScore();
+        };
+        this._handleStorage = event => {
+          this._handleStorageEvent(event);
+        };
+        window.addEventListener('online', this._handleOnline);
+        window.addEventListener('storage', this._handleStorage);
+      }
     }
 
     resolveNode() {
@@ -199,6 +260,10 @@
       }
 
       this._attachRealtime();
+
+      if (this.pending > 0) {
+        this._flushPendingScore();
+      }
 
       this.node.get('score').once(value => {
         this._handleRemoteValue(value, 'score');
@@ -284,6 +349,14 @@
         this.node.get('points').put(best);
       }
 
+      if (field === 'score' || field === 'points') {
+        if (sanitized >= this.pending) {
+          this._setPending(0);
+        } else if (this.pending > 0 && sanitized < this.pending) {
+          this._flushPendingScore();
+        }
+      }
+
       if (!this.ready && (field === 'score' || field === 'points')) {
         this._markReady();
       }
@@ -313,13 +386,86 @@
 
     _persistScore(score) {
       if (!this.node) return;
+      const normalized = sanitizeScore(score);
+      this._setPending(Math.max(this.pending, normalized));
+      this._sendScoreToNetwork(normalized);
+    }
+
+    _sendScoreToNetwork(score) {
+      const normalized = sanitizeScore(score);
+      this._putWithAck('score', normalized);
+      if (this.state.mode === 'user') {
+        this._putWithAck('points', normalized);
+      }
+    }
+
+    _flushPendingScore() {
+      if (!this.node) return;
+      if (!this.pending) return;
+      this._sendScoreToNetwork(this.pending);
+    }
+
+    _setPending(value) {
+      const normalized = sanitizeScore(value);
+      if (normalized > 0) {
+        this.pending = normalized;
+        writePendingScore(this.state, normalized);
+      } else {
+        this.pending = 0;
+        clearPendingScore(this.state);
+      }
+    }
+
+    _putWithAck(field, value) {
+      if (!this.node) return;
       try {
-        this.node.get('score').put(score);
-        if (this.state.mode === 'user') {
-          this.node.get('points').put(score);
-        }
+        this.node.get(field).put(value, ack => {
+          if (ack && ack.err) {
+            console.warn(`Failed to persist ${field}`, ack.err);
+            return;
+          }
+          this._handlePersistSuccess(field, value);
+        });
       } catch (err) {
-        console.warn('Failed to persist score', err);
+        console.warn(`Failed to persist ${field}`, err);
+      }
+    }
+
+    _handlePersistSuccess(field, value) {
+      if (field !== 'score' && field !== 'points') {
+        return;
+      }
+      const normalized = sanitizeScore(value);
+      if (normalized >= this.pending) {
+        this._setPending(0);
+      }
+    }
+
+    _handleStorageEvent(event) {
+      if (!event) {
+        return;
+      }
+      const key = event.key;
+      const newValue = event.newValue;
+      const cacheKey = cacheKeyForState(this.state);
+      const pendingKey = pendingCacheKeyForState(this.state);
+
+      if (key === cacheKey) {
+        const sanitized = sanitizeScore(newValue);
+        if (sanitized > this.current) {
+          this._updateCurrent(sanitized, { persist: false });
+        }
+      }
+
+      if (key === pendingKey) {
+        const sanitizedPending = sanitizeScore(newValue);
+        this.pending = sanitizedPending;
+        if (sanitizedPending > this.current) {
+          this._updateCurrent(sanitizedPending, { persist: false });
+        }
+        if (sanitizedPending > 0) {
+          this._flushPendingScore();
+        }
       }
     }
 
@@ -432,6 +578,14 @@
         console.warn('Failed to dispose score manager', err);
       }
       this.listeners.clear();
+      if (typeof window !== 'undefined') {
+        if (this._handleOnline) {
+          window.removeEventListener('online', this._handleOnline);
+        }
+        if (this._handleStorage) {
+          window.removeEventListener('storage', this._handleStorage);
+        }
+      }
     }
   }
 
