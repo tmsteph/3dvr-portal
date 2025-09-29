@@ -13,12 +13,11 @@
 <body class="theme-dark chat-page">
   <a class="skip-link" href="#chatMain">Skip to chat</a>
 
-  <div
+  <a
     id="chat-floating-meta"
     class="chat-floating-meta"
-    role="status"
+    href="profile.html"
     aria-live="polite"
-    aria-label="Your chat info"
   >
     <span id="chat-floating-username" class="chat-floating-meta__name">Guest</span>
     <span class="chat-floating-meta__divider" aria-hidden="true">•</span>
@@ -26,7 +25,8 @@
       <span class="sr-only">Score</span>
       <span id="chat-floating-score-value" aria-hidden="true">0</span>
     </span>
-  </div>
+    <span class="sr-only">Open profile</span>
+  </a>
 
   <div class="top-buttons" role="navigation" aria-label="3DVR quick links">
     <a href="index.html">🏠 Portal Home</a>

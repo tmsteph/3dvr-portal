@@ -45,11 +45,22 @@ body.chat-page {
   z-index: 24;
   pointer-events: none;
   backdrop-filter: blur(16px);
+  text-decoration: none;
 }
 
 .chat-floating-meta[data-ready="true"] {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
+}
+
+.chat-floating-meta:hover {
+  color: inherit;
+}
+
+.chat-floating-meta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.45);
 }
 
 .chat-floating-meta__name {
