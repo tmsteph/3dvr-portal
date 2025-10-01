@@ -1,0 +1,228 @@
+.points-page {
+  background: var(--page-background);
+  color: var(--color-text);
+}
+
+.points-cta .cta,
+.points-shell .cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1.8rem;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.points-shell .cta.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: 0 16px 36px rgba(37, 99, 235, 0.28);
+}
+
+.points-shell .cta.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 44px rgba(37, 99, 235, 0.35);
+}
+
+.points-shell .cta.ghost {
+  background: transparent;
+  border: 1px solid var(--surface-border);
+  color: var(--color-text);
+}
+
+.points-shell .cta.ghost:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.points-page .top-buttons {
+  margin-top: 2rem;
+}
+
+.points-hero {
+  padding: 4rem 1.5rem 2rem;
+}
+
+.points-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.points-eyebrow {
+  display: inline-flex;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  border: 1px solid var(--surface-border);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.points-hero h1 {
+  margin: 1.5rem 0 1rem;
+  font-size: clamp(2.2rem, 5vw, 3rem);
+}
+
+.points-intro {
+  margin: 0 auto 2rem;
+  max-width: 680px;
+  color: var(--color-text-muted);
+}
+
+.points-cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.points-main {
+  padding: 2rem 1.5rem 4rem;
+}
+
+.points-section {
+  max-width: 1000px;
+  margin: 0 auto 2.5rem;
+}
+
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.08);
+}
+
+.section-card h2 {
+  margin-top: 0;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+}
+
+.section-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.info-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+  box-shadow: 0 22px 40px rgba(15, 23, 42, 0.08);
+}
+
+.info-card h3 {
+  margin-top: 0;
+}
+
+.info-card ul,
+.info-card ol {
+  margin: 0 0 1.25rem 1.25rem;
+  color: var(--color-text-muted);
+}
+
+.info-note {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
+.points-stats {
+  display: grid;
+  gap: 1.25rem;
+  margin: 2rem 0 0;
+}
+
+.points-stats div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.points-stats dt {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.points-stats dd {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.transparency-grid {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.transparency-grid article {
+  background: var(--surface-alt);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.06);
+}
+
+.transparency-grid h3 {
+  margin-top: 0;
+}
+
+.faq-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.faq-list details {
+  background: var(--surface-alt);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+}
+
+.faq-list summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.faq-list p {
+  margin: 0.75rem 0 0;
+  color: var(--color-text-muted);
+}
+
+.points-footer {
+  text-align: center;
+  padding: 2rem 1.5rem 3rem;
+  color: var(--color-text-muted);
+}
+
+.points-footer a {
+  color: inherit;
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .section-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transparency-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .section-card {
+    padding: 2rem;
+  }
+}
