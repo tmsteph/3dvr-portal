@@ -113,6 +113,7 @@
     const bodyEl = document.body;
     const defaultEmptyMessage = emptyStateEl.innerHTML;
     const MOBILE_BREAKPOINT = 900;
+    const DEFAULT_FOLDER_NAME = 'Quick Notes';
 
     let currentFolder = null;
     let currentNoteId = null;
@@ -123,6 +124,7 @@
     let slashTriggerRange = null;
     let filteredSlashOptions = [];
     let activeSlashIndex = 0;
+    let defaultFolderSeeded = false;
 
     const folderElements = new Map();
     const noteElements = new Map();
@@ -227,7 +229,8 @@
       if (event.key === 'Enter') {
         const name = event.target.value.trim();
         if (name) {
-          folders.set({ name });
+          const id = createFolder(name);
+          selectFolder(id);
         }
         event.target.value = '';
         event.target.classList.add('hidden');
@@ -251,6 +254,7 @@
 
       if (folder._) delete folder._;
       const name = folder.name?.trim() || 'Untitled Space';
+      defaultFolderSeeded = true;
       let li = folderElements.get(id);
       if (!li) {
         li = createFolderElement(id);
@@ -258,7 +262,47 @@
         folderElements.set(id, li);
       }
       li.querySelector('.folder-name').textContent = name;
+      li.classList.toggle('active', currentFolder === id);
+      if (!currentFolder) {
+        selectFolder(id);
+      }
     });
+
+    folders.once((snapshot) => {
+      if (defaultFolderSeeded) {
+        return;
+      }
+      const keys = Object.keys(snapshot || {}).filter((key) => key !== '_');
+      if (keys.length === 0) {
+        seedDefaultFolder();
+      }
+    });
+
+    function seedDefaultFolder() {
+      if (defaultFolderSeeded) {
+        return;
+      }
+      defaultFolderSeeded = true;
+      const id = createFolder(DEFAULT_FOLDER_NAME);
+      selectFolder(id);
+    }
+
+    function createFolder(name) {
+      defaultFolderSeeded = true;
+      const id = Gun.text.random();
+      const now = Date.now();
+      folders.get(id).put({
+        name: name || 'Untitled Space',
+        createdAt: now,
+        updatedAt: now
+      }, (ack) => {
+        if (ack && ack.err) {
+          console.error('Failed to create space', ack.err);
+          flashEmptyState('Unable to create a space right now. Try again.');
+        }
+      });
+      return id;
+    }
 
     function createFolderElement(id) {
       const li = document.createElement('li');
@@ -307,7 +351,7 @@
         event.stopPropagation();
         enableEdit(nameEl, (value) => {
           const updated = value.trim() || 'Untitled Space';
-          folders.get(id).put({ name: updated });
+          folders.get(id).put({ name: updated, updatedAt: Date.now() });
         });
       });
 
@@ -330,6 +374,21 @@
       }
     }
 
+    function ensureFolderSelected() {
+      if (currentFolder) {
+        return currentFolder;
+      }
+      const iterator = folderElements.keys();
+      const first = iterator.next();
+      if (!first.done) {
+        selectFolder(first.value);
+        return first.value;
+      }
+      const id = createFolder(DEFAULT_FOLDER_NAME);
+      selectFolder(id);
+      return id;
+    }
+
     function removeNotesInFolder(folderId) {
       noteCache.forEach((note, id) => {
         if (note.folder === folderId) {
@@ -339,15 +398,15 @@
     }
 
     newNoteButton.addEventListener('click', () => {
-      if (!currentFolder) {
-        flashEmptyState('Create a space before adding pages.');
+      const activeFolder = ensureFolderSelected();
+      if (!activeFolder) {
         return;
       }
       const id = Gun.text.random();
       const now = Date.now();
       notes.get(id).put({
         title: 'Untitled',
-        folder: currentFolder,
+        folder: activeFolder,
         content: '',
         createdAt: now,
         updatedAt: now
