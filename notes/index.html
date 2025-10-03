@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <link rel="stylesheet" href="../style.css">
 </head>
-<body>
+<body class="notes-page">
 
   <div class="navbar">
     <div>
@@ -20,21 +20,68 @@
     <div style="font-size: 0.9rem;">3DVR Portal</div>
   </div>
 
-  <div class="container">
-    <div class="sidebar">
-      <h2>📂 Folders</h2>
-      <input type="text" id="new-folder" placeholder="Add Folder + Enter">
-      <ul id="folders"></ul>
+  <div class="notes-shell">
+    <aside class="notes-sidebar" aria-label="Workspace navigation">
+      <div class="workspace-header">
+        <div>
+          <div class="workspace-label">Workspace</div>
+          <div class="workspace-title">3DVR Notes</div>
+        </div>
+      </div>
 
-      <h2>📝 Notes</h2>
-      <input type="text" id="new-note" placeholder="Add Note + Enter" disabled>
-      <ul id="notes"></ul>
-    </div>
+      <div class="sidebar-section">
+        <div class="section-heading">
+          <span>Spaces</span>
+          <button class="icon-button" id="show-folder-input" aria-label="Add new space">＋</button>
+        </div>
+        <input type="text" id="new-folder" class="sidebar-input hidden" placeholder="Name this space & press Enter">
+        <ul id="folders" class="folders-list" aria-label="Folder list"></ul>
+      </div>
 
-    <div class="main">
-      <h2 id="note-title">Select a note...</h2>
-      <textarea id="note-content" placeholder="Note content..." disabled></textarea>
-    </div>
+      <div class="sidebar-section">
+        <div class="section-heading">
+          <span>Pages</span>
+          <button class="primary-button" id="new-note-button" disabled>+ New Page</button>
+        </div>
+        <input type="search" id="note-search" class="sidebar-input" placeholder="Search pages..." aria-label="Search notes">
+        <ul id="notes" class="notes-list" aria-label="Notes"></ul>
+      </div>
+    </aside>
+
+    <main class="notes-editor" aria-live="polite">
+      <div id="empty-state" class="empty-state">
+        <h2>Select a note to get started</h2>
+        <p>Create or choose a page from the sidebar.</p>
+      </div>
+
+      <div id="editor-wrapper" class="editor-wrapper hidden" aria-label="Note editor">
+        <div class="note-header">
+          <div id="note-title" class="note-title" contenteditable="true" data-placeholder="Untitled"></div>
+          <div id="note-meta" class="note-meta"></div>
+        </div>
+        <div class="note-toolbar" role="toolbar" aria-label="Formatting toolbar">
+          <button class="icon-button" data-command="bold" title="Bold (Ctrl+B)"><span class="toolbar-icon">B</span></button>
+          <button class="icon-button" data-command="italic" title="Italic (Ctrl+I)"><span class="toolbar-icon">I</span></button>
+          <button class="icon-button" data-command="underline" title="Underline (Ctrl+U)"><span class="toolbar-icon">U</span></button>
+          <div class="toolbar-divider"></div>
+          <button class="icon-button" data-block="h1" title="Heading 1">H1</button>
+          <button class="icon-button" data-block="h2" title="Heading 2">H2</button>
+          <button class="icon-button" data-block="quote" title="Quote">❝</button>
+          <button class="icon-button" data-block="code" title="Code block">{;}</button>
+          <div class="toolbar-divider"></div>
+          <button class="icon-button" data-command="insertUnorderedList" title="Bulleted list">• List</button>
+          <button class="icon-button" data-command="insertOrderedList" title="Numbered list">1. List</button>
+          <button class="icon-button" data-block="todo" title="To-do list">☑︎</button>
+          <button class="icon-button" data-block="divider" title="Divider">—</button>
+        </div>
+        <div id="note-content" class="note-content" contenteditable="true" data-placeholder="Start writing or type / for commands"></div>
+      </div>
+
+      <div id="slash-menu" class="slash-menu" role="menu" aria-hidden="true">
+        <div class="slash-hint">Insert blocks</div>
+        <ul id="slash-options"></ul>
+      </div>
+    </main>
   </div>
 
   <script>
@@ -42,112 +89,757 @@
     const folders = gun.get('simple-folders');
     const notes = gun.get('simple-notes');
 
+    const folderList = document.getElementById('folders');
+    const noteList = document.getElementById('notes');
+    const newFolderInput = document.getElementById('new-folder');
+    const showFolderInputButton = document.getElementById('show-folder-input');
+    const newNoteButton = document.getElementById('new-note-button');
+    const noteSearchInput = document.getElementById('note-search');
+    const noteTitleEl = document.getElementById('note-title');
+    const noteContentEl = document.getElementById('note-content');
+    const noteMetaEl = document.getElementById('note-meta');
+    const emptyStateEl = document.getElementById('empty-state');
+    const editorWrapperEl = document.getElementById('editor-wrapper');
+    const slashMenuEl = document.getElementById('slash-menu');
+    const slashOptionsEl = document.getElementById('slash-options');
+    const defaultEmptyMessage = emptyStateEl.innerHTML;
+
     let currentFolder = null;
     let currentNoteId = null;
+    let currentNoteRef = null;
+    let suppressContentUpdate = false;
+    let saveTimer = null;
+    let slashActive = false;
+    let slashTriggerRange = null;
+    let filteredSlashOptions = [];
+    let activeSlashIndex = 0;
 
-    // --- FOLDERS ---
+    const folderElements = new Map();
+    const noteElements = new Map();
+    const noteCache = new Map();
+
+    const slashOptionData = [
+      { id: 'text', label: 'Text', description: 'Start with plain paragraphs', action: () => applyBlock('paragraph') },
+      { id: 'heading1', label: 'Heading 1', description: 'Large section title', action: () => applyBlock('h1') },
+      { id: 'heading2', label: 'Heading 2', description: 'Medium section title', action: () => applyBlock('h2') },
+      { id: 'todo', label: 'To-do', description: 'Track tasks with checkboxes', action: () => applyBlock('todo') },
+      { id: 'bulleted', label: 'Bulleted list', description: 'Create a bullet list', action: () => applyCommand('insertUnorderedList') },
+      { id: 'numbered', label: 'Numbered list', description: 'Create a numbered list', action: () => applyCommand('insertOrderedList') },
+      { id: 'quote', label: 'Quote', description: 'Add a quote block', action: () => applyBlock('quote') },
+      { id: 'code', label: 'Code', description: 'Insert a code snippet', action: () => applyBlock('code') },
+      { id: 'divider', label: 'Divider', description: 'Visually separate sections', action: () => applyBlock('divider') }
+    ];
+
+    showFolderInputButton.addEventListener('click', () => {
+      newFolderInput.classList.toggle('hidden');
+      if (!newFolderInput.classList.contains('hidden')) {
+        newFolderInput.focus();
+      }
+    });
+
+    newFolderInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.target.value = '';
+        event.target.classList.add('hidden');
+        return;
+      }
+      if (event.key === 'Enter') {
+        const name = event.target.value.trim();
+        if (name) {
+          folders.set({ name });
+        }
+        event.target.value = '';
+        event.target.classList.add('hidden');
+      }
+    });
+
     folders.map().on((folder, id) => {
       if (!folder) {
-        document.getElementById(id)?.remove();
+        const li = folderElements.get(id);
+        if (li) {
+          li.remove();
+          folderElements.delete(id);
+        }
+        if (currentFolder === id) {
+          currentFolder = null;
+          newNoteButton.disabled = true;
+          clearNotesSelection();
+        }
         return;
       }
 
-      let li = document.getElementById(id);
+      if (folder._) delete folder._;
+      const name = folder.name?.trim() || 'Untitled Space';
+      let li = folderElements.get(id);
       if (!li) {
-        li = document.createElement('li');
-        li.id = id;
-        li.onclick = () => selectFolder(id);
-        document.getElementById('folders').appendChild(li);
+        li = createFolderElement(id);
+        folderList.appendChild(li);
+        folderElements.set(id, li);
       }
+      li.querySelector('.folder-name').textContent = name;
+    });
 
-      li.innerHTML = `<span class="editable">${folder.name}</span> <span class="delete">🗑</span>`;
+    function createFolderElement(id) {
+      const li = document.createElement('li');
+      li.className = 'folder-item';
+      li.tabIndex = 0;
 
-      li.querySelector('.delete').onclick = (e) => {
-        e.stopPropagation();
-        folders.get(id).put(null);
-        if (currentFolder === id) {
-          currentFolder = null;
-          document.getElementById('new-note').disabled = true;
-          document.getElementById('notes').innerHTML = '';
+      const icon = document.createElement('span');
+      icon.className = 'folder-icon';
+      icon.textContent = '📁';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'folder-name editable';
+      nameEl.textContent = 'Untitled Space';
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'icon-button subtle';
+      deleteBtn.innerHTML = '🗑';
+      deleteBtn.title = 'Delete space';
+      deleteBtn.setAttribute('aria-label', 'Delete space');
+
+      const content = document.createElement('div');
+      content.className = 'folder-content';
+      content.appendChild(icon);
+      content.appendChild(nameEl);
+
+      li.appendChild(content);
+      li.appendChild(deleteBtn);
+
+      li.addEventListener('click', () => selectFolder(id));
+      li.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectFolder(id);
         }
-      };
+      });
 
-      li.querySelector('.editable').ondblclick = () =>
-        enableEdit(li.querySelector('.editable'), (newName) => {
-          folders.get(id).put({ name: newName });
+      deleteBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (confirm('Delete this space and its notes?')) {
+          folders.get(id).put(null);
+          removeNotesInFolder(id);
+        }
+      });
+
+      nameEl.addEventListener('dblclick', (event) => {
+        event.stopPropagation();
+        enableEdit(nameEl, (value) => {
+          const updated = value.trim() || 'Untitled Space';
+          folders.get(id).put({ name: updated });
         });
-    });
+      });
 
-    document.getElementById('new-folder').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const name = e.target.value.trim();
-        if (name) folders.set({ name });
-        e.target.value = '';
-      }
-    });
+      return li;
+    }
 
     function selectFolder(id) {
       currentFolder = id;
-      document.getElementById('new-note').disabled = false;
-      document.querySelectorAll('#folders li').forEach(li => li.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      renderNotes();
+      newNoteButton.disabled = false;
+      folderElements.forEach((element, folderId) => {
+        if (folderId === id) {
+          element.classList.add('active');
+        } else {
+          element.classList.remove('active');
+        }
+      });
+      filterNotes();
+      if (currentNoteId && noteCache.get(currentNoteId)?.folder !== id) {
+        closeEditor();
+      }
     }
 
-    // --- NOTES ---
-    function renderNotes() {
-      const ul = document.getElementById('notes');
-      ul.innerHTML = '';
-      notes.map().once((note, id) => {
-        if (!note || note.folder !== currentFolder) return;
-
-        const li = document.createElement('li');
-        li.innerHTML = `<span class="editable">${note.title}</span> <span class="delete">🗑</span>`;
-        li.onclick = () => openNote(id);
-        ul.appendChild(li);
-
-        li.querySelector('.delete').onclick = (e) => {
-          e.stopPropagation();
+    function removeNotesInFolder(folderId) {
+      noteCache.forEach((note, id) => {
+        if (note.folder === folderId) {
           notes.get(id).put(null);
-          if (currentNoteId === id) {
-            currentNoteId = null;
-            document.getElementById('note-title').textContent = "Select a note...";
-            document.getElementById('note-content').value = '';
-            document.getElementById('note-content').disabled = true;
-          }
-        };
-
-        li.querySelector('.editable').ondblclick = () =>
-          enableEdit(li.querySelector('.editable'), (newTitle) => {
-            notes.get(id).put({ title: newTitle });
-          });
+        }
       });
     }
 
-    document.getElementById('new-note').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const title = e.target.value.trim();
-        if (title && currentFolder) notes.set({ title, folder: currentFolder, content: "" });
-        e.target.value = '';
+    newNoteButton.addEventListener('click', () => {
+      if (!currentFolder) {
+        flashEmptyState('Create a space before adding pages.');
+        return;
+      }
+      const id = Gun.text.random();
+      const now = Date.now();
+      notes.get(id).put({
+        title: 'Untitled',
+        folder: currentFolder,
+        content: '',
+        createdAt: now,
+        updatedAt: now
+      }, (ack) => {
+        if (ack && ack.err) {
+          console.error('Failed to create note', ack.err);
+          return;
+        }
+        openNote(id);
+        setTimeout(() => noteTitleEl.focus(), 120);
+      });
+    });
+
+    noteSearchInput.addEventListener('input', () => {
+      filterNotes();
+    });
+
+    notes.map().on((note, id) => {
+      if (!note) {
+        const li = noteElements.get(id);
+        if (li) {
+          li.remove();
+          noteElements.delete(id);
+        }
+        noteCache.delete(id);
+        if (currentNoteId === id) {
+          closeEditor();
+        }
+        return;
+      }
+
+      if (note._) delete note._;
+      const cached = noteCache.get(id) || { id };
+      const merged = { ...cached, ...note, id };
+      noteCache.set(id, merged);
+      ensureNoteListItem(id, merged);
+      if (currentNoteId === id) {
+        updateEditorMeta(merged);
+      }
+      filterNotes();
+    });
+
+    function ensureNoteListItem(id, note) {
+      let li = noteElements.get(id);
+      if (!li) {
+        li = document.createElement('li');
+        li.className = 'note-item';
+        li.tabIndex = 0;
+
+        const content = document.createElement('div');
+        content.className = 'note-item-content';
+
+        const title = document.createElement('div');
+        title.className = 'note-item-title editable';
+        content.appendChild(title);
+
+        const meta = document.createElement('div');
+        meta.className = 'note-item-meta';
+        content.appendChild(meta);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'icon-button subtle';
+        deleteBtn.innerHTML = '🗑';
+        deleteBtn.title = 'Delete note';
+        deleteBtn.setAttribute('aria-label', 'Delete note');
+
+        li.appendChild(content);
+        li.appendChild(deleteBtn);
+
+        li.addEventListener('click', () => openNote(id));
+        li.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            openNote(id);
+          }
+        });
+
+        deleteBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (confirm('Delete this note?')) {
+            notes.get(id).put(null);
+          }
+        });
+
+        title.addEventListener('dblclick', (event) => {
+          event.stopPropagation();
+          enableEdit(title, (value) => {
+            const updated = value.trim() || 'Untitled';
+            notes.get(id).put({ title: updated });
+          });
+        });
+
+        noteElements.set(id, li);
+        noteList.appendChild(li);
+      }
+
+      const titleEl = li.querySelector('.note-item-title');
+      const metaEl = li.querySelector('.note-item-meta');
+      titleEl.textContent = note.title?.trim() || 'Untitled';
+      metaEl.textContent = formatListMeta(note);
+      li.dataset.folder = note.folder || '';
+      li.dataset.title = titleEl.textContent.toLowerCase();
+      li.dataset.contentPreview = getContentPreview(note.content || '');
+      li.classList.toggle('active', currentNoteId === id);
+    }
+
+    function filterNotes() {
+      const query = noteSearchInput.value.trim().toLowerCase();
+      noteElements.forEach((li, id) => {
+        const note = noteCache.get(id);
+        const matchesFolder = currentFolder && note?.folder === currentFolder;
+        const matchesQuery = !query || li.dataset.title.includes(query) || li.dataset.contentPreview.includes(query);
+        li.classList.toggle('hidden', !(matchesFolder && matchesQuery));
+      });
+      noteList.classList.toggle('empty', !currentFolder);
+    }
+
+    function openNote(id) {
+      const data = noteCache.get(id);
+      if (data) {
+        renderActiveNote(data);
+        attachNoteListener(id);
+        noteContentEl.focus();
+        return;
+      }
+      currentNoteId = id;
+      notes.get(id).once((note) => {
+        if (!note) {
+          return;
+        }
+        if (note._) delete note._;
+        const merged = { ...(noteCache.get(id) || {}), ...note, id };
+        noteCache.set(id, merged);
+        renderActiveNote(merged);
+        attachNoteListener(id);
+        noteContentEl.focus();
+      });
+    }
+
+    function renderActiveNote(note) {
+      currentNoteId = note.id;
+      noteElements.forEach((li, noteId) => {
+        li.classList.toggle('active', noteId === note.id);
+      });
+      emptyStateEl.classList.add('hidden');
+      editorWrapperEl.classList.remove('hidden');
+      noteTitleEl.textContent = note.title || 'Untitled';
+      if (!suppressContentUpdate) {
+        noteContentEl.innerHTML = note.content || '';
+      }
+      updateEditorMeta(note);
+    }
+
+    function attachNoteListener(id) {
+      if (currentNoteRef && currentNoteRef.off) {
+        currentNoteRef.off();
+      }
+      currentNoteRef = notes.get(id);
+      currentNoteRef.on((note) => {
+        if (!note) {
+          closeEditor();
+          return;
+        }
+        if (note._) delete note._;
+        const cached = noteCache.get(id) || { id };
+        const merged = { ...cached, ...note, id };
+        noteCache.set(id, merged);
+        if (document.activeElement !== noteTitleEl) {
+          noteTitleEl.textContent = merged.title || 'Untitled';
+        }
+        if (!suppressContentUpdate) {
+          noteContentEl.innerHTML = merged.content || '';
+        }
+        updateEditorMeta(merged);
+        ensureNoteListItem(id, merged);
+        filterNotes();
+      });
+    }
+
+    function closeEditor() {
+      currentNoteId = null;
+      if (currentNoteRef && currentNoteRef.off) {
+        currentNoteRef.off();
+        currentNoteRef = null;
+      }
+      editorWrapperEl.classList.add('hidden');
+      emptyStateEl.classList.remove('hidden');
+      emptyStateEl.innerHTML = defaultEmptyMessage;
+      noteTitleEl.textContent = '';
+      noteContentEl.innerHTML = '';
+      noteMetaEl.textContent = '';
+      hideSlashMenu();
+      noteElements.forEach((li) => li.classList.remove('active'));
+    }
+
+    function clearNotesSelection() {
+      closeEditor();
+      noteElements.forEach((li) => li.classList.add('hidden'));
+      noteList.classList.add('empty');
+    }
+
+    function updateEditorMeta(note) {
+      if (!note) {
+        noteMetaEl.textContent = '';
+        return;
+      }
+      const updatedAt = note.updatedAt || note.createdAt;
+      noteMetaEl.textContent = updatedAt ? `Last edited ${formatRelativeTime(updatedAt)}` : '';
+    }
+
+    function formatListMeta(note) {
+      if (!note) {
+        return '';
+      }
+      const updatedAt = note.updatedAt || note.createdAt;
+      const relative = updatedAt ? formatRelativeTime(updatedAt) : 'just now';
+      return `Edited ${relative}`;
+    }
+
+    function formatRelativeTime(timestamp) {
+      if (!timestamp) {
+        return 'just now';
+      }
+      const diff = Date.now() - timestamp;
+      const seconds = Math.floor(diff / 1000);
+      if (seconds < 60) {
+        return 'just now';
+      }
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) {
+        return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+      }
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) {
+        return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+      }
+      const days = Math.floor(hours / 24);
+      if (days < 7) {
+        return `${days} day${days === 1 ? '' : 's'} ago`;
+      }
+      const weeks = Math.floor(days / 7);
+      if (weeks < 4) {
+        return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+      }
+      const date = new Date(timestamp);
+      return date.toLocaleDateString();
+    }
+
+    function getContentPreview(html) {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      return div.textContent.trim().toLowerCase().slice(0, 120);
+    }
+
+    setInterval(() => {
+      if (currentNoteId) {
+        updateEditorMeta(noteCache.get(currentNoteId));
+      }
+      noteElements.forEach((li, id) => {
+        const data = noteCache.get(id);
+        if (!data) {
+          return;
+        }
+        const metaEl = li.querySelector('.note-item-meta');
+        metaEl.textContent = formatListMeta(data);
+      });
+    }, 60000);
+
+    noteTitleEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        noteTitleEl.blur();
       }
     });
 
-    function openNote(id) {
-      currentNoteId = id;
-      notes.get(id).once((note) => {
-        document.getElementById('note-title').textContent = note.title;
-        document.getElementById('note-content').value = note.content || '';
-        document.getElementById('note-content').disabled = false;
+    noteTitleEl.addEventListener('blur', () => {
+      if (!currentNoteId) {
+        return;
+      }
+      const value = noteTitleEl.textContent.trim() || 'Untitled';
+      const cached = noteCache.get(currentNoteId) || { id: currentNoteId };
+      const now = Date.now();
+      cached.title = value;
+      cached.updatedAt = now;
+      noteCache.set(currentNoteId, cached);
+      notes.get(currentNoteId).put({ title: value, updatedAt: now });
+      ensureNoteListItem(currentNoteId, cached);
+      filterNotes();
+    });
+
+    noteTitleEl.addEventListener('input', () => {
+      if (!currentNoteId) {
+        return;
+      }
+      const cached = noteCache.get(currentNoteId) || { id: currentNoteId };
+      cached.title = noteTitleEl.textContent;
+      noteCache.set(currentNoteId, cached);
+      ensureNoteListItem(currentNoteId, cached);
+      filterNotes();
+    });
+
+    noteContentEl.addEventListener('keydown', (event) => {
+      if (event.key === '/' && !slashActive) {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !noteContentEl.contains(selection.anchorNode)) {
+          return;
+        }
+        slashTriggerRange = selection.getRangeAt(0).cloneRange();
+        requestAnimationFrame(() => {
+          showSlashMenu();
+          updateSlashMenu();
+        });
+        return;
+      }
+
+      if (!slashActive) {
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        hideSlashMenu();
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (filteredSlashOptions.length > 0) {
+          activeSlashIndex = Math.min(activeSlashIndex + 1, filteredSlashOptions.length - 1);
+          highlightSlashOption();
+        }
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (filteredSlashOptions.length > 0) {
+          activeSlashIndex = Math.max(activeSlashIndex - 1, 0);
+          highlightSlashOption();
+        }
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        const option = filteredSlashOptions[activeSlashIndex];
+        if (option) {
+          option.action();
+          hideSlashMenu();
+          scheduleContentSave();
+        }
+      }
+    });
+
+    noteContentEl.addEventListener('input', () => {
+      if (slashActive) {
+        updateSlashMenu();
+      }
+      scheduleContentSave();
+    });
+
+    noteContentEl.addEventListener('click', () => {
+      if (slashActive) {
+        hideSlashMenu();
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      if (slashActive && !slashMenuEl.contains(event.target) && event.target !== noteContentEl) {
+        hideSlashMenu();
+      }
+    });
+
+    document.addEventListener('selectionchange', () => {
+      if (!slashActive) {
+        return;
+      }
+      const selection = window.getSelection();
+      if (!selection || !noteContentEl.contains(selection.anchorNode)) {
+        hideSlashMenu();
+      } else {
+        positionSlashMenu();
+      }
+    });
+
+    function scheduleContentSave() {
+      if (!currentNoteId) {
+        return;
+      }
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+      }
+      saveTimer = setTimeout(() => {
+        const html = noteContentEl.innerHTML;
+        suppressContentUpdate = true;
+        const now = Date.now();
+        notes.get(currentNoteId).get('content').put(html);
+        notes.get(currentNoteId).get('updatedAt').put(now);
+        const cached = noteCache.get(currentNoteId) || { id: currentNoteId };
+        cached.content = html;
+        cached.updatedAt = now;
+        noteCache.set(currentNoteId, cached);
+        ensureNoteListItem(currentNoteId, cached);
+        updateEditorMeta(cached);
+        filterNotes();
+        setTimeout(() => {
+          suppressContentUpdate = false;
+        }, 150);
+      }, 250);
+    }
+
+    document.querySelectorAll('.note-toolbar button').forEach((button) => {
+      button.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        noteContentEl.focus();
+        if (button.dataset.command) {
+          applyCommand(button.dataset.command, button.dataset.value || null);
+        } else if (button.dataset.block) {
+          applyBlock(button.dataset.block);
+        }
+        hideSlashMenu();
+        scheduleContentSave();
+      });
+    });
+
+    function applyCommand(command, value = null) {
+      consumeSlashCommand();
+      document.execCommand(command, false, value);
+    }
+
+    function applyBlock(type) {
+      consumeSlashCommand();
+      switch (type) {
+        case 'h1':
+          document.execCommand('formatBlock', false, 'h1');
+          break;
+        case 'h2':
+          document.execCommand('formatBlock', false, 'h2');
+          break;
+        case 'quote':
+          document.execCommand('formatBlock', false, 'blockquote');
+          break;
+        case 'code':
+          document.execCommand('formatBlock', false, 'pre');
+          break;
+        case 'todo':
+          document.execCommand('insertHTML', false, '<div class="todo-line"><input type="checkbox"> <span>To-do</span></div>');
+          break;
+        case 'divider':
+          document.execCommand('insertHTML', false, '<hr class="note-divider">');
+          break;
+        default:
+          document.execCommand('formatBlock', false, 'p');
+      }
+    }
+
+    function consumeSlashCommand() {
+      if (!slashTriggerRange) {
+        return;
+      }
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        slashTriggerRange = null;
+        return;
+      }
+      const range = slashTriggerRange.cloneRange();
+      range.setEnd(selection.getRangeAt(0).endContainer, selection.getRangeAt(0).endOffset);
+      range.deleteContents();
+      const collapsed = range.cloneRange();
+      collapsed.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(collapsed);
+      slashTriggerRange = null;
+    }
+
+    function showSlashMenu() {
+      slashActive = true;
+      filteredSlashOptions = [...slashOptionData];
+      activeSlashIndex = 0;
+      renderSlashOptions();
+      positionSlashMenu();
+      slashMenuEl.setAttribute('aria-hidden', 'false');
+      slashMenuEl.classList.add('visible');
+    }
+
+    function hideSlashMenu() {
+      slashActive = false;
+      slashTriggerRange = null;
+      slashMenuEl.classList.remove('visible');
+      slashMenuEl.setAttribute('aria-hidden', 'true');
+    }
+
+    function updateSlashMenu() {
+      if (!slashTriggerRange) {
+        return;
+      }
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        hideSlashMenu();
+        return;
+      }
+      const range = slashTriggerRange.cloneRange();
+      range.setEnd(selection.getRangeAt(0).endContainer, selection.getRangeAt(0).endOffset);
+      const fragment = range.cloneContents();
+      const div = document.createElement('div');
+      div.appendChild(fragment);
+      const text = div.textContent || '';
+      if (!text.includes('/')) {
+        hideSlashMenu();
+        return;
+      }
+      const query = text.replace('/', '').trim().toLowerCase();
+      filteredSlashOptions = slashOptionData.filter((option) => {
+        if (!query) {
+          return true;
+        }
+        return option.label.toLowerCase().includes(query) || option.description.toLowerCase().includes(query);
+      });
+      activeSlashIndex = 0;
+      renderSlashOptions();
+      positionSlashMenu();
+    }
+
+    function renderSlashOptions() {
+      slashOptionsEl.innerHTML = '';
+      if (filteredSlashOptions.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'empty';
+        empty.textContent = 'No blocks match your search';
+        slashOptionsEl.appendChild(empty);
+        return;
+      }
+      filteredSlashOptions.forEach((option, index) => {
+        const li = document.createElement('li');
+        li.classList.toggle('active', index === activeSlashIndex);
+        const label = document.createElement('div');
+        label.className = 'slash-option-label';
+        label.textContent = option.label;
+        const description = document.createElement('div');
+        description.className = 'slash-option-description';
+        description.textContent = option.description;
+        li.appendChild(label);
+        li.appendChild(description);
+        li.addEventListener('mousedown', (event) => {
+          event.preventDefault();
+          option.action();
+          hideSlashMenu();
+          scheduleContentSave();
+        });
+        slashOptionsEl.appendChild(li);
       });
     }
 
-    document.getElementById('note-content').addEventListener('input', () => {
-      if (!currentNoteId) return;
-      notes.get(currentNoteId).get('content').put(document.getElementById('note-content').value);
-    });
+    function highlightSlashOption() {
+      Array.from(slashOptionsEl.children).forEach((li, index) => {
+        li.classList.toggle('active', index === activeSlashIndex);
+      });
+    }
 
-    // --- Inline Editing Helper ---
+    function positionSlashMenu() {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        return;
+      }
+      const range = selection.getRangeAt(0).cloneRange();
+      range.collapse(true);
+      let rect = range.getBoundingClientRect();
+      if (!rect || (!rect.width && !rect.height)) {
+        const fallback = slashTriggerRange?.getBoundingClientRect();
+        if (fallback) {
+          rect = fallback;
+        }
+      }
+      if (!rect) {
+        return;
+      }
+      const editorRect = noteContentEl.getBoundingClientRect();
+      slashMenuEl.style.top = `${rect.bottom - editorRect.top + noteContentEl.scrollTop + 12}px`;
+      slashMenuEl.style.left = `${rect.left - editorRect.left}px`;
+    }
+
     function enableEdit(el, callback) {
+      const original = el.textContent;
       el.setAttribute('contenteditable', 'true');
       el.focus();
 
@@ -155,17 +847,41 @@
         el.removeAttribute('contenteditable');
         el.removeEventListener('blur', onBlur);
         el.removeEventListener('keydown', onKey);
-        if (save) callback(el.textContent.trim());
+        if (save) {
+          const value = el.textContent.trim();
+          callback(value || original);
+        } else {
+          el.textContent = original;
+        }
       }
 
-      function onBlur() { finish(true); }
-      function onKey(e) {
-        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-        if (e.key === 'Escape') { finish(false); }
+      function onBlur() {
+        finish(true);
+      }
+
+      function onKey(event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finish(true);
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        }
       }
 
       el.addEventListener('blur', onBlur);
       el.addEventListener('keydown', onKey);
+    }
+
+    function flashEmptyState(message) {
+      emptyStateEl.classList.remove('hidden');
+      emptyStateEl.innerHTML = `<h2>${message}</h2><p>Create a space to organize your notes like Notion.</p>`;
+      setTimeout(() => {
+        if (!currentNoteId) {
+          emptyStateEl.innerHTML = defaultEmptyMessage;
+        }
+      }, 2500);
     }
   </script>
 </body>
