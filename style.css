@@ -308,6 +308,17 @@ body.notes-page .notes-editor {
   overflow: hidden;
 }
 
+body.notes-page .sidebar-toggle {
+  display: none;
+  align-self: flex-start;
+  margin: 16px 24px 0 24px;
+  background: #ffffff;
+  border: 1px solid #d4d2cc;
+  border-radius: 10px;
+  font-weight: 600;
+  gap: 6px;
+}
+
 body.notes-page .editor-wrapper {
   display: flex;
   flex-direction: column;
@@ -503,4 +514,104 @@ body.notes-page .slash-option-label {
 body.notes-page .slash-option-description {
   font-size: 0.85rem;
   color: #6d6f73;
+}
+
+body.notes-page .mobile-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 21, 0.32);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 9;
+  display: none;
+}
+
+body.notes-page.notes-sidebar-open .mobile-sidebar-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (max-width: 900px) {
+  body.notes-page .notes-shell {
+    grid-template-columns: 1fr;
+    position: relative;
+  }
+
+  body.notes-page .notes-sidebar {
+    position: fixed;
+    top: var(--notes-navbar-height, 56px);
+    left: 0;
+    width: min(88vw, 320px);
+    height: calc(100vh - var(--notes-navbar-height, 56px));
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    box-shadow: 0 12px 32px rgba(15, 17, 21, 0.18);
+    z-index: 11;
+    padding: 20px 18px 32px;
+  }
+
+  body.notes-page.notes-sidebar-open .notes-sidebar {
+    transform: translateX(0);
+  }
+
+  body.notes-page.notes-sidebar-open {
+    overflow: hidden;
+  }
+
+  body.notes-page .mobile-sidebar-backdrop {
+    display: block;
+  }
+
+  body.notes-page .notes-editor {
+    overflow: visible;
+    min-height: calc(100vh - var(--notes-navbar-height, 56px));
+  }
+
+  body.notes-page .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    position: fixed;
+    top: calc(var(--notes-navbar-height, 56px) + 12px);
+    left: auto;
+    right: 16px;
+    z-index: 12;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(6px);
+  }
+
+  body.notes-page.notes-sidebar-open .sidebar-toggle {
+    background: #ffffff;
+  }
+
+  body.notes-page .editor-wrapper {
+    padding: 24px 20px 80px 20px;
+  }
+
+  body.notes-page .note-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  body.notes-page .note-title {
+    font-size: 1.8rem;
+  }
+
+  body.notes-page .note-toolbar {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+  }
+
+  body.notes-page .note-content {
+    font-size: 0.95rem;
+  }
+
+  body.notes-page .empty-state {
+    padding: 0 24px;
+  }
 }

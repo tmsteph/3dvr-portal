@@ -21,7 +21,7 @@
   </div>
 
   <div class="notes-shell">
-    <aside class="notes-sidebar" aria-label="Workspace navigation">
+    <aside id="notes-sidebar" class="notes-sidebar" aria-label="Workspace navigation">
       <div class="workspace-header">
         <div>
           <div class="workspace-label">Workspace</div>
@@ -48,7 +48,10 @@
       </div>
     </aside>
 
+    <div id="mobile-sidebar-backdrop" class="mobile-sidebar-backdrop" aria-hidden="true"></div>
+
     <main class="notes-editor" aria-live="polite">
+      <button id="sidebar-toggle" class="sidebar-toggle icon-button" type="button" aria-label="Show workspace" aria-controls="notes-sidebar" aria-expanded="false">☰</button>
       <div id="empty-state" class="empty-state">
         <h2>Select a note to get started</h2>
         <p>Create or choose a page from the sidebar.</p>
@@ -102,7 +105,14 @@
     const editorWrapperEl = document.getElementById('editor-wrapper');
     const slashMenuEl = document.getElementById('slash-menu');
     const slashOptionsEl = document.getElementById('slash-options');
+    const sidebarToggleButton = document.getElementById('sidebar-toggle');
+    const sidebarBackdropEl = document.getElementById('mobile-sidebar-backdrop');
+    const notesSidebarEl = document.getElementById('notes-sidebar');
+    const navbarEl = document.querySelector('.navbar');
+    const rootEl = document.documentElement;
+    const bodyEl = document.body;
     const defaultEmptyMessage = emptyStateEl.innerHTML;
+    const MOBILE_BREAKPOINT = 900;
 
     let currentFolder = null;
     let currentNoteId = null;
@@ -129,6 +139,77 @@
       { id: 'code', label: 'Code', description: 'Insert a code snippet', action: () => applyBlock('code') },
       { id: 'divider', label: 'Divider', description: 'Visually separate sections', action: () => applyBlock('divider') }
     ];
+
+    function updateNavbarHeight() {
+      if (navbarEl) {
+        rootEl.style.setProperty('--notes-navbar-height', `${navbarEl.offsetHeight}px`);
+      }
+    }
+
+    function setSidebarExpanded(expanded) {
+      bodyEl.classList.toggle('notes-sidebar-open', expanded);
+      if (sidebarToggleButton) {
+        sidebarToggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        sidebarToggleButton.setAttribute('aria-label', expanded ? 'Hide workspace' : 'Show workspace');
+      }
+      if (sidebarBackdropEl) {
+        sidebarBackdropEl.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+      }
+      if (notesSidebarEl) {
+        const shouldHide = !expanded && window.innerWidth <= MOBILE_BREAKPOINT;
+        notesSidebarEl.setAttribute('aria-hidden', shouldHide ? 'true' : 'false');
+      }
+    }
+
+    function toggleSidebar() {
+      const expanded = !bodyEl.classList.contains('notes-sidebar-open');
+      setSidebarExpanded(expanded);
+    }
+
+    function closeSidebarForMobile() {
+      if (window.innerWidth <= MOBILE_BREAKPOINT) {
+        setSidebarExpanded(false);
+      }
+    }
+
+    updateNavbarHeight();
+    setSidebarExpanded(false);
+
+    if (sidebarToggleButton) {
+      sidebarToggleButton.addEventListener('click', () => {
+        toggleSidebar();
+      });
+    }
+
+    if (sidebarBackdropEl) {
+      sidebarBackdropEl.addEventListener('click', () => {
+        setSidebarExpanded(false);
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      updateNavbarHeight();
+      if (window.innerWidth > MOBILE_BREAKPOINT) {
+        setSidebarExpanded(false);
+      } else {
+        setSidebarExpanded(bodyEl.classList.contains('notes-sidebar-open'));
+      }
+    });
+
+    window.addEventListener('orientationchange', () => {
+      updateNavbarHeight();
+      if (window.innerWidth > MOBILE_BREAKPOINT) {
+        setSidebarExpanded(false);
+      } else {
+        setSidebarExpanded(bodyEl.classList.contains('notes-sidebar-open'));
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && bodyEl.classList.contains('notes-sidebar-open')) {
+        setSidebarExpanded(false);
+      }
+    });
 
     showFolderInputButton.addEventListener('click', () => {
       newFolderInput.classList.toggle('hidden');
@@ -386,6 +467,7 @@
 
     function openNote(id) {
       const data = noteCache.get(id);
+      closeSidebarForMobile();
       if (data) {
         renderActiveNote(data);
         attachNoteListener(id);
