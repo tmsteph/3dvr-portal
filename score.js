@@ -49,7 +49,81 @@
     return `user:${normalized.toLowerCase()}`;
   }
 
-  function ensureGuestIdentity() {
+  function computeDeviceFingerprint() {
+    if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+      return '';
+    }
+
+    const screenData = window.screen || {};
+    let timeZone = '';
+    try {
+      const resolved = Intl && Intl.DateTimeFormat
+        ? Intl.DateTimeFormat().resolvedOptions()
+        : null;
+      timeZone = resolved && resolved.timeZone ? resolved.timeZone : '';
+    } catch (err) {
+      timeZone = '';
+    }
+
+    const parts = [
+      navigator.userAgent || '',
+      navigator.language || '',
+      navigator.platform || '',
+      `${screenData.width || ''}x${screenData.height || ''}`,
+      screenData.colorDepth || '',
+      timeZone || '',
+      typeof navigator.maxTouchPoints === 'number' ? navigator.maxTouchPoints : '',
+      typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : '',
+      typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : ''
+    ];
+
+    return parts.join('|').toLowerCase();
+  }
+
+  function fingerprintToKey(fingerprint) {
+    if (!fingerprint) return '';
+    let hash = 0;
+    for (let i = 0; i < fingerprint.length; i += 1) {
+      hash = (hash << 5) - hash + fingerprint.charCodeAt(i);
+      hash |= 0;
+    }
+    const normalized = Math.abs(hash).toString(36);
+    if (!normalized) return '';
+    return `fp_${normalized}`;
+  }
+
+  function getGuestFingerprintKey() {
+    const fingerprint = computeDeviceFingerprint();
+    return fingerprintToKey(fingerprint);
+  }
+
+  function persistGuestFingerprintMapping(portalRoot, fingerprintKey, guestId, { username, score } = {}) {
+    if (!portalRoot || !fingerprintKey || !guestId) {
+      return;
+    }
+
+    const payload = {
+      guestId,
+      updatedAt: Date.now()
+    };
+
+    if (Number.isFinite(score)) {
+      payload.score = sanitizeScore(score);
+    }
+
+    if (typeof username === 'string' && username.trim()) {
+      payload.username = username.trim();
+    }
+
+    try {
+      portalRoot.get('guestFingerprints').get(fingerprintKey).put(payload);
+    } catch (err) {
+      console.warn('Failed to persist guest fingerprint mapping', err);
+    }
+  }
+
+  function ensureGuestIdentity(options = {}) {
+    const { createIfMissing = true } = options;
     try {
       const legacyId = localStorage.getItem('userId');
       if (legacyId && !localStorage.getItem('guestId')) {
@@ -58,20 +132,145 @@
       if (legacyId) {
         localStorage.removeItem('userId');
       }
+
       let guestId = localStorage.getItem('guestId');
+
       if (!guestId) {
+        const backupId = typeof global !== 'undefined' && global.__scoreSystemGuestId
+          ? String(global.__scoreSystemGuestId).trim()
+          : '';
+        if (backupId) {
+          guestId = backupId;
+          localStorage.setItem('guestId', guestId);
+        }
+      }
+
+      if (!guestId && createIfMissing) {
+        const fingerprint = computeDeviceFingerprint();
+        const fingerprintKey = fingerprintToKey(fingerprint);
+        if (fingerprintKey) {
+          guestId = `guest_${fingerprintKey}`;
+          localStorage.setItem('guestId', guestId);
+        }
+      }
+
+      if (!guestId && createIfMissing) {
         guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
         localStorage.setItem('guestId', guestId);
       }
-      if (!localStorage.getItem('guestDisplayName')) {
-        localStorage.setItem('guestDisplayName', 'Guest');
+
+      if (guestId) {
+        localStorage.setItem('guest', 'true');
+        if (!localStorage.getItem('guestDisplayName')) {
+          localStorage.setItem('guestDisplayName', 'Guest');
+        }
+        try {
+          global.__scoreSystemGuestId = guestId;
+        } catch (err) {
+          // Ignore inability to cache guest id globally
+        }
       }
-      localStorage.setItem('guest', 'true');
-      return guestId;
+
+      return guestId || '';
     } catch (err) {
       console.warn('Failed to ensure guest identity', err);
       return '';
     }
+  }
+
+  function restoreGuestIdentity({ gun, portalRoot, timeout = 1200 } = {}) {
+    if (typeof window === 'undefined') {
+      return Promise.resolve('');
+    }
+
+    const root = portalRoot || (gun && typeof gun.get === 'function' ? gun.get(PORTAL_ROOT_KEY) : null);
+    const existingId = ensureGuestIdentity({ createIfMissing: false });
+
+    if (existingId) {
+      if (root) {
+        const fingerprintKey = getGuestFingerprintKey();
+        if (fingerprintKey) {
+          const username = (localStorage.getItem('guestDisplayName') || '').trim();
+          const cachedScore = readCachedScore({ mode: 'guest', guestId: existingId });
+          persistGuestFingerprintMapping(root, fingerprintKey, existingId, { username, score: cachedScore });
+        }
+      }
+      return Promise.resolve(existingId);
+    }
+
+    const fingerprintKey = getGuestFingerprintKey();
+
+    if (!root || !fingerprintKey) {
+      const generated = ensureGuestIdentity();
+      if (root && generated) {
+        const username = (localStorage.getItem('guestDisplayName') || '').trim();
+        const cachedScore = readCachedScore({ mode: 'guest', guestId: generated });
+        persistGuestFingerprintMapping(root, fingerprintKey, generated, { username, score: cachedScore });
+      }
+      return Promise.resolve(generated);
+    }
+
+    return new Promise(resolve => {
+      let settled = false;
+
+      const finalize = (guestId, metadata = {}) => {
+        if (settled) return;
+        settled = true;
+        const normalized = typeof guestId === 'string' ? guestId.trim() : '';
+        const username = metadata && typeof metadata.username === 'string'
+          ? metadata.username.trim()
+          : '';
+        if (normalized) {
+          try {
+            localStorage.setItem('guestId', normalized);
+            localStorage.setItem('guest', 'true');
+            if (username && !localStorage.getItem('guestDisplayName')) {
+              localStorage.setItem('guestDisplayName', username);
+            }
+            global.__scoreSystemGuestId = normalized;
+          } catch (err) {
+            console.warn('Unable to persist guest identity locally', err);
+          }
+        }
+
+        const ensured = ensureGuestIdentity({ createIfMissing: !normalized });
+        const activeId = normalized || ensured || '';
+
+        const cachedScore = readCachedScore({ mode: 'guest', guestId: activeId });
+        const snapshotUsername = (localStorage.getItem('guestDisplayName') || '').trim() || username;
+
+        if (activeId) {
+          persistGuestFingerprintMapping(root, fingerprintKey, activeId, {
+            username: snapshotUsername,
+            score: cachedScore
+          });
+        }
+
+        resolve(activeId);
+      };
+
+      try {
+        root.get('guestFingerprints').get(fingerprintKey).once(data => {
+          if (settled) return;
+          const storedId = data && typeof data.guestId === 'string' ? data.guestId.trim() : '';
+          const storedUsername = data && typeof data.username === 'string' ? data.username.trim() : '';
+          if (storedId) {
+            finalize(storedId, { username: storedUsername });
+          } else {
+            finalize(ensureGuestIdentity(), {});
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to load guest fingerprint mapping', err);
+        finalize(ensureGuestIdentity(), {});
+        return;
+      }
+
+      setTimeout(() => {
+        if (settled) return;
+        finalize(ensureGuestIdentity(), {});
+      }, timeout);
+    });
   }
 
   function computeAuthState() {
@@ -89,7 +288,10 @@
 
     const isGuest = localStorage.getItem('guest') === 'true';
     if (isGuest) {
-      const guestId = ensureGuestIdentity();
+      let guestId = ensureGuestIdentity({ createIfMissing: false });
+      if (!guestId) {
+        guestId = (localStorage.getItem('guestId') || '').trim();
+      }
       const guestDisplayName = (localStorage.getItem('guestDisplayName') || '').trim();
       return {
         mode: 'guest',
@@ -186,15 +388,15 @@
   }
 
   class ScoreManager {
-    constructor({ gun, user, portalRoot } = {}) {
+    constructor({ gun, user, portalRoot, guestRestorePromise } = {}) {
       this.gun = gun || null;
       this.user = user || null;
       this.portalRoot = portalRoot || (this.gun ? this.gun.get(PORTAL_ROOT_KEY) : null);
-      this.state = computeAuthState();
-      this.node = this.resolveNode();
       this.listeners = new Set();
-      this.current = readCachedScore(this.state);
-      this.pending = readPendingScore(this.state);
+      this.state = { mode: 'anon' };
+      this.current = 0;
+      this.pending = 0;
+      this.node = null;
       this.ready = false;
       this._readyResolvers = [];
       this._scoreHandler = null;
@@ -202,30 +404,38 @@
       this._authPromise = null;
       this._handleOnline = null;
       this._handleStorage = null;
+      this._initialization = null;
 
-      if (!Number.isFinite(this.current)) {
-        this.current = 0;
-      }
+      const restorePromise = guestRestorePromise
+        ? Promise.resolve(guestRestorePromise)
+        : Promise.resolve();
 
-      if (!Number.isFinite(this.pending)) {
-        this.pending = 0;
-      }
-
-      if (this.pending > this.current) {
-        this.current = this.pending;
-        writeCachedScore(this.state, this.current);
-      }
-
-      if (!this.node) {
-        this._markReady();
-        return;
-      }
-
-      this._ensureUserAuth()
+      this._initialization = restorePromise
         .catch(err => {
-          console.warn('Failed to ensure user auth for score manager', err);
+          console.warn('Guest identity restoration failed', err);
+        })
+        .then(() => {
+          this.state = computeAuthState();
+          this.current = readCachedScore(this.state);
+          this.pending = readPendingScore(this.state);
+          this._normalizeCacheState();
+
+          this.node = this.resolveNode();
+
+          if (!this.node) {
+            this._markReady();
+            return null;
+          }
+
+          return this._ensureUserAuth()
+            .catch(err => {
+              console.warn('Failed to ensure user auth for score manager', err);
+            });
         })
         .finally(() => {
+          if (!this.node) {
+            return;
+          }
           this.bootstrap();
         });
 
@@ -360,6 +570,10 @@
       if (!this.ready && (field === 'score' || field === 'points')) {
         this._markReady();
       }
+
+      if (this.state.mode === 'guest' && (field === 'score' || field === 'points')) {
+        this._syncGuestFingerprint();
+      }
     }
 
     _updateCurrent(score, { persist = true } = {}) {
@@ -369,6 +583,8 @@
 
       if (this.state.mode === 'user') {
         this._syncPublicStats();
+      } else if (this.state.mode === 'guest') {
+        this._syncGuestFingerprint();
       }
 
       for (const listener of this.listeners) {
@@ -439,6 +655,9 @@
       if (normalized >= this.pending) {
         this._setPending(0);
       }
+      if (this.state.mode === 'guest') {
+        this._syncGuestFingerprint();
+      }
     }
 
     _handleStorageEvent(event) {
@@ -467,6 +686,40 @@
           this._flushPendingScore();
         }
       }
+    }
+
+    _normalizeCacheState() {
+      if (!Number.isFinite(this.current)) {
+        this.current = 0;
+      }
+
+      if (!Number.isFinite(this.pending)) {
+        this.pending = 0;
+      }
+
+      if (this.pending > this.current) {
+        this.current = this.pending;
+        writeCachedScore(this.state, this.current);
+      }
+    }
+
+    _syncGuestFingerprint() {
+      if (this.state.mode !== 'guest') {
+        return;
+      }
+      if (!this.portalRoot) {
+        return;
+      }
+      const guestId = this.state.guestId || ensureGuestIdentity();
+      const fingerprintKey = getGuestFingerprintKey();
+      if (!guestId || !fingerprintKey) {
+        return;
+      }
+      const username = (localStorage.getItem('guestDisplayName') || '').trim();
+      persistGuestFingerprintMapping(this.portalRoot, fingerprintKey, guestId, {
+        username,
+        score: this.current
+      });
     }
 
     _syncPublicStats() {
@@ -594,9 +847,17 @@
     ensureGuestIdentity,
     computeAuthState,
     recallUserSession,
+    restoreGuestIdentity,
     getManager(context = {}) {
       if (!this._manager) {
-        this._manager = new ScoreManager(context);
+        if (!this._guestRestorePromise && typeof this.restoreGuestIdentity === 'function') {
+          this._guestRestorePromise = this.restoreGuestIdentity(context)
+            .catch(err => {
+              console.warn('Guest identity restore failed', err);
+              return '';
+            });
+        }
+        this._manager = new ScoreManager({ ...context, guestRestorePromise: this._guestRestorePromise });
       }
       return this._manager;
     },
@@ -609,6 +870,7 @@
         }
       }
       this._manager = null;
+      this._guestRestorePromise = null;
     }
   };
 

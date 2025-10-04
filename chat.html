@@ -154,13 +154,7 @@ const gun = Gun([
 const portalRoot = gun.get('3dvr-portal');
 const gunSupportsUser = typeof gun.user === 'function';
 const portalUser = gunSupportsUser ? gun.user() : null;
-const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
-  ? window.ScoreSystem.getManager({
-      gun: gunSupportsUser ? gun : null,
-      user: portalUser,
-      portalRoot
-    })
-  : null;
+let scoreManager = null;
 let currentRoom = 'general';
 let chat = gun.get('3dvr-chat').get(currentRoom);
 
@@ -217,13 +211,26 @@ function updateChatScoreDisplay(value) {
   }
 }
 
-if (chatScoreContainer && chatScoreValueEl) {
+function setupScoreTracking() {
+  if (!chatScoreContainer || !chatScoreValueEl) {
+    return;
+  }
+
   if (scoreManager && typeof scoreManager.subscribe === 'function') {
     scoreManager.subscribe(updateChatScoreDisplay);
+    if (typeof scoreManager.whenReady === 'function') {
+      scoreManager.whenReady()
+        .then(value => updateChatScoreDisplay(value))
+        .catch(err => {
+          console.warn('Failed to await score manager readiness', err);
+        });
+    }
   } else {
     updateChatScoreDisplay(0);
   }
 }
+
+setupScoreTracking();
 
 const notificationToggleButton = document.getElementById('notification-toggle');
 const notificationStatusText = document.getElementById('notification-status');
@@ -581,42 +588,47 @@ if ('serviceWorker' in navigator) {
 const currentUsernameEl = document.getElementById('current-username');
 let cachedUsername = '';
 
-const chatIdentity = resolveChatIdentity();
-const userId = chatIdentity.id;
-const isGuestIdentity = chatIdentity.type === 'guest';
-const chatProfile = gun.get(chatIdentity.profileRoot).get(userId);
+let chatIdentity = null;
+let userId = '';
+let isGuestIdentity = false;
+let chatProfile = null;
 
-// Auto import old chats into General (only runs if in General and no messages exist)
-if (currentRoom === 'general') {
-  gun.get('3dvr-chat').map().once((message, id) => {
-    if (!message) return;
-    chat.get(id).once(existing => {
-      if (!existing) {
-        chat.get(id).put(message);
-        console.log('Imported old message:', id);
+function initializeChatProfile() {
+  if (!chatIdentity) {
+    return;
+  }
+
+  if (currentRoom === 'general') {
+    gun.get('3dvr-chat').map().once((message, id) => {
+      if (!message) return;
+      chat.get(id).once(existing => {
+        if (!existing) {
+          chat.get(id).put(message);
+          console.log('Imported old message:', id);
+        }
+      });
+    });
+  }
+
+  const initialUsername = derivePreferredUsername();
+  applyUsernameToUI(initialUsername);
+
+  if (chatProfile && typeof chatProfile.get === 'function') {
+    chatProfile.get('username').once(existingName => {
+      const resolvedName = derivePreferredUsername(existingName);
+      applyUsernameToUI(resolvedName);
+      const normalizedExisting = typeof existingName === 'string' ? existingName.trim() : '';
+      if (normalizedExisting !== resolvedName) {
+        chatProfile.get('username').put(resolvedName);
       }
     });
-  });
-}
 
-const initialUsername = derivePreferredUsername();
-applyUsernameToUI(initialUsername);
-
-if (chatProfile && typeof chatProfile.get === 'function') {
-  chatProfile.get('username').once(existingName => {
-    const resolvedName = derivePreferredUsername(existingName);
-    applyUsernameToUI(resolvedName);
-    const normalizedExisting = typeof existingName === 'string' ? existingName.trim() : '';
-    if (normalizedExisting !== resolvedName) {
-      chatProfile.get('username').put(resolvedName);
-    }
-  });
-
-  chatProfile.get('username').on(name => {
-    const normalized = typeof name === 'string' ? name.trim() : '';
-    if (!normalized) return;
-    applyUsernameToUI(normalized);
-  });
+    chatProfile.get('username').on(name => {
+      const normalized = typeof name === 'string' ? name.trim() : '';
+      if (!normalized) return;
+      applyUsernameToUI(normalized);
+    });
+  }
 }
 
 function applyUsernameToUI(name) {
@@ -1072,6 +1084,40 @@ function maybeNotifyNewMessage(message, id) {
   updateRoomStateWithMessage(roomState, effectiveTimestamp, id);
   persistNotificationState();
 }
+
+async function initializeChat() {
+  if (window.ScoreSystem && typeof window.ScoreSystem.restoreGuestIdentity === 'function') {
+    try {
+      await window.ScoreSystem.restoreGuestIdentity({ gun: gunSupportsUser ? gun : null, portalRoot });
+    } catch (err) {
+      console.warn('Failed to restore guest identity for chat', err);
+      if (typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+        window.ScoreSystem.ensureGuestIdentity();
+      }
+    }
+  } else if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+    window.ScoreSystem.ensureGuestIdentity();
+  }
+
+  scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
+    ? window.ScoreSystem.getManager({
+        gun: gunSupportsUser ? gun : null,
+        user: portalUser,
+        portalRoot
+      })
+    : null;
+
+  setupScoreTracking();
+
+  chatIdentity = resolveChatIdentity();
+  userId = chatIdentity.id;
+  isGuestIdentity = chatIdentity.type === 'guest';
+  chatProfile = gun.get(chatIdentity.profileRoot).get(userId);
+
+  initializeChatProfile();
+}
+
+initializeChat();
 
 initNotifications();
 </script>

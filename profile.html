@@ -138,24 +138,10 @@ if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'funct
 }
 
 let isSignedIn = localStorage.getItem('signedIn') === 'true';
-if (!isSignedIn && window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-  window.ScoreSystem.ensureGuestIdentity();
-}
-
-const scoreManager = window.ScoreSystem
-  ? window.ScoreSystem.getManager({ gun, user, portalRoot })
-  : null;
-
-let authState = scoreManager
-  ? scoreManager.getState()
-  : (window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function'
-    ? window.ScoreSystem.computeAuthState()
-    : { mode: 'anon' });
-
-isSignedIn = authState.mode === 'user';
-let isGuest = authState.mode === 'guest';
-
-let activeProfile = scoreManager ? scoreManager.getNode() : null;
+let isGuest = false;
+let scoreManager = null;
+let authState = { mode: 'anon' };
+let activeProfile = null;
 let latestProfileName = '';
 let aliasName = '';
 let portalStoredName = (localStorage.getItem('username') || '').trim();
@@ -326,36 +312,68 @@ function initializeGuestProfile() {
   isSignedIn = false;
   isGuest = true;
   aliasName = '';
-  activeProfile = ensureGuestProfileNode();
+  const managerGuestNode = scoreManager ? scoreManager.getNode() : null;
+  activeProfile = managerGuestNode || ensureGuestProfileNode();
   watchUsername(activeProfile);
   applyDisplayName();
   subscribeToScore();
 }
 
-const signedInAlias = (localStorage.getItem('alias') || '').trim();
-const signedInPassword = localStorage.getItem('password');
-
-if (isSignedIn && signedInAlias && signedInPassword) {
-  aliasName = aliasToDisplay(signedInAlias);
-  if (user.is) {
-    initializeSignedInProfile();
-  } else {
-    user.auth(signedInAlias, signedInPassword, ack => {
-      if (ack && ack.err) {
-        alert('Session expired. Please sign in again.');
-        localStorage.removeItem('signedIn');
-        localStorage.removeItem('alias');
-        localStorage.removeItem('username');
-        localStorage.removeItem('password');
-        initializeGuestProfile();
-      } else {
-        initializeSignedInProfile();
+async function startProfile() {
+  if (window.ScoreSystem && typeof window.ScoreSystem.restoreGuestIdentity === 'function') {
+    try {
+      await window.ScoreSystem.restoreGuestIdentity({ gun, portalRoot });
+    } catch (err) {
+      console.warn('Failed to restore guest identity from relay', err);
+      if (typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+        window.ScoreSystem.ensureGuestIdentity();
       }
-    });
+    }
+  } else if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+    window.ScoreSystem.ensureGuestIdentity();
   }
-} else {
-  initializeGuestProfile();
+
+  scoreManager = window.ScoreSystem
+    ? window.ScoreSystem.getManager({ gun, user, portalRoot })
+    : null;
+
+  authState = scoreManager
+    ? scoreManager.getState()
+    : (window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function'
+      ? window.ScoreSystem.computeAuthState()
+      : { mode: 'anon' });
+
+  isSignedIn = authState.mode === 'user';
+  isGuest = authState.mode === 'guest';
+  activeProfile = scoreManager ? scoreManager.getNode() : null;
+
+  const signedInAlias = (localStorage.getItem('alias') || '').trim();
+  const signedInPassword = localStorage.getItem('password');
+
+  if (isSignedIn && signedInAlias && signedInPassword) {
+    aliasName = aliasToDisplay(signedInAlias);
+    if (user.is) {
+      initializeSignedInProfile();
+    } else {
+      user.auth(signedInAlias, signedInPassword, ack => {
+        if (ack && ack.err) {
+          alert('Session expired. Please sign in again.');
+          localStorage.removeItem('signedIn');
+          localStorage.removeItem('alias');
+          localStorage.removeItem('username');
+          localStorage.removeItem('password');
+          initializeGuestProfile();
+        } else {
+          initializeSignedInProfile();
+        }
+      });
+    }
+  } else {
+    initializeGuestProfile();
+  }
 }
+
+startProfile();
 
 function saveUsername() {
   const nameInput = document.getElementById('name-input');
