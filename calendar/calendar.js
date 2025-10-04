@@ -49,6 +49,21 @@ const GUN_RELAY_URL = 'https://gun-relay-3dvr.fly.dev/gun';
 const gun = typeof Gun === 'function' ? Gun([GUN_RELAY_URL]) : null;
 const portalRoot = gun ? gun.get('3dvr-portal') : null;
 const calendarRoot = portalRoot ? portalRoot.get('calendar') : null;
+
+if (window.ScoreSystem) {
+  if (typeof window.ScoreSystem.restoreGuestIdentity === 'function') {
+    window.ScoreSystem.restoreGuestIdentity({ gun, portalRoot })
+      .catch(err => {
+        console.warn('Failed to restore guest identity for calendar', err);
+        if (typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+          window.ScoreSystem.ensureGuestIdentity();
+        }
+      });
+  } else if (typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+    window.ScoreSystem.ensureGuestIdentity();
+  }
+}
+
 const calendarOwnerKey = calendarRoot ? resolveCalendarOwnerKey() : null;
 const gunEvents = calendarOwnerKey ? calendarRoot.get('users').get(calendarOwnerKey).get('events') : null;
 let isGunApplying = false;

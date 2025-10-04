@@ -11,7 +11,7 @@ function aliasToDisplay(alias) {
   return normalized;
 }
 
-function createNavbar() {
+async function createNavbar() {
   if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
     window.ScoreSystem.recallUserSession(user);
   } else {
@@ -20,6 +20,23 @@ function createNavbar() {
     } catch (err) {
       console.warn('Unable to recall user session', err);
     }
+  }
+
+  const portalRoot = typeof gun !== 'undefined' && gun && typeof gun.get === 'function'
+    ? gun.get('3dvr-portal')
+    : null;
+
+  if (window.ScoreSystem && typeof window.ScoreSystem.restoreGuestIdentity === 'function') {
+    try {
+      await window.ScoreSystem.restoreGuestIdentity({ gun, portalRoot });
+    } catch (err) {
+      console.warn('Failed to restore guest identity for navbar', err);
+      if (typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+        window.ScoreSystem.ensureGuestIdentity();
+      }
+    }
+  } else if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+    window.ScoreSystem.ensureGuestIdentity();
   }
 
   const nav = document.createElement('div');
@@ -124,7 +141,7 @@ function createNavbar() {
   updateNameDisplay();
 
   const scoreManager = window.ScoreSystem
-    ? window.ScoreSystem.getManager({ gun, user, portalRoot: gun.get('3dvr-portal') })
+    ? window.ScoreSystem.getManager({ gun, user, portalRoot })
     : null;
 
   updateScoreDisplay(scoreManager ? scoreManager.getCurrent() : 0);
