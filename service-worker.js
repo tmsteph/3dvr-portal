@@ -1,7 +1,7 @@
 /* service-worker.js */
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 
