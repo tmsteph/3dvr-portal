@@ -9,6 +9,10 @@
   <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <link rel="stylesheet" href="index-style.css">
+  <script
+    type="module"
+    src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"
+  ></script>
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0e1116">
   <meta name="mobile-web-app-capable" content="yes">
@@ -44,6 +48,18 @@
         <span class="hero-eyebrow">Open Metaverse Community</span>
         <h1 id="landing-title">Welcome to the 3DVR Portal</h1>
         <p class="hero-tagline">Launch straight into the apps that power the community and keep everyone in sync.</p>
+        <div class="hero-logo-wrapper">
+          <button
+            type="button"
+            class="hero-logo"
+            data-logo-viewer-trigger
+            aria-label="Open interactive 3D logo"
+          >
+            <img src="icons/icon-512.png" alt="3DVR Portal logo" loading="lazy" />
+            <span class="hero-logo__glow" aria-hidden="true"></span>
+          </button>
+          <p class="hero-logo__caption">Tap the emblem to explore the logo in 3D.</p>
+        </div>
         <div class="hero-actions">
           <button type="button" class="cta primary" data-app-search-trigger>Browse apps</button>
           <a href="points.html" class="cta ghost">Start earning</a>
@@ -279,6 +295,48 @@
 
   <button id="installBtn" class="install-btn cta primary" type="button">⬇️ Install 3DVR Portal</button>
 
+  <div
+    class="logo-viewer"
+    data-logo-viewer
+    role="presentation"
+    hidden
+    aria-hidden="true"
+  >
+    <div class="logo-viewer__backdrop" data-logo-viewer-backdrop aria-hidden="true"></div>
+    <div
+      class="logo-viewer__dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="logoViewerTitle"
+      data-logo-viewer-dialog
+    >
+      <header class="logo-viewer__header">
+        <h2 id="logoViewerTitle">3DVR logo playground</h2>
+        <button
+          type="button"
+          class="logo-viewer__close"
+          data-logo-viewer-close
+          aria-label="Close 3D logo experience"
+        >
+          ✕
+        </button>
+      </header>
+      <model-viewer
+        src="media/3dvr-logo.glb"
+        camera-controls
+        autoplay
+        ar
+        shadow-intensity="1"
+        exposure="1"
+        interaction-prompt="none"
+      >
+        <div class="logo-viewer__fallback" slot="fallback">
+          <p>Your browser can't display the 3D model yet. Try updating or switching to a modern browser.</p>
+        </div>
+      </model-viewer>
+      <p class="logo-viewer__hint">Drag to orbit, pinch or scroll to zoom, and double-tap to reset the view.</p>
+    </div>
+  </div>
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
     const user = gun.user();
@@ -1060,6 +1118,97 @@
 
     const initialSearchValue = searchInput?.value ?? '';
     updateAppFilter(initialSearchValue);
+    const logoViewer = document.querySelector('[data-logo-viewer]');
+    const logoViewerDialog = logoViewer?.querySelector('[data-logo-viewer-dialog]') ?? null;
+    const logoViewerClose = logoViewer?.querySelector('[data-logo-viewer-close]') ?? null;
+    const logoViewerBackdrop = logoViewer?.querySelector('[data-logo-viewer-backdrop]') ?? null;
+    const logoViewerTrigger = document.querySelector('[data-logo-viewer-trigger]');
+    const focusableSelector = [
+      'a[href]',
+      'area[href]',
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    let previousActiveElement = null;
+
+    const getFocusableElements = () => {
+      if (!logoViewerDialog) return [];
+      return Array.from(logoViewerDialog.querySelectorAll(focusableSelector)).filter(
+        (element) => element.offsetParent !== null || element === document.activeElement
+      );
+    };
+
+    const trapFocus = (event) => {
+      if (event.key !== 'Tab') return;
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey) {
+        if (document.activeElement === first || document.activeElement === logoViewerDialog) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    function closeLogoViewer() {
+      if (!logoViewer) return;
+      logoViewer.setAttribute('hidden', '');
+      logoViewer.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('logo-viewer-open');
+      document.removeEventListener('keydown', handleLogoViewerKeydown);
+      if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+        previousActiveElement.focus();
+      }
+    }
+
+    function openLogoViewer() {
+      if (!logoViewer) return;
+      previousActiveElement = document.activeElement;
+      logoViewer.removeAttribute('hidden');
+      logoViewer.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('logo-viewer-open');
+      document.addEventListener('keydown', handleLogoViewerKeydown);
+      window.requestAnimationFrame(() => {
+        const focusTarget = logoViewerClose ?? getFocusableElements()[0];
+        focusTarget?.focus();
+      });
+    }
+
+    function handleLogoViewerKeydown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeLogoViewer();
+        return;
+      }
+
+      trapFocus(event);
+    }
+
+    logoViewerTrigger?.addEventListener('click', () => {
+      openLogoViewer();
+    });
+
+    logoViewerClose?.addEventListener('click', () => {
+      closeLogoViewer();
+    });
+
+    logoViewerBackdrop?.addEventListener('click', () => {
+      closeLogoViewer();
+    });
+
   </script>
 </body>
 </html>
