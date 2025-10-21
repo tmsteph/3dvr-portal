@@ -10,8 +10,16 @@
 <body class="bg-gray-100 text-gray-800 font-sans">
 
   <header class="bg-blue-900 text-white p-6 shadow">
-    <h1 class="text-3xl font-bold">3dvr.tech | Sales Directory</h1>
-    <p class="text-sm mt-1">Your hub for outreach, marketing, and customer relations</p>
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-3xl font-bold">3dvr.tech | Sales Directory</h1>
+        <p class="text-sm mt-1">Your hub for outreach, marketing, and customer relations</p>
+      </div>
+      <nav class="flex flex-wrap gap-2 text-sm">
+        <a href="../contacts/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts Workspace</a>
+        <a href="../crm/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">CRM</a>
+      </nav>
+    </div>
   </header>
 
   <main class="p-6 space-y-6">
@@ -31,9 +39,14 @@
           <p class="text-sm text-gray-600">Email campaigns, social posts, content calendar</p>
         </a>
 
-        <a href="crm.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
+        <a href="../crm/index.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
           <h3 class="text-lg font-bold">CRM</h3>
           <p class="text-sm text-gray-600">Client tracking, status updates, contact notes</p>
+        </a>
+
+        <a href="../contacts/index.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
+          <h3 class="text-lg font-bold">Contacts Workspace</h3>
+          <p class="text-sm text-gray-600">Shared and personal address book with follow-up filters</p>
         </a>
 
         <a href="analytics.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
