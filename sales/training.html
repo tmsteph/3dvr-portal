@@ -15,6 +15,7 @@
     body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,"Helvetica Neue",Arial}
     a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
     .wrap{display:grid;grid-template-columns:260px 1fr;min-height:100dvh}
+    .wrap.focus-mode{grid-template-columns:1fr}
     .sidebar{background:linear-gradient(180deg,var(--panel),#0d1117);border-right:1px solid var(--ring);padding:16px 12px;position:sticky;top:0;height:100dvh;overflow:auto}
     .brand{display:flex;gap:10px;align-items:center;margin-bottom:14px}
     .logo{width:36px;height:36px;border-radius:12px;background:radial-gradient(circle at 30% 30%,#7cf,transparent 40%),radial-gradient(circle at 70% 70%,#8fd,transparent 40%),var(--card);box-shadow:inset 0 0 0 1px #2b3b4d, 0 8px 20px rgba(0,0,0,.35)}
@@ -31,9 +32,12 @@
     .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7cf,#9ff);transition:width .2s ease}
 
     main{padding:24px;max-width:1200px;margin:0 auto}
-    header.top{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+    header.top{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap}
+    header .crumbs{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    header .crumbs a{color:var(--ink);opacity:.8}
+    header .crumbs span{opacity:.5}
     header .actions{display:flex;gap:8px;flex-wrap:wrap}
-    button, .btn{appearance:none;border:1px solid var(--ring);background:var(--panel);color:var(--ink);padding:10px 14px;border-radius:12px;cursor:pointer}
+    button, .btn{appearance:none;border:1px solid var(--ring);background:var(--panel);color:var(--ink);padding:10px 14px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
     button:hover, .btn:hover{border-color:#3b485b}
     .btn-ok{border-color:#1f6f5e;background:#0f2622}
     .btn-warn{border-color:#6a5b23;background:#26200f}
@@ -41,6 +45,14 @@
     .card{background:var(--card);border:1px solid var(--ring);border-radius:16px;padding:18px;box-shadow:var(--elev)}
     .grid{display:grid;gap:16px}
     .grid.cols-2{grid-template-columns:1fr 1fr}
+    .grid.cols-1{grid-template-columns:1fr}
+    .overview{margin-bottom:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .link-stack{display:grid;gap:10px;margin-top:12px}
+    .link-stack a{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:10px;border:1px solid var(--ring);background:#10151c}
+    .link-stack a:hover{border-color:#334155}
+    .link-stack span{font-size:12px;color:var(--muted)}
+    .module.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(110,231,255,.4)}
+    .focus-mode .sidebar{position:static;height:auto}
     @media (max-width:960px){.wrap{grid-template-columns:1fr} .sidebar{position:static;height:auto} .grid.cols-2{grid-template-columns:1fr}}
 
     h2{margin:0 0 8px;font-size:22px}
@@ -87,16 +99,25 @@
     <main>
       <header class="top">
         <div>
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="index.html">Sales Directory</a>
+            <span aria-hidden="true">›</span>
+            <span>Training</span>
+          </nav>
           <div class="muted">Foundation → Offer → Leads → Sales → Delivery → Retention → Flywheel</div>
           <h2 id="title">Select a module</h2>
         </div>
         <div class="actions">
-          <button onclick="exportData()" class="btn">Export</button>
+          <button id="focusToggle" class="btn" type="button">Focus Mode</button>
+          <a href="../contacts/index.html" class="btn inline">Contacts</a>
+          <a href="../crm/index.html" class="btn inline">CRM</a>
+          <button onclick="exportData()" class="btn" type="button">Export</button>
           <label class="btn" for="importer">Import<input id="importer" type="file" accept="application/json" hidden onchange="importData(event)"></label>
-          <button onclick="window.print()" class="btn-warn">Print / PDF</button>
-          <button onclick="resetProgress()" class="btn">Reset</button>
+          <button onclick="window.print()" class="btn-warn" type="button">Print / PDF</button>
+          <button onclick="resetProgress()" class="btn" type="button">Reset</button>
         </div>
       </header>
+      <section id="overview" class="grid overview"></section>
       <section id="content" class="grid"></section>
 
       <p class="tiny">This page stores your notes &amp; checklists locally in your browser (localStorage). No accounts required. You can export/import JSON to sync devices.</p>
@@ -214,13 +235,50 @@
     ]}
   ];
 
+  const TOOLKIT = {
+    foundation: [
+      { href: '../contacts/index.html', label: 'Contacts workspace', desc: 'Map real people to your avatar notes.' },
+      { href: 'leads.html', label: 'Leads tracker', desc: 'Pair avatar research with pipeline commitments.' }
+    ],
+    offer: [
+      { href: '../crm/index.html', label: 'CRM dashboard', desc: 'Validate pricing and guarantees against live deals.' }
+    ],
+    leads: [
+      { href: '../contacts/index.html', label: 'Contacts workspace', desc: 'Segment outreach lists with tags and follow-ups.' },
+      { href: 'marketing.html', label: 'Marketing dashboard', desc: 'Line up campaigns that feed the lead engine.' }
+    ],
+    sales: [
+      { href: '../crm/index.html', label: 'CRM dashboard', desc: 'Log call outcomes and next steps while momentum is high.' },
+      { href: '../contacts/index.html', label: 'Contacts workspace', desc: 'Update buyer committees and warm introductions.' }
+    ],
+    delivery: [
+      { href: '../crm/index.html', label: 'CRM dashboard', desc: 'Track onboarding milestones and proof artifacts.' }
+    ],
+    retention: [
+      { href: '../contacts/index.html', label: 'Contacts workspace', desc: 'Tag promoters for referral asks and milestone gifts.' }
+    ],
+    metrics: [
+      { href: 'analytics.html', label: 'Analytics & reporting', desc: 'Compare weekly snapshot entries with live dashboards.' }
+    ],
+    default: [
+      { href: '../contacts/index.html', label: 'Contacts workspace', desc: 'Keep everyone aligned on who we serve next.' }
+    ]
+  };
+
   // --- State ---
   const SKEY = 'training.v1';
+  const BASE_TITLE = document.title;
   let STATE = JSON.parse(localStorage.getItem(SKEY) || '{}');
+  let focusMode = localStorage.getItem(`${SKEY}.focus`) === '1';
+  let activeModule = localStorage.getItem(`${SKEY}.active`) || null;
 
   function save() {
     localStorage.setItem(SKEY, JSON.stringify(STATE));
     renderSidebar();
+    if (activeModule) {
+      const current = MODEL.find(m => m.id === activeModule);
+      if (current) renderOverview(current);
+    }
   }
   function pctDone(id) {
     const mod = MODEL.find(m => m.id === id);
@@ -240,7 +298,16 @@
     MODEL.filter(m => !q || m.name.toLowerCase().includes(q)).forEach(m => {
       const mod = document.createElement('div');
       mod.className = 'module';
+      if (activeModule === m.id) mod.classList.add('active');
+      mod.setAttribute('role', 'button');
+      mod.setAttribute('tabindex', '0');
       mod.onclick = () => openModule(m.id);
+      mod.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openModule(m.id);
+        }
+      });
       const p = pctDone(m.id);
       total += p;
       count++;
@@ -259,10 +326,15 @@
   function openModule(id) {
     const m = MODEL.find(x => x.id === id);
     if (!m) return;
+    activeModule = id;
+    localStorage.setItem(`${SKEY}.active`, id);
+    localStorage.setItem(`${SKEY}.opened`, '1');
     document.getElementById('title').textContent = m.name;
+    document.title = `${m.name} • 3dvr Training`;
+    renderOverview(m);
     const root = document.getElementById('content');
-    root.className = 'grid cols-2';
     root.innerHTML = '';
+    applyFocus();
 
     m.items.forEach((it, idx) => {
       const card = document.createElement('div');
@@ -329,6 +401,67 @@
 
       root.appendChild(card);
     });
+
+    renderSidebar();
+  }
+
+  function renderOverview(module) {
+    const board = document.getElementById('overview');
+    if (!board) return;
+    board.innerHTML = '';
+    if (!module) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = '<h3>Pick a module</h3><p class="muted">Choose a stage to see checklists, forms, and linked tools.</p>';
+      board.appendChild(card);
+      document.title = BASE_TITLE;
+      updateFocusButton();
+      return;
+    }
+
+    const progress = pctDone(module.id);
+    const meta = document.createElement('div');
+    meta.className = 'card';
+    meta.innerHTML =
+      `<h3>${module.name}</h3>` +
+      `<p class="muted">${module.time || ''}</p>` +
+      `<div class="progress" aria-label="Module progress"><i style="width:${progress}%"></i></div>` +
+      `<div class="tiny" style="margin-top:6px">${progress}% complete</div>`;
+    board.appendChild(meta);
+
+    const toolkit = TOOLKIT[module.id] || TOOLKIT.default;
+    if (toolkit && toolkit.length) {
+      const stack = document.createElement('div');
+      stack.className = 'card';
+      stack.innerHTML = '<h3>Workflow links</h3>';
+      const list = document.createElement('div');
+      list.className = 'link-stack';
+      toolkit.forEach(link => {
+        const a = document.createElement('a');
+        a.href = link.href;
+        a.innerHTML = `<strong>${link.label}</strong><span>${link.desc}</span>`;
+        list.appendChild(a);
+      });
+      stack.appendChild(list);
+      board.appendChild(stack);
+    }
+
+    updateFocusButton();
+  }
+
+  function updateFocusButton() {
+    const btn = document.getElementById('focusToggle');
+    if (!btn) return;
+    btn.textContent = focusMode ? 'Exit Focus Mode' : 'Focus Mode';
+    btn.setAttribute('aria-pressed', focusMode ? 'true' : 'false');
+  }
+
+  function applyFocus() {
+    const root = document.getElementById('content');
+    if (root) root.className = focusMode ? 'grid cols-1' : 'grid cols-2';
+    const wrap = document.querySelector('.wrap');
+    if (wrap) wrap.classList.toggle('focus-mode', focusMode);
+    updateFocusButton();
   }
 
   // --- Export/Import/Reset ---
@@ -361,21 +494,39 @@
     if (confirm('Reset all local progress?')) {
       STATE = {};
       save();
+      activeModule = null;
+      localStorage.removeItem(`${SKEY}.active`);
+      localStorage.removeItem(`${SKEY}.opened`);
       renderSidebar();
       document.getElementById('content').innerHTML = '';
       document.getElementById('title').textContent = 'Select a module';
+      renderOverview(null);
+      document.title = BASE_TITLE;
+      applyFocus();
     }
   }
 
   // --- Search ---
   document.getElementById('q').addEventListener('input', renderSidebar);
+  const focusToggle = document.getElementById('focusToggle');
+  if (focusToggle) {
+    focusToggle.addEventListener('click', () => {
+      focusMode = !focusMode;
+      localStorage.setItem(`${SKEY}.focus`, focusMode ? '1' : '0');
+      applyFocus();
+    });
+  }
 
   // --- Init ---
   renderSidebar();
-  // Auto-open first module for first-time users
-  if (!localStorage.getItem(`${SKEY}.opened`)) {
+  applyFocus();
+  const stored = activeModule && MODEL.find(m => m.id === activeModule);
+  if (stored) {
+    openModule(stored.id);
+  } else if (!localStorage.getItem(`${SKEY}.opened`)) {
     openModule(MODEL[0].id);
-    localStorage.setItem(`${SKEY}.opened`, '1');
+  } else {
+    renderOverview(null);
   }
   </script>
 </body>

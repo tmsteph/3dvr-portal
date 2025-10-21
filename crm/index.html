@@ -8,28 +8,76 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 </head>
-<body class="bg-gray-900 text-white font-sans p-6 min-h-screen">
+<body class="bg-gray-900 text-white font-sans min-h-screen">
+  <header class="bg-gray-950/70 border-b border-white/10">
+    <div class="max-w-5xl mx-auto px-4 py-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="text-xs font-semibold tracking-[0.32em] text-teal-400 uppercase">Sales toolkit</p>
+        <h1 class="text-3xl font-bold">3DVR CRM</h1>
+        <p class="text-sm text-gray-300">Log deal progress, then jump into contacts and training without losing context.</p>
+      </div>
+      <nav class="flex flex-wrap gap-2 text-sm">
+        <a href="../sales/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Sales home</a>
+        <a href="../sales/training.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Training playbook</a>
+        <a href="../contacts/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts workspace</a>
+      </nav>
+    </div>
+  </header>
 
-  <h1 class="text-3xl font-bold mb-6">3DVR CRM</h1>
+  <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <section class="grid gap-4 md:grid-cols-2">
+      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Shared context</h2>
+        <p class="text-sm text-gray-300">This CRM uses the same 3DVR GUN relay as the contacts workspace. Tag people the same way so both apps stay aligned.</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <a href="../contacts/index.html" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded">Open contacts</a>
+          <a href="../sales/training.html" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded">Review training</a>
+        </div>
+      </div>
+      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Deal pulse</h2>
+        <p class="text-sm text-gray-300">Track how many records you have overall versus what is visible after filtering.</p>
+        <div class="mt-4 grid grid-cols-2 gap-3 text-center text-sm text-gray-300">
+          <div class="bg-gray-900/60 border border-white/5 rounded-lg py-3">
+            <div class="text-2xl font-semibold" id="totalCount">0</div>
+            <div>Total records</div>
+          </div>
+          <div class="bg-gray-900/60 border border-white/5 rounded-lg py-3">
+            <div class="text-2xl font-semibold" id="visibleCount">0</div>
+            <div>Visible now</div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-  <!-- Add Contact Form -->
-  <div class="bg-gray-800 p-4 rounded mb-6 max-w-xl">
-    <h2 class="text-xl font-semibold mb-2">Add Contact</h2>
-    <form id="contactForm" class="space-y-2">
-      <input type="text" id="name" placeholder="Name" class="w-full p-2 rounded text-black" />
-      <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
-      <input type="text" id="role" placeholder="Role (client, lead...)" class="w-full p-2 rounded text-black" />
-      <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
-      <textarea id="notes" placeholder="Notes" class="w-full p-2 rounded text-black"></textarea>
-      <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save</button>
-    </form>
-  </div>
-
-  <!-- Contact List -->
-  <div class="max-w-3xl">
-    <h2 class="text-2xl font-semibold mb-4">Contacts</h2>
-    <div id="contactList" class="space-y-4"></div>
-  </div>
+    <section class="grid gap-6 lg:grid-cols-[320px,1fr]">
+      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
+        <h2 class="text-xl font-semibold mb-3">Add contact</h2>
+        <form id="contactForm" class="grid gap-2">
+          <input type="text" id="name" placeholder="Name" class="w-full p-2 rounded text-black" />
+          <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
+          <input type="text" id="role" placeholder="Role (client, lead...)" class="w-full p-2 rounded text-black" />
+          <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
+          <textarea id="notes" placeholder="Notes" class="w-full p-2 rounded text-black"></textarea>
+          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save</button>
+        </form>
+      </div>
+      <div class="space-y-6">
+        <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
+          <label for="filter" class="block text-sm text-gray-300 mb-2">Search workspace</label>
+          <input id="filter" type="search" placeholder="Filter by name, email, tags, or notes" class="w-full p-2 rounded text-black" />
+        </div>
+        <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
+          <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
+            <h2 class="text-xl font-semibold">Contacts</h2>
+            <span class="text-xs uppercase tracking-[0.32em] text-gray-400">Live</span>
+          </div>
+          <div id="contactList" class="space-y-4"></div>
+          <div id="emptyState" class="text-sm text-gray-400 hidden">No contacts yet. Add someone from the form or sync from the contacts app.</div>
+        </div>
+      </div>
+    </section>
+  </main>
 
   <script>
     const gun = Gun({
@@ -41,68 +89,96 @@
     const contacts = gun.get('3dvr-crm');
     const form = document.getElementById('contactForm');
     const list = document.getElementById('contactList');
+    const filterInput = document.getElementById('filter');
+    const totalCountEl = document.getElementById('totalCount');
+    const visibleCountEl = document.getElementById('visibleCount');
+    const emptyState = document.getElementById('emptyState');
 
     form.onsubmit = e => {
       e.preventDefault();
       const id = Date.now().toString();
       const contact = {
         id,
-        name: form.name.value,
-        email: form.email.value,
-        role: form.role.value,
+        name: form.name.value.trim(),
+        email: form.email.value.trim(),
+        role: form.role.value.trim(),
         tags: form.tags.value.trim(),
-        notes: form.notes.value,
-        created: new Date().toISOString()
+        notes: form.notes.value.trim(),
+        created: new Date().toISOString(),
+        updated: new Date().toISOString()
       };
-      console.log("Saving contact:", contact);
       contacts.get(id).put(contact);
       form.reset();
     };
 
     contacts.map().on((data, id) => {
-      if (!data) return;
+      if (!data) {
+        const existing = document.getElementById(id);
+        if (existing) existing.remove();
+        applyFilter();
+        return;
+      }
 
       let card = document.getElementById(id);
       if (!card) {
         card = document.createElement('div');
         card.id = id;
-        card.className = "bg-gray-800 p-4 rounded";
+        card.className = 'bg-gray-900/60 border border-white/5 rounded-lg p-4';
         list.appendChild(card);
       }
 
       renderCard(card, data, id);
+      applyFilter();
     });
 
     function renderCard(card, data, id) {
+      const displayName = data.name ? safe(data.name) : '(no name)';
+      const emailLink = data.email ? `<a href="mailto:${encodeURIComponent(data.email)}" class="text-sky-400 hover:underline">${safe(data.email)}</a>` : '';
+      const roleText = data.role ? ` · ${safe(data.role)}` : '';
+      const tagsText = data.tags ? `<p class="text-xs uppercase tracking-[0.3em] text-gray-400">${safe(data.tags)}</p>` : '';
+      const notesText = data.notes ? `<p class="text-sm text-gray-300 whitespace-pre-line">${safe(data.notes)}</p>` : '';
+      const stamp = data.updated || data.created;
+      const updatedText = stamp ? `<p class="text-xs text-gray-500">Updated ${new Date(stamp).toLocaleString()}</p>` : '';
+      const contactHint = data.email || data.name || '';
+      const contactTitle = contactHint ? `Open contacts workspace and search for ${contactHint}` : 'Open contacts workspace';
+
       card.innerHTML = `
-        <div class="flex justify-between items-start gap-4">
-          <div class="flex-1">
-            <h3 class="text-lg font-bold">${data.name || "(no name)"}</h3>
-            <p class="text-sm text-gray-300">${data.email || ""} ${data.role ? '- ' + data.role : ''}</p>
-            <p class="text-sm text-gray-400">Tags: ${data.tags || ""}</p>
-            <p class="text-sm text-gray-400">Notes: ${data.notes || ""}</p>
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div class="space-y-2">
+            <h3 class="text-lg font-semibold">${displayName}</h3>
+            <p class="text-sm text-gray-300">${emailLink}${roleText}</p>
+            ${tagsText}
+            ${notesText}
+            ${updatedText}
           </div>
-          <div class="flex flex-col gap-2">
-            <button onclick="editContact('${id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded">Edit</button>
-            <button onclick="deleteContact('${id}')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded">Delete</button>
+          <div class="flex flex-col gap-2 md:w-40">
+            <a href="../contacts/index.html" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-center text-sm" title="${safeAttr(contactTitle)}">Open contacts</a>
+            <button onclick="editContact('${id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
+            <button onclick="deleteContact('${id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
           </div>
         </div>
       `;
+
+      card.dataset.haystack = [data.name, data.email, data.role, data.tags, data.notes].filter(Boolean).join(' ').toLowerCase();
+      card.dataset.created = data.created || '';
+      card.classList.remove('hidden');
     }
 
     function editContact(id) {
       const card = document.getElementById(id);
+      if (!card) return;
       contacts.get(id).once(data => {
+        if (!data) return;
         card.innerHTML = `
-          <form class="space-y-2" onsubmit="saveEdit(event, '${id}')">
-            <input id="edit-name-${id}" value="${data.name || ''}" placeholder="Name" class="w-full p-2 rounded text-black" />
-            <input id="edit-email-${id}" value="${data.email || ''}" placeholder="Email" class="w-full p-2 rounded text-black" />
-            <input id="edit-role-${id}" value="${data.role || ''}" placeholder="Role" class="w-full p-2 rounded text-black" />
-            <input id="edit-tags-${id}" value="${data.tags || ''}" placeholder="Tags" class="w-full p-2 rounded text-black" />
-            <textarea id="edit-notes-${id}" class="w-full p-2 rounded text-black" placeholder="Notes">${data.notes || ''}</textarea>
+          <form class="space-y-3" onsubmit="saveEdit(event, '${id}')">
+            <input id="edit-name-${id}" value="${safeAttr(data.name)}" placeholder="Name" class="w-full p-2 rounded text-black" />
+            <input id="edit-email-${id}" value="${safeAttr(data.email)}" placeholder="Email" class="w-full p-2 rounded text-black" />
+            <input id="edit-role-${id}" value="${safeAttr(data.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
+            <input id="edit-tags-${id}" value="${safeAttr(data.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
+            <textarea id="edit-notes-${id}" class="w-full p-2 rounded text-black" placeholder="Notes">${safe(data.notes)}</textarea>
             <div class="flex gap-2">
-              <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">Save</button>
-              <button type="button" onclick="renderCard(document.getElementById('${id}'), ${JSON.stringify(data).replace(/"/g, '&quot;')}, '${id}')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded">Cancel</button>
+              <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded text-sm">Save</button>
+              <button type="button" onclick="cancelEdit('${id}')" class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-sm">Cancel</button>
             </div>
           </form>
         `;
@@ -111,24 +187,80 @@
 
     function saveEdit(e, id) {
       e.preventDefault();
+      const cardEl = document.getElementById(id);
+      const created = cardEl && cardEl.dataset ? cardEl.dataset.created : '';
       const updated = {
         id,
-        name: document.getElementById(`edit-name-${id}`).value,
-        email: document.getElementById(`edit-email-${id}`).value,
-        role: document.getElementById(`edit-role-${id}`).value,
-        tags: document.getElementById(`edit-tags-${id}`).value,
-        notes: document.getElementById(`edit-notes-${id}`).value,
-        updated: new Date().toISOString()
+        name: document.getElementById(`edit-name-${id}`).value.trim(),
+        email: document.getElementById(`edit-email-${id}`).value.trim(),
+        role: document.getElementById(`edit-role-${id}`).value.trim(),
+        tags: document.getElementById(`edit-tags-${id}`).value.trim(),
+        notes: document.getElementById(`edit-notes-${id}`).value.trim(),
+        updated: new Date().toISOString(),
+        created: created || new Date().toISOString()
       };
       contacts.get(id).put(updated);
+    }
+
+    function cancelEdit(id) {
+      contacts.get(id).once(data => {
+        if (!data) return;
+        const card = document.getElementById(id);
+        if (card) {
+          renderCard(card, data, id);
+          applyFilter();
+        }
+      });
     }
 
     function deleteContact(id) {
       contacts.get(id).put(null);
       const card = document.getElementById(id);
       if (card) card.remove();
+      applyFilter();
     }
-  </script>
 
+    function applyFilter() {
+      const query = ((filterInput && filterInput.value) || '').toLowerCase().trim();
+      const cards = Array.from(list.querySelectorAll('[data-haystack]'));
+      let visible = 0;
+      cards.forEach(card => {
+        const haystack = card.dataset.haystack || '';
+        const hidden = query && !haystack.includes(query);
+        card.classList.toggle('hidden', hidden);
+        if (!hidden) visible++;
+      });
+      updateCounts(cards.length, visible);
+    }
+
+    function updateCounts(total, visible) {
+      if (totalCountEl) totalCountEl.textContent = total;
+      if (visibleCountEl) visibleCountEl.textContent = visible;
+      if (!emptyState) return;
+      if (total === 0) {
+        emptyState.textContent = 'No contacts yet. Add someone from the form or sync from the contacts app.';
+        emptyState.classList.remove('hidden');
+      } else if (visible === 0) {
+        emptyState.textContent = 'No contacts match your filter yet.';
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+      }
+    }
+
+    if (filterInput) {
+      filterInput.addEventListener('input', applyFilter);
+    }
+
+    function safe(value) {
+      return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function safeAttr(value) {
+      return safe(value).replace(/"/g, '&quot;');
+    }
+
+    applyFilter();
+  </script>
 </body>
 </html>
