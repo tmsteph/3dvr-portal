@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3dvr.tech • Training Model (Hormozi-inspired)</title>
+  <meta name="description" content="A single-file training system to craft offers, generate leads, close sales, deliver value, and retain customers. Inspired by Alex Hormozi’s style—original content, not quotes." />
+  <style>
+    :root{
+      --bg:#0b0d10; --panel:#12161c; --ink:#e9edf1; --muted:#aeb7c2; --accent:#6ee7ff; --ok:#8cffd3; --warn:#ffd37a; --bad:#ff7a7a;
+      --ring:#2a3340; --card:#0f1318; --elev:0 20px 50px rgba(0,0,0,.3);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,"Helvetica Neue",Arial}
+    a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+    .wrap{display:grid;grid-template-columns:260px 1fr;min-height:100dvh}
+    .sidebar{background:linear-gradient(180deg,var(--panel),#0d1117);border-right:1px solid var(--ring);padding:16px 12px;position:sticky;top:0;height:100dvh;overflow:auto}
+    .brand{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+    .logo{width:36px;height:36px;border-radius:12px;background:radial-gradient(circle at 30% 30%,#7cf,transparent 40%),radial-gradient(circle at 70% 70%,#8fd,transparent 40%),var(--card);box-shadow:inset 0 0 0 1px #2b3b4d, 0 8px 20px rgba(0,0,0,.35)}
+    .brand h1{font-size:16px;margin:0}
+    .muted{color:var(--muted)}
+    .search{position:relative;margin:8px 0 16px}
+    .search input{width:100%;padding:10px 12px 10px 36px;background:#0c1015;border:1px solid var(--ring);border-radius:12px;color:var(--ink)}
+    .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.6}.modules{display:flex;flex-direction:column;gap:8px}
+    .module{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--ring);border-radius:12px;background:var(--card);cursor:pointer}
+    .module:hover{border-color:#334155}
+    .module .name{flex:1}
+    .pill{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--ring);color:var(--muted)}
+    .progress{height:6px;background:#11161d;border-radius:999px;overflow:hidden}
+    .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7cf,#9ff);transition:width .2s ease}
+
+    main{padding:24px;max-width:1200px;margin:0 auto}
+    header.top{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+    header .actions{display:flex;gap:8px;flex-wrap:wrap}
+    button, .btn{appearance:none;border:1px solid var(--ring);background:var(--panel);color:var(--ink);padding:10px 14px;border-radius:12px;cursor:pointer}
+    button:hover, .btn:hover{border-color:#3b485b}
+    .btn-ok{border-color:#1f6f5e;background:#0f2622}
+    .btn-warn{border-color:#6a5b23;background:#26200f}
+
+    .card{background:var(--card);border:1px solid var(--ring);border-radius:16px;padding:18px;box-shadow:var(--elev)}
+    .grid{display:grid;gap:16px}
+    .grid.cols-2{grid-template-columns:1fr 1fr}
+    @media (max-width:960px){.wrap{grid-template-columns:1fr} .sidebar{position:static;height:auto} .grid.cols-2{grid-template-columns:1fr}}
+
+    h2{margin:0 0 8px;font-size:22px}
+    h3{margin:16px 0 8px;font-size:18px}
+    p,li{color:#d6dde6}
+    .kpi{display:flex;gap:10px;flex-wrap:wrap}
+    .kpi .box{min-width:160px;padding:12px 14px;border:1px dashed #2a3340;border-radius:12px}
+    .checklist label{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed #1a2230}
+    .checklist input{transform:translateY(2px)}
+    textarea, input[type="text"], input[type="url"], input[type="number"]{width:100%;background:#0c1015;border:1px solid var(--ring);color:var(--ink);border-radius:12px;padding:10px}
+    details{border:1px solid var(--ring);border-radius:12px;margin:8px 0;background:#0d1218}
+    details > summary{cursor:pointer;list-style:none;padding:12px 14px}
+    details > summary::-webkit-details-marker{display:none}
+    details[open]{border-color:#334155}
+
+    .note{background:#0c1116;border:1px solid var(--ring);border-radius:12px;padding:10px}
+    .tiny{font-size:12px;color:var(--muted)}
+    .foot{margin-top:28px;color:var(--muted);font-size:13px}
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>3dvr.tech Training</h1>
+          <div class="muted">Hormozi-inspired, builder-first</div>
+        </div>
+      </div>
+      <div class="search">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg>
+        <input id="q" placeholder="Search modules…" autocomplete="off" />
+      </div>
+      <div class="modules" id="modules"></div>
+
+      <div class="foot">
+        <div>Progress: <span id="overall">0%</span></div>
+        <div class="progress" aria-label="overall progress"><i id="bar"></i></div>
+      </div>
+
+    </aside>
+    <main>
+      <header class="top">
+        <div>
+          <div class="muted">Foundation → Offer → Leads → Sales → Delivery → Retention → Flywheel</div>
+          <h2 id="title">Select a module</h2>
+        </div>
+        <div class="actions">
+          <button onclick="exportData()" class="btn">Export</button>
+          <label class="btn" for="importer">Import<input id="importer" type="file" accept="application/json" hidden onchange="importData(event)"></label>
+          <button onclick="window.print()" class="btn-warn">Print / PDF</button>
+          <button onclick="resetProgress()" class="btn">Reset</button>
+        </div>
+      </header>
+      <section id="content" class="grid"></section>
+
+      <p class="tiny">This page stores your notes &amp; checklists locally in your browser (localStorage). No accounts required. You can export/import JSON to sync devices.</p>
+
+    </main>
+  </div>
+  <script>
+  // --- Simple training data model (inspired by Hormozi principles, original wording) ---
+  const MODEL = [
+    { id:"foundation", name:"0) Foundation & Avatar", time:"~30m", items:[
+      {type:"text", title:"Define One Avatar", body:"Pick one audience you can win for in 90 days. Niche down until your offers become obvious."},
+      {type:"form", title:"Avatar Sketch", fields:[
+        {k:"who", label:"Who are they? (role, stage)", type:"text"},
+        {k:"pains", label:"Top 3 pains/frictions", type:"text"},
+        {k:"dream", label:"Desired outcome in numbers", type:"text"},
+        {k:"where", label:"Where do they hang out? (platforms, groups)", type:"text"}
+      ]},
+      {type:"check", title:"Checklist", list:[
+        "Narrowed to one clear avatar",
+        "Defined quantifiable dream outcome",
+        "Listed top frictions and constraints",
+        "Identified watering holes (traffic sources)"
+      ]},
+    ]},
+
+    { id:"offer", name:"1) Grand-Slam Offer (Value Equation)", time:"~45m", items:[
+      {type:"text", title:"Value Equation", body:"Value increases with perceived dream outcome &amp; likelihood of achievement, and decreases with time delay &amp; effort/sacrifice. Design the offer to maximize value without brute-forcing price cuts."},
+      {type:"form", title:"Offer Builder", fields:[
+        {k:"dream", label:"Dream Outcome (specific numbers)", type:"text"},
+        {k:"likelihood", label:"Proof &amp; Mechanisms (why it will work)", type:"text"},
+        {k:"delay", label:"Time to Value (how fast?)", type:"text"},
+        {k:"effort", label:"Effort/Sacrifice removed via done-for-you, templates, or coaching", type:"text"},
+        {k:"bonuses", label:"Stacked Bonuses (deliverables)", type:"text"},
+        {k:"guarantee", label:"Risk Reversal (terms)", type:"text"},
+        {k:"price", label:"Price &amp; Terms (monthly, setup, pay-in-full)", type:"text"}
+      ]},
+      {type:"check", title:"Checklist", list:[
+        "Clear promise and timeline",
+        "3-5 bonuses tied to bottlenecks",
+        "Risk reversal that feels unfair (to you)",
+        "Price linked to value, not cost"
+      ]}
+    ]},
+
+    { id:"leads", name:"2) Lead Engine (Organic → Paid)", time:"~45m", items:[
+      {type:"text", title:"Daily Inputs", body:"Ship one piece of content, make five direct touches, and one collaboration outreach daily. Compounds faster than waiting for perfect ads."},
+      {type:"form", title:"Lead Magnet", fields:[
+        {k:"hook", label:"Hook (pattern interrupt)", type:"text"},
+        {k:"promise", label:"Result in advance (what do they get?)", type:"text"},
+        {k:"cta", label:"CTA (what action?)", type:"text"},
+        {k:"link", label:"URL (optional)", type:"url"}
+      ]},
+      {type:"check", title:"Checklist", list:[
+        "Setup tracking sheet (inputs, leads, calls)",
+        "Defined 3 content pillars",
+        "Outbound script prepared",
+        "Calendar link live"
+      ]}
+    ]},
+
+    { id:"sales", name:"3) Sales Calls (Diagnose → Prescribe)", time:"~45m", items:[
+      {type:"text", title:"Call Flow", body:"Frame → Probe → Diagnose → Prescribe → Align on consequences → Ask. Stay in control with empathy; sell the outcome, not the tool."},
+      {type:"form", title:"Script Notes", fields:[
+        {k:"opening", label:"Opening frame (agenda, time check)", type:"text"},
+        {k:"probe", label:"Problem &amp; cost probes (numbers)", type:"text"},
+        {k:"prescribe", label:"Prescription (offer mapping)", type:"text"},
+        {k:"objections", label:"Likely objections + resolves", type:"text"}
+      ]},
+      {type:"check", title:"Checklist", list:[
+        "Booked with context (form/DM)",
+        "Disqualified poor fits early",
+        "Quoted price after value recap",
+        "Clear next step (pay or plan)"
+      ]}
+    ]},
+
+    { id:"delivery", name:"4) Delivery &amp; Proof", time:"~30m", items:[
+      {type:"text", title:"Fast Wins", body:"Engineer a 24- to 72-hour quick win to reinforce belief. Capture proof (before/after metrics, testimonials)."},
+      {type:"form", title:"Onboarding", fields:[
+        {k:"kickoff", label:"Kickoff checklist / first tasks", type:"text"},
+        {k:"metrics", label:"North-star metrics &amp; cadence", type:"text"}
+      ]},
+      {type:"check", title:"Checklist", list:[
+        "Client dashboard created",
+        "Quick-win delivered",
+        "Weekly cadence locked",
+        "Proof captured (metrics, quote, video)"
+      ]}
+    ]},
+
+    { id:"retention", name:"5) Retention, Ascension, Referrals", time:"~30m", items:[
+      {type:"text", title:"Keep &amp; Grow", body:"Prevent churn with proactive success calls, roadmap reveals, and milestone celebrations. Invite referrals after wins."},
+      {type:"form", title:"Ascension Plan", fields:[
+        {k:"next", label:"Next-step offers (what &amp; when)", type:"text"},
+        {k:"ref", label:"Referral moment &amp; ask script", type:"text"}
+      ]},
+      {type:"check", title:"Checklist", list:[
+        "Churn reasons logged",
+        "NPS/CSAT touchpoints",
+        "Referral mechanism live",
+        "Case study pipeline"
+      ]}
+    ]},
+
+    { id:"metrics", name:"6) Metrics &amp; Targets", time:"~20m", items:[
+      {type:"text", title:"Simple Funnel Math", body:"Track Inputs → Leads → Calls → Shows → Closes → Revenue → Profit. Improve one constraint at a time."},
+      {type:"kpi", title:"Weekly Snapshot", fields:[
+        {k:"inputs", label:"Content/Outbound inputs", type:"number"},
+        {k:"leads", label:"Leads", type:"number"},
+        {k:"calls", label:"Booked calls", type:"number"},
+        {k:"shows", label:"Show rate (%)", type:"number"},
+        {k:"closes", label:"Closed deals", type:"number"},
+        {k:"mrr", label:"MRR ($)", type:"number"}
+      ]}
+    ]}
+  ];
+
+  // --- State ---
+  const SKEY = 'training.v1';
+  let STATE = JSON.parse(localStorage.getItem(SKEY) || '{}');
+
+  function save() {
+    localStorage.setItem(SKEY, JSON.stringify(STATE));
+    renderSidebar();
+  }
+  function pctDone(id) {
+    const mod = MODEL.find(m => m.id === id);
+    if (!mod) return 0;
+    const checks = mod.items.filter(item => item.type === 'check').flatMap(item => item.list);
+    const done = STATE[id]?.checks || {};
+    const completed = checks.filter(label => done[label]).length;
+    return checks.length ? Math.round((100 * completed) / checks.length) : 0;
+  }
+
+  // --- Sidebar ---
+  function renderSidebar() {
+    const q = document.getElementById('q').value.toLowerCase();
+    const el = document.getElementById('modules');
+    el.innerHTML = '';
+    let total = 0, count = 0;
+    MODEL.filter(m => !q || m.name.toLowerCase().includes(q)).forEach(m => {
+      const mod = document.createElement('div');
+      mod.className = 'module';
+      mod.onclick = () => openModule(m.id);
+      const p = pctDone(m.id);
+      total += p;
+      count++;
+      mod.innerHTML =
+        `<div class="name"><div><strong>${m.name}</strong></div>` +
+        `<div class="muted tiny">${m.time || ''}</div></div>` +
+        `<div class="pill">${p}%</div>`;
+      el.appendChild(mod);
+    });
+    const overall = Math.round(total / (count || 1));
+    document.getElementById('overall').textContent = overall + "%";
+    document.getElementById('bar').style.width = overall + '%';
+  }
+
+  // --- Content ---
+  function openModule(id) {
+    const m = MODEL.find(x => x.id === id);
+    if (!m) return;
+    document.getElementById('title').textContent = m.name;
+    const root = document.getElementById('content');
+    root.className = 'grid cols-2';
+    root.innerHTML = '';
+
+    m.items.forEach((it, idx) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      if (it.type === 'text') {
+        card.innerHTML = `<h3>${it.title}</h3><p>${it.body}</p>`;
+      }
+      if (it.type === 'form') {
+        const key = `${id}.form.${idx}`;
+        const data = STATE[key] || {};
+        let html = `<h3>${it.title}</h3>`;
+        it.fields.forEach(f => {
+          const v = data[f.k] ?? '';
+          const safeValue = String(v).replace(/"/g, '&quot;');
+          html +=
+            `<label class="muted tiny">${f.label}</label>` +
+            `<input data-key="${key}" data-field="${f.k}" type="${f.type}" value="${safeValue}">`;
+        });
+        card.innerHTML = html;
+        card.addEventListener('input', (e) => {
+          const t = e.target; if (!t.dataset.field) return;
+          STATE[key] = STATE[key] || {};
+          STATE[key][t.dataset.field] = t.value;
+          save();
+        });
+      }
+      if (it.type === 'kpi') {
+        const key = `${id}.kpi.${idx}`;
+        const data = STATE[key] || {};
+        let html = `<h3>${it.title}</h3><div class="kpi">`;
+        it.fields.forEach(f => {
+          const v = data[f.k] ?? '';
+          html +=
+            `<div class="box"><div class="tiny">${f.label}</div>` +
+            `<input style="margin-top:6px" data-key="${key}" data-field="${f.k}" type="${f.type}" value="${v}"></div>`;
+        });
+        html += `</div>`; card.innerHTML = html;
+        card.addEventListener('input', (e) => {
+          const t = e.target; if (!t.dataset.field) return;
+          STATE[key] = STATE[key] || {};
+          STATE[key][t.dataset.field] = t.value;
+          save();
+        });
+      }
+      if (it.type === 'check') {
+        const key = `${id}.checks`;
+        const data = STATE[id]?.checks || {};
+        let html = `<h3>${it.title}</h3><div class="checklist">`;
+        it.list.forEach((label) => {
+          const checked = data[label] ? 'checked' : '';
+          html +=
+            `<label><input type="checkbox" data-label="${label}" ${checked}> ` +
+            `<span>${label}</span></label>`;
+        });
+        html += `</div>`; card.innerHTML = html;
+        card.addEventListener('change', (e) => {
+          const t = e.target; if (t.type !== 'checkbox') return;
+          STATE[id] = STATE[id] || {};
+          STATE[id].checks = STATE[id].checks || {};
+          STATE[id].checks[t.dataset.label] = t.checked;
+          save();
+        });
+      }
+
+      root.appendChild(card);
+    });
+  }
+
+  // --- Export/Import/Reset ---
+  function exportData() {
+    const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement('a'), { href: url, download: '3dvr-training.json' });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function importData(ev) {
+    const f = ev.target.files?.[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        STATE = JSON.parse(r.result);
+        save();
+        alert('Imported!');
+        openModule(MODEL[0].id);
+      } catch (error) {
+        alert('Invalid JSON');
+      }
+    };
+    r.readAsText(f);
+  }
+  function resetProgress() {
+    if (confirm('Reset all local progress?')) {
+      STATE = {};
+      save();
+      renderSidebar();
+      document.getElementById('content').innerHTML = '';
+      document.getElementById('title').textContent = 'Select a module';
+    }
+  }
+
+  // --- Search ---
+  document.getElementById('q').addEventListener('input', renderSidebar);
+
+  // --- Init ---
+  renderSidebar();
+  // Auto-open first module for first-time users
+  if (!localStorage.getItem(`${SKEY}.opened`)) {
+    openModule(MODEL[0].id);
+    localStorage.setItem(`${SKEY}.opened`, '1');
+  }
+  </script>
+</body>
+</html>
