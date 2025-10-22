@@ -413,6 +413,15 @@
       phasePrompt.textContent = phase.prompt;
     }
 
+    function showIdlePhase() {
+      const exhalePhase = phases.find((phase) => phase.className === 'exhale');
+      if (exhalePhase) {
+        applyPhase(exhalePhase);
+      } else if (phases.length) {
+        applyPhase(phases[0]);
+      }
+    }
+
     function scheduleNextPhase() {
       const phase = phases[phaseIndex];
       applyPhase(phase);
@@ -454,7 +463,7 @@
       if (isRunning) {
         startSession();
       } else {
-        applyPhase(phases[0]);
+        showIdlePhase();
         setToggleLabel();
       }
     });
@@ -488,11 +497,15 @@
       motionPreference.addListener(handleMotionPreference);
     }
 
-    applyPhase(phases[0]);
+    showIdlePhase();
     updateCycleDuration();
 
     if (!motionPreference.matches) {
-      startSession();
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          startSession();
+        });
+      });
     } else {
       setToggleLabel();
     }
