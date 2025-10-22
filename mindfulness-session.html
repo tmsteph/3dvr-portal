@@ -102,6 +102,19 @@
       background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(12, 19, 33, 0.6) 65%);
       animation: breathePulse calc(var(--cycle-duration) * 0.75) ease-in-out infinite;
     }
+    .count-display {
+      position: absolute;
+      top: 38px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(1.35rem, 3vw, 2.1rem);
+      letter-spacing: 0.24em;
+      font-weight: 500;
+      color: rgba(226, 232, 240, 0.7);
+      pointer-events: none;
+      opacity: 0.8;
+      transition: opacity 0.4s ease;
+    }
     .breath-circle {
       position: relative;
       width: clamp(200px, 22vw, 360px);
@@ -234,6 +247,10 @@
         padding-top: 36px;
         gap: 28px;
       }
+      .count-display {
+        top: 28px;
+        letter-spacing: 0.2em;
+      }
       .breathing-space {
         border-radius: 24px;
       }
@@ -270,6 +287,7 @@
         back to center.</span>
     </header>
     <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
+      <div id="countDisplay" class="count-display" aria-hidden="true">&mdash;</div>
       <div id="breathCircle" class="breath-circle inhale" aria-hidden="true"></div>
       <div id="meditationFlow" class="instructions" aria-live="polite">
         <h2 id="phaseName">Inhale</h2>
@@ -387,6 +405,7 @@
     const phasePrompt = document.getElementById('phasePrompt');
     const toggleSession = document.getElementById('toggleSession');
     const paceControl = document.getElementById('paceControl');
+    const countDisplay = document.getElementById('countDisplay');
 
     let currentPaceKey = paceControl.value;
     let phases = phasesByPace[currentPaceKey];
@@ -395,6 +414,8 @@
     let isRunning = false;
     let hasStarted = false;
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let countdownIntervalId = null;
+    let countdownTimeoutId = null;
 
     function setToggleLabel() {
       if (!hasStarted) {
@@ -406,11 +427,67 @@
       }
     }
 
+    function stopCountdown() {
+      if (countdownIntervalId !== null) {
+        window.clearInterval(countdownIntervalId);
+        countdownIntervalId = null;
+      }
+      if (countdownTimeoutId !== null) {
+        window.clearTimeout(countdownTimeoutId);
+        countdownTimeoutId = null;
+      }
+    }
+
+    function setIdleCount() {
+      if (!countDisplay) {
+        return;
+      }
+      stopCountdown();
+      countDisplay.textContent = '—';
+      countDisplay.style.opacity = 0.8;
+    }
+
+    function startCountdown(duration) {
+      if (!countDisplay) {
+        return;
+      }
+      stopCountdown();
+      const totalCounts = Math.max(1, Math.round(duration / 1000));
+      let remaining = totalCounts;
+      countDisplay.textContent = remaining;
+      countDisplay.style.opacity = 1;
+      if (totalCounts === 1) {
+        countdownTimeoutId = window.setTimeout(() => {
+          countDisplay.textContent = '0';
+          countdownTimeoutId = null;
+        }, duration);
+        return;
+      }
+      countdownIntervalId = window.setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          stopCountdown();
+          countDisplay.textContent = '0';
+        } else {
+          countDisplay.textContent = remaining;
+        }
+      }, 1000);
+      countdownTimeoutId = window.setTimeout(() => {
+        stopCountdown();
+        countDisplay.textContent = '0';
+      }, duration);
+    }
+
     function applyPhase(phase) {
       breathCircle.className = `breath-circle ${phase.className}`;
       breathCircle.style.setProperty('--transition-duration', `${phase.transitionDuration || phase.duration}ms`);
       phaseName.textContent = phase.label;
       phasePrompt.textContent = phase.prompt;
+      if (isRunning) {
+        startCountdown(phase.duration);
+      } else {
+        setIdleCount();
+      }
     }
 
     function showIdlePhase() {
@@ -419,6 +496,9 @@
         applyPhase(exhalePhase);
       } else if (phases.length) {
         applyPhase(phases[0]);
+      }
+      if (!isRunning) {
+        setIdleCount();
       }
     }
 
@@ -435,6 +515,7 @@
 
     function startSession() {
       clearTimeout(timeoutId);
+      stopCountdown();
       isRunning = true;
       hasStarted = true;
       setToggleLabel();
@@ -444,6 +525,7 @@
     function pauseSession() {
       isRunning = false;
       clearTimeout(timeoutId);
+      stopCountdown();
       setToggleLabel();
     }
 
