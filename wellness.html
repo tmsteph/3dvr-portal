@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wellness Directory | 3DVR Portal</title>
+  <link rel="stylesheet" href="styles/global.css">
+  <style>
+    :root {
+      color-scheme: dark light;
+    }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(160deg, #0e1116 0%, #18212f 50%, #24364a 100%);
+      color: #f4f6fb;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 48px 24px 24px;
+      text-align: center;
+    }
+    header h1 {
+      margin: 12px 0 16px;
+      font-size: clamp(2rem, 4vw, 2.875rem);
+      letter-spacing: -0.04em;
+    }
+    header p {
+      margin: 0 auto;
+      max-width: 720px;
+      color: rgba(244, 246, 251, 0.8);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+    .directory {
+      flex: 1;
+      padding: 0 24px 64px;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .directory-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    .directory-nav a {
+      background: rgba(16, 26, 39, 0.7);
+      border: 1px solid rgba(116, 172, 255, 0.25);
+      color: #f4f6fb;
+      padding: 10px 18px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    }
+    .directory-nav a:focus,
+    .directory-nav a:hover {
+      background: rgba(116, 172, 255, 0.22);
+      border-color: rgba(116, 172, 255, 0.5);
+      transform: translateY(-2px);
+      outline: none;
+    }
+    .sections {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+    .section-card {
+      background: rgba(14, 17, 22, 0.82);
+      border-radius: 20px;
+      border: 1px solid rgba(116, 172, 255, 0.18);
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .section-card h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-card p {
+      margin: 0;
+      color: rgba(244, 246, 251, 0.75);
+      line-height: 1.6;
+    }
+    .section-card ul {
+      margin: 0;
+      padding-left: 20px;
+      color: rgba(244, 246, 251, 0.8);
+      line-height: 1.5;
+    }
+    .section-card a {
+      color: #8dc4ff;
+    }
+    .resource-links {
+      margin-top: auto;
+    }
+    .resource-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(116, 172, 255, 0.16);
+      border-radius: 999px;
+      padding: 8px 14px;
+      text-decoration: none;
+      color: #f4f6fb;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .resource-links a:focus,
+    .resource-links a:hover {
+      background: rgba(116, 172, 255, 0.32);
+      transform: translateY(-1px);
+      outline: none;
+    }
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      color: rgba(244, 246, 251, 0.6);
+      font-size: 0.9rem;
+    }
+    @media (max-width: 600px) {
+      header {
+        padding: 36px 20px 20px;
+      }
+      .section-card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#wellnessDirectory">Skip to wellness sections</a>
+  <header>
+    <p class="eyebrow" style="text-transform: uppercase; letter-spacing: 0.2em; color: rgba(244, 246, 251, 0.6);">3DVR wellbeing hub</p>
+    <h1>Explore the Wellness Directory</h1>
+    <p>
+      Curated resources to support a balanced lifestyle. Jump into mindfulness, nutrition, mental health, sleep, ergonomics,
+      and more—each section offers quick ideas and trusted guides to help you recharge.
+    </p>
+  </header>
+  <main id="wellnessDirectory" class="directory" aria-label="Wellness directory sections">
+    <nav class="directory-nav" aria-label="Wellness quick links">
+      <a href="#mindfulness">Mindfulness</a>
+      <a href="#meditation">Meditation</a>
+      <a href="#nutrition">Food &amp; Nutrition</a>
+      <a href="#mental-health">Mental Health</a>
+      <a href="#sleep">Sleep Health</a>
+      <a href="#ergonomics">Ergonomics</a>
+      <a href="#cookware">Cookware</a>
+      <a href="#gardening">Gardening</a>
+    </nav>
+    <section class="sections">
+      <article id="mindfulness" class="section-card" aria-labelledby="mindfulness-title">
+        <h2 id="mindfulness-title">🧘 Mindfulness</h2>
+        <p>Practice presence with micro-habits that fit into your day and strengthen awareness.</p>
+        <ul>
+          <li>Schedule two-minute breathing checkpoints between meetings.</li>
+          <li>Use sensory grounding (sight, sound, touch) to reset during high-intensity work.</li>
+          <li>Keep a gratitude log that highlights team wins and personal growth.</li>
+        </ul>
+        <div class="resource-links">
+          <a href="https://www.mindful.org/category/mindfulness-practice/" target="_blank" rel="noopener">Guided practices →</a>
+          <a href="https://www.headspace.com/mindfulness" target="_blank" rel="noopener">Headspace tips →</a>
+        </div>
+      </article>
+      <article id="meditation" class="section-card" aria-labelledby="meditation-title">
+        <h2 id="meditation-title">🕯️ Meditation</h2>
+        <p>Find calm through breath-work, visualization, and body scans tailored for quick breaks.</p>
+        <ul>
+          <li>Try a five-minute box breathing drill before presentations.</li>
+          <li>Use ambient playlists or binaural beats to anchor longer sessions.</li>
+          <li>Experiment with movement-based meditation: mindful walking or stretching.</li>
+        </ul>
+        <div class="resource-links">
+          <a href="https://insighttimer.com/meditation-app" target="_blank" rel="noopener">Insight Timer →</a>
+          <a href="https://www.calm.com/meditate" target="_blank" rel="noopener">Calm collections →</a>
+        </div>
+      </article>
+      <article id="nutrition" class="section-card" aria-labelledby="nutrition-title">
+        <h2 id="nutrition-title">🥗 Food &amp; Nutrition</h2>
+        <p>Fuel creativity with balanced meals, hydration, and smarter snacking strategies.</p>
+        <ul>
+          <li>Plan macro-friendly meal preps for busy sprint weeks.</li>
+          <li>Layer hydration reminders into your calendar or wearable device.</li>
+          <li>Experiment with brain-boosting ingredients: omega-3s, leafy greens, berries.</li>
+        </ul>
+        <div class="resource-links">
+          <a href="https://nutritionfacts.org/" target="_blank" rel="noopener">Nutrition Facts →</a>
+          <a href="https://www.eatright.org/" target="_blank" rel="noopener">Academy of Nutrition →</a>
+        </div>
+      </article>
+      <article id="mental-health" class="section-card" aria-labelledby="mental-health-title">
+        <h2 id="mental-health-title">💬 Mental Health</h2>
+        <p>Normalize check-ins, emotional resilience, and professional support when you need it.</p>
+        <ul>
+          <li>Set up weekly peer syncs focused on sharing highs, lows, and learnings.</li>
+          <li>Create a calm corner—low light, soothing textures, journal supplies.</li>
+          <li>Know your support ladder: crisis text line, telehealth, on-demand counseling.</li>
+        </ul>
+        <div class="resource-links">
+          <a href="https://www.crisistextline.org/" target="_blank" rel="noopener">Crisis Text Line →</a>
+          <a href="https://www.nami.org/Home" target="_blank" rel="noopener">NAMI resources →</a>
+        </div>
+      </article>
+      <article id="sleep" class="section-card" aria-labelledby="sleep-title">
+        <h2 id="sleep-title">🌙 Sleep Health</h2>
+        <p>Optimize rest with circadian-friendly routines and environmental tweaks.</p>
+        <ul>
+          <li>Anchor wake and bedtime within the same 30-minute window.</li>
+          <li>Dim blue light exposure an hour before sleep; enable night-shift modes.</li>
+          <li>Adopt wind-down rituals: journaling, restorative yoga, herbal teas.</li>
+        </ul>
+        <div class="resource-links">
+          <a href="https://thesleepdoctor.com/" target="_blank" rel="noopener">Sleep Doctor →</a>
+          <a href="https://www.sleepfoundation.org/" target="_blank" rel="noopener">Sleep Foundation →</a>
+        </div>
+      </article>
+      <article id="ergonomics" class="section-card" aria-labelledby="ergonomics-title">
+        <h2 id="ergonomics-title">🪑 Ergonomics &amp; Wearables</h2>
+        <p>Design workspaces and clothing that support posture, focus, and comfort all day.</p>
+        <ul>
+          <li>Adjust monitor height so the top sits at eye level to reduce neck strain.</li>
+          <li>Alternate between seated and standing setups; add soft flooring or balance boards.</li>
+          <li>Choose breathable, stretch-friendly fabrics for VR sessions and deep work.</li>
+        </ul>
+        <div class="resource-links">
+          <a href="https://www.osha.gov/ergonomics" target="_blank" rel="noopener">OSHA ergonomics →</a>
+          <a href="https://www.wellandgood.com/athleisure-brands/" target="_blank" rel="noopener">Ergonomic apparel →</a>
+        </div>
+      </article>
+      <article id="cookware" class="section-card" aria-labelledby="cookware-title">
+        <h2 id="cookware-title">🍳 Cookware &amp; Storage</h2>
+        <p>Invest in safe cookware and sustainable storage to support clean eating habits.</p>
+        <ul>
+          <li>Swap aging nonstick pans for ceramic, stainless steel, or cast iron.</li>
+          <li>Use glass or silicone storage to reduce microplastic exposure.</li>
+          <li>Label prep containers with cook dates to simplify food safety.</li>
+        </ul>
+        <div class="resource-links">
+          <a href="https://www.consumerreports.org/cookware/best-cookware-to-buy-now-a2943459894/" target="_blank" rel="noopener">Cookware guides →</a>
+          <a href="https://www.epa.gov/recycle/how-reduce-waste-your-home" target="_blank" rel="noopener">Sustainable storage →</a>
+        </div>
+      </article>
+      <article id="gardening" class="section-card" aria-labelledby="gardening-title">
+        <h2 id="gardening-title">🌱 Growing &amp; Gardening</h2>
+        <p>Build resilience with indoor gardens, balcony beds, or community plots.</p>
+        <ul>
+          <li>Start with microgreens or herbs that thrive in low-light apartments.</li>
+          <li>Compost veggie scraps to enrich soil and cut waste.</li>
+          <li>Explore vertical gardening to maximize small footprints.</li>
+        </ul>
+        <div class="resource-links">
+          <a href="https://extension.psu.edu/programs/master-gardener" target="_blank" rel="noopener">Master Gardener →</a>
+          <a href="https://www.rhs.org.uk/garden-inspiration/grow-your-own" target="_blank" rel="noopener">Grow-your-own tips →</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <footer>
+    Built for the 3DVR community. Share your favorite wellness resources in the #wellbeing channel.
+  </footer>
+</body>
+</html>
