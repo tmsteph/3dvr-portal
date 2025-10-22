@@ -8,6 +8,7 @@
   <style>
     :root {
       color-scheme: dark;
+      --cycle-duration: 14000ms;
     }
     body {
       margin: 0;
@@ -37,13 +38,13 @@
       top: -200px;
       left: -160px;
       background: radial-gradient(circle, rgba(56, 189, 248, 0.55), transparent 65%);
-      animation: breatheGlow 16s ease-in-out infinite;
+      animation: breatheGlow var(--cycle-duration) ease-in-out infinite;
     }
     body::after {
       bottom: -220px;
       right: -160px;
       background: radial-gradient(circle, rgba(129, 140, 248, 0.55), transparent 65%);
-      animation: breatheGlow 16s ease-in-out infinite reverse;
+      animation: breatheGlow var(--cycle-duration) ease-in-out infinite reverse;
     }
     .session-shell {
       position: relative;
@@ -80,8 +81,8 @@
     }
     .breathing-space {
       position: relative;
-      width: min(520px, 90vw);
-      height: min(520px, 90vw);
+      width: clamp(320px, 38vw, 760px);
+      height: clamp(320px, 38vw, 760px);
       border-radius: 40px;
       background: linear-gradient(160deg, rgba(15, 23, 42, 0.8), rgba(17, 24, 39, 0.65));
       border: 1px solid rgba(148, 163, 184, 0.25);
@@ -99,19 +100,21 @@
       inset: 16px;
       border-radius: 28px;
       background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(12, 19, 33, 0.6) 65%);
-      animation: breathePulse 16s ease-in-out infinite;
+      animation: breathePulse calc(var(--cycle-duration) * 0.75) ease-in-out infinite;
     }
     .breath-circle {
       position: relative;
-      width: 220px;
-      height: 220px;
+      width: clamp(200px, 22vw, 360px);
+      height: clamp(200px, 22vw, 360px);
       border-radius: 50%;
       background: radial-gradient(circle, rgba(56, 189, 248, 0.35), rgba(37, 99, 235, 0.22));
       box-shadow: 0 30px 60px rgba(15, 23, 42, 0.35);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 4s ease-in-out, background 0.8s ease;
+      transform: scale(var(--target-scale, 1));
+      transition: transform var(--transition-duration, 2400ms) cubic-bezier(0.45, 0, 0.55, 1),
+        background 0.8s ease, box-shadow 0.8s ease;
     }
     .breath-circle::after {
       content: '';
@@ -123,16 +126,22 @@
       transition: opacity 0.6s ease;
     }
     .breath-circle.inhale {
-      transform: scale(1.15);
+      --target-scale: 1.16;
       background: radial-gradient(circle, rgba(94, 234, 212, 0.45), rgba(56, 189, 248, 0.32));
     }
     .breath-circle.hold {
-      transform: scale(1.05);
-      background: radial-gradient(circle, rgba(129, 140, 248, 0.4), rgba(56, 189, 248, 0.28));
+      --target-scale: 1.16;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.44), rgba(56, 189, 248, 0.28));
+      box-shadow: 0 36px 80px rgba(17, 24, 39, 0.45);
     }
     .breath-circle.exhale {
-      transform: scale(0.88);
+      --target-scale: 0.86;
       background: radial-gradient(circle, rgba(37, 99, 235, 0.28), rgba(17, 94, 189, 0.22));
+    }
+    .breath-circle.rest {
+      --target-scale: 0.9;
+      background: radial-gradient(circle, rgba(46, 117, 221, 0.25), rgba(15, 76, 173, 0.18));
+      box-shadow: 0 26px 55px rgba(12, 18, 30, 0.4);
     }
     .breath-circle.rest::after {
       opacity: 0.4;
@@ -212,6 +221,14 @@
         opacity: 0.85;
       }
     }
+    @media (min-width: 1024px) {
+      header h1 {
+        font-size: clamp(2.8rem, 4vw, 4rem);
+      }
+      .session-shell {
+        gap: 44px;
+      }
+    }
     @media (max-width: 640px) {
       .session-shell {
         padding-top: 36px;
@@ -260,7 +277,7 @@
       </div>
     </div>
     <div class="controls">
-      <button type="button" id="toggleSession">Pause session</button>
+      <button type="button" id="toggleSession">Start session</button>
       <select id="paceControl" aria-label="Select breathing pace">
         <option value="slow">Slow &amp; restorative (6 / 2 / 6 / 2)</option>
         <option value="balanced" selected>Balanced rhythm (4 / 4 / 4 / 2)</option>
@@ -274,22 +291,94 @@
   <script>
     const phasesByPace = {
       slow: [
-        { label: 'Inhale', prompt: 'Draw a long breath in through your nose for six counts.', duration: 6000, className: 'inhale' },
-        { label: 'Hold', prompt: 'Hold gently and soften your shoulders for two counts.', duration: 2000, className: 'hold' },
-        { label: 'Exhale', prompt: 'Exhale through the mouth for six counts, let the jaw release.', duration: 6000, className: 'exhale' },
-        { label: 'Rest', prompt: 'Pause and notice how you feel before the next wave.', duration: 2000, className: 'rest' }
+        {
+          label: 'Inhale',
+          prompt: 'Draw a long breath in through your nose for six counts.',
+          duration: 6000,
+          transitionDuration: 3600,
+          className: 'inhale'
+        },
+        {
+          label: 'Hold',
+          prompt: 'Hold gently and soften your shoulders for two counts.',
+          duration: 2000,
+          transitionDuration: 500,
+          className: 'hold'
+        },
+        {
+          label: 'Exhale',
+          prompt: 'Exhale through the mouth for six counts, let the jaw release.',
+          duration: 6000,
+          transitionDuration: 3600,
+          className: 'exhale'
+        },
+        {
+          label: 'Rest',
+          prompt: 'Pause and notice how you feel before the next wave.',
+          duration: 2000,
+          transitionDuration: 600,
+          className: 'rest'
+        }
       ],
       balanced: [
-        { label: 'Inhale', prompt: 'Breathe in slowly through your nose and fill your lungs.', duration: 4000, className: 'inhale' },
-        { label: 'Hold', prompt: 'Hold softly and scan for any tension you can let go.', duration: 4000, className: 'hold' },
-        { label: 'Exhale', prompt: 'Release the breath through the mouth and soften the chest.', duration: 4000, className: 'exhale' },
-        { label: 'Rest', prompt: 'Let the breath settle for two counts before you begin again.', duration: 2000, className: 'rest' }
+        {
+          label: 'Inhale',
+          prompt: 'Breathe in slowly through your nose and fill your lungs.',
+          duration: 4000,
+          transitionDuration: 2400,
+          className: 'inhale'
+        },
+        {
+          label: 'Hold',
+          prompt: 'Hold softly and scan for any tension you can let go.',
+          duration: 4000,
+          transitionDuration: 500,
+          className: 'hold'
+        },
+        {
+          label: 'Exhale',
+          prompt: 'Release the breath through the mouth and soften the chest.',
+          duration: 4000,
+          transitionDuration: 2400,
+          className: 'exhale'
+        },
+        {
+          label: 'Rest',
+          prompt: 'Let the breath settle for two counts before you begin again.',
+          duration: 2000,
+          transitionDuration: 600,
+          className: 'rest'
+        }
       ],
       energizing: [
-        { label: 'Inhale', prompt: 'Sip a quick inhale through the nose for three counts.', duration: 3000, className: 'inhale' },
-        { label: 'Hold', prompt: 'Hold lightly and lift through the crown of your head.', duration: 3000, className: 'hold' },
-        { label: 'Exhale', prompt: 'Breathe out with control for three counts, feel grounded.', duration: 3000, className: 'exhale' },
-        { label: 'Rest', prompt: 'Take a soft pause for one count before the next inhale.', duration: 1000, className: 'rest' }
+        {
+          label: 'Inhale',
+          prompt: 'Sip a quick inhale through the nose for three counts.',
+          duration: 3000,
+          transitionDuration: 1800,
+          className: 'inhale'
+        },
+        {
+          label: 'Hold',
+          prompt: 'Hold lightly and lift through the crown of your head.',
+          duration: 3000,
+          transitionDuration: 500,
+          className: 'hold'
+        },
+        {
+          label: 'Exhale',
+          prompt: 'Breathe out with control for three counts, feel grounded.',
+          duration: 3000,
+          transitionDuration: 1800,
+          className: 'exhale'
+        },
+        {
+          label: 'Rest',
+          prompt: 'Take a soft pause for one count before the next inhale.',
+          duration: 1000,
+          transitionDuration: 450,
+          className: 'rest'
+        }
       ]
     };
 
@@ -303,12 +392,34 @@
     let phases = phasesByPace[currentPaceKey];
     let phaseIndex = 0;
     let timeoutId = null;
-    let isRunning = true;
+    let isRunning = false;
+    let hasStarted = false;
+    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function setToggleLabel() {
+      if (!hasStarted) {
+        toggleSession.textContent = 'Start session';
+      } else if (isRunning) {
+        toggleSession.textContent = 'Pause session';
+      } else {
+        toggleSession.textContent = 'Resume session';
+      }
+    }
 
     function applyPhase(phase) {
       breathCircle.className = `breath-circle ${phase.className}`;
+      breathCircle.style.setProperty('--transition-duration', `${phase.transitionDuration || phase.duration}ms`);
       phaseName.textContent = phase.label;
       phasePrompt.textContent = phase.prompt;
+    }
+
+    function showIdlePhase() {
+      const exhalePhase = phases.find((phase) => phase.className === 'exhale');
+      if (exhalePhase) {
+        applyPhase(exhalePhase);
+      } else if (phases.length) {
+        applyPhase(phases[0]);
+      }
     }
 
     function scheduleNextPhase() {
@@ -325,14 +436,15 @@
     function startSession() {
       clearTimeout(timeoutId);
       isRunning = true;
-      toggleSession.textContent = 'Pause session';
+      hasStarted = true;
+      setToggleLabel();
       scheduleNextPhase();
     }
 
     function pauseSession() {
       isRunning = false;
-      toggleSession.textContent = 'Resume session';
       clearTimeout(timeoutId);
+      setToggleLabel();
     }
 
     toggleSession.addEventListener('click', () => {
@@ -347,10 +459,12 @@
       currentPaceKey = event.target.value;
       phases = phasesByPace[currentPaceKey];
       phaseIndex = 0;
+      updateCycleDuration();
       if (isRunning) {
         startSession();
       } else {
-        applyPhase(phases[0]);
+        showIdlePhase();
+        setToggleLabel();
       }
     });
 
@@ -360,7 +474,41 @@
       }
     });
 
-    startSession();
+    function updateCycleDuration() {
+      const totalDuration = phases.reduce((sum, phase) => sum + phase.duration, 0);
+      document.documentElement.style.setProperty('--cycle-duration', `${totalDuration}ms`);
+    }
+
+    function handleMotionPreference(event) {
+      if (event.matches) {
+        if (isRunning) {
+          pauseSession();
+        } else {
+          setToggleLabel();
+        }
+      } else if (!isRunning && !hasStarted) {
+        startSession();
+      }
+    }
+
+    if (typeof motionPreference.addEventListener === 'function') {
+      motionPreference.addEventListener('change', handleMotionPreference);
+    } else if (typeof motionPreference.addListener === 'function') {
+      motionPreference.addListener(handleMotionPreference);
+    }
+
+    showIdlePhase();
+    updateCycleDuration();
+
+    if (!motionPreference.matches) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          startSession();
+        });
+      });
+    } else {
+      setToggleLabel();
+    }
   </script>
 </body>
 </html>
