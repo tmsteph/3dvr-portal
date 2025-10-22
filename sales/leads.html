@@ -26,27 +26,23 @@
 
   <main class="max-w-5xl mx-auto px-6 py-10 space-y-10">
     <section>
-      <h2 class="text-lg font-semibold mb-4">Pipeline Snapshot</h2>
+      <h2 class="text-lg font-semibold mb-4">Pipeline Checklist</h2>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
-          <p class="text-xs uppercase tracking-wide text-slate-400">Inbound this week</p>
-          <p class="text-2xl font-semibold mt-1">14</p>
-          <p class="text-sm text-slate-300 mt-2">Website demos + partner referrals</p>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Inbound review</p>
+          <p class="text-sm text-slate-300 mt-2">Work the "New &amp; Unassigned" queue in HubSpot twice a day and capture call notes.</p>
         </article>
         <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
-          <p class="text-xs uppercase tracking-wide text-slate-400">Outbound responses</p>
-          <p class="text-2xl font-semibold mt-1">27%</p>
-          <p class="text-sm text-slate-300 mt-2">Sequence step 2 hitting hardest</p>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Outbound cadences</p>
+          <p class="text-sm text-slate-300 mt-2">Personalize step-two outreach with a spatial mock-up or loom before sending.</p>
         </article>
         <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
-          <p class="text-xs uppercase tracking-wide text-slate-400">Average deal size</p>
-          <p class="text-2xl font-semibold mt-1">$11.8K</p>
-          <p class="text-sm text-slate-300 mt-2">Qualified opps, rolling 30 days</p>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Qualification</p>
+          <p class="text-sm text-slate-300 mt-2">Validate use case, budget, and stakeholder map in the CRM before moving to discovery.</p>
         </article>
         <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
-          <p class="text-xs uppercase tracking-wide text-slate-400">Follow-ups due today</p>
-          <p class="text-2xl font-semibold mt-1">9</p>
-          <p class="text-sm text-slate-300 mt-2">Assign by noon to protect SLAs</p>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Follow-up discipline</p>
+          <p class="text-sm text-slate-300 mt-2">Clear the "Due Today" tasks list in HubSpot Tasks prior to 4 PM local time.</p>
         </article>
       </div>
     </section>
@@ -54,62 +50,35 @@
     <section class="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
       <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold">Stage Progression</h2>
-          <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Export CSV</button>
+          <h2 class="text-lg font-semibold">Stage Review Routines</h2>
+          <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Open Kanban</button>
         </div>
-        <div class="space-y-4">
-          <div>
-            <div class="flex items-center justify-between text-sm">
-              <p class="font-semibold">Discovery</p>
-              <p class="text-slate-400">12 active • 3 stalled</p>
-            </div>
-            <div class="mt-2 h-2 rounded bg-slate-800">
-              <div class="h-full rounded bg-blue-500" style="width: 68%"></div>
-            </div>
+        <div class="space-y-4 text-sm text-slate-300">
+          <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+            <p class="font-semibold text-slate-100">Discovery</p>
+            <p>Confirm problem statement, buying committee, and success criteria. Record the call in Gong.</p>
+            <p>Share next-step summary email before end of day.</p>
           </div>
-          <div>
-            <div class="flex items-center justify-between text-sm">
-              <p class="font-semibold">Solution Mapping</p>
-              <p class="text-slate-400">8 active • 1 stalled</p>
-            </div>
-            <div class="mt-2 h-2 rounded bg-slate-800">
-              <div class="h-full rounded bg-purple-500" style="width: 54%"></div>
-            </div>
+          <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+            <p class="font-semibold text-slate-100">Solution Mapping</p>
+            <p>Co-build the spatial storyboard in Figma with the prospect and attach to the deal.</p>
+            <p>Tag solutions engineer if integrations or data sync is required.</p>
           </div>
-          <div>
-            <div class="flex items-center justify-between text-sm">
-              <p class="font-semibold">Proposal Sent</p>
-              <p class="text-slate-400">5 awaiting signature</p>
-            </div>
-            <div class="mt-2 h-2 rounded bg-slate-800">
-              <div class="h-full rounded bg-emerald-500" style="width: 36%"></div>
-            </div>
+          <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+            <p class="font-semibold text-slate-100">Proposal Sent</p>
+            <p>Send dual-option proposal via PandaDoc and confirm legal/procurement timeline.</p>
+            <p>Coordinate executive sponsor note within 24 hours of proposal delivery.</p>
           </div>
         </div>
       </article>
       <aside class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
-        <h2 class="text-lg font-semibold">Lead Sources</h2>
+        <h2 class="text-lg font-semibold">Lead Sources to Monitor</h2>
         <ul class="space-y-3 text-sm text-slate-300">
-          <li class="flex items-center justify-between">
-            <span>Product Hunt launch</span>
-            <span class="text-slate-400">32%</span>
-          </li>
-          <li class="flex items-center justify-between">
-            <span>Built environment referrals</span>
-            <span class="text-slate-400">24%</span>
-          </li>
-          <li class="flex items-center justify-between">
-            <span>Event demos</span>
-            <span class="text-slate-400">19%</span>
-          </li>
-          <li class="flex items-center justify-between">
-            <span>Inbound content</span>
-            <span class="text-slate-400">15%</span>
-          </li>
-          <li class="flex items-center justify-between">
-            <span>Partners</span>
-            <span class="text-slate-400">10%</span>
-          </li>
+          <li>• Sync with marketing on website demo form submissions in HubSpot.</li>
+          <li>• Track partner channel intros posted in the #revenue Slack channel.</li>
+          <li>• Upload event attendee lists to the "Events" custom view after each activation.</li>
+          <li>• Subscribe to the BIM/architecture newsletter replies via shared inbox label.</li>
+          <li>• Capture success team referrals using the "CS Warm Intro" task template.</li>
         </ul>
       </aside>
     </section>
@@ -120,7 +89,7 @@
         <a href="scripts.html" class="text-sm text-blue-300 hover:text-blue-200">Review pitch templates →</a>
       </div>
       <ol class="list-decimal list-inside space-y-3 text-sm text-slate-300">
-        <li>Run intent filter for accounts engaging with the configurator feature.</li>
+        <li>Run the intent filter for accounts engaging with the configurator feature and queue follow-up tasks.</li>
         <li>Send tailored follow-up video to enterprise prospects in Solution Mapping.</li>
         <li>Tag new referrals with <span class="font-semibold text-slate-100">#market-fit</span> and assign to territory owners.</li>
         <li>Confirm tech validation sessions for opportunities in Proposal Sent.</li>
