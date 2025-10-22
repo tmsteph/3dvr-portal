@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mindfulness Breathing Room | 3DVR Portal</title>
+  <link rel="stylesheet" href="styles/global.css">
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle at 20% 20%, rgba(58, 180, 242, 0.2), transparent 60%),
+        radial-gradient(circle at 80% 30%, rgba(94, 234, 212, 0.18), transparent 55%),
+        #05070c;
+      color: #f8fafc;
+      overflow: hidden;
+    }
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      width: 520px;
+      height: 520px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.55;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      top: -200px;
+      left: -160px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.55), transparent 65%);
+      animation: breatheGlow 16s ease-in-out infinite;
+    }
+    body::after {
+      bottom: -220px;
+      right: -160px;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.55), transparent 65%);
+      animation: breatheGlow 16s ease-in-out infinite reverse;
+    }
+    .session-shell {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 64px;
+      gap: 36px;
+    }
+    header {
+      text-align: center;
+      max-width: 720px;
+    }
+    header p {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      color: rgba(226, 232, 240, 0.65);
+      font-size: 0.85rem;
+    }
+    header h1 {
+      margin: 14px 0 12px;
+      font-size: clamp(2.25rem, 5vw, 3.2rem);
+      letter-spacing: -0.04em;
+    }
+    header span {
+      display: inline-block;
+      margin-top: 8px;
+      color: rgba(226, 232, 240, 0.75);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    .breathing-space {
+      position: relative;
+      width: min(520px, 90vw);
+      height: min(520px, 90vw);
+      border-radius: 40px;
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.8), rgba(17, 24, 39, 0.65));
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 40px 120px rgba(8, 15, 35, 0.55);
+      backdrop-filter: blur(18px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      overflow: hidden;
+    }
+    .breathing-space::before {
+      content: '';
+      position: absolute;
+      inset: 16px;
+      border-radius: 28px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(12, 19, 33, 0.6) 65%);
+      animation: breathePulse 16s ease-in-out infinite;
+    }
+    .breath-circle {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.35), rgba(37, 99, 235, 0.22));
+      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 4s ease-in-out, background 0.8s ease;
+    }
+    .breath-circle::after {
+      content: '';
+      position: absolute;
+      inset: 22px;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      opacity: 0.65;
+      transition: opacity 0.6s ease;
+    }
+    .breath-circle.inhale {
+      transform: scale(1.15);
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.45), rgba(56, 189, 248, 0.32));
+    }
+    .breath-circle.hold {
+      transform: scale(1.05);
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.4), rgba(56, 189, 248, 0.28));
+    }
+    .breath-circle.exhale {
+      transform: scale(0.88);
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.28), rgba(17, 94, 189, 0.22));
+    }
+    .breath-circle.rest::after {
+      opacity: 0.4;
+    }
+    .instructions {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 64px);
+      max-width: 360px;
+      text-align: center;
+      color: rgba(226, 232, 240, 0.8);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+    .instructions h2 {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
+      letter-spacing: 0.04em;
+      color: #f8fafc;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .controls button,
+    .controls select {
+      appearance: none;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: rgba(15, 23, 42, 0.6);
+      color: #f8fafc;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    }
+    .controls button:hover,
+    .controls button:focus,
+    .controls select:hover,
+    .controls select:focus {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.45);
+      outline: none;
+      transform: translateY(-1px);
+    }
+    footer {
+      padding: 28px 24px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: rgba(226, 232, 240, 0.65);
+    }
+    @keyframes breatheGlow {
+      0%,
+      100% {
+        transform: scale(0.92);
+        opacity: 0.45;
+      }
+      50% {
+        transform: scale(1.08);
+        opacity: 0.65;
+      }
+    }
+    @keyframes breathePulse {
+      0%,
+      100% {
+        transform: scale(0.85);
+        opacity: 0.5;
+      }
+      50% {
+        transform: scale(1.08);
+        opacity: 0.85;
+      }
+    }
+    @media (max-width: 640px) {
+      .session-shell {
+        padding-top: 36px;
+        gap: 28px;
+      }
+      .breathing-space {
+        border-radius: 24px;
+      }
+      .instructions {
+        bottom: 24px;
+        font-size: 1rem;
+      }
+      .controls {
+        flex-direction: column;
+      }
+      .controls button,
+      .controls select {
+        width: 100%;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body::before,
+      body::after,
+      .breathing-space::before,
+      .breath-circle {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#meditationFlow">Skip to breathing guidance</a>
+  <div class="session-shell">
+    <header>
+      <p>3DVR mindfulness studio</p>
+      <h1>Mindfulness Breathing Room</h1>
+      <span>Follow the gentle cues for as many rounds as you need. Set your cadence, press play, and let the cycle guide you
+        back to center.</span>
+    </header>
+    <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
+      <div id="breathCircle" class="breath-circle inhale" aria-hidden="true"></div>
+      <div id="meditationFlow" class="instructions" aria-live="polite">
+        <h2 id="phaseName">Inhale</h2>
+        <p id="phasePrompt">Breathe in slowly through your nose and fill your lungs.</p>
+      </div>
+    </div>
+    <div class="controls">
+      <button type="button" id="toggleSession">Pause session</button>
+      <select id="paceControl" aria-label="Select breathing pace">
+        <option value="slow">Slow &amp; restorative (6 / 2 / 6 / 2)</option>
+        <option value="balanced" selected>Balanced rhythm (4 / 4 / 4 / 2)</option>
+        <option value="energizing">Energizing focus (3 / 3 / 3 / 1)</option>
+      </select>
+    </div>
+  </div>
+  <footer>
+    Tip: Pair the breathing room with soft instrumental music or brown noise to deepen focus.
+  </footer>
+  <script>
+    const phasesByPace = {
+      slow: [
+        { label: 'Inhale', prompt: 'Draw a long breath in through your nose for six counts.', duration: 6000, className: 'inhale' },
+        { label: 'Hold', prompt: 'Hold gently and soften your shoulders for two counts.', duration: 2000, className: 'hold' },
+        { label: 'Exhale', prompt: 'Exhale through the mouth for six counts, let the jaw release.', duration: 6000, className: 'exhale' },
+        { label: 'Rest', prompt: 'Pause and notice how you feel before the next wave.', duration: 2000, className: 'rest' }
+      ],
+      balanced: [
+        { label: 'Inhale', prompt: 'Breathe in slowly through your nose and fill your lungs.', duration: 4000, className: 'inhale' },
+        { label: 'Hold', prompt: 'Hold softly and scan for any tension you can let go.', duration: 4000, className: 'hold' },
+        { label: 'Exhale', prompt: 'Release the breath through the mouth and soften the chest.', duration: 4000, className: 'exhale' },
+        { label: 'Rest', prompt: 'Let the breath settle for two counts before you begin again.', duration: 2000, className: 'rest' }
+      ],
+      energizing: [
+        { label: 'Inhale', prompt: 'Sip a quick inhale through the nose for three counts.', duration: 3000, className: 'inhale' },
+        { label: 'Hold', prompt: 'Hold lightly and lift through the crown of your head.', duration: 3000, className: 'hold' },
+        { label: 'Exhale', prompt: 'Breathe out with control for three counts, feel grounded.', duration: 3000, className: 'exhale' },
+        { label: 'Rest', prompt: 'Take a soft pause for one count before the next inhale.', duration: 1000, className: 'rest' }
+      ]
+    };
+
+    const breathCircle = document.getElementById('breathCircle');
+    const phaseName = document.getElementById('phaseName');
+    const phasePrompt = document.getElementById('phasePrompt');
+    const toggleSession = document.getElementById('toggleSession');
+    const paceControl = document.getElementById('paceControl');
+
+    let currentPaceKey = paceControl.value;
+    let phases = phasesByPace[currentPaceKey];
+    let phaseIndex = 0;
+    let timeoutId = null;
+    let isRunning = true;
+
+    function applyPhase(phase) {
+      breathCircle.className = `breath-circle ${phase.className}`;
+      phaseName.textContent = phase.label;
+      phasePrompt.textContent = phase.prompt;
+    }
+
+    function scheduleNextPhase() {
+      const phase = phases[phaseIndex];
+      applyPhase(phase);
+      timeoutId = window.setTimeout(() => {
+        phaseIndex = (phaseIndex + 1) % phases.length;
+        if (isRunning) {
+          scheduleNextPhase();
+        }
+      }, phase.duration);
+    }
+
+    function startSession() {
+      clearTimeout(timeoutId);
+      isRunning = true;
+      toggleSession.textContent = 'Pause session';
+      scheduleNextPhase();
+    }
+
+    function pauseSession() {
+      isRunning = false;
+      toggleSession.textContent = 'Resume session';
+      clearTimeout(timeoutId);
+    }
+
+    toggleSession.addEventListener('click', () => {
+      if (isRunning) {
+        pauseSession();
+      } else {
+        startSession();
+      }
+    });
+
+    paceControl.addEventListener('change', (event) => {
+      currentPaceKey = event.target.value;
+      phases = phasesByPace[currentPaceKey];
+      phaseIndex = 0;
+      if (isRunning) {
+        startSession();
+      } else {
+        applyPhase(phases[0]);
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        pauseSession();
+      }
+    });
+
+    startSession();
+  </script>
+</body>
+</html>
