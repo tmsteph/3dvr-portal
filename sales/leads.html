@@ -2,21 +2,106 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Leads & Prospects | 3dvr Sales</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-  <header class="bg-blue-900 text-white p-6 shadow">
-    <h1 class="text-2xl font-bold">Leads & Prospects</h1>
-    <p class="text-sm mt-1">Manage new leads and outreach history</p>
+<body class="bg-slate-950 text-slate-100 font-sans">
+  <header class="bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 text-white">
+    <div class="max-w-5xl mx-auto px-6 py-8 space-y-4">
+      <nav class="text-xs uppercase tracking-[0.3em] text-blue-200 flex items-center gap-2">
+        <a href="index.html" class="text-blue-100 hover:text-white">Sales Directory</a>
+        <span aria-hidden="true">/</span>
+        <span>Leads &amp; Prospects</span>
+      </nav>
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 class="text-3xl font-bold">Leads &amp; Prospects</h1>
+          <p class="text-sm text-blue-100">A focused workspace for capturing demand and prioritizing outreach.</p>
+        </div>
+        <a href="../crm/index.html" class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Open CRM</a>
+      </div>
+    </div>
   </header>
 
-  <main class="p-6">
-    <p class="mb-4">This section will include a lead tracker, form submissions, and outreach logs.</p>
-    <a href="index.html" class="text-blue-600 hover:underline">&larr; Back to Sales Directory</a>
+  <main class="max-w-5xl mx-auto px-6 py-10 space-y-10">
+    <section>
+      <h2 class="text-lg font-semibold mb-4">Pipeline Checklist</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Inbound review</p>
+          <p class="text-sm text-slate-300 mt-2">Work the "New &amp; Unassigned" queue in HubSpot twice a day and capture call notes.</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Outbound cadences</p>
+          <p class="text-sm text-slate-300 mt-2">Personalize step-two outreach with a spatial mock-up or loom before sending.</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Qualification</p>
+          <p class="text-sm text-slate-300 mt-2">Validate use case, budget, and stakeholder map in the CRM before moving to discovery.</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Follow-up discipline</p>
+          <p class="text-sm text-slate-300 mt-2">Clear the "Due Today" tasks list in HubSpot Tasks prior to 4 PM local time.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
+      <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Stage Review Routines</h2>
+          <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Open Kanban</button>
+        </div>
+        <div class="space-y-4 text-sm text-slate-300">
+          <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+            <p class="font-semibold text-slate-100">Discovery</p>
+            <p>Confirm problem statement, buying committee, and success criteria. Record the call in Gong.</p>
+            <p>Share next-step summary email before end of day.</p>
+          </div>
+          <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+            <p class="font-semibold text-slate-100">Solution Mapping</p>
+            <p>Co-build the spatial storyboard in Figma with the prospect and attach to the deal.</p>
+            <p>Tag solutions engineer if integrations or data sync is required.</p>
+          </div>
+          <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+            <p class="font-semibold text-slate-100">Proposal Sent</p>
+            <p>Send dual-option proposal via PandaDoc and confirm legal/procurement timeline.</p>
+            <p>Coordinate executive sponsor note within 24 hours of proposal delivery.</p>
+          </div>
+        </div>
+      </article>
+      <aside class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+        <h2 class="text-lg font-semibold">Lead Sources to Monitor</h2>
+        <ul class="space-y-3 text-sm text-slate-300">
+          <li>• Sync with marketing on website demo form submissions in HubSpot.</li>
+          <li>• Track partner channel intros posted in the #revenue Slack channel.</li>
+          <li>• Upload event attendee lists to the "Events" custom view after each activation.</li>
+          <li>• Subscribe to the BIM/architecture newsletter replies via shared inbox label.</li>
+          <li>• Capture success team referrals using the "CS Warm Intro" task template.</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Daily Focus Queue</h2>
+        <a href="scripts.html" class="text-sm text-blue-300 hover:text-blue-200">Review pitch templates →</a>
+      </div>
+      <ol class="list-decimal list-inside space-y-3 text-sm text-slate-300">
+        <li>Run the intent filter for accounts engaging with the configurator feature and queue follow-up tasks.</li>
+        <li>Send tailored follow-up video to enterprise prospects in Solution Mapping.</li>
+        <li>Tag new referrals with <span class="font-semibold text-slate-100">#market-fit</span> and assign to territory owners.</li>
+        <li>Confirm tech validation sessions for opportunities in Proposal Sent.</li>
+        <li>Log qualitative feedback from today's demo calls inside the CRM record.</li>
+      </ol>
+    </section>
   </main>
 
-  <footer class="text-center text-sm text-gray-500 py-6">&copy; 2025 3dvr.tech</footer>
+  <footer class="border-t border-white/10 bg-slate-950/80">
+    <div class="max-w-5xl mx-auto px-6 py-6 text-center text-xs tracking-[0.3em] uppercase text-slate-500">
+      &copy; 2025 3dvr.tech
+    </div>
+  </footer>
 </body>
 </html>

@@ -1,89 +1,171 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>3dvr Sales Directory</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-
-  <header class="bg-blue-900 text-white p-6 shadow">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+<body class="bg-slate-950 text-slate-100 font-sans">
+  <header class="bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 text-white">
+    <div class="max-w-6xl mx-auto px-6 py-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
-        <h1 class="text-3xl font-bold">3dvr.tech | Sales Directory</h1>
-        <p class="text-sm mt-1">Your hub for outreach, marketing, and customer relations</p>
+        <p class="uppercase tracking-[0.3em] text-xs text-blue-200">3dvr.tech</p>
+        <h1 class="text-3xl font-bold mt-2">Revenue Operations Command Center</h1>
+        <p class="text-sm text-blue-100 mt-1">Everything the team needs to attract, close, and delight customers.</p>
       </div>
       <nav class="flex flex-wrap gap-2 text-sm">
-        <a href="../contacts/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts Workspace</a>
-        <a href="../crm/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">CRM</a>
+        <a href="../contacts/index.html" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">Contacts Workspace</a>
+        <a href="../crm/index.html" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">CRM</a>
+        <a href="../index.html" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">Main Portal</a>
       </nav>
     </div>
   </header>
 
-  <main class="p-6 space-y-6">
-
-    <!-- Navigation Grid -->
+  <main class="max-w-6xl mx-auto px-6 py-10 space-y-10">
     <section>
-      <h2 class="text-xl font-semibold mb-4">Explore Tools</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-
-        <a href="leads.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
-          <h3 class="text-lg font-bold">Leads & Prospects</h3>
-          <p class="text-sm text-gray-600">Track leads, notes, and outreach progress</p>
-        </a>
-
-        <a href="marketing.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
-          <h3 class="text-lg font-bold">Marketing Dashboard</h3>
-          <p class="text-sm text-gray-600">Email campaigns, social posts, content calendar</p>
-        </a>
-
-        <a href="../crm/index.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
-          <h3 class="text-lg font-bold">CRM</h3>
-          <p class="text-sm text-gray-600">Client tracking, status updates, contact notes</p>
-        </a>
-
-        <a href="../contacts/index.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
-          <h3 class="text-lg font-bold">Contacts Workspace</h3>
-          <p class="text-sm text-gray-600">Shared and personal address book with follow-up filters</p>
-        </a>
-
-        <a href="analytics.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
-          <h3 class="text-lg font-bold">Analytics & Reporting</h3>
-          <p class="text-sm text-gray-600">Conversion tracking and sales KPIs</p>
-        </a>
-
-        <a href="scripts.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
-          <h3 class="text-lg font-bold">Sales Scripts</h3>
-          <p class="text-sm text-gray-600">Custom templates for emails and calls</p>
-        </a>
-
-        <a href="team.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
-          <h3 class="text-lg font-bold">Team Assignments</h3>
-          <p class="text-sm text-gray-600">Who’s working on what</p>
-        </a>
-
-        <a href="training.html" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
-          <h3 class="text-lg font-bold">Offer & Sales Training</h3>
-          <p class="text-sm text-gray-600">Hormozi-inspired playbook with local progress tracking</p>
-        </a>
-
+      <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
+        <h2 class="text-xl font-semibold">This Week's Revenue Priorities</h2>
+        <span class="text-xs uppercase tracking-[0.3em] text-blue-300">Grounded in live systems</span>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <article class="rounded-2xl bg-gradient-to-br from-blue-700 to-blue-500 p-4 shadow-lg">
+          <p class="text-xs uppercase tracking-wide text-blue-100">Inbound demand</p>
+          <p class="text-sm text-blue-100 mt-2">Review the "New Demo Requests" view in HubSpot and assign owners before noon.</p>
+        </article>
+        <article class="rounded-2xl bg-gradient-to-br from-purple-700 to-purple-500 p-4 shadow-lg">
+          <p class="text-xs uppercase tracking-wide text-purple-100">Outbound follow-through</p>
+          <p class="text-sm text-purple-100 mt-2">Advance contacts in Apollo step 3 with custom loom recaps—log responses back to the CRM.</p>
+        </article>
+        <article class="rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-500 p-4 shadow-lg">
+          <p class="text-xs uppercase tracking-wide text-emerald-100">Warm referrals</p>
+          <p class="text-sm text-emerald-100 mt-2">Check the partner Slack channel for introductions and capture each in the "Referrals" pipeline.</p>
+        </article>
+        <article class="rounded-2xl bg-gradient-to-br from-slate-700 to-slate-600 p-4 shadow-lg">
+          <p class="text-xs uppercase tracking-wide text-slate-200">Response discipline</p>
+          <p class="text-sm text-slate-200 mt-2">Triage unanswered emails tagged <span class="font-semibold text-white">#hot</span> before EOD using the shared inbox view.</p>
+        </article>
       </div>
     </section>
 
-    <!-- Add Call to Action -->
-    <section class="bg-white p-6 rounded shadow text-center">
-      <h2 class="text-xl font-bold mb-2">Need Help Closing a Sale?</h2>
-      <p class="text-gray-600 mb-4">Book a 1-on-1 with the 3dvr support team or request marketing assets.</p>
-      <a href="https://3dvr.tech" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Talk to Support</a>
+    <section>
+      <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
+        <h2 class="text-xl font-semibold">Mission Control</h2>
+        <a href="../calendar" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">View calendar →</a>
+      </div>
+      <div class="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg space-y-6">
+          <header class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Pipeline Board</h3>
+            <a href="leads.html" class="text-blue-300 text-sm hover:text-blue-200">Open leads workspace →</a>
+          </header>
+          <div class="grid gap-4 md:grid-cols-3">
+            <div class="rounded-xl bg-slate-900 border border-white/5 p-4">
+              <p class="text-xs uppercase tracking-wide text-slate-400">New</p>
+              <ul class="mt-3 text-sm text-slate-300 space-y-1">
+                <li>• Assign every fresh inbound form submission in HubSpot.</li>
+                <li>• Run the "VR-curious" intent list and drop priority notes into the CRM.</li>
+                <li>• Book discovery within 48 hours using the Calendly round-robin.</li>
+              </ul>
+            </div>
+            <div class="rounded-xl bg-slate-900 border border-white/5 p-4">
+              <p class="text-xs uppercase tracking-wide text-blue-400">In Progress</p>
+              <ul class="mt-3 text-sm text-slate-300 space-y-1">
+                <li>• Align solution fit in Notion deal room before demos.</li>
+                <li>• Capture technical requirements in the "Implementation" custom object.</li>
+                <li>• Share curated immersive project reels for their vertical.</li>
+              </ul>
+            </div>
+            <div class="rounded-xl bg-slate-900 border border-white/5 p-4">
+              <p class="text-xs uppercase tracking-wide text-emerald-400">Ready to Close</p>
+              <ul class="mt-3 text-sm text-slate-300 space-y-1">
+                <li>• Confirm procurement checklist items are attached in CRM files.</li>
+                <li>• Loop success manager for onboarding timeline alignment.</li>
+                <li>• Send dual-option proposal template from PandaDoc.</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+        <aside class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg space-y-4">
+          <h3 class="text-lg font-semibold">Key Updates</h3>
+          <ul class="space-y-3 text-sm text-slate-300">
+            <li>
+              <p class="font-medium text-slate-100">Launch: immersive buyer kit</p>
+              <p class="text-xs text-slate-400">Assets drop Friday @ 10:00 AM PST</p>
+            </li>
+            <li>
+              <p class="font-medium text-slate-100">Marketing sync</p>
+              <p class="text-xs text-slate-400">Tuesday @ 2:00 PM — finalize Q2 campaigns</p>
+            </li>
+            <li>
+              <p class="font-medium text-slate-100">Product spotlight</p>
+              <p class="text-xs text-slate-400">Live VR configurator shipping to beta clients</p>
+            </li>
+          </ul>
+        </aside>
+      </div>
     </section>
 
+    <section>
+      <h2 class="text-xl font-semibold mb-6">Explore Tools</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <a href="leads.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Prospecting</p>
+          <h3 class="text-lg font-semibold mt-2">Leads & Prospects</h3>
+          <p class="text-sm text-slate-300 mt-3">Daily playbooks, lead capture forms, and the prioritized follow-up queue.</p>
+        </a>
+        <a href="marketing.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Growth Engine</p>
+          <h3 class="text-lg font-semibold mt-2">Marketing Dashboard</h3>
+          <p class="text-sm text-slate-300 mt-3">Coordinate with marketing on live campaigns that produce fresh conversations.</p>
+        </a>
+        <a href="../crm/index.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Relationships</p>
+          <h3 class="text-lg font-semibold mt-2">CRM</h3>
+          <p class="text-sm text-slate-300 mt-3">Source of truth for deal status, buying teams, and activity logs.</p>
+        </a>
+        <a href="../contacts/index.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Network</p>
+          <h3 class="text-lg font-semibold mt-2">Contacts Workspace</h3>
+          <p class="text-sm text-slate-300 mt-3">Map stakeholders, note warm paths, and request introductions with context.</p>
+        </a>
+        <a href="analytics.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Signals</p>
+          <h3 class="text-lg font-semibold mt-2">Analytics & Reporting</h3>
+          <p class="text-sm text-slate-300 mt-3">Links to live dashboards plus guidance on interpreting leading indicators.</p>
+        </a>
+        <a href="scripts.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Enablement</p>
+          <h3 class="text-lg font-semibold mt-2">Sales Scripts</h3>
+          <p class="text-sm text-slate-300 mt-3">Industry-specific messaging, proof assets, and objection responses.</p>
+        </a>
+        <a href="team.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Accountability</p>
+          <h3 class="text-lg font-semibold mt-2">Team Assignments</h3>
+          <p class="text-sm text-slate-300 mt-3">Know the point people for territories, product lines, and enablement tasks.</p>
+        </a>
+        <a href="training.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Mastery</p>
+          <h3 class="text-lg font-semibold mt-2">Offer & Sales Training</h3>
+          <p class="text-sm text-slate-300 mt-3">The Hormozi-inspired playbook with built-in progress checkpoints.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 p-8 shadow-xl text-center">
+      <h2 class="text-2xl font-semibold">Need Backup on a Deal?</h2>
+      <p class="text-sm text-blue-50 mt-3 max-w-2xl mx-auto">Tap the enablement team for custom decks, ROI models, or technical deep dives. Drop details in the support queue and someone will respond within a business day.</p>
+      <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <a href="https://3dvr.tech" class="inline-flex items-center justify-center rounded-lg bg-white text-blue-900 px-5 py-2.5 font-semibold shadow hover:bg-blue-50">Talk to Support</a>
+        <a href="scripts.html" class="inline-flex items-center justify-center rounded-lg bg-blue-900/30 border border-white/30 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-900/40">Download Scripts</a>
+      </div>
+    </section>
   </main>
 
-  <footer class="text-center text-sm text-gray-500 py-6">
-    &copy; 2025 3dvr.tech — Built for Builders
+  <footer class="border-t border-white/10 bg-slate-950/80">
+    <div class="max-w-6xl mx-auto px-6 py-8 text-center text-xs tracking-[0.3em] uppercase text-slate-500">
+      &copy; 2025 3dvr.tech — Built for Builders
+    </div>
   </footer>
-
 </body>
 </html>
