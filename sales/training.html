@@ -127,6 +127,27 @@
   <script>
   // --- Simple training data model (inspired by Hormozi principles, original wording) ---
   const MODEL = [
+    { id:"pitch", name:"Rapid Pitch System", time:"~20m", items:[
+      {type:"text", title:"Why Start Here", body:"People give you seconds, not minutes. Lead with a one-line promise that ties outcomes to proof and an easy next step."},
+      {type:"form", title:"One-Line Pitch", fields:[
+        {k:"audience", label:"Audience (who are you speaking to?)", type:"text"},
+        {k:"pain", label:"Pain or urgent priority", type:"text"},
+        {k:"promise", label:"Outcome you deliver (quantify it)", type:"text"},
+        {k:"proof", label:"Credibility (evidence, win, or asset)", type:"text"},
+        {k:"cta", label:"Simple CTA (book, reply, scan)", type:"text"}
+      ]},
+      {type:"form", title:"Fast Credibility Stack", fields:[
+        {k:"win", label:"Signature win (client, metric, quote)", type:"text"},
+        {k:"asset", label:"Demonstration asset (demo, sample, video)", type:"text"},
+        {k:"social", label:"Social proof or partners", type:"text"}
+      ]},
+      {type:"check", title:"Practice Reps", list:[
+        "Pitch recorded on voice memo (<60s)",
+        "Version adapted for DM/email (<40 words)",
+        "QR or link ready for CTA",
+        "Practiced twice with a peer or mirror"
+      ]}
+    ]},
     { id:"foundation", name:"0) Foundation & Avatar", time:"~30m", items:[
       {type:"text", title:"Define One Avatar", body:"Pick one audience you can win for in 90 days. Niche down until your offers become obvious."},
       {type:"form", title:"Avatar Sketch", fields:[
@@ -236,6 +257,10 @@
   ];
 
   const TOOLKIT = {
+    pitch: [
+      { href: 'marketing.html', label: 'Marketing dashboard', desc: 'Drop the refined pitch into top content slots.' },
+      { href: 'leads.html', label: 'Leads tracker', desc: 'Log outreach reps and note which pitch variant converts.' }
+    ],
     foundation: [
       { href: '../contacts/index.html', label: 'Contacts workspace', desc: 'Map real people to your avatar notes.' },
       { href: 'leads.html', label: 'Leads tracker', desc: 'Pair avatar research with pipeline commitments.' }
