@@ -2,21 +2,137 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Leads & Prospects | 3dvr Sales</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-  <header class="bg-blue-900 text-white p-6 shadow">
-    <h1 class="text-2xl font-bold">Leads & Prospects</h1>
-    <p class="text-sm mt-1">Manage new leads and outreach history</p>
+<body class="bg-slate-950 text-slate-100 font-sans">
+  <header class="bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 text-white">
+    <div class="max-w-5xl mx-auto px-6 py-8 space-y-4">
+      <nav class="text-xs uppercase tracking-[0.3em] text-blue-200 flex items-center gap-2">
+        <a href="index.html" class="text-blue-100 hover:text-white">Sales Directory</a>
+        <span aria-hidden="true">/</span>
+        <span>Leads &amp; Prospects</span>
+      </nav>
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 class="text-3xl font-bold">Leads &amp; Prospects</h1>
+          <p class="text-sm text-blue-100">A focused workspace for capturing demand and prioritizing outreach.</p>
+        </div>
+        <a href="../crm/index.html" class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Open CRM</a>
+      </div>
+    </div>
   </header>
 
-  <main class="p-6">
-    <p class="mb-4">This section will include a lead tracker, form submissions, and outreach logs.</p>
-    <a href="index.html" class="text-blue-600 hover:underline">&larr; Back to Sales Directory</a>
+  <main class="max-w-5xl mx-auto px-6 py-10 space-y-10">
+    <section>
+      <h2 class="text-lg font-semibold mb-4">Pipeline Snapshot</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Inbound this week</p>
+          <p class="text-2xl font-semibold mt-1">14</p>
+          <p class="text-sm text-slate-300 mt-2">Website demos + partner referrals</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Outbound responses</p>
+          <p class="text-2xl font-semibold mt-1">27%</p>
+          <p class="text-sm text-slate-300 mt-2">Sequence step 2 hitting hardest</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Average deal size</p>
+          <p class="text-2xl font-semibold mt-1">$11.8K</p>
+          <p class="text-sm text-slate-300 mt-2">Qualified opps, rolling 30 days</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Follow-ups due today</p>
+          <p class="text-2xl font-semibold mt-1">9</p>
+          <p class="text-sm text-slate-300 mt-2">Assign by noon to protect SLAs</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
+      <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Stage Progression</h2>
+          <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Export CSV</button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <div class="flex items-center justify-between text-sm">
+              <p class="font-semibold">Discovery</p>
+              <p class="text-slate-400">12 active • 3 stalled</p>
+            </div>
+            <div class="mt-2 h-2 rounded bg-slate-800">
+              <div class="h-full rounded bg-blue-500" style="width: 68%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between text-sm">
+              <p class="font-semibold">Solution Mapping</p>
+              <p class="text-slate-400">8 active • 1 stalled</p>
+            </div>
+            <div class="mt-2 h-2 rounded bg-slate-800">
+              <div class="h-full rounded bg-purple-500" style="width: 54%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between text-sm">
+              <p class="font-semibold">Proposal Sent</p>
+              <p class="text-slate-400">5 awaiting signature</p>
+            </div>
+            <div class="mt-2 h-2 rounded bg-slate-800">
+              <div class="h-full rounded bg-emerald-500" style="width: 36%"></div>
+            </div>
+          </div>
+        </div>
+      </article>
+      <aside class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+        <h2 class="text-lg font-semibold">Lead Sources</h2>
+        <ul class="space-y-3 text-sm text-slate-300">
+          <li class="flex items-center justify-between">
+            <span>Product Hunt launch</span>
+            <span class="text-slate-400">32%</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span>Built environment referrals</span>
+            <span class="text-slate-400">24%</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span>Event demos</span>
+            <span class="text-slate-400">19%</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span>Inbound content</span>
+            <span class="text-slate-400">15%</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span>Partners</span>
+            <span class="text-slate-400">10%</span>
+          </li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Daily Focus Queue</h2>
+        <a href="scripts.html" class="text-sm text-blue-300 hover:text-blue-200">Review pitch templates →</a>
+      </div>
+      <ol class="list-decimal list-inside space-y-3 text-sm text-slate-300">
+        <li>Run intent filter for accounts engaging with the configurator feature.</li>
+        <li>Send tailored follow-up video to enterprise prospects in Solution Mapping.</li>
+        <li>Tag new referrals with <span class="font-semibold text-slate-100">#market-fit</span> and assign to territory owners.</li>
+        <li>Confirm tech validation sessions for opportunities in Proposal Sent.</li>
+        <li>Log qualitative feedback from today's demo calls inside the CRM record.</li>
+      </ol>
+    </section>
   </main>
 
-  <footer class="text-center text-sm text-gray-500 py-6">&copy; 2025 3dvr.tech</footer>
+  <footer class="border-t border-white/10 bg-slate-950/80">
+    <div class="max-w-5xl mx-auto px-6 py-6 text-center text-xs tracking-[0.3em] uppercase text-slate-500">
+      &copy; 2025 3dvr.tech
+    </div>
+  </footer>
 </body>
 </html>

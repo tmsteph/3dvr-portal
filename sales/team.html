@@ -2,21 +2,111 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Team Assignments | 3dvr Sales</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-  <header class="bg-blue-900 text-white p-6 shadow">
-    <h1 class="text-2xl font-bold">Team Assignments</h1>
-    <p class="text-sm mt-1">Roles, responsibilities, and who's doing what</p>
+<body class="bg-slate-950 text-slate-100 font-sans">
+  <header class="bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 text-white">
+    <div class="max-w-5xl mx-auto px-6 py-8 space-y-4">
+      <nav class="text-xs uppercase tracking-[0.3em] text-blue-200 flex items-center gap-2">
+        <a href="index.html" class="text-blue-100 hover:text-white">Sales Directory</a>
+        <span aria-hidden="true">/</span>
+        <span>Team Assignments</span>
+      </nav>
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 class="text-3xl font-bold">Team Assignments</h1>
+          <p class="text-sm text-blue-100">See who owns each territory, product line, and customer relationship.</p>
+        </div>
+        <a href="../calendar" class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Schedule sync</a>
+      </div>
+    </div>
   </header>
 
-  <main class="p-6">
-    <p class="mb-4">This will include task assignments, accountability tracking, and contact details.</p>
-    <a href="index.html" class="text-blue-600 hover:underline">&larr; Back to Sales Directory</a>
+  <main class="max-w-5xl mx-auto px-6 py-10 space-y-10">
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Revenue Team Roster</h2>
+        <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Download org chart</button>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2 text-sm text-slate-300">
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Account Executives</h3>
+          <p><span class="text-slate-100 font-semibold">Jamie Chen</span> — Enterprise urban development • Pipeline: $188K</p>
+          <p><span class="text-slate-100 font-semibold">Marcus Reed</span> — Mixed reality retail • Pipeline: $142K</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Account Managers</h3>
+          <p><span class="text-slate-100 font-semibold">Priya Patel</span> — Platform expansions • NRR: 126%</p>
+          <p><span class="text-slate-100 font-semibold">Luis Hernandez</span> — Training programs • NPS: 64</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Sales Development</h3>
+          <p><span class="text-slate-100 font-semibold">Elena Morrison</span> — Inbound triage • SLA: 2h response</p>
+          <p><span class="text-slate-100 font-semibold">Jordan Price</span> — Outbound sequences • Meetings: 11/mo</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Enablement</h3>
+          <p><span class="text-slate-100 font-semibold">Amina Okafor</span> — GTM systems • Owner of playbooks &amp; tooling</p>
+          <p><span class="text-slate-100 font-semibold">Dev Singh</span> — Demo lab • Oversees VR environments &amp; assets</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Weekly Commitments</h2>
+        <a href="training.html" class="text-sm text-blue-300 hover:text-blue-200">Link to enablement plan →</a>
+      </div>
+      <div class="grid gap-4 md:grid-cols-3 text-sm text-slate-300">
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-xs uppercase tracking-[0.3em] text-slate-400">Focus</h3>
+          <p class="font-semibold text-slate-100">Enterprise blitz week</p>
+          <p>• 12 outbound meetings</p>
+          <p>• 3 custom ROI models delivered</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-xs uppercase tracking-[0.3em] text-slate-400">Marketing</h3>
+          <p class="font-semibold text-slate-100">Launch buyer kit</p>
+          <p>• Record video walkthroughs</p>
+          <p>• Publish landing page updates</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-xs uppercase tracking-[0.3em] text-slate-400">Customer Success</h3>
+          <p class="font-semibold text-slate-100">Q2 renewal sprint</p>
+          <p>• 5 expansion proposals</p>
+          <p>• NPS outreach for 3 priority accounts</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Enablement Checkpoints</h2>
+        <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Update status</button>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2 text-sm text-slate-300">
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Competency</h3>
+          <p>• All AEs certified on immersive configurator demo.</p>
+          <p>• SDRs trained on revised outbound sequences.</p>
+          <p>• Managers reviewing call recordings every Friday.</p>
+        </div>
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Systems</h3>
+          <p>• CRM automations tuned for new lead scoring model.</p>
+          <p>• Data governance guidelines refreshed in Notion.</p>
+          <p>• Support queue triggers synced with Slack channels.</p>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <footer class="text-center text-sm text-gray-500 py-6">&copy; 2025 3dvr.tech</footer>
+  <footer class="border-t border-white/10 bg-slate-950/80">
+    <div class="max-w-5xl mx-auto px-6 py-6 text-center text-xs tracking-[0.3em] uppercase text-slate-500">
+      &copy; 2025 3dvr.tech
+    </div>
+  </footer>
 </body>
 </html>

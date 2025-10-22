@@ -2,21 +2,118 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Analytics & Reporting | 3dvr Sales</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-  <header class="bg-blue-900 text-white p-6 shadow">
-    <h1 class="text-2xl font-bold">Analytics & Reporting</h1>
-    <p class="text-sm mt-1">Track KPIs and performance insights</p>
+<body class="bg-slate-950 text-slate-100 font-sans">
+  <header class="bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 text-white">
+    <div class="max-w-5xl mx-auto px-6 py-8 space-y-4">
+      <nav class="text-xs uppercase tracking-[0.3em] text-blue-200 flex items-center gap-2">
+        <a href="index.html" class="text-blue-100 hover:text-white">Sales Directory</a>
+        <span aria-hidden="true">/</span>
+        <span>Analytics &amp; Reporting</span>
+      </nav>
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 class="text-3xl font-bold">Analytics &amp; Reporting</h1>
+          <p class="text-sm text-blue-100">Surface the KPIs that steer revenue decisions in real time.</p>
+        </div>
+        <a href="../score.js" class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Data schema reference</a>
+      </div>
+    </div>
   </header>
 
-  <main class="p-6">
-    <p class="mb-4">This page will eventually show charts, conversions, and traffic breakdowns.</p>
-    <a href="index.html" class="text-blue-600 hover:underline">&larr; Back to Sales Directory</a>
+  <main class="max-w-5xl mx-auto px-6 py-10 space-y-10">
+    <section>
+      <h2 class="text-lg font-semibold mb-4">Executive Overview</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Monthly Recurring Revenue</p>
+          <p class="text-2xl font-semibold mt-1">$182K</p>
+          <p class="text-sm text-emerald-300 mt-2">+9.4% vs last month</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Sales Cycle Length</p>
+          <p class="text-2xl font-semibold mt-1">36 days</p>
+          <p class="text-sm text-slate-300 mt-2">Down 5 days after onboarding revamp</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Net Revenue Retention</p>
+          <p class="text-2xl font-semibold mt-1">118%</p>
+          <p class="text-sm text-slate-300 mt-2">Expansion from VR onboarding module</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
+      <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Revenue Sources</h2>
+          <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Download report</button>
+        </div>
+        <div class="space-y-4 text-sm text-slate-300">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-100">Immersive design services</p>
+            <span class="text-emerald-300">42%</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-100">Digital twin platform</p>
+            <span class="text-emerald-300">33%</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-100">Training &amp; enablement</p>
+            <span class="text-emerald-300">19%</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-100">Advisory retainers</p>
+            <span class="text-emerald-300">6%</span>
+          </div>
+        </div>
+      </article>
+      <aside class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-4 text-sm text-slate-300">
+        <h2 class="text-lg font-semibold">Alert Feed</h2>
+        <div class="rounded-xl border border-blue-500/40 bg-blue-900/30 p-4">
+          <p class="font-semibold text-blue-100">Pipeline velocity dip</p>
+          <p class="text-xs text-blue-200 mt-2">Enterprise stage taking 4 days longer than goal. Audit lead hand-offs.</p>
+        </div>
+        <div class="rounded-xl border border-amber-500/40 bg-amber-900/20 p-4">
+          <p class="font-semibold text-amber-100">Renewal flag</p>
+          <p class="text-xs text-amber-200 mt-2">CityBuild AR account at 76% product usage. Trigger success play.</p>
+        </div>
+        <div class="rounded-xl border border-emerald-500/40 bg-emerald-900/20 p-4">
+          <p class="font-semibold text-emerald-100">Upsell opportunity</p>
+          <p class="text-xs text-emerald-200 mt-2">VR safety series trending. Offer add-on bundle to manufacturing clients.</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Reporting Toolkit</h2>
+        <a href="../api" class="text-sm text-blue-300 hover:text-blue-200">Review API endpoints →</a>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2 text-sm text-slate-300">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Dashboards</h3>
+          <p>• Revenue + pipeline health (Looker Studio)</p>
+          <p>• Marketing attribution (Mode Analytics)</p>
+          <p>• Customer success retention (Notion)</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2 text-sm text-slate-300">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Data Hygiene</h3>
+          <p>• Automatic duplicate detection runs nightly.</p>
+          <p>• Required fields: use case, timeline, buying team.</p>
+          <p>• Archive deals idle 45+ days for clean reporting.</p>
+        </article>
+      </div>
+    </section>
   </main>
 
-  <footer class="text-center text-sm text-gray-500 py-6">&copy; 2025 3dvr.tech</footer>
+  <footer class="border-t border-white/10 bg-slate-950/80">
+    <div class="max-w-5xl mx-auto px-6 py-6 text-center text-xs tracking-[0.3em] uppercase text-slate-500">
+      &copy; 2025 3dvr.tech
+    </div>
+  </footer>
 </body>
 </html>

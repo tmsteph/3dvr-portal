@@ -2,21 +2,124 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Marketing Dashboard | 3dvr Sales</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-  <header class="bg-blue-900 text-white p-6 shadow">
-    <h1 class="text-2xl font-bold">Marketing Dashboard</h1>
-    <p class="text-sm mt-1">Manage campaigns, assets, and content strategy</p>
+<body class="bg-slate-950 text-slate-100 font-sans">
+  <header class="bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 text-white">
+    <div class="max-w-5xl mx-auto px-6 py-8 space-y-4">
+      <nav class="text-xs uppercase tracking-[0.3em] text-blue-200 flex items-center gap-2">
+        <a href="index.html" class="text-blue-100 hover:text-white">Sales Directory</a>
+        <span aria-hidden="true">/</span>
+        <span>Marketing Dashboard</span>
+      </nav>
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 class="text-3xl font-bold">Marketing Dashboard</h1>
+          <p class="text-sm text-blue-100">Coordinate campaigns, content, and demand experiments that fuel the pipeline.</p>
+        </div>
+        <a href="../calendar" class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">View campaign calendar</a>
+      </div>
+    </div>
   </header>
 
-  <main class="p-6">
-    <p class="mb-4">Here you’ll organize social posts, email blasts, and other marketing tools.</p>
-    <a href="index.html" class="text-blue-600 hover:underline">&larr; Back to Sales Directory</a>
+  <main class="max-w-5xl mx-auto px-6 py-10 space-y-10">
+    <section>
+      <h2 class="text-lg font-semibold mb-4">Growth Signals</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Marketing qualified leads</p>
+          <p class="text-2xl font-semibold mt-1">38</p>
+          <p class="text-sm text-slate-300 mt-2">Up 12% vs last week</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Content performance</p>
+          <p class="text-2xl font-semibold mt-1">4.6 min</p>
+          <p class="text-sm text-slate-300 mt-2">Average time on latest launch guide</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Newsletter CTR</p>
+          <p class="text-2xl font-semibold mt-1">7.4%</p>
+          <p class="text-sm text-slate-300 mt-2">AI deployment edition crushed baseline</p>
+        </article>
+        <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Paid experiments</p>
+          <p class="text-2xl font-semibold mt-1">3 live</p>
+          <p class="text-sm text-slate-300 mt-2">AR/VR combos driving the lowest CAC</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
+      <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Campaign Pipeline</h2>
+          <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Update status</button>
+        </div>
+        <div class="grid gap-4 md:grid-cols-3">
+          <div class="rounded-xl bg-slate-900 border border-white/5 p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">Research</p>
+            <p class="text-sm font-semibold text-slate-100">Digital Twin ROI report</p>
+            <p class="text-xs text-slate-400">Interviews + data visuals underway</p>
+          </div>
+          <div class="rounded-xl bg-slate-900 border border-white/5 p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wide text-blue-300">Production</p>
+            <p class="text-sm font-semibold text-slate-100">Spatial storytelling series</p>
+            <p class="text-xs text-slate-400">Scripts approved · shoot Thursday</p>
+          </div>
+          <div class="rounded-xl bg-slate-900 border border-white/5 p-4 space-y-2">
+            <p class="text-xs uppercase tracking-wide text-emerald-300">Live</p>
+            <p class="text-sm font-semibold text-slate-100">A/E showcase microsite</p>
+            <p class="text-xs text-slate-400">Need case studies before paid push</p>
+          </div>
+        </div>
+      </article>
+      <aside class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+        <h2 class="text-lg font-semibold">Creative Queue</h2>
+        <ul class="space-y-3 text-sm text-slate-300">
+          <li>
+            <p class="font-medium text-slate-100">Deck refresh for enterprise demos</p>
+            <p class="text-xs text-slate-400">Due Wednesday • Owner: Jamie</p>
+          </li>
+          <li>
+            <p class="font-medium text-slate-100">Paid ads for configurator beta</p>
+            <p class="text-xs text-slate-400">Due Friday • Owner: Priya</p>
+          </li>
+          <li>
+            <p class="font-medium text-slate-100">Customer story: VR safety training</p>
+            <p class="text-xs text-slate-400">Due next Monday • Owner: Luis</p>
+          </li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Channel Mix</h2>
+        <a href="analytics.html" class="text-sm text-blue-300 hover:text-blue-200">See performance dashboards →</a>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="space-y-3 text-sm text-slate-300">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Owned</h3>
+          <p>• Thought leadership hub publishing twice a week.</p>
+          <p>• Weekly livestream with product + customer success.</p>
+          <p>• Drip nurture built around offer creation workshop.</p>
+        </div>
+        <div class="space-y-3 text-sm text-slate-300">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Paid &amp; Earned</h3>
+          <p>• Strategic LinkedIn retargeting for architecture firms.</p>
+          <p>• Joint webinar with Unreal Engine partner network.</p>
+          <p>• Press outreach to smart city publications.</p>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <footer class="text-center text-sm text-gray-500 py-6">&copy; 2025 3dvr.tech</footer>
+  <footer class="border-t border-white/10 bg-slate-950/80">
+    <div class="max-w-5xl mx-auto px-6 py-6 text-center text-xs tracking-[0.3em] uppercase text-slate-500">
+      &copy; 2025 3dvr.tech
+    </div>
+  </footer>
 </body>
 </html>

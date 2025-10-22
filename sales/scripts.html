@@ -2,21 +2,101 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sales Scripts | 3dvr Sales</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-  <header class="bg-blue-900 text-white p-6 shadow">
-    <h1 class="text-2xl font-bold">Sales Scripts</h1>
-    <p class="text-sm mt-1">Templates for calls, emails, and follow-ups</p>
+<body class="bg-slate-950 text-slate-100 font-sans">
+  <header class="bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 text-white">
+    <div class="max-w-5xl mx-auto px-6 py-8 space-y-4">
+      <nav class="text-xs uppercase tracking-[0.3em] text-blue-200 flex items-center gap-2">
+        <a href="index.html" class="text-blue-100 hover:text-white">Sales Directory</a>
+        <span aria-hidden="true">/</span>
+        <span>Sales Scripts</span>
+      </nav>
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 class="text-3xl font-bold">Sales Scripts &amp; Talk Tracks</h1>
+          <p class="text-sm text-blue-100">Modular messaging for discovery calls, demos, and post-meeting follow-ups.</p>
+        </div>
+        <a href="training.html" class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Open training model</a>
+      </div>
+    </div>
   </header>
 
-  <main class="p-6">
-    <p class="mb-4">Use this area to store customizable outreach scripts and response templates.</p>
-    <a href="index.html" class="text-blue-600 hover:underline">&larr; Back to Sales Directory</a>
+  <main class="max-w-5xl mx-auto px-6 py-10 space-y-10">
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Discovery Call Flow</h2>
+        <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Copy playbook</button>
+      </div>
+      <ol class="list-decimal list-inside space-y-3 text-sm text-slate-300">
+        <li><span class="font-semibold text-slate-100">Connect</span>: "Thanks for carving out time. I saw you're exploring digital twin workflows—what sparked that?"</li>
+        <li><span class="font-semibold text-slate-100">Context</span>: Share one-liner on 3dvr's outcomes tailored to their industry.</li>
+        <li><span class="font-semibold text-slate-100">Diagnose</span>: Ask about goals, current tools, internal stakeholders, and blockers.</li>
+        <li><span class="font-semibold text-slate-100">Co-create</span>: Sketch a high-level flow (capture → render → collaborate) with ROI proof points.</li>
+        <li><span class="font-semibold text-slate-100">Commit</span>: Agree on next step, invite any additional decision makers, and schedule the deep dive.</li>
+      </ol>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Demo Narrative</h2>
+        <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Launch presenter view</button>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2 text-sm text-slate-300">
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Act 1 — Vision</h3>
+          <p>Open with "Imagine your buyer walking the asset before it's built." Show 45-second highlight reel.</p>
+          <p>Introduce three hero outcomes: faster approvals, better investor updates, happier tenants.</p>
+        </div>
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Act 2 — Proof</h3>
+          <p>Toggle between in-browser and headset view. Narrate collaboration features and revision history.</p>
+          <p>Drop in metrics: 18% faster leasing cycle, 23% lower change orders, 11-point NPS lift.</p>
+        </div>
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Act 3 — Partnership</h3>
+          <p>Highlight onboarding sprint, success manager touchpoints, and integration support.</p>
+          <p>Confirm who signs off, purchasing timeline, and any security reviews needed.</p>
+        </div>
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Act 4 — Close</h3>
+          <p>Summarize tailored ROI. Present two-option offer: accelerator package vs enterprise suite.</p>
+          <p>Ask for commitment: "Are you comfortable moving forward if we finalize the scope by Friday?"</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Objection Handling Matrix</h2>
+        <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Download PDF</button>
+      </div>
+      <div class="grid gap-4 md:grid-cols-3 text-sm text-slate-300">
+        <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-xs uppercase tracking-[0.3em] text-slate-400">Pricing</h3>
+          <p class="font-semibold text-slate-100">"Budget is tight right now."</p>
+          <p>→ Anchor on ROI benchmarks; propose phased rollout aligning spend with milestones.</p>
+        </div>
+        <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-xs uppercase tracking-[0.3em] text-slate-400">Timing</h3>
+          <p class="font-semibold text-slate-100">"Let's revisit next quarter."</p>
+          <p>→ Surface cost of inaction. Offer lightweight pilot that keeps momentum with minimal lift.</p>
+        </div>
+        <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
+          <h3 class="text-xs uppercase tracking-[0.3em] text-slate-400">Technical</h3>
+          <p class="font-semibold text-slate-100">"How does this fit with our workflow?"</p>
+          <p>→ Share integration diagram, security sheet, and customer story with similar stack.</p>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <footer class="text-center text-sm text-gray-500 py-6">&copy; 2025 3dvr.tech</footer>
+  <footer class="border-t border-white/10 bg-slate-950/80">
+    <div class="max-w-5xl mx-auto px-6 py-6 text-center text-xs tracking-[0.3em] uppercase text-slate-500">
+      &copy; 2025 3dvr.tech
+    </div>
+  </footer>
 </body>
 </html>
