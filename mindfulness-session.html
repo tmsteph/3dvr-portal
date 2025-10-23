@@ -102,6 +102,27 @@
       background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(12, 19, 33, 0.6) 65%);
       animation: breathePulse calc(var(--cycle-duration) * 0.75) ease-in-out infinite;
     }
+    .count-display {
+      position: absolute;
+      top: 38px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(1.35rem, 3vw, 2.1rem);
+      letter-spacing: 0.24em;
+      font-weight: 500;
+      color: rgba(226, 232, 240, 0.7);
+      pointer-events: none;
+      opacity: 0.8;
+      transition: opacity 0.4s ease;
+    }
+    .count-display__value {
+      display: inline-block;
+      opacity: 0.85;
+      transform: translateY(0);
+    }
+    .count-display__value.is-ticking {
+      animation: countTick 1s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
     .breath-circle {
       position: relative;
       width: clamp(200px, 22vw, 360px);
@@ -234,6 +255,10 @@
         padding-top: 36px;
         gap: 28px;
       }
+      .count-display {
+        top: 28px;
+        letter-spacing: 0.2em;
+      }
       .breathing-space {
         border-radius: 24px;
       }
@@ -247,6 +272,24 @@
       .controls button,
       .controls select {
         width: 100%;
+      }
+    }
+    @keyframes countTick {
+      0% {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      30% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      70% {
+        opacity: 0.95;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0.75;
+        transform: translateY(6px);
       }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -270,6 +313,9 @@
         back to center.</span>
     </header>
     <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
+      <div id="countDisplay" class="count-display" aria-hidden="true">
+        <span class="count-display__value">&mdash;</span>
+      </div>
       <div id="breathCircle" class="breath-circle inhale" aria-hidden="true"></div>
       <div id="meditationFlow" class="instructions" aria-live="polite">
         <h2 id="phaseName">Inhale</h2>
@@ -387,6 +433,8 @@
     const phasePrompt = document.getElementById('phasePrompt');
     const toggleSession = document.getElementById('toggleSession');
     const paceControl = document.getElementById('paceControl');
+    const countDisplay = document.getElementById('countDisplay');
+    const countValue = countDisplay ? countDisplay.querySelector('.count-display__value') : null;
 
     let currentPaceKey = paceControl.value;
     let phases = phasesByPace[currentPaceKey];
@@ -395,6 +443,24 @@
     let isRunning = false;
     let hasStarted = false;
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let counterAnimationId = null;
+    let counterTimeoutId = null;
+    let lastDisplayedSecond = 0;
+
+    function updateCountText(value, animate = true) {
+      if (!countValue) {
+        return;
+      }
+      if (!animate) {
+        countValue.classList.remove('is-ticking');
+        countValue.textContent = value;
+        return;
+      }
+      countValue.classList.remove('is-ticking');
+      countValue.textContent = value;
+      void countValue.offsetWidth;
+      countValue.classList.add('is-ticking');
+    }
 
     function setToggleLabel() {
       if (!hasStarted) {
@@ -406,11 +472,69 @@
       }
     }
 
+    function stopCounter() {
+      if (counterAnimationId !== null) {
+        window.cancelAnimationFrame(counterAnimationId);
+        counterAnimationId = null;
+      }
+      if (counterTimeoutId !== null) {
+        window.clearTimeout(counterTimeoutId);
+        counterTimeoutId = null;
+      }
+      if (countValue) {
+        countValue.classList.remove('is-ticking');
+      }
+      lastDisplayedSecond = 0;
+    }
+
+    function setIdleCount() {
+      if (!countDisplay) {
+        return;
+      }
+      stopCounter();
+      updateCountText('—', false);
+      countDisplay.style.opacity = 0.8;
+      lastDisplayedSecond = 0;
+    }
+
+    function startCounter(duration) {
+      if (!countDisplay) {
+        return;
+      }
+      stopCounter();
+      countDisplay.style.opacity = 1;
+      const start = performance.now();
+      const totalSeconds = Math.max(1, Math.round(duration / 1000));
+      updateCountText('1');
+      lastDisplayedSecond = 1;
+      const updateCount = (now) => {
+        const elapsed = Math.min(now - start, duration);
+        const seconds = Math.floor(elapsed / 1000) + 1;
+        if (seconds !== lastDisplayedSecond && seconds <= totalSeconds) {
+          lastDisplayedSecond = seconds;
+          updateCountText(String(seconds));
+        }
+        if (elapsed < duration) {
+          counterAnimationId = window.requestAnimationFrame(updateCount);
+        }
+      };
+      counterAnimationId = window.requestAnimationFrame(updateCount);
+      counterTimeoutId = window.setTimeout(() => {
+        stopCounter();
+        updateCountText(String(totalSeconds), false);
+      }, duration);
+    }
+
     function applyPhase(phase) {
       breathCircle.className = `breath-circle ${phase.className}`;
       breathCircle.style.setProperty('--transition-duration', `${phase.transitionDuration || phase.duration}ms`);
       phaseName.textContent = phase.label;
       phasePrompt.textContent = phase.prompt;
+      if (isRunning) {
+        startCounter(phase.duration);
+      } else {
+        setIdleCount();
+      }
     }
 
     function showIdlePhase() {
@@ -419,6 +543,9 @@
         applyPhase(exhalePhase);
       } else if (phases.length) {
         applyPhase(phases[0]);
+      }
+      if (!isRunning) {
+        setIdleCount();
       }
     }
 
@@ -435,6 +562,7 @@
 
     function startSession() {
       clearTimeout(timeoutId);
+      stopCounter();
       isRunning = true;
       hasStarted = true;
       setToggleLabel();
@@ -444,6 +572,7 @@
     function pauseSession() {
       isRunning = false;
       clearTimeout(timeoutId);
+      stopCounter();
       setToggleLabel();
     }
 
