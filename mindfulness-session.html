@@ -503,13 +503,13 @@
       }
       stopCounter();
       countDisplay.style.opacity = 1;
-      lastDisplayedSecond = 0;
       const start = performance.now();
-      const totalSeconds = Math.max(0, Math.round(duration / 1000));
-      updateCountText('0');
+      const totalSeconds = Math.max(1, Math.round(duration / 1000));
+      updateCountText('1');
+      lastDisplayedSecond = 1;
       const updateCount = (now) => {
         const elapsed = Math.min(now - start, duration);
-        const seconds = Math.floor(elapsed / 1000);
+        const seconds = Math.floor(elapsed / 1000) + 1;
         if (seconds !== lastDisplayedSecond && seconds <= totalSeconds) {
           lastDisplayedSecond = seconds;
           updateCountText(String(seconds));
