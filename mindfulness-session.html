@@ -446,6 +446,39 @@
     let counterAnimationId = null;
     let counterTimeoutId = null;
     let lastDisplayedSecond = 0;
+    const wakeLockSupported = 'wakeLock' in navigator;
+    let wakeLock = null;
+
+    async function requestWakeLock() {
+      if (!wakeLockSupported || wakeLock) {
+        return;
+      }
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+          wakeLock = null;
+          if (isRunning && !document.hidden) {
+            requestWakeLock();
+          }
+        });
+      } catch (error) {
+        wakeLock = null;
+        console.warn('Unable to acquire screen wake lock', error);
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (!wakeLockSupported || !wakeLock) {
+        return;
+      }
+      try {
+        await wakeLock.release();
+      } catch (error) {
+        console.warn('Unable to release screen wake lock', error);
+      } finally {
+        wakeLock = null;
+      }
+    }
 
     function updateCountText(value, animate = true) {
       if (!countValue) {
@@ -566,6 +599,7 @@
       isRunning = true;
       hasStarted = true;
       setToggleLabel();
+      requestWakeLock();
       scheduleNextPhase();
     }
 
@@ -574,6 +608,7 @@
       clearTimeout(timeoutId);
       stopCounter();
       setToggleLabel();
+      releaseWakeLock();
     }
 
     toggleSession.addEventListener('click', () => {
@@ -600,6 +635,8 @@
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         pauseSession();
+      } else if (isRunning) {
+        requestWakeLock();
       }
     });
 
@@ -625,6 +662,9 @@
     } else if (typeof motionPreference.addListener === 'function') {
       motionPreference.addListener(handleMotionPreference);
     }
+
+    window.addEventListener('pagehide', releaseWakeLock);
+    window.addEventListener('beforeunload', releaseWakeLock);
 
     showIdlePhase();
     updateCycleDuration();
