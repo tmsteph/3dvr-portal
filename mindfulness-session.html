@@ -462,6 +462,11 @@
       default: { frequency: 196, intensity: 0.24, releaseLevel: 0.02, padLevel: 0.07 }
     };
 
+    const breathCueSettings = {
+      inhale: { filter: 520, peak: 0.24, sustain: 0.14, release: 0.5, attackRatio: 0.55 },
+      exhale: { filter: 340, peak: 0.22, sustain: 0.04, release: 1.2, attackRatio: 0.35 }
+    };
+
     const breathCircle = document.getElementById('breathCircle');
     const phaseName = document.getElementById('phaseName');
     const phasePrompt = document.getElementById('phasePrompt');
@@ -495,7 +500,9 @@
     let padGain = null;
     let noiseSource = null;
     let noiseGain = null;
+    let breathCueGain = null;
     let backgroundAudioEnabled = false;
+    const activeBreathCues = new Set();
 
     async function requestWakeLock() {
       if (!wakeLockSupported || wakeLock) {
@@ -552,6 +559,10 @@
       audioMasterGain = audioContext.createGain();
       audioMasterGain.gain.value = 0;
       audioMasterGain.connect(audioContext.destination);
+
+      breathCueGain = audioContext.createGain();
+      breathCueGain.gain.value = 0.65;
+      breathCueGain.connect(audioMasterGain);
 
       leadOscillator = audioContext.createOscillator();
       leadOscillator.type = 'sine';
@@ -643,6 +654,11 @@
         noiseGain.gain.cancelScheduledValues(now);
         noiseGain.gain.setTargetAtTime(noiseTarget, now, 1.5);
       }
+      if (breathCueGain) {
+        const cueTarget = toSilence ? 0 : 0.65;
+        breathCueGain.gain.cancelScheduledValues(now);
+        breathCueGain.gain.setTargetAtTime(cueTarget, now, 0.8);
+      }
     }
 
     function disableBackgroundAudio() {
@@ -661,6 +677,7 @@
         audioMasterGain.gain.cancelScheduledValues(now);
         audioMasterGain.gain.linearRampToValueAtTime(0, now + 0.8);
       }
+      stopBreathCues(true);
     }
 
     function applyPhaseAudio(phase) {
@@ -684,6 +701,79 @@
         noiseGain.gain.cancelScheduledValues(now);
         noiseGain.gain.setTargetAtTime(Math.max(settings.padLevel - 0.03, 0.015), now, 1.2);
       }
+    }
+
+    function stopBreathCues(force = false) {
+      if (!activeBreathCues.size) {
+        return;
+      }
+      const cues = Array.from(activeBreathCues);
+      cues.forEach((cue) => {
+        try {
+          if (force && cue.source) {
+            cue.source.stop();
+          }
+        } catch (error) {
+          console.warn('Unable to stop breath cue', error);
+        }
+        if (cue.cleanup) {
+          cue.cleanup();
+        }
+      });
+      activeBreathCues.clear();
+    }
+
+    function triggerBreathCue(phase) {
+      if (!backgroundAudioEnabled || !audioContext || !breathCueGain) {
+        return;
+      }
+      const settings = breathCueSettings[phase.className];
+      if (!settings) {
+        return;
+      }
+      stopBreathCues();
+      const durationSeconds = Math.max(phase.duration / 1000, 0.8);
+      const attack = Math.min(durationSeconds * settings.attackRatio, 1.6);
+      const sustainTransition = Math.min(Math.max(durationSeconds * 0.35, 0.5), Math.max(durationSeconds - 0.2, 0.8));
+      const release = Math.min(Math.max(settings.release, 0.35), 1.8);
+      const source = audioContext.createBufferSource();
+      source.buffer = createNoiseBuffer(audioContext);
+      source.loop = true;
+      const filter = audioContext.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = settings.filter;
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 0.0001;
+      source.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(breathCueGain);
+
+      const now = audioContext.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.linearRampToValueAtTime(settings.peak, now + attack);
+      const sustainTime = now + attack + sustainTransition;
+      gainNode.gain.linearRampToValueAtTime(settings.sustain, sustainTime);
+      gainNode.gain.linearRampToValueAtTime(0.0001, sustainTime + release);
+
+      const stopTime = sustainTime + release + 0.5;
+      source.start(now);
+      source.stop(stopTime);
+
+      const cleanup = () => {
+        source.removeEventListener('ended', cleanup);
+        try {
+          gainNode.disconnect();
+          filter.disconnect();
+        } catch (error) {
+          console.warn('Unable to clean up breath cue', error);
+        }
+        activeBreathCues.delete(registration);
+      };
+
+      const registration = { source, cleanup };
+      activeBreathCues.add(registration);
+      source.addEventListener('ended', cleanup);
     }
 
     function updateCountText(value, animate = true) {
@@ -772,6 +862,7 @@
       phasePrompt.textContent = phase.prompt;
       if (isRunning) {
         applyPhaseAudio(phase);
+        triggerBreathCue(phase);
         startCounter(phase.duration);
       } else {
         setIdleCount();
