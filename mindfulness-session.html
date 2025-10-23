@@ -227,6 +227,32 @@
       border-color: rgba(148, 163, 184, 0.45);
       box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
     }
+    .controls .slider-control {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.45);
+      min-width: 200px;
+    }
+    .controls .slider-control span {
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.75);
+    }
+    .controls input[type='range'] {
+      width: 100%;
+      accent-color: #38bdf8;
+    }
+    .controls .slider-value {
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.05em;
+    }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -354,6 +380,14 @@
         <option value="energizing">Energizing focus (3 / 3 / 3 / 1)</option>
       </select>
       <button type="button" id="audioToggle" aria-pressed="false">Enable background audio</button>
+      <label class="slider-control" for="musicVolume">
+        <span>Music volume <span id="musicVolumeValue" class="slider-value">60%</span></span>
+        <input id="musicVolume" type="range" min="0" max="100" value="60" step="5" aria-describedby="musicVolumeValue">
+      </label>
+      <label class="slider-control" for="breathVolume">
+        <span>Breath volume <span id="breathVolumeValue" class="slider-value">105%</span></span>
+        <input id="breathVolume" type="range" min="0" max="125" value="105" step="5" aria-describedby="breathVolumeValue">
+      </label>
       <span id="audioStatus" class="sr-only" aria-live="polite"></span>
     </div>
   </div>
@@ -497,6 +531,10 @@
     const countValue = countDisplay ? countDisplay.querySelector('.count-display__value') : null;
     const audioToggle = document.getElementById('audioToggle');
     const audioStatus = document.getElementById('audioStatus');
+    const musicVolumeControl = document.getElementById('musicVolume');
+    const musicVolumeValue = document.getElementById('musicVolumeValue');
+    const breathVolumeControl = document.getElementById('breathVolume');
+    const breathVolumeValue = document.getElementById('breathVolumeValue');
 
     let currentPaceKey = paceControl.value;
     let phases = phasesByPace[currentPaceKey];
@@ -515,6 +553,8 @@
     const audioSupported = typeof AudioContextClass === 'function';
     let audioContext = null;
     let audioMasterGain = null;
+    let musicGain = null;
+    let breathGuidanceGain = null;
     let leadOscillator = null;
     let leadGain = null;
     let padOscillator = null;
@@ -574,6 +614,18 @@
       return buffer;
     }
 
+    let musicVolumeSetting = musicVolumeControl ? Number(musicVolumeControl.value) / 100 : 0.6;
+    let breathVolumeSetting = breathVolumeControl ? Number(breathVolumeControl.value) / 100 : 1.05;
+
+    function updateVolumeLabel(target, value) {
+      if (target) {
+        target.textContent = `${value}%`;
+      }
+    }
+
+    updateVolumeLabel(musicVolumeValue, musicVolumeControl ? musicVolumeControl.value : 60);
+    updateVolumeLabel(breathVolumeValue, breathVolumeControl ? breathVolumeControl.value : 105);
+
     function buildAudioGraph() {
       if (!audioSupported || audioContext) {
         return;
@@ -583,13 +635,21 @@
       audioMasterGain.gain.value = 0;
       audioMasterGain.connect(audioContext.destination);
 
+      musicGain = audioContext.createGain();
+      musicGain.gain.value = musicVolumeSetting;
+      musicGain.connect(audioMasterGain);
+
+      breathGuidanceGain = audioContext.createGain();
+      breathGuidanceGain.gain.value = breathVolumeSetting;
+      breathGuidanceGain.connect(audioMasterGain);
+
       breathCueGain = audioContext.createGain();
-      breathCueGain.gain.value = 0.85;
-      breathCueGain.connect(audioMasterGain);
+      breathCueGain.gain.value = 1.1;
+      breathCueGain.connect(breathGuidanceGain);
 
       toneCueGain = audioContext.createGain();
-      toneCueGain.gain.value = 0.32;
-      toneCueGain.connect(audioMasterGain);
+      toneCueGain.gain.value = 0.38;
+      toneCueGain.connect(breathGuidanceGain);
 
       leadOscillator = audioContext.createOscillator();
       leadOscillator.type = 'sine';
@@ -597,7 +657,7 @@
       leadGain = audioContext.createGain();
       leadGain.gain.value = 0.0001;
       leadOscillator.connect(leadGain);
-      leadGain.connect(audioMasterGain);
+      leadGain.connect(musicGain);
       leadOscillator.start();
 
       padOscillator = audioContext.createOscillator();
@@ -606,7 +666,7 @@
       padGain = audioContext.createGain();
       padGain.gain.value = 0.05;
       padOscillator.connect(padGain);
-      padGain.connect(audioMasterGain);
+      padGain.connect(musicGain);
       padOscillator.start();
 
       noiseSource = audioContext.createBufferSource();
@@ -619,7 +679,7 @@
       noiseGain.gain.value = 0.06;
       noiseSource.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
-      noiseGain.connect(audioMasterGain);
+      noiseGain.connect(musicGain);
       noiseSource.start();
     }
 
@@ -682,12 +742,12 @@
         noiseGain.gain.setTargetAtTime(noiseTarget, now, 1.5);
       }
       if (breathCueGain) {
-        const cueTarget = toSilence ? 0 : 0.85;
+        const cueTarget = toSilence ? 0 : 1.1;
         breathCueGain.gain.cancelScheduledValues(now);
         breathCueGain.gain.setTargetAtTime(cueTarget, now, 0.8);
       }
       if (toneCueGain) {
-        const toneTarget = toSilence ? 0.0001 : 0.32;
+        const toneTarget = toSilence ? 0.0001 : 0.38;
         toneCueGain.gain.cancelScheduledValues(now);
         toneCueGain.gain.setTargetAtTime(toneTarget, now, 0.6);
       }
@@ -789,6 +849,8 @@
       const attack = Math.min(durationSeconds * settings.attackRatio, 1.6);
       const sustainTransition = Math.min(Math.max(durationSeconds * 0.35, 0.5), Math.max(durationSeconds - 0.2, 0.8));
       const release = Math.min(Math.max(settings.release, 0.35), 1.8);
+      const peakLevel = Math.min((typeof settings.peak === 'number' ? settings.peak : 0.6) * 1.1, 1.5);
+      const sustainLevel = Math.min((typeof settings.sustain === 'number' ? settings.sustain : peakLevel * 0.65) * 1.05, 1.2);
       const source = audioContext.createBufferSource();
       source.buffer = createNoiseBuffer(audioContext);
       source.loop = true;
@@ -809,14 +871,14 @@
       const now = audioContext.currentTime;
       gainNode.gain.cancelScheduledValues(now);
       gainNode.gain.setValueAtTime(0.0001, now);
-      gainNode.gain.linearRampToValueAtTime(settings.peak, now + attack);
+      gainNode.gain.linearRampToValueAtTime(peakLevel, now + attack);
       const sustainTime = now + attack + sustainTransition;
       if (filterStart && filterEnd && filter.frequency) {
         filter.frequency.cancelScheduledValues(now);
         filter.frequency.setValueAtTime(filterStart, now);
         filter.frequency.linearRampToValueAtTime(filterEnd, sustainTime);
       }
-      gainNode.gain.linearRampToValueAtTime(settings.sustain, sustainTime);
+      gainNode.gain.linearRampToValueAtTime(sustainLevel, sustainTime);
       gainNode.gain.linearRampToValueAtTime(0.0001, sustainTime + release);
 
       const stopTime = sustainTime + release + 0.5;
@@ -861,8 +923,10 @@
       }
       const gainNode = audioContext.createGain();
       gainNode.gain.setValueAtTime(0.0001, now);
-      const peakLevel = Math.max(settings.peak || 0.18, 0.08);
-      const sustainLevel = Math.max(settings.sustain || peakLevel * 0.5, 0.04);
+      const basePeak = Math.max(settings.peak || 0.18, 0.08);
+      const baseSustain = Math.max(settings.sustain || basePeak * 0.5, 0.04);
+      const peakLevel = Math.min(basePeak * 1.1, 1);
+      const sustainLevel = Math.min(baseSustain * 1.05, 0.9);
       gainNode.gain.linearRampToValueAtTime(peakLevel, now + 0.2);
       gainNode.gain.linearRampToValueAtTime(sustainLevel, now + cueDuration * 0.55);
       gainNode.gain.setTargetAtTime(0.0001, now + cueDuration, 0.4);
@@ -1061,6 +1125,40 @@
           }
         });
       }
+    }
+
+    function applyMusicVolumeFromControl() {
+      if (!musicVolumeControl) {
+        return;
+      }
+      musicVolumeSetting = Math.min(Math.max(Number(musicVolumeControl.value) / 100, 0), 1);
+      updateVolumeLabel(musicVolumeValue, musicVolumeControl.value);
+      if (musicGain && audioContext) {
+        const now = audioContext.currentTime;
+        musicGain.gain.cancelScheduledValues(now);
+        musicGain.gain.setTargetAtTime(musicVolumeSetting, now, 0.25);
+      }
+    }
+
+    function applyBreathVolumeFromControl() {
+      if (!breathVolumeControl) {
+        return;
+      }
+      breathVolumeSetting = Math.min(Math.max(Number(breathVolumeControl.value) / 100, 0), 1.25);
+      updateVolumeLabel(breathVolumeValue, breathVolumeControl.value);
+      if (breathGuidanceGain && audioContext) {
+        const now = audioContext.currentTime;
+        breathGuidanceGain.gain.cancelScheduledValues(now);
+        breathGuidanceGain.gain.setTargetAtTime(breathVolumeSetting, now, 0.25);
+      }
+    }
+
+    if (musicVolumeControl) {
+      musicVolumeControl.addEventListener('input', applyMusicVolumeFromControl);
+    }
+
+    if (breathVolumeControl) {
+      breathVolumeControl.addEventListener('input', applyBreathVolumeFromControl);
     }
 
     document.addEventListener('visibilitychange', () => {
