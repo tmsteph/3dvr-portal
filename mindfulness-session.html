@@ -463,8 +463,22 @@
     };
 
     const breathCueSettings = {
-      inhale: { filter: 520, peak: 0.24, sustain: 0.14, release: 0.5, attackRatio: 0.55 },
-      exhale: { filter: 340, peak: 0.22, sustain: 0.04, release: 1.2, attackRatio: 0.35 }
+      inhale: {
+        filter: { start: 280, end: 640 },
+        q: 0.85,
+        peak: 0.48,
+        sustain: 0.26,
+        release: 0.8,
+        attackRatio: 0.55
+      },
+      exhale: {
+        filter: { start: 540, end: 260 },
+        q: 0.9,
+        peak: 0.44,
+        sustain: 0.18,
+        release: 1.3,
+        attackRatio: 0.35
+      }
     };
 
     const breathCircle = document.getElementById('breathCircle');
@@ -546,7 +560,7 @@
       const buffer = context.createBuffer(1, duration, context.sampleRate);
       const channel = buffer.getChannelData(0);
       for (let i = 0; i < duration; i += 1) {
-        channel[i] = (Math.random() * 2 - 1) * 0.3;
+        channel[i] = (Math.random() * 2 - 1) * 0.45;
       }
       return buffer;
     }
@@ -561,7 +575,7 @@
       audioMasterGain.connect(audioContext.destination);
 
       breathCueGain = audioContext.createGain();
-      breathCueGain.gain.value = 0.65;
+      breathCueGain.gain.value = 0.85;
       breathCueGain.connect(audioMasterGain);
 
       leadOscillator = audioContext.createOscillator();
@@ -655,7 +669,7 @@
         noiseGain.gain.setTargetAtTime(noiseTarget, now, 1.5);
       }
       if (breathCueGain) {
-        const cueTarget = toSilence ? 0 : 0.65;
+        const cueTarget = toSilence ? 0 : 0.85;
         breathCueGain.gain.cancelScheduledValues(now);
         breathCueGain.gain.setTargetAtTime(cueTarget, now, 0.8);
       }
@@ -740,8 +754,13 @@
       source.buffer = createNoiseBuffer(audioContext);
       source.loop = true;
       const filter = audioContext.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = settings.filter;
+      const filterSettings = settings.filter || {};
+      const fallbackFrequency = typeof filterSettings === 'number' ? filterSettings : 420;
+      const filterStart = typeof filterSettings === 'number' ? filterSettings : (filterSettings.start || fallbackFrequency);
+      const filterEnd = typeof filterSettings === 'number' ? filterSettings : (filterSettings.end || filterStart);
+      filter.type = 'bandpass';
+      filter.Q.value = typeof settings.q === 'number' ? settings.q : 0.7;
+      filter.frequency.value = filterStart;
       const gainNode = audioContext.createGain();
       gainNode.gain.value = 0.0001;
       source.connect(filter);
@@ -753,6 +772,11 @@
       gainNode.gain.setValueAtTime(0.0001, now);
       gainNode.gain.linearRampToValueAtTime(settings.peak, now + attack);
       const sustainTime = now + attack + sustainTransition;
+      if (filterStart && filterEnd && filter.frequency) {
+        filter.frequency.cancelScheduledValues(now);
+        filter.frequency.setValueAtTime(filterStart, now);
+        filter.frequency.linearRampToValueAtTime(filterEnd, sustainTime);
+      }
       gainNode.gain.linearRampToValueAtTime(settings.sustain, sustainTime);
       gainNode.gain.linearRampToValueAtTime(0.0001, sustainTime + release);
 
