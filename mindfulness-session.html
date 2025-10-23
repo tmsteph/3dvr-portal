@@ -414,8 +414,13 @@
     let isRunning = false;
     let hasStarted = false;
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let countdownIntervalId = null;
-    let countdownTimeoutId = null;
+    let counterAnimationId = null;
+    let counterTimeoutId = null;
+
+    function formatElapsed(seconds) {
+      const clamped = Math.min(seconds, Math.floor(seconds * 10) / 10);
+      return clamped.toFixed(clamped >= 10 ? 0 : 1).replace(/\.0$/, '');
+    }
 
     function setToggleLabel() {
       if (!hasStarted) {
@@ -427,14 +432,14 @@
       }
     }
 
-    function stopCountdown() {
-      if (countdownIntervalId !== null) {
-        window.clearInterval(countdownIntervalId);
-        countdownIntervalId = null;
+    function stopCounter() {
+      if (counterAnimationId !== null) {
+        window.cancelAnimationFrame(counterAnimationId);
+        counterAnimationId = null;
       }
-      if (countdownTimeoutId !== null) {
-        window.clearTimeout(countdownTimeoutId);
-        countdownTimeoutId = null;
+      if (counterTimeoutId !== null) {
+        window.clearTimeout(counterTimeoutId);
+        counterTimeoutId = null;
       }
     }
 
@@ -442,39 +447,31 @@
       if (!countDisplay) {
         return;
       }
-      stopCountdown();
+      stopCounter();
       countDisplay.textContent = '—';
       countDisplay.style.opacity = 0.8;
     }
 
-    function startCountdown(duration) {
+    function startCounter(duration) {
       if (!countDisplay) {
         return;
       }
-      stopCountdown();
-      const totalCounts = Math.max(1, Math.round(duration / 1000));
-      let remaining = totalCounts;
-      countDisplay.textContent = remaining;
+      stopCounter();
       countDisplay.style.opacity = 1;
-      if (totalCounts === 1) {
-        countdownTimeoutId = window.setTimeout(() => {
-          countDisplay.textContent = '0';
-          countdownTimeoutId = null;
-        }, duration);
-        return;
-      }
-      countdownIntervalId = window.setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) {
-          stopCountdown();
-          countDisplay.textContent = '0';
-        } else {
-          countDisplay.textContent = remaining;
+      const start = performance.now();
+      const updateCount = (now) => {
+        const elapsed = Math.min(now - start, duration);
+        const seconds = elapsed / 1000;
+        countDisplay.textContent = formatElapsed(seconds);
+        if (elapsed < duration) {
+          counterAnimationId = window.requestAnimationFrame(updateCount);
         }
-      }, 1000);
-      countdownTimeoutId = window.setTimeout(() => {
-        stopCountdown();
-        countDisplay.textContent = '0';
+      };
+      countDisplay.textContent = '0';
+      counterAnimationId = window.requestAnimationFrame(updateCount);
+      counterTimeoutId = window.setTimeout(() => {
+        stopCounter();
+        countDisplay.textContent = formatElapsed(duration / 1000);
       }, duration);
     }
 
@@ -484,7 +481,7 @@
       phaseName.textContent = phase.label;
       phasePrompt.textContent = phase.prompt;
       if (isRunning) {
-        startCountdown(phase.duration);
+        startCounter(phase.duration);
       } else {
         setIdleCount();
       }
@@ -515,7 +512,7 @@
 
     function startSession() {
       clearTimeout(timeoutId);
-      stopCountdown();
+      stopCounter();
       isRunning = true;
       hasStarted = true;
       setToggleLabel();
@@ -525,7 +522,7 @@
     function pauseSession() {
       isRunning = false;
       clearTimeout(timeoutId);
-      stopCountdown();
+      stopCounter();
       setToggleLabel();
     }
 
