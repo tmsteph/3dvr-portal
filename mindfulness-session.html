@@ -253,6 +253,68 @@
       color: #f8fafc;
       letter-spacing: 0.05em;
     }
+    .breathing-guide {
+      width: min(100%, 960px);
+      margin: 12px auto 0;
+      display: grid;
+      gap: 24px;
+      text-align: left;
+    }
+    .breathing-guide h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.015em;
+    }
+    .breathing-guide__intro {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    .breathing-guide__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .breathing-guide__card {
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.55);
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+      padding: 20px 24px 22px;
+      display: grid;
+      gap: 14px;
+    }
+    .breathing-guide__card h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      letter-spacing: 0.01em;
+      color: #f8fafc;
+    }
+    .breathing-guide__summary {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.82);
+      line-height: 1.65;
+    }
+    .breathing-guide__card dl {
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .breathing-guide__card dt {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: rgba(148, 163, 184, 0.7);
+    }
+    .breathing-guide__card dd {
+      margin: 2px 0 0;
+      color: rgba(226, 232, 240, 0.82);
+      line-height: 1.65;
+    }
+    .breathing-guide__card dd + dt {
+      margin-top: 8px;
+    }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -323,6 +385,9 @@
       .controls select {
         width: 100%;
       }
+      .breathing-guide {
+        gap: 20px;
+      }
     }
     @keyframes countTick {
       0% {
@@ -378,6 +443,7 @@
         <option value="slow">Slow &amp; restorative (6 / 2 / 6 / 2)</option>
         <option value="balanced" selected>Balanced rhythm (4 / 4 / 4 / 2)</option>
         <option value="energizing">Energizing focus (3 / 3 / 3 / 1)</option>
+        <option value="box">Box breathing (4 / 4 / 4 / 4)</option>
       </select>
       <button type="button" id="audioToggle" aria-pressed="false">Enable background audio</button>
       <label class="slider-control" for="musicVolume">
@@ -390,6 +456,66 @@
       </label>
       <span id="audioStatus" class="sr-only" aria-live="polite"></span>
     </div>
+    <section class="breathing-guide" aria-labelledby="breathingGuideHeading">
+      <h2 id="breathingGuideHeading">Breathing techniques at a glance</h2>
+      <p class="breathing-guide__intro">Each pacing option draws from long-standing contemplative traditions and is backed by
+        contemporary research on the nervous system. Explore the stories and science to choose the rhythm that supports
+        your intention today.</p>
+      <div class="breathing-guide__grid">
+        <article class="breathing-guide__card">
+          <h3>Slow &amp; restorative</h3>
+          <p class="breathing-guide__summary">A gentle six-count inhale and exhale with soft pauses encourages full diaphragmatic
+            movement and leaves space to notice subtle shifts in mood.</p>
+          <dl>
+            <dt>History</dt>
+            <dd>Echoes of this pattern appear in classical pranayama texts that guided practitioners to extend and
+              equalize the breath for deep relaxation.</dd>
+            <dt>Science</dt>
+            <dd>Breathing around five cycles per minute is linked to greater heart rate variability, calmer amygdala
+              activity, and a measurable drop in circulating stress hormones.</dd>
+          </dl>
+        </article>
+        <article class="breathing-guide__card">
+          <h3>Balanced rhythm</h3>
+          <p class="breathing-guide__summary">Even four-count phases with a brief rest create a steady cadence that is easy to
+            memorize and perfect for returning to center in a busy day.</p>
+          <dl>
+            <dt>History</dt>
+            <dd>Modern biofeedback pioneers popularized this "coherent" breathing tempo to help meditators and athletes
+              synchronize breath and heartbeat.</dd>
+            <dt>Science</dt>
+            <dd>Maintaining symmetry between inhale and exhale supports vagal tone, improving focus and emotional
+              regulation across multiple clinical trials.</dd>
+          </dl>
+        </article>
+        <article class="breathing-guide__card">
+          <h3>Energizing focus</h3>
+          <p class="breathing-guide__summary">Quicker three-count waves cultivate alertness and can be used before demanding work
+            or creative sprints when you want a brighter mental state.</p>
+          <dl>
+            <dt>History</dt>
+            <dd>Fast, rhythmic breathing shows up in yogic bellows techniques and martial arts warm-ups designed to
+              awaken the senses.</dd>
+            <dt>Science</dt>
+            <dd>Short, rapid inhalations momentarily activate the sympathetic branch of the nervous system, increasing
+              beta brain wave activity and sharpening reaction time.</dd>
+          </dl>
+        </article>
+        <article class="breathing-guide__card">
+          <h3>Box breathing</h3>
+          <p class="breathing-guide__summary">Four equal phases mirror the sides of a square&mdash;inhale, hold, exhale, hold&mdash;to
+            train calm concentration under pressure.</p>
+          <dl>
+            <dt>History</dt>
+            <dd>Also known as sama vritti in yoga, the method was embraced by Navy SEAL trainers in the late 20th century
+              to help teams reset quickly between high-stakes missions.</dd>
+            <dt>Science</dt>
+            <dd>The consistent pacing balances carbon dioxide and oxygen levels, stimulating baroreceptors that slow the
+              heart and reduce perceived stress within a few cycles.</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
   </div>
   <footer>
     Tip: Use background audio to keep the rhythm going even if you dim the screen or switch apps.
@@ -483,6 +609,36 @@
           prompt: 'Take a soft pause for one count before the next inhale.',
           duration: 1000,
           transitionDuration: 450,
+          className: 'rest'
+        }
+      ],
+      box: [
+        {
+          label: 'Inhale',
+          prompt: 'Inhale evenly through your nose for four counts, expanding the ribs in all directions.',
+          duration: 4000,
+          transitionDuration: 2400,
+          className: 'inhale'
+        },
+        {
+          label: 'Hold',
+          prompt: 'Hold gently for four counts as you trace the top edge of the box in your mind.',
+          duration: 4000,
+          transitionDuration: 500,
+          className: 'hold'
+        },
+        {
+          label: 'Exhale',
+          prompt: 'Exhale smoothly through the nose for four counts, keeping the jaw and hands relaxed.',
+          duration: 4000,
+          transitionDuration: 2400,
+          className: 'exhale'
+        },
+        {
+          label: 'Rest',
+          prompt: 'Pause for four counts at the base of the box before the next inhale begins.',
+          duration: 4000,
+          transitionDuration: 600,
           className: 'rest'
         }
       ]
