@@ -191,6 +191,7 @@
       align-items: center;
       justify-content: center;
       gap: 16px;
+      flex-wrap: wrap;
     }
     .controls button,
     .controls select {
@@ -214,6 +215,28 @@
       border-color: rgba(94, 234, 212, 0.45);
       outline: none;
       transform: translateY(-1px);
+    }
+    .controls button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .controls button[aria-pressed="true"] {
+      background: linear-gradient(120deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.28));
+      border-color: rgba(148, 163, 184, 0.45);
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
     footer {
       padding: 28px 24px;
@@ -330,10 +353,12 @@
         <option value="balanced" selected>Balanced rhythm (4 / 4 / 4 / 2)</option>
         <option value="energizing">Energizing focus (3 / 3 / 3 / 1)</option>
       </select>
+      <button type="button" id="audioToggle" aria-pressed="false">Enable background audio</button>
+      <span id="audioStatus" class="sr-only" aria-live="polite"></span>
     </div>
   </div>
   <footer>
-    Tip: Pair the breathing room with soft instrumental music or brown noise to deepen focus.
+    Tip: Use background audio to keep the rhythm going even if you dim the screen or switch apps.
   </footer>
   <script>
     const phasesByPace = {
@@ -429,6 +454,14 @@
       ]
     };
 
+    const phaseAudioSettings = {
+      inhale: { frequency: 220, intensity: 0.34, releaseLevel: 0.03, padLevel: 0.08 },
+      hold: { frequency: 264, intensity: 0.24, releaseLevel: 0.04, padLevel: 0.07 },
+      exhale: { frequency: 174, intensity: 0.32, releaseLevel: 0.02, padLevel: 0.09 },
+      rest: { frequency: 155, intensity: 0.18, releaseLevel: 0.02, padLevel: 0.06 },
+      default: { frequency: 196, intensity: 0.24, releaseLevel: 0.02, padLevel: 0.07 }
+    };
+
     const breathCircle = document.getElementById('breathCircle');
     const phaseName = document.getElementById('phaseName');
     const phasePrompt = document.getElementById('phasePrompt');
@@ -436,6 +469,8 @@
     const paceControl = document.getElementById('paceControl');
     const countDisplay = document.getElementById('countDisplay');
     const countValue = countDisplay ? countDisplay.querySelector('.count-display__value') : null;
+    const audioToggle = document.getElementById('audioToggle');
+    const audioStatus = document.getElementById('audioStatus');
 
     let currentPaceKey = paceControl.value;
     let phases = phasesByPace[currentPaceKey];
@@ -443,12 +478,24 @@
     let timeoutId = null;
     let isRunning = false;
     let hasStarted = false;
+    let restartOnReturn = false;
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
     let counterAnimationId = null;
     let counterTimeoutId = null;
     let lastDisplayedSecond = 0;
     const wakeLockSupported = 'wakeLock' in navigator;
     let wakeLock = null;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext || null;
+    const audioSupported = typeof AudioContextClass === 'function';
+    let audioContext = null;
+    let audioMasterGain = null;
+    let leadOscillator = null;
+    let leadGain = null;
+    let padOscillator = null;
+    let padGain = null;
+    let noiseSource = null;
+    let noiseGain = null;
+    let backgroundAudioEnabled = false;
 
     async function requestWakeLock() {
       if (!wakeLockSupported || wakeLock) {
@@ -478,6 +525,164 @@
         console.warn('Unable to release screen wake lock', error);
       } finally {
         wakeLock = null;
+      }
+    }
+
+    function updateAudioStatus(message) {
+      if (audioStatus) {
+        audioStatus.textContent = message;
+      }
+    }
+
+    function createNoiseBuffer(context) {
+      const duration = 2 * context.sampleRate;
+      const buffer = context.createBuffer(1, duration, context.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let i = 0; i < duration; i += 1) {
+        channel[i] = (Math.random() * 2 - 1) * 0.3;
+      }
+      return buffer;
+    }
+
+    function buildAudioGraph() {
+      if (!audioSupported || audioContext) {
+        return;
+      }
+      audioContext = new AudioContextClass();
+      audioMasterGain = audioContext.createGain();
+      audioMasterGain.gain.value = 0;
+      audioMasterGain.connect(audioContext.destination);
+
+      leadOscillator = audioContext.createOscillator();
+      leadOscillator.type = 'sine';
+      leadOscillator.frequency.value = phaseAudioSettings.default.frequency;
+      leadGain = audioContext.createGain();
+      leadGain.gain.value = 0.0001;
+      leadOscillator.connect(leadGain);
+      leadGain.connect(audioMasterGain);
+      leadOscillator.start();
+
+      padOscillator = audioContext.createOscillator();
+      padOscillator.type = 'triangle';
+      padOscillator.frequency.value = 98;
+      padGain = audioContext.createGain();
+      padGain.gain.value = 0.05;
+      padOscillator.connect(padGain);
+      padGain.connect(audioMasterGain);
+      padOscillator.start();
+
+      noiseSource = audioContext.createBufferSource();
+      noiseSource.buffer = createNoiseBuffer(audioContext);
+      noiseSource.loop = true;
+      const noiseFilter = audioContext.createBiquadFilter();
+      noiseFilter.type = 'lowpass';
+      noiseFilter.frequency.value = 420;
+      noiseGain = audioContext.createGain();
+      noiseGain.gain.value = 0.06;
+      noiseSource.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(audioMasterGain);
+      noiseSource.start();
+    }
+
+    async function enableBackgroundAudio() {
+      if (!audioSupported || !audioToggle) {
+        return;
+      }
+      buildAudioGraph();
+      if (!audioContext) {
+        updateAudioStatus('Background audio could not be initialized.');
+        return;
+      }
+      if (audioContext.state === 'suspended') {
+        try {
+          await audioContext.resume();
+        } catch (error) {
+          console.warn('Unable to resume audio context', error);
+          updateAudioStatus('Background audio is blocked by the browser.');
+          return;
+        }
+      }
+      backgroundAudioEnabled = true;
+      audioToggle.setAttribute('aria-pressed', 'true');
+      audioToggle.textContent = 'Disable background audio';
+      if (audioMasterGain) {
+        const now = audioContext.currentTime;
+        audioMasterGain.gain.cancelScheduledValues(now);
+        audioMasterGain.gain.linearRampToValueAtTime(0.45, now + 1.2);
+      }
+      if (!hasStarted) {
+        updateAudioStatus('Background audio enabled. Starting a fresh breathing cycle.');
+        startSession({ resetPhase: true });
+      } else if (!isRunning) {
+        settlePhaseAudio(true);
+        updateAudioStatus('Background audio enabled. Press resume to continue your session.');
+      } else {
+        updateAudioStatus('Background audio enabled.');
+        if (phases[phaseIndex]) {
+          applyPhaseAudio(phases[phaseIndex]);
+        }
+      }
+    }
+
+    function settlePhaseAudio(toSilence = false) {
+      if (!audioContext || !leadGain) {
+        return;
+      }
+      const now = audioContext.currentTime;
+      const target = toSilence ? 0.0001 : 0.04;
+      leadGain.gain.cancelScheduledValues(now);
+      leadGain.gain.setTargetAtTime(target, now, 0.6);
+      if (padGain) {
+        const padTarget = toSilence ? 0.02 : 0.05;
+        padGain.gain.cancelScheduledValues(now);
+        padGain.gain.setTargetAtTime(padTarget, now, 1.2);
+      }
+      if (noiseGain) {
+        const noiseTarget = toSilence ? 0.01 : 0.03;
+        noiseGain.gain.cancelScheduledValues(now);
+        noiseGain.gain.setTargetAtTime(noiseTarget, now, 1.5);
+      }
+    }
+
+    function disableBackgroundAudio() {
+      if (!audioContext) {
+        return;
+      }
+      backgroundAudioEnabled = false;
+      if (audioToggle) {
+        audioToggle.setAttribute('aria-pressed', 'false');
+        audioToggle.textContent = 'Enable background audio';
+      }
+      updateAudioStatus('Background audio muted.');
+      settlePhaseAudio(true);
+      if (audioMasterGain) {
+        const now = audioContext.currentTime;
+        audioMasterGain.gain.cancelScheduledValues(now);
+        audioMasterGain.gain.linearRampToValueAtTime(0, now + 0.8);
+      }
+    }
+
+    function applyPhaseAudio(phase) {
+      if (!backgroundAudioEnabled || !audioContext || !leadGain || !leadOscillator) {
+        return;
+      }
+      const settings = phaseAudioSettings[phase.className] || phaseAudioSettings.default;
+      const now = audioContext.currentTime;
+      const durationSeconds = Math.max(phase.duration / 1000, 0.6);
+      leadOscillator.frequency.cancelScheduledValues(now);
+      leadOscillator.frequency.linearRampToValueAtTime(settings.frequency, now + 0.4);
+      leadGain.gain.cancelScheduledValues(now);
+      leadGain.gain.setTargetAtTime(settings.intensity, now, 0.45);
+      const releaseDelay = Math.max(durationSeconds - 0.6, 0.3);
+      leadGain.gain.setTargetAtTime(settings.releaseLevel, now + releaseDelay, 1.1);
+      if (padGain) {
+        padGain.gain.cancelScheduledValues(now);
+        padGain.gain.setTargetAtTime(settings.padLevel, now, 1.1);
+      }
+      if (noiseGain) {
+        noiseGain.gain.cancelScheduledValues(now);
+        noiseGain.gain.setTargetAtTime(Math.max(settings.padLevel - 0.03, 0.015), now, 1.2);
       }
     }
 
@@ -529,6 +734,7 @@
       updateCountText('—', false);
       countDisplay.style.opacity = 0.8;
       lastDisplayedSecond = 0;
+      settlePhaseAudio(true);
     }
 
     function startCounter(duration) {
@@ -565,6 +771,7 @@
       phaseName.textContent = phase.label;
       phasePrompt.textContent = phase.prompt;
       if (isRunning) {
+        applyPhaseAudio(phase);
         startCounter(phase.duration);
       } else {
         setIdleCount();
@@ -594,9 +801,13 @@
       }, phase.duration);
     }
 
-    function startSession() {
+    function startSession(options = {}) {
+      const { resetPhase = false } = options;
       clearTimeout(timeoutId);
       stopCounter();
+      if (resetPhase || !hasStarted) {
+        phaseIndex = 0;
+      }
       isRunning = true;
       hasStarted = true;
       setToggleLabel();
@@ -609,6 +820,7 @@
       clearTimeout(timeoutId);
       stopCounter();
       setToggleLabel();
+      settlePhaseAudio(true);
       releaseWakeLock();
     }
 
@@ -626,18 +838,55 @@
       phaseIndex = 0;
       updateCycleDuration();
       if (isRunning) {
-        startSession();
+        startSession({ resetPhase: true });
       } else {
         showIdlePhase();
         setToggleLabel();
       }
     });
 
+    if (audioToggle) {
+      if (!audioSupported) {
+        audioToggle.disabled = true;
+        audioToggle.textContent = 'Background audio not supported';
+        audioToggle.setAttribute('aria-pressed', 'false');
+        updateAudioStatus('Background audio is not supported in this browser.');
+      } else {
+        audioToggle.addEventListener('click', () => {
+          if (backgroundAudioEnabled) {
+            disableBackgroundAudio();
+          } else {
+            enableBackgroundAudio();
+          }
+        });
+      }
+    }
+
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        pauseSession();
-      } else if (isRunning) {
-        requestWakeLock();
+        if (backgroundAudioEnabled && isRunning) {
+          restartOnReturn = false;
+          releaseWakeLock();
+        } else {
+          restartOnReturn = isRunning;
+          if (isRunning) {
+            pauseSession();
+          } else {
+            releaseWakeLock();
+          }
+        }
+      } else {
+        if (backgroundAudioEnabled && audioContext && audioContext.state === 'suspended') {
+          audioContext.resume().catch(() => {});
+        }
+        if (backgroundAudioEnabled && isRunning) {
+          requestWakeLock();
+        } else if (restartOnReturn) {
+          restartOnReturn = false;
+          startSession({ resetPhase: true });
+        } else if (isRunning) {
+          requestWakeLock();
+        }
       }
     });
 
