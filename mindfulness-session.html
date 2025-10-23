@@ -115,6 +115,14 @@
       opacity: 0.8;
       transition: opacity 0.4s ease;
     }
+    .count-display__value {
+      display: inline-block;
+      opacity: 0.85;
+      transform: translateY(0);
+    }
+    .count-display__value.is-ticking {
+      animation: countTick 1s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
     .breath-circle {
       position: relative;
       width: clamp(200px, 22vw, 360px);
@@ -266,6 +274,24 @@
         width: 100%;
       }
     }
+    @keyframes countTick {
+      0% {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      30% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      70% {
+        opacity: 0.95;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0.75;
+        transform: translateY(6px);
+      }
+    }
     @media (prefers-reduced-motion: reduce) {
       body::before,
       body::after,
@@ -287,7 +313,9 @@
         back to center.</span>
     </header>
     <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
-      <div id="countDisplay" class="count-display" aria-hidden="true">&mdash;</div>
+      <div id="countDisplay" class="count-display" aria-hidden="true">
+        <span class="count-display__value">&mdash;</span>
+      </div>
       <div id="breathCircle" class="breath-circle inhale" aria-hidden="true"></div>
       <div id="meditationFlow" class="instructions" aria-live="polite">
         <h2 id="phaseName">Inhale</h2>
@@ -406,6 +434,7 @@
     const toggleSession = document.getElementById('toggleSession');
     const paceControl = document.getElementById('paceControl');
     const countDisplay = document.getElementById('countDisplay');
+    const countValue = countDisplay ? countDisplay.querySelector('.count-display__value') : null;
 
     let currentPaceKey = paceControl.value;
     let phases = phasesByPace[currentPaceKey];
@@ -416,10 +445,21 @@
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
     let counterAnimationId = null;
     let counterTimeoutId = null;
+    let lastDisplayedSecond = 0;
 
-    function formatElapsed(seconds) {
-      const clamped = Math.min(seconds, Math.floor(seconds * 10) / 10);
-      return clamped.toFixed(clamped >= 10 ? 0 : 1).replace(/\.0$/, '');
+    function updateCountText(value, animate = true) {
+      if (!countValue) {
+        return;
+      }
+      if (!animate) {
+        countValue.classList.remove('is-ticking');
+        countValue.textContent = value;
+        return;
+      }
+      countValue.classList.remove('is-ticking');
+      countValue.textContent = value;
+      void countValue.offsetWidth;
+      countValue.classList.add('is-ticking');
     }
 
     function setToggleLabel() {
@@ -441,6 +481,10 @@
         window.clearTimeout(counterTimeoutId);
         counterTimeoutId = null;
       }
+      if (countValue) {
+        countValue.classList.remove('is-ticking');
+      }
+      lastDisplayedSecond = 0;
     }
 
     function setIdleCount() {
@@ -448,8 +492,9 @@
         return;
       }
       stopCounter();
-      countDisplay.textContent = '—';
+      updateCountText('—', false);
       countDisplay.style.opacity = 0.8;
+      lastDisplayedSecond = 0;
     }
 
     function startCounter(duration) {
@@ -458,20 +503,25 @@
       }
       stopCounter();
       countDisplay.style.opacity = 1;
+      lastDisplayedSecond = 0;
       const start = performance.now();
+      const totalSeconds = Math.max(0, Math.round(duration / 1000));
+      updateCountText('0');
       const updateCount = (now) => {
         const elapsed = Math.min(now - start, duration);
-        const seconds = elapsed / 1000;
-        countDisplay.textContent = formatElapsed(seconds);
+        const seconds = Math.floor(elapsed / 1000);
+        if (seconds !== lastDisplayedSecond && seconds <= totalSeconds) {
+          lastDisplayedSecond = seconds;
+          updateCountText(String(seconds));
+        }
         if (elapsed < duration) {
           counterAnimationId = window.requestAnimationFrame(updateCount);
         }
       };
-      countDisplay.textContent = '0';
       counterAnimationId = window.requestAnimationFrame(updateCount);
       counterTimeoutId = window.setTimeout(() => {
         stopCounter();
-        countDisplay.textContent = formatElapsed(duration / 1000);
+        updateCountText(String(totalSeconds), false);
       }, duration);
     }
 
