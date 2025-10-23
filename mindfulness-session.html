@@ -455,30 +455,37 @@
     };
 
     const phaseAudioSettings = {
-      inhale: { frequency: 220, intensity: 0.34, releaseLevel: 0.03, padLevel: 0.08 },
-      hold: { frequency: 264, intensity: 0.24, releaseLevel: 0.04, padLevel: 0.07 },
-      exhale: { frequency: 174, intensity: 0.32, releaseLevel: 0.02, padLevel: 0.09 },
-      rest: { frequency: 155, intensity: 0.18, releaseLevel: 0.02, padLevel: 0.06 },
+      inhale: { frequency: 238, intensity: 0.36, releaseLevel: 0.04, padLevel: 0.09 },
+      hold: { frequency: 284, intensity: 0.22, releaseLevel: 0.05, padLevel: 0.07 },
+      exhale: { frequency: 166, intensity: 0.3, releaseLevel: 0.02, padLevel: 0.08 },
+      rest: { frequency: 148, intensity: 0.16, releaseLevel: 0.02, padLevel: 0.06 },
       default: { frequency: 196, intensity: 0.24, releaseLevel: 0.02, padLevel: 0.07 }
     };
 
     const breathCueSettings = {
       inhale: {
         filter: { start: 280, end: 640 },
-        q: 0.85,
-        peak: 0.48,
-        sustain: 0.26,
-        release: 0.8,
-        attackRatio: 0.55
+        q: 0.95,
+        peak: 0.52,
+        sustain: 0.28,
+        release: 0.9,
+        attackRatio: 0.5
       },
       exhale: {
         filter: { start: 540, end: 260 },
-        q: 0.9,
-        peak: 0.44,
-        sustain: 0.18,
-        release: 1.3,
-        attackRatio: 0.35
+        q: 1.05,
+        peak: 0.48,
+        sustain: 0.16,
+        release: 1.4,
+        attackRatio: 0.32
       }
+    };
+
+    const toneCueSettings = {
+      inhale: { type: 'sine', start: 392, end: 622, peak: 0.22, sustain: 0.12, duration: 1.6 },
+      hold: { type: 'triangle', start: 320, end: 320, peak: 0.12, sustain: 0.08, duration: 1.2 },
+      exhale: { type: 'sawtooth', start: 262, end: 180, peak: 0.24, sustain: 0.14, duration: 1.8 },
+      rest: { type: 'sine', start: 220, end: 196, peak: 0.1, sustain: 0.06, duration: 1 }
     };
 
     const breathCircle = document.getElementById('breathCircle');
@@ -515,8 +522,10 @@
     let noiseSource = null;
     let noiseGain = null;
     let breathCueGain = null;
+    let toneCueGain = null;
     let backgroundAudioEnabled = false;
     const activeBreathCues = new Set();
+    const activeToneCues = new Set();
 
     async function requestWakeLock() {
       if (!wakeLockSupported || wakeLock) {
@@ -577,6 +586,10 @@
       breathCueGain = audioContext.createGain();
       breathCueGain.gain.value = 0.85;
       breathCueGain.connect(audioMasterGain);
+
+      toneCueGain = audioContext.createGain();
+      toneCueGain.gain.value = 0.32;
+      toneCueGain.connect(audioMasterGain);
 
       leadOscillator = audioContext.createOscillator();
       leadOscillator.type = 'sine';
@@ -673,6 +686,11 @@
         breathCueGain.gain.cancelScheduledValues(now);
         breathCueGain.gain.setTargetAtTime(cueTarget, now, 0.8);
       }
+      if (toneCueGain) {
+        const toneTarget = toSilence ? 0.0001 : 0.32;
+        toneCueGain.gain.cancelScheduledValues(now);
+        toneCueGain.gain.setTargetAtTime(toneTarget, now, 0.6);
+      }
     }
 
     function disableBackgroundAudio() {
@@ -692,6 +710,7 @@
         audioMasterGain.gain.linearRampToValueAtTime(0, now + 0.8);
       }
       stopBreathCues(true);
+      stopToneCues(true);
     }
 
     function applyPhaseAudio(phase) {
@@ -735,6 +754,26 @@
         }
       });
       activeBreathCues.clear();
+    }
+
+    function stopToneCues(force = false) {
+      if (!activeToneCues.size) {
+        return;
+      }
+      const cues = Array.from(activeToneCues);
+      cues.forEach((cue) => {
+        try {
+          if (force && cue.source) {
+            cue.source.stop();
+          }
+        } catch (error) {
+          console.warn('Unable to stop tone cue', error);
+        }
+        if (cue.cleanup) {
+          cue.cleanup();
+        }
+      });
+      activeToneCues.clear();
     }
 
     function triggerBreathCue(phase) {
@@ -798,6 +837,52 @@
       const registration = { source, cleanup };
       activeBreathCues.add(registration);
       source.addEventListener('ended', cleanup);
+    }
+
+    function triggerToneCue(phase) {
+      if (!backgroundAudioEnabled || !audioContext || !toneCueGain) {
+        return;
+      }
+      const settings = toneCueSettings[phase.className];
+      if (!settings) {
+        return;
+      }
+      stopToneCues();
+      const now = audioContext.currentTime;
+      const phaseDuration = Math.max(phase.duration / 1000, 0.8);
+      const cueDuration = Math.min(Math.max(settings.duration || phaseDuration, 0.6), Math.max(phaseDuration, 0.8));
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = settings.type || 'sine';
+      const startFrequency = Math.max(settings.start || settings.end || 320, 60);
+      oscillator.frequency.setValueAtTime(startFrequency, now);
+      const endFrequency = settings.end || startFrequency;
+      if (endFrequency && endFrequency !== startFrequency) {
+        oscillator.frequency.linearRampToValueAtTime(endFrequency, now + cueDuration * 0.85);
+      }
+      const gainNode = audioContext.createGain();
+      gainNode.gain.setValueAtTime(0.0001, now);
+      const peakLevel = Math.max(settings.peak || 0.18, 0.08);
+      const sustainLevel = Math.max(settings.sustain || peakLevel * 0.5, 0.04);
+      gainNode.gain.linearRampToValueAtTime(peakLevel, now + 0.2);
+      gainNode.gain.linearRampToValueAtTime(sustainLevel, now + cueDuration * 0.55);
+      gainNode.gain.setTargetAtTime(0.0001, now + cueDuration, 0.4);
+      oscillator.connect(gainNode);
+      gainNode.connect(toneCueGain);
+      oscillator.start(now);
+      const stopTime = now + cueDuration + 0.6;
+      oscillator.stop(stopTime);
+      const cleanup = () => {
+        oscillator.removeEventListener('ended', cleanup);
+        try {
+          gainNode.disconnect();
+        } catch (error) {
+          console.warn('Unable to clean up tone cue', error);
+        }
+        activeToneCues.delete(registration);
+      };
+      const registration = { source: oscillator, cleanup };
+      activeToneCues.add(registration);
+      oscillator.addEventListener('ended', cleanup);
     }
 
     function updateCountText(value, animate = true) {
@@ -887,6 +972,7 @@
       if (isRunning) {
         applyPhaseAudio(phase);
         triggerBreathCue(phase);
+        triggerToneCue(phase);
         startCounter(phase.duration);
       } else {
         setIdleCount();
