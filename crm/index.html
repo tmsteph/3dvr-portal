@@ -110,23 +110,25 @@
       contactWorkspaceIndex[contactId] = { ...(contactWorkspaceIndex[contactId] || {}), ...data, id: contactId };
     });
 
-    form.onsubmit = e => {
+    const getFieldValue = id => (document.getElementById(id)?.value || '').trim();
+
+    form.addEventListener('submit', e => {
       e.preventDefault();
       const id = Date.now().toString();
       const contact = {
         id,
         contactId: id,
-        name: form.name.value.trim(),
-        email: form.email.value.trim(),
-        role: form.role.value.trim(),
-        tags: form.tags.value.trim(),
-        notes: form.notes.value.trim(),
+        name: getFieldValue('name'),
+        email: getFieldValue('email'),
+        role: getFieldValue('role'),
+        tags: getFieldValue('tags'),
+        notes: getFieldValue('notes'),
         created: new Date().toISOString(),
         updated: new Date().toISOString()
       };
       crmRecords.get(id).put(contact);
       form.reset();
-    };
+    });
 
     crmRecords.map().on((data, id) => {
       if (!data) {
