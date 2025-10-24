@@ -3,6 +3,7 @@
   const GUEST_ROOT = '3dvr-guests';
   const PORTAL_ROOT_KEY = '3dvr-portal';
   const PENDING_SUFFIX = ':pending';
+  const PORTAL_PENDING_SUFFIX = ':portalPending';
 
   function sanitizeScore(value) {
     const numeric = typeof value === 'number' ? value : Number(value);
@@ -179,6 +180,52 @@
     }
   }
 
+  function portalPendingKeyForState(state) {
+    if (!state || state.mode !== 'user') {
+      return null;
+    }
+    return `${cacheKeyForState(state)}${PORTAL_PENDING_SUFFIX}`;
+  }
+
+  function readPortalPending(state) {
+    const key = portalPendingKeyForState(state);
+    if (!key) {
+      return 0;
+    }
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return 0;
+      return sanitizeScore(raw);
+    } catch (err) {
+      console.warn('Unable to read pending portal score', err);
+      return 0;
+    }
+  }
+
+  function writePortalPending(state, score) {
+    const key = portalPendingKeyForState(state);
+    if (!key) {
+      return;
+    }
+    try {
+      localStorage.setItem(key, String(sanitizeScore(score)));
+    } catch (err) {
+      console.warn('Unable to store pending portal score', err);
+    }
+  }
+
+  function clearPortalPending(state) {
+    const key = portalPendingKeyForState(state);
+    if (!key) {
+      return;
+    }
+    try {
+      localStorage.removeItem(key);
+    } catch (err) {
+      console.warn('Unable to clear pending portal score', err);
+    }
+  }
+
   function displayNameFromAlias(alias) {
     const normalized = typeof alias === 'string' ? alias.trim() : '';
     if (!normalized) return '';
@@ -195,6 +242,7 @@
       this.listeners = new Set();
       this.current = readCachedScore(this.state);
       this.pending = readPendingScore(this.state);
+      this.portalPending = this.state.mode === 'user' ? readPortalPending(this.state) : 0;
       this.ready = false;
       this._readyResolvers = [];
       this._scoreHandler = null;
@@ -211,8 +259,17 @@
         this.pending = 0;
       }
 
+      if (!Number.isFinite(this.portalPending)) {
+        this.portalPending = 0;
+      }
+
       if (this.pending > this.current) {
         this.current = this.pending;
+        writeCachedScore(this.state, this.current);
+      }
+
+      if (this.portalPending > this.current) {
+        this.current = this.portalPending;
         writeCachedScore(this.state, this.current);
       }
 
@@ -232,6 +289,7 @@
       if (typeof window !== 'undefined') {
         this._handleOnline = () => {
           this._flushPendingScore();
+          this._flushPortalPending();
         };
         this._handleStorage = event => {
           this._handleStorageEvent(event);
@@ -260,9 +318,16 @@
       }
 
       this._attachRealtime();
+      if (this.state.mode === 'user') {
+        this._attachPortalRealtime();
+      }
 
       if (this.pending > 0) {
         this._flushPendingScore();
+      }
+
+      if (this.portalPending > 0) {
+        this._flushPortalPending();
       }
 
       this.node.get('score').once(value => {
@@ -396,6 +461,8 @@
       this._putWithAck('score', normalized);
       if (this.state.mode === 'user') {
         this._putWithAck('points', normalized);
+        this._setPortalPending(Math.max(this.portalPending, normalized));
+        this._putPortalStats(normalized);
       }
     }
 
@@ -414,6 +481,26 @@
         this.pending = 0;
         clearPendingScore(this.state);
       }
+    }
+
+    _setPortalPending(value) {
+      if (this.state.mode !== 'user') {
+        return;
+      }
+      const normalized = sanitizeScore(value);
+      if (normalized > 0) {
+        this.portalPending = normalized;
+        writePortalPending(this.state, normalized);
+      } else {
+        this.portalPending = 0;
+        clearPortalPending(this.state);
+      }
+    }
+
+    _flushPortalPending() {
+      if (this.state.mode !== 'user') return;
+      if (!this.portalPending) return;
+      this._putPortalStats(this.portalPending);
     }
 
     _putWithAck(field, value) {
@@ -441,6 +528,79 @@
       }
     }
 
+    _handlePortalPersistSuccess(value) {
+      const normalized = sanitizeScore(value);
+      if (normalized >= this.portalPending) {
+        this._setPortalPending(0);
+      }
+    }
+
+    _putPortalStats(score) {
+      if (!this.portalRoot) return;
+      if (this.state.mode !== 'user') return;
+      const alias = (localStorage.getItem('alias') || '').trim();
+      if (!alias) return;
+      const username = (localStorage.getItem('username') || '').trim() || displayNameFromAlias(alias);
+      const points = sanitizeScore(score);
+      try {
+        this.portalRoot.get('userStats').get(alias).put({
+          alias,
+          username,
+          points,
+          lastUpdated: Date.now()
+        }, ack => {
+          if (ack && ack.err) {
+            console.warn('Failed to sync public stats', ack.err);
+            return;
+          }
+          this._handlePortalPersistSuccess(points);
+        });
+      } catch (err) {
+        console.warn('Failed to sync public stats', err);
+      }
+    }
+
+    _attachPortalRealtime() {
+      if (!this.portalRoot) return;
+      if (this.state.mode !== 'user') return;
+      const alias = (localStorage.getItem('alias') || '').trim();
+      if (!alias) return;
+      try {
+        const chain = this.portalRoot.get('userStats').get(alias);
+        chain.once(data => {
+          if (data && typeof data.points !== 'undefined') {
+            this._handlePortalValue(data.points);
+            this._markReady();
+          }
+        });
+        chain.on(data => {
+          if (data && typeof data.points !== 'undefined') {
+            this._handlePortalValue(data.points);
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to subscribe to portal stats', err);
+      }
+    }
+
+    _handlePortalValue(value) {
+      const sanitized = sanitizeScore(value);
+      if (sanitized <= 0) {
+        if (sanitized >= this.portalPending) {
+          this._setPortalPending(0);
+        }
+        return;
+      }
+      const previous = this.current;
+      if (sanitized > previous) {
+        this._updateCurrent(sanitized, { persist: false });
+        this._sendScoreToNetwork(sanitized);
+      }
+      if (sanitized >= this.portalPending) {
+        this._setPortalPending(0);
+      }
+    }
+
     _handleStorageEvent(event) {
       if (!event) {
         return;
@@ -449,6 +609,7 @@
       const newValue = event.newValue;
       const cacheKey = cacheKeyForState(this.state);
       const pendingKey = pendingCacheKeyForState(this.state);
+      const portalPendingKey = portalPendingKeyForState(this.state);
 
       if (key === cacheKey) {
         const sanitized = sanitizeScore(newValue);
@@ -467,23 +628,22 @@
           this._flushPendingScore();
         }
       }
+
+      if (portalPendingKey && key === portalPendingKey) {
+        const sanitizedPortal = sanitizeScore(newValue);
+        this.portalPending = sanitizedPortal;
+        if (sanitizedPortal > this.current) {
+          this._updateCurrent(sanitizedPortal, { persist: false });
+        }
+        if (sanitizedPortal > 0) {
+          this._flushPortalPending();
+        }
+      }
     }
 
     _syncPublicStats() {
       if (!this.portalRoot) return;
-      const alias = (localStorage.getItem('alias') || '').trim();
-      if (!alias) return;
-      const username = (localStorage.getItem('username') || '').trim() || displayNameFromAlias(alias);
-      try {
-        this.portalRoot.get('userStats').get(alias).put({
-          alias,
-          username,
-          points: this.current,
-          lastUpdated: Date.now()
-        });
-      } catch (err) {
-        console.warn('Failed to sync public stats', err);
-      }
+      this._putPortalStats(this.current);
     }
 
     _markReady() {
