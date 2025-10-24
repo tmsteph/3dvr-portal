@@ -271,9 +271,6 @@ if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
 spaceSelect.value = currentSpace;
 spaceBadge.classList.remove('hidden');
 updateSpaceBadge();
-allowedSpaces.forEach(space => getQueue(space));
-updateSyncStatus();
-window.addEventListener('online', flushAllQueues);
 
 spaceSelect.addEventListener('change', () => {
   changeSpace(spaceSelect.value);
@@ -537,6 +534,10 @@ function normaliseEmail(value){
 }
 
 /* ---------- Space attach ---------- */
+allowedSpaces.forEach(space => getQueue(space));
+updateSyncStatus();
+window.addEventListener('online', flushAllQueues);
+
 changeSpace(currentSpace, { force: true });
 flushAllQueues();
 
@@ -643,7 +644,7 @@ crmNode.map().on((data, id) => {
 /* ---------- Create / Update / Delete ---------- */
 form.addEventListener('submit', e => {
   e.preventDefault();
-  const id = crypto.randomUUID();
+  const id = createId();
   const contact = sanitizeContactRecord({
     id,
     name: gi('name'),
@@ -1112,7 +1113,7 @@ importFile.addEventListener('change', async e=>{
     const arr = JSON.parse(text);
     if(!Array.isArray(arr)) throw new Error('Invalid JSON');
     arr.forEach(rec=>{
-      const id = rec.id || crypto.randomUUID();
+      const id = rec.id || createId();
       const created = rec.created || nowISO();
       const updated = rec.updated || nowISO();
       updateContact(id, { ...rec, id, created, updated });
@@ -1135,7 +1136,7 @@ bulkImport.addEventListener('change', async e=>{
       const parsed = parseContactFile(text, file.name);
       if(!parsed.length) continue;
       parsed.forEach(rec=>{
-        const id = rec.id || crypto.randomUUID();
+        const id = rec.id || createId();
         const created = rec.created || nowISO();
         const updated = rec.updated || nowISO();
         updateContact(id, { ...rec, id, created, updated });
@@ -1174,6 +1175,12 @@ function parseContactFile(text, filename=''){
   const lower = filename.toLowerCase();
   if(lower.endsWith('.vcf') || /BEGIN:VCARD/i.test(text)) return parseVCard(text);
   return parseCSVContacts(text);
+}
+function createId(){
+  if(typeof crypto !== 'undefined' && crypto.randomUUID){
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 function parseVCard(text){
   const cards = text.split(/BEGIN:VCARD/i).slice(1).map(chunk=>chunk.split(/END:VCARD/i)[0]||'');
@@ -1273,7 +1280,7 @@ function normalizeImportedContact(raw){
   const name = raw.name || [raw.firstName, raw.lastName].filter(Boolean).join(' ').trim();
   if(!(name || raw.email || raw.phone)) return null;
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: name || '',
     email: (raw.email||'').trim(),
     phone: (raw.phone||'').trim(),
