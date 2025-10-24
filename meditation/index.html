@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mindfulness Breathing Room | 3DVR Portal</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --cycle-duration: 14000ms;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle at 20% 20%, rgba(58, 180, 242, 0.2), transparent 60%),
+        radial-gradient(circle at 80% 30%, rgba(94, 234, 212, 0.18), transparent 55%),
+        #05070c;
+      color: #f8fafc;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      width: 520px;
+      height: 520px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.55;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      top: -200px;
+      left: -160px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.55), transparent 65%);
+      animation: breatheGlow var(--cycle-duration) ease-in-out infinite;
+    }
+    body::after {
+      bottom: -220px;
+      right: -160px;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.55), transparent 65%);
+      animation: breatheGlow var(--cycle-duration) ease-in-out infinite reverse;
+    }
+    .session-shell {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 64px;
+      gap: 36px;
+    }
+    header {
+      text-align: center;
+      max-width: 720px;
+    }
+    header p {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      color: rgba(226, 232, 240, 0.65);
+      font-size: 0.85rem;
+    }
+    header h1 {
+      margin: 14px 0 12px;
+      font-size: clamp(2.25rem, 5vw, 3.2rem);
+      letter-spacing: -0.04em;
+    }
+    header span {
+      display: inline-block;
+      margin-top: 8px;
+      color: rgba(226, 232, 240, 0.75);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    .breathing-space {
+      position: relative;
+      width: clamp(320px, 38vw, 760px);
+      height: clamp(320px, 38vw, 760px);
+      border-radius: 40px;
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.8), rgba(17, 24, 39, 0.65));
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 40px 120px rgba(8, 15, 35, 0.55);
+      backdrop-filter: blur(18px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      overflow: hidden;
+    }
+    .breathing-space::before {
+      content: '';
+      position: absolute;
+      inset: 16px;
+      border-radius: 28px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(12, 19, 33, 0.6) 65%);
+      animation: breathePulse calc(var(--cycle-duration) * 0.75) ease-in-out infinite;
+    }
+    .count-display {
+      position: absolute;
+      top: 38px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(1.35rem, 3vw, 2.1rem);
+      letter-spacing: 0.24em;
+      font-weight: 500;
+      color: rgba(226, 232, 240, 0.7);
+      pointer-events: none;
+      opacity: 0.8;
+      transition: opacity 0.4s ease;
+    }
+    .count-display__value {
+      display: inline-block;
+      opacity: 0.85;
+      transform: translateY(0);
+    }
+    .count-display__value.is-ticking {
+      animation: countTick 1s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+    .breath-circle {
+      position: relative;
+      width: clamp(200px, 22vw, 360px);
+      height: clamp(200px, 22vw, 360px);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.35), rgba(37, 99, 235, 0.22));
+      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: scale(var(--target-scale, 1));
+      transition: transform var(--transition-duration, 2400ms) cubic-bezier(0.45, 0, 0.55, 1),
+        background 0.8s ease, box-shadow 0.8s ease;
+    }
+    .breath-circle::after {
+      content: '';
+      position: absolute;
+      inset: 22px;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      opacity: 0.65;
+      transition: opacity 0.6s ease;
+    }
+    .breath-circle.inhale {
+      --target-scale: 1.16;
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.45), rgba(56, 189, 248, 0.32));
+    }
+    .breath-circle.hold {
+      --target-scale: 1.16;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.44), rgba(56, 189, 248, 0.28));
+      box-shadow: 0 36px 80px rgba(17, 24, 39, 0.45);
+    }
+    .breath-circle.exhale {
+      --target-scale: 0.86;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.28), rgba(17, 94, 189, 0.22));
+    }
+    .breath-circle.rest {
+      --target-scale: 0.9;
+      background: radial-gradient(circle, rgba(46, 117, 221, 0.25), rgba(15, 76, 173, 0.18));
+      box-shadow: 0 26px 55px rgba(12, 18, 30, 0.4);
+    }
+    .breath-circle.rest::after {
+      opacity: 0.4;
+    }
+    .instructions {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 64px);
+      max-width: 360px;
+      text-align: center;
+      color: rgba(226, 232, 240, 0.8);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+    .instructions h2 {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
+      letter-spacing: 0.04em;
+      color: #f8fafc;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .controls button,
+    .controls select {
+      appearance: none;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: rgba(15, 23, 42, 0.6);
+      color: #f8fafc;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    }
+    .controls button:hover,
+    .controls button:focus,
+    .controls select:hover,
+    .controls select:focus {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.45);
+      outline: none;
+      transform: translateY(-1px);
+    }
+    .controls button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .controls button[aria-pressed="true"] {
+      background: linear-gradient(120deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.28));
+      border-color: rgba(148, 163, 184, 0.45);
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
+    }
+    .controls .slider-control {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.45);
+      min-width: 200px;
+    }
+    .controls .slider-control span {
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.75);
+    }
+    .controls input[type='range'] {
+      width: 100%;
+      accent-color: #38bdf8;
+    }
+    .controls .slider-value {
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.05em;
+    }
+    .breathing-guide {
+      width: min(100%, 960px);
+      margin: 12px auto 0;
+      display: grid;
+      gap: 24px;
+      text-align: left;
+    }
+    .breathing-guide h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.015em;
+    }
+    .breathing-guide__intro {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    .breathing-guide__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .breathing-guide__card {
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.55);
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+      padding: 20px 24px 22px;
+      display: grid;
+      gap: 14px;
+    }
+    .breathing-guide__card h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      letter-spacing: 0.01em;
+      color: #f8fafc;
+    }
+    .breathing-guide__summary {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.82);
+      line-height: 1.65;
+    }
+    .breathing-guide__card dl {
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .breathing-guide__card dt {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: rgba(148, 163, 184, 0.7);
+    }
+    .breathing-guide__card dd {
+      margin: 2px 0 0;
+      color: rgba(226, 232, 240, 0.82);
+      line-height: 1.65;
+    }
+    .breathing-guide__card dd + dt {
+      margin-top: 8px;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    footer {
+      padding: 28px 24px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: rgba(226, 232, 240, 0.65);
+    }
+    @keyframes breatheGlow {
+      0%,
+      100% {
+        transform: scale(0.92);
+        opacity: 0.45;
+      }
+      50% {
+        transform: scale(1.08);
+        opacity: 0.65;
+      }
+    }
+    @keyframes breathePulse {
+      0%,
+      100% {
+        transform: scale(0.85);
+        opacity: 0.5;
+      }
+      50% {
+        transform: scale(1.08);
+        opacity: 0.85;
+      }
+    }
+    @media (min-width: 1024px) {
+      header h1 {
+        font-size: clamp(2.8rem, 4vw, 4rem);
+      }
+      .session-shell {
+        gap: 44px;
+      }
+    }
+    @media (max-width: 640px) {
+      .session-shell {
+        padding-top: 36px;
+        gap: 28px;
+      }
+      .count-display {
+        top: 28px;
+        letter-spacing: 0.2em;
+      }
+      .breathing-space {
+        border-radius: 24px;
+      }
+      .instructions {
+        bottom: 24px;
+        font-size: 1rem;
+      }
+      .controls {
+        flex-direction: column;
+      }
+      .controls button,
+      .controls select {
+        width: 100%;
+      }
+      .breathing-guide {
+        gap: 20px;
+      }
+    }
+    @keyframes countTick {
+      0% {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      30% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      70% {
+        opacity: 0.95;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0.75;
+        transform: translateY(6px);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body::before,
+      body::after,
+      .breathing-space::before,
+      .breath-circle {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#meditationFlow">Skip to breathing guidance</a>
+  <div class="session-shell">
+    <header>
+      <p>3DVR mindfulness studio</p>
+      <h1>Mindfulness Breathing Room</h1>
+      <span>Follow the gentle cues for as many rounds as you need. Set your cadence, press play, and let the cycle guide you
+        back to center.</span>
+    </header>
+    <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
+      <div id="countDisplay" class="count-display" aria-hidden="true">
+        <span class="count-display__value">&mdash;</span>
+      </div>
+      <div id="breathCircle" class="breath-circle inhale" aria-hidden="true"></div>
+      <div id="meditationFlow" class="instructions" aria-live="polite">
+        <h2 id="phaseName">Inhale</h2>
+        <p id="phasePrompt">Breathe in slowly through your nose and fill your lungs.</p>
+      </div>
+    </div>
+    <div class="controls">
+      <button type="button" id="toggleSession">Start session</button>
+      <select id="paceControl" aria-label="Select breathing pace">
+        <option value="slow">Slow &amp; restorative (6 / 2 / 6 / 2)</option>
+        <option value="balanced" selected>Balanced rhythm (4 / 4 / 4 / 2)</option>
+        <option value="energizing">Energizing focus (3 / 3 / 3 / 1)</option>
+        <option value="box">Box breathing (4 / 4 / 4 / 4)</option>
+      </select>
+      <button type="button" id="audioToggle" aria-pressed="false">Enable background audio</button>
+      <label class="slider-control" for="musicVolume">
+        <span>Music volume <span id="musicVolumeValue" class="slider-value">60%</span></span>
+        <input id="musicVolume" type="range" min="0" max="100" value="60" step="5" aria-describedby="musicVolumeValue">
+      </label>
+      <label class="slider-control" for="breathVolume">
+        <span>Breath volume <span id="breathVolumeValue" class="slider-value">105%</span></span>
+        <input id="breathVolume" type="range" min="0" max="125" value="105" step="5" aria-describedby="breathVolumeValue">
+      </label>
+      <span id="audioStatus" class="sr-only" aria-live="polite"></span>
+    </div>
+    <section class="breathing-guide" aria-labelledby="breathingGuideHeading">
+      <h2 id="breathingGuideHeading">Breathing techniques at a glance</h2>
+      <p class="breathing-guide__intro">Each pacing option draws from long-standing contemplative traditions and is backed by
+        contemporary research on the nervous system. Explore the stories and science to choose the rhythm that supports
+        your intention today.</p>
+      <div class="breathing-guide__grid">
+        <article class="breathing-guide__card">
+          <h3>Slow &amp; restorative</h3>
+          <p class="breathing-guide__summary">A gentle six-count inhale and exhale with soft pauses encourages full diaphragmatic
+            movement and leaves space to notice subtle shifts in mood.</p>
+          <dl>
+            <dt>History</dt>
+            <dd>Echoes of this pattern appear in classical pranayama texts that guided practitioners to extend and
+              equalize the breath for deep relaxation.</dd>
+            <dt>Science</dt>
+            <dd>Breathing around five cycles per minute is linked to greater heart rate variability, calmer amygdala
+              activity, and a measurable drop in circulating stress hormones.</dd>
+          </dl>
+        </article>
+        <article class="breathing-guide__card">
+          <h3>Balanced rhythm</h3>
+          <p class="breathing-guide__summary">Even four-count phases with a brief rest create a steady cadence that is easy to
+            memorize and perfect for returning to center in a busy day.</p>
+          <dl>
+            <dt>History</dt>
+            <dd>Modern biofeedback pioneers popularized this "coherent" breathing tempo to help meditators and athletes
+              synchronize breath and heartbeat.</dd>
+            <dt>Science</dt>
+            <dd>Maintaining symmetry between inhale and exhale supports vagal tone, improving focus and emotional
+              regulation across multiple clinical trials.</dd>
+          </dl>
+        </article>
+        <article class="breathing-guide__card">
+          <h3>Energizing focus</h3>
+          <p class="breathing-guide__summary">Quicker three-count waves cultivate alertness and can be used before demanding work
+            or creative sprints when you want a brighter mental state.</p>
+          <dl>
+            <dt>History</dt>
+            <dd>Fast, rhythmic breathing shows up in yogic bellows techniques and martial arts warm-ups designed to
+              awaken the senses.</dd>
+            <dt>Science</dt>
+            <dd>Short, rapid inhalations momentarily activate the sympathetic branch of the nervous system, increasing
+              beta brain wave activity and sharpening reaction time.</dd>
+          </dl>
+        </article>
+        <article class="breathing-guide__card">
+          <h3>Box breathing</h3>
+          <p class="breathing-guide__summary">Four equal phases mirror the sides of a square&mdash;inhale, hold, exhale, hold&mdash;to
+            train calm concentration under pressure.</p>
+          <dl>
+            <dt>History</dt>
+            <dd>Also known as sama vritti in yoga, the method was embraced by Navy SEAL trainers in the late 20th century
+              to help teams reset quickly between high-stakes missions.</dd>
+            <dt>Science</dt>
+            <dd>The consistent pacing balances carbon dioxide and oxygen levels, stimulating baroreceptors that slow the
+              heart and reduce perceived stress within a few cycles.</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
+  </div>
+  <footer>
+    Tip: Use background audio to keep the rhythm going even if you dim the screen or switch apps.
+  </footer>
+  <script>
+    const phasesByPace = {
+      slow: [
+        {
+          label: 'Inhale',
+          prompt: 'Draw a long breath in through your nose for six counts.',
+          duration: 6000,
+          transitionDuration: 3600,
+          className: 'inhale'
+        },
+        {
+          label: 'Hold',
+          prompt: 'Hold gently and soften your shoulders for two counts.',
+          duration: 2000,
+          transitionDuration: 500,
+          className: 'hold'
+        },
+        {
+          label: 'Exhale',
+          prompt: 'Exhale through the mouth for six counts, let the jaw release.',
+          duration: 6000,
+          transitionDuration: 3600,
+          className: 'exhale'
+        },
+        {
+          label: 'Rest',
+          prompt: 'Pause and notice how you feel before the next wave.',
+          duration: 2000,
+          transitionDuration: 600,
+          className: 'rest'
+        }
+      ],
+      balanced: [
+        {
+          label: 'Inhale',
+          prompt: 'Breathe in slowly through your nose and fill your lungs.',
+          duration: 4000,
+          transitionDuration: 2400,
+          className: 'inhale'
+        },
+        {
+          label: 'Hold',
+          prompt: 'Hold softly and scan for any tension you can let go.',
+          duration: 4000,
+          transitionDuration: 500,
+          className: 'hold'
+        },
+        {
+          label: 'Exhale',
+          prompt: 'Release the breath through the mouth and soften the chest.',
+          duration: 4000,
+          transitionDuration: 2400,
+          className: 'exhale'
+        },
+        {
+          label: 'Rest',
+          prompt: 'Let the breath settle for two counts before you begin again.',
+          duration: 2000,
+          transitionDuration: 600,
+          className: 'rest'
+        }
+      ],
+      energizing: [
+        {
+          label: 'Inhale',
+          prompt: 'Sip a quick inhale through the nose for three counts.',
+          duration: 3000,
+          transitionDuration: 1800,
+          className: 'inhale'
+        },
+        {
+          label: 'Hold',
+          prompt: 'Hold lightly and lift through the crown of your head.',
+          duration: 3000,
+          transitionDuration: 500,
+          className: 'hold'
+        },
+        {
+          label: 'Exhale',
+          prompt: 'Breathe out with control for three counts, feel grounded.',
+          duration: 3000,
+          transitionDuration: 1800,
+          className: 'exhale'
+        },
+        {
+          label: 'Rest',
+          prompt: 'Take a soft pause for one count before the next inhale.',
+          duration: 1000,
+          transitionDuration: 450,
+          className: 'rest'
+        }
+      ],
+      box: [
+        {
+          label: 'Inhale',
+          prompt: 'Inhale evenly through your nose for four counts, expanding the ribs in all directions.',
+          duration: 4000,
+          transitionDuration: 2400,
+          className: 'inhale'
+        },
+        {
+          label: 'Hold',
+          prompt: 'Hold gently for four counts as you trace the top edge of the box in your mind.',
+          duration: 4000,
+          transitionDuration: 500,
+          className: 'hold'
+        },
+        {
+          label: 'Exhale',
+          prompt: 'Exhale smoothly through the nose for four counts, keeping the jaw and hands relaxed.',
+          duration: 4000,
+          transitionDuration: 2400,
+          className: 'exhale'
+        },
+        {
+          label: 'Rest',
+          prompt: 'Pause for four counts at the base of the box before the next inhale begins.',
+          duration: 4000,
+          transitionDuration: 600,
+          className: 'rest'
+        }
+      ]
+    };
+
+    const phaseAudioSettings = {
+      inhale: { frequency: 228, intensity: 0.32, releaseLevel: 0.05, padLevel: 0.08 },
+      hold: { frequency: 284, intensity: 0.22, releaseLevel: 0.05, padLevel: 0.07 },
+      exhale: { frequency: 184, intensity: 0.28, releaseLevel: 0.03, padLevel: 0.07 },
+      rest: { frequency: 148, intensity: 0.16, releaseLevel: 0.02, padLevel: 0.06 },
+      default: { frequency: 196, intensity: 0.24, releaseLevel: 0.02, padLevel: 0.07 }
+    };
+
+    const breathCueSettings = {
+      inhale: {
+        filter: { start: 260, end: 480 },
+        q: 0.75,
+        peak: 0.45,
+        sustain: 0.26,
+        release: 1.1,
+        attackRatio: 0.5
+      },
+      exhale: {
+        filter: { start: 360, end: 240 },
+        q: 0.78,
+        peak: 0.4,
+        sustain: 0.18,
+        release: 1.3,
+        attackRatio: 0.38
+      }
+    };
+
+    const toneCueSettings = {
+      inhale: { type: 'triangle', start: 340, end: 460, peak: 0.18, sustain: 0.1, duration: 1.7 },
+      hold: { type: 'triangle', start: 320, end: 320, peak: 0.12, sustain: 0.08, duration: 1.2 },
+      exhale: { type: 'triangle', start: 300, end: 220, peak: 0.17, sustain: 0.1, duration: 1.8 },
+      rest: { type: 'sine', start: 220, end: 196, peak: 0.1, sustain: 0.06, duration: 1 }
+    };
+
+    const breathCircle = document.getElementById('breathCircle');
+    const phaseName = document.getElementById('phaseName');
+    const phasePrompt = document.getElementById('phasePrompt');
+    const toggleSession = document.getElementById('toggleSession');
+    const paceControl = document.getElementById('paceControl');
+    const countDisplay = document.getElementById('countDisplay');
+    const countValue = countDisplay ? countDisplay.querySelector('.count-display__value') : null;
+    const audioToggle = document.getElementById('audioToggle');
+    const audioStatus = document.getElementById('audioStatus');
+    const musicVolumeControl = document.getElementById('musicVolume');
+    const musicVolumeValue = document.getElementById('musicVolumeValue');
+    const breathVolumeControl = document.getElementById('breathVolume');
+    const breathVolumeValue = document.getElementById('breathVolumeValue');
+
+    let currentPaceKey = paceControl.value;
+    let phases = phasesByPace[currentPaceKey];
+    let phaseIndex = 0;
+    let timeoutId = null;
+    let isRunning = false;
+    let hasStarted = false;
+    let restartOnReturn = false;
+    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let counterAnimationId = null;
+    let counterTimeoutId = null;
+    let lastDisplayedSecond = 0;
+    const wakeLockSupported = 'wakeLock' in navigator;
+    let wakeLock = null;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext || null;
+    const audioSupported = typeof AudioContextClass === 'function';
+    let audioContext = null;
+    let audioMasterGain = null;
+    let musicGain = null;
+    let breathGuidanceGain = null;
+    let leadOscillator = null;
+    let leadGain = null;
+    let padOscillator = null;
+    let padGain = null;
+    let noiseSource = null;
+    let noiseGain = null;
+    let breathCueGain = null;
+    let toneCueGain = null;
+    let backgroundAudioEnabled = false;
+    const activeBreathCues = new Set();
+    const activeToneCues = new Set();
+
+    async function requestWakeLock() {
+      if (!wakeLockSupported || wakeLock) {
+        return;
+      }
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+          wakeLock = null;
+          if (isRunning && !document.hidden) {
+            requestWakeLock();
+          }
+        });
+      } catch (error) {
+        wakeLock = null;
+        console.warn('Unable to acquire screen wake lock', error);
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (!wakeLockSupported || !wakeLock) {
+        return;
+      }
+      try {
+        await wakeLock.release();
+      } catch (error) {
+        console.warn('Unable to release screen wake lock', error);
+      } finally {
+        wakeLock = null;
+      }
+    }
+
+    function updateAudioStatus(message) {
+      if (audioStatus) {
+        audioStatus.textContent = message;
+      }
+    }
+
+    function createNoiseBuffer(context) {
+      const duration = 2 * context.sampleRate;
+      const buffer = context.createBuffer(1, duration, context.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let i = 0; i < duration; i += 1) {
+        channel[i] = (Math.random() * 2 - 1) * 0.45;
+      }
+      return buffer;
+    }
+
+    let musicVolumeSetting = musicVolumeControl ? Number(musicVolumeControl.value) / 100 : 0.6;
+    let breathVolumeSetting = breathVolumeControl ? Number(breathVolumeControl.value) / 100 : 1.05;
+
+    function updateVolumeLabel(target, value) {
+      if (target) {
+        target.textContent = `${value}%`;
+      }
+    }
+
+    updateVolumeLabel(musicVolumeValue, musicVolumeControl ? musicVolumeControl.value : 60);
+    updateVolumeLabel(breathVolumeValue, breathVolumeControl ? breathVolumeControl.value : 105);
+
+    function buildAudioGraph() {
+      if (!audioSupported || audioContext) {
+        return;
+      }
+      audioContext = new AudioContextClass();
+      audioMasterGain = audioContext.createGain();
+      audioMasterGain.gain.value = 0;
+      audioMasterGain.connect(audioContext.destination);
+
+      musicGain = audioContext.createGain();
+      musicGain.gain.value = musicVolumeSetting;
+      musicGain.connect(audioMasterGain);
+
+      breathGuidanceGain = audioContext.createGain();
+      breathGuidanceGain.gain.value = breathVolumeSetting;
+      breathGuidanceGain.connect(audioMasterGain);
+
+      breathCueGain = audioContext.createGain();
+      breathCueGain.gain.value = 1.1;
+      breathCueGain.connect(breathGuidanceGain);
+
+      toneCueGain = audioContext.createGain();
+      toneCueGain.gain.value = 0.38;
+      toneCueGain.connect(breathGuidanceGain);
+
+      leadOscillator = audioContext.createOscillator();
+      leadOscillator.type = 'sine';
+      leadOscillator.frequency.value = phaseAudioSettings.default.frequency;
+      leadGain = audioContext.createGain();
+      leadGain.gain.value = 0.0001;
+      leadOscillator.connect(leadGain);
+      leadGain.connect(musicGain);
+      leadOscillator.start();
+
+      padOscillator = audioContext.createOscillator();
+      padOscillator.type = 'triangle';
+      padOscillator.frequency.value = 98;
+      padGain = audioContext.createGain();
+      padGain.gain.value = 0.05;
+      padOscillator.connect(padGain);
+      padGain.connect(musicGain);
+      padOscillator.start();
+
+      noiseSource = audioContext.createBufferSource();
+      noiseSource.buffer = createNoiseBuffer(audioContext);
+      noiseSource.loop = true;
+      const noiseFilter = audioContext.createBiquadFilter();
+      noiseFilter.type = 'lowpass';
+      noiseFilter.frequency.value = 420;
+      noiseGain = audioContext.createGain();
+      noiseGain.gain.value = 0.06;
+      noiseSource.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(musicGain);
+      noiseSource.start();
+    }
+
+    async function enableBackgroundAudio() {
+      if (!audioSupported || !audioToggle) {
+        return;
+      }
+      buildAudioGraph();
+      if (!audioContext) {
+        updateAudioStatus('Background audio could not be initialized.');
+        return;
+      }
+      if (audioContext.state === 'suspended') {
+        try {
+          await audioContext.resume();
+        } catch (error) {
+          console.warn('Unable to resume audio context', error);
+          updateAudioStatus('Background audio is blocked by the browser.');
+          return;
+        }
+      }
+      backgroundAudioEnabled = true;
+      audioToggle.setAttribute('aria-pressed', 'true');
+      audioToggle.textContent = 'Disable background audio';
+      if (audioMasterGain) {
+        const now = audioContext.currentTime;
+        audioMasterGain.gain.cancelScheduledValues(now);
+        audioMasterGain.gain.linearRampToValueAtTime(0.45, now + 1.2);
+      }
+      if (!hasStarted) {
+        updateAudioStatus('Background audio enabled. Starting a fresh breathing cycle.');
+        startSession({ resetPhase: true });
+      } else if (!isRunning) {
+        settlePhaseAudio(true);
+        updateAudioStatus('Background audio enabled. Press resume to continue your session.');
+      } else {
+        updateAudioStatus('Background audio enabled.');
+        if (phases[phaseIndex]) {
+          applyPhaseAudio(phases[phaseIndex]);
+        }
+      }
+    }
+
+    function settlePhaseAudio(toSilence = false) {
+      if (!audioContext || !leadGain) {
+        return;
+      }
+      const now = audioContext.currentTime;
+      const target = toSilence ? 0.0001 : 0.04;
+      leadGain.gain.cancelScheduledValues(now);
+      leadGain.gain.setTargetAtTime(target, now, 0.6);
+      if (padGain) {
+        const padTarget = toSilence ? 0.02 : 0.05;
+        padGain.gain.cancelScheduledValues(now);
+        padGain.gain.setTargetAtTime(padTarget, now, 1.2);
+      }
+      if (noiseGain) {
+        const noiseTarget = toSilence ? 0.01 : 0.03;
+        noiseGain.gain.cancelScheduledValues(now);
+        noiseGain.gain.setTargetAtTime(noiseTarget, now, 1.5);
+      }
+      if (breathCueGain) {
+        const cueTarget = toSilence ? 0 : 1.1;
+        breathCueGain.gain.cancelScheduledValues(now);
+        breathCueGain.gain.setTargetAtTime(cueTarget, now, 0.8);
+      }
+      if (toneCueGain) {
+        const toneTarget = toSilence ? 0.0001 : 0.38;
+        toneCueGain.gain.cancelScheduledValues(now);
+        toneCueGain.gain.setTargetAtTime(toneTarget, now, 0.6);
+      }
+    }
+
+    function disableBackgroundAudio() {
+      if (!audioContext) {
+        return;
+      }
+      backgroundAudioEnabled = false;
+      if (audioToggle) {
+        audioToggle.setAttribute('aria-pressed', 'false');
+        audioToggle.textContent = 'Enable background audio';
+      }
+      updateAudioStatus('Background audio muted.');
+      settlePhaseAudio(true);
+      if (audioMasterGain) {
+        const now = audioContext.currentTime;
+        audioMasterGain.gain.cancelScheduledValues(now);
+        audioMasterGain.gain.linearRampToValueAtTime(0, now + 0.8);
+      }
+      stopBreathCues(true);
+      stopToneCues(true);
+    }
+
+    function applyPhaseAudio(phase) {
+      if (!backgroundAudioEnabled || !audioContext || !leadGain || !leadOscillator) {
+        return;
+      }
+      const settings = phaseAudioSettings[phase.className] || phaseAudioSettings.default;
+      const now = audioContext.currentTime;
+      const durationSeconds = Math.max(phase.duration / 1000, 0.6);
+      leadOscillator.frequency.cancelScheduledValues(now);
+      leadOscillator.frequency.linearRampToValueAtTime(settings.frequency, now + 0.4);
+      leadGain.gain.cancelScheduledValues(now);
+      leadGain.gain.setTargetAtTime(settings.intensity, now, 0.45);
+      const releaseDelay = Math.max(durationSeconds - 0.6, 0.3);
+      leadGain.gain.setTargetAtTime(settings.releaseLevel, now + releaseDelay, 1.1);
+      if (padGain) {
+        padGain.gain.cancelScheduledValues(now);
+        padGain.gain.setTargetAtTime(settings.padLevel, now, 1.1);
+      }
+      if (noiseGain) {
+        noiseGain.gain.cancelScheduledValues(now);
+        noiseGain.gain.setTargetAtTime(Math.max(settings.padLevel - 0.03, 0.015), now, 1.2);
+      }
+    }
+
+    function stopBreathCues(force = false) {
+      if (!activeBreathCues.size) {
+        return;
+      }
+      const cues = Array.from(activeBreathCues);
+      cues.forEach((cue) => {
+        try {
+          if (force && cue.source) {
+            cue.source.stop();
+          }
+        } catch (error) {
+          console.warn('Unable to stop breath cue', error);
+        }
+        if (cue.cleanup) {
+          cue.cleanup();
+        }
+      });
+      activeBreathCues.clear();
+    }
+
+    function stopToneCues(force = false) {
+      if (!activeToneCues.size) {
+        return;
+      }
+      const cues = Array.from(activeToneCues);
+      cues.forEach((cue) => {
+        try {
+          if (force && cue.source) {
+            cue.source.stop();
+          }
+        } catch (error) {
+          console.warn('Unable to stop tone cue', error);
+        }
+        if (cue.cleanup) {
+          cue.cleanup();
+        }
+      });
+      activeToneCues.clear();
+    }
+
+    function triggerBreathCue(phase) {
+      if (!backgroundAudioEnabled || !audioContext || !breathCueGain) {
+        return;
+      }
+      const settings = breathCueSettings[phase.className];
+      if (!settings) {
+        return;
+      }
+      stopBreathCues();
+      const durationSeconds = Math.max(phase.duration / 1000, 0.8);
+      const attack = Math.min(durationSeconds * settings.attackRatio, 1.6);
+      const sustainTransition = Math.min(Math.max(durationSeconds * 0.35, 0.5), Math.max(durationSeconds - 0.2, 0.8));
+      const release = Math.min(Math.max(settings.release, 0.35), 1.8);
+      const peakLevel = Math.min((typeof settings.peak === 'number' ? settings.peak : 0.6) * 1.1, 1.5);
+      const sustainLevel = Math.min((typeof settings.sustain === 'number' ? settings.sustain : peakLevel * 0.65) * 1.05, 1.2);
+      const source = audioContext.createBufferSource();
+      source.buffer = createNoiseBuffer(audioContext);
+      source.loop = true;
+      const filter = audioContext.createBiquadFilter();
+      const filterSettings = settings.filter || {};
+      const fallbackFrequency = typeof filterSettings === 'number' ? filterSettings : 420;
+      const filterStart = typeof filterSettings === 'number' ? filterSettings : (filterSettings.start || fallbackFrequency);
+      const filterEnd = typeof filterSettings === 'number' ? filterSettings : (filterSettings.end || filterStart);
+      filter.type = 'bandpass';
+      filter.Q.value = typeof settings.q === 'number' ? settings.q : 0.7;
+      filter.frequency.value = filterStart;
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 0.0001;
+      source.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(breathCueGain);
+
+      const now = audioContext.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.linearRampToValueAtTime(peakLevel, now + attack);
+      const sustainTime = now + attack + sustainTransition;
+      if (filterStart && filterEnd && filter.frequency) {
+        filter.frequency.cancelScheduledValues(now);
+        filter.frequency.setValueAtTime(filterStart, now);
+        filter.frequency.linearRampToValueAtTime(filterEnd, sustainTime);
+      }
+      gainNode.gain.linearRampToValueAtTime(sustainLevel, sustainTime);
+      gainNode.gain.linearRampToValueAtTime(0.0001, sustainTime + release);
+
+      const stopTime = sustainTime + release + 0.5;
+      source.start(now);
+      source.stop(stopTime);
+
+      const cleanup = () => {
+        source.removeEventListener('ended', cleanup);
+        try {
+          gainNode.disconnect();
+          filter.disconnect();
+        } catch (error) {
+          console.warn('Unable to clean up breath cue', error);
+        }
+        activeBreathCues.delete(registration);
+      };
+
+      const registration = { source, cleanup };
+      activeBreathCues.add(registration);
+      source.addEventListener('ended', cleanup);
+    }
+
+    function triggerToneCue(phase) {
+      if (!backgroundAudioEnabled || !audioContext || !toneCueGain) {
+        return;
+      }
+      const settings = toneCueSettings[phase.className];
+      if (!settings) {
+        return;
+      }
+      stopToneCues();
+      const now = audioContext.currentTime;
+      const phaseDuration = Math.max(phase.duration / 1000, 0.8);
+      const cueDuration = Math.min(Math.max(settings.duration || phaseDuration, 0.6), Math.max(phaseDuration, 0.8));
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = settings.type || 'sine';
+      const startFrequency = Math.max(settings.start || settings.end || 320, 60);
+      oscillator.frequency.setValueAtTime(startFrequency, now);
+      const endFrequency = settings.end || startFrequency;
+      if (endFrequency && endFrequency !== startFrequency) {
+        oscillator.frequency.linearRampToValueAtTime(endFrequency, now + cueDuration * 0.85);
+      }
+      const gainNode = audioContext.createGain();
+      gainNode.gain.setValueAtTime(0.0001, now);
+      const basePeak = Math.max(settings.peak || 0.18, 0.08);
+      const baseSustain = Math.max(settings.sustain || basePeak * 0.5, 0.04);
+      const peakLevel = Math.min(basePeak * 1.1, 1);
+      const sustainLevel = Math.min(baseSustain * 1.05, 0.9);
+      gainNode.gain.linearRampToValueAtTime(peakLevel, now + 0.2);
+      gainNode.gain.linearRampToValueAtTime(sustainLevel, now + cueDuration * 0.55);
+      gainNode.gain.setTargetAtTime(0.0001, now + cueDuration, 0.4);
+      oscillator.connect(gainNode);
+      gainNode.connect(toneCueGain);
+      oscillator.start(now);
+      const stopTime = now + cueDuration + 0.6;
+      oscillator.stop(stopTime);
+      const cleanup = () => {
+        oscillator.removeEventListener('ended', cleanup);
+        try {
+          gainNode.disconnect();
+        } catch (error) {
+          console.warn('Unable to clean up tone cue', error);
+        }
+        activeToneCues.delete(registration);
+      };
+      const registration = { source: oscillator, cleanup };
+      activeToneCues.add(registration);
+      oscillator.addEventListener('ended', cleanup);
+    }
+
+    function updateCountText(value, animate = true) {
+      if (!countValue) {
+        return;
+      }
+      if (!animate) {
+        countValue.classList.remove('is-ticking');
+        countValue.textContent = value;
+        return;
+      }
+      countValue.classList.remove('is-ticking');
+      countValue.textContent = value;
+      void countValue.offsetWidth;
+      countValue.classList.add('is-ticking');
+    }
+
+    function setToggleLabel() {
+      if (!hasStarted) {
+        toggleSession.textContent = 'Start session';
+      } else if (isRunning) {
+        toggleSession.textContent = 'Pause session';
+      } else {
+        toggleSession.textContent = 'Resume session';
+      }
+    }
+
+    function stopCounter() {
+      if (counterAnimationId !== null) {
+        window.cancelAnimationFrame(counterAnimationId);
+        counterAnimationId = null;
+      }
+      if (counterTimeoutId !== null) {
+        window.clearTimeout(counterTimeoutId);
+        counterTimeoutId = null;
+      }
+      if (countValue) {
+        countValue.classList.remove('is-ticking');
+      }
+      lastDisplayedSecond = 0;
+    }
+
+    function setIdleCount() {
+      if (!countDisplay) {
+        return;
+      }
+      stopCounter();
+      updateCountText('—', false);
+      countDisplay.style.opacity = 0.8;
+      lastDisplayedSecond = 0;
+      settlePhaseAudio(true);
+    }
+
+    function startCounter(duration) {
+      if (!countDisplay) {
+        return;
+      }
+      stopCounter();
+      countDisplay.style.opacity = 1;
+      const start = performance.now();
+      const totalSeconds = Math.max(1, Math.round(duration / 1000));
+      updateCountText('1');
+      lastDisplayedSecond = 1;
+      const updateCount = (now) => {
+        const elapsed = Math.min(now - start, duration);
+        const seconds = Math.floor(elapsed / 1000) + 1;
+        if (seconds !== lastDisplayedSecond && seconds <= totalSeconds) {
+          lastDisplayedSecond = seconds;
+          updateCountText(String(seconds));
+        }
+        if (elapsed < duration) {
+          counterAnimationId = window.requestAnimationFrame(updateCount);
+        }
+      };
+      counterAnimationId = window.requestAnimationFrame(updateCount);
+      counterTimeoutId = window.setTimeout(() => {
+        stopCounter();
+        updateCountText(String(totalSeconds), false);
+      }, duration);
+    }
+
+    function applyPhase(phase) {
+      breathCircle.className = `breath-circle ${phase.className}`;
+      breathCircle.style.setProperty('--transition-duration', `${phase.transitionDuration || phase.duration}ms`);
+      phaseName.textContent = phase.label;
+      phasePrompt.textContent = phase.prompt;
+      if (isRunning) {
+        applyPhaseAudio(phase);
+        triggerBreathCue(phase);
+        triggerToneCue(phase);
+        startCounter(phase.duration);
+      } else {
+        setIdleCount();
+      }
+    }
+
+    function showIdlePhase() {
+      const exhalePhase = phases.find((phase) => phase.className === 'exhale');
+      if (exhalePhase) {
+        applyPhase(exhalePhase);
+      } else if (phases.length) {
+        applyPhase(phases[0]);
+      }
+      if (!isRunning) {
+        setIdleCount();
+      }
+    }
+
+    function scheduleNextPhase() {
+      const phase = phases[phaseIndex];
+      applyPhase(phase);
+      timeoutId = window.setTimeout(() => {
+        phaseIndex = (phaseIndex + 1) % phases.length;
+        if (isRunning) {
+          scheduleNextPhase();
+        }
+      }, phase.duration);
+    }
+
+    function startSession(options = {}) {
+      const { resetPhase = false } = options;
+      clearTimeout(timeoutId);
+      stopCounter();
+      if (resetPhase || !hasStarted) {
+        phaseIndex = 0;
+      }
+      isRunning = true;
+      hasStarted = true;
+      setToggleLabel();
+      requestWakeLock();
+      scheduleNextPhase();
+    }
+
+    function pauseSession() {
+      isRunning = false;
+      clearTimeout(timeoutId);
+      stopCounter();
+      setToggleLabel();
+      settlePhaseAudio(true);
+      releaseWakeLock();
+    }
+
+    toggleSession.addEventListener('click', () => {
+      if (isRunning) {
+        pauseSession();
+      } else {
+        startSession();
+      }
+    });
+
+    paceControl.addEventListener('change', (event) => {
+      currentPaceKey = event.target.value;
+      phases = phasesByPace[currentPaceKey];
+      phaseIndex = 0;
+      updateCycleDuration();
+      if (isRunning) {
+        startSession({ resetPhase: true });
+      } else {
+        showIdlePhase();
+        setToggleLabel();
+      }
+    });
+
+    if (audioToggle) {
+      if (!audioSupported) {
+        audioToggle.disabled = true;
+        audioToggle.textContent = 'Background audio not supported';
+        audioToggle.setAttribute('aria-pressed', 'false');
+        updateAudioStatus('Background audio is not supported in this browser.');
+      } else {
+        audioToggle.addEventListener('click', () => {
+          if (backgroundAudioEnabled) {
+            disableBackgroundAudio();
+          } else {
+            enableBackgroundAudio();
+          }
+        });
+      }
+    }
+
+    function applyMusicVolumeFromControl() {
+      if (!musicVolumeControl) {
+        return;
+      }
+      musicVolumeSetting = Math.min(Math.max(Number(musicVolumeControl.value) / 100, 0), 1);
+      updateVolumeLabel(musicVolumeValue, musicVolumeControl.value);
+      if (musicGain && audioContext) {
+        const now = audioContext.currentTime;
+        musicGain.gain.cancelScheduledValues(now);
+        musicGain.gain.setTargetAtTime(musicVolumeSetting, now, 0.25);
+      }
+    }
+
+    function applyBreathVolumeFromControl() {
+      if (!breathVolumeControl) {
+        return;
+      }
+      breathVolumeSetting = Math.min(Math.max(Number(breathVolumeControl.value) / 100, 0), 1.25);
+      updateVolumeLabel(breathVolumeValue, breathVolumeControl.value);
+      if (breathGuidanceGain && audioContext) {
+        const now = audioContext.currentTime;
+        breathGuidanceGain.gain.cancelScheduledValues(now);
+        breathGuidanceGain.gain.setTargetAtTime(breathVolumeSetting, now, 0.25);
+      }
+    }
+
+    if (musicVolumeControl) {
+      musicVolumeControl.addEventListener('input', applyMusicVolumeFromControl);
+    }
+
+    if (breathVolumeControl) {
+      breathVolumeControl.addEventListener('input', applyBreathVolumeFromControl);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (backgroundAudioEnabled && isRunning) {
+          restartOnReturn = false;
+          releaseWakeLock();
+        } else {
+          restartOnReturn = isRunning;
+          if (isRunning) {
+            pauseSession();
+          } else {
+            releaseWakeLock();
+          }
+        }
+      } else {
+        if (backgroundAudioEnabled && audioContext && audioContext.state === 'suspended') {
+          audioContext.resume().catch(() => {});
+        }
+        if (backgroundAudioEnabled && isRunning) {
+          requestWakeLock();
+        } else if (restartOnReturn) {
+          restartOnReturn = false;
+          startSession({ resetPhase: true });
+        } else if (isRunning) {
+          requestWakeLock();
+        }
+      }
+    });
+
+    function updateCycleDuration() {
+      const totalDuration = phases.reduce((sum, phase) => sum + phase.duration, 0);
+      document.documentElement.style.setProperty('--cycle-duration', `${totalDuration}ms`);
+    }
+
+    function handleMotionPreference(event) {
+      if (event.matches) {
+        if (isRunning) {
+          pauseSession();
+        } else {
+          setToggleLabel();
+        }
+      } else if (!isRunning && !hasStarted) {
+        startSession();
+      }
+    }
+
+    if (typeof motionPreference.addEventListener === 'function') {
+      motionPreference.addEventListener('change', handleMotionPreference);
+    } else if (typeof motionPreference.addListener === 'function') {
+      motionPreference.addListener(handleMotionPreference);
+    }
+
+    window.addEventListener('pagehide', releaseWakeLock);
+    window.addEventListener('beforeunload', releaseWakeLock);
+
+    showIdlePhase();
+    updateCycleDuration();
+
+    if (!motionPreference.matches) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          startSession();
+        });
+      });
+    } else {
+      setToggleLabel();
+    }
+  </script>
+</body>
+</html>
