@@ -285,6 +285,10 @@
       display: grid;
       gap: 14px;
     }
+    .breathing-guide__card--cta {
+      align-content: start;
+      gap: 18px;
+    }
     .breathing-guide__card h3 {
       margin: 0;
       font-size: 1.15rem;
@@ -314,6 +318,29 @@
     }
     .breathing-guide__card dd + dt {
       margin-top: 8px;
+    }
+    .breathing-guide__link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      border: 1px solid rgba(94, 234, 212, 0.35);
+      background: rgba(15, 23, 42, 0.6);
+      color: #f8fafc;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+      width: fit-content;
+    }
+    .breathing-guide__link:hover,
+    .breathing-guide__link:focus {
+      background: rgba(56, 189, 248, 0.24);
+      border-color: rgba(94, 234, 212, 0.55);
+      transform: translateY(-2px);
+      outline: none;
     }
     .sr-only {
       position: absolute;
@@ -513,6 +540,12 @@
             <dd>The consistent pacing balances carbon dioxide and oxygen levels, stimulating baroreceptors that slow the
               heart and reduce perceived stress within a few cycles.</dd>
           </dl>
+        </article>
+        <article class="breathing-guide__card breathing-guide__card--cta">
+          <h3>Guided stretching companion</h3>
+          <p class="breathing-guide__summary">Blend mindful movement with your breathing practice. Follow a twelve-minute
+            stretching sequence that keeps the breath steady while you release built-up tension.</p>
+          <a class="breathing-guide__link" href="guided-stretching.html">Explore guided stretching</a>
         </article>
       </div>
     </section>
