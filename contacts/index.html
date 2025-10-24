@@ -31,6 +31,10 @@
     <!-- Settings / Space / Backup -->
     <section class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
       <h2 class="text-lg font-semibold mb-2">Space</h2>
+      <p class="text-sm text-gray-300 mb-3">
+        Store your personal and professional contacts here. Entries default to your private space; switch below if you
+        want to collaborate in a shared list.
+      </p>
       <select id="spaceSelect" class="w-full p-2 rounded text-black">
         <option value="personal" selected>Personal (private to your account)</option>
         <option value="org-3dvr">Org: 3DVR (shared demo)</option>
@@ -145,6 +149,7 @@
 /* ---------- Gun & session reuse ---------- */
 const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
 const user = gun.user();
+const crmNode = gun.get('3dvr-crm');
 
 // Reuse portal's localStorage flags:
 const ls = localStorage;
@@ -195,9 +200,11 @@ function onSignedIn(username, alias) {
   userDisplay.textContent = `Signed in as ${username} (${alias})`;
   btnLogout.classList.remove('hidden');
   signedStatus.textContent = 'Signed in (personal space available).';
+  changeSpace('personal', { force: true });
 }
 function onGuest() {
   userDisplay.textContent = 'Guest';
+  changeSpace('public-demo', { force: true });
 }
 
 /* ---------- Space selection ---------- */
@@ -206,17 +213,23 @@ const spaceBadge = document.getElementById('spaceBadge');
 
 let currentSpace = user.is ? 'personal' : 'public-demo';
 spaceSelect.value = currentSpace;
-spaceBadge.textContent = currentSpace;
 spaceBadge.classList.remove('hidden');
+updateSpaceBadge();
 
 spaceSelect.addEventListener('change', () => {
-  currentSpace = spaceSelect.value;
-  spaceBadge.textContent = currentSpace;
-  tearDownSpace();
-  contactsIndex = {};
-  listEl.innerHTML = '';
-  attachSpace();
+  changeSpace(spaceSelect.value);
 });
+
+function spaceLabel(space) {
+  if (space === 'personal') return user.is ? 'personal (private)' : 'personal (sign in to unlock)';
+  if (space === 'org-3dvr') return 'org: 3dvr';
+  if (space === 'public-demo') return 'public demo';
+  return space;
+}
+
+function updateSpaceBadge() {
+  spaceBadge.textContent = spaceLabel(currentSpace);
+}
 
 /* ---------- Nodes ---------- */
 const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
@@ -244,15 +257,36 @@ const bulkImport = document.getElementById('bulkImport');
 
 /* ---------- State ---------- */
 let contactsIndex = {};
+let crmIndex = {};
 let unsubscribers = [];
 let page = 1;
 const PAGE_SIZE = 20;
+
+let renderTimer = null;
+function scheduleRender(){
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(updateList, 40);
+}
 
 function nowISO(){ return new Date().toISOString(); }
 function ymd(d){ return d.toISOString().slice(0,10); }
 
 /* ---------- Space attach ---------- */
-attachSpace();
+changeSpace(currentSpace, { force: true });
+
+function changeSpace(space, opts = {}) {
+  const next = space || 'public-demo';
+  const prev = currentSpace;
+  currentSpace = next;
+  spaceSelect.value = currentSpace;
+  updateSpaceBadge();
+  if (!opts.force && prev === currentSpace) return;
+  tearDownSpace();
+  contactsIndex = {};
+  listEl.innerHTML = '';
+  attachSpace();
+}
+
 function tearDownSpace(){
   try { unsubscribers.forEach(fn => fn && fn.off && fn.off()); } catch {}
   unsubscribers = [];
@@ -267,6 +301,16 @@ function attachSpace(){
   unsubscribers.push(sub);
   page = 1;
 }
+
+crmNode.map().on((data, id) => {
+  if (!data) {
+    delete crmIndex[id];
+    scheduleRender();
+    return;
+  }
+  crmIndex[id] = { ...(crmIndex[id]||{}), ...data };
+  scheduleRender();
+});
 
 /* ---------- Create / Update / Delete ---------- */
 form.addEventListener('submit', e => {
@@ -366,6 +410,7 @@ function updateList(){
     eid(`del-${c.id}`)?.addEventListener('click', ()=>confirmDelete(c.id));
     eid(`touch-${c.id}`)?.addEventListener('click', ()=>logTouch(c.id));
     eid(`follow-${c.id}`)?.addEventListener('click', ()=>quickFollowUp(c.id));
+    eid(`crm-${c.id}`)?.addEventListener('click', ()=>syncContactToCRM(c.id));
   });
 
   countEl.textContent = `${total} contact${total===1?'':'s'} · page ${page}/${totalPages}`;
@@ -374,13 +419,11 @@ function updateList(){
   nextPageBtn.disabled = (page>=totalPages);
 }
 
-let renderTimer=null;
-function scheduleRender(){ clearTimeout(renderTimer); renderTimer=setTimeout(updateList, 40); }
-
 /* ---------- Card UI ---------- */
 function renderCard(c){
   const overdue = c.nextFollowUp && new Date(c.nextFollowUp) < new Date(new Date().toDateString());
   const today = c.nextFollowUp && new Date(c.nextFollowUp).toDateString() === new Date().toDateString();
+  const tracked = !!crmIndex[c.id];
   const tags = (c.tags||'').split(',').map(t=>t.trim()).filter(Boolean)
     .map(t=>`<span class="text-xs px-2 py-0.5 rounded bg-white/10">${hx(t)}</span>`).join(' ');
 
@@ -394,6 +437,7 @@ function renderCard(c){
         <div class="flex items-center gap-2 flex-wrap">
           <h3 class="text-lg font-bold">${hx(c.name||'(no name)')}</h3>
           ${c.status?`<span class="text-xs px-2 py-0.5 rounded bg-teal-700/60 border border-teal-400/30">${hx(c.status)}</span>`:''}
+          ${tracked?`<span class="text-xs px-2 py-0.5 rounded bg-sky-700/60 border border-sky-400/30">CRM synced</span>`:''}
           ${overdue?`<span class="text-xs px-2 py-0.5 rounded bg-rose-700/60 border border-rose-400/30">Overdue</span>`:(today?`<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/30">Due today</span>`:'')}
         </div>
         <p class="text-sm text-gray-300 mt-0.5">
@@ -411,6 +455,7 @@ function renderCard(c){
         </div>
       </div>
       <div class="shrink-0 flex flex-wrap gap-2">
+        <button id="crm-${c.id}" class="bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded text-sm">${tracked?'Update CRM':'Track in CRM'}</button>
         <button id="touch-${c.id}" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm">Log touch</button>
         <button id="follow-${c.id}" class="bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded text-sm">+7d</button>
         <button id="edit-${c.id}" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1.5 rounded text-sm">Edit</button>
@@ -418,6 +463,51 @@ function renderCard(c){
       </div>
     </div>
   </div>`;
+}
+
+function syncContactToCRM(id){
+  const contact = contactsIndex[id];
+  if(!contact) return;
+  const button = eid(`crm-${id}`);
+  if(button){
+    button.disabled = true;
+    button.textContent = crmIndex[id] ? 'Syncing…' : 'Adding…';
+  }
+  const existing = crmIndex[id] || {};
+  const now = nowISO();
+  const record = {
+    id,
+    name: contact.name || '',
+    email: contact.email || '',
+    phone: contact.phone || '',
+    company: contact.company || '',
+    role: contact.role || '',
+    tags: contact.tags || '',
+    notes: contact.notes || '',
+    status: contact.status || existing.status || 'Lead',
+    nextFollowUp: contact.nextFollowUp || existing.nextFollowUp || '',
+    lastContacted: contact.lastContacted || existing.lastContacted || '',
+    activityCount: typeof contact.activityCount === 'number' ? contact.activityCount : (existing.activityCount || 0),
+    created: existing.created || contact.created || now,
+    updated: now,
+    source: existing.source || 'Contacts workspace',
+    syncedFromContactsAt: now
+  };
+  crmNode.get(id).put(record, ack => {
+    if(ack && ack.err){
+      console.error('CRM sync failed', ack.err);
+      if(button){
+        button.disabled = false;
+        button.textContent = crmIndex[id] ? 'Update CRM' : 'Track in CRM';
+      }
+      alert('Unable to sync with CRM right now. Please try again.');
+      return;
+    }
+    if(button){
+      button.disabled = false;
+      button.textContent = 'Update CRM';
+    }
+  });
 }
 
 function openEdit(id){
