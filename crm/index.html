@@ -94,6 +94,10 @@
     const totalCountEl = document.getElementById('totalCount');
     const visibleCountEl = document.getElementById('visibleCount');
     const emptyState = document.getElementById('emptyState');
+    const params = new URLSearchParams(window.location.search);
+    const focusContactId = params.get('contact');
+    let focusApplied = false;
+    const focusClasses = ['ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-gray-900'];
 
     form.onsubmit = e => {
       e.preventDefault();
@@ -163,6 +167,17 @@
       card.dataset.haystack = [data.name, data.email, data.role, data.tags, data.notes].filter(Boolean).join(' ').toLowerCase();
       card.dataset.created = data.created || '';
       card.classList.remove('hidden');
+      if (focusContactId && id === focusContactId) {
+        focusClasses.forEach(cls => card.classList.add(cls));
+        if (!focusApplied) {
+          setTimeout(() => {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+          focusApplied = true;
+        }
+      } else {
+        focusClasses.forEach(cls => card.classList.remove(cls));
+      }
     }
 
     function editContact(id) {

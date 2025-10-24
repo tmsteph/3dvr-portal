@@ -426,6 +426,9 @@ function renderCard(c){
   const tracked = !!crmIndex[c.id];
   const tags = (c.tags||'').split(',').map(t=>t.trim()).filter(Boolean)
     .map(t=>`<span class="text-xs px-2 py-0.5 rounded bg-white/10">${hx(t)}</span>`).join(' ');
+  const crmLink = tracked
+    ? `<a href="../crm/index.html?contact=${encodeURIComponent(c.id)}" class="bg-sky-700/60 hover:bg-sky-600 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-sky-100 transition" title="Open this contact in the CRM" target="_blank" rel="noopener">Open CRM</a>`
+    : '';
 
   const email = c.email ? `<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(c.email)}">${hx(c.email)}</a>` : '';
   const phone = c.phone ? `<a class="underline hover:no-underline" href="tel:${encodeURIComponent(c.phone)}">${hx(c.phone)}</a>` : '';
@@ -456,6 +459,7 @@ function renderCard(c){
       </div>
       <div class="shrink-0 flex flex-wrap gap-2">
         <button id="crm-${c.id}" class="bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded text-sm">${tracked?'Update CRM':'Track in CRM'}</button>
+        ${crmLink}
         <button id="touch-${c.id}" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm">Log touch</button>
         <button id="follow-${c.id}" class="bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded text-sm">+7d</button>
         <button id="edit-${c.id}" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1.5 rounded text-sm">Edit</button>
