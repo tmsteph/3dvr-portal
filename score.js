@@ -4,6 +4,8 @@
   const PORTAL_ROOT_KEY = '3dvr-portal';
   const PENDING_SUFFIX = ':pending';
   const PORTAL_PENDING_SUFFIX = ':portalPending';
+  const PORTAL_PUB_STATS_KEY = 'userStatsByPub';
+  const USER_PUB_STORAGE_KEY = 'userPubKey';
 
   function sanitizeScore(value) {
     const numeric = typeof value === 'number' ? value : Number(value);
@@ -48,6 +50,27 @@
     const normalized = typeof alias === 'string' ? alias.trim() : '';
     if (!normalized) return 'user';
     return `user:${normalized.toLowerCase()}`;
+  }
+
+  function readStoredPubKey() {
+    try {
+      return localStorage.getItem(USER_PUB_STORAGE_KEY) || '';
+    } catch (err) {
+      console.warn('Failed to read stored pub key', err);
+      return '';
+    }
+  }
+
+  function writeStoredPubKey(pub) {
+    try {
+      if (pub) {
+        localStorage.setItem(USER_PUB_STORAGE_KEY, pub);
+      } else {
+        localStorage.removeItem(USER_PUB_STORAGE_KEY);
+      }
+    } catch (err) {
+      console.warn('Failed to persist pub key', err);
+    }
   }
 
   function ensureGuestIdentity() {
@@ -243,6 +266,7 @@
       this.current = readCachedScore(this.state);
       this.pending = readPendingScore(this.state);
       this.portalPending = this.state.mode === 'user' ? readPortalPending(this.state) : 0;
+      this.pubKey = this.state.mode === 'user' ? this._extractPubKey() : '';
       this.ready = false;
       this._readyResolvers = [];
       this._scoreHandler = null;
@@ -250,6 +274,8 @@
       this._authPromise = null;
       this._handleOnline = null;
       this._handleStorage = null;
+      this._portalAliasChain = null;
+      this._portalPubChain = null;
 
       if (!Number.isFinite(this.current)) {
         this.current = 0;
@@ -281,6 +307,11 @@
       this._ensureUserAuth()
         .catch(err => {
           console.warn('Failed to ensure user auth for score manager', err);
+          return null;
+        })
+        .then(() => this._refreshIdentity())
+        .catch(err => {
+          console.warn('Failed to refresh user identity for score manager', err);
         })
         .finally(() => {
           this.bootstrap();
@@ -542,19 +573,30 @@
       if (!alias) return;
       const username = (localStorage.getItem('username') || '').trim() || displayNameFromAlias(alias);
       const points = sanitizeScore(score);
+      const payload = {
+        alias,
+        username,
+        points,
+        lastUpdated: Date.now()
+      };
       try {
-        this.portalRoot.get('userStats').get(alias).put({
-          alias,
-          username,
-          points,
-          lastUpdated: Date.now()
-        }, ack => {
+        this.portalRoot.get('userStats').get(alias).put(payload, ack => {
           if (ack && ack.err) {
             console.warn('Failed to sync public stats', ack.err);
             return;
           }
           this._handlePortalPersistSuccess(points);
         });
+        const pub = this._getPubKey();
+        if (pub) {
+          this.portalRoot.get(PORTAL_PUB_STATS_KEY).get(pub).put({ ...payload, pub }, ack => {
+            if (ack && ack.err) {
+              console.warn('Failed to sync pub stats', ack.err);
+              return;
+            }
+            this._handlePortalPersistSuccess(points);
+          });
+        }
       } catch (err) {
         console.warn('Failed to sync public stats', err);
       }
@@ -563,24 +605,8 @@
     _attachPortalRealtime() {
       if (!this.portalRoot) return;
       if (this.state.mode !== 'user') return;
-      const alias = (localStorage.getItem('alias') || '').trim();
-      if (!alias) return;
-      try {
-        const chain = this.portalRoot.get('userStats').get(alias);
-        chain.once(data => {
-          if (data && typeof data.points !== 'undefined') {
-            this._handlePortalValue(data.points);
-            this._markReady();
-          }
-        });
-        chain.on(data => {
-          if (data && typeof data.points !== 'undefined') {
-            this._handlePortalValue(data.points);
-          }
-        });
-      } catch (err) {
-        console.warn('Failed to subscribe to portal stats', err);
-      }
+      this._attachPortalAliasRealtime();
+      this._attachPortalPubRealtime();
     }
 
     _handlePortalValue(value) {
@@ -639,11 +665,186 @@
           this._flushPortalPending();
         }
       }
+
+      if (this.state.mode === 'user') {
+        if (key === 'alias') {
+          this.state.alias = (newValue || '').trim();
+          this._attachPortalRealtime();
+        }
+        if (key === USER_PUB_STORAGE_KEY) {
+          const trimmed = typeof newValue === 'string' ? newValue.trim() : '';
+          if (trimmed && trimmed !== this.pubKey) {
+            this.pubKey = trimmed;
+            this._attachPortalRealtime();
+          }
+          if (!trimmed && this.pubKey) {
+            this.pubKey = '';
+            this._attachPortalRealtime();
+          }
+        }
+      }
     }
 
     _syncPublicStats() {
       if (!this.portalRoot) return;
       this._putPortalStats(this.current);
+    }
+
+    _attachPortalAliasRealtime() {
+      if (!this.portalRoot) return;
+      const alias = (this.state.alias || '').trim() || (localStorage.getItem('alias') || '').trim();
+      if (!alias) {
+        this._detachPortalAliasRealtime();
+        return;
+      }
+      try {
+        const chain = this.portalRoot.get('userStats').get(alias);
+        if (this._portalAliasChain && this._portalAliasChain !== chain) {
+          try {
+            this._portalAliasChain.off();
+          } catch (err) {
+            console.warn('Failed to detach previous alias listener', err);
+          }
+        }
+        this._portalAliasChain = chain;
+        chain.once(data => {
+          if (data && typeof data.points !== 'undefined') {
+            this._handlePortalValue(data.points);
+            this._markReady();
+          }
+        });
+        chain.on(data => {
+          if (data && typeof data.points !== 'undefined') {
+            this._handlePortalValue(data.points);
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to subscribe to portal stats', err);
+      }
+    }
+
+    _attachPortalPubRealtime() {
+      if (!this.portalRoot) return;
+      const pub = this._getPubKey();
+      if (!pub) {
+        this._detachPortalPubRealtime();
+        return;
+      }
+      try {
+        const chain = this.portalRoot.get(PORTAL_PUB_STATS_KEY).get(pub);
+        if (this._portalPubChain && this._portalPubChain !== chain) {
+          try {
+            this._portalPubChain.off();
+          } catch (err) {
+            console.warn('Failed to detach previous pub listener', err);
+          }
+        }
+        this._portalPubChain = chain;
+        chain.once(data => {
+          if (data && typeof data.points !== 'undefined') {
+            this._handlePortalValue(data.points);
+            this._markReady();
+          }
+        });
+        chain.on(data => {
+          if (data && typeof data.points !== 'undefined') {
+            this._handlePortalValue(data.points);
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to subscribe to pub stats', err);
+      }
+    }
+
+    _detachPortalAliasRealtime() {
+      if (!this._portalAliasChain) return;
+      try {
+        this._portalAliasChain.off();
+      } catch (err) {
+        console.warn('Failed to detach alias listener', err);
+      }
+      this._portalAliasChain = null;
+    }
+
+    _detachPortalPubRealtime() {
+      if (!this._portalPubChain) return;
+      try {
+        this._portalPubChain.off();
+      } catch (err) {
+        console.warn('Failed to detach pub listener', err);
+      }
+      this._portalPubChain = null;
+    }
+
+    _extractPubKey() {
+      if (!this.user || !this.user.is) return '';
+      const pub = typeof this.user.is.pub === 'string' ? this.user.is.pub.trim() : '';
+      return pub || '';
+    }
+
+    _getPubKey() {
+      if (this.pubKey) return this.pubKey;
+      const stored = readStoredPubKey();
+      if (stored) {
+        this.pubKey = stored;
+        return stored;
+      }
+      const extracted = this._extractPubKey();
+      if (extracted) {
+        this._updatePubKeyCache(extracted);
+      }
+      return extracted;
+    }
+
+    _updatePubKeyCache(pub) {
+      const normalized = typeof pub === 'string' ? pub.trim() : '';
+      this.pubKey = normalized;
+      if (normalized) {
+        writeStoredPubKey(normalized);
+      } else {
+        writeStoredPubKey('');
+      }
+    }
+
+    _refreshIdentity() {
+      if (this.state.mode !== 'user') {
+        this._updatePubKeyCache('');
+        return Promise.resolve();
+      }
+      const immediate = this._extractPubKey();
+      if (immediate) {
+        this._updatePubKeyCache(immediate);
+        return Promise.resolve(immediate);
+      }
+      const stored = readStoredPubKey();
+      if (stored) {
+        this._updatePubKeyCache(stored);
+      }
+      return new Promise(resolve => {
+        let settled = false;
+        const finalize = value => {
+          if (settled) return;
+          settled = true;
+          if (value) {
+            this._updatePubKeyCache(value);
+          }
+          resolve(value || '');
+        };
+        if (!this.user) {
+          finalize('');
+          return;
+        }
+        try {
+          this.user.get('pub').once(pub => {
+            const normalized = typeof pub === 'string' ? pub.trim() : '';
+            finalize(normalized);
+          });
+        } catch (err) {
+          console.warn('Failed to fetch pub key from user graph', err);
+          finalize('');
+        }
+        setTimeout(() => finalize(this.pubKey), 800);
+      });
     }
 
     _markReady() {
@@ -746,6 +947,8 @@
           window.removeEventListener('storage', this._handleStorage);
         }
       }
+      this._detachPortalAliasRealtime();
+      this._detachPortalPubRealtime();
     }
   }
 
@@ -769,6 +972,11 @@
         }
       }
       this._manager = null;
+      try {
+        localStorage.removeItem(USER_PUB_STORAGE_KEY);
+      } catch (err) {
+        console.warn('Failed to clear stored pub key', err);
+      }
     }
   };
 
