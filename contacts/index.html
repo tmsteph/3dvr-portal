@@ -200,9 +200,11 @@ function onSignedIn(username, alias) {
   userDisplay.textContent = `Signed in as ${username} (${alias})`;
   btnLogout.classList.remove('hidden');
   signedStatus.textContent = 'Signed in (personal space available).';
+  changeSpace('personal', { force: true });
 }
 function onGuest() {
   userDisplay.textContent = 'Guest';
+  changeSpace('public-demo', { force: true });
 }
 
 /* ---------- Space selection ---------- */
@@ -211,17 +213,23 @@ const spaceBadge = document.getElementById('spaceBadge');
 
 let currentSpace = user.is ? 'personal' : 'public-demo';
 spaceSelect.value = currentSpace;
-spaceBadge.textContent = currentSpace;
 spaceBadge.classList.remove('hidden');
+updateSpaceBadge();
 
 spaceSelect.addEventListener('change', () => {
-  currentSpace = spaceSelect.value;
-  spaceBadge.textContent = currentSpace;
-  tearDownSpace();
-  contactsIndex = {};
-  listEl.innerHTML = '';
-  attachSpace();
+  changeSpace(spaceSelect.value);
 });
+
+function spaceLabel(space) {
+  if (space === 'personal') return user.is ? 'personal (private)' : 'personal (sign in to unlock)';
+  if (space === 'org-3dvr') return 'org: 3dvr';
+  if (space === 'public-demo') return 'public demo';
+  return space;
+}
+
+function updateSpaceBadge() {
+  spaceBadge.textContent = spaceLabel(currentSpace);
+}
 
 /* ---------- Nodes ---------- */
 const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
@@ -264,7 +272,21 @@ function nowISO(){ return new Date().toISOString(); }
 function ymd(d){ return d.toISOString().slice(0,10); }
 
 /* ---------- Space attach ---------- */
-attachSpace();
+changeSpace(currentSpace, { force: true });
+
+function changeSpace(space, opts = {}) {
+  const next = space || 'public-demo';
+  const prev = currentSpace;
+  currentSpace = next;
+  spaceSelect.value = currentSpace;
+  updateSpaceBadge();
+  if (!opts.force && prev === currentSpace) return;
+  tearDownSpace();
+  contactsIndex = {};
+  listEl.innerHTML = '';
+  attachSpace();
+}
+
 function tearDownSpace(){
   try { unsubscribers.forEach(fn => fn && fn.off && fn.off()); } catch {}
   unsubscribers = [];
