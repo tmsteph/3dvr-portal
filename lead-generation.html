@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead Capture · 3DVR</title>
+  <link rel="icon" href="https://fav.farm/🧲" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <meta name="description" content="Collect inbound leads for 3DVR and sync them instantly with the contacts workspace and CRM." />
+</head>
+<body class="bg-gray-950 text-white min-h-screen">
+  <header class="border-b border-white/10 bg-gray-950/70 backdrop-blur">
+    <div class="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <a href="index.html" class="text-sm text-gray-300 hover:text-white">← Back to portal</a>
+        <h1 class="mt-2 text-3xl font-semibold">Lead Capture</h1>
+        <p class="text-sm text-gray-300">Inbound form that writes to both the contacts workspace and CRM instantly.</p>
+      </div>
+      <div class="flex flex-wrap gap-2 text-sm">
+        <a href="contacts/index.html" class="rounded bg-white/10 px-3 py-1.5 text-white transition hover:bg-white/20">Open contacts</a>
+        <a href="crm/index.html" class="rounded bg-white/10 px-3 py-1.5 text-white transition hover:bg-white/20">Open CRM</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-10">
+    <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr),320px]">
+      <div class="space-y-6">
+        <article class="rounded-2xl border border-white/10 bg-gray-900/70 p-6 shadow-lg">
+          <header class="mb-6 space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-[0.32em] text-teal-400">Inbound request</p>
+            <h2 class="text-2xl font-semibold">Tell us about your project</h2>
+            <p class="text-sm text-gray-300">Every submission lands in the shared org contact space and 3DVR CRM so the team can respond quickly. Start with a name and add more context when you have it.</p>
+          </header>
+          <form id="leadForm" class="grid gap-4" novalidate>
+            <div class="grid gap-4 md:grid-cols-2">
+              <label class="text-sm">
+                <span class="mb-1 block font-medium text-gray-200">Name</span>
+                <input required name="name" type="text" autocomplete="name" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="Jordan Lee" />
+              </label>
+              <label class="text-sm">
+                <span class="mb-1 block font-medium text-gray-200">Email <span class="text-xs text-gray-400">(optional)</span></span>
+                <input name="email" type="email" autocomplete="email" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="you@example.com" />
+              </label>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <label class="text-sm">
+                <span class="mb-1 block font-medium text-gray-200">Company</span>
+                <input name="company" type="text" autocomplete="organization" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="Acme Labs" />
+              </label>
+              <label class="text-sm">
+                <span class="mb-1 block font-medium text-gray-200">Phone</span>
+                <input name="phone" type="tel" autocomplete="tel" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="+1 (555) 555-1234" />
+              </label>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <label class="text-sm">
+                <span class="mb-1 block font-medium text-gray-200">Primary goal</span>
+                <input name="goal" type="text" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="Launch VR community" />
+              </label>
+              <label class="text-sm">
+                <span class="mb-1 block font-medium text-gray-200">Estimated timeline</span>
+                <select name="timeline" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none">
+                  <option value="">Select timeline</option>
+                  <option>ASAP</option>
+                  <option>0-3 months</option>
+                  <option>3-6 months</option>
+                  <option>6+ months</option>
+                </select>
+              </label>
+            </div>
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-gray-200">Budget range</span>
+              <select name="budget" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none">
+                <option value="">Select budget</option>
+                <option>Under $5k</option>
+                <option>$5k–$15k</option>
+                <option>$15k–$50k</option>
+                <option>$50k+</option>
+              </select>
+            </label>
+            <label class="text-sm">
+              <span class="mb-1 block font-medium text-gray-200">How can we help? <span class="text-xs text-gray-400">(optional)</span></span>
+              <textarea name="message" rows="4" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="Share context, audiences, and desired outcomes."></textarea>
+            </label>
+            <label class="flex items-start gap-3 text-sm text-gray-300">
+              <input type="checkbox" name="optIn" class="mt-1 h-4 w-4 rounded border border-white/10 bg-gray-950" />
+              <span>Send me 3DVR updates and launch announcements.</span>
+            </label>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button type="submit" class="rounded bg-teal-500 px-4 py-2 font-medium text-white transition hover:bg-teal-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">Submit lead</button>
+              <p id="formStatus" class="text-sm text-gray-400" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </article>
+      </div>
+      <aside class="space-y-4">
+        <div class="rounded-2xl border border-white/10 bg-gray-900/70 p-5">
+          <h3 class="text-lg font-semibold text-white">What happens next?</h3>
+          <ul class="mt-3 space-y-3 text-sm text-gray-300">
+            <li class="flex gap-3">
+              <span class="mt-0.5 text-teal-400">1.</span>
+              <span>Your details write to the shared <strong>org contacts</strong> space and <strong>3DVR CRM</strong> with one click.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 text-teal-400">2.</span>
+              <span>The sales pod gets notified to follow up, review your goals, and schedule next steps.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 text-teal-400">3.</span>
+              <span>Track progress inside the CRM and sync back to contacts with shared tags.</span>
+            </li>
+          </ul>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-gray-900/70 p-5">
+          <h3 class="text-lg font-semibold text-white">Fast tags applied</h3>
+          <p class="mt-2 text-sm text-gray-300">Leads from this page receive <code class="rounded bg-white/10 px-1.5 py-0.5 text-xs">inbound</code> and <code class="rounded bg-white/10 px-1.5 py-0.5 text-xs">lead-form</code> tags so teams can filter inside either workspace.</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-gray-900/70 p-6">
+      <header class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-xl font-semibold">Recent inbound leads</h2>
+          <p class="text-sm text-gray-300">Pulled straight from the CRM node marked as lead form submissions.</p>
+        </div>
+        <span id="leadCount" class="text-sm text-gray-400"></span>
+      </header>
+      <div id="leadEmptyState" class="rounded border border-dashed border-white/10 bg-gray-950/60 p-6 text-center text-sm text-gray-400">No inbound leads captured yet. Submit the form to create the first one.</div>
+      <ul id="leadList" class="hidden divide-y divide-white/5"></ul>
+    </section>
+  </main>
+
+  <footer class="mx-auto max-w-5xl px-4 pb-10 text-center text-xs text-gray-500">
+    Leads are stored via the 3DVR GUN relay. Connect with the CRM or contacts apps for full context and follow-up flows.
+  </footer>
+
+  <script>
+    const SOURCE_LABEL = 'Lead generation page';
+    const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+    const orgContacts = gun.get('org-3dvr-demo').get('contacts');
+    const crm = gun.get('3dvr-crm');
+
+    const leadForm = document.getElementById('leadForm');
+    const formStatus = document.getElementById('formStatus');
+    const leadList = document.getElementById('leadList');
+    const leadEmptyState = document.getElementById('leadEmptyState');
+    const leadCount = document.getElementById('leadCount');
+
+    const inboundIndex = {};
+
+    function safe(value) {
+      return String(value == null ? '' : value).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    }
+
+    function trim(value) {
+      return (value || '').trim();
+    }
+
+    function buildNotes({ goal, timeline, budget, message, optIn }) {
+      const blocks = [];
+      if (goal) blocks.push(`Goal: ${goal}`);
+      if (timeline) blocks.push(`Timeline: ${timeline}`);
+      if (budget) blocks.push(`Budget: ${budget}`);
+      if (message) blocks.push(message);
+      if (optIn) blocks.push('Opted in for updates.');
+      return blocks.join('\n\n');
+    }
+
+    function putAsync(node, data) {
+      return new Promise((resolve, reject) => {
+        node.put(data, ack => {
+          if (ack && ack.err) {
+            reject(new Error(ack.err));
+          } else {
+            resolve(ack);
+          }
+        });
+      });
+    }
+
+    function syncLead(formData) {
+      const id = crypto.randomUUID ? crypto.randomUUID() : `lead-${Date.now()}`;
+      const now = new Date().toISOString();
+      const name = trim(formData.get('name'));
+      const email = trim(formData.get('email'));
+      const company = trim(formData.get('company'));
+      const phone = trim(formData.get('phone'));
+      const goal = trim(formData.get('goal'));
+      const timeline = trim(formData.get('timeline'));
+      const budget = trim(formData.get('budget'));
+      const message = trim(formData.get('message'));
+      const optIn = formData.get('optIn') === 'on';
+
+      if (!name) {
+        formStatus.textContent = 'Add at least a name so we know who to follow up with.';
+        formStatus.classList.remove('text-gray-300');
+        formStatus.classList.remove('text-teal-400');
+        formStatus.classList.add('text-rose-400');
+        const validationError = new Error('Validation');
+        validationError.code = 'validation';
+        return Promise.reject(validationError);
+      }
+
+      const tags = ['inbound', 'lead-form', goal ? goal.toLowerCase() : ''].filter(Boolean).join(', ');
+      const notes = buildNotes({ goal, timeline, budget, message, optIn });
+
+      const contactRecord = {
+        id,
+        name,
+        email,
+        phone,
+        company,
+        role: goal,
+        tags,
+        status: 'Lead',
+        nextFollowUp: '',
+        notes,
+        created: now,
+        updated: now,
+        lastContacted: '',
+        activityCount: 0,
+        source: SOURCE_LABEL,
+        timeline,
+        budget,
+        optIn
+      };
+
+      const crmRecord = {
+        id,
+        name,
+        email,
+        role: goal,
+        company,
+        phone,
+        tags,
+        notes,
+        created: now,
+        updated: now,
+        status: 'Lead',
+        source: SOURCE_LABEL,
+        timeline,
+        budget,
+        message,
+        optIn
+      };
+
+      const tasks = [
+        putAsync(orgContacts.get(id), contactRecord),
+        putAsync(crm.get(id), crmRecord)
+      ];
+
+      return Promise.all(tasks).then(() => ({ id, contactRecord, crmRecord }));
+    }
+
+    leadForm.addEventListener('submit', event => {
+      event.preventDefault();
+      formStatus.textContent = 'Submitting…';
+      formStatus.classList.remove('text-rose-400');
+      formStatus.classList.remove('text-teal-400');
+      formStatus.classList.add('text-gray-300');
+      const submitButton = leadForm.querySelector('button[type="submit"]');
+      if (submitButton) submitButton.disabled = true;
+
+      syncLead(new FormData(event.currentTarget))
+        .then(() => {
+          formStatus.textContent = 'Lead captured! The team will reach out shortly.';
+          formStatus.classList.remove('text-gray-300');
+          formStatus.classList.remove('text-rose-400');
+          formStatus.classList.add('text-teal-400');
+          leadForm.reset();
+          if (submitButton) submitButton.disabled = false;
+        })
+        .catch(err => {
+          if (err && err.code === 'validation') {
+            if (submitButton) submitButton.disabled = false;
+            return;
+          }
+          console.error('Lead submission failed', err);
+          formStatus.textContent = 'Something went wrong saving this lead. Please try again.';
+          formStatus.classList.remove('text-gray-300', 'text-teal-400');
+          formStatus.classList.add('text-rose-400');
+          if (submitButton) submitButton.disabled = false;
+        });
+    });
+
+    crm.map().on((data, id) => {
+      if (!data || data.source !== SOURCE_LABEL) {
+        delete inboundIndex[id];
+        updateLeads();
+        return;
+      }
+      inboundIndex[id] = data;
+      updateLeads();
+    });
+
+    function updateLeads() {
+      const leads = Object.values(inboundIndex)
+        .map(item => ({ ...item, created: item.created || item.updated || '' }))
+        .sort((a, b) => {
+          const bTime = new Date(b.created).getTime() || 0;
+          const aTime = new Date(a.created).getTime() || 0;
+          return bTime - aTime;
+        })
+        .slice(0, 20);
+
+      if (leadCount) {
+        leadCount.textContent = leads.length ? `${leads.length} recent` : '';
+      }
+
+      if (!leads.length) {
+        leadList.classList.add('hidden');
+        leadEmptyState.classList.remove('hidden');
+        leadList.innerHTML = '';
+        return;
+      }
+
+      leadEmptyState.classList.add('hidden');
+      leadList.classList.remove('hidden');
+      leadList.innerHTML = leads
+        .map(lead => {
+          const created = lead.created ? new Date(lead.created).toLocaleString() : 'Unknown time';
+          const company = lead.company ? ` · ${safe(lead.company)}` : '';
+          const emailLine = lead.email
+            ? `<p class="text-sm text-sky-400"><a class="hover:underline" href="mailto:${encodeURIComponent(lead.email)}">${safe(lead.email)}</a></p>`
+            : '<p class="text-sm text-gray-400">No email provided yet</p>';
+          const goal = lead.role ? `<p class="text-sm text-gray-300">Goal: ${safe(lead.role)}</p>` : '';
+          const timeline = lead.timeline ? `<p class="text-xs text-gray-400">Timeline: ${safe(lead.timeline)}</p>` : '';
+          const budget = lead.budget ? `<p class="text-xs text-gray-400">Budget: ${safe(lead.budget)}</p>` : '';
+          return `
+            <li class="space-y-2 px-4 py-4 first:rounded-t last:rounded-b">
+              <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-base font-semibold">${safe(lead.name)}${company}</p>
+                  ${emailLine}
+                </div>
+                <p class="text-xs uppercase tracking-[0.3em] text-gray-500">${safe(lead.status || 'Lead')}</p>
+              </div>
+              ${goal}
+              ${timeline}
+              ${budget}
+              <p class="text-xs text-gray-500">Captured ${created}</p>
+            </li>
+          `;
+        })
+        .join('');
+    }
+  </script>
+</body>
+</html>
