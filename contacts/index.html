@@ -26,6 +26,10 @@
     </div>
   </header>
 
+  <div id="syncStatus" class="max-w-6xl mx-auto px-4 pt-3 text-sm text-amber-300 hidden">
+    Changes pending sync. They'll upload automatically when online.
+  </div>
+
   <main class="max-w-6xl mx-auto p-4 grid gap-6 md:grid-cols-[320px,1fr]">
 
     <!-- Settings / Space / Backup -->
@@ -150,6 +154,27 @@
 const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
 const user = gun.user();
 const crmNode = gun.get('3dvr-crm');
+const CACHE_PREFIX = 'contacts:cache:';
+const QUEUE_PREFIX = 'contacts:pending:';
+const CONTACT_FIELDS = [
+  'id',
+  'name',
+  'email',
+  'phone',
+  'company',
+  'role',
+  'tags',
+  'status',
+  'nextFollowUp',
+  'notes',
+  'created',
+  'updated',
+  'lastContacted',
+  'activityCount',
+  'crmId',
+  'syncedFromContactsAt',
+  'syncedToCRMAt'
+];
 
 // Reuse portal's localStorage flags:
 const ls = localStorage;
@@ -206,10 +231,14 @@ function onSignedIn(username, alias) {
   btnLogout.classList.remove('hidden');
   signedStatus.textContent = 'Signed in (personal space available).';
   changeSpace('personal', { force: true });
+  flushQueue('personal');
+  updateSyncStatus();
 }
 function onGuest() {
   userDisplay.textContent = 'Guest';
   changeSpace('public-demo', { force: true });
+  flushQueue('public-demo');
+  updateSyncStatus();
 }
 
 /* ---------- Space selection ---------- */
@@ -224,6 +253,9 @@ if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
 spaceSelect.value = currentSpace;
 spaceBadge.classList.remove('hidden');
 updateSpaceBadge();
+allowedSpaces.forEach(space => getQueue(space));
+updateSyncStatus();
+window.addEventListener('online', flushAllQueues);
 
 spaceSelect.addEventListener('change', () => {
   changeSpace(spaceSelect.value);
@@ -242,14 +274,19 @@ function updateSpaceBadge() {
 
 /* ---------- Nodes ---------- */
 const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
-function spaceNode() {
-  if (currentSpace === 'personal' && user.is) return user.get('contacts');
-  if (currentSpace === 'org-3dvr') return gun.get(ORG_SPACE_KEY).get('contacts');
-  return gun.get('contacts-public'); // public demo/guest
+function spaceNode(space = currentSpace) {
+  if (space === 'personal') {
+    if (user.is) return user.get('contacts');
+    return null;
+  }
+  if (space === 'org-3dvr') return gun.get(ORG_SPACE_KEY).get('contacts');
+  if (space === 'public-demo') return gun.get('contacts-public');
+  return null;
 }
 
 /* ---------- Form & UI refs ---------- */
 const form = document.getElementById('contactForm');
+const syncStatus = document.getElementById('syncStatus');
 const listEl = document.getElementById('contactList');
 const btnReset = document.getElementById('btnReset');
 const searchEl = document.getElementById('search');
@@ -272,11 +309,198 @@ let crmIndexByEmail = {};
 let unsubscribers = [];
 let page = 1;
 const PAGE_SIZE = 20;
+const pendingQueues = new Map();
+const flushingSpaces = new Set();
 
 let renderTimer = null;
 function scheduleRender(){
   clearTimeout(renderTimer);
   renderTimer = setTimeout(updateList, 40);
+}
+
+function cacheKey(space){
+  return `${CACHE_PREFIX}${space}`;
+}
+
+function queueKey(space){
+  return `${QUEUE_PREFIX}${space}`;
+}
+
+function sanitizeContactRecord(source = {}, fallbackId){
+  const result = {};
+  CONTACT_FIELDS.forEach(field => {
+    if (source[field] !== undefined) {
+      result[field] = source[field];
+    }
+  });
+  if (!result.id) {
+    result.id = source.id || fallbackId || '';
+  }
+  if (!result.created && source.created) {
+    result.created = source.created;
+  }
+  if (!result.updated && source.updated) {
+    result.updated = source.updated;
+  }
+  return result.id ? result : null;
+}
+
+function readSpaceCache(space){
+  try {
+    const raw = ls.getItem(cacheKey(space));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return {};
+    return parsed.reduce((acc, item) => {
+      const clean = sanitizeContactRecord(item, item && item.id);
+      if (clean && clean.id) {
+        acc[clean.id] = clean;
+      }
+      return acc;
+    }, {});
+  } catch (err) {
+    console.warn('Failed to read contacts cache', err);
+    return {};
+  }
+}
+
+function writeSpaceCache(space, index){
+  try {
+    const values = Object.values(index || {}).map(item => sanitizeContactRecord(item, item && item.id)).filter(Boolean);
+    ls.setItem(cacheKey(space), JSON.stringify(values));
+  } catch (err) {
+    console.warn('Failed to write contacts cache', err);
+  }
+}
+
+function getQueue(space){
+  if (!pendingQueues.has(space)){
+    try {
+      const raw = ls.getItem(queueKey(space));
+      const parsed = raw ? JSON.parse(raw) : [];
+      const queue = Array.isArray(parsed) ? parsed : [];
+      pendingQueues.set(space, queue);
+    } catch (err) {
+      console.warn('Failed to read pending queue', err);
+      pendingQueues.set(space, []);
+    }
+  }
+  return pendingQueues.get(space);
+}
+
+function saveQueue(space){
+  try {
+    const queue = getQueue(space);
+    ls.setItem(queueKey(space), JSON.stringify(queue));
+  } catch (err) {
+    console.warn('Failed to persist pending queue', err);
+  }
+  updateSyncStatus();
+}
+
+function queuePending(op){
+  const queue = getQueue(op.space);
+  const entry = {
+    ...op,
+    data: op.data ? JSON.parse(JSON.stringify(op.data)) : null,
+    timestamp: Date.now()
+  };
+  queue.push(entry);
+  saveQueue(op.space);
+}
+
+function updateSyncStatus(){
+  if (!syncStatus) return;
+  let pending = 0;
+  allowedSpaces.forEach(space => {
+    pending += getQueue(space).length;
+  });
+  if (pending > 0){
+    syncStatus.textContent = pending === 1
+      ? '1 change pending sync. It will upload automatically when online.'
+      : `${pending} changes pending sync. They will upload automatically when online.`;
+    syncStatus.classList.remove('hidden');
+  } else {
+    syncStatus.classList.add('hidden');
+  }
+}
+
+function commitOperation(op, { skipQueue = false } = {}){
+  const node = spaceNode(op.space);
+  if (!node){
+    if (!skipQueue){
+      queuePending(op);
+    }
+    return Promise.resolve(false);
+  }
+  return new Promise(resolve => {
+    let settled = false;
+    try {
+      node.get(op.id).put(op.type === 'del' ? null : op.data, ack => {
+        settled = true;
+        if (ack && ack.err){
+          console.error('Gun write failed', ack.err);
+          if (!skipQueue){
+            queuePending(op);
+          }
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      });
+    } catch (err) {
+      console.error('Gun write threw', err);
+      if (!skipQueue){
+        queuePending(op);
+      }
+      resolve(false);
+      return;
+    }
+    setTimeout(() => {
+      if (settled) return;
+      console.warn('Gun write timed out', op);
+      if (!skipQueue){
+        queuePending(op);
+      }
+      resolve(false);
+    }, 4000);
+  });
+}
+
+function flushQueue(space){
+  if (flushingSpaces.has(space)) return;
+  const queue = getQueue(space);
+  if (!queue.length) return;
+  const node = spaceNode(space);
+  if (!node){
+    updateSyncStatus();
+    return;
+  }
+  flushingSpaces.add(space);
+  const attempt = () => {
+    if (!queue.length){
+      flushingSpaces.delete(space);
+      updateSyncStatus();
+      return;
+    }
+    const current = queue[0];
+    commitOperation(current, { skipQueue: true }).then(success => {
+      if (success){
+        queue.shift();
+        saveQueue(space);
+        setTimeout(attempt, 60);
+      } else {
+        flushingSpaces.delete(space);
+        updateSyncStatus();
+      }
+    });
+  };
+  attempt();
+}
+
+function flushAllQueues(){
+  allowedSpaces.forEach(space => flushQueue(space));
+  updateSyncStatus();
 }
 
 function nowISO(){ return new Date().toISOString(); }
@@ -287,6 +511,7 @@ function normaliseEmail(value){
 
 /* ---------- Space attach ---------- */
 changeSpace(currentSpace, { force: true });
+flushAllQueues();
 
 function changeSpace(space, opts = {}) {
   const next = space || 'public-demo';
@@ -296,24 +521,59 @@ function changeSpace(space, opts = {}) {
   updateSpaceBadge();
   if (!opts.force && prev === currentSpace) return;
   tearDownSpace();
-  contactsIndex = {};
-  listEl.innerHTML = '';
+  page = 1;
+  contactsIndex = readSpaceCache(currentSpace);
+  updateList();
   attachSpace();
+  flushQueue(currentSpace);
+  updateSyncStatus();
 }
 
 function tearDownSpace(){
-  try { unsubscribers.forEach(fn => fn && fn.off && fn.off()); } catch {}
+  unsubscribers.forEach(fn => {
+    try {
+      if (typeof fn === 'function') fn();
+    } catch (err) {
+      console.warn('Failed to tear down contacts listener', err);
+    }
+  });
   unsubscribers = [];
 }
 function attachSpace(){
   const node = spaceNode();
+  if (!node) {
+    return;
+  }
   const sub = node.map().on((data, id) => {
-    if (!data) { delete contactsIndex[id]; scheduleRender(); return; }
-    contactsIndex[id] = { ...(contactsIndex[id]||{}), ...data };
+    if (!id) return;
+    if (!data) {
+      if (contactsIndex[id]) {
+        delete contactsIndex[id];
+        writeSpaceCache(currentSpace, contactsIndex);
+        scheduleRender();
+      }
+      return;
+    }
+    const merged = sanitizeContactRecord({ ...(contactsIndex[id] || {}), ...data }, id);
+    if (!merged) {
+      if (contactsIndex[id]) {
+        delete contactsIndex[id];
+        writeSpaceCache(currentSpace, contactsIndex);
+        scheduleRender();
+      }
+      return;
+    }
+    contactsIndex[id] = merged;
+    writeSpaceCache(currentSpace, contactsIndex);
     scheduleRender();
   });
-  unsubscribers.push(sub);
-  page = 1;
+  unsubscribers.push(() => {
+    try {
+      sub.off();
+    } catch (err) {
+      console.warn('Failed to detach contacts subscription', err);
+    }
+  });
 }
 
 crmNode.map().on((data, id) => {
@@ -357,7 +617,7 @@ crmNode.map().on((data, id) => {
 form.addEventListener('submit', e => {
   e.preventDefault();
   const id = crypto.randomUUID();
-  const contact = {
+  const contact = sanitizeContactRecord({
     id,
     name: gi('name'),
     email: gi('email'),
@@ -372,20 +632,43 @@ form.addEventListener('submit', e => {
     updated: nowISO(),
     lastContacted: '',
     activityCount: 0
-  };
-  spaceNode().get(id).put(contact);
+  }, id);
+  if (!contact) return;
+  contactsIndex[id] = contact;
+  writeSpaceCache(currentSpace, contactsIndex);
+  scheduleRender();
+  commitOperation({ type: 'put', space: currentSpace, id, data: contact }).then(() => {
+    flushQueue(currentSpace);
+  });
+  updateSyncStatus();
   form.reset();
 });
 btnReset.addEventListener('click', ()=> form.reset());
 
 function updateContact(id, patch){
-  const merged = { ...(contactsIndex[id]||{}), ...patch, updated: nowISO() };
-  spaceNode().get(id).put(merged);
+  const timestamp = (patch && patch.updated) || nowISO();
+  const merged = sanitizeContactRecord({ ...(contactsIndex[id] || {}), ...patch, id, updated: timestamp }, id);
+  if (!merged) return;
+  if (!merged.updated) {
+    merged.updated = timestamp;
+  }
+  contactsIndex[id] = merged;
+  writeSpaceCache(currentSpace, contactsIndex);
+  scheduleRender();
+  commitOperation({ type: 'put', space: currentSpace, id, data: merged }).then(() => {
+    flushQueue(currentSpace);
+  });
+  updateSyncStatus();
 }
 function deleteContact(id){
-  spaceNode().get(id).put(null);
+  if (!contactsIndex[id]) return;
   delete contactsIndex[id];
-  updateList();
+  writeSpaceCache(currentSpace, contactsIndex);
+  scheduleRender();
+  commitOperation({ type: 'del', space: currentSpace, id }).then(() => {
+    flushQueue(currentSpace);
+  });
+  updateSyncStatus();
 }
 
 /* ---------- Filters & pagination ---------- */
@@ -683,10 +966,10 @@ importFile.addEventListener('change', async e=>{
     const arr = JSON.parse(text);
     if(!Array.isArray(arr)) throw new Error('Invalid JSON');
     arr.forEach(rec=>{
-      if(!rec.id) rec.id = crypto.randomUUID();
-      if(!rec.created) rec.created = nowISO();
-      rec.updated = nowISO();
-      spaceNode().get(rec.id).put(rec);
+      const id = rec.id || crypto.randomUUID();
+      const created = rec.created || nowISO();
+      const updated = rec.updated || nowISO();
+      updateContact(id, { ...rec, id, created, updated });
     });
     alert(`Imported ${arr.length} contacts.`);
   }catch(err){
@@ -706,10 +989,10 @@ bulkImport.addEventListener('change', async e=>{
       const parsed = parseContactFile(text, file.name);
       if(!parsed.length) continue;
       parsed.forEach(rec=>{
-        if(!rec.id) rec.id = crypto.randomUUID();
-        if(!rec.created) rec.created = nowISO();
-        rec.updated = nowISO();
-        spaceNode().get(rec.id).put(rec);
+        const id = rec.id || crypto.randomUUID();
+        const created = rec.created || nowISO();
+        const updated = rec.updated || nowISO();
+        updateContact(id, { ...rec, id, created, updated });
       });
       total += parsed.length;
     }
