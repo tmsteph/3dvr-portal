@@ -170,6 +170,11 @@ const userDisplay = document.getElementById('userDisplay');
 const btnLogout = document.getElementById('btnLogout');
 const signedStatus = document.getElementById('signedStatus');
 const btnGoSignIn = document.getElementById('btnGoSignIn');
+const urlParams = new URLSearchParams(window.location.search);
+const requestedSpace = urlParams.get('space');
+const focusContactId = urlParams.get('contact');
+const focusClasses = ['ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-gray-900'];
+let focusScrollDone = false;
 
 // Silent auth if we have creds from the portal:
 if (signedIn && alias && password) {
@@ -210,8 +215,12 @@ function onGuest() {
 /* ---------- Space selection ---------- */
 const spaceSelect = document.getElementById('spaceSelect');
 const spaceBadge = document.getElementById('spaceBadge');
+const allowedSpaces = ['personal', 'org-3dvr', 'public-demo'];
 
 let currentSpace = user.is ? 'personal' : 'public-demo';
+if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
+  currentSpace = requestedSpace;
+}
 spaceSelect.value = currentSpace;
 spaceBadge.classList.remove('hidden');
 updateSpaceBadge();
@@ -398,6 +407,15 @@ function updateList(){
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if(page > totalPages) page = totalPages;
+  if(focusContactId && !focusScrollDone){
+    const focusIndex = filtered.findIndex(c=>c.id === focusContactId);
+    if(focusIndex >= 0){
+      const focusPage = Math.floor(focusIndex / PAGE_SIZE) + 1;
+      if(page !== focusPage){
+        page = focusPage;
+      }
+    }
+  }
 
   const start = (page-1)*PAGE_SIZE;
   const pageItems = filtered.slice(start, start + PAGE_SIZE);
@@ -417,6 +435,20 @@ function updateList(){
   pageInfo.textContent = `${page}/${totalPages}`;
   prevPageBtn.disabled = (page<=1);
   nextPageBtn.disabled = (page>=totalPages);
+  highlightFocusedContact();
+}
+
+function highlightFocusedContact(){
+  if(!focusContactId) return;
+  const card = document.getElementById(focusContactId);
+  if(!card) return;
+  focusClasses.forEach(cls => card.classList.add(cls));
+  if(!focusScrollDone){
+    focusScrollDone = true;
+    setTimeout(()=>{
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }
 }
 
 /* ---------- Card UI ---------- */
@@ -426,6 +458,9 @@ function renderCard(c){
   const tracked = !!crmIndex[c.id];
   const tags = (c.tags||'').split(',').map(t=>t.trim()).filter(Boolean)
     .map(t=>`<span class="text-xs px-2 py-0.5 rounded bg-white/10">${hx(t)}</span>`).join(' ');
+  const crmLink = tracked
+    ? `<a href="../crm/index.html?contact=${encodeURIComponent(c.id)}" class="bg-sky-700/60 hover:bg-sky-600 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-sky-100 transition" title="Open this contact in the CRM" target="_blank" rel="noopener">Open CRM</a>`
+    : '';
 
   const email = c.email ? `<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(c.email)}">${hx(c.email)}</a>` : '';
   const phone = c.phone ? `<a class="underline hover:no-underline" href="tel:${encodeURIComponent(c.phone)}">${hx(c.phone)}</a>` : '';
@@ -456,6 +491,7 @@ function renderCard(c){
       </div>
       <div class="shrink-0 flex flex-wrap gap-2">
         <button id="crm-${c.id}" class="bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded text-sm">${tracked?'Update CRM':'Track in CRM'}</button>
+        ${crmLink}
         <button id="touch-${c.id}" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm">Log touch</button>
         <button id="follow-${c.id}" class="bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded text-sm">+7d</button>
         <button id="edit-${c.id}" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1.5 rounded text-sm">Edit</button>
