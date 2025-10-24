@@ -823,13 +823,69 @@ footer a {
   gap: 0.75rem;
 }
 
-.install-btn {
+.install-banner {
   position: fixed;
   right: 1.5rem;
   bottom: 1.5rem;
   display: none;
-  z-index: 9999;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(7, 13, 26, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1rem;
   box-shadow: 0 36px 90px rgba(4, 9, 20, 0.65);
+  color: #fff;
+  z-index: 9999;
+  max-width: min(90vw, 24rem);
+}
+
+.install-banner--visible {
+  display: flex;
+}
+
+.install-banner__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.install-banner__text {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.install-banner__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.install-banner__close:hover,
+.install-banner__close:focus-visible {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.install-btn {
+  display: inline-flex;
+  width: fit-content;
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  .install-banner {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+  }
 }
 
 @media (max-width: 720px) {
