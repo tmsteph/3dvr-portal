@@ -119,7 +119,7 @@
   </div>
 
   <button onclick="addPoints(100)">+100 Points</button>
-  <button class="reset-btn" onclick="resetProfile()">Reset Profile</button>
+  <button class="reset-btn" onclick="resetScore()">Reset Score</button>
 </div>
 
 <script>
@@ -382,26 +382,23 @@ function addPoints(amount) {
   scoreManager.increment(bonus);
 }
 
-function resetProfile() {
-  if (isSignedIn) {
-    try {
-      user.leave();
-    } catch (err) {
-      console.warn('Error signing out user', err);
-    }
-    if (window.ScoreSystem && typeof window.ScoreSystem.resetManager === 'function') {
-      window.ScoreSystem.resetManager();
-    }
-    localStorage.removeItem('signedIn');
-    localStorage.removeItem('alias');
-    localStorage.removeItem('username');
-    localStorage.removeItem('password');
+function resetScore() {
+  updateProfile(0);
+
+  if (!scoreManager || typeof scoreManager.set !== 'function') {
+    return;
   }
-  localStorage.removeItem('guest');
-  localStorage.removeItem('guestId');
-  localStorage.removeItem('guestDisplayName');
-  localStorage.removeItem('userId');
-  window.location.href = 'sign-in.html';
+
+  const performReset = () => {
+    scoreManager.set(0);
+  };
+
+  if (typeof scoreManager.whenReady === 'function' && !scoreManager.ready) {
+    scoreManager.whenReady().then(performReset);
+    return;
+  }
+
+  performReset();
 }
 </script>
 
