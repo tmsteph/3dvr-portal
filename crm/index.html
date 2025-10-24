@@ -80,6 +80,24 @@
     </section>
   </main>
 
+  <div id="crmDetailOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+    <div id="crmDetailCard" class="max-w-3xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
+      <button id="closeCrmDetail" type="button" class="absolute top-4 right-4 text-sm text-gray-300 hover:text-white">Close</button>
+      <div class="space-y-5">
+        <div class="space-y-1">
+          <p class="text-xs uppercase tracking-[0.32em] text-sky-300">CRM record</p>
+          <h2 id="crmDetailName" class="text-2xl font-semibold">Name</h2>
+          <p id="crmDetailSummary" class="text-sm text-gray-300">Summary</p>
+        </div>
+        <div id="crmDetailTags" class="hidden"></div>
+        <div id="crmDetailNotes" class="hidden"></div>
+        <div id="crmDetailMeta" class="grid gap-2 text-sm text-gray-300"></div>
+        <div id="crmDetailWorkspace" class="text-sm text-gray-300"></div>
+        <div id="crmDetailActions" class="flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const gun = Gun({
       peers: ['https://gun-relay-3dvr.fly.dev/gun'],
@@ -100,6 +118,16 @@
     let focusApplied = false;
     const focusClasses = ['ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-gray-900'];
     const contactWorkspaceIndex = {};
+    const crmIndex = {};
+    const crmDetailOverlay = document.getElementById('crmDetailOverlay');
+    const crmDetailName = document.getElementById('crmDetailName');
+    const crmDetailSummary = document.getElementById('crmDetailSummary');
+    const crmDetailTags = document.getElementById('crmDetailTags');
+    const crmDetailNotes = document.getElementById('crmDetailNotes');
+    const crmDetailMeta = document.getElementById('crmDetailMeta');
+    const crmDetailWorkspace = document.getElementById('crmDetailWorkspace');
+    const crmDetailActions = document.getElementById('crmDetailActions');
+    const closeCrmDetailBtn = document.getElementById('closeCrmDetail');
 
     contactsWorkspace.map().on((data, contactId) => {
       if (!contactId) return;
@@ -130,12 +158,14 @@
 
     crmRecords.map().on((data, id) => {
       if (!data) {
+        delete crmIndex[id];
         const existing = document.getElementById(id);
         if (existing) existing.remove();
         applyFilter();
         return;
       }
 
+      crmIndex[id] = { ...(crmIndex[id] || {}), ...data, id };
       let card = document.getElementById(id);
       if (!card) {
         card = document.createElement('div');
@@ -190,6 +220,12 @@
       } else {
         focusClasses.forEach(cls => card.classList.remove(cls));
       }
+
+      card.onclick = e => {
+        if (e.target.closest('button') || e.target.closest('a')) return;
+        openCrmDetail(id);
+      };
+      card.classList.add('cursor-pointer');
     }
 
     function ensureContact(id) {
@@ -406,6 +442,123 @@
         emptyState.classList.add('hidden');
       }
     }
+
+    function openCrmDetail(id) {
+      const record = crmIndex[id];
+      if (!record) return;
+      const summary = [];
+      if (record.email) {
+        summary.push(`<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(record.email)}">${safe(record.email)}</a>`);
+      }
+      if (record.role) {
+        summary.push(safe(record.role));
+      }
+
+      crmDetailName.textContent = record.name ? record.name : '(no name)';
+      crmDetailSummary.innerHTML = summary.join(' · ') || '—';
+
+      if (record.tags) {
+        const tagHtml = record.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+          .map(tag => `<span class="text-xs px-2 py-0.5 rounded bg-white/10">${safe(tag)}</span>`).join(' ');
+        crmDetailTags.innerHTML = `<div class="flex flex-wrap gap-1">${tagHtml}</div>`;
+        crmDetailTags.classList.remove('hidden');
+      } else {
+        crmDetailTags.classList.add('hidden');
+        crmDetailTags.innerHTML = '';
+      }
+
+      if (record.notes) {
+        crmDetailNotes.innerHTML = `<div class="bg-gray-800/70 border border-white/10 rounded-lg p-3 text-sm text-gray-200 whitespace-pre-wrap">${safe(record.notes)}</div>`;
+        crmDetailNotes.classList.remove('hidden');
+      } else {
+        crmDetailNotes.classList.add('hidden');
+        crmDetailNotes.innerHTML = '';
+      }
+
+      const metaRows = [
+        ['Created', record.created ? new Date(record.created).toLocaleString() : '—'],
+        ['Updated', record.updated ? new Date(record.updated).toLocaleString() : '—']
+      ];
+      crmDetailMeta.innerHTML = metaRows.map(([label, value]) => `
+        <div class="flex justify-between gap-3">
+          <span class="text-gray-400">${safe(label)}</span>
+          <span class="font-medium text-white/90 text-right">${safe(value)}</span>
+        </div>
+      `).join('');
+
+      const workspaceMatch = findWorkspaceContact(record);
+      if (workspaceMatch) {
+        const wsSummary = [];
+        if (workspaceMatch.email) wsSummary.push(workspaceMatch.email);
+        if (workspaceMatch.company) wsSummary.push(workspaceMatch.company);
+        crmDetailWorkspace.innerHTML = `
+          <div class="bg-teal-900/40 border border-teal-500/30 rounded-lg p-4">
+            <p class="text-sm font-semibold text-teal-200">Linked contacts workspace entry</p>
+            <p class="text-xs text-teal-100/80 mt-1">${safe(workspaceMatch.name || '(no name)')}</p>
+            ${wsSummary.length ? `<p class="text-xs text-teal-100/70 mt-2">${safe(wsSummary.join(' · '))}</p>` : ''}
+          </div>
+        `;
+      } else {
+        crmDetailWorkspace.innerHTML = `
+          <div class="bg-gray-800/80 border border-white/10 rounded-lg p-4">
+            <p class="text-sm font-semibold text-gray-100">No linked contact yet</p>
+            <p class="text-xs text-gray-400 mt-1">Use "Open in contacts" to find or create a matching person.</p>
+          </div>
+        `;
+      }
+
+      crmDetailActions.innerHTML = `
+        <button id="crm-detail-open-${id}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">Open in contacts</button>
+        <button id="crm-detail-edit-${id}" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1.5 rounded">Edit</button>
+        <button id="crm-detail-delete-${id}" class="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1.5 rounded">Delete</button>
+      `;
+
+      const ensureId = record.contactId || id;
+      document.getElementById(`crm-detail-open-${id}`)?.addEventListener('click', () => {
+        ensureContact(ensureId);
+        closeCrmDetail();
+      });
+      document.getElementById(`crm-detail-edit-${id}`)?.addEventListener('click', () => {
+        closeCrmDetail();
+        editContact(id);
+      });
+      document.getElementById(`crm-detail-delete-${id}`)?.addEventListener('click', () => {
+        if (confirm('Delete this CRM record?')) {
+          closeCrmDetail();
+          deleteContact(id);
+        }
+      });
+
+      crmDetailOverlay.classList.remove('hidden');
+      crmDetailOverlay.scrollTop = 0;
+    }
+
+    function closeCrmDetail() {
+      crmDetailOverlay.classList.add('hidden');
+    }
+
+    function findWorkspaceContact(record) {
+      if (!record) return null;
+      const directId = record.contactId || record.id;
+      if (directId && contactWorkspaceIndex[directId]) {
+        return contactWorkspaceIndex[directId];
+      }
+      if (record.email) {
+        const email = record.email.toLowerCase();
+        return Object.values(contactWorkspaceIndex).find(entry => (entry.email || '').toLowerCase() === email) || null;
+      }
+      return null;
+    }
+
+    closeCrmDetailBtn.addEventListener('click', closeCrmDetail);
+    crmDetailOverlay.addEventListener('click', evt => {
+      if (evt.target === crmDetailOverlay) closeCrmDetail();
+    });
+    document.addEventListener('keydown', evt => {
+      if (evt.key === 'Escape' && !crmDetailOverlay.classList.contains('hidden')) {
+        closeCrmDetail();
+      }
+    });
 
     if (filterInput) {
       filterInput.addEventListener('input', applyFilter);
