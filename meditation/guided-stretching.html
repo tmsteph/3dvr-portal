@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guided Stretching Flow | 3DVR Portal</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.25), transparent 55%),
+        radial-gradient(circle at 82% 24%, rgba(129, 140, 248, 0.18), transparent 60%),
+        linear-gradient(160deg, #05070c 0%, #0a1424 60%, #02040a 100%);
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      width: 460px;
+      height: 460px;
+      border-radius: 50%;
+      filter: blur(110px);
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      top: -160px;
+      left: -140px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.45), transparent 65%);
+    }
+    body::after {
+      bottom: -180px;
+      right: -120px;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.42), transparent 70%);
+    }
+    .page-shell {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 56px 24px 72px;
+      gap: 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #f8fafc;
+      text-decoration: none;
+      transition: top 0.2s ease;
+      z-index: 2;
+    }
+    .skip-link:focus {
+      top: 16px;
+    }
+    header {
+      display: grid;
+      gap: 20px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    header p {
+      margin: 0;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.65);
+      font-size: 0.85rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: clamp(2.4rem, 4vw, 3.6rem);
+      letter-spacing: -0.03em;
+    }
+    header span {
+      max-width: 720px;
+      margin: 0 auto;
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    .cta-row {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .cta-row a {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(94, 234, 212, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      color: #f8fafc;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+    .cta-row a:hover,
+    .cta-row a:focus {
+      transform: translateY(-2px);
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.6);
+      outline: none;
+    }
+    .flow-loop {
+      display: grid;
+      gap: 28px;
+      padding: 28px;
+      border-radius: 30px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(11, 19, 36, 0.72);
+      box-shadow: 0 32px 80px rgba(5, 12, 26, 0.55);
+      position: relative;
+      overflow: hidden;
+    }
+    .flow-loop::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.18), transparent 60%),
+        radial-gradient(circle at 80% 30%, rgba(129, 140, 248, 0.18), transparent 65%);
+      opacity: 0.65;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .flow-loop__layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 36px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      align-items: center;
+    }
+    .loop-visual {
+      position: relative;
+      display: grid;
+      place-items: center;
+      gap: 16px;
+    }
+    .loop-visual__rings {
+      position: relative;
+      width: clamp(220px, 28vw, 320px);
+      aspect-ratio: 1;
+    }
+    .loop-visual__ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      box-shadow: inset 0 0 24px rgba(56, 189, 248, 0.15);
+      opacity: 0.65;
+      transition: border-color 0.4s ease;
+    }
+    .loop-visual__ring:nth-child(2) {
+      inset: 20px;
+      opacity: 0.45;
+    }
+    .loop-visual__ring:nth-child(3) {
+      inset: 44px;
+      opacity: 0.35;
+    }
+    .loop-visual__pulse {
+      position: absolute;
+      inset: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.35), rgba(37, 99, 235, 0.18));
+      animation: loopPulse var(--breath-duration, 6800ms) ease-in-out infinite;
+      transform-origin: center;
+      filter: drop-shadow(0 20px 45px rgba(15, 23, 42, 0.65));
+    }
+    .loop-visual__pulse.is-inhale {
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.4), rgba(59, 130, 246, 0.22));
+    }
+    .loop-visual__pulse.is-exhale {
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.32), rgba(14, 116, 144, 0.28));
+    }
+    .loop-visual__pulse.is-hold {
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.4), rgba(56, 189, 248, 0.28));
+    }
+    .loop-visual__status {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 8px;
+      text-align: center;
+    }
+    .loop-visual__figure {
+      position: absolute;
+      inset: clamp(38px, 6vw, 52px);
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      transition: transform 0.8s ease;
+      z-index: 2;
+    }
+    .loop-visual__figure .figure {
+      position: relative;
+      width: clamp(90px, 15vw, 130px);
+      height: clamp(150px, 26vw, 220px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
+      transform-origin: center bottom;
+      animation: figureFloat 10s ease-in-out infinite;
+    }
+    .figure__shadow {
+      position: absolute;
+      bottom: -18px;
+      width: 86px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.5), transparent 70%);
+      opacity: 0.65;
+      filter: blur(2px);
+    }
+    .figure__body {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .figure__head {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      width: clamp(26px, 4vw, 34px);
+      height: clamp(26px, 4vw, 34px);
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: linear-gradient(145deg, rgba(148, 163, 184, 0.75), rgba(56, 189, 248, 0.55));
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.6);
+    }
+    .figure__torso {
+      position: absolute;
+      top: clamp(44px, 7vw, 62px);
+      left: 50%;
+      width: clamp(16px, 2.5vw, 22px);
+      height: clamp(66px, 10vw, 92px);
+      transform: translate(-50%, 0) scaleY(1);
+      border-radius: 18px;
+      background: linear-gradient(170deg, rgba(59, 130, 246, 0.72), rgba(56, 189, 248, 0.45));
+      transition: transform 0.8s ease;
+    }
+    .figure__arm {
+      position: absolute;
+      top: clamp(54px, 8vw, 74px);
+      width: clamp(12px, 2vw, 16px);
+      height: clamp(74px, 11vw, 104px);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(94, 234, 212, 0.78), rgba(14, 116, 144, 0.62));
+      transform-origin: top center;
+      transition: transform 0.8s ease;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.42);
+    }
+    .figure__arm--left {
+      left: 32%;
+      transform: rotate(-18deg);
+    }
+    .figure__arm--right {
+      right: 32%;
+      transform: rotate(18deg);
+    }
+    .figure__leg {
+      position: absolute;
+      bottom: 0;
+      width: clamp(12px, 1.8vw, 18px);
+      height: clamp(82px, 12vw, 112px);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(37, 99, 235, 0.72), rgba(15, 23, 42, 0.8));
+      transform-origin: top center;
+      transition: transform 0.8s ease, height 0.8s ease;
+      box-shadow: 0 10px 20px rgba(5, 12, 26, 0.5);
+    }
+    .figure__leg--left {
+      left: 38%;
+      transform: rotate(6deg);
+    }
+    .figure__leg--right {
+      right: 38%;
+      transform: rotate(-6deg);
+    }
+    .figure__desk {
+      position: absolute;
+      top: clamp(110px, 18vw, 148px);
+      left: 10%;
+      width: 80%;
+      height: clamp(10px, 1.4vw, 14px);
+      border-radius: 12px;
+      background: linear-gradient(90deg, rgba(148, 163, 184, 0.3), rgba(94, 234, 212, 0.4));
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .figure__seat {
+      position: absolute;
+      bottom: clamp(28px, 4vw, 40px);
+      left: 18%;
+      width: 64%;
+      height: clamp(12px, 1.6vw, 16px);
+      border-radius: 18px;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.45), rgba(129, 140, 248, 0.4));
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__desk {
+      opacity: 0.9;
+      transform: translateY(0);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__seat {
+      opacity: 0.95;
+      transform: translateY(0);
+    }
+    .loop-visual__figure[data-pose='standing'] .figure__torso {
+      transform: translate(-50%, 0) scaleY(1);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__torso {
+      transform: translate(-50%, 6px) rotate(-10deg) scaleY(1);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__torso {
+      transform: translate(-50%, 12px) scaleY(1);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__arm--left {
+      transform: rotate(-20deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__arm--right {
+      transform: rotate(32deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__arm--left {
+      transform: rotate(-48deg) translateY(-4px);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__arm--right {
+      transform: rotate(-12deg) translateY(-6px);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__leg--left {
+      transform: rotate(2deg) translateY(2px);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__leg--right {
+      transform: rotate(-18deg) translateY(8px);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__leg--left {
+      height: clamp(58px, 8vw, 78px);
+      transform: rotate(86deg) translate(20px, -12px);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__leg--right {
+      height: clamp(58px, 8vw, 78px);
+      transform: rotate(68deg) translate(-4px, -10px);
+    }
+    .loop-visual__figure.is-inhale .figure__torso {
+      transform: translate(-50%, -6px) scaleY(1.02);
+    }
+    .loop-visual__figure.is-inhale .figure__arm--left {
+      transform: rotate(-72deg) translateY(-6px);
+    }
+    .loop-visual__figure.is-inhale .figure__arm--right {
+      transform: rotate(72deg) translateY(-6px);
+    }
+    .loop-visual__figure.is-exhale .figure__torso {
+      transform: translate(-50%, 6px) scaleY(0.97);
+    }
+    .loop-visual__figure.is-exhale .figure__arm--left {
+      transform: rotate(-10deg);
+    }
+    .loop-visual__figure.is-exhale .figure__arm--right {
+      transform: rotate(10deg);
+    }
+    .loop-visual__figure.is-hold .figure__arm--left {
+      transform: rotate(-34deg);
+    }
+    .loop-visual__figure.is-hold .figure__arm--right {
+      transform: rotate(34deg);
+    }
+    .loop-visual__figure[data-pose='desk'].is-inhale .figure__arm--left {
+      transform: rotate(-84deg) translateY(-8px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-inhale .figure__arm--right {
+      transform: rotate(-38deg) translateY(-8px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-exhale .figure__arm--left {
+      transform: rotate(-24deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-exhale .figure__arm--right {
+      transform: rotate(-8deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-hold .figure__arm--left {
+      transform: rotate(-62deg) translateY(-6px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-hold .figure__arm--right {
+      transform: rotate(-24deg) translateY(-6px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-inhale .figure__arm--left {
+      transform: rotate(-52deg) translateY(-8px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-inhale .figure__arm--right {
+      transform: rotate(62deg) translateY(-8px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-exhale .figure__arm--left {
+      transform: rotate(-4deg) translateY(6px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-exhale .figure__arm--right {
+      transform: rotate(16deg) translateY(6px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-hold .figure__arm--left {
+      transform: rotate(-32deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-hold .figure__arm--right {
+      transform: rotate(40deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-inhale .figure__torso {
+      transform: translate(-50%, 0) rotate(-6deg) scaleY(1.02);
+    }
+    .loop-visual__figure[data-pose='seated'].is-inhale .figure__torso {
+      transform: translate(-50%, 6px) scaleY(1.03);
+    }
+    .loop-visual__figure[data-pose='desk'].is-exhale .figure__torso {
+      transform: translate(-50%, 12px) rotate(-16deg) scaleY(0.96);
+    }
+    .loop-visual__figure[data-pose='seated'].is-exhale .figure__torso {
+      transform: translate(-50%, 16px) scaleY(0.95);
+    }
+    .loop-visual__status span {
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-size: 0.82rem;
+      color: rgba(226, 232, 240, 0.72);
+    }
+    .loop-visual__phase {
+      margin: 0;
+      font-size: clamp(1.3rem, 3vw, 1.9rem);
+    }
+    .loop-visual__progress {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.22);
+      overflow: hidden;
+    }
+    .loop-visual__progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.8), rgba(129, 140, 248, 0.8));
+      border-radius: inherit;
+      transform-origin: left center;
+    }
+    .loop-details {
+      display: grid;
+      gap: 20px;
+    }
+    .loop-details__intro {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.82);
+      line-height: 1.7;
+    }
+    .loop-details__current {
+      border-radius: 20px;
+      border: 1px solid rgba(94, 234, 212, 0.26);
+      background: rgba(9, 16, 32, 0.78);
+      padding: 18px 20px;
+      display: grid;
+      gap: 10px;
+    }
+    .loop-details__current h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      letter-spacing: 0.02em;
+    }
+    .loop-details__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: rgba(148, 163, 184, 0.85);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .loop-details__breath {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      line-height: 1.6;
+    }
+    .loop-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .loop-controls button,
+    .loop-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: rgba(15, 23, 42, 0.58);
+      color: #f8fafc;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+    .loop-controls button:hover,
+    .loop-controls button:focus,
+    .loop-controls label:hover,
+    .loop-controls label:focus {
+      transform: translateY(-2px);
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.55);
+      outline: none;
+    }
+    .loop-controls button[aria-pressed="true"] {
+      background: linear-gradient(120deg, rgba(56, 189, 248, 0.28), rgba(129, 140, 248, 0.28));
+      border-color: rgba(148, 163, 184, 0.45);
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.4);
+    }
+    .loop-controls input[type='range'] {
+      accent-color: #38bdf8;
+    }
+    .loop-controls__volume {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.48);
+    }
+    .loop-controls__volume span {
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.72);
+    }
+    .loop-controls__volume output {
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.04em;
+    }
+    .routine-grid {
+      display: grid;
+      gap: 24px;
+    }
+    .routine-section {
+      border-radius: 28px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.72);
+      box-shadow: 0 32px 80px rgba(6, 12, 28, 0.55);
+      padding: 26px 28px 30px;
+      display: grid;
+      gap: 20px;
+    }
+    .routine-section h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.015em;
+    }
+    .routine-section > p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.8);
+      line-height: 1.7;
+    }
+    .routine-timeline {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 16px;
+    }
+    .routine-step {
+      display: grid;
+      gap: 6px;
+      padding: 16px 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(94, 234, 212, 0.18);
+      background: rgba(13, 22, 42, 0.68);
+    }
+    .routine-step h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.01em;
+    }
+    .routine-step p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      line-height: 1.6;
+    }
+    .routine-step span {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(148, 163, 184, 0.78);
+    }
+    .breath-reminder {
+      border-radius: 24px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      background: rgba(9, 14, 28, 0.72);
+      padding: 22px 24px;
+      display: grid;
+      gap: 12px;
+      color: rgba(226, 232, 240, 0.82);
+    }
+    .breath-reminder h2 {
+      margin: 0;
+      font-size: 1.35rem;
+    }
+    .breath-reminder ul {
+      margin: 0;
+      padding-left: 1.25rem;
+      display: grid;
+      gap: 8px;
+    }
+    .breath-reminder li {
+      line-height: 1.65;
+    }
+    .supporting-notes {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    .note-card {
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(13, 21, 38, 0.7);
+      padding: 22px 24px;
+      display: grid;
+      gap: 12px;
+    }
+    .note-card h3 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .note-card p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      line-height: 1.65;
+    }
+    footer {
+      padding: 28px 24px 36px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: rgba(226, 232, 240, 0.65);
+    }
+    @keyframes loopPulse {
+      0% {
+        transform: scale(0.92);
+        opacity: 0.65;
+      }
+      50% {
+        transform: scale(1.06);
+        opacity: 0.92;
+      }
+      100% {
+        transform: scale(0.92);
+        opacity: 0.65;
+      }
+    }
+    @keyframes figureFloat {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
+    @media (max-width: 720px) {
+      .page-shell {
+        padding-top: 44px;
+        gap: 32px;
+      }
+      header h1 {
+        font-size: clamp(2.2rem, 7vw, 3rem);
+      }
+      .flow-loop {
+        padding: 22px;
+      }
+      .routine-section {
+        padding: 22px 20px 26px;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#stretchFlow">Skip to stretch routine</a>
+  <main class="page-shell">
+    <header>
+      <p>3DVR wellness studio</p>
+      <h1>Guided Stretching Flow</h1>
+      <span>A desk-friendly routine that releases computer tension without leaving your chair and keeps the breath pacing in
+        sync with gentle music and looping animation cues.</span>
+      <div class="cta-row">
+        <a href="index.html">Return to breathing room</a>
+        <a href="#stretchFlow">Jump to routine</a>
+      </div>
+    </header>
+    <section class="flow-loop" aria-labelledby="loopHeading">
+      <div class="flow-loop__layout">
+        <div class="loop-visual" aria-live="polite">
+          <div class="loop-visual__rings" aria-hidden="true">
+            <div class="loop-visual__ring"></div>
+            <div class="loop-visual__ring"></div>
+            <div class="loop-visual__ring"></div>
+            <div class="loop-visual__pulse" id="loopPulse"></div>
+            <div class="loop-visual__figure" id="loopFigure" data-pose="standing">
+              <div class="figure">
+                <div class="figure__shadow"></div>
+                <div class="figure__body">
+                  <div class="figure__head"></div>
+                  <div class="figure__torso"></div>
+                  <div class="figure__arm figure__arm--left"></div>
+                  <div class="figure__arm figure__arm--right"></div>
+                  <div class="figure__leg figure__leg--left"></div>
+                  <div class="figure__leg figure__leg--right"></div>
+                  <div class="figure__desk"></div>
+                  <div class="figure__seat"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="loop-visual__status">
+            <span id="loopStatus">Standing decompression</span>
+            <h2 class="loop-visual__phase" id="loopPhase">Ready to begin</h2>
+          </div>
+          <div class="loop-visual__progress" aria-hidden="true">
+            <div class="loop-visual__progress-bar" id="loopProgress"></div>
+          </div>
+        </div>
+        <div class="loop-details">
+          <h2 id="loopHeading">Looped guidance &amp; breath cues</h2>
+          <p class="loop-details__intro">Hit start whenever your shoulders round or your wrists feel heavy. The loop cycles
+            through standing and seated movements, while synchronized audio and the glowing pulse keep each inhale and exhale
+            even. Let it run beside your monitor for a gentle twelve-minute reset.</p>
+          <div class="loop-details__current" aria-live="polite">
+            <h2 id="currentStepTitle">Standing decompression</h2>
+            <div class="loop-details__meta">
+              <span id="currentStepPosture">Standing</span>
+              <span id="currentStepDuration">3 min</span>
+              <span id="currentStepBreath">Breath: 4 in / 6 out</span>
+            </div>
+            <p class="loop-details__breath" id="currentStepDescription">Stack tall, roll your shoulders back, and sweep your
+              arms overhead before dropping elbows to open the chest. Match the glowing circle: inhale on the rise, exhale as
+              you soften.</p>
+          </div>
+          <div class="loop-controls">
+            <button type="button" id="loopToggle" aria-pressed="false">Start looping guidance</button>
+            <button type="button" id="loopReset">Reset to first phase</button>
+            <button type="button" id="audioToggle" aria-pressed="false">Enable music &amp; cues</button>
+            <label class="loop-controls__volume" for="audioVolume">
+              <span>Audio blend <output id="audioVolumeValue" for="audioVolume">60%</output></span>
+              <input id="audioVolume" type="range" min="0" max="100" value="60" step="5" aria-describedby="audioVolumeValue">
+            </label>
+            <span id="audioStatus" class="sr-only" aria-live="polite"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="stretchFlow" class="routine-grid" aria-labelledby="routineHeading">
+      <div class="routine-section" role="group" aria-labelledby="routineHeading">
+        <h2 id="routineHeading">Stretch routine overview</h2>
+        <p>Repeat the full loop once or twice every couple of hours you spend at the computer. Each sequence mixes standing
+          and seated options so you can stay close to your desk and still unwind wrists, neck, and hips.</p>
+        <ol class="routine-timeline">
+          <li class="routine-step">
+            <span>Phase 1 &bull; 3 minutes</span>
+            <h3>Standing decompression</h3>
+            <p>Rise out of your chair and plant feet hip-width. Stack ears over shoulders, roll the shoulders back, and trace
+              big arm circles. Alternate side bends with fingertips sliding down the outer leg to lengthen the side body.</p>
+          </li>
+          <li class="routine-step">
+            <span>Phase 2 &bull; 4 minutes</span>
+            <h3>Desk-supported mobility</h3>
+            <p>Keep standing. Place palms on the desk, hinge at the hips for a supported half fold to lengthen the spine.
+              Flow into alternating calf pumps and gentle wrist stretches against the desk edge to reset keyboard fatigue.</p>
+          </li>
+          <li class="routine-step">
+            <span>Phase 3 &bull; 5 minutes</span>
+            <h3>Seated relief</h3>
+            <p>Return to your chair. Cross one ankle over the opposite thigh for a seated figure four, then switch. Slide to
+              the edge of the seat for gentle hip circles, finishing with wrist flossing and light fist pumps to boost
+              circulation.</p>
+          </li>
+        </ol>
+      </div>
+      <aside class="breath-reminder" aria-labelledby="breathReminderHeading">
+        <h2 id="breathReminderHeading">Breath cues for each pose</h2>
+        <ul>
+          <li>Let the glowing pulse guide you: inhale as it expands, exhale as it softens back toward center.</li>
+          <li>Favor a calm four-count inhale and six-count exhale to melt desk tension, shortening the wave if you feel lightheaded.</li>
+          <li>Keep sound on for whispered breath cues and a soft pad that hides office noise without breaking focus.</li>
+        </ul>
+      </aside>
+    </section>
+    <section class="supporting-notes" aria-label="Safety and integration tips">
+      <article class="note-card">
+        <h3>Honor your comfort range</h3>
+        <p>If a movement pinches wrists or shoulders, dial the range back or switch to light pendulum swings. Small,
+          breath-led motions loosen fascia without needing deep bends.</p>
+      </article>
+      <article class="note-card">
+        <h3>Anchor to screen breaks</h3>
+        <p>Set a desktop reminder every 60 to 90 minutes. Stand, let the loop run once, sip water, and glance into the
+          distance to relax eye muscles before diving back in.</p>
+      </article>
+      <article class="note-card">
+        <h3>Ease back into focus</h3>
+        <p>After the final seated release, stay upright for two more slow breaths or segue into the breathing room to lock in
+          the calm before typing resumes.</p>
+      </article>
+    </section>
+  </main>
+  <script>
+    const flowSteps = [
+      {
+        title: 'Standing decompression',
+        posture: 'Standing',
+        duration: 180000,
+        description:
+          'Stand tall, spread your toes into the floor, and trace spacious shoulder and arm circles. ' +
+          'Side bend from the waist to wake up the ribs while the breath lengthens.',
+        figurePose: 'standing',
+        breathPattern: [
+          {
+            label: 'Inhale',
+            cue: 'Reach crown and fingertips high to open the front body.',
+            duration: 4000,
+            className: 'inhale',
+            tone: 392
+          },
+          {
+            label: 'Exhale',
+            cue: 'Let elbows soften and shoulder blades slide down your back.',
+            duration: 6000,
+            className: 'exhale',
+            tone: 261.63,
+            noise: true
+          }
+        ]
+      },
+      {
+        title: 'Desk-supported mobility',
+        posture: 'Standing',
+        duration: 240000,
+        description:
+          'Use the desk for support as you hinge at the hips, alternate calf pumps, and rotate wrists against the edge. ' +
+          'Keep the core lightly engaged so the low back decompresses.',
+        figurePose: 'desk',
+        breathPattern: [
+          {
+            label: 'Inhale',
+            cue: 'Draw in air to lengthen the spine from tail to crown.',
+            duration: 4000,
+            className: 'inhale',
+            tone: 415.3
+          },
+          {
+            label: 'Hold',
+            cue: 'Pause with soft knees and feel space across the chest and wrists.',
+            duration: 2000,
+            className: 'hold',
+            tone: 329.63
+          },
+          {
+            label: 'Exhale',
+            cue: 'Melt the ribs toward the floor and let heels sink heavy.',
+            duration: 6000,
+            className: 'exhale',
+            tone: 246.94,
+            noise: true
+          }
+        ]
+      },
+      {
+        title: 'Seated relief',
+        posture: 'Seated',
+        duration: 300000,
+        description:
+          'Sit toward the front of your chair for figure-four stretches, gentle hip circles, and wrist flossing. ' +
+          'Keep your spine tall while you breathe spaciously.',
+        figurePose: 'seated',
+        breathPattern: [
+          {
+            label: 'Inhale',
+            cue: 'Sit tall, flex toes toward the shins, and broaden the collarbones.',
+            duration: 5000,
+            className: 'inhale',
+            tone: 370
+          },
+          {
+            label: 'Exhale',
+            cue: 'Empty slowly, let the hips sink, and relax the grip in your hands.',
+            duration: 7000,
+            className: 'exhale',
+            tone: 233.08,
+            noise: true
+          }
+        ]
+      }
+    ];
+
+    const loopToggle = document.getElementById('loopToggle');
+    const loopReset = document.getElementById('loopReset');
+    const loopProgress = document.getElementById('loopProgress');
+    const loopPulse = document.getElementById('loopPulse');
+    const loopFigure = document.getElementById('loopFigure');
+    const loopPhase = document.getElementById('loopPhase');
+    const loopStatus = document.getElementById('loopStatus');
+    const currentStepTitle = document.getElementById('currentStepTitle');
+    const currentStepPosture = document.getElementById('currentStepPosture');
+    const currentStepDuration = document.getElementById('currentStepDuration');
+    const currentStepBreath = document.getElementById('currentStepBreath');
+    const currentStepDescription = document.getElementById('currentStepDescription');
+    const audioToggle = document.getElementById('audioToggle');
+    const audioVolume = document.getElementById('audioVolume');
+    const audioVolumeValue = document.getElementById('audioVolumeValue');
+    const audioStatus = document.getElementById('audioStatus');
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioSupported = typeof AudioContextClass === 'function';
+    let audioContext = null;
+    let masterGain = null;
+    let ambientGain = null;
+    let cueGain = null;
+    let ambientNodes = [];
+    let breathNoiseBuffer = null;
+    let backgroundAudioEnabled = false;
+    let audioBlend = 0.6;
+
+    let currentStepIndex = 0;
+    let loopRunning = false;
+    let stepTimeoutId = null;
+    let breathTimeouts = [];
+    let breathIntervalId = null;
+
+    const shortLabelMap = {
+      Inhale: 'in',
+      Exhale: 'out',
+      Hold: 'hold'
+    };
+
+    function formatDuration(ms) {
+      const minutes = Math.round(ms / 60000);
+      return minutes <= 1 ? '1 min' : `${minutes} min`;
+    }
+
+    function summarizeBreathPattern(step) {
+      return step.breathPattern
+        .map(phase => {
+          const seconds = Math.round(phase.duration / 1000);
+          const label = shortLabelMap[phase.label] || phase.label.toLowerCase();
+          return `${seconds} ${label}`;
+        })
+        .join(' / ');
+    }
+
+    function clearBreathTimers() {
+      breathTimeouts.forEach(clearTimeout);
+      breathTimeouts = [];
+      if (breathIntervalId) {
+        clearInterval(breathIntervalId);
+        breathIntervalId = null;
+      }
+    }
+
+    function updateLoopProgress(duration) {
+      loopProgress.style.transition = 'none';
+      loopProgress.style.width = '0%';
+      void loopProgress.offsetWidth;
+      loopProgress.style.transition = loopRunning ? `width ${duration}ms linear` : 'none';
+      if (loopRunning) {
+        requestAnimationFrame(() => {
+          loopProgress.style.width = '100%';
+        });
+      }
+    }
+
+    function updateLoopPulse(phase) {
+      if (loopPulse) {
+        loopPulse.classList.remove('is-inhale', 'is-exhale', 'is-hold');
+        if (phase && phase.className) {
+          loopPulse.classList.add(`is-${phase.className}`);
+        }
+      }
+      if (loopFigure) {
+        loopFigure.classList.remove('is-inhale', 'is-exhale', 'is-hold');
+        if (phase && phase.className) {
+          loopFigure.classList.add(`is-${phase.className}`);
+        }
+      }
+    }
+
+    function ensureAudioContext() {
+      if (audioContext || !audioSupported) {
+        return;
+      }
+      audioContext = new AudioContextClass();
+      masterGain = audioContext.createGain();
+      masterGain.gain.value = 0;
+      masterGain.connect(audioContext.destination);
+
+      ambientGain = audioContext.createGain();
+      ambientGain.gain.value = 0;
+      ambientGain.connect(masterGain);
+
+      cueGain = audioContext.createGain();
+      cueGain.gain.value = 0.5;
+      cueGain.connect(masterGain);
+    }
+
+    function createNoiseBuffer(context) {
+      const durationSeconds = 1.6;
+      const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * durationSeconds), context.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) {
+        data[i] = (Math.random() * 2 - 1) * 0.6;
+      }
+      return buffer;
+    }
+
+    function startAmbientBed() {
+      if (!audioContext || !ambientGain) {
+        return;
+      }
+      stopAmbientBed();
+      const baseOsc = audioContext.createOscillator();
+      baseOsc.type = 'sine';
+      baseOsc.frequency.value = 174;
+      const baseGain = audioContext.createGain();
+      baseGain.gain.value = 0.18;
+      baseOsc.connect(baseGain).connect(ambientGain);
+
+      const overtoneOsc = audioContext.createOscillator();
+      overtoneOsc.type = 'triangle';
+      overtoneOsc.frequency.value = 261.63;
+      const overtoneGain = audioContext.createGain();
+      overtoneGain.gain.value = 0.12;
+      overtoneOsc.connect(overtoneGain).connect(ambientGain);
+
+      const shimmerOsc = audioContext.createOscillator();
+      shimmerOsc.type = 'sine';
+      shimmerOsc.frequency.value = 392;
+      shimmerOsc.detune.value = -7;
+      const shimmerGain = audioContext.createGain();
+      shimmerGain.gain.value = 0.08;
+      shimmerOsc.connect(shimmerGain).connect(ambientGain);
+
+      const noiseSource = audioContext.createBufferSource();
+      if (!breathNoiseBuffer) {
+        breathNoiseBuffer = createNoiseBuffer(audioContext);
+      }
+      noiseSource.buffer = breathNoiseBuffer;
+      noiseSource.loop = true;
+      const noiseFilter = audioContext.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = 800;
+      noiseFilter.Q.value = 0.8;
+      const noiseGain = audioContext.createGain();
+      noiseGain.gain.value = 0.045;
+      noiseSource.connect(noiseFilter).connect(noiseGain).connect(ambientGain);
+
+      baseOsc.start();
+      overtoneOsc.start();
+      shimmerOsc.start();
+      noiseSource.start();
+
+      ambientNodes = [
+        { source: baseOsc, gain: baseGain },
+        { source: overtoneOsc, gain: overtoneGain },
+        { source: shimmerOsc, gain: shimmerGain },
+        { source: noiseSource, gain: noiseGain }
+      ];
+    }
+
+    function stopAmbientBed() {
+      ambientNodes.forEach(node => {
+        if (node.source && typeof node.source.stop === 'function') {
+          try {
+            node.source.stop();
+          } catch (error) {
+            console.warn('Ambient source already stopped', error);
+          }
+        }
+      });
+      ambientNodes = [];
+    }
+
+    function playBreathCue(phase) {
+      if (!backgroundAudioEnabled || !audioContext || !cueGain) {
+        return;
+      }
+      const now = audioContext.currentTime;
+      const osc = audioContext.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(phase.tone || 392, now);
+      const oscGain = audioContext.createGain();
+      oscGain.gain.setValueAtTime(0, now);
+      oscGain.gain.linearRampToValueAtTime(0.22, now + 0.08);
+      oscGain.gain.linearRampToValueAtTime(0, now + 1.2);
+      osc.connect(oscGain).connect(cueGain);
+      osc.start(now);
+      osc.stop(now + 1.3);
+
+      if (phase.noise) {
+        if (!breathNoiseBuffer) {
+          breathNoiseBuffer = createNoiseBuffer(audioContext);
+        }
+        const noise = audioContext.createBufferSource();
+        noise.buffer = breathNoiseBuffer;
+        noise.loop = false;
+        const noiseFilter = audioContext.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.value = 1400;
+        const noiseGain = audioContext.createGain();
+        noiseGain.gain.setValueAtTime(0, now);
+        noiseGain.gain.linearRampToValueAtTime(0.14, now + 0.12);
+        noiseGain.gain.linearRampToValueAtTime(0, now + 1.3);
+        noise.connect(noiseFilter).connect(noiseGain).connect(cueGain);
+        noise.start(now);
+        noise.stop(now + 1.4);
+      }
+    }
+
+    function updateAudioStatus(message) {
+      if (audioStatus) {
+        audioStatus.textContent = message;
+      }
+    }
+
+    async function enableAudio() {
+      if (!audioSupported) {
+        return;
+      }
+      ensureAudioContext();
+      if (!audioContext) {
+        return;
+      }
+      try {
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+        }
+      } catch (error) {
+        console.warn('Unable to resume audio context', error);
+        updateAudioStatus('Audio playback is blocked by this browser.');
+        return;
+      }
+      startAmbientBed();
+      backgroundAudioEnabled = true;
+      const now = audioContext.currentTime;
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.linearRampToValueAtTime(0.45, now + 1.2);
+      ambientGain.gain.cancelScheduledValues(now);
+      ambientGain.gain.linearRampToValueAtTime(audioBlend * 0.6, now + 1.2);
+      updateAudioStatus('Loop music and breath cues enabled.');
+      audioToggle.textContent = 'Disable music & cues';
+      audioToggle.setAttribute('aria-pressed', 'true');
+    }
+
+    function disableAudio() {
+      if (!audioContext || !masterGain) {
+        return;
+      }
+      backgroundAudioEnabled = false;
+      const now = audioContext.currentTime;
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.linearRampToValueAtTime(0, now + 0.8);
+      ambientGain.gain.cancelScheduledValues(now);
+      ambientGain.gain.linearRampToValueAtTime(0, now + 0.6);
+      updateAudioStatus('Loop music muted.');
+      audioToggle.textContent = 'Enable music & cues';
+      audioToggle.setAttribute('aria-pressed', 'false');
+      setTimeout(() => {
+        stopAmbientBed();
+        if (audioContext && audioContext.state !== 'closed') {
+          audioContext.suspend().catch(() => {});
+        }
+      }, 1000);
+    }
+
+    function scheduleBreathPattern(step) {
+      clearBreathTimers();
+      if (!step || !step.breathPattern || !step.breathPattern.length) {
+        return;
+      }
+      const cycleDuration = step.breathPattern.reduce((total, phase) => total + phase.duration, 0);
+      document.documentElement.style.setProperty('--breath-duration', `${cycleDuration}ms`);
+
+      const runCycle = () => {
+        let offset = 0;
+        step.breathPattern.forEach(phase => {
+          const timeoutId = setTimeout(() => {
+            loopPhase.textContent = `${phase.label}`;
+            loopStatus.textContent = `${step.title} — ${phase.cue}`;
+            updateLoopPulse(phase);
+            playBreathCue(phase);
+          }, offset);
+          breathTimeouts.push(timeoutId);
+          offset += phase.duration;
+        });
+      };
+
+      runCycle();
+      breathIntervalId = setInterval(runCycle, cycleDuration);
+    }
+
+    function updateStep(index, shouldAnimate = false) {
+      const step = flowSteps[index];
+      if (!step) {
+        return;
+      }
+      clearBreathTimers();
+      currentStepTitle.textContent = step.title;
+      currentStepPosture.textContent = step.posture;
+      currentStepDuration.textContent = formatDuration(step.duration);
+      currentStepBreath.textContent = `Breath: ${summarizeBreathPattern(step)}`;
+      currentStepDescription.textContent = step.description;
+      loopStatus.textContent = step.title;
+      loopPhase.textContent = 'Ready to begin';
+      if (loopFigure) {
+        loopFigure.setAttribute('data-pose', step.figurePose || 'standing');
+        loopFigure.classList.remove('is-inhale', 'is-exhale', 'is-hold');
+      }
+      updateLoopPulse(null);
+      if (shouldAnimate) {
+        updateLoopProgress(step.duration);
+        scheduleBreathPattern(step);
+      } else {
+        loopProgress.style.transition = 'none';
+        loopProgress.style.width = '0%';
+      }
+    }
+
+    function advanceStep() {
+      if (!loopRunning) {
+        return;
+      }
+      currentStepIndex = (currentStepIndex + 1) % flowSteps.length;
+      updateStep(currentStepIndex, true);
+      scheduleStepTimeout();
+    }
+
+    function scheduleStepTimeout() {
+      clearTimeout(stepTimeoutId);
+      const step = flowSteps[currentStepIndex];
+      if (!loopRunning || !step) {
+        return;
+      }
+      stepTimeoutId = setTimeout(advanceStep, step.duration);
+    }
+
+    function startLoop() {
+      if (loopRunning) {
+        return;
+      }
+      loopRunning = true;
+      loopToggle.textContent = 'Pause looping guidance';
+      loopToggle.setAttribute('aria-pressed', 'true');
+      updateStep(currentStepIndex, true);
+      scheduleStepTimeout();
+    }
+
+    function pauseLoop() {
+      if (!loopRunning) {
+        return;
+      }
+      loopRunning = false;
+      loopToggle.textContent = 'Start looping guidance';
+      loopToggle.setAttribute('aria-pressed', 'false');
+      clearTimeout(stepTimeoutId);
+      clearBreathTimers();
+      loopProgress.style.transition = 'none';
+      loopProgress.style.width = '0%';
+      loopPhase.textContent = 'Paused';
+      const step = flowSteps[currentStepIndex];
+      loopStatus.textContent = step ? `${step.title} (paused)` : 'Paused';
+      updateLoopPulse(null);
+    }
+
+    if (loopToggle) {
+      loopToggle.addEventListener('click', () => {
+        if (loopRunning) {
+          pauseLoop();
+        } else {
+          startLoop();
+        }
+      });
+    }
+
+    if (loopReset) {
+      loopReset.addEventListener('click', () => {
+        pauseLoop();
+        currentStepIndex = 0;
+        updateStep(currentStepIndex, false);
+      });
+    }
+
+    if (audioToggle) {
+      if (!audioSupported) {
+        audioToggle.disabled = true;
+        audioToggle.textContent = 'Audio not supported';
+        updateAudioStatus('Audio playback is not available in this browser.');
+      } else {
+        audioToggle.addEventListener('click', () => {
+          if (backgroundAudioEnabled) {
+            disableAudio();
+          } else {
+            enableAudio();
+          }
+        });
+      }
+    }
+
+    if (audioVolume && audioVolumeValue) {
+      audioVolume.addEventListener('input', event => {
+        const value = Number(event.target.value);
+        audioBlend = value / 100;
+        audioVolumeValue.textContent = `${value}%`;
+        if (ambientGain && audioContext) {
+          const now = audioContext.currentTime;
+          ambientGain.gain.cancelScheduledValues(now);
+          ambientGain.gain.linearRampToValueAtTime(audioBlend * 0.6, now + 0.4);
+        }
+      });
+    }
+
+    updateStep(currentStepIndex, false);
+  </script>
+  <footer>
+    Listen inward, honor your edge, and revisit this loop whenever screen time tightens your posture.
+  </footer>
+</body>
+</html>
