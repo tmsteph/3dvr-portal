@@ -31,7 +31,7 @@
           <header class="mb-6 space-y-1">
             <p class="text-xs font-semibold uppercase tracking-[0.32em] text-teal-400">Inbound request</p>
             <h2 class="text-2xl font-semibold">Tell us about your project</h2>
-            <p class="text-sm text-gray-300">Every submission lands in the shared org contact space and 3DVR CRM so the team can respond quickly.</p>
+            <p class="text-sm text-gray-300">Every submission lands in the shared org contact space and 3DVR CRM so the team can respond quickly. Start with a name and add more context when you have it.</p>
           </header>
           <form id="leadForm" class="grid gap-4" novalidate>
             <div class="grid gap-4 md:grid-cols-2">
@@ -40,8 +40,8 @@
                 <input required name="name" type="text" autocomplete="name" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="Jordan Lee" />
               </label>
               <label class="text-sm">
-                <span class="mb-1 block font-medium text-gray-200">Email</span>
-                <input required name="email" type="email" autocomplete="email" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="you@example.com" />
+                <span class="mb-1 block font-medium text-gray-200">Email <span class="text-xs text-gray-400">(optional)</span></span>
+                <input name="email" type="email" autocomplete="email" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="you@example.com" />
               </label>
             </div>
             <div class="grid gap-4 md:grid-cols-2">
@@ -81,8 +81,8 @@
               </select>
             </label>
             <label class="text-sm">
-              <span class="mb-1 block font-medium text-gray-200">How can we help?</span>
-              <textarea required name="message" rows="4" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="Share context, audiences, and desired outcomes."></textarea>
+              <span class="mb-1 block font-medium text-gray-200">How can we help? <span class="text-xs text-gray-400">(optional)</span></span>
+              <textarea name="message" rows="4" class="w-full rounded border border-white/10 bg-gray-950 px-3 py-2 text-white focus:border-teal-400 focus:outline-none" placeholder="Share context, audiences, and desired outcomes."></textarea>
             </label>
             <label class="flex items-start gap-3 text-sm text-gray-300">
               <input type="checkbox" name="optIn" class="mt-1 h-4 w-4 rounded border border-white/10 bg-gray-950" />
@@ -194,8 +194,8 @@
       const message = trim(formData.get('message'));
       const optIn = formData.get('optIn') === 'on';
 
-      if (!name || !email || !message) {
-        formStatus.textContent = 'Name, email, and message are required.';
+      if (!name) {
+        formStatus.textContent = 'Add at least a name so we know who to follow up with.';
         formStatus.classList.remove('text-gray-300');
         formStatus.classList.remove('text-teal-400');
         formStatus.classList.add('text-rose-400');
@@ -323,6 +323,9 @@
         .map(lead => {
           const created = lead.created ? new Date(lead.created).toLocaleString() : 'Unknown time';
           const company = lead.company ? ` · ${safe(lead.company)}` : '';
+          const emailLine = lead.email
+            ? `<p class="text-sm text-sky-400"><a class="hover:underline" href="mailto:${encodeURIComponent(lead.email)}">${safe(lead.email)}</a></p>`
+            : '<p class="text-sm text-gray-400">No email provided yet</p>';
           const goal = lead.role ? `<p class="text-sm text-gray-300">Goal: ${safe(lead.role)}</p>` : '';
           const timeline = lead.timeline ? `<p class="text-xs text-gray-400">Timeline: ${safe(lead.timeline)}</p>` : '';
           const budget = lead.budget ? `<p class="text-xs text-gray-400">Budget: ${safe(lead.budget)}</p>` : '';
@@ -331,7 +334,7 @@
               <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p class="text-base font-semibold">${safe(lead.name)}${company}</p>
-                  <p class="text-sm text-sky-400"><a class="hover:underline" href="mailto:${encodeURIComponent(lead.email || '')}">${safe(lead.email || '')}</a></p>
+                  ${emailLine}
                 </div>
                 <p class="text-xs uppercase tracking-[0.3em] text-gray-500">${safe(lead.status || 'Lead')}</p>
               </div>
