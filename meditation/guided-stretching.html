@@ -203,6 +203,241 @@
       gap: 8px;
       text-align: center;
     }
+    .loop-visual__figure {
+      position: absolute;
+      inset: clamp(38px, 6vw, 52px);
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      transition: transform 0.8s ease;
+      z-index: 2;
+    }
+    .loop-visual__figure .figure {
+      position: relative;
+      width: clamp(90px, 15vw, 130px);
+      height: clamp(150px, 26vw, 220px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
+      transform-origin: center bottom;
+      animation: figureFloat 10s ease-in-out infinite;
+    }
+    .figure__shadow {
+      position: absolute;
+      bottom: -18px;
+      width: 86px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.5), transparent 70%);
+      opacity: 0.65;
+      filter: blur(2px);
+    }
+    .figure__body {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .figure__head {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      width: clamp(26px, 4vw, 34px);
+      height: clamp(26px, 4vw, 34px);
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: linear-gradient(145deg, rgba(148, 163, 184, 0.75), rgba(56, 189, 248, 0.55));
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.6);
+    }
+    .figure__torso {
+      position: absolute;
+      top: clamp(44px, 7vw, 62px);
+      left: 50%;
+      width: clamp(16px, 2.5vw, 22px);
+      height: clamp(66px, 10vw, 92px);
+      transform: translate(-50%, 0) scaleY(1);
+      border-radius: 18px;
+      background: linear-gradient(170deg, rgba(59, 130, 246, 0.72), rgba(56, 189, 248, 0.45));
+      transition: transform 0.8s ease;
+    }
+    .figure__arm {
+      position: absolute;
+      top: clamp(54px, 8vw, 74px);
+      width: clamp(12px, 2vw, 16px);
+      height: clamp(74px, 11vw, 104px);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(94, 234, 212, 0.78), rgba(14, 116, 144, 0.62));
+      transform-origin: top center;
+      transition: transform 0.8s ease;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.42);
+    }
+    .figure__arm--left {
+      left: 32%;
+      transform: rotate(-18deg);
+    }
+    .figure__arm--right {
+      right: 32%;
+      transform: rotate(18deg);
+    }
+    .figure__leg {
+      position: absolute;
+      bottom: 0;
+      width: clamp(12px, 1.8vw, 18px);
+      height: clamp(82px, 12vw, 112px);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(37, 99, 235, 0.72), rgba(15, 23, 42, 0.8));
+      transform-origin: top center;
+      transition: transform 0.8s ease, height 0.8s ease;
+      box-shadow: 0 10px 20px rgba(5, 12, 26, 0.5);
+    }
+    .figure__leg--left {
+      left: 38%;
+      transform: rotate(6deg);
+    }
+    .figure__leg--right {
+      right: 38%;
+      transform: rotate(-6deg);
+    }
+    .figure__desk {
+      position: absolute;
+      top: clamp(110px, 18vw, 148px);
+      left: 10%;
+      width: 80%;
+      height: clamp(10px, 1.4vw, 14px);
+      border-radius: 12px;
+      background: linear-gradient(90deg, rgba(148, 163, 184, 0.3), rgba(94, 234, 212, 0.4));
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .figure__seat {
+      position: absolute;
+      bottom: clamp(28px, 4vw, 40px);
+      left: 18%;
+      width: 64%;
+      height: clamp(12px, 1.6vw, 16px);
+      border-radius: 18px;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.45), rgba(129, 140, 248, 0.4));
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__desk {
+      opacity: 0.9;
+      transform: translateY(0);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__seat {
+      opacity: 0.95;
+      transform: translateY(0);
+    }
+    .loop-visual__figure[data-pose='standing'] .figure__torso {
+      transform: translate(-50%, 0) scaleY(1);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__torso {
+      transform: translate(-50%, 6px) rotate(-10deg) scaleY(1);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__torso {
+      transform: translate(-50%, 12px) scaleY(1);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__arm--left {
+      transform: rotate(-20deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__arm--right {
+      transform: rotate(32deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__arm--left {
+      transform: rotate(-48deg) translateY(-4px);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__arm--right {
+      transform: rotate(-12deg) translateY(-6px);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__leg--left {
+      transform: rotate(2deg) translateY(2px);
+    }
+    .loop-visual__figure[data-pose='desk'] .figure__leg--right {
+      transform: rotate(-18deg) translateY(8px);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__leg--left {
+      height: clamp(58px, 8vw, 78px);
+      transform: rotate(86deg) translate(20px, -12px);
+    }
+    .loop-visual__figure[data-pose='seated'] .figure__leg--right {
+      height: clamp(58px, 8vw, 78px);
+      transform: rotate(68deg) translate(-4px, -10px);
+    }
+    .loop-visual__figure.is-inhale .figure__torso {
+      transform: translate(-50%, -6px) scaleY(1.02);
+    }
+    .loop-visual__figure.is-inhale .figure__arm--left {
+      transform: rotate(-72deg) translateY(-6px);
+    }
+    .loop-visual__figure.is-inhale .figure__arm--right {
+      transform: rotate(72deg) translateY(-6px);
+    }
+    .loop-visual__figure.is-exhale .figure__torso {
+      transform: translate(-50%, 6px) scaleY(0.97);
+    }
+    .loop-visual__figure.is-exhale .figure__arm--left {
+      transform: rotate(-10deg);
+    }
+    .loop-visual__figure.is-exhale .figure__arm--right {
+      transform: rotate(10deg);
+    }
+    .loop-visual__figure.is-hold .figure__arm--left {
+      transform: rotate(-34deg);
+    }
+    .loop-visual__figure.is-hold .figure__arm--right {
+      transform: rotate(34deg);
+    }
+    .loop-visual__figure[data-pose='desk'].is-inhale .figure__arm--left {
+      transform: rotate(-84deg) translateY(-8px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-inhale .figure__arm--right {
+      transform: rotate(-38deg) translateY(-8px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-exhale .figure__arm--left {
+      transform: rotate(-24deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-exhale .figure__arm--right {
+      transform: rotate(-8deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-hold .figure__arm--left {
+      transform: rotate(-62deg) translateY(-6px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-hold .figure__arm--right {
+      transform: rotate(-24deg) translateY(-6px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-inhale .figure__arm--left {
+      transform: rotate(-52deg) translateY(-8px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-inhale .figure__arm--right {
+      transform: rotate(62deg) translateY(-8px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-exhale .figure__arm--left {
+      transform: rotate(-4deg) translateY(6px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-exhale .figure__arm--right {
+      transform: rotate(16deg) translateY(6px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-hold .figure__arm--left {
+      transform: rotate(-32deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='seated'].is-hold .figure__arm--right {
+      transform: rotate(40deg) translateY(-2px);
+    }
+    .loop-visual__figure[data-pose='desk'].is-inhale .figure__torso {
+      transform: translate(-50%, 0) rotate(-6deg) scaleY(1.02);
+    }
+    .loop-visual__figure[data-pose='seated'].is-inhale .figure__torso {
+      transform: translate(-50%, 6px) scaleY(1.03);
+    }
+    .loop-visual__figure[data-pose='desk'].is-exhale .figure__torso {
+      transform: translate(-50%, 12px) rotate(-16deg) scaleY(0.96);
+    }
+    .loop-visual__figure[data-pose='seated'].is-exhale .figure__torso {
+      transform: translate(-50%, 16px) scaleY(0.95);
+    }
     .loop-visual__status span {
       letter-spacing: 0.18em;
       text-transform: uppercase;
@@ -437,6 +672,15 @@
         opacity: 0.65;
       }
     }
+    @keyframes figureFloat {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
     @media (max-width: 720px) {
       .page-shell {
         padding-top: 44px;
@@ -485,6 +729,21 @@
             <div class="loop-visual__ring"></div>
             <div class="loop-visual__ring"></div>
             <div class="loop-visual__pulse" id="loopPulse"></div>
+            <div class="loop-visual__figure" id="loopFigure" data-pose="standing">
+              <div class="figure">
+                <div class="figure__shadow"></div>
+                <div class="figure__body">
+                  <div class="figure__head"></div>
+                  <div class="figure__torso"></div>
+                  <div class="figure__arm figure__arm--left"></div>
+                  <div class="figure__arm figure__arm--right"></div>
+                  <div class="figure__leg figure__leg--left"></div>
+                  <div class="figure__leg figure__leg--right"></div>
+                  <div class="figure__desk"></div>
+                  <div class="figure__seat"></div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="loop-visual__status">
             <span id="loopStatus">Standing decompression</span>
@@ -586,6 +845,7 @@
         description:
           'Stand tall, spread your toes into the floor, and trace spacious shoulder and arm circles. ' +
           'Side bend from the waist to wake up the ribs while the breath lengthens.',
+        figurePose: 'standing',
         breathPattern: [
           {
             label: 'Inhale',
@@ -611,6 +871,7 @@
         description:
           'Use the desk for support as you hinge at the hips, alternate calf pumps, and rotate wrists against the edge. ' +
           'Keep the core lightly engaged so the low back decompresses.',
+        figurePose: 'desk',
         breathPattern: [
           {
             label: 'Inhale',
@@ -643,6 +904,7 @@
         description:
           'Sit toward the front of your chair for figure-four stretches, gentle hip circles, and wrist flossing. ' +
           'Keep your spine tall while you breathe spaciously.',
+        figurePose: 'seated',
         breathPattern: [
           {
             label: 'Inhale',
@@ -667,6 +929,7 @@
     const loopReset = document.getElementById('loopReset');
     const loopProgress = document.getElementById('loopProgress');
     const loopPulse = document.getElementById('loopPulse');
+    const loopFigure = document.getElementById('loopFigure');
     const loopPhase = document.getElementById('loopPhase');
     const loopStatus = document.getElementById('loopStatus');
     const currentStepTitle = document.getElementById('currentStepTitle');
@@ -739,9 +1002,17 @@
     }
 
     function updateLoopPulse(phase) {
-      loopPulse.classList.remove('is-inhale', 'is-exhale', 'is-hold');
-      if (phase && phase.className) {
-        loopPulse.classList.add(`is-${phase.className}`);
+      if (loopPulse) {
+        loopPulse.classList.remove('is-inhale', 'is-exhale', 'is-hold');
+        if (phase && phase.className) {
+          loopPulse.classList.add(`is-${phase.className}`);
+        }
+      }
+      if (loopFigure) {
+        loopFigure.classList.remove('is-inhale', 'is-exhale', 'is-hold');
+        if (phase && phase.className) {
+          loopFigure.classList.add(`is-${phase.className}`);
+        }
       }
     }
 
@@ -971,6 +1242,10 @@
       currentStepDescription.textContent = step.description;
       loopStatus.textContent = step.title;
       loopPhase.textContent = 'Ready to begin';
+      if (loopFigure) {
+        loopFigure.setAttribute('data-pose', step.figurePose || 'standing');
+        loopFigure.classList.remove('is-inhale', 'is-exhale', 'is-hold');
+      }
       updateLoopPulse(null);
       if (shouldAnimate) {
         updateLoopProgress(step.duration);
