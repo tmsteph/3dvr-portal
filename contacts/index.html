@@ -145,6 +145,24 @@
     </section>
   </main>
 
+  <div id="contactDetailOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+    <div id="contactDetailCard" class="max-w-3xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
+      <button id="closeContactDetail" type="button" class="absolute top-4 right-4 text-sm text-gray-300 hover:text-white">Close</button>
+      <div class="space-y-5">
+        <div class="space-y-1">
+          <p class="text-xs uppercase tracking-[0.32em] text-teal-300">Contact detail</p>
+          <h2 id="contactDetailName" class="text-2xl font-semibold">Name</h2>
+          <p id="contactDetailSummary" class="text-sm text-gray-300">Summary</p>
+        </div>
+        <div id="contactDetailTags" class="hidden"></div>
+        <div id="contactDetailNotes" class="hidden"></div>
+        <div id="contactDetailMeta" class="grid gap-2 text-sm text-gray-300"></div>
+        <div id="contactDetailCrm" class="text-sm text-gray-300"></div>
+        <div id="contactDetailActions" class="flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+  </div>
+
   <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-sm text-gray-400">
     Linked with 3DVR Portal auth. Roadmap: calendar bridge, org ACL, email sequences.
   </footer>
@@ -300,6 +318,15 @@ const btnExportJSON = document.getElementById('btnExportJSON');
 const btnExportCSV = document.getElementById('btnExportCSV');
 const importFile = document.getElementById('importFile');
 const bulkImport = document.getElementById('bulkImport');
+const contactDetailOverlay = document.getElementById('contactDetailOverlay');
+const contactDetailName = document.getElementById('contactDetailName');
+const contactDetailSummary = document.getElementById('contactDetailSummary');
+const contactDetailTags = document.getElementById('contactDetailTags');
+const contactDetailNotes = document.getElementById('contactDetailNotes');
+const contactDetailMeta = document.getElementById('contactDetailMeta');
+const contactDetailCrm = document.getElementById('contactDetailCrm');
+const contactDetailActions = document.getElementById('contactDetailActions');
+const closeContactDetailBtn = document.getElementById('closeContactDetail');
 
 /* ---------- State ---------- */
 let contactsIndex = {};
@@ -744,6 +771,14 @@ function updateList(){
     eid(`touch-${c.id}`)?.addEventListener('click', ()=>logTouch(c.id));
     eid(`follow-${c.id}`)?.addEventListener('click', ()=>quickFollowUp(c.id));
     eid(`crm-${c.id}`)?.addEventListener('click', ()=>syncContactToCRM(c.id));
+    const card = document.getElementById(c.id);
+    if(card){
+      card.addEventListener('click', evt=>{
+        if(evt.target.closest('button') || evt.target.closest('a')) return;
+        openContactDetail(c.id);
+      });
+      card.classList.add('cursor-pointer');
+    }
   });
 
   countEl.textContent = `${total} contact${total===1?'':'s'} · page ${page}/${totalPages}`;
@@ -893,6 +928,117 @@ function syncContactToCRM(id){
     updateContact(id, { crmId: targetId, syncedFromContactsAt: now });
   });
 }
+
+function openContactDetail(id){
+  const contact = contactsIndex[id];
+  if(!contact) return;
+  const crmMatch = findCrmRecordForContact(contact);
+  const tracked = !!crmMatch;
+  const summaryParts = [];
+  if(contact.email){
+    summaryParts.push(`<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(contact.email)}">${hx(contact.email)}</a>`);
+  }
+  const roleCompany = [contact.role, contact.company].filter(Boolean).join(' @ ');
+  if(roleCompany){
+    summaryParts.push(hx(roleCompany));
+  }
+  if(contact.phone){
+    summaryParts.push(`<a class="underline hover:no-underline" href="tel:${encodeURIComponent(contact.phone)}">${hx(contact.phone)}</a>`);
+  }
+
+  contactDetailName.textContent = contact.name || '(no name)';
+  contactDetailSummary.innerHTML = summaryParts.join(' · ') || '—';
+
+  const tags = (contact.tags||'').split(',').map(t=>t.trim()).filter(Boolean)
+    .map(t=>`<span class="text-xs px-2 py-0.5 rounded bg-white/10">${hx(t)}</span>`).join(' ');
+  if(tags){
+    contactDetailTags.innerHTML = `<div class="flex flex-wrap gap-1">${tags}</div>`;
+    contactDetailTags.classList.remove('hidden');
+  } else {
+    contactDetailTags.classList.add('hidden');
+    contactDetailTags.innerHTML = '';
+  }
+
+  if(contact.notes){
+    contactDetailNotes.innerHTML = `<div class="bg-gray-800/70 border border-white/10 rounded-lg p-3 text-sm text-gray-200 whitespace-pre-wrap">${hx(contact.notes)}</div>`;
+    contactDetailNotes.classList.remove('hidden');
+  } else {
+    contactDetailNotes.classList.add('hidden');
+    contactDetailNotes.innerHTML = '';
+  }
+
+  const metaRows = [
+    ['Status', contact.status || '—'],
+    ['Next follow-up', contact.nextFollowUp || '—'],
+    ['Last contacted', contact.lastContacted ? `${ago(contact.lastContacted)} · ${new Date(contact.lastContacted).toLocaleDateString()}` : '—'],
+    ['Touches', contact.activityCount || 0],
+    ['Created', contact.created ? new Date(contact.created).toLocaleString() : '—'],
+    ['Updated', contact.updated ? new Date(contact.updated).toLocaleString() : '—']
+  ];
+  contactDetailMeta.innerHTML = metaRows.map(([label, value])=>`
+    <div class="flex justify-between gap-3">
+      <span class="text-gray-400">${hx(label)}</span>
+      <span class="font-medium text-white/90 text-right">${hx(value)}</span>
+    </div>
+  `).join('');
+
+  if(tracked){
+    const crmUpdated = crmMatch.record && (crmMatch.record.updated || crmMatch.record.created);
+    const crmDetails = [
+      crmMatch.record && crmMatch.record.role ? `Role: ${hx(crmMatch.record.role)}` : '',
+      crmMatch.record && crmMatch.record.tags ? `Tags: ${hx(crmMatch.record.tags)}` : '',
+      crmMatch.record && crmUpdated ? `Updated ${new Date(crmUpdated).toLocaleString()}` : ''
+    ].filter(Boolean).join('<br>');
+    contactDetailCrm.innerHTML = `
+      <div class="bg-sky-900/40 border border-sky-500/30 rounded-lg p-4">
+        <p class="text-sm font-semibold text-sky-200">Linked CRM record</p>
+        <p class="text-xs text-sky-100/80 mt-1">Synced as <code>${hx(crmMatch.id)}</code></p>
+        ${crmDetails?`<p class="text-xs text-sky-100/80 mt-2 leading-relaxed">${crmDetails}</p>`:''}
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a href="../crm/index.html?contact=${encodeURIComponent(crmMatch.id)}" target="_blank" rel="noopener" class="bg-sky-600 hover:bg-sky-500 text-white text-sm px-3 py-1.5 rounded">Open CRM</a>
+        </div>
+      </div>
+    `;
+  } else {
+    contactDetailCrm.innerHTML = `
+      <div class="bg-gray-800/80 border border-white/10 rounded-lg p-4">
+        <p class="text-sm font-semibold text-gray-100">Not yet tracked in CRM</p>
+        <p class="text-xs text-gray-400 mt-1">Sync this contact to create a shared CRM record.</p>
+      </div>
+    `;
+  }
+
+  contactDetailActions.innerHTML = `
+    <button id="detail-sync-${id}" class="bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded text-sm">${tracked?'Update CRM':'Track in CRM'}</button>
+    <button id="detail-touch-${id}" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm">Log touch</button>
+    <button id="detail-follow-${id}" class="bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded text-sm">+7d</button>
+    <button id="detail-edit-${id}" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1.5 rounded text-sm">Edit</button>
+    <button id="detail-delete-${id}" class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded text-sm">Delete</button>
+  `;
+
+  eid(`detail-sync-${id}`)?.addEventListener('click', ()=>syncContactToCRM(id));
+  eid(`detail-touch-${id}`)?.addEventListener('click', ()=>logTouch(id));
+  eid(`detail-follow-${id}`)?.addEventListener('click', ()=>quickFollowUp(id));
+  eid(`detail-edit-${id}`)?.addEventListener('click', ()=>openEdit(id));
+  eid(`detail-delete-${id}`)?.addEventListener('click', ()=>confirmDelete(id));
+
+  contactDetailOverlay.classList.remove('hidden');
+  contactDetailOverlay.scrollTop = 0;
+}
+
+function closeContactDetail(){
+  contactDetailOverlay.classList.add('hidden');
+}
+
+closeContactDetailBtn.addEventListener('click', closeContactDetail);
+contactDetailOverlay.addEventListener('click', evt=>{
+  if(evt.target === contactDetailOverlay) closeContactDetail();
+});
+document.addEventListener('keydown', evt=>{
+  if(evt.key === 'Escape' && !contactDetailOverlay.classList.contains('hidden')){
+    closeContactDetail();
+  }
+});
 
 function openEdit(id){
   const c = contactsIndex[id]; if(!c) return;
