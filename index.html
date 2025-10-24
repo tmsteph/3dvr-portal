@@ -302,7 +302,20 @@
     </div>
   </div>
 
-  <button id="installBtn" class="install-btn cta primary" type="button">⬇️ Install 3DVR Portal</button>
+  <div id="installPrompt" class="install-banner" hidden>
+    <div class="install-banner__content">
+      <span class="install-banner__text">Install 3DVR Portal for quick access.</span>
+      <button id="installBtn" class="install-btn cta primary" type="button">⬇️ Install 3DVR Portal</button>
+    </div>
+    <button
+      id="installPromptClose"
+      class="install-banner__close"
+      type="button"
+      aria-label="Dismiss install prompt"
+    >
+      ×
+    </button>
+  </div>
 
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
@@ -766,7 +779,9 @@
   <script src="navbar.js"></script>
 
   <script>
+    const installPrompt = document.getElementById('installPrompt');
     const installBtn = document.getElementById('installBtn');
+    const installPromptClose = document.getElementById('installPromptClose');
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -776,11 +791,36 @@
     }
 
     let deferredPrompt;
+    let installHideTimeout;
+
+    const scheduleInstallHide = () => {
+      clearTimeout(installHideTimeout);
+      installHideTimeout = window.setTimeout(() => {
+        hideInstallPrompt();
+      }, 15000);
+    };
+
+    const hideInstallPrompt = () => {
+      if (!installPrompt) return;
+      clearTimeout(installHideTimeout);
+      installPrompt.classList.remove('install-banner--visible');
+      installPrompt.setAttribute('hidden', '');
+    };
+
+    const showInstallPrompt = () => {
+      if (!installPrompt) return;
+      clearTimeout(installHideTimeout);
+      installPrompt.removeAttribute('hidden');
+      installPrompt.classList.add('install-banner--visible');
+      scheduleInstallHide();
+    };
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      installBtn.style.display = 'inline-flex';
+      if (installBtn) {
+        showInstallPrompt();
+      }
     });
 
     installBtn?.addEventListener('click', async () => {
@@ -788,12 +828,36 @@
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       deferredPrompt = null;
-      installBtn.style.display = 'none';
+      hideInstallPrompt();
       console.log('Install choice:', outcome);
     });
 
     window.addEventListener('appinstalled', () => {
-      installBtn.style.display = 'none';
+      hideInstallPrompt();
+    });
+
+    installPromptClose?.addEventListener('click', () => {
+      hideInstallPrompt();
+    });
+
+    installPrompt?.addEventListener('mouseenter', () => {
+      clearTimeout(installHideTimeout);
+    });
+
+    installPrompt?.addEventListener('mouseleave', () => {
+      if (installPrompt.classList.contains('install-banner--visible')) {
+        scheduleInstallHide();
+      }
+    });
+
+    installPrompt?.addEventListener('focusin', () => {
+      clearTimeout(installHideTimeout);
+    });
+
+    installPrompt?.addEventListener('focusout', (event) => {
+      if (!installPrompt.contains(event.relatedTarget)) {
+        scheduleInstallHide();
+      }
     });
 
     const topNav = document.querySelector('.top-nav');
