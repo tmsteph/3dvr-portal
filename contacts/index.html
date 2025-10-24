@@ -267,6 +267,8 @@ const bulkImport = document.getElementById('bulkImport');
 /* ---------- State ---------- */
 let contactsIndex = {};
 let crmIndex = {};
+let crmIndexByContactId = {};
+let crmIndexByEmail = {};
 let unsubscribers = [];
 let page = 1;
 const PAGE_SIZE = 20;
@@ -279,6 +281,9 @@ function scheduleRender(){
 
 function nowISO(){ return new Date().toISOString(); }
 function ymd(d){ return d.toISOString().slice(0,10); }
+function normaliseEmail(value){
+  return (value || '').toString().trim().toLowerCase();
+}
 
 /* ---------- Space attach ---------- */
 changeSpace(currentSpace, { force: true });
@@ -312,12 +317,39 @@ function attachSpace(){
 }
 
 crmNode.map().on((data, id) => {
+  const prev = crmIndex[id] || {};
   if (!data) {
+    const prevEmail = normaliseEmail(prev.email);
+    if (prev.contactId && crmIndexByContactId[prev.contactId] === id) {
+      delete crmIndexByContactId[prev.contactId];
+    }
+    if (prevEmail && crmIndexByEmail[prevEmail] === id) {
+      delete crmIndexByEmail[prevEmail];
+    }
     delete crmIndex[id];
     scheduleRender();
     return;
   }
-  crmIndex[id] = { ...(crmIndex[id]||{}), ...data };
+
+  const record = { ...prev, ...data };
+  crmIndex[id] = record;
+
+  if (prev.contactId && prev.contactId !== record.contactId && crmIndexByContactId[prev.contactId] === id) {
+    delete crmIndexByContactId[prev.contactId];
+  }
+  if (record.contactId) {
+    crmIndexByContactId[record.contactId] = id;
+  }
+
+  const prevEmail = normaliseEmail(prev.email);
+  const nextEmail = normaliseEmail(record.email);
+  if (prevEmail && prevEmail !== nextEmail && crmIndexByEmail[prevEmail] === id) {
+    delete crmIndexByEmail[prevEmail];
+  }
+  if (nextEmail) {
+    crmIndexByEmail[nextEmail] = id;
+  }
+
   scheduleRender();
 });
 
@@ -451,15 +483,43 @@ function highlightFocusedContact(){
   }
 }
 
+function findCrmRecordForContact(contact){
+  if(!contact) return null;
+
+  const mappedId = crmIndexByContactId[contact.id];
+  if(mappedId && crmIndex[mappedId]){
+    return { id: mappedId, record: crmIndex[mappedId] };
+  }
+
+  if(contact.crmId && crmIndex[contact.crmId]){
+    return { id: contact.crmId, record: crmIndex[contact.crmId] };
+  }
+
+  if(crmIndex[contact.id]){
+    return { id: contact.id, record: crmIndex[contact.id] };
+  }
+
+  const email = normaliseEmail(contact.email);
+  if(email){
+    const emailMatch = crmIndexByEmail[email];
+    if(emailMatch && crmIndex[emailMatch]){
+      return { id: emailMatch, record: crmIndex[emailMatch] };
+    }
+  }
+
+  return null;
+}
+
 /* ---------- Card UI ---------- */
 function renderCard(c){
   const overdue = c.nextFollowUp && new Date(c.nextFollowUp) < new Date(new Date().toDateString());
   const today = c.nextFollowUp && new Date(c.nextFollowUp).toDateString() === new Date().toDateString();
-  const tracked = !!crmIndex[c.id];
+  const crmMatch = findCrmRecordForContact(c);
+  const tracked = !!crmMatch;
   const tags = (c.tags||'').split(',').map(t=>t.trim()).filter(Boolean)
     .map(t=>`<span class="text-xs px-2 py-0.5 rounded bg-white/10">${hx(t)}</span>`).join(' ');
   const crmLink = tracked
-    ? `<a href="../crm/index.html?contact=${encodeURIComponent(c.id)}" class="bg-sky-700/60 hover:bg-sky-600 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-sky-100 transition" title="Open this contact in the CRM" target="_blank" rel="noopener">Open CRM</a>`
+    ? `<a href="../crm/index.html?contact=${encodeURIComponent(crmMatch.id)}" class="bg-sky-700/60 hover:bg-sky-600 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-sky-100 transition" title="Open this contact in the CRM" target="_blank" rel="noopener">Open CRM</a>`
     : '';
 
   const email = c.email ? `<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(c.email)}">${hx(c.email)}</a>` : '';
@@ -505,14 +565,18 @@ function syncContactToCRM(id){
   const contact = contactsIndex[id];
   if(!contact) return;
   const button = eid(`crm-${id}`);
+  const crmMatch = findCrmRecordForContact(contact);
   if(button){
     button.disabled = true;
-    button.textContent = crmIndex[id] ? 'Syncing…' : 'Adding…';
+    button.textContent = crmMatch ? 'Syncing…' : 'Adding…';
   }
-  const existing = crmIndex[id] || {};
+  const targetId = crmMatch ? crmMatch.id : (contact.crmId || contact.id);
+  const existing = crmMatch ? crmMatch.record : (crmIndex[targetId] || {});
   const now = nowISO();
   const record = {
-    id,
+    ...existing,
+    id: targetId,
+    contactId: id,
     name: contact.name || '',
     email: contact.email || '',
     phone: contact.phone || '',
@@ -529,12 +593,12 @@ function syncContactToCRM(id){
     source: existing.source || 'Contacts workspace',
     syncedFromContactsAt: now
   };
-  crmNode.get(id).put(record, ack => {
+  crmNode.get(targetId).put(record, ack => {
     if(ack && ack.err){
       console.error('CRM sync failed', ack.err);
       if(button){
         button.disabled = false;
-        button.textContent = crmIndex[id] ? 'Update CRM' : 'Track in CRM';
+        button.textContent = crmMatch ? 'Update CRM' : 'Track in CRM';
       }
       alert('Unable to sync with CRM right now. Please try again.');
       return;
@@ -543,6 +607,7 @@ function syncContactToCRM(id){
       button.disabled = false;
       button.textContent = 'Update CRM';
     }
+    updateContact(id, { crmId: targetId, syncedFromContactsAt: now });
   });
 }
 

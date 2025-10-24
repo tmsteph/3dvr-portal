@@ -115,6 +115,7 @@
       const id = Date.now().toString();
       const contact = {
         id,
+        contactId: id,
         name: form.name.value.trim(),
         email: form.email.value.trim(),
         role: form.role.value.trim(),
@@ -205,9 +206,19 @@
           return;
         }
 
+        const now = new Date().toISOString();
+        const crmRecordId = id;
         const existing = findContactInWorkspace(record, id);
         if (existing) {
           button.textContent = 'Opening…';
+          const desiredCrmId = record.id || crmRecordId;
+          if (!existing.data || existing.data.crmId !== desiredCrmId) {
+            contactsWorkspace.get(existing.id).put({ crmId: desiredCrmId, syncedFromCrmAt: now });
+            if (existing.data) {
+              contactWorkspaceIndex[existing.id] = { ...existing.data, crmId: desiredCrmId, syncedFromCrmAt: now };
+            }
+          }
+          crmRecords.get(crmRecordId).put({ contactId: existing.id, syncedToContactsAt: now });
           openContactsWorkspace(existing.id);
           setTimeout(() => {
             button.disabled = false;
@@ -216,10 +227,10 @@
           return;
         }
 
-        const contactId = record.id && !contactWorkspaceIndex[record.id]
-          ? record.id
+        const desiredCrmId = record.id || crmRecordId;
+        const contactId = desiredCrmId && !contactWorkspaceIndex[desiredCrmId]
+          ? desiredCrmId
           : generateContactId();
-        const now = new Date().toISOString();
         const payload = {
           id: contactId,
           name: record.name || '',
@@ -235,7 +246,7 @@
           updated: now,
           lastContacted: record.lastContacted || '',
           activityCount: typeof record.activityCount === 'number' ? record.activityCount : 0,
-          crmId: record.id || id,
+          crmId: desiredCrmId,
           source: record.source || 'CRM workspace',
           syncedFromCrmAt: now
         };
@@ -250,6 +261,7 @@
             return;
           }
           contactWorkspaceIndex[contactId] = payload;
+          crmRecords.get(crmRecordId).put({ contactId, syncedToContactsAt: now });
           button.textContent = 'Opening…';
           openContactsWorkspace(contactId);
           setTimeout(() => {
@@ -265,6 +277,7 @@
       const directIds = [];
       if (keyId) directIds.push(keyId);
       if (record.id && !directIds.includes(record.id)) directIds.push(record.id);
+      if (record.contactId && !directIds.includes(record.contactId)) directIds.push(record.contactId);
       for (const directId of directIds) {
         if (contactWorkspaceIndex[directId]) {
           return { id: directId, data: contactWorkspaceIndex[directId] };
