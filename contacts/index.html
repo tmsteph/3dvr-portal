@@ -253,9 +253,6 @@ if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
 spaceSelect.value = currentSpace;
 spaceBadge.classList.remove('hidden');
 updateSpaceBadge();
-allowedSpaces.forEach(space => getQueue(space));
-updateSyncStatus();
-window.addEventListener('online', flushAllQueues);
 
 spaceSelect.addEventListener('change', () => {
   changeSpace(spaceSelect.value);
@@ -510,6 +507,10 @@ function normaliseEmail(value){
 }
 
 /* ---------- Space attach ---------- */
+allowedSpaces.forEach(space => getQueue(space));
+updateSyncStatus();
+window.addEventListener('online', flushAllQueues);
+
 changeSpace(currentSpace, { force: true });
 flushAllQueues();
 
