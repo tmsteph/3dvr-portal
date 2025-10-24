@@ -87,7 +87,8 @@
       radisk: false
     });
 
-    const contacts = gun.get('3dvr-crm');
+    const crmRecords = gun.get('3dvr-crm');
+    const contactsWorkspace = gun.get('contacts-public');
     const form = document.getElementById('contactForm');
     const list = document.getElementById('contactList');
     const filterInput = document.getElementById('filter');
@@ -98,6 +99,16 @@
     const focusContactId = params.get('contact');
     let focusApplied = false;
     const focusClasses = ['ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-gray-900'];
+    const contactWorkspaceIndex = {};
+
+    contactsWorkspace.map().on((data, contactId) => {
+      if (!contactId) return;
+      if (!data) {
+        delete contactWorkspaceIndex[contactId];
+        return;
+      }
+      contactWorkspaceIndex[contactId] = { ...(contactWorkspaceIndex[contactId] || {}), ...data, id: contactId };
+    });
 
     form.onsubmit = e => {
       e.preventDefault();
@@ -112,11 +123,11 @@
         created: new Date().toISOString(),
         updated: new Date().toISOString()
       };
-      contacts.get(id).put(contact);
+      crmRecords.get(id).put(contact);
       form.reset();
     };
 
-    contacts.map().on((data, id) => {
+    crmRecords.map().on((data, id) => {
       if (!data) {
         const existing = document.getElementById(id);
         if (existing) existing.remove();
@@ -157,7 +168,7 @@
             ${updatedText}
           </div>
           <div class="flex flex-col gap-2 md:w-40">
-            <a href="../contacts/index.html" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-center text-sm" title="${safeAttr(contactTitle)}">Open contacts</a>
+            <button id="open-contacts-${id}" onclick="ensureContact('${id}')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm" title="${safeAttr(contactTitle)}">Open in contacts</button>
             <button onclick="editContact('${id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
             <button onclick="deleteContact('${id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
           </div>
@@ -180,10 +191,129 @@
       }
     }
 
+    function ensureContact(id) {
+      const button = document.getElementById(`open-contacts-${id}`);
+      if (!button) return;
+      button.disabled = true;
+      button.textContent = 'Checking…';
+
+      crmRecords.get(id).once(record => {
+        if (!record) {
+          button.disabled = false;
+          button.textContent = 'Open in contacts';
+          alert('This record is no longer available.');
+          return;
+        }
+
+        const existing = findContactInWorkspace(record, id);
+        if (existing) {
+          button.textContent = 'Opening…';
+          openContactsWorkspace(existing.id);
+          setTimeout(() => {
+            button.disabled = false;
+            button.textContent = 'Open in contacts';
+          }, 200);
+          return;
+        }
+
+        const contactId = record.id && !contactWorkspaceIndex[record.id]
+          ? record.id
+          : generateContactId();
+        const now = new Date().toISOString();
+        const payload = {
+          id: contactId,
+          name: record.name || '',
+          email: record.email || '',
+          phone: record.phone || '',
+          company: record.company || '',
+          role: record.role || '',
+          tags: record.tags || '',
+          status: record.status || '',
+          nextFollowUp: record.nextFollowUp || '',
+          notes: record.notes || '',
+          created: record.created || now,
+          updated: now,
+          lastContacted: record.lastContacted || '',
+          activityCount: typeof record.activityCount === 'number' ? record.activityCount : 0,
+          crmId: record.id || id,
+          source: record.source || 'CRM workspace',
+          syncedFromCrmAt: now
+        };
+
+        button.textContent = 'Adding…';
+        contactsWorkspace.get(contactId).put(payload, ack => {
+          if (ack && ack.err) {
+            console.error('Unable to add to contacts workspace', ack.err);
+            button.disabled = false;
+            button.textContent = 'Open in contacts';
+            alert('Unable to add this person to contacts right now. Please try again.');
+            return;
+          }
+          contactWorkspaceIndex[contactId] = payload;
+          button.textContent = 'Opening…';
+          openContactsWorkspace(contactId);
+          setTimeout(() => {
+            button.disabled = false;
+            button.textContent = 'Open in contacts';
+          }, 200);
+        });
+      });
+    }
+
+    function findContactInWorkspace(record, keyId) {
+      if (!record) return null;
+      const directIds = [];
+      if (keyId) directIds.push(keyId);
+      if (record.id && !directIds.includes(record.id)) directIds.push(record.id);
+      for (const directId of directIds) {
+        if (contactWorkspaceIndex[directId]) {
+          return { id: directId, data: contactWorkspaceIndex[directId] };
+        }
+      }
+
+      const crmId = record.id;
+      if (crmId) {
+        for (const [contactId, data] of Object.entries(contactWorkspaceIndex)) {
+          if (data && data.crmId === crmId) {
+            return { id: contactId, data };
+          }
+        }
+      }
+
+      const email = normaliseEmail(record.email);
+      if (email) {
+        for (const [contactId, data] of Object.entries(contactWorkspaceIndex)) {
+          if (normaliseEmail(data && data.email) === email) {
+            return { id: contactId, data };
+          }
+        }
+      }
+
+      return null;
+    }
+
+    function normaliseEmail(value) {
+      return (value || '').toString().trim().toLowerCase();
+    }
+
+    function generateContactId() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function openContactsWorkspace(contactId) {
+      const url = new URL('../contacts/index.html', window.location.href);
+      url.searchParams.set('space', 'public-demo');
+      url.searchParams.set('contact', contactId);
+      window.location.href = url.toString();
+    }
+
     function editContact(id) {
       const card = document.getElementById(id);
       if (!card) return;
-      contacts.get(id).once(data => {
+      crmRecords.get(id).once(data => {
         if (!data) return;
         card.innerHTML = `
           <form class="space-y-3" onsubmit="saveEdit(event, '${id}')">
@@ -215,11 +345,11 @@
         updated: new Date().toISOString(),
         created: created || new Date().toISOString()
       };
-      contacts.get(id).put(updated);
+      crmRecords.get(id).put(updated);
     }
 
     function cancelEdit(id) {
-      contacts.get(id).once(data => {
+      crmRecords.get(id).once(data => {
         if (!data) return;
         const card = document.getElementById(id);
         if (card) {
@@ -230,7 +360,7 @@
     }
 
     function deleteContact(id) {
-      contacts.get(id).put(null);
+      crmRecords.get(id).put(null);
       const card = document.getElementById(id);
       if (card) card.remove();
       applyFilter();

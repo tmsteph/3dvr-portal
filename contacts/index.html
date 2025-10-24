@@ -170,6 +170,11 @@ const userDisplay = document.getElementById('userDisplay');
 const btnLogout = document.getElementById('btnLogout');
 const signedStatus = document.getElementById('signedStatus');
 const btnGoSignIn = document.getElementById('btnGoSignIn');
+const urlParams = new URLSearchParams(window.location.search);
+const requestedSpace = urlParams.get('space');
+const focusContactId = urlParams.get('contact');
+const focusClasses = ['ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-gray-900'];
+let focusScrollDone = false;
 
 // Silent auth if we have creds from the portal:
 if (signedIn && alias && password) {
@@ -210,8 +215,12 @@ function onGuest() {
 /* ---------- Space selection ---------- */
 const spaceSelect = document.getElementById('spaceSelect');
 const spaceBadge = document.getElementById('spaceBadge');
+const allowedSpaces = ['personal', 'org-3dvr', 'public-demo'];
 
 let currentSpace = user.is ? 'personal' : 'public-demo';
+if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
+  currentSpace = requestedSpace;
+}
 spaceSelect.value = currentSpace;
 spaceBadge.classList.remove('hidden');
 updateSpaceBadge();
@@ -398,6 +407,15 @@ function updateList(){
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if(page > totalPages) page = totalPages;
+  if(focusContactId && !focusScrollDone){
+    const focusIndex = filtered.findIndex(c=>c.id === focusContactId);
+    if(focusIndex >= 0){
+      const focusPage = Math.floor(focusIndex / PAGE_SIZE) + 1;
+      if(page !== focusPage){
+        page = focusPage;
+      }
+    }
+  }
 
   const start = (page-1)*PAGE_SIZE;
   const pageItems = filtered.slice(start, start + PAGE_SIZE);
@@ -417,6 +435,20 @@ function updateList(){
   pageInfo.textContent = `${page}/${totalPages}`;
   prevPageBtn.disabled = (page<=1);
   nextPageBtn.disabled = (page>=totalPages);
+  highlightFocusedContact();
+}
+
+function highlightFocusedContact(){
+  if(!focusContactId) return;
+  const card = document.getElementById(focusContactId);
+  if(!card) return;
+  focusClasses.forEach(cls => card.classList.add(cls));
+  if(!focusScrollDone){
+    focusScrollDone = true;
+    setTimeout(()=>{
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }
 }
 
 /* ---------- Card UI ---------- */
