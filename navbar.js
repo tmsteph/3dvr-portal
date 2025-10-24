@@ -63,6 +63,7 @@ function createNavbar() {
     localStorage.removeItem('guestId');
     localStorage.removeItem('guestDisplayName');
     localStorage.removeItem('userId');
+    localStorage.removeItem('userPubKey');
     window.location.href = 'index.html';
   });
 
