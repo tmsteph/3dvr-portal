@@ -332,6 +332,7 @@ let crmIndexByContactId = {};
 let crmIndexByEmail = {};
 let unsubscribers = [];
 let page = 1;
+let openDetailContactId = null;
 const PAGE_SIZE = 20;
 const pendingQueues = new Map();
 const flushingSpaces = new Set();
@@ -683,6 +684,9 @@ function updateContact(id, patch){
   contactsIndex[id] = merged;
   writeSpaceCache(currentSpace, contactsIndex);
   scheduleRender();
+  if(openDetailContactId === id && contactDetailOverlay && !contactDetailOverlay.classList.contains('hidden')){
+    openContactDetail(id);
+  }
   commitOperation({ type: 'put', space: currentSpace, id, data: merged }).then(() => {
     flushQueue(currentSpace);
   });
@@ -933,6 +937,7 @@ function syncContactToCRM(id){
 function openContactDetail(id){
   const contact = contactsIndex[id];
   if(!contact) return;
+  openDetailContactId = id;
   const crmMatch = findCrmRecordForContact(contact);
   const tracked = !!crmMatch;
   const summaryParts = [];
@@ -1029,6 +1034,7 @@ function openContactDetail(id){
 
 function closeContactDetail(){
   contactDetailOverlay.classList.add('hidden');
+  openDetailContactId = null;
 }
 
 closeContactDetailBtn.addEventListener('click', closeContactDetail);
