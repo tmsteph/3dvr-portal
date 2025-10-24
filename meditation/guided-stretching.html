@@ -121,6 +121,204 @@
       border-color: rgba(94, 234, 212, 0.6);
       outline: none;
     }
+    .flow-loop {
+      display: grid;
+      gap: 28px;
+      padding: 28px;
+      border-radius: 30px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(11, 19, 36, 0.72);
+      box-shadow: 0 32px 80px rgba(5, 12, 26, 0.55);
+      position: relative;
+      overflow: hidden;
+    }
+    .flow-loop::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.18), transparent 60%),
+        radial-gradient(circle at 80% 30%, rgba(129, 140, 248, 0.18), transparent 65%);
+      opacity: 0.65;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .flow-loop__layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 36px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      align-items: center;
+    }
+    .loop-visual {
+      position: relative;
+      display: grid;
+      place-items: center;
+      gap: 16px;
+    }
+    .loop-visual__rings {
+      position: relative;
+      width: clamp(220px, 28vw, 320px);
+      aspect-ratio: 1;
+    }
+    .loop-visual__ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      box-shadow: inset 0 0 24px rgba(56, 189, 248, 0.15);
+      opacity: 0.65;
+      transition: border-color 0.4s ease;
+    }
+    .loop-visual__ring:nth-child(2) {
+      inset: 20px;
+      opacity: 0.45;
+    }
+    .loop-visual__ring:nth-child(3) {
+      inset: 44px;
+      opacity: 0.35;
+    }
+    .loop-visual__pulse {
+      position: absolute;
+      inset: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.35), rgba(37, 99, 235, 0.18));
+      animation: loopPulse var(--breath-duration, 6800ms) ease-in-out infinite;
+      transform-origin: center;
+      filter: drop-shadow(0 20px 45px rgba(15, 23, 42, 0.65));
+    }
+    .loop-visual__pulse.is-inhale {
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.4), rgba(59, 130, 246, 0.22));
+    }
+    .loop-visual__pulse.is-exhale {
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.32), rgba(14, 116, 144, 0.28));
+    }
+    .loop-visual__pulse.is-hold {
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.4), rgba(56, 189, 248, 0.28));
+    }
+    .loop-visual__status {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 8px;
+      text-align: center;
+    }
+    .loop-visual__status span {
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-size: 0.82rem;
+      color: rgba(226, 232, 240, 0.72);
+    }
+    .loop-visual__phase {
+      margin: 0;
+      font-size: clamp(1.3rem, 3vw, 1.9rem);
+    }
+    .loop-visual__progress {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.22);
+      overflow: hidden;
+    }
+    .loop-visual__progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.8), rgba(129, 140, 248, 0.8));
+      border-radius: inherit;
+      transform-origin: left center;
+    }
+    .loop-details {
+      display: grid;
+      gap: 20px;
+    }
+    .loop-details__intro {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.82);
+      line-height: 1.7;
+    }
+    .loop-details__current {
+      border-radius: 20px;
+      border: 1px solid rgba(94, 234, 212, 0.26);
+      background: rgba(9, 16, 32, 0.78);
+      padding: 18px 20px;
+      display: grid;
+      gap: 10px;
+    }
+    .loop-details__current h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      letter-spacing: 0.02em;
+    }
+    .loop-details__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: rgba(148, 163, 184, 0.85);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .loop-details__breath {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      line-height: 1.6;
+    }
+    .loop-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .loop-controls button,
+    .loop-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: rgba(15, 23, 42, 0.58);
+      color: #f8fafc;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+    .loop-controls button:hover,
+    .loop-controls button:focus,
+    .loop-controls label:hover,
+    .loop-controls label:focus {
+      transform: translateY(-2px);
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.55);
+      outline: none;
+    }
+    .loop-controls button[aria-pressed="true"] {
+      background: linear-gradient(120deg, rgba(56, 189, 248, 0.28), rgba(129, 140, 248, 0.28));
+      border-color: rgba(148, 163, 184, 0.45);
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.4);
+    }
+    .loop-controls input[type='range'] {
+      accent-color: #38bdf8;
+    }
+    .loop-controls__volume {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.48);
+    }
+    .loop-controls__volume span {
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.72);
+    }
+    .loop-controls__volume output {
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.04em;
+    }
     .routine-grid {
       display: grid;
       gap: 24px;
@@ -225,6 +423,20 @@
       font-size: 0.9rem;
       color: rgba(226, 232, 240, 0.65);
     }
+    @keyframes loopPulse {
+      0% {
+        transform: scale(0.92);
+        opacity: 0.65;
+      }
+      50% {
+        transform: scale(1.06);
+        opacity: 0.92;
+      }
+      100% {
+        transform: scale(0.92);
+        opacity: 0.65;
+      }
+    }
     @media (max-width: 720px) {
       .page-shell {
         padding-top: 44px;
@@ -232,6 +444,9 @@
       }
       header h1 {
         font-size: clamp(2.2rem, 7vw, 3rem);
+      }
+      .flow-loop {
+        padding: 22px;
       }
       .routine-section {
         padding: 22px 20px 26px;
@@ -255,68 +470,614 @@
     <header>
       <p>3DVR wellness studio</p>
       <h1>Guided Stretching Flow</h1>
-      <span>Pair your breathwork with a gentle, mobility-focused sequence designed to reset posture, unlock stiff areas, and
-        prepare you for focused work or deeper meditation.</span>
+      <span>A desk-friendly routine that releases computer tension without leaving your chair and keeps the breath pacing in
+        sync with gentle music and looping animation cues.</span>
       <div class="cta-row">
         <a href="index.html">Return to breathing room</a>
         <a href="#stretchFlow">Jump to routine</a>
       </div>
     </header>
+    <section class="flow-loop" aria-labelledby="loopHeading">
+      <div class="flow-loop__layout">
+        <div class="loop-visual" aria-live="polite">
+          <div class="loop-visual__rings" aria-hidden="true">
+            <div class="loop-visual__ring"></div>
+            <div class="loop-visual__ring"></div>
+            <div class="loop-visual__ring"></div>
+            <div class="loop-visual__pulse" id="loopPulse"></div>
+          </div>
+          <div class="loop-visual__status">
+            <span id="loopStatus">Standing decompression</span>
+            <h2 class="loop-visual__phase" id="loopPhase">Ready to begin</h2>
+          </div>
+          <div class="loop-visual__progress" aria-hidden="true">
+            <div class="loop-visual__progress-bar" id="loopProgress"></div>
+          </div>
+        </div>
+        <div class="loop-details">
+          <h2 id="loopHeading">Looped guidance &amp; breath cues</h2>
+          <p class="loop-details__intro">Hit start whenever your shoulders round or your wrists feel heavy. The loop cycles
+            through standing and seated movements, while synchronized audio and the glowing pulse keep each inhale and exhale
+            even. Let it run beside your monitor for a gentle twelve-minute reset.</p>
+          <div class="loop-details__current" aria-live="polite">
+            <h2 id="currentStepTitle">Standing decompression</h2>
+            <div class="loop-details__meta">
+              <span id="currentStepPosture">Standing</span>
+              <span id="currentStepDuration">3 min</span>
+              <span id="currentStepBreath">Breath: 4 in / 6 out</span>
+            </div>
+            <p class="loop-details__breath" id="currentStepDescription">Stack tall, roll your shoulders back, and sweep your
+              arms overhead before dropping elbows to open the chest. Match the glowing circle: inhale on the rise, exhale as
+              you soften.</p>
+          </div>
+          <div class="loop-controls">
+            <button type="button" id="loopToggle" aria-pressed="false">Start looping guidance</button>
+            <button type="button" id="loopReset">Reset to first phase</button>
+            <button type="button" id="audioToggle" aria-pressed="false">Enable music &amp; cues</button>
+            <label class="loop-controls__volume" for="audioVolume">
+              <span>Audio blend <output id="audioVolumeValue" for="audioVolume">60%</output></span>
+              <input id="audioVolume" type="range" min="0" max="100" value="60" step="5" aria-describedby="audioVolumeValue">
+            </label>
+            <span id="audioStatus" class="sr-only" aria-live="polite"></span>
+          </div>
+        </div>
+      </div>
+    </section>
     <section id="stretchFlow" class="routine-grid" aria-labelledby="routineHeading">
       <div class="routine-section" role="group" aria-labelledby="routineHeading">
         <h2 id="routineHeading">Stretch routine overview</h2>
-        <p>Move slowly, stay aware of your range, and keep every motion smooth. Hold each position for the suggested time
-          or longer if your body invites it. Breathe evenly through the nose throughout.</p>
+        <p>Repeat the full loop once or twice every couple of hours you spend at the computer. Each sequence mixes standing
+          and seated options so you can stay close to your desk and still unwind wrists, neck, and hips.</p>
         <ol class="routine-timeline">
           <li class="routine-step">
             <span>Phase 1 &bull; 3 minutes</span>
-            <h3>Awaken and align</h3>
-            <p>Start standing. Roll shoulders back, interlace fingers overhead for a long reach, then side bend right and
-              left. Finish with slow neck circles and ankle rolls.</p>
+            <h3>Standing decompression</h3>
+            <p>Rise out of your chair and plant feet hip-width. Stack ears over shoulders, roll the shoulders back, and trace
+              big arm circles. Alternate side bends with fingertips sliding down the outer leg to lengthen the side body.</p>
           </li>
           <li class="routine-step">
             <span>Phase 2 &bull; 4 minutes</span>
-            <h3>Dynamic flow</h3>
-            <p>Step into alternating forward lunges, dropping the back knee gently. Add an overhead reach, then sweep arms
-              down to frame the front foot, easing into a runner's stretch.</p>
+            <h3>Desk-supported mobility</h3>
+            <p>Keep standing. Place palms on the desk, hinge at the hips for a supported half fold to lengthen the spine.
+              Flow into alternating calf pumps and gentle wrist stretches against the desk edge to reset keyboard fatigue.</p>
           </li>
           <li class="routine-step">
             <span>Phase 3 &bull; 5 minutes</span>
-            <h3>Grounded release</h3>
-            <p>Come to the floor. Sit tall for a seated twist on each side, move into a figure-four stretch, then finish with
-              a supported child's pose for at least eight breaths.</p>
+            <h3>Seated relief</h3>
+            <p>Return to your chair. Cross one ankle over the opposite thigh for a seated figure four, then switch. Slide to
+              the edge of the seat for gentle hip circles, finishing with wrist flossing and light fist pumps to boost
+              circulation.</p>
           </li>
         </ol>
       </div>
       <aside class="breath-reminder" aria-labelledby="breathReminderHeading">
         <h2 id="breathReminderHeading">Breath cues for each pose</h2>
         <ul>
-          <li>Inhale to lengthen the spine and create space, exhale to settle deeper without strain.</li>
-          <li>Keep the jaw relaxed and let the shoulders drop away from the ears on every exhale.</li>
-          <li>Match the cadence from the breathing room or slow to a calm four-count wave if you prefer.</li>
+          <li>Let the glowing pulse guide you: inhale as it expands, exhale as it softens back toward center.</li>
+          <li>Favor a calm four-count inhale and six-count exhale to melt desk tension, shortening the wave if you feel lightheaded.</li>
+          <li>Keep sound on for whispered breath cues and a soft pad that hides office noise without breaking focus.</li>
         </ul>
       </aside>
     </section>
     <section class="supporting-notes" aria-label="Safety and integration tips">
       <article class="note-card">
-        <h3>Stay within comfort</h3>
-        <p>If a shape causes sharp sensation, ease back or choose a gentler variation. Micro-movements and breath-led
-          sways are just as powerful as deep holds.</p>
+        <h3>Honor your comfort range</h3>
+        <p>If a movement pinches wrists or shoulders, dial the range back or switch to light pendulum swings. Small,
+          breath-led motions loosen fascia without needing deep bends.</p>
       </article>
       <article class="note-card">
-        <h3>Pair with breaks</h3>
-        <p>Use the flow during mid-day resets. Set a soft chime for twelve minutes, complete the sequence, then hydrate and
-          take a short walk to integrate the release.</p>
+        <h3>Anchor to screen breaks</h3>
+        <p>Set a desktop reminder every 60 to 90 minutes. Stand, let the loop run once, sip water, and glance into the
+          distance to relax eye muscles before diving back in.</p>
       </article>
       <article class="note-card">
-        <h3>Extend the practice</h3>
-        <p>After the final child's pose, transition straight into a seated meditation or journaling moment while your body
-          is relaxed and your breath stays steady.</p>
+        <h3>Ease back into focus</h3>
+        <p>After the final seated release, stay upright for two more slow breaths or segue into the breathing room to lock in
+          the calm before typing resumes.</p>
       </article>
     </section>
   </main>
+  <script>
+    const flowSteps = [
+      {
+        title: 'Standing decompression',
+        posture: 'Standing',
+        duration: 180000,
+        description:
+          'Stand tall, spread your toes into the floor, and trace spacious shoulder and arm circles. ' +
+          'Side bend from the waist to wake up the ribs while the breath lengthens.',
+        breathPattern: [
+          {
+            label: 'Inhale',
+            cue: 'Reach crown and fingertips high to open the front body.',
+            duration: 4000,
+            className: 'inhale',
+            tone: 392
+          },
+          {
+            label: 'Exhale',
+            cue: 'Let elbows soften and shoulder blades slide down your back.',
+            duration: 6000,
+            className: 'exhale',
+            tone: 261.63,
+            noise: true
+          }
+        ]
+      },
+      {
+        title: 'Desk-supported mobility',
+        posture: 'Standing',
+        duration: 240000,
+        description:
+          'Use the desk for support as you hinge at the hips, alternate calf pumps, and rotate wrists against the edge. ' +
+          'Keep the core lightly engaged so the low back decompresses.',
+        breathPattern: [
+          {
+            label: 'Inhale',
+            cue: 'Draw in air to lengthen the spine from tail to crown.',
+            duration: 4000,
+            className: 'inhale',
+            tone: 415.3
+          },
+          {
+            label: 'Hold',
+            cue: 'Pause with soft knees and feel space across the chest and wrists.',
+            duration: 2000,
+            className: 'hold',
+            tone: 329.63
+          },
+          {
+            label: 'Exhale',
+            cue: 'Melt the ribs toward the floor and let heels sink heavy.',
+            duration: 6000,
+            className: 'exhale',
+            tone: 246.94,
+            noise: true
+          }
+        ]
+      },
+      {
+        title: 'Seated relief',
+        posture: 'Seated',
+        duration: 300000,
+        description:
+          'Sit toward the front of your chair for figure-four stretches, gentle hip circles, and wrist flossing. ' +
+          'Keep your spine tall while you breathe spaciously.',
+        breathPattern: [
+          {
+            label: 'Inhale',
+            cue: 'Sit tall, flex toes toward the shins, and broaden the collarbones.',
+            duration: 5000,
+            className: 'inhale',
+            tone: 370
+          },
+          {
+            label: 'Exhale',
+            cue: 'Empty slowly, let the hips sink, and relax the grip in your hands.',
+            duration: 7000,
+            className: 'exhale',
+            tone: 233.08,
+            noise: true
+          }
+        ]
+      }
+    ];
+
+    const loopToggle = document.getElementById('loopToggle');
+    const loopReset = document.getElementById('loopReset');
+    const loopProgress = document.getElementById('loopProgress');
+    const loopPulse = document.getElementById('loopPulse');
+    const loopPhase = document.getElementById('loopPhase');
+    const loopStatus = document.getElementById('loopStatus');
+    const currentStepTitle = document.getElementById('currentStepTitle');
+    const currentStepPosture = document.getElementById('currentStepPosture');
+    const currentStepDuration = document.getElementById('currentStepDuration');
+    const currentStepBreath = document.getElementById('currentStepBreath');
+    const currentStepDescription = document.getElementById('currentStepDescription');
+    const audioToggle = document.getElementById('audioToggle');
+    const audioVolume = document.getElementById('audioVolume');
+    const audioVolumeValue = document.getElementById('audioVolumeValue');
+    const audioStatus = document.getElementById('audioStatus');
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioSupported = typeof AudioContextClass === 'function';
+    let audioContext = null;
+    let masterGain = null;
+    let ambientGain = null;
+    let cueGain = null;
+    let ambientNodes = [];
+    let breathNoiseBuffer = null;
+    let backgroundAudioEnabled = false;
+    let audioBlend = 0.6;
+
+    let currentStepIndex = 0;
+    let loopRunning = false;
+    let stepTimeoutId = null;
+    let breathTimeouts = [];
+    let breathIntervalId = null;
+
+    const shortLabelMap = {
+      Inhale: 'in',
+      Exhale: 'out',
+      Hold: 'hold'
+    };
+
+    function formatDuration(ms) {
+      const minutes = Math.round(ms / 60000);
+      return minutes <= 1 ? '1 min' : `${minutes} min`;
+    }
+
+    function summarizeBreathPattern(step) {
+      return step.breathPattern
+        .map(phase => {
+          const seconds = Math.round(phase.duration / 1000);
+          const label = shortLabelMap[phase.label] || phase.label.toLowerCase();
+          return `${seconds} ${label}`;
+        })
+        .join(' / ');
+    }
+
+    function clearBreathTimers() {
+      breathTimeouts.forEach(clearTimeout);
+      breathTimeouts = [];
+      if (breathIntervalId) {
+        clearInterval(breathIntervalId);
+        breathIntervalId = null;
+      }
+    }
+
+    function updateLoopProgress(duration) {
+      loopProgress.style.transition = 'none';
+      loopProgress.style.width = '0%';
+      void loopProgress.offsetWidth;
+      loopProgress.style.transition = loopRunning ? `width ${duration}ms linear` : 'none';
+      if (loopRunning) {
+        requestAnimationFrame(() => {
+          loopProgress.style.width = '100%';
+        });
+      }
+    }
+
+    function updateLoopPulse(phase) {
+      loopPulse.classList.remove('is-inhale', 'is-exhale', 'is-hold');
+      if (phase && phase.className) {
+        loopPulse.classList.add(`is-${phase.className}`);
+      }
+    }
+
+    function ensureAudioContext() {
+      if (audioContext || !audioSupported) {
+        return;
+      }
+      audioContext = new AudioContextClass();
+      masterGain = audioContext.createGain();
+      masterGain.gain.value = 0;
+      masterGain.connect(audioContext.destination);
+
+      ambientGain = audioContext.createGain();
+      ambientGain.gain.value = 0;
+      ambientGain.connect(masterGain);
+
+      cueGain = audioContext.createGain();
+      cueGain.gain.value = 0.5;
+      cueGain.connect(masterGain);
+    }
+
+    function createNoiseBuffer(context) {
+      const durationSeconds = 1.6;
+      const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * durationSeconds), context.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) {
+        data[i] = (Math.random() * 2 - 1) * 0.6;
+      }
+      return buffer;
+    }
+
+    function startAmbientBed() {
+      if (!audioContext || !ambientGain) {
+        return;
+      }
+      stopAmbientBed();
+      const baseOsc = audioContext.createOscillator();
+      baseOsc.type = 'sine';
+      baseOsc.frequency.value = 174;
+      const baseGain = audioContext.createGain();
+      baseGain.gain.value = 0.18;
+      baseOsc.connect(baseGain).connect(ambientGain);
+
+      const overtoneOsc = audioContext.createOscillator();
+      overtoneOsc.type = 'triangle';
+      overtoneOsc.frequency.value = 261.63;
+      const overtoneGain = audioContext.createGain();
+      overtoneGain.gain.value = 0.12;
+      overtoneOsc.connect(overtoneGain).connect(ambientGain);
+
+      const shimmerOsc = audioContext.createOscillator();
+      shimmerOsc.type = 'sine';
+      shimmerOsc.frequency.value = 392;
+      shimmerOsc.detune.value = -7;
+      const shimmerGain = audioContext.createGain();
+      shimmerGain.gain.value = 0.08;
+      shimmerOsc.connect(shimmerGain).connect(ambientGain);
+
+      const noiseSource = audioContext.createBufferSource();
+      if (!breathNoiseBuffer) {
+        breathNoiseBuffer = createNoiseBuffer(audioContext);
+      }
+      noiseSource.buffer = breathNoiseBuffer;
+      noiseSource.loop = true;
+      const noiseFilter = audioContext.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = 800;
+      noiseFilter.Q.value = 0.8;
+      const noiseGain = audioContext.createGain();
+      noiseGain.gain.value = 0.045;
+      noiseSource.connect(noiseFilter).connect(noiseGain).connect(ambientGain);
+
+      baseOsc.start();
+      overtoneOsc.start();
+      shimmerOsc.start();
+      noiseSource.start();
+
+      ambientNodes = [
+        { source: baseOsc, gain: baseGain },
+        { source: overtoneOsc, gain: overtoneGain },
+        { source: shimmerOsc, gain: shimmerGain },
+        { source: noiseSource, gain: noiseGain }
+      ];
+    }
+
+    function stopAmbientBed() {
+      ambientNodes.forEach(node => {
+        if (node.source && typeof node.source.stop === 'function') {
+          try {
+            node.source.stop();
+          } catch (error) {
+            console.warn('Ambient source already stopped', error);
+          }
+        }
+      });
+      ambientNodes = [];
+    }
+
+    function playBreathCue(phase) {
+      if (!backgroundAudioEnabled || !audioContext || !cueGain) {
+        return;
+      }
+      const now = audioContext.currentTime;
+      const osc = audioContext.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(phase.tone || 392, now);
+      const oscGain = audioContext.createGain();
+      oscGain.gain.setValueAtTime(0, now);
+      oscGain.gain.linearRampToValueAtTime(0.22, now + 0.08);
+      oscGain.gain.linearRampToValueAtTime(0, now + 1.2);
+      osc.connect(oscGain).connect(cueGain);
+      osc.start(now);
+      osc.stop(now + 1.3);
+
+      if (phase.noise) {
+        if (!breathNoiseBuffer) {
+          breathNoiseBuffer = createNoiseBuffer(audioContext);
+        }
+        const noise = audioContext.createBufferSource();
+        noise.buffer = breathNoiseBuffer;
+        noise.loop = false;
+        const noiseFilter = audioContext.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.value = 1400;
+        const noiseGain = audioContext.createGain();
+        noiseGain.gain.setValueAtTime(0, now);
+        noiseGain.gain.linearRampToValueAtTime(0.14, now + 0.12);
+        noiseGain.gain.linearRampToValueAtTime(0, now + 1.3);
+        noise.connect(noiseFilter).connect(noiseGain).connect(cueGain);
+        noise.start(now);
+        noise.stop(now + 1.4);
+      }
+    }
+
+    function updateAudioStatus(message) {
+      if (audioStatus) {
+        audioStatus.textContent = message;
+      }
+    }
+
+    async function enableAudio() {
+      if (!audioSupported) {
+        return;
+      }
+      ensureAudioContext();
+      if (!audioContext) {
+        return;
+      }
+      try {
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+        }
+      } catch (error) {
+        console.warn('Unable to resume audio context', error);
+        updateAudioStatus('Audio playback is blocked by this browser.');
+        return;
+      }
+      startAmbientBed();
+      backgroundAudioEnabled = true;
+      const now = audioContext.currentTime;
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.linearRampToValueAtTime(0.45, now + 1.2);
+      ambientGain.gain.cancelScheduledValues(now);
+      ambientGain.gain.linearRampToValueAtTime(audioBlend * 0.6, now + 1.2);
+      updateAudioStatus('Loop music and breath cues enabled.');
+      audioToggle.textContent = 'Disable music & cues';
+      audioToggle.setAttribute('aria-pressed', 'true');
+    }
+
+    function disableAudio() {
+      if (!audioContext || !masterGain) {
+        return;
+      }
+      backgroundAudioEnabled = false;
+      const now = audioContext.currentTime;
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.linearRampToValueAtTime(0, now + 0.8);
+      ambientGain.gain.cancelScheduledValues(now);
+      ambientGain.gain.linearRampToValueAtTime(0, now + 0.6);
+      updateAudioStatus('Loop music muted.');
+      audioToggle.textContent = 'Enable music & cues';
+      audioToggle.setAttribute('aria-pressed', 'false');
+      setTimeout(() => {
+        stopAmbientBed();
+        if (audioContext && audioContext.state !== 'closed') {
+          audioContext.suspend().catch(() => {});
+        }
+      }, 1000);
+    }
+
+    function scheduleBreathPattern(step) {
+      clearBreathTimers();
+      if (!step || !step.breathPattern || !step.breathPattern.length) {
+        return;
+      }
+      const cycleDuration = step.breathPattern.reduce((total, phase) => total + phase.duration, 0);
+      document.documentElement.style.setProperty('--breath-duration', `${cycleDuration}ms`);
+
+      const runCycle = () => {
+        let offset = 0;
+        step.breathPattern.forEach(phase => {
+          const timeoutId = setTimeout(() => {
+            loopPhase.textContent = `${phase.label}`;
+            loopStatus.textContent = `${step.title} — ${phase.cue}`;
+            updateLoopPulse(phase);
+            playBreathCue(phase);
+          }, offset);
+          breathTimeouts.push(timeoutId);
+          offset += phase.duration;
+        });
+      };
+
+      runCycle();
+      breathIntervalId = setInterval(runCycle, cycleDuration);
+    }
+
+    function updateStep(index, shouldAnimate = false) {
+      const step = flowSteps[index];
+      if (!step) {
+        return;
+      }
+      clearBreathTimers();
+      currentStepTitle.textContent = step.title;
+      currentStepPosture.textContent = step.posture;
+      currentStepDuration.textContent = formatDuration(step.duration);
+      currentStepBreath.textContent = `Breath: ${summarizeBreathPattern(step)}`;
+      currentStepDescription.textContent = step.description;
+      loopStatus.textContent = step.title;
+      loopPhase.textContent = 'Ready to begin';
+      updateLoopPulse(null);
+      if (shouldAnimate) {
+        updateLoopProgress(step.duration);
+        scheduleBreathPattern(step);
+      } else {
+        loopProgress.style.transition = 'none';
+        loopProgress.style.width = '0%';
+      }
+    }
+
+    function advanceStep() {
+      if (!loopRunning) {
+        return;
+      }
+      currentStepIndex = (currentStepIndex + 1) % flowSteps.length;
+      updateStep(currentStepIndex, true);
+      scheduleStepTimeout();
+    }
+
+    function scheduleStepTimeout() {
+      clearTimeout(stepTimeoutId);
+      const step = flowSteps[currentStepIndex];
+      if (!loopRunning || !step) {
+        return;
+      }
+      stepTimeoutId = setTimeout(advanceStep, step.duration);
+    }
+
+    function startLoop() {
+      if (loopRunning) {
+        return;
+      }
+      loopRunning = true;
+      loopToggle.textContent = 'Pause looping guidance';
+      loopToggle.setAttribute('aria-pressed', 'true');
+      updateStep(currentStepIndex, true);
+      scheduleStepTimeout();
+    }
+
+    function pauseLoop() {
+      if (!loopRunning) {
+        return;
+      }
+      loopRunning = false;
+      loopToggle.textContent = 'Start looping guidance';
+      loopToggle.setAttribute('aria-pressed', 'false');
+      clearTimeout(stepTimeoutId);
+      clearBreathTimers();
+      loopProgress.style.transition = 'none';
+      loopProgress.style.width = '0%';
+      loopPhase.textContent = 'Paused';
+      const step = flowSteps[currentStepIndex];
+      loopStatus.textContent = step ? `${step.title} (paused)` : 'Paused';
+      updateLoopPulse(null);
+    }
+
+    if (loopToggle) {
+      loopToggle.addEventListener('click', () => {
+        if (loopRunning) {
+          pauseLoop();
+        } else {
+          startLoop();
+        }
+      });
+    }
+
+    if (loopReset) {
+      loopReset.addEventListener('click', () => {
+        pauseLoop();
+        currentStepIndex = 0;
+        updateStep(currentStepIndex, false);
+      });
+    }
+
+    if (audioToggle) {
+      if (!audioSupported) {
+        audioToggle.disabled = true;
+        audioToggle.textContent = 'Audio not supported';
+        updateAudioStatus('Audio playback is not available in this browser.');
+      } else {
+        audioToggle.addEventListener('click', () => {
+          if (backgroundAudioEnabled) {
+            disableAudio();
+          } else {
+            enableAudio();
+          }
+        });
+      }
+    }
+
+    if (audioVolume && audioVolumeValue) {
+      audioVolume.addEventListener('input', event => {
+        const value = Number(event.target.value);
+        audioBlend = value / 100;
+        audioVolumeValue.textContent = `${value}%`;
+        if (ambientGain && audioContext) {
+          const now = audioContext.currentTime;
+          ambientGain.gain.cancelScheduledValues(now);
+          ambientGain.gain.linearRampToValueAtTime(audioBlend * 0.6, now + 0.4);
+        }
+      });
+    }
+
+    updateStep(currentStepIndex, false);
+  </script>
   <footer>
-    Listen inward, honor your edge, and let each stretch be an invitation rather than a demand.
+    Listen inward, honor your edge, and revisit this loop whenever screen time tightens your posture.
   </footer>
 </body>
 </html>

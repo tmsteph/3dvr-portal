@@ -193,6 +193,65 @@
       gap: 16px;
       flex-wrap: wrap;
     }
+    .stretch-callout {
+      width: min(100%, 760px);
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.72);
+      box-shadow: 0 26px 70px rgba(7, 13, 30, 0.55);
+      padding: 24px 26px;
+      display: grid;
+      gap: 14px;
+      text-align: left;
+    }
+    .stretch-callout__tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.16);
+      color: rgba(226, 232, 240, 0.85);
+      font-size: 0.82rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .stretch-callout h2 {
+      margin: 0;
+      font-size: clamp(1.4rem, 3.5vw, 2rem);
+      letter-spacing: -0.01em;
+    }
+    .stretch-callout p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.82);
+      line-height: 1.65;
+    }
+    .stretch-callout__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .stretch-callout__link {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      border-radius: 999px;
+      border: 1px solid rgba(94, 234, 212, 0.35);
+      background: rgba(15, 23, 42, 0.65);
+      color: #f8fafc;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+    .stretch-callout__link:hover,
+    .stretch-callout__link:focus {
+      transform: translateY(-2px);
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.6);
+      outline: none;
+    }
     .controls button,
     .controls select {
       appearance: none;
@@ -454,6 +513,16 @@
       <span>Follow the gentle cues for as many rounds as you need. Set your cadence, press play, and let the cycle guide you
         back to center.</span>
     </header>
+    <section class="stretch-callout" aria-label="Guided stretch reminder">
+      <span class="stretch-callout__tag">screen break reset</span>
+      <h2>Unwind tight shoulders and wrists between computer sessions</h2>
+      <p>Take twelve minutes to stand up, loosen your neck, and finish seated without ever needing a mat. The looped
+        routine pairs audio and visual breath cues so you can stretch beside your desk and return refreshed.</p>
+      <div class="stretch-callout__actions">
+        <a class="stretch-callout__link" href="guided-stretching.html">Open the standing &amp; seated stretch loop</a>
+        <a class="stretch-callout__link" href="#breathingGuideHeading">See breathing techniques</a>
+      </div>
+    </section>
     <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
       <div id="countDisplay" class="count-display" aria-hidden="true">
         <span class="count-display__value">&mdash;</span>
@@ -540,12 +609,6 @@
             <dd>The consistent pacing balances carbon dioxide and oxygen levels, stimulating baroreceptors that slow the
               heart and reduce perceived stress within a few cycles.</dd>
           </dl>
-        </article>
-        <article class="breathing-guide__card breathing-guide__card--cta">
-          <h3>Guided stretching companion</h3>
-          <p class="breathing-guide__summary">Blend mindful movement with your breathing practice. Follow a twelve-minute
-            stretching sequence that keeps the breath steady while you release built-up tension.</p>
-          <a class="breathing-guide__link" href="guided-stretching.html">Explore guided stretching</a>
         </article>
       </div>
     </section>
