@@ -79,26 +79,15 @@
     <section class="grid gap-6">
       <!-- Add Contact -->
       <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
-        <h2 class="text-lg font-semibold mb-3">Add Contact</h2>
-        <form id="contactForm" class="grid gap-2 md:grid-cols-2">
-          <input id="name" class="p-2 rounded text-black" placeholder="Name" />
-          <input id="email" class="p-2 rounded text-black" placeholder="Email" type="email"/>
-          <input id="phone" class="p-2 rounded text-black" placeholder="Phone" />
-          <input id="company" class="p-2 rounded text-black" placeholder="Company" />
-          <input id="role" class="p-2 rounded text-black" placeholder="Role (lead, client, friend…)" />
-          <input id="tags" class="p-2 rounded text-black" placeholder="Tags (comma separated)" />
-          <select id="status" class="p-2 rounded text-black">
-            <option value="">Status (optional)</option>
-            <option>Lead</option><option>Prospect</option><option>Active</option>
-            <option>Paused</option><option>Lost</option><option>Friend</option>
-          </select>
-          <input id="nextFollowUp" type="date" class="p-2 rounded text-black" />
-          <textarea id="notes" class="md:col-span-2 p-2 rounded text-black" placeholder="Notes"></textarea>
-          <div class="md:col-span-2 flex gap-2">
-            <button type="submit" class="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded">Save</button>
-            <button type="button" id="btnReset" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">Reset</button>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-lg font-semibold">Add Contact</h2>
+            <p class="text-sm text-gray-300">Capture new relationships without leaving your list.</p>
           </div>
-        </form>
+          <button id="openCreateContact" type="button" class="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded text-sm font-medium">
+            New contact
+          </button>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -145,6 +134,42 @@
       </div>
     </section>
   </main>
+
+  <div id="createContactOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="createContactTitle">
+    <div class="max-w-3xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div class="space-y-1">
+          <p class="text-xs uppercase tracking-[0.32em] text-teal-300">New contact</p>
+          <h2 id="createContactTitle" class="text-2xl font-semibold">Create contact</h2>
+          <p class="text-sm text-gray-300">Enter details and save them to your current space.</p>
+        </div>
+        <button id="closeCreateContact" type="button" class="self-end text-sm text-gray-300 hover:text-white">Close</button>
+      </div>
+      <form id="contactForm" class="mt-6 grid gap-2 md:grid-cols-2">
+        <input id="name" class="p-2 rounded text-black" placeholder="Name" />
+        <input id="email" class="p-2 rounded text-black" placeholder="Email" type="email" />
+        <input id="phone" class="p-2 rounded text-black" placeholder="Phone" />
+        <input id="company" class="p-2 rounded text-black" placeholder="Company" />
+        <input id="role" class="p-2 rounded text-black" placeholder="Role (lead, client, friend…)" />
+        <input id="tags" class="p-2 rounded text-black" placeholder="Tags (comma separated)" />
+        <select id="status" class="p-2 rounded text-black">
+          <option value="">Status (optional)</option>
+          <option>Lead</option>
+          <option>Prospect</option>
+          <option>Active</option>
+          <option>Paused</option>
+          <option>Lost</option>
+          <option>Friend</option>
+        </select>
+        <input id="nextFollowUp" type="date" class="p-2 rounded text-black" />
+        <textarea id="notes" class="md:col-span-2 p-2 rounded text-black" placeholder="Notes"></textarea>
+        <div class="md:col-span-2 flex gap-2">
+          <button type="submit" class="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded">Save</button>
+          <button type="button" id="btnReset" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">Reset</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div id="contactDetailOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto">
     <div id="contactDetailCard" class="max-w-3xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
@@ -317,6 +342,7 @@ const btnExportJSON = document.getElementById('btnExportJSON');
 const btnExportCSV = document.getElementById('btnExportCSV');
 const importFile = document.getElementById('importFile');
 const bulkImport = document.getElementById('bulkImport');
+const createContactOverlay = document.getElementById('createContactOverlay');
 const contactDetailOverlay = document.getElementById('contactDetailOverlay');
 const contactDetailName = document.getElementById('contactDetailName');
 const contactDetailSummary = document.getElementById('contactDetailSummary');
@@ -326,6 +352,33 @@ const contactDetailMeta = document.getElementById('contactDetailMeta');
 const contactDetailLinks = document.getElementById('contactDetailLinks');
 const contactDetailActions = document.getElementById('contactDetailActions');
 const closeContactDetailBtn = document.getElementById('closeContactDetail');
+const openCreateContactBtn = document.getElementById('openCreateContact');
+const closeCreateContactBtn = document.getElementById('closeCreateContact');
+
+let lastFocusedBeforeCreate = null;
+
+function openCreateContact(){
+  if(!createContactOverlay) return;
+  lastFocusedBeforeCreate = document.activeElement;
+  createContactOverlay.classList.remove('hidden');
+  setTimeout(()=>{
+    document.getElementById('name')?.focus();
+  }, 0);
+}
+
+function closeCreateContact(){
+  if(!createContactOverlay) return;
+  createContactOverlay.classList.add('hidden');
+  if (lastFocusedBeforeCreate && typeof lastFocusedBeforeCreate.focus === 'function') {
+    lastFocusedBeforeCreate.focus();
+  }
+}
+
+openCreateContactBtn?.addEventListener('click', openCreateContact);
+closeCreateContactBtn?.addEventListener('click', closeCreateContact);
+createContactOverlay?.addEventListener('click', evt=>{
+  if(evt.target === createContactOverlay) closeCreateContact();
+});
 
 /* ---------- State ---------- */
 let contactsIndex = {};
@@ -629,8 +682,12 @@ form.addEventListener('submit', e => {
   });
   updateSyncStatus();
   form.reset();
+  closeCreateContact();
 });
-btnReset.addEventListener('click', ()=> form.reset());
+btnReset.addEventListener('click', ()=>{
+  form.reset();
+  document.getElementById('name')?.focus();
+});
 
 function updateContact(id, patch){
   const timestamp = (patch && patch.updated) || nowISO();
@@ -1043,9 +1100,17 @@ contactDetailOverlay.addEventListener('click', evt=>{
   if(evt.target === contactDetailOverlay) closeContactDetail();
 });
 document.addEventListener('keydown', evt=>{
-  if(evt.key === 'Escape' && !contactDetailOverlay.classList.contains('hidden')){
-    closeContactDetail();
+  if(evt.key !== 'Escape') return;
+  let handled = false;
+  if(createContactOverlay && !createContactOverlay.classList.contains('hidden')){
+    closeCreateContact();
+    handled = true;
   }
+  if(!contactDetailOverlay.classList.contains('hidden')){
+    closeContactDetail();
+    handled = true;
+  }
+  if(handled) evt.preventDefault();
 });
 
 function openEdit(id){
