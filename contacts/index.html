@@ -172,6 +172,7 @@
 /* ---------- Gun & session reuse ---------- */
 const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
 const user = gun.user();
+const crmRecords = gun.get('3dvr-crm');
 const CACHE_PREFIX = 'contacts:cache:';
 const QUEUE_PREFIX = 'contacts:pending:';
 const CONTACT_FIELDS = [
@@ -660,6 +661,64 @@ function deleteContact(id){
   updateSyncStatus();
 }
 
+function addContactToCrm(id){
+  const contact = contactsIndex[id];
+  if(!contact) return;
+  const buttons = [`crm-${id}`, `detail-crm-${id}`].map(eid).filter(Boolean);
+  const setButtonState = (text, disabled) => {
+    buttons.forEach(btn => {
+      if(text != null) btn.textContent = text;
+      if(typeof disabled === 'boolean') btn.disabled = disabled;
+    });
+  };
+  setButtonState('Linking…', true);
+
+  const now = nowISO();
+  const crmId = contact.crmId || contact.id || createId();
+  const payload = {
+    id: crmId,
+    contactId: contact.id || crmId,
+    name: contact.name || '',
+    email: contact.email || '',
+    phone: contact.phone || '',
+    company: contact.company || '',
+    role: contact.role || '',
+    tags: contact.tags || '',
+    status: contact.status || '',
+    nextFollowUp: contact.nextFollowUp || '',
+    notes: contact.notes || '',
+    lastContacted: contact.lastContacted || '',
+    activityCount: typeof contact.activityCount === 'number' ? contact.activityCount : 0,
+    source: contact.source || 'Contacts workspace',
+    created: contact.created || now,
+    updated: now,
+    syncedFromContactsAt: now
+  };
+
+  let settled = false;
+  const timer = setTimeout(() => {
+    if(settled) return;
+    settled = true;
+    console.warn('Timed out adding contact to CRM', id);
+    setButtonState('Add to CRM', false);
+    alert('Unable to add this contact to the CRM right now. Please try again.');
+  }, 5000);
+
+  crmRecords.get(crmId).put(payload, ack => {
+    if(settled) return;
+    settled = true;
+    clearTimeout(timer);
+    if(ack && ack.err){
+      console.error('Failed to add contact to CRM', ack.err);
+      setButtonState('Add to CRM', false);
+      alert('Unable to add this contact to the CRM right now. Please try again.');
+      return;
+    }
+    setButtonState('Linked!', true);
+    updateContact(id, { crmId, syncedToCRMAt: now });
+  });
+}
+
 /* ---------- Filters & pagination ---------- */
 searchEl.addEventListener('input', debounce(()=>{ page=1; updateList(); }, 200));
 filterStatusEl.addEventListener('change', ()=>{ page=1; updateList(); });
@@ -730,6 +789,9 @@ function updateList(){
   pageItems.forEach(c=>{
     eid(`edit-${c.id}`)?.addEventListener('click', ()=>openEdit(c.id));
     eid(`del-${c.id}`)?.addEventListener('click', ()=>confirmDelete(c.id));
+    if(!c.crmId){
+      eid(`crm-${c.id}`)?.addEventListener('click', ()=>addContactToCrm(c.id));
+    }
     const card = document.getElementById(c.id);
     if(card){
       card.addEventListener('click', evt=>{
@@ -847,9 +909,9 @@ function renderCard(c){
   const hasCrmLink = !!(c.crmId);
   const email = c.email ? `<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(c.email)}">${hx(c.email)}</a>` : '';
   const phone = c.phone ? `<a class="underline hover:no-underline" href="tel:${encodeURIComponent(c.phone)}">${hx(c.phone)}</a>` : '';
-  const crmLink = hasCrmLink
+  const crmAction = hasCrmLink
     ? `<a href="../crm/index.html?contact=${encodeURIComponent(c.crmId)}" class="bg-sky-700/60 hover:bg-sky-600 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-sky-100 transition" title="Open this contact in the CRM" target="_blank" rel="noopener">Open CRM</a>`
-    : '';
+    : `<button type="button" id="crm-${c.id}" class="bg-sky-600 hover:bg-sky-500 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-white transition">Add to CRM</button>`;
 
   return `
   <div class="bg-gray-800 p-4 rounded-lg border border-white/10" id="${c.id}">
@@ -876,7 +938,7 @@ function renderCard(c){
         </div>
       </div>
       <div class="shrink-0 flex flex-wrap gap-2">
-        ${crmLink}
+        ${crmAction}
         <button id="edit-${c.id}" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1.5 rounded text-sm">Edit</button>
         <button id="del-${c.id}" class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded text-sm">Delete</button>
       </div>
@@ -948,9 +1010,12 @@ function openContactDetail(id){
     `;
   } else {
     contactDetailLinks.innerHTML = `
-      <div class="bg-gray-800/80 border border-white/10 rounded-lg p-4">
-        <p class="text-sm font-semibold text-gray-100">Manage shared records in CRM</p>
-        <p class="text-xs text-gray-400 mt-1">Head to the CRM workspace to create shared deal tracking entries.</p>
+      <div class="bg-gray-800/80 border border-white/10 rounded-lg p-4 space-y-3">
+        <div>
+          <p class="text-sm font-semibold text-gray-100">Manage shared records in CRM</p>
+          <p class="text-xs text-gray-400 mt-1">Head to the CRM workspace to create shared deal tracking entries.</p>
+        </div>
+        <button type="button" id="detail-crm-${id}" class="bg-sky-600 hover:bg-sky-500 text-white text-sm px-3 py-1.5 rounded">Add to CRM</button>
       </div>
     `;
   }
@@ -960,6 +1025,7 @@ function openContactDetail(id){
     <button id="detail-delete-${id}" class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded text-sm">Delete</button>
   `;
 
+  eid(`detail-crm-${id}`)?.addEventListener('click', ()=>addContactToCrm(id));
   eid(`detail-edit-${id}`)?.addEventListener('click', ()=>openEdit(id));
   eid(`detail-delete-${id}`)?.addEventListener('click', ()=>confirmDelete(id));
 
