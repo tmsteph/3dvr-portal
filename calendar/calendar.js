@@ -62,6 +62,8 @@ const emptyState = document.querySelector('[data-empty]');
 const logPanel = document.querySelector('[data-log]');
 const eventTemplate = document.getElementById('event-template');
 const syncForm = document.getElementById('event-sync-form');
+const createEventContainer = document.querySelector('[data-create-event-container]');
+const createEventToggle = document.querySelector('[data-action="toggle-create-event"]');
 const createEventForm = document.getElementById('create-event-form');
 const calendarDayNames = document.querySelector('[data-calendar-day-names]');
 const calendarGrid = document.querySelector('[data-calendar-grid]');
@@ -960,6 +962,9 @@ async function handleCreateEvent(event) {
   }
 
   showLog(messages.join('\n'), messageType);
+  if (messageType !== 'error') {
+    setCreateEventExpanded(false, { focusToggle: true });
+  }
 }
 
 async function syncEventToProviders(localEvent, providers) {
@@ -1064,6 +1069,45 @@ function hydrateCreateFormDefaults() {
   }
 }
 
+function updateCreateEventToggleLabel(expanded) {
+  if (!createEventToggle) return;
+  const openLabel = createEventToggle.dataset.labelOpen || 'Add event';
+  const closeLabel = createEventToggle.dataset.labelClose || 'Hide event form';
+  createEventToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  createEventToggle.textContent = expanded ? closeLabel : openLabel;
+}
+
+function setCreateEventExpanded(expanded, options = {}) {
+  if (!createEventContainer || !createEventToggle) return;
+  createEventContainer.hidden = !expanded;
+  updateCreateEventToggleLabel(expanded);
+  if (expanded) {
+    if (createEventForm) {
+      const firstField = createEventForm.elements.namedItem('title');
+      if (firstField instanceof HTMLElement) {
+        requestAnimationFrame(() => {
+          firstField.focus();
+        });
+      }
+    }
+  } else if (options.focusToggle && typeof createEventToggle.focus === 'function') {
+    createEventToggle.focus();
+  }
+}
+
+function toggleCreateEventForm() {
+  if (!createEventToggle) return;
+  const expanded = createEventToggle.getAttribute('aria-expanded') === 'true';
+  setCreateEventExpanded(!expanded, { focusToggle: expanded });
+}
+
+function initializeCreateEventToggle() {
+  if (createEventContainer) {
+    createEventContainer.hidden = true;
+  }
+  updateCreateEventToggleLabel(false);
+}
+
 function changeCalendarMonth(offset) {
   const next = new Date(calendarState.viewDate);
   next.setMonth(next.getMonth() + offset);
@@ -1105,6 +1149,10 @@ function bindEvents() {
     createEventForm.addEventListener('submit', handleCreateEvent);
   }
 
+  if (createEventToggle) {
+    createEventToggle.addEventListener('click', toggleCreateEventForm);
+  }
+
   if (eventList) {
     eventList.addEventListener('click', handleEventListClick);
   }
@@ -1124,6 +1172,7 @@ function bindEvents() {
 initializeCalendarView();
 hydrateState();
 hydrateLocalEvents();
+initializeCreateEventToggle();
 hydrateCreateFormDefaults();
 bindEvents();
 setupGunSync();
