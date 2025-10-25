@@ -55,29 +55,13 @@
 
     <section class="grid gap-6 lg:grid-cols-[320px,1fr]">
       <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <h2 class="text-xl font-semibold mb-3">Add CRM record</h2>
-        <form id="contactForm" class="grid gap-3">
-          <div class="grid gap-2 md:grid-cols-2">
-            <input type="text" id="name" placeholder="Name" class="w-full p-2 rounded text-black" />
-            <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
-            <input type="text" id="company" placeholder="Company" class="w-full p-2 rounded text-black" />
-            <input type="text" id="phone" placeholder="Phone" class="w-full p-2 rounded text-black" />
-            <input type="text" id="role" placeholder="Role (client, lead...)" class="w-full p-2 rounded text-black" />
-            <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
-            <select id="status" class="w-full p-2 rounded text-black">
-              <option value="">Status (optional)</option>
-              <option>Lead</option>
-              <option>Prospect</option>
-              <option>Active</option>
-              <option>Negotiating</option>
-              <option>Won</option>
-              <option>Lost</option>
-            </select>
-            <input type="date" id="nextFollowUp" class="w-full p-2 rounded text-black" />
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-xl font-semibold">Add CRM record</h2>
+            <p class="text-sm text-gray-300">Capture notes or deal details without leaving the list.</p>
           </div>
-          <textarea id="notes" placeholder="Notes" class="w-full p-2 rounded text-black"></textarea>
-          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save</button>
-        </form>
+          <button id="openCrmCreate" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">New record</button>
+        </div>
       </div>
       <div class="space-y-6">
         <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
@@ -97,8 +81,46 @@
     </section>
   </main>
 
-  <div id="crmDetailOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto">
-    <div id="crmDetailCard" class="max-w-3xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
+  <div id="crmCreateOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="crmCreateTitle">
+    <div class="w-full max-w-2xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div class="space-y-1">
+          <p class="text-xs uppercase tracking-[0.32em] text-sky-300">New CRM record</p>
+          <h2 id="crmCreateTitle" class="text-2xl font-semibold">Create record</h2>
+          <p class="text-sm text-gray-300">Fill in deal context so the whole team stays aligned.</p>
+        </div>
+        <button id="closeCrmCreate" type="button" class="self-end text-sm text-gray-300 hover:text-white">Close</button>
+      </div>
+      <form id="contactForm" class="mt-6 grid gap-3">
+        <div class="grid gap-2 md:grid-cols-2">
+          <input type="text" id="name" placeholder="Name" class="w-full p-2 rounded text-black" />
+          <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
+          <input type="text" id="company" placeholder="Company" class="w-full p-2 rounded text-black" />
+          <input type="text" id="phone" placeholder="Phone" class="w-full p-2 rounded text-black" />
+          <input type="text" id="role" placeholder="Role (client, lead...)" class="w-full p-2 rounded text-black" />
+          <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
+          <select id="status" class="w-full p-2 rounded text-black">
+            <option value="">Status (optional)</option>
+            <option>Lead</option>
+            <option>Prospect</option>
+            <option>Active</option>
+            <option>Negotiating</option>
+            <option>Won</option>
+            <option>Lost</option>
+          </select>
+          <input type="date" id="nextFollowUp" class="w-full p-2 rounded text-black" />
+        </div>
+        <textarea id="notes" placeholder="Notes" class="w-full p-2 rounded text-black"></textarea>
+        <div class="flex gap-2">
+          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save</button>
+          <button type="button" id="cancelCrmCreate" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="crmDetailOverlay" class="hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+    <div id="crmDetailCard" class="w-full max-w-2xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
       <button id="closeCrmDetail" type="button" class="absolute top-4 right-4 text-sm text-gray-300 hover:text-white">Close</button>
       <div class="space-y-5">
         <div class="space-y-1">
@@ -139,6 +161,10 @@
     const visibleCountEl = document.getElementById('visibleCount');
     const emptyState = document.getElementById('emptyState');
     const duplicateSummaryEl = document.getElementById('crmDuplicateSummary');
+    const crmCreateOverlay = document.getElementById('crmCreateOverlay');
+    const openCrmCreateBtn = document.getElementById('openCrmCreate');
+    const closeCrmCreateBtn = document.getElementById('closeCrmCreate');
+    const cancelCrmCreateBtn = document.getElementById('cancelCrmCreate');
     const params = new URLSearchParams(window.location.search);
     const focusContactId = params.get('contact');
     let focusApplied = false;
@@ -174,6 +200,53 @@
     const crmDetailWorkspace = document.getElementById('crmDetailWorkspace');
     const crmDetailActions = document.getElementById('crmDetailActions');
     const closeCrmDetailBtn = document.getElementById('closeCrmDetail');
+
+    function openCrmCreateOverlay() {
+      if (!crmCreateOverlay) return;
+      crmCreateOverlay.classList.remove('hidden');
+      const firstField = crmCreateOverlay.querySelector('input, textarea, select');
+      if (firstField) {
+        requestAnimationFrame(() => firstField.focus());
+      }
+    }
+
+    function closeCrmCreateOverlay() {
+      if (!crmCreateOverlay) return;
+      crmCreateOverlay.classList.add('hidden');
+    }
+
+    if (openCrmCreateBtn) {
+      openCrmCreateBtn.addEventListener('click', () => {
+        openCrmCreateOverlay();
+      });
+    }
+
+    if (closeCrmCreateBtn) {
+      closeCrmCreateBtn.addEventListener('click', () => {
+        closeCrmCreateOverlay();
+      });
+    }
+
+    if (cancelCrmCreateBtn) {
+      cancelCrmCreateBtn.addEventListener('click', () => {
+        form?.reset();
+        closeCrmCreateOverlay();
+      });
+    }
+
+    if (crmCreateOverlay) {
+      crmCreateOverlay.addEventListener('click', event => {
+        if (event.target === crmCreateOverlay) {
+          closeCrmCreateOverlay();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && crmCreateOverlay && !crmCreateOverlay.classList.contains('hidden')) {
+        closeCrmCreateOverlay();
+      }
+    });
 
     function waitForContactsWorkspace(timeout = 4000) {
       if (contactsWorkspace) return Promise.resolve(contactsWorkspace);
@@ -282,6 +355,7 @@
       };
       crmRecords.get(id).put(contact);
       form.reset();
+      closeCrmCreateOverlay();
     });
 
     crmRecords.map().on((data, id) => {
