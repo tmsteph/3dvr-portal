@@ -290,6 +290,10 @@ const spaceSelect = document.getElementById('spaceSelect');
 const spaceBadge = document.getElementById('spaceBadge');
 const allowedSpaces = ['personal', 'org-3dvr', 'public-demo'];
 
+function isLocalPersonal(space){
+  return space === 'personal' && !user.is;
+}
+
 let currentSpace = user.is ? 'personal' : 'public-demo';
 if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
   currentSpace = requestedSpace;
@@ -476,6 +480,9 @@ function saveQueue(space){
 }
 
 function queuePending(op){
+  if (isLocalPersonal(op.space)){
+    return;
+  }
   const queue = getQueue(op.space);
   const entry = {
     ...op,
@@ -504,6 +511,9 @@ function updateSyncStatus(){
 
 function commitOperation(op, { skipQueue = false } = {}){
   const node = spaceNode(op.space);
+  if (!node && isLocalPersonal(op.space)){
+    return Promise.resolve(true);
+  }
   if (!node){
     if (!skipQueue){
       queuePending(op);
@@ -548,6 +558,11 @@ function flushQueue(space){
   if (flushingSpaces.has(space)) return;
   const queue = getQueue(space);
   if (!queue.length) return;
+  if (isLocalPersonal(space)){
+    queue.length = 0;
+    saveQueue(space);
+    return;
+  }
   const node = spaceNode(space);
   if (!node){
     updateSyncStatus();
