@@ -111,18 +111,56 @@
       font-size: clamp(1.35rem, 3vw, 2.1rem);
       letter-spacing: 0.24em;
       font-weight: 500;
-      color: rgba(226, 232, 240, 0.7);
       pointer-events: none;
       opacity: 0.8;
       transition: opacity 0.4s ease;
+      --count-color: rgba(226, 232, 240, 0.7);
+      --count-glow: rgba(148, 163, 184, 0.25);
+      --count-scale-rest: 0.88;
+      --count-scale-peak: 1.18;
+      --count-scale-settle: 0.94;
     }
     .count-display__value {
       display: inline-block;
       opacity: 0.85;
-      transform: translateY(0);
+      color: var(--count-color);
+      transform: translateY(0) scale(var(--count-scale-rest));
+      transition: color 0.6s ease, text-shadow 0.6s ease, transform 0.4s ease;
+      text-shadow: 0 0 0 var(--count-glow);
     }
     .count-display__value.is-ticking {
       animation: countTick 1s cubic-bezier(0.4, 0, 0.2, 1) both;
+      text-shadow: 0 0 18px var(--count-glow);
+    }
+    .count-display[data-phase='inhale'] {
+      --count-color: #5eead4;
+      --count-glow: rgba(94, 234, 212, 0.35);
+      --count-scale-peak: 1.26;
+      --count-scale-rest: 0.92;
+    }
+    .count-display[data-phase='hold'] {
+      --count-color: #c4b5fd;
+      --count-glow: rgba(196, 181, 253, 0.32);
+      --count-scale-peak: 1.2;
+      --count-scale-rest: 0.9;
+    }
+    .count-display[data-phase='exhale'] {
+      --count-color: #60a5fa;
+      --count-glow: rgba(96, 165, 250, 0.32);
+      --count-scale-peak: 1.22;
+      --count-scale-rest: 0.88;
+    }
+    .count-display[data-phase='rest'] {
+      --count-color: #94a3b8;
+      --count-glow: rgba(148, 163, 184, 0.28);
+      --count-scale-peak: 1.14;
+      --count-scale-rest: 0.86;
+    }
+    .count-display[data-phase='idle'] {
+      --count-color: rgba(226, 232, 240, 0.7);
+      --count-glow: rgba(148, 163, 184, 0.22);
+      --count-scale-peak: 1.12;
+      --count-scale-rest: 0.86;
     }
     .breath-circle {
       position: relative;
@@ -478,19 +516,19 @@
     @keyframes countTick {
       0% {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(-10px) scale(var(--count-scale-rest));
       }
-      30% {
+      35% {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(var(--count-scale-peak));
       }
       70% {
         opacity: 0.95;
-        transform: translateY(0);
+        transform: translateY(0) scale(var(--count-scale-settle));
       }
       100% {
         opacity: 0.75;
-        transform: translateY(6px);
+        transform: translateY(8px) scale(var(--count-scale-rest));
       }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -1248,6 +1286,7 @@
       stopCounter();
       updateCountText('—', false);
       countDisplay.style.opacity = 0.8;
+      countDisplay.dataset.phase = 'idle';
       lastDisplayedSecond = 0;
       settlePhaseAudio(true);
     }
@@ -1285,6 +1324,9 @@
       breathCircle.style.setProperty('--transition-duration', `${phase.transitionDuration || phase.duration}ms`);
       phaseName.textContent = phase.label;
       phasePrompt.textContent = phase.prompt;
+      if (countDisplay) {
+        countDisplay.dataset.phase = phase.className;
+      }
       if (isRunning) {
         applyPhaseAudio(phase);
         triggerBreathCue(phase);
