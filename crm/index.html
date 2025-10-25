@@ -89,6 +89,7 @@
             <h2 class="text-xl font-semibold">Contacts</h2>
             <span class="text-xs uppercase tracking-[0.32em] text-gray-400">Live</span>
           </div>
+          <div id="crmDuplicateSummary" class="hidden bg-amber-900/40 border border-amber-500/30 rounded-lg p-3 text-sm text-amber-100 mb-4"></div>
           <div id="contactList" class="space-y-4"></div>
           <div id="emptyState" class="text-sm text-gray-400 hidden">No contacts yet. Add someone from the form or sync from the contacts app.</div>
         </div>
@@ -137,6 +138,7 @@
     const totalCountEl = document.getElementById('totalCount');
     const visibleCountEl = document.getElementById('visibleCount');
     const emptyState = document.getElementById('emptyState');
+    const duplicateSummaryEl = document.getElementById('crmDuplicateSummary');
     const params = new URLSearchParams(window.location.search);
     const focusContactId = params.get('contact');
     let focusApplied = false;
@@ -651,6 +653,7 @@
         if (!hidden) visible++;
       });
       updateCounts(cards.length, visible);
+      updateDuplicateSummary();
     }
 
     function updateCounts(total, visible) {
@@ -666,6 +669,85 @@
       } else {
         emptyState.classList.add('hidden');
       }
+    }
+
+    function computeDuplicateGroups(records) {
+      const groups = new Map();
+      records.forEach(record => {
+        const rawName = (record.name || '').trim();
+        const key = rawName.toLowerCase() || '__no_name__';
+        const display = rawName || '(no name)';
+        if (!groups.has(key)) {
+          groups.set(key, { name: display, items: [] });
+        } else if (display !== '(no name)' && groups.get(key).name === '(no name)') {
+          groups.get(key).name = display;
+        }
+        groups.get(key).items.push(record);
+      });
+      return Array.from(groups.values())
+        .filter(group => group.items.length > 1)
+        .sort((a, b) => b.items.length - a.items.length);
+    }
+
+    function describeEmailDifferences(items) {
+      const stats = new Map();
+      let missing = 0;
+      items.forEach(record => {
+        const email = (record.email || '').trim();
+        if (email) {
+          const key = email.toLowerCase();
+          if (!stats.has(key)) {
+            stats.set(key, { label: email, count: 0 });
+          }
+          stats.get(key).count += 1;
+        } else {
+          missing += 1;
+        }
+      });
+      const parts = Array.from(stats.values())
+        .sort((a, b) => b.count - a.count)
+        .map(part => `${part.label}×${part.count}`);
+      if (missing) {
+        parts.push(`(no email)×${missing}`);
+      }
+      return {
+        uniqueCount: stats.size + (missing ? 1 : 0),
+        descriptions: parts
+      };
+    }
+
+    function updateDuplicateSummary() {
+      if (!duplicateSummaryEl) return;
+      const groups = computeDuplicateGroups(Object.values(crmIndex));
+      if (groups.length === 0) {
+        duplicateSummaryEl.classList.add('hidden');
+        duplicateSummaryEl.innerHTML = '';
+        return;
+      }
+
+      const totalFlagged = groups.reduce((sum, group) => sum + group.items.length, 0);
+      const maxGroups = 5;
+      const displayGroups = groups.slice(0, maxGroups);
+      const listItems = displayGroups.map(group => {
+        const emailSummary = describeEmailDifferences(group.items);
+        const label = `${group.items.length} record${group.items.length === 1 ? '' : 's'}`;
+        const emailDetail = emailSummary.descriptions.length
+          ? ` · ${emailSummary.uniqueCount} email value${emailSummary.uniqueCount === 1 ? '' : 's'} (${emailSummary.descriptions.map(part => safe(part)).join(', ')})`
+          : '';
+        return `<li class="list-disc list-inside">${safe(group.name)} — ${safe(label)}${emailDetail}</li>`;
+      }).join('');
+
+      const moreGroups = groups.length - displayGroups.length;
+      const moreNote = moreGroups > 0
+        ? `<li class="list-disc list-inside text-xs text-amber-200/80">+${moreGroups} more group${moreGroups === 1 ? '' : 's'} with duplicates</li>`
+        : '';
+
+      duplicateSummaryEl.classList.remove('hidden');
+      duplicateSummaryEl.innerHTML = `
+        <p class="text-xs uppercase tracking-[0.32em] text-amber-200/70">Possible duplicates</p>
+        <p class="text-xs text-amber-100/80 mt-1">${safe(groups.length)} group${groups.length === 1 ? '' : 's'} covering ${safe(totalFlagged)} record${totalFlagged === 1 ? '' : 's'}.</p>
+        <ul class="mt-2 space-y-1 text-sm text-amber-100/90">${listItems}${moreNote}</ul>
+      `;
     }
 
     function openCrmDetail(id) {
