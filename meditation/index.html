@@ -114,11 +114,27 @@
       pointer-events: none;
       opacity: 0.8;
       transition: opacity 0.4s ease;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      color: var(--count-color);
       --count-color: rgba(226, 232, 240, 0.7);
       --count-glow: rgba(148, 163, 184, 0.25);
       --count-scale-rest: 0.88;
       --count-scale-peak: 1.18;
       --count-scale-settle: 0.94;
+      --count-scale-final: 1.22;
+    }
+    .count-display::after {
+      content: '';
+      width: 40px;
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.35), transparent);
+      opacity: 0;
+      transform: scaleX(0.6) translateY(0);
+      transition: opacity 0.4s ease, transform 0.4s ease;
     }
     .count-display__value {
       display: inline-block;
@@ -132,35 +148,53 @@
       animation: countTick 1s cubic-bezier(0.4, 0, 0.2, 1) both;
       text-shadow: 0 0 18px var(--count-glow);
     }
+    .count-display.is-transitioning::after {
+      opacity: 0.95;
+      transform: scaleX(1.35) translateY(-2px);
+      background: linear-gradient(90deg, transparent, rgba(248, 250, 252, 0.8), transparent);
+    }
+    .count-display.is-transitioning .count-display__value {
+      color: #f8fafc;
+      text-shadow: 0 0 24px rgba(248, 250, 252, 0.6);
+    }
+    .count-display__value.is-ticking.is-transitioning {
+      animation: countTick 1s cubic-bezier(0.4, 0, 0.2, 1) both,
+        countFinalBeat 0.9s ease-out both;
+    }
     .count-display[data-phase='inhale'] {
       --count-color: #5eead4;
       --count-glow: rgba(94, 234, 212, 0.35);
       --count-scale-peak: 1.26;
       --count-scale-rest: 0.92;
+      --count-scale-final: 1.34;
     }
     .count-display[data-phase='hold'] {
       --count-color: #c4b5fd;
       --count-glow: rgba(196, 181, 253, 0.32);
       --count-scale-peak: 1.2;
       --count-scale-rest: 0.9;
+      --count-scale-final: 1.26;
     }
     .count-display[data-phase='exhale'] {
       --count-color: #60a5fa;
       --count-glow: rgba(96, 165, 250, 0.32);
       --count-scale-peak: 1.22;
       --count-scale-rest: 0.88;
+      --count-scale-final: 1.28;
     }
     .count-display[data-phase='rest'] {
       --count-color: #94a3b8;
       --count-glow: rgba(148, 163, 184, 0.28);
       --count-scale-peak: 1.14;
       --count-scale-rest: 0.86;
+      --count-scale-final: 1.2;
     }
     .count-display[data-phase='idle'] {
       --count-color: rgba(226, 232, 240, 0.7);
       --count-glow: rgba(148, 163, 184, 0.22);
       --count-scale-peak: 1.12;
       --count-scale-rest: 0.86;
+      --count-scale-final: 1.16;
     }
     .breath-circle {
       position: relative;
@@ -531,6 +565,20 @@
         transform: translateY(8px) scale(var(--count-scale-rest));
       }
     }
+    @keyframes countFinalBeat {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(var(--count-scale-peak));
+      }
+      55% {
+        opacity: 1;
+        transform: translateY(-6px) scale(var(--count-scale-final));
+      }
+      100% {
+        opacity: 0.92;
+        transform: translateY(6px) scale(var(--count-scale-settle));
+      }
+    }
     @media (prefers-reduced-motion: reduce) {
       body::before,
       body::after,
@@ -538,6 +586,12 @@
       .breath-circle {
         animation: none !important;
         transition: none !important;
+      }
+      .count-display::after {
+        transition: none !important;
+      }
+      .count-display__value.is-transitioning {
+        animation: none !important;
       }
     }
   </style>
@@ -1254,6 +1308,23 @@
       countValue.classList.add('is-ticking');
     }
 
+    function setCounterTransitionState(active) {
+      if (!countDisplay) {
+        return;
+      }
+      if (active) {
+        countDisplay.classList.add('is-transitioning');
+        if (countValue) {
+          countValue.classList.add('is-transitioning');
+        }
+      } else {
+        countDisplay.classList.remove('is-transitioning');
+        if (countValue) {
+          countValue.classList.remove('is-transitioning');
+        }
+      }
+    }
+
     function setToggleLabel() {
       if (!hasStarted) {
         toggleSession.textContent = 'Start session';
@@ -1276,6 +1347,7 @@
       if (countValue) {
         countValue.classList.remove('is-ticking');
       }
+      setCounterTransitionState(false);
       lastDisplayedSecond = 0;
     }
 
@@ -1284,6 +1356,7 @@
         return;
       }
       stopCounter();
+      setCounterTransitionState(false);
       updateCountText('—', false);
       countDisplay.style.opacity = 0.8;
       countDisplay.dataset.phase = 'idle';
@@ -1299,6 +1372,7 @@
       countDisplay.style.opacity = 1;
       const start = performance.now();
       const totalSeconds = Math.max(1, Math.round(duration / 1000));
+      setCounterTransitionState(totalSeconds === 1);
       updateCountText('1');
       lastDisplayedSecond = 1;
       const updateCount = (now) => {
@@ -1307,6 +1381,11 @@
         if (seconds !== lastDisplayedSecond && seconds <= totalSeconds) {
           lastDisplayedSecond = seconds;
           updateCountText(String(seconds));
+          if (totalSeconds - seconds <= 1) {
+            setCounterTransitionState(true);
+          } else if (countDisplay && countDisplay.classList.contains('is-transitioning')) {
+            setCounterTransitionState(false);
+          }
         }
         if (elapsed < duration) {
           counterAnimationId = window.requestAnimationFrame(updateCount);
