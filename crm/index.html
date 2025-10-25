@@ -115,7 +115,8 @@
     const password = ls.getItem('password') || '';
 
     const crmRecords = gun.get('3dvr-crm');
-    const CONTACT_BUTTON_LABEL = 'Add to contacts';
+    const CONTACT_BUTTON_ADD_LABEL = 'Add to contacts';
+    const CONTACT_BUTTON_OPEN_LABEL = 'Open in contacts';
     const form = document.getElementById('contactForm');
     const list = document.getElementById('contactList');
     const filterInput = document.getElementById('filter');
@@ -131,6 +132,12 @@
     let contactsSpaceKey = 'public-demo';
     let contactWorkspaceIndex = {};
     const contactsWorkspaceWaiters = [];
+
+    function getContactButtonLabel(record, id) {
+      return findContactInWorkspace(record, id)
+        ? CONTACT_BUTTON_OPEN_LABEL
+        : CONTACT_BUTTON_ADD_LABEL;
+    }
     const crmIndex = {};
     const crmDetailOverlay = document.getElementById('crmDetailOverlay');
     const crmDetailName = document.getElementById('crmDetailName');
@@ -274,9 +281,15 @@
       const stamp = data.updated || data.created;
       const updatedText = stamp ? `<p class="text-xs text-gray-500">Updated ${new Date(stamp).toLocaleString()}</p>` : '';
       const contactHint = data.email || data.name || '';
-      const contactTitle = contactHint
-        ? `Add to contacts workspace and search for ${contactHint}`
-        : 'Add to contacts workspace';
+      const contactMatch = findContactInWorkspace(data, id);
+      const buttonLabel = getContactButtonLabel(data, id);
+      const contactTitle = contactMatch
+        ? (contactHint
+          ? `Open contacts workspace and search for ${contactHint}`
+          : 'Open contacts workspace')
+        : (contactHint
+          ? `Add to contacts workspace and search for ${contactHint}`
+          : 'Add to contacts workspace');
 
       card.innerHTML = `
         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -288,7 +301,7 @@
             ${updatedText}
           </div>
           <div class="flex flex-col gap-2 md:w-40">
-            <button id="open-contacts-${id}" onclick="ensureContact('${id}')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm" title="${safeAttr(contactTitle)}">${CONTACT_BUTTON_LABEL}</button>
+            <button id="open-contacts-${id}" onclick="ensureContact('${id}')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm" title="${safeAttr(contactTitle)}">${buttonLabel}</button>
             <button onclick="editContact('${id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
             <button onclick="deleteContact('${id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
           </div>
@@ -327,7 +340,7 @@
       let workspace = contactsWorkspace;
       if (!workspace) {
         button.disabled = false;
-        button.textContent = CONTACT_BUTTON_LABEL;
+        button.textContent = getContactButtonLabel(null, id);
         alert('Contacts workspace is not available right now. Please try again.');
         return;
       }
@@ -337,7 +350,7 @@
         workspace = contactsWorkspace || workspace;
         if (!record || !workspace) {
           button.disabled = false;
-          button.textContent = CONTACT_BUTTON_LABEL;
+          button.textContent = getContactButtonLabel(record, id);
           if (!record) {
             alert('This record is no longer available.');
           } else {
@@ -362,7 +375,7 @@
           openContactsWorkspace(existing.id);
           setTimeout(() => {
             button.disabled = false;
-            button.textContent = CONTACT_BUTTON_LABEL;
+            button.textContent = getContactButtonLabel(record, id);
           }, 200);
           return;
         }
@@ -396,7 +409,7 @@
           if (ack && ack.err) {
             console.error('Unable to add to contacts workspace', ack.err);
             button.disabled = false;
-            button.textContent = CONTACT_BUTTON_LABEL;
+            button.textContent = getContactButtonLabel(record, id);
             alert('Unable to add this person to contacts right now. Please try again.');
             return;
           }
@@ -406,7 +419,7 @@
           openContactsWorkspace(contactId);
           setTimeout(() => {
             button.disabled = false;
-            button.textContent = CONTACT_BUTTON_LABEL;
+            button.textContent = getContactButtonLabel(record, id);
           }, 200);
         });
       });
@@ -593,6 +606,7 @@
       `).join('');
 
       const workspaceMatch = findWorkspaceContact(record);
+      const detailButtonLabel = getContactButtonLabel(record, id);
       if (workspaceMatch) {
         const wsSummary = [];
         if (workspaceMatch.email) wsSummary.push(workspaceMatch.email);
@@ -608,13 +622,13 @@
         crmDetailWorkspace.innerHTML = `
           <div class="bg-gray-800/80 border border-white/10 rounded-lg p-4">
             <p class="text-sm font-semibold text-gray-100">No linked contact yet</p>
-            <p class="text-xs text-gray-400 mt-1">Use "${CONTACT_BUTTON_LABEL}" to find or create a matching person.</p>
+            <p class="text-xs text-gray-400 mt-1">Use "${CONTACT_BUTTON_ADD_LABEL}" to find or create a matching person.</p>
           </div>
         `;
       }
 
       crmDetailActions.innerHTML = `
-        <button id="crm-detail-open-${id}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">${CONTACT_BUTTON_LABEL}</button>
+        <button id="crm-detail-open-${id}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">${detailButtonLabel}</button>
         <button id="crm-detail-edit-${id}" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1.5 rounded">Edit</button>
         <button id="crm-detail-delete-${id}" class="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1.5 rounded">Delete</button>
       `;
