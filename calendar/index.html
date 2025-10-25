@@ -30,47 +30,60 @@
         </p>
       </div>
 
-      <form class="create-event-form" id="create-event-form">
-        <div class="create-event-form__row">
-          <label class="field">
-            <span class="field__label">Title</span>
-            <input type="text" name="title" required placeholder="Sprint planning">
-          </label>
-          <label class="field">
-            <span class="field__label">Start</span>
-            <input type="datetime-local" name="start" required>
-          </label>
-          <label class="field">
-            <span class="field__label">End</span>
-            <input type="datetime-local" name="end" required>
-          </label>
-        </div>
-        <div class="create-event-form__row">
-          <label class="field">
-            <span class="field__label">Timezone</span>
-            <input type="text" name="timeZone" required>
-          </label>
-          <label class="field">
-            <span class="field__label">Description</span>
-            <textarea name="description" rows="3" placeholder="Add agenda and dial-in details"></textarea>
-          </label>
-        </div>
+      <div class="create-event-actions">
+        <button
+          type="button"
+          data-action="toggle-create-event"
+          data-label-open="Add event"
+          data-label-close="Hide event form"
+          aria-expanded="false"
+          aria-controls="create-event-form"
+        >Add event</button>
+      </div>
 
-        <fieldset class="create-event-form__sync">
-          <legend>Optional sync</legend>
-          <p>Select the services that should also receive this event after it is stored locally.</p>
-          <label class="chip">
-            <input type="checkbox" name="syncProviders" value="google">
-            <span>Google</span>
-          </label>
-          <label class="chip">
-            <input type="checkbox" name="syncProviders" value="outlook">
-            <span>Outlook</span>
-          </label>
-        </fieldset>
+      <div class="create-event-form__container" data-create-event-container hidden>
+        <form class="create-event-form" id="create-event-form">
+          <div class="create-event-form__row">
+            <label class="field">
+              <span class="field__label">Title</span>
+              <input type="text" name="title" required placeholder="Sprint planning">
+            </label>
+            <label class="field">
+              <span class="field__label">Start</span>
+              <input type="datetime-local" name="start" required>
+            </label>
+            <label class="field">
+              <span class="field__label">End</span>
+              <input type="datetime-local" name="end" required>
+            </label>
+          </div>
+          <div class="create-event-form__row">
+            <label class="field">
+              <span class="field__label">Timezone</span>
+              <input type="text" name="timeZone" required>
+            </label>
+            <label class="field">
+              <span class="field__label">Description</span>
+              <textarea name="description" rows="3" placeholder="Add agenda and dial-in details"></textarea>
+            </label>
+          </div>
 
-        <button type="submit">Save event</button>
-      </form>
+          <fieldset class="create-event-form__sync">
+            <legend>Optional sync</legend>
+            <p>Select the services that should also receive this event after it is stored locally.</p>
+            <label class="chip">
+              <input type="checkbox" name="syncProviders" value="google">
+              <span>Google</span>
+            </label>
+            <label class="chip">
+              <input type="checkbox" name="syncProviders" value="outlook">
+              <span>Outlook</span>
+            </label>
+          </fieldset>
+
+          <button type="submit">Save event</button>
+        </form>
+      </div>
 
       <div class="calendar-view" aria-labelledby="calendar-view-title">
         <div class="calendar-view__header">

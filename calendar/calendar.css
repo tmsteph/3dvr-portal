@@ -469,6 +469,16 @@ button:hover {
   padding: 10px 16px;
 }
 
+.create-event-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.create-event-actions button {
+  align-self: flex-start;
+}
+
 .create-event-form {
   display: flex;
   flex-direction: column;
