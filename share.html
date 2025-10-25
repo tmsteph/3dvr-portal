@@ -30,14 +30,14 @@
     and help build the open-source future.
   </p>
 
-  <a href="https://3dvr.tech/#subscribe" id="link" class="block">
+  <a href="https://3dvr.tech" id="link" class="block">
     <canvas id="qr" class="mb-4"></canvas>
   </a>
 
   <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
     or visit<br>
-    <a href="https://3dvr.tech/#subscribe" class="underline text-blue-500 hover:text-blue-700 dark:hover:text-white">
-      3dvr.tech/#subscribe
+    <a href="https://3dvr.tech" class="underline text-blue-500 hover:text-blue-700 dark:hover:text-white">
+      3dvr.tech
     </a>
   </p>
 
@@ -55,14 +55,16 @@
   </footer>
 
   <script>
+    const destination = 'https://3dvr.tech';
+
     const qr = new QRious({
       element: document.getElementById('qr'),
-      value: 'https://3dvr.tech/#subscribe',
+      value: destination,
       size: 220,
     });
 
     document.getElementById('qr').addEventListener('click', () => {
-      window.location.href = 'https://3dvr.tech/#subscribe';
+      window.location.href = destination;
     });
   </script>
 
