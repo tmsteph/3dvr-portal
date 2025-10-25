@@ -99,8 +99,15 @@
         </div>
         <p class="calendar-view__current" data-calendar-current aria-live="polite"></p>
         <div class="calendar-view__grid" role="grid" aria-describedby="calendar-view-title">
-          <div class="calendar-view__day-names" data-calendar-day-names role="row"></div>
-          <div class="calendar-view__days" data-calendar-grid role="rowgroup"></div>
+          <div class="calendar-view__grid-inner">
+            <div class="calendar-view__day-names" data-calendar-day-names role="row"></div>
+            <div class="calendar-view__days" data-calendar-grid role="rowgroup"></div>
+          </div>
+        </div>
+        <div class="calendar-view__details" data-calendar-details hidden>
+          <h4 class="calendar-view__details-title" data-calendar-details-title></h4>
+          <p class="calendar-view__details-empty" data-calendar-details-empty>No events for this day yet.</p>
+          <ul class="calendar-view__details-list" data-calendar-details-list></ul>
         </div>
       </div>
 
