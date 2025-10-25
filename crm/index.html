@@ -7,6 +7,8 @@
   <link rel="icon" href="https://fav.farm/🧠" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
 </head>
 <body class="bg-gray-900 text-white font-sans min-h-screen">
   <header class="bg-gray-950/70 border-b border-white/10">
@@ -99,14 +101,21 @@
   </div>
 
   <script>
-    const gun = Gun({
-      peers: ['https://gun-relay-3dvr.fly.dev/gun'],
-      localStorage: false,
-      radisk: false
-    });
+    const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+    const user = gun.user();
+    try {
+      user.recall({ sessionStorage: true, localStorage: true });
+    } catch (err) {
+      console.warn('Unable to recall user session', err);
+    }
+
+    const ls = localStorage;
+    const signedIn = ls.getItem('signedIn') === 'true';
+    const alias = ls.getItem('alias') || '';
+    const password = ls.getItem('password') || '';
 
     const crmRecords = gun.get('3dvr-crm');
-    const contactsWorkspace = gun.get('contacts-public');
+    const CONTACT_BUTTON_LABEL = 'Add to contacts';
     const form = document.getElementById('contactForm');
     const list = document.getElementById('contactList');
     const filterInput = document.getElementById('filter');
@@ -117,7 +126,11 @@
     const focusContactId = params.get('contact');
     let focusApplied = false;
     const focusClasses = ['ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-gray-900'];
-    const contactWorkspaceIndex = {};
+    let contactsWorkspace = null;
+    let contactsWorkspaceListener = null;
+    let contactsSpaceKey = 'public-demo';
+    let contactWorkspaceIndex = {};
+    const contactsWorkspaceWaiters = [];
     const crmIndex = {};
     const crmDetailOverlay = document.getElementById('crmDetailOverlay');
     const crmDetailName = document.getElementById('crmDetailName');
@@ -129,14 +142,86 @@
     const crmDetailActions = document.getElementById('crmDetailActions');
     const closeCrmDetailBtn = document.getElementById('closeCrmDetail');
 
-    contactsWorkspace.map().on((data, contactId) => {
-      if (!contactId) return;
-      if (!data) {
-        delete contactWorkspaceIndex[contactId];
-        return;
+    function waitForContactsWorkspace(timeout = 4000) {
+      if (contactsWorkspace) return Promise.resolve(contactsWorkspace);
+      return new Promise(resolve => {
+        const waiter = node => {
+          if (timer) clearTimeout(timer);
+          resolve(node);
+        };
+        const timer = timeout ? setTimeout(() => {
+          const index = contactsWorkspaceWaiters.indexOf(waiter);
+          if (index >= 0) {
+            contactsWorkspaceWaiters.splice(index, 1);
+          }
+          resolve(null);
+        }, timeout) : null;
+        contactsWorkspaceWaiters.push(waiter);
+      });
+    }
+
+    function setContactsWorkspace(node, spaceKey = 'public-demo') {
+      if (contactsWorkspaceListener && typeof contactsWorkspaceListener.off === 'function') {
+        try {
+          contactsWorkspaceListener.off();
+        } catch (err) {
+          console.warn('Failed to detach contacts workspace listener', err);
+        }
       }
-      contactWorkspaceIndex[contactId] = { ...(contactWorkspaceIndex[contactId] || {}), ...data, id: contactId };
-    });
+      contactsWorkspaceListener = null;
+      contactsWorkspace = node;
+      contactsSpaceKey = spaceKey;
+      contactWorkspaceIndex = {};
+      if (node) {
+        contactsWorkspaceListener = node.map().on((data, contactId) => {
+          if (!contactId) return;
+          if (!data) {
+            delete contactWorkspaceIndex[contactId];
+            return;
+          }
+          contactWorkspaceIndex[contactId] = { ...(contactWorkspaceIndex[contactId] || {}), ...data, id: contactId };
+        });
+      }
+      while (contactsWorkspaceWaiters.length) {
+        const resolve = contactsWorkspaceWaiters.shift();
+        try {
+          if (typeof resolve === 'function') {
+            resolve(node);
+          }
+        } catch (err) {
+          console.warn('Failed to notify contacts workspace waiter', err);
+        }
+      }
+    }
+
+    function usePersonalContacts() {
+      setContactsWorkspace(user.get('contacts'), 'personal');
+    }
+
+    function usePublicContacts() {
+      setContactsWorkspace(gun.get('contacts-public'), 'public-demo');
+    }
+
+    if (typeof user.on === 'function') {
+      user.on('auth', () => {
+        usePersonalContacts();
+      });
+    }
+
+    if (user.is) {
+      usePersonalContacts();
+    } else if (signedIn && alias && password) {
+      user.auth(alias, password, ack => {
+        if (ack && ack.err) {
+          console.warn('CRM auth failed', ack.err);
+          usePublicContacts();
+        } else {
+          usePersonalContacts();
+        }
+      });
+    } else {
+      usePublicContacts();
+    }
 
     const getFieldValue = id => (document.getElementById(id)?.value || '').trim();
 
@@ -189,7 +274,9 @@
       const stamp = data.updated || data.created;
       const updatedText = stamp ? `<p class="text-xs text-gray-500">Updated ${new Date(stamp).toLocaleString()}</p>` : '';
       const contactHint = data.email || data.name || '';
-      const contactTitle = contactHint ? `Open contacts workspace and search for ${contactHint}` : 'Open contacts workspace';
+      const contactTitle = contactHint
+        ? `Add to contacts workspace and search for ${contactHint}`
+        : 'Add to contacts workspace';
 
       card.innerHTML = `
         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -201,7 +288,7 @@
             ${updatedText}
           </div>
           <div class="flex flex-col gap-2 md:w-40">
-            <button id="open-contacts-${id}" onclick="ensureContact('${id}')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm" title="${safeAttr(contactTitle)}">Open in contacts</button>
+            <button id="open-contacts-${id}" onclick="ensureContact('${id}')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm" title="${safeAttr(contactTitle)}">${CONTACT_BUTTON_LABEL}</button>
             <button onclick="editContact('${id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
             <button onclick="deleteContact('${id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
           </div>
@@ -230,17 +317,32 @@
       card.classList.add('cursor-pointer');
     }
 
-    function ensureContact(id) {
+    async function ensureContact(id) {
       const button = document.getElementById(`open-contacts-${id}`);
       if (!button) return;
       button.disabled = true;
-      button.textContent = 'Checking…';
+      button.textContent = 'Preparing…';
 
+      await waitForContactsWorkspace();
+      let workspace = contactsWorkspace;
+      if (!workspace) {
+        button.disabled = false;
+        button.textContent = CONTACT_BUTTON_LABEL;
+        alert('Contacts workspace is not available right now. Please try again.');
+        return;
+      }
+
+      button.textContent = 'Checking…';
       crmRecords.get(id).once(record => {
-        if (!record) {
+        workspace = contactsWorkspace || workspace;
+        if (!record || !workspace) {
           button.disabled = false;
-          button.textContent = 'Open in contacts';
-          alert('This record is no longer available.');
+          button.textContent = CONTACT_BUTTON_LABEL;
+          if (!record) {
+            alert('This record is no longer available.');
+          } else {
+            alert('Contacts workspace is not available right now. Please try again.');
+          }
           return;
         }
 
@@ -251,7 +353,7 @@
           button.textContent = 'Opening…';
           const desiredCrmId = record.id || crmRecordId;
           if (!existing.data || existing.data.crmId !== desiredCrmId) {
-            contactsWorkspace.get(existing.id).put({ crmId: desiredCrmId, syncedFromCrmAt: now });
+            workspace.get(existing.id).put({ crmId: desiredCrmId, syncedFromCrmAt: now });
             if (existing.data) {
               contactWorkspaceIndex[existing.id] = { ...existing.data, crmId: desiredCrmId, syncedFromCrmAt: now };
             }
@@ -260,7 +362,7 @@
           openContactsWorkspace(existing.id);
           setTimeout(() => {
             button.disabled = false;
-            button.textContent = 'Open in contacts';
+            button.textContent = CONTACT_BUTTON_LABEL;
           }, 200);
           return;
         }
@@ -290,11 +392,11 @@
         };
 
         button.textContent = 'Adding…';
-        contactsWorkspace.get(contactId).put(payload, ack => {
+        workspace.get(contactId).put(payload, ack => {
           if (ack && ack.err) {
             console.error('Unable to add to contacts workspace', ack.err);
             button.disabled = false;
-            button.textContent = 'Open in contacts';
+            button.textContent = CONTACT_BUTTON_LABEL;
             alert('Unable to add this person to contacts right now. Please try again.');
             return;
           }
@@ -304,7 +406,7 @@
           openContactsWorkspace(contactId);
           setTimeout(() => {
             button.disabled = false;
-            button.textContent = 'Open in contacts';
+            button.textContent = CONTACT_BUTTON_LABEL;
           }, 200);
         });
       });
@@ -356,8 +458,10 @@
 
     function openContactsWorkspace(contactId) {
       const url = new URL('../contacts/index.html', window.location.href);
-      url.searchParams.set('space', 'public-demo');
-      url.searchParams.set('contact', contactId);
+      url.searchParams.set('space', contactsSpaceKey);
+      if (contactId) {
+        url.searchParams.set('contact', contactId);
+      }
       window.location.href = url.toString();
     }
 
@@ -504,13 +608,13 @@
         crmDetailWorkspace.innerHTML = `
           <div class="bg-gray-800/80 border border-white/10 rounded-lg p-4">
             <p class="text-sm font-semibold text-gray-100">No linked contact yet</p>
-            <p class="text-xs text-gray-400 mt-1">Use "Open in contacts" to find or create a matching person.</p>
+            <p class="text-xs text-gray-400 mt-1">Use "${CONTACT_BUTTON_LABEL}" to find or create a matching person.</p>
           </div>
         `;
       }
 
       crmDetailActions.innerHTML = `
-        <button id="crm-detail-open-${id}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">Open in contacts</button>
+        <button id="crm-detail-open-${id}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">${CONTACT_BUTTON_LABEL}</button>
         <button id="crm-detail-edit-${id}" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1.5 rounded">Edit</button>
         <button id="crm-detail-delete-${id}" class="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1.5 rounded">Delete</button>
       `;
