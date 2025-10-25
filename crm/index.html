@@ -147,6 +147,16 @@
     let contactWorkspaceIndex = {};
     const contactsWorkspaceWaiters = [];
 
+    function sanitizeRecord(data) {
+      if (!data || typeof data !== 'object') return {};
+      const clean = {};
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === '_' || typeof value === 'function') return;
+        clean[key] = value;
+      });
+      return clean;
+    }
+
     function getContactButtonLabel(record, id) {
       return findContactInWorkspace(record, id)
         ? CONTACT_BUTTON_OPEN_LABEL
@@ -281,7 +291,8 @@
         return;
       }
 
-      crmIndex[id] = { ...(crmIndex[id] || {}), ...data, id };
+      const sanitized = sanitizeRecord(data);
+      crmIndex[id] = { ...(crmIndex[id] || {}), ...sanitized, id };
       let card = document.getElementById(id);
       if (!card) {
         card = document.createElement('div');
@@ -521,22 +532,23 @@
       if (!card) return;
       crmRecords.get(id).once(data => {
         if (!data) return;
+        const record = sanitizeRecord(data);
         const statusOptions = ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost'];
         card.innerHTML = `
           <form class="space-y-3" onsubmit="saveEdit(event, '${id}')">
             <div class="grid gap-2 md:grid-cols-2">
-              <input id="edit-name-${id}" value="${safeAttr(data.name)}" placeholder="Name" class="w-full p-2 rounded text-black" />
-              <input id="edit-email-${id}" value="${safeAttr(data.email)}" placeholder="Email" class="w-full p-2 rounded text-black" />
-              <input id="edit-company-${id}" value="${safeAttr(data.company)}" placeholder="Company" class="w-full p-2 rounded text-black" />
-              <input id="edit-phone-${id}" value="${safeAttr(data.phone)}" placeholder="Phone" class="w-full p-2 rounded text-black" />
-              <input id="edit-role-${id}" value="${safeAttr(data.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
-              <input id="edit-tags-${id}" value="${safeAttr(data.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
+              <input id="edit-name-${id}" value="${safeAttr(record.name)}" placeholder="Name" class="w-full p-2 rounded text-black" />
+              <input id="edit-email-${id}" value="${safeAttr(record.email)}" placeholder="Email" class="w-full p-2 rounded text-black" />
+              <input id="edit-company-${id}" value="${safeAttr(record.company)}" placeholder="Company" class="w-full p-2 rounded text-black" />
+              <input id="edit-phone-${id}" value="${safeAttr(record.phone)}" placeholder="Phone" class="w-full p-2 rounded text-black" />
+              <input id="edit-role-${id}" value="${safeAttr(record.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
+              <input id="edit-tags-${id}" value="${safeAttr(record.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
               <select id="edit-status-${id}" class="w-full p-2 rounded text-black">
-                ${statusOptions.map(status => `<option value="${safeAttr(status)}" ${((data.status || '') === status) ? 'selected' : ''}>${status || 'Status (optional)'}</option>`).join('')}
+                ${statusOptions.map(status => `<option value="${safeAttr(status)}" ${((record.status || '') === status) ? 'selected' : ''}>${status || 'Status (optional)'}</option>`).join('')}
               </select>
-              <input id="edit-next-${id}" type="date" value="${safeAttr((data.nextFollowUp || '').slice(0, 10))}" class="w-full p-2 rounded text-black" />
+              <input id="edit-next-${id}" type="date" value="${safeAttr((record.nextFollowUp || '').slice(0, 10))}" class="w-full p-2 rounded text-black" />
             </div>
-            <textarea id="edit-notes-${id}" class="w-full p-2 rounded text-black" placeholder="Notes">${safe(data.notes)}</textarea>
+            <textarea id="edit-notes-${id}" class="w-full p-2 rounded text-black" placeholder="Notes">${safe(record.notes)}</textarea>
             <div class="flex gap-2">
               <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded text-sm">Save</button>
               <button type="button" onclick="cancelEdit('${id}')" class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-sm">Cancel</button>
@@ -573,9 +585,10 @@
     function cancelEdit(id) {
       crmRecords.get(id).once(data => {
         if (!data) return;
+        const sanitized = sanitizeRecord(data);
         const card = document.getElementById(id);
         if (card) {
-          crmIndex[id] = { ...(crmIndex[id] || {}), ...data, id };
+          crmIndex[id] = { ...(crmIndex[id] || {}), ...sanitized, id };
           renderCard(card, crmIndex[id]);
           applyFilter();
         }
@@ -590,12 +603,15 @@
     }
 
     function logTouch(id) {
-      const record = crmIndex[id];
-      if (!record) return;
+      const record = sanitizeRecord(crmIndex[id]);
+      if (!record || Object.keys(record).length === 0) return;
       const now = new Date().toISOString();
-      const touches = typeof record.activityCount === 'number' ? record.activityCount : 0;
+      const touchesRaw = Number.parseInt(record.activityCount, 10);
+      const touches = Number.isNaN(touchesRaw) ? 0 : touchesRaw;
       const next = {
         ...record,
+        id,
+        contactId: record.contactId || record.id || id,
         lastContacted: now,
         activityCount: touches + 1,
         updated: now,
@@ -605,8 +621,8 @@
     }
 
     function quickFollowUp(id) {
-      const record = crmIndex[id];
-      if (!record) return;
+      const record = sanitizeRecord(crmIndex[id]);
+      if (!record || Object.keys(record).length === 0) return;
       const base = record.nextFollowUp ? new Date(record.nextFollowUp) : new Date();
       if (Number.isNaN(base.getTime())) {
         base.setTime(Date.now());
@@ -615,6 +631,8 @@
       const now = new Date().toISOString();
       const next = {
         ...record,
+        id,
+        contactId: record.contactId || record.id || id,
         nextFollowUp: base.toISOString().slice(0, 10),
         updated: now,
         created: record.created || now
