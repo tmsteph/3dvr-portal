@@ -55,12 +55,26 @@
 
     <section class="grid gap-6 lg:grid-cols-[320px,1fr]">
       <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <h2 class="text-xl font-semibold mb-3">Add contact</h2>
-        <form id="contactForm" class="grid gap-2">
-          <input type="text" id="name" placeholder="Name" class="w-full p-2 rounded text-black" />
-          <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
-          <input type="text" id="role" placeholder="Role (client, lead...)" class="w-full p-2 rounded text-black" />
-          <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
+        <h2 class="text-xl font-semibold mb-3">Add CRM record</h2>
+        <form id="contactForm" class="grid gap-3">
+          <div class="grid gap-2 md:grid-cols-2">
+            <input type="text" id="name" placeholder="Name" class="w-full p-2 rounded text-black" />
+            <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
+            <input type="text" id="company" placeholder="Company" class="w-full p-2 rounded text-black" />
+            <input type="text" id="phone" placeholder="Phone" class="w-full p-2 rounded text-black" />
+            <input type="text" id="role" placeholder="Role (client, lead...)" class="w-full p-2 rounded text-black" />
+            <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
+            <select id="status" class="w-full p-2 rounded text-black">
+              <option value="">Status (optional)</option>
+              <option>Lead</option>
+              <option>Prospect</option>
+              <option>Active</option>
+              <option>Negotiating</option>
+              <option>Won</option>
+              <option>Lost</option>
+            </select>
+            <input type="date" id="nextFollowUp" class="w-full p-2 rounded text-black" />
+          </div>
           <textarea id="notes" placeholder="Notes" class="w-full p-2 rounded text-black"></textarea>
           <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save</button>
         </form>
@@ -235,16 +249,24 @@
     form.addEventListener('submit', e => {
       e.preventDefault();
       const id = Date.now().toString();
+      const now = new Date().toISOString();
       const contact = {
         id,
         contactId: id,
         name: getFieldValue('name'),
         email: getFieldValue('email'),
+        company: getFieldValue('company'),
+        phone: getFieldValue('phone'),
         role: getFieldValue('role'),
         tags: getFieldValue('tags'),
+        status: getFieldValue('status'),
+        nextFollowUp: getFieldValue('nextFollowUp'),
         notes: getFieldValue('notes'),
-        created: new Date().toISOString(),
-        updated: new Date().toISOString()
+        lastContacted: '',
+        activityCount: 0,
+        source: 'CRM workspace',
+        created: now,
+        updated: now
       };
       crmRecords.get(id).put(contact);
       form.reset();
@@ -268,21 +290,26 @@
         list.appendChild(card);
       }
 
-      renderCard(card, data, id);
+      renderCard(card, crmIndex[id]);
       applyFilter();
     });
 
-    function renderCard(card, data, id) {
-      const displayName = data.name ? safe(data.name) : '(no name)';
-      const emailLink = data.email ? `<a href="mailto:${encodeURIComponent(data.email)}" class="text-sky-400 hover:underline">${safe(data.email)}</a>` : '';
-      const roleText = data.role ? ` · ${safe(data.role)}` : '';
-      const tagsText = data.tags ? `<p class="text-xs uppercase tracking-[0.3em] text-gray-400">${safe(data.tags)}</p>` : '';
-      const notesText = data.notes ? `<p class="text-sm text-gray-300 whitespace-pre-line">${safe(data.notes)}</p>` : '';
-      const stamp = data.updated || data.created;
-      const updatedText = stamp ? `<p class="text-xs text-gray-500">Updated ${new Date(stamp).toLocaleString()}</p>` : '';
-      const contactHint = data.email || data.name || '';
-      const contactMatch = findContactInWorkspace(data, id);
-      const buttonLabel = getContactButtonLabel(data, id);
+    function renderCard(card, record) {
+      const id = record.id;
+      const displayName = record.name ? safe(record.name) : '(no name)';
+      const emailLink = record.email ? `<a href="mailto:${encodeURIComponent(record.email)}" class="text-sky-400 hover:underline">${safe(record.email)}</a>` : '';
+      const phoneLink = record.phone ? `<a href="tel:${encodeURIComponent(record.phone)}" class="text-sky-400 hover:underline">${safe(record.phone)}</a>` : '';
+      const companyText = record.company ? ` · ${safe(record.company)}` : '';
+      const roleText = record.role ? ` · ${safe(record.role)}` : '';
+      const tagsText = record.tags ? `<div class="flex flex-wrap gap-1">${record.tags.split(',').map(tag => tag.trim()).filter(Boolean).map(tag => `<span class="text-xs px-2 py-0.5 rounded bg-white/10">${safe(tag)}</span>`).join('')}</div>` : '';
+      const notesText = record.notes ? `<p class="text-sm text-gray-300 whitespace-pre-line">${safe(record.notes)}</p>` : '';
+      const stamp = record.updated || record.created;
+      const updatedValue = stamp ? `Updated: ${new Date(stamp).toLocaleString()}` : 'Updated: —';
+      const statusBadge = record.status ? `<span class="text-xs px-2 py-0.5 rounded bg-emerald-700/60 border border-emerald-400/30">${safe(record.status)}</span>` : '';
+      const followUp = record.nextFollowUp ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/30">Follow-up ${safe(record.nextFollowUp)}</span>` : '';
+      const contactHint = record.email || record.name || '';
+      const contactMatch = findContactInWorkspace(record, id);
+      const buttonLabel = getContactButtonLabel(record, id);
       const contactTitle = contactMatch
         ? (contactHint
           ? `Open contacts workspace and search for ${contactHint}`
@@ -293,23 +320,34 @@
 
       card.innerHTML = `
         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div class="space-y-2">
-            <h3 class="text-lg font-semibold">${displayName}</h3>
-            <p class="text-sm text-gray-300">${emailLink}${roleText}</p>
+          <div class="space-y-2 md:max-w-xl">
+            <div class="flex flex-wrap gap-2 items-center">
+              <h3 class="text-lg font-semibold">${displayName}</h3>
+              ${statusBadge}
+              ${followUp}
+            </div>
+            <p class="text-sm text-gray-300">${emailLink}${companyText}${roleText}${phoneLink ? ` · ${phoneLink}` : ''}</p>
             ${tagsText}
             ${notesText}
-            ${updatedText}
+            <div class="grid gap-1 text-xs text-gray-400 sm:grid-cols-2">
+              <div>Last contacted: ${record.lastContacted ? timeAgo(record.lastContacted) : '—'}</div>
+              <div>Touches: ${typeof record.activityCount === 'number' ? record.activityCount : 0}</div>
+              <div>Next follow-up: ${record.nextFollowUp || '—'}</div>
+              <div>${safe(updatedValue)}</div>
+            </div>
           </div>
-          <div class="flex flex-col gap-2 md:w-40">
+          <div class="flex flex-col gap-2 md:w-48">
             <button id="open-contacts-${id}" onclick="ensureContact('${id}')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm" title="${safeAttr(contactTitle)}">${buttonLabel}</button>
+            <button onclick="logTouch('${id}')" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Log touch</button>
+            <button onclick="quickFollowUp('${id}')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded text-sm">+7d follow-up</button>
             <button onclick="editContact('${id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
             <button onclick="deleteContact('${id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
           </div>
         </div>
       `;
 
-      card.dataset.haystack = [data.name, data.email, data.role, data.tags, data.notes].filter(Boolean).join(' ').toLowerCase();
-      card.dataset.created = data.created || '';
+      card.dataset.haystack = [record.name, record.email, record.company, record.phone, record.role, record.tags, record.status, record.notes].filter(Boolean).join(' ').toLowerCase();
+      card.dataset.created = record.created || '';
       card.classList.remove('hidden');
       if (focusContactId && id === focusContactId) {
         focusClasses.forEach(cls => card.classList.add(cls));
@@ -483,12 +521,21 @@
       if (!card) return;
       crmRecords.get(id).once(data => {
         if (!data) return;
+        const statusOptions = ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost'];
         card.innerHTML = `
           <form class="space-y-3" onsubmit="saveEdit(event, '${id}')">
-            <input id="edit-name-${id}" value="${safeAttr(data.name)}" placeholder="Name" class="w-full p-2 rounded text-black" />
-            <input id="edit-email-${id}" value="${safeAttr(data.email)}" placeholder="Email" class="w-full p-2 rounded text-black" />
-            <input id="edit-role-${id}" value="${safeAttr(data.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
-            <input id="edit-tags-${id}" value="${safeAttr(data.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
+            <div class="grid gap-2 md:grid-cols-2">
+              <input id="edit-name-${id}" value="${safeAttr(data.name)}" placeholder="Name" class="w-full p-2 rounded text-black" />
+              <input id="edit-email-${id}" value="${safeAttr(data.email)}" placeholder="Email" class="w-full p-2 rounded text-black" />
+              <input id="edit-company-${id}" value="${safeAttr(data.company)}" placeholder="Company" class="w-full p-2 rounded text-black" />
+              <input id="edit-phone-${id}" value="${safeAttr(data.phone)}" placeholder="Phone" class="w-full p-2 rounded text-black" />
+              <input id="edit-role-${id}" value="${safeAttr(data.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
+              <input id="edit-tags-${id}" value="${safeAttr(data.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
+              <select id="edit-status-${id}" class="w-full p-2 rounded text-black">
+                ${statusOptions.map(status => `<option value="${safeAttr(status)}" ${((data.status || '') === status) ? 'selected' : ''}>${status || 'Status (optional)'}</option>`).join('')}
+              </select>
+              <input id="edit-next-${id}" type="date" value="${safeAttr((data.nextFollowUp || '').slice(0, 10))}" class="w-full p-2 rounded text-black" />
+            </div>
             <textarea id="edit-notes-${id}" class="w-full p-2 rounded text-black" placeholder="Notes">${safe(data.notes)}</textarea>
             <div class="flex gap-2">
               <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded text-sm">Save</button>
@@ -503,15 +550,22 @@
       e.preventDefault();
       const cardEl = document.getElementById(id);
       const created = cardEl && cardEl.dataset ? cardEl.dataset.created : '';
+      const current = crmIndex[id] || {};
+      const now = new Date().toISOString();
       const updated = {
+        ...current,
         id,
         name: document.getElementById(`edit-name-${id}`).value.trim(),
         email: document.getElementById(`edit-email-${id}`).value.trim(),
+        company: document.getElementById(`edit-company-${id}`).value.trim(),
+        phone: document.getElementById(`edit-phone-${id}`).value.trim(),
         role: document.getElementById(`edit-role-${id}`).value.trim(),
         tags: document.getElementById(`edit-tags-${id}`).value.trim(),
+        status: document.getElementById(`edit-status-${id}`).value.trim(),
+        nextFollowUp: document.getElementById(`edit-next-${id}`).value.trim(),
         notes: document.getElementById(`edit-notes-${id}`).value.trim(),
-        updated: new Date().toISOString(),
-        created: created || new Date().toISOString()
+        updated: now,
+        created: current.created || created || now
       };
       crmRecords.get(id).put(updated);
     }
@@ -521,7 +575,8 @@
         if (!data) return;
         const card = document.getElementById(id);
         if (card) {
-          renderCard(card, data, id);
+          crmIndex[id] = { ...(crmIndex[id] || {}), ...data, id };
+          renderCard(card, crmIndex[id]);
           applyFilter();
         }
       });
@@ -532,6 +587,39 @@
       const card = document.getElementById(id);
       if (card) card.remove();
       applyFilter();
+    }
+
+    function logTouch(id) {
+      const record = crmIndex[id];
+      if (!record) return;
+      const now = new Date().toISOString();
+      const touches = typeof record.activityCount === 'number' ? record.activityCount : 0;
+      const next = {
+        ...record,
+        lastContacted: now,
+        activityCount: touches + 1,
+        updated: now,
+        created: record.created || now
+      };
+      crmRecords.get(id).put(next);
+    }
+
+    function quickFollowUp(id) {
+      const record = crmIndex[id];
+      if (!record) return;
+      const base = record.nextFollowUp ? new Date(record.nextFollowUp) : new Date();
+      if (Number.isNaN(base.getTime())) {
+        base.setTime(Date.now());
+      }
+      base.setDate(base.getDate() + 7);
+      const now = new Date().toISOString();
+      const next = {
+        ...record,
+        nextFollowUp: base.toISOString().slice(0, 10),
+        updated: now,
+        created: record.created || now
+      };
+      crmRecords.get(id).put(next);
     }
 
     function applyFilter() {
@@ -572,6 +660,12 @@
       if (record.role) {
         summary.push(safe(record.role));
       }
+      if (record.company) {
+        summary.push(safe(record.company));
+      }
+      if (record.phone) {
+        summary.push(`<a class="underline hover:no-underline" href="tel:${encodeURIComponent(record.phone)}">${safe(record.phone)}</a>`);
+      }
 
       crmDetailName.textContent = record.name ? record.name : '(no name)';
       crmDetailSummary.innerHTML = summary.join(' · ') || '—';
@@ -595,6 +689,10 @@
       }
 
       const metaRows = [
+        ['Status', record.status || '—'],
+        ['Next follow-up', record.nextFollowUp || '—'],
+        ['Last contacted', record.lastContacted ? `${timeAgo(record.lastContacted)} · ${new Date(record.lastContacted).toLocaleString()}` : '—'],
+        ['Touches', typeof record.activityCount === 'number' ? record.activityCount : 0],
         ['Created', record.created ? new Date(record.created).toLocaleString() : '—'],
         ['Updated', record.updated ? new Date(record.updated).toLocaleString() : '—']
       ];
@@ -629,6 +727,8 @@
 
       crmDetailActions.innerHTML = `
         <button id="crm-detail-open-${id}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">${detailButtonLabel}</button>
+        <button id="crm-detail-touch-${id}" class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1.5 rounded">Log touch</button>
+        <button id="crm-detail-follow-${id}" class="bg-amber-500 hover:bg-amber-600 text-white text-sm px-3 py-1.5 rounded">+7d follow-up</button>
         <button id="crm-detail-edit-${id}" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1.5 rounded">Edit</button>
         <button id="crm-detail-delete-${id}" class="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1.5 rounded">Delete</button>
       `;
@@ -637,6 +737,14 @@
       document.getElementById(`crm-detail-open-${id}`)?.addEventListener('click', () => {
         ensureContact(ensureId);
         closeCrmDetail();
+      });
+      document.getElementById(`crm-detail-touch-${id}`)?.addEventListener('click', () => {
+        logTouch(id);
+        setTimeout(() => openCrmDetail(id), 120);
+      });
+      document.getElementById(`crm-detail-follow-${id}`)?.addEventListener('click', () => {
+        quickFollowUp(id);
+        setTimeout(() => openCrmDetail(id), 120);
       });
       document.getElementById(`crm-detail-edit-${id}`)?.addEventListener('click', () => {
         closeCrmDetail();
@@ -682,6 +790,20 @@
 
     if (filterInput) {
       filterInput.addEventListener('input', applyFilter);
+    }
+
+    function timeAgo(iso) {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return '—';
+      const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (seconds < 60) return `${seconds}s ago`;
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      if (days < 30) return `${days}d ago`;
+      return date.toLocaleDateString();
     }
 
     function safe(value) {
