@@ -40,9 +40,12 @@ const state = {
   localEvents: []
 };
 
+const today = startOfDay(new Date());
 const calendarState = {
   viewDate: startOfMonth(new Date()),
-  weekStartsOn: 0
+  weekStartsOn: 0,
+  selectedDate: today.toISOString().slice(0, 10),
+  dayEvents: new Map()
 };
 
 const GUN_RELAY_URL = 'https://gun-relay-3dvr.fly.dev/gun';
@@ -70,6 +73,10 @@ const calendarGrid = document.querySelector('[data-calendar-grid]');
 const calendarCurrentLabel = document.querySelector('[data-calendar-current]');
 const calendarTodayButton = document.querySelector('[data-calendar-today]');
 const calendarNavButtons = document.querySelectorAll('[data-calendar-nav]');
+const calendarDetails = document.querySelector('[data-calendar-details]');
+const calendarDetailsTitle = document.querySelector('[data-calendar-details-title]');
+const calendarDetailsList = document.querySelector('[data-calendar-details-list]');
+const calendarDetailsEmpty = document.querySelector('[data-calendar-details-empty]');
 
 const calendarMonthFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'long',
@@ -501,6 +508,16 @@ function formatCalendarTime(value, timeZone) {
   }
 }
 
+function formatCalendarRange(event) {
+  if (!event) return '';
+  const start = formatCalendarTime(event.start, event.timeZone);
+  const end = formatCalendarTime(event.end, event.timeZone);
+  if (start && end) {
+    return `${start} – ${end}`;
+  }
+  return start || '';
+}
+
 function renderCalendarDayNames() {
   if (!calendarDayNames) return;
   calendarDayNames.innerHTML = '';
@@ -529,6 +546,7 @@ function renderCalendar(events = state.localEvents) {
   calendarGrid.innerHTML = '';
   const normalizedEvents = Array.isArray(events) ? events : [];
   const todayKey = startOfDay(new Date()).getTime();
+  calendarState.dayEvents = new Map();
 
   for (let index = 0; index < 42; index += 1) {
     const cellDate = new Date(gridStart);
@@ -536,11 +554,14 @@ function renderCalendar(events = state.localEvents) {
     const cellDayTime = startOfDay(cellDate).getTime();
     const cell = document.createElement('div');
     cell.classList.add('calendar-view__day');
+    cell.setAttribute('role', 'button');
+    cell.setAttribute('tabindex', '0');
     if (cellDate.getMonth() !== monthStart.getMonth()) {
       cell.classList.add('calendar-view__day--muted');
     }
     if (cellDayTime === todayKey) {
       cell.classList.add('calendar-view__day--today');
+      cell.setAttribute('aria-current', 'date');
     }
 
     const dayNumber = document.createElement('p');
@@ -591,9 +612,148 @@ function renderCalendar(events = state.localEvents) {
     } else if (eventsForDay.length > 1) {
       labelParts.push(`${eventsForDay.length} events`);
     }
+    const dayKey = cellDate.toISOString().slice(0, 10);
     cell.setAttribute('aria-label', labelParts.join(', '));
-    cell.dataset.date = cellDate.toISOString().slice(0, 10);
+    cell.dataset.date = dayKey;
+    calendarState.dayEvents.set(dayKey, eventsForDay.slice());
+    if (calendarState.selectedDate === dayKey) {
+      cell.classList.add('calendar-view__day--selected');
+      cell.setAttribute('aria-pressed', 'true');
+    } else {
+      cell.setAttribute('aria-pressed', 'false');
+    }
     calendarGrid.appendChild(cell);
+  }
+
+  if (calendarState.selectedDate && !calendarState.dayEvents.has(calendarState.selectedDate)) {
+    calendarState.selectedDate = null;
+  }
+  renderSelectedDayDetails();
+}
+
+function renderSelectedDayDetails() {
+  if (!calendarDetails || !calendarDetailsTitle || !calendarDetailsList || !calendarDetailsEmpty) {
+    return;
+  }
+  const { selectedDate } = calendarState;
+  if (!selectedDate || !calendarState.dayEvents.has(selectedDate)) {
+    calendarDetails.hidden = true;
+    calendarDetailsTitle.textContent = '';
+    calendarDetailsList.innerHTML = '';
+    calendarDetailsEmpty.hidden = true;
+    return;
+  }
+
+  const eventsForDay = calendarState.dayEvents.get(selectedDate) || [];
+  calendarDetails.hidden = false;
+  calendarDetailsList.innerHTML = '';
+
+  const displayDate = new Date(`${selectedDate}T00:00:00`);
+  calendarDetailsTitle.textContent = calendarFullDateFormatter.format(displayDate);
+
+  if (!eventsForDay.length) {
+    calendarDetailsEmpty.hidden = false;
+    return;
+  }
+
+  calendarDetailsEmpty.hidden = true;
+  const sortedEvents = [...eventsForDay].sort((a, b) => {
+    const aTime = new Date(a.start || '').getTime();
+    const bTime = new Date(b.start || '').getTime();
+    const aInvalid = Number.isNaN(aTime);
+    const bInvalid = Number.isNaN(bTime);
+    if (aInvalid && bInvalid) return 0;
+    if (aInvalid) return 1;
+    if (bInvalid) return -1;
+    return aTime - bTime;
+  });
+
+  sortedEvents
+    .map(event => ({ raw: event, normalized: normalizeEvent(event) }))
+    .filter(item => item.normalized)
+    .forEach(item => {
+      const listItem = document.createElement('li');
+      listItem.className = 'calendar-view__details-item';
+
+      const title = document.createElement('p');
+      title.className = 'calendar-view__details-item-title';
+      title.textContent = item.normalized.title;
+      listItem.appendChild(title);
+
+      const metaParts = [];
+      const range = formatCalendarRange(item.raw);
+      if (range) {
+        metaParts.push(range);
+      }
+      if (item.normalized.providerLabel) {
+        metaParts.push(item.normalized.providerLabel);
+      }
+      if (metaParts.length) {
+        const meta = document.createElement('p');
+        meta.className = 'calendar-view__details-item-meta';
+        meta.textContent = metaParts.join(' • ');
+        listItem.appendChild(meta);
+      }
+
+      if (item.normalized.description) {
+        const description = document.createElement('p');
+        description.className = 'calendar-view__details-item-description';
+        description.textContent = item.normalized.description;
+        listItem.appendChild(description);
+      }
+
+      calendarDetailsList.appendChild(listItem);
+    });
+}
+
+function selectCalendarDate(dateString) {
+  if (!dateString) {
+    calendarState.selectedDate = null;
+    renderSelectedDayDetails();
+    if (!calendarGrid) {
+      return;
+    }
+    calendarGrid.querySelectorAll('.calendar-view__day').forEach(cell => {
+      cell.classList.remove('calendar-view__day--selected');
+      cell.setAttribute('aria-pressed', 'false');
+    });
+    return;
+  }
+
+  if (calendarState.selectedDate === dateString) {
+    renderSelectedDayDetails();
+    return;
+  }
+
+  calendarState.selectedDate = dateString;
+  renderCalendar();
+  if (calendarGrid) {
+    const nextCell = calendarGrid.querySelector(`.calendar-view__day[data-date="${dateString}"]`);
+    if (nextCell && typeof nextCell.focus === 'function') {
+      nextCell.focus();
+    }
+  }
+}
+
+function handleCalendarGridClick(event) {
+  const cell = event.target.closest('.calendar-view__day');
+  if (!cell) return;
+  const { date } = cell.dataset;
+  if (date) {
+    selectCalendarDate(date);
+  }
+}
+
+function handleCalendarGridKeydown(event) {
+  if (event.defaultPrevented) return;
+  const cell = event.target.closest('.calendar-view__day');
+  if (!cell) return;
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    const { date } = cell.dataset;
+    if (date) {
+      selectCalendarDate(date);
+    }
   }
 }
 
@@ -1112,11 +1272,14 @@ function changeCalendarMonth(offset) {
   const next = new Date(calendarState.viewDate);
   next.setMonth(next.getMonth() + offset);
   calendarState.viewDate = startOfMonth(next);
+  calendarState.selectedDate = calendarState.viewDate.toISOString().slice(0, 10);
   renderCalendar();
 }
 
 function goToCalendarToday() {
-  calendarState.viewDate = startOfMonth(new Date());
+  const now = startOfDay(new Date());
+  calendarState.viewDate = startOfMonth(now);
+  calendarState.selectedDate = now.toISOString().slice(0, 10);
   renderCalendar();
 }
 
@@ -1166,6 +1329,11 @@ function bindEvents() {
 
   if (calendarTodayButton) {
     calendarTodayButton.addEventListener('click', goToCalendarToday);
+  }
+
+  if (calendarGrid) {
+    calendarGrid.addEventListener('click', handleCalendarGridClick);
+    calendarGrid.addEventListener('keydown', handleCalendarGridKeydown);
   }
 }
 
