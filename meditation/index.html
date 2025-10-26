@@ -80,6 +80,34 @@
       font-size: 1.05rem;
       line-height: 1.7;
     }
+    .header-links {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      border: 1px solid rgba(94, 234, 212, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      color: #f8fafc;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+      text-decoration: none;
+    }
+    .header-links a:hover,
+    .header-links a:focus {
+      transform: translateY(-2px);
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.6);
+      outline: none;
+    }
     .breathing-space {
       position: relative;
       width: clamp(320px, 38vw, 760px);
@@ -604,6 +632,9 @@
       <h1>Mindfulness Breathing Room</h1>
       <span>Follow the gentle cues for as many rounds as you need. Set your cadence, press play, and let the cycle guide you
         back to center.</span>
+      <div class="header-links" role="navigation" aria-label="Meditation quick links">
+        <a href="../index.html">Return to 3DVR Portal</a>
+      </div>
     </header>
     <section class="stretch-callout" aria-label="Guided stretch reminder">
       <span class="stretch-callout__tag">screen break reset</span>
