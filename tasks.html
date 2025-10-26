@@ -181,6 +181,22 @@
     font-size: 1.2rem;
   }
 
+  .create-task-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    padding: 12px 18px;
+  }
+
+  .create-task-trigger.create-task-trigger--open {
+    background: var(--accent-strong);
+  }
+
+  .create-task-trigger__icon {
+    font-size: 1.2rem;
+  }
+
   .search-filter {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -813,7 +829,12 @@
             <button type="button" class="btn-secondary" onclick="clearFilters()">Clear Filters</button>
           </div>
 
-          <div class="new-task-form" aria-label="Add a new task">
+          <button type="button" class="create-task-trigger" id="create-task-toggle" aria-expanded="false" aria-controls="new-task-form" onclick="toggleTaskForm()">
+            <span class="create-task-trigger__icon" aria-hidden="true">➕</span>
+            <span class="create-task-trigger__label">Create task</span>
+          </button>
+
+          <div class="new-task-form" id="new-task-form" aria-label="Add a new task" hidden>
             <div class="form-row">
               <input type="text" id="task-title" placeholder="Task title..." required>
               <select id="task-priority">
@@ -1365,6 +1386,36 @@ function clearTaskForm() {
   document.getElementById('task-context-type').value = '';
   document.getElementById('task-context-reference').value = '';
   document.getElementById('task-context-link').value = '';
+}
+
+function toggleTaskForm(forceOpen) {
+  const form = document.getElementById('new-task-form');
+  const toggleButton = document.getElementById('create-task-toggle');
+  if (!form || !toggleButton) return;
+
+  const icon = toggleButton.querySelector('.create-task-trigger__icon');
+  const label = toggleButton.querySelector('.create-task-trigger__label');
+
+  const isHidden = form.hasAttribute('hidden');
+  const shouldShow = typeof forceOpen === 'boolean' ? forceOpen : isHidden;
+
+  if (shouldShow) {
+    form.removeAttribute('hidden');
+    toggleButton.setAttribute('aria-expanded', 'true');
+    toggleButton.classList.add('create-task-trigger--open');
+    if (icon) icon.textContent = '➖';
+    if (label) label.textContent = 'Hide task form';
+    const titleField = document.getElementById('task-title');
+    if (titleField) {
+      setTimeout(() => titleField.focus(), 0);
+    }
+  } else {
+    form.setAttribute('hidden', '');
+    toggleButton.setAttribute('aria-expanded', 'false');
+    toggleButton.classList.remove('create-task-trigger--open');
+    if (icon) icon.textContent = '➕';
+    if (label) label.textContent = 'Create task';
+  }
 }
 
 // Load tasks from GUN
@@ -2270,6 +2321,8 @@ function handleInsightPrefill(insightId) {
 
 function prefillTaskFromInsight(insight) {
   if (!insight) return;
+
+  toggleTaskForm(true);
 
   const titleField = document.getElementById('task-title');
   const descriptionField = document.getElementById('task-description');
