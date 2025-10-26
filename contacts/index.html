@@ -388,6 +388,9 @@ let openDetailContactId = null;
 const PAGE_SIZE = 20;
 const pendingQueues = new Map();
 const flushingSpaces = new Set();
+const duplicateExpandedState = new Map();
+const duplicateMetaById = new Map();
+const duplicatePrimaryById = new Map();
 
 let renderTimer = null;
 function scheduleRender(){
@@ -824,11 +827,12 @@ function applyFilters(items){
 function updateList(){
   const all = Object.values(contactsIndex);
   const filtered = applyFilters(all);
-  const total = filtered.length;
+  const { records: collapsed, hiddenCount } = collapseDuplicates(filtered);
+  const total = collapsed.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if(page > totalPages) page = totalPages;
   if(focusContactId && !focusScrollDone){
-    const focusIndex = filtered.findIndex(c=>c.id === focusContactId);
+    const focusIndex = collapsed.findIndex(c=>c.id === (duplicatePrimaryById.get(focusContactId) || focusContactId));
     if(focusIndex >= 0){
       const focusPage = Math.floor(focusIndex / PAGE_SIZE) + 1;
       if(page !== focusPage){
@@ -838,16 +842,15 @@ function updateList(){
   }
 
   const start = (page-1)*PAGE_SIZE;
-  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+  const pageItems = collapsed.slice(start, start + PAGE_SIZE);
 
   listEl.innerHTML = pageItems.map(renderCard).join('') || `<p class="text-gray-400">No contacts yet.</p>`;
 
-  // wire actions
   pageItems.forEach(c=>{
-    eid(`edit-${c.id}`)?.addEventListener('click', ()=>openEdit(c.id));
-    eid(`del-${c.id}`)?.addEventListener('click', ()=>confirmDelete(c.id));
+    eid(`edit-${c.id}`)?.addEventListener('click', evt=>{ evt.stopPropagation(); openEdit(c.id); });
+    eid(`del-${c.id}`)?.addEventListener('click', evt=>{ evt.stopPropagation(); confirmDelete(c.id); });
     if(!c.crmId){
-      eid(`crm-${c.id}`)?.addEventListener('click', ()=>addContactToCrm(c.id));
+      eid(`crm-${c.id}`)?.addEventListener('click', evt=>{ evt.stopPropagation(); addContactToCrm(c.id); });
     }
     const card = document.getElementById(c.id);
     if(card){
@@ -857,14 +860,86 @@ function updateList(){
       });
       card.classList.add('cursor-pointer');
     }
+    if(duplicateMetaById.has(c.id)){
+      wireDuplicateControls(c.id);
+    }
   });
 
-  countEl.textContent = `${total} contact${total===1?'':'s'} · page ${page}/${totalPages}`;
+  const duplicateNote = hiddenCount > 0 ? ` · ${hiddenCount} duplicate${hiddenCount===1?'':'s'} auto-hidden` : '';
+  countEl.textContent = `${filtered.length} record${filtered.length===1?'':'s'} → ${total} contact${total===1?'':'s'}${duplicateNote} · page ${page}/${totalPages}`;
   pageInfo.textContent = `${page}/${totalPages}`;
   prevPageBtn.disabled = (page<=1);
   nextPageBtn.disabled = (page>=totalPages);
   updateDuplicateSummary(all);
   highlightFocusedContact();
+}
+
+function collapseDuplicates(records){
+  duplicateMetaById.clear();
+  duplicatePrimaryById.clear();
+  const groups = computeDuplicateGroups(records);
+  const hiddenIds = new Set();
+  groups.forEach(group => {
+    const ordered = sortDuplicateCandidates(group.items);
+    const primary = ordered[0];
+    const duplicates = ordered.slice(1);
+    const emailSummary = describeEmailDifferences(ordered);
+    duplicateMetaById.set(primary.id, {
+      name: group.name,
+      total: ordered.length,
+      records: ordered,
+      duplicates,
+      emailSummary
+    });
+    ordered.forEach(item => {
+      duplicatePrimaryById.set(item.id, primary.id);
+      if(item.id !== primary.id){
+        hiddenIds.add(item.id);
+      }
+    });
+  });
+
+  const seenPrimaries = new Set();
+  const result = [];
+  records.forEach(record => {
+    const primaryId = duplicatePrimaryById.get(record.id);
+    if(primaryId){
+      if(record.id === primaryId && !seenPrimaries.has(primaryId)){
+        result.push(record);
+        seenPrimaries.add(primaryId);
+      }
+    } else {
+      result.push(record);
+    }
+  });
+
+  return {
+    records: result,
+    hiddenCount: hiddenIds.size
+  };
+}
+
+function sortDuplicateCandidates(items){
+  return items.slice().sort((a,b)=>{
+    const aLinked = a.crmId ? 1 : 0;
+    const bLinked = b.crmId ? 1 : 0;
+    if(aLinked !== bLinked) return bLinked - aLinked;
+    const aUpdated = a.updated || a.created || '';
+    const bUpdated = b.updated || b.created || '';
+    if(aUpdated !== bUpdated) return bUpdated.localeCompare(aUpdated);
+    const aScore = duplicateCompletenessScore(a);
+    const bScore = duplicateCompletenessScore(b);
+    if(aScore !== bScore) return bScore - aScore;
+    return (a.id||'').localeCompare(b.id||'');
+  });
+}
+
+function duplicateCompletenessScore(record){
+  const fields = ['email','phone','company','role','tags','status','notes'];
+  return fields.reduce((score, field)=>{
+    if(record[field]) score += 1;
+    return score;
+  }, 0);
 }
 
 function computeDuplicateGroups(records){
@@ -946,15 +1021,142 @@ function updateDuplicateSummary(records){
 
 function highlightFocusedContact(){
   if(!focusContactId) return;
-  const card = document.getElementById(focusContactId);
+  const cards = listEl?.querySelectorAll?.('.contact-card') || [];
+  cards.forEach(cardEl => {
+    focusClasses.forEach(cls => cardEl.classList.remove(cls));
+  });
+  const targetId = duplicatePrimaryById.get(focusContactId) || focusContactId;
+  const card = document.getElementById(targetId);
   if(!card) return;
   focusClasses.forEach(cls => card.classList.add(cls));
+  if(targetId !== focusContactId && duplicateMetaById.has(targetId)){
+    duplicateExpandedState.set(targetId, true);
+    applyDuplicateExpandedState(targetId);
+  }
   if(!focusScrollDone){
     focusScrollDone = true;
     setTimeout(()=>{
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
   }
+}
+
+function getDuplicateToggleLabel(meta, expanded){
+  const duplicatesCount = Math.max(0, (meta?.total || 1) - 1);
+  if(duplicatesCount === 0) return 'Show duplicates';
+  return expanded
+    ? `Hide duplicates (${duplicatesCount})`
+    : `Show duplicates (${duplicatesCount} hidden)`;
+}
+
+function applyDuplicateExpandedState(primaryId){
+  const meta = duplicateMetaById.get(primaryId);
+  if(!meta) return;
+  const expanded = duplicateExpandedState.get(primaryId) === true;
+  const panel = document.getElementById(`duplicate-panel-${primaryId}`);
+  const toggle = document.querySelector(`[data-duplicate-toggle="${primaryId}"]`);
+  if(panel){
+    panel.classList.toggle('hidden', !expanded);
+  }
+  if(toggle){
+    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    toggle.textContent = getDuplicateToggleLabel(meta, expanded);
+  }
+}
+
+function toggleDuplicatePanel(primaryId){
+  const meta = duplicateMetaById.get(primaryId);
+  if(!meta) return;
+  const currentlyExpanded = duplicateExpandedState.get(primaryId) === true;
+  const next = !currentlyExpanded;
+  if(next){
+    duplicateExpandedState.set(primaryId, true);
+  } else {
+    duplicateExpandedState.delete(primaryId);
+  }
+  applyDuplicateExpandedState(primaryId);
+}
+
+function wireDuplicateControls(primaryId){
+  const meta = duplicateMetaById.get(primaryId);
+  if(!meta) return;
+  const toggle = document.querySelector(`[data-duplicate-toggle="${primaryId}"]`);
+  if(toggle){
+    toggle.addEventListener('click', evt=>{
+      evt.stopPropagation();
+      toggleDuplicatePanel(primaryId);
+    });
+  }
+  meta.records.forEach(record => {
+    if(record.id === primaryId) return;
+    const openBtn = document.querySelector(`[data-duplicate-open="${record.id}"]`);
+    if(openBtn){
+      openBtn.addEventListener('click', evt=>{
+        evt.stopPropagation();
+        duplicateExpandedState.set(primaryId, true);
+        applyDuplicateExpandedState(primaryId);
+        openContactDetail(record.id);
+      });
+    }
+  });
+  applyDuplicateExpandedState(primaryId);
+}
+
+function renderDuplicateSection(contact, meta){
+  const expanded = duplicateExpandedState.get(contact.id) === true;
+  const duplicatesCount = Math.max(0, meta.total - 1);
+  const emailDetail = meta.emailSummary && meta.emailSummary.descriptions.length
+    ? `${hx(meta.emailSummary.uniqueCount)} email value${meta.emailSummary.uniqueCount===1?'':'s'} (${meta.emailSummary.descriptions.map(part => hx(part)).join(', ')})`
+    : 'No email differences recorded';
+  const rows = meta.records.map(record => renderDuplicateRow(record, contact.id)).join('');
+  return `
+    <div class="mt-3 bg-amber-900/30 border border-amber-500/30 rounded-lg p-3 text-amber-50/90">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm font-semibold">Auto-hidden duplicates</p>
+        <button type="button" class="text-xs bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 px-2 py-1 rounded transition" data-duplicate-toggle="${contact.id}" aria-expanded="${expanded?'true':'false'}">${hx(getDuplicateToggleLabel(meta, expanded))}</button>
+      </div>
+      <p class="text-xs text-amber-100/80 mt-2">${hx(duplicatesCount)} additional record${duplicatesCount===1?'':'s'} hidden · ${emailDetail}</p>
+      <div id="duplicate-panel-${contact.id}" class="mt-3 space-y-2 ${expanded?'':'hidden'}">
+        ${rows}
+      </div>
+    </div>
+  `;
+}
+
+function renderDuplicateRow(record, primaryId){
+  const isPrimary = record.id === primaryId;
+  const summaryParts = [];
+  if(record.email) summaryParts.push(record.email);
+  if(record.phone) summaryParts.push(record.phone);
+  const roleCompany = [record.role, record.company].filter(Boolean).join(' @ ');
+  if(roleCompany) summaryParts.push(roleCompany);
+  if(record.nextFollowUp) summaryParts.push(`Follow-up ${record.nextFollowUp}`);
+  if(record.status) summaryParts.push(`Status ${record.status}`);
+  const summary = summaryParts.length ? hx(summaryParts.join(' · ')) : '—';
+  const updatedText = record.updated ? `Updated ${ago(record.updated)}` : 'Updated —';
+  const badges = [];
+  if(isPrimary) badges.push('Shown in list');
+  if(record.crmId) badges.push('CRM linked');
+  const badgeHtml = badges.map(label => `<span class="text-[10px] uppercase tracking-wide bg-white/10 border border-white/20 px-2 py-0.5 rounded">${hx(label)}</span>`).join(' ');
+  const actionHtml = isPrimary ? '' : `<button type="button" data-duplicate-open="${record.id}" class="text-xs bg-gray-800/70 hover:bg-gray-700 border border-white/15 px-2 py-1 rounded">Open details</button>`;
+  return `
+    <div class="bg-gray-900/50 border border-white/10 rounded-lg p-3 space-y-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p class="text-sm font-semibold text-white/90">${hx(record.name || '(no name)')}</p>
+          <p class="text-xs text-gray-300">${summary}</p>
+        </div>
+        <div class="text-xs text-gray-400 text-right">
+          <p>${hx(updatedText)}</p>
+          <p>Touches ${hx(typeof record.activityCount === 'number' ? record.activityCount : 0)}</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap gap-1">${badgeHtml}</div>
+        ${actionHtml}
+      </div>
+    </div>
+  `;
 }
 
 /* ---------- Card UI ---------- */
@@ -969,15 +1171,20 @@ function renderCard(c){
   const crmAction = hasCrmLink
     ? `<a href="../crm/index.html?contact=${encodeURIComponent(c.crmId)}" class="bg-sky-700/60 hover:bg-sky-600 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-sky-100 transition" title="Open this contact in the CRM" target="_blank" rel="noopener">Open CRM</a>`
     : `<button type="button" id="crm-${c.id}" class="bg-sky-600 hover:bg-sky-500 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-white transition">Add to CRM</button>`;
+  const duplicateInfo = duplicateMetaById.get(c.id);
+  const duplicateBadge = duplicateInfo
+    ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/40 text-amber-50">Duplicates ×${hx(duplicateInfo.total)}</span>`
+    : '';
 
   return `
-  <div class="bg-gray-800 p-4 rounded-lg border border-white/10" id="${c.id}">
+  <div class="contact-card bg-gray-800 p-4 rounded-lg border border-white/10" id="${c.id}">
     <div class="flex flex-col sm:flex-row gap-3 sm:items-start">
       <div class="flex-1">
         <div class="flex items-center gap-2 flex-wrap">
           <h3 class="text-lg font-bold">${hx(c.name||'(no name)')}</h3>
           ${c.status?`<span class="text-xs px-2 py-0.5 rounded bg-teal-700/60 border border-teal-400/30">${hx(c.status)}</span>`:''}
           ${hasCrmLink?`<span class="text-xs px-2 py-0.5 rounded bg-sky-700/60 border border-sky-400/30">CRM linked</span>`:''}
+          ${duplicateBadge}
           ${overdue?`<span class="text-xs px-2 py-0.5 rounded bg-rose-700/60 border border-rose-400/30">Overdue</span>`:(today?`<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/30">Due today</span>`:'')}
         </div>
         <p class="text-sm text-gray-300 mt-0.5">
@@ -993,6 +1200,7 @@ function renderCard(c){
           <div>Updated: ${c.updated?ago(c.updated):'—'}</div>
           <div>Touches: ${c.activityCount||0}</div>
         </div>
+        ${duplicateInfo ? renderDuplicateSection(c, duplicateInfo) : ''}
       </div>
       <div class="shrink-0 flex flex-wrap gap-2">
         ${crmAction}
