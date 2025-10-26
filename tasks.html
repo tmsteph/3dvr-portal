@@ -9,537 +9,917 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles/global.css">
 <style>
-* {
-  box-sizing: border-box;
-}
-
-body {
-  font-family: 'Poppins', sans-serif;
-  background: #e9f0f5;
-  color: #222;
-  margin: 0;
-  padding: 20px;
-  min-height: 100vh;
-}
-
-a {
-  color: #66c2b0;
-  text-decoration: underline;
-  margin-bottom: 20px;
-  display: inline-block;
-}
-
-h1 {
-  text-align: center;
-  color: #333;
-  margin-top: 0;
-  font-size: 2.4rem;
-}
-
-.controls {
-  max-width: 1200px;
-  margin: 0 auto 30px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.search-filter {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-}
-
-.new-task-form {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.form-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-input, select, textarea, button {
-  padding: 10px;
-  font-size: 1rem;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  font-family: 'Poppins', sans-serif;
-}
-
-input, select, textarea {
-  background: white;
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: #66c2b0;
-}
-
-button {
-  background: #66c2b0;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-  border: none;
-  transition: background 0.3s ease;
-}
-
-button:hover {
-  background: #5ca0d3;
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: #f0f0f0;
-  color: #333;
-}
-
-.btn-secondary:hover {
-  background: #e0e0e0;
-}
-
-.btn-danger {
-  background: #e74c3c;
-}
-
-.btn-danger:hover {
-  background: #c0392b;
-}
-
-#task-title {
-  flex: 1;
-  min-width: 200px;
-}
-
-#task-description {
-  width: 100%;
-  min-height: 60px;
-  resize: vertical;
-}
-
-.kanban-board {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.kanban-column {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  min-height: 400px;
-}
-
-.column-header {
-  text-align: center;
-  font-weight: 600;
-  font-size: 1.2rem;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.column-pending .column-header {
-  color: #e67e22;
-}
-
-.column-progress .column-header {
-  color: #3498db;
-}
-
-.column-done .column-header {
-  color: #27ae60;
-}
-
-.task-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  min-height: 300px;
-}
-
-.task {
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 15px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.1);
-  cursor: grab;
-  position: relative;
-  transition: all 0.3s ease;
-  border-left: 4px solid #66c2b0;
-}
-
-.task:hover {
-  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-  transform: translateY(-2px);
-}
-
-.task.dragging {
-  opacity: 0.5;
-  cursor: grabbing;
-}
-
-.task.completed {
-  opacity: 0.7;
-  text-decoration: line-through;
-}
-
-.task-header {
-  display: flex;
-  justify-content: between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-}
-
-.task-title {
-  font-weight: 600;
-  font-size: 1.1rem;
-  flex: 1;
-  word-break: break-word;
-}
-
-.task-actions {
-  display: flex;
-  gap: 5px;
-  margin-left: 10px;
-}
-
-.task-action {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.2rem;
-  padding: 5px;
-  border-radius: 4px;
-  transition: background 0.2s ease;
-}
-
-.task-action:hover {
-  background: rgba(102, 194, 176, 0.1);
-}
-
-.task-description {
-  color: #666;
-  margin-bottom: 10px;
-  word-break: break-word;
-}
-
-.task-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: 0.9rem;
-  margin-bottom: 10px;
-}
-
-.task-priority {
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.priority-high {
-  background: #e74c3c;
-  color: white;
-}
-
-.priority-medium {
-  background: #f39c12;
-  color: white;
-}
-
-.priority-low {
-  background: #95a5a6;
-  color: white;
-}
-
-.task-due-date {
-  color: #666;
-}
-
-.task-due-date.overdue {
-  color: #e74c3c;
-  font-weight: 600;
-}
-
-.task-due-date.due-soon {
-  color: #f39c12;
-  font-weight: 600;
-}
-
-.task-assignee {
-  color: #66c2b0;
-  font-weight: 500;
-}
-
-.task-comments {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-}
-
-.comment-form {
-  display: flex;
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.comment-input {
-  flex: 1;
-  padding: 5px 10px;
-  font-size: 0.9rem;
-}
-
-.comment-btn {
-  padding: 5px 10px;
-  font-size: 0.9rem;
-}
-
-.comment {
-  background: #f0f0f0;
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-bottom: 5px;
-  font-size: 0.9rem;
-}
-
-.comment-author {
-  font-weight: 600;
-  color: #66c2b0;
-}
-
-.comment-text {
-  color: #555;
-}
-
-.comment-time {
-  color: #999;
-  font-size: 0.8rem;
-}
-
-.modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.5);
-  z-index: 1000;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal.active {
-  display: flex;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 12px;
-  padding: 30px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.modal-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.close-modal {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 5px;
-}
-
-.history-list {
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 10px;
-}
-
-.history-item {
-  padding: 5px 0;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.history-item:last-child {
-  border-bottom: none;
-}
-
-.history-action {
-  font-weight: 600;
-  color: #66c2b0;
-}
-
-.user-info {
-  text-align: center;
-  margin-bottom: 20px;
-  padding: 15px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-}
-
-.offline-indicator {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #e74c3c;
-  color: white;
-  padding: 10px 15px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  z-index: 1001;
-  display: none;
-}
-
-.offline-indicator.show {
-  display: block;
-}
-
-.drop-zone {
-  min-height: 50px;
-  border: 2px dashed transparent;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.drop-zone.drag-over {
-  border-color: #66c2b0;
-  background: rgba(102, 194, 176, 0.1);
-}
-
-@media (max-width: 768px) {
-  .kanban-board {
-    grid-template-columns: 1fr;
+  :root {
+    color-scheme: light;
+    --bg-page: #f3f6fb;
+    --bg-panel: rgba(255, 255, 255, 0.92);
+    --bg-soft: rgba(232, 243, 240, 0.8);
+    --border-subtle: rgba(29, 84, 74, 0.18);
+    --border-strong: rgba(29, 84, 74, 0.35);
+    --text-primary: #19333d;
+    --text-muted: rgba(25, 51, 61, 0.68);
+    --accent: #1f7a6d;
+    --accent-soft: rgba(31, 122, 109, 0.08);
+    --accent-strong: #15594f;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --shadow-soft: 0 24px 60px rgba(12, 44, 39, 0.12);
+    --shadow-card: 0 14px 30px rgba(15, 59, 54, 0.08);
+    --max-width: 1240px;
   }
-  
-  .form-row {
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    background: radial-gradient(circle at top left, #eef5ff 0%, #f3f6fb 45%, #edf6f4 100%);
+    color: var(--text-primary);
+    padding: clamp(16px, 4vw, 40px) clamp(16px, 4vw, 48px);
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--accent-strong);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2.1rem, 4vw, 2.8rem);
+    letter-spacing: -0.01em;
+  }
+
+  .page-shell {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    display: flex;
     flex-direction: column;
-    align-items: stretch;
+    gap: clamp(24px, 5vw, 40px);
   }
-  
+
+  .board-header {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .board-header__top {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .board-header__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .board-header__nav a {
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: var(--bg-panel);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 6px 12px rgba(15, 59, 54, 0.08);
+    font-weight: 500;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .board-header__nav a:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(15, 59, 54, 0.12);
+  }
+
+  .board-hero {
+    padding: 28px clamp(20px, 4vw, 32px);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(231, 245, 241, 0.94) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: var(--shadow-soft);
+    display: grid;
+    gap: 12px;
+  }
+
+  .board-header__subtitle {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-muted);
+  }
+
+  .user-info {
+    padding: 12px 18px;
+    border-radius: 999px;
+    background: var(--bg-panel);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 12px 24px rgba(15, 59, 54, 0.08);
+    font-size: 0.95rem;
+  }
+
+  .user-info strong {
+    font-weight: 600;
+  }
+
+  .user-alias {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-left: 6px;
+  }
+
+  .inline-link {
+    background: none;
+    border: none;
+    color: var(--accent-strong);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  .board-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: clamp(20px, 4vw, 32px);
+    align-items: start;
+  }
+
+  .board-primary {
+    display: grid;
+    gap: clamp(20px, 4vw, 32px);
+  }
+
+  .panel-card {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: clamp(20px, 4vw, 28px);
+    display: grid;
+    gap: 20px;
+  }
+
+  .controls {
+    gap: 24px;
+  }
+
+  .controls__header {
+    display: grid;
+    gap: 6px;
+  }
+
+  .controls h2 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+
   .search-filter {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
   }
-  
+
+  .search-filter input[type="text"] {
+    grid-column: span 2;
+  }
+
+  .new-task-form {
+    display: grid;
+    gap: 14px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .form-row.form-row--end {
+    justify-content: end;
+  }
+
+  .form-row.form-row--spaced {
+    margin-top: 20px;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.95rem;
+    border-radius: var(--radius-md);
+  }
+
+  input,
+  select,
+  textarea {
+    padding: 12px 14px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
+    transition: border 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  textarea {
+    min-height: 80px;
+    resize: vertical;
+  }
+
+  button {
+    padding: 12px 16px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+    background: var(--accent-strong);
+    box-shadow: 0 12px 22px rgba(15, 59, 54, 0.18);
+  }
+
+  button:disabled {
+    background: rgba(15, 59, 54, 0.2);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-secondary {
+    background: rgba(25, 51, 61, 0.04);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    box-shadow: none;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(25, 51, 61, 0.08);
+  }
+
+  .kanban-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: clamp(16px, 3vw, 24px);
+  }
+
+  .kanban-column {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 20px;
+    display: grid;
+    gap: 18px;
+    min-height: 420px;
+  }
+
+  .column-header {
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--accent-strong);
+    border-bottom: 1px solid rgba(15, 59, 54, 0.1);
+    padding-bottom: 12px;
+  }
+
+  .task-list {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+  }
+
+  .task {
+    background: white;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(15, 59, 54, 0.08);
+    padding: 16px;
+    box-shadow: 0 8px 18px rgba(15, 59, 54, 0.08);
+    cursor: grab;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-left: 4px solid var(--accent);
+  }
+
+  .task:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 34px rgba(15, 59, 54, 0.15);
+  }
+
+  .task.dragging {
+    opacity: 0.6;
+    cursor: grabbing;
+  }
+
+  .task.completed {
+    opacity: 0.8;
+  }
+
+  .task-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .task-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+    word-break: break-word;
+  }
+
   .task-actions {
-    margin-left: 0;
-    margin-top: 10px;
+    display: flex;
+    gap: 4px;
   }
-}
+
+  .task-action {
+    background: rgba(25, 51, 61, 0.04);
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease, border 0.2s ease;
+  }
+
+  .task-action:hover {
+    background: rgba(25, 51, 61, 0.12);
+    border-color: rgba(25, 51, 61, 0.14);
+  }
+
+  .task-description {
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+  }
+
+  .task-priority {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+
+  .priority-high {
+    background: rgba(231, 76, 60, 0.12);
+    color: #c0392b;
+  }
+
+  .priority-medium {
+    background: rgba(243, 156, 18, 0.16);
+    color: #9c620d;
+  }
+
+  .priority-low {
+    background: rgba(149, 165, 166, 0.2);
+    color: #4b5a5c;
+  }
+
+  .task-due-date {
+    color: var(--text-muted);
+  }
+
+  .task-due-date.overdue {
+    color: #c0392b;
+    font-weight: 600;
+  }
+
+  .task-due-date.due-soon {
+    color: #d35400;
+    font-weight: 600;
+  }
+
+  .task-assignee {
+    color: var(--accent-strong);
+    font-weight: 500;
+  }
+
+  .task-context {
+    background: var(--bg-soft);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .context-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-strong);
+  }
+
+  .context-reference {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .context-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .context-links a,
+  .context-links button {
+    background: white;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    border: 1px solid var(--border-subtle);
+    color: var(--accent-strong);
+  }
+
+  .context-links a:hover,
+  .context-links button:hover {
+    border-color: var(--accent-strong);
+  }
+
+  .task-comments {
+    border-top: 1px solid rgba(15, 59, 54, 0.08);
+    padding-top: 12px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .comment-form {
+    display: flex;
+    gap: 8px;
+  }
+
+  .comment-input {
+    flex: 1;
+    padding: 10px 12px;
+  }
+
+  .comment-btn {
+    padding-inline: 12px;
+  }
+
+  .comment {
+    background: rgba(25, 51, 61, 0.04);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    display: grid;
+    gap: 4px;
+  }
+
+  .comment-author {
+    font-weight: 600;
+    color: var(--accent-strong);
+  }
+
+  .comment-text {
+    color: var(--text-primary);
+  }
+
+  .comment-time {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+
+  .workspace-intel {
+    position: sticky;
+    top: clamp(60px, 6vh, 90px);
+    display: grid;
+    gap: 18px;
+    background: var(--bg-panel);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    padding: clamp(20px, 4vw, 26px);
+    box-shadow: var(--shadow-card);
+  }
+
+  .workspace-intel__header {
+    display: grid;
+    gap: 6px;
+  }
+
+  .workspace-intel__header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+
+  .workspace-intel__header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .workspace-intel__grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .intel-card {
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .intel-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .intel-card__title {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .intel-card__badge {
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .intel-card__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 12px;
+  }
+
+  .intel-card__item {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    background: rgba(31, 122, 109, 0.04);
+    border: 1px solid rgba(31, 122, 109, 0.12);
+  }
+
+  .intel-card__item button {
+    justify-self: start;
+  }
+
+  .intel-card__empty {
+    padding: 16px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    border-radius: var(--radius-md);
+    background: rgba(31, 122, 109, 0.06);
+    border: 1px dashed rgba(31, 122, 109, 0.18);
+  }
+
+  .intel-card__footer a {
+    font-size: 0.85rem;
+    text-decoration: underline;
+  }
+
+  .offline-indicator {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    background: #c0392b;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    display: none;
+    z-index: 1001;
+    box-shadow: 0 12px 24px rgba(192, 57, 43, 0.22);
+  }
+
+  .offline-indicator.show {
+    display: block;
+  }
+
+  .drop-zone {
+    min-height: 60px;
+    border: 2px dashed transparent;
+    border-radius: var(--radius-md);
+    transition: border 0.2s ease, background 0.2s ease;
+    padding: 6px;
+  }
+
+  .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(31, 122, 109, 0.08);
+  }
+
+  .modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 20, 24, 0.48);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal.active {
+    display: flex;
+  }
+
+  .modal-content {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: clamp(24px, 4vw, 32px);
+    width: min(560px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-soft);
+    display: grid;
+    gap: 16px;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .modal-title {
+    margin: 0;
+    font-size: 1.3rem;
+  }
+
+  .close-modal {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+
+  .history-list {
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid rgba(15, 59, 54, 0.12);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .history-item {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(15, 59, 54, 0.08);
+    padding-bottom: 10px;
+  }
+
+  .history-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .history-action {
+    font-weight: 600;
+    color: var(--accent-strong);
+  }
+
+  @media (max-width: 1080px) {
+    .board-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .workspace-intel {
+      position: static;
+    }
+  }
+
+  @media (max-width: 720px) {
+    body {
+      padding: 20px 16px;
+    }
+
+    .board-header__top {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .board-header__nav {
+      justify-content: space-between;
+    }
+
+    .board-header__nav a {
+      flex: 1 1 auto;
+      text-align: center;
+    }
+
+    .search-filter input[type="text"] {
+      grid-column: span 1;
+    }
+
+    .comment-form {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .comment-btn {
+      width: 100%;
+    }
+  }
 </style>
 </head>
 <body>
+  <div class="page-shell">
+    <header class="board-header">
+      <div class="board-header__top">
+        <nav class="board-header__nav" aria-label="Portal navigation">
+          <a href="index.html">🏠 Portal</a>
+          <a href="notes/">📝 Shared Notes</a>
+          <a href="sign-in.html">👤 Sign In</a>
+          <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+          <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
+        </nav>
+        <div class="user-info" id="user-info">
+          <span id="user-status">👤 Guest Mode - <a href="sign-in.html">Sign in</a> to sync across devices</span>
+        </div>
+      </div>
+      <div class="board-hero">
+        <h1>✅ Advanced Task Board</h1>
+        <p class="board-header__subtitle">Coordinate follow-ups across contacts, calendar, CRM, messenger, and notes without leaving this calm space.</p>
+      </div>
+    </header>
 
-<div class="top-buttons">
-  <a href="index.html">🏠 Portal</a>
-  <a href="notes/">📝 Shared Notes</a>
-  <a href="sign-in.html">👤 Sign In</a>
-  <a href="https://3dvr.tech/#subscribe" target="_blank">⭐ Subscribe</a>
-  <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
-</div>
+    <main class="board-layout">
+      <section class="board-primary" aria-label="Task planning tools">
+        <section class="panel-card controls" aria-labelledby="task-tools-title">
+          <div class="controls__header">
+            <h2 id="task-tools-title">Create and filter tasks</h2>
+            <p class="board-header__subtitle">Capture what matters, then focus by status, priority, or workspace.</p>
+          </div>
+          <div class="search-filter" role="group" aria-label="Task filters">
+            <input type="text" id="search-input" placeholder="🔍 Search tasks...">
+            <select id="filter-status">
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+            <select id="filter-priority">
+              <option value="all">All Priorities</option>
+              <option value="high">High Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="low">Low Priority</option>
+            </select>
+            <select id="filter-context">
+              <option value="all">All Workspaces</option>
+              <option value="contact">Contacts</option>
+              <option value="calendar">Calendar</option>
+              <option value="crm">CRM</option>
+              <option value="messenger">Messenger</option>
+              <option value="notes">Notes</option>
+              <option value="document">Docs &amp; Files</option>
+              <option value="custom">Custom</option>
+            </select>
+            <button type="button" class="btn-secondary" onclick="clearFilters()">Clear Filters</button>
+          </div>
 
-<h1>✅ Advanced Task Board</h1>
+          <div class="new-task-form" aria-label="Add a new task">
+            <div class="form-row">
+              <input type="text" id="task-title" placeholder="Task title..." required>
+              <select id="task-priority">
+                <option value="medium">Medium Priority</option>
+                <option value="high">High Priority</option>
+                <option value="low">Low Priority</option>
+              </select>
+            </div>
+            <textarea id="task-description" placeholder="Task description (optional)..."></textarea>
+            <div class="form-row">
+              <input type="date" id="task-due-date">
+              <input type="text" id="task-assignee" placeholder="Assignee (optional)...">
+            </div>
+            <div class="form-row">
+              <select id="task-context-type">
+                <option value="">No linked workspace</option>
+                <option value="contact">Linked to a contact</option>
+                <option value="calendar">Related to a calendar event</option>
+                <option value="crm">Related to a CRM record</option>
+                <option value="messenger">Follow-up from messenger</option>
+                <option value="notes">Pull from notes</option>
+                <option value="document">Document or file</option>
+                <option value="custom">Custom workspace</option>
+              </select>
+              <input type="text" id="task-context-reference" placeholder="Who or what is this about? (name, meeting, record ID)">
+            </div>
+            <input type="url" id="task-context-link" placeholder="Paste a direct link to the workspace item (optional)">
+            <div class="form-row form-row--end">
+              <button class="btn-secondary" type="button" onclick="clearTaskForm()">Reset</button>
+              <button type="button" onclick="addTask()">➕ Add Task</button>
+            </div>
+          </div>
+        </section>
 
-<div class="user-info" id="user-info">
-  <span id="user-status">👤 Guest Mode - <a href="sign-in.html">Sign in</a> to sync across devices</span>
-</div>
+        <section class="kanban-board" aria-label="Task columns">
+          <div class="kanban-column column-pending">
+            <div class="column-header">📋 Pending (<span id="count-pending">0</span>)</div>
+            <div class="task-list drop-zone" id="pending-tasks" data-status="pending"></div>
+          </div>
 
-<div class="offline-indicator" id="offline-indicator">
-  📡 Offline Mode - Changes saved locally
-</div>
+          <div class="kanban-column column-progress">
+            <div class="column-header">⚡ In Progress (<span id="count-progress">0</span>)</div>
+            <div class="task-list drop-zone" id="progress-tasks" data-status="progress"></div>
+          </div>
 
-<div class="controls">
-  <div class="search-filter">
-    <input type="text" id="search-input" placeholder="🔍 Search tasks..." style="flex: 1; max-width: 300px;">
-    <select id="filter-status">
-      <option value="all">All Status</option>
-      <option value="pending">Pending</option>
-      <option value="progress">In Progress</option>
-      <option value="done">Done</option>
-    </select>
-    <select id="filter-priority">
-      <option value="all">All Priorities</option>
-      <option value="high">High Priority</option>
-      <option value="medium">Medium Priority</option>
-      <option value="low">Low Priority</option>
-    </select>
-    <button onclick="clearFilters()">Clear Filters</button>
+          <div class="kanban-column column-done">
+            <div class="column-header">✅ Done (<span id="count-done">0</span>)</div>
+            <div class="task-list drop-zone" id="done-tasks" data-status="done"></div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="workspace-intel" aria-labelledby="workspace-intel-title">
+        <div class="workspace-intel__header">
+          <h2 id="workspace-intel-title">Connected workspaces</h2>
+          <p>Turn signals from Contacts, Calendar, CRM, and Messenger into actionable tasks without breaking your flow.</p>
+        </div>
+        <div class="workspace-intel__grid">
+          <article class="intel-card" aria-labelledby="intel-contacts-title">
+            <div class="intel-card__header">
+              <h3 class="intel-card__title" id="intel-contacts-title">Contacts follow-ups</h3>
+              <span class="intel-card__badge" id="intel-contacts-count">0 ready</span>
+            </div>
+            <ul class="intel-card__list" id="contacts-insights"></ul>
+            <div class="intel-card__footer">
+              <a href="contacts/index.html">Open contacts workspace →</a>
+            </div>
+          </article>
+          <article class="intel-card" aria-labelledby="intel-calendar-title">
+            <div class="intel-card__header">
+              <h3 class="intel-card__title" id="intel-calendar-title">Upcoming calendar</h3>
+              <span class="intel-card__badge" id="intel-calendar-count">0 events</span>
+            </div>
+            <ul class="intel-card__list" id="calendar-insights"></ul>
+            <div class="intel-card__footer">
+              <a href="calendar/index.html">Open calendar hub →</a>
+            </div>
+          </article>
+          <article class="intel-card" aria-labelledby="intel-crm-title">
+            <div class="intel-card__header">
+              <h3 class="intel-card__title" id="intel-crm-title">Deals to nudge</h3>
+              <span class="intel-card__badge" id="intel-crm-count">0 deals</span>
+            </div>
+            <ul class="intel-card__list" id="crm-insights"></ul>
+            <div class="intel-card__footer">
+              <a href="crm/index.html">Open CRM workspace →</a>
+            </div>
+          </article>
+          <article class="intel-card" aria-labelledby="intel-messenger-title">
+            <div class="intel-card__header">
+              <h3 class="intel-card__title" id="intel-messenger-title">Messenger follow-ups</h3>
+              <span class="intel-card__badge" id="intel-messenger-count">0 threads</span>
+            </div>
+            <ul class="intel-card__list" id="messenger-insights"></ul>
+            <div class="intel-card__footer">
+              <a href="chat.html">Open messenger →</a>
+            </div>
+          </article>
+        </div>
+      </aside>
+    </main>
   </div>
 
-  <div class="new-task-form">
-    <div class="form-row">
-      <input type="text" id="task-title" placeholder="Task title..." required>
-      <select id="task-priority">
-        <option value="medium">Medium Priority</option>
-        <option value="high">High Priority</option>
-        <option value="low">Low Priority</option>
-      </select>
-    </div>
-    <textarea id="task-description" placeholder="Task description (optional)..."></textarea>
-    <div class="form-row">
-      <input type="date" id="task-due-date">
-      <input type="text" id="task-assignee" placeholder="Assignee (optional)...">
-      <button onclick="addTask()">➕ Add Task</button>
-    </div>
+  <div class="offline-indicator" id="offline-indicator">
+    📡 Offline Mode - Changes saved locally
   </div>
-</div>
-
-<div class="kanban-board">
-  <div class="kanban-column column-pending">
-    <div class="column-header">📋 Pending (<span id="count-pending">0</span>)</div>
-    <div class="task-list drop-zone" id="pending-tasks" data-status="pending"></div>
-  </div>
-  
-  <div class="kanban-column column-progress">
-    <div class="column-header">⚡ In Progress (<span id="count-progress">0</span>)</div>
-    <div class="task-list drop-zone" id="progress-tasks" data-status="progress"></div>
-  </div>
-  
-  <div class="kanban-column column-done">
-    <div class="column-header">✅ Done (<span id="count-done">0</span>)</div>
-    <div class="task-list drop-zone" id="done-tasks" data-status="done"></div>
-  </div>
-</div>
-
 <!-- Edit Task Modal -->
 <div class="modal" id="edit-modal">
   <div class="modal-content">
@@ -560,7 +940,21 @@ button:disabled {
       <input type="date" id="edit-due-date">
       <input type="text" id="edit-assignee" placeholder="Assignee...">
     </div>
-    <div class="form-row" style="margin-top: 20px;">
+    <div class="form-row">
+      <select id="edit-context-type">
+        <option value="">No linked workspace</option>
+        <option value="contact">Linked to a contact</option>
+        <option value="calendar">Related to a calendar event</option>
+        <option value="crm">Related to a CRM record</option>
+        <option value="messenger">Follow-up from messenger</option>
+        <option value="notes">Pull from notes</option>
+        <option value="document">Document or file</option>
+        <option value="custom">Custom workspace</option>
+      </select>
+      <input type="text" id="edit-context-reference" placeholder="Context reference">
+    </div>
+    <input type="url" id="edit-context-link" placeholder="Workspace link (optional)" style="width: 100%;">
+    <div class="form-row form-row--spaced">
       <button onclick="saveTaskEdit()">💾 Save Changes</button>
       <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
     </div>
@@ -580,10 +974,95 @@ button:disabled {
 
 <script>
 // Global variables
-let gun, tasks, user, currentUser = null;
+let gun, tasks, user;
+let currentUser = null;
+let currentUserAlias = null;
+let currentUserLabel = null;
 let taskList = {};
 let isOffline = false;
 let currentEditingTask = null;
+
+const insightElements = {
+  contacts: document.getElementById('contacts-insights'),
+  calendar: document.getElementById('calendar-insights'),
+  crm: document.getElementById('crm-insights'),
+  messenger: document.getElementById('messenger-insights')
+};
+
+const insightBadges = {
+  contacts: document.getElementById('intel-contacts-count'),
+  calendar: document.getElementById('intel-calendar-count'),
+  crm: document.getElementById('intel-crm-count'),
+  messenger: document.getElementById('intel-messenger-count')
+};
+
+const insightEmptyMessages = {
+  contacts: 'No follow-ups detected from contacts yet. Visit the contacts workspace to capture a relationship.',
+  calendar: 'No upcoming events found. Save an event in the calendar hub to plan your prep.',
+  crm: 'No CRM deals require attention right now. Add or update a record in the CRM workspace.',
+  messenger: 'No recent conversations found. Send a message in messenger to track your follow-ups here.'
+};
+
+const insightRegistry = new Map();
+const insightRegistryByKey = {
+  contacts: new Set(),
+  calendar: new Set(),
+  crm: new Set(),
+  messenger: new Set()
+};
+let insightIdCounter = 0;
+
+const insightState = {
+  contacts: [],
+  calendar: [],
+  crm: [],
+  messenger: []
+};
+
+const WORKSPACE_LABELS = {
+  contact: 'Contacts',
+  calendar: 'Calendar',
+  crm: 'CRM',
+  messenger: 'Messenger',
+  notes: 'Notes',
+  document: 'Docs & Files',
+  custom: 'Custom workspace'
+};
+
+const WORKSPACE_ICONS = {
+  contact: '🤝',
+  calendar: '🗓️',
+  crm: '📈',
+  messenger: '💬',
+  notes: '📝',
+  document: '📁',
+  custom: '🧩'
+};
+
+const DEFAULT_WORKSPACE_LINKS = {
+  contact: 'contacts/index.html',
+  calendar: 'calendar/index.html',
+  crm: 'crm/index.html',
+  messenger: 'chat.html',
+  notes: 'notes.html'
+};
+
+const messengerRooms = ['general', 'ideas', 'support', 'random'];
+const messengerRoomLabels = {
+  general: '#general',
+  ideas: '#ideas',
+  support: '#support',
+  random: '#random'
+};
+
+const messengerLatestByRoom = {};
+const MAX_INSIGHT_ITEMS = 4;
+const CONTACTS_CACHE_PREFIX = 'contacts:cache:';
+const CALENDAR_LOCAL_EVENTS_KEY = 'calendar.local.events';
+let insightIntervalsStarted = false;
+const crmInsightRecords = new Map();
+let crmStreamInitialized = false;
+let messengerStreamsInitialized = false;
 
 // Initialize the application
 function init() {
@@ -591,6 +1070,8 @@ function init() {
   setupEventListeners();
   checkUserAuth();
   loadTasks();
+  loadWorkspaceInsights();
+  startInsightRefreshTimers();
 }
 
 // Setup GUN with fallback to localStorage
@@ -623,34 +1104,105 @@ function goOffline() {
   isOffline = true;
   document.getElementById('offline-indicator').classList.add('show');
   loadFromLocalStorage();
+  loadWorkspaceInsights();
 }
 
 // Check user authentication
 function checkUserAuth() {
-  if (user && user.is) {
-    currentUser = user.is.alias;
-    updateUserInfo(currentUser);
+  if (!user) return;
+
+  const storedAlias = localStorage.getItem('alias');
+  const storedPassword = localStorage.getItem('password');
+  const storedName = localStorage.getItem('username') || '';
+  const signedIn = localStorage.getItem('signedIn') === 'true';
+
+  try {
+    user.recall({ sessionStorage: true });
+  } catch (error) {
+    console.warn('Unable to recall user session', error);
   }
+
+  user.on('auth', () => {
+    const alias = user.is && user.is.alias ? user.is.alias : storedAlias;
+    const displayName = storedName || deriveDisplayName(alias);
+    setCurrentUser(displayName, alias);
+  });
+
+  setTimeout(() => {
+    if (user.is) return;
+
+    if (signedIn && storedAlias && storedPassword) {
+      user.auth(storedAlias, storedPassword, (ack) => {
+        if (ack && ack.err) {
+          console.warn('Auto sign-in failed:', ack.err);
+          clearStoredUserCredentials();
+          setCurrentUser(null, null);
+        } else {
+          const alias = user.is && user.is.alias ? user.is.alias : storedAlias;
+          const displayName = storedName || deriveDisplayName(alias);
+          setCurrentUser(displayName, alias);
+        }
+      });
+    } else {
+      setCurrentUser(null, null);
+    }
+  }, 400);
+}
+
+function setCurrentUser(displayName, alias) {
+  currentUserAlias = alias || null;
+  currentUserLabel = displayName || deriveDisplayName(alias) || null;
+  currentUser = currentUserLabel || currentUserAlias;
+  updateUserInfo();
 }
 
 // Update user info display
-function updateUserInfo(username) {
+function updateUserInfo() {
   const userInfo = document.getElementById('user-status');
-  if (username) {
-    userInfo.innerHTML = `👤 Signed in as <strong>${username}</strong> - <a href="#" onclick="signOut()">Sign Out</a>`;
+  if (!userInfo) return;
+
+  if (currentUserLabel) {
+    const aliasHint = currentUserAlias && currentUserAlias !== currentUserLabel
+      ? `<span class="user-alias">${escapeHtml(currentUserAlias)}</span>`
+      : '';
+    userInfo.innerHTML = `👤 Signed in as <strong>${escapeHtml(currentUserLabel)}</strong>${aliasHint ? ` ${aliasHint}` : ''} – <button type="button" class="inline-link" onclick="signOut()">Sign out</button>`;
   } else {
     userInfo.innerHTML = '👤 Guest Mode - <a href="sign-in.html">Sign in</a> to sync across devices';
   }
 }
 
+function clearStoredUserCredentials() {
+  localStorage.removeItem('signedIn');
+  localStorage.removeItem('username');
+  localStorage.removeItem('alias');
+  localStorage.removeItem('password');
+  localStorage.removeItem('guest');
+  localStorage.removeItem('guestId');
+  localStorage.removeItem('guestDisplayName');
+  localStorage.removeItem('userId');
+}
+
+function deriveDisplayName(alias) {
+  if (!alias) return '';
+  const trimmed = String(alias).trim();
+  if (!trimmed) return '';
+  const atIndex = trimmed.indexOf('@');
+  return atIndex > 0 ? trimmed.slice(0, atIndex) : trimmed;
+}
+
 // Sign out
 function signOut() {
-  if (user) {
+  if (!user) return;
+  try {
     user.leave();
-    currentUser = null;
-    updateUserInfo(null);
-    location.reload();
+  } catch (error) {
+    console.warn('Error while signing out:', error);
   }
+  clearStoredUserCredentials();
+  setCurrentUser(null, null);
+  setTimeout(() => {
+    location.reload();
+  }, 150);
 }
 
 // Setup event listeners
@@ -659,7 +1211,8 @@ function setupEventListeners() {
   document.getElementById('search-input').addEventListener('input', filterTasks);
   document.getElementById('filter-status').addEventListener('change', filterTasks);
   document.getElementById('filter-priority').addEventListener('change', filterTasks);
-  
+  document.getElementById('filter-context').addEventListener('change', filterTasks);
+
   // Enter key for new task
   document.getElementById('task-title').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addTask();
@@ -676,6 +1229,8 @@ function setupEventListeners() {
   document.getElementById('history-modal').addEventListener('click', (e) => {
     if (e.target.id === 'history-modal') closeHistoryModal();
   });
+
+  window.addEventListener('storage', handleWorkspaceStorageChange);
 }
 
 // Setup drag and drop functionality
@@ -721,12 +1276,15 @@ function handleDrop(e) {
 function addTask() {
   const title = document.getElementById('task-title').value.trim();
   if (!title) return;
-  
+
   const description = document.getElementById('task-description').value.trim();
   const priority = document.getElementById('task-priority').value;
   const dueDate = document.getElementById('task-due-date').value;
   const assignee = document.getElementById('task-assignee').value.trim();
-  
+  const contextType = document.getElementById('task-context-type').value;
+  const contextReference = document.getElementById('task-context-reference').value.trim();
+  const contextLink = document.getElementById('task-context-link').value.trim();
+
   const task = {
     id: generateId(),
     title,
@@ -738,6 +1296,9 @@ function addTask() {
     completed: false,
     createdAt: Date.now(),
     createdBy: currentUser || 'Guest',
+    contextType: contextType || '',
+    contextReference,
+    contextLink,
     comments: [],
     history: [{
       action: 'created',
@@ -745,7 +1306,15 @@ function addTask() {
       timestamp: Date.now()
     }]
   };
-  
+
+  const creationDetails = [];
+  if (task.contextType || task.contextReference || task.contextLink) {
+    creationDetails.push(`linked to ${formatWorkspaceLabel(task.contextType || 'custom')}`);
+  }
+  if (creationDetails.length) {
+    task.history[0].details = creationDetails.join('; ');
+  }
+
   saveTask(task);
   clearTaskForm();
 }
@@ -793,6 +1362,9 @@ function clearTaskForm() {
   document.getElementById('task-priority').value = 'medium';
   document.getElementById('task-due-date').value = '';
   document.getElementById('task-assignee').value = '';
+  document.getElementById('task-context-type').value = '';
+  document.getElementById('task-context-reference').value = '';
+  document.getElementById('task-context-link').value = '';
 }
 
 // Load tasks from GUN
@@ -869,7 +1441,10 @@ function editTask(taskId) {
   document.getElementById('edit-priority').value = task.priority || 'medium';
   document.getElementById('edit-due-date').value = task.dueDate || '';
   document.getElementById('edit-assignee').value = task.assignee || '';
-  
+  document.getElementById('edit-context-type').value = task.contextType || '';
+  document.getElementById('edit-context-reference').value = task.contextReference || '';
+  document.getElementById('edit-context-link').value = task.contextLink || '';
+
   document.getElementById('edit-modal').classList.add('active');
 }
 
@@ -881,20 +1456,49 @@ function saveTaskEdit() {
   if (!task) return;
   
   const oldTitle = task.title;
+  const oldContextType = task.contextType || '';
+  const oldContextReference = task.contextReference || '';
+  const oldContextLink = task.contextLink || '';
+
   task.title = document.getElementById('edit-title').value.trim();
   task.description = document.getElementById('edit-description').value.trim();
   task.priority = document.getElementById('edit-priority').value;
   task.dueDate = document.getElementById('edit-due-date').value;
   task.assignee = document.getElementById('edit-assignee').value.trim();
+  task.contextType = document.getElementById('edit-context-type').value;
+  task.contextReference = document.getElementById('edit-context-reference').value.trim();
+  task.contextLink = document.getElementById('edit-context-link').value.trim();
   task.updatedAt = Date.now();
-  
+
   // Add to history
   task.history = task.history || [];
+  const historyDetails = [];
+  if (oldTitle !== task.title) {
+    historyDetails.push(`title changed from "${oldTitle}"`);
+  }
+
+  const contextChanged =
+    oldContextType !== (task.contextType || '') ||
+    oldContextReference !== task.contextReference ||
+    oldContextLink !== task.contextLink;
+
+  if (contextChanged) {
+    if (task.contextType || task.contextReference || task.contextLink) {
+      historyDetails.push(`workspace linked to ${formatWorkspaceLabel(task.contextType || 'custom')}`);
+    } else {
+      historyDetails.push('workspace link cleared');
+    }
+  }
+
+  if (!historyDetails.length) {
+    historyDetails.push('updated');
+  }
+
   task.history.push({
-    action: `edited`,
+    action: 'edited',
     user: currentUser || 'Guest',
     timestamp: Date.now(),
-    details: oldTitle !== task.title ? `title changed from "${oldTitle}"` : 'updated'
+    details: historyDetails.join('; ')
   });
   
   saveTask(task);
@@ -967,8 +1571,9 @@ function filterTasks() {
   const searchTerm = document.getElementById('search-input').value.toLowerCase();
   const statusFilter = document.getElementById('filter-status').value;
   const priorityFilter = document.getElementById('filter-priority').value;
-  
-  renderTasks(searchTerm, statusFilter, priorityFilter);
+  const contextFilter = document.getElementById('filter-context').value;
+
+  renderTasks(searchTerm, statusFilter, priorityFilter, contextFilter);
 }
 
 // Clear filters
@@ -976,11 +1581,12 @@ function clearFilters() {
   document.getElementById('search-input').value = '';
   document.getElementById('filter-status').value = 'all';
   document.getElementById('filter-priority').value = 'all';
+  document.getElementById('filter-context').value = 'all';
   renderTasks();
 }
 
 // Render tasks
-function renderTasks(searchTerm = '', statusFilter = 'all', priorityFilter = 'all') {
+function renderTasks(searchTerm = '', statusFilter = 'all', priorityFilter = 'all', contextFilter = 'all') {
   const pendingContainer = document.getElementById('pending-tasks');
   const progressContainer = document.getElementById('progress-tasks');
   const doneContainer = document.getElementById('done-tasks');
@@ -994,14 +1600,21 @@ function renderTasks(searchTerm = '', statusFilter = 'all', priorityFilter = 'al
   const filteredTasks = Object.entries(taskList).filter(([id, task]) => {
     if (!task) return false;
     
-    const matchesSearch = !searchTerm || 
-      task.title.toLowerCase().includes(searchTerm) ||
-      (task.description && task.description.toLowerCase().includes(searchTerm));
-    
+    const combinedSearch = [
+      task.title,
+      task.description,
+      task.assignee,
+      task.contextType,
+      task.contextReference,
+      task.contextLink
+    ].filter(Boolean).join(' ').toLowerCase();
+    const matchesSearch = !searchTerm || combinedSearch.includes(searchTerm);
+
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
+    const matchesContext = contextFilter === 'all' || (task.contextType || '') === contextFilter;
+
+    return matchesSearch && matchesStatus && matchesPriority && matchesContext;
   });
   
   // Sort tasks by creation date (newest first)
@@ -1051,10 +1664,11 @@ function createTaskElement(id, task) {
   div.addEventListener('dragend', () => {
     div.classList.remove('dragging');
   });
-  
+
   // Due date status
   const dueDateStatus = getDueDateStatus(task.dueDate);
-  
+  const contextHtml = renderTaskContext(task);
+
   div.innerHTML = `
     <div class="task-header">
       <div class="task-title">${escapeHtml(task.title)}</div>
@@ -1078,10 +1692,12 @@ function createTaskElement(id, task) {
       
       ${task.assignee ? `<span class="task-assignee">👤 ${escapeHtml(task.assignee)}</span>` : ''}
     </div>
-    
+
+    ${contextHtml}
+
     <div class="task-comments">
       <div class="comment-form">
-        <input type="text" class="comment-input" id="comment-input-${id}" placeholder="Add a comment..." 
+        <input type="text" class="comment-input" id="comment-input-${id}" placeholder="Add a comment..."
                onkeypress="if(event.key==='Enter') addComment('${id}')">
         <button class="comment-btn" onclick="addComment('${id}')">💬</button>
       </div>
@@ -1123,7 +1739,7 @@ function getPriorityIcon(priority) {
 // Get due date status
 function getDueDateStatus(dueDate) {
   if (!dueDate) return { class: '', text: '' };
-  
+
   const today = new Date();
   const due = new Date(dueDate);
   const diffTime = due - today;
@@ -1136,8 +1752,76 @@ function getDueDateStatus(dueDate) {
   } else if (diffDays <= 3) {
     return { class: 'due-soon', text: `(Due in ${diffDays} days)` };
   }
-  
+
   return { class: '', text: '' };
+}
+
+function renderTaskContext(task) {
+  if (!task) return '';
+
+  const type = (task.contextType || '').trim();
+  const reference = (task.contextReference || '').trim();
+  const customLink = (task.contextLink || '').trim();
+
+  if (!type && !reference && !customLink) {
+    return '';
+  }
+
+  const label = formatWorkspaceLabel(type || 'custom');
+  const icon = getWorkspaceIcon(type);
+  const resolvedLink = resolveWorkspaceLink(type, customLink, reference);
+  const actions = [];
+
+  if (resolvedLink) {
+    actions.push(`<a href="${escapeAttribute(resolvedLink)}" target="_blank" rel="noopener">Open ${escapeHtml(label)}</a>`);
+  }
+
+  const referenceHtml = reference ? `<div class="context-reference">${escapeHtml(reference)}</div>` : '';
+  const linksHtml = actions.length ? `<div class="context-links">${actions.join('')}</div>` : '';
+
+  return `
+    <div class="task-context">
+      <span class="context-chip">${icon} ${escapeHtml(label)}</span>
+      ${referenceHtml}
+      ${linksHtml}
+    </div>
+  `;
+}
+
+function formatWorkspaceLabel(type) {
+  if (!type) return WORKSPACE_LABELS.custom;
+  return WORKSPACE_LABELS[type] || (type.charAt(0).toUpperCase() + type.slice(1));
+}
+
+function getWorkspaceIcon(type) {
+  if (!type) return WORKSPACE_ICONS.custom;
+  return WORKSPACE_ICONS[type] || WORKSPACE_ICONS.custom;
+}
+
+function resolveWorkspaceLink(type, customLink, reference) {
+  if (customLink) return customLink;
+  if (!type) return '';
+  const base = DEFAULT_WORKSPACE_LINKS[type];
+  if (!base) return '';
+
+  if (type === 'messenger' && reference) {
+    const room = reference.toLowerCase().split(' ')[0].replace('#', '');
+    if (messengerRooms.includes(room)) {
+      return `${base}#${encodeURIComponent(room)}`;
+    }
+  }
+
+  return base;
+}
+
+function escapeAttribute(text) {
+  if (text === undefined || text === null) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // Format date
@@ -1165,15 +1849,487 @@ function escapeHtml(text) {
 function showAllComments(taskId) {
   const task = taskList[taskId];
   if (!task || !task.comments) return;
-  
+
   // For now, just show an alert with all comments
   // In a more advanced version, you could create a dedicated comments modal
-  const commentsText = task.comments.map(comment => 
+  const commentsText = task.comments.map(comment =>
     `${comment.author} (${formatDateTime(comment.timestamp)}): ${comment.text}`
   ).join('\n\n');
-  
+
   alert(`All Comments for "${task.title}":\n\n${commentsText}`);
 }
+
+function startInsightRefreshTimers() {
+  if (insightIntervalsStarted) return;
+  insightIntervalsStarted = true;
+  setInterval(loadContactInsights, 120000);
+  setInterval(loadCalendarInsights, 60000);
+  setInterval(loadWorkspaceInsights, 300000);
+}
+
+function loadWorkspaceInsights() {
+  loadContactInsights();
+  loadCalendarInsights();
+  loadCrmInsights();
+  loadMessengerInsights();
+}
+
+function handleWorkspaceStorageChange(event) {
+  if (!event) return;
+  const key = event.key || '';
+  if (key.startsWith(CONTACTS_CACHE_PREFIX)) {
+    loadContactInsights();
+  }
+  if (key === CALENDAR_LOCAL_EVENTS_KEY) {
+    loadCalendarInsights();
+  }
+}
+
+function loadContactInsights() {
+  const items = [];
+  const now = Date.now();
+
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(CONTACTS_CACHE_PREFIX)) continue;
+
+      const spaceKey = key.slice(CONTACTS_CACHE_PREFIX.length);
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (error) {
+        console.warn('Unable to parse contacts cache entry', error);
+        continue;
+      }
+
+      if (!Array.isArray(parsed)) continue;
+
+      parsed.forEach(entry => {
+        const contact = sanitizeContactInsight(entry);
+        if (!contact || !contact.id) return;
+
+        const reference = contact.name || contact.email || contact.company || '';
+        const followUp = contact.nextFollowUp || '';
+        const dueTime = followUp ? Date.parse(followUp) : NaN;
+        const metaRows = [];
+
+        if (followUp) metaRows.push({ label: 'Follow-up', value: formatDateLabel(followUp) });
+        if (contact.status) metaRows.push({ label: 'Status', value: contact.status });
+        if (contact.company) metaRows.push({ label: 'Company', value: contact.company });
+
+        items.push({
+          id: `${spaceKey || 'personal'}-${contact.id}`,
+          title: reference ? `Follow up with ${reference}` : 'Follow up with contact',
+          subtitle: contact.email || contact.phone || '',
+          metaRows,
+          description: contact.notes ? truncateText(contact.notes, 140) : '',
+          contextType: 'contact',
+          contextReference: reference,
+          contextLink: buildContactsLink(spaceKey, contact.id),
+          dueDate: followUp ? formatDateForInput(followUp) : '',
+          priority: Number.isFinite(dueTime) ? (dueTime < now ? 'high' : 'medium') : 'low',
+          sortValue: Number.isFinite(dueTime) ? dueTime : -(contact.updated || contact.created || 0)
+        });
+      });
+    }
+  } catch (error) {
+    console.warn('Unable to read contacts cache for insights', error);
+  }
+
+  items.sort((a, b) => (a.sortValue || Infinity) - (b.sortValue || Infinity));
+  insightState.contacts = items.slice(0, MAX_INSIGHT_ITEMS);
+  renderInsightList('contacts', insightState.contacts);
+}
+
+function sanitizeContactInsight(source) {
+  if (!source || typeof source !== 'object') return null;
+  const result = {};
+
+  Object.entries(source).forEach(([key, value]) => {
+    if (key === '_' || value === undefined) return;
+    result[key] = value;
+  });
+
+  result.id = result.id || source.id || source.contactId || '';
+  return result.id ? result : null;
+}
+
+function buildContactsLink(space, contactId) {
+  let url = 'contacts/index.html';
+  const params = [];
+  if (space) params.push(`space=${encodeURIComponent(space)}`);
+  if (contactId) params.push(`contact=${encodeURIComponent(contactId)}`);
+  if (params.length) {
+    url += `?${params.join('&')}`;
+  }
+  return url;
+}
+
+function loadCalendarInsights() {
+  const items = [];
+  const raw = localStorage.getItem(CALENDAR_LOCAL_EVENTS_KEY);
+
+  if (raw) {
+    try {
+      const events = JSON.parse(raw);
+      if (Array.isArray(events)) {
+        const now = Date.now();
+
+        events.forEach(event => {
+          if (!event) return;
+          const start = event.start || event.startTime || event.startDate;
+          if (!start) return;
+          const startDate = new Date(start);
+          if (!Number.isFinite(startDate.getTime())) return;
+          if (startDate.getTime() < now - (60 * 60 * 1000)) return;
+
+          const providersRaw = [];
+          if (Array.isArray(event.syncedProviders)) {
+            providersRaw.push(...event.syncedProviders);
+          }
+          if (event.metadata && Array.isArray(event.metadata.syncedProviders)) {
+            providersRaw.push(...event.metadata.syncedProviders);
+          }
+          const providers = [...new Set(providersRaw.filter(Boolean))];
+
+          const metaRows = [
+            { label: 'Starts', value: formatDateTime(startDate) }
+          ];
+
+          if (event.timeZone) {
+            metaRows.push({ label: 'Timezone', value: event.timeZone });
+          }
+
+          if (providers.length) {
+            metaRows.push({ label: 'Sync', value: providers.join(', ') });
+          }
+
+          if (event.location) {
+            metaRows.push({ label: 'Location', value: event.location });
+          }
+
+          items.push({
+            id: `calendar-${event.id || startDate.getTime()}`,
+            title: event.title ? `Prepare for ${event.title}` : 'Prepare upcoming event',
+            subtitle: event.description ? truncateText(event.description, 100) : '',
+            metaRows,
+            contextType: 'calendar',
+            contextReference: event.title || formatDateLabel(startDate),
+            contextLink: DEFAULT_WORKSPACE_LINKS.calendar,
+            dueDate: formatDateForInput(startDate),
+            priority: (startDate.getTime() - now) <= (24 * 60 * 60 * 1000) ? 'high' : 'medium',
+            sortValue: startDate.getTime()
+          });
+        });
+      }
+    } catch (error) {
+      console.warn('Unable to parse calendar events for insights', error);
+    }
+  }
+
+  items.sort((a, b) => (a.sortValue || Infinity) - (b.sortValue || Infinity));
+  insightState.calendar = items.slice(0, MAX_INSIGHT_ITEMS);
+  renderInsightList('calendar', insightState.calendar);
+}
+
+function loadCrmInsights() {
+  if (!gun) {
+    renderInsightList('crm', insightState.crm);
+    return;
+  }
+
+  if (crmStreamInitialized) {
+    renderCrmFromRecords();
+    return;
+  }
+
+  crmStreamInitialized = true;
+  gun.get('3dvr-crm').map().on((record, id) => {
+    if (!record) {
+      crmInsightRecords.delete(id);
+      renderCrmFromRecords();
+      return;
+    }
+
+    const sanitized = sanitizeCrmInsight(record, id);
+    if (!sanitized) return;
+
+    crmInsightRecords.set(id, sanitized);
+    renderCrmFromRecords();
+  });
+
+  renderCrmFromRecords();
+}
+
+function renderCrmFromRecords() {
+  const now = Date.now();
+  const items = Array.from(crmInsightRecords.values()).map(record => {
+    const reference = record.name || record.company || record.email || '';
+    const next = record.nextFollowUp || '';
+    const dueTime = next ? Date.parse(next) : NaN;
+    const metaRows = [];
+
+    if (next) metaRows.push({ label: 'Next follow-up', value: formatDateLabel(next) });
+    if (record.status) metaRows.push({ label: 'Status', value: record.status });
+    if (record.company) metaRows.push({ label: 'Company', value: record.company });
+
+    return {
+      id: `crm-${record.id}`,
+      title: reference ? `Nudge ${reference}` : 'Nudge CRM record',
+      subtitle: record.notes ? truncateText(record.notes, 140) : '',
+      metaRows,
+      contextType: 'crm',
+      contextReference: reference,
+      contextLink: buildCrmLink(record.id),
+      dueDate: next ? formatDateForInput(next) : '',
+      priority: Number.isFinite(dueTime) ? (dueTime < now ? 'high' : 'medium') : 'low',
+      sortValue: Number.isFinite(dueTime) ? dueTime : -(record.updated || record.created || 0)
+    };
+  }).sort((a, b) => (a.sortValue || Infinity) - (b.sortValue || Infinity));
+
+  insightState.crm = items.slice(0, MAX_INSIGHT_ITEMS);
+  renderInsightList('crm', insightState.crm);
+}
+
+function sanitizeCrmInsight(record, id) {
+  if (!record || typeof record !== 'object') return null;
+  const cleaned = {};
+
+  Object.entries(record).forEach(([key, value]) => {
+    if (key === '_' || value === undefined) return;
+    cleaned[key] = value;
+  });
+
+  cleaned.id = cleaned.id || id;
+  return cleaned.id ? cleaned : null;
+}
+
+function buildCrmLink(recordId) {
+  return 'crm/index.html';
+}
+
+function loadMessengerInsights() {
+  if (!gun) {
+    renderInsightList('messenger', insightState.messenger);
+    return;
+  }
+
+  if (messengerStreamsInitialized) {
+    updateMessengerInsights();
+    return;
+  }
+
+  messengerStreamsInitialized = true;
+  const chatRoot = gun.get('3dvr-chat');
+
+  messengerRooms.forEach(room => {
+    chatRoot.get(room).map().on((message, id) => {
+      if (!message) return;
+      const normalized = sanitizeMessengerMessage(message, id, room);
+      if (!normalized) return;
+
+      const existing = messengerLatestByRoom[room];
+      if (!existing || (normalized.createdAt || 0) > (existing.createdAt || 0)) {
+        messengerLatestByRoom[room] = normalized;
+        updateMessengerInsights();
+      }
+    });
+  });
+
+  updateMessengerInsights();
+}
+
+function sanitizeMessengerMessage(message, id, room) {
+  if (!message || typeof message !== 'object') return null;
+  const clean = { id, room };
+
+  Object.entries(message).forEach(([key, value]) => {
+    if (key === '_' || value === undefined) return;
+    clean[key] = value;
+  });
+
+  clean.text = typeof clean.text === 'string' ? clean.text : '';
+  clean.username = typeof clean.username === 'string' ? clean.username : '';
+  clean.createdAt = typeof clean.createdAt === 'number' ? clean.createdAt : Date.parse(clean.createdAt) || 0;
+  return clean;
+}
+
+function updateMessengerInsights() {
+  const items = Object.values(messengerLatestByRoom)
+    .filter(Boolean)
+    .map(message => {
+      const roomLabel = messengerRoomLabels[message.room] || `#${message.room}`;
+      const metaRows = [];
+      metaRows.push({ label: 'Room', value: roomLabel });
+      if (message.username) {
+        metaRows.push({ label: 'From', value: message.username });
+      }
+      if (message.createdAt) {
+        metaRows.push({ label: 'Received', value: formatDateTime(message.createdAt) });
+      }
+
+      return {
+        id: `${message.room}-${message.id}`,
+        title: message.text ? truncateText(message.text, 120) : `New message in ${roomLabel}`,
+        subtitle: '',
+        metaRows,
+        contextType: 'messenger',
+        contextReference: message.username
+          ? `${roomLabel} · ${message.username}`
+          : roomLabel,
+        contextLink: `chat.html#${encodeURIComponent(message.room)}`,
+        dueDate: '',
+        priority: 'medium',
+        sortValue: -(message.createdAt || 0),
+        description: `Reply to the latest message in ${roomLabel}.`
+      };
+    })
+    .sort((a, b) => (a.sortValue || 0) - (b.sortValue || 0));
+
+  insightState.messenger = items.slice(0, MAX_INSIGHT_ITEMS);
+  renderInsightList('messenger', insightState.messenger);
+}
+
+function renderInsightList(key, items) {
+  const listEl = insightElements[key];
+  if (!listEl) return;
+
+  clearInsightRegistryForKey(key);
+
+  if (!items || !items.length) {
+    listEl.innerHTML = `<li class="intel-card__empty">${escapeHtml(insightEmptyMessages[key] || 'No insights yet.')}</li>`;
+    updateInsightBadge(key, 0);
+    return;
+  }
+
+  const markup = items.slice(0, MAX_INSIGHT_ITEMS).map(item => createInsightMarkup(key, item)).join('');
+  listEl.innerHTML = markup;
+  updateInsightBadge(key, items.length);
+}
+
+function createInsightMarkup(key, item) {
+  const insightId = registerInsight(key, item);
+  const subtitleHtml = item.subtitle ? `<div class="intel-card__item-meta">${escapeHtml(item.subtitle)}</div>` : '';
+  const descriptionHtml = item.description ? `<div class="intel-card__item-meta">${escapeHtml(item.description)}</div>` : '';
+  const metaHtml = (item.metaRows || [])
+    .map(row => `<div class="insight-meta-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`)
+    .join('');
+
+  return `
+    <li class="intel-card__item">
+      <div class="intel-card__item-title">${escapeHtml(item.title)}</div>
+      ${subtitleHtml}
+      ${metaHtml}
+      ${descriptionHtml}
+      <div class="intel-card__actions">
+        <button type="button" onclick="handleInsightPrefill('${insightId}')">Plan task</button>
+      </div>
+    </li>
+  `;
+}
+
+function clearInsightRegistryForKey(key) {
+  const ids = insightRegistryByKey[key];
+  if (!ids) return;
+  ids.forEach(id => insightRegistry.delete(id));
+  ids.clear();
+}
+
+function registerInsight(key, item) {
+  const id = `insight-${++insightIdCounter}`;
+  insightRegistry.set(id, item);
+  if (!insightRegistryByKey[key]) {
+    insightRegistryByKey[key] = new Set();
+  }
+  insightRegistryByKey[key].add(id);
+  return id;
+}
+
+function updateInsightBadge(key, count) {
+  const badge = insightBadges[key];
+  if (!badge) return;
+  const labels = {
+    contacts: count === 1 ? 'follow-up' : 'follow-ups',
+    calendar: count === 1 ? 'event' : 'events',
+    crm: count === 1 ? 'deal' : 'deals',
+    messenger: count === 1 ? 'thread' : 'threads'
+  };
+  const label = labels[key] || (count === 1 ? 'item' : 'items');
+  badge.textContent = `${count} ${label}`;
+}
+
+function handleInsightPrefill(insightId) {
+  const insight = insightRegistry.get(insightId);
+  if (!insight) return;
+  prefillTaskFromInsight(insight);
+}
+
+function prefillTaskFromInsight(insight) {
+  if (!insight) return;
+
+  const titleField = document.getElementById('task-title');
+  const descriptionField = document.getElementById('task-description');
+  const priorityField = document.getElementById('task-priority');
+  const dueField = document.getElementById('task-due-date');
+  const assigneeField = document.getElementById('task-assignee');
+  const contextTypeField = document.getElementById('task-context-type');
+  const contextReferenceField = document.getElementById('task-context-reference');
+  const contextLinkField = document.getElementById('task-context-link');
+
+  if (insight.title) {
+    titleField.value = insight.title;
+  }
+  if (insight.description !== undefined) {
+    descriptionField.value = insight.description || '';
+  }
+  if (insight.priority && ['high', 'medium', 'low'].includes(insight.priority)) {
+    priorityField.value = insight.priority;
+  } else {
+    priorityField.value = priorityField.value || 'medium';
+  }
+  if (insight.dueDate) {
+    dueField.value = insight.dueDate;
+  } else if (insight.rawDueDate) {
+    dueField.value = formatDateForInput(insight.rawDueDate);
+  }
+  if (insight.assignee) {
+    assigneeField.value = insight.assignee;
+  }
+
+  contextTypeField.value = insight.contextType || '';
+  contextReferenceField.value = insight.contextReference || '';
+  contextLinkField.value = insight.contextLink || '';
+
+  titleField.focus();
+  titleField.select();
+}
+
+function formatDateForInput(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDateLabel(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function truncateText(value, limit = 120) {
+  if (!value) return '';
+  const text = String(value);
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit - 1)}…`;
+}
+
+window.handleInsightPrefill = handleInsightPrefill;
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
@@ -1225,6 +2381,7 @@ function syncWhenOnline() {
       // Reload from GUN
       setTimeout(() => {
         loadTasks();
+        loadWorkspaceInsights();
       }, 1000);
     }
   });
