@@ -104,17 +104,15 @@
       animation: breathePulse calc(var(--cycle-duration) * 0.75) ease-in-out infinite;
     }
     .count-display {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      position: relative;
+      margin: 18px auto 0;
       font-size: clamp(1.35rem, 3vw, 2.1rem);
       letter-spacing: 0.24em;
       font-weight: 500;
       pointer-events: none;
       opacity: 0.8;
       transition: opacity 0.4s ease;
-      display: inline-flex;
+      display: flex;
       flex-direction: column;
       align-items: center;
       gap: 6px;
@@ -252,6 +250,9 @@
       color: rgba(226, 232, 240, 0.8);
       font-size: 1.05rem;
       line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     .instructions h2 {
       margin: 0 0 8px;
@@ -616,13 +617,13 @@
       </div>
     </section>
     <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
-      <div id="countDisplay" class="count-display" aria-hidden="true">
-        <span class="count-display__value">&mdash;</span>
-      </div>
       <div id="breathCircle" class="breath-circle inhale" aria-hidden="true"></div>
       <div id="meditationFlow" class="instructions" aria-live="polite">
         <h2 id="phaseName">Inhale</h2>
         <p id="phasePrompt">Breathe in slowly through your nose and fill your lungs.</p>
+        <div id="countDisplay" class="count-display" aria-hidden="true">
+          <span class="count-display__value">&mdash;</span>
+        </div>
       </div>
     </div>
     <div class="controls">
