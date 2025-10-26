@@ -105,7 +105,7 @@
     }
     .count-display {
       position: relative;
-      margin: 18px auto 0;
+      margin: 0 auto 18px;
       font-size: clamp(1.35rem, 3vw, 2.1rem);
       letter-spacing: 0.24em;
       font-weight: 500;
@@ -619,11 +619,11 @@
     <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
       <div id="breathCircle" class="breath-circle inhale" aria-hidden="true"></div>
       <div id="meditationFlow" class="instructions" aria-live="polite">
-        <h2 id="phaseName">Inhale</h2>
-        <p id="phasePrompt">Breathe in slowly through your nose and fill your lungs.</p>
         <div id="countDisplay" class="count-display" aria-hidden="true">
           <span class="count-display__value">&mdash;</span>
         </div>
+        <h2 id="phaseName">Inhale</h2>
+        <p id="phasePrompt">Breathe in slowly through your nose and fill your lungs.</p>
       </div>
     </div>
     <div class="controls">
