@@ -105,9 +105,9 @@
     }
     .count-display {
       position: absolute;
-      top: 38px;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
       font-size: clamp(1.35rem, 3vw, 2.1rem);
       letter-spacing: 0.24em;
       font-weight: 500;
@@ -119,6 +119,7 @@
       align-items: center;
       gap: 6px;
       color: var(--count-color);
+      z-index: 2;
       --count-color: rgba(226, 232, 240, 0.7);
       --count-glow: rgba(148, 163, 184, 0.25);
       --count-scale-rest: 0.88;
@@ -526,7 +527,6 @@
         gap: 28px;
       }
       .count-display {
-        top: 28px;
         letter-spacing: 0.2em;
       }
       .breathing-space {
