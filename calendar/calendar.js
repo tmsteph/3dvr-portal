@@ -21,6 +21,9 @@ const PROVIDER_LABELS = {
 };
 
 const DEFAULT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const DEFAULT_EVENT_START_OFFSET_MINUTES = 5;
+const DEFAULT_EVENT_DURATION_MINUTES = 10;
+const AUTO_SEEDED_METADATA_KEY = 'autoSeededOn';
 
 function startOfMonth(date) {
   const result = new Date(date);
@@ -33,6 +36,13 @@ function startOfDay(date) {
   const result = new Date(date);
   result.setHours(0, 0, 0, 0);
   return result;
+}
+
+function toDateKey(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toISOString().slice(0, 10);
 }
 
 const state = {
@@ -77,6 +87,8 @@ const calendarDetails = document.querySelector('[data-calendar-details]');
 const calendarDetailsTitle = document.querySelector('[data-calendar-details-title]');
 const calendarDetailsList = document.querySelector('[data-calendar-details-list]');
 const calendarDetailsEmpty = document.querySelector('[data-calendar-details-empty]');
+const calendarDetailsActions = document.querySelector('[data-calendar-details-actions]');
+const addEventForDayButton = document.querySelector('[data-action="add-event-for-day"]');
 
 const calendarMonthFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'long',
@@ -478,6 +490,57 @@ function hydrateLocalEvents() {
   renderEvents();
 }
 
+function ensureDefaultTodayEvent() {
+  const today = new Date();
+  const todayKey = toDateKey(today);
+  if (!todayKey) {
+    return;
+  }
+  const alreadySeeded = state.localEvents.some(
+    event => event?.metadata?.[AUTO_SEEDED_METADATA_KEY] === todayKey
+  );
+  if (alreadySeeded) {
+    return;
+  }
+  const hasEventsToday = state.localEvents.some(event => {
+    if (!event || typeof event.start !== 'string') {
+      return false;
+    }
+    const date = new Date(event.start);
+    if (Number.isNaN(date.getTime())) {
+      return false;
+    }
+    return toDateKey(date) === todayKey;
+  });
+  if (hasEventsToday) {
+    return;
+  }
+  const { start, end } = computeDefaultEventTimes(todayKey);
+  if (
+    !(start instanceof Date) ||
+    Number.isNaN(start.getTime()) ||
+    !(end instanceof Date) ||
+    Number.isNaN(end.getTime())
+  ) {
+    return;
+  }
+  const timestamp = new Date().toISOString();
+  const seededEvent = {
+    id: generateLocalId('local'),
+    provider: 'local',
+    title: 'New event',
+    description: '',
+    start: start.toISOString(),
+    end: end.toISOString(),
+    timeZone: DEFAULT_TIME_ZONE || 'UTC',
+    link: '',
+    metadata: { [AUTO_SEEDED_METADATA_KEY]: todayKey },
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+  writeLocalEvents([...state.localEvents, seededEvent]);
+}
+
 function withTimeZoneLabel(text, timeZone) {
   if (!timeZone || !text || text === '—') {
     return text;
@@ -636,23 +699,31 @@ function renderSelectedDayDetails() {
     return;
   }
   const { selectedDate } = calendarState;
+  if (calendarDetailsActions) {
+    calendarDetailsActions.hidden = true;
+  }
   if (!selectedDate || !calendarState.dayEvents.has(selectedDate)) {
     calendarDetails.hidden = true;
     calendarDetailsTitle.textContent = '';
     calendarDetailsList.innerHTML = '';
     calendarDetailsEmpty.hidden = true;
+    prefillCreateEventForm(null);
     return;
   }
 
   const eventsForDay = calendarState.dayEvents.get(selectedDate) || [];
   calendarDetails.hidden = false;
   calendarDetailsList.innerHTML = '';
+  if (calendarDetailsActions) {
+    calendarDetailsActions.hidden = false;
+  }
 
   const displayDate = new Date(`${selectedDate}T00:00:00`);
   calendarDetailsTitle.textContent = calendarFullDateFormatter.format(displayDate);
 
   if (!eventsForDay.length) {
     calendarDetailsEmpty.hidden = false;
+    prefillCreateEventForm(selectedDate);
     return;
   }
 
@@ -704,6 +775,8 @@ function renderSelectedDayDetails() {
 
       calendarDetailsList.appendChild(listItem);
     });
+
+  prefillCreateEventForm(selectedDate);
 }
 
 function selectCalendarDate(dateString) {
@@ -755,6 +828,13 @@ function handleCalendarGridKeydown(event) {
       selectCalendarDate(date);
     }
   }
+}
+
+function handleAddEventForSelectedDay() {
+  const targetDate = calendarState.selectedDate || toDateKey(new Date());
+  resetCreateEventFormDirty();
+  prefillCreateEventForm(targetDate, { force: true });
+  setCreateEventExpanded(true);
 }
 
 function renderEvents(events = state.localEvents) {
@@ -882,6 +962,57 @@ function toISOStringIfPossible(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString();
+}
+
+function toLocalDateTimeInputValue(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const pad = value => String(value).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function computeDefaultEventTimes(dateString) {
+  const now = new Date();
+  const todayKey = toDateKey(now);
+  const targetKey = typeof dateString === 'string' && dateString ? dateString : todayKey;
+
+  const buildTargetDate = (key, hours, minutes) => {
+    const base = new Date(`${key}T00:00:00`);
+    if (Number.isNaN(base.getTime())) {
+      return null;
+    }
+    base.setHours(hours, minutes, 0, 0);
+    return base;
+  };
+
+  let start;
+
+  if (targetKey === todayKey) {
+    start = new Date(now);
+    start.setMinutes(start.getMinutes() + DEFAULT_EVENT_START_OFFSET_MINUTES);
+    if (Number.isNaN(start.getTime()) || toDateKey(start) !== targetKey) {
+      start = buildTargetDate(targetKey, 9, 0) || new Date(now);
+    }
+  } else {
+    start = buildTargetDate(targetKey, 9, 0) || new Date(now);
+  }
+
+  if (Number.isNaN(start.getTime())) {
+    start = new Date(now);
+  }
+
+  start.setSeconds(0, 0);
+
+  const end = new Date(start);
+  end.setMinutes(end.getMinutes() + DEFAULT_EVENT_DURATION_MINUTES);
+
+  return { start, end };
 }
 
 function generateLocalId(prefix = 'local') {
@@ -1221,12 +1352,44 @@ function handleDisconnect(event) {
   showLog(`${PROVIDERS[provider].label} tokens removed from this browser.`, 'info');
 }
 
-function hydrateCreateFormDefaults() {
+function resetCreateEventFormDirty() {
   if (!createEventForm) return;
+  createEventForm.dataset.dirty = 'false';
+}
+
+function markCreateEventFormDirty() {
+  if (!createEventForm) return;
+  createEventForm.dataset.dirty = 'true';
+}
+
+function prefillCreateEventForm(dateString, options = {}) {
+  if (!createEventForm) return;
+  const { force = false } = options;
+  if (!force && createEventForm.dataset.dirty === 'true') {
+    return;
+  }
+  if (force) {
+    createEventForm.dataset.dirty = 'false';
+  }
+  const { start, end } = computeDefaultEventTimes(dateString);
+  const startField = createEventForm.elements.namedItem('start');
+  if (startField instanceof HTMLInputElement) {
+    startField.value = toLocalDateTimeInputValue(start);
+  }
+  const endField = createEventForm.elements.namedItem('end');
+  if (endField instanceof HTMLInputElement) {
+    endField.value = toLocalDateTimeInputValue(end);
+  }
   const timeZoneField = createEventForm.elements.namedItem('timeZone');
   if (timeZoneField instanceof HTMLInputElement) {
     timeZoneField.value = timeZoneField.value || DEFAULT_TIME_ZONE || 'UTC';
   }
+}
+
+function hydrateCreateFormDefaults() {
+  if (!createEventForm) return;
+  resetCreateEventFormDirty();
+  prefillCreateEventForm(calendarState.selectedDate, { force: true });
 }
 
 function updateCreateEventToggleLabel(expanded) {
@@ -1242,6 +1405,7 @@ function setCreateEventExpanded(expanded, options = {}) {
   createEventContainer.hidden = !expanded;
   updateCreateEventToggleLabel(expanded);
   if (expanded) {
+    prefillCreateEventForm(calendarState.selectedDate);
     if (createEventForm) {
       const firstField = createEventForm.elements.namedItem('title');
       if (firstField instanceof HTMLElement) {
@@ -1310,6 +1474,7 @@ function bindEvents() {
 
   if (createEventForm) {
     createEventForm.addEventListener('submit', handleCreateEvent);
+    createEventForm.addEventListener('input', markCreateEventFormDirty);
   }
 
   if (createEventToggle) {
@@ -1335,11 +1500,16 @@ function bindEvents() {
     calendarGrid.addEventListener('click', handleCalendarGridClick);
     calendarGrid.addEventListener('keydown', handleCalendarGridKeydown);
   }
+
+  if (addEventForDayButton) {
+    addEventForDayButton.addEventListener('click', handleAddEventForSelectedDay);
+  }
 }
 
 initializeCalendarView();
 hydrateState();
 hydrateLocalEvents();
+ensureDefaultTodayEvent();
 initializeCreateEventToggle();
 hydrateCreateFormDefaults();
 bindEvents();
