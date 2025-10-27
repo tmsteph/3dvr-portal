@@ -423,6 +423,14 @@ button:hover {
   margin: 0;
 }
 
+.calendar-view__details-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
 .calendar-view__details-list {
   display: flex;
   flex-direction: column;
