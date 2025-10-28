@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Affirmations Studio | 3DVR Portal</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --card-bg: rgba(15, 23, 42, 0.68);
+      --card-border: rgba(148, 163, 184, 0.26);
+      --accent-cyan: rgba(56, 189, 248, 0.65);
+      --accent-violet: rgba(129, 140, 248, 0.7);
+      --accent-emerald: rgba(52, 211, 153, 0.6);
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at 18% 20%, rgba(56, 189, 248, 0.22), transparent 60%),
+        radial-gradient(circle at 78% 28%, rgba(129, 140, 248, 0.18), transparent 65%),
+        linear-gradient(160deg, #05070c 0%, #0a1322 60%, #050812 100%);
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      width: 460px;
+      height: 460px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.45;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      top: -160px;
+      left: -180px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.55), transparent 65%);
+      animation: slowFloat 14s ease-in-out infinite alternate;
+    }
+    body::after {
+      bottom: -200px;
+      right: -140px;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.5), transparent 70%);
+      animation: slowFloat 18s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes slowFloat {
+      from {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      to {
+        transform: translate3d(18px, -24px, 0) scale(1.04);
+      }
+    }
+    .page-shell {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 44px;
+      padding: 56px 24px 80px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #f8fafc;
+      text-decoration: none;
+      transition: top 0.2s ease;
+      z-index: 2;
+    }
+    .skip-link:focus {
+      top: 16px;
+    }
+    header {
+      display: grid;
+      gap: 20px;
+      text-align: center;
+    }
+    header p {
+      margin: 0;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.65);
+      font-size: 0.85rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: clamp(2.4rem, 4vw, 3.6rem);
+      letter-spacing: -0.03em;
+    }
+    header span {
+      max-width: 720px;
+      margin: 0 auto;
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    .cta-row {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .cta-row a {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(94, 234, 212, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      color: #f8fafc;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+      text-decoration: none;
+    }
+    .cta-row a:hover,
+    .cta-row a:focus {
+      transform: translateY(-2px);
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.6);
+      outline: none;
+    }
+    .studio-stage {
+      display: grid;
+      gap: 32px;
+      border-radius: 34px;
+      padding: 34px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      box-shadow: 0 34px 90px rgba(5, 12, 26, 0.55);
+      position: relative;
+      overflow: hidden;
+    }
+    .studio-stage::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 22% 26%, rgba(56, 189, 248, 0.18), transparent 60%),
+        radial-gradient(circle at 80% 24%, rgba(129, 140, 248, 0.22), transparent 65%);
+      opacity: 0.6;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .studio-stage__layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 30px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      align-items: start;
+    }
+    .affirmation-board {
+      display: grid;
+      gap: 18px;
+    }
+    .affirmation-board__display {
+      min-height: 220px;
+      border-radius: 28px;
+      padding: 28px;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      display: grid;
+      gap: 16px;
+      align-content: center;
+      position: relative;
+    }
+    .affirmation-board__display::before {
+      content: '';
+      position: absolute;
+      inset: 18px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(129, 140, 248, 0.18));
+      opacity: 0.45;
+      z-index: 0;
+    }
+    .affirmation-board__eyebrow {
+      margin: 0;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      color: rgba(226, 232, 240, 0.68);
+    }
+    .affirmation-board__text {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      line-height: 1.5;
+      letter-spacing: -0.01em;
+      transition: opacity 0.2s ease;
+    }
+    .affirmation-board__text.is-transitioning {
+      opacity: 0;
+    }
+    .affirmation-board__category {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      font-size: 0.95rem;
+      color: rgba(148, 163, 184, 0.88);
+    }
+    .board-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .board-controls button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.58);
+      color: #f8fafc;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+    .board-controls button:hover,
+    .board-controls button:focus {
+      transform: translateY(-1px);
+      background: rgba(56, 189, 248, 0.22);
+      border-color: rgba(94, 234, 212, 0.6);
+      outline: none;
+    }
+    .deck-switcher {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+    .deck-switcher button {
+      padding: 12px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(15, 23, 42, 0.48);
+      color: rgba(226, 232, 240, 0.88);
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+    .deck-switcher button:hover,
+    .deck-switcher button:focus {
+      transform: translateY(-1px);
+      border-color: rgba(94, 234, 212, 0.6);
+      background: rgba(56, 189, 248, 0.18);
+      outline: none;
+    }
+    .deck-switcher button.is-active {
+      border-color: rgba(94, 234, 212, 0.6);
+      background: rgba(56, 189, 248, 0.26);
+      color: #0f172a;
+    }
+    .deck-outline {
+      display: grid;
+      gap: 20px;
+    }
+    .deck-outline h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      letter-spacing: -0.01em;
+    }
+    .deck-outline p {
+      margin: 0;
+      color: rgba(148, 163, 184, 0.88);
+      font-size: 0.98rem;
+      line-height: 1.6;
+    }
+    .deck-outline ul {
+      margin: 0;
+      padding-left: 20px;
+      display: grid;
+      gap: 10px;
+      font-size: 0.98rem;
+      color: rgba(226, 232, 240, 0.92);
+    }
+    .practice-grid {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+    .practice-card {
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(10, 19, 32, 0.7);
+      padding: 26px;
+      display: grid;
+      gap: 12px;
+    }
+    .practice-card h3 {
+      margin: 0;
+      font-size: 1.18rem;
+    }
+    .practice-card p {
+      margin: 0;
+      color: rgba(148, 163, 184, 0.88);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .practice-card ul {
+      margin: 0;
+      padding-left: 20px;
+      color: rgba(226, 232, 240, 0.88);
+      display: grid;
+      gap: 8px;
+      font-size: 0.95rem;
+    }
+    .practice-card strong {
+      color: rgba(56, 189, 248, 0.85);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    @media (max-width: 680px) {
+      .page-shell {
+        padding: 44px 18px 64px;
+      }
+      .studio-stage {
+        padding: 26px;
+      }
+      .affirmation-board__display {
+        padding: 24px;
+      }
+      .deck-switcher {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#affirmationStudio">Skip to affirmation studio</a>
+  <main class="page-shell">
+    <header>
+      <p>3DVR mindfulness studio</p>
+      <h1>Daily Affirmations Studio</h1>
+      <span>Re-center your inner voice with curated sequences designed for mornings, deep work, and evening decompression. Rotate through supportive statements or copy your favorite lines to revisit throughout the day.</span>
+      <div class="cta-row">
+        <a href="../index.html">Return to 3DVR Portal</a>
+        <a href="index.html">Open breathing room</a>
+        <a href="guided-stretching.html">Visit guided stretching flow</a>
+      </div>
+    </header>
+    <section id="affirmationStudio" class="studio-stage" aria-labelledby="studioHeading">
+      <div class="studio-stage__layout">
+        <div class="affirmation-board">
+          <div class="affirmation-board__display" role="status" aria-live="polite">
+            <p class="affirmation-board__eyebrow" id="deckName">Balanced focus</p>
+            <p class="affirmation-board__text" id="affirmationText">I anchor my attention in the present moment and let clarity guide the work ahead.</p>
+            <p class="affirmation-board__category" id="deckDescription">Focus reset • Use when you want to reclaim momentum between sessions.</p>
+          </div>
+          <div class="board-controls">
+            <button type="button" id="nextAffirmation" aria-describedby="deckName">Shuffle affirmation</button>
+            <button type="button" id="toggleAutoplay" aria-pressed="false">Start gentle rotation</button>
+            <button type="button" id="copyAffirmation">Copy to clipboard</button>
+          </div>
+          <div class="deck-switcher" role="tablist" aria-label="Affirmation decks">
+            <button type="button" id="deckTabFocus" class="is-active" data-deck="focus" role="tab" aria-selected="true" aria-controls="deckFocus">Focus flow</button>
+            <button type="button" id="deckTabMorning" data-deck="morning" role="tab" aria-selected="false" aria-controls="deckMorning">Morning lift</button>
+            <button type="button" id="deckTabEvening" data-deck="evening" role="tab" aria-selected="false" aria-controls="deckEvening">Evening soften</button>
+            <button type="button" id="deckTabConfidence" data-deck="confidence" role="tab" aria-selected="false" aria-controls="deckConfidence">Confidence anchor</button>
+          </div>
+        </div>
+        <div class="deck-outline">
+          <h2 id="studioHeading">Deck themes &amp; suggested rhythms</h2>
+          <p>Each deck blends breath cues with supportive language. Pair them with a breathing cadence or guided stretch to reinforce the intention throughout your body.</p>
+          <div id="deckFocus" class="deck-details" role="tabpanel" aria-labelledby="deckTabFocus">
+            <h3>Focus flow</h3>
+            <p>Steady your attention before diving into deep work blocks or VR build sessions.</p>
+            <ul>
+              <li>Pair with <strong>balanced rhythm (4 / 4 / 4 / 2)</strong> in the breathing room.</li>
+              <li>Repeat each statement with a full inhale and exhale cycle.</li>
+              <li>Place your palms on the desk to ground awareness.</li>
+            </ul>
+          </div>
+          <div id="deckMorning" class="deck-details" role="tabpanel" aria-labelledby="deckTabMorning" hidden>
+            <h3>Morning lift</h3>
+            <p>Wake gently, set intentions, and ease into creative flow without rushing.</p>
+            <ul>
+              <li>Pair with <strong>slow &amp; restorative (6 / 2 / 6 / 2)</strong> breathing.</li>
+              <li>Stretch your arms overhead between affirmations.</li>
+              <li>Let sunlight or soft lamp light accompany the ritual.</li>
+            </ul>
+          </div>
+          <div id="deckEvening" class="deck-details" role="tabpanel" aria-labelledby="deckTabEvening" hidden>
+            <h3>Evening soften</h3>
+            <p>Release the day, invite ease, and prepare your mind to rest or transition.</p>
+            <ul>
+              <li>Pair with <strong>box breathing (4 / 4 / 4 / 4)</strong> to equalize your cadence.</li>
+              <li>Roll your shoulders while standing or in a seated stretch.</li>
+              <li>Dim screens and let the breath cues lead you to stillness.</li>
+            </ul>
+          </div>
+          <div id="deckConfidence" class="deck-details" role="tabpanel" aria-labelledby="deckTabConfidence" hidden>
+            <h3>Confidence anchor</h3>
+            <p>Prime your energy for presentations, demos, and leadership conversations.</p>
+            <ul>
+              <li>Pair with <strong>energizing focus (3 / 3 / 3 / 1)</strong> breathing.</li>
+              <li>Stand tall, open your chest, and visualize success in detail.</li>
+              <li>Repeat each affirmation aloud with deliberate pacing.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section aria-labelledby="integrationHeading">
+      <h2 id="integrationHeading">Weave affirmations into your wellness circuit</h2>
+      <div class="practice-grid">
+        <article class="practice-card">
+          <h3>Breathing room integration</h3>
+          <p>Set a breathing cadence in the <a href="index.html">mindfulness breathing room</a> and recite one affirmation per round. The combination reinforces rhythmic focus for immersive design sprints.</p>
+          <ul>
+            <li>Choose a deck that matches your session goal.</li>
+            <li>On each inhale, absorb the first half of the phrase.</li>
+            <li>On each exhale, release tension while repeating the second half.</li>
+          </ul>
+        </article>
+        <article class="practice-card">
+          <h3>Stretch loop pairing</h3>
+          <p>During the <a href="guided-stretching.html">guided stretching flow</a>, whisper a short affirmation as you move between poses. The physical release makes the words land deeper.</p>
+          <ul>
+            <li>Select two statements for the standing series.</li>
+            <li>Pick one grounding phrase for the seated cooldown.</li>
+            <li>Sync your breath, movement, and mantra.</li>
+          </ul>
+        </article>
+        <article class="practice-card">
+          <h3>Desk-friendly touch points</h3>
+          <p>Create gentle reminders throughout your workspace. Use sticky notes, calendar nudges, or VR overlays to resurface a phrase when your energy dips.</p>
+          <ul>
+            <li>Rotate the deck mid-day with the shuffle control.</li>
+            <li>Keep one affirmation visible on your second monitor.</li>
+            <li>Record a quick voice note repeating the phrase.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+  <span id="copyStatus" class="sr-only" role="status" aria-live="polite"></span>
+  <script>
+    const decks = {
+      focus: {
+        name: 'Balanced focus',
+        description: 'Focus reset • Use when you want to reclaim momentum between sessions.',
+        color: 'var(--accent-cyan)',
+        statements: [
+          'I anchor my attention in the present moment and let clarity guide the work ahead.',
+          'Deep focus feels natural when I listen to one task at a time.',
+          'With every mindful breath, I return to the flow of building remarkable experiences.',
+          'I move distractions aside and honor the single step in front of me.',
+          'My curiosity is steady, patient, and ready to explore solutions.'
+        ]
+      },
+      morning: {
+        name: 'Morning lift',
+        description: 'Dawn ritual • Prime your energy before stepping into creation.',
+        color: 'var(--accent-emerald)',
+        statements: [
+          'I greet the day with soft shoulders and a grounded heartbeat.',
+          'Fresh possibilities arrive with every inhale I welcome.',
+          'I nourish my body, mind, and projects with kind attention.',
+          'My pace can be gentle and still deliver meaningful impact.',
+          'I choose to move forward with warmth, imagination, and steadiness.'
+        ]
+      },
+      evening: {
+        name: 'Evening soften',
+        description: 'Twilight unwind • Release the day and settle into restorative rest.',
+        color: 'var(--accent-violet)',
+        statements: [
+          'I release unfinished threads and allow restoration to begin.',
+          'Every exhale clears space for dreams, calm, and renewal.',
+          'I forgive today’s stumbles and appreciate the lessons they carried.',
+          'My nervous system knows how to settle; I simply give it permission.',
+          'Quiet moments are productive when they replenish my spirit.'
+        ]
+      },
+      confidence: {
+        name: 'Confidence anchor',
+        description: 'Momentum surge • Step into conversations with clarity and strength.',
+        color: 'rgba(244, 114, 182, 0.75)',
+        statements: [
+          'I speak with conviction because my preparation is thoughtful and thorough.',
+          'My presence makes collaborators feel steady, supported, and inspired.',
+          'Bold ideas feel natural when I let authenticity lead.',
+          'I trust my instincts and adapt with creativity in the moment.',
+          'Every opportunity is a chance to amplify kindness and confidence.'
+        ]
+      }
+    };
+
+    const deckButtons = Array.from(document.querySelectorAll('[data-deck]'));
+    const deckName = document.getElementById('deckName');
+    const deckDescription = document.getElementById('deckDescription');
+    const affirmationText = document.getElementById('affirmationText');
+    const deckPanels = {
+      focus: document.getElementById('deckFocus'),
+      morning: document.getElementById('deckMorning'),
+      evening: document.getElementById('deckEvening'),
+      confidence: document.getElementById('deckConfidence')
+    };
+    const nextButton = document.getElementById('nextAffirmation');
+    const autoplayButton = document.getElementById('toggleAutoplay');
+    const copyButton = document.getElementById('copyAffirmation');
+    const copyStatus = document.getElementById('copyStatus');
+
+    let currentDeck = 'focus';
+    let autoplayTimer = null;
+
+    function pickAffirmation(deckKey) {
+      const statements = decks[deckKey].statements;
+      const randomIndex = Math.floor(Math.random() * statements.length);
+      return statements[randomIndex];
+    }
+
+    function updateAffirmation(deckKey, options = {}) {
+      const deck = decks[deckKey];
+      if (!deck) {
+        return;
+      }
+      affirmationText.classList.remove('is-transitioning');
+      currentDeck = deckKey;
+      deckName.textContent = deck.name;
+      deckDescription.textContent = deck.description;
+      deckName.style.color = deck.color;
+      affirmationText.textContent = options.preserveText ? affirmationText.textContent : pickAffirmation(deckKey);
+      deckButtons.forEach((button) => {
+        const isActive = button.dataset.deck === deckKey;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        button.setAttribute('tabindex', isActive ? '0' : '-1');
+      });
+      Object.entries(deckPanels).forEach(([key, panel]) => {
+        const isVisible = key === deckKey;
+        panel.toggleAttribute('hidden', !isVisible);
+        panel.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+      });
+    }
+
+    function rotateAffirmation() {
+      affirmationText.classList.add('is-transitioning');
+      window.setTimeout(() => {
+        affirmationText.textContent = pickAffirmation(currentDeck);
+        affirmationText.classList.remove('is-transitioning');
+      }, 120);
+    }
+
+    function startAutoplay() {
+      if (autoplayTimer) {
+        return;
+      }
+      autoplayButton.textContent = 'Pause gentle rotation';
+      autoplayButton.setAttribute('aria-pressed', 'true');
+      autoplayTimer = window.setInterval(rotateAffirmation, 12000);
+    }
+
+    function stopAutoplay() {
+      if (!autoplayTimer) {
+        return;
+      }
+      window.clearInterval(autoplayTimer);
+      autoplayTimer = null;
+      autoplayButton.textContent = 'Start gentle rotation';
+      autoplayButton.setAttribute('aria-pressed', 'false');
+    }
+
+    deckButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const deckKey = button.dataset.deck;
+        stopAutoplay();
+        updateAffirmation(deckKey, { preserveText: false });
+      });
+      button.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+          event.preventDefault();
+          const currentIndex = deckButtons.indexOf(button);
+          const increment = event.key === 'ArrowRight' ? 1 : -1;
+          const nextIndex = (currentIndex + increment + deckButtons.length) % deckButtons.length;
+          deckButtons[nextIndex].focus();
+          deckButtons[nextIndex].click();
+        }
+      });
+    });
+
+    nextButton.addEventListener('click', () => {
+      stopAutoplay();
+      rotateAffirmation();
+    });
+
+    autoplayButton.addEventListener('click', () => {
+      if (autoplayTimer) {
+        stopAutoplay();
+      } else {
+        startAutoplay();
+      }
+    });
+
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(affirmationText.textContent.trim());
+        copyStatus.textContent = 'Affirmation copied to clipboard.';
+        window.setTimeout(() => {
+          copyStatus.textContent = '';
+        }, 2000);
+      } catch (error) {
+        copyStatus.textContent = 'Copy unavailable. Manually select the text instead.';
+        window.setTimeout(() => {
+          copyStatus.textContent = '';
+        }, 2500);
+      }
+    });
+
+    updateAffirmation(currentDeck, { preserveText: true });
+  </script>
+</body>
+</html>
