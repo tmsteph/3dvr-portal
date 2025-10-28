@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mindfulness Breathing Room | 3DVR Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="../score.js"></script>
   <link rel="stylesheet" href="../styles/global.css">
   <style>
     :root {
@@ -22,6 +25,34 @@
       color: #f8fafc;
       overflow-x: hidden;
       overflow-y: auto;
+    }
+    .session-meta {
+      width: min(100%, 760px);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 0 16px;
+    }
+    .session-meta__item {
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.68);
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+      padding: 18px 20px;
+      display: grid;
+      gap: 6px;
+    }
+    .session-meta__label {
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.75rem;
+      color: rgba(148, 163, 184, 0.75);
+    }
+    .session-meta__value {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.02em;
     }
     body::before,
     body::after {
@@ -638,6 +669,22 @@
         <a href="./affirmations.html">Explore affirmations studio</a>
       </div>
     </header>
+    <section class="session-meta" aria-label="Profile and score status">
+      <div class="session-meta__item" id="sessionProfile" aria-live="polite">
+        <span class="session-meta__label">Signed in as</span>
+        <span id="sessionProfileName" class="session-meta__value">👤 Guest</span>
+      </div>
+      <div
+        class="session-meta__item"
+        id="sessionScore"
+        role="status"
+        aria-live="polite"
+        aria-label="Your current score"
+      >
+        <span class="session-meta__label">Your Score</span>
+        <span id="sessionScoreValue" class="session-meta__value">0</span>
+      </div>
+    </section>
     <section class="stretch-callout" aria-label="Guided stretch reminder">
       <span class="stretch-callout__tag">screen break reset</span>
       <h2>Unwind tight shoulders and wrists between computer sessions</h2>
@@ -742,6 +789,141 @@
     Tip: Use background audio to keep the rhythm going even if you dim the screen or switch apps.
   </footer>
   <script>
+    const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+    const user = gun.user();
+    const portalRoot = gun.get('3dvr-portal');
+
+    if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
+      window.ScoreSystem.recallUserSession(user);
+    } else {
+      try {
+        user.recall({ sessionStorage: true, localStorage: true });
+      } catch (err) {
+        console.warn('Unable to recall user session', err);
+      }
+    }
+
+    const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
+      ? window.ScoreSystem.getManager({ gun, user, portalRoot })
+      : null;
+
+    const sessionScoreValueEl = document.getElementById('sessionScoreValue');
+    const sessionProfileNameEl = document.getElementById('sessionProfileName');
+
+    function sanitizeScoreDisplay(value) {
+      if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
+        return window.ScoreSystem.sanitizeScore(value);
+      }
+      const numeric = typeof value === 'number' ? value : Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.round(numeric));
+    }
+
+    function updateSessionScoreDisplay(value) {
+      if (!sessionScoreValueEl) {
+        return;
+      }
+      const safeScore = sanitizeScoreDisplay(value);
+      sessionScoreValueEl.textContent = safeScore;
+    }
+
+    updateSessionScoreDisplay(scoreManager ? scoreManager.getCurrent() : 0);
+
+    if (scoreManager && typeof scoreManager.subscribe === 'function') {
+      scoreManager.subscribe(updateSessionScoreDisplay);
+    }
+
+    function aliasToDisplay(alias) {
+      const normalized = typeof alias === 'string' ? alias.trim() : '';
+      if (!normalized) return '';
+      if (normalized.includes('@')) {
+        return normalized.split('@')[0];
+      }
+      return normalized;
+    }
+
+    const isSignedIn = localStorage.getItem('signedIn') === 'true';
+    const isGuest = !isSignedIn && localStorage.getItem('guest') === 'true';
+    let latestDisplayName = '';
+    let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
+
+    function updateProfileDisplay() {
+      if (!sessionProfileNameEl) {
+        return;
+      }
+      if (latestDisplayName) {
+        sessionProfileNameEl.textContent = `👤 ${latestDisplayName}`;
+        return;
+      }
+      if (isSignedIn) {
+        const stored = (localStorage.getItem('username') || '').trim();
+        const fallback = stored || aliasDisplay || 'Guest';
+        sessionProfileNameEl.textContent = `👤 ${fallback}`;
+        return;
+      }
+      if (isGuest) {
+        const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
+        const fallbackName = guestStored || aliasDisplay || 'Guest';
+        sessionProfileNameEl.textContent = `👤 ${fallbackName}`;
+        return;
+      }
+      sessionProfileNameEl.textContent = '👤 Guest';
+    }
+
+    updateProfileDisplay();
+
+    function ensureGuestId() {
+      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+        return window.ScoreSystem.ensureGuestIdentity();
+      }
+      const legacyId = localStorage.getItem('userId');
+      if (legacyId && !localStorage.getItem('guestId')) {
+        localStorage.setItem('guestId', legacyId);
+      }
+      if (legacyId) {
+        localStorage.removeItem('userId');
+      }
+      let guestId = localStorage.getItem('guestId');
+      if (!guestId) {
+        guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('guestId', guestId);
+      }
+      if (!localStorage.getItem('guestDisplayName')) {
+        localStorage.setItem('guestDisplayName', 'Guest');
+      }
+      return guestId;
+    }
+
+    if (isSignedIn) {
+      try {
+        user.get('alias').on((alias) => {
+          aliasDisplay = aliasToDisplay(alias);
+          updateProfileDisplay();
+        });
+        user.get('username').on((name) => {
+          const normalized = typeof name === 'string' ? name.trim() : '';
+          latestDisplayName = normalized;
+          if (normalized) {
+            localStorage.setItem('username', normalized);
+          }
+          updateProfileDisplay();
+        });
+      } catch (err) {
+        console.warn('Unable to subscribe to user profile', err);
+      }
+    } else if (isGuest) {
+      const guestId = ensureGuestId();
+      const guestProfile = gun.get('3dvr-guests').get(guestId);
+      guestProfile.get('username').on((name) => {
+        const normalized = typeof name === 'string' ? name.trim() : '';
+        latestDisplayName = normalized;
+        if (normalized) {
+          localStorage.setItem('guestDisplayName', normalized);
+        }
+        updateProfileDisplay();
+      });
+    }
+
     const phasesByPace = {
       slow: [
         {
@@ -920,6 +1102,7 @@
     let isRunning = false;
     let hasStarted = false;
     let restartOnReturn = false;
+    let scoreTickerId = null;
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
     let counterAnimationId = null;
     let counterTimeoutId = null;
@@ -1461,6 +1644,33 @@
       }
     }
 
+    function startScoreTicker() {
+      if (!scoreManager || typeof scoreManager.increment !== 'function') {
+        return;
+      }
+      if (scoreTickerId) {
+        return;
+      }
+      scoreTickerId = window.setInterval(() => {
+        if (!isRunning || document.hidden) {
+          return;
+        }
+        try {
+          scoreManager.increment(1);
+        } catch (err) {
+          console.warn('Unable to increment meditation score', err);
+        }
+      }, 1000);
+    }
+
+    function stopScoreTicker() {
+      if (!scoreTickerId) {
+        return;
+      }
+      window.clearInterval(scoreTickerId);
+      scoreTickerId = null;
+    }
+
     function scheduleNextPhase() {
       const phase = phases[phaseIndex];
       applyPhase(phase);
@@ -1484,12 +1694,14 @@
       setToggleLabel();
       requestWakeLock();
       scheduleNextPhase();
+      startScoreTicker();
     }
 
     function pauseSession() {
       isRunning = false;
       clearTimeout(timeoutId);
       stopCounter();
+      stopScoreTicker();
       setToggleLabel();
       settlePhaseAudio(true);
       releaseWakeLock();
@@ -1618,8 +1830,14 @@
       motionPreference.addListener(handleMotionPreference);
     }
 
-    window.addEventListener('pagehide', releaseWakeLock);
-    window.addEventListener('beforeunload', releaseWakeLock);
+    window.addEventListener('pagehide', () => {
+      stopScoreTicker();
+      releaseWakeLock();
+    });
+    window.addEventListener('beforeunload', () => {
+      stopScoreTicker();
+      releaseWakeLock();
+    });
 
     showIdlePhase();
     updateCycleDuration();
@@ -1634,5 +1852,6 @@
       setToggleLabel();
     }
   </script>
+  <script src="../navbar.js"></script>
 </body>
 </html>
