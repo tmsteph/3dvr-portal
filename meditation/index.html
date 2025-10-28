@@ -1095,6 +1095,7 @@
     const breathVolumeControl = document.getElementById('breathVolume');
     const breathVolumeValue = document.getElementById('breathVolumeValue');
 
+    const SCORE_TICK_INTERVAL_MS = 5000;
     let currentPaceKey = paceControl.value;
     let phases = phasesByPace[currentPaceKey];
     let phaseIndex = 0;
@@ -1660,7 +1661,7 @@
         } catch (err) {
           console.warn('Unable to increment meditation score', err);
         }
-      }, 1000);
+      }, SCORE_TICK_INTERVAL_MS);
     }
 
     function stopScoreTicker() {
