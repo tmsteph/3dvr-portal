@@ -185,6 +185,37 @@
       --count-scale-settle: 0.94;
       --count-scale-final: 1.22;
     }
+    .floating-score {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: rgba(15, 23, 42, 0.7);
+      box-shadow: 0 18px 48px rgba(8, 15, 35, 0.35);
+      backdrop-filter: blur(12px);
+      color: rgba(226, 232, 240, 0.85);
+      text-align: right;
+      pointer-events: none;
+    }
+    .floating-score__label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      color: rgba(148, 163, 184, 0.75);
+    }
+    .floating-score__value {
+      font-size: clamp(1.2rem, 2.8vw, 1.8rem);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #f8fafc;
+      text-shadow: 0 0 18px rgba(94, 234, 212, 0.45);
+    }
     .count-display::after {
       content: '';
       width: 40px;
@@ -696,6 +727,16 @@
       </div>
     </section>
     <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
+      <div
+        id="floatingSessionScore"
+        class="floating-score"
+        role="status"
+        aria-live="polite"
+        aria-label="Your meditation score"
+      >
+        <span class="floating-score__label">Score</span>
+        <span id="floatingSessionScoreValue" class="floating-score__value">0</span>
+      </div>
       <div id="countDisplay" class="count-display" aria-hidden="true">
         <span class="count-display__value">&mdash;</span>
       </div>
@@ -808,6 +849,7 @@
       : null;
 
     const sessionScoreValueEl = document.getElementById('sessionScoreValue');
+    const floatingSessionScoreValueEl = document.getElementById('floatingSessionScoreValue');
     const sessionProfileNameEl = document.getElementById('sessionProfileName');
 
     function sanitizeScoreDisplay(value) {
@@ -825,6 +867,9 @@
       }
       const safeScore = sanitizeScoreDisplay(value);
       sessionScoreValueEl.textContent = safeScore;
+      if (floatingSessionScoreValueEl) {
+        floatingSessionScoreValueEl.textContent = safeScore;
+      }
     }
 
     updateSessionScoreDisplay(scoreManager ? scoreManager.getCurrent() : 0);
@@ -1095,7 +1140,6 @@
     const breathVolumeControl = document.getElementById('breathVolume');
     const breathVolumeValue = document.getElementById('breathVolumeValue');
 
-    const SCORE_TICK_INTERVAL_MS = 5000;
     let currentPaceKey = paceControl.value;
     let phases = phasesByPace[currentPaceKey];
     let phaseIndex = 0;
@@ -1103,7 +1147,6 @@
     let isRunning = false;
     let hasStarted = false;
     let restartOnReturn = false;
-    let scoreTickerId = null;
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
     let counterAnimationId = null;
     let counterTimeoutId = null;
@@ -1645,39 +1688,30 @@
       }
     }
 
-    function startScoreTicker() {
+    function awardCyclePoint() {
       if (!scoreManager || typeof scoreManager.increment !== 'function') {
         return;
       }
-      if (scoreTickerId) {
+      if (document.hidden) {
         return;
       }
-      scoreTickerId = window.setInterval(() => {
-        if (!isRunning || document.hidden) {
-          return;
-        }
-        try {
-          scoreManager.increment(1);
-        } catch (err) {
-          console.warn('Unable to increment meditation score', err);
-        }
-      }, SCORE_TICK_INTERVAL_MS);
-    }
-
-    function stopScoreTicker() {
-      if (!scoreTickerId) {
-        return;
+      try {
+        scoreManager.increment(1);
+      } catch (err) {
+        console.warn('Unable to increment meditation score', err);
       }
-      window.clearInterval(scoreTickerId);
-      scoreTickerId = null;
     }
 
     function scheduleNextPhase() {
       const phase = phases[phaseIndex];
       applyPhase(phase);
       timeoutId = window.setTimeout(() => {
+        const isLastPhase = phases.length > 0 && phaseIndex === phases.length - 1;
         phaseIndex = (phaseIndex + 1) % phases.length;
         if (isRunning) {
+          if (isLastPhase) {
+            awardCyclePoint();
+          }
           scheduleNextPhase();
         }
       }, phase.duration);
@@ -1695,14 +1729,12 @@
       setToggleLabel();
       requestWakeLock();
       scheduleNextPhase();
-      startScoreTicker();
     }
 
     function pauseSession() {
       isRunning = false;
       clearTimeout(timeoutId);
       stopCounter();
-      stopScoreTicker();
       setToggleLabel();
       settlePhaseAudio(true);
       releaseWakeLock();
@@ -1832,11 +1864,9 @@
     }
 
     window.addEventListener('pagehide', () => {
-      stopScoreTicker();
       releaseWakeLock();
     });
     window.addEventListener('beforeunload', () => {
-      stopScoreTicker();
       releaseWakeLock();
     });
 
