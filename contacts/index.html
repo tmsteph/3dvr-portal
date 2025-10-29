@@ -296,7 +296,7 @@ if (signedIn) {
       handleSignedIn();
       return;
     }
-    signedStatus.textContent = 'Signed-in data present but auth failed. You can still use Public demo space.';
+    signedStatus.textContent = 'Signed-in data detected. Using Public demo space until you sign in again.';
     btnGoSignIn.classList.remove('hidden');
   }
 
