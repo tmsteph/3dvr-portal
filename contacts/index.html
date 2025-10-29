@@ -82,11 +82,6 @@
         Export a CSV or vCard file from Apple Contacts, Android/Google, Gmail, or Outlook and upload it here.
       </p>
 
-      <hr class="my-4 border-white/10">
-
-      <h3 class="text-base font-semibold mb-2">Signed-in status</h3>
-      <p class="text-sm text-gray-300" id="signedStatus">Checking…</p>
-      <button id="btnGoSignIn" class="mt-2 bg-teal-700 hover:bg-teal-800 px-3 py-2 rounded hidden">Go to Sign-In</button>
     </section>
 
     <!-- Right column -->
@@ -277,8 +272,6 @@ const recallUsed = window.ScoreSystem && typeof window.ScoreSystem.recallUserSes
 
 const userDisplay = document.getElementById('userDisplay');
 const btnLogout = document.getElementById('btnLogout');
-const signedStatus = document.getElementById('signedStatus');
-const btnGoSignIn = document.getElementById('btnGoSignIn');
 const urlParams = new URLSearchParams(window.location.search);
 const requestedSpace = urlParams.get('space');
 const focusContactId = urlParams.get('contact');
@@ -314,7 +307,7 @@ function finalizeSignedInState({ alias: aliasValue, username: usernameValue, sta
   } else {
     refreshSignedInDisplay();
     if (statusMessage) {
-      signedStatus.textContent = statusMessage;
+      console.info(statusMessage);
     }
   }
   if (!resolvedAlias) {
@@ -389,16 +382,10 @@ if (signedIn) {
       return;
     }
     signedIn = false;
-    signedStatus.textContent = 'Couldn\'t reconnect to your private contacts automatically. Viewing Public demo space until you sign in again.';
     if (typeof updateIdentityForAnon === 'function') {
       updateIdentityForAnon();
     }
-    btnGoSignIn.classList.remove('hidden');
-    setTimeout(() => {
-      if (typeof changeSpace === 'function') {
-        changeSpace('public-demo', { force: true });
-      }
-    }, 0);
+    console.warn('Could not restore private contacts automatically. Using local data until you sign in again.');
   }
 
   if (user.is) {
@@ -438,17 +425,13 @@ if (signedIn) {
     }, recallUsed ? 800 : 0);
   }
 } else if (guest) {
-  signedStatus.textContent = 'Guest mode — using Public demo space.';
   onGuest();
 } else {
-  signedStatus.textContent = 'Not signed in. You can still use Public demo space.';
   if (typeof updateIdentityForAnon === 'function') {
     updateIdentityForAnon();
   }
-  btnGoSignIn.classList.remove('hidden');
   maybeRestoreExistingSession();
 }
-btnGoSignIn.addEventListener('click', () => location.href = '../sign-in.html');
 
 btnLogout.addEventListener('click', () => {
   try { user.leave(); } catch {}
@@ -465,8 +448,9 @@ function onSignedIn(nameValue, aliasValue, message) {
   }
   refreshSignedInDisplay();
   btnLogout.classList.remove('hidden');
-  btnGoSignIn.classList.add('hidden');
-  signedStatus.textContent = message || 'Signed in (personal space available).';
+  if (message) {
+    console.info(message);
+  }
   changeSpace('personal', { force: true });
   flushQueue('personal');
   updateSyncStatus();
@@ -477,8 +461,8 @@ function onGuest() {
   }
   signedIn = false;
   userDisplay.textContent = 'Guest';
-  changeSpace('public-demo', { force: true });
-  flushQueue('public-demo');
+  changeSpace('personal', { force: true });
+  flushQueue('personal');
   updateSyncStatus();
 }
 
@@ -487,7 +471,7 @@ const spaceSelect = document.getElementById('spaceSelect');
 const spaceBadge = document.getElementById('spaceBadge');
 const allowedSpaces = ['personal', 'org-3dvr', 'public-demo'];
 
-let currentSpace = signedIn ? 'personal' : 'public-demo';
+let currentSpace = 'personal';
 if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
   currentSpace = requestedSpace;
 }
@@ -500,7 +484,11 @@ spaceSelect.addEventListener('change', () => {
 });
 
 function spaceLabel(space) {
-  if (space === 'personal') return user.is ? 'personal (private)' : 'personal (sign in to unlock)';
+  if (space === 'personal') {
+    if (user.is) return 'personal (private)';
+    if (signedIn) return 'personal (private)';
+    return 'personal (local only)';
+  }
   if (space === 'org-3dvr') return 'org: 3dvr';
   if (space === 'public-demo') return 'public demo';
   return space;
@@ -957,7 +945,7 @@ changeSpace(currentSpace, { force: true });
 flushAllQueues();
 
 function changeSpace(space, opts = {}) {
-  const next = space || 'public-demo';
+  const next = space || 'personal';
   const prev = currentSpace;
   currentSpace = next;
   spaceSelect.value = currentSpace;
