@@ -50,8 +50,8 @@
     <section class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
       <h2 class="text-lg font-semibold mb-2">Space</h2>
       <p class="text-sm text-gray-300 mb-3">
-        Store your personal and professional contacts here. Entries default to your private space; switch below if you
-        want to collaborate in a shared list.
+        Store your personal and professional contacts here. Signed-in members default to a private space, while guests start
+        in the shared public demo—switch any time below.
       </p>
       <select id="spaceSelect" class="w-full p-2 rounded text-black">
         <option value="personal" selected>Personal (private to your account)</option>
@@ -502,7 +502,8 @@ function onGuest() {
   }
   signedIn = false;
   userDisplay.textContent = 'Guest';
-  changeSpace('personal', { force: true });
+  changeSpace('public-demo', { force: true });
+  flushQueue('public-demo');
   flushQueue('personal');
   updateSyncStatus();
 }
@@ -512,7 +513,8 @@ const spaceSelect = document.getElementById('spaceSelect');
 const spaceBadge = document.getElementById('spaceBadge');
 const allowedSpaces = ['personal', 'org-3dvr', 'public-demo'];
 
-let currentSpace = 'personal';
+const defaultSpace = signedIn ? 'personal' : 'public-demo';
+let currentSpace = defaultSpace;
 if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
   currentSpace = requestedSpace;
 }
