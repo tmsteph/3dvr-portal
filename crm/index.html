@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="../score.js"></script>
 </head>
 <body class="bg-gray-900 text-white font-sans min-h-screen">
   <header class="bg-gray-950/70 border-b border-white/10">
@@ -140,6 +141,10 @@
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
     const user = gun.user();
+    const portalRoot = gun.get('3dvr-portal');
+    const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
+      ? window.ScoreSystem.getManager({ gun, user, portalRoot })
+      : null;
     try {
       user.recall({ sessionStorage: true, localStorage: true });
     } catch (err) {
@@ -358,6 +363,9 @@
         updated: now
       };
       crmRecords.get(id).put(contact);
+      if (scoreManager) {
+        scoreManager.increment(10);
+      }
       form.reset();
       closeCrmCreateOverlay();
     });
@@ -878,6 +886,9 @@
         created: current.created || created || now
       };
       crmRecords.get(id).put(updated);
+      if (scoreManager) {
+        scoreManager.increment(1);
+      }
     }
 
     function cancelEdit(id) {

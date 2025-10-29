@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="../score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <meta name="color-scheme" content="dark light">
 </head>
@@ -198,6 +199,10 @@
 const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
 const user = gun.user();
 const crmRecords = gun.get('3dvr-crm');
+const portalRoot = gun.get('3dvr-portal');
+const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
+  ? window.ScoreSystem.getManager({ gun, user, portalRoot })
+  : null;
 const CACHE_PREFIX = 'contacts:cache:';
 const QUEUE_PREFIX = 'contacts:pending:';
 const CONTACT_FIELDS = [
@@ -684,6 +689,9 @@ form.addEventListener('submit', e => {
     flushQueue(currentSpace);
   });
   updateSyncStatus();
+  if (scoreManager) {
+    scoreManager.increment(10);
+  }
   form.reset();
   closeCreateContact();
 });
@@ -692,7 +700,7 @@ btnReset.addEventListener('click', ()=>{
   document.getElementById('name')?.focus();
 });
 
-function updateContact(id, patch){
+function updateContact(id, patch, { awardPoints = false } = {}){
   const timestamp = (patch && patch.updated) || nowISO();
   const merged = sanitizeContactRecord({ ...(contactsIndex[id] || {}), ...patch, id, updated: timestamp }, id);
   if (!merged) return;
@@ -709,6 +717,9 @@ function updateContact(id, patch){
     flushQueue(currentSpace);
   });
   updateSyncStatus();
+  if (awardPoints && scoreManager) {
+    scoreManager.increment(1);
+  }
 }
 function deleteContact(id){
   if (!contactsIndex[id]) return;
@@ -1356,7 +1367,7 @@ function openEdit(id){
       status: gv(`e-status-${id}`),
       nextFollowUp: gv(`e-next-${id}`),
       notes: gv(`e-notes-${id}`)
-    });
+    }, { awardPoints: true });
   });
 }
 function confirmDelete(id){
