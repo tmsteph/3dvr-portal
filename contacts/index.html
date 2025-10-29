@@ -296,8 +296,13 @@ if (signedIn) {
       handleSignedIn();
       return;
     }
-    signedStatus.textContent = 'Signed-in data detected. Using Public demo space until you sign in again.';
+    signedStatus.textContent = 'Couldn\'t reconnect to your private contacts automatically. Viewing Public demo space until you sign in again.';
     btnGoSignIn.classList.remove('hidden');
+    setTimeout(() => {
+      if (typeof changeSpace === 'function') {
+        changeSpace('public-demo', { force: true });
+      }
+    }, 0);
   }
 
   if (user.is) {
