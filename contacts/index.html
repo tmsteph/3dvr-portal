@@ -241,18 +241,36 @@ const CONTACT_FIELDS = [
 
 // Reuse portal's localStorage flags:
 const ls = localStorage;
-const signedIn = ls.getItem('signedIn') === 'true';
-const guest = ls.getItem('guest') === 'true';
-const alias = ls.getItem('alias') || '';
-const username = ls.getItem('username') || '';
-const password = ls.getItem('password') || '';
+const legacySignedIn = ls.getItem('signedIn') === 'true';
+const legacyGuest = ls.getItem('guest') === 'true';
+const storedAlias = ls.getItem('alias') || '';
+const storedUsername = ls.getItem('username') || '';
+const storedPassword = ls.getItem('password') || '';
+const authState = window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function'
+  ? window.ScoreSystem.computeAuthState()
+  : (legacySignedIn
+    ? { mode: 'user', alias: storedAlias, username: storedUsername }
+    : (legacyGuest
+      ? { mode: 'guest' }
+      : { mode: 'anon' }));
+const signedIn = authState.mode === 'user';
+const guest = authState.mode === 'guest';
+const alias = signedIn ? (authState.alias || storedAlias) : storedAlias;
+const username = signedIn ? (authState.username || storedUsername) : storedUsername;
+const password = storedPassword;
 
 // Keep session alive across standalone/browser contexts:
-try {
-  user.recall({ sessionStorage: true, localStorage: true });
-} catch (err) {
-  console.warn('Unable to recall user session', err);
-}
+const recallUsed = window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function'
+  ? window.ScoreSystem.recallUserSession(user)
+  : (() => {
+      try {
+        user.recall({ sessionStorage: true, localStorage: true });
+        return true;
+      } catch (err) {
+        console.warn('Unable to recall user session', err);
+        return false;
+      }
+    })();
 
 const userDisplay = document.getElementById('userDisplay');
 const btnLogout = document.getElementById('btnLogout');
@@ -265,15 +283,59 @@ const focusClasses = ['ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offse
 let focusScrollDone = false;
 
 // Silent auth if we have creds from the portal:
-if (signedIn && alias && password) {
-  user.auth(alias, password, ack => {
-    if (ack && ack.err) {
-      signedStatus.textContent = 'Signed-in data present but auth failed. You can still use Public demo space.';
-      btnGoSignIn.classList.remove('hidden');
-    } else {
-      onSignedIn(username, alias);
+if (signedIn) {
+  const aliasToUse = alias;
+  const usernameToUse = username || aliasToDisplay(aliasToUse);
+
+  function handleSignedIn() {
+    onSignedIn(usernameToUse, aliasToUse);
+  }
+
+  function handleAuthFailure() {
+    if (user.is) {
+      handleSignedIn();
+      return;
     }
-  });
+    signedStatus.textContent = 'Signed-in data present but auth failed. You can still use Public demo space.';
+    btnGoSignIn.classList.remove('hidden');
+  }
+
+  if (user.is) {
+    handleSignedIn();
+  } else if (aliasToUse && password) {
+    let resolved = false;
+    try {
+      user.auth(aliasToUse, password, ack => {
+        resolved = true;
+        if (ack && ack.err) {
+          handleAuthFailure();
+        } else {
+          handleSignedIn();
+        }
+      });
+    } catch (err) {
+      console.warn('Silent auth attempt failed', err);
+      resolved = true;
+      handleAuthFailure();
+    }
+    setTimeout(() => {
+      if (!resolved) {
+        if (user.is) {
+          handleSignedIn();
+        } else {
+          handleAuthFailure();
+        }
+      }
+    }, 1500);
+  } else {
+    setTimeout(() => {
+      if (user.is) {
+        handleSignedIn();
+      } else {
+        handleAuthFailure();
+      }
+    }, recallUsed ? 800 : 0);
+  }
 } else if (guest) {
   signedStatus.textContent = 'Guest mode — using Public demo space.';
   onGuest();
@@ -309,7 +371,7 @@ const spaceSelect = document.getElementById('spaceSelect');
 const spaceBadge = document.getElementById('spaceBadge');
 const allowedSpaces = ['personal', 'org-3dvr', 'public-demo'];
 
-let currentSpace = user.is ? 'personal' : 'public-demo';
+let currentSpace = signedIn ? 'personal' : 'public-demo';
 if (requestedSpace && allowedSpaces.includes(requestedSpace)) {
   currentSpace = requestedSpace;
 }
