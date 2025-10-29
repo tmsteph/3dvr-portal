@@ -257,6 +257,47 @@ let updateIdentityForSignedIn = null;
 let updateIdentityForGuest = null;
 let updateIdentityForAnon = null;
 
+let guestContactsId = '';
+
+function ensureGuestContactsId() {
+  if (guestContactsId) {
+    return guestContactsId;
+  }
+  let resolved = '';
+  try {
+    if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+      resolved = window.ScoreSystem.ensureGuestIdentity() || '';
+    }
+  } catch (err) {
+    console.warn('Failed to ensure guest identity via ScoreSystem', err);
+  }
+  try {
+    const legacyId = localStorage.getItem('userId');
+    if (!resolved && legacyId && !localStorage.getItem('guestId')) {
+      localStorage.setItem('guestId', legacyId);
+    }
+    if (legacyId) {
+      localStorage.removeItem('userId');
+    }
+    if (!resolved) {
+      resolved = localStorage.getItem('guestId') || '';
+    }
+    if (!resolved) {
+      resolved = `guest_${Math.random().toString(36).slice(2, 11)}`;
+    }
+    if (resolved) {
+      localStorage.setItem('guestId', resolved);
+    }
+    if (!localStorage.getItem('guestDisplayName')) {
+      localStorage.setItem('guestDisplayName', 'Guest');
+    }
+  } catch (err) {
+    console.warn('Failed to prepare guest identity storage', err);
+  }
+  guestContactsId = resolved;
+  return guestContactsId;
+}
+
 // Keep session alive across standalone/browser contexts:
 const recallUsed = window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function'
   ? window.ScoreSystem.recallUserSession(user)
@@ -487,7 +528,7 @@ function spaceLabel(space) {
   if (space === 'personal') {
     if (user.is) return 'personal (private)';
     if (signedIn) return 'personal (private)';
-    return 'personal (local only)';
+    return 'personal (private sync)';
   }
   if (space === 'org-3dvr') return 'org: 3dvr';
   if (space === 'public-demo') return 'public demo';
@@ -503,6 +544,10 @@ const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
 function spaceNode(space = currentSpace) {
   if (space === 'personal') {
     if (user.is) return user.get('contacts');
+    const guestId = ensureGuestContactsId();
+    if (guestId && guestsRoot) {
+      return guestsRoot.get(guestId).get('contacts');
+    }
     return null;
   }
   if (space === 'org-3dvr') return gun.get(ORG_SPACE_KEY).get('contacts');
@@ -663,26 +708,7 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
       return;
     }
     guestIdentityInitialized = true;
-    let guestId = '';
-    if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-      guestId = window.ScoreSystem.ensureGuestIdentity() || '';
-    } else {
-      const legacyId = localStorage.getItem('userId');
-      if (legacyId && !localStorage.getItem('guestId')) {
-        localStorage.setItem('guestId', legacyId);
-      }
-      if (legacyId) {
-        localStorage.removeItem('userId');
-      }
-      guestId = localStorage.getItem('guestId');
-      if (!guestId) {
-        guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('guestId', guestId);
-      }
-      if (!localStorage.getItem('guestDisplayName')) {
-        localStorage.setItem('guestDisplayName', 'Guest');
-      }
-    }
+    const guestId = ensureGuestContactsId();
     if (guestId && guestsRoot) {
       try {
         guestsRoot.get(guestId).get('username').on(name => {
