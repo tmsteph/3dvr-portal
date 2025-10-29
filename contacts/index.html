@@ -544,6 +544,7 @@ const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
 function spaceNode(space = currentSpace) {
   if (space === 'personal') {
     if (user.is) return user.get('contacts');
+    if (signedIn) return null;
     const guestId = ensureGuestContactsId();
     if (guestId && guestsRoot) {
       return guestsRoot.get(guestId).get('contacts');
