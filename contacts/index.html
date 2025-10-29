@@ -253,11 +253,14 @@ const authState = window.ScoreSystem && typeof window.ScoreSystem.computeAuthSta
     : (legacyGuest
       ? { mode: 'guest' }
       : { mode: 'anon' }));
-const signedIn = authState.mode === 'user';
+let signedIn = authState.mode === 'user';
 const guest = authState.mode === 'guest';
-const alias = signedIn ? (authState.alias || storedAlias) : storedAlias;
-const username = signedIn ? (authState.username || storedUsername) : storedUsername;
+let alias = signedIn ? (authState.alias || storedAlias) : storedAlias;
+let username = signedIn ? (authState.username || storedUsername) : storedUsername;
 const password = storedPassword;
+let updateIdentityForSignedIn = null;
+let updateIdentityForGuest = null;
+let updateIdentityForAnon = null;
 
 // Keep session alive across standalone/browser contexts:
 const recallUsed = window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function'
@@ -282,13 +285,102 @@ const focusContactId = urlParams.get('contact');
 const focusClasses = ['ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-gray-900'];
 let focusScrollDone = false;
 
+function refreshSignedInDisplay() {
+  if (!userDisplay) return;
+  const aliasTrimmed = (alias || '').trim();
+  const usernameTrimmed = (username || '').trim() || aliasToDisplay(aliasTrimmed) || 'User';
+  const aliasSegment = aliasTrimmed ? ` (${aliasTrimmed})` : '';
+  userDisplay.textContent = `Signed in as ${usernameTrimmed}${aliasSegment}`;
+}
+
+function finalizeSignedInState({ alias: aliasValue, username: usernameValue, statusMessage } = {}) {
+  const wasSignedIn = signedIn;
+  if (typeof aliasValue === 'string' && aliasValue.trim()) {
+    alias = aliasValue.trim();
+  }
+  if (typeof usernameValue === 'string' && usernameValue.trim()) {
+    username = usernameValue.trim();
+  }
+  const resolvedAlias = (alias || '').trim();
+  if (!username || !username.trim()) {
+    username = aliasToDisplay(resolvedAlias) || 'User';
+  }
+  signedIn = true;
+  if (typeof updateIdentityForSignedIn === 'function') {
+    updateIdentityForSignedIn({ aliasHint: resolvedAlias, usernameHint: username });
+  }
+  if (!wasSignedIn) {
+    onSignedIn(username, resolvedAlias, statusMessage);
+  } else {
+    refreshSignedInDisplay();
+    if (statusMessage) {
+      signedStatus.textContent = statusMessage;
+    }
+  }
+  if (!resolvedAlias) {
+    try {
+      user.get('alias').once(value => {
+        const normalized = typeof value === 'string' ? value.trim() : '';
+        if (!normalized || normalized === alias) {
+          return;
+        }
+        alias = normalized;
+        refreshSignedInDisplay();
+        if (typeof updateIdentityForSignedIn === 'function') {
+          updateIdentityForSignedIn({ aliasHint: alias });
+        }
+      });
+    } catch (err) {
+      console.warn('Failed to resolve alias for restored session', err);
+    }
+  }
+}
+
+function adoptSessionFromActiveUser(message) {
+  if (signedIn || !user || !user.is) {
+    return false;
+  }
+  const aliasFromSession = typeof user.is.alias === 'string' ? user.is.alias.trim() : '';
+  const aliasCandidate = aliasFromSession || alias || storedAlias || '';
+  const usernameCandidate = username || aliasToDisplay(aliasCandidate) || (aliasFromSession ? aliasToDisplay(aliasFromSession) : 'User');
+  finalizeSignedInState({ alias: aliasCandidate, username: usernameCandidate, statusMessage: message });
+  return true;
+}
+
+function maybeRestoreExistingSession() {
+  if (signedIn || guest) {
+    return;
+  }
+  const attempt = () => adoptSessionFromActiveUser('Signed in (session restored automatically).');
+  if (attempt()) {
+    return;
+  }
+  if (typeof user.on === 'function') {
+    try {
+      user.on('auth', () => {
+        if (!signedIn) {
+          attempt();
+        }
+      });
+    } catch (err) {
+      console.warn('Failed to bind auth listener for session restore', err);
+    }
+  }
+  const delay = recallUsed ? 800 : 0;
+  setTimeout(() => {
+    if (!signedIn) {
+      attempt();
+    }
+  }, delay + 400);
+}
+
 // Silent auth if we have creds from the portal:
 if (signedIn) {
   const aliasToUse = alias;
   const usernameToUse = username || aliasToDisplay(aliasToUse);
 
-  function handleSignedIn() {
-    onSignedIn(usernameToUse, aliasToUse);
+  function handleSignedIn(message) {
+    finalizeSignedInState({ alias: aliasToUse, username: usernameToUse, statusMessage: message });
   }
 
   function handleAuthFailure() {
@@ -296,7 +388,11 @@ if (signedIn) {
       handleSignedIn();
       return;
     }
+    signedIn = false;
     signedStatus.textContent = 'Couldn\'t reconnect to your private contacts automatically. Viewing Public demo space until you sign in again.';
+    if (typeof updateIdentityForAnon === 'function') {
+      updateIdentityForAnon();
+    }
     btnGoSignIn.classList.remove('hidden');
     setTimeout(() => {
       if (typeof changeSpace === 'function') {
@@ -346,7 +442,11 @@ if (signedIn) {
   onGuest();
 } else {
   signedStatus.textContent = 'Not signed in. You can still use Public demo space.';
+  if (typeof updateIdentityForAnon === 'function') {
+    updateIdentityForAnon();
+  }
   btnGoSignIn.classList.remove('hidden');
+  maybeRestoreExistingSession();
 }
 btnGoSignIn.addEventListener('click', () => location.href = '../sign-in.html');
 
@@ -356,15 +456,26 @@ btnLogout.addEventListener('click', () => {
   location.reload();
 });
 
-function onSignedIn(username, alias) {
-  userDisplay.textContent = `Signed in as ${username} (${alias})`;
+function onSignedIn(nameValue, aliasValue, message) {
+  if (typeof nameValue === 'string' && nameValue.trim()) {
+    username = nameValue.trim();
+  }
+  if (typeof aliasValue === 'string' && aliasValue.trim()) {
+    alias = aliasValue.trim();
+  }
+  refreshSignedInDisplay();
   btnLogout.classList.remove('hidden');
-  signedStatus.textContent = 'Signed in (personal space available).';
+  btnGoSignIn.classList.add('hidden');
+  signedStatus.textContent = message || 'Signed in (personal space available).';
   changeSpace('personal', { force: true });
   flushQueue('personal');
   updateSyncStatus();
 }
 function onGuest() {
+  if (typeof updateIdentityForGuest === 'function') {
+    updateIdentityForGuest();
+  }
+  signedIn = false;
   userDisplay.textContent = 'Guest';
   changeSpace('public-demo', { force: true });
   flushQueue('public-demo');
@@ -501,19 +612,22 @@ function sanitizeScoreDisplay(value) {
 }
 
 if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
-  const isSignedIn = signedIn;
-  const isGuest = !isSignedIn && guest;
+  let identitySignedIn = signedIn;
+  let identityGuest = !identitySignedIn && guest;
   let latestDisplayName = '';
   let aliasDisplay = aliasToDisplay(alias);
+  let signedIdentityListenersAttached = false;
+  let guestIdentityInitialized = false;
 
   function updateIdentityName() {
     let display = '';
     if (latestDisplayName) {
       display = latestDisplayName;
-    } else if (isSignedIn) {
+    } else if (identitySignedIn) {
       const stored = (localStorage.getItem('username') || '').trim();
-      display = stored || aliasDisplay || 'Guest';
-    } else if (isGuest) {
+      const fallback = (username || '').trim();
+      display = fallback || stored || aliasDisplay || 'Guest';
+    } else if (identityGuest) {
       const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
       display = guestStored || aliasDisplay || 'Guest';
     } else {
@@ -526,31 +640,41 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
     floatingIdentityScore.textContent = `⭐ ${sanitizeScoreDisplay(score)}`;
   }
 
-  updateIdentityName();
-  updateIdentityScore(scoreManager ? scoreManager.getCurrent() : 0);
-
-  if (scoreManager) {
-    scoreManager.subscribe(updateIdentityScore);
-  }
-
-  if (isSignedIn) {
+  function attachSignedInIdentityListeners() {
+    if (signedIdentityListenersAttached) {
+      return;
+    }
+    signedIdentityListenersAttached = true;
     try {
       user.get('alias').on(value => {
-        aliasDisplay = aliasToDisplay(value);
+        const normalized = typeof value === 'string' ? value.trim() : '';
+        if (normalized) {
+          alias = normalized;
+        }
+        aliasDisplay = aliasToDisplay(normalized || alias);
         updateIdentityName();
+        refreshSignedInDisplay();
       });
       user.get('username').on(name => {
         const normalized = typeof name === 'string' ? name.trim() : '';
         latestDisplayName = normalized;
         if (normalized) {
+          username = normalized;
           localStorage.setItem('username', normalized);
         }
         updateIdentityName();
+        refreshSignedInDisplay();
       });
     } catch (err) {
       console.warn('Failed to bind signed-in identity listeners', err);
     }
-  } else if (isGuest) {
+  }
+
+  function initializeGuestIdentity() {
+    if (guestIdentityInitialized) {
+      return;
+    }
+    guestIdentityInitialized = true;
     let guestId = '';
     if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
       guestId = window.ScoreSystem.ensureGuestIdentity() || '';
@@ -585,6 +709,51 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
         console.warn('Failed to bind guest identity listener', err);
       }
     }
+  }
+
+  updateIdentityForSignedIn = ({ aliasHint, usernameHint } = {}) => {
+    if (typeof aliasHint === 'string' && aliasHint.trim()) {
+      aliasDisplay = aliasToDisplay(aliasHint);
+    } else {
+      aliasDisplay = aliasToDisplay(alias);
+    }
+    if (typeof usernameHint === 'string' && usernameHint.trim()) {
+      latestDisplayName = usernameHint.trim();
+    } else if ((username || '').trim()) {
+      latestDisplayName = (username || '').trim();
+    }
+    identitySignedIn = true;
+    identityGuest = false;
+    updateIdentityName();
+    attachSignedInIdentityListeners();
+  };
+
+  updateIdentityForGuest = () => {
+    identitySignedIn = false;
+    identityGuest = true;
+    latestDisplayName = '';
+    updateIdentityName();
+    initializeGuestIdentity();
+  };
+
+  updateIdentityForAnon = () => {
+    identitySignedIn = false;
+    identityGuest = false;
+    latestDisplayName = '';
+    updateIdentityName();
+  };
+
+  updateIdentityName();
+  updateIdentityScore(scoreManager ? scoreManager.getCurrent() : 0);
+
+  if (scoreManager) {
+    scoreManager.subscribe(updateIdentityScore);
+  }
+
+  if (identitySignedIn) {
+    attachSignedInIdentityListeners();
+  } else if (identityGuest) {
+    initializeGuestIdentity();
   }
 }
 function scheduleRender(){
