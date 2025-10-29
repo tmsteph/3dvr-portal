@@ -27,6 +27,19 @@
     </div>
   </header>
 
+  <a
+    id="floatingIdentity"
+    href="../profile.html#profile"
+    title="View your profile"
+    class="fixed bottom-4 right-4 sm:top-4 sm:bottom-auto sm:right-4 z-30 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-gray-900/90 px-4 py-3 text-sm text-white shadow-xl shadow-black/30 backdrop-blur"
+  >
+    <div class="flex flex-col leading-tight">
+      <span id="floatingIdentityName" class="font-semibold">👤 Guest</span>
+      <span id="floatingIdentityScore" class="text-xs text-teal-300">⭐ 0</span>
+    </div>
+    <span class="text-xs text-gray-300">Profile →</span>
+  </a>
+
   <div id="syncStatus" class="max-w-6xl mx-auto px-4 pt-3 text-sm text-amber-300 hidden">
     Changes pending sync. They'll upload automatically when online.
   </div>
@@ -200,6 +213,7 @@ const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
 const user = gun.user();
 const crmRecords = gun.get('3dvr-crm');
 const portalRoot = gun.get('3dvr-portal');
+const guestsRoot = gun.get('3dvr-guests');
 const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
   ? window.ScoreSystem.getManager({ gun, user, portalRoot })
   : null;
@@ -343,6 +357,9 @@ const duplicateSummaryEl = document.getElementById('duplicateSummary');
 const prevPageBtn = document.getElementById('prevPage');
 const nextPageBtn = document.getElementById('nextPage');
 const pageInfo = document.getElementById('pageInfo');
+const floatingIdentity = document.getElementById('floatingIdentity');
+const floatingIdentityName = document.getElementById('floatingIdentityName');
+const floatingIdentityScore = document.getElementById('floatingIdentityScore');
 const btnExportJSON = document.getElementById('btnExportJSON');
 const btnExportCSV = document.getElementById('btnExportCSV');
 const importFile = document.getElementById('importFile');
@@ -398,6 +415,111 @@ const duplicateMetaById = new Map();
 const duplicatePrimaryById = new Map();
 
 let renderTimer = null;
+function aliasToDisplay(value) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  if (!normalized) return '';
+  if (normalized.includes('@')) {
+    return normalized.split('@')[0];
+  }
+  return normalized;
+}
+
+function sanitizeScoreDisplay(value) {
+  if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
+    return window.ScoreSystem.sanitizeScore(value);
+  }
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.round(numeric));
+}
+
+if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
+  const isSignedIn = signedIn;
+  const isGuest = !isSignedIn && guest;
+  let latestDisplayName = '';
+  let aliasDisplay = aliasToDisplay(alias);
+
+  function updateIdentityName() {
+    let display = '';
+    if (latestDisplayName) {
+      display = latestDisplayName;
+    } else if (isSignedIn) {
+      const stored = (localStorage.getItem('username') || '').trim();
+      display = stored || aliasDisplay || 'Guest';
+    } else if (isGuest) {
+      const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
+      display = guestStored || aliasDisplay || 'Guest';
+    } else {
+      display = aliasDisplay || 'Guest';
+    }
+    floatingIdentityName.textContent = `👤 ${display}`;
+  }
+
+  function updateIdentityScore(score) {
+    floatingIdentityScore.textContent = `⭐ ${sanitizeScoreDisplay(score)}`;
+  }
+
+  updateIdentityName();
+  updateIdentityScore(scoreManager ? scoreManager.getCurrent() : 0);
+
+  if (scoreManager) {
+    scoreManager.subscribe(updateIdentityScore);
+  }
+
+  if (isSignedIn) {
+    try {
+      user.get('alias').on(value => {
+        aliasDisplay = aliasToDisplay(value);
+        updateIdentityName();
+      });
+      user.get('username').on(name => {
+        const normalized = typeof name === 'string' ? name.trim() : '';
+        latestDisplayName = normalized;
+        if (normalized) {
+          localStorage.setItem('username', normalized);
+        }
+        updateIdentityName();
+      });
+    } catch (err) {
+      console.warn('Failed to bind signed-in identity listeners', err);
+    }
+  } else if (isGuest) {
+    let guestId = '';
+    if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+      guestId = window.ScoreSystem.ensureGuestIdentity() || '';
+    } else {
+      const legacyId = localStorage.getItem('userId');
+      if (legacyId && !localStorage.getItem('guestId')) {
+        localStorage.setItem('guestId', legacyId);
+      }
+      if (legacyId) {
+        localStorage.removeItem('userId');
+      }
+      guestId = localStorage.getItem('guestId');
+      if (!guestId) {
+        guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('guestId', guestId);
+      }
+      if (!localStorage.getItem('guestDisplayName')) {
+        localStorage.setItem('guestDisplayName', 'Guest');
+      }
+    }
+    if (guestId && guestsRoot) {
+      try {
+        guestsRoot.get(guestId).get('username').on(name => {
+          const normalized = typeof name === 'string' ? name.trim() : '';
+          latestDisplayName = normalized;
+          if (normalized) {
+            localStorage.setItem('guestDisplayName', normalized);
+          }
+          updateIdentityName();
+        });
+      } catch (err) {
+        console.warn('Failed to bind guest identity listener', err);
+      }
+    }
+  }
+}
 function scheduleRender(){
   clearTimeout(renderTimer);
   renderTimer = setTimeout(updateList, 40);
