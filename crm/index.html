@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="../score.js"></script>
 </head>
 <body class="bg-gray-900 text-white font-sans min-h-screen">
   <header class="bg-gray-950/70 border-b border-white/10">
@@ -26,6 +27,19 @@
       </nav>
     </div>
   </header>
+
+  <a
+    id="crmFloatingIdentity"
+    href="../profile.html#profile"
+    title="View your profile"
+    class="fixed bottom-4 right-4 sm:top-4 sm:bottom-auto sm:right-4 z-30 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-gray-900/90 px-4 py-3 text-sm text-white shadow-xl shadow-black/30 backdrop-blur"
+  >
+    <div class="flex flex-col leading-tight">
+      <span id="crmFloatingName" class="font-semibold">👤 Guest</span>
+      <span id="crmFloatingScore" class="text-xs text-sky-300">⭐ 0</span>
+    </div>
+    <span class="text-xs text-gray-300">Profile →</span>
+  </a>
 
   <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
     <section class="grid gap-4 md:grid-cols-2">
@@ -140,6 +154,11 @@
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
     const user = gun.user();
+    const portalRoot = gun.get('3dvr-portal');
+    const guestsRoot = gun.get('3dvr-guests');
+    const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
+      ? window.ScoreSystem.getManager({ gun, user, portalRoot })
+      : null;
     try {
       user.recall({ sessionStorage: true, localStorage: true });
     } catch (err) {
@@ -161,6 +180,9 @@
     const visibleCountEl = document.getElementById('visibleCount');
     const emptyState = document.getElementById('emptyState');
     const duplicateSummaryEl = document.getElementById('crmDuplicateSummary');
+    const crmFloatingIdentity = document.getElementById('crmFloatingIdentity');
+    const crmFloatingName = document.getElementById('crmFloatingName');
+    const crmFloatingScore = document.getElementById('crmFloatingScore');
     const crmCreateOverlay = document.getElementById('crmCreateOverlay');
     const openCrmCreateBtn = document.getElementById('openCrmCreate');
     const closeCrmCreateBtn = document.getElementById('closeCrmCreate');
@@ -195,6 +217,111 @@
     const crmDuplicateMetaById = new Map();
     const crmDuplicatePrimaryById = new Map();
     let crmRenderTimer = null;
+    function aliasToDisplay(value) {
+      const normalized = typeof value === 'string' ? value.trim() : '';
+      if (!normalized) return '';
+      if (normalized.includes('@')) {
+        return normalized.split('@')[0];
+      }
+      return normalized;
+    }
+
+    function sanitizeScoreDisplay(value) {
+      if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
+        return window.ScoreSystem.sanitizeScore(value);
+      }
+      const numeric = typeof value === 'number' ? value : Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.round(numeric));
+    }
+
+    if (crmFloatingIdentity && crmFloatingName && crmFloatingScore) {
+      const isSignedIn = signedIn;
+      const isGuest = !isSignedIn && ls.getItem('guest') === 'true';
+      let latestDisplayName = '';
+      let aliasDisplay = aliasToDisplay(alias);
+
+      function updateIdentityName() {
+        let display = '';
+        if (latestDisplayName) {
+          display = latestDisplayName;
+        } else if (isSignedIn) {
+          const stored = (ls.getItem('username') || '').trim();
+          display = stored || aliasDisplay || 'Guest';
+        } else if (isGuest) {
+          const guestStored = (ls.getItem('guestDisplayName') || '').trim();
+          display = guestStored || aliasDisplay || 'Guest';
+        } else {
+          display = aliasDisplay || 'Guest';
+        }
+        crmFloatingName.textContent = `👤 ${display}`;
+      }
+
+      function updateIdentityScore(score) {
+        crmFloatingScore.textContent = `⭐ ${sanitizeScoreDisplay(score)}`;
+      }
+
+      updateIdentityName();
+      updateIdentityScore(scoreManager ? scoreManager.getCurrent() : 0);
+
+      if (scoreManager) {
+        scoreManager.subscribe(updateIdentityScore);
+      }
+
+      if (isSignedIn) {
+        try {
+          user.get('alias').on(value => {
+            aliasDisplay = aliasToDisplay(value);
+            updateIdentityName();
+          });
+          user.get('username').on(name => {
+            const normalized = typeof name === 'string' ? name.trim() : '';
+            latestDisplayName = normalized;
+            if (normalized) {
+              ls.setItem('username', normalized);
+            }
+            updateIdentityName();
+          });
+        } catch (err) {
+          console.warn('Failed to bind signed-in identity listeners', err);
+        }
+      } else if (isGuest) {
+        let guestId = '';
+        if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+          guestId = window.ScoreSystem.ensureGuestIdentity() || '';
+        } else {
+          const legacyId = ls.getItem('userId');
+          if (legacyId && !ls.getItem('guestId')) {
+            ls.setItem('guestId', legacyId);
+          }
+          if (legacyId) {
+            ls.removeItem('userId');
+          }
+          guestId = ls.getItem('guestId');
+          if (!guestId) {
+            guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+            ls.setItem('guestId', guestId);
+          }
+          if (!ls.getItem('guestDisplayName')) {
+            ls.setItem('guestDisplayName', 'Guest');
+          }
+        }
+        if (guestId && guestsRoot) {
+          try {
+            guestsRoot.get(guestId).get('username').on(name => {
+              const normalized = typeof name === 'string' ? name.trim() : '';
+              latestDisplayName = normalized;
+              if (normalized) {
+                ls.setItem('guestDisplayName', normalized);
+              }
+              updateIdentityName();
+            });
+          } catch (err) {
+            console.warn('Failed to bind guest identity listener', err);
+          }
+        }
+      }
+    }
     const crmDetailOverlay = document.getElementById('crmDetailOverlay');
     const crmDetailName = document.getElementById('crmDetailName');
     const crmDetailSummary = document.getElementById('crmDetailSummary');
@@ -358,6 +485,9 @@
         updated: now
       };
       crmRecords.get(id).put(contact);
+      if (scoreManager) {
+        scoreManager.increment(10);
+      }
       form.reset();
       closeCrmCreateOverlay();
     });
@@ -878,6 +1008,9 @@
         created: current.created || created || now
       };
       crmRecords.get(id).put(updated);
+      if (scoreManager) {
+        scoreManager.increment(1);
+      }
     }
 
     function cancelEdit(id) {
