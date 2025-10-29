@@ -22,9 +22,9 @@ const STATIC_ASSETS = [
 const createReloadedRequests = (assets) =>
   assets.map((asset) => new Request(asset, { cache: 'reload' }));
 
-const networkFirst = async (req) => {
+const networkFirst = async (req, { cacheMode = 'default' } = {}) => {
   try {
-    const fresh = await fetch(req);
+    const fresh = await fetch(req, { cache: cacheMode });
     if (fresh && fresh.ok) {
       const cache = await caches.open(STATIC_CACHE);
       cache.put(req, fresh.clone());
@@ -105,7 +105,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isStyleRequest(req)) {
-    event.respondWith(networkFirst(req));
+    event.respondWith(networkFirst(req, { cacheMode: 'reload' }));
     return;
   }
 
