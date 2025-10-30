@@ -250,7 +250,7 @@ const authState = window.ScoreSystem && typeof window.ScoreSystem.computeAuthSta
       ? { mode: 'guest' }
       : { mode: 'anon' }));
 let signedIn = authState.mode === 'user';
-const guest = authState.mode === 'guest';
+let guest = authState.mode === 'guest';
 let alias = signedIn ? (authState.alias || storedAlias) : storedAlias;
 let username = signedIn ? (authState.username || storedUsername) : storedUsername;
 const password = storedPassword;
@@ -382,8 +382,8 @@ function adoptSessionFromActiveUser(message) {
   return true;
 }
 
-function maybeRestoreExistingSession() {
-  if (signedIn || guest) {
+function maybeRestoreExistingSession({ allowWhenGuest = false } = {}) {
+  if (signedIn || (guest && !allowWhenGuest)) {
     return;
   }
   const attempt = () => adoptSessionFromActiveUser('Signed in (session restored automatically).');
@@ -468,13 +468,19 @@ if (signedIn) {
       }
     }, recallUsed ? 800 : 0);
   }
-} else if (guest) {
-  onGuest();
 } else {
-  if (typeof updateIdentityForAnon === 'function') {
-    updateIdentityForAnon();
+  const adoptedImmediately = adoptSessionFromActiveUser('Signed in (session restored automatically).');
+  if (adoptedImmediately) {
+    guest = false;
+  } else if (guest) {
+    onGuest();
+    maybeRestoreExistingSession({ allowWhenGuest: true });
+  } else {
+    if (typeof updateIdentityForAnon === 'function') {
+      updateIdentityForAnon();
+    }
+    maybeRestoreExistingSession();
   }
-  maybeRestoreExistingSession();
 }
 
 btnLogout.addEventListener('click', () => {
@@ -490,6 +496,7 @@ function onSignedIn(nameValue, aliasValue, message) {
   if (typeof aliasValue === 'string' && aliasValue.trim()) {
     alias = aliasValue.trim();
   }
+  guest = false;
   refreshSignedInDisplay();
   btnLogout.classList.remove('hidden');
   if (message) {
@@ -507,6 +514,7 @@ function onGuest() {
     updateIdentityForGuest();
   }
   signedIn = false;
+  guest = true;
   clearPersonalAuthRequirement();
   personalAuthPromise = null;
   userDisplay.textContent = 'Guest';
