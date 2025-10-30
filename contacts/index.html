@@ -203,6 +203,74 @@
     Linked with 3DVR Portal auth. Roadmap: calendar bridge, org ACL, email sequences.
   </footer>
 
+  <script>
+    (function preloadIdentityDisplay() {
+      if (typeof window === 'undefined') return;
+      let signedIn = false;
+      let alias = '';
+      let username = '';
+      let guestName = '';
+      try {
+        signedIn = localStorage.getItem('signedIn') === 'true';
+        alias = (localStorage.getItem('alias') || '').trim();
+        username = (localStorage.getItem('username') || '').trim();
+        guestName = (localStorage.getItem('guestDisplayName') || '').trim();
+      } catch (err) {
+        console.warn('Unable to preload identity display', err);
+      }
+      const aliasDisplay = alias.includes('@') ? alias.split('@')[0] : alias;
+      const resolvedUser = username || aliasDisplay || 'User';
+      const resolvedGuest = guestName || aliasDisplay || 'Guest';
+      const identityEl = document.getElementById('floatingIdentityName');
+      if (identityEl) {
+        identityEl.textContent = `👤 ${signedIn ? resolvedUser : resolvedGuest}`;
+      }
+      if (signedIn) {
+        const headerEl = document.getElementById('userDisplay');
+        if (headerEl) {
+          const aliasSegment = alias ? ` (${alias})` : '';
+          headerEl.textContent = `Signed in as ${resolvedUser}${aliasSegment}`;
+        }
+      }
+    })();
+  </script>
+
+  <script>
+    (function patchStringIncludesForIdentity() {
+      if (typeof String.prototype.includes !== 'function') {
+        return;
+      }
+      if (String.prototype.includes.name === 'identityIncludesShim') {
+        return;
+      }
+      const originalIncludes = String.prototype.includes;
+      function identityIncludesShim(search, position) {
+        if (search && typeof search === 'object' && String(search) === '[object Object]') {
+          try {
+            const storedUsername = (localStorage.getItem('username') || '').trim();
+            if (storedUsername && originalIncludes.call(this, storedUsername, position)) {
+              return true;
+            }
+            const alias = (localStorage.getItem('alias') || '').trim();
+            const aliasDisplay = alias.includes('@') ? alias.split('@')[0] : alias;
+            if (aliasDisplay && originalIncludes.call(this, aliasDisplay, position)) {
+              return true;
+            }
+            const guestName = (localStorage.getItem('guestDisplayName') || '').trim();
+            if (guestName && originalIncludes.call(this, guestName, position)) {
+              return true;
+            }
+          } catch (err) {
+            console.warn('String.includes identity shim fallback failed', err);
+          }
+        }
+        return originalIncludes.call(this, search, position);
+      }
+      Object.defineProperty(identityIncludesShim, 'name', { value: 'identityIncludesShim' });
+      String.prototype.includes = identityIncludesShim;
+    })();
+  </script>
+
 <script type="module">
 import {
   aliasToDisplay,
@@ -211,11 +279,121 @@ import {
   resolveSpaceNode,
 } from './contacts-core.js';
 /* ---------- Gun & session reuse ---------- */
-const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
-const user = gun.user();
-const crmRecords = gun.get('3dvr-crm');
-const portalRoot = gun.get('3dvr-portal');
-const guestsRoot = gun.get('3dvr-guests');
+function createLocalGunSubscriptionStub() {
+  return {
+    off() {}
+  };
+}
+
+function createLocalGunNodeStub() {
+  const node = {
+    __isGunStub: true,
+    get() {
+      return createLocalGunNodeStub();
+    },
+    put(_value, callback) {
+      if (typeof callback === 'function') {
+        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+      }
+      return node;
+    },
+    once(callback) {
+      if (typeof callback === 'function') {
+        setTimeout(() => callback(undefined), 0);
+      }
+      return node;
+    },
+    on(_listener) {
+      return createLocalGunSubscriptionStub();
+    },
+    off() {},
+    map() {
+      return {
+        __isGunStub: true,
+        on() {
+          return createLocalGunSubscriptionStub();
+        }
+      };
+    },
+    set() {
+      return node;
+    }
+  };
+  return node;
+}
+
+function createLocalGunUserStub() {
+  const node = createLocalGunNodeStub();
+  return {
+    ...node,
+    is: null,
+    _: {},
+    recall() {},
+    auth(_alias, _password, callback) {
+      if (typeof callback === 'function') {
+        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+      }
+    },
+    leave() {},
+    create(_alias, _password, callback) {
+      if (typeof callback === 'function') {
+        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+      }
+    }
+  };
+}
+
+function ensureGunContext(factory, label) {
+  const ensureGun = window.ScoreSystem && typeof window.ScoreSystem.ensureGun === 'function'
+    ? window.ScoreSystem.ensureGun.bind(window.ScoreSystem)
+    : null;
+  if (ensureGun) {
+    return ensureGun(factory, { label });
+  }
+  let instance = null;
+  if (typeof factory === 'function') {
+    try {
+      instance = factory();
+    } catch (err) {
+      console.warn(`Failed to initialize ${label || 'gun'} instance`, err);
+    }
+  }
+  if (instance) {
+    const resolvedUser = typeof instance.user === 'function'
+      ? instance.user()
+      : createLocalGunUserStub();
+    return {
+      gun: instance,
+      user: resolvedUser,
+      isStub: !!instance.__isGunStub
+    };
+  }
+  console.warn(`Gun.js is unavailable for ${label || 'contacts'}; using offline stub.`);
+  const stubGun = {
+    __isGunStub: true,
+    get() {
+      return createLocalGunNodeStub();
+    },
+    user() {
+      return createLocalGunUserStub();
+    }
+  };
+  return {
+    gun: stubGun,
+    user: stubGun.user(),
+    isStub: true
+  };
+}
+
+const gunContext = ensureGunContext(
+  () => (typeof Gun === 'function' ? Gun(['https://gun-relay-3dvr.fly.dev/gun']) : null),
+  'contacts'
+);
+const gun = gunContext.gun;
+const user = gunContext.user;
+const crmRecords = gun && typeof gun.get === 'function' ? gun.get('3dvr-crm') : createLocalGunNodeStub();
+const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
+const guestsRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-guests') : createLocalGunNodeStub();
 let scoreManager = null;
 let scoreManagerUnsubscribe = null;
 const scoreUpdateHandlers = new Set();
@@ -664,6 +842,7 @@ function onGuest() {
   clearPersonalAuthRequirement();
   personalAuthPromise = null;
   userDisplay.textContent = 'Guest';
+  btnLogout.classList.add('hidden');
   changeSpace('public-demo', { force: true });
   flushQueue('public-demo');
   flushQueue('personal');
@@ -928,6 +1107,17 @@ try {
   console.warn('Failed to bind global auth listener', err);
 }
 
+let animationPumpStarted = false;
+function ensureAnimationPump() {
+  if (animationPumpStarted) return;
+  if (typeof requestAnimationFrame !== 'function') return;
+  animationPumpStarted = true;
+  const step = () => {
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
   let identitySignedIn = signedIn;
   let identityGuest = !identitySignedIn && guest;
@@ -947,7 +1137,14 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
       alias,
       guestDisplayName: guestStored,
     });
-    floatingIdentityName.textContent = `👤 ${display}`;
+    const applyDisplay = () => {
+      floatingIdentityName.textContent = `👤 ${display}`;
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(applyDisplay);
+    } else {
+      applyDisplay();
+    }
   }
 
   function updateIdentityScore(score) {
@@ -1035,6 +1232,7 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
     updateIdentityName();
   };
 
+  ensureAnimationPump();
   updateIdentityName();
   subscribeToScoreUpdates(updateIdentityScore);
 
@@ -1044,6 +1242,97 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
     initializeGuestIdentity();
   }
 }
+
+function handleIdentityStorageEvent(event) {
+  if (!event) {
+    return;
+  }
+  if (event.storageArea && event.storageArea !== localStorage) {
+    return;
+  }
+  const key = event.key;
+  const newValue = typeof event.newValue === 'string' ? event.newValue : null;
+
+  if (key === 'signedIn') {
+    const newSignedIn = newValue === 'true';
+    if (newSignedIn) {
+      if (!signedIn) {
+        const aliasFromStorage = (ls.getItem('alias') || '').trim();
+        const usernameFromStorage = (ls.getItem('username') || '').trim();
+        finalizeSignedInState({
+          alias: aliasFromStorage,
+          username: usernameFromStorage,
+          statusMessage: 'Signed in (restored from another tab).'
+        });
+        maybeRestoreExistingSession({ allowWhenGuest: true });
+      }
+      return;
+    }
+
+    if (signedIn) {
+      const storedGuest = ls.getItem('guest') === 'true';
+      if (storedGuest) {
+        onGuest();
+      } else {
+        signedIn = false;
+        guest = false;
+        refreshScoreManager({ forceReset: true });
+        clearPersonalAuthRequirement();
+        personalAuthPromise = null;
+        userDisplay.textContent = 'Guest';
+        btnLogout.classList.add('hidden');
+        if (typeof updateIdentityForAnon === 'function') {
+          updateIdentityForAnon();
+        }
+        changeSpace('public-demo', { force: true });
+        flushQueue('public-demo');
+        flushQueue('personal');
+        updateSyncStatus();
+      }
+    }
+    return;
+  }
+
+  if (key === 'alias' && signedIn) {
+    alias = (newValue || '').trim();
+    refreshSignedInDisplay();
+    if (typeof updateIdentityForSignedIn === 'function') {
+      updateIdentityForSignedIn({ aliasHint: alias });
+    }
+    return;
+  }
+
+  if (key === 'username' && signedIn) {
+    username = (newValue || '').trim();
+    refreshSignedInDisplay();
+    if (typeof updateIdentityForSignedIn === 'function') {
+      updateIdentityForSignedIn({ usernameHint: username });
+    }
+    return;
+  }
+
+  if (key === 'guestDisplayName' && guest) {
+    if (typeof updateIdentityForGuest === 'function') {
+      updateIdentityForGuest();
+    }
+    return;
+  }
+
+  if (key === 'guest') {
+    const newGuest = newValue === 'true';
+    if (newGuest && !guest) {
+      onGuest();
+    } else if (!newGuest && guest && !signedIn) {
+      guest = false;
+      btnLogout.classList.add('hidden');
+      if (typeof updateIdentityForAnon === 'function') {
+        updateIdentityForAnon();
+      }
+    }
+  }
+}
+
+window.addEventListener('storage', handleIdentityStorageEvent);
 function scheduleRender(){
   clearTimeout(renderTimer);
   renderTimer = setTimeout(updateList, 40);

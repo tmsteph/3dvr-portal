@@ -372,13 +372,114 @@
   </main>
 
   <script>
-    const gun = Gun({
-      peers: [
-        'https://gun-relay-3dvr.fly.dev/gun'
-      ]
-    });
-    const user = gun.user();
-    const portalRoot = gun.get('3dvr-portal');
+    function createLocalGunSubscriptionStub() {
+      return {
+        off() {}
+      };
+    }
+
+    function createLocalGunNodeStub() {
+      const node = {
+        __isGunStub: true,
+        get() {
+          return createLocalGunNodeStub();
+        },
+        put(_value, callback) {
+          if (typeof callback === 'function') {
+            setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+          }
+          return node;
+        },
+        once(callback) {
+          if (typeof callback === 'function') {
+            setTimeout(() => callback(undefined), 0);
+          }
+          return node;
+        },
+        on(_listener) {
+          return createLocalGunSubscriptionStub();
+        },
+        off() {},
+        map() {
+          return {
+            __isGunStub: true,
+            on() {
+              return createLocalGunSubscriptionStub();
+            }
+          };
+        },
+        set() {
+          return node;
+        }
+      };
+      return node;
+    }
+
+    function createLocalGunUserStub() {
+      const node = createLocalGunNodeStub();
+      return {
+        ...node,
+        is: null,
+        _: {},
+        recall() {},
+        auth(_alias, _password, callback) {
+          if (typeof callback === 'function') {
+            setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+          }
+        },
+        leave() {},
+        create(_alias, _password, callback) {
+          if (typeof callback === 'function') {
+            setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+          }
+        }
+      };
+    }
+
+    function ensureGunContext(factory, label) {
+      let instance = null;
+      if (typeof factory === 'function') {
+        try {
+          instance = factory();
+        } catch (err) {
+          console.warn(`Failed to initialize ${label || 'gun'} instance`, err);
+        }
+      }
+      if (instance) {
+        const resolvedUser = typeof instance.user === 'function'
+          ? instance.user()
+          : createLocalGunUserStub();
+        return {
+          gun: instance,
+          user: resolvedUser,
+          isStub: !!instance.__isGunStub
+        };
+      }
+      console.warn(`Gun.js is unavailable for ${label || 'sign-in'}; using offline stub.`);
+      const stubGun = {
+        __isGunStub: true,
+        get() {
+          return createLocalGunNodeStub();
+        },
+        user() {
+          return createLocalGunUserStub();
+        }
+      };
+      return {
+        gun: stubGun,
+        user: stubGun.user(),
+        isStub: true
+      };
+    }
+
+    const gunContext = ensureGunContext(
+      () => (typeof Gun === 'function' ? Gun({ peers: ['https://gun-relay-3dvr.fly.dev/gun'] }) : null),
+      'sign-in'
+    );
+    const gun = gunContext.gun;
+    const user = gunContext.user;
+    const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
+    const gunIsStub = !!gunContext.isStub;
 
     function signIn() {
       const username = document.getElementById('username').value.trim();
@@ -391,6 +492,12 @@
 
       const alias = username + "@3dvr";
       console.log("🛠️ Attempting to authorize user:", alias);
+
+      if (gunIsStub) {
+        console.warn('Gun.js unavailable; storing credentials locally.');
+        finishLogin(username, alias, password);
+        return;
+      }
 
       // Attempt to sign in
       user.auth(alias, password, loginAck => {
