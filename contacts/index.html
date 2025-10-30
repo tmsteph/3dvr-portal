@@ -204,7 +204,12 @@
   </footer>
 
 <script type="module">
-import { aliasToDisplay, deriveIdentityState, resolveSpaceNode } from './contacts-core.js';
+import {
+  aliasToDisplay,
+  deriveIdentityState,
+  deriveFloatingIdentityDisplay,
+  resolveSpaceNode,
+} from './contacts-core.js';
 /* ---------- Gun & session reuse ---------- */
 const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
 const user = gun.user();
@@ -793,25 +798,22 @@ try {
 if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
   let identitySignedIn = signedIn;
   let identityGuest = !identitySignedIn && guest;
-  let latestDisplayName = '';
-  let aliasDisplay = aliasToDisplay(alias);
+  let latestDisplayName = identitySnapshot.displayName || '';
   let signedIdentityListenersAttached = false;
   let guestIdentityInitialized = false;
 
   function updateIdentityName() {
-    let display = '';
-    if (latestDisplayName) {
-      display = latestDisplayName;
-    } else if (identitySignedIn) {
-      const stored = (localStorage.getItem('username') || '').trim();
-      const fallback = (username || '').trim();
-      display = fallback || stored || aliasDisplay || 'Guest';
-    } else if (identityGuest) {
-      const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
-      display = guestStored || aliasDisplay || 'Guest';
-    } else {
-      display = aliasDisplay || 'Guest';
-    }
+    const stored = (localStorage.getItem('username') || '').trim();
+    const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
+    const display = deriveFloatingIdentityDisplay({
+      latestDisplayName,
+      signedIn: identitySignedIn,
+      guest: identityGuest,
+      username,
+      storedUsername: stored,
+      alias,
+      guestDisplayName: guestStored,
+    });
     floatingIdentityName.textContent = `👤 ${display}`;
   }
 
@@ -830,7 +832,6 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
         if (normalized) {
           alias = normalized;
         }
-        aliasDisplay = aliasToDisplay(normalized || alias);
         updateIdentityName();
         refreshSignedInDisplay();
       });
@@ -873,9 +874,7 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
 
   updateIdentityForSignedIn = ({ aliasHint, usernameHint } = {}) => {
     if (typeof aliasHint === 'string' && aliasHint.trim()) {
-      aliasDisplay = aliasToDisplay(aliasHint);
-    } else {
-      aliasDisplay = aliasToDisplay(alias);
+      alias = aliasHint.trim();
     }
     if (typeof usernameHint === 'string' && usernameHint.trim()) {
       latestDisplayName = usernameHint.trim();

@@ -45,6 +45,36 @@ export function deriveIdentityState({
   return { signedIn, guest, alias, username, displayName };
 }
 
+export function deriveFloatingIdentityDisplay({
+  latestDisplayName = '',
+  signedIn = false,
+  guest = false,
+  username = '',
+  storedUsername = '',
+  alias = '',
+  guestDisplayName = '',
+} = {}) {
+  const normalizedHint = typeof latestDisplayName === 'string' ? latestDisplayName.trim() : '';
+  if (normalizedHint) {
+    return normalizedHint;
+  }
+
+  const aliasDisplay = aliasToDisplay(alias);
+
+  if (signedIn) {
+    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
+    const normalizedStored = typeof storedUsername === 'string' ? storedUsername.trim() : '';
+    return normalizedUsername || normalizedStored || aliasDisplay || 'User';
+  }
+
+  if (guest) {
+    const normalizedGuest = typeof guestDisplayName === 'string' ? guestDisplayName.trim() : '';
+    return normalizedGuest || aliasDisplay || 'Guest';
+  }
+
+  return aliasDisplay || 'Guest';
+}
+
 export function resolveSpaceNode({
   space,
   signedIn,
@@ -124,6 +154,7 @@ if (typeof window !== 'undefined') {
   window.ContactsCore = {
     aliasToDisplay,
     deriveIdentityState,
+    deriveFloatingIdentityDisplay,
     resolveSpaceNode,
   };
 }
