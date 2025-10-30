@@ -43,6 +43,7 @@
   <div id="syncStatus" class="max-w-6xl mx-auto px-4 pt-3 text-sm text-amber-300 hidden">
     Changes pending sync. They'll upload automatically when online.
   </div>
+  <div id="authStatus" class="max-w-6xl mx-auto px-4 pt-2 text-sm text-rose-300 hidden"></div>
 
   <main class="max-w-6xl mx-auto p-4 grid gap-6 md:grid-cols-[320px,1fr]">
 
@@ -423,6 +424,8 @@ if (signedIn) {
       return;
     }
     signedIn = false;
+    clearPersonalAuthRequirement();
+    personalAuthPromise = null;
     if (typeof updateIdentityForAnon === 'function') {
       updateIdentityForAnon();
     }
@@ -492,7 +495,10 @@ function onSignedIn(nameValue, aliasValue, message) {
   if (message) {
     console.info(message);
   }
+  clearPersonalAuthRequirement();
+  personalAuthPromise = null;
   changeSpace('personal', { force: true });
+  ensurePersonalAuthRecovery();
   flushQueue('personal');
   updateSyncStatus();
 }
@@ -501,6 +507,8 @@ function onGuest() {
     updateIdentityForGuest();
   }
   signedIn = false;
+  clearPersonalAuthRequirement();
+  personalAuthPromise = null;
   userDisplay.textContent = 'Guest';
   changeSpace('public-demo', { force: true });
   flushQueue('public-demo');
@@ -529,7 +537,7 @@ spaceSelect.addEventListener('change', () => {
 function spaceLabel(space) {
   if (space === 'personal') {
     if (user.is) return 'personal (private)';
-    if (signedIn) return 'personal (private)';
+    if (signedIn) return 'personal (needs sign-in)';
     return 'personal (private sync)';
   }
   if (space === 'org-3dvr') return 'org: 3dvr';
@@ -545,8 +553,14 @@ function updateSpaceBadge() {
 const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
 function spaceNode(space = currentSpace) {
   if (space === 'personal') {
-    if (user.is) return user.get('contacts');
-    if (signedIn) return null;
+    if (user.is) {
+      clearPersonalAuthRequirement();
+      return user.get('contacts');
+    }
+    if (signedIn) {
+      requirePersonalAuth();
+      return null;
+    }
     const guestId = ensureGuestContactsId();
     if (guestId && guestsRoot) {
       return guestsRoot.get(guestId).get('contacts');
@@ -561,6 +575,7 @@ function spaceNode(space = currentSpace) {
 /* ---------- Form & UI refs ---------- */
 const form = document.getElementById('contactForm');
 const syncStatus = document.getElementById('syncStatus');
+const authStatus = document.getElementById('authStatus');
 const listEl = document.getElementById('contactList');
 const btnReset = document.getElementById('btnReset');
 const searchEl = document.getElementById('search');
@@ -627,6 +642,7 @@ const flushingSpaces = new Set();
 const duplicateExpandedState = new Map();
 const duplicateMetaById = new Map();
 const duplicatePrimaryById = new Map();
+let personalAuthPromise = null;
 
 let renderTimer = null;
 function aliasToDisplay(value) {
@@ -645,6 +661,121 @@ function sanitizeScoreDisplay(value) {
   const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric)) return 0;
   return Math.max(0, Math.round(numeric));
+}
+
+function hasActiveUserSession() {
+  return !!(user && user.is && user.is.pub && user._ && user._.sea);
+}
+
+function showAuthStatus(message) {
+  if (!authStatus) return;
+  const copy = message || 'Reconnect to sync personal contacts. Sign in again to resume cloud backups.';
+  authStatus.textContent = copy;
+  authStatus.classList.remove('hidden');
+}
+
+function hideAuthStatus() {
+  if (!authStatus) return;
+  authStatus.classList.add('hidden');
+  authStatus.textContent = '';
+}
+
+function requirePersonalAuth(message) {
+  if (!signedIn) {
+    hideAuthStatus();
+    return;
+  }
+  showAuthStatus(message);
+  ensurePersonalAuthRecovery();
+}
+
+function clearPersonalAuthRequirement() {
+  hideAuthStatus();
+}
+
+function ensurePersonalAuthRecovery() {
+  if (!signedIn) {
+    personalAuthPromise = null;
+    return Promise.resolve(false);
+  }
+  if (hasActiveUserSession()) {
+    clearPersonalAuthRequirement();
+    return Promise.resolve(true);
+  }
+  if (!alias || !password) {
+    showAuthStatus('Sign in on this device to sync personal contacts. Changes stay local until you do.');
+    return Promise.resolve(false);
+  }
+  if (personalAuthPromise) {
+    return personalAuthPromise;
+  }
+  personalAuthPromise = new Promise(resolve => {
+    let settled = false;
+    const finish = success => {
+      if (settled) return;
+      settled = true;
+      personalAuthPromise = null;
+      if (success) {
+        clearPersonalAuthRequirement();
+        flushQueue('personal');
+        if (currentSpace === 'personal') {
+          changeSpace('personal', { force: true });
+        }
+      }
+      resolve(success);
+    };
+    try {
+      user.auth(alias, password, ack => {
+        if (ack && ack.err) {
+          console.warn('Personal auth recovery failed', ack.err);
+          showAuthStatus('Could not restore your private space automatically. Please sign in again.');
+          finish(false);
+          return;
+        }
+        if (hasActiveUserSession()) {
+          finish(true);
+        }
+      });
+    } catch (err) {
+      console.warn('Personal auth recovery threw', err);
+      showAuthStatus('Could not restore your private space automatically. Please sign in again.');
+      finish(false);
+      return;
+    }
+    setTimeout(() => {
+      if (hasActiveUserSession()) {
+        finish(true);
+      } else {
+        finish(false);
+      }
+    }, 2000);
+  });
+  return personalAuthPromise;
+}
+
+try {
+  if (typeof user.on === 'function') {
+    user.on('auth', ack => {
+      if (ack && ack.err) {
+        console.warn('Auth listener reported error', ack.err);
+        if (signedIn) {
+          requirePersonalAuth('Session expired. Please sign in again to sync personal contacts.');
+        }
+        return;
+      }
+      if (hasActiveUserSession()) {
+        clearPersonalAuthRequirement();
+        if (signedIn) {
+          flushQueue('personal');
+          if (currentSpace === 'personal') {
+            changeSpace('personal', { force: true });
+          }
+        }
+      }
+    });
+  }
+} catch (err) {
+  console.warn('Failed to bind global auth listener', err);
 }
 
 if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
@@ -888,6 +1019,9 @@ function updateSyncStatus(){
 function commitOperation(op, { skipQueue = false } = {}){
   const node = spaceNode(op.space);
   if (!node){
+    if (op.space === 'personal' && signedIn) {
+      requirePersonalAuth();
+    }
     if (!skipQueue){
       queuePending(op);
     }
@@ -933,8 +1067,14 @@ function flushQueue(space){
   if (!queue.length) return;
   const node = spaceNode(space);
   if (!node){
+    if (space === 'personal' && signedIn) {
+      requirePersonalAuth();
+    }
     updateSyncStatus();
     return;
+  }
+  if (space === 'personal') {
+    clearPersonalAuthRequirement();
   }
   flushingSpaces.add(space);
   const attempt = () => {
@@ -986,6 +1126,11 @@ function changeSpace(space, opts = {}) {
   updateList();
   attachSpace();
   flushQueue(currentSpace);
+  if (currentSpace === 'personal') {
+    ensurePersonalAuthRecovery();
+  } else {
+    hideAuthStatus();
+  }
   updateSyncStatus();
 }
 
