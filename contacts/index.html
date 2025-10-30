@@ -203,7 +203,8 @@
     Linked with 3DVR Portal auth. Roadmap: calendar bridge, org ACL, email sequences.
   </footer>
 
-<script>
+<script type="module">
+import { aliasToDisplay, deriveIdentityState, resolveSpaceNode } from './contacts-core.js';
 /* ---------- Gun & session reuse ---------- */
 const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
 const user = gun.user();
@@ -249,10 +250,17 @@ const authState = window.ScoreSystem && typeof window.ScoreSystem.computeAuthSta
     : (legacyGuest
       ? { mode: 'guest' }
       : { mode: 'anon' }));
-let signedIn = authState.mode === 'user';
-let guest = authState.mode === 'guest';
-let alias = signedIn ? (authState.alias || storedAlias) : storedAlias;
-let username = signedIn ? (authState.username || storedUsername) : storedUsername;
+const identitySnapshot = deriveIdentityState({
+  authState,
+  storedAlias,
+  storedUsername,
+  aliasFromSession: user && user.is && user.is.alias,
+  usernameFromSession: user && user.is && user.is.username,
+});
+let signedIn = identitySnapshot.signedIn;
+let guest = identitySnapshot.guest;
+let alias = identitySnapshot.alias;
+let username = identitySnapshot.username;
 const password = storedPassword;
 let updateIdentityForSignedIn = null;
 let updateIdentityForGuest = null;
@@ -560,24 +568,28 @@ function updateSpaceBadge() {
 /* ---------- Nodes ---------- */
 const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
 function spaceNode(space = currentSpace) {
-  if (space === 'personal') {
-    if (user.is) {
-      clearPersonalAuthRequirement();
-      return user.get('contacts');
-    }
-    if (signedIn) {
-      requirePersonalAuth();
-      return null;
-    }
-    const guestId = ensureGuestContactsId();
-    if (guestId && guestsRoot) {
-      return guestsRoot.get(guestId).get('contacts');
-    }
+  const guestId = !signedIn ? ensureGuestContactsId() : guestContactsId;
+  const resolution = resolveSpaceNode({
+    space,
+    signedIn,
+    userHasSession: hasActiveUserSession(),
+    user,
+    gun,
+    guestsRoot,
+    guestId,
+    orgSpaceKey: ORG_SPACE_KEY,
+  });
+
+  if (resolution.requiresAuth) {
+    requirePersonalAuth();
     return null;
   }
-  if (space === 'org-3dvr') return gun.get(ORG_SPACE_KEY).get('contacts');
-  if (space === 'public-demo') return gun.get('contacts-public');
-  return null;
+
+  if (resolution.shouldClearAuth) {
+    clearPersonalAuthRequirement();
+  }
+
+  return resolution.node;
 }
 
 /* ---------- Form & UI refs ---------- */
@@ -653,14 +665,6 @@ const duplicatePrimaryById = new Map();
 let personalAuthPromise = null;
 
 let renderTimer = null;
-function aliasToDisplay(value) {
-  const normalized = typeof value === 'string' ? value.trim() : '';
-  if (!normalized) return '';
-  if (normalized.includes('@')) {
-    return normalized.split('@')[0];
-  }
-  return normalized;
-}
 
 function sanitizeScoreDisplay(value) {
   if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
