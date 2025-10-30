@@ -448,6 +448,7 @@ function attachScoreManager(manager) {
     scoreManagerUnsubscribe = scoreManager.subscribe(value => {
       notifyScoreSubscribers(value);
     });
+    notifyScoreSubscribers(currentScoreValue());
   } else {
     notifyScoreSubscribers(currentScoreValue());
   }
@@ -468,7 +469,6 @@ function refreshScoreManager({ forceReset = false } = {}) {
   attachScoreManager(window.ScoreSystem.getManager({ gun, user, portalRoot }));
 }
 
-refreshScoreManager();
 const CACHE_PREFIX = 'contacts:cache:';
 const QUEUE_PREFIX = 'contacts:pending:';
 const CONTACT_FIELDS = [
@@ -575,6 +575,12 @@ function ensureGuestContactsId() {
   guestContactsId = resolved;
   return guestContactsId;
 }
+
+if (!signedIn) {
+  ensureGuestContactsId();
+}
+
+refreshScoreManager();
 
 const userDisplay = document.getElementById('userDisplay');
 const btnLogout = document.getElementById('btnLogout');

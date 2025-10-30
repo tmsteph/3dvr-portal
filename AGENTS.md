@@ -43,3 +43,5 @@ These instructions apply to the entire repository.
 ## Testing & Verification
 - Prefer automated tests for new logic, especially around Gun node selection, identity management, and sync flows.
 - If you modify any server-side code under `api/`, start the development server with `npm run dev` to ensure it boots without errors.
+- Capture test coverage or add new checks whenever you touch core flows so we continuously prevent regressions in score, identity, and contact management features.
+- Perform and document manual UI/UX and functional walkthroughs for any changes that impact the customer experience, including VR and touch interactions.
