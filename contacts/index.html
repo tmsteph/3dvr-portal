@@ -255,6 +255,20 @@ const authState = window.ScoreSystem && typeof window.ScoreSystem.computeAuthSta
     : (legacyGuest
       ? { mode: 'guest' }
       : { mode: 'anon' }));
+
+// Keep session alive across standalone/browser contexts before deriving identity:
+const recallUsed = window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function'
+  ? window.ScoreSystem.recallUserSession(user)
+  : (() => {
+      try {
+        user.recall({ sessionStorage: true, localStorage: true });
+        return true;
+      } catch (err) {
+        console.warn('Unable to recall user session', err);
+        return false;
+      }
+    })();
+
 const identitySnapshot = deriveIdentityState({
   authState,
   storedAlias,
@@ -311,19 +325,6 @@ function ensureGuestContactsId() {
   guestContactsId = resolved;
   return guestContactsId;
 }
-
-// Keep session alive across standalone/browser contexts:
-const recallUsed = window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function'
-  ? window.ScoreSystem.recallUserSession(user)
-  : (() => {
-      try {
-        user.recall({ sessionStorage: true, localStorage: true });
-        return true;
-      } catch (err) {
-        console.warn('Unable to recall user session', err);
-        return false;
-      }
-    })();
 
 const userDisplay = document.getElementById('userDisplay');
 const btnLogout = document.getElementById('btnLogout');
