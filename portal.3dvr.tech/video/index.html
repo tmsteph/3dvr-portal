@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3dvr.tech — Ninja Meeting</title>
+  <meta name="description" content="Lightweight, privacy-friendly group calls using VDO.Ninja. One link, names visible, mobile-ready." />
+  <link rel="icon" href="https://3dvr.tech/favicon.ico" />
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --panel: #101317;
+      --text: #eaeaea;
+      --muted: #9aa0a6;
+      --accent: #00ffcc;
+      --accent-2: #00e0b8;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Noto Color Emoji, sans-serif;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      display: grid; place-items: center; padding: 2rem 1rem;
+    }
+    .card {
+      width: 100%; max-width: 780px; background: var(--panel);
+      border: 1px solid #1c2127; border-radius: 16px; padding: 1.25rem 1.25rem 1rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    h1 { margin: 0 0 .25rem; font-size: clamp(1.4rem, 3.5vw, 2rem); color: var(--accent); }
+    p.sub { margin: 0 0 1rem; color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: .75rem 0 0; }
+    a.button {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      padding: .9rem 1.2rem; border-radius: 10px; text-decoration: none; font-weight: 700;
+      background: var(--accent); color: #00110d; border: 0; transition: .15s ease;
+    }
+    a.button:hover { transform: translateY(-1px); background: var(--accent-2); }
+    a.secondary { background: transparent; color: var(--text); border: 1px solid #2a313a; }
+    .tips { margin-top: 1rem; color: var(--muted); font-size: .95rem; }
+    code { background: #12161b; color: var(--accent); padding: 0 .35rem; border-radius: 6px; }
+    footer { margin-top: .75rem; text-align: center; color: var(--muted); font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>3dvr.tech — Ninja Meeting</h1>
+    <p class="sub">One simple link. Names visible. Mobile‑ready.</p>
+
+    <div class="actions">
+      <!-- Main, stable link (shows usernames) -->
+      <a class="button" target="_blank" rel="noopener"
+        href="https://vdo.ninja/?room=3dvrtech&label&showlabels&codec=h264&vb=500&ab=48&fps=15&scale=240p&stereo=0&mobile">
+        🎥 Join Meeting
+      </a>
+      <!-- Ultra low data fallback -->
+      <a class="button secondary" target="_blank" rel="noopener"
+        href="https://vdo.ninja/?room=3dvrtech&label&showlabels&codec=h264&vb=300&ab=32&fps=10&scale=180p&stereo=0&mobile">
+        ⚡ Low‑data Join
+      </a>
+      <!-- Director link for advanced use -->
+      <a class="button secondary" target="_blank" rel="noopener"
+        href="https://vdo.ninja/?director&room=3dvrtech&bitrate=500&scale=240p&fps=15&codec=h264&stereo=0&mobile">
+        🧭 Director Mode
+      </a>
+    </div>
+
+    <div class="tips">
+      <strong>Tips:</strong>
+      <ul>
+        <li>When prompted, enter your display name — it will show under your video for everyone.</li>
+        <li>Use headphones to avoid echo. Close other apps on mobile for best performance.</li>
+        <li>If video lags, switch to <em>Low‑data Join</em> (180p/10fps/300kbps).</li>
+        <li>Use <em>Director Mode</em> if you want to manage participants or record streams.</li>
+      </ul>
+      <div style="margin-top:.4rem">Admin note: avoid <code>&cleanoutput</code> or <code>&cleanviewer</code> if you want names visible.</div>
+    </div>
+
+    <footer>
+      Built by <a href="https://3dvr.tech" target="_blank" rel="noopener">3dvr.tech</a> • Powered by <a href="https://vdo.ninja" target="_blank" rel="noopener">VDO.Ninja</a>
+    </footer>
+  </div>
+</body>
+</html>
