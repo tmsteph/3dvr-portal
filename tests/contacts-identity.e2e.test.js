@@ -102,6 +102,43 @@ describe('contacts identity flows', () => {
     }
   }, { timeout: 45000 });
 
+  it('adopts sign-in changes written in another tab', async t => {
+    const browser = await launchChromium(t);
+    if (!browser) {
+      return;
+    }
+    try {
+      const context = await browser.newContext();
+      const primary = await context.newPage();
+      await primary.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
+      await primary.waitForSelector('#floatingIdentityName');
+      await primary.waitForFunction(() => {
+        const el = document.getElementById('floatingIdentityName');
+        return el && el.textContent && el.textContent.includes('Guest');
+      });
+
+      const secondary = await context.newPage();
+      await secondary.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+      await secondary.evaluate(({ username, alias }) => {
+        localStorage.removeItem('guest');
+        localStorage.setItem('alias', alias);
+        localStorage.setItem('username', username);
+        localStorage.setItem('signedIn', 'true');
+      }, { username: 'Storage Signal', alias: 'storage.signal@3dvr' });
+      await secondary.close();
+
+      await primary.waitForFunction(expectedName => {
+        const el = document.getElementById('floatingIdentityName');
+        return el && el.textContent && el.textContent.includes(expectedName);
+      }, {}, 'Storage Signal');
+
+      const headerDisplay = (await primary.textContent('#userDisplay')).trim();
+      assert.match(headerDisplay, /Signed in as Storage Signal/i);
+    } finally {
+      await browser.close();
+    }
+  }, { timeout: 45000 });
+
   it('allows creating a new account through the sign-in flow', async t => {
     const browser = await launchChromium(t);
     if (!browser) {

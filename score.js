@@ -1,4 +1,109 @@
 (function(global) {
+  const GUN_OFFLINE_ERROR = { err: 'gun-unavailable' };
+
+  function createGunSubscriptionStub() {
+    return {
+      off() {}
+    };
+  }
+
+  function createGunNodeStub() {
+    const node = {
+      __isGunStub: true,
+      get() {
+        return createGunNodeStub();
+      },
+      put(_value, callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(GUN_OFFLINE_ERROR), 0);
+        }
+        return node;
+      },
+      once(callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(undefined), 0);
+        }
+        return node;
+      },
+      on(_listener) {
+        return createGunSubscriptionStub();
+      },
+      off() {},
+      map() {
+        return {
+          __isGunStub: true,
+          on() {
+            return createGunSubscriptionStub();
+          }
+        };
+      },
+      set() {
+        return node;
+      }
+    };
+    return node;
+  }
+
+  function createGunUserStub() {
+    const node = createGunNodeStub();
+    return {
+      ...node,
+      is: null,
+      _: {},
+      recall() {},
+      auth(_alias, _password, callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(GUN_OFFLINE_ERROR), 0);
+        }
+      },
+      leave() {},
+      create(_alias, _password, callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(GUN_OFFLINE_ERROR), 0);
+        }
+      }
+    };
+  }
+
+  function createGunStub() {
+    return {
+      __isGunStub: true,
+      user() {
+        return createGunUserStub();
+      },
+      get() {
+        return createGunNodeStub();
+      }
+    };
+  }
+
+  function ensureGun(factory, { label = 'gun' } = {}) {
+    if (typeof factory === 'function') {
+      try {
+        const instance = factory();
+        if (instance) {
+          const resolvedUser = typeof instance.user === 'function'
+            ? instance.user()
+            : createGunUserStub();
+          return {
+            gun: instance,
+            user: resolvedUser,
+            isStub: !!instance.__isGunStub
+          };
+        }
+      } catch (err) {
+        console.warn(`Failed to initialize ${label} Gun instance`, err);
+      }
+    }
+    console.warn(`Gun.js is unavailable for ${label}; running in offline mode.`);
+    const stub = createGunStub();
+    return {
+      gun: stub,
+      user: stub.user(),
+      isStub: true
+    };
+  }
+
   const SCORE_CACHE_PREFIX = '3dvr:score:';
   const GUEST_ROOT = '3dvr-guests';
   const PORTAL_ROOT_KEY = '3dvr-portal';
@@ -957,6 +1062,9 @@
     ensureGuestIdentity,
     computeAuthState,
     recallUserSession,
+    ensureGun,
+    createGunUserStub,
+    createGunNodeStub,
     getManager(context = {}) {
       if (!this._manager) {
         this._manager = new ScoreManager(context);
