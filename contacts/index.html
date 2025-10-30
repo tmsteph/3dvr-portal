@@ -355,6 +355,20 @@ function finalizeSignedInState({ alias: aliasValue, username: usernameValue, sta
     username = aliasToDisplay(resolvedAlias) || 'User';
   }
   signedIn = true;
+  try {
+    ls.setItem('signedIn', 'true');
+    if (resolvedAlias) {
+      ls.setItem('alias', resolvedAlias);
+    }
+    if (username && username.trim()) {
+      ls.setItem('username', username.trim());
+    }
+    ls.removeItem('guest');
+    ls.removeItem('guestId');
+    ls.removeItem('guestDisplayName');
+  } catch (err) {
+    console.warn('Failed to persist signed-in identity state', err);
+  }
   if (typeof updateIdentityForSignedIn === 'function') {
     updateIdentityForSignedIn({ aliasHint: resolvedAlias, usernameHint: username });
   }
@@ -567,6 +581,12 @@ function onGuest() {
   }
   signedIn = false;
   guest = true;
+  try {
+    ls.removeItem('signedIn');
+    ls.setItem('guest', 'true');
+  } catch (err) {
+    console.warn('Failed to persist guest identity fallback', err);
+  }
   clearPersonalAuthRequirement();
   personalAuthPromise = null;
   userDisplay.textContent = 'Guest';
