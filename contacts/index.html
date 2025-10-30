@@ -436,9 +436,47 @@ if (signedIn) {
       handleSignedIn();
       return;
     }
+
+    personalAuthPromise = null;
+
+    const initialSignedIn = identitySnapshot && identitySnapshot.signedIn;
+    const authModeWasUser = authState && authState.mode === 'user';
+    const shouldPreserveIdentity = initialSignedIn || authModeWasUser;
+
+    if (shouldPreserveIdentity) {
+      const aliasFallback = (alias || '').trim()
+        || (identitySnapshot && (identitySnapshot.alias || '').trim())
+        || (authState && (authState.alias || '').trim())
+        || '';
+      if (!alias && aliasFallback) {
+        alias = aliasFallback;
+      }
+
+      const usernameFallback = (username || '').trim()
+        || (identitySnapshot && (identitySnapshot.username || '').trim())
+        || aliasToDisplay(aliasFallback)
+        || (authState && (authState.username || '').trim())
+        || (identitySnapshot && (identitySnapshot.displayName || '').trim())
+        || 'User';
+
+      username = usernameFallback;
+      signedIn = true;
+      guest = false;
+
+      refreshSignedInDisplay();
+      btnLogout.classList.remove('hidden');
+
+      if (typeof updateIdentityForSignedIn === 'function') {
+        updateIdentityForSignedIn({ aliasHint: alias, usernameHint: usernameFallback });
+      }
+
+      requirePersonalAuth('Could not restore your private contacts automatically. Please sign in again to sync personal contacts.');
+      console.warn('Could not restore private contacts automatically. Using local data until you sign in again.');
+      return;
+    }
+
     signedIn = false;
     clearPersonalAuthRequirement();
-    personalAuthPromise = null;
     if (typeof updateIdentityForAnon === 'function') {
       updateIdentityForAnon();
     }
