@@ -216,9 +216,81 @@ const user = gun.user();
 const crmRecords = gun.get('3dvr-crm');
 const portalRoot = gun.get('3dvr-portal');
 const guestsRoot = gun.get('3dvr-guests');
-const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
-  ? window.ScoreSystem.getManager({ gun, user, portalRoot })
-  : null;
+let scoreManager = null;
+let scoreManagerUnsubscribe = null;
+const scoreUpdateHandlers = new Set();
+
+function currentScoreValue() {
+  if (scoreManager && typeof scoreManager.getCurrent === 'function') {
+    try {
+      return scoreManager.getCurrent();
+    } catch (err) {
+      console.warn('Failed to read current score value', err);
+    }
+  }
+  return 0;
+}
+
+function notifyScoreSubscribers(value) {
+  scoreUpdateHandlers.forEach(handler => {
+    try {
+      handler(value);
+    } catch (err) {
+      console.error('Score update handler failed', err);
+    }
+  });
+}
+
+function subscribeToScoreUpdates(handler) {
+  if (typeof handler !== 'function') {
+    return () => {};
+  }
+  scoreUpdateHandlers.add(handler);
+  try {
+    handler(currentScoreValue());
+  } catch (err) {
+    console.error('Score listener failed during subscribe', err);
+  }
+  return () => {
+    scoreUpdateHandlers.delete(handler);
+  };
+}
+
+function attachScoreManager(manager) {
+  if (scoreManagerUnsubscribe) {
+    try {
+      scoreManagerUnsubscribe();
+    } catch (err) {
+      console.warn('Failed to detach score manager listener', err);
+    }
+    scoreManagerUnsubscribe = null;
+  }
+  scoreManager = manager || null;
+  if (scoreManager && typeof scoreManager.subscribe === 'function') {
+    scoreManagerUnsubscribe = scoreManager.subscribe(value => {
+      notifyScoreSubscribers(value);
+    });
+  } else {
+    notifyScoreSubscribers(currentScoreValue());
+  }
+}
+
+function refreshScoreManager({ forceReset = false } = {}) {
+  if (!window.ScoreSystem || typeof window.ScoreSystem.getManager !== 'function') {
+    attachScoreManager(null);
+    return;
+  }
+  if (forceReset && typeof window.ScoreSystem.resetManager === 'function') {
+    try {
+      window.ScoreSystem.resetManager();
+    } catch (err) {
+      console.warn('Failed to reset score manager', err);
+    }
+  }
+  attachScoreManager(window.ScoreSystem.getManager({ gun, user, portalRoot }));
+}
+
+refreshScoreManager();
 const CACHE_PREFIX = 'contacts:cache:';
 const QUEUE_PREFIX = 'contacts:pending:';
 const CONTACT_FIELDS = [
@@ -369,6 +441,7 @@ function finalizeSignedInState({ alias: aliasValue, username: usernameValue, sta
   } catch (err) {
     console.warn('Failed to persist signed-in identity state', err);
   }
+  refreshScoreManager({ forceReset: true });
   if (typeof updateIdentityForSignedIn === 'function') {
     updateIdentityForSignedIn({ aliasHint: resolvedAlias, usernameHint: username });
   }
@@ -587,6 +660,7 @@ function onGuest() {
   } catch (err) {
     console.warn('Failed to persist guest identity fallback', err);
   }
+  refreshScoreManager({ forceReset: true });
   clearPersonalAuthRequirement();
   personalAuthPromise = null;
   userDisplay.textContent = 'Guest';
@@ -962,11 +1036,7 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
   };
 
   updateIdentityName();
-  updateIdentityScore(scoreManager ? scoreManager.getCurrent() : 0);
-
-  if (scoreManager) {
-    scoreManager.subscribe(updateIdentityScore);
-  }
+  subscribeToScoreUpdates(updateIdentityScore);
 
   if (identitySignedIn) {
     attachSignedInIdentityListeners();
