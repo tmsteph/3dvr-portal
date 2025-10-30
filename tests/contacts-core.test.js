@@ -1,6 +1,11 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { aliasToDisplay, deriveIdentityState, resolveSpaceNode } from '../contacts/contacts-core.js';
+import {
+  aliasToDisplay,
+  deriveIdentityState,
+  deriveFloatingIdentityDisplay,
+  resolveSpaceNode,
+} from '../contacts/contacts-core.js';
 
 describe('contacts core helpers', () => {
   describe('aliasToDisplay', () => {
@@ -36,6 +41,35 @@ describe('contacts core helpers', () => {
       assert.equal(state.signedIn, false);
       assert.equal(state.guest, true);
       assert.equal(state.displayName, 'Guest');
+    });
+  });
+
+  describe('deriveFloatingIdentityDisplay', () => {
+    it('uses the most recent explicit display name when provided', () => {
+      const display = deriveFloatingIdentityDisplay({
+        latestDisplayName: 'Agent Smith',
+        signedIn: true,
+        username: 'agent',
+        storedUsername: 'smith',
+        alias: 'agent@3dvr.tech',
+      });
+
+      assert.equal(display, 'Agent Smith');
+    });
+
+    it('falls back to a generic user label when signed in data is missing', () => {
+      const display = deriveFloatingIdentityDisplay({ signedIn: true });
+
+      assert.equal(display, 'User');
+    });
+
+    it('prefers stored guest names when available', () => {
+      const display = deriveFloatingIdentityDisplay({
+        guest: true,
+        guestDisplayName: 'Visitor 42',
+      });
+
+      assert.equal(display, 'Visitor 42');
     });
   });
 
