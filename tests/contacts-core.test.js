@@ -42,6 +42,37 @@ describe('contacts core helpers', () => {
       assert.equal(state.guest, true);
       assert.equal(state.displayName, 'Guest');
     });
+
+    it('treats an active Gun session as signed in even without stored flags', () => {
+      const state = deriveIdentityState({
+        authState: { mode: 'guest' },
+        storedAlias: '',
+        storedUsername: '',
+        aliasFromSession: 'agent@3dvr.tech',
+        usernameFromSession: 'Agent 47',
+      });
+
+      assert.equal(state.signedIn, true);
+      assert.equal(state.guest, false);
+      assert.equal(state.alias, 'agent@3dvr.tech');
+      assert.equal(state.username, 'Agent 47');
+      assert.equal(state.displayName, 'Agent 47');
+    });
+
+    it('falls back to an alias-based name when the session lacks a username', () => {
+      const state = deriveIdentityState({
+        authState: { mode: 'anon' },
+        storedAlias: '',
+        storedUsername: '',
+        aliasFromSession: 'alias@example.com',
+        usernameFromSession: '',
+      });
+
+      assert.equal(state.signedIn, true);
+      assert.equal(state.guest, false);
+      assert.equal(state.username, 'alias');
+      assert.equal(state.displayName, 'alias');
+    });
   });
 
   describe('deriveFloatingIdentityDisplay', () => {

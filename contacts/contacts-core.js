@@ -14,26 +14,35 @@ export function deriveIdentityState({
   aliasFromSession = '',
   usernameFromSession = '',
 } = {}) {
+  const normalize = value => (typeof value === 'string' ? value.trim() : '');
   const mode = authState?.mode || 'anon';
+  const sessionAlias = normalize(aliasFromSession);
+  const sessionUsername = normalize(usernameFromSession);
+  const storedAliasNormalized = normalize(storedAlias);
+  const storedUsernameNormalized = normalize(storedUsername);
+
   let signedIn = mode === 'user';
   let guest = mode === 'guest';
   let alias = '';
   let username = '';
 
-  const normalize = value => (typeof value === 'string' ? value.trim() : '');
+  if (!signedIn && (sessionAlias || sessionUsername)) {
+    signedIn = true;
+    guest = false;
+  }
 
   if (signedIn) {
-    alias = normalize(authState?.alias) || normalize(aliasFromSession) || normalize(storedAlias);
-    username = normalize(authState?.username) || normalize(usernameFromSession) || normalize(storedUsername);
+    alias = normalize(authState?.alias) || sessionAlias || storedAliasNormalized;
+    username = normalize(authState?.username) || sessionUsername || storedUsernameNormalized;
     if (!username) {
       username = aliasToDisplay(alias) || 'User';
     }
   } else if (guest) {
-    alias = normalize(storedAlias);
-    username = normalize(storedUsername) || 'Guest';
+    alias = storedAliasNormalized;
+    username = storedUsernameNormalized || 'Guest';
   } else {
-    alias = normalize(storedAlias);
-    username = normalize(storedUsername);
+    alias = storedAliasNormalized;
+    username = storedUsernameNormalized;
   }
 
   const displayName = signedIn
