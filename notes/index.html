@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📝 3DVR Notes</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script type="module" src="./empty-state.js"></script>
   <link rel="stylesheet" href="../style.css?v=notes-refresh-20240204">
 </head>
 <body class="notes-page">
@@ -53,8 +54,9 @@
     <main class="notes-editor" aria-live="polite">
       <button id="sidebar-toggle" class="sidebar-toggle icon-button" type="button" aria-label="Show workspace" aria-controls="notes-sidebar" aria-expanded="false">☰</button>
       <div id="empty-state" class="empty-state">
-        <h2>Select a note to get started</h2>
-        <p>Create or choose a page from the sidebar.</p>
+        <h2 id="empty-state-title">Select a note to get started</h2>
+        <p id="empty-state-message">Create or choose a page from the sidebar.</p>
+        <button id="empty-state-create" class="primary-button hidden">+ New Page</button>
       </div>
 
       <div id="editor-wrapper" class="editor-wrapper hidden" aria-label="Note editor">
@@ -103,6 +105,9 @@
     const noteContentEl = document.getElementById('note-content');
     const noteMetaEl = document.getElementById('note-meta');
     const emptyStateEl = document.getElementById('empty-state');
+    const emptyStateTitleEl = document.getElementById('empty-state-title');
+    const emptyStateMessageEl = document.getElementById('empty-state-message');
+    const emptyStateCreateButton = document.getElementById('empty-state-create');
     const editorWrapperEl = document.getElementById('editor-wrapper');
     const slashMenuEl = document.getElementById('slash-menu');
     const slashOptionsEl = document.getElementById('slash-options');
@@ -115,9 +120,18 @@
     const identity = resolveIdentity({ user });
     const identityKey = identity.identityKey;
     const canClaimLegacy = identity.canClaimLegacy;
-    const defaultEmptyMessage = emptyStateEl.innerHTML;
     const MOBILE_BREAKPOINT = 900;
     const DEFAULT_FOLDER_NAME = 'Quick Notes';
+    const emptyStateHelpers = globalThis.NotesEmptyState || {};
+    const evaluateInlineCreate = typeof emptyStateHelpers.shouldShowInlineCreate === 'function'
+      ? emptyStateHelpers.shouldShowInlineCreate
+      : ({ viewportWidth, hasActiveFolder, hasVisibleNotes }) => {
+          return viewportWidth <= MOBILE_BREAKPOINT && hasActiveFolder && !hasVisibleNotes;
+        };
+    const defaultEmptyState = {
+      title: emptyStateTitleEl ? emptyStateTitleEl.textContent : 'Select a note to get started',
+      message: emptyStateMessageEl ? emptyStateMessageEl.textContent : 'Create or choose a page from the sidebar.'
+    };
 
     let currentFolder = null;
     let currentNoteId = null;
@@ -183,8 +197,43 @@
       }
     }
 
+    function getVisibleNoteCount() {
+      let count = 0;
+      noteElements.forEach((li) => {
+        if (!li.classList.contains('hidden')) {
+          count += 1;
+        }
+      });
+      return count;
+    }
+
+    function syncEmptyStateCTA({ hasVisibleNotes, hasActiveFolder } = {}) {
+      if (!emptyStateCreateButton) {
+        return;
+      }
+      const visibleNotes = typeof hasVisibleNotes === 'boolean' ? hasVisibleNotes : getVisibleNoteCount() > 0;
+      const activeFolder = typeof hasActiveFolder === 'boolean' ? hasActiveFolder : !!currentFolder;
+      const shouldShow = evaluateInlineCreate({
+        viewportWidth: window.innerWidth,
+        hasActiveFolder: activeFolder,
+        hasVisibleNotes: visibleNotes
+      });
+      emptyStateCreateButton.classList.toggle('hidden', !shouldShow);
+    }
+
+    function renderEmptyState({ title, message, hasVisibleNotes, hasActiveFolder } = {}) {
+      if (emptyStateTitleEl && typeof title === 'string') {
+        emptyStateTitleEl.textContent = title;
+      }
+      if (emptyStateMessageEl && typeof message === 'string') {
+        emptyStateMessageEl.textContent = message;
+      }
+      syncEmptyStateCTA({ hasVisibleNotes, hasActiveFolder });
+    }
+
     updateNavbarHeight();
     setSidebarExpanded(false);
+    syncEmptyStateCTA({ hasVisibleNotes: false, hasActiveFolder: true });
 
     if (sidebarToggleButton) {
       sidebarToggleButton.addEventListener('click', () => {
@@ -205,6 +254,7 @@
       } else {
         setSidebarExpanded(bodyEl.classList.contains('notes-sidebar-open'));
       }
+      syncEmptyStateCTA();
     });
 
     window.addEventListener('orientationchange', () => {
@@ -214,6 +264,7 @@
       } else {
         setSidebarExpanded(bodyEl.classList.contains('notes-sidebar-open'));
       }
+      syncEmptyStateCTA();
     });
 
     document.addEventListener('keydown', (event) => {
@@ -518,7 +569,7 @@
       });
     }
 
-    newNoteButton.addEventListener('click', () => {
+    function createNewNote() {
       const activeFolder = ensureFolderSelected();
       if (!activeFolder) {
         return;
@@ -541,7 +592,17 @@
         openNote(id);
         setTimeout(() => noteTitleEl.focus(), 120);
       });
+    }
+
+    newNoteButton.addEventListener('click', () => {
+      createNewNote();
     });
+
+    if (emptyStateCreateButton) {
+      emptyStateCreateButton.addEventListener('click', () => {
+        createNewNote();
+      });
+    }
 
     noteSearchInput.addEventListener('input', () => {
       needsAutoOpen = true;
@@ -704,7 +765,11 @@
         if (visibleCount === 0) {
           editorWrapperEl.classList.add('hidden');
           emptyStateEl.classList.remove('hidden');
-          emptyStateEl.innerHTML = '<h2>No pages found</h2><p>Clear the search to see every note in this space.</p>';
+          renderEmptyState({
+            title: 'No pages found',
+            message: 'Clear the search to see every note in this space.',
+            hasVisibleNotes: true
+          });
         } else {
           emptyStateEl.classList.add('hidden');
         }
@@ -742,7 +807,12 @@
       }
       editorWrapperEl.classList.add('hidden');
       emptyStateEl.classList.remove('hidden');
-      emptyStateEl.innerHTML = '<h2>Start with a new page</h2><p>Use &ldquo;+ New Page&rdquo; to begin capturing notes in this space.</p>';
+      renderEmptyState({
+        title: 'Start with a new page',
+        message: 'Use “+ New Page” to begin capturing notes in this space.',
+        hasVisibleNotes: false,
+        hasActiveFolder: true
+      });
     }
 
     function openNote(id) {
@@ -850,7 +920,12 @@
       }
       editorWrapperEl.classList.add('hidden');
       emptyStateEl.classList.remove('hidden');
-      emptyStateEl.innerHTML = defaultEmptyMessage;
+      renderEmptyState({
+        title: defaultEmptyState.title,
+        message: defaultEmptyState.message,
+        hasVisibleNotes: getVisibleNoteCount() > 0,
+        hasActiveFolder: !!currentFolder || folderElements.size > 0
+      });
       noteTitleEl.textContent = '';
       noteContentEl.innerHTML = '';
       noteMetaEl.textContent = '';
@@ -1272,10 +1347,20 @@
 
     function flashEmptyState(message) {
       emptyStateEl.classList.remove('hidden');
-      emptyStateEl.innerHTML = `<h2>${message}</h2><p>Create a space to organize your notes like Notion.</p>`;
+      renderEmptyState({
+        title: message,
+        message: 'Create a space to organize your notes like Notion.',
+        hasVisibleNotes: false,
+        hasActiveFolder: !!currentFolder
+      });
       setTimeout(() => {
         if (!currentNoteId) {
-          emptyStateEl.innerHTML = defaultEmptyMessage;
+          renderEmptyState({
+            title: defaultEmptyState.title,
+            message: defaultEmptyState.message,
+            hasVisibleNotes: getVisibleNoteCount() > 0,
+            hasActiveFolder: !!currentFolder || folderElements.size > 0
+          });
         }
       }, 2500);
     }
