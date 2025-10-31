@@ -457,15 +457,32 @@
       defaultFolderSeeded = true;
       const id = Gun.text.random();
       const now = Date.now();
-      // Scope each folder record to the active identity so other sessions cannot read it.
-      folders.get(id).put({
+      const normalized = {
         name: name || 'Untitled Space',
         createdAt: now,
         updatedAt: now,
         ownerKey: identityKey
-      }, (ack) => {
+      };
+
+      folderCache.set(id, normalized);
+      ensureFolderListItem(id, normalized);
+      persistFolderCache();
+
+      // Scope each folder record to the active identity so other sessions cannot read it.
+      folders.get(id).put(normalized, (ack) => {
         if (ack && ack.err) {
           console.error('Failed to create space', ack.err);
+          folderCache.delete(id);
+          const element = folderElements.get(id);
+          if (element) {
+            element.remove();
+            folderElements.delete(id);
+          }
+          if (currentFolder === id) {
+            currentFolder = null;
+            clearNotesSelection();
+          }
+          persistFolderCache();
           flashEmptyState('Unable to create a space right now. Try again.');
         }
       });
