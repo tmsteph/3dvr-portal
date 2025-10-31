@@ -89,6 +89,7 @@
 
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+    const user = gun.user();
     const folders = gun.get('simple-folders');
     const notes = gun.get('simple-notes');
 
@@ -111,6 +112,9 @@
     const navbarEl = document.querySelector('.navbar');
     const rootEl = document.documentElement;
     const bodyEl = document.body;
+    const identity = resolveIdentity({ user });
+    const identityKey = identity.identityKey;
+    const canClaimLegacy = identity.canClaimLegacy;
     const defaultEmptyMessage = emptyStateEl.innerHTML;
     const MOBILE_BREAKPOINT = 900;
     const DEFAULT_FOLDER_NAME = 'Quick Notes';
@@ -126,13 +130,14 @@
     let activeSlashIndex = 0;
     let defaultFolderSeeded = false;
     let autoOpeningNote = false;
+    let needsAutoOpen = true;
 
     const folderElements = new Map();
     const folderCache = new Map();
     const noteElements = new Map();
     const noteCache = new Map();
 
-    const FOLDER_CACHE_KEY = 'notes-folders-cache-v1';
+    const FOLDER_CACHE_KEY = `notes-folders-cache-v2:${identityKey}`;
 
     const slashOptionData = [
       { id: 'text', label: 'Text', description: 'Start with plain paragraphs', action: () => applyBlock('paragraph') },
@@ -292,10 +297,18 @@
         if (!folder || typeof folder !== 'object') {
           return;
         }
+        const ownerKey = typeof folder.ownerKey === 'string' ? folder.ownerKey : '';
+        if (ownerKey && ownerKey !== identityKey) {
+          return;
+        }
+        if (!ownerKey && !canClaimLegacy) {
+          return;
+        }
         const normalized = {
           name: folder.name?.trim() || 'Untitled Space',
           createdAt: folder.createdAt || Date.now(),
-          updatedAt: folder.updatedAt || folder.createdAt || Date.now()
+          updatedAt: folder.updatedAt || folder.createdAt || Date.now(),
+          ownerKey: ownerKey || identityKey
         };
         folderCache.set(id, normalized);
         defaultFolderSeeded = true;
@@ -333,10 +346,35 @@
       }
 
       if (folder._) delete folder._;
+      const ownerKey = typeof folder.ownerKey === 'string' ? folder.ownerKey : '';
+      if (ownerKey && ownerKey !== identityKey) {
+        const li = folderElements.get(id);
+        if (li) {
+          li.remove();
+          folderElements.delete(id);
+        }
+        folderCache.delete(id);
+        persistFolderCache();
+        if (currentFolder === id) {
+          currentFolder = null;
+          newNoteButton.disabled = true;
+          clearNotesSelection();
+        }
+        return;
+      }
+
+      if (!ownerKey) {
+        if (!canClaimLegacy) {
+          return;
+        }
+        folders.get(id).get('ownerKey').put(identityKey);
+      }
+
       const normalized = {
         name: folder.name?.trim() || 'Untitled Space',
         createdAt: folder.createdAt || Date.now(),
-        updatedAt: folder.updatedAt || folder.createdAt || Date.now()
+        updatedAt: folder.updatedAt || folder.createdAt || Date.now(),
+        ownerKey: ownerKey || identityKey
       };
       defaultFolderSeeded = true;
       folderCache.set(id, normalized);
@@ -370,10 +408,12 @@
       defaultFolderSeeded = true;
       const id = Gun.text.random();
       const now = Date.now();
+      // Scope each folder record to the active identity so other sessions cannot read it.
       folders.get(id).put({
         name: name || 'Untitled Space',
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        ownerKey: identityKey
       }, (ack) => {
         if (ack && ack.err) {
           console.error('Failed to create space', ack.err);
@@ -438,7 +478,12 @@
     }
 
     function selectFolder(id) {
+      const folder = folderCache.get(id);
+      if (!folder || folder.ownerKey !== identityKey) {
+        return;
+      }
       currentFolder = id;
+      needsAutoOpen = true;
       newNoteButton.disabled = false;
       folderElements.forEach((element, folderId) => {
         if (folderId === id) {
@@ -483,12 +528,14 @@
       }
       const id = Gun.text.random();
       const now = Date.now();
+      // Persist note with the identity owner to keep it private to this account or guest session.
       notes.get(id).put({
         title: 'Untitled',
         folder: activeFolder,
         content: '',
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        ownerKey: identityKey
       }, (ack) => {
         if (ack && ack.err) {
           console.error('Failed to create note', ack.err);
@@ -500,6 +547,7 @@
     });
 
     noteSearchInput.addEventListener('input', () => {
+      needsAutoOpen = true;
       filterNotes();
     });
 
@@ -519,8 +567,36 @@
       }
 
       if (note._) delete note._;
+      const ownerKey = typeof note.ownerKey === 'string' ? note.ownerKey : '';
+      if (ownerKey && ownerKey !== identityKey) {
+        const li = noteElements.get(id);
+        if (li) {
+          li.remove();
+          noteElements.delete(id);
+        }
+        if (currentNoteId === id) {
+          closeEditor();
+        }
+        noteCache.delete(id);
+        filterNotes();
+        return;
+      }
+
+      if (!ownerKey) {
+        if (!canClaimLegacy) {
+          return;
+        }
+        notes.get(id).get('ownerKey').put(identityKey);
+      }
+
       const cached = noteCache.get(id) || { id };
-      const merged = { ...cached, ...note, id };
+      const merged = { ...cached, ...note, id, ownerKey: ownerKey || identityKey };
+      if (merged.folder && folderCache.has(merged.folder)) {
+        const folderOwner = folderCache.get(merged.folder)?.ownerKey;
+        if (folderOwner && folderOwner !== identityKey) {
+          return;
+        }
+      }
       noteCache.set(id, merged);
       ensureNoteListItem(id, merged);
       if (currentNoteId === id) {
@@ -607,17 +683,42 @@
         }
       });
       noteList.classList.toggle('empty', !currentFolder || visibleCount === 0);
-      if (!query) {
-        if (visibleCount === 0) {
-          showEmptyStateForFolder();
-        } else {
+      const queryActive = !!query;
+      const shouldAuto = !queryActive
+        && visibleCount > 0
+        && (needsAutoOpen || !currentNoteId || noteCache.get(currentNoteId)?.folder !== currentFolder);
+      if (shouldAuto) {
+        autoOpenFirstNote();
+        return;
+      }
+      if (!queryActive && visibleCount === 0) {
+        showEmptyStateForFolder();
+        return;
+      }
+      if (queryActive) {
+        const currentVisible = currentNoteId
+          ? !(noteElements.get(currentNoteId)?.classList.contains('hidden'))
+          : false;
+        if (!currentVisible && visibleCount > 0) {
+          needsAutoOpen = true;
           autoOpenFirstNote();
+          return;
+        }
+        if (visibleCount === 0) {
+          editorWrapperEl.classList.add('hidden');
+          emptyStateEl.classList.remove('hidden');
+          emptyStateEl.innerHTML = '<h2>No pages found</h2><p>Clear the search to see every note in this space.</p>';
+        } else {
+          emptyStateEl.classList.add('hidden');
         }
       }
     }
 
     function autoOpenFirstNote() {
-      if (autoOpeningNote || currentNoteId || !currentFolder) {
+      if (autoOpeningNote || !currentFolder) {
+        return;
+      }
+      if (!needsAutoOpen && currentNoteId) {
         return;
       }
       autoOpeningNote = true;
@@ -628,11 +729,13 @@
         const note = noteCache.get(id);
         if (note && note.folder === currentFolder) {
           openNote(id);
+          needsAutoOpen = false;
           autoOpeningNote = false;
           return;
         }
       }
       autoOpeningNote = false;
+      needsAutoOpen = true;
       showEmptyStateForFolder();
     }
 
@@ -647,8 +750,17 @@
 
     function openNote(id) {
       const data = noteCache.get(id);
+      if (data && data.ownerKey && data.ownerKey !== identityKey) {
+        return;
+      }
+      needsAutoOpen = false;
       closeSidebarForMobile();
       if (data) {
+        if (!data.ownerKey && canClaimLegacy) {
+          notes.get(id).get('ownerKey').put(identityKey);
+          data.ownerKey = identityKey;
+          noteCache.set(id, data);
+        }
         renderActiveNote(data);
         attachNoteListener(id);
         noteContentEl.focus();
@@ -661,6 +773,13 @@
         }
         if (note._) delete note._;
         const merged = { ...(noteCache.get(id) || {}), ...note, id };
+        if (merged.ownerKey && merged.ownerKey !== identityKey) {
+          return;
+        }
+        if (!merged.ownerKey && canClaimLegacy) {
+          notes.get(id).get('ownerKey').put(identityKey);
+          merged.ownerKey = identityKey;
+        }
         noteCache.set(id, merged);
         renderActiveNote(merged);
         attachNoteListener(id);
@@ -694,7 +813,24 @@
         }
         if (note._) delete note._;
         const cached = noteCache.get(id) || { id };
-        const merged = { ...cached, ...note, id };
+        const ownerKey = typeof note.ownerKey === 'string' ? note.ownerKey : cached.ownerKey;
+        if (ownerKey && ownerKey !== identityKey) {
+          const li = noteElements.get(id);
+          if (li) {
+            li.remove();
+            noteElements.delete(id);
+          }
+          if (currentNoteId === id) {
+            closeEditor();
+          }
+          noteCache.delete(id);
+          filterNotes();
+          return;
+        }
+        if (!ownerKey && canClaimLegacy) {
+          notes.get(id).get('ownerKey').put(identityKey);
+        }
+        const merged = { ...cached, ...note, id, ownerKey: ownerKey || identityKey };
         noteCache.set(id, merged);
         if (document.activeElement !== noteTitleEl) {
           noteTitleEl.textContent = merged.title || 'Untitled';
@@ -709,6 +845,7 @@
     }
 
     function closeEditor() {
+      needsAutoOpen = true;
       currentNoteId = null;
       if (currentNoteRef && currentNoteRef.off) {
         currentNoteRef.off();
@@ -1144,6 +1281,175 @@
           emptyStateEl.innerHTML = defaultEmptyMessage;
         }
       }, 2500);
+    }
+
+    function resolveIdentity({ user: activeUser } = {}) {
+      if (activeUser && typeof activeUser.recall === 'function') {
+        try {
+          activeUser.recall({ sessionStorage: true, localStorage: true });
+        } catch (error) {
+          console.warn('Unable to recall user session for notes', error);
+        }
+      }
+      const state = readAuthState();
+      const mode = state.mode || 'anon';
+      let alias = typeof state.alias === 'string' ? state.alias.trim() : '';
+      let username = typeof state.username === 'string' ? state.username.trim() : '';
+      let guestId = typeof state.guestId === 'string' ? state.guestId.trim() : '';
+      let pubKey = '';
+
+      if (activeUser && activeUser.is) {
+        if (!alias && activeUser.is.alias) {
+          alias = String(activeUser.is.alias).trim();
+        }
+        if (!username && activeUser.is.username) {
+          username = String(activeUser.is.username).trim();
+        }
+        if (activeUser.is.pub) {
+          pubKey = String(activeUser.is.pub).trim();
+        }
+      }
+
+      if (!alias && typeof localStorage !== 'undefined') {
+        try {
+          alias = (localStorage.getItem('alias') || '').trim();
+        } catch (error) {
+          console.warn('Unable to read stored alias for notes', error);
+        }
+      }
+
+      if (!guestId) {
+        guestId = ensureGuestIdentityForNotes();
+      }
+
+      const identityKey = deriveIdentityKey({ mode, alias, guestId, pubKey });
+      const legacyOwnerKey = resolveLegacyOwnerKey({ identityKey, mode });
+      return {
+        mode,
+        alias,
+        username,
+        guestId,
+        identityKey,
+        legacyOwnerKey,
+        canClaimLegacy: legacyOwnerKey === identityKey
+      };
+    }
+
+    function readAuthState() {
+      if (window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function') {
+        try {
+          return window.ScoreSystem.computeAuthState() || { mode: 'anon' };
+        } catch (error) {
+          console.warn('Failed to compute auth state via ScoreSystem for notes', error);
+        }
+      }
+      if (typeof localStorage === 'undefined') {
+        return { mode: 'anon' };
+      }
+      try {
+        const signedIn = localStorage.getItem('signedIn') === 'true';
+        if (signedIn) {
+          return {
+            mode: 'user',
+            alias: localStorage.getItem('alias') || '',
+            username: localStorage.getItem('username') || ''
+          };
+        }
+        const isGuest = localStorage.getItem('guest') === 'true';
+        if (isGuest) {
+          return {
+            mode: 'guest',
+            guestId: localStorage.getItem('guestId') || '',
+            guestDisplayName: localStorage.getItem('guestDisplayName') || ''
+          };
+        }
+      } catch (error) {
+        console.warn('Unable to read fallback auth state for notes', error);
+      }
+      return { mode: 'anon' };
+    }
+
+    function ensureGuestIdentityForNotes() {
+      let guestId = '';
+      try {
+        if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+          guestId = window.ScoreSystem.ensureGuestIdentity() || '';
+        }
+      } catch (error) {
+        console.warn('Failed to ensure guest identity via ScoreSystem for notes', error);
+      }
+      if (guestId || typeof localStorage === 'undefined') {
+        return guestId;
+      }
+      try {
+        guestId = localStorage.getItem('guestId') || '';
+        if (!guestId) {
+          guestId = `guest_${Math.random().toString(36).slice(2, 11)}`;
+          localStorage.setItem('guestId', guestId);
+        }
+        localStorage.setItem('guest', 'true');
+        if (!localStorage.getItem('guestDisplayName')) {
+          localStorage.setItem('guestDisplayName', 'Guest');
+        }
+      } catch (error) {
+        console.warn('Unable to persist guest identity for notes', error);
+      }
+      return guestId;
+    }
+
+    function deriveIdentityKey({ mode, alias, guestId, pubKey }) {
+      const sanitize = (value, fallback) => {
+        const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+        const cleaned = normalized.replace(/[^a-z0-9_-]/g, '-');
+        return cleaned || fallback;
+      };
+      if (mode === 'user') {
+        if (pubKey) {
+          return `pub:${sanitize(pubKey, 'default')}`;
+        }
+        if (alias) {
+          return `alias:${sanitize(alias, 'default')}`;
+        }
+        return 'user:default';
+      }
+      if (mode === 'guest') {
+        if (guestId) {
+          return `guest:${sanitize(guestId, 'default')}`;
+        }
+        if (alias) {
+          return `guest-alias:${sanitize(alias, 'default')}`;
+        }
+        return 'guest:default';
+      }
+      if (guestId) {
+        return `guest:${sanitize(guestId, 'anon')}`;
+      }
+      if (alias) {
+        return `anon:${sanitize(alias, 'default')}`;
+      }
+      return 'anon:default';
+    }
+
+    function resolveLegacyOwnerKey({ identityKey, mode }) {
+      if (typeof localStorage === 'undefined') {
+        return mode === 'user' ? identityKey : '';
+      }
+      const storageKey = 'notes-legacy-owner';
+      let stored = '';
+      try {
+        stored = localStorage.getItem(storageKey) || '';
+      } catch (error) {
+        console.warn('Unable to read legacy owner key for notes', error);
+      }
+      if (!stored && mode === 'user') {
+        stored = identityKey;
+        try {
+          localStorage.setItem(storageKey, stored);
+        } catch (error) {
+          console.warn('Unable to persist legacy owner key for notes', error);
+        }
+      }
+      return stored;
     }
   </script>
 </body>
