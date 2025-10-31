@@ -127,8 +127,11 @@
     let defaultFolderSeeded = false;
 
     const folderElements = new Map();
+    const folderCache = new Map();
     const noteElements = new Map();
     const noteCache = new Map();
+
+    const FOLDER_CACHE_KEY = 'notes-folders-cache-v1';
 
     const slashOptionData = [
       { id: 'text', label: 'Text', description: 'Start with plain paragraphs', action: () => applyBlock('paragraph') },
@@ -237,13 +240,89 @@
       }
     });
 
+    function ensureFolderListItem(id, folder) {
+      let li = folderElements.get(id);
+      if (!li) {
+        li = createFolderElement(id);
+        folderList.appendChild(li);
+        folderElements.set(id, li);
+      }
+      const nameEl = li.querySelector('.folder-name');
+      if (nameEl) {
+        nameEl.textContent = folder.name?.trim() || 'Untitled Space';
+      }
+      li.classList.toggle('active', currentFolder === id);
+    }
+
+    function persistFolderCache() {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
+      const payload = {};
+      folderCache.forEach((value, key) => {
+        payload[key] = value;
+      });
+      try {
+        localStorage.setItem(FOLDER_CACHE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        console.error('Failed to persist spaces cache', error);
+      }
+    }
+
+    function loadFolderCache() {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
+      let cached;
+      try {
+        cached = localStorage.getItem(FOLDER_CACHE_KEY);
+        if (!cached) {
+          return;
+        }
+        cached = JSON.parse(cached);
+      } catch (error) {
+        console.error('Failed to load spaces cache', error);
+        return;
+      }
+      if (!cached || typeof cached !== 'object') {
+        return;
+      }
+      Object.entries(cached).forEach(([id, folder]) => {
+        if (!folder || typeof folder !== 'object') {
+          return;
+        }
+        const normalized = {
+          name: folder.name?.trim() || 'Untitled Space',
+          createdAt: folder.createdAt || Date.now(),
+          updatedAt: folder.updatedAt || folder.createdAt || Date.now()
+        };
+        folderCache.set(id, normalized);
+        defaultFolderSeeded = true;
+        ensureFolderListItem(id, normalized);
+      });
+      if (!currentFolder && folderElements.size > 0) {
+        const iterator = folderElements.keys();
+        const first = iterator.next();
+        if (!first.done) {
+          selectFolder(first.value);
+        }
+      }
+    }
+
+    loadFolderCache();
+
     folders.map().on((folder, id) => {
+      if (!id || id === '_') {
+        return;
+      }
       if (!folder) {
         const li = folderElements.get(id);
         if (li) {
           li.remove();
           folderElements.delete(id);
         }
+        folderCache.delete(id);
+        persistFolderCache();
         if (currentFolder === id) {
           currentFolder = null;
           newNoteButton.disabled = true;
@@ -253,16 +332,15 @@
       }
 
       if (folder._) delete folder._;
-      const name = folder.name?.trim() || 'Untitled Space';
+      const normalized = {
+        name: folder.name?.trim() || 'Untitled Space',
+        createdAt: folder.createdAt || Date.now(),
+        updatedAt: folder.updatedAt || folder.createdAt || Date.now()
+      };
       defaultFolderSeeded = true;
-      let li = folderElements.get(id);
-      if (!li) {
-        li = createFolderElement(id);
-        folderList.appendChild(li);
-        folderElements.set(id, li);
-      }
-      li.querySelector('.folder-name').textContent = name;
-      li.classList.toggle('active', currentFolder === id);
+      folderCache.set(id, normalized);
+      ensureFolderListItem(id, normalized);
+      persistFolderCache();
       if (!currentFolder) {
         selectFolder(id);
       }
