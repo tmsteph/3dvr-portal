@@ -41,7 +41,7 @@
       <div class="sidebar-section">
         <div class="section-heading">
           <span>Pages</span>
-          <button class="primary-button" id="new-note-button" disabled>+ New Page</button>
+          <button class="primary-button" id="new-note-button">+ New Page</button>
         </div>
         <input type="search" id="note-search" class="sidebar-input" placeholder="Search pages..." aria-label="Search notes">
         <ul id="notes" class="notes-list" aria-label="Notes"></ul>
@@ -339,7 +339,6 @@
         persistFolderCache();
         if (currentFolder === id) {
           currentFolder = null;
-          newNoteButton.disabled = true;
           clearNotesSelection();
         }
         return;
@@ -357,7 +356,6 @@
         persistFolderCache();
         if (currentFolder === id) {
           currentFolder = null;
-          newNoteButton.disabled = true;
           clearNotesSelection();
         }
         return;
@@ -484,7 +482,6 @@
       }
       currentFolder = id;
       needsAutoOpen = true;
-      newNoteButton.disabled = false;
       folderElements.forEach((element, folderId) => {
         if (folderId === id) {
           element.classList.add('active');
