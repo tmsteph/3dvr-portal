@@ -295,7 +295,7 @@ body.notes-page .folder-item.hidden {
 }
 
 body.notes-page .notes-list.empty::before {
-  content: 'Select a space to view its pages.';
+  content: 'No pages match your filters yet.';
   font-size: 0.85rem;
   color: #7a7a7a;
 }

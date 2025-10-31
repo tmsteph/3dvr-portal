@@ -125,6 +125,7 @@
     let filteredSlashOptions = [];
     let activeSlashIndex = 0;
     let defaultFolderSeeded = false;
+    let autoOpeningNote = false;
 
     const folderElements = new Map();
     const folderCache = new Map();
@@ -446,10 +447,10 @@
           element.classList.remove('active');
         }
       });
-      filterNotes();
       if (currentNoteId && noteCache.get(currentNoteId)?.folder !== id) {
         closeEditor();
       }
+      filterNotes();
     }
 
     function ensureFolderSelected() {
@@ -513,6 +514,7 @@
         if (currentNoteId === id) {
           closeEditor();
         }
+        filterNotes();
         return;
       }
 
@@ -593,13 +595,54 @@
 
     function filterNotes() {
       const query = noteSearchInput.value.trim().toLowerCase();
+      let visibleCount = 0;
       noteElements.forEach((li, id) => {
         const note = noteCache.get(id);
         const matchesFolder = currentFolder && note?.folder === currentFolder;
         const matchesQuery = !query || li.dataset.title.includes(query) || li.dataset.contentPreview.includes(query);
-        li.classList.toggle('hidden', !(matchesFolder && matchesQuery));
+        const shouldShow = matchesFolder && matchesQuery;
+        li.classList.toggle('hidden', !shouldShow);
+        if (shouldShow) {
+          visibleCount += 1;
+        }
       });
-      noteList.classList.toggle('empty', !currentFolder);
+      noteList.classList.toggle('empty', !currentFolder || visibleCount === 0);
+      if (!query) {
+        if (visibleCount === 0) {
+          showEmptyStateForFolder();
+        } else {
+          autoOpenFirstNote();
+        }
+      }
+    }
+
+    function autoOpenFirstNote() {
+      if (autoOpeningNote || currentNoteId || !currentFolder) {
+        return;
+      }
+      autoOpeningNote = true;
+      for (const [id, li] of noteElements.entries()) {
+        if (li.classList.contains('hidden')) {
+          continue;
+        }
+        const note = noteCache.get(id);
+        if (note && note.folder === currentFolder) {
+          openNote(id);
+          autoOpeningNote = false;
+          return;
+        }
+      }
+      autoOpeningNote = false;
+      showEmptyStateForFolder();
+    }
+
+    function showEmptyStateForFolder() {
+      if (currentNoteId || !currentFolder) {
+        return;
+      }
+      editorWrapperEl.classList.add('hidden');
+      emptyStateEl.classList.remove('hidden');
+      emptyStateEl.innerHTML = '<h2>Start with a new page</h2><p>Use &ldquo;+ New Page&rdquo; to begin capturing notes in this space.</p>';
     }
 
     function openNote(id) {
