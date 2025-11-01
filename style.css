@@ -295,7 +295,7 @@ body.notes-page .folder-item.hidden {
 }
 
 body.notes-page .notes-list.empty::before {
-  content: 'Select a space to view its pages.';
+  content: 'No pages match your filters yet.';
   font-size: 0.85rem;
   color: #7a7a7a;
 }
@@ -336,6 +336,18 @@ body.notes-page .empty-state {
   margin: auto;
   text-align: center;
   color: #6f6f6f;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+body.notes-page .empty-state .primary-button {
+  margin-top: 4px;
+}
+
+body.notes-page .empty-state .primary-button.hidden {
+  display: none;
 }
 
 body.notes-page .empty-state.hidden {

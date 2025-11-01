@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📝 3DVR Notes</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script type="module" src="./empty-state.js"></script>
   <link rel="stylesheet" href="../style.css?v=notes-refresh-20240204">
 </head>
 <body class="notes-page">
@@ -41,7 +42,7 @@
       <div class="sidebar-section">
         <div class="section-heading">
           <span>Pages</span>
-          <button class="primary-button" id="new-note-button" disabled>+ New Page</button>
+          <button class="primary-button" id="new-note-button">+ New Page</button>
         </div>
         <input type="search" id="note-search" class="sidebar-input" placeholder="Search pages..." aria-label="Search notes">
         <ul id="notes" class="notes-list" aria-label="Notes"></ul>
@@ -53,8 +54,9 @@
     <main class="notes-editor" aria-live="polite">
       <button id="sidebar-toggle" class="sidebar-toggle icon-button" type="button" aria-label="Show workspace" aria-controls="notes-sidebar" aria-expanded="false">☰</button>
       <div id="empty-state" class="empty-state">
-        <h2>Select a note to get started</h2>
-        <p>Create or choose a page from the sidebar.</p>
+        <h2 id="empty-state-title">Select a note to get started</h2>
+        <p id="empty-state-message">Create or choose a page from the sidebar.</p>
+        <button id="empty-state-create" class="primary-button hidden">+ New Page</button>
       </div>
 
       <div id="editor-wrapper" class="editor-wrapper hidden" aria-label="Note editor">
@@ -89,8 +91,9 @@
 
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
-    const folders = gun.get('simple-folders');
-    const notes = gun.get('simple-notes');
+    const user = gun.user();
+    const legacyFolders = gun.get('simple-folders');
+    const legacyNotes = gun.get('simple-notes');
 
     const folderList = document.getElementById('folders');
     const noteList = document.getElementById('notes');
@@ -102,6 +105,9 @@
     const noteContentEl = document.getElementById('note-content');
     const noteMetaEl = document.getElementById('note-meta');
     const emptyStateEl = document.getElementById('empty-state');
+    const emptyStateTitleEl = document.getElementById('empty-state-title');
+    const emptyStateMessageEl = document.getElementById('empty-state-message');
+    const emptyStateCreateButton = document.getElementById('empty-state-create');
     const editorWrapperEl = document.getElementById('editor-wrapper');
     const slashMenuEl = document.getElementById('slash-menu');
     const slashOptionsEl = document.getElementById('slash-options');
@@ -111,9 +117,162 @@
     const navbarEl = document.querySelector('.navbar');
     const rootEl = document.documentElement;
     const bodyEl = document.body;
-    const defaultEmptyMessage = emptyStateEl.innerHTML;
+    const identity = resolveIdentity({ user });
+    const identityKey = identity.identityKey;
+    const canClaimLegacy = identity.canClaimLegacy;
+    // Store per-identity notes under `notes-v2/<identityKey>` so preview builds
+    // and guests never receive other accounts' data. Legacy nodes remain for
+    // backward compatibility and are mirrored from the scoped store.
+    const identityRoot = gun.get('notes-v2').get(identityKey || 'anon:default');
+    const scopedFolders = identityRoot.get('folders');
+    const scopedNotes = identityRoot.get('notes');
+    const folderStores = [
+      { node: scopedFolders, label: 'scoped', isPrimary: true },
+      { node: legacyFolders, label: 'legacy', isPrimary: false }
+    ];
+    const noteStores = [
+      { node: scopedNotes, label: 'scoped', isPrimary: true },
+      { node: legacyNotes, label: 'legacy', isPrimary: false }
+    ];
     const MOBILE_BREAKPOINT = 900;
     const DEFAULT_FOLDER_NAME = 'Quick Notes';
+    const emptyStateHelpers = globalThis.NotesEmptyState || {};
+    const evaluateInlineCreate = typeof emptyStateHelpers.shouldShowInlineCreate === 'function'
+      ? emptyStateHelpers.shouldShowInlineCreate
+      : ({ viewportWidth, hasActiveFolder, hasVisibleNotes }) => {
+          return viewportWidth <= MOBILE_BREAKPOINT && hasActiveFolder && !hasVisibleNotes;
+        };
+    const defaultEmptyState = {
+      title: emptyStateTitleEl ? emptyStateTitleEl.textContent : 'Select a note to get started',
+      message: emptyStateMessageEl ? emptyStateMessageEl.textContent : 'Create or choose a page from the sidebar.'
+    };
+    const primaryFolderStore = folderStores.find((store) => store.isPrimary);
+    const primaryNoteStore = noteStores.find((store) => store.isPrimary);
+
+    function writeToStores(stores, id, value, { field, onError, onAck } = {}) {
+      stores.forEach((store) => {
+        const node = store.node;
+        if (!node || typeof node.get !== 'function') {
+          return;
+        }
+        let target = node.get(id);
+        if (!target || typeof target.put !== 'function') {
+          return;
+        }
+        if (field) {
+          target = target.get(field);
+          if (!target || typeof target.put !== 'function') {
+            return;
+          }
+        }
+        target.put(value, (ack) => {
+          if (ack && ack.err) {
+            if (typeof onError === 'function') {
+              onError({ ack, store });
+            }
+            return;
+          }
+          if (typeof onAck === 'function') {
+            onAck({ ack, store });
+          }
+        });
+      });
+    }
+
+    function putFolderRecord(id, value, options = {}) {
+      const stores = options.stores || folderStores;
+      writeToStores(stores, id, value, options);
+    }
+
+    function putFolderField(id, field, value, options = {}) {
+      const stores = options.stores || folderStores;
+      writeToStores(stores, id, value, { ...options, field });
+    }
+
+    function deleteFolderRecord(id, options = {}) {
+      putFolderRecord(id, null, options);
+    }
+
+    function putNoteRecord(id, value, options = {}) {
+      const stores = options.stores || noteStores;
+      writeToStores(stores, id, value, options);
+    }
+
+    function putNoteField(id, field, value, options = {}) {
+      const stores = options.stores || noteStores;
+      writeToStores(stores, id, value, { ...options, field });
+    }
+
+    function deleteNoteRecord(id, options = {}) {
+      putNoteRecord(id, null, options);
+    }
+
+    function fetchNoteOnce(id, callback) {
+      if (primaryNoteStore && primaryNoteStore.node && typeof primaryNoteStore.node.get === 'function') {
+        primaryNoteStore.node.get(id).once((value) => {
+          if (value) {
+            callback(value, primaryNoteStore);
+          } else {
+            fetchNoteFromFallbacks(id, callback);
+          }
+        });
+        return;
+      }
+      fetchNoteFromFallbacks(id, callback);
+    }
+
+    function fetchNoteFromFallbacks(id, callback) {
+      const fallbacks = noteStores.filter((store) => !store.isPrimary);
+      if (fallbacks.length === 0) {
+        callback(null, null);
+        return;
+      }
+      let handled = false;
+      let pending = fallbacks.length;
+      fallbacks.forEach((store) => {
+        if (!store.node || typeof store.node.get !== 'function') {
+          pending -= 1;
+          if (!handled && pending === 0) {
+            callback(null, null);
+          }
+          return;
+        }
+        store.node.get(id).once((value) => {
+          if (handled) {
+            return;
+          }
+          if (value) {
+            handled = true;
+            callback(value, store);
+            return;
+          }
+          pending -= 1;
+          if (!handled && pending === 0) {
+            callback(null, null);
+          }
+        });
+      });
+    }
+
+    function resolveNoteStore(id, fallbackStore = null) {
+      const source = noteSourceById.get(id);
+      if (source === 'scoped' && primaryNoteStore) {
+        return primaryNoteStore;
+      }
+      if (source) {
+        const matched = noteStores.find((store) => store.label === source);
+        if (matched) {
+          return matched;
+        }
+      }
+      if (fallbackStore) {
+        return fallbackStore;
+      }
+      if (primaryNoteStore) {
+        return primaryNoteStore;
+      }
+      return noteStores[0] || null;
+    }
 
     let currentFolder = null;
     let currentNoteId = null;
@@ -125,10 +284,18 @@
     let filteredSlashOptions = [];
     let activeSlashIndex = 0;
     let defaultFolderSeeded = false;
+    let defaultFolderSeedTimer = null;
+    let autoOpeningNote = false;
+    let needsAutoOpen = true;
 
     const folderElements = new Map();
+    const folderCache = new Map();
+    const folderSourceById = new Map();
     const noteElements = new Map();
     const noteCache = new Map();
+    const noteSourceById = new Map();
+
+    const FOLDER_CACHE_KEY = `notes-folders-cache-v2:${identityKey}`;
 
     const slashOptionData = [
       { id: 'text', label: 'Text', description: 'Start with plain paragraphs', action: () => applyBlock('paragraph') },
@@ -174,8 +341,43 @@
       }
     }
 
+    function getVisibleNoteCount() {
+      let count = 0;
+      noteElements.forEach((li) => {
+        if (!li.classList.contains('hidden')) {
+          count += 1;
+        }
+      });
+      return count;
+    }
+
+    function syncEmptyStateCTA({ hasVisibleNotes, hasActiveFolder } = {}) {
+      if (!emptyStateCreateButton) {
+        return;
+      }
+      const visibleNotes = typeof hasVisibleNotes === 'boolean' ? hasVisibleNotes : getVisibleNoteCount() > 0;
+      const activeFolder = typeof hasActiveFolder === 'boolean' ? hasActiveFolder : !!currentFolder;
+      const shouldShow = evaluateInlineCreate({
+        viewportWidth: window.innerWidth,
+        hasActiveFolder: activeFolder,
+        hasVisibleNotes: visibleNotes
+      });
+      emptyStateCreateButton.classList.toggle('hidden', !shouldShow);
+    }
+
+    function renderEmptyState({ title, message, hasVisibleNotes, hasActiveFolder } = {}) {
+      if (emptyStateTitleEl && typeof title === 'string') {
+        emptyStateTitleEl.textContent = title;
+      }
+      if (emptyStateMessageEl && typeof message === 'string') {
+        emptyStateMessageEl.textContent = message;
+      }
+      syncEmptyStateCTA({ hasVisibleNotes, hasActiveFolder });
+    }
+
     updateNavbarHeight();
     setSidebarExpanded(false);
+    syncEmptyStateCTA({ hasVisibleNotes: false, hasActiveFolder: true });
 
     if (sidebarToggleButton) {
       sidebarToggleButton.addEventListener('click', () => {
@@ -196,6 +398,7 @@
       } else {
         setSidebarExpanded(bodyEl.classList.contains('notes-sidebar-open'));
       }
+      syncEmptyStateCTA();
     });
 
     window.addEventListener('orientationchange', () => {
@@ -205,6 +408,7 @@
       } else {
         setSidebarExpanded(bodyEl.classList.contains('notes-sidebar-open'));
       }
+      syncEmptyStateCTA();
     });
 
     document.addEventListener('keydown', (event) => {
@@ -237,45 +441,188 @@
       }
     });
 
-    folders.map().on((folder, id) => {
-      if (!folder) {
-        const li = folderElements.get(id);
-        if (li) {
-          li.remove();
-          folderElements.delete(id);
-        }
-        if (currentFolder === id) {
-          currentFolder = null;
-          newNoteButton.disabled = true;
-          clearNotesSelection();
-        }
-        return;
-      }
-
-      if (folder._) delete folder._;
-      const name = folder.name?.trim() || 'Untitled Space';
-      defaultFolderSeeded = true;
+    function ensureFolderListItem(id, folder) {
       let li = folderElements.get(id);
       if (!li) {
         li = createFolderElement(id);
         folderList.appendChild(li);
         folderElements.set(id, li);
       }
-      li.querySelector('.folder-name').textContent = name;
+      const nameEl = li.querySelector('.folder-name');
+      if (nameEl) {
+        nameEl.textContent = folder.name?.trim() || 'Untitled Space';
+      }
       li.classList.toggle('active', currentFolder === id);
+    }
+
+    function persistFolderCache() {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
+      const payload = {};
+      folderCache.forEach((value, key) => {
+        payload[key] = value;
+      });
+      try {
+        localStorage.setItem(FOLDER_CACHE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        console.error('Failed to persist spaces cache', error);
+      }
+    }
+
+    function loadFolderCache() {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
+      let cached;
+      try {
+        cached = localStorage.getItem(FOLDER_CACHE_KEY);
+        if (!cached) {
+          return;
+        }
+        cached = JSON.parse(cached);
+      } catch (error) {
+        console.error('Failed to load spaces cache', error);
+        return;
+      }
+      if (!cached || typeof cached !== 'object') {
+        return;
+      }
+      Object.entries(cached).forEach(([id, folder]) => {
+        if (!folder || typeof folder !== 'object') {
+          return;
+        }
+        const ownerKey = typeof folder.ownerKey === 'string' ? folder.ownerKey : '';
+        if (ownerKey && ownerKey !== identityKey) {
+          return;
+        }
+        if (!ownerKey && !canClaimLegacy) {
+          return;
+        }
+        const normalized = {
+          name: folder.name?.trim() || 'Untitled Space',
+          createdAt: folder.createdAt || Date.now(),
+          updatedAt: folder.updatedAt || folder.createdAt || Date.now(),
+          ownerKey: ownerKey || identityKey
+        };
+        folderCache.set(id, normalized);
+        defaultFolderSeeded = true;
+        ensureFolderListItem(id, normalized);
+      });
+      if (!currentFolder && folderElements.size > 0) {
+        const iterator = folderElements.keys();
+        const first = iterator.next();
+        if (!first.done) {
+          selectFolder(first.value);
+        }
+      }
+    }
+
+    loadFolderCache();
+    scheduleDefaultFolderSeed();
+
+    function handleFolderRemoval(id) {
+      const element = folderElements.get(id);
+      if (element) {
+        element.remove();
+        folderElements.delete(id);
+      }
+      folderCache.delete(id);
+      folderSourceById.delete(id);
+      persistFolderCache();
+      if (currentFolder === id) {
+        currentFolder = null;
+        clearNotesSelection();
+      }
+      if (folderElements.size === 0) {
+        scheduleDefaultFolderSeed();
+      }
+    }
+
+    function handleFolderUpdate({ folder, id, store }) {
+      if (!id || id === '_') {
+        return;
+      }
+      const sourceKey = store.label;
+      const existingSource = folderSourceById.get(id);
+
+      if (!folder) {
+        if (!existingSource || existingSource === sourceKey || store.isPrimary) {
+          handleFolderRemoval(id);
+        }
+        return;
+      }
+
+      if (existingSource === 'scoped' && !store.isPrimary) {
+        return;
+      }
+
+      if (folder._) delete folder._;
+      const ownerKey = typeof folder.ownerKey === 'string' ? folder.ownerKey : '';
+      if (ownerKey && ownerKey !== identityKey) {
+        if (existingSource === sourceKey) {
+          folderSourceById.delete(id);
+        }
+        handleFolderRemoval(id);
+        return;
+      }
+
+      if (!ownerKey) {
+        if (!canClaimLegacy) {
+          return;
+        }
+        putFolderField(id, 'ownerKey', identityKey, { stores: [store] });
+      }
+
+      const normalized = {
+        name: folder.name?.trim() || 'Untitled Space',
+        createdAt: folder.createdAt || Date.now(),
+        updatedAt: folder.updatedAt || folder.createdAt || Date.now(),
+        ownerKey: ownerKey || identityKey
+      };
+      defaultFolderSeeded = true;
+      folderCache.set(id, normalized);
+      ensureFolderListItem(id, normalized);
+      persistFolderCache();
+
+      if (store.isPrimary || !existingSource) {
+        folderSourceById.set(id, store.isPrimary ? 'scoped' : sourceKey);
+      }
+
+      if (!store.isPrimary && existingSource !== 'scoped') {
+        const primaryStores = primaryFolderStore ? [primaryFolderStore] : [];
+        if (primaryStores.length > 0) {
+          putFolderRecord(id, normalized, { stores: primaryStores });
+        }
+      }
+
       if (!currentFolder) {
         selectFolder(id);
       }
-    });
+    }
 
-    folders.once((snapshot) => {
+    function scheduleDefaultFolderSeed() {
       if (defaultFolderSeeded) {
         return;
       }
-      const keys = Object.keys(snapshot || {}).filter((key) => key !== '_');
-      if (keys.length === 0) {
-        seedDefaultFolder();
+      if (defaultFolderSeedTimer) {
+        clearTimeout(defaultFolderSeedTimer);
       }
+      defaultFolderSeedTimer = setTimeout(() => {
+        defaultFolderSeedTimer = null;
+        if (!defaultFolderSeeded && folderElements.size === 0) {
+          seedDefaultFolder();
+        }
+      }, 600);
+    }
+
+    folderStores.forEach((store) => {
+      if (!store.node || typeof store.node.map !== 'function') {
+        return;
+      }
+      store.node.map().on((folder, id) => {
+        handleFolderUpdate({ folder, id, store });
+      });
     });
 
     function seedDefaultFolder() {
@@ -291,14 +638,40 @@
       defaultFolderSeeded = true;
       const id = Gun.text.random();
       const now = Date.now();
-      folders.get(id).put({
+      const normalized = {
         name: name || 'Untitled Space',
         createdAt: now,
-        updatedAt: now
-      }, (ack) => {
-        if (ack && ack.err) {
-          console.error('Failed to create space', ack.err);
-          flashEmptyState('Unable to create a space right now. Try again.');
+        updatedAt: now,
+        ownerKey: identityKey
+      };
+
+      folderCache.set(id, normalized);
+      ensureFolderListItem(id, normalized);
+      persistFolderCache();
+
+      let rolledBack = false;
+      putFolderRecord(id, normalized, {
+        onError: ({ ack, store }) => {
+          if (store && store.isPrimary) {
+            if (!rolledBack) {
+              rolledBack = true;
+              console.error('Failed to create space', ack && ack.err);
+              folderCache.delete(id);
+              const element = folderElements.get(id);
+              if (element) {
+                element.remove();
+                folderElements.delete(id);
+              }
+              if (currentFolder === id) {
+                currentFolder = null;
+                clearNotesSelection();
+              }
+              persistFolderCache();
+              flashEmptyState('Unable to create a space right now. Try again.');
+            }
+          } else if (ack && ack.err) {
+            console.warn('Failed to mirror space to legacy storage', ack.err);
+          }
         }
       });
       return id;
@@ -342,7 +715,7 @@
       deleteBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         if (confirm('Delete this space and its notes?')) {
-          folders.get(id).put(null);
+          deleteFolderRecord(id);
           removeNotesInFolder(id);
         }
       });
@@ -351,7 +724,7 @@
         event.stopPropagation();
         enableEdit(nameEl, (value) => {
           const updated = value.trim() || 'Untitled Space';
-          folders.get(id).put({ name: updated, updatedAt: Date.now() });
+          putFolderRecord(id, { name: updated, updatedAt: Date.now() });
         });
       });
 
@@ -359,8 +732,12 @@
     }
 
     function selectFolder(id) {
+      const folder = folderCache.get(id);
+      if (!folder || folder.ownerKey !== identityKey) {
+        return;
+      }
       currentFolder = id;
-      newNoteButton.disabled = false;
+      needsAutoOpen = true;
       folderElements.forEach((element, folderId) => {
         if (folderId === id) {
           element.classList.add('active');
@@ -368,10 +745,10 @@
           element.classList.remove('active');
         }
       });
-      filterNotes();
       if (currentNoteId && noteCache.get(currentNoteId)?.folder !== id) {
         closeEditor();
       }
+      filterNotes();
     }
 
     function ensureFolderSelected() {
@@ -392,61 +769,148 @@
     function removeNotesInFolder(folderId) {
       noteCache.forEach((note, id) => {
         if (note.folder === folderId) {
-          notes.get(id).put(null);
+          deleteNoteRecord(id);
         }
       });
     }
 
-    newNoteButton.addEventListener('click', () => {
+    function createNewNote() {
       const activeFolder = ensureFolderSelected();
       if (!activeFolder) {
         return;
       }
       const id = Gun.text.random();
       const now = Date.now();
-      notes.get(id).put({
+      const payload = {
         title: 'Untitled',
         folder: activeFolder,
         content: '',
         createdAt: now,
-        updatedAt: now
-      }, (ack) => {
-        if (ack && ack.err) {
-          console.error('Failed to create note', ack.err);
-          return;
+        updatedAt: now,
+        ownerKey: identityKey
+      };
+      const hasPrimary = !!(primaryNoteStore && primaryNoteStore.node);
+      let opened = false;
+      putNoteRecord(id, payload, {
+        onError: ({ ack, store }) => {
+          if (store && store.isPrimary) {
+            console.error('Failed to create note', ack && ack.err);
+            flashEmptyState('Unable to create a note right now. Try again.');
+          } else if (ack && ack.err) {
+            console.warn('Failed to mirror note to legacy storage', ack.err);
+          }
+        },
+        onAck: ({ store }) => {
+          const shouldOpen = store && store.isPrimary ? true : !hasPrimary;
+          if (!opened && shouldOpen) {
+            opened = true;
+            openNote(id);
+            setTimeout(() => noteTitleEl.focus(), 120);
+          }
         }
-        openNote(id);
-        setTimeout(() => noteTitleEl.focus(), 120);
       });
+    }
+
+    newNoteButton.addEventListener('click', () => {
+      createNewNote();
     });
 
+    if (emptyStateCreateButton) {
+      emptyStateCreateButton.addEventListener('click', () => {
+        createNewNote();
+      });
+    }
+
     noteSearchInput.addEventListener('input', () => {
+      needsAutoOpen = true;
       filterNotes();
     });
 
-    notes.map().on((note, id) => {
+    function handleNoteRemoval(id) {
+      const li = noteElements.get(id);
+      if (li) {
+        li.remove();
+        noteElements.delete(id);
+      }
+      noteCache.delete(id);
+      noteSourceById.delete(id);
+      if (currentNoteId === id) {
+        closeEditor();
+      }
+      filterNotes();
+    }
+
+    function handleNoteUpdate({ note, id, store }) {
+      if (!id || id === '_') {
+        return;
+      }
+      const existingSource = noteSourceById.get(id);
+
       if (!note) {
-        const li = noteElements.get(id);
-        if (li) {
-          li.remove();
-          noteElements.delete(id);
-        }
-        noteCache.delete(id);
-        if (currentNoteId === id) {
-          closeEditor();
+        if (!existingSource || existingSource === store.label || store.isPrimary) {
+          handleNoteRemoval(id);
         }
         return;
       }
 
+      if (existingSource === 'scoped' && !store.isPrimary) {
+        return;
+      }
+
       if (note._) delete note._;
+      const ownerKey = typeof note.ownerKey === 'string' ? note.ownerKey : '';
+      if (ownerKey && ownerKey !== identityKey) {
+        if (existingSource === store.label) {
+          noteSourceById.delete(id);
+        }
+        handleNoteRemoval(id);
+        return;
+      }
+
+      if (!ownerKey) {
+        if (!canClaimLegacy) {
+          return;
+        }
+        putNoteField(id, 'ownerKey', identityKey, { stores: [store] });
+      }
+
       const cached = noteCache.get(id) || { id };
-      const merged = { ...cached, ...note, id };
+      const merged = { ...cached, ...note, id, ownerKey: ownerKey || identityKey };
+      if (merged.folder && folderCache.has(merged.folder)) {
+        const folderOwner = folderCache.get(merged.folder)?.ownerKey;
+        if (folderOwner && folderOwner !== identityKey) {
+          return;
+        }
+      }
+
       noteCache.set(id, merged);
       ensureNoteListItem(id, merged);
       if (currentNoteId === id) {
         updateEditorMeta(merged);
       }
+
+      if (store.isPrimary || !existingSource) {
+        noteSourceById.set(id, store.isPrimary ? 'scoped' : store.label);
+      }
+
+      if (!store.isPrimary && existingSource !== 'scoped') {
+        if (primaryNoteStore && primaryNoteStore.node) {
+          const mirrorPayload = { ...merged };
+          delete mirrorPayload.id;
+          putNoteRecord(id, mirrorPayload, { stores: [primaryNoteStore] });
+        }
+      }
+
       filterNotes();
+    }
+
+    noteStores.forEach((store) => {
+      if (!store.node || typeof store.node.map !== 'function') {
+        return;
+      }
+      store.node.map().on((note, id) => {
+        handleNoteUpdate({ note, id, store });
+      });
     });
 
     function ensureNoteListItem(id, note) {
@@ -487,7 +951,7 @@
         deleteBtn.addEventListener('click', (event) => {
           event.stopPropagation();
           if (confirm('Delete this note?')) {
-            notes.get(id).put(null);
+            deleteNoteRecord(id);
           }
         });
 
@@ -495,7 +959,7 @@
           event.stopPropagation();
           enableEdit(title, (value) => {
             const updated = value.trim() || 'Untitled';
-            notes.get(id).put({ title: updated });
+            putNoteRecord(id, { title: updated });
           });
         });
 
@@ -515,34 +979,136 @@
 
     function filterNotes() {
       const query = noteSearchInput.value.trim().toLowerCase();
+      let visibleCount = 0;
       noteElements.forEach((li, id) => {
         const note = noteCache.get(id);
         const matchesFolder = currentFolder && note?.folder === currentFolder;
         const matchesQuery = !query || li.dataset.title.includes(query) || li.dataset.contentPreview.includes(query);
-        li.classList.toggle('hidden', !(matchesFolder && matchesQuery));
+        const shouldShow = matchesFolder && matchesQuery;
+        li.classList.toggle('hidden', !shouldShow);
+        if (shouldShow) {
+          visibleCount += 1;
+        }
       });
-      noteList.classList.toggle('empty', !currentFolder);
+      noteList.classList.toggle('empty', !currentFolder || visibleCount === 0);
+      const queryActive = !!query;
+      const shouldAuto = !queryActive
+        && visibleCount > 0
+        && (needsAutoOpen || !currentNoteId || noteCache.get(currentNoteId)?.folder !== currentFolder);
+      if (shouldAuto) {
+        autoOpenFirstNote();
+        return;
+      }
+      if (!queryActive && visibleCount === 0) {
+        showEmptyStateForFolder();
+        return;
+      }
+      if (queryActive) {
+        const currentVisible = currentNoteId
+          ? !(noteElements.get(currentNoteId)?.classList.contains('hidden'))
+          : false;
+        if (!currentVisible && visibleCount > 0) {
+          needsAutoOpen = true;
+          autoOpenFirstNote();
+          return;
+        }
+        if (visibleCount === 0) {
+          editorWrapperEl.classList.add('hidden');
+          emptyStateEl.classList.remove('hidden');
+          renderEmptyState({
+            title: 'No pages found',
+            message: 'Clear the search to see every note in this space.',
+            hasVisibleNotes: true
+          });
+        } else {
+          emptyStateEl.classList.add('hidden');
+        }
+      }
+    }
+
+    function autoOpenFirstNote() {
+      if (autoOpeningNote || !currentFolder) {
+        return;
+      }
+      if (!needsAutoOpen && currentNoteId) {
+        return;
+      }
+      autoOpeningNote = true;
+      for (const [id, li] of noteElements.entries()) {
+        if (li.classList.contains('hidden')) {
+          continue;
+        }
+        const note = noteCache.get(id);
+        if (note && note.folder === currentFolder) {
+          openNote(id);
+          needsAutoOpen = false;
+          autoOpeningNote = false;
+          return;
+        }
+      }
+      autoOpeningNote = false;
+      needsAutoOpen = true;
+      showEmptyStateForFolder();
+    }
+
+    function showEmptyStateForFolder() {
+      if (currentNoteId || !currentFolder) {
+        return;
+      }
+      editorWrapperEl.classList.add('hidden');
+      emptyStateEl.classList.remove('hidden');
+      renderEmptyState({
+        title: 'Start with a new page',
+        message: 'Use “+ New Page” to begin capturing notes in this space.',
+        hasVisibleNotes: false,
+        hasActiveFolder: true
+      });
     }
 
     function openNote(id) {
       const data = noteCache.get(id);
+      if (data && data.ownerKey && data.ownerKey !== identityKey) {
+        return;
+      }
+      needsAutoOpen = false;
       closeSidebarForMobile();
       if (data) {
+        if (!data.ownerKey && canClaimLegacy) {
+          const targetStore = resolveNoteStore(id);
+          if (targetStore) {
+            putNoteField(id, 'ownerKey', identityKey, { stores: [targetStore] });
+          }
+          data.ownerKey = identityKey;
+          noteCache.set(id, data);
+        }
         renderActiveNote(data);
         attachNoteListener(id);
         noteContentEl.focus();
         return;
       }
       currentNoteId = id;
-      notes.get(id).once((note) => {
+      fetchNoteOnce(id, (note, store) => {
         if (!note) {
           return;
         }
         if (note._) delete note._;
         const merged = { ...(noteCache.get(id) || {}), ...note, id };
+        if (merged.ownerKey && merged.ownerKey !== identityKey) {
+          return;
+        }
+        if (!merged.ownerKey && canClaimLegacy) {
+          const targetStore = resolveNoteStore(id, store);
+          if (targetStore) {
+            putNoteField(id, 'ownerKey', identityKey, { stores: [targetStore] });
+          }
+          merged.ownerKey = identityKey;
+        }
+        if (store) {
+          noteSourceById.set(id, store.isPrimary ? 'scoped' : store.label);
+        }
         noteCache.set(id, merged);
         renderActiveNote(merged);
-        attachNoteListener(id);
+        attachNoteListener(id, store);
         noteContentEl.focus();
       });
     }
@@ -561,19 +1127,38 @@
       updateEditorMeta(note);
     }
 
-    function attachNoteListener(id) {
+    function attachNoteListener(id, preferredStore = null) {
       if (currentNoteRef && currentNoteRef.off) {
         currentNoteRef.off();
       }
-      currentNoteRef = notes.get(id);
+      const store = resolveNoteStore(id, preferredStore);
+      if (!store || !store.node || typeof store.node.get !== 'function') {
+        currentNoteRef = null;
+        return;
+      }
+      const node = store.node.get(id);
+      if (!node || typeof node.on !== 'function') {
+        currentNoteRef = null;
+        return;
+      }
+      currentNoteRef = node;
+      noteSourceById.set(id, store.isPrimary ? 'scoped' : store.label);
       currentNoteRef.on((note) => {
         if (!note) {
-          closeEditor();
+          handleNoteRemoval(id);
           return;
         }
         if (note._) delete note._;
         const cached = noteCache.get(id) || { id };
-        const merged = { ...cached, ...note, id };
+        const ownerKey = typeof note.ownerKey === 'string' ? note.ownerKey : cached.ownerKey;
+        if (ownerKey && ownerKey !== identityKey) {
+          handleNoteRemoval(id);
+          return;
+        }
+        if (!ownerKey && canClaimLegacy) {
+          putNoteField(id, 'ownerKey', identityKey, { stores: [store] });
+        }
+        const merged = { ...cached, ...note, id, ownerKey: ownerKey || identityKey };
         noteCache.set(id, merged);
         if (document.activeElement !== noteTitleEl) {
           noteTitleEl.textContent = merged.title || 'Untitled';
@@ -588,6 +1173,7 @@
     }
 
     function closeEditor() {
+      needsAutoOpen = true;
       currentNoteId = null;
       if (currentNoteRef && currentNoteRef.off) {
         currentNoteRef.off();
@@ -595,7 +1181,12 @@
       }
       editorWrapperEl.classList.add('hidden');
       emptyStateEl.classList.remove('hidden');
-      emptyStateEl.innerHTML = defaultEmptyMessage;
+      renderEmptyState({
+        title: defaultEmptyState.title,
+        message: defaultEmptyState.message,
+        hasVisibleNotes: getVisibleNoteCount() > 0,
+        hasActiveFolder: !!currentFolder || folderElements.size > 0
+      });
       noteTitleEl.textContent = '';
       noteContentEl.innerHTML = '';
       noteMetaEl.textContent = '';
@@ -693,7 +1284,7 @@
       cached.title = value;
       cached.updatedAt = now;
       noteCache.set(currentNoteId, cached);
-      notes.get(currentNoteId).put({ title: value, updatedAt: now });
+      putNoteRecord(currentNoteId, { title: value, updatedAt: now });
       ensureNoteListItem(currentNoteId, cached);
       filterNotes();
     });
@@ -794,8 +1385,8 @@
         const html = noteContentEl.innerHTML;
         suppressContentUpdate = true;
         const now = Date.now();
-        notes.get(currentNoteId).get('content').put(html);
-        notes.get(currentNoteId).get('updatedAt').put(now);
+        putNoteField(currentNoteId, 'content', html);
+        putNoteField(currentNoteId, 'updatedAt', now);
         const cached = noteCache.get(currentNoteId) || { id: currentNoteId };
         cached.content = html;
         cached.updatedAt = now;
@@ -1017,12 +1608,191 @@
 
     function flashEmptyState(message) {
       emptyStateEl.classList.remove('hidden');
-      emptyStateEl.innerHTML = `<h2>${message}</h2><p>Create a space to organize your notes like Notion.</p>`;
+      renderEmptyState({
+        title: message,
+        message: 'Create a space to organize your notes like Notion.',
+        hasVisibleNotes: false,
+        hasActiveFolder: !!currentFolder
+      });
       setTimeout(() => {
         if (!currentNoteId) {
-          emptyStateEl.innerHTML = defaultEmptyMessage;
+          renderEmptyState({
+            title: defaultEmptyState.title,
+            message: defaultEmptyState.message,
+            hasVisibleNotes: getVisibleNoteCount() > 0,
+            hasActiveFolder: !!currentFolder || folderElements.size > 0
+          });
         }
       }, 2500);
+    }
+
+    function resolveIdentity({ user: activeUser } = {}) {
+      if (activeUser && typeof activeUser.recall === 'function') {
+        try {
+          activeUser.recall({ sessionStorage: true, localStorage: true });
+        } catch (error) {
+          console.warn('Unable to recall user session for notes', error);
+        }
+      }
+      const state = readAuthState();
+      const mode = state.mode || 'anon';
+      let alias = typeof state.alias === 'string' ? state.alias.trim() : '';
+      let username = typeof state.username === 'string' ? state.username.trim() : '';
+      let guestId = typeof state.guestId === 'string' ? state.guestId.trim() : '';
+      let pubKey = '';
+
+      if (activeUser && activeUser.is) {
+        if (!alias && activeUser.is.alias) {
+          alias = String(activeUser.is.alias).trim();
+        }
+        if (!username && activeUser.is.username) {
+          username = String(activeUser.is.username).trim();
+        }
+        if (activeUser.is.pub) {
+          pubKey = String(activeUser.is.pub).trim();
+        }
+      }
+
+      if (!alias && typeof localStorage !== 'undefined') {
+        try {
+          alias = (localStorage.getItem('alias') || '').trim();
+        } catch (error) {
+          console.warn('Unable to read stored alias for notes', error);
+        }
+      }
+
+      if (!guestId) {
+        guestId = ensureGuestIdentityForNotes();
+      }
+
+      const identityKey = deriveIdentityKey({ mode, alias, guestId, pubKey });
+      const legacyOwnerKey = resolveLegacyOwnerKey({ identityKey, mode });
+      return {
+        mode,
+        alias,
+        username,
+        guestId,
+        identityKey,
+        legacyOwnerKey,
+        canClaimLegacy: legacyOwnerKey === identityKey
+      };
+    }
+
+    function readAuthState() {
+      if (window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function') {
+        try {
+          return window.ScoreSystem.computeAuthState() || { mode: 'anon' };
+        } catch (error) {
+          console.warn('Failed to compute auth state via ScoreSystem for notes', error);
+        }
+      }
+      if (typeof localStorage === 'undefined') {
+        return { mode: 'anon' };
+      }
+      try {
+        const signedIn = localStorage.getItem('signedIn') === 'true';
+        if (signedIn) {
+          return {
+            mode: 'user',
+            alias: localStorage.getItem('alias') || '',
+            username: localStorage.getItem('username') || ''
+          };
+        }
+        const isGuest = localStorage.getItem('guest') === 'true';
+        if (isGuest) {
+          return {
+            mode: 'guest',
+            guestId: localStorage.getItem('guestId') || '',
+            guestDisplayName: localStorage.getItem('guestDisplayName') || ''
+          };
+        }
+      } catch (error) {
+        console.warn('Unable to read fallback auth state for notes', error);
+      }
+      return { mode: 'anon' };
+    }
+
+    function ensureGuestIdentityForNotes() {
+      let guestId = '';
+      try {
+        if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+          guestId = window.ScoreSystem.ensureGuestIdentity() || '';
+        }
+      } catch (error) {
+        console.warn('Failed to ensure guest identity via ScoreSystem for notes', error);
+      }
+      if (guestId || typeof localStorage === 'undefined') {
+        return guestId;
+      }
+      try {
+        guestId = localStorage.getItem('guestId') || '';
+        if (!guestId) {
+          guestId = `guest_${Math.random().toString(36).slice(2, 11)}`;
+          localStorage.setItem('guestId', guestId);
+        }
+        localStorage.setItem('guest', 'true');
+        if (!localStorage.getItem('guestDisplayName')) {
+          localStorage.setItem('guestDisplayName', 'Guest');
+        }
+      } catch (error) {
+        console.warn('Unable to persist guest identity for notes', error);
+      }
+      return guestId;
+    }
+
+    function deriveIdentityKey({ mode, alias, guestId, pubKey }) {
+      const sanitize = (value, fallback) => {
+        const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+        const cleaned = normalized.replace(/[^a-z0-9_-]/g, '-');
+        return cleaned || fallback;
+      };
+      if (mode === 'user') {
+        if (pubKey) {
+          return `pub:${sanitize(pubKey, 'default')}`;
+        }
+        if (alias) {
+          return `alias:${sanitize(alias, 'default')}`;
+        }
+        return 'user:default';
+      }
+      if (mode === 'guest') {
+        if (guestId) {
+          return `guest:${sanitize(guestId, 'default')}`;
+        }
+        if (alias) {
+          return `guest-alias:${sanitize(alias, 'default')}`;
+        }
+        return 'guest:default';
+      }
+      if (guestId) {
+        return `guest:${sanitize(guestId, 'anon')}`;
+      }
+      if (alias) {
+        return `anon:${sanitize(alias, 'default')}`;
+      }
+      return 'anon:default';
+    }
+
+    function resolveLegacyOwnerKey({ identityKey, mode }) {
+      if (typeof localStorage === 'undefined') {
+        return mode === 'user' ? identityKey : '';
+      }
+      const storageKey = 'notes-legacy-owner';
+      let stored = '';
+      try {
+        stored = localStorage.getItem(storageKey) || '';
+      } catch (error) {
+        console.warn('Unable to read legacy owner key for notes', error);
+      }
+      if (!stored && mode === 'user') {
+        stored = identityKey;
+        try {
+          localStorage.setItem(storageKey, stored);
+        } catch (error) {
+          console.warn('Unable to persist legacy owner key for notes', error);
+        }
+      }
+      return stored;
     }
   </script>
 </body>
