@@ -92,8 +92,8 @@
   <script>
     const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
     const user = gun.user();
-    const folders = gun.get('simple-folders');
-    const notes = gun.get('simple-notes');
+    const legacyFolders = gun.get('simple-folders');
+    const legacyNotes = gun.get('simple-notes');
 
     const folderList = document.getElementById('folders');
     const noteList = document.getElementById('notes');
@@ -120,6 +120,20 @@
     const identity = resolveIdentity({ user });
     const identityKey = identity.identityKey;
     const canClaimLegacy = identity.canClaimLegacy;
+    // Store per-identity notes under `notes-v2/<identityKey>` so preview builds
+    // and guests never receive other accounts' data. Legacy nodes remain for
+    // backward compatibility and are mirrored from the scoped store.
+    const identityRoot = gun.get('notes-v2').get(identityKey || 'anon:default');
+    const scopedFolders = identityRoot.get('folders');
+    const scopedNotes = identityRoot.get('notes');
+    const folderStores = [
+      { node: scopedFolders, label: 'scoped', isPrimary: true },
+      { node: legacyFolders, label: 'legacy', isPrimary: false }
+    ];
+    const noteStores = [
+      { node: scopedNotes, label: 'scoped', isPrimary: true },
+      { node: legacyNotes, label: 'legacy', isPrimary: false }
+    ];
     const MOBILE_BREAKPOINT = 900;
     const DEFAULT_FOLDER_NAME = 'Quick Notes';
     const emptyStateHelpers = globalThis.NotesEmptyState || {};
@@ -132,6 +146,133 @@
       title: emptyStateTitleEl ? emptyStateTitleEl.textContent : 'Select a note to get started',
       message: emptyStateMessageEl ? emptyStateMessageEl.textContent : 'Create or choose a page from the sidebar.'
     };
+    const primaryFolderStore = folderStores.find((store) => store.isPrimary);
+    const primaryNoteStore = noteStores.find((store) => store.isPrimary);
+
+    function writeToStores(stores, id, value, { field, onError, onAck } = {}) {
+      stores.forEach((store) => {
+        const node = store.node;
+        if (!node || typeof node.get !== 'function') {
+          return;
+        }
+        let target = node.get(id);
+        if (!target || typeof target.put !== 'function') {
+          return;
+        }
+        if (field) {
+          target = target.get(field);
+          if (!target || typeof target.put !== 'function') {
+            return;
+          }
+        }
+        target.put(value, (ack) => {
+          if (ack && ack.err) {
+            if (typeof onError === 'function') {
+              onError({ ack, store });
+            }
+            return;
+          }
+          if (typeof onAck === 'function') {
+            onAck({ ack, store });
+          }
+        });
+      });
+    }
+
+    function putFolderRecord(id, value, options = {}) {
+      const stores = options.stores || folderStores;
+      writeToStores(stores, id, value, options);
+    }
+
+    function putFolderField(id, field, value, options = {}) {
+      const stores = options.stores || folderStores;
+      writeToStores(stores, id, value, { ...options, field });
+    }
+
+    function deleteFolderRecord(id, options = {}) {
+      putFolderRecord(id, null, options);
+    }
+
+    function putNoteRecord(id, value, options = {}) {
+      const stores = options.stores || noteStores;
+      writeToStores(stores, id, value, options);
+    }
+
+    function putNoteField(id, field, value, options = {}) {
+      const stores = options.stores || noteStores;
+      writeToStores(stores, id, value, { ...options, field });
+    }
+
+    function deleteNoteRecord(id, options = {}) {
+      putNoteRecord(id, null, options);
+    }
+
+    function fetchNoteOnce(id, callback) {
+      if (primaryNoteStore && primaryNoteStore.node && typeof primaryNoteStore.node.get === 'function') {
+        primaryNoteStore.node.get(id).once((value) => {
+          if (value) {
+            callback(value, primaryNoteStore);
+          } else {
+            fetchNoteFromFallbacks(id, callback);
+          }
+        });
+        return;
+      }
+      fetchNoteFromFallbacks(id, callback);
+    }
+
+    function fetchNoteFromFallbacks(id, callback) {
+      const fallbacks = noteStores.filter((store) => !store.isPrimary);
+      if (fallbacks.length === 0) {
+        callback(null, null);
+        return;
+      }
+      let handled = false;
+      let pending = fallbacks.length;
+      fallbacks.forEach((store) => {
+        if (!store.node || typeof store.node.get !== 'function') {
+          pending -= 1;
+          if (!handled && pending === 0) {
+            callback(null, null);
+          }
+          return;
+        }
+        store.node.get(id).once((value) => {
+          if (handled) {
+            return;
+          }
+          if (value) {
+            handled = true;
+            callback(value, store);
+            return;
+          }
+          pending -= 1;
+          if (!handled && pending === 0) {
+            callback(null, null);
+          }
+        });
+      });
+    }
+
+    function resolveNoteStore(id, fallbackStore = null) {
+      const source = noteSourceById.get(id);
+      if (source === 'scoped' && primaryNoteStore) {
+        return primaryNoteStore;
+      }
+      if (source) {
+        const matched = noteStores.find((store) => store.label === source);
+        if (matched) {
+          return matched;
+        }
+      }
+      if (fallbackStore) {
+        return fallbackStore;
+      }
+      if (primaryNoteStore) {
+        return primaryNoteStore;
+      }
+      return noteStores[0] || null;
+    }
 
     let currentFolder = null;
     let currentNoteId = null;
@@ -143,13 +284,16 @@
     let filteredSlashOptions = [];
     let activeSlashIndex = 0;
     let defaultFolderSeeded = false;
+    let defaultFolderSeedTimer = null;
     let autoOpeningNote = false;
     let needsAutoOpen = true;
 
     const folderElements = new Map();
     const folderCache = new Map();
+    const folderSourceById = new Map();
     const noteElements = new Map();
     const noteCache = new Map();
+    const noteSourceById = new Map();
 
     const FOLDER_CACHE_KEY = `notes-folders-cache-v2:${identityKey}`;
 
@@ -375,40 +519,51 @@
     }
 
     loadFolderCache();
+    scheduleDefaultFolderSeed();
 
-    folders.map().on((folder, id) => {
+    function handleFolderRemoval(id) {
+      const element = folderElements.get(id);
+      if (element) {
+        element.remove();
+        folderElements.delete(id);
+      }
+      folderCache.delete(id);
+      folderSourceById.delete(id);
+      persistFolderCache();
+      if (currentFolder === id) {
+        currentFolder = null;
+        clearNotesSelection();
+      }
+      if (folderElements.size === 0) {
+        scheduleDefaultFolderSeed();
+      }
+    }
+
+    function handleFolderUpdate({ folder, id, store }) {
       if (!id || id === '_') {
         return;
       }
+      const sourceKey = store.label;
+      const existingSource = folderSourceById.get(id);
+
       if (!folder) {
-        const li = folderElements.get(id);
-        if (li) {
-          li.remove();
-          folderElements.delete(id);
+        if (!existingSource || existingSource === sourceKey || store.isPrimary) {
+          handleFolderRemoval(id);
         }
-        folderCache.delete(id);
-        persistFolderCache();
-        if (currentFolder === id) {
-          currentFolder = null;
-          clearNotesSelection();
-        }
+        return;
+      }
+
+      if (existingSource === 'scoped' && !store.isPrimary) {
         return;
       }
 
       if (folder._) delete folder._;
       const ownerKey = typeof folder.ownerKey === 'string' ? folder.ownerKey : '';
       if (ownerKey && ownerKey !== identityKey) {
-        const li = folderElements.get(id);
-        if (li) {
-          li.remove();
-          folderElements.delete(id);
+        if (existingSource === sourceKey) {
+          folderSourceById.delete(id);
         }
-        folderCache.delete(id);
-        persistFolderCache();
-        if (currentFolder === id) {
-          currentFolder = null;
-          clearNotesSelection();
-        }
+        handleFolderRemoval(id);
         return;
       }
 
@@ -416,7 +571,7 @@
         if (!canClaimLegacy) {
           return;
         }
-        folders.get(id).get('ownerKey').put(identityKey);
+        putFolderField(id, 'ownerKey', identityKey, { stores: [store] });
       }
 
       const normalized = {
@@ -429,19 +584,45 @@
       folderCache.set(id, normalized);
       ensureFolderListItem(id, normalized);
       persistFolderCache();
+
+      if (store.isPrimary || !existingSource) {
+        folderSourceById.set(id, store.isPrimary ? 'scoped' : sourceKey);
+      }
+
+      if (!store.isPrimary && existingSource !== 'scoped') {
+        const primaryStores = primaryFolderStore ? [primaryFolderStore] : [];
+        if (primaryStores.length > 0) {
+          putFolderRecord(id, normalized, { stores: primaryStores });
+        }
+      }
+
       if (!currentFolder) {
         selectFolder(id);
       }
-    });
+    }
 
-    folders.once((snapshot) => {
+    function scheduleDefaultFolderSeed() {
       if (defaultFolderSeeded) {
         return;
       }
-      const keys = Object.keys(snapshot || {}).filter((key) => key !== '_');
-      if (keys.length === 0) {
-        seedDefaultFolder();
+      if (defaultFolderSeedTimer) {
+        clearTimeout(defaultFolderSeedTimer);
       }
+      defaultFolderSeedTimer = setTimeout(() => {
+        defaultFolderSeedTimer = null;
+        if (!defaultFolderSeeded && folderElements.size === 0) {
+          seedDefaultFolder();
+        }
+      }, 600);
+    }
+
+    folderStores.forEach((store) => {
+      if (!store.node || typeof store.node.map !== 'function') {
+        return;
+      }
+      store.node.map().on((folder, id) => {
+        handleFolderUpdate({ folder, id, store });
+      });
     });
 
     function seedDefaultFolder() {
@@ -468,22 +649,29 @@
       ensureFolderListItem(id, normalized);
       persistFolderCache();
 
-      // Scope each folder record to the active identity so other sessions cannot read it.
-      folders.get(id).put(normalized, (ack) => {
-        if (ack && ack.err) {
-          console.error('Failed to create space', ack.err);
-          folderCache.delete(id);
-          const element = folderElements.get(id);
-          if (element) {
-            element.remove();
-            folderElements.delete(id);
+      let rolledBack = false;
+      putFolderRecord(id, normalized, {
+        onError: ({ ack, store }) => {
+          if (store && store.isPrimary) {
+            if (!rolledBack) {
+              rolledBack = true;
+              console.error('Failed to create space', ack && ack.err);
+              folderCache.delete(id);
+              const element = folderElements.get(id);
+              if (element) {
+                element.remove();
+                folderElements.delete(id);
+              }
+              if (currentFolder === id) {
+                currentFolder = null;
+                clearNotesSelection();
+              }
+              persistFolderCache();
+              flashEmptyState('Unable to create a space right now. Try again.');
+            }
+          } else if (ack && ack.err) {
+            console.warn('Failed to mirror space to legacy storage', ack.err);
           }
-          if (currentFolder === id) {
-            currentFolder = null;
-            clearNotesSelection();
-          }
-          persistFolderCache();
-          flashEmptyState('Unable to create a space right now. Try again.');
         }
       });
       return id;
@@ -527,7 +715,7 @@
       deleteBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         if (confirm('Delete this space and its notes?')) {
-          folders.get(id).put(null);
+          deleteFolderRecord(id);
           removeNotesInFolder(id);
         }
       });
@@ -536,7 +724,7 @@
         event.stopPropagation();
         enableEdit(nameEl, (value) => {
           const updated = value.trim() || 'Untitled Space';
-          folders.get(id).put({ name: updated, updatedAt: Date.now() });
+          putFolderRecord(id, { name: updated, updatedAt: Date.now() });
         });
       });
 
@@ -581,7 +769,7 @@
     function removeNotesInFolder(folderId) {
       noteCache.forEach((note, id) => {
         if (note.folder === folderId) {
-          notes.get(id).put(null);
+          deleteNoteRecord(id);
         }
       });
     }
@@ -593,21 +781,33 @@
       }
       const id = Gun.text.random();
       const now = Date.now();
-      // Persist note with the identity owner to keep it private to this account or guest session.
-      notes.get(id).put({
+      const payload = {
         title: 'Untitled',
         folder: activeFolder,
         content: '',
         createdAt: now,
         updatedAt: now,
         ownerKey: identityKey
-      }, (ack) => {
-        if (ack && ack.err) {
-          console.error('Failed to create note', ack.err);
-          return;
+      };
+      const hasPrimary = !!(primaryNoteStore && primaryNoteStore.node);
+      let opened = false;
+      putNoteRecord(id, payload, {
+        onError: ({ ack, store }) => {
+          if (store && store.isPrimary) {
+            console.error('Failed to create note', ack && ack.err);
+            flashEmptyState('Unable to create a note right now. Try again.');
+          } else if (ack && ack.err) {
+            console.warn('Failed to mirror note to legacy storage', ack.err);
+          }
+        },
+        onAck: ({ store }) => {
+          const shouldOpen = store && store.isPrimary ? true : !hasPrimary;
+          if (!opened && shouldOpen) {
+            opened = true;
+            openNote(id);
+            setTimeout(() => noteTitleEl.focus(), 120);
+          }
         }
-        openNote(id);
-        setTimeout(() => noteTitleEl.focus(), 120);
       });
     }
 
@@ -626,34 +826,44 @@
       filterNotes();
     });
 
-    notes.map().on((note, id) => {
+    function handleNoteRemoval(id) {
+      const li = noteElements.get(id);
+      if (li) {
+        li.remove();
+        noteElements.delete(id);
+      }
+      noteCache.delete(id);
+      noteSourceById.delete(id);
+      if (currentNoteId === id) {
+        closeEditor();
+      }
+      filterNotes();
+    }
+
+    function handleNoteUpdate({ note, id, store }) {
+      if (!id || id === '_') {
+        return;
+      }
+      const existingSource = noteSourceById.get(id);
+
       if (!note) {
-        const li = noteElements.get(id);
-        if (li) {
-          li.remove();
-          noteElements.delete(id);
+        if (!existingSource || existingSource === store.label || store.isPrimary) {
+          handleNoteRemoval(id);
         }
-        noteCache.delete(id);
-        if (currentNoteId === id) {
-          closeEditor();
-        }
-        filterNotes();
+        return;
+      }
+
+      if (existingSource === 'scoped' && !store.isPrimary) {
         return;
       }
 
       if (note._) delete note._;
       const ownerKey = typeof note.ownerKey === 'string' ? note.ownerKey : '';
       if (ownerKey && ownerKey !== identityKey) {
-        const li = noteElements.get(id);
-        if (li) {
-          li.remove();
-          noteElements.delete(id);
+        if (existingSource === store.label) {
+          noteSourceById.delete(id);
         }
-        if (currentNoteId === id) {
-          closeEditor();
-        }
-        noteCache.delete(id);
-        filterNotes();
+        handleNoteRemoval(id);
         return;
       }
 
@@ -661,7 +871,7 @@
         if (!canClaimLegacy) {
           return;
         }
-        notes.get(id).get('ownerKey').put(identityKey);
+        putNoteField(id, 'ownerKey', identityKey, { stores: [store] });
       }
 
       const cached = noteCache.get(id) || { id };
@@ -672,12 +882,35 @@
           return;
         }
       }
+
       noteCache.set(id, merged);
       ensureNoteListItem(id, merged);
       if (currentNoteId === id) {
         updateEditorMeta(merged);
       }
+
+      if (store.isPrimary || !existingSource) {
+        noteSourceById.set(id, store.isPrimary ? 'scoped' : store.label);
+      }
+
+      if (!store.isPrimary && existingSource !== 'scoped') {
+        if (primaryNoteStore && primaryNoteStore.node) {
+          const mirrorPayload = { ...merged };
+          delete mirrorPayload.id;
+          putNoteRecord(id, mirrorPayload, { stores: [primaryNoteStore] });
+        }
+      }
+
       filterNotes();
+    }
+
+    noteStores.forEach((store) => {
+      if (!store.node || typeof store.node.map !== 'function') {
+        return;
+      }
+      store.node.map().on((note, id) => {
+        handleNoteUpdate({ note, id, store });
+      });
     });
 
     function ensureNoteListItem(id, note) {
@@ -718,7 +951,7 @@
         deleteBtn.addEventListener('click', (event) => {
           event.stopPropagation();
           if (confirm('Delete this note?')) {
-            notes.get(id).put(null);
+            deleteNoteRecord(id);
           }
         });
 
@@ -726,7 +959,7 @@
           event.stopPropagation();
           enableEdit(title, (value) => {
             const updated = value.trim() || 'Untitled';
-            notes.get(id).put({ title: updated });
+            putNoteRecord(id, { title: updated });
           });
         });
 
@@ -841,7 +1074,10 @@
       closeSidebarForMobile();
       if (data) {
         if (!data.ownerKey && canClaimLegacy) {
-          notes.get(id).get('ownerKey').put(identityKey);
+          const targetStore = resolveNoteStore(id);
+          if (targetStore) {
+            putNoteField(id, 'ownerKey', identityKey, { stores: [targetStore] });
+          }
           data.ownerKey = identityKey;
           noteCache.set(id, data);
         }
@@ -851,7 +1087,7 @@
         return;
       }
       currentNoteId = id;
-      notes.get(id).once((note) => {
+      fetchNoteOnce(id, (note, store) => {
         if (!note) {
           return;
         }
@@ -861,12 +1097,18 @@
           return;
         }
         if (!merged.ownerKey && canClaimLegacy) {
-          notes.get(id).get('ownerKey').put(identityKey);
+          const targetStore = resolveNoteStore(id, store);
+          if (targetStore) {
+            putNoteField(id, 'ownerKey', identityKey, { stores: [targetStore] });
+          }
           merged.ownerKey = identityKey;
+        }
+        if (store) {
+          noteSourceById.set(id, store.isPrimary ? 'scoped' : store.label);
         }
         noteCache.set(id, merged);
         renderActiveNote(merged);
-        attachNoteListener(id);
+        attachNoteListener(id, store);
         noteContentEl.focus();
       });
     }
@@ -885,34 +1127,36 @@
       updateEditorMeta(note);
     }
 
-    function attachNoteListener(id) {
+    function attachNoteListener(id, preferredStore = null) {
       if (currentNoteRef && currentNoteRef.off) {
         currentNoteRef.off();
       }
-      currentNoteRef = notes.get(id);
+      const store = resolveNoteStore(id, preferredStore);
+      if (!store || !store.node || typeof store.node.get !== 'function') {
+        currentNoteRef = null;
+        return;
+      }
+      const node = store.node.get(id);
+      if (!node || typeof node.on !== 'function') {
+        currentNoteRef = null;
+        return;
+      }
+      currentNoteRef = node;
+      noteSourceById.set(id, store.isPrimary ? 'scoped' : store.label);
       currentNoteRef.on((note) => {
         if (!note) {
-          closeEditor();
+          handleNoteRemoval(id);
           return;
         }
         if (note._) delete note._;
         const cached = noteCache.get(id) || { id };
         const ownerKey = typeof note.ownerKey === 'string' ? note.ownerKey : cached.ownerKey;
         if (ownerKey && ownerKey !== identityKey) {
-          const li = noteElements.get(id);
-          if (li) {
-            li.remove();
-            noteElements.delete(id);
-          }
-          if (currentNoteId === id) {
-            closeEditor();
-          }
-          noteCache.delete(id);
-          filterNotes();
+          handleNoteRemoval(id);
           return;
         }
         if (!ownerKey && canClaimLegacy) {
-          notes.get(id).get('ownerKey').put(identityKey);
+          putNoteField(id, 'ownerKey', identityKey, { stores: [store] });
         }
         const merged = { ...cached, ...note, id, ownerKey: ownerKey || identityKey };
         noteCache.set(id, merged);
@@ -1040,7 +1284,7 @@
       cached.title = value;
       cached.updatedAt = now;
       noteCache.set(currentNoteId, cached);
-      notes.get(currentNoteId).put({ title: value, updatedAt: now });
+      putNoteRecord(currentNoteId, { title: value, updatedAt: now });
       ensureNoteListItem(currentNoteId, cached);
       filterNotes();
     });
@@ -1141,8 +1385,8 @@
         const html = noteContentEl.innerHTML;
         suppressContentUpdate = true;
         const now = Date.now();
-        notes.get(currentNoteId).get('content').put(html);
-        notes.get(currentNoteId).get('updatedAt').put(now);
+        putNoteField(currentNoteId, 'content', html);
+        putNoteField(currentNoteId, 'updatedAt', now);
         const cached = noteCache.get(currentNoteId) || { id: currentNoteId };
         cached.content = html;
         cached.updatedAt = now;
