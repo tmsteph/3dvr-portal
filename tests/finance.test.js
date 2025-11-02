@@ -23,10 +23,10 @@ describe('finance ledger hub', () => {
     assert.match(html, /3dvr Finance/);
     assert.match(html, /<form[^>]+id="expenditure-form"/);
     assert.match(html, /<link[^>]+href="\.\/styles.css"/);
-    assert.match(html, /<script[^>]+src="https:\/\/cdn\.tailwindcss\.com"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/sea\.js"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/axe\.js"/);
+    assert.match(html, /<script[^>]+src="\.\.\/score.js"/);
     assert.match(html, /<script[^>]+src="\.\/app.js"/);
   });
 
@@ -37,17 +37,31 @@ describe('finance ledger hub', () => {
     const css = await readFile(stylesUrl, 'utf8');
     assert.match(css, /\.finance-shell/);
     assert.match(css, /\.finance-ledger/);
+    assert.match(css, /\.finance-card/);
   });
 
-  it('persists entries to the finance\\/expenditures Gun graph with documented structure', async () => {
+  it('persists entries to the finance\/expenditures Gun graph with documented structure', async () => {
     const scriptUrl = new URL('app.js', baseDir);
     assert.equal(await fileExists(scriptUrl), true, 'app.js should exist');
 
     const js = await readFile(scriptUrl, 'utf8');
     assert.ok(js.includes("Gun(['https://gun-relay-3dvr.fly.dev/gun'])"));
-    assert.match(js, /const\s+financeLedger\s*=\s*gun\.get\('finance'\)\.get\('expenditures'\)/);
+    assert.ok(js.includes("gun.get('finance').get('expenditures')"));
     assert.match(js, /financeLedger\.get\(/);
     assert.match(js, /form\.addEventListener\('submit'/);
     assert.match(js, /Gun\.text\.random/);
+  });
+
+  it('registers the finance workspace in the portal app grid', async () => {
+    const portalIndex = new URL('../index.html', baseDir);
+    assert.equal(await fileExists(portalIndex), true, 'root index.html should exist');
+
+    const html = await readFile(portalIndex, 'utf8');
+    const financeIndex = html.indexOf('>Finance<');
+    const gamesIndex = html.indexOf('>Games<');
+    assert.ok(financeIndex !== -1, 'Finance app card should be listed on the portal');
+    assert.ok(gamesIndex !== -1, 'Games app card should still be present');
+    assert.ok(financeIndex < gamesIndex, 'Finance card should appear before Games to keep alphabetical order');
+    assert.match(html, /href="finance\/(?:index\.html)?"/);
   });
 });

@@ -5,74 +5,77 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>3dvr Finance Hub</title>
   <link rel="stylesheet" href="./styles.css">
-  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="../score.js"></script>
 </head>
-<body class="bg-slate-950 text-slate-100">
-  <main class="finance-shell mx-auto flex min-h-screen max-w-5xl flex-col gap-10 px-4 py-10" aria-labelledby="page-title">
-    <header class="flex flex-col gap-3 rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-black/30 backdrop-blur">
-      <p class="text-xs font-semibold uppercase tracking-[0.32em] text-sky-300">Finance workspace</p>
-      <h1 id="page-title" class="text-4xl font-bold text-white">3dvr Finance</h1>
-      <p class="max-w-2xl text-sm text-slate-300">Track purchases, reimbursements, and shared credits in the same 3dvr Gun relay that powers the CRM and contacts hub.</p>
+<body class="finance-body">
+  <a href="#page-main" class="finance-skip-link">Skip to finance content</a>
+  <main id="page-main" class="finance-shell" aria-labelledby="page-title">
+    <header class="finance-hero">
+      <p class="finance-hero__eyebrow">Finance workspace</p>
+      <h1 id="page-title" class="finance-hero__title">3dvr Finance</h1>
+      <p class="finance-hero__lead">
+        Track purchases, reimbursements, and shared credits inside the same Gun relay that powers the CRM and contacts hubs.
+      </p>
     </header>
 
-    <section class="grid gap-6 md:grid-cols-[minmax(0,360px),1fr]" aria-labelledby="overview-title">
-      <div class="rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/30 backdrop-blur">
-        <h2 id="overview-title" class="text-xl font-semibold text-white">Overview</h2>
-        <dl class="mt-5 grid gap-4 sm:grid-cols-2">
-          <div class="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-            <dt class="text-xs uppercase tracking-[0.26em] text-slate-400">Total logged</dt>
-            <dd id="total-amount" class="mt-2 text-2xl font-semibold text-white">$0.00</dd>
+    <section class="finance-layout" aria-labelledby="overview-title">
+      <div class="finance-card finance-card--metrics" id="finance-summary">
+        <h2 id="overview-title" class="finance-card__title">Overview</h2>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Total logged</dt>
+            <dd id="total-amount">$0.00</dd>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-            <dt class="text-xs uppercase tracking-[0.26em] text-slate-400">Latest entry</dt>
-            <dd id="latest-entry" class="mt-2 text-base text-slate-200">No entries yet</dd>
+          <div class="finance-summary__stat">
+            <dt>Latest entry</dt>
+            <dd id="latest-entry">No entries yet</dd>
           </div>
         </dl>
       </div>
 
-      <div class="rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/30 backdrop-blur" aria-labelledby="form-title">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
-          <h2 id="form-title" class="text-xl font-semibold text-white">Add an expenditure</h2>
-          <p class="text-xs uppercase tracking-[0.32em] text-slate-400">Gun synced</p>
+      <div class="finance-card finance-card--form" aria-labelledby="form-title">
+        <div class="finance-card__header">
+          <h2 id="form-title" class="finance-card__title">Add an expenditure</h2>
+          <p class="finance-card__subhead">Synced with Gun</p>
         </div>
-        <form id="expenditure-form" autocomplete="off" class="mt-5 grid gap-4" novalidate>
-          <div class="grid gap-4 md:grid-cols-2">
-            <label class="flex flex-col gap-2 text-sm">
-              <span class="text-slate-300">Amount (USD)</span>
-              <input id="amount" name="amount" type="number" step="0.01" min="0" inputmode="decimal" required class="rounded-xl border border-white/10 bg-white/95 px-4 py-2 text-slate-900 shadow-inner focus:border-sky-400 focus:outline-none" />
+        <form id="expenditure-form" class="finance-form" autocomplete="off" novalidate>
+          <div class="finance-form__grid">
+            <label class="finance-field">
+              <span class="finance-field__label">Amount (USD)</span>
+              <input id="amount" name="amount" type="number" step="0.01" min="0" inputmode="decimal" required>
             </label>
-            <label class="flex flex-col gap-2 text-sm">
-              <span class="text-slate-300">Date</span>
-              <input id="date" name="date" type="date" required class="rounded-xl border border-white/10 bg-white/95 px-4 py-2 text-slate-900 shadow-inner focus:border-sky-400 focus:outline-none" />
+            <label class="finance-field">
+              <span class="finance-field__label">Date</span>
+              <input id="date" name="date" type="date" required>
             </label>
-            <label class="flex flex-col gap-2 text-sm">
-              <span class="text-slate-300">Category</span>
-              <input id="category" name="category" type="text" placeholder="Hardware, software, travel" required class="rounded-xl border border-white/10 bg-white/95 px-4 py-2 text-slate-900 shadow-inner focus:border-sky-400 focus:outline-none" />
+            <label class="finance-field">
+              <span class="finance-field__label">Category</span>
+              <input id="category" name="category" type="text" placeholder="Hardware, software, travel" required>
             </label>
-            <label class="flex flex-col gap-2 text-sm">
-              <span class="text-slate-300">Paid with</span>
-              <input id="payment-method" name="paymentMethod" type="text" placeholder="Card, crypto, invoice" required class="rounded-xl border border-white/10 bg-white/95 px-4 py-2 text-slate-900 shadow-inner focus:border-sky-400 focus:outline-none" />
+            <label class="finance-field">
+              <span class="finance-field__label">Paid with</span>
+              <input id="payment-method" name="paymentMethod" type="text" placeholder="Card, crypto, invoice" required>
             </label>
           </div>
-          <label class="flex flex-col gap-2 text-sm">
-            <span class="text-slate-300">Notes</span>
-            <textarea id="notes" name="notes" rows="3" placeholder="Context, links, or shared collaborators" class="rounded-xl border border-white/10 bg-white/95 px-4 py-2 text-slate-900 shadow-inner focus:border-sky-400 focus:outline-none"></textarea>
+          <label class="finance-field">
+            <span class="finance-field__label">Notes</span>
+            <textarea id="notes" name="notes" rows="3" placeholder="Context, links, or shared collaborators"></textarea>
           </label>
-          <button type="submit" class="w-full rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold uppercase tracking-[0.32em] text-white transition hover:bg-sky-400">Log expenditure</button>
+          <button type="submit" class="finance-button">Log expenditure</button>
         </form>
       </div>
     </section>
 
-    <section class="rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/30 backdrop-blur" aria-labelledby="ledger-title">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
-        <h2 id="ledger-title" class="text-xl font-semibold text-white">Ledger</h2>
-        <span class="text-xs uppercase tracking-[0.32em] text-slate-400">Live feed</span>
+    <section class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
+      <div class="finance-card__header">
+        <h2 id="ledger-title" class="finance-card__title">Ledger</h2>
+        <span class="finance-card__subhead">Live feed</span>
       </div>
-      <div id="finance-ledger" class="finance-ledger mt-6 space-y-4" role="list">
-        <p id="finance-empty" class="rounded-2xl border border-dashed border-white/20 bg-slate-950/40 p-6 text-sm text-slate-300">No expenditures yet. Add your first entry above.</p>
+      <div id="finance-ledger" class="finance-ledger" role="list">
+        <p id="finance-empty" class="finance-ledger__empty">No expenditures yet. Add your first entry above.</p>
       </div>
     </section>
   </main>

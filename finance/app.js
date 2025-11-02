@@ -1,10 +1,130 @@
 'use strict';
 
-const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
-const financeLedger = gun.get('finance').get('expenditures');
-// The finance ledger keeps expenditures under finance/expenditures/<entryId> so
-// CRM, contacts, and finance can all read from the same Gun graph.
+function createLocalGunSubscriptionStub() {
+  return {
+    off() {}
+  };
+}
 
+function createLocalGunNodeStub() {
+  const node = {
+    __isGunStub: true,
+    get() {
+      return createLocalGunNodeStub();
+    },
+    put(_value, callback) {
+      if (typeof callback === 'function') {
+        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+      }
+      return node;
+    },
+    once(callback) {
+      if (typeof callback === 'function') {
+        setTimeout(() => callback(undefined), 0);
+      }
+      return node;
+    },
+    map() {
+      return {
+        __isGunStub: true,
+        on() {
+          return createLocalGunSubscriptionStub();
+        }
+      };
+    },
+    on() {
+      return createLocalGunSubscriptionStub();
+    },
+    off() {}
+  };
+  return node;
+}
+
+function createLocalGunUserStub() {
+  const node = createLocalGunNodeStub();
+  return {
+    ...node,
+    is: null,
+    _: {},
+    recall() {},
+    auth(_alias, _password, callback) {
+      if (typeof callback === 'function') {
+        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+      }
+    },
+    leave() {},
+    create(_alias, _password, callback) {
+      if (typeof callback === 'function') {
+        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+      }
+    }
+  };
+}
+
+function createGunStub() {
+  return {
+    __isGunStub: true,
+    get() {
+      return createLocalGunNodeStub();
+    },
+    user() {
+      return createLocalGunUserStub();
+    }
+  };
+}
+
+function ensureGunContext(factory, label) {
+  const ensureGun = window.ScoreSystem && typeof window.ScoreSystem.ensureGun === 'function'
+    ? window.ScoreSystem.ensureGun.bind(window.ScoreSystem)
+    : null;
+  if (ensureGun) {
+    return ensureGun(factory, { label });
+  }
+  let instance = null;
+  if (typeof factory === 'function') {
+    try {
+      instance = factory();
+    } catch (err) {
+      console.warn(`Failed to initialize ${label || 'gun'} instance`, err);
+    }
+  }
+  if (instance) {
+    const resolvedUser = typeof instance.user === 'function'
+      ? instance.user()
+      : createLocalGunUserStub();
+    return {
+      gun: instance,
+      user: resolvedUser,
+      isStub: !!instance.__isGunStub
+    };
+  }
+  console.warn(`Gun.js is unavailable for ${label || 'finance'}; using offline stub.`);
+  const stub = createGunStub();
+  return {
+    gun: stub,
+    user: stub.user(),
+    isStub: true
+  };
+}
+
+const gunContext = ensureGunContext(
+  () => (typeof Gun === 'function' ? Gun(['https://gun-relay-3dvr.fly.dev/gun']) : null),
+  'finance'
+);
+const gun = gunContext.gun;
+const financeLedger = gun && typeof gun.get === 'function'
+  ? gun.get('finance').get('expenditures')
+  : createLocalGunNodeStub();
+
+if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+  try {
+    window.ScoreSystem.ensureGuestIdentity();
+  } catch (err) {
+    console.warn('Failed to ensure finance guest identity', err);
+  }
+}
+
+// finance/expenditures/<entryId> remains the shared ledger node used across the portal.
 const form = document.getElementById('expenditure-form');
 const amountInput = document.getElementById('amount');
 const dateInput = document.getElementById('date');
@@ -23,10 +143,16 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2
 });
 
-dateInput.value = defaultDate();
+if (dateInput) {
+  dateInput.value = defaultDate();
+}
 
-form.addEventListener('submit', handleSubmit);
-financeLedger.map().on(handleLedgerUpdate);
+if (form) {
+  form.addEventListener('submit', handleSubmit);
+}
+if (financeLedger && typeof financeLedger.map === 'function' && typeof financeLedger.map().on === 'function') {
+  financeLedger.map().on(handleLedgerUpdate);
+}
 
 function defaultDate() {
   const today = new Date();
@@ -75,6 +201,10 @@ function handleLedgerUpdate(data, key) {
 function handleSubmit(event) {
   event.preventDefault();
 
+  if (!amountInput || !dateInput || !categoryInput || !paymentInput || !notesInput) {
+    return;
+  }
+
   const amount = normalizeAmount(amountInput.value);
   if (amount <= 0) {
     amountInput.focus();
@@ -84,7 +214,9 @@ function handleSubmit(event) {
   }
   amountInput.setCustomValidity('');
 
-  const entryId = Gun.text.random(16);
+  const entryId = typeof Gun !== 'undefined' && Gun.text && typeof Gun.text.random === 'function'
+    ? Gun.text.random(16)
+    : Math.random().toString(36).slice(2, 10);
   const now = new Date();
   const record = {
     amount,
@@ -95,7 +227,10 @@ function handleSubmit(event) {
     createdAt: now.toISOString()
   };
 
-  financeLedger.get(entryId).put(record);
+  const entryNode = typeof financeLedger.get === 'function' ? financeLedger.get(entryId) : null;
+  if (entryNode && typeof entryNode.put === 'function') {
+    entryNode.put(record);
+  }
   form.reset();
   dateInput.value = record.date;
 }
@@ -125,36 +260,44 @@ function renderEntries() {
   ledgerList.innerHTML = '';
 
   if (sorted.length === 0) {
-    emptyState.hidden = false;
-    ledgerList.append(emptyState);
-    totalAmount.textContent = numberFormatter.format(0);
-    latestEntry.textContent = 'No entries yet';
+    if (emptyState) {
+      emptyState.hidden = false;
+      ledgerList.append(emptyState);
+    }
+    if (totalAmount) {
+      totalAmount.textContent = numberFormatter.format(0);
+    }
+    if (latestEntry) {
+      latestEntry.textContent = 'No entries yet';
+    }
     return;
   }
 
-  emptyState.hidden = true;
+  if (emptyState) {
+    emptyState.hidden = true;
+  }
 
   let total = 0;
   sorted.forEach(entry => {
     const container = document.createElement('article');
-    container.className = 'finance-entry flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 shadow-inner shadow-black/20';
+    container.className = 'finance-entry';
     container.setAttribute('role', 'listitem');
 
-    const header = document.createElement('header');
-    header.className = 'flex items-start justify-between gap-3';
+    const header = document.createElement('div');
+    header.className = 'finance-entry__header';
 
     const title = document.createElement('h3');
-    title.className = 'text-lg font-semibold text-white';
+    title.className = 'finance-entry__title';
     title.textContent = entry.category || 'General expenditure';
 
     const amountLabel = document.createElement('span');
-    amountLabel.className = 'text-base font-semibold text-sky-300';
+    amountLabel.className = 'finance-entry__amount';
     amountLabel.textContent = numberFormatter.format(normalizeAmount(entry.amount));
 
     header.append(title, amountLabel);
 
     const meta = document.createElement('p');
-    meta.className = 'text-xs uppercase tracking-[0.26em] text-slate-400';
+    meta.className = 'finance-entry__meta';
     const date = entry.date ? new Date(entry.date) : new Date(entry.createdAt || Date.now());
     const formattedDate = Number.isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleDateString();
     const method = entry.paymentMethod ? entry.paymentMethod : 'Unspecified method';
@@ -164,7 +307,7 @@ function renderEntries() {
 
     if (entry.notes) {
       const notes = document.createElement('p');
-      notes.className = 'text-sm leading-relaxed text-slate-200';
+      notes.className = 'finance-entry__notes';
       notes.textContent = entry.notes;
       container.append(notes);
     }
@@ -173,11 +316,15 @@ function renderEntries() {
     total += normalizeAmount(entry.amount);
   });
 
-  totalAmount.textContent = numberFormatter.format(total);
+  if (totalAmount) {
+    totalAmount.textContent = numberFormatter.format(total);
+  }
   const latest = sorted[0];
   if (latest) {
     const latestDate = latest.date ? new Date(latest.date) : new Date(latest.createdAt || Date.now());
     const formatted = Number.isNaN(latestDate.getTime()) ? 'Recently logged' : latestDate.toLocaleDateString();
-    latestEntry.textContent = `${formatted} • ${numberFormatter.format(normalizeAmount(latest.amount))}`;
+    if (latestEntry) {
+      latestEntry.textContent = `${formatted} • ${numberFormatter.format(normalizeAmount(latest.amount))}`;
+    }
   }
 }
