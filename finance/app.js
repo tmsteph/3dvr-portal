@@ -1,9 +1,25 @@
-const gun = Gun({ peers: ['https://gun-relay-3dvr.fly.dev/gun'] });
-const financeUser = gun.user();
+const GUN_PEERS = ['https://gun-relay-3dvr.fly.dev/gun'];
+const scoreSystem = window.ScoreSystem || {};
+const ensureGunContext = typeof scoreSystem.ensureGun === 'function'
+  ? scoreSystem.ensureGun(
+      () => (typeof Gun === 'function' ? Gun({ peers: GUN_PEERS }) : null),
+      { label: 'finance ledger' },
+    )
+  : (() => {
+      if (typeof Gun !== 'function') {
+        return { gun: null, user: null, isStub: true };
+      }
+      const instance = Gun({ peers: GUN_PEERS });
+      return { gun: instance, user: instance.user(), isStub: false };
+    })();
 
-// The finance ledger stores entries at ~<financeUserPub>/finance/expenditures/<entryId>.
-// Every record is synced through the shared finance guest identity so updates persist
-// across sessions while remaining readable to collaborators.
+const gun = ensureGunContext.gun;
+const financeUser = ensureGunContext.user;
+const usingGunStub = !gun || ensureGunContext.isStub;
+
+// The finance ledger stores entries at finance/expenditures/<entryId> on the shared
+// graph. When authentication is available we sign updates with a shared guest identity
+// so collaborators see consistent history across sessions and devices.
 const FINANCE_ALIAS = 'finance-ledger-guest';
 const FINANCE_PASS = 'finance-ledger-guest-pass';
 const PENDING_STORAGE_KEY = 'finance:pendingEntries';
@@ -30,9 +46,18 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
 const entries = new Map();
 const pendingEntries = new Map();
 
+if (financeUser && typeof scoreSystem.recallUserSession === 'function') {
+  try {
+    scoreSystem.recallUserSession(financeUser, { useLocal: true, useSession: true });
+  } catch (error) {
+    console.warn('Finance ledger: unable to recall previous session', error);
+  }
+}
+
 let ledgerNode = null;
 let ledgerSubscription = null;
 let reconnectTimer = null;
+let identityReady = false;
 
 dateInput.value = defaultDate();
 
@@ -66,55 +91,123 @@ function normalizeAmount(value) {
   return Math.round(parsed * 100) / 100;
 }
 
+function readStoredPendingEntries() {
+  try {
+    return localStorage.getItem(PENDING_STORAGE_KEY);
+  } catch (error) {
+    console.warn('Finance ledger: unable to read pending entries from storage', error);
+    return null;
+  }
+}
+
+function writeStoredPendingEntries(serialized) {
+  try {
+    localStorage.setItem(PENDING_STORAGE_KEY, serialized);
+  } catch (error) {
+    console.warn('Finance ledger: unable to persist pending entries', error);
+  }
+}
+
+function clearStoredPendingEntries() {
+  try {
+    localStorage.removeItem(PENDING_STORAGE_KEY);
+  } catch (error) {
+    console.warn('Finance ledger: unable to clear pending entries', error);
+  }
+}
+
 function persistPendingState() {
   if (pendingEntries.size === 0) {
-    localStorage.removeItem(PENDING_STORAGE_KEY);
+    clearStoredPendingEntries();
     return;
   }
 
   const serialized = Object.fromEntries(pendingEntries.entries());
-  localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(serialized));
+  writeStoredPendingEntries(JSON.stringify(serialized));
 }
 
 function hydratePendingEntries() {
-  try {
-    const raw = localStorage.getItem(PENDING_STORAGE_KEY);
-    if (!raw) {
-      return;
-    }
+  const raw = readStoredPendingEntries();
+  if (!raw) {
+    return;
+  }
 
+  try {
     const parsed = JSON.parse(raw);
     Object.entries(parsed).forEach(([key, record]) => {
       pendingEntries.set(key, record);
-      entries.set(key, { ...record, pending: true });
+      entries.set(key, { ...withWriterMetadata(record), pending: true });
     });
     renderEntries();
   } catch (error) {
     console.error('Failed to load pending finance entries', error);
-    localStorage.removeItem(PENDING_STORAGE_KEY);
+    clearStoredPendingEntries();
   }
 }
 
+function getCurrentAlias() {
+  return financeUser?._?.sea?.alias || financeUser?.is?.alias || '';
+}
+
+function getCurrentPub() {
+  return financeUser?.is?.pub || financeUser?._?.sea?.pub || '';
+}
+
+function withWriterMetadata(record) {
+  const alias = getCurrentAlias();
+  const pub = getCurrentPub();
+  const payload = {
+    ...record,
+    updatedAt: Date.now(),
+  };
+
+  if (alias) {
+    payload.writerAlias = alias;
+  }
+  if (pub) {
+    payload.writerPub = pub;
+  }
+
+  return payload;
+}
+
 function ensureFinanceIdentity() {
+  if (!financeUser || usingGunStub) {
+    return Promise.reject(new Error('Finance identity unavailable'));
+  }
+
+  const existingPub = getCurrentPub();
+  if (existingPub) {
+    return Promise.resolve({ alias: getCurrentAlias(), pub: existingPub });
+  }
+
   return new Promise((resolve, reject) => {
     function authenticate() {
-      financeUser.auth(FINANCE_ALIAS, FINANCE_PASS, ack => {
-        if (ack?.err) {
-          if (/no\s+user|not\s+found/i.test(ack.err)) {
-            financeUser.create(FINANCE_ALIAS, FINANCE_PASS, createAck => {
-              if (createAck?.err && !/already/i.test(createAck.err)) {
-                reject(new Error(createAck.err));
-                return;
+      try {
+        financeUser.auth(FINANCE_ALIAS, FINANCE_PASS, ack => {
+          if (ack?.err) {
+            if (/no\s+user|not\s+found/i.test(ack.err)) {
+              try {
+                financeUser.create(FINANCE_ALIAS, FINANCE_PASS, createAck => {
+                  if (createAck?.err && !/already/i.test(createAck.err)) {
+                    reject(new Error(createAck.err));
+                    return;
+                  }
+                  authenticate();
+                });
+              } catch (creationError) {
+                reject(creationError);
               }
-              authenticate();
-            });
+              return;
+            }
+            reject(new Error(ack.err));
             return;
           }
-          reject(new Error(ack.err));
-          return;
-        }
-        resolve(ack);
-      });
+          resolve({ alias: FINANCE_ALIAS, pub: getCurrentPub() });
+        });
+      } catch (authError) {
+        reject(authError);
+      }
     }
 
     authenticate();
@@ -131,7 +224,7 @@ function subscribeToLedger(node) {
       return;
     }
 
-    if (!data || (typeof data.amount === 'undefined' && !data.notes && !data.category)) {
+    if (!data || typeof data !== 'object') {
       entries.delete(key);
       pendingEntries.delete(key);
       persistPendingState();
@@ -140,9 +233,26 @@ function subscribeToLedger(node) {
     }
 
     const entry = { ...data };
+    delete entry._;
+    if (
+      typeof entry.amount === 'undefined'
+      && !entry.notes
+      && !entry.category
+    ) {
+      entries.delete(key);
+      pendingEntries.delete(key);
+      persistPendingState();
+      renderEntries();
+      return;
+    }
+
     if (pendingEntries.has(key)) {
       pendingEntries.delete(key);
       persistPendingState();
+    }
+    entry.pending = false;
+    if (!entry.createdAt) {
+      entry.createdAt = entry.updatedAt || Date.now();
     }
     entries.set(key, entry);
     renderEntries();
@@ -155,22 +265,32 @@ function connectToLedger() {
     reconnectTimer = null;
   }
 
+  identityReady = false;
+
+  if (!gun || usingGunStub) {
+    setStatus('Offline mode: entries are saved locally and will sync automatically.', 'warning');
+    return;
+  }
+
+  ledgerNode = gun.get('finance').get('expenditures');
+  subscribeToLedger(ledgerNode);
+  setStatus('Connecting to the finance ledger…', 'warning');
+
   ensureFinanceIdentity()
     .then(() => {
-      ledgerNode = financeUser.get('finance').get('expenditures');
-      subscribeToLedger(ledgerNode);
+      identityReady = true;
       setStatus('Connected to the shared finance ledger.', 'success');
       syncPendingEntries();
     })
     .catch(error => {
-      console.error('Unable to authenticate finance guest identity', error);
+      console.error('Unable to authenticate finance identity', error);
       setStatus('Offline mode: entries are saved locally and will sync automatically.', 'warning');
       reconnectTimer = setTimeout(connectToLedger, RECONNECT_DELAY);
     });
 }
 
 function syncPendingEntries() {
-  if (!ledgerNode) {
+  if (!ledgerNode || !identityReady) {
     return;
   }
 
@@ -180,12 +300,14 @@ function syncPendingEntries() {
 }
 
 function writeEntry(entryId, record, { announce } = { announce: true }) {
-  if (!ledgerNode) {
+  if (!ledgerNode || !identityReady) {
     setStatus('Offline mode: saved locally, will sync when reconnected.', 'warning');
     return;
   }
 
-  ledgerNode.get(entryId).put(record, ack => {
+  const payload = withWriterMetadata(record);
+
+  ledgerNode.get(entryId).put(payload, ack => {
     if (ack && ack.err) {
       console.error('Failed to persist expenditure', ack.err);
       setStatus('Unable to sync right now. Entries remain queued locally.', 'warning');
@@ -198,10 +320,9 @@ function writeEntry(entryId, record, { announce } = { announce: true }) {
     }
 
     const existing = entries.get(entryId);
-    if (existing) {
-      entries.set(entryId, { ...existing, pending: false });
-      renderEntries();
-    }
+    const nextEntry = existing ? { ...existing, ...payload, pending: false } : { ...payload, pending: false };
+    entries.set(entryId, nextEntry);
+    renderEntries();
 
     if (announce) {
       setStatus('Expenditure synced to the finance ledger.', 'success');
@@ -259,7 +380,10 @@ function renderEntries() {
     const formattedDate = Number.isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleDateString();
     const payment = entry.paymentMethod || 'unspecified method';
     const pendingSuffix = entry.pending ? ' • Pending sync' : '';
-    meta.textContent = `${formattedDate} • Paid with ${payment}${pendingSuffix}`;
+    const writer = entry.writerAlias
+      || (entry.writerPub ? `pub ${String(entry.writerPub).slice(0, 8)}…` : '');
+    const originSuffix = writer ? ` • Logged by ${writer}` : '';
+    meta.textContent = `${formattedDate} • Paid with ${payment}${pendingSuffix}${originSuffix}`;
 
     header.append(title, amount);
     container.append(header, meta);
@@ -308,7 +432,7 @@ function handleSubmit(event) {
 
   const entryId = Gun.text.random(16);
 
-  entries.set(entryId, { ...record, pending: true });
+  entries.set(entryId, { ...withWriterMetadata(record), pending: true });
   pendingEntries.set(entryId, record);
   persistPendingState();
   renderEntries();
@@ -330,7 +454,3 @@ window.addEventListener('offline', () => {
 
 hydratePendingEntries();
 connectToLedger();
-
-if (!ledgerNode) {
-  setStatus('Connecting to the finance ledger…', 'warning');
-}

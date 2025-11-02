@@ -43,9 +43,10 @@ describe('finance ledger hub', () => {
     assert.equal(await fileExists(scriptUrl), true, 'app.js should exist');
 
     const js = await readFile(scriptUrl, 'utf8');
-    assert.match(js, /Gun\(/);
-    assert.match(js, /gun\.user\(\)/);
-    assert.match(js, /financeUser\.get\('finance'\)\.get\('expenditures'\)/);
+    assert.match(js, /ScoreSystem/);
+    assert.match(js, /ensureGun/);
+    assert.match(js, /gun\.get\('finance'\)\.get\('expenditures'\)/);
+    assert.match(js, /financeUser/);
     assert.match(js, /finance\/expenditures/);
     assert.match(js, /form\.addEventListener\('submit'/);
     assert.match(js, /localStorage/);
