@@ -17,6 +17,14 @@ const gun = ensureGunContext.gun;
 const financeUser = ensureGunContext.user;
 const usingGunStub = !gun || ensureGunContext.isStub;
 
+if (typeof scoreSystem.ensureGuestIdentity === 'function') {
+  try {
+    scoreSystem.ensureGuestIdentity();
+  } catch (error) {
+    console.warn('Finance ledger: unable to ensure guest identity', error);
+  }
+}
+
 // The finance ledger stores entries at finance/expenditures/<entryId> on the shared
 // graph. When authentication is available we sign updates with a shared guest identity
 // so collaborators see consistent history across sessions and devices.

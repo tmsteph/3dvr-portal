@@ -25,6 +25,8 @@ describe('finance ledger hub', () => {
     assert.match(html, /<link[^>]+href="\.\/styles.css"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/sea\.js"/);
+    assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/axe\.js"/);
+    assert.match(html, /<script[^>]+src="\.\.\/score\.js"/);
     assert.match(html, /<script[^>]+src="\.\/app.js"/);
     assert.match(html, /id="finance-status"/);
   });
@@ -45,6 +47,7 @@ describe('finance ledger hub', () => {
     const js = await readFile(scriptUrl, 'utf8');
     assert.match(js, /ScoreSystem/);
     assert.match(js, /ensureGun/);
+    assert.match(js, /ensureGuestIdentity/);
     assert.match(js, /gun\.get\('finance'\)\.get\('expenditures'\)/);
     assert.match(js, /financeUser/);
     assert.match(js, /finance\/expenditures/);
