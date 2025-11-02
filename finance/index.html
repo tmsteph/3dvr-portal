@@ -33,6 +33,14 @@
             <dt>Latest entry</dt>
             <dd id="latest-entry">No entries yet</dd>
           </div>
+          <div class="finance-summary__stat">
+            <dt>Outstanding payables</dt>
+            <dd id="outstanding-amount">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Next payment</dt>
+            <dd id="next-payable">No payables logged</dd>
+          </div>
         </dl>
       </div>
 
@@ -66,6 +74,46 @@
           </label>
           <button type="submit" class="finance-button">Log expenditure</button>
         </form>
+      </div>
+    </section>
+
+    <section class="finance-layout" aria-labelledby="payables-title">
+      <div class="finance-card finance-card--form" aria-labelledby="payable-form-title">
+        <div class="finance-card__header">
+          <h2 id="payable-form-title" class="finance-card__title">Schedule a payment</h2>
+          <p class="finance-card__subhead">Track payables</p>
+        </div>
+        <form id="payable-form" class="finance-form" autocomplete="off" novalidate>
+          <div class="finance-form__grid">
+            <label class="finance-field">
+              <span class="finance-field__label">Payee</span>
+              <input id="payee" name="payee" type="text" placeholder="Who is owed" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Amount (USD)</span>
+              <input id="payable-amount" name="payableAmount" type="number" step="0.01" min="0" inputmode="decimal" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Due date</span>
+              <input id="due-date" name="dueDate" type="date" required>
+            </label>
+          </div>
+          <label class="finance-field">
+            <span class="finance-field__label">Notes</span>
+            <textarea id="payable-notes" name="payableNotes" rows="3" placeholder="Context or project details"></textarea>
+          </label>
+          <button type="submit" class="finance-button">Add payable</button>
+        </form>
+      </div>
+
+      <div class="finance-card finance-card--ledger" aria-labelledby="payables-title">
+        <div class="finance-card__header">
+          <h2 id="payables-title" class="finance-card__title">Payables</h2>
+          <span class="finance-card__subhead">Upcoming obligations</span>
+        </div>
+        <div id="payables-list" class="finance-ledger finance-payables" role="list">
+          <p id="payables-empty" class="finance-ledger__empty">No payables yet. Log a payment schedule to get started.</p>
+        </div>
       </div>
     </section>
 

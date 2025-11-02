@@ -256,6 +256,10 @@ body {
   gap: 1.25rem;
 }
 
+.finance-payables {
+  gap: 1.5rem;
+}
+
 .finance-ledger__empty {
   margin: 0;
   padding: 1.75rem;
@@ -276,6 +280,54 @@ body {
   display: grid;
   gap: 0.75rem;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.finance-payable {
+  position: relative;
+  overflow: hidden;
+}
+
+.finance-payable::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(14, 165, 233, 0.05));
+}
+
+.finance-payable:hover::before,
+.finance-payable:focus-within::before {
+  opacity: 1;
+}
+
+.finance-payable--settled {
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.25);
+  opacity: 0.8;
+}
+
+.finance-payable--settled .finance-entry__amount {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.finance-payable__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.finance-button--secondary {
+  background: rgba(15, 23, 42, 0.85);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.6);
+  box-shadow: none;
+}
+
+.finance-button--secondary:hover,
+.finance-button--secondary:focus {
+  box-shadow: 0 12px 28px rgba(14, 165, 233, 0.25);
 }
 
 .finance-entry:hover,
