@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3dvr Expenditures</title>
+  <title>3dvr Finance Hub</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,15 +11,15 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 </head>
 <body>
-  <main class="expenditures-shell" aria-labelledby="page-title">
-    <header class="expenditures-header">
-      <h1 id="page-title">3dvr Expenditures</h1>
-      <p class="expenditures-tagline">Track every credit, debit, and shared expense across the 3dvr ecosystem.</p>
+  <main class="finance-shell" aria-labelledby="page-title">
+    <header class="finance-header">
+      <h1 id="page-title">3dvr Finance</h1>
+      <p class="finance-tagline">Track every credit, debit, and shared expense across the 3dvr ecosystem.</p>
     </header>
 
-    <section class="expenditures-panel" aria-labelledby="totals-title">
+    <section class="finance-panel" aria-labelledby="totals-title">
       <h2 id="totals-title">Overview</h2>
-      <dl class="expenditures-summary">
+      <dl class="finance-summary">
         <div>
           <dt>Total Logged</dt>
           <dd id="total-amount" aria-live="polite">$0.00</dd>
@@ -31,7 +31,7 @@
       </dl>
     </section>
 
-    <section class="expenditures-panel" aria-labelledby="form-title">
+    <section class="finance-panel" aria-labelledby="form-title">
       <h2 id="form-title">Add an expenditure</h2>
       <form id="expenditure-form" autocomplete="off">
         <div class="form-grid">
@@ -60,10 +60,10 @@
       </form>
     </section>
 
-    <section class="expenditures-panel" aria-labelledby="log-title">
+    <section class="finance-panel" aria-labelledby="log-title">
       <h2 id="log-title">Ledger</h2>
-      <div class="expenditures-list" id="expenditures-list" role="list">
-        <p class="empty-state" id="empty-state">No expenditures yet. Add your first entry above.</p>
+      <div class="finance-ledger" id="finance-ledger" role="list">
+        <p class="empty-state" id="finance-empty">No expenditures yet. Add your first entry above.</p>
       </div>
     </section>
   </main>

@@ -17,7 +17,7 @@ body {
   color: var(--text-primary);
 }
 
-.expenditures-shell {
+.finance-shell {
   max-width: 960px;
   margin: 0 auto;
   padding: 3rem 1.5rem 4rem;
@@ -26,18 +26,18 @@ body {
   gap: 2rem;
 }
 
-.expenditures-header h1 {
+.finance-header h1 {
   font-size: clamp(2rem, 4vw, 2.75rem);
   margin-bottom: 0.25rem;
 }
 
-.expenditures-tagline {
+.finance-tagline {
   color: var(--text-muted);
   margin: 0;
   max-width: 42ch;
 }
 
-.expenditures-panel {
+.finance-panel {
   background: var(--panel-background);
   backdrop-filter: blur(6px);
   border: 1px solid var(--border-color);
@@ -46,26 +46,26 @@ body {
   box-shadow: 0 20px 40px -24px rgba(27, 50, 94, 0.35);
 }
 
-.expenditures-panel h2 {
+.finance-panel h2 {
   margin-top: 0;
   margin-bottom: 1rem;
   font-size: 1.25rem;
 }
 
-.expenditures-summary {
+.finance-summary {
   display: grid;
   gap: 1.25rem;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   margin: 0;
 }
 
-.expenditures-summary dt {
+.finance-summary dt {
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 0.35rem;
 }
 
-.expenditures-summary dd {
+.finance-summary dd {
   font-size: 1.5rem;
   margin: 0;
   font-weight: 700;
@@ -128,12 +128,12 @@ body {
   box-shadow: 0 12px 24px -12px rgba(66, 85, 255, 0.65);
 }
 
-.expenditures-list {
+.finance-ledger {
   display: grid;
   gap: 1rem;
 }
 
-.expenditure-entry {
+.finance-entry {
   border-radius: 14px;
   border: 1px solid var(--border-color);
   padding: 1rem 1.25rem;
@@ -142,24 +142,24 @@ body {
   gap: 0.5rem;
 }
 
-.expenditure-entry header {
+.finance-entry header {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.75rem;
 }
 
-.expenditure-entry h3 {
+.finance-entry h3 {
   font-size: 1.1rem;
   margin: 0;
 }
 
-.expenditure-entry .amount {
+.finance-entry .amount {
   font-weight: 700;
   color: var(--accent-ink);
 }
 
-.expenditure-entry .meta {
+.finance-entry .meta {
   color: var(--text-muted);
   font-size: 0.9rem;
 }
@@ -171,7 +171,7 @@ body {
 }
 
 @media (max-width: 600px) {
-  .expenditures-shell {
+  .finance-shell {
     padding: 2.5rem 1.25rem 3rem;
   }
 }

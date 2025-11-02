@@ -9,8 +9,8 @@ const dateInput = document.getElementById('date');
 const categoryInput = document.getElementById('category');
 const paymentMethodInput = document.getElementById('payment-method');
 const notesInput = document.getElementById('notes');
-const list = document.getElementById('expenditures-list');
-const emptyState = document.getElementById('empty-state');
+const list = document.getElementById('finance-ledger');
+const emptyState = document.getElementById('finance-empty');
 const totalAmount = document.getElementById('total-amount');
 const latestEntry = document.getElementById('latest-entry');
 
@@ -65,7 +65,7 @@ function renderEntries() {
     total += normalizedAmount;
 
     const container = document.createElement('article');
-    container.className = 'expenditure-entry';
+    container.className = 'finance-entry';
     container.dataset.key = key;
 
     const header = document.createElement('header');
