@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3dvr Expenditures</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+</head>
+<body>
+  <main class="expenditures-shell" aria-labelledby="page-title">
+    <header class="expenditures-header">
+      <h1 id="page-title">3dvr Expenditures</h1>
+      <p class="expenditures-tagline">Track every credit, debit, and shared expense across the 3dvr ecosystem.</p>
+    </header>
+
+    <section class="expenditures-panel" aria-labelledby="totals-title">
+      <h2 id="totals-title">Overview</h2>
+      <dl class="expenditures-summary">
+        <div>
+          <dt>Total Logged</dt>
+          <dd id="total-amount" aria-live="polite">$0.00</dd>
+        </div>
+        <div>
+          <dt>Latest Entry</dt>
+          <dd id="latest-entry" aria-live="polite">No entries yet</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="expenditures-panel" aria-labelledby="form-title">
+      <h2 id="form-title">Add an expenditure</h2>
+      <form id="expenditure-form" autocomplete="off">
+        <div class="form-grid">
+          <label class="field">
+            <span>Amount (USD)</span>
+            <input id="amount" name="amount" type="number" step="0.01" min="0" inputmode="decimal" required>
+          </label>
+          <label class="field">
+            <span>Date</span>
+            <input id="date" name="date" type="date" required>
+          </label>
+          <label class="field">
+            <span>Category</span>
+            <input id="category" name="category" type="text" placeholder="Hardware, software, travel" required>
+          </label>
+          <label class="field">
+            <span>Paid with</span>
+            <input id="payment-method" name="paymentMethod" type="text" placeholder="Card, crypto, invoice" required>
+          </label>
+          <label class="field field--full">
+            <span>Notes</span>
+            <textarea id="notes" name="notes" rows="3" placeholder="Context, links, or shared collaborators"></textarea>
+          </label>
+        </div>
+        <button type="submit" class="primary-action">Log expenditure</button>
+      </form>
+    </section>
+
+    <section class="expenditures-panel" aria-labelledby="log-title">
+      <h2 id="log-title">Ledger</h2>
+      <div class="expenditures-list" id="expenditures-list" role="list">
+        <p class="empty-state" id="empty-state">No expenditures yet. Add your first entry above.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
