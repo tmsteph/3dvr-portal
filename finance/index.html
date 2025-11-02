@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3dvr Finance Hub</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="../score.js"></script>
+</head>
+<body class="finance-body">
+  <a href="#page-main" class="finance-skip-link">Skip to finance content</a>
+  <main id="page-main" class="finance-shell" aria-labelledby="page-title">
+    <header class="finance-hero">
+      <p class="finance-hero__eyebrow">Finance workspace</p>
+      <h1 id="page-title" class="finance-hero__title">3dvr Finance</h1>
+      <p class="finance-hero__lead">
+        Track purchases, reimbursements, and shared credits inside the same Gun relay that powers the CRM and contacts hubs.
+      </p>
+    </header>
+
+    <section class="finance-layout" aria-labelledby="overview-title">
+      <div class="finance-card finance-card--metrics" id="finance-summary">
+        <h2 id="overview-title" class="finance-card__title">Overview</h2>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Total logged</dt>
+            <dd id="total-amount">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Latest entry</dt>
+            <dd id="latest-entry">No entries yet</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="finance-card finance-card--form" aria-labelledby="form-title">
+        <div class="finance-card__header">
+          <h2 id="form-title" class="finance-card__title">Add an expenditure</h2>
+          <p class="finance-card__subhead">Synced with Gun</p>
+        </div>
+        <form id="expenditure-form" class="finance-form" autocomplete="off" novalidate>
+          <div class="finance-form__grid">
+            <label class="finance-field">
+              <span class="finance-field__label">Amount (USD)</span>
+              <input id="amount" name="amount" type="number" step="0.01" min="0" inputmode="decimal" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Date</span>
+              <input id="date" name="date" type="date" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Category</span>
+              <input id="category" name="category" type="text" placeholder="Hardware, software, travel" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Paid with</span>
+              <input id="payment-method" name="paymentMethod" type="text" placeholder="Card, crypto, invoice" required>
+            </label>
+          </div>
+          <label class="finance-field">
+            <span class="finance-field__label">Notes</span>
+            <textarea id="notes" name="notes" rows="3" placeholder="Context, links, or shared collaborators"></textarea>
+          </label>
+          <button type="submit" class="finance-button">Log expenditure</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
+      <div class="finance-card__header">
+        <h2 id="ledger-title" class="finance-card__title">Ledger</h2>
+        <span class="finance-card__subhead">Live feed</span>
+      </div>
+      <div id="finance-ledger" class="finance-ledger" role="list">
+        <p id="finance-empty" class="finance-ledger__empty">No expenditures yet. Add your first entry above.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
