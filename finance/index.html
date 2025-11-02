@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
 </head>
 <body>
   <main class="finance-shell" aria-labelledby="page-title">
@@ -16,6 +17,8 @@
       <h1 id="page-title">3dvr Finance</h1>
       <p class="finance-tagline">Track every credit, debit, and shared expense across the 3dvr ecosystem.</p>
     </header>
+
+    <p class="finance-status" id="finance-status" role="status" aria-live="polite">Connecting to the finance ledger…</p>
 
     <section class="finance-panel" aria-labelledby="totals-title">
       <h2 id="totals-title">Overview</h2>
