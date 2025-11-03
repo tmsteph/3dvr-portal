@@ -5,6 +5,23 @@ const windowLayer = document.getElementById('window-layer');
 const taskbarApps = document.getElementById('taskbar-apps');
 const brandButtons = document.querySelectorAll('[data-open-url]');
 const mobileQuery = window.matchMedia('(max-width: 600px)');
+const root = document.documentElement;
+
+function updateViewportUnit() {
+  const viewportHeight = window.innerHeight;
+  if (!viewportHeight) {
+    return;
+  }
+  const unit = viewportHeight * 0.01;
+  root.style.setProperty('--vh', `${unit}px`);
+}
+
+updateViewportUnit();
+window.addEventListener('resize', updateViewportUnit);
+window.addEventListener('orientationchange', updateViewportUnit);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateViewportUnit);
+}
 
 const apps = {
   navigator: {
