@@ -201,7 +201,7 @@ body {
   position: absolute;
   top: 15%;
   left: 24%;
-  width: clamp(22rem, 40vw, 34rem);
+  width: min(100%, clamp(22rem, 40vw, 34rem));
   min-height: 18rem;
   border-radius: 1.25rem;
   border: 1px solid var(--border);
@@ -517,6 +517,7 @@ kbd {
 @media (max-width: 600px) {
   body {
     overflow: auto;
+    overflow-x: hidden;
   }
 
   .desktop {
@@ -525,6 +526,14 @@ kbd {
 
   .workspace {
     padding-bottom: 6rem;
+  }
+
+  .window-layer {
+    position: static;
+    width: 100%;
+    display: grid;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
   }
 
   .taskbar {
@@ -538,6 +547,6 @@ kbd {
     left: 0;
     right: 0;
     top: auto;
-    margin-top: 1.5rem;
+    margin: 0;
   }
 }
