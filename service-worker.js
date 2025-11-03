@@ -1,7 +1,7 @@
 /* service-worker.js */
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 
@@ -10,6 +10,8 @@ const STATIC_ASSETS = [
   '/',                     // App shell (Start URL)
   '/index-style.css',
   '/styles/global.css',
+  '/home/style.css',
+  '/home/script.js',
   '/style.css?v=notes-refresh-20240204',
   '/navbar.js',
   '/score.js',

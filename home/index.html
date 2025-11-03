@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3DVR Portal Desktop</title>
+    <link rel="stylesheet" href="/home/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div class="desktop" role="application" aria-label="3DVR Portal desktop environment">
+      <div class="desktop-wallpaper" aria-hidden="true"></div>
+      <header class="status-bar" aria-label="system status">
+        <div class="status-left">
+          <button class="brand" type="button" aria-label="Open portal homepage" data-open-url="/">
+            <span class="brand-logo" aria-hidden="true">🌀</span>
+            <span class="brand-name">Portal OS</span>
+          </button>
+          <div class="status-indicator" aria-label="Active workspace">Workspace Alpha</div>
+        </div>
+        <div class="status-right">
+          <div class="status-quick-links" aria-label="Quick links">
+            <a href="/calendar" class="status-link">Calendar</a>
+            <a href="/tasks.html" class="status-link">Tasks</a>
+            <a href="/chat.html" class="status-link">Chat</a>
+          </div>
+          <div class="clock" aria-label="Current time">
+            <span class="clock-time" id="clock-time">00:00</span>
+            <span class="clock-date" id="clock-date">Jan 1</span>
+          </div>
+        </div>
+      </header>
+      <main class="workspace" id="workspace" tabindex="0">
+        <ul class="desktop-shortcuts" aria-label="Desktop shortcuts">
+          <li>
+            <button class="shortcut" type="button" data-app="navigator" aria-label="Open Navigator">
+              <span class="shortcut-icon">🧭</span>
+              <span class="shortcut-label">Navigator</span>
+            </button>
+          </li>
+          <li>
+            <button class="shortcut" type="button" data-app="notes" aria-label="Open Notes">
+              <span class="shortcut-icon">📝</span>
+              <span class="shortcut-label">Notes</span>
+            </button>
+          </li>
+          <li>
+            <button class="shortcut" type="button" data-app="mindfulness" aria-label="Open Mindfulness Session">
+              <span class="shortcut-icon">🧘</span>
+              <span class="shortcut-label">Mindfulness</span>
+            </button>
+          </li>
+          <li>
+            <button class="shortcut" type="button" data-app="terminal" aria-label="Open Command Console">
+              <span class="shortcut-icon">⌨️</span>
+              <span class="shortcut-label">Console</span>
+            </button>
+          </li>
+        </ul>
+        <div class="window-layer" id="window-layer" aria-live="polite"></div>
+      </main>
+      <nav class="taskbar" aria-label="Taskbar">
+        <button class="launcher" type="button" id="launcher" aria-haspopup="true" aria-expanded="false">
+          <span class="launcher-icon" aria-hidden="true">☰</span>
+          <span class="launcher-label">Launch</span>
+        </button>
+        <div class="taskbar-apps" id="taskbar-apps" role="tablist" aria-label="Open applications"></div>
+        <div class="taskbar-system">
+          <button class="taskbar-button" type="button" data-open-url="https://portal.3dvr.tech" aria-label="Open classic portal">
+            Portal
+          </button>
+          <button class="taskbar-button" type="button" data-open-url="/start" aria-label="Open start experience">
+            Start
+          </button>
+        </div>
+      </nav>
+      <div class="launcher-panel" id="launcher-panel" role="menu" aria-label="Launcher">
+        <div class="launcher-header">Pinned</div>
+        <button class="launcher-item" type="button" data-app="navigator">Navigator</button>
+        <button class="launcher-item" type="button" data-app="notes">Notes</button>
+        <button class="launcher-item" type="button" data-app="mindfulness">Mindfulness</button>
+        <button class="launcher-item" type="button" data-app="terminal">Console</button>
+        <div class="launcher-header">Shortcuts</div>
+        <a class="launcher-item" href="/education.html">Education Hub</a>
+        <a class="launcher-item" href="/games.html">Games Arcade</a>
+        <a class="launcher-item" href="/wellness.html">Wellness Center</a>
+      </div>
+    </div>
+    <script src="/home/script.js"></script>
+  </body>
+</html>
