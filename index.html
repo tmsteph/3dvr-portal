@@ -16,6 +16,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+  <script>
+    const prNumber = '{{PR_NUMBER}}';
+    const relayUrl = '{{WSS_RELAY_URL}}';
+    if (typeof window !== 'undefined') {
+      if (!prNumber.includes('{{')) {
+        window.__PR_NUMBER__ = prNumber;
+      }
+      if (!relayUrl.includes('{{')) {
+        window.__GUN_RELAY__ = relayUrl;
+      }
+      window.__APP_NAME__ = window.__APP_NAME__ || '3dvr-tech';
+    }
+  </script>
 </head>
 <body class="landing theme-dark">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -193,6 +206,11 @@
             <span class="app-card__icon" aria-hidden="true">✅</span>
             <span class="app-card__title">Tasks</span>
             <span class="app-card__meta">Plan, assign, and celebrate team wins.</span>
+          </a>
+          <a href="gun-demo.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🧪</span>
+            <span class="app-card__title">Gun Relay Test</span>
+            <span class="app-card__meta">Validate relay connectivity with a shared counter demo.</span>
           </a>
           <a href="video/index.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🎥</span>

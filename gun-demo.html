@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gun Relay Test · 3DVR Portal</title>
+  <link rel="stylesheet" href="styles/global.css">
+  <style>
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle at top, rgba(21, 26, 34, 0.92), #05070a);
+      color: #f5f7fa;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 16px;
+      background: #0e1116;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: top 0.2s ease;
+      z-index: 1000;
+    }
+
+    .skip-link:focus {
+      top: 16px;
+    }
+
+    main {
+      width: min(960px, 92vw);
+      margin: 64px auto;
+      background: rgba(10, 13, 17, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 24px 48px rgba(3, 6, 12, 0.45);
+      backdrop-filter: blur(20px);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: clamp(2rem, 4vw, 3rem);
+      letter-spacing: -0.02em;
+    }
+
+    p {
+      color: rgba(245, 247, 250, 0.85);
+      line-height: 1.6;
+    }
+
+    .status-block {
+      margin: 24px 0;
+      padding: 16px 20px;
+      border-radius: 12px;
+      background: rgba(21, 28, 36, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .status-label {
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: rgba(245, 247, 250, 0.6);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .status-value {
+      font-size: 1.4rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-value[data-state="error"] {
+      color: #ffb4c0;
+    }
+
+    .status-value[data-state="success"] {
+      color: #7fffd4;
+    }
+
+    .log-panel {
+      margin-top: 32px;
+      padding: 20px;
+      background: rgba(5, 8, 13, 0.85);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .log-panel p {
+      margin: 0 0 8px;
+      color: rgba(245, 247, 250, 0.75);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .actions a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #0e1116;
+      background: #7fffd4;
+      font-weight: 600;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .actions a:hover,
+    .actions a:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(127, 255, 212, 0.35);
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding: 24px;
+        margin: 32px auto;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .actions a {
+        justify-content: center;
+        width: 100%;
+      }
+    }
+  </style>
+  <script>
+    const prNumber = '{{PR_NUMBER}}';
+    const relayUrl = '{{WSS_RELAY_URL}}';
+    if (typeof window !== 'undefined') {
+      if (!prNumber.includes('{{')) {
+        window.__PR_NUMBER__ = prNumber;
+      }
+      if (!relayUrl.includes('{{')) {
+        window.__GUN_RELAY__ = relayUrl;
+      }
+      window.__APP_NAME__ = window.__APP_NAME__ || '3dvr-tech';
+    }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <main id="mainContent" aria-labelledby="gun-demo-title">
+    <header>
+      <span class="status-label">GunJS Relay Utilities</span>
+      <h1 id="gun-demo-title">Shared Counter Smoke Test</h1>
+      <p>
+        Use this page to confirm the Fly.io relay is reachable from previews and production. Reload the page in multiple
+        browsers or devices&mdash;the counter should tick upward everywhere in a couple of seconds. Keep this alongside the
+        <a href="/compat.html">compatibility page</a> for a full pre-flight checklist.
+      </p>
+    </header>
+
+    <section class="status-block" aria-live="polite" aria-atomic="true">
+      <span class="status-label">Connection status</span>
+      <span id="gun-demo-status" class="status-value">Preparing connection…</span>
+    </section>
+
+    <section class="status-block" aria-live="polite" aria-atomic="true">
+      <span class="status-label">Shared counter value</span>
+      <span id="counter" class="status-value">Checking…</span>
+    </section>
+
+    <p>
+      The counter writes to the Gun graph at <code>demo &rarr; counter &rarr; PR</code>. Each pull request receives an isolated node,
+      so the value increments independently per preview while still proving relay reads and writes.
+    </p>
+
+    <div class="actions">
+      <a href="/compat.html">Open compat.html</a>
+      <a href="https://gun.eco/docs/Overview" target="_blank" rel="noopener">Review Gun docs</a>
+    </div>
+
+    <div class="log-panel" id="gun-demo-log" role="log" aria-live="polite" aria-atomic="false">
+      <p>Logs will appear here as the relay responds.</p>
+    </div>
+  </main>
+
+  <script type="module" src="/src/gun/example-usage.js"></script>
+</body>
+</html>
