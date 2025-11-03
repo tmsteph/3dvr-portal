@@ -16,6 +16,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+  <script>
+    const prNumber = '{{PR_NUMBER}}';
+    const relayUrl = '{{WSS_RELAY_URL}}';
+    if (typeof window !== 'undefined') {
+      if (!prNumber.includes('{{')) {
+        window.__PR_NUMBER__ = prNumber;
+      }
+      if (!relayUrl.includes('{{')) {
+        window.__GUN_RELAY__ = relayUrl;
+      }
+      window.__APP_NAME__ = window.__APP_NAME__ || '3dvr-tech';
+    }
+  </script>
 </head>
 <body class="landing theme-dark">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -57,6 +70,7 @@
           <a href="points.html" class="cta ghost">Start earning</a>
           <a href="https://3dvr.tech/subscribe" class="cta ghost" target="_blank" rel="noopener">Explore plans</a>
         </div>
+        <div style="padding:8px;font:14px/1.4 system-ui">Counter: <b id="counter">…</b></div>
       </section>
 
       <section class="flow-invite" aria-labelledby="flow-invite-title">
@@ -1198,5 +1212,6 @@
     const initialSearchValue = searchInput?.value ?? '';
     updateAppFilter(initialSearchValue);
   </script>
+  <script type="module" src="/src/gun/example-usage.js"></script>
 </body>
 </html>

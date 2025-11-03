@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Gun Compat Check</title>
+<pre id="log" style="white-space:pre-wrap;padding:12px;font:13px/1.4 ui-monospace,Consolas,monospace"></pre>
+<script type="module">
+  // ---- CONFIG (Codex replaces {{WSS_RELAY_URL}}) ----
+  const PEERS = ['{{WSS_RELAY_URL}}']; // e.g. wss://relay.3dvr.tech/gun
+
+  // ---- UTIL ----
+  const log = document.getElementById('log');
+  const out = (...args) => {
+    log.textContent += args.join(' ') + '\n';
+  };
+
+  // ---- GUN ----
+  import Gun from 'https://cdn.jsdelivr.net/npm/gun/gun.js';
+  const gun = Gun({ peers: PEERS, axe: true, radisk: false, localStorage: false });
+
+  // connectivity signals
+  let connected = false;
+  setTimeout(() => {
+    if (!connected) out('WARN: no peer open after 3000ms');
+  }, 3000);
+  gun.on('hi', peer => {
+    connected = true;
+    out('HI', peer?.url || '');
+  });
+  gun.on('bye', peer => out('BYE', peer?.url || ''));
+
+  const ROOT = 'compat:test';
+  const key = `ts:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  const sample = { key, ua: navigator.userAgent, when: Date.now() };
+
+  const db = gun.get(ROOT);
+  db.get('roundtrip').get(key).put(sample, ack => {
+    if (ack?.err) {
+      out('PUT ERR', ack.err);
+      return;
+    }
+    out('PUT OK', key);
+    db.get('roundtrip').get(key).once(val => {
+      out('READ BACK', JSON.stringify(val));
+      out(val ? 'SUCCESS ✅' : 'FAILED ❌');
+    });
+  });
+</script>
