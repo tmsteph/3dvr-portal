@@ -7,20 +7,25 @@ const brandButtons = document.querySelectorAll('[data-open-url]');
 const mobileQuery = window.matchMedia('(max-width: 600px)');
 const root = document.documentElement;
 
-function updateViewportUnit() {
+function updateViewportUnits() {
   const viewportHeight = window.innerHeight;
-  if (!viewportHeight) {
-    return;
+  if (viewportHeight) {
+    const heightUnit = viewportHeight * 0.01;
+    root.style.setProperty('--vh', `${heightUnit}px`);
   }
-  const unit = viewportHeight * 0.01;
-  root.style.setProperty('--vh', `${unit}px`);
+
+  const viewportWidth = window.innerWidth;
+  if (viewportWidth) {
+    const widthUnit = viewportWidth * 0.01;
+    root.style.setProperty('--vw', `${widthUnit}px`);
+  }
 }
 
-updateViewportUnit();
-window.addEventListener('resize', updateViewportUnit);
-window.addEventListener('orientationchange', updateViewportUnit);
+updateViewportUnits();
+window.addEventListener('resize', updateViewportUnits);
+window.addEventListener('orientationchange', updateViewportUnits);
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', updateViewportUnit);
+  window.visualViewport.addEventListener('resize', updateViewportUnits);
 }
 
 const apps = {
