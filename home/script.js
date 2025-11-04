@@ -4,6 +4,39 @@ const launcherPanel = document.getElementById('launcher-panel');
 const windowLayer = document.getElementById('window-layer');
 const taskbarApps = document.getElementById('taskbar-apps');
 const brandButtons = document.querySelectorAll('[data-open-url]');
+const mobileQuery = window.matchMedia('(max-width: 600px)');
+const root = document.documentElement;
+
+function updateViewportUnits() {
+  const viewport = window.visualViewport;
+  const viewportHeight = viewport ? viewport.height : window.innerHeight;
+  if (viewportHeight) {
+    const heightUnit = viewportHeight * 0.01;
+    root.style.setProperty('--vh', `${heightUnit}px`);
+  }
+
+  const viewportWidth = viewport ? viewport.width : window.innerWidth;
+  if (viewportWidth) {
+    const widthUnit = viewportWidth * 0.01;
+    root.style.setProperty('--vw', `${widthUnit}px`);
+  }
+
+  if (viewport) {
+    root.style.setProperty('--vv-left', `${viewport.offsetLeft}px`);
+    root.style.setProperty('--vv-top', `${viewport.offsetTop}px`);
+  } else {
+    root.style.setProperty('--vv-left', '0px');
+    root.style.setProperty('--vv-top', '0px');
+  }
+}
+
+updateViewportUnits();
+window.addEventListener('resize', updateViewportUnits);
+window.addEventListener('orientationchange', updateViewportUnits);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateViewportUnits);
+  window.visualViewport.addEventListener('scroll', updateViewportUnits);
+}
 
 const apps = {
   navigator: {
@@ -64,6 +97,35 @@ const apps = {
 let zIndex = 10;
 let activeWindowId = null;
 
+function isMobileLayout() {
+  return mobileQuery.matches;
+}
+
+function setWindowPosition(windowEl, offset = 0) {
+  if (!windowEl.dataset.desktopLeft) {
+    windowEl.dataset.desktopLeft = `calc(22% + ${offset}px)`;
+  }
+  if (!windowEl.dataset.desktopTop) {
+    windowEl.dataset.desktopTop = `calc(12% + ${offset / 3}px)`;
+  }
+
+  if (isMobileLayout()) {
+    windowEl.style.left = '0';
+    windowEl.style.right = '0';
+    windowEl.style.top = 'auto';
+  } else {
+    windowEl.style.left = windowEl.dataset.desktopLeft;
+    windowEl.style.right = '';
+    windowEl.style.top = windowEl.dataset.desktopTop;
+  }
+}
+
+function applyResponsiveWindowLayout() {
+  document.querySelectorAll('.window').forEach(windowEl => {
+    setWindowPosition(windowEl);
+  });
+}
+
 function toggleLauncher(forceState) {
   const isOpen = launcherPanel.classList.contains('open');
   const nextState = typeof forceState === 'boolean' ? forceState : !isOpen;
@@ -104,8 +166,7 @@ function createWindow(appKey) {
 
   const openWindows = document.querySelectorAll('.window').length;
   const offset = Math.min(120, openWindows * 28);
-  windowEl.style.left = `calc(22% + ${offset}px)`;
-  windowEl.style.top = `calc(12% + ${offset / 3}px)`;
+  setWindowPosition(windowEl, offset);
 
   windowLayer.appendChild(windowEl);
   makeDraggable(windowEl);
@@ -184,6 +245,9 @@ function makeDraggable(windowEl) {
   let dragging = false;
 
   function onPointerDown(event) {
+    if (isMobileLayout()) {
+      return;
+    }
     dragging = true;
     windowEl.classList.add('dragging');
     offsetX = event.clientX - windowEl.offsetLeft;
@@ -199,8 +263,12 @@ function makeDraggable(windowEl) {
     }
     const x = event.clientX - offsetX;
     const y = event.clientY - offsetY;
-    windowEl.style.left = `${Math.max(16, x)}px`;
-    windowEl.style.top = `${Math.max(16, y)}px`;
+    const maxX = Math.max(16, window.innerWidth - windowEl.offsetWidth - 16);
+    const maxY = Math.max(16, window.innerHeight - windowEl.offsetHeight - 16);
+    const nextX = Math.min(Math.max(16, x), maxX);
+    const nextY = Math.min(Math.max(16, y), maxY);
+    windowEl.style.left = `${nextX}px`;
+    windowEl.style.top = `${nextY}px`;
   }
 
   function onPointerUp() {
@@ -208,6 +276,10 @@ function makeDraggable(windowEl) {
     windowEl.classList.remove('dragging');
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
+    if (!isMobileLayout()) {
+      windowEl.dataset.desktopLeft = windowEl.style.left;
+      windowEl.dataset.desktopTop = windowEl.style.top;
+    }
   }
 
   header.addEventListener('pointerdown', onPointerDown);
@@ -274,3 +346,16 @@ window.addEventListener('click', event => {
     toggleLauncher(false);
   }
 });
+
+const handleLayoutChange = () => {
+  applyResponsiveWindowLayout();
+};
+
+if (typeof mobileQuery.addEventListener === 'function') {
+  mobileQuery.addEventListener('change', handleLayoutChange);
+} else if (typeof mobileQuery.addListener === 'function') {
+  mobileQuery.addListener(handleLayoutChange);
+}
+
+window.addEventListener('resize', applyResponsiveWindowLayout);
+applyResponsiveWindowLayout();

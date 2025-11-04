@@ -12,6 +12,10 @@
   --border: rgba(255, 255, 255, 0.08);
   --shadow: 0 20px 45px rgba(7, 9, 28, 0.45);
   --blur: blur(18px);
+  --vh: 1vh;
+  --vw: 1vw;
+  --vv-left: 0px;
+  --vv-top: 0px;
 }
 
 * {
@@ -22,19 +26,36 @@ html,
 body {
   margin: 0;
   height: 100%;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: calc(var(--vh, 1vh) * 100);
+  min-width: 100vw;
+  min-width: 100dvw;
+  min-width: calc(var(--vw, 1vw) * 100);
+  height: calc(var(--vh, 1vh) * 100);
+  width: calc(var(--vw, 1vw) * 100);
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #050615;
+  background: var(--desktop-bg);
   color: var(--text-primary);
 }
 
 body {
   overflow: hidden;
+  overflow-x: hidden;
+  background: var(--desktop-bg);
 }
 
 .desktop {
   position: relative;
-  height: 100%;
-  width: 100%;
+  height: calc(var(--vh, 1vh) * 100);
+  width: calc(var(--vw, 1vw) * 100);
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: calc(var(--vh, 1vh) * 100);
+  min-width: 100vw;
+  min-width: 100dvw;
+  min-width: calc(var(--vw, 1vw) * 100);
   display: flex;
   flex-direction: column;
   background: var(--desktop-bg);
@@ -42,10 +63,21 @@ body {
 }
 
 .desktop-wallpaper {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(var(--vw, 1vw) * 100);
+  height: calc(var(--vh, 1vh) * 100);
+  min-width: 100vw;
+  min-width: 100dvw;
+  min-width: calc(var(--vw, 1vw) * 100);
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: calc(var(--vh, 1vh) * 100);
   background: var(--desktop-bg);
   filter: saturate(140%);
+  transform: translate3d(calc(var(--vv-left, 0px) * -1), calc(var(--vv-top, 0px) * -1), 0);
+  pointer-events: none;
   z-index: 0;
 }
 
@@ -201,7 +233,7 @@ body {
   position: absolute;
   top: 15%;
   left: 24%;
-  width: clamp(22rem, 40vw, 34rem);
+  width: min(100%, clamp(22rem, 40vw, 34rem));
   min-height: 18rem;
   border-radius: 1.25rem;
   border: 1px solid var(--border);
@@ -516,15 +548,24 @@ kbd {
 
 @media (max-width: 600px) {
   body {
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .desktop {
-    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
   }
 
   .workspace {
     padding-bottom: 6rem;
+  }
+
+  .window-layer {
+    position: static;
+    width: 100%;
+    display: grid;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
   }
 
   .taskbar {
@@ -538,6 +579,6 @@ kbd {
     left: 0;
     right: 0;
     top: auto;
-    margin-top: 1.5rem;
+    margin: 0;
   }
 }
