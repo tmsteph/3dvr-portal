@@ -20,6 +20,14 @@ function updateViewportUnits() {
     const widthUnit = viewportWidth * 0.01;
     root.style.setProperty('--vw', `${widthUnit}px`);
   }
+
+  if (viewport) {
+    root.style.setProperty('--vv-left', `${viewport.offsetLeft}px`);
+    root.style.setProperty('--vv-top', `${viewport.offsetTop}px`);
+  } else {
+    root.style.setProperty('--vv-left', '0px');
+    root.style.setProperty('--vv-top', '0px');
+  }
 }
 
 updateViewportUnits();
