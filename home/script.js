@@ -8,13 +8,14 @@ const mobileQuery = window.matchMedia('(max-width: 600px)');
 const root = document.documentElement;
 
 function updateViewportUnits() {
-  const viewportHeight = window.innerHeight;
+  const viewport = window.visualViewport;
+  const viewportHeight = viewport ? viewport.height : window.innerHeight;
   if (viewportHeight) {
     const heightUnit = viewportHeight * 0.01;
     root.style.setProperty('--vh', `${heightUnit}px`);
   }
 
-  const viewportWidth = window.innerWidth;
+  const viewportWidth = viewport ? viewport.width : window.innerWidth;
   if (viewportWidth) {
     const widthUnit = viewportWidth * 0.01;
     root.style.setProperty('--vw', `${widthUnit}px`);
@@ -26,6 +27,7 @@ window.addEventListener('resize', updateViewportUnits);
 window.addEventListener('orientationchange', updateViewportUnits);
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', updateViewportUnits);
+  window.visualViewport.addEventListener('scroll', updateViewportUnits);
 }
 
 const apps = {
