@@ -97,6 +97,11 @@ const apps = {
 let zIndex = 10;
 let activeWindowId = null;
 
+function updateWindowLayerInteractivity() {
+  const hasWindows = windowLayer.querySelector('.window') !== null;
+  windowLayer.style.pointerEvents = hasWindows ? 'auto' : 'none';
+}
+
 function isMobileLayout() {
   return mobileQuery.matches;
 }
@@ -173,6 +178,7 @@ function createWindow(appKey) {
   attachWindowEvents(windowEl);
   addToTaskbar(appKey, app);
   focusWindow(windowEl);
+  updateWindowLayerInteractivity();
   return windowEl;
 }
 
@@ -211,6 +217,7 @@ function closeWindow(appKey) {
   if (activeWindowId === appKey) {
     activeWindowId = null;
   }
+  updateWindowLayerInteractivity();
 }
 
 function addToTaskbar(appKey, app) {
@@ -359,3 +366,4 @@ if (typeof mobileQuery.addEventListener === 'function') {
 
 window.addEventListener('resize', applyResponsiveWindowLayout);
 applyResponsiveWindowLayout();
+updateWindowLayerInteractivity();
