@@ -12,7 +12,7 @@
       color: #e6edf3;
       line-height: 1.65;
       padding: 20px;
-      max-width: 900px;
+      max-width: 960px;
     }
     h1,
     h2,
@@ -26,33 +26,35 @@
       margin-bottom: 30px;
     }
     .section {
-      margin: 30px 0;
-      padding: 20px;
+      margin: 40px 0;
+      padding: 24px;
       background: #161b22;
-      border-radius: 10px;
+      border-radius: 12px;
       border: 1px solid #30363d;
     }
     .release-grid {
+      list-style: none;
+      margin: 0;
+      padding: 0;
       display: grid;
       gap: 20px;
     }
     .release-card {
-      list-style: none;
       margin: 0;
       padding: 0;
     }
-    .release-card a {
+    .release-link {
       font-size: 20px;
-      font-weight: bold;
+      font-weight: 700;
       text-decoration: none;
     }
-    .release-card__meta {
+    .release-meta {
       display: block;
       margin-top: 6px;
       color: #9ba3b4;
       font-size: 14px;
     }
-    .release-card__description {
+    .release-summary {
       margin: 12px 0 0;
     }
     .footer-note {
@@ -63,27 +65,143 @@
   </style>
 </head>
 <body>
-  <h1>🚀 3dvr Portal Releases</h1>
+  <h1>🚀 3dvr Portal Release Notes</h1>
   <p><a href="../index.html">← Back to the portal</a></p>
-  <p class="intro">
-    Track each milestone of the 3dvr Portal. New releases will be published here with detailed notes and links to
-    the live builds.
-  </p>
-
+  <div class="intro">
+    <p>
+      Follow every incremental version of the 3dvr Portal. Each weekly milestone increases the patch number
+      (v0.0.x) so contributors can match product updates with repository history and deployment checkpoints.
+    </p>
+    <p>
+      The changelog begins with the initial public milestone (v0.0.1) and documents each subsequent release as the
+      platform grows across CRM, wellness, education, and collaborative tools.
+    </p>
+  </div>
   <div class="section">
     <h2>Latest Release</h2>
-    <div class="release-grid">
-      <article class="release-card">
-        <a href="v0.0.1/">3dvr Portal v0.0.1</a>
-        <span class="release-card__meta">January 2025 · First public development release</span>
-        <p class="release-card__description">
-          Kick-off milestone featuring the live deployment, decentralized identity foundations, and the first set of
-          collaborative apps including Home, CRM, Contacts, and Breathing Room wellness flows.
-        </p>
-      </article>
-    </div>
+    <article class="release-card">
+      <a class="release-link" href="v0.0.22.html">v0.0.22</a>
+      <span class="release-meta">Week of November 3, 2025</span>
+      <p class="release-summary">
+        Release hub &amp; stability
+      </p>
+    </article>
   </div>
-
-  <p class="footer-note">© 2025 3dvr.tech – Open source for everyone.</p>
+  <div class="section">
+    <h2>Release History</h2>
+    <ul class="release-grid">
+      <li class="release-card">
+        <a class="release-link" href="v0.0.22.html">v0.0.22</a>
+        <span class="release-meta">Week of November 3, 2025</span>
+        <p class="release-summary">Release hub &amp; stability</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.21.html">v0.0.21</a>
+        <span class="release-meta">Week of October 27, 2025</span>
+        <p class="release-summary">Meetings, identity fixes, &amp; finance ledger</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.20.html">v0.0.20</a>
+        <span class="release-meta">Week of October 21, 2025</span>
+        <p class="release-summary">Ecosystem expansion</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.19.html">v0.0.19</a>
+        <span class="release-meta">Week of September 29, 2025</span>
+        <p class="release-summary">Chat identity &amp; notes overhaul</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.18.html">v0.0.18</a>
+        <span class="release-meta">Week of September 22, 2025</span>
+        <p class="release-summary">Platform overhaul</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.17.html">v0.0.17</a>
+        <span class="release-meta">Week of September 15, 2025</span>
+        <p class="release-summary">PWA &amp; navigation refresh</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.16.html">v0.0.16</a>
+        <span class="release-meta">Week of September 13, 2025</span>
+        <p class="release-summary">Contacts hub launch</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.15.html">v0.0.15</a>
+        <span class="release-meta">Week of August 11, 2025</span>
+        <p class="release-summary">Legacy tasks revival</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.14.html">v0.0.14</a>
+        <span class="release-meta">Week of August 7, 2025</span>
+        <p class="release-summary">CRM indexing &amp; homepage resilience</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.13.html">v0.0.13</a>
+        <span class="release-meta">Week of July 30, 2025</span>
+        <p class="release-summary">Share workspace discovery</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.12.html">v0.0.12</a>
+        <span class="release-meta">Week of July 22, 2025</span>
+        <p class="release-summary">Free-trial polish &amp; share page</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.11.html">v0.0.11</a>
+        <span class="release-meta">Week of July 16, 2025</span>
+        <p class="release-summary">Admin security &amp; sales suite</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.10.html">v0.0.10</a>
+        <span class="release-meta">Week of July 10, 2025</span>
+        <p class="release-summary">Personalized builder conversations</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.9.html">v0.0.9</a>
+        <span class="release-meta">Week of June 16, 2025</span>
+        <p class="release-summary">Builder upgrades &amp; history sync</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.8.html">v0.0.8</a>
+        <span class="release-meta">Week of June 10, 2025</span>
+        <p class="release-summary">Website builder debut</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.7.html">v0.0.7</a>
+        <span class="release-meta">Week of June 5, 2025</span>
+        <p class="release-summary">AI chatbot &amp; free trials</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.6.html">v0.0.6</a>
+        <span class="release-meta">Week of May 20, 2025</span>
+        <p class="release-summary">Async auth &amp; billing</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.5.html">v0.0.5</a>
+        <span class="release-meta">Week of May 15, 2025</span>
+        <p class="release-summary">Recovery flows &amp; task depth</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.4.html">v0.0.4</a>
+        <span class="release-meta">Week of May 5, 2025</span>
+        <p class="release-summary">Authentication &amp; rewards</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.3.html">v0.0.3</a>
+        <span class="release-meta">Week of April 28, 2025</span>
+        <p class="release-summary">Portal styling sprint</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.2.html">v0.0.2</a>
+        <span class="release-meta">Week of April 26, 2025</span>
+        <p class="release-summary">Portal foundations land</p>
+      </li>
+      <li class="release-card">
+        <a class="release-link" href="v0.0.1.html">v0.0.1</a>
+        <span class="release-meta">Initial Milestone · April 2025</span>
+        <p class="release-summary">First public development build of the 3dvr Portal ecosystem.</p>
+      </li>
+    </ul>
+  </div>
+  <p class="footer-note">Looking for something older? Browse the git history for snapshots before v0.0.1.</p>
 </body>
 </html>
