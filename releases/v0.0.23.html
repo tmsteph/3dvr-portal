@@ -81,32 +81,88 @@
   </nav>
   <h1>🚀 Release v0.0.23</h1>
   <div class="tag">Week of November 10, 2025</div>
-  <p class="release-summary">Desktop home experience and a new Tribes-inspired game</p>
+  <p class="release-summary">
+    Desktop home experience plus a Tribes-inspired Zero-G Ski Range with mobile-ready controls
+  </p>
 
   <div class="section">
     <h2>Overview</h2>
     <p>
-      We shipped the first iteration of the desktop-style home hub and launched a fast-paced, Tribes-inspired flight
-      experience that now anchors our focus on tighter controls, clearer objectives, and refined solo play.
+      This milestone captures a full circuit of work across the new desktop-style home hub and the Tribes-inspired
+      Zero-G Ski Range. The team focused on refining the solo experience&mdash;not multiplayer&mdash;by tightening inputs,
+      enhancing readability, and ensuring every surface is reachable from laptops, tablets, and VR headsets.
     </p>
   </div>
 
   <div class="section">
-    <h2>Highlights</h2>
+    <h2>Desktop Home Workspace</h2>
     <ul>
-      <li>Delivered the <a href="../home/index.html">desktop home workspace</a> with quick launches for daily tools.</li>
-      <li>Introduced the <a href="../tribes-flight.html">Tribes Flight prototype</a> for high-mobility combat practice.</li>
-      <li>Linked new experiences from the <a href="../index.html">main portal</a> so teams can find them instantly.</li>
+      <li>
+        Launched the <a href="../home/index.html">Portal OS desktop</a> with status bar quick links, a live clock, and a
+        launcher that routes directly to calendar, tasks, chat, and the broader <a href="../index.html">portal</a>.
+      </li>
+      <li>
+        Added keyboard-friendly navigation, ARIA roles, and window layers to prepare for future GunDB-backed layouts and
+        persistence.
+      </li>
+      <li>
+        Wired the <a href="../home/script.js">scripted workspace</a> so shortcuts, launcher pins, and system buttons open
+        their targets consistently across desktop and headset browsers.
+      </li>
     </ul>
   </div>
 
   <div class="section">
-    <h2>Behind the Scenes</h2>
-    <p>
-      The home workspace brings desktop metaphors into VR while remaining GunDB-first for persistent layouts. The Tribes
-      Flight prototype doubles as a testbed for low-latency controls, readable HUD cues, and balance tweaks as we iterate on
-      the core experience without chasing multiplayer complexity.
-    </p>
+    <h2>Zero-G Ski Range (Tribes Flight Prototype)</h2>
+    <ul>
+      <li>
+        Debuted the <a href="../tribes-flight.html">arena</a> with energy bars, weapon switching, target integrity readouts,
+        and slope physics that reward chaining skis with jetpack bursts.
+      </li>
+      <li>
+        Implemented adaptive canvas sizing, orientation handling, and safe-area aware HUD panels for phones and tablets.
+      </li>
+      <li>
+        Introduced touch-first controls that detect coarse pointers, expose jetpack, brake, and fire clusters, and smooth out
+        pointer capture fallbacks when the browser blocks locking.
+      </li>
+      <li>
+        Tuned weapon spread, projectile drag, and target regeneration delays to keep the single-player loop responsive while
+        we iterate on balance before layering in any cooperative modes.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Portal &amp; Access</h2>
+    <ul>
+      <li>
+        Highlighted the new experience across the <a href="../games.html">Game Hub</a> and portal navigation so testers can
+        jump straight into the prototype.
+      </li>
+      <li>
+        Ensured cross-links from the desktop home to legacy pages (Start, Portal classic) so contributors can compare the new
+        workspace against existing flows.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Iteration Notes</h2>
+    <ul>
+      <li>
+        <strong>de34d44</strong>: Initialised the Zero-G Ski Range with the first pass of physics, HUD widgets, and portal
+        discovery links.
+      </li>
+      <li>
+        <strong>be053e4</strong>: Reworked layout scaling, safe area padding, and coarse pointer detection to make the arena
+        comfortable on phones and tablets.
+      </li>
+      <li>
+        <strong>5b2138d</strong>: Polished touch responsiveness, pointer capture fallbacks, and action clustering so taps
+        translate into predictable momentum changes.
+      </li>
+    </ul>
   </div>
 
   <div class="section">
