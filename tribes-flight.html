@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR - Jetpack Ski Prototype</title>
+  <link rel="stylesheet" href="styles/global.css">
+  <style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 1rem 4rem;
+    background: radial-gradient(circle at 20% -10%, #182848 0%, #090a0f 60%, #040508 100%);
+    color: #e8f1ff;
+  }
+
+  .top-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+    margin: 1.25rem auto;
+    width: min(960px, 100%);
+  }
+
+  .top-buttons a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: inherit;
+    text-decoration: none;
+    background: rgba(15, 23, 42, 0.65);
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .top-buttons a:hover,
+  .top-buttons a:focus-visible {
+    border-color: rgba(148, 163, 184, 0.6);
+    background: rgba(30, 41, 59, 0.8);
+    outline: none;
+  }
+
+  main {
+    width: min(960px, 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.25rem;
+  }
+
+  h1 {
+    margin: 0;
+    text-align: center;
+    font-size: clamp(2rem, 3.4vw, 3rem);
+  }
+
+  p.description {
+    margin: 0;
+    max-width: 720px;
+    color: rgba(226, 232, 240, 0.82);
+  }
+
+  canvas {
+    width: 100%;
+    max-width: 960px;
+    aspect-ratio: 16 / 9;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    background: rgba(9, 11, 19, 0.75);
+    box-shadow: 0 32px 80px rgba(8, 15, 30, 0.55);
+    touch-action: none;
+    user-select: none;
+  }
+
+  .hud {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    width: min(960px, 100%);
+    background: rgba(9, 14, 30, 0.7);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    border-radius: 16px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 20px 60px rgba(4, 10, 24, 0.65);
+  }
+
+  .hud section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    text-align: left;
+  }
+
+  .bar {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.25);
+    overflow: hidden;
+  }
+
+  .bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    transition: width 0.2s ease;
+  }
+
+  ul.controls {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+
+  ul.controls li {
+    margin-bottom: 0.2rem;
+  }
+
+  .stat {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .touch-controls {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 1.1rem);
+    transform: translateX(-50%);
+    display: flex;
+    flex-wrap: wrap;
+    width: min(520px, 96vw);
+    padding: 0.65rem 0.85rem;
+    background: rgba(15, 23, 42, 0.85);
+    border-radius: 999px;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    box-shadow: 0 24px 60px rgba(8, 15, 30, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+
+  .touch-controls.is-hidden {
+    display: none;
+  }
+
+  .touch-controls .control-cluster {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .touch-controls .control-cluster.primary-cluster {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+
+  .touch-controls button {
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(51, 65, 85, 0.65);
+    color: #f8fafc;
+    border-radius: 999px;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-width: 54px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .touch-controls button.primary {
+    background: linear-gradient(135deg, #60a5fa, #22d3ee);
+    border-color: rgba(34, 211, 238, 0.9);
+    color: #020617;
+  }
+
+  .touch-controls button.active {
+    border-color: rgba(148, 163, 184, 0.75);
+    background: rgba(96, 165, 250, 0.35);
+  }
+
+  .touch-controls button:active {
+    transform: scale(0.96);
+  }
+
+  @media (max-width: 960px) {
+    body {
+      padding: 0 0.75rem 5rem;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .hud {
+      grid-template-columns: 1fr;
+    }
+
+    ul.controls {
+      padding-left: 1rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .stat {
+      font-size: 1rem;
+    }
+
+    .hud {
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .touch-controls {
+      padding: 0.6rem 0.75rem;
+    }
+
+    .touch-controls .control-cluster {
+      flex: 1 1 100%;
+      justify-content: center;
+    }
+  }
+  </style>
+</head>
+<body class="theme-dark">
+  <div class="top-buttons">
+    <a href="index.html">🏠 Portal</a>
+    <a href="games.html">🎮 Game Hub</a>
+    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
+  </div>
+  <main>
+    <h1>Zero-G Ski Range</h1>
+    <p class="description">Chain skiing, sustained jetpack lines, and hybrid weapons converge in this first physics prototype inspired by Tribes: Aerial Assault. Use the arena to dial-in timing between slope acceleration, vertical thrust, and the iconic spinfusor + chaingun combo.</p>
+    <canvas id="game" width="960" height="540" role="img" aria-label="Jetpack skiing playground"></canvas>
+    <div class="hud">
+      <section>
+        <span class="stat">Energy <span id="energy-value">100</span>%</span>
+        <div class="bar" aria-hidden="true">
+          <span id="energy-bar" style="background: linear-gradient(90deg, #22d3ee, #60a5fa); width: 100%;"></span>
+        </div>
+        <span class="stat">Velocity <span id="velocity-value">0</span> m/s</span>
+      </section>
+      <section>
+        <span class="stat">Weapon: <span id="weapon-name">Spinfusor</span></span>
+        <span>Hits Landed: <span id="hit-count">0</span></span>
+        <span>Target Integrity: <span id="target-health">100</span>%</span>
+      </section>
+      <section>
+        <span class="stat">Controls</span>
+        <ul class="controls">
+          <li><strong>A / D</strong> lean into the slope</li>
+          <li><strong>Shift</strong> hold to engage jetpack</li>
+          <li><strong>1</strong> Spinfusor (energy disk)</li>
+          <li><strong>2</strong> Chaingun (ballistic)</li>
+          <li><strong>Left click</strong> fire | <strong>Right click</strong> air-brake</li>
+          <li><strong>Drag</strong> on the arena to aim</li>
+          <li><strong>Touch</strong> use the on-screen controls</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+  <div class="touch-controls is-hidden" role="group" aria-label="Touch controls">
+    <div class="control-cluster">
+      <button type="button" class="control-btn" data-action="left" aria-label="Lean left">◀</button>
+      <button type="button" class="control-btn" data-action="right" aria-label="Lean right">▶</button>
+    </div>
+    <div class="control-cluster">
+      <button type="button" class="control-btn" data-action="jetpack" aria-label="Engage jetpack">Jetpack</button>
+      <button type="button" class="control-btn" data-action="brake" aria-label="Air brake">Brake</button>
+    </div>
+    <div class="control-cluster primary-cluster">
+      <button type="button" class="control-btn primary" data-action="fire" aria-label="Fire current weapon">Fire</button>
+    </div>
+  </div>
+  <script>
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const energyBar = document.getElementById('energy-bar');
+  const energyValue = document.getElementById('energy-value');
+  const velocityValue = document.getElementById('velocity-value');
+  const weaponName = document.getElementById('weapon-name');
+  const hitCountEl = document.getElementById('hit-count');
+  const targetHealthEl = document.getElementById('target-health');
+
+  const touchControls = document.querySelector('.touch-controls');
+  const controlButtons = touchControls ? touchControls.querySelectorAll('button') : [];
+  const coarsePointerQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(pointer: coarse)')
+    : null;
+
+  const ASPECT_RATIO = 16 / 9;
+  const gravity = 0.45;
+  const jetpackForce = 0.9;
+  const jetpackDrain = 0.7;
+  const groundThrust = 0.25;
+  const airControl = 0.12;
+  const groundFriction = 0.993;
+  const rechargeGround = 0.9;
+  const rechargeAir = 0.25;
+
+  const input = {
+    left: false,
+    right: false,
+    jetpack: false,
+    fire: false,
+    brake: false,
+    mouseX: canvas.width / 2,
+    mouseY: canvas.height / 2
+  };
+
+  const player = {
+    x: 180,
+    y: groundHeight(180) - 30,
+    vx: 0,
+    vy: 0,
+    radius: 16,
+    energy: 100,
+    maxEnergy: 100,
+    onGround: false,
+    weaponIndex: 0,
+    fireCooldown: 0
+  };
+
+  const weapons = [
+    {
+      name: 'Spinfusor',
+      fireRate: 28,
+      muzzleSpeed: 9,
+      energyCost: 12,
+      spread: 0,
+      color: '#60a5fa',
+      radius: 9,
+      drag: 0.996,
+      gravityScale: 0.12,
+      impactDamage: 40
+    },
+    {
+      name: 'Chaingun',
+      fireRate: 6,
+      muzzleSpeed: 16,
+      energyCost: 0,
+      spread: 0.1,
+      color: '#facc15',
+      radius: 4,
+      drag: 0.995,
+      gravityScale: 0.02,
+      impactDamage: 6
+    }
+  ];
+
+  const projectiles = [];
+
+  const target = {
+    x: 0,
+    y: 0,
+    width: 40,
+    height: 90,
+    health: 100,
+    regenDelay: 0,
+    sway: 0,
+    baseRatio: 0.72
+  };
+
+  let hitsLanded = 0;
+
+  function groundHeight(x) {
+    const wave1 = Math.sin((x + 80) * 0.008) * 60;
+    const wave2 = Math.sin((x - 240) * 0.017) * 28;
+    return canvas.height - 110 + wave1 + wave2;
+  }
+
+  function groundSlope(x) {
+    const wave1 = Math.cos((x + 80) * 0.008) * 0.008 * 60;
+    const wave2 = Math.cos((x - 240) * 0.017) * 0.017 * 28;
+    return wave1 + wave2;
+  }
+
+  function resizeCanvas() {
+    const prevWidth = canvas.width || 1;
+    const prevHeight = canvas.height || 1;
+    const viewportWidth = window.innerWidth || 960;
+    const desiredWidth = Math.min(960, Math.max(280, viewportWidth - 24));
+    const width = Math.round(desiredWidth);
+    const height = Math.round(width / ASPECT_RATIO);
+
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = width;
+    canvas.height = height;
+
+    const widthRatio = width / prevWidth;
+    const heightRatio = height / prevHeight;
+    input.mouseX = Math.min(canvas.width - 10, Math.max(10, input.mouseX * widthRatio));
+    input.mouseY = Math.min(canvas.height - 10, Math.max(10, input.mouseY * heightRatio));
+
+    player.x *= widthRatio;
+    player.x = Math.min(canvas.width - player.radius - 4, Math.max(player.radius + 4, player.x));
+    player.y *= heightRatio;
+    const groundY = groundHeight(player.x);
+    if (player.y > groundY - player.radius) {
+      player.y = groundY - player.radius;
+    } else if (player.y < player.radius) {
+      player.y = player.radius;
+    }
+
+    const baseX = canvas.width * target.baseRatio;
+    const margin = 60;
+    target.x = Math.min(canvas.width - target.width - margin, Math.max(margin, baseX));
+    target.y = groundHeight(target.x) - target.height;
+  }
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  if (touchControls) {
+    const updateTouchControlsVisibility = () => {
+      const touchPoints = typeof navigator !== 'undefined' && 'maxTouchPoints' in navigator
+        ? navigator.maxTouchPoints
+        : 0;
+      const hasCoarsePointer = coarsePointerQuery ? coarsePointerQuery.matches : false;
+      const showControls = hasCoarsePointer || touchPoints > 0;
+      touchControls.classList.toggle('is-hidden', !showControls);
+    };
+
+    const handlePointerPreferenceChange = () => updateTouchControlsVisibility();
+
+    updateTouchControlsVisibility();
+    window.addEventListener('resize', updateTouchControlsVisibility);
+    window.addEventListener('orientationchange', updateTouchControlsVisibility);
+
+    if (coarsePointerQuery) {
+      if (typeof coarsePointerQuery.addEventListener === 'function') {
+        coarsePointerQuery.addEventListener('change', handlePointerPreferenceChange);
+      } else if (typeof coarsePointerQuery.addListener === 'function') {
+        coarsePointerQuery.addListener(handlePointerPreferenceChange);
+      }
+    }
+  }
+
+  function setInputState(action, active) {
+    switch (action) {
+      case 'left':
+        input.left = active;
+        break;
+      case 'right':
+        input.right = active;
+        break;
+      case 'jetpack':
+        input.jetpack = active;
+        break;
+      case 'brake':
+        input.brake = active;
+        break;
+      case 'fire':
+        input.fire = active;
+        break;
+      default:
+        break;
+    }
+  }
+
+  function handleInputDown(event) {
+    if (event.repeat) {
+      return;
+    }
+    if (event.code === 'KeyA') {
+      input.left = true;
+    }
+    if (event.code === 'KeyD') {
+      input.right = true;
+    }
+    if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+      input.jetpack = true;
+    }
+    if (event.code === 'Digit1') {
+      player.weaponIndex = 0;
+      weaponName.textContent = weapons[0].name;
+    }
+    if (event.code === 'Digit2') {
+      player.weaponIndex = 1;
+      weaponName.textContent = weapons[1].name;
+    }
+  }
+
+  function handleInputUp(event) {
+    if (event.code === 'KeyA') {
+      input.left = false;
+    }
+    if (event.code === 'KeyD') {
+      input.right = false;
+    }
+    if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+      input.jetpack = false;
+    }
+  }
+
+  function handlePointerDown(event) {
+    const isTouch = event.pointerType === 'touch';
+    if (isTouch) {
+      event.preventDefault();
+    }
+    if (!isTouch && event.button === 0) {
+      input.fire = true;
+    }
+    if (!isTouch && event.button === 2) {
+      input.brake = true;
+    }
+    updatePointerPosition(event);
+    if (!isTouch && typeof canvas.setPointerCapture === 'function' && event.pointerId != null) {
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch (error) {
+        /* Capture may fail on unsupported platforms. */
+      }
+    }
+  }
+
+  function handlePointerUp(event) {
+    const isTouch = event.pointerType === 'touch';
+    if (!isTouch && event.button === 0) {
+      input.fire = false;
+    }
+    if (!isTouch && event.button === 2) {
+      input.brake = false;
+    }
+    if (!isTouch && typeof canvas.releasePointerCapture === 'function' && event.pointerId != null) {
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch (error) {
+        /* Ignore release failures. */
+      }
+    }
+  }
+
+  function handlePointerLeave() {
+    resetPointerInputs();
+  }
+
+  function updatePointerPosition(event) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    input.mouseX = (event.clientX - rect.left) * scaleX;
+    input.mouseY = (event.clientY - rect.top) * scaleY;
+  }
+
+  function resetPointerInputs() {
+    input.fire = false;
+    input.brake = false;
+  }
+
+  function resetAllInputs() {
+    input.left = false;
+    input.right = false;
+    input.jetpack = false;
+    resetPointerInputs();
+  }
+
+  document.addEventListener('keydown', handleInputDown);
+  document.addEventListener('keyup', handleInputUp);
+  window.addEventListener('blur', resetAllInputs);
+  canvas.addEventListener('pointerdown', handlePointerDown);
+  canvas.addEventListener('pointerup', handlePointerUp);
+  canvas.addEventListener('pointercancel', handlePointerUp);
+  canvas.addEventListener('pointerleave', handlePointerLeave);
+  canvas.addEventListener('pointermove', updatePointerPosition);
+  canvas.addEventListener('contextmenu', event => event.preventDefault());
+
+  if (controlButtons.length) {
+    controlButtons.forEach(button => {
+      const action = button.dataset.action;
+      if (!action) {
+        return;
+      }
+      const handleButtonDown = event => {
+        if (event.pointerType === 'touch') {
+          event.preventDefault();
+        }
+        button.classList.add('active');
+        setInputState(action, true);
+      };
+      const handleButtonUp = event => {
+        if (event.pointerType === 'touch') {
+          event.preventDefault();
+        }
+        button.classList.remove('active');
+        setInputState(action, false);
+      };
+      button.addEventListener('pointerdown', handleButtonDown);
+      button.addEventListener('pointerup', handleButtonUp);
+      button.addEventListener('pointerleave', handleButtonUp);
+      button.addEventListener('pointercancel', handleButtonUp);
+      button.addEventListener('contextmenu', event => event.preventDefault());
+    });
+  }
+
+  function updatePlayer() {
+    player.vx += (input.right ? airControl : 0) - (input.left ? airControl : 0);
+    player.vy += gravity;
+
+    const groundY = groundHeight(player.x);
+    if (player.y >= groundY - player.radius) {
+      player.y = groundY - player.radius;
+      player.onGround = true;
+      player.vy = Math.min(player.vy, 0);
+      const slope = groundSlope(player.x);
+      player.vx += -slope * gravity * 0.75;
+      player.vx += (input.right ? groundThrust : 0) - (input.left ? groundThrust : 0);
+      if (input.brake) {
+        player.vx *= 0.9;
+      } else {
+        player.vx *= groundFriction;
+      }
+      player.energy = Math.min(player.maxEnergy, player.energy + rechargeGround);
+    } else {
+      player.onGround = false;
+      if (input.jetpack && player.energy > 0) {
+        player.vy -= jetpackForce;
+        player.energy = Math.max(0, player.energy - jetpackDrain);
+      } else {
+        player.energy = Math.min(player.maxEnergy, player.energy + rechargeAir);
+      }
+      if (input.brake && player.vy > 0) {
+        player.vy *= 0.92;
+      }
+    }
+
+    player.x += player.vx;
+    player.y += player.vy;
+
+    if (player.x < 20) {
+      player.x = 20;
+      player.vx *= -0.2;
+    }
+    if (player.x > canvas.width - 20) {
+      player.x = canvas.width - 20;
+      player.vx *= -0.2;
+    }
+
+    energyBar.style.width = `${(player.energy / player.maxEnergy) * 100}%`;
+    energyValue.textContent = Math.round(player.energy);
+    velocityValue.textContent = Math.abs(player.vx).toFixed(1);
+  }
+
+  function fireWeapon() {
+    const weapon = weapons[player.weaponIndex];
+    if (player.fireCooldown > 0) {
+      player.fireCooldown -= 1;
+      return;
+    }
+    if (!input.fire) {
+      return;
+    }
+    if (player.energy < weapon.energyCost) {
+      return;
+    }
+
+    const angle = Math.atan2(input.mouseY - player.y, input.mouseX - player.x) + ((Math.random() - 0.5) * weapon.spread);
+    const projectile = {
+      x: player.x + Math.cos(angle) * (player.radius + 4),
+      y: player.y + Math.sin(angle) * (player.radius + 4),
+      vx: Math.cos(angle) * weapon.muzzleSpeed + player.vx * 0.35,
+      vy: Math.sin(angle) * weapon.muzzleSpeed + player.vy * 0.35,
+      radius: weapon.radius,
+      color: weapon.color,
+      drag: weapon.drag,
+      gravityScale: weapon.gravityScale,
+      damage: weapon.impactDamage,
+      alive: true
+    };
+    projectiles.push(projectile);
+    player.fireCooldown = weapon.fireRate;
+    player.energy = Math.max(0, player.energy - weapon.energyCost);
+  }
+
+  function updateProjectiles() {
+    for (const projectile of projectiles) {
+      if (!projectile.alive) {
+        continue;
+      }
+      projectile.vx *= projectile.drag;
+      projectile.vy = projectile.vy * projectile.drag + gravity * projectile.gravityScale;
+      projectile.x += projectile.vx;
+      projectile.y += projectile.vy;
+
+      const groundY = groundHeight(projectile.x);
+      if (projectile.y + projectile.radius >= groundY) {
+        projectile.alive = false;
+        continue;
+      }
+
+      if (
+        projectile.x + projectile.radius > target.x &&
+        projectile.x - projectile.radius < target.x + target.width &&
+        projectile.y + projectile.radius > target.y &&
+        projectile.y - projectile.radius < target.y + target.height
+      ) {
+        projectile.alive = false;
+        hitsLanded += 1;
+        target.health = Math.max(0, target.health - projectile.damage);
+        target.regenDelay = 220;
+        hitCountEl.textContent = hitsLanded;
+        targetHealthEl.textContent = Math.round(target.health);
+      }
+
+      if (
+        projectile.x < -60 ||
+        projectile.x > canvas.width + 60 ||
+        projectile.y < -100 ||
+        projectile.y > canvas.height + 100
+      ) {
+        projectile.alive = false;
+      }
+    }
+  }
+
+  function updateTarget() {
+    target.sway += 0.015;
+    const baseX = canvas.width * target.baseRatio;
+    const swayOffset = Math.sin(target.sway) * 12;
+    const desiredX = baseX + swayOffset;
+    const margin = 60;
+    target.x = Math.min(canvas.width - target.width - margin, Math.max(margin, desiredX));
+    target.y = groundHeight(target.x) - target.height;
+    if (target.regenDelay > 0) {
+      target.regenDelay -= 1;
+    } else {
+      target.health = Math.min(100, target.health + 0.05);
+      targetHealthEl.textContent = target.health.toFixed(0);
+    }
+  }
+
+  function cleanupProjectiles() {
+    for (let i = projectiles.length - 1; i >= 0; i -= 1) {
+      if (!projectiles[i].alive) {
+        projectiles.splice(i, 1);
+      }
+    }
+  }
+
+  function drawTerrain() {
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    for (let x = 0; x <= canvas.width; x += 4) {
+      ctx.lineTo(x, groundHeight(x));
+    }
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.closePath();
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, 'rgba(56, 189, 248, 0.08)');
+    gradient.addColorStop(0.7, 'rgba(15, 23, 42, 0.85)');
+    gradient.addColorStop(1, 'rgba(2, 6, 23, 0.95)');
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(94, 234, 212, 0.3)';
+    ctx.stroke();
+  }
+
+  function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(125, 211, 252, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    if (!player.onGround && input.jetpack && player.energy > 0) {
+      ctx.beginPath();
+      ctx.moveTo(-6, player.radius - 2);
+      ctx.lineTo(-12, player.radius + 24 + Math.random() * 6);
+      ctx.moveTo(6, player.radius - 2);
+      ctx.lineTo(12, player.radius + 24 + Math.random() * 6);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawProjectiles() {
+    for (const projectile of projectiles) {
+      if (!projectile.alive) {
+        continue;
+      }
+      ctx.beginPath();
+      ctx.fillStyle = projectile.color;
+      ctx.globalAlpha = 0.92;
+      ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawTarget() {
+    ctx.save();
+    ctx.fillStyle = 'rgba(244, 114, 182, 0.7)';
+    ctx.strokeStyle = 'rgba(236, 72, 153, 0.9)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    const r = 12;
+    ctx.moveTo(target.x + r, target.y);
+    ctx.lineTo(target.x + target.width - r, target.y);
+    ctx.quadraticCurveTo(target.x + target.width, target.y, target.x + target.width, target.y + r);
+    ctx.lineTo(target.x + target.width, target.y + target.height - r);
+    ctx.quadraticCurveTo(target.x + target.width, target.y + target.height, target.x + target.width - r, target.y + target.height);
+    ctx.lineTo(target.x + r, target.y + target.height);
+    ctx.quadraticCurveTo(target.x, target.y + target.height, target.x, target.y + target.height - r);
+    ctx.lineTo(target.x, target.y + r);
+    ctx.quadraticCurveTo(target.x, target.y, target.x + r, target.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    const healthRatio = target.health / 100;
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.6)';
+    ctx.fillRect(target.x + 6, target.y + target.height + 10, (target.width - 12) * healthRatio, 6);
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+    ctx.strokeRect(target.x + 6, target.y + target.height + 10, target.width - 12, 6);
+    ctx.restore();
+  }
+
+  function drawCrosshair() {
+    ctx.save();
+    ctx.translate(input.mouseX, input.mouseY);
+    ctx.strokeStyle = 'rgba(248, 250, 252, 0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.moveTo(-16, 0);
+    ctx.lineTo(-4, 0);
+    ctx.moveTo(4, 0);
+    ctx.lineTo(16, 0);
+    ctx.moveTo(0, -16);
+    ctx.lineTo(0, -4);
+    ctx.moveTo(0, 4);
+    ctx.lineTo(0, 16);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSky() {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#111827');
+    gradient.addColorStop(1, '#0b1120');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.3)';
+    for (let i = 0; i < 6; i += 1) {
+      const x = (i * 160 + performance.now() * 0.01) % (canvas.width + 200) - 100;
+      ctx.beginPath();
+      ctx.ellipse(x, 140 + Math.sin(x * 0.02) * 24, 120, 28, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawUIOverlay() {
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.25)';
+    ctx.fillRect(24, 24, 220, 70);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '16px "Poppins", sans-serif';
+    ctx.fillText(`Altitude: ${Math.max(0, Math.round(groundHeight(player.x) - player.y))} m`, 36, 48);
+    ctx.fillText(`Speed: ${Math.abs(player.vx).toFixed(1)} m/s`, 36, 70);
+  }
+
+  function loop() {
+    drawSky();
+    drawTerrain();
+    updatePlayer();
+    fireWeapon();
+    updateProjectiles();
+    updateTarget();
+    cleanupProjectiles();
+    drawProjectiles();
+    drawTarget();
+    drawPlayer();
+    drawCrosshair();
+    drawUIOverlay();
+    requestAnimationFrame(loop);
+  }
+
+  weaponName.textContent = weapons[player.weaponIndex].name;
+  loop();
+  </script>
+</body>
+</html>
