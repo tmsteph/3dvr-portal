@@ -50,10 +50,35 @@
     .back-link:hover {
       text-decoration: underline;
     }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
 </style>
 </head>
 <body>
   <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.5.html">← Previous release</a>
+    <a class="release-nav-link" href="v0.0.7.html">Next release →</a>
+  </nav>
   <h1>🚀 Release v0.0.6</h1>
   <div class="tag">Week of May 20, 2025</div>
   <p class="release-summary">Async auth &amp; billing</p>
