@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.23 (Week of November 10, 2025)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.22.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>🚀 Release v0.0.23</h1>
+  <div class="tag">Week of November 10, 2025</div>
+  <p class="release-summary">
+    Portal OS desktop workspace, dedicated release hub, and a Tribes-inspired Zero-G Ski Range tune-up
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      This milestone introduces the Portal OS desktop as the new jumping-off point for contributors and launches a
+      dedicated release hub so every build has a permanent changelog home. Gameplay work stayed intentionally scoped to
+      solo polish while we concentrate on the foundational workspace, contacts, CRM, and finance flows.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Desktop Home Workspace</h2>
+    <ul>
+      <li>
+        Launched the <a href="../home/index.html">Portal OS desktop</a> with status bar quick links, a live clock, and a
+        launcher that routes directly to calendar, tasks, chat, and the broader <a href="../index.html">portal</a>.
+      </li>
+      <li>
+        Added keyboard-friendly navigation, ARIA roles, and layered window chrome so multiple apps can sit side-by-side
+        with future GunDB-backed state persistence.
+      </li>
+      <li>
+        Wired the <a href="../home/script.js">scripted workspace</a> so shortcuts, launcher pins, and system buttons open
+        their targets consistently across desktop, tablet, and headset browsers.
+      </li>
+      <li>
+        Surfaced quick links into contacts, CRM, and finance views directly from the dock to speed up the workflows we
+        plan to deepen next.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Release Hub &amp; Timeline</h2>
+    <ul>
+      <li>
+        Launched the <a href="index.html">release section</a> as a central directory so every weekly milestone from
+        v0.0.1 onward has a consistent layout, metadata, and navigation.
+      </li>
+      <li>
+        Linked each release with previous/next controls, enabling quick comparisons between v0.0.22 stability work and
+        the new desktop-centric v0.0.23 milestone.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Zero-G Ski Range (Tribes Flight Prototype)</h2>
+    <ul>
+      <li>
+        Debuted the <a href="../tribes-flight.html">arena</a> with energy bars, weapon switching, target integrity readouts,
+        and slope physics that reward chaining skis with jetpack bursts.
+      </li>
+      <li>
+        Implemented adaptive canvas sizing, orientation handling, and safe-area aware HUD panels for phones and tablets.
+      </li>
+      <li>
+        Tuned weapon spread, projectile drag, and target regeneration delays to keep the single-player loop responsive
+        while we iterate on balance before layering in any cooperative modes.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Portal &amp; Access</h2>
+    <ul>
+      <li>
+        Highlighted the new experience across the <a href="../games.html">Game Hub</a> and portal navigation so testers can
+        jump straight into the prototype from the desktop launcher.
+      </li>
+      <li>
+        Ensured cross-links from the desktop home to legacy pages (Start, Portal classic) so contributors can compare the new
+        workspace against existing flows.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Iteration Notes</h2>
+    <ul>
+      <li>
+        <strong>de34d44</strong>: Initialised the Zero-G Ski Range with the first pass of physics, HUD widgets, and portal
+        discovery links.
+      </li>
+      <li>
+        <strong>be053e4</strong>: Reworked layout scaling, safe area padding, and coarse pointer detection to make the arena
+        comfortable on phones and tablets.
+      </li>
+      <li>
+        <strong>5b2138d</strong>: Polished touch responsiveness, pointer capture fallbacks, and action clustering so taps
+        translate into predictable momentum changes.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Known Issues</h2>
+    <ul>
+      <li>Contacts (<a href="../contacts/index.html">contacts/index.html</a>) does not yet support editing existing entries.</li>
+      <li>The CRM (<a href="../crm/index.html">crm/index.html</a>) mirrors the same limitation and requires a future patch.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Looking Ahead</h2>
+    <ul>
+      <li>Continue refining the home workspace layout for tablet and headset users, layering in more productivity widgets.</li>
+      <li>Add editable detail panes to contacts and CRM records so teams can update client information in place.</li>
+      <li>Expand finance tracking to make revenue, expenses, and invoices easier to monitor.</li>
+      <li>Polish the Tribes Flight gameplay loop with smoother handling, clearer goals, and richer solo challenges.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2025 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
