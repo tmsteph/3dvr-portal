@@ -13,38 +13,79 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
+    padding: 0 1rem 4rem;
     background: radial-gradient(circle at 20% -10%, #182848 0%, #090a0f 60%, #040508 100%);
     color: #e8f1ff;
   }
 
+  .top-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+    margin: 1.25rem auto;
+    width: min(960px, 100%);
+  }
+
+  .top-buttons a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: inherit;
+    text-decoration: none;
+    background: rgba(15, 23, 42, 0.65);
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .top-buttons a:hover,
+  .top-buttons a:focus-visible {
+    border-color: rgba(148, 163, 184, 0.6);
+    background: rgba(30, 41, 59, 0.8);
+    outline: none;
+  }
+
+  main {
+    width: min(960px, 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.25rem;
+  }
+
   h1 {
-    margin: 0 0 0.5rem;
+    margin: 0;
     text-align: center;
     font-size: clamp(2rem, 3.4vw, 3rem);
   }
 
   p.description {
-    margin: 0 0 1.5rem;
+    margin: 0;
     max-width: 720px;
-    text-align: center;
-    color: rgba(226, 232, 240, 0.8);
+    color: rgba(226, 232, 240, 0.82);
   }
 
   canvas {
-    width: min(960px, 90vw);
-    height: auto;
+    width: 100%;
+    max-width: 960px;
+    aspect-ratio: 16 / 9;
     border-radius: 18px;
     border: 1px solid rgba(148, 163, 184, 0.32);
     background: rgba(9, 11, 19, 0.75);
     box-shadow: 0 32px 80px rgba(8, 15, 30, 0.55);
+    touch-action: none;
+    user-select: none;
   }
 
   .hud {
-    margin-top: 1rem;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
-    width: min(960px, 90vw);
+    width: min(960px, 100%);
     background: rgba(9, 14, 30, 0.7);
     border: 1px solid rgba(99, 102, 241, 0.4);
     border-radius: 16px;
@@ -56,6 +97,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+    text-align: left;
   }
 
   .bar {
@@ -84,6 +126,92 @@
   .stat {
     font-size: 1.1rem;
     font-weight: 600;
+  }
+
+  .touch-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%);
+    display: none;
+    width: min(520px, 92vw);
+    padding: 0.65rem 0.75rem;
+    background: rgba(15, 23, 42, 0.85);
+    border-radius: 999px;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    box-shadow: 0 24px 60px rgba(8, 15, 30, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+  }
+
+  .touch-controls .control-cluster {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .touch-controls button {
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(51, 65, 85, 0.65);
+    color: #f8fafc;
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-width: 60px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .touch-controls button.primary {
+    background: linear-gradient(135deg, #60a5fa, #22d3ee);
+    border-color: rgba(34, 211, 238, 0.9);
+    color: #020617;
+  }
+
+  .touch-controls button.active {
+    border-color: rgba(148, 163, 184, 0.75);
+    background: rgba(96, 165, 250, 0.35);
+  }
+
+  .touch-controls button:active {
+    transform: scale(0.96);
+  }
+
+  @media (max-width: 960px) {
+    body {
+      padding: 0 0.75rem 5rem;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .hud {
+      grid-template-columns: 1fr;
+    }
+
+    ul.controls {
+      padding-left: 1rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .touch-controls {
+      display: flex;
+    }
+
+    .stat {
+      font-size: 1rem;
+    }
+
+    .hud {
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+    }
   }
   </style>
 </head>
@@ -119,10 +247,25 @@
           <li><strong>1</strong> Spinfusor (energy disk)</li>
           <li><strong>2</strong> Chaingun (ballistic)</li>
           <li><strong>Left click</strong> fire | <strong>Right click</strong> air-brake</li>
+          <li><strong>Drag</strong> on the arena to aim</li>
+          <li><strong>Touch</strong> use the on-screen controls</li>
         </ul>
       </section>
     </div>
   </main>
+  <div class="touch-controls" role="group" aria-label="Touch controls">
+    <div class="control-cluster">
+      <button type="button" class="control-btn" data-action="left" aria-label="Lean left">◀</button>
+      <button type="button" class="control-btn" data-action="right" aria-label="Lean right">▶</button>
+    </div>
+    <div class="control-cluster">
+      <button type="button" class="control-btn" data-action="jetpack" aria-label="Engage jetpack">Jetpack</button>
+      <button type="button" class="control-btn" data-action="brake" aria-label="Air brake">Brake</button>
+    </div>
+    <div class="control-cluster">
+      <button type="button" class="control-btn primary" data-action="fire" aria-label="Fire current weapon">Fire</button>
+    </div>
+  </div>
   <script>
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -133,6 +276,10 @@
   const hitCountEl = document.getElementById('hit-count');
   const targetHealthEl = document.getElementById('target-health');
 
+  const touchControls = document.querySelector('.touch-controls');
+  const controlButtons = touchControls ? touchControls.querySelectorAll('button') : [];
+
+  const ASPECT_RATIO = 16 / 9;
   const gravity = 0.45;
   const jetpackForce = 0.9;
   const jetpackDrain = 0.7;
@@ -195,13 +342,14 @@
   const projectiles = [];
 
   const target = {
-    x: 680,
-    y: groundHeight(680) - 90,
+    x: 0,
+    y: 0,
     width: 40,
     height: 90,
     health: 100,
     regenDelay: 0,
-    sway: 0
+    sway: 0,
+    baseRatio: 0.72
   };
 
   let hitsLanded = 0;
@@ -216,6 +364,65 @@
     const wave1 = Math.cos((x + 80) * 0.008) * 0.008 * 60;
     const wave2 = Math.cos((x - 240) * 0.017) * 0.017 * 28;
     return wave1 + wave2;
+  }
+
+  function resizeCanvas() {
+    const prevWidth = canvas.width || 1;
+    const prevHeight = canvas.height || 1;
+    const viewportWidth = window.innerWidth || 960;
+    const desiredWidth = Math.min(960, Math.max(280, viewportWidth - 24));
+    const width = Math.round(desiredWidth);
+    const height = Math.round(width / ASPECT_RATIO);
+
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = width;
+    canvas.height = height;
+
+    const widthRatio = width / prevWidth;
+    const heightRatio = height / prevHeight;
+    input.mouseX = Math.min(canvas.width - 10, Math.max(10, input.mouseX * widthRatio));
+    input.mouseY = Math.min(canvas.height - 10, Math.max(10, input.mouseY * heightRatio));
+
+    player.x *= widthRatio;
+    player.x = Math.min(canvas.width - player.radius - 4, Math.max(player.radius + 4, player.x));
+    player.y *= heightRatio;
+    const groundY = groundHeight(player.x);
+    if (player.y > groundY - player.radius) {
+      player.y = groundY - player.radius;
+    } else if (player.y < player.radius) {
+      player.y = player.radius;
+    }
+
+    const baseX = canvas.width * target.baseRatio;
+    const margin = 60;
+    target.x = Math.min(canvas.width - target.width - margin, Math.max(margin, baseX));
+    target.y = groundHeight(target.x) - target.height;
+  }
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  function setInputState(action, active) {
+    switch (action) {
+      case 'left':
+        input.left = active;
+        break;
+      case 'right':
+        input.right = active;
+        break;
+      case 'jetpack':
+        input.jetpack = active;
+        break;
+      case 'brake':
+        input.brake = active;
+        break;
+      case 'fire':
+        input.fire = active;
+        break;
+      default:
+        break;
+    }
   }
 
   function handleInputDown(event) {
@@ -253,25 +460,49 @@
     }
   }
 
-  function handleMouseDown(event) {
-    if (event.button === 0) {
+  function handlePointerDown(event) {
+    const isTouch = event.pointerType === 'touch';
+    if (isTouch) {
+      event.preventDefault();
+    }
+    if (!isTouch && event.button === 0) {
       input.fire = true;
     }
-    if (event.button === 2) {
+    if (!isTouch && event.button === 2) {
       input.brake = true;
     }
+    updatePointerPosition(event);
+    if (!isTouch && typeof canvas.setPointerCapture === 'function' && event.pointerId != null) {
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch (error) {
+        /* Capture may fail on unsupported platforms. */
+      }
+    }
   }
 
-  function handleMouseUp(event) {
-    if (event.button === 0) {
+  function handlePointerUp(event) {
+    const isTouch = event.pointerType === 'touch';
+    if (!isTouch && event.button === 0) {
       input.fire = false;
     }
-    if (event.button === 2) {
+    if (!isTouch && event.button === 2) {
       input.brake = false;
+    }
+    if (!isTouch && typeof canvas.releasePointerCapture === 'function' && event.pointerId != null) {
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch (error) {
+        /* Ignore release failures. */
+      }
     }
   }
 
-  function updateMousePosition(event) {
+  function handlePointerLeave() {
+    resetPointerInputs();
+  }
+
+  function updatePointerPosition(event) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -279,16 +510,55 @@
     input.mouseY = (event.clientY - rect.top) * scaleY;
   }
 
-  document.addEventListener('keydown', handleInputDown);
-  document.addEventListener('keyup', handleInputUp);
-  canvas.addEventListener('mousedown', handleMouseDown);
-  canvas.addEventListener('mouseup', handleMouseUp);
-  canvas.addEventListener('mouseleave', () => {
+  function resetPointerInputs() {
     input.fire = false;
     input.brake = false;
-  });
+  }
+
+  function resetAllInputs() {
+    input.left = false;
+    input.right = false;
+    input.jetpack = false;
+    resetPointerInputs();
+  }
+
+  document.addEventListener('keydown', handleInputDown);
+  document.addEventListener('keyup', handleInputUp);
+  window.addEventListener('blur', resetAllInputs);
+  canvas.addEventListener('pointerdown', handlePointerDown);
+  canvas.addEventListener('pointerup', handlePointerUp);
+  canvas.addEventListener('pointercancel', handlePointerUp);
+  canvas.addEventListener('pointerleave', handlePointerLeave);
+  canvas.addEventListener('pointermove', updatePointerPosition);
   canvas.addEventListener('contextmenu', event => event.preventDefault());
-  canvas.addEventListener('mousemove', updateMousePosition);
+
+  if (controlButtons.length) {
+    controlButtons.forEach(button => {
+      const action = button.dataset.action;
+      if (!action) {
+        return;
+      }
+      const handleButtonDown = event => {
+        if (event.pointerType === 'touch') {
+          event.preventDefault();
+        }
+        button.classList.add('active');
+        setInputState(action, true);
+      };
+      const handleButtonUp = event => {
+        if (event.pointerType === 'touch') {
+          event.preventDefault();
+        }
+        button.classList.remove('active');
+        setInputState(action, false);
+      };
+      button.addEventListener('pointerdown', handleButtonDown);
+      button.addEventListener('pointerup', handleButtonUp);
+      button.addEventListener('pointerleave', handleButtonUp);
+      button.addEventListener('pointercancel', handleButtonUp);
+      button.addEventListener('contextmenu', event => event.preventDefault());
+    });
+  }
 
   function updatePlayer() {
     player.vx += (input.right ? airControl : 0) - (input.left ? airControl : 0);
@@ -412,8 +682,12 @@
 
   function updateTarget() {
     target.sway += 0.015;
+    const baseX = canvas.width * target.baseRatio;
     const swayOffset = Math.sin(target.sway) * 12;
-    target.x = 680 + swayOffset;
+    const desiredX = baseX + swayOffset;
+    const margin = 60;
+    target.x = Math.min(canvas.width - target.width - margin, Math.max(margin, desiredX));
+    target.y = groundHeight(target.x) - target.height;
     if (target.regenDelay > 0) {
       target.regenDelay -= 1;
     } else {
