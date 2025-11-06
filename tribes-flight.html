@@ -131,26 +131,37 @@
   .touch-controls {
     position: fixed;
     left: 50%;
-    bottom: 1.5rem;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 1.1rem);
     transform: translateX(-50%);
-    display: none;
-    width: min(520px, 92vw);
-    padding: 0.65rem 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    width: min(520px, 96vw);
+    padding: 0.65rem 0.85rem;
     background: rgba(15, 23, 42, 0.85);
     border-radius: 999px;
     border: 1px solid rgba(99, 102, 241, 0.4);
     box-shadow: 0 24px 60px rgba(8, 15, 30, 0.5);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    gap: 0.75rem;
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     z-index: 10;
+  }
+
+  .touch-controls.is-hidden {
+    display: none;
   }
 
   .touch-controls .control-cluster {
     display: flex;
     gap: 0.5rem;
+  }
+
+  .touch-controls .control-cluster.primary-cluster {
+    flex-basis: 100%;
+    justify-content: center;
   }
 
   .touch-controls button {
@@ -159,10 +170,10 @@
     background: rgba(51, 65, 85, 0.65);
     color: #f8fafc;
     border-radius: 999px;
-    padding: 0.55rem 0.9rem;
+    padding: 0.55rem 0.85rem;
     font-size: 0.95rem;
     font-weight: 600;
-    min-width: 60px;
+    min-width: 54px;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     touch-action: none;
     user-select: none;
@@ -200,10 +211,6 @@
   }
 
   @media (max-width: 640px) {
-    .touch-controls {
-      display: flex;
-    }
-
     .stat {
       font-size: 1rem;
     }
@@ -211,6 +218,17 @@
     .hud {
       gap: 0.75rem;
       padding: 0.85rem 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .touch-controls {
+      padding: 0.6rem 0.75rem;
+    }
+
+    .touch-controls .control-cluster {
+      flex: 1 1 100%;
+      justify-content: center;
     }
   }
   </style>
@@ -253,7 +271,7 @@
       </section>
     </div>
   </main>
-  <div class="touch-controls" role="group" aria-label="Touch controls">
+  <div class="touch-controls is-hidden" role="group" aria-label="Touch controls">
     <div class="control-cluster">
       <button type="button" class="control-btn" data-action="left" aria-label="Lean left">◀</button>
       <button type="button" class="control-btn" data-action="right" aria-label="Lean right">▶</button>
@@ -262,7 +280,7 @@
       <button type="button" class="control-btn" data-action="jetpack" aria-label="Engage jetpack">Jetpack</button>
       <button type="button" class="control-btn" data-action="brake" aria-label="Air brake">Brake</button>
     </div>
-    <div class="control-cluster">
+    <div class="control-cluster primary-cluster">
       <button type="button" class="control-btn primary" data-action="fire" aria-label="Fire current weapon">Fire</button>
     </div>
   </div>
@@ -278,6 +296,9 @@
 
   const touchControls = document.querySelector('.touch-controls');
   const controlButtons = touchControls ? touchControls.querySelectorAll('button') : [];
+  const coarsePointerQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(pointer: coarse)')
+    : null;
 
   const ASPECT_RATIO = 16 / 9;
   const gravity = 0.45;
@@ -402,6 +423,31 @@
 
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
+
+  if (touchControls) {
+    const updateTouchControlsVisibility = () => {
+      const touchPoints = typeof navigator !== 'undefined' && 'maxTouchPoints' in navigator
+        ? navigator.maxTouchPoints
+        : 0;
+      const hasCoarsePointer = coarsePointerQuery ? coarsePointerQuery.matches : false;
+      const showControls = hasCoarsePointer || touchPoints > 0;
+      touchControls.classList.toggle('is-hidden', !showControls);
+    };
+
+    const handlePointerPreferenceChange = () => updateTouchControlsVisibility();
+
+    updateTouchControlsVisibility();
+    window.addEventListener('resize', updateTouchControlsVisibility);
+    window.addEventListener('orientationchange', updateTouchControlsVisibility);
+
+    if (coarsePointerQuery) {
+      if (typeof coarsePointerQuery.addEventListener === 'function') {
+        coarsePointerQuery.addEventListener('change', handlePointerPreferenceChange);
+      } else if (typeof coarsePointerQuery.addListener === 'function') {
+        coarsePointerQuery.addListener(handlePointerPreferenceChange);
+      }
+    }
+  }
 
   function setInputState(action, active) {
     switch (action) {
