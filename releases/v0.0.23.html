@@ -82,15 +82,15 @@
   <h1>🚀 Release v0.0.23</h1>
   <div class="tag">Week of November 10, 2025</div>
   <p class="release-summary">
-    Desktop home experience plus a Tribes-inspired Zero-G Ski Range with mobile-ready controls
+    Portal OS desktop workspace, dedicated release hub, and a Tribes-inspired Zero-G Ski Range tune-up
   </p>
 
   <div class="section">
     <h2>Overview</h2>
     <p>
-      This milestone captures a full circuit of work across the new desktop-style home hub and the Tribes-inspired
-      Zero-G Ski Range. The team focused on refining the solo experience&mdash;not multiplayer&mdash;by tightening inputs,
-      enhancing readability, and ensuring every surface is reachable from laptops, tablets, and VR headsets.
+      This milestone introduces the Portal OS desktop as the new jumping-off point for contributors and launches a
+      dedicated release hub so every build has a permanent changelog home. Gameplay work stayed intentionally scoped to
+      solo polish while we concentrate on the foundational workspace, contacts, CRM, and finance flows.
     </p>
   </div>
 
@@ -102,12 +102,30 @@
         launcher that routes directly to calendar, tasks, chat, and the broader <a href="../index.html">portal</a>.
       </li>
       <li>
-        Added keyboard-friendly navigation, ARIA roles, and window layers to prepare for future GunDB-backed layouts and
-        persistence.
+        Added keyboard-friendly navigation, ARIA roles, and layered window chrome so multiple apps can sit side-by-side
+        with future GunDB-backed state persistence.
       </li>
       <li>
         Wired the <a href="../home/script.js">scripted workspace</a> so shortcuts, launcher pins, and system buttons open
-        their targets consistently across desktop and headset browsers.
+        their targets consistently across desktop, tablet, and headset browsers.
+      </li>
+      <li>
+        Surfaced quick links into contacts, CRM, and finance views directly from the dock to speed up the workflows we
+        plan to deepen next.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Release Hub &amp; Timeline</h2>
+    <ul>
+      <li>
+        Launched the <a href="index.html">release section</a> as a central directory so every weekly milestone from
+        v0.0.1 onward has a consistent layout, metadata, and navigation.
+      </li>
+      <li>
+        Linked each release with previous/next controls, enabling quick comparisons between v0.0.22 stability work and
+        the new desktop-centric v0.0.23 milestone.
       </li>
     </ul>
   </div>
@@ -123,12 +141,8 @@
         Implemented adaptive canvas sizing, orientation handling, and safe-area aware HUD panels for phones and tablets.
       </li>
       <li>
-        Introduced touch-first controls that detect coarse pointers, expose jetpack, brake, and fire clusters, and smooth out
-        pointer capture fallbacks when the browser blocks locking.
-      </li>
-      <li>
-        Tuned weapon spread, projectile drag, and target regeneration delays to keep the single-player loop responsive while
-        we iterate on balance before layering in any cooperative modes.
+        Tuned weapon spread, projectile drag, and target regeneration delays to keep the single-player loop responsive
+        while we iterate on balance before layering in any cooperative modes.
       </li>
     </ul>
   </div>
@@ -138,7 +152,7 @@
     <ul>
       <li>
         Highlighted the new experience across the <a href="../games.html">Game Hub</a> and portal navigation so testers can
-        jump straight into the prototype.
+        jump straight into the prototype from the desktop launcher.
       </li>
       <li>
         Ensured cross-links from the desktop home to legacy pages (Start, Portal classic) so contributors can compare the new
@@ -176,10 +190,10 @@
   <div class="section">
     <h2>Looking Ahead</h2>
     <ul>
+      <li>Continue refining the home workspace layout for tablet and headset users, layering in more productivity widgets.</li>
       <li>Add editable detail panes to contacts and CRM records so teams can update client information in place.</li>
       <li>Expand finance tracking to make revenue, expenses, and invoices easier to monitor.</li>
       <li>Polish the Tribes Flight gameplay loop with smoother handling, clearer goals, and richer solo challenges.</li>
-      <li>Continue refining the home workspace layout for tablet and headset users.</li>
     </ul>
   </div>
 
