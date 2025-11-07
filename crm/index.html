@@ -779,7 +779,8 @@
       const card = document.getElementById(record.id);
       if (!card) return;
       card.addEventListener('click', evt => {
-        if (evt.target.closest('button') || evt.target.closest('a')) return;
+        if (card.dataset.editing === 'true') return;
+        if (evt.target.closest('button') || evt.target.closest('a') || evt.target.closest('form')) return;
         openCrmDetail(record.id);
       });
       card.classList.add('cursor-pointer');
@@ -958,6 +959,8 @@
     function editContact(id) {
       const card = document.getElementById(id);
       if (!card) return;
+      card.dataset.editing = 'true';
+      card.classList.remove('cursor-pointer');
       crmRecords.get(id).once(data => {
         if (!data) return;
         const record = sanitizeRecord(data);
