@@ -652,7 +652,7 @@
               <button id="open-contacts-${safeAttr(id)}" onclick="ensureContact('${safeAttr(id)}')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm" title="${safeAttr(contactTitle)}">${buttonLabel}</button>
               <button onclick="logTouch('${safeAttr(id)}')" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Log touch</button>
               <button onclick="quickFollowUp('${safeAttr(id)}')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded text-sm">+7d follow-up</button>
-              <button onclick="editContact('${safeAttr(id)}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
+              <button onclick="editContact(event, '${safeAttr(id)}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
               <button onclick="deleteContact('${safeAttr(id)}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
             </div>
           </div>
@@ -778,8 +778,10 @@
     function attachCrmCardInteractions(record) {
       const card = document.getElementById(record.id);
       if (!card) return;
+      delete card.dataset.editing;
+      card.classList.remove('crm-card-editing');
       card.addEventListener('click', evt => {
-        if (card.dataset.editing === 'true') return;
+        if (card.dataset.editing === 'true' || card.classList.contains('crm-card-editing')) return;
         if (evt.target.closest('button') || evt.target.closest('a') || evt.target.closest('form')) return;
         openCrmDetail(record.id);
       });
@@ -956,10 +958,18 @@
       window.location.href = url.toString();
     }
 
-    function editContact(id) {
+    function editContact(evtOrId, maybeId) {
+      const event = (evtOrId && typeof evtOrId.preventDefault === 'function') ? evtOrId : null;
+      const id = typeof evtOrId === 'string' ? evtOrId : maybeId;
+      if (!id) return;
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       const card = document.getElementById(id);
       if (!card) return;
       card.dataset.editing = 'true';
+      card.classList.add('crm-card-editing');
       card.classList.remove('cursor-pointer');
       crmRecords.get(id).once(data => {
         if (!data) return;
@@ -1011,18 +1021,32 @@
         created: current.created || created || now
       };
       crmRecords.get(id).put(updated);
+      clearCardEditingState(id);
       if (scoreManager) {
         scoreManager.increment(1);
       }
     }
 
     function cancelEdit(id) {
+      clearCardEditingState(id);
       crmRecords.get(id).once(data => {
         if (!data) return;
         const sanitized = sanitizeRecord(data);
         crmIndex[id] = { ...(crmIndex[id] || {}), ...sanitized, id };
         scheduleRender();
       });
+    }
+
+    function clearCardEditingState(id) {
+      const card = document.getElementById(id);
+      if (!card) return;
+      if (card.querySelector('form')) {
+        setTimeout(() => clearCardEditingState(id), 80);
+        return;
+      }
+      delete card.dataset.editing;
+      card.classList.remove('crm-card-editing');
+      card.classList.add('cursor-pointer');
     }
 
     function deleteContact(id) {
