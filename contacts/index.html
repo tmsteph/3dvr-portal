@@ -2307,7 +2307,7 @@ function openEdit(id){
       <textarea id="e-notes-${id}" class="p-2 rounded text-black" rows="4" placeholder="Notes">${hx(c.notes||'')}</textarea>
       <div class="flex gap-2">
         <button class="bg-green-600 hover:bg-green-700 px-3 py-2 rounded" type="submit">Save</button>
-        <button type="button" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded" onclick="scheduleRender()">Cancel</button>
+        <button id="cancel-${id}" type="button" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded">Cancel</button>
       </div>
     </form>`;
   eid(`editForm-${id}`).addEventListener('submit', e=>{
@@ -2323,6 +2323,10 @@ function openEdit(id){
       nextFollowUp: gv(`e-next-${id}`),
       notes: gv(`e-notes-${id}`)
     }, { awardPoints: true });
+  });
+  eid(`cancel-${id}`)?.addEventListener('click', e => {
+    e.preventDefault();
+    scheduleRender();
   });
 }
 function confirmDelete(id){
