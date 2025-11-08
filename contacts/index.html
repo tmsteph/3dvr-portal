@@ -989,6 +989,54 @@ let personalAuthPromise = null;
 
 let renderTimer = null;
 
+function createContactEditingManager(initialIds = []) {
+  const editing = new Set();
+  if (Array.isArray(initialIds)) {
+    initialIds.forEach(id => {
+      if (id) {
+        editing.add(String(id));
+      }
+    });
+  }
+
+  return {
+    enter(id) {
+      if (!id) return false;
+      const key = String(id);
+      const sizeBefore = editing.size;
+      editing.add(key);
+      return editing.size !== sizeBefore;
+    },
+    exit(id) {
+      if (!id) return false;
+      return editing.delete(String(id));
+    },
+    isEditing(id) {
+      if (!id) return false;
+      return editing.has(String(id));
+    },
+    clear() {
+      const hadEntries = editing.size > 0;
+      editing.clear();
+      return hadEntries;
+    },
+    list() {
+      return Array.from(editing);
+    },
+    count() {
+      return editing.size;
+    },
+    markRecords(records) {
+      return (Array.isArray(records) ? records : []).map(record => ({
+        record,
+        editing: record && record.id != null ? editing.has(String(record.id)) : false,
+      }));
+    },
+  };
+}
+
+const editingManager = createContactEditingManager();
+
 function sanitizeScoreDisplay(value) {
   if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
     return window.ScoreSystem.sanitizeScore(value);
@@ -1678,6 +1726,7 @@ function updateContact(id, patch, { awardPoints = false } = {}){
 }
 function deleteContact(id){
   if (!contactsIndex[id]) return;
+  editingManager.exit(id);
   delete contactsIndex[id];
   writeSpaceCache(currentSpace, contactsIndex);
   scheduleRender();
@@ -1809,27 +1858,16 @@ function updateList(){
 
   const start = (page-1)*PAGE_SIZE;
   const pageItems = collapsed.slice(start, start + PAGE_SIZE);
+  const markedItems = editingManager.markRecords(pageItems);
 
-  listEl.innerHTML = pageItems.map(renderCard).join('') || `<p class="text-gray-400">No contacts yet.</p>`;
-
-  pageItems.forEach(c=>{
-    eid(`edit-${c.id}`)?.addEventListener('click', evt=>{ evt.stopPropagation(); openEdit(c.id); });
-    eid(`del-${c.id}`)?.addEventListener('click', evt=>{ evt.stopPropagation(); confirmDelete(c.id); });
-    if(!c.crmId){
-      eid(`crm-${c.id}`)?.addEventListener('click', evt=>{ evt.stopPropagation(); addContactToCrm(c.id); });
-    }
-    const card = document.getElementById(c.id);
-    if(card){
-      card.addEventListener('click', evt=>{
-        if(evt.target.closest('button') || evt.target.closest('a')) return;
-        openContactDetail(c.id);
-      });
-      card.classList.add('cursor-pointer');
-    }
-    if(duplicateMetaById.has(c.id)){
-      wireDuplicateControls(c.id);
-    }
-  });
+  if (markedItems.length === 0) {
+    listEl.innerHTML = `<p class="text-gray-400">No contacts yet.</p>`;
+  } else {
+    listEl.innerHTML = markedItems
+      .map(item => item.editing ? renderEditForm(item.record) : renderCard(item.record))
+      .join('');
+    markedItems.forEach(item => attachCardInteractions(item.record, item.editing));
+  }
 
   const duplicateNote = hiddenCount > 0 ? ` · ${hiddenCount} duplicate${hiddenCount===1?'':'s'} auto-hidden` : '';
   countEl.textContent = `${filtered.length} record${filtered.length===1?'':'s'} → ${total} contact${total===1?'':'s'}${duplicateNote} · page ${page}/${totalPages}`;
@@ -2126,6 +2164,33 @@ function renderDuplicateRow(record, primaryId){
 }
 
 /* ---------- Card UI ---------- */
+function renderEditForm(c){
+  const haystack = `${c.name||''} ${c.email||''} ${c.phone||''} ${c.company||''} ${c.role||''} ${c.tags||''} ${c.notes||''}`.toLowerCase();
+  const statusOptions = ['', 'Lead', 'Prospect', 'Active', 'Paused', 'Lost', 'Friend'];
+  return `
+  <div class="contact-card contact-card-editing bg-gray-800 p-4 rounded-lg border border-emerald-400/40" id="${c.id}" data-haystack="${hx(haystack)}" data-created="${hx(c.created||'')}">
+    <form id="editForm-${c.id}" class="grid gap-2">
+      <div class="grid md:grid-cols-2 gap-2">
+        ${it(`e-name-${c.id}`, c.name,'Name')}
+        ${it(`e-email-${c.id}`, c.email,'Email')}
+        ${it(`e-phone-${c.id}`, c.phone,'Phone')}
+        ${it(`e-company-${c.id}`, c.company,'Company')}
+        ${it(`e-role-${c.id}`, c.role,'Role')}
+        ${it(`e-tags-${c.id}`, c.tags,'Tags')}
+        <select id="e-status-${c.id}" class="p-2 rounded text-black">
+          ${statusOptions.map(status=>`<option value="${ha(status)}" ${(status===(c.status||''))?'selected':''}>${hx(status||'Status (optional)')}</option>`).join('')}
+        </select>
+        <input id="e-next-${c.id}" type="date" class="p-2 rounded text-black" value="${ha((c.nextFollowUp||'').slice(0,10))}">
+      </div>
+      <textarea id="e-notes-${c.id}" class="p-2 rounded text-black" rows="4" placeholder="Notes">${hx(c.notes||'')}</textarea>
+      <div class="flex gap-2">
+        <button type="submit" class="bg-green-600 hover:bg-green-700 px-3 py-2 rounded">Save</button>
+        <button id="cancel-${c.id}" type="button" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded">Cancel</button>
+      </div>
+    </form>
+  </div>`;
+}
+
 function renderCard(c){
   const overdue = c.nextFollowUp && new Date(c.nextFollowUp) < new Date(new Date().toDateString());
   const today = c.nextFollowUp && new Date(c.nextFollowUp).toDateString() === new Date().toDateString();
@@ -2175,6 +2240,85 @@ function renderCard(c){
       </div>
     </div>
   </div>`;
+}
+
+function attachCardInteractions(contact, editing){
+  const card = document.getElementById(contact.id);
+  if(!card) return;
+
+  if(editing){
+    card.dataset.editing = 'true';
+    card.classList.add('contact-card-editing');
+    card.classList.remove('cursor-pointer');
+    const form = document.getElementById(`editForm-${contact.id}`);
+    if(form){
+      form.addEventListener('submit', evt=>{
+        evt.preventDefault();
+        const update = {
+          name: gv(`e-name-${contact.id}`),
+          email: gv(`e-email-${contact.id}`),
+          phone: gv(`e-phone-${contact.id}`),
+          company: gv(`e-company-${contact.id}`),
+          role: gv(`e-role-${contact.id}`),
+          tags: gv(`e-tags-${contact.id}`),
+          status: gv(`e-status-${contact.id}`),
+          nextFollowUp: gv(`e-next-${contact.id}`),
+          notes: gv(`e-notes-${contact.id}`)
+        };
+        editingManager.exit(contact.id);
+        updateContact(contact.id, update, { awardPoints: true });
+      });
+    }
+    const cancelBtn = document.getElementById(`cancel-${contact.id}`);
+    if(cancelBtn){
+      cancelBtn.addEventListener('click', evt=>{
+        evt.preventDefault();
+        cancelEdit(contact.id);
+      });
+    }
+    const stopTargets = card.querySelectorAll('form, input, select, textarea, button, a');
+    stopTargets.forEach(target => {
+      target.addEventListener('click', evt => evt.stopPropagation());
+    });
+    return;
+  }
+
+  delete card.dataset.editing;
+  card.classList.remove('contact-card-editing');
+  const editBtn = document.getElementById(`edit-${contact.id}`);
+  if(editBtn){
+    editBtn.addEventListener('click', evt=>{
+      evt.preventDefault();
+      evt.stopPropagation();
+      openEdit(contact.id);
+    });
+  }
+  const deleteBtn = document.getElementById(`del-${contact.id}`);
+  if(deleteBtn){
+    deleteBtn.addEventListener('click', evt=>{
+      evt.preventDefault();
+      evt.stopPropagation();
+      confirmDelete(contact.id);
+    });
+  }
+  if(!contact.crmId){
+    const crmBtn = document.getElementById(`crm-${contact.id}`);
+    if(crmBtn){
+      crmBtn.addEventListener('click', evt=>{
+        evt.preventDefault();
+        evt.stopPropagation();
+        addContactToCrm(contact.id);
+      });
+    }
+  }
+  card.addEventListener('click', evt=>{
+    if(evt.target.closest('button') || evt.target.closest('a') || evt.target.closest('form')) return;
+    openContactDetail(contact.id);
+  });
+  card.classList.add('cursor-pointer');
+  if(duplicateMetaById.has(contact.id)){
+    wireDuplicateControls(contact.id);
+  }
 }
 
 function openContactDetail(id){
@@ -2256,9 +2400,24 @@ function openContactDetail(id){
     <button id="detail-delete-${id}" class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded text-sm">Delete</button>
   `;
 
-  eid(`detail-crm-${id}`)?.addEventListener('click', ()=>addContactToCrm(id));
-  eid(`detail-edit-${id}`)?.addEventListener('click', ()=>openEdit(id));
-  eid(`detail-delete-${id}`)?.addEventListener('click', ()=>confirmDelete(id));
+  eid(`detail-crm-${id}`)?.addEventListener('click', evt=>{
+    evt.preventDefault();
+    evt.stopPropagation();
+    addContactToCrm(id);
+  });
+  const detailEditBtn = eid(`detail-edit-${id}`);
+  if(detailEditBtn){
+    detailEditBtn.addEventListener('click', evt=>{
+      evt.preventDefault();
+      evt.stopPropagation();
+      openEdit(id);
+    });
+  }
+  eid(`detail-delete-${id}`)?.addEventListener('click', evt=>{
+    evt.preventDefault();
+    evt.stopPropagation();
+    confirmDelete(id);
+  });
 
   contactDetailOverlay.classList.remove('hidden');
   contactDetailOverlay.scrollTop = 0;
@@ -2287,44 +2446,39 @@ document.addEventListener('keydown', evt=>{
   if(handled) evt.preventDefault();
 });
 
-function openEdit(id){
-  const c = contactsIndex[id]; if(!c) return;
-  const el = document.getElementById(id);
-  el.innerHTML = `
-    <form id="editForm-${id}" class="grid gap-2">
-      <div class="grid md:grid-cols-2 gap-2">
-        ${it(`e-name-${id}`, c.name,'Name')}
-        ${it(`e-email-${id}`, c.email,'Email')}
-        ${it(`e-phone-${id}`, c.phone,'Phone')}
-        ${it(`e-company-${id}`, c.company,'Company')}
-        ${it(`e-role-${id}`, c.role,'Role')}
-        ${it(`e-tags-${id}`, c.tags,'Tags')}
-        <select id="e-status-${id}" class="p-2 rounded text-black">
-          ${['','Lead','Prospect','Active','Paused','Lost','Friend'].map(s=>`<option ${s===(c.status||'')?'selected':''}>${s}</option>`).join('')}
-        </select>
-        <input id="e-next-${id}" type="date" class="p-2 rounded text-black" value="${ha(c.nextFollowUp||'')}">
-      </div>
-      <textarea id="e-notes-${id}" class="p-2 rounded text-black" rows="4" placeholder="Notes">${hx(c.notes||'')}</textarea>
-      <div class="flex gap-2">
-        <button class="bg-green-600 hover:bg-green-700 px-3 py-2 rounded" type="submit">Save</button>
-        <button type="button" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded" onclick="scheduleRender()">Cancel</button>
-      </div>
-    </form>`;
-  eid(`editForm-${id}`).addEventListener('submit', e=>{
-    e.preventDefault();
-    updateContact(id, {
-      name: gv(`e-name-${id}`),
-      email: gv(`e-email-${id}`),
-      phone: gv(`e-phone-${id}`),
-      company: gv(`e-company-${id}`),
-      role: gv(`e-role-${id}`),
-      tags: gv(`e-tags-${id}`),
-      status: gv(`e-status-${id}`),
-      nextFollowUp: gv(`e-next-${id}`),
-      notes: gv(`e-notes-${id}`)
-    }, { awardPoints: true });
-  });
+function focusContactEditField(id, attempt = 0){
+  if(attempt > 5) return;
+  const input = document.getElementById(`e-name-${id}`) || document.getElementById(`e-email-${id}`);
+  if(input && typeof input.focus === 'function'){
+    input.focus();
+    return;
+  }
+  setTimeout(()=>focusContactEditField(id, attempt + 1), 80);
 }
+
+function cancelEdit(id){
+  if(!id) return;
+  editingManager.exit(id);
+  scheduleRender();
+}
+
+function openEdit(evtOrId, maybeId){
+  const event = (evtOrId && typeof evtOrId.preventDefault === 'function') ? evtOrId : null;
+  const id = typeof evtOrId === 'string' ? evtOrId : maybeId;
+  if(!id) return;
+  if(event){
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if(!contactsIndex[id]) return;
+  editingManager.enter(id);
+  scheduleRender();
+  focusContactEditField(id, 0);
+  if(openDetailContactId === id){
+    closeContactDetail();
+  }
+}
+
 function confirmDelete(id){
   const c = contactsIndex[id];
   if(c && confirm(`Delete ${c.name||'this contact'}?`)) deleteContact(id);
