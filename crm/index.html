@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
   <script src="../score.js"></script>
+  <script type="module" src="./crm-editing.js"></script>
 </head>
 <body class="bg-gray-900 text-white font-sans min-h-screen">
   <header class="bg-gray-950/70 border-b border-white/10">
@@ -171,6 +172,45 @@
     const password = ls.getItem('password') || '';
 
     const crmRecords = gun.get('3dvr-crm');
+    const editingManager = window.crmEditing && typeof window.crmEditing.createCrmEditingManager === 'function'
+      ? window.crmEditing.createCrmEditingManager()
+      : (() => {
+        const editing = new Set();
+        return {
+          enter(id) {
+            if (!id) return false;
+            const before = editing.size;
+            editing.add(String(id));
+            return editing.size !== before;
+          },
+          exit(id) {
+            if (!id) return false;
+            return editing.delete(String(id));
+          },
+          isEditing(id) {
+            if (!id) return false;
+            return editing.has(String(id));
+          },
+          list() {
+            return Array.from(editing);
+          },
+          clear() {
+            const hadEntries = editing.size > 0;
+            editing.clear();
+            return hadEntries;
+          },
+          count() {
+            return editing.size;
+          },
+          markRecords(records) {
+            return (Array.isArray(records) ? records : []).map(record => ({
+              record,
+              editing: record && record.id != null ? editing.has(String(record.id)) : false,
+            }));
+          }
+        };
+      })();
+    const CRM_STATUS_OPTIONS = window.crmEditing?.CRM_STATUS_OPTIONS || ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost'];
     const CONTACT_BUTTON_ADD_LABEL = 'Add to contacts';
     const CONTACT_BUTTON_OPEN_LABEL = 'Open in contacts';
     const form = document.getElementById('contactForm');
@@ -519,8 +559,10 @@
         return bStamp.localeCompare(aStamp);
       });
       const collapsed = collapseCrmDuplicates(sorted);
-      list.innerHTML = collapsed.records.map(renderCrmCard).join('');
-      collapsed.records.forEach(record => {
+      const markedRecords = editingManager.markRecords(collapsed.records);
+      list.innerHTML = markedRecords.map(item => item.editing ? renderCrmEditForm(item.record) : renderCrmCard(item.record)).join('');
+      markedRecords.forEach(item => {
+        const record = item.record;
         attachCrmCardInteractions(record);
         if (crmDuplicateMetaById.has(record.id)) {
           wireCrmDuplicateControls(record.id);
@@ -660,6 +702,37 @@
       `;
     }
 
+    function renderCrmEditForm(record) {
+      const id = record.id;
+      const haystack = [record.name, record.email, record.company, record.phone, record.role, record.tags, record.status, record.notes]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return `
+        <div class="crm-card crm-card-editing bg-gray-900/60 border border-white/5 rounded-lg p-4" id="${safeAttr(id)}" data-haystack="${safeAttr(haystack)}" data-created="${safeAttr(record.created || '')}" data-editing="true">
+          <form class="space-y-3" onsubmit="saveEdit(event, '${safeAttr(id)}')">
+            <div class="grid gap-2 md:grid-cols-2">
+              <input id="edit-name-${safeAttr(id)}" value="${safeAttr(record.name)}" placeholder="Name" class="w-full p-2 rounded text-black" />
+              <input id="edit-email-${safeAttr(id)}" value="${safeAttr(record.email)}" placeholder="Email" class="w-full p-2 rounded text-black" />
+              <input id="edit-company-${safeAttr(id)}" value="${safeAttr(record.company)}" placeholder="Company" class="w-full p-2 rounded text-black" />
+              <input id="edit-phone-${safeAttr(id)}" value="${safeAttr(record.phone)}" placeholder="Phone" class="w-full p-2 rounded text-black" />
+              <input id="edit-role-${safeAttr(id)}" value="${safeAttr(record.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
+              <input id="edit-tags-${safeAttr(id)}" value="${safeAttr(record.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
+              <select id="edit-status-${safeAttr(id)}" class="w-full p-2 rounded text-black">
+                ${CRM_STATUS_OPTIONS.map(status => `<option value="${safeAttr(status)}" ${((record.status || '') === status) ? 'selected' : ''}>${status || 'Status (optional)'}</option>`).join('')}
+              </select>
+              <input id="edit-next-${safeAttr(id)}" type="date" value="${safeAttr((record.nextFollowUp || '').slice(0, 10))}" class="w-full p-2 rounded text-black" />
+            </div>
+            <textarea id="edit-notes-${safeAttr(id)}" class="w-full p-2 rounded text-black" placeholder="Notes">${safe(record.notes)}</textarea>
+            <div class="flex gap-2">
+              <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded text-sm">Save</button>
+              <button type="button" onclick="cancelEdit('${safeAttr(id)}')" class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-sm">Cancel</button>
+            </div>
+          </form>
+        </div>
+      `;
+    }
+
     function getCrmDuplicateToggleLabel(meta, expanded) {
       const duplicatesCount = Math.max(0, (meta?.total || 1) - 1);
       if (duplicatesCount === 0) return 'Show duplicates';
@@ -778,6 +851,16 @@
     function attachCrmCardInteractions(record) {
       const card = document.getElementById(record.id);
       if (!card) return;
+      if (editingManager.isEditing(record.id)) {
+        card.dataset.editing = 'true';
+        card.classList.add('crm-card-editing');
+        card.classList.remove('cursor-pointer');
+        const stopPropagationTargets = card.querySelectorAll('form, input, select, textarea, button');
+        stopPropagationTargets.forEach(target => {
+          target.addEventListener('click', evt => evt.stopPropagation());
+        });
+        return;
+      }
       delete card.dataset.editing;
       card.classList.remove('crm-card-editing');
       card.addEventListener('click', evt => {
@@ -966,37 +1049,29 @@
         event.preventDefault();
         event.stopPropagation();
       }
-      const card = document.getElementById(id);
-      if (!card) return;
-      card.dataset.editing = 'true';
-      card.classList.add('crm-card-editing');
-      card.classList.remove('cursor-pointer');
-      crmRecords.get(id).once(data => {
-        if (!data) return;
-        const record = sanitizeRecord(data);
-        const statusOptions = ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost'];
-        card.innerHTML = `
-          <form class="space-y-3" onsubmit="saveEdit(event, '${id}')">
-            <div class="grid gap-2 md:grid-cols-2">
-              <input id="edit-name-${id}" value="${safeAttr(record.name)}" placeholder="Name" class="w-full p-2 rounded text-black" />
-              <input id="edit-email-${id}" value="${safeAttr(record.email)}" placeholder="Email" class="w-full p-2 rounded text-black" />
-              <input id="edit-company-${id}" value="${safeAttr(record.company)}" placeholder="Company" class="w-full p-2 rounded text-black" />
-              <input id="edit-phone-${id}" value="${safeAttr(record.phone)}" placeholder="Phone" class="w-full p-2 rounded text-black" />
-              <input id="edit-role-${id}" value="${safeAttr(record.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
-              <input id="edit-tags-${id}" value="${safeAttr(record.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
-              <select id="edit-status-${id}" class="w-full p-2 rounded text-black">
-                ${statusOptions.map(status => `<option value="${safeAttr(status)}" ${((record.status || '') === status) ? 'selected' : ''}>${status || 'Status (optional)'}</option>`).join('')}
-              </select>
-              <input id="edit-next-${id}" type="date" value="${safeAttr((record.nextFollowUp || '').slice(0, 10))}" class="w-full p-2 rounded text-black" />
-            </div>
-            <textarea id="edit-notes-${id}" class="w-full p-2 rounded text-black" placeholder="Notes">${safe(record.notes)}</textarea>
-            <div class="flex gap-2">
-              <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded text-sm">Save</button>
-              <button type="button" onclick="cancelEdit('${id}')" class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-sm">Cancel</button>
-            </div>
-          </form>
-        `;
-      });
+      if (!crmIndex[id]) {
+        crmRecords.get(id).once(data => {
+          if (!data) return;
+          crmIndex[id] = { ...(crmIndex[id] || {}), ...sanitizeRecord(data), id };
+          editingManager.enter(id);
+          scheduleRender();
+          focusCrmEditField(id, 1);
+        });
+      } else {
+        editingManager.enter(id);
+        scheduleRender();
+        focusCrmEditField(id, 1);
+      }
+    }
+
+    function focusCrmEditField(id, attempt = 0) {
+      if (attempt > 5) return;
+      const input = document.getElementById(`edit-name-${id}`) || document.getElementById(`edit-email-${id}`);
+      if (input && typeof input.focus === 'function') {
+        input.focus();
+        return;
+      }
+      setTimeout(() => focusCrmEditField(id, attempt + 1), 80);
     }
 
     function saveEdit(e, id) {
@@ -1039,14 +1114,13 @@
 
     function clearCardEditingState(id) {
       const card = document.getElementById(id);
-      if (!card) return;
-      if (card.querySelector('form')) {
-        setTimeout(() => clearCardEditingState(id), 80);
-        return;
+      editingManager.exit(id);
+      if (card) {
+        delete card.dataset.editing;
+        card.classList.remove('crm-card-editing');
+        card.classList.add('cursor-pointer');
       }
-      delete card.dataset.editing;
-      card.classList.remove('crm-card-editing');
-      card.classList.add('cursor-pointer');
+      scheduleRender();
     }
 
     function deleteContact(id) {
