@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="https://fav.farm/🧠" />
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
   <script src="../score.js"></script>
@@ -386,7 +387,12 @@ function ensureGunContext(factory, label) {
 }
 
 const gunContext = ensureGunContext(
-  () => (typeof Gun === 'function' ? Gun(['https://gun-relay-3dvr.fly.dev/gun']) : null),
+  () => (typeof Gun === 'function'
+    ? Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ])
+    : null),
   'contacts'
 );
 const gun = gunContext.gun;

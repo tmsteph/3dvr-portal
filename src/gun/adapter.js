@@ -5,9 +5,17 @@ import { getEnvInfo } from './env.js';
 export function createGun() {
   return import('https://cdn.jsdelivr.net/npm/gun/gun.js').then(({ default: Gun }) => {
     const { RELAY, ROOT, cacheEnabled } = getEnvInfo();
+    const fallbackPeers = [
+      RELAY,
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ].filter(Boolean);
+    const peers = (typeof window !== 'undefined' && Array.isArray(window.__GUN_PEERS__))
+      ? window.__GUN_PEERS__
+      : Array.from(new Set(fallbackPeers));
 
     const gun = Gun({
-      peers: [RELAY],
+      peers,
       axe: true,                 // better WAN performance
       radisk: cacheEnabled,      // disable in previews to avoid stale state
       localStorage: cacheEnabled // disable in previews to avoid stale state

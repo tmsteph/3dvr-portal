@@ -108,7 +108,12 @@ function ensureGunContext(factory, label) {
 }
 
 const gunContext = ensureGunContext(
-  () => (typeof Gun === 'function' ? Gun(['https://gun-relay-3dvr.fly.dev/gun']) : null),
+  () => (typeof Gun === 'function'
+    ? Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ])
+    : null),
   'finance'
 );
 const gun = gunContext.gun;

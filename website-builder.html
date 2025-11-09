@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Website Builder</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="gun-init.js"></script>
   <link rel="stylesheet" href="styles/global.css">
  <style>
     body {
@@ -78,7 +79,10 @@
 <button id="submit-btn">Send</button>
 
 <script>
-  const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+  const gun = Gun(window.__GUN_PEERS__ || [
+    'wss://relay.3dvr.tech/gun',
+    'wss://gun-relay-3dvr.fly.dev/gun'
+  ]);
   let threadId = null;
   let openAiAssistantUrl = null;
   

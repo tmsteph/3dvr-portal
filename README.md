@@ -58,6 +58,10 @@ The portal is live and hosted at:
 
 You can sign up, join the chat, and start contributing right now — no downloads or installs required.
 
+### Brave browser setup
+
+Brave shields can block realtime sync. Click the 🛡️ icon and either turn Shields off for `portal.3dvr.tech` and `relay.3dvr.tech`, or set **Cross-site cookies** to *Allow* and **Fingerprinting** to *Standard*. Use a regular window (not Tor or private mode) for the most reliable GunJS connection.
+
 ### Run Locally
 
 ```bash
