@@ -7,6 +7,7 @@
   <link rel="icon" href="https://fav.farm/🧲" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="gun-init.js"></script>
   <meta name="description" content="Collect inbound leads for 3DVR and sync them instantly with the contacts workspace and CRM." />
 </head>
 <body class="bg-gray-950 text-white min-h-screen">
@@ -139,7 +140,10 @@
 
   <script>
     const SOURCE_LABEL = 'Lead generation page';
-    const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+    const gun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
     const orgContacts = gun.get('org-3dvr-demo').get('contacts');
     const crm = gun.get('3dvr-crm');
 

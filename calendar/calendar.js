@@ -58,8 +58,11 @@ const calendarState = {
   dayEvents: new Map()
 };
 
-const GUN_RELAY_URL = 'https://gun-relay-3dvr.fly.dev/gun';
-const gun = typeof Gun === 'function' ? Gun([GUN_RELAY_URL]) : null;
+const GUN_PEERS = (typeof window !== 'undefined' && window.__GUN_PEERS__) || [
+  'wss://relay.3dvr.tech/gun',
+  'wss://gun-relay-3dvr.fly.dev/gun'
+];
+const gun = typeof Gun === 'function' ? Gun(GUN_PEERS) : null;
 const portalRoot = gun ? gun.get('3dvr-portal') : null;
 const calendarRoot = portalRoot ? portalRoot.get('calendar') : null;
 const calendarOwnerKey = calendarRoot ? resolveCalendarOwnerKey() : null;

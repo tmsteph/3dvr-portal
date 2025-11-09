@@ -5,7 +5,12 @@
 <pre id="log" style="white-space:pre-wrap;padding:12px;font:13px/1.4 ui-monospace,Consolas,monospace"></pre>
 <script type="module">
   // ---- CONFIG (Codex replaces {{WSS_RELAY_URL}}) ----
-  const PEERS = ['{{WSS_RELAY_URL}}']; // e.g. wss://relay.3dvr.tech/gun
+  const PEERS = (window.__GUN_PEERS__ && window.__GUN_PEERS__.length)
+    ? window.__GUN_PEERS__
+    : [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ];
 
   // ---- UTIL ----
   const log = document.getElementById('log');

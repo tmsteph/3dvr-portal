@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Set New Password - 3DVR Portal</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <style>
     body {
@@ -54,7 +55,10 @@
   <div id="status"></div>
 
   <script>
-    const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+    const gun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
     const user = gun.user();
 
     const params = new URLSearchParams(window.location.search);

@@ -45,7 +45,7 @@ describe('finance ledger hub', () => {
     assert.equal(await fileExists(scriptUrl), true, 'app.js should exist');
 
     const js = await readFile(scriptUrl, 'utf8');
-    assert.ok(js.includes("Gun(['https://gun-relay-3dvr.fly.dev/gun'])"));
+    assert.match(js, /Gun\(window\.__GUN_PEERS__ \|\| \[/);
     assert.ok(js.includes("gun.get('finance').get('expenditures')"));
     assert.match(js, /financeLedger\.get\(/);
     assert.match(js, /form\.addEventListener\('submit'/);

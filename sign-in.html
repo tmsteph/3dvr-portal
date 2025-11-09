@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3DVR Portal – Sign In or Sign Up</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <style>
     :root {
@@ -473,7 +474,14 @@
     }
 
     const gunContext = ensureGunContext(
-      () => (typeof Gun === 'function' ? Gun({ peers: ['https://gun-relay-3dvr.fly.dev/gun'] }) : null),
+      () => (typeof Gun === 'function'
+        ? Gun({
+          peers: window.__GUN_PEERS__ || [
+            'wss://relay.3dvr.tech/gun',
+            'wss://gun-relay-3dvr.fly.dev/gun'
+          ]
+        })
+        : null),
       'sign-in'
     );
     const gun = gunContext.gun;

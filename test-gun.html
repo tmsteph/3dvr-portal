@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>GunJS Relay Test</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="gun-init.js"></script>
   <style>
     body { font-family: sans-serif; padding: 2rem; background: #f4f4f4; }
     input, button { font-size: 1rem; padding: 0.5rem; }
@@ -23,7 +24,10 @@
   </div>
 
   <script>
-    const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+    const gun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
     const messages = gun.get('test/messages');
 
     function send() {

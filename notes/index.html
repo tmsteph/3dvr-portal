@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📝 3DVR Notes</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
   <link rel="stylesheet" href="../style.css?v=notes-refresh-20240204">
 </head>
 <body class="notes-page">
@@ -88,7 +89,10 @@
   </div>
 
   <script>
-    const gun = Gun(['https://gun-relay-3dvr.fly.dev/gun']);
+    const gun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
     const folders = gun.get('simple-folders');
     const notes = gun.get('simple-notes');
 
