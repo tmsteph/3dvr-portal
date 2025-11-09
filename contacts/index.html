@@ -497,8 +497,49 @@ const CONTACT_FIELDS = [
   'syncedToCRMAt'
 ];
 
+function createMemoryStorage() {
+  const memory = new Map();
+  return {
+    getItem(key) {
+      return memory.has(key) ? memory.get(key) : null;
+    },
+    setItem(key, value) {
+      memory.set(String(key), String(value));
+    },
+    removeItem(key) {
+      memory.delete(String(key));
+    },
+    clear() {
+      memory.clear();
+    },
+    key(index) {
+      const keys = Array.from(memory.keys());
+      return index >= 0 && index < keys.length ? keys[index] : null;
+    },
+    get length() {
+      return memory.size;
+    }
+  };
+}
+
+function ensureLocalStorage() {
+  if (typeof window === 'undefined') {
+    return { storage: createMemoryStorage(), native: null };
+  }
+  try {
+    const storage = window.localStorage;
+    const testKey = '__contacts_storage_test__';
+    storage.setItem(testKey, '1');
+    storage.removeItem(testKey);
+    return { storage, native: storage };
+  } catch (err) {
+    console.warn('LocalStorage unavailable for contacts; using memory fallback', err);
+  }
+  return { storage: createMemoryStorage(), native: null };
+}
+
+const { storage: ls, native: nativeLocalStorage } = ensureLocalStorage();
 // Reuse portal's localStorage flags:
-const ls = localStorage;
 const legacySignedIn = ls.getItem('signedIn') === 'true';
 const legacyGuest = ls.getItem('guest') === 'true';
 const storedAlias = ls.getItem('alias') || '';
@@ -556,24 +597,24 @@ function ensureGuestContactsId() {
     console.warn('Failed to ensure guest identity via ScoreSystem', err);
   }
   try {
-    const legacyId = localStorage.getItem('userId');
-    if (!resolved && legacyId && !localStorage.getItem('guestId')) {
-      localStorage.setItem('guestId', legacyId);
+    const legacyId = ls.getItem('userId');
+    if (!resolved && legacyId && !ls.getItem('guestId')) {
+      ls.setItem('guestId', legacyId);
     }
     if (legacyId) {
-      localStorage.removeItem('userId');
+      ls.removeItem('userId');
     }
     if (!resolved) {
-      resolved = localStorage.getItem('guestId') || '';
+      resolved = ls.getItem('guestId') || '';
     }
     if (!resolved) {
       resolved = `guest_${Math.random().toString(36).slice(2, 11)}`;
     }
     if (resolved) {
-      localStorage.setItem('guestId', resolved);
+      ls.setItem('guestId', resolved);
     }
-    if (!localStorage.getItem('guestDisplayName')) {
-      localStorage.setItem('guestDisplayName', 'Guest');
+    if (!ls.getItem('guestDisplayName')) {
+      ls.setItem('guestDisplayName', 'Guest');
     }
   } catch (err) {
     console.warn('Failed to prepare guest identity storage', err);
@@ -1186,8 +1227,8 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
   let guestIdentityInitialized = false;
 
   function updateIdentityName() {
-    const stored = (localStorage.getItem('username') || '').trim();
-    const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
+    const stored = (ls.getItem('username') || '').trim();
+    const guestStored = (ls.getItem('guestDisplayName') || '').trim();
     const display = deriveFloatingIdentityDisplay({
       latestDisplayName,
       signedIn: identitySignedIn,
@@ -1230,7 +1271,7 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
         latestDisplayName = normalized;
         if (normalized) {
           username = normalized;
-          localStorage.setItem('username', normalized);
+          ls.setItem('username', normalized);
         }
         updateIdentityName();
         refreshSignedInDisplay();
@@ -1252,7 +1293,7 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
           const normalized = typeof name === 'string' ? name.trim() : '';
           latestDisplayName = normalized;
           if (normalized) {
-            localStorage.setItem('guestDisplayName', normalized);
+            ls.setItem('guestDisplayName', normalized);
           }
           updateIdentityName();
         });
@@ -1307,7 +1348,7 @@ function handleIdentityStorageEvent(event) {
   if (!event) {
     return;
   }
-  if (event.storageArea && event.storageArea !== localStorage) {
+  if (event.storageArea && nativeLocalStorage && event.storageArea !== nativeLocalStorage) {
     return;
   }
   const key = event.key;
