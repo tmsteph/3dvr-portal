@@ -102,6 +102,7 @@ export function resolveSpaceNode({
         node: user.get('contacts'),
         requiresAuth: false,
         shouldClearAuth: true,
+        legacyNodes: [],
       };
     }
     if (signedIn) {
@@ -109,6 +110,7 @@ export function resolveSpaceNode({
         node: null,
         requiresAuth: true,
         shouldClearAuth: false,
+        legacyNodes: [],
       };
     }
     if (guestId && guestsRoot && typeof guestsRoot.get === 'function') {
@@ -118,6 +120,7 @@ export function resolveSpaceNode({
           node: guestNode.get('contacts'),
           requiresAuth: false,
           shouldClearAuth: false,
+          legacyNodes: [],
         };
       }
     }
@@ -125,6 +128,7 @@ export function resolveSpaceNode({
       node: null,
       requiresAuth: false,
       shouldClearAuth: false,
+      legacyNodes: [],
     };
   }
 
@@ -133,29 +137,48 @@ export function resolveSpaceNode({
       node: null,
       requiresAuth: false,
       shouldClearAuth: false,
+      legacyNodes: [],
     };
   }
 
   if (normalizedSpace === 'org-3dvr') {
+    const orgRoot = gun.get(orgSpaceKey);
+    const legacyOrgContacts = orgRoot && typeof orgRoot.get === 'function'
+      ? orgRoot.get('contacts')
+      : null;
     return {
-      node: gun.get(orgSpaceKey).get('contacts'),
+      node: orgRoot,
       requiresAuth: false,
       shouldClearAuth: false,
+      // CRM and contacts now share the same top-level org node; keep the legacy child for migration.
+      legacyNodes: legacyOrgContacts ? [legacyOrgContacts] : [],
     };
   }
 
   if (normalizedSpace === 'public-demo') {
+    const publicRoot = gun.get('contacts-public');
+    const legacyPublicContacts = publicRoot && typeof publicRoot.get === 'function'
+      ? publicRoot.get('contacts')
+      : null;
     return {
-      node: gun.get('contacts-public').get('contacts'),
+      node: publicRoot,
       requiresAuth: false,
       shouldClearAuth: false,
+      // Align with CRM's workspace path and observe the legacy collection so we can migrate data.
+      legacyNodes: legacyPublicContacts ? [legacyPublicContacts] : [],
     };
   }
 
+  const spaceRoot = gun.get(normalizedSpace);
+  const legacySpaceContacts = spaceRoot && typeof spaceRoot.get === 'function'
+    ? spaceRoot.get('contacts')
+    : null;
   return {
-    node: gun.get(normalizedSpace).get('contacts'),
+    node: spaceRoot,
     requiresAuth: false,
     shouldClearAuth: false,
+    // Default to the shared root node while honoring any historical `contacts` child collections.
+    legacyNodes: legacySpaceContacts ? [legacySpaceContacts] : [],
   };
 }
 
