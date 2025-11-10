@@ -29,8 +29,9 @@
     border-radius: 18px;
     border: 1px solid rgba(148, 163, 184, 0.45);
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.55);
-    padding: 1.25rem 1.5rem;
+    padding: 1.5rem 1.5rem 1.25rem;
     z-index: 10;
+    transition: opacity 0.35s ease, transform 0.35s ease;
   }
 
   .overlay h1 {
@@ -44,6 +45,75 @@
     font-size: 0.95rem;
     line-height: 1.6;
     color: rgba(226, 232, 240, 0.82);
+  }
+
+  .overlay-close {
+    position: absolute;
+    top: 0.8rem;
+    right: 0.9rem;
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    color: rgba(226, 232, 240, 0.9);
+    border-radius: 999px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .overlay-close:focus-visible,
+  .overlay-close:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(96, 165, 250, 0.55);
+    color: #e0f2fe;
+  }
+
+  .overlay-hidden {
+    opacity: 0;
+    transform: translate(-50%, -18px);
+    pointer-events: none;
+  }
+
+  .overlay-hidden .hint,
+  .overlay-hidden p,
+  .overlay-hidden h1 {
+    pointer-events: none;
+  }
+
+  .overlay-toggle {
+    position: fixed;
+    top: 6rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.55rem 1.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(96, 165, 250, 0.5);
+    background: rgba(15, 23, 42, 0.72);
+    color: rgba(191, 219, 254, 0.95);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.5);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 9;
+  }
+
+  .overlay-toggle:focus-visible,
+  .overlay-toggle:hover {
+    background: rgba(30, 41, 59, 0.8);
+    color: #e0f2fe;
+    border-color: rgba(96, 165, 250, 0.75);
+  }
+
+  .overlay-toggle-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
   }
 
   .status {
@@ -168,6 +238,10 @@
       padding: 1rem;
     }
 
+    .overlay-toggle {
+      top: 7rem;
+    }
+
     .overlay h1 {
       font-size: 1.35rem;
     }
@@ -202,7 +276,10 @@
     <a href="index.html">🏠 Portal</a>
   </div>
 
-  <div class="overlay" aria-live="polite">
+  <button class="overlay-toggle" id="overlayToggle" type="button" aria-hidden="true">Show Flight Controls</button>
+
+  <div class="overlay" aria-live="polite" aria-hidden="false">
+    <button class="overlay-close" id="overlayClose" type="button">Hide</button>
     <h1>Stellar Drift</h1>
     <p>
       Glide through procedurally scattered stars and luminous worlds. Click anywhere to engage flight controls,
@@ -210,7 +287,8 @@
     </p>
     <div class="hint">
       Press <strong>R</strong> if you ever want to re-center your ship. Pointer lock keeps the cursor inside the
-      cockpit—press <strong>Esc</strong> to release.
+      cockpit—press <strong>Esc</strong> to release. Hide these tips once you're comfortable and use "Show Flight
+      Controls" to bring them back.
     </div>
   </div>
 
@@ -565,6 +643,44 @@
   const statusEl = document.getElementById('status');
   const speedBar = document.getElementById('speedBar');
   const stabilityBar = document.getElementById('stabilityBar');
+  const overlay = document.querySelector('.overlay');
+  const overlayClose = document.getElementById('overlayClose');
+  const overlayToggle = document.getElementById('overlayToggle');
+
+  if (overlayToggle) {
+    overlayToggle.setAttribute('aria-hidden', 'true');
+  }
+
+  function setOverlayVisible(visible) {
+    if (!overlay) {
+      return;
+    }
+    overlay.classList.toggle('overlay-hidden', !visible);
+    overlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    if (overlayToggle) {
+      overlayToggle.classList.toggle('overlay-toggle-visible', !visible);
+      overlayToggle.setAttribute('aria-hidden', visible ? 'true' : 'false');
+    }
+  }
+
+  if (overlayClose) {
+    overlayClose.addEventListener('click', (event) => {
+      event.stopPropagation();
+      setOverlayVisible(false);
+      if (overlayToggle) {
+        overlayToggle.focus({ preventScroll: true });
+      }
+    });
+  }
+
+  if (overlayToggle) {
+    overlayToggle.addEventListener('click', () => {
+      setOverlayVisible(true);
+      if (overlayClose) {
+        overlayClose.focus({ preventScroll: true });
+      }
+    });
+  }
 
   const keys = new Set();
   let yaw = 0;
@@ -597,10 +713,14 @@
 
   renderer.domElement.addEventListener('click', () => {
     renderer.domElement.requestPointerLock();
+    setOverlayVisible(false);
   });
 
   document.addEventListener('pointerlockchange', () => {
     pointerLocked = document.pointerLockElement === renderer.domElement;
+    if (pointerLocked) {
+      setOverlayVisible(false);
+    }
   });
 
   document.addEventListener('mousemove', (event) => {
