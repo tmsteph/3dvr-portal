@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stellar Drift - Endless Flight</title>
+  <link rel="stylesheet" href="styles/global.css">
+  <style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Poppins', sans-serif;
+    background: radial-gradient(circle at top, #0a1630, #02040a 65%);
+    color: #f1f5f9;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  .overlay {
+    position: fixed;
+    top: 6.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(440px, calc(100% - 2rem));
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(12px);
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.55);
+    padding: 1.25rem 1.5rem;
+    z-index: 10;
+  }
+
+  .overlay h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    letter-spacing: 0.04em;
+  }
+
+  .overlay p {
+    margin: 0.65rem 0 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: rgba(226, 232, 240, 0.82);
+  }
+
+  .status {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.8rem 1.2rem;
+    background: rgba(15, 23, 42, 0.65);
+    border-radius: 14px;
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    color: rgba(165, 243, 252, 0.85);
+    box-shadow: 0 18px 40px rgba(8, 145, 178, 0.3);
+    z-index: 10;
+  }
+
+  .top-buttons {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 12;
+  }
+
+  .hint {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(30, 41, 59, 0.6);
+    font-size: 0.9rem;
+    color: rgba(226, 232, 240, 0.75);
+  }
+
+  @media (max-width: 720px) {
+    .overlay {
+      top: 7.5rem;
+      padding: 1rem;
+    }
+
+    .overlay h1 {
+      font-size: 1.35rem;
+    }
+
+    .overlay p {
+      font-size: 0.85rem;
+    }
+
+    .status {
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+      bottom: 1rem;
+    }
+  }
+  </style>
+</head>
+<body class="theme-dark">
+  <div class="top-buttons">
+    <a href="games.html">🎮 Back to Hub</a>
+    <a href="index.html">🏠 Portal</a>
+  </div>
+
+  <div class="overlay" aria-live="polite">
+    <h1>Stellar Drift</h1>
+    <p>Glide through procedurally scattered stars and luminous worlds. Click anywhere to engage flight controls, then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost.</p>
+    <div class="hint">Press <strong>R</strong> if you ever want to re-center your ship. Pointer lock keeps the cursor inside the cockpit—press <strong>Esc</strong> to release.</div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js" integrity="sha384-7MKuBZ6x+AAw7k/akdKPk8vG3iH8Mj4zzjYf9sIU2JvC9DkvErQ8z4Ssw0zG5GNU" crossorigin="anonymous"></script>
+  <script>
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x020410);
+  scene.fog = new THREE.FogExp2(0x020410, 0.002);
+
+  const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.2, 3000);
+  camera.position.set(0, 0, 20);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  document.body.appendChild(renderer.domElement);
+
+  const ambient = new THREE.AmbientLight(0x7dd3fc, 0.35);
+  scene.add(ambient);
+
+  const keyLight = new THREE.DirectionalLight(0xfff2ce, 1.2);
+  keyLight.position.set(120, 80, 40);
+  scene.add(keyLight);
+
+  const rimLight = new THREE.PointLight(0x60a5fa, 1.5, 400, 2);
+  rimLight.position.set(-180, 30, -50);
+  scene.add(rimLight);
+
+  const nebulaMaterial = new THREE.MeshBasicMaterial({
+    color: 0x0ea5e9,
+    transparent: true,
+    opacity: 0.12,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  for (let i = 0; i < 6; i++) {
+    const nebulaGeometry = new THREE.IcosahedronGeometry(140 + Math.random() * 80, 2);
+    const nebula = new THREE.Mesh(nebulaGeometry, nebulaMaterial.clone());
+    nebula.position.set((Math.random() - 0.5) * 1200, (Math.random() - 0.5) * 600, -200 - Math.random() * 1600);
+    nebula.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    scene.add(nebula);
+  }
+
+  function createStarField() {
+    const starCount = 2400;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(starCount * 3);
+    const colors = new Float32Array(starCount * 3);
+    const color = new THREE.Color();
+
+    for (let i = 0; i < starCount; i++) {
+      const i3 = i * 3;
+      positions[i3] = (Math.random() - 0.5) * 2200;
+      positions[i3 + 1] = (Math.random() - 0.5) * 1400;
+      positions[i3 + 2] = (Math.random() - 0.5) * 2200;
+
+      const hue = 0.55 + Math.random() * 0.1;
+      color.setHSL(hue, 0.6 + Math.random() * 0.2, 0.7 + Math.random() * 0.2);
+      colors[i3] = color.r;
+      colors[i3 + 1] = color.g;
+      colors[i3 + 2] = color.b;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 1.8,
+      vertexColors: true,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.9
+    });
+
+    const stars = new THREE.Points(geometry, material);
+    scene.add(stars);
+    return stars;
+  }
+
+  const stars = createStarField();
+
+  function createPlanet(radius, color, position, emissive) {
+    const geometry = new THREE.SphereGeometry(radius, 64, 64);
+    const material = new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.2,
+      roughness: 0.6,
+      emissive: emissive || 0x000000,
+      emissiveIntensity: emissive ? 0.4 : 0
+    });
+    const planet = new THREE.Mesh(geometry, material);
+    planet.position.copy(position);
+    planet.castShadow = false;
+    planet.receiveShadow = false;
+    scene.add(planet);
+    return planet;
+  }
+
+  const planets = [
+    createPlanet(48, 0x2563eb, new THREE.Vector3(-180, -40, -520), 0x172554),
+    createPlanet(32, 0xf97316, new THREE.Vector3(240, 60, -680), 0x7c2d12),
+    createPlanet(18, 0x0ea5e9, new THREE.Vector3(-60, 110, -420), 0x0ea5e9),
+    createPlanet(26, 0x14b8a6, new THREE.Vector3(120, -90, -380))
+  ];
+
+  planets.forEach((planet, index) => {
+    const ringGeometry = new THREE.RingGeometry(planet.geometry.parameters.radius * 1.15, planet.geometry.parameters.radius * 1.45, 64);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: index % 2 === 0 ? 0x7dd3fc : 0xfacc15,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.position.copy(planet.position);
+    ring.rotation.x = Math.random() * 1.4;
+    ring.rotation.y = Math.random() * 1.4;
+    scene.add(ring);
+    planet.userData.ring = ring;
+  });
+
+  const shipGeometry = new THREE.ConeGeometry(2.4, 6.5, 12);
+  const shipMaterial = new THREE.MeshStandardMaterial({
+    color: 0xf8fafc,
+    emissive: 0x38bdf8,
+    emissiveIntensity: 0.6,
+    roughness: 0.4
+  });
+  const ship = new THREE.Mesh(shipGeometry, shipMaterial);
+  ship.rotation.x = Math.PI / 2;
+  camera.add(ship);
+  ship.position.set(0, -1.5, -5);
+  scene.add(camera);
+
+  const engineGeometry = new THREE.CylinderGeometry(0.6, 1.8, 2.5, 16, 1, true);
+  const engineMaterial = new THREE.MeshBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.4,
+    blending: THREE.AdditiveBlending
+  });
+  const engineFlare = new THREE.Mesh(engineGeometry, engineMaterial);
+  engineFlare.rotation.x = Math.PI / 2;
+  engineFlare.position.set(0, -1.5, -7.5);
+  camera.add(engineFlare);
+
+  const clock = new THREE.Clock();
+  const velocity = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+  const upVector = new THREE.Vector3(0, 1, 0);
+  const statusEl = document.getElementById('status');
+
+  const keys = new Set();
+  let yaw = 0;
+  let pitch = 0;
+  let pointerLocked = false;
+
+  function updateStatus(speed) {
+    statusEl.textContent = `VELOCITY ${speed.toFixed(1)} u/s`;
+  }
+
+  updateStatus(0);
+
+  window.addEventListener('keydown', (event) => {
+    keys.add(event.code);
+    if (event.code === 'KeyR') {
+      camera.position.set(0, 0, 20);
+      velocity.set(0, 0, 0);
+      yaw = 0;
+      pitch = 0;
+    }
+  });
+
+  window.addEventListener('keyup', (event) => {
+    keys.delete(event.code);
+  });
+
+  renderer.domElement.addEventListener('click', () => {
+    renderer.domElement.requestPointerLock();
+  });
+
+  document.addEventListener('pointerlockchange', () => {
+    pointerLocked = document.pointerLockElement === renderer.domElement;
+  });
+
+  document.addEventListener('mousemove', (event) => {
+    if (!pointerLocked) {
+      return;
+    }
+    yaw -= event.movementX * 0.0022;
+    pitch -= event.movementY * 0.0022;
+    const pitchLimit = Math.PI / 2 - 0.08;
+    pitch = Math.max(-pitchLimit, Math.min(pitchLimit, pitch));
+  });
+
+  function updateMovement(delta) {
+    const dampening = 1 - Math.min(delta * 0.6, 0.18);
+    velocity.multiplyScalar(dampening);
+
+    direction.set(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+    const right = new THREE.Vector3().crossVectors(direction, upVector).normalize();
+    const vertical = new THREE.Vector3().crossVectors(right, direction).normalize();
+
+    const acceleration = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 60 : 22;
+
+    if (keys.has('KeyW')) {
+      velocity.addScaledVector(direction, acceleration * delta);
+    }
+    if (keys.has('KeyS')) {
+      velocity.addScaledVector(direction, -acceleration * delta);
+    }
+    if (keys.has('KeyA')) {
+      velocity.addScaledVector(right, -acceleration * delta);
+    }
+    if (keys.has('KeyD')) {
+      velocity.addScaledVector(right, acceleration * delta);
+    }
+    if (keys.has('Space')) {
+      velocity.addScaledVector(vertical, acceleration * delta);
+    }
+    if (keys.has('ControlLeft') || keys.has('ControlRight')) {
+      velocity.addScaledVector(vertical, -acceleration * delta);
+    }
+
+    const maxSpeed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 120 : 65;
+    if (velocity.length() > maxSpeed) {
+      velocity.setLength(maxSpeed);
+    }
+
+    camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+    camera.position.addScaledVector(velocity, delta);
+
+    const speed = velocity.length();
+    updateStatus(speed);
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    updateMovement(delta);
+
+    stars.rotation.y += delta * 0.006;
+    planets.forEach((planet, index) => {
+      planet.rotation.y += delta * (0.05 + index * 0.02);
+      if (planet.userData.ring) {
+        planet.userData.ring.rotation.z += delta * 0.04;
+      }
+    });
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  </script>
+</body>
+</html>
