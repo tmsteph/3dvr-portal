@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.24 (Week of November 17, 2025)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.23.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>🚀 Release v0.0.24</h1>
+  <div class="tag">Week of November 17, 2025</div>
+  <p class="release-summary">
+    Contacts and CRM gain inline editing, Brave browser sync, and a stabilized client management loop
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      This build doubles down on the relationship management workflow. We restored editing across contacts and CRM records
+      and chased down the Brave browser quirks that previously kept entries from syncing. Both surfaces now share a
+      consistent data pipeline, giving contributors confidence that updates will persist wherever they log in.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Contacts Editing</h2>
+    <ul>
+      <li>Re-enabled full edit flows so existing contact cards can be updated without recreating records.</li>
+      <li>Hardened field validation to keep phone, email, and notes tidy as edits stream back to GunDB.</li>
+      <li>Polished the save experience with clearer status feedback to confirm when changes finish syncing.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>CRM Improvements</h2>
+    <ul>
+      <li>Mirrored the contact editing work inside the CRM so pipeline entries stay in lockstep with the directory.</li>
+      <li>Ensured updates propagate bidirectionally between the CRM view and the underlying contact source.</li>
+      <li>Smoothed record hydration so reopening a CRM detail pane shows the latest edits instantly.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Browser Sync Hardening</h2>
+    <ul>
+      <li>Fixed Brave-specific local persistence gaps so contacts and CRM entries sync just like in Chrome and Firefox.</li>
+      <li>Added extra readiness checks before writes so privacy mode timing differences no longer drop updates.</li>
+      <li>Expanded manual verification across Brave desktop to confirm editing and syncing survive refreshes.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Iteration Notes</h2>
+    <ul>
+      <li>Contacts and CRM now rely on the same edit handlers, reducing divergence between the two experiences.</li>
+      <li>Sync instrumentation highlights when Brave applies stricter storage timing, guiding future hardening passes.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Known Issues</h2>
+    <ul>
+      <li>Bulk import and export flows remain manual while we focus on polishing the core editing experience.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Looking Ahead</h2>
+    <ul>
+      <li>Layer in activity timelines so teams can see when each contact or deal was last touched.</li>
+      <li>Expand CRM filtering and sorting to accelerate pipeline reviews.</li>
+      <li>Continue stress-testing Brave and other privacy-focused browsers for multi-tab conflict scenarios.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2025 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
