@@ -106,24 +106,24 @@ describe('contacts core helpers', () => {
 
   describe('resolveSpaceNode', () => {
     const createGunStub = () => {
-      const orgContactsNode = { kind: 'org-contacts' };
-      const publicContactsNode = { kind: 'public-contacts' };
-      const fallbackContactsNode = { kind: 'fallback-contacts' };
-      const orgGetter = mock.fn(() => orgContactsNode);
-      const publicGetter = mock.fn(() => publicContactsNode);
-      const fallbackGetter = mock.fn(() => fallbackContactsNode);
+      const orgLegacyNode = { kind: 'org-contacts' };
+      const publicLegacyNode = { kind: 'public-contacts' };
+      const fallbackLegacyNode = { kind: 'fallback-contacts' };
+      const orgRoot = { get: mock.fn(() => orgLegacyNode), kind: 'org-root' };
+      const publicRoot = { get: mock.fn(() => publicLegacyNode), kind: 'public-root' };
+      const fallbackRoot = { get: mock.fn(() => fallbackLegacyNode), kind: 'fallback-root' };
       const gunNode = {
         get: mock.fn(key => {
           if (key === 'org-3dvr-demo') {
-            return { get: orgGetter };
+            return orgRoot;
           }
           if (key === 'contacts-public') {
-            return { get: publicGetter };
+            return publicRoot;
           }
-          return { get: fallbackGetter };
+          return fallbackRoot;
         }),
       };
-      return { gunNode, orgGetter, publicGetter, orgContactsNode, publicContactsNode };
+      return { gunNode, orgRoot, publicRoot, orgLegacyNode, publicLegacyNode, fallbackLegacyNode };
     };
 
     it('returns the user contacts node when a session is active', () => {
@@ -175,22 +175,24 @@ describe('contacts core helpers', () => {
     });
 
     it('uses org and public Gun nodes for shared spaces', () => {
-      const { gunNode, orgGetter, publicGetter, orgContactsNode, publicContactsNode } = createGunStub();
+      const { gunNode, orgRoot, publicRoot, orgLegacyNode, publicLegacyNode } = createGunStub();
 
       const orgResult = resolveSpaceNode({
         space: 'org-3dvr',
         gun: gunNode,
       });
-      assert.equal(orgResult.node, orgContactsNode);
+      assert.equal(orgResult.node, orgRoot);
+      assert.deepEqual(orgResult.legacyNodes, [orgLegacyNode]);
       assert.equal(gunNode.get.mock.calls[0].arguments[0], 'org-3dvr-demo');
-      assert.equal(orgGetter.mock.calls[0].arguments[0], 'contacts');
+      assert.equal(orgRoot.get.mock.calls[0].arguments[0], 'contacts');
 
       const publicResult = resolveSpaceNode({
         space: 'public-demo',
         gun: gunNode,
       });
-      assert.equal(publicGetter.mock.calls.length >= 1, true);
-      assert.equal(publicResult.node, publicContactsNode);
+      assert.equal(publicRoot.get.mock.calls.length >= 1, true);
+      assert.equal(publicResult.node, publicRoot);
+      assert.deepEqual(publicResult.legacyNodes, [publicLegacyNode]);
       assert.equal(gunNode.get.mock.calls[1].arguments[0], 'contacts-public');
     });
   });

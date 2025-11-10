@@ -938,7 +938,9 @@ function updateSpaceBadge() {
 
 /* ---------- Nodes ---------- */
 const ORG_SPACE_KEY = 'org-3dvr-demo'; // shared demo node
-function spaceNode(space = currentSpace) {
+const legacyMigratedIdsBySpace = new Map();
+
+function getSpaceResolution(space = currentSpace) {
   const guestId = !signedIn ? ensureGuestContactsId() : guestContactsId;
   const resolution = resolveSpaceNode({
     space,
@@ -949,18 +951,88 @@ function spaceNode(space = currentSpace) {
     guestsRoot,
     guestId,
     orgSpaceKey: ORG_SPACE_KEY,
-  });
+  }) || {};
 
-  if (resolution.requiresAuth) {
-    requirePersonalAuth();
-    return null;
+  if (!Array.isArray(resolution.legacyNodes)) {
+    resolution.legacyNodes = [];
   }
 
+  return resolution;
+}
+
+function applyResolutionAuth(resolution) {
+  if (!resolution) {
+    return false;
+  }
+  if (resolution.requiresAuth) {
+    requirePersonalAuth();
+    return false;
+  }
   if (resolution.shouldClearAuth) {
     clearPersonalAuthRequirement();
   }
+  return true;
+}
 
+function spaceNode(space = currentSpace) {
+  const resolution = getSpaceResolution(space);
+  if (!applyResolutionAuth(resolution)) {
+    return null;
+  }
   return resolution.node;
+}
+
+function migrateLegacyContact(space, id, contact, primaryNode) {
+  if (!contact || !primaryNode || typeof primaryNode.get !== 'function') {
+    return;
+  }
+  let migrated = legacyMigratedIdsBySpace.get(space);
+  if (!migrated) {
+    migrated = new Set();
+    legacyMigratedIdsBySpace.set(space, migrated);
+  }
+  if (migrated.has(id)) {
+    return;
+  }
+  migrated.add(id);
+  try {
+    primaryNode.get(id).put(contact, ack => {
+      if (ack && ack.err) {
+        console.warn('Failed to migrate legacy contact', ack.err);
+        migrated.delete(id);
+      }
+    });
+  } catch (err) {
+    console.warn('Failed to migrate legacy contact', err);
+    migrated.delete(id);
+  }
+}
+
+function ingestContactFromSource(space, data, id, { isLegacy = false, primaryNode = null } = {}) {
+  if (!id) return;
+  if (!data) {
+    if (contactsIndex[id]) {
+      delete contactsIndex[id];
+      writeSpaceCache(space, contactsIndex);
+      scheduleRender();
+    }
+    return;
+  }
+  const merged = sanitizeContactRecord({ ...(contactsIndex[id] || {}), ...data }, id);
+  if (!merged) {
+    if (contactsIndex[id]) {
+      delete contactsIndex[id];
+      writeSpaceCache(space, contactsIndex);
+      scheduleRender();
+    }
+    return;
+  }
+  contactsIndex[id] = merged;
+  writeSpaceCache(space, contactsIndex);
+  scheduleRender();
+  if (isLegacy) {
+    migrateLegacyContact(space, id, merged, primaryNode);
+  }
 }
 
 /* ---------- Form & UI refs ---------- */
@@ -1676,39 +1748,39 @@ function tearDownSpace(){
   unsubscribers = [];
 }
 function attachSpace(){
-  const node = spaceNode();
-  if (!node) {
+  const resolution = getSpaceResolution(currentSpace);
+  if (!applyResolutionAuth(resolution)) {
     return;
   }
-  const sub = node.map().on((data, id) => {
-    if (!id) return;
-    if (!data) {
-      if (contactsIndex[id]) {
-        delete contactsIndex[id];
-        writeSpaceCache(currentSpace, contactsIndex);
-        scheduleRender();
+
+  const node = resolution.node;
+  const legacyNodes = (Array.isArray(resolution.legacyNodes) ? resolution.legacyNodes : [])
+    .filter(candidate => candidate && typeof candidate.map === 'function');
+
+  if (node && typeof node.map === 'function') {
+    const sub = node.map().on((data, id) => {
+      ingestContactFromSource(currentSpace, data, id);
+    });
+    unsubscribers.push(() => {
+      try {
+        sub.off();
+      } catch (err) {
+        console.warn('Failed to detach contacts subscription', err);
       }
-      return;
-    }
-    const merged = sanitizeContactRecord({ ...(contactsIndex[id] || {}), ...data }, id);
-    if (!merged) {
-      if (contactsIndex[id]) {
-        delete contactsIndex[id];
-        writeSpaceCache(currentSpace, contactsIndex);
-        scheduleRender();
+    });
+  }
+
+  legacyNodes.forEach(legacyNode => {
+    const legacySub = legacyNode.map().on((data, id) => {
+      ingestContactFromSource(currentSpace, data, id, { isLegacy: true, primaryNode: node });
+    });
+    unsubscribers.push(() => {
+      try {
+        legacySub.off();
+      } catch (err) {
+        console.warn('Failed to detach legacy contacts subscription', err);
       }
-      return;
-    }
-    contactsIndex[id] = merged;
-    writeSpaceCache(currentSpace, contactsIndex);
-    scheduleRender();
-  });
-  unsubscribers.push(() => {
-    try {
-      sub.off();
-    } catch (err) {
-      console.warn('Failed to detach contacts subscription', err);
-    }
+    });
   });
 }
 
