@@ -77,7 +77,10 @@
           <button class="icon-button" data-command="insertOrderedList" title="Numbered list">1. List</button>
           <button class="icon-button" data-block="todo" title="To-do list">☑︎</button>
           <button class="icon-button" data-block="divider" title="Divider">—</button>
+          <div class="toolbar-divider"></div>
+          <button class="icon-button" id="insert-image-button" type="button" title="Insert image">🖼️</button>
         </div>
+        <input type="file" id="image-upload-input" class="note-image-input" accept="image/*" aria-hidden="true" tabindex="-1">
         <div id="note-content" class="note-content" contenteditable="true" data-placeholder="Start writing or type / for commands"></div>
       </div>
 
@@ -307,6 +310,8 @@
     const editorWrapperEl = document.getElementById('editor-wrapper');
     const slashMenuEl = document.getElementById('slash-menu');
     const slashOptionsEl = document.getElementById('slash-options');
+    const insertImageButton = document.getElementById('insert-image-button');
+    const imageUploadInput = document.getElementById('image-upload-input');
     const sidebarToggleButton = document.getElementById('sidebar-toggle');
     const sidebarBackdropEl = document.getElementById('mobile-sidebar-backdrop');
     const notesSidebarEl = document.getElementById('notes-sidebar');
@@ -341,6 +346,7 @@
       { id: 'numbered', label: 'Numbered list', description: 'Create a numbered list', action: () => applyCommand('insertOrderedList') },
       { id: 'quote', label: 'Quote', description: 'Add a quote block', action: () => applyBlock('quote') },
       { id: 'code', label: 'Code', description: 'Insert a code snippet', action: () => applyBlock('code') },
+      { id: 'image', label: 'Image', description: 'Upload and embed an image', action: () => triggerImageUpload() },
       { id: 'divider', label: 'Divider', description: 'Visually separate sections', action: () => applyBlock('divider') }
     ];
 
@@ -1165,17 +1171,37 @@
 
     document.querySelectorAll('.note-toolbar button').forEach((button) => {
       button.addEventListener('mousedown', (event) => {
+        const { command, block } = button.dataset;
+        if (!command && !block) {
+          return;
+        }
         event.preventDefault();
         noteContentEl.focus();
-        if (button.dataset.command) {
-          applyCommand(button.dataset.command, button.dataset.value || null);
-        } else if (button.dataset.block) {
-          applyBlock(button.dataset.block);
+        if (command) {
+          applyCommand(command, button.dataset.value || null);
+        } else if (block) {
+          applyBlock(block);
         }
         hideSlashMenu();
         scheduleContentSave();
       });
     });
+
+    if (insertImageButton) {
+      insertImageButton.addEventListener('click', () => {
+        triggerImageUpload();
+      });
+    }
+
+    if (imageUploadInput) {
+      imageUploadInput.addEventListener('change', () => {
+        const file = imageUploadInput.files && imageUploadInput.files[0];
+        if (file) {
+          insertImageFromFile(file);
+        }
+        imageUploadInput.value = '';
+      });
+    }
 
     function applyCommand(command, value = null) {
       consumeSlashCommand();
@@ -1206,6 +1232,97 @@
         default:
           document.execCommand('formatBlock', false, 'p');
       }
+    }
+
+    function triggerImageUpload() {
+      if (!currentNoteId) {
+        return;
+      }
+      consumeSlashCommand();
+      hideSlashMenu();
+      noteContentEl.focus();
+      if (imageUploadInput) {
+        imageUploadInput.value = '';
+        imageUploadInput.click();
+      }
+    }
+
+    function insertImageFromFile(file) {
+      if (!file || !currentNoteId) {
+        return;
+      }
+      const targetNoteId = currentNoteId;
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        if (typeof reader.result === 'string' && currentNoteId === targetNoteId) {
+          insertImageElement(reader.result, file.name || '');
+        }
+      });
+      reader.addEventListener('error', (event) => {
+        console.error('Failed to read image for note', event);
+      });
+      reader.readAsDataURL(file);
+    }
+
+    function insertImageElement(dataUrl, fileName = '') {
+      if (!dataUrl) {
+        return;
+      }
+      const defaultAlt = fileName.replace(/\.[^/.]+$/, '') || 'Uploaded image';
+      let altText = defaultAlt;
+      if (typeof window.prompt === 'function') {
+        const response = window.prompt('Describe the image for accessibility (alt text):', defaultAlt);
+        if (response !== null) {
+          const trimmed = response.trim();
+          if (trimmed) {
+            altText = trimmed;
+          }
+        }
+      }
+      const figure = document.createElement('figure');
+      figure.className = 'note-image-block';
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.alt = altText;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      figure.appendChild(img);
+      const caption = document.createElement('figcaption');
+      caption.className = 'note-image-caption';
+      caption.setAttribute('contenteditable', 'true');
+      caption.setAttribute('data-placeholder', 'Add caption (optional)');
+      figure.appendChild(caption);
+      placeNodeInEditor(figure);
+      noteContentEl.focus();
+      scheduleContentSave();
+    }
+
+    function placeNodeInEditor(node) {
+      if (!node) {
+        return;
+      }
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || !noteContentEl.contains(selection.anchorNode)) {
+        noteContentEl.appendChild(node);
+        const paragraph = document.createElement('p');
+        paragraph.appendChild(document.createElement('br'));
+        noteContentEl.appendChild(paragraph);
+        const range = document.createRange();
+        range.setStart(paragraph, 0);
+        range.collapse(true);
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        return;
+      }
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(node);
+      range.setStartAfter(node);
+      range.setEndAfter(node);
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
 
     function consumeSlashCommand() {
