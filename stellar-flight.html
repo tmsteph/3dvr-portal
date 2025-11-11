@@ -1085,6 +1085,9 @@
   const hasTouchPoints = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   let usingTouchControls = coarsePointerQuery.matches || (!finePointerQuery.matches && hasTouchPoints);
   let manualControlPreference = false;
+  let touchLookPointer = null;
+  let lastLookX = 0;
+  let lastLookY = 0;
 
   if (overlayToggle) {
     overlayToggle.setAttribute('aria-hidden', 'true');
@@ -1390,9 +1393,6 @@
   let pitch = 0;
   let pointerLocked = false;
   const pitchLimit = Math.PI / 2 - 0.08;
-  let touchLookPointer = null;
-  let lastLookX = 0;
-  let lastLookY = 0;
 
   function recenterShip() {
     camera.position.set(0, 0, 20);
