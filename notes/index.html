@@ -89,12 +89,210 @@
   </div>
 
   <script>
-    const gun = Gun(window.__GUN_PEERS__ || [
-      'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
-    ]);
-    const folders = gun.get('simple-folders');
-    const notes = gun.get('simple-notes');
+    function createLocalGunSubscriptionStub() {
+      return {
+        off() {}
+      };
+    }
+
+    function createLocalGunNodeStub() {
+      const node = {
+        __isGunStub: true,
+        get() {
+          return createLocalGunNodeStub();
+        },
+        put(_value, callback) {
+          if (typeof callback === 'function') {
+            setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+          }
+          return node;
+        },
+        once(callback) {
+          if (typeof callback === 'function') {
+            setTimeout(() => callback(undefined), 0);
+          }
+          return node;
+        },
+        on() {
+          return createLocalGunSubscriptionStub();
+        },
+        off() {},
+        map() {
+          return {
+            __isGunStub: true,
+            on() {
+              return createLocalGunSubscriptionStub();
+            }
+          };
+        }
+      };
+      return node;
+    }
+
+    function createLocalGunUserStub() {
+      const node = createLocalGunNodeStub();
+      return {
+        ...node,
+        is: null,
+        _: {},
+        recall() {},
+        auth(_alias, _password, callback) {
+          if (typeof callback === 'function') {
+            setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+          }
+        },
+        leave() {},
+        create(_alias, _password, callback) {
+          if (typeof callback === 'function') {
+            setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
+          }
+        }
+      };
+    }
+
+    function ensureGunContext(factory, label) {
+      const ensureGun = window.ScoreSystem && typeof window.ScoreSystem.ensureGun === 'function'
+        ? window.ScoreSystem.ensureGun.bind(window.ScoreSystem)
+        : null;
+      if (ensureGun) {
+        return ensureGun(factory, { label });
+      }
+      if (typeof factory === 'function') {
+        try {
+          const instance = factory();
+          if (instance) {
+            return {
+              gun: instance,
+              user: typeof instance.user === 'function' ? instance.user() : createLocalGunUserStub(),
+              isStub: !!instance.__isGunStub
+            };
+          }
+        } catch (err) {
+          console.warn(`Failed to initialize ${label || 'notes'} Gun instance`, err);
+        }
+      }
+      console.warn(`Gun.js is unavailable for ${label || 'notes'}; running in offline mode.`);
+      const stubGun = {
+        __isGunStub: true,
+        get() {
+          return createLocalGunNodeStub();
+        },
+        user() {
+          return createLocalGunUserStub();
+        }
+      };
+      return {
+        gun: stubGun,
+        user: stubGun.user(),
+        isStub: true
+      };
+    }
+
+    const gunContext = ensureGunContext(
+      () => (typeof Gun === 'function'
+        ? Gun({
+            peers: window.__GUN_PEERS__ || [
+              'wss://relay.3dvr.tech/gun',
+              'wss://gun-relay-3dvr.fly.dev/gun'
+            ],
+            axe: true
+          })
+        : null),
+      'notes'
+    );
+
+    const gun = gunContext.gun;
+
+    const portalRoot = gun && typeof gun.get === 'function'
+      ? gun.get('3dvr-portal')
+      : createLocalGunNodeStub();
+
+    // Notes now live under 3dvr-portal/notes with folders in 3dvr-portal/noteFolders to align with
+    // the unified portal workspace graph. Legacy simple-notes/simple-folders nodes are still observed
+    // so older clients remain compatible while the data migrates forward.
+    const foldersPrimary = portalRoot.get('noteFolders');
+    const notesPrimary = portalRoot.get('notes');
+
+    const foldersLegacy = gun && typeof gun.get === 'function'
+      ? gun.get('simple-folders')
+      : createLocalGunNodeStub();
+
+    const notesLegacy = gun && typeof gun.get === 'function'
+      ? gun.get('simple-notes')
+      : createLocalGunNodeStub();
+
+    function uniqueSources(sources) {
+      return sources.filter((source, index) => source && sources.indexOf(source) === index);
+    }
+
+    const folderSources = uniqueSources([foldersPrimary, foldersLegacy]);
+    const noteSources = uniqueSources([notesPrimary, notesLegacy]);
+
+    const primaryFolderSource = folderSources[0];
+    const primaryNoteSource = noteSources[0];
+
+    function forEachSource(sources, callback) {
+      sources.forEach((source, index) => {
+        if (source && typeof source.get === 'function') {
+          callback(source, index);
+        }
+      });
+    }
+
+    const isStubSource = (source) => !source || !!source.__isGunStub;
+
+    const folderSourceRefs = new Map();
+    const noteSourceRefs = new Map();
+
+    function generateId() {
+      if (typeof Gun !== 'undefined' && Gun.text && typeof Gun.text.random === 'function') {
+        return Gun.text.random();
+      }
+      return `note_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
+    }
+
+    function putToSources(sources, id, data, { onPrimaryAck } = {}) {
+      forEachSource(sources, (source, index) => {
+        const ref = source.get(id);
+        if (!ref || typeof ref.put !== 'function') {
+          return;
+        }
+        if (index === 0 && typeof onPrimaryAck === 'function') {
+          ref.put(data, (ack) => onPrimaryAck(ack, source));
+        } else {
+          ref.put(data);
+        }
+      });
+    }
+
+    function putFieldToSources(sources, id, field, value, { onPrimaryAck } = {}) {
+      forEachSource(sources, (source, index) => {
+        const ref = source.get(id);
+        if (!ref || typeof ref.get !== 'function') {
+          return;
+        }
+        const child = ref.get(field);
+        if (index === 0 && typeof onPrimaryAck === 'function') {
+          child.put(value, (ack) => onPrimaryAck(ack, source));
+        } else {
+          child.put(value);
+        }
+      });
+    }
+
+    function removeFromSources(sources, id, { onPrimaryAck } = {}) {
+      forEachSource(sources, (source, index) => {
+        const ref = source.get(id);
+        if (!ref || typeof ref.put !== 'function') {
+          return;
+        }
+        if (index === 0 && typeof onPrimaryAck === 'function') {
+          ref.put(null, (ack) => onPrimaryAck(ack, source));
+        } else {
+          ref.put(null);
+        }
+      });
+    }
 
     const folderList = document.getElementById('folders');
     const noteList = document.getElementById('notes');
@@ -241,17 +439,39 @@
       }
     });
 
-    folders.map().on((folder, id) => {
+    function mirrorFolderToPrimary(id, folder) {
+      if (isStubSource(primaryFolderSource)) {
+        return;
+      }
+      const payload = {};
+      if (typeof folder.name === 'string') payload.name = folder.name;
+      if (typeof folder.createdAt === 'number') payload.createdAt = folder.createdAt;
+      if (typeof folder.updatedAt === 'number') payload.updatedAt = folder.updatedAt;
+      if (Object.keys(payload).length === 0) {
+        return;
+      }
+      primaryFolderSource.get(id).put(payload);
+    }
+
+    function handleFolderUpdate(folder, id, source) {
+      if (!id) {
+        return;
+      }
+
       if (!folder) {
-        const li = folderElements.get(id);
-        if (li) {
-          li.remove();
-          folderElements.delete(id);
-        }
-        if (currentFolder === id) {
-          currentFolder = null;
-          newNoteButton.disabled = true;
-          clearNotesSelection();
+        const knownSource = folderSourceRefs.get(id);
+        if (source === primaryFolderSource || !knownSource || knownSource === source) {
+          const li = folderElements.get(id);
+          if (li) {
+            li.remove();
+            folderElements.delete(id);
+          }
+          folderSourceRefs.delete(id);
+          if (currentFolder === id) {
+            currentFolder = null;
+            newNoteButton.disabled = true;
+            clearNotesSelection();
+          }
         }
         return;
       }
@@ -259,6 +479,16 @@
       if (folder._) delete folder._;
       const name = folder.name?.trim() || 'Untitled Space';
       defaultFolderSeeded = true;
+      const existingSource = folderSourceRefs.get(id);
+      const shouldOverwriteSource = !existingSource || source === primaryFolderSource || existingSource === source;
+      if (shouldOverwriteSource) {
+        folderSourceRefs.set(id, source);
+      }
+
+      if (source !== primaryFolderSource && existingSource !== primaryFolderSource) {
+        mirrorFolderToPrimary(id, folder);
+      }
+
       let li = folderElements.get(id);
       if (!li) {
         li = createFolderElement(id);
@@ -270,17 +500,52 @@
       if (!currentFolder) {
         selectFolder(id);
       }
+    }
+
+    folderSources.forEach((source) => {
+      if (!source || typeof source.map !== 'function') {
+        return;
+      }
+      const mapped = source.map();
+      if (mapped && typeof mapped.on === 'function') {
+        mapped.on((folder, id) => handleFolderUpdate(folder, id, source));
+      }
     });
 
-    folders.once((snapshot) => {
+    let pendingFolderSnapshots = 0;
+
+    function registerFolderSnapshot(source) {
+      if (!source || typeof source.once !== 'function') {
+        return;
+      }
+      pendingFolderSnapshots += 1;
+      source.once((snapshot) => {
+        const keys = Object.keys(snapshot || {}).filter((key) => key !== '_');
+        if (keys.length > 0) {
+          defaultFolderSeeded = true;
+        }
+        pendingFolderSnapshots -= 1;
+        if (pendingFolderSnapshots === 0) {
+          maybeSeedDefaultFolder();
+        }
+      });
+    }
+
+    function maybeSeedDefaultFolder() {
       if (defaultFolderSeeded) {
         return;
       }
-      const keys = Object.keys(snapshot || {}).filter((key) => key !== '_');
-      if (keys.length === 0) {
-        seedDefaultFolder();
+      if (folderElements.size > 0) {
+        defaultFolderSeeded = true;
+        return;
       }
-    });
+      seedDefaultFolder();
+    }
+
+    folderSources.forEach(registerFolderSnapshot);
+    if (pendingFolderSnapshots === 0) {
+      maybeSeedDefaultFolder();
+    }
 
     function seedDefaultFolder() {
       if (defaultFolderSeeded) {
@@ -293,18 +558,22 @@
 
     function createFolder(name) {
       defaultFolderSeeded = true;
-      const id = Gun.text.random();
+      const id = generateId();
       const now = Date.now();
-      folders.get(id).put({
+      const payload = {
         name: name || 'Untitled Space',
         createdAt: now,
         updatedAt: now
-      }, (ack) => {
-        if (ack && ack.err) {
-          console.error('Failed to create space', ack.err);
-          flashEmptyState('Unable to create a space right now. Try again.');
+      };
+      putToSources(folderSources, id, payload, {
+        onPrimaryAck: (ack) => {
+          if (ack && ack.err) {
+            console.error('Failed to create space', ack.err);
+            flashEmptyState('Unable to create a space right now. Try again.');
+          }
         }
       });
+      folderSourceRefs.set(id, primaryFolderSource);
       return id;
     }
 
@@ -346,7 +615,14 @@
       deleteBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         if (confirm('Delete this space and its notes?')) {
-          folders.get(id).put(null);
+          removeFromSources(folderSources, id, {
+            onPrimaryAck: (ack) => {
+              if (ack && ack.err) {
+                console.error('Failed to delete space', ack.err);
+              }
+            }
+          });
+          folderSourceRefs.delete(id);
           removeNotesInFolder(id);
         }
       });
@@ -355,7 +631,7 @@
         event.stopPropagation();
         enableEdit(nameEl, (value) => {
           const updated = value.trim() || 'Untitled Space';
-          folders.get(id).put({ name: updated, updatedAt: Date.now() });
+          putToSources(folderSources, id, { name: updated, updatedAt: Date.now() });
         });
       });
 
@@ -396,7 +672,14 @@
     function removeNotesInFolder(folderId) {
       noteCache.forEach((note, id) => {
         if (note.folder === folderId) {
-          notes.get(id).put(null);
+          removeFromSources(noteSources, id, {
+            onPrimaryAck: (ack) => {
+              if (ack && ack.err) {
+                console.error('Failed to delete note', ack.err);
+              }
+            }
+          });
+          noteSourceRefs.delete(id);
         }
       });
     }
@@ -406,51 +689,100 @@
       if (!activeFolder) {
         return;
       }
-      const id = Gun.text.random();
+      const id = generateId();
       const now = Date.now();
-      notes.get(id).put({
+      const payload = {
         title: 'Untitled',
         folder: activeFolder,
         content: '',
         createdAt: now,
         updatedAt: now
-      }, (ack) => {
-        if (ack && ack.err) {
-          console.error('Failed to create note', ack.err);
-          return;
+      };
+      putToSources(noteSources, id, payload, {
+        onPrimaryAck: (ack) => {
+          if (ack && ack.err) {
+            console.error('Failed to create note', ack.err);
+            return;
+          }
+          openNote(id);
+          setTimeout(() => noteTitleEl.focus(), 120);
         }
-        openNote(id);
-        setTimeout(() => noteTitleEl.focus(), 120);
       });
+      noteSourceRefs.set(id, primaryNoteSource);
     });
 
     noteSearchInput.addEventListener('input', () => {
       filterNotes();
     });
 
-    notes.map().on((note, id) => {
-      if (!note) {
+    function mirrorNoteToPrimary(id, note) {
+      if (isStubSource(primaryNoteSource)) {
+        return;
+      }
+      const payload = {};
+      if (typeof note.title === 'string') payload.title = note.title;
+      if (typeof note.folder === 'string') payload.folder = note.folder;
+      if (typeof note.createdAt === 'number') payload.createdAt = note.createdAt;
+      if (typeof note.updatedAt === 'number') payload.updatedAt = note.updatedAt;
+      if (Object.keys(payload).length > 0) {
+        primaryNoteSource.get(id).put(payload);
+      }
+      if (typeof note.content === 'string') {
+        primaryNoteSource.get(id).get('content').put(note.content);
+      }
+    }
+
+    function handleNoteRemoval(id, source) {
+      const knownSource = noteSourceRefs.get(id);
+      if (source === primaryNoteSource || !knownSource || knownSource === source) {
         const li = noteElements.get(id);
         if (li) {
           li.remove();
           noteElements.delete(id);
         }
         noteCache.delete(id);
+        noteSourceRefs.delete(id);
         if (currentNoteId === id) {
           closeEditor();
         }
+      }
+    }
+
+    function handleNoteUpdate(note, id, source) {
+      if (!id) {
         return;
       }
-
+      if (!note) {
+        handleNoteRemoval(id, source);
+        return;
+      }
       if (note._) delete note._;
       const cached = noteCache.get(id) || { id };
       const merged = { ...cached, ...note, id };
       noteCache.set(id, merged);
+      const existingSource = noteSourceRefs.get(id);
+      const shouldOverwriteSource = !existingSource || source === primaryNoteSource || existingSource === source;
+      if (shouldOverwriteSource) {
+        noteSourceRefs.set(id, source);
+      }
+      if (source !== primaryNoteSource && existingSource !== primaryNoteSource) {
+        mirrorNoteToPrimary(id, merged);
+      }
       ensureNoteListItem(id, merged);
       if (currentNoteId === id) {
         updateEditorMeta(merged);
       }
       filterNotes();
+    }
+
+    noteSources.forEach((source) => {
+      if (!source || typeof source.map !== 'function') {
+        return;
+      }
+      const mapped = source.map();
+      if (mapped && typeof mapped.on === 'function') {
+        mapped.on((note, id) => handleNoteUpdate(note, id, source));
+      }
     });
 
     function ensureNoteListItem(id, note) {
@@ -491,7 +823,14 @@
         deleteBtn.addEventListener('click', (event) => {
           event.stopPropagation();
           if (confirm('Delete this note?')) {
-            notes.get(id).put(null);
+            removeFromSources(noteSources, id, {
+              onPrimaryAck: (ack) => {
+                if (ack && ack.err) {
+                  console.error('Failed to delete note', ack.err);
+                }
+              }
+            });
+            noteSourceRefs.delete(id);
           }
         });
 
@@ -499,7 +838,7 @@
           event.stopPropagation();
           enableEdit(title, (value) => {
             const updated = value.trim() || 'Untitled';
-            notes.get(id).put({ title: updated });
+            putToSources(noteSources, id, { title: updated, updatedAt: Date.now() });
           });
         });
 
@@ -538,13 +877,19 @@
         return;
       }
       currentNoteId = id;
-      notes.get(id).once((note) => {
+      const source = noteSourceRefs.get(id) || primaryNoteSource;
+      const ref = source && typeof source.get === 'function' ? source.get(id) : null;
+      if (!ref || typeof ref.once !== 'function') {
+        return;
+      }
+      ref.once((note) => {
         if (!note) {
           return;
         }
         if (note._) delete note._;
         const merged = { ...(noteCache.get(id) || {}), ...note, id };
         noteCache.set(id, merged);
+        noteSourceRefs.set(id, source);
         renderActiveNote(merged);
         attachNoteListener(id);
         noteContentEl.focus();
@@ -569,16 +914,21 @@
       if (currentNoteRef && currentNoteRef.off) {
         currentNoteRef.off();
       }
-      currentNoteRef = notes.get(id);
+      const source = noteSourceRefs.get(id) || primaryNoteSource;
+      const ref = source && typeof source.get === 'function' ? source.get(id) : null;
+      if (!ref || typeof ref.on !== 'function') {
+        currentNoteRef = null;
+        return;
+      }
+      currentNoteRef = ref;
       currentNoteRef.on((note) => {
         if (!note) {
           closeEditor();
           return;
         }
         if (note._) delete note._;
-        const cached = noteCache.get(id) || { id };
-        const merged = { ...cached, ...note, id };
-        noteCache.set(id, merged);
+        handleNoteUpdate(note, id, source);
+        const merged = noteCache.get(id) || { id };
         if (document.activeElement !== noteTitleEl) {
           noteTitleEl.textContent = merged.title || 'Untitled';
         }
@@ -697,7 +1047,7 @@
       cached.title = value;
       cached.updatedAt = now;
       noteCache.set(currentNoteId, cached);
-      notes.get(currentNoteId).put({ title: value, updatedAt: now });
+      putToSources(noteSources, currentNoteId, { title: value, updatedAt: now });
       ensureNoteListItem(currentNoteId, cached);
       filterNotes();
     });
@@ -798,8 +1148,8 @@
         const html = noteContentEl.innerHTML;
         suppressContentUpdate = true;
         const now = Date.now();
-        notes.get(currentNoteId).get('content').put(html);
-        notes.get(currentNoteId).get('updatedAt').put(now);
+        putFieldToSources(noteSources, currentNoteId, 'content', html);
+        putFieldToSources(noteSources, currentNoteId, 'updatedAt', now);
         const cached = noteCache.get(currentNoteId) || { id: currentNoteId };
         cached.content = html;
         cached.updatedAt = now;
