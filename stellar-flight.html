@@ -874,6 +874,26 @@
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
 
+  const statusEl = document.getElementById('status');
+  const speedBar = document.getElementById('speedBar');
+  const stabilityBar = document.getElementById('stabilityBar');
+  const overlay = document.querySelector('.overlay');
+  const overlayClose = document.getElementById('overlayClose');
+  const overlayToggle = document.getElementById('overlayToggle');
+  const primaryInstructions = document.getElementById('primaryInstructions');
+  const secondaryInstructions = document.getElementById('secondaryInstructions');
+  const controlModeToggle = document.getElementById('controlModeToggle');
+  const touchUI = document.getElementById('touchUI');
+  const touchGestureHint = touchUI ? touchUI.querySelector('.touch-gesture-hint') : null;
+  const throttleControl = document.getElementById('throttleControl');
+  const throttleTrack = document.getElementById('throttleTrack');
+  const throttleThumb = document.getElementById('throttleThumb');
+  const throttleLevel = document.getElementById('throttleLevel');
+  const throttleReverse = document.getElementById('throttleReverse');
+  const missionStatus = document.getElementById('missionStatus');
+  const objectiveCounter = document.getElementById('objectiveCounter');
+  const missionTip = document.getElementById('missionTip');
+
   const ambient = new THREE.AmbientLight(0x7dd3fc, 0.38);
   scene.add(ambient);
 
@@ -1368,25 +1388,6 @@
   const velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
   const upVector = new THREE.Vector3(0, 1, 0);
-  const statusEl = document.getElementById('status');
-  const speedBar = document.getElementById('speedBar');
-  const stabilityBar = document.getElementById('stabilityBar');
-  const overlay = document.querySelector('.overlay');
-  const overlayClose = document.getElementById('overlayClose');
-  const overlayToggle = document.getElementById('overlayToggle');
-  const primaryInstructions = document.getElementById('primaryInstructions');
-  const secondaryInstructions = document.getElementById('secondaryInstructions');
-  const controlModeToggle = document.getElementById('controlModeToggle');
-  const touchUI = document.getElementById('touchUI');
-  const touchGestureHint = touchUI ? touchUI.querySelector('.touch-gesture-hint') : null;
-  const throttleControl = document.getElementById('throttleControl');
-  const throttleTrack = document.getElementById('throttleTrack');
-  const throttleThumb = document.getElementById('throttleThumb');
-  const throttleLevel = document.getElementById('throttleLevel');
-  const throttleReverse = document.getElementById('throttleReverse');
-  const missionStatus = document.getElementById('missionStatus');
-  const objectiveCounter = document.getElementById('objectiveCounter');
-  const missionTip = document.getElementById('missionTip');
 
   const actionButtons = touchUI ? [...touchUI.querySelectorAll('.touch-action')] : [];
   let pauseButton = null;
@@ -1803,6 +1804,9 @@
   }
 
   function updateStatus(speed) {
+    if (!statusEl) {
+      return;
+    }
     const boostEngaged = touchActions.boost || keys.has('ShiftLeft') || keys.has('ShiftRight');
     const modeLabel = paused ? 'PAUSED' : boostEngaged ? 'BOOST CHANNEL' : 'CRUISE MODE';
     const displayedSpeed = paused ? 0 : speed;
@@ -1927,8 +1931,12 @@
       velocity.set(0, 0, 0);
       camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
       const stabilityPaused = Math.max(0, Math.min(1, 1 - Math.abs(pitch) / pitchLimit));
-      speedBar.style.transform = 'scaleX(0.1)';
-      stabilityBar.style.transform = `scaleX(${0.2 + stabilityPaused * 0.8})`;
+      if (speedBar) {
+        speedBar.style.transform = 'scaleX(0.1)';
+      }
+      if (stabilityBar) {
+        stabilityBar.style.transform = `scaleX(${0.2 + stabilityPaused * 0.8})`;
+      }
       updateStatus(0);
       return;
     }
@@ -1980,8 +1988,12 @@
 
     const speed = velocity.length();
     const stability = Math.max(0, Math.min(1, 1 - Math.abs(pitch) / pitchLimit));
-    speedBar.style.transform = `scaleX(${0.1 + Math.min(speed / 125, 1) * 0.9})`;
-    stabilityBar.style.transform = `scaleX(${0.2 + stability * 0.8})`;
+    if (speedBar) {
+      speedBar.style.transform = `scaleX(${0.1 + Math.min(speed / 125, 1) * 0.9})`;
+    }
+    if (stabilityBar) {
+      stabilityBar.style.transform = `scaleX(${0.2 + stability * 0.8})`;
+    }
     updateStatus(speed);
   }
 
