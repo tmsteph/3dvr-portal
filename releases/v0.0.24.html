@@ -79,36 +79,36 @@
     <a class="release-nav-link" href="v0.0.23.html">← Previous release</a>
     <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
   </nav>
-  <h1>🚀 Release v0.0.24</h1>
+  <h1>Release v0.0.24</h1>
   <div class="tag">Week of November 17, 2025</div>
   <p class="release-summary">
-    Contacts and CRM gain inline editing, Brave browser sync, and a stabilized client management loop
+    Restores contact and CRM editing and publishes the Stellar Drift arcade game with GunDB score syncing
   </p>
 
   <div class="section">
     <h2>Overview</h2>
     <p>
-      This build doubles down on the relationship management workflow. We restored editing across contacts and CRM records
-      and chased down the Brave browser quirks that previously kept entries from syncing. Both surfaces now share a
-      consistent data pipeline, giving contributors confidence that updates will persist wherever they log in.
+      This release brings contact and CRM editing back into service and resolves sync issues that affected Brave.
+      Contacts and CRM now rely on the same data pipeline so edits persist across sessions. The arcade also adds Stellar
+      Drift, which records scores through GunDB alongside the existing titles.
     </p>
   </div>
 
   <div class="section">
     <h2>Contacts Editing</h2>
     <ul>
-      <li>Re-enabled full edit flows so existing contact cards can be updated without recreating records.</li>
-      <li>Hardened field validation to keep phone, email, and notes tidy as edits stream back to GunDB.</li>
-      <li>Polished the save experience with clearer status feedback to confirm when changes finish syncing.</li>
+      <li>Re-enabled edit flows so existing contact cards can be updated without recreating records.</li>
+      <li>Added field validation to keep phone, email, and notes consistent when updates sync through GunDB.</li>
+      <li>Added status feedback to confirm when changes finish syncing.</li>
     </ul>
   </div>
 
   <div class="section">
     <h2>CRM Improvements</h2>
     <ul>
-      <li>Mirrored the contact editing work inside the CRM so pipeline entries stay in lockstep with the directory.</li>
-      <li>Ensured updates propagate bidirectionally between the CRM view and the underlying contact source.</li>
-      <li>Smoothed record hydration so reopening a CRM detail pane shows the latest edits instantly.</li>
+      <li>Applied the same editing changes to CRM pipeline entries so they stay aligned with the directory.</li>
+      <li>Ensured updates propagate between the CRM view and the underlying contact record.</li>
+      <li>Updated record loading so reopening a CRM detail pane shows the latest edits.</li>
     </ul>
   </div>
 
@@ -118,6 +118,15 @@
       <li>Fixed Brave-specific local persistence gaps so contacts and CRM entries sync just like in Chrome and Firefox.</li>
       <li>Added extra readiness checks before writes so privacy mode timing differences no longer drop updates.</li>
       <li>Expanded manual verification across Brave desktop to confirm editing and syncing survive refreshes.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Arcade Update – Stellar Drift</h2>
+    <ul>
+      <li>Added Stellar Drift beside Tribes Flight as another arcade option.</li>
+      <li>Connected the game to GunDB score tracking so results persist between sessions.</li>
+      <li>Updated controller, keyboard, and touch prompts to cover the drift mechanics.</li>
     </ul>
   </div>
 
@@ -132,7 +141,7 @@
   <div class="section">
     <h2>Known Issues</h2>
     <ul>
-      <li>Bulk import and export flows remain manual while we focus on polishing the core editing experience.</li>
+      <li>Bulk import and export flows remain manual while we continue improving the core editing experience.</li>
     </ul>
   </div>
 
@@ -141,7 +150,7 @@
     <ul>
       <li>Layer in activity timelines so teams can see when each contact or deal was last touched.</li>
       <li>Expand CRM filtering and sorting to accelerate pipeline reviews.</li>
-      <li>Continue stress-testing Brave and other privacy-focused browsers for multi-tab conflict scenarios.</li>
+      <li>Plan cooperative Stellar Drift events once cross-session sync proves stable under load.</li>
     </ul>
   </div>
 
