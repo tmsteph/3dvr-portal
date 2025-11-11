@@ -156,6 +156,35 @@
     color: #f0fdfc;
   }
 
+  .webgl-fallback {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem;
+    text-align: center;
+    background: radial-gradient(circle at top, #111827, #020617 60%);
+    color: #e2e8f0;
+    z-index: 999;
+  }
+
+  .webgl-fallback p {
+    max-width: 520px;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .webgl-fallback strong {
+    display: block;
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #f8fafc;
+  }
+
   .mission-status {
     position: fixed;
     top: calc(var(--safe-top) + 4.25rem);
@@ -796,6 +825,44 @@
     crossorigin="anonymous"
   ></script>
   <script>
+  function showWebGLFallback(message) {
+    const fallback = document.createElement('div');
+    fallback.className = 'webgl-fallback';
+    fallback.innerHTML = `
+      <p>
+        <strong>WebGL Flight Systems Offline</strong>
+        ${message || 'Your device or browser blocked the 3D renderer. Enable WebGL or update your graphics drivers to enter Stellar Drift.'}
+      </p>
+    `;
+    document.body.appendChild(fallback);
+  }
+
+  function isWebGLSupported() {
+    try {
+      const testCanvas = document.createElement('canvas');
+      return !!(
+        window.WebGLRenderingContext &&
+        (testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl'))
+      );
+    } catch (error) {
+      return false;
+    }
+  }
+
+  if (!isWebGLSupported()) {
+    showWebGLFallback('This flight deck needs WebGL acceleration. Please enable it in your browser settings or switch to a compatible device.');
+    throw new Error('WebGL not supported in this browser');
+  }
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (error) {
+    console.error('Failed to initialize Stellar Drift renderer', error);
+    showWebGLFallback('We could not initialize the 3D renderer. Updating your graphics drivers or toggling hardware acceleration usually resolves this.');
+    throw new Error('WebGL renderer initialization failed');
+  }
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x010312);
   scene.fog = new THREE.FogExp2(0x020618, 0.0016);
@@ -803,7 +870,6 @@
   const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.2, 3000);
   camera.position.set(0, 0, 20);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
