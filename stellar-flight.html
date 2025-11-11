@@ -156,6 +156,51 @@
     color: #f0fdfc;
   }
 
+  .mission-status {
+    position: fixed;
+    top: calc(var(--safe-top) + 4.25rem);
+    left: var(--safe-left);
+    padding: 0.85rem 1.1rem 0.95rem;
+    max-width: min(360px, calc(100% - 2.75rem));
+    background: rgba(8, 25, 44, 0.72);
+    border-radius: 16px;
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    color: rgba(191, 219, 254, 0.9);
+    box-shadow: 0 22px 48px rgba(8, 145, 178, 0.38);
+    letter-spacing: 0.04em;
+    z-index: 11;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  }
+
+  .mission-status span {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: rgba(165, 243, 252, 0.9);
+    margin-bottom: 0.25rem;
+  }
+
+  .mission-status strong {
+    display: block;
+    font-size: 1.05rem;
+    letter-spacing: 0.1em;
+    color: #f0fdfc;
+  }
+
+  .mission-status .mission-tip {
+    margin: 0.5rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: rgba(148, 163, 184, 0.92);
+  }
+
+  .mission-status-complete {
+    border-color: rgba(52, 211, 153, 0.65);
+    box-shadow: 0 26px 54px rgba(52, 211, 153, 0.35);
+    transform: translate3d(0, -4px, 0);
+  }
+
   .top-buttons {
     position: fixed;
     top: var(--safe-top);
@@ -416,6 +461,12 @@
     .touch-action {
       font-size: 0.76rem;
     }
+
+    .mission-status {
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: min(420px, calc(100% - 2rem));
+    }
   }
 
   @media (max-width: 640px) {
@@ -431,6 +482,13 @@
 
     body.touch-enabled .status {
       bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem + 220px + 8rem);
+    }
+
+    .mission-status {
+      top: calc(var(--safe-top) + 5.25rem);
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: min(360px, 90vw);
     }
   }
 
@@ -631,6 +689,12 @@
     .touch-actions {
       bottom: calc(var(--safe-bottom) + 220px + 1.5rem);
     }
+
+    .mission-status {
+      top: calc(var(--safe-top) + 5rem);
+      max-width: min(320px, 88vw);
+      padding: 0.75rem 0.9rem 0.85rem;
+    }
   }
   </style>
 </head>
@@ -657,12 +721,13 @@
     <h1>Stellar Drift</h1>
     <p id="primaryInstructions">
       Glide through procedurally scattered stars and luminous worlds. Click anywhere to engage flight controls,
-      then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost.
+      then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost and left-click or
+      press <strong>F</strong> to fire a laser burst.
     </p>
     <div class="hint" id="secondaryInstructions">
       Press <strong>R</strong> if you ever want to re-center your ship. Pointer lock keeps the cursor inside the
-      cockpit—press <strong>Esc</strong> to release. Hide these tips once you're comfortable and use "Show Flight
-      Controls" to bring them back.
+      cockpit—press <strong>Esc</strong> to release. Tag the luminous mission beacons to complete objectives and watch the
+      tracker for your next target.
     </div>
   </div>
 
@@ -691,6 +756,7 @@
     </div>
     <div class="touch-actions" role="group" aria-label="Flight quick actions">
       <button class="touch-action" type="button" data-action="boost" aria-pressed="false">Boost</button>
+      <button class="touch-action" type="button" data-action="fire" aria-pressed="false">Fire 🔆</button>
       <button class="touch-action" type="button" data-action="pause" aria-pressed="false">Pause</button>
       <button class="touch-action" type="button" data-action="ascend" aria-pressed="false">Ascend</button>
       <button class="touch-action" type="button" data-action="descend" aria-pressed="false">Descend</button>
@@ -709,6 +775,12 @@
       <span>Stability</span>
       <div class="hud-meter"><div class="hud-meter-fill" id="stabilityBar"></div></div>
     </div>
+  </div>
+
+  <div class="mission-status" id="missionStatus" role="status" aria-live="polite">
+    <span>Mission Tracker</span>
+    <strong id="objectiveCounter">0/5 sector · 0 total</strong>
+    <p class="mission-tip" id="missionTip">Tag the luminous beacons with a laser burst to harmonize this sector.</p>
   </div>
 
   <div class="reticle" aria-hidden="true">
@@ -953,6 +1025,188 @@
     return planet;
   });
 
+  const objectiveGroup = new THREE.Group();
+  scene.add(objectiveGroup);
+
+  const objectiveConfigs = [
+    {
+      name: 'Azure Beacon',
+      color: 0x38bdf8,
+      basePosition: new THREE.Vector3(90, 48, -340)
+    },
+    {
+      name: 'Solaris Relay',
+      color: 0xfacc15,
+      basePosition: new THREE.Vector3(-160, 26, -520)
+    },
+    {
+      name: 'Verdant Spire',
+      color: 0x34d399,
+      basePosition: new THREE.Vector3(140, -42, -640)
+    },
+    {
+      name: 'Crimson Chime',
+      color: 0xf87171,
+      basePosition: new THREE.Vector3(-60, 70, -780)
+    },
+    {
+      name: 'Umbral Node',
+      color: 0xa855f7,
+      basePosition: new THREE.Vector3(60, -28, -920)
+    }
+  ];
+
+  function randomizeObjectivePosition(base) {
+    return base
+      .clone()
+      .add(new THREE.Vector3((Math.random() - 0.5) * 120, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 160));
+  }
+
+  function createObjectiveMarker(config) {
+    const group = new THREE.Group();
+    group.position.copy(randomizeObjectivePosition(config.basePosition));
+
+    const coreMaterial = new THREE.MeshStandardMaterial({
+      color: config.color,
+      emissive: config.color,
+      emissiveIntensity: 0.9,
+      roughness: 0.25,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.92
+    });
+    const core = new THREE.Mesh(new THREE.SphereGeometry(4.2, 48, 48), coreMaterial);
+    group.add(core);
+
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: config.color,
+      transparent: true,
+      opacity: 0.36,
+      blending: THREE.AdditiveBlending
+    });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(8.2, 0.55, 28, 96), ringMaterial);
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
+
+    const pylonMaterial = new THREE.MeshBasicMaterial({
+      color: config.color,
+      transparent: true,
+      opacity: 0.32,
+      blending: THREE.AdditiveBlending
+    });
+    const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 26, 24, 1, true), pylonMaterial);
+    pylon.position.y = 15;
+    group.add(pylon);
+
+    const glowMaterial = new THREE.SpriteMaterial({
+      map: anomalyTexture,
+      color: new THREE.Color(config.color),
+      transparent: true,
+      opacity: 0.42,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const glow = new THREE.Sprite(glowMaterial);
+    glow.scale.set(26, 26, 26);
+    group.add(glow);
+
+    objectiveGroup.add(group);
+
+    return {
+      name: config.name,
+      color: config.color,
+      basePosition: config.basePosition.clone(),
+      group,
+      core,
+      ring,
+      pylon,
+      glow,
+      completed: false,
+      pulse: Math.random() * Math.PI * 2,
+      hitRadius: 11
+    };
+  }
+
+  const objectiveMarkers = objectiveConfigs.map((config) => createObjectiveMarker(config));
+  let totalSyncedObjectives = 0;
+
+  function updateObjectiveUI() {
+    if (!objectiveCounter) {
+      return;
+    }
+    const remaining = objectiveMarkers.filter((marker) => !marker.completed).length;
+    const syncedThisPass = objectiveMarkers.length - remaining;
+    objectiveCounter.textContent = `${syncedThisPass}/${objectiveMarkers.length} sector · ${totalSyncedObjectives} total`;
+    if (missionTip) {
+      if (remaining === 0) {
+        missionTip.textContent = 'Sector clear! New resonance points incoming—stand by.';
+      } else {
+        const nextMarker = objectiveMarkers.find((marker) => !marker.completed);
+        missionTip.textContent = nextMarker
+          ? `Tag ${nextMarker.name} with a laser burst to sync its signal.`
+          : 'Tag the luminous mission beacons to sync their signals.';
+      }
+    }
+  }
+
+  updateObjectiveUI();
+
+  function highlightMissionStatus() {
+    if (!missionStatus) {
+      return;
+    }
+    missionStatus.classList.add('mission-status-complete');
+    window.setTimeout(() => {
+      missionStatus.classList.remove('mission-status-complete');
+    }, 420);
+  }
+
+  function reseedObjective(marker) {
+    marker.completed = false;
+    marker.group.scale.setScalar(1);
+    marker.group.position.copy(randomizeObjectivePosition(marker.basePosition));
+    marker.core.material.color.setHex(marker.color);
+    marker.core.material.emissive.setHex(marker.color);
+    marker.core.material.emissiveIntensity = 0.9;
+    marker.core.material.opacity = 0.92;
+    marker.ring.material.color.setHex(marker.color);
+    marker.ring.material.opacity = 0.36;
+    marker.pylon.material.color.setHex(marker.color);
+    marker.pylon.material.opacity = 0.32;
+    marker.glow.material.color.set(new THREE.Color(marker.color));
+    marker.glow.material.opacity = 0.42;
+  }
+
+  function completeObjective(marker) {
+    if (marker.completed) {
+      return;
+    }
+    marker.completed = true;
+    marker.group.scale.setScalar(1.22);
+    marker.core.material.color.setHex(0x22c55e);
+    marker.core.material.emissive.setHex(0x22c55e);
+    marker.core.material.emissiveIntensity = 0.6;
+    marker.core.material.opacity = 0.85;
+    marker.ring.material.color.setHex(0x22c55e);
+    marker.ring.material.opacity = 0.5;
+    marker.pylon.material.color.setHex(0x22c55e);
+    marker.pylon.material.opacity = 0.42;
+    marker.glow.material.color.set(0x86efac);
+    marker.glow.material.opacity = 0.58;
+    totalSyncedObjectives += 1;
+    updateObjectiveUI();
+    highlightMissionStatus();
+
+    if (objectiveMarkers.every((item) => item.completed)) {
+      window.setTimeout(() => {
+        objectiveMarkers.forEach((item) => {
+          reseedObjective(item);
+        });
+        updateObjectiveUI();
+      }, 1600);
+    }
+  }
+
   const asteroidGeometry = new THREE.IcosahedronGeometry(2.6, 1);
   const asteroidMaterial = new THREE.MeshStandardMaterial({
     color: 0x475569,
@@ -1064,6 +1318,9 @@
   const throttleThumb = document.getElementById('throttleThumb');
   const throttleLevel = document.getElementById('throttleLevel');
   const throttleReverse = document.getElementById('throttleReverse');
+  const missionStatus = document.getElementById('missionStatus');
+  const objectiveCounter = document.getElementById('objectiveCounter');
+  const missionTip = document.getElementById('missionTip');
 
   const actionButtons = touchUI ? [...touchUI.querySelectorAll('.touch-action')] : [];
   let pauseButton = null;
@@ -1073,6 +1330,7 @@
   let throttleValue = 0;
   const touchActions = {
     boost: false,
+    fire: false,
     ascend: false,
     descend: false,
     strafeLeft: false,
@@ -1127,6 +1385,7 @@
     moveInput.x = 0;
     setThrottleValue(0);
     touchActions.boost = false;
+    touchActions.fire = false;
     touchActions.ascend = false;
     touchActions.descend = false;
     touchActions.strafeLeft = false;
@@ -1151,23 +1410,23 @@
       primaryInstructions.innerHTML =
         [
           'Tap anywhere to arm the flight deck, then swipe across space to steer your ship.',
-          'Drag the vertical throttle to set forward cruise or reverse drift.'
+          'Drag the vertical throttle to set forward cruise or reverse drift, and tap <strong>Fire</strong> to launch a laser burst.'
         ].join(' ');
       secondaryInstructions.innerHTML =
         [
           'Hold Boost to surge forward, Strafe or Ascend/Descend to slide and climb, and Re-center to reset orientation.',
-          'Pause freezes the ship without leaving the session. Attach a keyboard or toggle controls to return to mouse + WASD flight.'
+          'Tag luminous objective beacons to sync this sector—the mission tracker keeps score while Pause freezes the ship.'
         ].join(' ');
     } else {
       primaryInstructions.innerHTML =
         [
           'Glide through procedurally scattered stars and luminous worlds. Click anywhere to engage flight controls,',
-          'then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost.'
+          'then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost and left-click or press <strong>F</strong> to fire a laser burst.'
         ].join(' ');
       secondaryInstructions.innerHTML =
         [
           'Press <strong>R</strong> to re-center your ship. Pointer lock keeps the cursor inside the cockpit—press <strong>Esc</strong> to release.',
-          'Toggle touch controls anytime if you dock a keyboard or prefer on-screen pads.'
+          'Tag the luminous mission beacons to complete objectives and watch the tracker for your next target.'
         ].join(' ');
     }
   }
@@ -1306,6 +1565,9 @@
       activePointer = event.pointerId;
       button.setPointerCapture(activePointer);
       setPressed(true);
+      if (actionKey === 'fire') {
+        triggerLaserBurst();
+      }
       event.preventDefault();
       event.stopPropagation();
     });
@@ -1318,6 +1580,7 @@
   }
 
   momentaryResetters.set('boost', bindMomentaryAction(actionButtons.find((btn) => btn.dataset.action === 'boost'), 'boost'));
+  momentaryResetters.set('fire', bindMomentaryAction(actionButtons.find((btn) => btn.dataset.action === 'fire'), 'fire'));
   momentaryResetters.set(
     'ascend',
     bindMomentaryAction(actionButtons.find((btn) => btn.dataset.action === 'ascend'), 'ascend')
@@ -1394,6 +1657,78 @@
   let pointerLocked = false;
   const pitchLimit = Math.PI / 2 - 0.08;
 
+  const laserGeometry = new THREE.CylinderGeometry(0.18, 0.18, 10, 12);
+  const baseLaserMaterial = new THREE.MeshBasicMaterial({
+    color: 0x7dd3fc,
+    transparent: true,
+    opacity: 0.95,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  const activeLasers = [];
+  const laserForwardAxis = new THREE.Vector3(0, 1, 0);
+  const laserSpeed = 220;
+  const laserLifetime = 1.8;
+  const laserCooldownMs = 160;
+  let lastLaserTimestamp = 0;
+
+  function removeLaser(index) {
+    const shot = activeLasers[index];
+    scene.remove(shot.mesh);
+    if (shot.mesh.material) {
+      shot.mesh.material.dispose();
+    }
+    activeLasers.splice(index, 1);
+  }
+
+  function triggerLaserBurst() {
+    if (paused) {
+      return;
+    }
+    const now = performance.now();
+    if (now - lastLaserTimestamp < laserCooldownMs) {
+      return;
+    }
+    lastLaserTimestamp = now;
+    const directionVector = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')).normalize();
+    const laserMaterial = baseLaserMaterial.clone();
+    const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+    laser.position.copy(camera.position).addScaledVector(directionVector, 6);
+    laser.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(laserForwardAxis, directionVector));
+    scene.add(laser);
+    activeLasers.push({ mesh: laser, direction: directionVector, life: 0 });
+  }
+
+  function updateLasers(delta) {
+    for (let index = activeLasers.length - 1; index >= 0; index--) {
+      const shot = activeLasers[index];
+      shot.life += delta;
+      shot.mesh.position.addScaledVector(shot.direction, delta * laserSpeed);
+      if (shot.mesh.material) {
+        shot.mesh.material.opacity = Math.max(0, 0.95 - shot.life * 0.6);
+      }
+
+      let shouldRemove = shot.life > laserLifetime;
+
+      if (!shouldRemove) {
+        for (const marker of objectiveMarkers) {
+          if (marker.completed) {
+            continue;
+          }
+          if (shot.mesh.position.distanceTo(marker.group.position) <= marker.hitRadius) {
+            completeObjective(marker);
+            shouldRemove = true;
+            break;
+          }
+        }
+      }
+
+      if (shouldRemove) {
+        removeLaser(index);
+      }
+    }
+  }
+
   function recenterShip() {
     camera.position.set(0, 0, 20);
     velocity.set(0, 0, 0);
@@ -1415,6 +1750,10 @@
     if (event.code === 'KeyR') {
       recenterShip();
     }
+    if (event.code === 'KeyF') {
+      event.preventDefault();
+      triggerLaserBurst();
+    }
   });
 
   window.addEventListener('keyup', (event) => {
@@ -1428,6 +1767,14 @@
     }
     renderer.domElement.requestPointerLock();
     setOverlayVisible(false);
+  });
+
+  renderer.domElement.addEventListener('mousedown', (event) => {
+    if (!pointerLocked || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    triggerLaserBurst();
   });
 
   document.addEventListener('pointerlockchange', () => {
@@ -1575,7 +1922,11 @@
   function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
+    if (usingTouchControls && touchActions.fire) {
+      triggerLaserBurst();
+    }
     updateMovement(delta);
+    updateLasers(delta);
 
     starLayers.forEach((layer, index) => {
       layer.points.rotation.y += delta * layer.rotationSpeed * (index + 1);
@@ -1604,6 +1955,27 @@
           (Math.random() - 0.5) * 660,
           -500 - Math.random() * 2200
         );
+      }
+    });
+
+    objectiveMarkers.forEach((marker) => {
+      marker.pulse += delta * (marker.completed ? 0.9 : 1.6);
+      marker.group.rotation.y += delta * 0.28;
+      marker.ring.rotation.z += delta * 0.42;
+      if (marker.completed) {
+        const settledScale = 1.12 + Math.sin(marker.pulse * 0.5) * 0.04;
+        marker.group.scale.setScalar(settledScale);
+        marker.ring.material.opacity = 0.46 + Math.sin(marker.pulse) * 0.05;
+        marker.pylon.material.opacity = 0.36 + Math.sin(marker.pulse * 0.6) * 0.04;
+        marker.core.material.emissiveIntensity = 0.55 + Math.sin(marker.pulse) * 0.08;
+        marker.glow.material.opacity = 0.52 + Math.sin(marker.pulse) * 0.04;
+      } else {
+        const breathingScale = 1 + Math.sin(marker.pulse * 0.5) * 0.08;
+        marker.group.scale.setScalar(breathingScale);
+        marker.ring.material.opacity = 0.3 + Math.sin(marker.pulse) * 0.12 + 0.2;
+        marker.pylon.material.opacity = 0.28 + Math.sin(marker.pulse * 0.6) * 0.05;
+        marker.core.material.emissiveIntensity = 0.85 + Math.sin(marker.pulse) * 0.18;
+        marker.glow.material.opacity = 0.38 + Math.sin(marker.pulse) * 0.08;
       }
     });
 
