@@ -14,14 +14,31 @@
     color: #f1f5f9;
   }
 
+  :root {
+    --safe-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    --safe-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+    --safe-left: calc(env(safe-area-inset-left, 0px) + 1.5rem);
+    --safe-right: calc(env(safe-area-inset-right, 0px) + 1.5rem);
+    --control-safe-zone: 0px;
+  }
+
+  body.touch-enabled {
+    --control-safe-zone: 18rem;
+  }
+
   canvas {
+    position: fixed;
+    inset: 0;
     display: block;
     touch-action: none;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
   }
 
   .overlay {
     position: fixed;
-    top: 6.5rem;
+    top: calc(6.5rem + env(safe-area-inset-top, 0px));
     left: 50%;
     transform: translateX(-50%);
     width: min(440px, calc(100% - 2rem));
@@ -85,7 +102,7 @@
 
   .overlay-toggle {
     position: fixed;
-    top: 6rem;
+    top: calc(6rem + env(safe-area-inset-top, 0px));
     left: 50%;
     transform: translateX(-50%);
     padding: 0.55rem 1.15rem;
@@ -119,8 +136,8 @@
 
   .status {
     position: fixed;
-    top: 1.5rem;
-    right: 1.5rem;
+    top: calc(var(--safe-top) + 0.5rem);
+    right: var(--safe-right);
     padding: 0.85rem 1.2rem;
     background: rgba(8, 25, 44, 0.7);
     border-radius: 14px;
@@ -141,10 +158,36 @@
 
   .top-buttons {
     position: fixed;
-    top: 1rem;
+    top: var(--safe-top);
     left: 50%;
     transform: translateX(-50%);
     z-index: 12;
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .top-buttons a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    color: rgba(226, 232, 240, 0.92);
+    text-decoration: none;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.4);
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .top-buttons a:hover,
+  .top-buttons a:focus-visible {
+    background: rgba(30, 41, 59, 0.78);
+    border-color: rgba(96, 165, 250, 0.45);
+    color: #e0f2fe;
   }
 
   .hint {
@@ -159,8 +202,8 @@
 
   .control-toggle {
     position: fixed;
-    top: 1.25rem;
-    right: 1.5rem;
+    top: calc(var(--safe-top) + 0.25rem);
+    right: var(--safe-right);
     padding: 0.55rem 1.1rem;
     border-radius: 999px;
     border: 1px solid rgba(148, 163, 184, 0.4);
@@ -186,7 +229,7 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 12;
+    z-index: 20;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -203,8 +246,8 @@
 
   .touch-gesture-hint {
     position: absolute;
-    top: 6.75rem;
-    right: 1.5rem;
+    top: calc(6.75rem + env(safe-area-inset-top, 0px));
+    right: var(--safe-right);
     padding: 0.6rem 1rem;
     border-radius: 14px;
     border: 1px solid rgba(148, 163, 184, 0.35);
@@ -225,8 +268,8 @@
 
   .touch-throttle {
     position: absolute;
-    bottom: 2.5rem;
-    right: 1.5rem;
+    bottom: calc(2.5rem + env(safe-area-inset-bottom, 0px));
+    right: var(--safe-right);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -298,7 +341,7 @@
   .touch-actions {
     position: absolute;
     bottom: 2.5rem;
-    right: calc(1.5rem + 86px + 1.25rem);
+    right: calc(var(--safe-right) + 86px + 1.25rem);
     display: grid;
     grid-template-columns: repeat(2, minmax(82px, 1fr));
     gap: 0.6rem;
@@ -329,28 +372,30 @@
     grid-column: span 2;
   }
 
-  body.touch-enabled .hud,
-  body.touch-enabled .status {
-    left: 1.5rem;
+  body.touch-enabled .hud {
+    left: var(--safe-left);
     right: auto;
     transform: none;
   }
 
   body.touch-enabled .status {
+    left: var(--safe-left);
+    right: auto;
+    transform: none;
     top: auto;
-    bottom: 14rem;
+    bottom: calc(var(--safe-bottom) + var(--control-safe-zone));
   }
 
   @media (max-width: 900px) {
     .touch-gesture-hint {
       top: auto;
       bottom: 16rem;
-      right: 1rem;
+      right: calc(env(safe-area-inset-right, 0px) + 1rem);
     }
 
     .touch-throttle {
       bottom: 2rem;
-      right: 1rem;
+      right: calc(env(safe-area-inset-right, 0px) + 1rem);
     }
 
     .throttle-track {
@@ -375,8 +420,8 @@
 
   @media (max-width: 640px) {
     .touch-actions {
-      right: 1rem;
-      bottom: calc(2rem + 220px + 1.5rem);
+      right: calc(env(safe-area-inset-right, 0px) + 1rem);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem + 220px + 1.5rem);
       grid-template-columns: minmax(150px, 1fr);
     }
 
@@ -385,14 +430,14 @@
     }
 
     body.touch-enabled .status {
-      bottom: calc(2rem + 220px + 8rem);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem + 220px + 8rem);
     }
   }
 
   .hud {
     position: fixed;
-    bottom: 1.5rem;
-    left: 1.5rem;
+    bottom: calc(var(--safe-bottom) + var(--control-safe-zone));
+    left: var(--safe-left);
     padding: 1rem 1.2rem;
     background: rgba(8, 25, 44, 0.7);
     border-radius: 16px;
@@ -442,7 +487,7 @@
     width: 44px;
     height: 44px;
     pointer-events: none;
-    z-index: 9;
+    z-index: 40;
   }
 
   .reticle-ring {
@@ -499,6 +544,92 @@
 
     .hud-meter {
       width: min(200px, 64vw);
+    }
+  }
+
+  @media (max-width: 540px) {
+    .overlay {
+      top: calc(5.5rem + env(safe-area-inset-top, 0px));
+      width: min(360px, calc(100% - 1.25rem));
+      padding: 0.85rem 0.9rem 0.85rem;
+    }
+
+    .overlay h1 {
+      font-size: 1.2rem;
+      letter-spacing: 0.06em;
+    }
+
+    .overlay p,
+    .hint {
+      font-size: 0.78rem;
+      line-height: 1.55;
+    }
+
+    .overlay-toggle {
+      top: auto;
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 0.75rem);
+      transform: translate(-50%, 0);
+    }
+
+    .status {
+      top: calc(var(--safe-top) + 0.25rem);
+      right: var(--safe-right);
+      left: auto;
+      bottom: auto;
+      transform: none;
+      font-size: 0.78rem;
+      padding: 0.75rem 1rem;
+    }
+
+    body.touch-enabled .status {
+      left: auto;
+      right: var(--safe-right);
+      top: calc(var(--safe-top) + 0.25rem);
+      bottom: auto;
+    }
+
+    .hud {
+      left: var(--safe-left);
+      transform: none;
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone));
+      width: min(240px, 78vw);
+      padding: 0.85rem 1rem;
+      font-size: 0.78rem;
+    }
+
+    .hud-gauge span {
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+    }
+
+    .hud-meter {
+      width: min(180px, 70vw);
+    }
+
+    .top-buttons {
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .top-buttons a {
+      width: min(220px, 90vw);
+    }
+
+    .control-toggle {
+      top: calc(var(--safe-top) + 2.75rem);
+      right: var(--safe-right);
+      font-size: 0.75rem;
+    }
+
+    .touch-gesture-hint {
+      top: calc(5.5rem + env(safe-area-inset-top, 0px));
+      right: var(--safe-right);
+      font-size: 0.72rem;
+    }
+
+    .touch-actions {
+      bottom: calc(var(--safe-bottom) + 220px + 1.5rem);
     }
   }
   </style>
