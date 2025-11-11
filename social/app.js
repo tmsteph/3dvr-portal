@@ -3,6 +3,93 @@
 
   const GUN_FALLBACK_ERROR = { err: 'gun-unavailable' };
   const KEY_STORAGE_KEY = 'social-media:workspace-key';
+  const scoreSystem = window.ScoreSystem || {};
+
+  function createLocalGunSubscriptionStub() {
+    return { off() {} };
+  }
+
+  function createLocalGunNodeStub() {
+    const node = {
+      __isGunStub: true,
+      get() {
+        return createLocalGunNodeStub();
+      },
+      put(_value, callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
+        }
+        return node;
+      },
+      once(callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(undefined), 0);
+        }
+        return node;
+      },
+      on() {
+        return createLocalGunSubscriptionStub();
+      },
+      map() {
+        return {
+          __isGunStub: true,
+          on() {
+            return createLocalGunSubscriptionStub();
+          }
+        };
+      },
+      set() {
+        return node;
+      },
+      off() {}
+    };
+    return node;
+  }
+
+  function createLocalGunUserStub(baseNode) {
+    const node = baseNode && typeof baseNode.get === 'function'
+      ? baseNode
+      : createLocalGunNodeStub();
+    return {
+      ...node,
+      is: null,
+      _: {},
+      recall() {},
+      auth(_alias, _password, callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
+        }
+      },
+      leave() {},
+      create(_alias, _password, callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
+        }
+      }
+    };
+  }
+
+  function resolveGunNodeStub() {
+    if (typeof scoreSystem.createGunNodeStub === 'function') {
+      try {
+        return scoreSystem.createGunNodeStub();
+      } catch (err) {
+        console.warn('Failed to reuse ScoreSystem node stub', err);
+      }
+    }
+    return createLocalGunNodeStub();
+  }
+
+  function resolveGunUserStub(node) {
+    if (typeof scoreSystem.createGunUserStub === 'function') {
+      try {
+        return scoreSystem.createGunUserStub(node);
+      } catch (err) {
+        console.warn('Failed to reuse ScoreSystem user stub', err);
+      }
+    }
+    return createLocalGunUserStub(node);
+  }
 
   const campaignForm = document.getElementById('campaignForm');
   const campaignList = document.getElementById('campaignList');
@@ -31,9 +118,25 @@
     : null));
 
   const gun = gunContext.gun;
-  const socialRoot = gun.get('social-media');
-  const campaignsNode = socialRoot.get('campaigns');
-  const credentialsNode = socialRoot.get('credentials');
+  const user = gunContext.user;
+  const socialRoot = gun && typeof gun.get === 'function'
+    ? gun.get('social-media')
+    : resolveGunNodeStub();
+  const campaignsNode = socialRoot && typeof socialRoot.get === 'function'
+    ? socialRoot.get('campaigns')
+    : resolveGunNodeStub();
+  const credentialsNode = socialRoot && typeof socialRoot.get === 'function'
+    ? socialRoot.get('credentials')
+    : resolveGunNodeStub();
+  const portalRoot = gun && typeof gun.get === 'function'
+    ? gun.get('3dvr-portal')
+    : resolveGunNodeStub();
+  // social-media workspace metadata lives under 3dvr-portal/workspaces/social-media to match other workspace registries.
+  const workspaceRegistry = portalRoot && typeof portalRoot.get === 'function'
+    ? portalRoot.get('workspaces').get('social-media')
+    : resolveGunNodeStub();
+
+  recallUserSessionIfAvailable(user);
 
   if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
     try {
@@ -79,93 +182,116 @@
     credentialList.addEventListener('click', handleCredentialListClick);
   }
 
+  registerWorkspacePresence();
+
   if (campaignsNode && typeof campaignsNode.map === 'function') {
-    campaignsNode.map().on(handleCampaignUpdate);
+    campaignsNode.map().on((data, id) => {
+      handleCampaignUpdate(data, id);
+    }, { change: true });
   }
 
   if (credentialsNode && typeof credentialsNode.map === 'function') {
-    credentialsNode.map().on(handleCredentialUpdate);
+    credentialsNode.map().on((data, id) => {
+      handleCredentialUpdate(data, id);
+    }, { change: true });
   }
 
   function ensureGunContext(factory) {
-    if (window.ScoreSystem && typeof window.ScoreSystem.ensureGun === 'function') {
-      return window.ScoreSystem.ensureGun(factory, { label: 'social-media' });
+    const ensureGun = typeof scoreSystem.ensureGun === 'function'
+      ? scoreSystem.ensureGun.bind(scoreSystem)
+      : null;
+    if (ensureGun) {
+      return ensureGun(factory, { label: 'social-media' });
     }
-    try {
-      const instance = typeof factory === 'function' ? factory() : null;
-      if (instance) {
-        return {
-          gun: instance,
-          user: typeof instance.user === 'function' ? instance.user() : createGunUserStub(instance),
-          isStub: false
-        };
+
+    let instance = null;
+    if (typeof factory === 'function') {
+      try {
+        instance = factory();
+      } catch (err) {
+        console.warn('Failed to initialize Gun for social planner', err);
       }
-    } catch (err) {
-      console.warn('Failed to initialize Gun for social planner', err);
     }
+
+    if (instance) {
+      const resolvedUser = typeof instance.user === 'function'
+        ? instance.user()
+        : resolveGunUserStub(instance);
+      return {
+        gun: instance,
+        user: resolvedUser,
+        isStub: !!instance.__isGunStub
+      };
+    }
+
     console.warn('Gun.js is unavailable for social planner; using offline stub.');
-    const stub = createGunStub();
+    const stubGun = {
+      __isGunStub: true,
+      get() {
+        return resolveGunNodeStub();
+      },
+      user() {
+        return resolveGunUserStub();
+      }
+    };
     return {
-      gun: stub,
-      user: stub.user(),
+      gun: stubGun,
+      user: stubGun.user(),
       isStub: true
     };
   }
 
-  function createGunStub() {
-    return {
-      __isGunStub: true,
-      get() {
-        return createGunNodeStub();
-      },
-      user() {
-        return createGunUserStub();
+  function recallUserSessionIfAvailable(targetUser) {
+    if (!targetUser || typeof targetUser.recall !== 'function') {
+      return;
+    }
+
+    if (typeof scoreSystem.recallUserSession === 'function') {
+      try {
+        const reused = scoreSystem.recallUserSession(targetUser);
+        if (reused) {
+          return;
+        }
+      } catch (err) {
+        console.warn('Failed to recall session via ScoreSystem', err);
       }
-    };
+    }
+
+    try {
+      targetUser.recall({ sessionStorage: true, localStorage: true });
+    } catch (err) {
+      console.warn('Unable to recall user session for social planner', err);
+    }
   }
 
-  function createGunNodeStub() {
-    return {
-      __isGunStub: true,
-      get() {
-        return createGunNodeStub();
-      },
-      put(_value, callback) {
-        if (typeof callback === 'function') {
-          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
-        }
-        return this;
-      },
-      map() {
-        return {
-          __isGunStub: true,
-          on() {
-            return { off() {} };
-          }
-        };
-      }
+  function registerWorkspacePresence() {
+    if (!workspaceRegistry || typeof workspaceRegistry.put !== 'function') {
+      return;
+    }
+    const now = Date.now();
+    const payload = {
+      name: 'Social Media Command Center',
+      description: 'Plan campaigns and credentials together from one hub.',
+      lastOpenedAt: now
     };
+    try {
+      workspaceRegistry.put(payload);
+    } catch (err) {
+      console.warn('Failed to register social workspace metadata', err);
+    }
   }
 
-  function createGunUserStub(node) {
-    const base = node && typeof node.get === 'function' ? node.get() : createGunNodeStub();
-    return {
-      ...base,
-      is: null,
-      _: {},
-      recall() {},
-      auth(_alias, _password, callback) {
-        if (typeof callback === 'function') {
-          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
-        }
-      },
-      leave() {},
-      create(_alias, _password, callback) {
-        if (typeof callback === 'function') {
-          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
-        }
-      }
-    };
+  function markWorkspaceActivity(field) {
+    if (!workspaceRegistry || typeof workspaceRegistry.put !== 'function') {
+      return;
+    }
+    if (!field) return;
+    const payload = { [field]: Date.now() };
+    try {
+      workspaceRegistry.put(payload);
+    } catch (err) {
+      console.warn(`Failed to update social workspace field ${field}`, err);
+    }
   }
 
   function todayDate() {
@@ -198,6 +324,7 @@
 
     try {
       campaignsNode.set(record);
+      markWorkspaceActivity('lastCampaignChangeAt');
       campaignForm.reset();
       if (campaignStatusSelect) {
         campaignStatusSelect.value = 'planning';
@@ -242,6 +369,7 @@
       .then((payload) => {
         try {
           credentialsNode.set(payload);
+          markWorkspaceActivity('lastCredentialChangeAt');
           credentialForm.reset();
         } catch (err) {
           console.error('Failed to store credential', err);
@@ -254,6 +382,7 @@
   }
 
   function handleCampaignUpdate(data, id) {
+    markWorkspaceActivity('lastCampaignSyncAt');
     const record = sanitizeRecord(data);
     if (!record) {
       campaignRecords.delete(id);
@@ -269,6 +398,7 @@
   }
 
   function handleCredentialUpdate(data, id) {
+    markWorkspaceActivity('lastCredentialSyncAt');
     const record = sanitizeRecord(data);
     if (!record) {
       credentialRecords.delete(id);
@@ -299,9 +429,11 @@
       const id = target.dataset.campaignId;
       const status = target.value;
       campaignsNode.get(id).put({ status, updatedAt: Date.now() });
+      markWorkspaceActivity('lastCampaignChangeAt');
     } else if (target instanceof HTMLTextAreaElement && target.dataset.campaignId) {
       const id = target.dataset.campaignId;
       campaignsNode.get(id).put({ notes: target.value, updatedAt: Date.now() });
+      markWorkspaceActivity('lastCampaignChangeAt');
     }
   }
 
@@ -312,6 +444,7 @@
     if (action === 'delete-campaign' && target.dataset.campaignId) {
       const id = target.dataset.campaignId;
       campaignsNode.get(id).put(null);
+      markWorkspaceActivity('lastCampaignChangeAt');
     }
   }
 
@@ -320,6 +453,7 @@
     if (target instanceof HTMLTextAreaElement && target.dataset.credentialId && target.dataset.field === 'instructions') {
       const id = target.dataset.credentialId;
       credentialsNode.get(id).put({ instructions: target.value, updatedAt: Date.now() });
+      markWorkspaceActivity('lastCredentialChangeAt');
     } else if (target instanceof HTMLInputElement && target.dataset.secretField && target.closest('[data-secret-container]')) {
       const container = target.closest('[data-secret-container]');
       if (container) {
@@ -337,6 +471,7 @@
 
     if (action === 'delete-credential') {
       credentialsNode.get(id).put(null);
+      markWorkspaceActivity('lastCredentialChangeAt');
       return;
     }
 
@@ -354,6 +489,7 @@
       persistCredentialSecret({ ...cardState.record, updatedAt: Date.now() }, values)
         .then((payload) => {
           credentialsNode.get(id).put(payload);
+          markWorkspaceActivity('lastCredentialChangeAt');
           container.dataset.dirty = 'false';
           showKeyFeedback('Credentials updated.', false);
         })
@@ -836,6 +972,7 @@
     }
     workspaceKey = value;
     persistWorkspaceKey(value);
+    markWorkspaceActivity('lastKeyUpdateAt');
     showKeyFeedback('Workspace key set. Encrypted credentials will unlock for this session.', false);
     refreshCredentialSecrets();
     keyForm.reset();
@@ -844,6 +981,7 @@
   function handleWorkspaceKeyClear() {
     workspaceKey = '';
     persistWorkspaceKey('');
+    markWorkspaceActivity('lastKeyUpdateAt');
     showKeyFeedback('Workspace key cleared. Sensitive fields are locked.', false);
     credentialRecords.forEach((state) => {
       if (state.card) {
