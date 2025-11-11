@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Social Media Command - 3DVR</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/score.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to social media planner</a>
+  <main id="main" class="social-shell" aria-labelledby="page-title">
+    <header class="social-hero">
+      <div>
+        <p class="social-hero__eyebrow">Campaign operations</p>
+        <h1 id="page-title" class="social-hero__title">Social Media Command Center</h1>
+        <p class="social-hero__lead">
+          Plan launches, store credentials securely, and capture platform-specific rituals so every post lands smoothly.
+        </p>
+      </div>
+      <aside class="social-hero__aside" aria-label="Automation vision">
+        <h2>Roadmap to full automation</h2>
+        <ul>
+          <li>Organize multi-channel campaigns with shared briefs.</li>
+          <li>Centralize credentials with workspace-key encryption.</li>
+          <li>Stage API and agent-based auto-posting when platforms allow it.</li>
+        </ul>
+      </aside>
+    </header>
+
+    <section class="social-grid" aria-labelledby="campaigns-heading">
+      <article class="social-panel social-panel--campaigns">
+        <header class="panel-header">
+          <div>
+            <h2 id="campaigns-heading">Campaign planner</h2>
+            <p>Track launch windows, creative briefs, and publishing status across every network.</p>
+          </div>
+        </header>
+
+        <form id="campaignForm" class="panel-form" autocomplete="off" novalidate>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Campaign name</span>
+              <input id="campaignName" name="campaignName" required placeholder="Spring product drop">
+            </label>
+            <label class="field">
+              <span class="field__label">Primary platform</span>
+              <input id="campaignPlatform" name="campaignPlatform" required placeholder="Instagram, TikTok, LinkedIn">
+            </label>
+            <label class="field">
+              <span class="field__label">Objective</span>
+              <input id="campaignObjective" name="campaignObjective" placeholder="Drive sign-ups, announce beta">
+            </label>
+            <label class="field">
+              <span class="field__label">Status</span>
+              <select id="campaignStatus" name="campaignStatus">
+                <option value="planning">Planning</option>
+                <option value="drafting">Drafting</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="in-flight">In flight</option>
+                <option value="completed">Completed</option>
+                <option value="paused">Paused</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Start date</span>
+              <input id="campaignStart" name="campaignStart" type="date">
+            </label>
+            <label class="field">
+              <span class="field__label">End date</span>
+              <input id="campaignEnd" name="campaignEnd" type="date">
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">Publishing checklist &amp; creative notes</span>
+            <textarea id="campaignNotes" name="campaignNotes" rows="3" placeholder="Hook, CTA, assets to schedule, cross-posting steps"></textarea>
+          </label>
+          <button type="submit" class="primary-action">Add campaign</button>
+        </form>
+
+        <div class="panel-list" id="campaignList" role="list">
+          <p id="campaignEmpty" class="empty-state">No campaigns yet. Add your first launch above.</p>
+        </div>
+      </article>
+
+      <article class="social-panel social-panel--credentials" aria-labelledby="credentials-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="credentials-heading">Credentials &amp; publishing playbooks</h2>
+            <p>Store login context, two-factor instructions, and onboarding notes for collaborators.</p>
+          </div>
+        </header>
+
+        <section class="workspace-key" aria-label="Workspace key setup">
+          <h3>Workspace key</h3>
+          <p>
+            Set a shared passphrase to encrypt usernames, passwords, and login URLs locally before syncing to Gun.
+            Anyone without the key will only see that credentials are locked.
+          </p>
+          <form id="keyForm" class="key-form">
+            <label class="field">
+              <span class="field__label">Encryption key</span>
+              <input id="workspaceKey" name="workspaceKey" type="password" placeholder="Enter a shared passphrase" required>
+            </label>
+            <div class="key-actions">
+              <button type="submit" class="primary-action">Set key</button>
+              <button id="clearKey" type="button" class="ghost-action">Clear</button>
+            </div>
+            <p id="keyFeedback" class="key-feedback" role="status" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <form id="credentialForm" class="panel-form" autocomplete="off" novalidate>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Platform</span>
+              <input id="credentialPlatform" name="credentialPlatform" required placeholder="Twitter, Reddit, YouTube">
+            </label>
+            <label class="field">
+              <span class="field__label">Account label</span>
+              <input id="credentialAccount" name="credentialAccount" required placeholder="@3dvrHQ marketing">
+            </label>
+            <label class="field">
+              <span class="field__label">Login URL</span>
+              <input id="credentialUrl" name="credentialUrl" type="url" placeholder="https://business.facebook.com">
+            </label>
+            <label class="field">
+              <span class="field__label">Username or email</span>
+              <input id="credentialUsername" name="credentialUsername" required placeholder="login email">
+            </label>
+            <label class="field">
+              <span class="field__label">Password / passphrase</span>
+              <input id="credentialPassword" name="credentialPassword" required placeholder="Stored securely when key is set">
+            </label>
+            <label class="field">
+              <span class="field__label">Two-factor details</span>
+              <input id="credential2fa" name="credential2fa" placeholder="Authenticator app, phone, backup codes location">
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">Posting instructions</span>
+            <textarea id="credentialInstructions" name="credentialInstructions" rows="3" placeholder="Tone, cadence, asset folders, approval rules"></textarea>
+          </label>
+          <button type="submit" class="primary-action">Save credential</button>
+        </form>
+
+        <div class="panel-list" id="credentialList" role="list">
+          <p id="credentialEmpty" class="empty-state">No credentials saved yet. Capture the next login or SOP.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
