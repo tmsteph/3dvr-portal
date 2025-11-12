@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stellar Drift - Endless Flight</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="gun-init.js"></script>
+  <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <style>
   body {
@@ -154,6 +157,31 @@
     font-weight: 600;
     letter-spacing: 0.02em;
     color: #f0fdfc;
+  }
+
+  .score-indicator {
+    position: fixed;
+    top: calc(var(--safe-top) + 4.4rem);
+    right: var(--safe-right);
+    padding: 0.65rem 1.1rem;
+    background: rgba(8, 25, 44, 0.78);
+    border-radius: 14px;
+    border: 1px solid rgba(94, 234, 212, 0.4);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    color: rgba(165, 243, 252, 0.95);
+    box-shadow: 0 18px 48px rgba(8, 145, 178, 0.4);
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    z-index: 12;
+  }
+
+  .score-indicator-visible {
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .webgl-fallback {
@@ -706,6 +734,18 @@
       bottom: 1rem;
     }
 
+    .score-indicator {
+      top: auto;
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 6rem);
+      left: 50%;
+      right: auto;
+      transform: translate(-50%, -8px);
+    }
+
+    .score-indicator-visible {
+      transform: translate(-50%, 0);
+    }
+
     .hud {
       left: 50%;
       transform: translateX(-50%);
@@ -756,6 +796,17 @@
       right: var(--safe-right);
       top: calc(var(--safe-top) + 0.25rem);
       bottom: auto;
+    }
+
+    .score-indicator {
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 6.5rem);
+      left: 50%;
+      right: auto;
+      transform: translate(-50%, -8px);
+    }
+
+    .score-indicator-visible {
+      transform: translate(-50%, 0);
     }
 
     .hud {
@@ -898,6 +949,8 @@
     </p>
   </div>
 
+  <div class="score-indicator" id="scoreIndicator" role="status" aria-live="polite"></div>
+
   <div class="target-compass" id="targetCompass" aria-hidden="true"></div>
 
   <div class="reticle" aria-hidden="true">
@@ -982,6 +1035,60 @@
   const objectiveCounter = document.getElementById('objectiveCounter');
   const missionTip = document.getElementById('missionTip');
   const targetCompass = document.getElementById('targetCompass');
+  const scoreIndicator = document.getElementById('scoreIndicator');
+
+  const gun = typeof Gun === 'function'
+    ? Gun(window.__GUN_PEERS__ || [
+        'wss://relay.3dvr.tech/gun',
+        'wss://gun-relay-3dvr.fly.dev/gun'
+      ])
+    : null;
+  const portalUser = gun ? gun.user() : null;
+  const portalRoot = gun ? gun.get('3dvr-portal') : null;
+  const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function' && gun
+    ? window.ScoreSystem.getManager({ gun, user: portalUser, portalRoot })
+    : null;
+
+  if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+    window.ScoreSystem.ensureGuestIdentity();
+  }
+
+  let scoreIndicatorHideTimeout = null;
+  let scoreIndicatorClearTimeout = null;
+
+  function showScoreIndicator(message) {
+    if (!scoreIndicator || !message) {
+      return;
+    }
+    if (scoreIndicatorHideTimeout) {
+      window.clearTimeout(scoreIndicatorHideTimeout);
+      scoreIndicatorHideTimeout = null;
+    }
+    if (scoreIndicatorClearTimeout) {
+      window.clearTimeout(scoreIndicatorClearTimeout);
+      scoreIndicatorClearTimeout = null;
+    }
+    scoreIndicator.textContent = message;
+    scoreIndicator.classList.add('score-indicator-visible');
+    scoreIndicatorHideTimeout = window.setTimeout(() => {
+      scoreIndicator.classList.remove('score-indicator-visible');
+      scoreIndicatorHideTimeout = null;
+      scoreIndicatorClearTimeout = window.setTimeout(() => {
+        scoreIndicator.textContent = '';
+        scoreIndicatorClearTimeout = null;
+      }, 320);
+    }, 2200);
+  }
+
+  function awardScore(points, message) {
+    const value = Number(points);
+    if (Number.isFinite(value) && value > 0 && scoreManager && typeof scoreManager.increment === 'function') {
+      scoreManager.increment(value);
+    }
+    if (message) {
+      showScoreIndicator(message);
+    }
+  }
 
   const ambient = new THREE.AmbientLight(0x7dd3fc, 0.38);
   scene.add(ambient);
@@ -1196,9 +1303,36 @@
     planet.userData.orbitSpeed = 0.04 + index * 0.02;
     planet.userData.baseY = planet.position.y;
     planet.userData.floatPhase = Math.random() * Math.PI * 2;
+    planet.userData.baseScale = planet.scale.x;
+    planet.userData.baseEmissive = planet.material ? planet.material.emissiveIntensity || 0 : 0;
+    planet.userData.hitRadius = Math.max(planetInfo.radius * 0.72, 18);
+    planet.userData.hitElapsed = 0;
+    planet.userData.hitDuration = 0;
     planetPivots.push(pivot);
+
+    if (planet.userData.ring) {
+      planet.userData.ring.userData = planet.userData.ring.userData || {};
+      planet.userData.ring.userData.baseOpacity = planet.userData.ring.material.opacity;
+      planet.userData.ring.userData.baseScale = planet.userData.ring.scale.x;
+    }
     return planet;
   });
+
+  const planetTargets = planets.map((planet) => ({
+    planet,
+    hitRadius: planet.userData.hitRadius,
+    effectDuration: 1.4
+  }));
+
+  function registerPlanetHit(target) {
+    if (!target || !target.planet) {
+      return;
+    }
+    const planet = target.planet;
+    planet.userData.hitElapsed = 0;
+    planet.userData.hitDuration = target.effectDuration;
+    awardScore(10, 'Planet resonance +10 Score');
+  }
 
   const objectiveGroup = new THREE.Group();
   scene.add(objectiveGroup);
@@ -1459,6 +1593,7 @@
     highlightMissionStatus();
 
     if (objectiveMarkers.every((item) => item.completed)) {
+      awardScore(200, 'Position complete! +200 Score');
       window.setTimeout(() => {
         objectiveMarkers.forEach((item) => {
           reseedObjective(item);
@@ -1568,6 +1703,7 @@
   const clock = new THREE.Clock();
   const velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
+  const planetHitPosition = new THREE.Vector3();
   const upVector = new THREE.Vector3(0, 1, 0);
 
   const actionButtons = touchUI ? [...touchUI.querySelectorAll('.touch-action')] : [];
@@ -2024,6 +2160,17 @@
         }
       }
 
+      if (!shouldRemove) {
+        for (const target of planetTargets) {
+          target.planet.getWorldPosition(planetHitPosition);
+          if (shot.group.position.distanceTo(planetHitPosition) <= target.hitRadius) {
+            registerPlanetHit(target);
+            shouldRemove = true;
+            break;
+          }
+        }
+      }
+
       if (shouldRemove) {
         removeLaser(index);
       }
@@ -2310,6 +2457,55 @@
       if (planet.userData.ring) {
         planet.userData.ring.rotation.z += delta * 0.05;
         planet.userData.ring.position.y = planet.position.y;
+      }
+      if (planet.userData.hitDuration > 0) {
+        planet.userData.hitElapsed += delta;
+        const progress = Math.min(planet.userData.hitElapsed / planet.userData.hitDuration, 1);
+        const pulse = Math.sin(progress * Math.PI);
+        planet.scale.setScalar((planet.userData.baseScale || 1) + pulse * 0.06);
+        if (planet.material) {
+          planet.material.emissiveIntensity = (planet.userData.baseEmissive || 0) + pulse * 0.5;
+        }
+        if (planet.userData.ring) {
+          const ring = planet.userData.ring;
+          const baseOpacity = ring.userData?.baseOpacity ?? 0.28;
+          const baseScale = ring.userData?.baseScale ?? 1;
+          ring.material.opacity = baseOpacity + pulse * 0.25;
+          ring.scale.setScalar(baseScale + pulse * 0.12);
+        }
+        if (progress >= 1) {
+          planet.userData.hitDuration = 0;
+          planet.userData.hitElapsed = 0;
+          planet.scale.setScalar(planet.userData.baseScale || 1);
+          if (planet.material) {
+            planet.material.emissiveIntensity = planet.userData.baseEmissive || 0;
+          }
+          if (planet.userData.ring) {
+            const ring = planet.userData.ring;
+            const baseOpacity = ring.userData?.baseOpacity ?? 0.28;
+            const baseScale = ring.userData?.baseScale ?? 1;
+            ring.material.opacity = baseOpacity;
+            ring.scale.setScalar(baseScale);
+          }
+        }
+      } else {
+        if (planet.scale.x !== (planet.userData.baseScale || 1)) {
+          planet.scale.setScalar(planet.userData.baseScale || 1);
+        }
+        if (planet.material && planet.material.emissiveIntensity !== (planet.userData.baseEmissive || 0)) {
+          planet.material.emissiveIntensity = planet.userData.baseEmissive || 0;
+        }
+        if (planet.userData.ring) {
+          const ring = planet.userData.ring;
+          const baseOpacity = ring.userData?.baseOpacity ?? 0.28;
+          const baseScale = ring.userData?.baseScale ?? 1;
+          if (ring.material.opacity !== baseOpacity) {
+            ring.material.opacity = baseOpacity;
+          }
+          if (ring.scale.x !== baseScale || ring.scale.y !== baseScale || ring.scale.z !== baseScale) {
+            ring.scale.setScalar(baseScale);
+          }
+        }
       }
     });
 
