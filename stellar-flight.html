@@ -1631,7 +1631,6 @@
     const planet = target.planet;
     planet.userData.hitElapsed = 0;
     planet.userData.hitDuration = target.effectDuration;
-    awardScore(10, { amount: 10, label: 'Planet resonance', unit: 'points' });
   }
 
   const objectiveGroup = new THREE.Group();
@@ -1876,6 +1875,7 @@
     if (marker.completed) {
       return;
     }
+    awardScore(10, { amount: 10, label: `${marker.name} synchronized`, unit: 'points' });
     marker.completed = true;
     marker.group.scale.setScalar(1.08);
     marker.core.material.color.setHex(marker.color);
