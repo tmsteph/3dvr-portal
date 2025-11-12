@@ -1271,6 +1271,7 @@
     });
     const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 26, 24, 1, true), pylonMaterial);
     pylon.position.y = 15;
+    pylon.visible = false;
     group.add(pylon);
 
     const glowMaterial = new THREE.SpriteMaterial({
@@ -1327,6 +1328,9 @@
 
   function formatRgbComponents(hexColor) {
     compassHighlightColor.setHex(hexColor);
+    if (typeof compassHighlightColor.convertLinearToSRGB === 'function') {
+      compassHighlightColor.convertLinearToSRGB();
+    }
     const r = Math.round(compassHighlightColor.r * 255);
     const g = Math.round(compassHighlightColor.g * 255);
     const b = Math.round(compassHighlightColor.b * 255);
@@ -1342,6 +1346,13 @@
     const nextMarker = objectiveMarkers.find((marker) => !marker.completed) || null;
     objectiveCounter.textContent = `${syncedThisPass}/${objectiveMarkers.length} sector · ${totalSyncedObjectives} total`;
     primaryObjective = nextMarker;
+    objectiveMarkers.forEach((marker) => {
+      const isPrimary = !marker.completed && marker === primaryObjective;
+      marker.pylon.visible = isPrimary;
+      if (!isPrimary) {
+        marker.pylon.material.opacity = 0;
+      }
+    });
     if (missionTip) {
       if (remaining === 0) {
         primaryObjective = null;
@@ -1421,7 +1432,8 @@
     marker.ring.material.color.setHex(marker.color);
     marker.ring.material.opacity = 0.36;
     marker.pylon.material.color.setHex(marker.color);
-    marker.pylon.material.opacity = 0.32;
+    marker.pylon.material.opacity = 0;
+    marker.pylon.visible = false;
     marker.glow.material.color.set(new THREE.Color(marker.color));
     marker.glow.material.opacity = 0.42;
   }
@@ -1431,17 +1443,17 @@
       return;
     }
     marker.completed = true;
-    marker.group.scale.setScalar(1.22);
-    marker.core.material.color.setHex(0x22c55e);
-    marker.core.material.emissive.setHex(0x22c55e);
-    marker.core.material.emissiveIntensity = 0.6;
-    marker.core.material.opacity = 0.85;
-    marker.ring.material.color.setHex(0x22c55e);
-    marker.ring.material.opacity = 0.5;
-    marker.pylon.material.color.setHex(0x22c55e);
-    marker.pylon.material.opacity = 0.42;
-    marker.glow.material.color.set(0x86efac);
-    marker.glow.material.opacity = 0.58;
+    marker.group.scale.setScalar(1.08);
+    marker.core.material.color.setHex(marker.color);
+    marker.core.material.emissive.setHex(marker.color);
+    marker.core.material.emissiveIntensity = 0.4;
+    marker.core.material.opacity = 0.72;
+    marker.ring.material.color.setHex(marker.color);
+    marker.ring.material.opacity = 0.18;
+    marker.pylon.material.opacity = 0;
+    marker.pylon.visible = false;
+    marker.glow.material.color.set(new THREE.Color(marker.color));
+    marker.glow.material.opacity = 0.12;
     totalSyncedObjectives += 1;
     updateObjectiveUI();
     highlightMissionStatus();
@@ -2265,13 +2277,15 @@
       marker.group.rotation.y += delta * 0.28;
       marker.ring.rotation.z += delta * 0.42;
       if (marker.completed) {
-        const settledScale = 1.12 + Math.sin(marker.pulse * 0.5) * 0.04;
+        const settledScale = 1.04 + Math.sin(marker.pulse * 0.45) * 0.03;
         marker.group.scale.setScalar(settledScale);
-        marker.ring.material.opacity = 0.46 + Math.sin(marker.pulse) * 0.05;
-        marker.pylon.material.opacity = 0.36 + Math.sin(marker.pulse * 0.6) * 0.04;
-        marker.core.material.emissiveIntensity = 0.55 + Math.sin(marker.pulse) * 0.08;
-        marker.glow.material.opacity = 0.52 + Math.sin(marker.pulse) * 0.04;
+        marker.ring.material.opacity = 0.12 + Math.sin(marker.pulse) * 0.03;
+        marker.pylon.visible = false;
+        marker.pylon.material.opacity = 0;
+        marker.core.material.emissiveIntensity = 0.3 + Math.sin(marker.pulse * 0.4) * 0.05;
+        marker.glow.material.opacity = 0.05 + Math.max(0, Math.sin(marker.pulse * 0.4)) * 0.04;
       } else if (isPrimary) {
+        marker.pylon.visible = true;
         const radiantScale = 1.1 + Math.sin(marker.pulse * 0.55) * 0.18;
         marker.group.scale.setScalar(radiantScale);
         marker.ring.material.opacity = 0.46 + Math.sin(marker.pulse * 0.9) * 0.22;
@@ -2279,10 +2293,11 @@
         marker.core.material.emissiveIntensity = 1.15 + Math.sin(marker.pulse) * 0.35;
         marker.glow.material.opacity = 0.5 + Math.sin(marker.pulse * 1.1) * 0.14;
       } else {
+        marker.pylon.visible = false;
+        marker.pylon.material.opacity = 0;
         const breathingScale = 1 + Math.sin(marker.pulse * 0.5) * 0.08;
         marker.group.scale.setScalar(breathingScale);
         marker.ring.material.opacity = 0.32 + Math.sin(marker.pulse) * 0.14;
-        marker.pylon.material.opacity = 0.28 + Math.sin(marker.pulse * 0.6) * 0.05;
         marker.core.material.emissiveIntensity = 0.85 + Math.sin(marker.pulse) * 0.18;
         marker.glow.material.opacity = 0.38 + Math.sin(marker.pulse) * 0.08;
       }
