@@ -1340,10 +1340,13 @@
     roughness: 0.4
   });
   const ship = new THREE.Mesh(shipGeometry, shipMaterial);
-  const shipForwardTilt = -Math.PI / 2 + Math.PI / 18;
+  // Keep the hull out of the sightline by leaning the nose just enough while
+  // still aligning with the reticle when aiming straight ahead.
+  const shipForwardTilt = -Math.PI / 2 + Math.PI / 32;
   ship.rotation.x = shipForwardTilt;
   camera.add(ship);
-  ship.position.set(0, -1.5, -5);
+  // Drop the ship slightly lower and farther so the player can see more of the lane.
+  ship.position.set(0, -2.15, -6.25);
   scene.add(camera);
 
   const streakGroup = new THREE.Group();
