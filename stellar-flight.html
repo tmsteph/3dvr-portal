@@ -1340,7 +1340,8 @@
     roughness: 0.4
   });
   const ship = new THREE.Mesh(shipGeometry, shipMaterial);
-  ship.rotation.x = Math.PI / 2;
+  const shipForwardTilt = -Math.PI / 2 + Math.PI / 18;
+  ship.rotation.x = shipForwardTilt;
   camera.add(ship);
   ship.position.set(0, -1.5, -5);
   scene.add(camera);
@@ -1380,7 +1381,7 @@
     blending: THREE.AdditiveBlending
   });
   const engineFlare = new THREE.Mesh(engineGeometry, engineMaterial);
-  engineFlare.rotation.x = Math.PI / 2;
+  engineFlare.rotation.x = shipForwardTilt;
   engineFlare.position.set(0, -1.5, -7.5);
   camera.add(engineFlare);
 
