@@ -1724,13 +1724,34 @@
   let pointerLocked = false;
   const pitchLimit = Math.PI / 2 - 0.08;
 
-  const laserGeometry = new THREE.CylinderGeometry(0.18, 0.18, 10, 12);
-  const baseLaserMaterial = new THREE.MeshBasicMaterial({
+  const laserLength = 22;
+  const laserCoreGeometry = new THREE.CylinderGeometry(0.08, 0.08, laserLength, 12);
+  const laserGlowGeometry = new THREE.CylinderGeometry(0.28, 0.28, laserLength, 16, 1, true);
+  const laserTipHeight = 2.4;
+  const laserTipGeometry = new THREE.ConeGeometry(0.34, laserTipHeight, 16);
+  const baseLaserCoreMaterial = new THREE.MeshBasicMaterial({
     color: 0x7dd3fc,
     transparent: true,
     opacity: 0.95,
     blending: THREE.AdditiveBlending,
-    depthWrite: false
+    depthWrite: false,
+    depthTest: false
+  });
+  const baseLaserGlowMaterial = new THREE.MeshBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.42,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false
+  });
+  const baseLaserTipMaterial = new THREE.MeshBasicMaterial({
+    color: 0xfcd34d,
+    transparent: true,
+    opacity: 0.9,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false
   });
   const activeLasers = [];
   const laserForwardAxis = new THREE.Vector3(0, 1, 0);
@@ -1741,10 +1762,12 @@
 
   function removeLaser(index) {
     const shot = activeLasers[index];
-    scene.remove(shot.mesh);
-    if (shot.mesh.material) {
-      shot.mesh.material.dispose();
-    }
+    scene.remove(shot.group);
+    shot.group.traverse((part) => {
+      if (part.isMesh && part.material) {
+        part.material.dispose();
+      }
+    });
     activeLasers.splice(index, 1);
   }
 
@@ -1758,21 +1781,51 @@
     }
     lastLaserTimestamp = now;
     const directionVector = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')).normalize();
-    const laserMaterial = baseLaserMaterial.clone();
-    const laser = new THREE.Mesh(laserGeometry, laserMaterial);
-    laser.position.copy(camera.position).addScaledVector(directionVector, 6);
-    laser.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(laserForwardAxis, directionVector));
-    scene.add(laser);
-    activeLasers.push({ mesh: laser, direction: directionVector, life: 0 });
+    const laserGroup = new THREE.Group();
+    const core = new THREE.Mesh(laserCoreGeometry, baseLaserCoreMaterial.clone());
+    core.userData.baseOpacity = core.material.opacity;
+    core.renderOrder = 2;
+    laserGroup.add(core);
+    const glow = new THREE.Mesh(laserGlowGeometry, baseLaserGlowMaterial.clone());
+    glow.userData.baseOpacity = glow.material.opacity;
+    glow.renderOrder = 1;
+    laserGroup.add(glow);
+    const tip = new THREE.Mesh(laserTipGeometry, baseLaserTipMaterial.clone());
+    tip.position.y = laserLength / 2 + laserTipHeight * 0.5;
+    tip.userData.baseOpacity = tip.material.opacity;
+    tip.renderOrder = 3;
+    laserGroup.add(tip);
+    laserGroup.position.copy(camera.position).addScaledVector(directionVector, 6 + laserLength * 0.45);
+    laserGroup.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(laserForwardAxis, directionVector));
+    scene.add(laserGroup);
+    activeLasers.push({
+      group: laserGroup,
+      direction: directionVector,
+      life: 0,
+      pulseOffset: Math.random() * Math.PI * 2,
+      parts: { core, glow, tip }
+    });
   }
 
   function updateLasers(delta) {
     for (let index = activeLasers.length - 1; index >= 0; index--) {
       const shot = activeLasers[index];
       shot.life += delta;
-      shot.mesh.position.addScaledVector(shot.direction, delta * laserSpeed);
-      if (shot.mesh.material) {
-        shot.mesh.material.opacity = Math.max(0, 0.95 - shot.life * 0.6);
+      shot.group.position.addScaledVector(shot.direction, delta * laserSpeed);
+      const fade = Math.max(0, 1 - shot.life / laserLifetime);
+      const pulse = 1 + Math.sin(shot.life * 18 + shot.pulseOffset) * 0.18 * fade;
+      shot.group.scale.x = 1 + pulse * 0.4;
+      shot.group.scale.y = 1;
+      shot.group.scale.z = 1 + pulse * 0.4;
+      const { core, glow, tip } = shot.parts;
+      if (core.material) {
+        core.material.opacity = core.userData.baseOpacity * fade;
+      }
+      if (glow.material) {
+        glow.material.opacity = glow.userData.baseOpacity * (0.5 + fade * 0.75);
+      }
+      if (tip.material) {
+        tip.material.opacity = tip.userData.baseOpacity * fade;
       }
 
       let shouldRemove = shot.life > laserLifetime;
@@ -1782,7 +1835,7 @@
           if (marker.completed) {
             continue;
           }
-          if (shot.mesh.position.distanceTo(marker.group.position) <= marker.hitRadius) {
+          if (shot.group.position.distanceTo(marker.group.position) <= marker.hitRadius) {
             completeObjective(marker);
             shouldRemove = true;
             break;
