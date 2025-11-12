@@ -160,19 +160,71 @@
     color: #f0fdfc;
   }
 
+  .score-panel {
+    position: fixed;
+    top: calc(var(--safe-top) + 3.45rem);
+    right: var(--safe-right);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.85rem 1.1rem;
+    background: rgba(8, 25, 44, 0.74);
+    border-radius: 16px;
+    border: 1px solid rgba(94, 234, 212, 0.38);
+    box-shadow: 0 18px 42px rgba(8, 145, 178, 0.38);
+    color: rgba(191, 219, 254, 0.92);
+    z-index: 11;
+    min-width: 196px;
+  }
+
+  .score-panel-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(165, 243, 252, 0.88);
+  }
+
+  .score-panel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+
+  .score-row-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.78);
+  }
+
+  .score-row-value {
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: #e0f2fe;
+  }
+
+  .score-panel-row-total .score-row-value {
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #f0fdfc;
+  }
+
   .score-indicator {
     position: fixed;
-    top: calc(var(--safe-top) + 4.4rem);
+    top: calc(var(--safe-top) + 6.6rem);
     right: var(--safe-right);
-    padding: 0.65rem 1.1rem;
-    background: rgba(8, 25, 44, 0.78);
-    border-radius: 14px;
-    border: 1px solid rgba(94, 234, 212, 0.4);
-    font-size: 0.82rem;
-    letter-spacing: 0.12em;
-    color: rgba(165, 243, 252, 0.95);
-    box-shadow: 0 18px 48px rgba(8, 145, 178, 0.4);
-    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    padding: 0.75rem 1.15rem 0.85rem;
+    background: rgba(8, 25, 44, 0.82);
+    border-radius: 16px;
+    border: 1px solid rgba(94, 234, 212, 0.45);
+    box-shadow: 0 20px 54px rgba(8, 145, 178, 0.42);
     opacity: 0;
     transform: translateY(-8px);
     transition: opacity 0.3s ease, transform 0.3s ease;
@@ -183,6 +235,27 @@
   .score-indicator-visible {
     opacity: 1;
     transform: translateY(0);
+  }
+
+  .score-indicator .score-context {
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(125, 211, 252, 0.8);
+  }
+
+  .score-indicator .score-amount {
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: rgba(52, 211, 153, 0.95);
+  }
+
+  .score-indicator .score-unit {
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(165, 243, 252, 0.88);
   }
 
   .webgl-fallback {
@@ -735,12 +808,33 @@
       bottom: 1rem;
     }
 
+    .score-panel {
+      top: auto;
+      right: auto;
+      left: 50%;
+      transform: translate(-50%, 0);
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 8.5rem);
+      min-width: min(260px, 90vw);
+      align-items: stretch;
+      padding: 0.75rem 1rem;
+      text-align: center;
+    }
+
+    .score-panel-row {
+      justify-content: space-between;
+    }
+
+    .score-panel-row-total .score-row-value {
+      font-size: 1.28rem;
+    }
+
     .score-indicator {
       top: auto;
       bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 6rem);
       left: 50%;
       right: auto;
       transform: translate(-50%, -8px);
+      align-items: center;
     }
 
     .score-indicator-visible {
@@ -799,11 +893,27 @@
       bottom: auto;
     }
 
+    .score-panel {
+      left: var(--safe-left);
+      right: var(--safe-right);
+      transform: none;
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 8.75rem);
+      min-width: auto;
+      width: calc(100% - var(--safe-left) - var(--safe-right));
+      max-width: 320px;
+      margin: 0 auto;
+    }
+
+    .score-panel-row-total .score-row-value {
+      font-size: 1.22rem;
+    }
+
     .score-indicator {
       bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 6.5rem);
       left: 50%;
       right: auto;
       transform: translate(-50%, -8px);
+      padding: 0.7rem 1rem 0.8rem;
     }
 
     .score-indicator-visible {
@@ -950,6 +1060,26 @@
     </p>
   </div>
 
+  <div class="status" id="status"></div>
+
+  <div
+    class="score-panel"
+    id="scorePanel"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  >
+    <span class="score-panel-title">Points</span>
+    <div class="score-panel-row">
+      <span class="score-row-label">Pilot</span>
+      <span class="score-row-value" id="scorePanelUser">Explorer</span>
+    </div>
+    <div class="score-panel-row score-panel-row-total">
+      <span class="score-row-label">Total</span>
+      <span class="score-row-value" id="scorePanelTotal">0</span>
+    </div>
+  </div>
+
   <div class="score-indicator" id="scoreIndicator" role="status" aria-live="polite"></div>
 
   <div class="target-compass" id="targetCompass" aria-hidden="true"></div>
@@ -958,8 +1088,6 @@
     <div class="reticle-ring"></div>
     <div class="reticle-dot"></div>
   </div>
-
-  <div class="status" id="status"></div>
 
   <script
     src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"
@@ -1037,6 +1165,84 @@
   const missionTip = document.getElementById('missionTip');
   const targetCompass = document.getElementById('targetCompass');
   const scoreIndicator = document.getElementById('scoreIndicator');
+  const scorePanelUser = document.getElementById('scorePanelUser');
+  const scorePanelTotal = document.getElementById('scorePanelTotal');
+
+  const sanitizeScoreValue = value => {
+    if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
+      return window.ScoreSystem.sanitizeScore(value);
+    }
+    const numeric = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    return Math.max(0, Math.round(numeric));
+  };
+
+  const aliasToDisplay = value => {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    if (!normalized) {
+      return '';
+    }
+    return normalized.includes('@') ? normalized.split('@')[0] : normalized;
+  };
+
+  const computeScoreUserLabel = state => {
+    if (!state || !state.mode || state.mode === 'anon') {
+      return 'Explorer';
+    }
+    if (state.mode === 'user') {
+      const storedName = (state.username || '').trim() || (localStorage.getItem('username') || '').trim();
+      if (storedName) {
+        return storedName;
+      }
+      const alias = (state.alias || '').trim() || (localStorage.getItem('alias') || '').trim();
+      if (alias) {
+        return aliasToDisplay(alias);
+      }
+      return 'Pilot';
+    }
+    if (state.mode === 'guest') {
+      const guestDisplay = (state.guestDisplayName || '').trim() || (localStorage.getItem('guestDisplayName') || '').trim();
+      if (guestDisplay) {
+        return guestDisplay;
+      }
+      return 'Guest Pilot';
+    }
+    return 'Explorer';
+  };
+
+  const applyScorePanelUser = state => {
+    if (!scorePanelUser) {
+      return;
+    }
+    scorePanelUser.textContent = computeScoreUserLabel(state);
+  };
+
+  const updateScorePanelTotal = value => {
+    if (!scorePanelTotal) {
+      return;
+    }
+    const normalized = sanitizeScoreValue(value);
+    scorePanelTotal.textContent = normalized.toLocaleString();
+  };
+
+  let activeScoreState = { mode: 'anon' };
+  let fallbackScoreTally = 0;
+
+  const refreshScorePanelState = stateOverride => {
+    const resolved = stateOverride
+      || (scoreManager && typeof scoreManager.getState === 'function'
+        ? scoreManager.getState()
+        : (window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function'
+          ? window.ScoreSystem.computeAuthState()
+          : { mode: 'anon' }));
+    activeScoreState = resolved || { mode: 'anon' };
+    applyScorePanelUser(activeScoreState);
+    return activeScoreState;
+  };
+
+  const scoreboardNameKeys = new Set(['username', 'guestDisplayName', 'alias', 'signedIn', 'guest']);
 
   const gun = typeof Gun === 'function'
     ? Gun(window.__GUN_PEERS__ || [
@@ -1054,11 +1260,54 @@
     window.ScoreSystem.ensureGuestIdentity();
   }
 
+  const initialScoreState = scoreManager && typeof scoreManager.getState === 'function'
+    ? scoreManager.getState()
+    : (window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function'
+      ? window.ScoreSystem.computeAuthState()
+      : null);
+
+  activeScoreState = refreshScorePanelState(initialScoreState);
+
+  if (scoreManager && typeof scoreManager.getCurrent === 'function') {
+    fallbackScoreTally = sanitizeScoreValue(scoreManager.getCurrent());
+  } else {
+    fallbackScoreTally = sanitizeScoreValue(fallbackScoreTally);
+  }
+  updateScorePanelTotal(fallbackScoreTally);
+
+  if (scoreManager && typeof scoreManager.subscribe === 'function') {
+    scoreManager.subscribe(value => {
+      fallbackScoreTally = sanitizeScoreValue(value);
+      updateScorePanelTotal(fallbackScoreTally);
+      refreshScorePanelState();
+    });
+    if (typeof scoreManager.whenReady === 'function') {
+      scoreManager.whenReady()
+        .then(value => {
+          fallbackScoreTally = sanitizeScoreValue(value);
+          updateScorePanelTotal(fallbackScoreTally);
+          refreshScorePanelState();
+        })
+        .catch(() => {});
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', event => {
+      if (!event || !event.key) {
+        return;
+      }
+      if (scoreboardNameKeys.has(event.key)) {
+        refreshScorePanelState();
+      }
+    });
+  }
+
   let scoreIndicatorHideTimeout = null;
   let scoreIndicatorClearTimeout = null;
 
-  function showScoreIndicator(message) {
-    if (!scoreIndicator || !message) {
+  function showScoreIndicator(details) {
+    if (!scoreIndicator || !details) {
       return;
     }
     if (scoreIndicatorHideTimeout) {
@@ -1069,13 +1318,56 @@
       window.clearTimeout(scoreIndicatorClearTimeout);
       scoreIndicatorClearTimeout = null;
     }
-    scoreIndicator.textContent = message;
+    scoreIndicator.innerHTML = '';
+
+    if (details && typeof details === 'object' && !Array.isArray(details)) {
+      const hasAmount = typeof details.amount !== 'undefined';
+      const normalizedAmount = hasAmount ? sanitizeScoreValue(details.amount) : 0;
+      const labelText = typeof details.label === 'string' ? details.label.trim() : '';
+      const hasUnit = typeof details.unit === 'string' && details.unit.trim();
+      const unitText = hasUnit ? details.unit.trim() : 'points';
+      const extraText = typeof details.text === 'string' ? details.text.trim() : '';
+
+      if (normalizedAmount > 0) {
+        if (labelText) {
+          const contextEl = document.createElement('span');
+          contextEl.className = 'score-context';
+          contextEl.textContent = labelText;
+          scoreIndicator.appendChild(contextEl);
+        }
+
+        const amountEl = document.createElement('span');
+        amountEl.className = 'score-amount';
+        amountEl.textContent = `+${normalizedAmount.toLocaleString()}`;
+        scoreIndicator.appendChild(amountEl);
+
+        const unitEl = document.createElement('span');
+        unitEl.className = 'score-unit';
+        unitEl.textContent = unitText;
+        scoreIndicator.appendChild(unitEl);
+
+        if (extraText) {
+          const textEl = document.createElement('span');
+          textEl.className = 'score-unit';
+          textEl.textContent = extraText;
+          scoreIndicator.appendChild(textEl);
+        }
+      } else {
+        const fallbackText = extraText || labelText;
+        if (fallbackText) {
+          scoreIndicator.textContent = fallbackText;
+        }
+      }
+    } else {
+      scoreIndicator.textContent = String(details);
+    }
+
     scoreIndicator.classList.add('score-indicator-visible');
     scoreIndicatorHideTimeout = window.setTimeout(() => {
       scoreIndicator.classList.remove('score-indicator-visible');
       scoreIndicatorHideTimeout = null;
       scoreIndicatorClearTimeout = window.setTimeout(() => {
-        scoreIndicator.textContent = '';
+        scoreIndicator.innerHTML = '';
         scoreIndicatorClearTimeout = null;
       }, 320);
     }, 2200);
@@ -1083,8 +1375,13 @@
 
   function awardScore(points, message) {
     const value = Number(points);
-    if (Number.isFinite(value) && value > 0 && scoreManager && typeof scoreManager.increment === 'function') {
-      scoreManager.increment(value);
+    if (Number.isFinite(value) && value > 0) {
+      if (scoreManager && typeof scoreManager.increment === 'function') {
+        scoreManager.increment(value);
+      } else {
+        fallbackScoreTally = Math.max(0, fallbackScoreTally + Math.round(value));
+        updateScorePanelTotal(fallbackScoreTally);
+      }
     }
     if (message) {
       showScoreIndicator(message);
@@ -1332,7 +1629,7 @@
     const planet = target.planet;
     planet.userData.hitElapsed = 0;
     planet.userData.hitDuration = target.effectDuration;
-    awardScore(10, 'Planet resonance +10 Score');
+    awardScore(10, { amount: 10, label: 'Planet resonance', unit: 'points' });
   }
 
   const objectiveGroup = new THREE.Group();
@@ -1594,7 +1891,7 @@
     highlightMissionStatus();
 
     if (objectiveMarkers.every((item) => item.completed)) {
-      awardScore(200, 'Position complete! +200 Score');
+      awardScore(200, { amount: 200, label: 'Position complete', unit: 'points' });
       window.setTimeout(() => {
         objectiveMarkers.forEach((item) => {
           reseedObjective(item);
