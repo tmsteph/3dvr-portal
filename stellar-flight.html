@@ -251,9 +251,9 @@
     transform: translate(-50%, -50%);
     background: linear-gradient(
       to right,
-      rgba(56, 189, 248, 0),
-      rgba(56, 189, 248, 0.45),
-      rgba(56, 189, 248, 0)
+      rgba(var(--compass-highlight-rgb, 56, 189, 248), 0),
+      rgba(var(--compass-highlight-rgb, 56, 189, 248), 0.45),
+      rgba(var(--compass-highlight-rgb, 56, 189, 248), 0)
     );
     opacity: 0.65;
   }
@@ -274,10 +274,10 @@
   }
 
   .target-compass-dot.is-primary {
-    background: rgba(250, 204, 21, 0.9);
+    background: rgba(var(--dot-highlight-rgb, 250, 204, 21), 0.9);
     box-shadow:
-      0 0 0 1px rgba(250, 204, 21, 0.8),
-      0 0 22px rgba(250, 204, 21, 0.6);
+      0 0 0 1px rgba(var(--dot-highlight-rgb, 250, 204, 21), 0.8),
+      0 0 22px rgba(var(--dot-highlight-rgb, 250, 204, 21), 0.6);
     transform: translate(-50%, -50%) scale(1.45);
     opacity: 0.95;
   }
@@ -291,10 +291,10 @@
   }
 
   .target-compass-dot.is-behind {
-    background: rgba(59, 130, 246, 0.35);
+    background: rgba(var(--dot-highlight-rgb, 59, 130, 246), 0.35);
     box-shadow:
-      0 0 0 1px rgba(59, 130, 246, 0.45),
-      0 0 12px rgba(59, 130, 246, 0.4);
+      0 0 0 1px rgba(var(--dot-highlight-rgb, 59, 130, 246), 0.45),
+      0 0 12px rgba(var(--dot-highlight-rgb, 59, 130, 246), 0.4);
     opacity: 0.42;
   }
 
@@ -1323,6 +1323,16 @@
     forward: new THREE.Vector3()
   };
 
+  const compassHighlightColor = new THREE.Color();
+
+  function formatRgbComponents(hexColor) {
+    compassHighlightColor.setHex(hexColor);
+    const r = Math.round(compassHighlightColor.r * 255);
+    const g = Math.round(compassHighlightColor.g * 255);
+    const b = Math.round(compassHighlightColor.b * 255);
+    return `${r}, ${g}, ${b}`;
+  }
+
   function updateObjectiveUI() {
     if (!objectiveCounter) {
       return;
@@ -1361,6 +1371,11 @@
     if (!targetCompass || compassDots.length === 0) {
       return;
     }
+    if (primaryObjective && !primaryObjective.completed) {
+      targetCompass.style.setProperty('--compass-highlight-rgb', formatRgbComponents(primaryObjective.color));
+    } else {
+      targetCompass.style.removeProperty('--compass-highlight-rgb');
+    }
     compassVectors.forward.set(0, 0, -1).applyQuaternion(camera.quaternion);
     compassDots.forEach(({ marker, dot }) => {
       compassVectors.world.copy(marker.group.position);
@@ -1374,6 +1389,11 @@
       dot.classList.toggle('is-complete', marker.completed);
       const isPrimary = !marker.completed && marker === primaryObjective;
       dot.classList.toggle('is-primary', isPrimary);
+      if (isPrimary) {
+        dot.style.setProperty('--dot-highlight-rgb', formatRgbComponents(marker.color));
+      } else {
+        dot.style.removeProperty('--dot-highlight-rgb');
+      }
       compassVectors.direction.copy(marker.group.position).sub(camera.position);
       const distance = compassVectors.direction.length();
       const distanceFade = Math.max(0.35, Math.min(1, 900 / Math.max(distance, 1)));
