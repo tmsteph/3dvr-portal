@@ -2028,6 +2028,9 @@
   };
   let paused = false;
   const defaultCruiseThrottle = 0.35;
+  // Match the steady-state drift produced by the default throttle in pointer mode so desktop players
+  // still lift off with a gentle glide without locking in a persistent forward creep.
+  const pointerCruiseSpeed = (defaultCruiseThrottle * 24) / 0.6;
   let initialCruiseEngaged = false;
 
   const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
@@ -2092,7 +2095,9 @@
     });
   }
 
-  setThrottleValue(defaultCruiseThrottle);
+  if (usingTouchControls) {
+    setThrottleValue(defaultCruiseThrottle);
+  }
 
   function updateInstructionCopy() {
     if (!primaryInstructions || !secondaryInstructions) {
@@ -2159,7 +2164,12 @@
     if (initialCruiseEngaged) {
       return;
     }
-    setThrottleValue(defaultCruiseThrottle);
+    if (usingTouchControls) {
+      setThrottleValue(defaultCruiseThrottle);
+    } else {
+      velocity.set(0, 0, -pointerCruiseSpeed);
+      forwardSpeed = pointerCruiseSpeed;
+    }
     initialCruiseEngaged = true;
   }
 
