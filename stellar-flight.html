@@ -1967,24 +1967,44 @@
   const streakMaterial = new THREE.MeshBasicMaterial({
     color: 0x38bdf8,
     transparent: true,
-    opacity: 0.65,
+    opacity: 0,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     depthWrite: false
   });
   const streaks = [];
-  for (let i = 0; i < 140; i++) {
-    const streak = new THREE.Mesh(streakGeometry, streakMaterial);
-    resetStreak(streak);
-    streakGroup.add(streak);
-    streaks.push({ mesh: streak, speed: 18 + Math.random() * 26 });
+  const streakNearPlane = -2;
+  const streakFarPlane = -120;
+  const streakDepthRange = streakNearPlane - streakFarPlane;
+  const maxStreakOpacity = 0.65;
+  let streakOpacity = 0;
+  let streakDirection = 1;
+
+  function randomizeStreakSpan(streakData) {
+    streakData.mesh.position.x = (Math.random() - 0.5) * 18;
+    streakData.mesh.position.y = (Math.random() - 0.5) * 12;
+    const length = 0.6 + Math.random() * 2.4;
+    streakData.mesh.scale.set(1, length, 1);
   }
 
-  function resetStreak(mesh) {
-    mesh.position.set((Math.random() - 0.5) * 18, (Math.random() - 0.5) * 12, -Math.random() * 60 - 8);
-    const length = 0.6 + Math.random() * 2.4;
-    mesh.scale.set(1, length, 1);
-    mesh.rotation.x = Math.PI / 2;
+  function applyStreakPhase(streakData, movingForward = true) {
+    const start = movingForward ? streakFarPlane : streakNearPlane;
+    const end = movingForward ? streakNearPlane : streakFarPlane;
+    streakData.mesh.position.z = THREE.MathUtils.lerp(start, end, streakData.phase);
+  }
+
+  for (let i = 0; i < 140; i++) {
+    const streak = new THREE.Mesh(streakGeometry, streakMaterial);
+    const streakData = {
+      mesh: streak,
+      speed: 18 + Math.random() * 26,
+      phase: Math.random()
+    };
+    streakData.mesh.rotation.x = Math.PI / 2;
+    randomizeStreakSpan(streakData);
+    applyStreakPhase(streakData, true);
+    streakGroup.add(streak);
+    streaks.push(streakData);
   }
 
   const engineGeometry = new THREE.CylinderGeometry(0.6, 1.8, 2.5, 16, 1, true);
@@ -2003,6 +2023,7 @@
   const clock = new THREE.Clock();
   const velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
+  let forwardSpeed = 0;
   const planetHitPosition = new THREE.Vector3();
   const upVector = new THREE.Vector3(0, 1, 0);
 
@@ -2021,6 +2042,11 @@
     strafeRight: false
   };
   let paused = false;
+  const defaultCruiseThrottle = 0.35;
+  // Match the steady-state drift produced by the default throttle in pointer mode so desktop players
+  // still lift off with a gentle glide without locking in a persistent forward creep.
+  const pointerCruiseSpeed = (defaultCruiseThrottle * 24) / 0.6;
+  let initialCruiseEngaged = false;
 
   const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
   const finePointerQuery = window.matchMedia('(pointer: fine)');
@@ -2084,7 +2110,9 @@
     });
   }
 
-  setThrottleValue(0);
+  if (usingTouchControls) {
+    setThrottleValue(defaultCruiseThrottle);
+  }
 
   function updateInstructionCopy() {
     if (!primaryInstructions || !secondaryInstructions) {
@@ -2147,6 +2175,19 @@
     updateInstructionCopy();
   }
 
+  function engageInitialCruise() {
+    if (initialCruiseEngaged) {
+      return;
+    }
+    if (usingTouchControls) {
+      setThrottleValue(defaultCruiseThrottle);
+    } else {
+      velocity.set(0, 0, -pointerCruiseSpeed);
+      forwardSpeed = pointerCruiseSpeed;
+    }
+    initialCruiseEngaged = true;
+  }
+
   function evaluatePointerPreference() {
     if (manualControlPreference) {
       return;
@@ -2156,6 +2197,7 @@
   }
 
   setControlMode(usingTouchControls);
+  engageInitialCruise();
 
   function bindThrottleControl() {
     if (!throttleControl || !throttleTrack) {
@@ -2610,6 +2652,7 @@
 
     if (paused) {
       velocity.set(0, 0, 0);
+      forwardSpeed = 0;
       camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
       const stabilityPaused = Math.max(0, Math.min(1, 1 - Math.abs(pitch) / pitchLimit));
       if (speedBar) {
@@ -2667,6 +2710,7 @@
     camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
     camera.position.addScaledVector(velocity, delta);
 
+    forwardSpeed = velocity.dot(direction);
     const speed = velocity.length();
     const stability = Math.max(0, Math.min(1, 1 - Math.abs(pitch) / pitchLimit));
     if (speedBar) {
@@ -2828,11 +2872,40 @@
     });
     asteroids.instanceMatrix.needsUpdate = true;
 
+    const forwardMagnitude = Math.abs(forwardSpeed);
+    const forwardDirection = forwardMagnitude > 0.01 ? Math.sign(forwardSpeed) : 0;
+    if (forwardDirection !== 0 && forwardDirection !== streakDirection) {
+      streaks.forEach((streak) => {
+        streak.phase = 1 - streak.phase;
+      });
+      streakDirection = forwardDirection;
+    }
+    const normalizedForward = forwardDirection === 0 ? 0 : THREE.MathUtils.clamp(forwardMagnitude / 60, 0, 1.2);
+    const fadeStrength = THREE.MathUtils.clamp(forwardMagnitude / 32, 0, 1);
+    const fadeTarget = maxStreakOpacity * (fadeStrength * fadeStrength * (3 - 2 * fadeStrength));
+    const fadeBlend = 1 - Math.exp(-6 * delta);
+    streakOpacity += (fadeTarget - streakOpacity) * fadeBlend;
+    streakMaterial.opacity = streakOpacity;
+
     streaks.forEach((streak) => {
-      streak.mesh.position.z += delta * (velocity.length() * 0.9 + streak.speed);
-      if (streak.mesh.position.z > -2) {
-        resetStreak(streak.mesh);
+      if (forwardDirection !== 0) {
+        const streakDrift = streak.speed * normalizedForward + forwardMagnitude * 0.35;
+        const phaseDelta = (streakDrift * delta) / streakDepthRange;
+        if (forwardDirection > 0) {
+          streak.phase += phaseDelta;
+          if (streak.phase > 1) {
+            streak.phase -= 1;
+            randomizeStreakSpan(streak);
+          }
+        } else {
+          streak.phase -= phaseDelta;
+          if (streak.phase < 0) {
+            streak.phase += 1;
+            randomizeStreakSpan(streak);
+          }
+        }
       }
+      applyStreakPhase(streak, streakDirection > 0);
     });
 
     updateCompass();
