@@ -1345,9 +1345,9 @@
   const shipScale = 0.9;
   ship.scale.set(shipScale, shipScale, shipScale);
   camera.add(ship);
-  // Slide the original silhouette down and forward just enough to clear the reticle
-  // without losing the wide view of the hull.
-  ship.position.set(0, -1.65, -5.6);
+  // Slide the original silhouette slightly lower and forward to clear the reticle
+  // while keeping the wide view of the hull in frame.
+  ship.position.set(0, -1.9, -5.6);
   scene.add(camera);
 
   const streakGroup = new THREE.Group();
@@ -1386,7 +1386,7 @@
   });
   const engineFlare = new THREE.Mesh(engineGeometry, engineMaterial);
   engineFlare.rotation.x = shipForwardRotation;
-  engineFlare.position.set(0, -1.45, -7.15);
+  engineFlare.position.set(0, -1.7, -7.15);
   engineFlare.scale.set(shipScale, shipScale, shipScale);
   camera.add(engineFlare);
 
