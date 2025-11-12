@@ -156,6 +156,153 @@
     color: #f0fdfc;
   }
 
+  .webgl-fallback {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem;
+    text-align: center;
+    background: radial-gradient(circle at top, #111827, #020617 60%);
+    color: #e2e8f0;
+    z-index: 999;
+  }
+
+  .webgl-fallback p {
+    max-width: 520px;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .webgl-fallback strong {
+    display: block;
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #f8fafc;
+  }
+
+  .mission-status {
+    position: fixed;
+    top: calc(var(--safe-top) + 4.25rem);
+    left: var(--safe-left);
+    padding: 0.85rem 1.1rem 0.95rem;
+    max-width: min(360px, calc(100% - 2.75rem));
+    background: rgba(8, 25, 44, 0.72);
+    border-radius: 16px;
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    color: rgba(191, 219, 254, 0.9);
+    box-shadow: 0 22px 48px rgba(8, 145, 178, 0.38);
+    letter-spacing: 0.04em;
+    z-index: 11;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  }
+
+  .mission-status span {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: rgba(165, 243, 252, 0.9);
+    margin-bottom: 0.25rem;
+  }
+
+  .mission-status strong {
+    display: block;
+    font-size: 1.05rem;
+    letter-spacing: 0.1em;
+    color: #f0fdfc;
+  }
+
+  .mission-status .mission-tip {
+    margin: 0.5rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: rgba(148, 163, 184, 0.92);
+  }
+
+  .mission-status-complete {
+    border-color: rgba(52, 211, 153, 0.65);
+    box-shadow: 0 26px 54px rgba(52, 211, 153, 0.35);
+    transform: translate3d(0, -4px, 0);
+  }
+
+  .target-compass {
+    position: fixed;
+    top: calc(var(--safe-top) + 0.45rem);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(520px, 92vw);
+    height: 2.4rem;
+    pointer-events: none;
+    z-index: 12;
+  }
+
+  .target-compass::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 1px;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(
+      to right,
+      rgba(var(--compass-highlight-rgb, 56, 189, 248), 0),
+      rgba(var(--compass-highlight-rgb, 56, 189, 248), 0.45),
+      rgba(var(--compass-highlight-rgb, 56, 189, 248), 0)
+    );
+    opacity: 0.65;
+  }
+
+  .target-compass-dot {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: rgba(148, 163, 184, 0.45);
+    box-shadow:
+      0 0 0 1px rgba(148, 163, 184, 0.4),
+      0 0 12px rgba(59, 130, 246, 0.35);
+    transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    opacity: 0.55;
+  }
+
+  .target-compass-dot.is-primary {
+    background: rgba(var(--dot-highlight-rgb, 250, 204, 21), 0.9);
+    box-shadow:
+      0 0 0 1px rgba(var(--dot-highlight-rgb, 250, 204, 21), 0.8),
+      0 0 22px rgba(var(--dot-highlight-rgb, 250, 204, 21), 0.6);
+    transform: translate(-50%, -50%) scale(1.45);
+    opacity: 0.95;
+  }
+
+  .target-compass-dot.is-complete {
+    background: rgba(148, 163, 184, 0.2);
+    box-shadow:
+      0 0 0 1px rgba(148, 163, 184, 0.25),
+      0 0 10px rgba(45, 212, 191, 0.25);
+    opacity: 0.28;
+  }
+
+  .target-compass-dot.is-behind {
+    background: rgba(var(--dot-highlight-rgb, 59, 130, 246), 0.35);
+    box-shadow:
+      0 0 0 1px rgba(var(--dot-highlight-rgb, 59, 130, 246), 0.45),
+      0 0 12px rgba(var(--dot-highlight-rgb, 59, 130, 246), 0.4);
+    opacity: 0.42;
+  }
+
+  .target-compass-dot.is-offscreen {
+    opacity: 0.35;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+
   .top-buttons {
     position: fixed;
     top: var(--safe-top);
@@ -416,6 +563,17 @@
     .touch-action {
       font-size: 0.76rem;
     }
+
+    .mission-status {
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: min(420px, calc(100% - 2rem));
+    }
+
+    .target-compass {
+      top: calc(var(--safe-top) + 0.25rem);
+      width: min(460px, 94vw);
+    }
   }
 
   @media (max-width: 640px) {
@@ -431,6 +589,18 @@
 
     body.touch-enabled .status {
       bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem + 220px + 8rem);
+    }
+
+    .mission-status {
+      top: calc(var(--safe-top) + 5.25rem);
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: min(360px, 90vw);
+    }
+
+    .target-compass {
+      top: calc(var(--safe-top) + 0.2rem);
+      height: 2.2rem;
     }
   }
 
@@ -631,6 +801,12 @@
     .touch-actions {
       bottom: calc(var(--safe-bottom) + 220px + 1.5rem);
     }
+
+    .mission-status {
+      top: calc(var(--safe-top) + 5rem);
+      max-width: min(320px, 88vw);
+      padding: 0.75rem 0.9rem 0.85rem;
+    }
   }
   </style>
 </head>
@@ -657,12 +833,13 @@
     <h1>Stellar Drift</h1>
     <p id="primaryInstructions">
       Glide through procedurally scattered stars and luminous worlds. Click anywhere to engage flight controls,
-      then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost.
+      then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost and left-click or
+      press <strong>F</strong> to fire a laser burst.
     </p>
     <div class="hint" id="secondaryInstructions">
       Press <strong>R</strong> if you ever want to re-center your ship. Pointer lock keeps the cursor inside the
-      cockpit—press <strong>Esc</strong> to release. Hide these tips once you're comfortable and use "Show Flight
-      Controls" to bring them back.
+      cockpit—press <strong>Esc</strong> to release. Tag the luminous mission beacons in any order and follow the pulsing
+      canopy compass to line up your next objective.
     </div>
   </div>
 
@@ -691,6 +868,7 @@
     </div>
     <div class="touch-actions" role="group" aria-label="Flight quick actions">
       <button class="touch-action" type="button" data-action="boost" aria-pressed="false">Boost</button>
+      <button class="touch-action" type="button" data-action="fire" aria-pressed="false">Fire 🔆</button>
       <button class="touch-action" type="button" data-action="pause" aria-pressed="false">Pause</button>
       <button class="touch-action" type="button" data-action="ascend" aria-pressed="false">Ascend</button>
       <button class="touch-action" type="button" data-action="descend" aria-pressed="false">Descend</button>
@@ -711,6 +889,17 @@
     </div>
   </div>
 
+  <div class="mission-status" id="missionStatus" role="status" aria-live="polite">
+    <span>Mission Tracker</span>
+    <strong id="objectiveCounter">0/5 sector · 0 total</strong>
+    <p class="mission-tip" id="missionTip">
+      Tag the luminous beacons with a laser burst to harmonize this sector. Finish them in any order—the brightest pulse is a
+      suggested lead.
+    </p>
+  </div>
+
+  <div class="target-compass" id="targetCompass" aria-hidden="true"></div>
+
   <div class="reticle" aria-hidden="true">
     <div class="reticle-ring"></div>
     <div class="reticle-dot"></div>
@@ -724,6 +913,44 @@
     crossorigin="anonymous"
   ></script>
   <script>
+  function showWebGLFallback(message) {
+    const fallback = document.createElement('div');
+    fallback.className = 'webgl-fallback';
+    fallback.innerHTML = `
+      <p>
+        <strong>WebGL Flight Systems Offline</strong>
+        ${message || 'Your device or browser blocked the 3D renderer. Enable WebGL or update your graphics drivers to enter Stellar Drift.'}
+      </p>
+    `;
+    document.body.appendChild(fallback);
+  }
+
+  function isWebGLSupported() {
+    try {
+      const testCanvas = document.createElement('canvas');
+      return !!(
+        window.WebGLRenderingContext &&
+        (testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl'))
+      );
+    } catch (error) {
+      return false;
+    }
+  }
+
+  if (!isWebGLSupported()) {
+    showWebGLFallback('This flight deck needs WebGL acceleration. Please enable it in your browser settings or switch to a compatible device.');
+    throw new Error('WebGL not supported in this browser');
+  }
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (error) {
+    console.error('Failed to initialize Stellar Drift renderer', error);
+    showWebGLFallback('We could not initialize the 3D renderer. Updating your graphics drivers or toggling hardware acceleration usually resolves this.');
+    throw new Error('WebGL renderer initialization failed');
+  }
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x010312);
   scene.fog = new THREE.FogExp2(0x020618, 0.0016);
@@ -731,10 +958,30 @@
   const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.2, 3000);
   camera.position.set(0, 0, 20);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
+
+  const statusEl = document.getElementById('status');
+  const speedBar = document.getElementById('speedBar');
+  const stabilityBar = document.getElementById('stabilityBar');
+  const overlay = document.querySelector('.overlay');
+  const overlayClose = document.getElementById('overlayClose');
+  const overlayToggle = document.getElementById('overlayToggle');
+  const primaryInstructions = document.getElementById('primaryInstructions');
+  const secondaryInstructions = document.getElementById('secondaryInstructions');
+  const controlModeToggle = document.getElementById('controlModeToggle');
+  const touchUI = document.getElementById('touchUI');
+  const touchGestureHint = touchUI ? touchUI.querySelector('.touch-gesture-hint') : null;
+  const throttleControl = document.getElementById('throttleControl');
+  const throttleTrack = document.getElementById('throttleTrack');
+  const throttleThumb = document.getElementById('throttleThumb');
+  const throttleLevel = document.getElementById('throttleLevel');
+  const throttleReverse = document.getElementById('throttleReverse');
+  const missionStatus = document.getElementById('missionStatus');
+  const objectiveCounter = document.getElementById('objectiveCounter');
+  const missionTip = document.getElementById('missionTip');
+  const targetCompass = document.getElementById('targetCompass');
 
   const ambient = new THREE.AmbientLight(0x7dd3fc, 0.38);
   scene.add(ambient);
@@ -953,6 +1200,274 @@
     return planet;
   });
 
+  const objectiveGroup = new THREE.Group();
+  scene.add(objectiveGroup);
+
+  const objectiveConfigs = [
+    {
+      name: 'Azure Beacon',
+      color: 0x38bdf8,
+      basePosition: new THREE.Vector3(90, 48, -340)
+    },
+    {
+      name: 'Solaris Relay',
+      color: 0xfacc15,
+      basePosition: new THREE.Vector3(-160, 26, -520)
+    },
+    {
+      name: 'Verdant Spire',
+      color: 0x34d399,
+      basePosition: new THREE.Vector3(140, -42, -640)
+    },
+    {
+      name: 'Crimson Chime',
+      color: 0xf87171,
+      basePosition: new THREE.Vector3(-60, 70, -780)
+    },
+    {
+      name: 'Umbral Node',
+      color: 0xa855f7,
+      basePosition: new THREE.Vector3(60, -28, -920)
+    }
+  ];
+
+  function randomizeObjectivePosition(base) {
+    return base
+      .clone()
+      .add(new THREE.Vector3((Math.random() - 0.5) * 120, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 160));
+  }
+
+  function createObjectiveMarker(config) {
+    const group = new THREE.Group();
+    group.position.copy(randomizeObjectivePosition(config.basePosition));
+
+    const coreMaterial = new THREE.MeshStandardMaterial({
+      color: config.color,
+      emissive: config.color,
+      emissiveIntensity: 0.9,
+      roughness: 0.25,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.92
+    });
+    const core = new THREE.Mesh(new THREE.SphereGeometry(4.2, 48, 48), coreMaterial);
+    group.add(core);
+
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: config.color,
+      transparent: true,
+      opacity: 0.36,
+      blending: THREE.AdditiveBlending
+    });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(8.2, 0.55, 28, 96), ringMaterial);
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
+
+    const pylonMaterial = new THREE.MeshBasicMaterial({
+      color: config.color,
+      transparent: true,
+      opacity: 0.32,
+      blending: THREE.AdditiveBlending
+    });
+    const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 26, 24, 1, true), pylonMaterial);
+    pylon.position.y = 15;
+    pylon.visible = false;
+    group.add(pylon);
+
+    const glowMaterial = new THREE.SpriteMaterial({
+      map: anomalyTexture,
+      color: new THREE.Color(config.color),
+      transparent: true,
+      opacity: 0.42,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const glow = new THREE.Sprite(glowMaterial);
+    glow.scale.set(26, 26, 26);
+    group.add(glow);
+
+    objectiveGroup.add(group);
+
+    return {
+      name: config.name,
+      color: config.color,
+      basePosition: config.basePosition.clone(),
+      group,
+      core,
+      ring,
+      pylon,
+      glow,
+      completed: false,
+      pulse: Math.random() * Math.PI * 2,
+      hitRadius: 11
+    };
+  }
+
+  const objectiveMarkers = objectiveConfigs.map((config) => createObjectiveMarker(config));
+  let primaryObjective = null;
+  let totalSyncedObjectives = 0;
+
+  const compassDots = targetCompass
+    ? objectiveMarkers.map((marker) => {
+        const dot = document.createElement('span');
+        dot.className = 'target-compass-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        targetCompass.appendChild(dot);
+        return { marker, dot };
+      })
+    : [];
+
+  const compassVectors = {
+    ndc: new THREE.Vector3(),
+    world: new THREE.Vector3(),
+    direction: new THREE.Vector3(),
+    forward: new THREE.Vector3()
+  };
+
+  const compassHighlightColor = new THREE.Color();
+
+  function formatRgbComponents(hexColor) {
+    compassHighlightColor.setHex(hexColor);
+    if (typeof compassHighlightColor.convertLinearToSRGB === 'function') {
+      compassHighlightColor.convertLinearToSRGB();
+    }
+    const r = Math.round(compassHighlightColor.r * 255);
+    const g = Math.round(compassHighlightColor.g * 255);
+    const b = Math.round(compassHighlightColor.b * 255);
+    return `${r}, ${g}, ${b}`;
+  }
+
+  function updateObjectiveUI() {
+    if (!objectiveCounter) {
+      return;
+    }
+    const remaining = objectiveMarkers.filter((marker) => !marker.completed).length;
+    const syncedThisPass = objectiveMarkers.length - remaining;
+    const nextMarker = objectiveMarkers.find((marker) => !marker.completed) || null;
+    objectiveCounter.textContent = `${syncedThisPass}/${objectiveMarkers.length} sector · ${totalSyncedObjectives} total`;
+    primaryObjective = nextMarker;
+    objectiveMarkers.forEach((marker) => {
+      const isPrimary = !marker.completed && marker === primaryObjective;
+      marker.pylon.visible = isPrimary;
+      if (!isPrimary) {
+        marker.pylon.material.opacity = 0;
+      }
+    });
+    if (missionTip) {
+      if (remaining === 0) {
+        primaryObjective = null;
+        missionTip.textContent = 'Sector clear! New resonance points incoming—stand by.';
+      } else {
+        missionTip.textContent = nextMarker
+          ? `Tag ${nextMarker.name} with a laser burst to sync its signal. The canopy compass will keep it centered while other beacons wait their turn.`
+          : 'Tag the luminous mission beacons to sync their signals.';
+      }
+    }
+    updateCompass();
+  }
+
+  updateObjectiveUI();
+
+  function highlightMissionStatus() {
+    if (!missionStatus) {
+      return;
+    }
+    missionStatus.classList.add('mission-status-complete');
+    window.setTimeout(() => {
+      missionStatus.classList.remove('mission-status-complete');
+    }, 420);
+  }
+
+  function updateCompass() {
+    if (!targetCompass || compassDots.length === 0) {
+      return;
+    }
+    if (primaryObjective && !primaryObjective.completed) {
+      targetCompass.style.setProperty('--compass-highlight-rgb', formatRgbComponents(primaryObjective.color));
+    } else {
+      targetCompass.style.removeProperty('--compass-highlight-rgb');
+    }
+    compassVectors.forward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    compassDots.forEach(({ marker, dot }) => {
+      compassVectors.world.copy(marker.group.position);
+      compassVectors.ndc.copy(compassVectors.world).project(camera);
+      const clampedX = Math.max(-0.9, Math.min(0.9, compassVectors.ndc.x));
+      dot.style.left = `${(clampedX * 0.5 + 0.5) * 100}%`;
+      const isBehind = compassVectors.ndc.z > 1;
+      const isOffscreen = Math.abs(compassVectors.ndc.x) > 1 || compassVectors.ndc.y > 1;
+      dot.classList.toggle('is-behind', isBehind);
+      dot.classList.toggle('is-offscreen', !isBehind && isOffscreen);
+      dot.classList.toggle('is-complete', marker.completed);
+      const isPrimary = !marker.completed && marker === primaryObjective;
+      dot.classList.toggle('is-primary', isPrimary);
+      if (isPrimary) {
+        dot.style.setProperty('--dot-highlight-rgb', formatRgbComponents(marker.color));
+      } else {
+        dot.style.removeProperty('--dot-highlight-rgb');
+      }
+      compassVectors.direction.copy(marker.group.position).sub(camera.position);
+      const distance = compassVectors.direction.length();
+      const distanceFade = Math.max(0.35, Math.min(1, 900 / Math.max(distance, 1)));
+      let opacity = marker.completed ? 0.28 : 0.55 + distanceFade * 0.3;
+      if (isPrimary) {
+        opacity = 0.92;
+      } else if (isBehind) {
+        opacity = Math.max(0.35, opacity - 0.18);
+      }
+      if (!isBehind && isOffscreen) {
+        opacity = Math.min(opacity, 0.45);
+      }
+      dot.style.opacity = opacity.toString();
+    });
+  }
+
+  function reseedObjective(marker) {
+    marker.completed = false;
+    marker.group.scale.setScalar(1);
+    marker.group.position.copy(randomizeObjectivePosition(marker.basePosition));
+    marker.core.material.color.setHex(marker.color);
+    marker.core.material.emissive.setHex(marker.color);
+    marker.core.material.emissiveIntensity = 0.9;
+    marker.core.material.opacity = 0.92;
+    marker.ring.material.color.setHex(marker.color);
+    marker.ring.material.opacity = 0.36;
+    marker.pylon.material.color.setHex(marker.color);
+    marker.pylon.material.opacity = 0;
+    marker.pylon.visible = false;
+    marker.glow.material.color.set(new THREE.Color(marker.color));
+    marker.glow.material.opacity = 0.42;
+  }
+
+  function completeObjective(marker) {
+    if (marker.completed) {
+      return;
+    }
+    marker.completed = true;
+    marker.group.scale.setScalar(1.08);
+    marker.core.material.color.setHex(marker.color);
+    marker.core.material.emissive.setHex(marker.color);
+    marker.core.material.emissiveIntensity = 0.4;
+    marker.core.material.opacity = 0.72;
+    marker.ring.material.color.setHex(marker.color);
+    marker.ring.material.opacity = 0.18;
+    marker.pylon.material.opacity = 0;
+    marker.pylon.visible = false;
+    marker.glow.material.color.set(new THREE.Color(marker.color));
+    marker.glow.material.opacity = 0.12;
+    totalSyncedObjectives += 1;
+    updateObjectiveUI();
+    highlightMissionStatus();
+
+    if (objectiveMarkers.every((item) => item.completed)) {
+      window.setTimeout(() => {
+        objectiveMarkers.forEach((item) => {
+          reseedObjective(item);
+        });
+        updateObjectiveUI();
+      }, 1600);
+    }
+  }
+
   const asteroidGeometry = new THREE.IcosahedronGeometry(2.6, 1);
   const asteroidMaterial = new THREE.MeshStandardMaterial({
     color: 0x475569,
@@ -1000,9 +1515,14 @@
     roughness: 0.4
   });
   const ship = new THREE.Mesh(shipGeometry, shipMaterial);
-  ship.rotation.x = Math.PI / 2;
+  const shipForwardRotation = Math.PI / 2;
+  ship.rotation.x = shipForwardRotation;
+  const shipScale = 0.9;
+  ship.scale.set(shipScale, shipScale, shipScale);
   camera.add(ship);
-  ship.position.set(0, -1.5, -5);
+  // Lower and nudge the ship forward so the reticle stays clear while the classic
+  // silhouette remains visible in frame.
+  ship.position.set(0, -2.6, -5.85);
   scene.add(camera);
 
   const streakGroup = new THREE.Group();
@@ -1040,30 +1560,15 @@
     blending: THREE.AdditiveBlending
   });
   const engineFlare = new THREE.Mesh(engineGeometry, engineMaterial);
-  engineFlare.rotation.x = Math.PI / 2;
-  engineFlare.position.set(0, -1.5, -7.5);
+  engineFlare.rotation.x = shipForwardRotation;
+  engineFlare.position.set(0, -2.4, -7.4);
+  engineFlare.scale.set(shipScale, shipScale, shipScale);
   camera.add(engineFlare);
 
   const clock = new THREE.Clock();
   const velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
   const upVector = new THREE.Vector3(0, 1, 0);
-  const statusEl = document.getElementById('status');
-  const speedBar = document.getElementById('speedBar');
-  const stabilityBar = document.getElementById('stabilityBar');
-  const overlay = document.querySelector('.overlay');
-  const overlayClose = document.getElementById('overlayClose');
-  const overlayToggle = document.getElementById('overlayToggle');
-  const primaryInstructions = document.getElementById('primaryInstructions');
-  const secondaryInstructions = document.getElementById('secondaryInstructions');
-  const controlModeToggle = document.getElementById('controlModeToggle');
-  const touchUI = document.getElementById('touchUI');
-  const touchGestureHint = touchUI ? touchUI.querySelector('.touch-gesture-hint') : null;
-  const throttleControl = document.getElementById('throttleControl');
-  const throttleTrack = document.getElementById('throttleTrack');
-  const throttleThumb = document.getElementById('throttleThumb');
-  const throttleLevel = document.getElementById('throttleLevel');
-  const throttleReverse = document.getElementById('throttleReverse');
 
   const actionButtons = touchUI ? [...touchUI.querySelectorAll('.touch-action')] : [];
   let pauseButton = null;
@@ -1073,6 +1578,7 @@
   let throttleValue = 0;
   const touchActions = {
     boost: false,
+    fire: false,
     ascend: false,
     descend: false,
     strafeLeft: false,
@@ -1127,6 +1633,7 @@
     moveInput.x = 0;
     setThrottleValue(0);
     touchActions.boost = false;
+    touchActions.fire = false;
     touchActions.ascend = false;
     touchActions.descend = false;
     touchActions.strafeLeft = false;
@@ -1151,23 +1658,23 @@
       primaryInstructions.innerHTML =
         [
           'Tap anywhere to arm the flight deck, then swipe across space to steer your ship.',
-          'Drag the vertical throttle to set forward cruise or reverse drift.'
+          'Drag the vertical throttle to set forward cruise or reverse drift, and tap <strong>Fire</strong> to launch a laser burst.'
         ].join(' ');
       secondaryInstructions.innerHTML =
         [
           'Hold Boost to surge forward, Strafe or Ascend/Descend to slide and climb, and Re-center to reset orientation.',
-          'Pause freezes the ship without leaving the session. Attach a keyboard or toggle controls to return to mouse + WASD flight.'
+          'Tag luminous objective beacons to sync this sector—the mission tracker keeps score while Pause freezes the ship.'
         ].join(' ');
     } else {
       primaryInstructions.innerHTML =
         [
           'Glide through procedurally scattered stars and luminous worlds. Click anywhere to engage flight controls,',
-          'then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost.'
+          'then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost and left-click or press <strong>F</strong> to fire a laser burst.'
         ].join(' ');
       secondaryInstructions.innerHTML =
         [
           'Press <strong>R</strong> to re-center your ship. Pointer lock keeps the cursor inside the cockpit—press <strong>Esc</strong> to release.',
-          'Toggle touch controls anytime if you dock a keyboard or prefer on-screen pads.'
+          'Tag the luminous mission beacons to complete objectives and watch the tracker for your next target.'
         ].join(' ');
     }
   }
@@ -1306,6 +1813,9 @@
       activePointer = event.pointerId;
       button.setPointerCapture(activePointer);
       setPressed(true);
+      if (actionKey === 'fire') {
+        triggerLaserBurst();
+      }
       event.preventDefault();
       event.stopPropagation();
     });
@@ -1318,6 +1828,7 @@
   }
 
   momentaryResetters.set('boost', bindMomentaryAction(actionButtons.find((btn) => btn.dataset.action === 'boost'), 'boost'));
+  momentaryResetters.set('fire', bindMomentaryAction(actionButtons.find((btn) => btn.dataset.action === 'fire'), 'fire'));
   momentaryResetters.set(
     'ascend',
     bindMomentaryAction(actionButtons.find((btn) => btn.dataset.action === 'ascend'), 'ascend')
@@ -1394,6 +1905,131 @@
   let pointerLocked = false;
   const pitchLimit = Math.PI / 2 - 0.08;
 
+  const laserLength = 22;
+  const laserCoreGeometry = new THREE.CylinderGeometry(0.08, 0.08, laserLength, 12);
+  const laserGlowGeometry = new THREE.CylinderGeometry(0.28, 0.28, laserLength, 16, 1, true);
+  const laserTipHeight = 2.4;
+  const laserTipGeometry = new THREE.ConeGeometry(0.34, laserTipHeight, 16);
+  const baseLaserCoreMaterial = new THREE.MeshBasicMaterial({
+    color: 0x7dd3fc,
+    transparent: true,
+    opacity: 0.95,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false
+  });
+  const baseLaserGlowMaterial = new THREE.MeshBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.42,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false
+  });
+  const baseLaserTipMaterial = new THREE.MeshBasicMaterial({
+    color: 0xfcd34d,
+    transparent: true,
+    opacity: 0.9,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false
+  });
+  const activeLasers = [];
+  const laserForwardAxis = new THREE.Vector3(0, 1, 0);
+  const laserSpeed = 220;
+  const laserLifetime = 1.8;
+  const laserCooldownMs = 160;
+  let lastLaserTimestamp = 0;
+
+  function removeLaser(index) {
+    const shot = activeLasers[index];
+    scene.remove(shot.group);
+    shot.group.traverse((part) => {
+      if (part.isMesh && part.material) {
+        part.material.dispose();
+      }
+    });
+    activeLasers.splice(index, 1);
+  }
+
+  function triggerLaserBurst() {
+    if (paused) {
+      return;
+    }
+    const now = performance.now();
+    if (now - lastLaserTimestamp < laserCooldownMs) {
+      return;
+    }
+    lastLaserTimestamp = now;
+    const directionVector = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')).normalize();
+    const laserGroup = new THREE.Group();
+    const core = new THREE.Mesh(laserCoreGeometry, baseLaserCoreMaterial.clone());
+    core.userData.baseOpacity = core.material.opacity;
+    core.renderOrder = 2;
+    laserGroup.add(core);
+    const glow = new THREE.Mesh(laserGlowGeometry, baseLaserGlowMaterial.clone());
+    glow.userData.baseOpacity = glow.material.opacity;
+    glow.renderOrder = 1;
+    laserGroup.add(glow);
+    const tip = new THREE.Mesh(laserTipGeometry, baseLaserTipMaterial.clone());
+    tip.position.y = laserLength / 2 + laserTipHeight * 0.5;
+    tip.userData.baseOpacity = tip.material.opacity;
+    tip.renderOrder = 3;
+    laserGroup.add(tip);
+    laserGroup.position.copy(camera.position).addScaledVector(directionVector, 6 + laserLength * 0.45);
+    laserGroup.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(laserForwardAxis, directionVector));
+    scene.add(laserGroup);
+    activeLasers.push({
+      group: laserGroup,
+      direction: directionVector,
+      life: 0,
+      pulseOffset: Math.random() * Math.PI * 2,
+      parts: { core, glow, tip }
+    });
+  }
+
+  function updateLasers(delta) {
+    for (let index = activeLasers.length - 1; index >= 0; index--) {
+      const shot = activeLasers[index];
+      shot.life += delta;
+      shot.group.position.addScaledVector(shot.direction, delta * laserSpeed);
+      const fade = Math.max(0, 1 - shot.life / laserLifetime);
+      const pulse = 1 + Math.sin(shot.life * 18 + shot.pulseOffset) * 0.18 * fade;
+      shot.group.scale.x = 1 + pulse * 0.4;
+      shot.group.scale.y = 1;
+      shot.group.scale.z = 1 + pulse * 0.4;
+      const { core, glow, tip } = shot.parts;
+      if (core.material) {
+        core.material.opacity = core.userData.baseOpacity * fade;
+      }
+      if (glow.material) {
+        glow.material.opacity = glow.userData.baseOpacity * (0.5 + fade * 0.75);
+      }
+      if (tip.material) {
+        tip.material.opacity = tip.userData.baseOpacity * fade;
+      }
+
+      let shouldRemove = shot.life > laserLifetime;
+
+      if (!shouldRemove) {
+        for (const marker of objectiveMarkers) {
+          if (marker.completed) {
+            continue;
+          }
+          if (shot.group.position.distanceTo(marker.group.position) <= marker.hitRadius) {
+            completeObjective(marker);
+            shouldRemove = true;
+            break;
+          }
+        }
+      }
+
+      if (shouldRemove) {
+        removeLaser(index);
+      }
+    }
+  }
+
   function recenterShip() {
     camera.position.set(0, 0, 20);
     velocity.set(0, 0, 0);
@@ -1402,6 +2038,9 @@
   }
 
   function updateStatus(speed) {
+    if (!statusEl) {
+      return;
+    }
     const boostEngaged = touchActions.boost || keys.has('ShiftLeft') || keys.has('ShiftRight');
     const modeLabel = paused ? 'PAUSED' : boostEngaged ? 'BOOST CHANNEL' : 'CRUISE MODE';
     const displayedSpeed = paused ? 0 : speed;
@@ -1414,6 +2053,10 @@
     keys.add(event.code);
     if (event.code === 'KeyR') {
       recenterShip();
+    }
+    if (event.code === 'KeyF') {
+      event.preventDefault();
+      triggerLaserBurst();
     }
   });
 
@@ -1428,6 +2071,14 @@
     }
     renderer.domElement.requestPointerLock();
     setOverlayVisible(false);
+  });
+
+  renderer.domElement.addEventListener('mousedown', (event) => {
+    if (!pointerLocked || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    triggerLaserBurst();
   });
 
   document.addEventListener('pointerlockchange', () => {
@@ -1514,8 +2165,12 @@
       velocity.set(0, 0, 0);
       camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
       const stabilityPaused = Math.max(0, Math.min(1, 1 - Math.abs(pitch) / pitchLimit));
-      speedBar.style.transform = 'scaleX(0.1)';
-      stabilityBar.style.transform = `scaleX(${0.2 + stabilityPaused * 0.8})`;
+      if (speedBar) {
+        speedBar.style.transform = 'scaleX(0.1)';
+      }
+      if (stabilityBar) {
+        stabilityBar.style.transform = `scaleX(${0.2 + stabilityPaused * 0.8})`;
+      }
       updateStatus(0);
       return;
     }
@@ -1567,15 +2222,23 @@
 
     const speed = velocity.length();
     const stability = Math.max(0, Math.min(1, 1 - Math.abs(pitch) / pitchLimit));
-    speedBar.style.transform = `scaleX(${0.1 + Math.min(speed / 125, 1) * 0.9})`;
-    stabilityBar.style.transform = `scaleX(${0.2 + stability * 0.8})`;
+    if (speedBar) {
+      speedBar.style.transform = `scaleX(${0.1 + Math.min(speed / 125, 1) * 0.9})`;
+    }
+    if (stabilityBar) {
+      stabilityBar.style.transform = `scaleX(${0.2 + stability * 0.8})`;
+    }
     updateStatus(speed);
   }
 
   function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
+    if (usingTouchControls && touchActions.fire) {
+      triggerLaserBurst();
+    }
     updateMovement(delta);
+    updateLasers(delta);
 
     starLayers.forEach((layer, index) => {
       layer.points.rotation.y += delta * layer.rotationSpeed * (index + 1);
@@ -1604,6 +2267,39 @@
           (Math.random() - 0.5) * 660,
           -500 - Math.random() * 2200
         );
+      }
+    });
+
+    objectiveMarkers.forEach((marker) => {
+      const isPrimary = !marker.completed && marker === primaryObjective;
+      const pulseSpeed = marker.completed ? 0.9 : isPrimary ? 2.3 : 1.6;
+      marker.pulse += delta * pulseSpeed;
+      marker.group.rotation.y += delta * 0.28;
+      marker.ring.rotation.z += delta * 0.42;
+      if (marker.completed) {
+        const settledScale = 1.04 + Math.sin(marker.pulse * 0.45) * 0.03;
+        marker.group.scale.setScalar(settledScale);
+        marker.ring.material.opacity = 0.12 + Math.sin(marker.pulse) * 0.03;
+        marker.pylon.visible = false;
+        marker.pylon.material.opacity = 0;
+        marker.core.material.emissiveIntensity = 0.3 + Math.sin(marker.pulse * 0.4) * 0.05;
+        marker.glow.material.opacity = 0.05 + Math.max(0, Math.sin(marker.pulse * 0.4)) * 0.04;
+      } else if (isPrimary) {
+        marker.pylon.visible = true;
+        const radiantScale = 1.1 + Math.sin(marker.pulse * 0.55) * 0.18;
+        marker.group.scale.setScalar(radiantScale);
+        marker.ring.material.opacity = 0.46 + Math.sin(marker.pulse * 0.9) * 0.22;
+        marker.pylon.material.opacity = 0.34 + Math.sin(marker.pulse * 0.65) * 0.08;
+        marker.core.material.emissiveIntensity = 1.15 + Math.sin(marker.pulse) * 0.35;
+        marker.glow.material.opacity = 0.5 + Math.sin(marker.pulse * 1.1) * 0.14;
+      } else {
+        marker.pylon.visible = false;
+        marker.pylon.material.opacity = 0;
+        const breathingScale = 1 + Math.sin(marker.pulse * 0.5) * 0.08;
+        marker.group.scale.setScalar(breathingScale);
+        marker.ring.material.opacity = 0.32 + Math.sin(marker.pulse) * 0.14;
+        marker.core.material.emissiveIntensity = 0.85 + Math.sin(marker.pulse) * 0.18;
+        marker.glow.material.opacity = 0.38 + Math.sin(marker.pulse) * 0.08;
       }
     });
 
@@ -1643,6 +2339,7 @@
       }
     });
 
+    updateCompass();
     renderer.render(scene, camera);
   }
 
@@ -1652,6 +2349,7 @@
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    updateCompass();
   });
   </script>
 </body>
