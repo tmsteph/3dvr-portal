@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stellar Drift - Endless Flight</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="gun-init.js"></script>
   <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
@@ -1043,8 +1044,8 @@
         'wss://gun-relay-3dvr.fly.dev/gun'
       ])
     : null;
-  const portalUser = gun ? gun.user() : null;
-  const portalRoot = gun ? gun.get('3dvr-portal') : null;
+  const portalUser = gun && typeof gun.user === 'function' ? gun.user() : null;
+  const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : null;
   const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function' && gun
     ? window.ScoreSystem.getManager({ gun, user: portalUser, portalRoot })
     : null;
