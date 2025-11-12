@@ -230,6 +230,79 @@
     transform: translate3d(0, -4px, 0);
   }
 
+  .target-compass {
+    position: fixed;
+    top: calc(var(--safe-top) + 0.45rem);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(520px, 92vw);
+    height: 2.4rem;
+    pointer-events: none;
+    z-index: 12;
+  }
+
+  .target-compass::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 1px;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(
+      to right,
+      rgba(56, 189, 248, 0),
+      rgba(56, 189, 248, 0.45),
+      rgba(56, 189, 248, 0)
+    );
+    opacity: 0.65;
+  }
+
+  .target-compass-dot {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: rgba(148, 163, 184, 0.45);
+    box-shadow:
+      0 0 0 1px rgba(148, 163, 184, 0.4),
+      0 0 12px rgba(59, 130, 246, 0.35);
+    transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    opacity: 0.55;
+  }
+
+  .target-compass-dot.is-primary {
+    background: rgba(250, 204, 21, 0.9);
+    box-shadow:
+      0 0 0 1px rgba(250, 204, 21, 0.8),
+      0 0 22px rgba(250, 204, 21, 0.6);
+    transform: translate(-50%, -50%) scale(1.45);
+    opacity: 0.95;
+  }
+
+  .target-compass-dot.is-complete {
+    background: rgba(148, 163, 184, 0.2);
+    box-shadow:
+      0 0 0 1px rgba(148, 163, 184, 0.25),
+      0 0 10px rgba(45, 212, 191, 0.25);
+    opacity: 0.28;
+  }
+
+  .target-compass-dot.is-behind {
+    background: rgba(59, 130, 246, 0.35);
+    box-shadow:
+      0 0 0 1px rgba(59, 130, 246, 0.45),
+      0 0 12px rgba(59, 130, 246, 0.4);
+    opacity: 0.42;
+  }
+
+  .target-compass-dot.is-offscreen {
+    opacity: 0.35;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+
   .top-buttons {
     position: fixed;
     top: var(--safe-top);
@@ -496,6 +569,11 @@
       transform: translateX(-50%);
       max-width: min(420px, calc(100% - 2rem));
     }
+
+    .target-compass {
+      top: calc(var(--safe-top) + 0.25rem);
+      width: min(460px, 94vw);
+    }
   }
 
   @media (max-width: 640px) {
@@ -518,6 +596,11 @@
       left: 50%;
       transform: translateX(-50%);
       max-width: min(360px, 90vw);
+    }
+
+    .target-compass {
+      top: calc(var(--safe-top) + 0.2rem);
+      height: 2.2rem;
     }
   }
 
@@ -755,8 +838,8 @@
     </p>
     <div class="hint" id="secondaryInstructions">
       Press <strong>R</strong> if you ever want to re-center your ship. Pointer lock keeps the cursor inside the
-      cockpit—press <strong>Esc</strong> to release. Tag the luminous mission beacons to complete objectives and watch the
-      tracker for your next target.
+      cockpit—press <strong>Esc</strong> to release. Tag the luminous mission beacons in any order and follow the pulsing
+      canopy compass to line up your next objective.
     </div>
   </div>
 
@@ -809,8 +892,13 @@
   <div class="mission-status" id="missionStatus" role="status" aria-live="polite">
     <span>Mission Tracker</span>
     <strong id="objectiveCounter">0/5 sector · 0 total</strong>
-    <p class="mission-tip" id="missionTip">Tag the luminous beacons with a laser burst to harmonize this sector.</p>
+    <p class="mission-tip" id="missionTip">
+      Tag the luminous beacons with a laser burst to harmonize this sector. Finish them in any order—the brightest pulse is a
+      suggested lead.
+    </p>
   </div>
+
+  <div class="target-compass" id="targetCompass" aria-hidden="true"></div>
 
   <div class="reticle" aria-hidden="true">
     <div class="reticle-ring"></div>
@@ -893,6 +981,7 @@
   const missionStatus = document.getElementById('missionStatus');
   const objectiveCounter = document.getElementById('objectiveCounter');
   const missionTip = document.getElementById('missionTip');
+  const targetCompass = document.getElementById('targetCompass');
 
   const ambient = new THREE.AmbientLight(0x7dd3fc, 0.38);
   scene.add(ambient);
@@ -1214,7 +1303,25 @@
   }
 
   const objectiveMarkers = objectiveConfigs.map((config) => createObjectiveMarker(config));
+  let primaryObjective = null;
   let totalSyncedObjectives = 0;
+
+  const compassDots = targetCompass
+    ? objectiveMarkers.map((marker) => {
+        const dot = document.createElement('span');
+        dot.className = 'target-compass-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        targetCompass.appendChild(dot);
+        return { marker, dot };
+      })
+    : [];
+
+  const compassVectors = {
+    ndc: new THREE.Vector3(),
+    world: new THREE.Vector3(),
+    direction: new THREE.Vector3(),
+    forward: new THREE.Vector3()
+  };
 
   function updateObjectiveUI() {
     if (!objectiveCounter) {
@@ -1222,17 +1329,20 @@
     }
     const remaining = objectiveMarkers.filter((marker) => !marker.completed).length;
     const syncedThisPass = objectiveMarkers.length - remaining;
+    const nextMarker = objectiveMarkers.find((marker) => !marker.completed) || null;
     objectiveCounter.textContent = `${syncedThisPass}/${objectiveMarkers.length} sector · ${totalSyncedObjectives} total`;
+    primaryObjective = nextMarker;
     if (missionTip) {
       if (remaining === 0) {
+        primaryObjective = null;
         missionTip.textContent = 'Sector clear! New resonance points incoming—stand by.';
       } else {
-        const nextMarker = objectiveMarkers.find((marker) => !marker.completed);
         missionTip.textContent = nextMarker
-          ? `Tag ${nextMarker.name} with a laser burst to sync its signal.`
+          ? `Tag ${nextMarker.name} with a laser burst to sync its signal. The canopy compass will keep it centered while other beacons wait their turn.`
           : 'Tag the luminous mission beacons to sync their signals.';
       }
     }
+    updateCompass();
   }
 
   updateObjectiveUI();
@@ -1245,6 +1355,39 @@
     window.setTimeout(() => {
       missionStatus.classList.remove('mission-status-complete');
     }, 420);
+  }
+
+  function updateCompass() {
+    if (!targetCompass || compassDots.length === 0) {
+      return;
+    }
+    compassVectors.forward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    compassDots.forEach(({ marker, dot }) => {
+      compassVectors.world.copy(marker.group.position);
+      compassVectors.ndc.copy(compassVectors.world).project(camera);
+      const clampedX = Math.max(-0.9, Math.min(0.9, compassVectors.ndc.x));
+      dot.style.left = `${(clampedX * 0.5 + 0.5) * 100}%`;
+      const isBehind = compassVectors.ndc.z > 1;
+      const isOffscreen = Math.abs(compassVectors.ndc.x) > 1 || compassVectors.ndc.y > 1;
+      dot.classList.toggle('is-behind', isBehind);
+      dot.classList.toggle('is-offscreen', !isBehind && isOffscreen);
+      dot.classList.toggle('is-complete', marker.completed);
+      const isPrimary = !marker.completed && marker === primaryObjective;
+      dot.classList.toggle('is-primary', isPrimary);
+      compassVectors.direction.copy(marker.group.position).sub(camera.position);
+      const distance = compassVectors.direction.length();
+      const distanceFade = Math.max(0.35, Math.min(1, 900 / Math.max(distance, 1)));
+      let opacity = marker.completed ? 0.28 : 0.55 + distanceFade * 0.3;
+      if (isPrimary) {
+        opacity = 0.92;
+      } else if (isBehind) {
+        opacity = Math.max(0.35, opacity - 0.18);
+      }
+      if (!isBehind && isOffscreen) {
+        opacity = Math.min(opacity, 0.45);
+      }
+      dot.style.opacity = opacity.toString();
+    });
   }
 
   function reseedObjective(marker) {
@@ -2096,7 +2239,9 @@
     });
 
     objectiveMarkers.forEach((marker) => {
-      marker.pulse += delta * (marker.completed ? 0.9 : 1.6);
+      const isPrimary = !marker.completed && marker === primaryObjective;
+      const pulseSpeed = marker.completed ? 0.9 : isPrimary ? 2.3 : 1.6;
+      marker.pulse += delta * pulseSpeed;
       marker.group.rotation.y += delta * 0.28;
       marker.ring.rotation.z += delta * 0.42;
       if (marker.completed) {
@@ -2106,10 +2251,17 @@
         marker.pylon.material.opacity = 0.36 + Math.sin(marker.pulse * 0.6) * 0.04;
         marker.core.material.emissiveIntensity = 0.55 + Math.sin(marker.pulse) * 0.08;
         marker.glow.material.opacity = 0.52 + Math.sin(marker.pulse) * 0.04;
+      } else if (isPrimary) {
+        const radiantScale = 1.1 + Math.sin(marker.pulse * 0.55) * 0.18;
+        marker.group.scale.setScalar(radiantScale);
+        marker.ring.material.opacity = 0.46 + Math.sin(marker.pulse * 0.9) * 0.22;
+        marker.pylon.material.opacity = 0.34 + Math.sin(marker.pulse * 0.65) * 0.08;
+        marker.core.material.emissiveIntensity = 1.15 + Math.sin(marker.pulse) * 0.35;
+        marker.glow.material.opacity = 0.5 + Math.sin(marker.pulse * 1.1) * 0.14;
       } else {
         const breathingScale = 1 + Math.sin(marker.pulse * 0.5) * 0.08;
         marker.group.scale.setScalar(breathingScale);
-        marker.ring.material.opacity = 0.3 + Math.sin(marker.pulse) * 0.12 + 0.2;
+        marker.ring.material.opacity = 0.32 + Math.sin(marker.pulse) * 0.14;
         marker.pylon.material.opacity = 0.28 + Math.sin(marker.pulse * 0.6) * 0.05;
         marker.core.material.emissiveIntensity = 0.85 + Math.sin(marker.pulse) * 0.18;
         marker.glow.material.opacity = 0.38 + Math.sin(marker.pulse) * 0.08;
@@ -2152,6 +2304,7 @@
       }
     });
 
+    updateCompass();
     renderer.render(scene, camera);
   }
 
@@ -2161,6 +2314,7 @@
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    updateCompass();
   });
   </script>
 </body>
