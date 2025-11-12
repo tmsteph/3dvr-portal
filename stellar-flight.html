@@ -1603,7 +1603,9 @@
     planet.userData.floatPhase = Math.random() * Math.PI * 2;
     planet.userData.baseScale = planet.scale.x;
     planet.userData.baseEmissive = planet.material ? planet.material.emissiveIntensity || 0 : 0;
-    planet.userData.hitRadius = Math.max(planetInfo.radius * 0.72, 18);
+    // Widen the collision radius so laser shots register as soon as they graze the surface.
+    const boundingRadius = planet.geometry?.boundingSphere?.radius || planetInfo.radius;
+    planet.userData.hitRadius = Math.max(boundingRadius + 12, boundingRadius * 1.05, 18);
     planet.userData.hitElapsed = 0;
     planet.userData.hitDuration = 0;
     planetPivots.push(pivot);
