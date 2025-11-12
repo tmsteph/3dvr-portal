@@ -1967,28 +1967,44 @@
   const streakMaterial = new THREE.MeshBasicMaterial({
     color: 0x38bdf8,
     transparent: true,
-    opacity: 0.65,
+    opacity: 0,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     depthWrite: false
   });
   const streaks = [];
-  for (let i = 0; i < 140; i++) {
-    const streak = new THREE.Mesh(streakGeometry, streakMaterial);
-    resetStreak(streak, true);
-    streakGroup.add(streak);
-    streaks.push({ mesh: streak, speed: 18 + Math.random() * 26 });
+  const streakNearPlane = -2;
+  const streakFarPlane = -120;
+  const streakDepthRange = streakNearPlane - streakFarPlane;
+  const maxStreakOpacity = 0.65;
+  let streakOpacity = 0;
+  let streakDirection = 1;
+
+  function randomizeStreakSpan(streakData) {
+    streakData.mesh.position.x = (Math.random() - 0.5) * 18;
+    streakData.mesh.position.y = (Math.random() - 0.5) * 12;
+    const length = 0.6 + Math.random() * 2.4;
+    streakData.mesh.scale.set(1, length, 1);
   }
 
-  function resetStreak(mesh, movingForward = true) {
-    mesh.position.set(
-      (Math.random() - 0.5) * 18,
-      (Math.random() - 0.5) * 12,
-      movingForward ? -Math.random() * 60 - 8 : -Math.random() * 6 - 2
-    );
-    const length = 0.6 + Math.random() * 2.4;
-    mesh.scale.set(1, length, 1);
-    mesh.rotation.x = Math.PI / 2;
+  function applyStreakPhase(streakData, movingForward = true) {
+    const start = movingForward ? streakFarPlane : streakNearPlane;
+    const end = movingForward ? streakNearPlane : streakFarPlane;
+    streakData.mesh.position.z = THREE.MathUtils.lerp(start, end, streakData.phase);
+  }
+
+  for (let i = 0; i < 140; i++) {
+    const streak = new THREE.Mesh(streakGeometry, streakMaterial);
+    const streakData = {
+      mesh: streak,
+      speed: 18 + Math.random() * 26,
+      phase: Math.random()
+    };
+    streakData.mesh.rotation.x = Math.PI / 2;
+    randomizeStreakSpan(streakData);
+    applyStreakPhase(streakData, true);
+    streakGroup.add(streak);
+    streaks.push(streakData);
   }
 
   const engineGeometry = new THREE.CylinderGeometry(0.6, 1.8, 2.5, 16, 1, true);
@@ -2008,7 +2024,6 @@
   const velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
   let forwardSpeed = 0;
-  let lastForwardDirection = 1;
   const planetHitPosition = new THREE.Vector3();
   const upVector = new THREE.Vector3(0, 1, 0);
 
@@ -2859,26 +2874,38 @@
 
     const forwardMagnitude = Math.abs(forwardSpeed);
     const forwardDirection = forwardMagnitude > 0.01 ? Math.sign(forwardSpeed) : 0;
-    if (forwardDirection !== 0 && forwardDirection !== lastForwardDirection) {
+    if (forwardDirection !== 0 && forwardDirection !== streakDirection) {
       streaks.forEach((streak) => {
-        resetStreak(streak.mesh, forwardDirection > 0);
+        streak.phase = 1 - streak.phase;
       });
-      lastForwardDirection = forwardDirection;
+      streakDirection = forwardDirection;
     }
     const normalizedForward = forwardDirection === 0 ? 0 : THREE.MathUtils.clamp(forwardMagnitude / 60, 0, 1.2);
+    const fadeStrength = THREE.MathUtils.clamp(forwardMagnitude / 32, 0, 1);
+    const fadeTarget = maxStreakOpacity * (fadeStrength * fadeStrength * (3 - 2 * fadeStrength));
+    const fadeBlend = 1 - Math.exp(-6 * delta);
+    streakOpacity += (fadeTarget - streakOpacity) * fadeBlend;
+    streakMaterial.opacity = streakOpacity;
+
     streaks.forEach((streak) => {
-      if (forwardDirection === 0) {
-        return;
-      }
-      const streakDrift = forwardDirection * (streak.speed * normalizedForward + forwardMagnitude * 0.35);
-      streak.mesh.position.z += delta * streakDrift;
-      if (forwardDirection > 0) {
-        if (streak.mesh.position.z > -2) {
-          resetStreak(streak.mesh, true);
+      if (forwardDirection !== 0) {
+        const streakDrift = streak.speed * normalizedForward + forwardMagnitude * 0.35;
+        const phaseDelta = (streakDrift * delta) / streakDepthRange;
+        if (forwardDirection > 0) {
+          streak.phase += phaseDelta;
+          if (streak.phase > 1) {
+            streak.phase -= 1;
+            randomizeStreakSpan(streak);
+          }
+        } else {
+          streak.phase -= phaseDelta;
+          if (streak.phase < 0) {
+            streak.phase += 1;
+            randomizeStreakSpan(streak);
+          }
         }
-      } else if (streak.mesh.position.z < -120) {
-        resetStreak(streak.mesh, false);
       }
+      applyStreakPhase(streak, streakDirection > 0);
     });
 
     updateCompass();
