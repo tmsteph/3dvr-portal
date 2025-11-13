@@ -8,96 +8,256 @@
   <style>
   body {
     margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 0 1rem 4rem;
-    background: radial-gradient(circle at 20% -10%, #182848 0%, #090a0f 60%, #040508 100%);
-    color: #e8f1ff;
+    overflow: hidden;
+    font-family: 'Poppins', sans-serif;
+    background: radial-gradient(circle at 18% -12%, #182848 0%, #090a0f 55%, #030712 100%);
+    color: #f1f5f9;
   }
 
-  .top-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: center;
-    align-items: center;
-    margin: 1.25rem auto;
-    width: min(960px, 100%);
+  :root {
+    --safe-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    --safe-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.4rem);
+    --safe-left: calc(env(safe-area-inset-left, 0px) + 1.5rem);
+    --safe-right: calc(env(safe-area-inset-right, 0px) + 1.5rem);
+    --control-safe-zone: 0px;
   }
 
-  .top-buttons a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.45rem 0.8rem;
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    color: inherit;
-    text-decoration: none;
-    background: rgba(15, 23, 42, 0.65);
-    transition: border-color 0.2s ease, background-color 0.2s ease;
-  }
-
-  .top-buttons a:hover,
-  .top-buttons a:focus-visible {
-    border-color: rgba(148, 163, 184, 0.6);
-    background: rgba(30, 41, 59, 0.8);
-    outline: none;
-  }
-
-  main {
-    width: min(960px, 100%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1.25rem;
-  }
-
-  h1 {
-    margin: 0;
-    text-align: center;
-    font-size: clamp(2rem, 3.4vw, 3rem);
-  }
-
-  p.description {
-    margin: 0;
-    max-width: 720px;
-    color: rgba(226, 232, 240, 0.82);
+  body.touch-enabled {
+    --control-safe-zone: 18rem;
   }
 
   canvas {
-    width: 100%;
-    max-width: 960px;
-    aspect-ratio: 16 / 9;
-    border-radius: 18px;
-    border: 1px solid rgba(148, 163, 184, 0.32);
-    background: rgba(9, 11, 19, 0.75);
-    box-shadow: 0 32px 80px rgba(8, 15, 30, 0.55);
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100vw;
+    height: 100vh;
     touch-action: none;
     user-select: none;
+    z-index: 1;
   }
 
-  .hud {
+  .overlay {
+    position: fixed;
+    top: calc(6.2rem + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(420px, calc(100% - 2rem));
+    background: rgba(15, 23, 42, 0.72);
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.55);
+    padding: 1.5rem 1.5rem 1.25rem;
+    color: rgba(226, 232, 240, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 10;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .overlay h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    letter-spacing: 0.04em;
+    color: #f8fafc;
+  }
+
+  .overlay p {
+    margin: 0.75rem 0 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .overlay .hint {
+    margin-top: 1rem;
+    padding: 0.75rem 0.9rem;
+    background: rgba(56, 189, 248, 0.12);
+    border-radius: 12px;
+    border: 1px solid rgba(96, 165, 250, 0.35);
+    color: rgba(224, 242, 254, 0.88);
+    font-size: 0.9rem;
+  }
+
+  .control-list {
+    margin: 1.1rem 0 0;
+    padding-left: 1.1rem;
+    color: rgba(226, 232, 240, 0.82);
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    width: min(960px, 100%);
-    background: rgba(9, 14, 30, 0.7);
-    border: 1px solid rgba(99, 102, 241, 0.4);
-    border-radius: 16px;
-    padding: 1rem 1.25rem;
-    box-shadow: 0 20px 60px rgba(4, 10, 24, 0.65);
+    gap: 0.35rem;
+    font-size: 0.92rem;
   }
 
-  .hud section {
+  .overlay-links {
+    margin-top: 1.25rem;
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .overlay-links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(30, 41, 59, 0.7);
+    color: rgba(226, 232, 240, 0.92);
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .overlay-links a:hover,
+  .overlay-links a:focus-visible {
+    border-color: rgba(96, 165, 250, 0.6);
+    background: rgba(59, 130, 246, 0.25);
+    color: #e0f2fe;
+    outline: none;
+  }
+
+  .overlay-close {
+    position: absolute;
+    top: 0.8rem;
+    right: 0.9rem;
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    color: rgba(226, 232, 240, 0.9);
+    border-radius: 999px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .overlay-close:focus-visible,
+  .overlay-close:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(96, 165, 250, 0.55);
+    color: #e0f2fe;
+    outline: none;
+  }
+
+  .overlay-hidden {
+    opacity: 0;
+    transform: translate(-50%, -18px);
+    pointer-events: none;
+  }
+
+  .overlay-hidden .hint,
+  .overlay-hidden p,
+  .overlay-hidden h1 {
+    pointer-events: none;
+  }
+
+  .overlay-toggle {
+    position: fixed;
+    top: calc(6rem + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.55rem 1.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(96, 165, 250, 0.5);
+    background: rgba(15, 23, 42, 0.72);
+    color: rgba(191, 219, 254, 0.95);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.5);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 9;
+  }
+
+  .overlay-toggle:focus-visible,
+  .overlay-toggle:hover {
+    background: rgba(30, 41, 59, 0.8);
+    color: #e0f2fe;
+    border-color: rgba(96, 165, 250, 0.75);
+    outline: none;
+  }
+
+  .overlay-toggle-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .status {
+    position: fixed;
+    top: calc(var(--safe-top) + 0.5rem);
+    right: var(--safe-right);
+    padding: 0.85rem 1.2rem;
+    background: rgba(8, 25, 44, 0.7);
+    border-radius: 14px;
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    color: rgba(165, 243, 252, 0.92);
+    box-shadow: 0 18px 40px rgba(8, 145, 178, 0.35);
+    text-transform: uppercase;
+    display: inline-flex;
     flex-direction: column;
     gap: 0.35rem;
-    text-align: left;
+    z-index: 11;
+  }
+
+  .status span:last-child {
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    color: #f0fdfc;
+  }
+
+  .score-panel {
+    position: fixed;
+    top: calc(var(--safe-top) + 4.3rem);
+    right: var(--safe-right);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.95rem 1.15rem;
+    background: rgba(8, 25, 44, 0.74);
+    border-radius: 16px;
+    border: 1px solid rgba(94, 234, 212, 0.38);
+    box-shadow: 0 18px 42px rgba(8, 145, 178, 0.38);
+    color: rgba(191, 219, 254, 0.92);
+    z-index: 11;
+    min-width: 206px;
+  }
+
+  .score-panel-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(165, 243, 252, 0.88);
+  }
+
+  .score-panel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+
+  .score-row-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.78);
+  }
+
+  .score-row-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: rgba(224, 242, 254, 0.95);
   }
 
   .bar {
@@ -114,33 +274,19 @@
     transition: width 0.2s ease;
   }
 
-  ul.controls {
-    margin: 0;
-    padding-left: 1.2rem;
-  }
-
-  ul.controls li {
-    margin-bottom: 0.2rem;
-  }
-
-  .stat {
-    font-size: 1.1rem;
-    font-weight: 600;
-  }
-
   .touch-controls {
     position: fixed;
     left: 50%;
-    bottom: calc(env(safe-area-inset-bottom, 0) + 1.1rem);
+    bottom: calc(var(--safe-bottom) + 0.9rem);
     transform: translateX(-50%);
     display: flex;
     flex-wrap: wrap;
-    width: min(520px, 96vw);
+    width: min(520px, calc(100% - 1.5rem));
     padding: 0.65rem 0.85rem;
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(15, 23, 42, 0.82);
     border-radius: 999px;
-    border: 1px solid rgba(99, 102, 241, 0.4);
-    box-shadow: 0 24px 60px rgba(8, 15, 30, 0.5);
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    box-shadow: 0 24px 60px rgba(8, 145, 178, 0.35);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     column-gap: 0.75rem;
@@ -166,15 +312,15 @@
 
   .touch-controls button {
     appearance: none;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(51, 65, 85, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(30, 41, 59, 0.75);
     color: #f8fafc;
     border-radius: 999px;
     padding: 0.55rem 0.85rem;
     font-size: 0.95rem;
     font-weight: 600;
     min-width: 54px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
     touch-action: none;
     user-select: none;
   }
@@ -186,42 +332,51 @@
   }
 
   .touch-controls button.active {
-    border-color: rgba(148, 163, 184, 0.75);
-    background: rgba(96, 165, 250, 0.35);
+    border-color: rgba(94, 234, 212, 0.75);
+    background: rgba(45, 212, 191, 0.25);
   }
 
   .touch-controls button:active {
     transform: scale(0.96);
   }
 
-  @media (max-width: 960px) {
-    body {
-      padding: 0 0.75rem 5rem;
-    }
-  }
-
   @media (max-width: 720px) {
-    .hud {
-      grid-template-columns: 1fr;
+    .overlay {
+      top: calc(5.2rem + env(safe-area-inset-top, 0px));
     }
 
-    ul.controls {
-      padding-left: 1rem;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .stat {
-      font-size: 1rem;
+    .status {
+      right: calc(var(--safe-right) - 0.5rem);
     }
 
-    .hud {
-      gap: 0.75rem;
-      padding: 0.85rem 1rem;
+    .score-panel {
+      right: calc(var(--safe-right) - 0.5rem);
+      top: calc(var(--safe-top) + 4rem);
     }
   }
 
-  @media (max-width: 480px) {
+  @media (max-width: 520px) {
+    .overlay {
+      width: calc(100% - 1.4rem);
+    }
+
+    .overlay-toggle {
+      width: calc(100% - 1.4rem);
+    }
+
+    .status {
+      top: calc(var(--safe-top));
+      right: calc(var(--safe-right) - 0.75rem);
+    }
+
+    .score-panel {
+      top: calc(var(--safe-top) + 3.6rem);
+      right: calc(var(--safe-right) - 0.75rem);
+      min-width: 188px;
+    }
+  }
+
+  @media (max-width: 420px) {
     .touch-controls {
       padding: 0.6rem 0.75rem;
     }
@@ -234,43 +389,66 @@
   </style>
 </head>
 <body class="theme-dark">
-  <div class="top-buttons">
-    <a href="index.html">🏠 Portal</a>
-    <a href="games.html">🎮 Game Hub</a>
-    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
-    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
-  </div>
-  <main>
-    <h1>Zero-G Ski Range</h1>
-    <p class="description">Chain skiing, sustained jetpack lines, and hybrid weapons converge in this first physics prototype inspired by Tribes: Aerial Assault. Use the arena to dial-in timing between slope acceleration, vertical thrust, and the iconic spinfusor + chaingun combo.</p>
-    <canvas id="game" width="960" height="540" role="img" aria-label="Jetpack skiing playground"></canvas>
-    <div class="hud">
-      <section>
-        <span class="stat">Energy <span id="energy-value">100</span>%</span>
-        <div class="bar" aria-hidden="true">
-          <span id="energy-bar" style="background: linear-gradient(90deg, #22d3ee, #60a5fa); width: 100%;"></span>
-        </div>
-        <span class="stat">Velocity <span id="velocity-value">0</span> m/s</span>
-      </section>
-      <section>
-        <span class="stat">Weapon: <span id="weapon-name">Spinfusor</span></span>
-        <span>Hits Landed: <span id="hit-count">0</span></span>
-        <span>Target Integrity: <span id="target-health">100</span>%</span>
-      </section>
-      <section>
-        <span class="stat">Controls</span>
-        <ul class="controls">
-          <li><strong>A / D</strong> lean into the slope</li>
-          <li><strong>Shift</strong> hold to engage jetpack</li>
-          <li><strong>1</strong> Spinfusor (energy disk)</li>
-          <li><strong>2</strong> Chaingun (ballistic)</li>
-          <li><strong>Left click</strong> fire | <strong>Right click</strong> air-brake</li>
-          <li><strong>Drag</strong> on the arena to aim</li>
-          <li><strong>Touch</strong> use the on-screen controls</li>
-        </ul>
-      </section>
+  <canvas id="game" width="960" height="540" role="img" aria-label="Jetpack skiing playground"></canvas>
+  <div class="overlay" id="infoOverlay" aria-labelledby="rangeTitle" aria-hidden="false">
+    <button class="overlay-close" type="button" id="overlayClose">Close</button>
+    <h1 id="rangeTitle">Zero-G Ski Range</h1>
+    <p>
+      Chain skiing, sustained jetpack lines, and hybrid weapons converge in this first physics prototype inspired by
+      Tribes: Aerial Assault. Carve the arena to sync slope acceleration, vertical thrust, and the iconic spinfusor +
+      chaingun combo.
+    </p>
+    <div class="hint">
+      Toggle loadouts with <strong>1</strong> and <strong>2</strong>, then use <strong>Shift</strong> to feather your
+      jetpack bursts. Right-click for air brakes when you need to stick a landing.
     </div>
-  </main>
+    <ul class="control-list">
+      <li><strong>A / D</strong> lean into the slope</li>
+      <li><strong>Shift</strong> engage jetpack</li>
+      <li><strong>Left click</strong> fire | <strong>Right click</strong> air-brake</li>
+      <li><strong>Drag</strong> on the arena to aim</li>
+      <li><strong>Touch</strong> use the on-screen controls</li>
+    </ul>
+    <nav class="overlay-links" aria-label="Portal links">
+      <a href="index.html">🏠 Portal</a>
+      <a href="games.html">🎮 Game Hub</a>
+      <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+      <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
+    </nav>
+  </div>
+  <button
+    class="overlay-toggle"
+    type="button"
+    id="overlayToggle"
+    aria-controls="infoOverlay"
+    aria-expanded="true"
+  >Guide</button>
+  <div class="status" id="weaponStatus" role="status" aria-live="polite">
+    <span>Loadout</span>
+    <span id="weapon-name">Spinfusor</span>
+  </div>
+  <div class="score-panel" role="status" aria-live="polite" aria-atomic="true">
+    <span class="score-panel-title">Range Metrics</span>
+    <div class="score-panel-row">
+      <span class="score-row-label">Energy</span>
+      <span class="score-row-value"><span id="energy-value">100</span>%</span>
+    </div>
+    <div class="bar" aria-hidden="true">
+      <span id="energy-bar" style="background: linear-gradient(90deg, #22d3ee, #60a5fa); width: 100%;"></span>
+    </div>
+    <div class="score-panel-row">
+      <span class="score-row-label">Velocity</span>
+      <span class="score-row-value"><span id="velocity-value">0</span> m/s</span>
+    </div>
+    <div class="score-panel-row">
+      <span class="score-row-label">Hits</span>
+      <span class="score-row-value" id="hit-count">0</span>
+    </div>
+    <div class="score-panel-row">
+      <span class="score-row-label">Target</span>
+      <span class="score-row-value"><span id="target-health">100</span>%</span>
+    </div>
+  </div>
   <div class="touch-controls is-hidden" role="group" aria-label="Touch controls">
     <div class="control-cluster">
       <button type="button" class="control-btn" data-action="left" aria-label="Lean left">◀</button>
@@ -294,11 +472,67 @@
   const hitCountEl = document.getElementById('hit-count');
   const targetHealthEl = document.getElementById('target-health');
 
+  const overlay = document.getElementById('infoOverlay');
+  const overlayClose = document.getElementById('overlayClose');
+  const overlayToggle = document.getElementById('overlayToggle');
   const touchControls = document.querySelector('.touch-controls');
   const controlButtons = touchControls ? touchControls.querySelectorAll('button') : [];
   const coarsePointerQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(pointer: coarse)')
     : null;
+
+  function hideOverlay() {
+    if (!overlay) {
+      return;
+    }
+    overlay.classList.add('overlay-hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+    if (overlayToggle) {
+      overlayToggle.classList.add('overlay-toggle-visible');
+      overlayToggle.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function showOverlay() {
+    if (!overlay) {
+      return;
+    }
+    overlay.classList.remove('overlay-hidden');
+    overlay.removeAttribute('aria-hidden');
+    if (overlayToggle) {
+      overlayToggle.classList.remove('overlay-toggle-visible');
+      overlayToggle.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  if (overlayClose) {
+    overlayClose.addEventListener('click', () => {
+      hideOverlay();
+      if (overlayToggle) {
+        overlayToggle.focus();
+      }
+    });
+  }
+
+  if (overlayToggle) {
+    overlayToggle.addEventListener('click', () => {
+      if (!overlay) {
+        return;
+      }
+      const isHidden = overlay.classList.contains('overlay-hidden');
+      if (isHidden) {
+        showOverlay();
+      } else {
+        hideOverlay();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && overlay && !overlay.classList.contains('overlay-hidden')) {
+      hideOverlay();
+    }
+  });
 
   const ASPECT_RATIO = 16 / 9;
   const gravity = 0.45;
@@ -432,6 +666,11 @@
       const hasCoarsePointer = coarsePointerQuery ? coarsePointerQuery.matches : false;
       const showControls = hasCoarsePointer || touchPoints > 0;
       touchControls.classList.toggle('is-hidden', !showControls);
+      if (showControls) {
+        document.body.classList.add('touch-enabled');
+      } else {
+        document.body.classList.remove('touch-enabled');
+      }
     };
 
     const handlePointerPreferenceChange = () => updateTouchControlsVisibility();
@@ -508,6 +747,9 @@
 
   function handlePointerDown(event) {
     const isTouch = event.pointerType === 'touch';
+    if (overlay && !overlay.classList.contains('overlay-hidden')) {
+      hideOverlay();
+    }
     if (isTouch) {
       event.preventDefault();
     }
@@ -873,12 +1115,38 @@
   }
 
   function drawUIOverlay() {
-    ctx.fillStyle = 'rgba(148, 163, 184, 0.25)';
-    ctx.fillRect(24, 24, 220, 70);
-    ctx.fillStyle = '#f8fafc';
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.62)';
+    ctx.strokeStyle = 'rgba(94, 234, 212, 0.35)';
+    ctx.lineWidth = 1.5;
+    const radius = 14;
+    ctx.beginPath();
+    ctx.moveTo(24 + radius, 24);
+    ctx.lineTo(24 + 220 - radius, 24);
+    ctx.quadraticCurveTo(24 + 220, 24, 24 + 220, 24 + radius);
+    ctx.lineTo(24 + 220, 24 + 78 - radius);
+    ctx.quadraticCurveTo(24 + 220, 24 + 78, 24 + 220 - radius, 24 + 78);
+    ctx.lineTo(24 + radius, 24 + 78);
+    ctx.quadraticCurveTo(24, 24 + 78, 24, 24 + 78 - radius);
+    ctx.lineTo(24, 24 + radius);
+    ctx.quadraticCurveTo(24, 24, 24 + radius, 24);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(38, 60);
+    ctx.lineTo(222, 60);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.94)';
     ctx.font = '16px "Poppins", sans-serif';
-    ctx.fillText(`Altitude: ${Math.max(0, Math.round(groundHeight(player.x) - player.y))} m`, 36, 48);
-    ctx.fillText(`Speed: ${Math.abs(player.vx).toFixed(1)} m/s`, 36, 70);
+    ctx.fillText(`Altitude`, 38, 48);
+    ctx.fillText(`${Math.max(0, Math.round(groundHeight(player.x) - player.y))} m`, 148, 48);
+    ctx.fillText(`Speed`, 38, 84);
+    ctx.fillText(`${Math.abs(player.vx).toFixed(1)} m/s`, 148, 84);
+    ctx.restore();
   }
 
   function loop() {
