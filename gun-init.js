@@ -21,8 +21,40 @@
     console.info(message);
   }
 
+  function isLikelyMobile() {
+    if (typeof navigator === 'undefined') {
+      return false;
+    }
+
+    const ua = navigator.userAgent || '';
+    if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
+      return true;
+    }
+
+    if (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1) {
+      return true;
+    }
+
+    if (typeof global.matchMedia === 'function') {
+      try {
+        if (global.matchMedia('(pointer:coarse)').matches) {
+          return true;
+        }
+      } catch (err) {
+        console.warn('matchMedia check failed', err);
+      }
+    }
+
+    return false;
+  }
+
   function runDiagnostics() {
     if (typeof global.Gun !== 'function' || global.__GUN_BRAVE_DIAGNOSTICS__) {
+      return;
+    }
+
+    if (isLikelyMobile()) {
+      console.info('Skipping Brave diagnostics on mobile/touch device.');
       return;
     }
     global.__GUN_BRAVE_DIAGNOSTICS__ = true;
