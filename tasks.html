@@ -1004,6 +1004,52 @@ let taskList = {};
 let isOffline = false;
 let currentEditingTask = null;
 
+function createMemoryStorage() {
+  const memory = new Map();
+  return {
+    getItem(key) {
+      return memory.has(key) ? memory.get(key) : null;
+    },
+    setItem(key, value) {
+      memory.set(String(key), String(value));
+    },
+    removeItem(key) {
+      memory.delete(String(key));
+    },
+    clear() {
+      memory.clear();
+    },
+    key(index) {
+      const keys = Array.from(memory.keys());
+      return index >= 0 && index < keys.length ? keys[index] : null;
+    },
+    get length() {
+      return memory.size;
+    }
+  };
+}
+
+function ensureTaskStorage() {
+  if (typeof window === 'undefined') {
+    return { storage: createMemoryStorage(), native: null };
+  }
+
+  try {
+    const storage = window.localStorage;
+    const testKey = '__tasks_storage_test__';
+    storage.setItem(testKey, '1');
+    storage.removeItem(testKey);
+    return { storage, native: storage };
+  } catch (error) {
+    console.warn('Task board: localStorage unavailable, using in-memory fallback', error);
+  }
+
+  return { storage: createMemoryStorage(), native: null };
+}
+
+const { storage: taskStorage, native: nativeLocalStorage } = ensureTaskStorage();
+const insightStorage = nativeLocalStorage || taskStorage;
+
 const insightElements = {
   contacts: document.getElementById('contacts-insights'),
   calendar: document.getElementById('calendar-insights'),
@@ -1134,13 +1180,13 @@ function goOffline() {
 function checkUserAuth() {
   if (!user) return;
 
-  const storedAlias = localStorage.getItem('alias');
-  const storedPassword = localStorage.getItem('password');
-  const storedName = localStorage.getItem('username') || '';
-  const signedIn = localStorage.getItem('signedIn') === 'true';
+  const storedAlias = taskStorage.getItem('alias');
+  const storedPassword = taskStorage.getItem('password');
+  const storedName = taskStorage.getItem('username') || '';
+  const signedIn = taskStorage.getItem('signedIn') === 'true';
 
   try {
-    user.recall({ sessionStorage: true });
+    user.recall({ sessionStorage: true, localStorage: true });
   } catch (error) {
     console.warn('Unable to recall user session', error);
   }
@@ -1195,14 +1241,14 @@ function updateUserInfo() {
 }
 
 function clearStoredUserCredentials() {
-  localStorage.removeItem('signedIn');
-  localStorage.removeItem('username');
-  localStorage.removeItem('alias');
-  localStorage.removeItem('password');
-  localStorage.removeItem('guest');
-  localStorage.removeItem('guestId');
-  localStorage.removeItem('guestDisplayName');
-  localStorage.removeItem('userId');
+  taskStorage.removeItem('signedIn');
+  taskStorage.removeItem('username');
+  taskStorage.removeItem('alias');
+  taskStorage.removeItem('password');
+  taskStorage.removeItem('guest');
+  taskStorage.removeItem('guestId');
+  taskStorage.removeItem('guestDisplayName');
+  taskStorage.removeItem('userId');
 }
 
 function deriveDisplayName(alias) {
@@ -1366,14 +1412,14 @@ function saveTask(task) {
 
 // Save to localStorage
 function saveToLocalStorage(task) {
-  const localTasks = JSON.parse(localStorage.getItem('3dvr-tasks') || '{}');
+  const localTasks = JSON.parse(taskStorage.getItem('3dvr-tasks') || '{}');
   localTasks[task.id] = task;
-  localStorage.setItem('3dvr-tasks', JSON.stringify(localTasks));
+  taskStorage.setItem('3dvr-tasks', JSON.stringify(localTasks));
 }
 
 // Load from localStorage
 function loadFromLocalStorage() {
-  const localTasks = JSON.parse(localStorage.getItem('3dvr-tasks') || '{}');
+  const localTasks = JSON.parse(taskStorage.getItem('3dvr-tasks') || '{}');
   taskList = localTasks;
   renderTasks();
 }
@@ -1465,11 +1511,11 @@ function updateTaskStatus(taskId, newStatus) {
 // Delete task
 function deleteTask(taskId) {
   if (!confirm('Are you sure you want to delete this task?')) return;
-  
+
   if (isOffline) {
-    const localTasks = JSON.parse(localStorage.getItem('3dvr-tasks') || '{}');
+    const localTasks = JSON.parse(taskStorage.getItem('3dvr-tasks') || '{}');
     delete localTasks[taskId];
-    localStorage.setItem('3dvr-tasks', JSON.stringify(localTasks));
+    taskStorage.setItem('3dvr-tasks', JSON.stringify(localTasks));
   } else {
     try {
       tasks.get(taskId).put(null);
@@ -1943,12 +1989,12 @@ function loadContactInsights() {
   const now = Date.now();
 
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+    for (let i = 0; i < insightStorage.length; i++) {
+      const key = insightStorage.key(i);
       if (!key || !key.startsWith(CONTACTS_CACHE_PREFIX)) continue;
 
       const spaceKey = key.slice(CONTACTS_CACHE_PREFIX.length);
-      const raw = localStorage.getItem(key);
+      const raw = insightStorage.getItem(key);
       if (!raw) continue;
 
       let parsed;
@@ -2024,7 +2070,7 @@ function buildContactsLink(space, contactId) {
 
 function loadCalendarInsights() {
   const items = [];
-  const raw = localStorage.getItem(CALENDAR_LOCAL_EVENTS_KEY);
+  const raw = insightStorage.getItem(CALENDAR_LOCAL_EVENTS_KEY);
 
   if (raw) {
     try {
@@ -2407,7 +2453,7 @@ document.addEventListener('keydown', (e) => {
 function enableAutoSave() {
   setInterval(() => {
     if (isOffline && Object.keys(taskList).length > 0) {
-      localStorage.setItem('3dvr-tasks', JSON.stringify(taskList));
+      taskStorage.setItem('3dvr-tasks', JSON.stringify(taskList));
       console.log('Auto-saved tasks to local storage');
     }
   }, 30000); // Auto-save every 30 seconds
@@ -2420,9 +2466,9 @@ function syncWhenOnline() {
       console.log('Back online, attempting to sync...');
       isOffline = false;
       document.getElementById('offline-indicator').classList.remove('show');
-      
+
       // Try to sync local data to GUN
-      const localTasks = JSON.parse(localStorage.getItem('3dvr-tasks') || '{}');
+      const localTasks = JSON.parse(taskStorage.getItem('3dvr-tasks') || '{}');
       Object.values(localTasks).forEach(task => {
         try {
           if (tasks) {
@@ -2440,7 +2486,7 @@ function syncWhenOnline() {
       }, 1000);
     }
   });
-  
+
   window.addEventListener('offline', () => {
     goOffline();
   });
