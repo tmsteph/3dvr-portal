@@ -8,96 +8,256 @@
   <style>
   body {
     margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 0 1rem 4rem;
-    background: radial-gradient(circle at 20% -10%, #182848 0%, #090a0f 60%, #040508 100%);
-    color: #e8f1ff;
+    overflow: hidden;
+    font-family: 'Poppins', sans-serif;
+    background: radial-gradient(circle at 18% -12%, #182848 0%, #090a0f 55%, #030712 100%);
+    color: #f1f5f9;
   }
 
-  .top-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: center;
-    align-items: center;
-    margin: 1.25rem auto;
-    width: min(960px, 100%);
+  :root {
+    --safe-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    --safe-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.4rem);
+    --safe-left: calc(env(safe-area-inset-left, 0px) + 1.5rem);
+    --safe-right: calc(env(safe-area-inset-right, 0px) + 1.5rem);
+    --control-safe-zone: 0px;
   }
 
-  .top-buttons a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.45rem 0.8rem;
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    color: inherit;
-    text-decoration: none;
-    background: rgba(15, 23, 42, 0.65);
-    transition: border-color 0.2s ease, background-color 0.2s ease;
-  }
-
-  .top-buttons a:hover,
-  .top-buttons a:focus-visible {
-    border-color: rgba(148, 163, 184, 0.6);
-    background: rgba(30, 41, 59, 0.8);
-    outline: none;
-  }
-
-  main {
-    width: min(960px, 100%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1.25rem;
-  }
-
-  h1 {
-    margin: 0;
-    text-align: center;
-    font-size: clamp(2rem, 3.4vw, 3rem);
-  }
-
-  p.description {
-    margin: 0;
-    max-width: 720px;
-    color: rgba(226, 232, 240, 0.82);
+  body.touch-enabled {
+    --control-safe-zone: 18rem;
   }
 
   canvas {
-    width: 100%;
-    max-width: 960px;
-    aspect-ratio: 16 / 9;
-    border-radius: 18px;
-    border: 1px solid rgba(148, 163, 184, 0.32);
-    background: rgba(9, 11, 19, 0.75);
-    box-shadow: 0 32px 80px rgba(8, 15, 30, 0.55);
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100vw;
+    height: 100vh;
     touch-action: none;
     user-select: none;
+    z-index: 1;
   }
 
-  .hud {
+  .overlay {
+    position: fixed;
+    top: calc(6.2rem + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(420px, calc(100% - 2rem));
+    background: rgba(15, 23, 42, 0.72);
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.55);
+    padding: 1.5rem 1.5rem 1.25rem;
+    color: rgba(226, 232, 240, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 10;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .overlay h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    letter-spacing: 0.04em;
+    color: #f8fafc;
+  }
+
+  .overlay p {
+    margin: 0.75rem 0 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .overlay .hint {
+    margin-top: 1rem;
+    padding: 0.75rem 0.9rem;
+    background: rgba(56, 189, 248, 0.12);
+    border-radius: 12px;
+    border: 1px solid rgba(96, 165, 250, 0.35);
+    color: rgba(224, 242, 254, 0.88);
+    font-size: 0.9rem;
+  }
+
+  .control-list {
+    margin: 1.1rem 0 0;
+    padding-left: 1.1rem;
+    color: rgba(226, 232, 240, 0.82);
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    width: min(960px, 100%);
-    background: rgba(9, 14, 30, 0.7);
-    border: 1px solid rgba(99, 102, 241, 0.4);
-    border-radius: 16px;
-    padding: 1rem 1.25rem;
-    box-shadow: 0 20px 60px rgba(4, 10, 24, 0.65);
+    gap: 0.35rem;
+    font-size: 0.92rem;
   }
 
-  .hud section {
+  .overlay-links {
+    margin-top: 1.25rem;
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .overlay-links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(30, 41, 59, 0.7);
+    color: rgba(226, 232, 240, 0.92);
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .overlay-links a:hover,
+  .overlay-links a:focus-visible {
+    border-color: rgba(96, 165, 250, 0.6);
+    background: rgba(59, 130, 246, 0.25);
+    color: #e0f2fe;
+    outline: none;
+  }
+
+  .overlay-close {
+    position: absolute;
+    top: 0.8rem;
+    right: 0.9rem;
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    color: rgba(226, 232, 240, 0.9);
+    border-radius: 999px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .overlay-close:focus-visible,
+  .overlay-close:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(96, 165, 250, 0.55);
+    color: #e0f2fe;
+    outline: none;
+  }
+
+  .overlay-hidden {
+    opacity: 0;
+    transform: translate(-50%, -18px);
+    pointer-events: none;
+  }
+
+  .overlay-hidden .hint,
+  .overlay-hidden p,
+  .overlay-hidden h1 {
+    pointer-events: none;
+  }
+
+  .overlay-toggle {
+    position: fixed;
+    top: calc(6rem + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.55rem 1.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(96, 165, 250, 0.5);
+    background: rgba(15, 23, 42, 0.72);
+    color: rgba(191, 219, 254, 0.95);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.5);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 9;
+  }
+
+  .overlay-toggle:focus-visible,
+  .overlay-toggle:hover {
+    background: rgba(30, 41, 59, 0.8);
+    color: #e0f2fe;
+    border-color: rgba(96, 165, 250, 0.75);
+    outline: none;
+  }
+
+  .overlay-toggle-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .status {
+    position: fixed;
+    top: calc(var(--safe-top) + 0.5rem);
+    right: var(--safe-right);
+    padding: 0.85rem 1.2rem;
+    background: rgba(8, 25, 44, 0.7);
+    border-radius: 14px;
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    color: rgba(165, 243, 252, 0.92);
+    box-shadow: 0 18px 40px rgba(8, 145, 178, 0.35);
+    text-transform: uppercase;
+    display: inline-flex;
     flex-direction: column;
     gap: 0.35rem;
-    text-align: left;
+    z-index: 11;
+  }
+
+  .status span:last-child {
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    color: #f0fdfc;
+  }
+
+  .score-panel {
+    position: fixed;
+    top: calc(var(--safe-top) + 4.3rem);
+    right: var(--safe-right);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.95rem 1.15rem;
+    background: rgba(8, 25, 44, 0.74);
+    border-radius: 16px;
+    border: 1px solid rgba(94, 234, 212, 0.38);
+    box-shadow: 0 18px 42px rgba(8, 145, 178, 0.38);
+    color: rgba(191, 219, 254, 0.92);
+    z-index: 11;
+    min-width: 206px;
+  }
+
+  .score-panel-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(165, 243, 252, 0.88);
+  }
+
+  .score-panel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+
+  .score-row-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.78);
+  }
+
+  .score-row-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: rgba(224, 242, 254, 0.95);
   }
 
   .bar {
@@ -114,33 +274,19 @@
     transition: width 0.2s ease;
   }
 
-  ul.controls {
-    margin: 0;
-    padding-left: 1.2rem;
-  }
-
-  ul.controls li {
-    margin-bottom: 0.2rem;
-  }
-
-  .stat {
-    font-size: 1.1rem;
-    font-weight: 600;
-  }
-
   .touch-controls {
     position: fixed;
     left: 50%;
-    bottom: calc(env(safe-area-inset-bottom, 0) + 1.1rem);
+    bottom: calc(var(--safe-bottom) + 0.9rem);
     transform: translateX(-50%);
     display: flex;
     flex-wrap: wrap;
-    width: min(520px, 96vw);
+    width: min(520px, calc(100% - 1.5rem));
     padding: 0.65rem 0.85rem;
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(15, 23, 42, 0.82);
     border-radius: 999px;
-    border: 1px solid rgba(99, 102, 241, 0.4);
-    box-shadow: 0 24px 60px rgba(8, 15, 30, 0.5);
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    box-shadow: 0 24px 60px rgba(8, 145, 178, 0.35);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     column-gap: 0.75rem;
@@ -166,15 +312,15 @@
 
   .touch-controls button {
     appearance: none;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(51, 65, 85, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(30, 41, 59, 0.75);
     color: #f8fafc;
     border-radius: 999px;
     padding: 0.55rem 0.85rem;
     font-size: 0.95rem;
     font-weight: 600;
     min-width: 54px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
     touch-action: none;
     user-select: none;
   }
@@ -186,42 +332,51 @@
   }
 
   .touch-controls button.active {
-    border-color: rgba(148, 163, 184, 0.75);
-    background: rgba(96, 165, 250, 0.35);
+    border-color: rgba(94, 234, 212, 0.75);
+    background: rgba(45, 212, 191, 0.25);
   }
 
   .touch-controls button:active {
     transform: scale(0.96);
   }
 
-  @media (max-width: 960px) {
-    body {
-      padding: 0 0.75rem 5rem;
-    }
-  }
-
   @media (max-width: 720px) {
-    .hud {
-      grid-template-columns: 1fr;
+    .overlay {
+      top: calc(5.2rem + env(safe-area-inset-top, 0px));
     }
 
-    ul.controls {
-      padding-left: 1rem;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .stat {
-      font-size: 1rem;
+    .status {
+      right: calc(var(--safe-right) - 0.5rem);
     }
 
-    .hud {
-      gap: 0.75rem;
-      padding: 0.85rem 1rem;
+    .score-panel {
+      right: calc(var(--safe-right) - 0.5rem);
+      top: calc(var(--safe-top) + 4rem);
     }
   }
 
-  @media (max-width: 480px) {
+  @media (max-width: 520px) {
+    .overlay {
+      width: calc(100% - 1.4rem);
+    }
+
+    .overlay-toggle {
+      width: calc(100% - 1.4rem);
+    }
+
+    .status {
+      top: calc(var(--safe-top));
+      right: calc(var(--safe-right) - 0.75rem);
+    }
+
+    .score-panel {
+      top: calc(var(--safe-top) + 3.6rem);
+      right: calc(var(--safe-right) - 0.75rem);
+      min-width: 188px;
+    }
+  }
+
+  @media (max-width: 420px) {
     .touch-controls {
       padding: 0.6rem 0.75rem;
     }
@@ -234,43 +389,66 @@
   </style>
 </head>
 <body class="theme-dark">
-  <div class="top-buttons">
-    <a href="index.html">🏠 Portal</a>
-    <a href="games.html">🎮 Game Hub</a>
-    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
-    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
-  </div>
-  <main>
-    <h1>Zero-G Ski Range</h1>
-    <p class="description">Chain skiing, sustained jetpack lines, and hybrid weapons converge in this first physics prototype inspired by Tribes: Aerial Assault. Use the arena to dial-in timing between slope acceleration, vertical thrust, and the iconic spinfusor + chaingun combo.</p>
-    <canvas id="game" width="960" height="540" role="img" aria-label="Jetpack skiing playground"></canvas>
-    <div class="hud">
-      <section>
-        <span class="stat">Energy <span id="energy-value">100</span>%</span>
-        <div class="bar" aria-hidden="true">
-          <span id="energy-bar" style="background: linear-gradient(90deg, #22d3ee, #60a5fa); width: 100%;"></span>
-        </div>
-        <span class="stat">Velocity <span id="velocity-value">0</span> m/s</span>
-      </section>
-      <section>
-        <span class="stat">Weapon: <span id="weapon-name">Spinfusor</span></span>
-        <span>Hits Landed: <span id="hit-count">0</span></span>
-        <span>Target Integrity: <span id="target-health">100</span>%</span>
-      </section>
-      <section>
-        <span class="stat">Controls</span>
-        <ul class="controls">
-          <li><strong>A / D</strong> lean into the slope</li>
-          <li><strong>Shift</strong> hold to engage jetpack</li>
-          <li><strong>1</strong> Spinfusor (energy disk)</li>
-          <li><strong>2</strong> Chaingun (ballistic)</li>
-          <li><strong>Left click</strong> fire | <strong>Right click</strong> air-brake</li>
-          <li><strong>Drag</strong> on the arena to aim</li>
-          <li><strong>Touch</strong> use the on-screen controls</li>
-        </ul>
-      </section>
+  <canvas id="game" width="960" height="540" role="img" aria-label="Jetpack skiing playground"></canvas>
+  <div class="overlay" id="infoOverlay" aria-labelledby="rangeTitle" aria-hidden="false">
+    <button class="overlay-close" type="button" id="overlayClose">Close</button>
+    <h1 id="rangeTitle">Zero-G Ski Range</h1>
+    <p>
+      Chain skiing, sustained jetpack lines, and hybrid weapons converge inside a real-time 3D ski bowl inspired by
+      Tribes: Aerial Assault. Carve the holographic terrain to sync slope acceleration, vertical thrust, and the iconic
+      spinfusor + chaingun combo while chasing targets that drift through the nebula ahead.
+    </p>
+    <div class="hint">
+      Toggle loadouts with <strong>1</strong> and <strong>2</strong>, then use <strong>Shift</strong> to feather your
+      jetpack bursts. Right-click for air brakes when you need to stick a landing.
     </div>
-  </main>
+    <ul class="control-list">
+      <li><strong>A / D</strong> lean into the slope</li>
+      <li><strong>Shift</strong> engage jetpack</li>
+      <li><strong>Left click</strong> fire | <strong>Right click</strong> air-brake</li>
+      <li><strong>Drag</strong> on the arena to aim</li>
+      <li><strong>Touch</strong> use the on-screen controls</li>
+    </ul>
+    <nav class="overlay-links" aria-label="Portal links">
+      <a href="index.html">🏠 Portal</a>
+      <a href="games.html">🎮 Game Hub</a>
+      <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+      <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
+    </nav>
+  </div>
+  <button
+    class="overlay-toggle"
+    type="button"
+    id="overlayToggle"
+    aria-controls="infoOverlay"
+    aria-expanded="true"
+  >Guide</button>
+  <div class="status" id="weaponStatus" role="status" aria-live="polite">
+    <span>Loadout</span>
+    <span id="weapon-name">Spinfusor</span>
+  </div>
+  <div class="score-panel" role="status" aria-live="polite" aria-atomic="true">
+    <span class="score-panel-title">Range Metrics</span>
+    <div class="score-panel-row">
+      <span class="score-row-label">Energy</span>
+      <span class="score-row-value"><span id="energy-value">100</span>%</span>
+    </div>
+    <div class="bar" aria-hidden="true">
+      <span id="energy-bar" style="background: linear-gradient(90deg, #22d3ee, #60a5fa); width: 100%;"></span>
+    </div>
+    <div class="score-panel-row">
+      <span class="score-row-label">Velocity</span>
+      <span class="score-row-value"><span id="velocity-value">0</span> m/s</span>
+    </div>
+    <div class="score-panel-row">
+      <span class="score-row-label">Hits</span>
+      <span class="score-row-value" id="hit-count">0</span>
+    </div>
+    <div class="score-panel-row">
+      <span class="score-row-label">Target</span>
+      <span class="score-row-value"><span id="target-health">100</span>%</span>
+    </div>
+  </div>
   <div class="touch-controls is-hidden" role="group" aria-label="Touch controls">
     <div class="control-cluster">
       <button type="button" class="control-btn" data-action="left" aria-label="Lean left">◀</button>
@@ -294,38 +472,120 @@
   const hitCountEl = document.getElementById('hit-count');
   const targetHealthEl = document.getElementById('target-health');
 
+  const overlay = document.getElementById('infoOverlay');
+  const overlayClose = document.getElementById('overlayClose');
+  const overlayToggle = document.getElementById('overlayToggle');
   const touchControls = document.querySelector('.touch-controls');
   const controlButtons = touchControls ? touchControls.querySelectorAll('button') : [];
   const coarsePointerQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(pointer: coarse)')
     : null;
 
+  function hideOverlay() {
+    if (!overlay) {
+      return;
+    }
+    overlay.classList.add('overlay-hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+    if (overlayToggle) {
+      overlayToggle.classList.add('overlay-toggle-visible');
+      overlayToggle.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function showOverlay() {
+    if (!overlay) {
+      return;
+    }
+    overlay.classList.remove('overlay-hidden');
+    overlay.removeAttribute('aria-hidden');
+    if (overlayToggle) {
+      overlayToggle.classList.remove('overlay-toggle-visible');
+      overlayToggle.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  if (overlayClose) {
+    overlayClose.addEventListener('click', () => {
+      hideOverlay();
+      if (overlayToggle) {
+        overlayToggle.focus();
+      }
+    });
+  }
+
+  if (overlayToggle) {
+    overlayToggle.addEventListener('click', () => {
+      if (!overlay) {
+        return;
+      }
+      const isHidden = overlay.classList.contains('overlay-hidden');
+      if (isHidden) {
+        showOverlay();
+      } else {
+        hideOverlay();
+      }
+    });
+  }
+
   const ASPECT_RATIO = 16 / 9;
-  const gravity = 0.45;
-  const jetpackForce = 0.9;
-  const jetpackDrain = 0.7;
-  const groundThrust = 0.25;
-  const airControl = 0.12;
-  const groundFriction = 0.993;
-  const rechargeGround = 0.9;
-  const rechargeAir = 0.25;
 
   const input = {
     left: false,
     right: false,
     jetpack: false,
-    fire: false,
     brake: false,
-    mouseX: canvas.width / 2,
-    mouseY: canvas.height / 2
+    fire: false,
+    mouseX: 480,
+    mouseY: 270
   };
 
+  const GRAVITY = -36;
+  const JETPACK_FORCE = 64;
+  const JETPACK_DRAIN = 22;
+  const GROUND_RECHARGE = 28;
+  const AIR_RECHARGE = 10;
+  const BASE_FORWARD_SPEED = 22;
+  const SLOPE_ACCEL = 18;
+  const LATERAL_SLOPE_PUSH = 14;
+  const GROUND_CONTROL_ACCEL = 36;
+  const AIR_CONTROL_ACCEL = 18;
+  const GROUND_LATERAL_DRAG = 0.86;
+  const AIR_LATERAL_DRAG = 0.94;
+  const BRAKE_DRAG = 0.75;
+  const FORWARD_RESPONSIVENESS_GROUND = 3.2;
+  const FORWARD_RESPONSIVENESS_AIR = 1.4;
+  const LATERAL_LIMIT = 180;
+
+  function groundHeight(x, z) {
+    const ridge = Math.sin((z + 90) * 0.04) * 6;
+    const cross = Math.cos((x + z * 0.4) * 0.03) * 4;
+    const basin = Math.sin((z * 0.02) + Math.cos(x * 0.015)) * 5;
+    return -18 + ridge + cross + basin;
+  }
+
+  function groundSlopeX(x, z) {
+    const ridge = 0;
+    const cross = -Math.sin((x + z * 0.4) * 0.03) * 0.03 * 4;
+    const basin = Math.cos((z * 0.02) + Math.cos(x * 0.015)) * (-Math.sin(x * 0.015) * 0.015) * 5;
+    return ridge + cross + basin;
+  }
+
+  function groundSlopeZ(x, z) {
+    const ridge = Math.cos((z + 90) * 0.04) * 0.04 * 6;
+    const cross = -Math.sin((x + z * 0.4) * 0.03) * 0.03 * 0.4 * 4;
+    const basin = Math.cos((z * 0.02) + Math.cos(x * 0.015)) * 0.02 * 5;
+    return ridge + cross + basin;
+  }
+
   const player = {
-    x: 180,
-    y: groundHeight(180) - 30,
+    x: 0,
+    y: groundHeight(0, 0) + 6,
+    z: 0,
     vx: 0,
     vy: 0,
-    radius: 16,
+    vz: BASE_FORWARD_SPEED,
+    radius: 3.6,
     energy: 100,
     maxEnergy: 100,
     onGround: false,
@@ -333,65 +593,68 @@
     fireCooldown: 0
   };
 
+  const camera = {
+    x: player.x,
+    y: player.y + 18,
+    z: player.z - 120,
+    yaw: 0,
+    pitch: -0.28,
+    fov: 58,
+    focalLength: 1,
+    near: 0.6
+  };
+
   const weapons = [
     {
       name: 'Spinfusor',
-      fireRate: 28,
-      muzzleSpeed: 9,
+      cooldown: 0.55,
+      muzzleSpeed: 62,
       energyCost: 12,
-      spread: 0,
+      spread: 0.012,
       color: '#60a5fa',
-      radius: 9,
-      drag: 0.996,
-      gravityScale: 0.12,
+      radius: 1.9,
+      drag: 0.985,
+      gravityScale: 0.6,
       impactDamage: 40
     },
     {
       name: 'Chaingun',
-      fireRate: 6,
-      muzzleSpeed: 16,
+      cooldown: 0.08,
+      muzzleSpeed: 96,
       energyCost: 0,
-      spread: 0.1,
+      spread: 0.035,
       color: '#facc15',
-      radius: 4,
-      drag: 0.995,
-      gravityScale: 0.02,
+      radius: 1.1,
+      drag: 0.98,
+      gravityScale: 0.1,
       impactDamage: 6
     }
   ];
 
   const projectiles = [];
+  const stars = Array.from({ length: 160 }, () => ({
+    x: (Math.random() - 0.5) * 260,
+    y: Math.random() * 200 - 60,
+    z: Math.random() * 600 + 60
+  }));
 
   const target = {
     x: 0,
     y: 0,
-    width: 40,
-    height: 90,
+    z: 220,
+    width: 18,
+    height: 38,
+    depth: 18,
     health: 100,
     regenDelay: 0,
-    sway: 0,
-    baseRatio: 0.72
+    sway: 0
   };
 
   let hitsLanded = 0;
 
-  function groundHeight(x) {
-    const wave1 = Math.sin((x + 80) * 0.008) * 60;
-    const wave2 = Math.sin((x - 240) * 0.017) * 28;
-    return canvas.height - 110 + wave1 + wave2;
-  }
-
-  function groundSlope(x) {
-    const wave1 = Math.cos((x + 80) * 0.008) * 0.008 * 60;
-    const wave2 = Math.cos((x - 240) * 0.017) * 0.017 * 28;
-    return wave1 + wave2;
-  }
-
   function resizeCanvas() {
-    const prevWidth = canvas.width || 1;
-    const prevHeight = canvas.height || 1;
     const viewportWidth = window.innerWidth || 960;
-    const desiredWidth = Math.min(960, Math.max(280, viewportWidth - 24));
+    const desiredWidth = Math.min(1080, Math.max(320, viewportWidth - 24));
     const width = Math.round(desiredWidth);
     const height = Math.round(width / ASPECT_RATIO);
 
@@ -400,25 +663,9 @@
     canvas.width = width;
     canvas.height = height;
 
-    const widthRatio = width / prevWidth;
-    const heightRatio = height / prevHeight;
-    input.mouseX = Math.min(canvas.width - 10, Math.max(10, input.mouseX * widthRatio));
-    input.mouseY = Math.min(canvas.height - 10, Math.max(10, input.mouseY * heightRatio));
-
-    player.x *= widthRatio;
-    player.x = Math.min(canvas.width - player.radius - 4, Math.max(player.radius + 4, player.x));
-    player.y *= heightRatio;
-    const groundY = groundHeight(player.x);
-    if (player.y > groundY - player.radius) {
-      player.y = groundY - player.radius;
-    } else if (player.y < player.radius) {
-      player.y = player.radius;
-    }
-
-    const baseX = canvas.width * target.baseRatio;
-    const margin = 60;
-    target.x = Math.min(canvas.width - target.width - margin, Math.max(margin, baseX));
-    target.y = groundHeight(target.x) - target.height;
+    camera.focalLength = (canvas.height * 0.5) / Math.tan((camera.fov * Math.PI) / 360);
+    input.mouseX = Math.min(canvas.width - 10, Math.max(10, input.mouseX));
+    input.mouseY = Math.min(canvas.height - 10, Math.max(10, input.mouseY));
   }
 
   resizeCanvas();
@@ -432,6 +679,11 @@
       const hasCoarsePointer = coarsePointerQuery ? coarsePointerQuery.matches : false;
       const showControls = hasCoarsePointer || touchPoints > 0;
       touchControls.classList.toggle('is-hidden', !showControls);
+      if (showControls) {
+        document.body.classList.add('touch-enabled');
+      } else {
+        document.body.classList.remove('touch-enabled');
+      }
     };
 
     const handlePointerPreferenceChange = () => updateTouchControlsVisibility();
@@ -508,6 +760,9 @@
 
   function handlePointerDown(event) {
     const isTouch = event.pointerType === 'touch';
+    if (overlay && !overlay.classList.contains('overlay-hidden')) {
+      hideOverlay();
+    }
     if (isTouch) {
       event.preventDefault();
     }
@@ -606,299 +861,609 @@
     });
   }
 
-  function updatePlayer() {
-    player.vx += (input.right ? airControl : 0) - (input.left ? airControl : 0);
-    player.vy += gravity;
+  function worldToCamera(point) {
+    const dx = point.x - camera.x;
+    const dy = point.y - camera.y;
+    const dz = point.z - camera.z;
 
-    const groundY = groundHeight(player.x);
-    if (player.y >= groundY - player.radius) {
-      player.y = groundY - player.radius;
-      player.onGround = true;
-      player.vy = Math.min(player.vy, 0);
-      const slope = groundSlope(player.x);
-      player.vx += -slope * gravity * 0.75;
-      player.vx += (input.right ? groundThrust : 0) - (input.left ? groundThrust : 0);
-      if (input.brake) {
-        player.vx *= 0.9;
-      } else {
-        player.vx *= groundFriction;
+    const cosYaw = Math.cos(camera.yaw);
+    const sinYaw = Math.sin(camera.yaw);
+    const yawX = cosYaw * dx - sinYaw * dz;
+    const yawZ = sinYaw * dx + cosYaw * dz;
+
+    const cosPitch = Math.cos(camera.pitch);
+    const sinPitch = Math.sin(camera.pitch);
+    const pitchY = cosPitch * dy - sinPitch * yawZ;
+    const pitchZ = sinPitch * dy + cosPitch * yawZ;
+
+    return { x: yawX, y: pitchY, z: pitchZ };
+  }
+
+  function projectPoint(point) {
+    const cameraPoint = worldToCamera(point);
+    if (cameraPoint.z <= camera.near) {
+      return null;
+    }
+    const scale = camera.focalLength / cameraPoint.z;
+    return {
+      x: canvas.width * 0.5 + cameraPoint.x * scale,
+      y: canvas.height * 0.5 - cameraPoint.y * scale,
+      depth: cameraPoint.z
+    };
+  }
+
+  function cameraToWorldDirection(dir) {
+    const cosPitch = Math.cos(camera.pitch);
+    const sinPitch = Math.sin(camera.pitch);
+    const pitchY = cosPitch * dir.y + sinPitch * dir.z;
+    const pitchZ = -sinPitch * dir.y + cosPitch * dir.z;
+
+    const cosYaw = Math.cos(camera.yaw);
+    const sinYaw = Math.sin(camera.yaw);
+    const worldX = cosYaw * dir.x + sinYaw * pitchZ;
+    const worldZ = -sinYaw * dir.x + cosYaw * pitchZ;
+
+    return { x: worldX, y: pitchY, z: worldZ };
+  }
+
+  function screenToWorldDirection(screenX, screenY) {
+    const x = (screenX - canvas.width * 0.5) / camera.focalLength;
+    const y = (canvas.height * 0.5 - screenY) / camera.focalLength;
+    const length = Math.sqrt(x * x + y * y + 1);
+    const dir = { x: x / length, y: y / length, z: 1 / length };
+    return cameraToWorldDirection(dir);
+  }
+
+  function updateCamera(delta) {
+    const desiredX = player.x + player.vx * 0.6;
+    const desiredY = player.y + 18;
+    const desiredZ = player.z - 120;
+    const smoothing = Math.min(1, delta * 4);
+    camera.x += (desiredX - camera.x) * smoothing;
+    camera.y += (desiredY - camera.y) * smoothing;
+    camera.z += (desiredZ - camera.z) * Math.min(1, delta * 2.5);
+
+    const desiredYaw = Math.atan2(player.vx, player.vz);
+    camera.yaw += (desiredYaw * 0.45 - camera.yaw) * Math.min(1, delta * 2.2);
+
+    const altitude = Math.max(0, player.y - groundHeight(player.x, player.z) - player.radius);
+    const desiredPitch = -0.22 - Math.min(0.32, altitude * 0.008);
+    camera.pitch += (desiredPitch - camera.pitch) * Math.min(1, delta * 2.6);
+  }
+
+  function updatePlayer(delta) {
+    const slopeX = groundSlopeX(player.x, player.z);
+    const slopeZ = groundSlopeZ(player.x, player.z);
+    const groundY = groundHeight(player.x, player.z) + player.radius;
+
+    const lateralAccel = player.onGround ? GROUND_CONTROL_ACCEL : AIR_CONTROL_ACCEL;
+    const accelDirection = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+    player.vx += accelDirection * lateralAccel * delta;
+
+    const targetForward = BASE_FORWARD_SPEED + Math.max(0, -slopeZ) * SLOPE_ACCEL;
+    const forwardResponsiveness = player.onGround ? FORWARD_RESPONSIVENESS_GROUND : FORWARD_RESPONSIVENESS_AIR;
+    player.vz += (targetForward - player.vz) * Math.min(1, forwardResponsiveness * delta);
+
+    player.vx += -slopeX * LATERAL_SLOPE_PUSH * delta;
+    player.vy += slopeZ * 8 * delta;
+    player.vy += GRAVITY * delta;
+
+    if (input.jetpack && player.energy > 0) {
+      player.vy += JETPACK_FORCE * delta;
+      player.energy = Math.max(0, player.energy - JETPACK_DRAIN * delta);
+    }
+
+    const lateralDrag = player.onGround ? GROUND_LATERAL_DRAG : AIR_LATERAL_DRAG;
+    const dragPower = delta * 60;
+    player.vx *= Math.pow(lateralDrag, dragPower);
+    player.vz *= Math.pow(player.onGround ? 0.98 : 0.992, dragPower);
+
+    if (input.brake) {
+      const brakePower = Math.pow(BRAKE_DRAG, dragPower);
+      player.vx *= brakePower;
+      player.vz *= brakePower;
+    }
+
+    player.x += player.vx * delta;
+    player.y += player.vy * delta;
+    player.z += player.vz * delta;
+
+    if (player.x < -LATERAL_LIMIT) {
+      player.x = -LATERAL_LIMIT;
+      player.vx *= -0.4;
+    }
+    if (player.x > LATERAL_LIMIT) {
+      player.x = LATERAL_LIMIT;
+      player.vx *= -0.4;
+    }
+
+    if (player.y <= groundY) {
+      player.y = groundY;
+      if (player.vy < 0) {
+        player.vy = 0;
       }
-      player.energy = Math.min(player.maxEnergy, player.energy + rechargeGround);
+      if (!player.onGround) {
+        player.onGround = true;
+      }
     } else {
-      player.onGround = false;
-      if (input.jetpack && player.energy > 0) {
-        player.vy -= jetpackForce;
-        player.energy = Math.max(0, player.energy - jetpackDrain);
-      } else {
-        player.energy = Math.min(player.maxEnergy, player.energy + rechargeAir);
-      }
-      if (input.brake && player.vy > 0) {
-        player.vy *= 0.92;
+      if (player.onGround) {
+        player.onGround = false;
       }
     }
 
-    player.x += player.vx;
-    player.y += player.vy;
-
-    if (player.x < 20) {
-      player.x = 20;
-      player.vx *= -0.2;
-    }
-    if (player.x > canvas.width - 20) {
-      player.x = canvas.width - 20;
-      player.vx *= -0.2;
+    if (player.onGround) {
+      player.energy = Math.min(player.maxEnergy, player.energy + GROUND_RECHARGE * delta);
+    } else if (!input.jetpack) {
+      player.energy = Math.min(player.maxEnergy, player.energy + AIR_RECHARGE * delta);
     }
 
     energyBar.style.width = `${(player.energy / player.maxEnergy) * 100}%`;
     energyValue.textContent = Math.round(player.energy);
-    velocityValue.textContent = Math.abs(player.vx).toFixed(1);
+    const horizontalSpeed = Math.sqrt(player.vx * player.vx + player.vz * player.vz);
+    velocityValue.textContent = horizontalSpeed.toFixed(1);
   }
 
-  function fireWeapon() {
+  function fireWeapon(delta) {
     const weapon = weapons[player.weaponIndex];
-    if (player.fireCooldown > 0) {
-      player.fireCooldown -= 1;
-      return;
-    }
-    if (!input.fire) {
+    player.fireCooldown = Math.max(0, player.fireCooldown - delta);
+    if (!input.fire || player.fireCooldown > 0) {
       return;
     }
     if (player.energy < weapon.energyCost) {
       return;
     }
 
-    const angle = Math.atan2(input.mouseY - player.y, input.mouseX - player.x) + ((Math.random() - 0.5) * weapon.spread);
-    const projectile = {
-      x: player.x + Math.cos(angle) * (player.radius + 4),
-      y: player.y + Math.sin(angle) * (player.radius + 4),
-      vx: Math.cos(angle) * weapon.muzzleSpeed + player.vx * 0.35,
-      vy: Math.sin(angle) * weapon.muzzleSpeed + player.vy * 0.35,
+    const aimDirection = screenToWorldDirection(input.mouseX, input.mouseY);
+    if (!aimDirection) {
+      return;
+    }
+
+    const spreadYaw = (Math.random() - 0.5) * weapon.spread;
+    const spreadPitch = (Math.random() - 0.5) * weapon.spread;
+    const cosSpread = Math.cos(spreadYaw);
+    const sinSpread = Math.sin(spreadYaw);
+    const dirX = aimDirection.x * cosSpread - aimDirection.z * sinSpread;
+    const dirZ = aimDirection.x * sinSpread + aimDirection.z * cosSpread;
+    const dirY = aimDirection.y + spreadPitch;
+    const magnitude = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ) || 1;
+    const direction = {
+      x: dirX / magnitude,
+      y: dirY / magnitude,
+      z: dirZ / magnitude
+    };
+
+    projectiles.push({
+      x: player.x,
+      y: player.y + player.radius * 0.2,
+      z: player.z,
+      vx: direction.x * weapon.muzzleSpeed + player.vx * 0.3,
+      vy: direction.y * weapon.muzzleSpeed + player.vy * 0.3,
+      vz: direction.z * weapon.muzzleSpeed + player.vz * 0.3,
       radius: weapon.radius,
       color: weapon.color,
       drag: weapon.drag,
       gravityScale: weapon.gravityScale,
       damage: weapon.impactDamage,
-      alive: true
-    };
-    projectiles.push(projectile);
-    player.fireCooldown = weapon.fireRate;
+      age: 0
+    });
+
     player.energy = Math.max(0, player.energy - weapon.energyCost);
+    player.fireCooldown = weapon.cooldown;
+    weaponName.textContent = weapon.name;
   }
 
-  function updateProjectiles() {
-    for (const projectile of projectiles) {
-      if (!projectile.alive) {
+  function updateProjectiles(delta) {
+    for (let i = projectiles.length - 1; i >= 0; i -= 1) {
+      const projectile = projectiles[i];
+      projectile.age += delta;
+      const dragFactor = Math.pow(projectile.drag, delta * 60);
+      projectile.vx *= dragFactor;
+      projectile.vz *= dragFactor;
+      projectile.vy = (projectile.vy + GRAVITY * projectile.gravityScale * delta) * dragFactor;
+
+      projectile.x += projectile.vx * delta;
+      projectile.y += projectile.vy * delta;
+      projectile.z += projectile.vz * delta;
+
+      if (projectile.age > 6 || projectile.z < player.z - 40 || projectile.z > player.z + 620) {
+        projectiles.splice(i, 1);
         continue;
       }
-      projectile.vx *= projectile.drag;
-      projectile.vy = projectile.vy * projectile.drag + gravity * projectile.gravityScale;
-      projectile.x += projectile.vx;
-      projectile.y += projectile.vy;
 
-      const groundY = groundHeight(projectile.x);
-      if (projectile.y + projectile.radius >= groundY) {
-        projectile.alive = false;
+      if (projectile.y <= groundHeight(projectile.x, projectile.z) + 0.5) {
+        projectiles.splice(i, 1);
         continue;
       }
 
+      const dx = projectile.x - target.x;
+      const dz = projectile.z - target.z;
+      const dy = projectile.y - (target.y + target.height * 0.5);
       if (
-        projectile.x + projectile.radius > target.x &&
-        projectile.x - projectile.radius < target.x + target.width &&
-        projectile.y + projectile.radius > target.y &&
-        projectile.y - projectile.radius < target.y + target.height
+        Math.abs(dx) <= target.width * 0.6 &&
+        Math.abs(dz) <= target.depth * 0.6 &&
+        dy >= -target.height * 0.5 &&
+        dy <= target.height * 0.5 &&
+        target.health > 0
       ) {
-        projectile.alive = false;
-        hitsLanded += 1;
+        projectiles.splice(i, 1);
         target.health = Math.max(0, target.health - projectile.damage);
-        target.regenDelay = 220;
+        if (target.health <= 0) {
+          target.regenDelay = 2.4;
+        }
+        hitsLanded += 1;
         hitCountEl.textContent = hitsLanded;
         targetHealthEl.textContent = Math.round(target.health);
       }
-
-      if (
-        projectile.x < -60 ||
-        projectile.x > canvas.width + 60 ||
-        projectile.y < -100 ||
-        projectile.y > canvas.height + 100
-      ) {
-        projectile.alive = false;
-      }
     }
   }
 
-  function updateTarget() {
-    target.sway += 0.015;
-    const baseX = canvas.width * target.baseRatio;
-    const swayOffset = Math.sin(target.sway) * 12;
-    const desiredX = baseX + swayOffset;
-    const margin = 60;
-    target.x = Math.min(canvas.width - target.width - margin, Math.max(margin, desiredX));
-    target.y = groundHeight(target.x) - target.height;
+  function updateTarget(delta) {
+    target.sway += delta;
+    const swing = Math.sin(target.sway * 0.8);
+    const drift = Math.cos(target.sway * 0.6);
+    target.x = player.x + swing * 42;
+    target.z = player.z + 220 + drift * 28;
+    const groundY = groundHeight(target.x, target.z);
+    target.y = groundY + 26 + Math.sin(target.sway * 1.2) * 6;
+
     if (target.regenDelay > 0) {
-      target.regenDelay -= 1;
-    } else {
-      target.health = Math.min(100, target.health + 0.05);
-      targetHealthEl.textContent = target.health.toFixed(0);
+      target.regenDelay = Math.max(0, target.regenDelay - delta);
+    } else if (target.health < 100) {
+      target.health = Math.min(100, target.health + 18 * delta);
     }
+
+    targetHealthEl.textContent = Math.round(target.health);
   }
 
-  function cleanupProjectiles() {
-    for (let i = projectiles.length - 1; i >= 0; i -= 1) {
-      if (!projectiles[i].alive) {
-        projectiles.splice(i, 1);
+  function updateStarfield(delta) {
+    const forward = player.vz * delta;
+    stars.forEach(star => {
+      star.z -= forward;
+      if (star.z < 40) {
+        star.z += 600;
+        star.x = (Math.random() - 0.5) * 260;
+        star.y = Math.random() * 200 - 60;
       }
-    }
-  }
-
-  function drawTerrain() {
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height);
-    for (let x = 0; x <= canvas.width; x += 4) {
-      ctx.lineTo(x, groundHeight(x));
-    }
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.closePath();
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, 'rgba(56, 189, 248, 0.08)');
-    gradient.addColorStop(0.7, 'rgba(15, 23, 42, 0.85)');
-    gradient.addColorStop(1, 'rgba(2, 6, 23, 0.95)');
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(94, 234, 212, 0.3)';
-    ctx.stroke();
-  }
-
-  function drawPlayer() {
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    ctx.fillStyle = '#f8fafc';
-    ctx.beginPath();
-    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(125, 211, 252, 0.9)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    if (!player.onGround && input.jetpack && player.energy > 0) {
-      ctx.beginPath();
-      ctx.moveTo(-6, player.radius - 2);
-      ctx.lineTo(-12, player.radius + 24 + Math.random() * 6);
-      ctx.moveTo(6, player.radius - 2);
-      ctx.lineTo(12, player.radius + 24 + Math.random() * 6);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  }
-
-  function drawProjectiles() {
-    for (const projectile of projectiles) {
-      if (!projectile.alive) {
-        continue;
-      }
-      ctx.beginPath();
-      ctx.fillStyle = projectile.color;
-      ctx.globalAlpha = 0.92;
-      ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  function drawTarget() {
-    ctx.save();
-    ctx.fillStyle = 'rgba(244, 114, 182, 0.7)';
-    ctx.strokeStyle = 'rgba(236, 72, 153, 0.9)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    const r = 12;
-    ctx.moveTo(target.x + r, target.y);
-    ctx.lineTo(target.x + target.width - r, target.y);
-    ctx.quadraticCurveTo(target.x + target.width, target.y, target.x + target.width, target.y + r);
-    ctx.lineTo(target.x + target.width, target.y + target.height - r);
-    ctx.quadraticCurveTo(target.x + target.width, target.y + target.height, target.x + target.width - r, target.y + target.height);
-    ctx.lineTo(target.x + r, target.y + target.height);
-    ctx.quadraticCurveTo(target.x, target.y + target.height, target.x, target.y + target.height - r);
-    ctx.lineTo(target.x, target.y + r);
-    ctx.quadraticCurveTo(target.x, target.y, target.x + r, target.y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    const healthRatio = target.health / 100;
-    ctx.fillStyle = 'rgba(34, 197, 94, 0.6)';
-    ctx.fillRect(target.x + 6, target.y + target.height + 10, (target.width - 12) * healthRatio, 6);
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
-    ctx.strokeRect(target.x + 6, target.y + target.height + 10, target.width - 12, 6);
-    ctx.restore();
-  }
-
-  function drawCrosshair() {
-    ctx.save();
-    ctx.translate(input.mouseX, input.mouseY);
-    ctx.strokeStyle = 'rgba(248, 250, 252, 0.9)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(0, 0, 12, 0, Math.PI * 2);
-    ctx.moveTo(-16, 0);
-    ctx.lineTo(-4, 0);
-    ctx.moveTo(4, 0);
-    ctx.lineTo(16, 0);
-    ctx.moveTo(0, -16);
-    ctx.lineTo(0, -4);
-    ctx.moveTo(0, 4);
-    ctx.lineTo(0, 16);
-    ctx.stroke();
-    ctx.restore();
+    });
   }
 
   function drawSky() {
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#111827');
-    gradient.addColorStop(1, '#0b1120');
+    gradient.addColorStop(0, '#020617');
+    gradient.addColorStop(0.35, '#0b1530');
+    gradient.addColorStop(1, '#030712');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = 'rgba(148, 163, 184, 0.3)';
-    for (let i = 0; i < 6; i += 1) {
-      const x = (i * 160 + performance.now() * 0.01) % (canvas.width + 200) - 100;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.12)';
+    for (let i = 0; i < 5; i += 1) {
+      const waveY = (i + 1) * 60 + Math.sin((performance.now() * 0.0006) + i) * 18;
       ctx.beginPath();
-      ctx.ellipse(x, 140 + Math.sin(x * 0.02) * 24, 120, 28, 0, 0, Math.PI * 2);
+      ctx.ellipse(canvas.width * (i % 2 === 0 ? 0.3 : 0.7), waveY, canvas.width * 0.32, 48, 0, 0, Math.PI * 2);
       ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawStarfield() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    stars.forEach(star => {
+      const worldPoint = {
+        x: player.x + star.x,
+        y: camera.y + star.y,
+        z: player.z + star.z
+      };
+      const projected = projectPoint(worldPoint);
+      if (!projected) {
+        return;
+      }
+      const size = Math.max(1, 2.4 - projected.depth * 0.003);
+      const alpha = 0.25 + Math.min(0.6, 260 / (projected.depth + 60));
+      ctx.fillStyle = `rgba(148, 197, 255, ${alpha.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(projected.x, projected.y, size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function drawTerrain() {
+    const stepZ = 14;
+    const stepX = 16;
+    const forwardRange = 360;
+    const lateralRange = 180;
+    const quads = [];
+
+    const startZ = Math.floor(player.z / stepZ) * stepZ - stepZ;
+    const endZ = player.z + forwardRange;
+    const xStart = Math.floor((player.x - lateralRange) / stepX) * stepX;
+    const xEnd = Math.floor((player.x + lateralRange) / stepX) * stepX + stepX;
+
+    for (let z = startZ; z < endZ; z += stepZ) {
+      const nextZ = z + stepZ;
+      for (let x = xStart; x < xEnd; x += stepX) {
+        const nextX = x + stepX;
+        const p0 = projectPoint({ x, y: groundHeight(x, z), z });
+        const p1 = projectPoint({ x: nextX, y: groundHeight(nextX, z), z });
+        const p2 = projectPoint({ x: nextX, y: groundHeight(nextX, nextZ), z: nextZ });
+        const p3 = projectPoint({ x, y: groundHeight(x, nextZ), z: nextZ });
+
+        if (!p0 || !p1 || !p2 || !p3) {
+          continue;
+        }
+
+        const avgDepth = (p0.depth + p1.depth + p2.depth + p3.depth) / 4;
+        const avgHeight = (groundHeight(x, z) + groundHeight(nextX, z) + groundHeight(nextX, nextZ) + groundHeight(x, nextZ)) / 4;
+        quads.push({ points: [p0, p1, p2, p3], depth: avgDepth, height: avgHeight });
+      }
+    }
+
+    quads.sort((a, b) => b.depth - a.depth);
+
+    quads.forEach(quad => {
+      const { points, height } = quad;
+      const tone = Math.max(-1, Math.min(1, (height + 18) / 24));
+      const blue = 180 + tone * 25;
+      const green = 110 + tone * 40;
+      const red = 30 + tone * 25;
+      ctx.fillStyle = `rgba(${red.toFixed(0)}, ${green.toFixed(0)}, ${blue.toFixed(0)}, 0.72)`;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i += 1) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(94, 234, 212, ${0.08 + (1 - tone) * 0.12})`;
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    });
+  }
+
+  function drawProjectiles() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    projectiles.forEach(projectile => {
+      const projected = projectPoint({ x: projectile.x, y: projectile.y, z: projectile.z });
+      if (!projected) {
+        return;
+      }
+      const size = Math.max(2, projectile.radius * (camera.focalLength / projected.depth));
+      const gradient = ctx.createRadialGradient(projected.x, projected.y, size * 0.2, projected.x, projected.y, size);
+      gradient.addColorStop(0, `${projectile.color}dd`);
+      gradient.addColorStop(1, `${projectile.color}00`);
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(projected.x, projected.y, size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function drawPlayer() {
+    const nose = projectPoint({ x: player.x, y: player.y + player.radius * 0.6, z: player.z + 6 });
+    const left = projectPoint({ x: player.x - player.radius, y: player.y - player.radius * 0.4, z: player.z - 2 });
+    const right = projectPoint({ x: player.x + player.radius, y: player.y - player.radius * 0.4, z: player.z - 2 });
+    const plumeAnchor = projectPoint({ x: player.x, y: player.y - player.radius * 0.6, z: player.z - 8 });
+
+    if (!nose || !left || !right) {
+      return;
+    }
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(94, 234, 212, 0.75)';
+    ctx.beginPath();
+    ctx.moveTo(nose.x, nose.y);
+    ctx.lineTo(right.x, right.y);
+    ctx.lineTo(left.x, left.y);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(125, 211, 252, 0.9)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(nose.x, nose.y);
+    ctx.lineTo(right.x, right.y);
+    ctx.lineTo(left.x, left.y);
+    ctx.closePath();
+    ctx.stroke();
+
+    if (plumeAnchor && !player.onGround) {
+      const plumeEnd = projectPoint({ x: player.x, y: player.y - player.radius * 0.6, z: player.z - 14 });
+      if (plumeEnd) {
+        ctx.globalCompositeOperation = 'screen';
+        const plumeRadius = Math.max(3, (camera.focalLength / plumeEnd.depth) * 6);
+        const gradient = ctx.createRadialGradient(plumeEnd.x, plumeEnd.y, plumeRadius * 0.1, plumeEnd.x, plumeEnd.y, plumeRadius);
+        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.65)');
+        gradient.addColorStop(1, 'rgba(14, 116, 144, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(plumeEnd.x, plumeEnd.y, plumeRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawTarget() {
+    const halfW = target.width * 0.5;
+    const halfD = target.depth * 0.5;
+    const baseY = target.y;
+    const topY = target.y + target.height;
+
+    const fl = projectPoint({ x: target.x - halfW, y: baseY, z: target.z - halfD });
+    const fr = projectPoint({ x: target.x + halfW, y: baseY, z: target.z - halfD });
+    const bl = projectPoint({ x: target.x - halfW, y: baseY, z: target.z + halfD });
+    const br = projectPoint({ x: target.x + halfW, y: baseY, z: target.z + halfD });
+    const tfl = projectPoint({ x: target.x - halfW, y: topY, z: target.z - halfD });
+    const tfr = projectPoint({ x: target.x + halfW, y: topY, z: target.z - halfD });
+    const tbl = projectPoint({ x: target.x - halfW, y: topY, z: target.z + halfD });
+    const tbr = projectPoint({ x: target.x + halfW, y: topY, z: target.z + halfD });
+
+    if (!fl || !fr || !bl || !br || !tfl || !tfr || !tbl || !tbr) {
+      return;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+
+    ctx.fillStyle = 'rgba(236, 72, 153, 0.35)';
+    ctx.beginPath();
+    ctx.moveTo(tbl.x, tbl.y);
+    ctx.lineTo(tbr.x, tbr.y);
+    ctx.lineTo(tfr.x, tfr.y);
+    ctx.lineTo(tfl.x, tfl.y);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(190, 24, 93, 0.45)';
+    ctx.beginPath();
+    ctx.moveTo(fr.x, fr.y);
+    ctx.lineTo(br.x, br.y);
+    ctx.lineTo(tbr.x, tbr.y);
+    ctx.lineTo(tfr.x, tfr.y);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(244, 114, 182, 0.72)';
+    ctx.beginPath();
+    ctx.moveTo(fl.x, fl.y);
+    ctx.lineTo(fr.x, fr.y);
+    ctx.lineTo(tfr.x, tfr.y);
+    ctx.lineTo(tfl.x, tfl.y);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(236, 72, 153, 0.8)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(fl.x, fl.y);
+    ctx.lineTo(fr.x, fr.y);
+    ctx.lineTo(tfr.x, tfr.y);
+    ctx.lineTo(tfl.x, tfl.y);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.restore();
+
+    const indicator = projectPoint({ x: target.x, y: topY + 5, z: target.z - halfD });
+    if (indicator) {
+      const width = Math.max(28, (camera.focalLength / indicator.depth) * 24);
+      ctx.save();
+      ctx.globalAlpha = 0.86;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+      ctx.fillRect(indicator.x - width * 0.5 - 2, indicator.y - 6, width + 4, 10);
+      ctx.strokeStyle = 'rgba(236, 72, 153, 0.65)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(indicator.x - width * 0.5 - 2, indicator.y - 6, width + 4, 10);
+      const ratio = target.health / 100;
+      ctx.fillStyle = 'rgba(192, 132, 252, 0.9)';
+      ctx.fillRect(indicator.x - width * 0.5, indicator.y - 4, width * ratio, 6);
+      ctx.restore();
     }
   }
 
-  function drawUIOverlay() {
-    ctx.fillStyle = 'rgba(148, 163, 184, 0.25)';
-    ctx.fillRect(24, 24, 220, 70);
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '16px "Poppins", sans-serif';
-    ctx.fillText(`Altitude: ${Math.max(0, Math.round(groundHeight(player.x) - player.y))} m`, 36, 48);
-    ctx.fillText(`Speed: ${Math.abs(player.vx).toFixed(1)} m/s`, 36, 70);
+  function drawCrosshair() {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(248, 250, 252, 0.85)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(input.mouseX, input.mouseY, 12, 0, Math.PI * 2);
+    ctx.moveTo(input.mouseX - 18, input.mouseY);
+    ctx.lineTo(input.mouseX - 6, input.mouseY);
+    ctx.moveTo(input.mouseX + 6, input.mouseY);
+    ctx.lineTo(input.mouseX + 18, input.mouseY);
+    ctx.moveTo(input.mouseX, input.mouseY - 18);
+    ctx.lineTo(input.mouseX, input.mouseY - 6);
+    ctx.moveTo(input.mouseX, input.mouseY + 6);
+    ctx.lineTo(input.mouseX, input.mouseY + 18);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  function loop() {
+  function drawUIOverlay() {
+    const altitude = Math.max(0, player.y - groundHeight(player.x, player.z) - player.radius);
+    const horizontalSpeed = Math.sqrt(player.vx * player.vx + player.vz * player.vz);
+    const rangeDepth = Math.max(0, target.z - player.z);
+
+    ctx.save();
+    ctx.globalAlpha = 0.94;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.62)';
+    ctx.strokeStyle = 'rgba(94, 234, 212, 0.35)';
+    ctx.lineWidth = 1.4;
+    const panelWidth = 226;
+    const panelHeight = 96;
+    const x = 24;
+    const y = 24;
+    const r = 14;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + panelWidth - r, y);
+    ctx.quadraticCurveTo(x + panelWidth, y, x + panelWidth, y + r);
+    ctx.lineTo(x + panelWidth, y + panelHeight - r);
+    ctx.quadraticCurveTo(x + panelWidth, y + panelHeight, x + panelWidth - r, y + panelHeight);
+    ctx.lineTo(x + r, y + panelHeight);
+    ctx.quadraticCurveTo(x, y + panelHeight, x, y + panelHeight - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + 16, y + 40);
+    ctx.lineTo(x + panelWidth - 16, y + 40);
+    ctx.moveTo(x + 16, y + 68);
+    ctx.lineTo(x + panelWidth - 16, y + 68);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.94)';
+    ctx.font = '16px "Poppins", sans-serif';
+    ctx.fillText('Altitude', x + 16, y + 28);
+    ctx.fillText(`${altitude.toFixed(1)} m`, x + 130, y + 28);
+    ctx.fillText('Velocity', x + 16, y + 56);
+    ctx.fillText(`${horizontalSpeed.toFixed(1)} m/s`, x + 130, y + 56);
+    ctx.fillText('Range', x + 16, y + 84);
+    ctx.fillText(`${rangeDepth.toFixed(1)} m`, x + 130, y + 84);
+    ctx.restore();
+  }
+
+  let lastTime = performance.now();
+
+  function loop(time) {
+    const delta = Math.min(0.05, (time - lastTime) / 1000);
+    lastTime = time;
+
+    updatePlayer(delta);
+    updateCamera(delta);
+    fireWeapon(delta);
+    updateProjectiles(delta);
+    updateTarget(delta);
+    updateStarfield(delta);
+
     drawSky();
+    drawStarfield();
     drawTerrain();
-    updatePlayer();
-    fireWeapon();
-    updateProjectiles();
-    updateTarget();
-    cleanupProjectiles();
     drawProjectiles();
     drawTarget();
     drawPlayer();
     drawCrosshair();
     drawUIOverlay();
+
     requestAnimationFrame(loop);
   }
 
   weaponName.textContent = weapons[player.weaponIndex].name;
-  loop();
-  </script>
+  targetHealthEl.textContent = Math.round(target.health);
+  requestAnimationFrame(loop);
+</script>
+
 </body>
 </html>
