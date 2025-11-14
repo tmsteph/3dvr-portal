@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3dvr Portal – Release v0.0.24 (Week of November 17, 2025)</title>
+  <title>3dvr Portal – Release v0.0.24 (Week of November 10, 2025)</title>
   <style>
     body {
       margin: 0 auto;
@@ -77,10 +77,10 @@
   <p><a class="back-link" href="index.html">← Back to releases</a></p>
   <nav class="release-nav" aria-label="Release navigation">
     <a class="release-nav-link" href="v0.0.23.html">← Previous release</a>
-    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+    <a class="release-nav-link" href="v0.0.25.html">Next release →</a>
   </nav>
   <h1>Release v0.0.24</h1>
-  <div class="tag">Week of November 17, 2025</div>
+  <div class="tag">Week of November 10, 2025</div>
   <p class="release-summary">
     Restores contact and CRM editing and publishes the Stellar Drift arcade game with GunDB score syncing
   </p>
@@ -115,7 +115,9 @@
   <div class="section">
     <h2>Browser Sync Hardening</h2>
     <ul>
-      <li>Fixed Brave-specific local persistence gaps so contacts and CRM entries sync just like in Chrome and Firefox.</li>
+        <li>
+          Fixed Brave-specific local persistence gaps so contacts and CRM entries sync just like in Chrome and Firefox.
+        </li>
       <li>Added extra readiness checks before writes so privacy mode timing differences no longer drop updates.</li>
       <li>Expanded manual verification across Brave desktop to confirm editing and syncing survive refreshes.</li>
     </ul>
@@ -134,7 +136,9 @@
     <h2>Iteration Notes</h2>
     <ul>
       <li>Contacts and CRM now rely on the same edit handlers, reducing divergence between the two experiences.</li>
-      <li>Sync instrumentation highlights when Brave applies stricter storage timing, guiding future hardening passes.</li>
+        <li>
+          Sync instrumentation highlights when Brave applies stricter storage timing, guiding future hardening passes.
+        </li>
     </ul>
   </div>
 
