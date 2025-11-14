@@ -994,7 +994,38 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import * as TasksCoreModule from './tasks/tasks-core.js';
+
+const TasksCore = (() => {
+  const entries = { ...TasksCoreModule };
+  if (entries.default && typeof entries.default === 'object') {
+    Object.assign(entries, entries.default);
+  }
+  delete entries.default;
+  if (typeof window !== 'undefined') {
+    window.TasksCore = Object.freeze({ ...(window.TasksCore || {}), ...entries });
+  }
+  return window.TasksCore || entries;
+})();
+
+const {
+  createMemoryStorage: coreCreateMemoryStorage,
+  sanitizeTaskRecord,
+  readTaskCache,
+  writeTaskCache,
+  enqueueTaskOperation,
+  flushTaskQueue,
+  readTaskQueue,
+  TASK_CACHE_KEY = 'tasks:cache:board',
+  LEGACY_TASK_CACHE_KEYS = ['3dvr-tasks'],
+  TASK_QUEUE_KEY = 'tasks:queue:board'
+} = TasksCore;
+
+if (typeof sanitizeTaskRecord !== 'function' || typeof enqueueTaskOperation !== 'function') {
+  throw new Error('Tasks core module failed to load');
+}
+
 // Global variables
 let currentUser = null;
 let currentUserAlias = null;
@@ -1002,6 +1033,7 @@ let currentUserLabel = null;
 let taskList = {};
 let isOffline = false;
 let currentEditingTask = null;
+let gunConnectionHandlersBound = false;
 
 function createLocalGunSubscriptionStub() {
   return {
@@ -1113,10 +1145,13 @@ function uniqueSources(sources) {
 }
 
 function createMemoryStorage() {
+  if (typeof coreCreateMemoryStorage === 'function') {
+    return coreCreateMemoryStorage();
+  }
   const memory = new Map();
   return {
     getItem(key) {
-      return memory.has(key) ? memory.get(key) : null;
+      return memory.has(key) ? memory.get(String(key)) : null;
     },
     setItem(key, value) {
       memory.set(String(key), String(value));
@@ -1237,11 +1272,18 @@ function attachTaskSource(source) {
         return;
       }
       if (!task) {
-        delete taskList[id];
         removeTaskFromLocalStorage(id);
+        delete taskList[id];
       } else {
-        taskList[id] = task;
-        saveToLocalStorage(task);
+        try {
+          const normalized = sanitizeTaskRecord({ id, ...task }, {
+            fallbackAssignee: currentUser || 'Guest',
+            fallbackCreator: currentUser || 'Guest'
+          });
+          saveToLocalStorage(normalized);
+        } catch (error) {
+          console.warn('Ignored invalid task record from Gun', error, task);
+        }
       }
       renderTasks();
     });
@@ -1348,6 +1390,31 @@ function setupGun() {
   if (!gun || gunContext.isStub) {
     goOffline();
     return;
+  }
+
+  isOffline = false;
+  const offlineIndicator = document.getElementById('offline-indicator');
+  if (offlineIndicator) {
+    offlineIndicator.classList.remove('show');
+  }
+  flushQueuedOperations();
+
+  if (!gunConnectionHandlersBound && typeof gun.on === 'function') {
+    try {
+      gun.on('hi', () => {
+        isOffline = false;
+        if (offlineIndicator) {
+          offlineIndicator.classList.remove('show');
+        }
+        flushQueuedOperations();
+      });
+      gun.on('bye', () => {
+        goOffline();
+      });
+      gunConnectionHandlersBound = true;
+    } catch (error) {
+      console.warn('Failed to bind gun connection handlers', error);
+    }
   }
 
   try {
@@ -1593,69 +1660,189 @@ function saveTask(task) {
     return;
   }
 
-  if (isOffline || !primaryTaskSource || primaryTaskSource.__isGunStub) {
-    saveToLocalStorage(task);
-  } else {
-    try {
-      putTaskToSources(task.id, task, {
-        onPrimaryAck(ack) {
-          if (ack && ack.err) {
-            console.error('Failed to save task to GUN:', ack.err);
-            saveToLocalStorage(task);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Failed to save to GUN:', error);
-      saveToLocalStorage(task);
-    }
+  let record;
+  try {
+    record = sanitizeTaskRecord(task, {
+      fallbackAssignee: currentUser || 'Guest',
+      fallbackCreator: currentUser || 'Guest'
+    });
+  } catch (error) {
+    console.error('Failed to normalize task before saving', error);
+    return;
   }
 
-  taskList[task.id] = task;
-  saveToLocalStorage(task);
+  taskList[record.id] = record;
+  persistTaskSnapshot();
   renderTasks();
+
+  if (!shouldUseGunSync()) {
+    queueTaskWrite(record);
+    return;
+  }
+
+  putTaskWithAck(record)
+    .then(() => {
+      flushQueuedOperations();
+    })
+    .catch(error => {
+      console.error('Failed to save task to Gun', error);
+      queueTaskWrite(record);
+      goOffline();
+    });
 }
 
 function readLocalTasks() {
   try {
-    const raw = taskStorage.getItem('3dvr-tasks');
-    return raw ? JSON.parse(raw) : {};
+    return readTaskCache(taskStorage, {
+      cacheKey: TASK_CACHE_KEY,
+      legacyKeys: LEGACY_TASK_CACHE_KEYS,
+      fallbackAssignee: currentUser || 'Guest',
+      fallbackCreator: currentUser || 'Guest'
+    });
   } catch (error) {
     console.warn('Failed to read local task snapshot', error);
     return {};
   }
 }
 
-// Save to localStorage
+function persistTaskSnapshot() {
+  try {
+    writeTaskCache(taskStorage, taskList, {
+      cacheKey: TASK_CACHE_KEY,
+      legacyKeys: LEGACY_TASK_CACHE_KEYS,
+      fallbackAssignee: currentUser || 'Guest',
+      fallbackCreator: currentUser || 'Guest'
+    });
+  } catch (error) {
+    console.warn('Failed to persist task snapshot', error);
+  }
+}
+
 function saveToLocalStorage(task) {
   if (!task || !task.id) return;
-  const localTasks = readLocalTasks();
-  localTasks[task.id] = task;
-  try {
-    taskStorage.setItem('3dvr-tasks', JSON.stringify(localTasks));
-  } catch (error) {
-    console.warn('Failed to persist task locally', error);
-  }
+  taskList[task.id] = task;
+  persistTaskSnapshot();
 }
 
 function removeTaskFromLocalStorage(taskId) {
   if (!taskId) return;
-  const localTasks = readLocalTasks();
-  if (!(taskId in localTasks)) {
-    return;
-  }
-  delete localTasks[taskId];
-  try {
-    taskStorage.setItem('3dvr-tasks', JSON.stringify(localTasks));
-  } catch (error) {
-    console.warn('Failed to update local task cache after removal', error);
+  if (taskList[taskId]) {
+    delete taskList[taskId];
+    persistTaskSnapshot();
   }
 }
 
-// Load from localStorage
 function loadFromLocalStorage() {
   taskList = readLocalTasks();
   renderTasks();
+}
+
+function queueTaskOperation(operation) {
+  try {
+    enqueueTaskOperation(taskStorage, operation, {
+      queueKey: TASK_QUEUE_KEY,
+      fallbackAssignee: currentUser || 'Guest',
+      fallbackCreator: currentUser || 'Guest'
+    });
+  } catch (error) {
+    console.warn('Failed to enqueue task operation', error, operation);
+  }
+}
+
+function queueTaskWrite(task) {
+  if (!task || !task.id) return;
+  queueTaskOperation({ type: 'put', taskId: task.id, task });
+}
+
+function queueTaskRemoval(taskId) {
+  if (!taskId) return;
+  queueTaskOperation({ type: 'remove', taskId });
+}
+
+function shouldUseGunSync() {
+  return !isOffline && primaryTaskSource && !primaryTaskSource.__isGunStub;
+}
+
+function ackPromise(executor, { timeout = 6000 } = {}) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error('ack-timeout'));
+    }, timeout);
+    const done = (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (err) {
+        reject(err instanceof Error ? err : new Error(String(err)));
+      } else {
+        resolve();
+      }
+    };
+    try {
+      executor(done);
+    } catch (error) {
+      done(error);
+    }
+  });
+}
+
+function putTaskWithAck(task) {
+  if (!task || !task.id) {
+    return Promise.reject(new Error('Invalid task record'));
+  }
+  return ackPromise(done => {
+    putTaskToSources(task.id, task, {
+      onPrimaryAck(ack) {
+        if (ack && ack.err) {
+          done(new Error(ack.err));
+        } else {
+          done();
+        }
+      }
+    });
+  });
+}
+
+function removeTaskWithAck(taskId) {
+  if (!taskId) {
+    return Promise.reject(new Error('Invalid task id'));
+  }
+  return ackPromise(done => {
+    removeTaskFromSources(taskId, {
+      onPrimaryAck(ack) {
+        if (ack && ack.err) {
+          done(new Error(ack.err));
+        } else {
+          done();
+        }
+      }
+    });
+  });
+}
+
+async function flushQueuedOperations() {
+  if (!shouldUseGunSync()) {
+    return { flushed: 0, remaining: (readTaskQueue(taskStorage, { queueKey: TASK_QUEUE_KEY }) || []).length };
+  }
+  try {
+    const result = await flushTaskQueue({
+      storage: taskStorage,
+      queueKey: TASK_QUEUE_KEY,
+      onPut: (taskId, task) => putTaskWithAck(task),
+      onRemove: (taskId) => removeTaskWithAck(taskId),
+      onError: (error, op) => console.warn('Task queue flush failed for op', op, error)
+    });
+    if (result.flushed > 0) {
+      persistTaskSnapshot();
+    }
+    return result;
+  } catch (error) {
+    console.warn('Failed to flush task queue', error);
+    return { flushed: 0, remaining: (readTaskQueue(taskStorage, { queueKey: TASK_QUEUE_KEY }) || []).length };
+  }
 }
 
 // Clear task form
@@ -1745,27 +1932,24 @@ function updateTaskStatus(taskId, newStatus) {
 function deleteTask(taskId) {
   if (!confirm('Are you sure you want to delete this task?')) return;
 
-  if (isOffline || !primaryTaskSource || primaryTaskSource.__isGunStub) {
-    removeTaskFromLocalStorage(taskId);
-  } else {
-    try {
-      removeTaskFromSources(taskId, {
-        onPrimaryAck(ack) {
-          if (ack && ack.err) {
-            console.error('Failed to delete task from GUN:', ack.err);
-            removeTaskFromLocalStorage(taskId);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Failed to delete from GUN:', error);
-      removeTaskFromLocalStorage(taskId);
-    }
+  removeTaskFromLocalStorage(taskId);
+  delete taskList[taskId];
+  renderTasks();
+
+  if (!shouldUseGunSync()) {
+    queueTaskRemoval(taskId);
+    return;
   }
 
-  delete taskList[taskId];
-  removeTaskFromLocalStorage(taskId);
-  renderTasks();
+  removeTaskWithAck(taskId)
+    .then(() => {
+      flushQueuedOperations();
+    })
+    .catch(error => {
+      console.error('Failed to delete task from Gun', error);
+      queueTaskRemoval(taskId);
+      goOffline();
+    });
 }
 
 // Edit task
@@ -2216,6 +2400,12 @@ function loadWorkspaceInsights() {
 function handleWorkspaceStorageChange(event) {
   if (!event) return;
   const key = event.key || '';
+  if (key === TASK_CACHE_KEY || (Array.isArray(LEGACY_TASK_CACHE_KEYS) && LEGACY_TASK_CACHE_KEYS.includes(key))) {
+    loadFromLocalStorage();
+  }
+  if (key === TASK_QUEUE_KEY) {
+    flushQueuedOperations();
+  }
   if (key.startsWith(CONTACTS_CACHE_PREFIX)) {
     loadContactInsights();
   }
@@ -2692,50 +2882,27 @@ document.addEventListener('keydown', (e) => {
 // Auto-save functionality for offline mode
 function enableAutoSave() {
   setInterval(() => {
-    if (isOffline && Object.keys(taskList).length > 0) {
-      taskStorage.setItem('3dvr-tasks', JSON.stringify(taskList));
-      console.log('Auto-saved tasks to local storage');
+    if (Object.keys(taskList).length > 0) {
+      persistTaskSnapshot();
     }
-  }, 30000); // Auto-save every 30 seconds
+    if (shouldUseGunSync()) {
+      flushQueuedOperations();
+    }
+  }, 30000);
 }
 
 // Sync local data when coming back online
 function syncWhenOnline() {
   window.addEventListener('online', () => {
-    if (isOffline) {
-      console.log('Back online, attempting to sync...');
-      isOffline = false;
-      document.getElementById('offline-indicator').classList.remove('show');
-
-      // Try to sync local data to GUN
-      const localTasks = readLocalTasks();
-      Object.values(localTasks).forEach(task => {
-        if (!task || !task.id) {
-          return;
-        }
-        try {
-          if (!primaryTaskSource || primaryTaskSource.__isGunStub) {
-            saveToLocalStorage(task);
-            return;
-          }
-          putTaskToSources(task.id, task, {
-            onPrimaryAck(ack) {
-              if (ack && ack.err) {
-                console.error('Sync failed for task:', task.id, ack.err);
-              }
-            }
-          });
-        } catch (error) {
-          console.error('Sync failed for task:', task.id, error);
-        }
-      });
-
-      // Reload from GUN
-      setTimeout(() => {
-        loadTasks();
-        loadWorkspaceInsights();
-      }, 1000);
+    console.log('Back online, attempting to sync...');
+    isOffline = false;
+    const indicator = document.getElementById('offline-indicator');
+    if (indicator) {
+      indicator.classList.remove('show');
     }
+    flushQueuedOperations();
+    loadTasks();
+    loadWorkspaceInsights();
   });
 
   window.addEventListener('offline', () => {
@@ -2748,13 +2915,32 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
   enableAutoSave();
   syncWhenOnline();
-  
+
   // Set minimum date to today for due date inputs
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('task-due-date').setAttribute('min', today);
   document.getElementById('edit-due-date').setAttribute('min', today);
-  
+
   console.log('3DVR Advanced Task Board initialized successfully!');
+});
+
+Object.assign(window, {
+  addTask,
+  clearFilters,
+  toggleTaskForm,
+  clearTaskForm,
+  closeEditModal,
+  saveTaskEdit,
+  closeHistoryModal,
+  signOut,
+  editTask,
+  showHistory,
+  deleteTask,
+  addComment,
+  showAllComments,
+  handleInsightPrefill,
+  exportTasks,
+  importTasks
 });
 
 // Export functionality (bonus feature)
