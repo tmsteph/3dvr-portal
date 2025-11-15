@@ -81,6 +81,9 @@ const syncForm = document.getElementById('event-sync-form');
 const createEventContainer = document.querySelector('[data-create-event-container]');
 const createEventToggle = document.querySelector('[data-action="toggle-create-event"]');
 const createEventForm = document.getElementById('create-event-form');
+const createEventSubmitButton = createEventForm
+  ? createEventForm.querySelector('button[type="submit"]')
+  : null;
 const calendarDayNames = document.querySelector('[data-calendar-day-names]');
 const calendarGrid = document.querySelector('[data-calendar-grid]');
 const calendarCurrentLabel = document.querySelector('[data-calendar-current]');
@@ -776,6 +779,19 @@ function renderSelectedDayDetails() {
         listItem.appendChild(description);
       }
 
+      if (item.normalized.provider === 'local') {
+        const actions = document.createElement('div');
+        actions.className = 'calendar-view__details-item-actions';
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.className = 'button-secondary calendar-view__details-edit';
+        editButton.dataset.action = 'edit-event';
+        editButton.dataset.eventId = item.raw.id;
+        editButton.textContent = 'Edit';
+        actions.appendChild(editButton);
+        listItem.appendChild(actions);
+      }
+
       calendarDetailsList.appendChild(listItem);
     });
 
@@ -868,6 +884,15 @@ function renderEvents(events = state.localEvents) {
         link.hidden = false;
       } else {
         link.hidden = true;
+      }
+    }
+    const editButton = fragment.querySelector('[data-action="edit-event"]');
+    if (editButton) {
+      if (entry.provider === 'local') {
+        editButton.dataset.eventId = entry.id;
+        editButton.hidden = false;
+      } else {
+        editButton.hidden = true;
       }
     }
     const deleteButton = fragment.querySelector('[data-action="delete-event"]');
@@ -1176,12 +1201,102 @@ function deleteLocalEvent(id, options = {}) {
   }
 }
 
+function openEventEditor(eventId) {
+  if (!createEventForm || !eventId) return;
+  const target = state.localEvents.find(event => event.id === eventId);
+  if (!target) {
+    showLog('This event could not be found. It may have been removed from another session.', 'error');
+    return;
+  }
+  if (target.provider !== 'local') {
+    showLog('Editing is limited to local events. Update imported events in their original calendar.', 'error');
+    return;
+  }
+
+  setCreateEventMode('edit');
+
+  if (target.start) {
+    const startDate = new Date(target.start);
+    if (!Number.isNaN(startDate.getTime())) {
+      calendarState.viewDate = startOfMonth(startDate);
+      calendarState.selectedDate = toDateKey(startDate);
+      renderCalendar();
+    }
+  }
+
+  createEventForm.reset();
+
+  const idField = createEventForm.elements.namedItem('eventId');
+  if (idField instanceof HTMLInputElement) {
+    idField.value = target.id;
+  }
+  const titleField = createEventForm.elements.namedItem('title');
+  if (titleField instanceof HTMLInputElement) {
+    titleField.value = target.title || '';
+  }
+  const startField = createEventForm.elements.namedItem('start');
+  if (startField instanceof HTMLInputElement) {
+    const startDate = target.start ? new Date(target.start) : null;
+    startField.value = startDate && !Number.isNaN(startDate.getTime())
+      ? toLocalDateTimeInputValue(startDate)
+      : '';
+  }
+  const endField = createEventForm.elements.namedItem('end');
+  if (endField instanceof HTMLInputElement) {
+    const endDate = target.end ? new Date(target.end) : null;
+    endField.value = endDate && !Number.isNaN(endDate.getTime())
+      ? toLocalDateTimeInputValue(endDate)
+      : '';
+  }
+  const timeZoneField = createEventForm.elements.namedItem('timeZone');
+  if (timeZoneField instanceof HTMLInputElement) {
+    timeZoneField.value = target.timeZone || DEFAULT_TIME_ZONE || 'UTC';
+  }
+  const descriptionField = createEventForm.elements.namedItem('description');
+  if (descriptionField instanceof HTMLTextAreaElement) {
+    descriptionField.value = target.description || '';
+  }
+
+  const syncCheckboxes = createEventForm.querySelectorAll('input[name="syncProviders"]');
+  const syncedProviders = Array.isArray(target.metadata?.syncedProviders)
+    ? target.metadata.syncedProviders
+    : [];
+  syncCheckboxes.forEach(input => {
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    input.checked = syncedProviders.includes(input.value);
+  });
+
+  resetCreateEventFormDirty();
+  setCreateEventExpanded(true);
+  showLog('Editing event. Update the fields and save when ready.');
+}
+
 function handleEventListClick(event) {
-  const button = event.target.closest('button[data-action="delete-event"]');
-  if (!button) return;
-  const { eventId } = button.dataset;
+  const editButton = event.target.closest('button[data-action="edit-event"]');
+  if (editButton) {
+    const { eventId } = editButton.dataset;
+    if (eventId) {
+      openEventEditor(eventId);
+    }
+    return;
+  }
+
+  const deleteButton = event.target.closest('button[data-action="delete-event"]');
+  if (!deleteButton) return;
+  const { eventId } = deleteButton.dataset;
   if (eventId) {
     deleteLocalEvent(eventId);
+  }
+}
+
+function handleCalendarDetailsClick(event) {
+  const editButton = event.target.closest('button[data-action="edit-event"]');
+  if (!editButton) return;
+  const { eventId } = editButton.dataset;
+  if (eventId) {
+    openEventEditor(eventId);
   }
 }
 
@@ -1189,6 +1304,9 @@ async function handleCreateEvent(event) {
   event.preventDefault();
   if (!createEventForm) return;
   const formData = new FormData(createEventForm);
+  const eventIdValue = formData.get('eventId');
+  const requestedId = typeof eventIdValue === 'string' ? eventIdValue.trim() : '';
+  const isEditing = createEventForm.dataset.mode === 'edit' && requestedId;
   const title = formData.get('title')?.toString().trim();
   const startValue = formData.get('start')?.toString();
   const endValue = formData.get('end')?.toString();
@@ -1212,29 +1330,51 @@ async function handleCreateEvent(event) {
     return;
   }
 
-  const localEvent = {
-    id: generateLocalId('local'),
-    provider: 'local',
-    title,
-    description,
-    start,
-    end,
-    timeZone,
-    link: '',
-    metadata: { createdFrom: 'local' },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  writeLocalEvents([...state.localEvents, localEvent]);
-
-  const storedEvent = state.localEvents.find(item => item.id === localEvent.id) || localEvent;
-
-  createEventForm.reset();
-  hydrateCreateFormDefaults();
-
-  const messages = ['Event saved to your local calendar.'];
+  let storedEvent;
+  const messages = [];
   let messageType = 'success';
+
+  if (isEditing) {
+    const existing = state.localEvents.find(item => item.id === requestedId);
+    if (!existing) {
+      showLog('This event is no longer available. It may have been removed in another session.', 'error');
+      setCreateEventExpanded(false, { focusToggle: true });
+      return;
+    }
+    updateLocalEvent(requestedId, {
+      title,
+      description,
+      start,
+      end,
+      timeZone
+    });
+    storedEvent = state.localEvents.find(item => item.id === requestedId) || {
+      ...existing,
+      title,
+      description,
+      start,
+      end,
+      timeZone
+    };
+    messages.push('Event updated in your local calendar.');
+  } else {
+    const localEvent = {
+      id: generateLocalId('local'),
+      provider: 'local',
+      title,
+      description,
+      start,
+      end,
+      timeZone,
+      link: '',
+      metadata: { createdFrom: 'local' },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    writeLocalEvents([...state.localEvents, localEvent]);
+    storedEvent = state.localEvents.find(item => item.id === localEvent.id) || localEvent;
+    messages.push('Event saved to your local calendar.');
+  }
 
   const syncTargets = Array.from(
     new Set(
@@ -1365,8 +1505,30 @@ function markCreateEventFormDirty() {
   createEventForm.dataset.dirty = 'true';
 }
 
+function setCreateEventMode(mode) {
+  if (!createEventForm) return;
+  const nextMode = mode === 'edit' ? 'edit' : 'create';
+  createEventForm.dataset.mode = nextMode;
+  if (createEventSubmitButton) {
+    createEventSubmitButton.textContent =
+      nextMode === 'edit' ? 'Update event' : 'Save event';
+  }
+  const isExpanded = createEventContainer ? !createEventContainer.hidden : false;
+  updateCreateEventToggleLabel(isExpanded);
+}
+
+function resetCreateEventFormState() {
+  if (!createEventForm) return;
+  createEventForm.reset();
+  setCreateEventMode('create');
+  hydrateCreateFormDefaults();
+}
+
 function prefillCreateEventForm(dateString, options = {}) {
   if (!createEventForm) return;
+  if (createEventForm.dataset.mode === 'edit') {
+    return;
+  }
   const { force = false } = options;
   if (!force && createEventForm.dataset.dirty === 'true') {
     return;
@@ -1397,18 +1559,30 @@ function hydrateCreateFormDefaults() {
 
 function updateCreateEventToggleLabel(expanded) {
   if (!createEventToggle) return;
-  const openLabel = createEventToggle.dataset.labelOpen || 'Add event';
-  const closeLabel = createEventToggle.dataset.labelClose || 'Hide event form';
+  const mode = createEventForm?.dataset.mode === 'edit' ? 'edit' : 'create';
+  const openLabel =
+    mode === 'edit'
+      ? createEventToggle.dataset.labelEditOpen || 'Editing event'
+      : createEventToggle.dataset.labelOpen || 'Add event';
+  const closeLabel =
+    mode === 'edit'
+      ? createEventToggle.dataset.labelEditClose || 'Cancel edit'
+      : createEventToggle.dataset.labelClose || 'Hide event form';
   createEventToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   createEventToggle.textContent = expanded ? closeLabel : openLabel;
 }
 
 function setCreateEventExpanded(expanded, options = {}) {
   if (!createEventContainer || !createEventToggle) return;
+  if (!expanded) {
+    resetCreateEventFormState();
+  }
   createEventContainer.hidden = !expanded;
   updateCreateEventToggleLabel(expanded);
   if (expanded) {
-    prefillCreateEventForm(calendarState.selectedDate);
+    if (!createEventForm || createEventForm.dataset.mode !== 'edit') {
+      prefillCreateEventForm(calendarState.selectedDate);
+    }
     if (createEventForm) {
       const firstField = createEventForm.elements.namedItem('title');
       if (firstField instanceof HTMLElement) {
@@ -1432,6 +1606,7 @@ function initializeCreateEventToggle() {
   if (createEventContainer) {
     createEventContainer.hidden = true;
   }
+  setCreateEventMode('create');
   updateCreateEventToggleLabel(false);
 }
 
@@ -1486,6 +1661,10 @@ function bindEvents() {
 
   if (eventList) {
     eventList.addEventListener('click', handleEventListClick);
+  }
+
+  if (calendarDetailsList) {
+    calendarDetailsList.addEventListener('click', handleCalendarDetailsClick);
   }
 
   calendarNavButtons.forEach(button => {

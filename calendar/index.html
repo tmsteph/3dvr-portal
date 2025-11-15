@@ -36,6 +36,8 @@
           data-action="toggle-create-event"
           data-label-open="Add event"
           data-label-close="Hide event form"
+          data-label-edit-open="Editing event"
+          data-label-edit-close="Cancel edit"
           aria-expanded="false"
           aria-controls="create-event-form"
         >Add event</button>
@@ -43,6 +45,7 @@
 
       <div class="create-event-form__container" data-create-event-container hidden>
         <form class="create-event-form" id="create-event-form">
+          <input type="hidden" name="eventId">
           <div class="create-event-form__row">
             <label class="field">
               <span class="field__label">Title</span>
@@ -267,7 +270,10 @@
       <p class="event-card__description" data-field="description"></p>
       <div class="event-card__footer">
         <a class="event-card__link" data-field="link" href="#" target="_blank" rel="noreferrer noopener">Open in calendar</a>
-        <button type="button" class="event-card__delete button-secondary" data-action="delete-event">Remove</button>
+        <div class="event-card__footer-actions">
+          <button type="button" class="event-card__edit button-secondary" data-action="edit-event">Edit</button>
+          <button type="button" class="event-card__delete button-secondary" data-action="delete-event">Remove</button>
+        </div>
       </div>
     </li>
   </template>
