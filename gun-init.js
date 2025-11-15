@@ -9,6 +9,13 @@
   const mergedPeers = Array.from(new Set([...defaultPeers, ...existingPeers].filter(Boolean)));
   global.__GUN_PEERS__ = mergedPeers;
 
+  const braveDiagnosticsEnabled = (() => {
+    if (typeof global.__ENABLE_BRAVE_DIAGNOSTICS__ === 'boolean') {
+      return global.__ENABLE_BRAVE_DIAGNOSTICS__;
+    }
+    return false;
+  })();
+
   function showBraveShieldNotice(reason) {
     if (typeof console === 'undefined') {
       return;
@@ -49,6 +56,10 @@
   }
 
   function runDiagnostics() {
+    if (!braveDiagnosticsEnabled) {
+      return;
+    }
+
     if (typeof global.Gun !== 'function' || global.__GUN_BRAVE_DIAGNOSTICS__) {
       return;
     }
