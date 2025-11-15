@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.26 (Week of November 21, 2025)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.25.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.26</h1>
+  <div class="tag">Week of November 21, 2025</div>
+  <p class="release-summary">
+    Gives the Calendar Hub full edit loops, lets you jump into day-specific changes without leaving the month view,
+    and steadies VDO.Ninja calls with a friendlier data saver profile.
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      This Friday's milestone focuses on polish: the Calendar Hub now supports editing existing local events, the day view
+      exposes inline controls so you can tweak schedules as you browse, and the remote meeting shortcut tightens its
+      bitrate and buffer for smoother low-bandwidth sessions.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Local Calendar Editing</h2>
+    <ul>
+      <li>Introduced a hidden event identifier field and toggle labels that swap between create and edit modes when you
+      reopen an existing entry.</li>
+      <li>Populate the create form with the saved title, timing, timezone, description, and sync targets when you press
+      an <em>Edit</em> button so updates stay consistent with the stored record.</li>
+      <li>Reuse the save action to call <code>updateLocalEvent</code>, merge metadata, and confirm the refresh with
+      "Event updated in your local calendar." messaging.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Day View Quick Actions</h2>
+    <ul>
+      <li>Add <em>Edit</em> controls beside each local event inside the selected-day drawer so you can jump straight into
+      modifications without scrolling through the full list.</li>
+      <li>Expose the same quick edit affordance in the event list template, hiding it automatically for imported entries
+      that must be changed in Google or Outlook.</li>
+      <li>Keep keyboard support intact by letting Enter or Space on any day cell open the inline editor-ready detail
+      pane with the correct date preselected.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>VDO.Ninja Data Saver Tune-Up</h2>
+    <ul>
+      <li>Drop the default room link to a 220 kbps video bitrate, 24 kbps audio, 10 fps, and a 144p scale so teammates on
+      congested networks can stay connected.</li>
+      <li>Increase the data saver buffer to 200 ms (while leaving Standard Quality at 100 ms) to smooth playback when
+      packets arrive late.</li>
+      <li>Keep the standard and director shortcuts handy for crews who need 240p/15 fps clarity or participant controls.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2025 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
