@@ -469,6 +469,19 @@ button:hover {
   white-space: pre-line;
 }
 
+.calendar-view__details-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 4px 0 0;
+}
+
+.calendar-view__details-edit {
+  font-size: 0.85rem;
+  padding: 8px 14px;
+}
+
 .event-results__empty {
   color: var(--calendar-muted);
   margin: 0;
@@ -546,10 +559,19 @@ button:hover {
 .event-card__footer {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
 }
 
+.event-card__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.event-card__edit,
 .event-card__delete {
   font-size: 0.9rem;
   padding: 10px 16px;
