@@ -23,11 +23,27 @@
 
   out('Peers', JSON.stringify(PEERS));
 
+  const resolveGunFactory = moduleResult => {
+    if (typeof moduleResult === 'function') return moduleResult;
+    if (moduleResult && typeof moduleResult.default === 'function') return moduleResult.default;
+    if (moduleResult && typeof moduleResult.Gun === 'function') return moduleResult.Gun;
+    if (moduleResult?.default && typeof moduleResult.default.Gun === 'function') return moduleResult.default.Gun;
+    if (typeof window !== 'undefined' && typeof window.Gun === 'function') return window.Gun;
+    return null;
+  };
+
   const loadGun = async () => {
-    const mod = await import('https://cdn.jsdelivr.net/npm/gun/gun.js');
-    const GunCtor = mod?.default || mod?.Gun || mod;
+    let mod;
+    try {
+      mod = await import('https://cdn.jsdelivr.net/npm/gun/gun.js');
+    } catch (err) {
+      out('IMPORT ERR', err?.message || err);
+    }
+
+    const GunCtor = resolveGunFactory(mod);
     if (typeof GunCtor !== 'function') {
-      throw new Error('Gun import missing constructor');
+      const keys = mod ? Object.keys(mod).join(',') : 'none';
+      throw new Error(`Gun constructor missing (module keys: ${keys})`);
     }
     return GunCtor;
   };
