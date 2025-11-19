@@ -62,6 +62,13 @@ You can sign up, join the chat, and start contributing right now — no download
 
 Brave shields can block realtime sync. Click the 🛡️ icon and either turn Shields off for `portal.3dvr.tech` and `relay.3dvr.tech`, or set **Cross-site cookies** to *Allow* and **Fingerprinting** to *Standard*. Use a regular window (not Tor or private mode) for the most reliable GunJS connection.
 
+## Portal data standard
+
+- Prefer `window.ScoreSystem.ensureGun` to initialize Gun so every app shares the same peer list, SEA configuration, and offline stub behavior.
+- Store collaborative data under `3dvr-portal/<app>` nodes first, with legacy nodes read and written second so older clients continue to sync.
+- Keep the portal node as the source of truth, and avoid device-local only storage for anything that should follow a user between browsers.
+- Ensure guest or SEA identities are initialized (via `ScoreSystem.ensureGuestIdentity`) before writing so contributions are properly attributed across apps.
+
 ### Run Locally
 
 ```bash

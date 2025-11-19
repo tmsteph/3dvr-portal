@@ -107,22 +107,134 @@ function ensureGunContext(factory, label) {
   };
 }
 
+// Chrome can throw when localStorage is blocked (third-party cookies disabled). Retry with storage-less config
+// so finance still connects to the shared portal graph instead of falling back to the offline stub.
+function createFinanceGun() {
+  if (typeof Gun !== 'function') {
+    return null;
+  }
+
+  const peers = window.__GUN_PEERS__ || [
+    'wss://relay.3dvr.tech/gun',
+    'wss://gun-relay-3dvr.fly.dev/gun'
+  ];
+
+  try {
+    return Gun({ peers });
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    if (/storage|quota|blocked|third-party/i.test(message)) {
+      console.warn('Retrying Gun init for finance without localStorage (likely blocked cookies)', err);
+      try {
+        return Gun({ peers, radisk: false, localStorage: false });
+      } catch (fallbackErr) {
+        console.warn('Finance Gun fallback init failed', fallbackErr);
+      }
+    } else {
+      console.warn('Finance Gun init failed unexpectedly', err);
+    }
+  }
+
+  return null;
+}
+
 const gunContext = ensureGunContext(
-  () => (typeof Gun === 'function'
-    ? Gun(window.__GUN_PEERS__ || [
-      'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
-    ])
-    : null),
+  createFinanceGun,
   'finance'
 );
 const gun = gunContext.gun;
-const financeLedger = gun && typeof gun.get === 'function'
-  ? gun.get('finance').get('expenditures')
+
+function attemptFinanceReconnection() {
+  const refreshed = ensureGunContext(createFinanceGun, 'finance-retry');
+  if (refreshed && !refreshed.isStub && refreshed.gun && !refreshed.gun.__isGunStub) {
+    try {
+      window.location.reload();
+    } catch (err) {
+      console.warn('Finance reload after Gun reconnection failed', err);
+    }
+    return true;
+  }
+  return false;
+}
+
+if (gunContext.isStub) {
+  const retryDelays = [500, 1500, 3000];
+  retryDelays.forEach(delay => {
+    setTimeout(() => {
+      if (attemptFinanceReconnection()) {
+        return;
+      }
+    }, delay);
+  });
+  const onFocus = () => {
+    attemptFinanceReconnection();
+  };
+  window.addEventListener('focus', onFocus);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      attemptFinanceReconnection();
+    }
+  });
+}
+
+// Finance data now lives under 3dvr-portal/finance to align with the shared workspace graph. We
+// still read and write legacy finance/<*> nodes so older clients can participate while migrating.
+const portalRoot = gun && typeof gun.get === 'function'
+  ? gun.get('3dvr-portal')
   : createLocalGunNodeStub();
-const financePayables = gun && typeof gun.get === 'function'
-  ? gun.get('finance').get('payables')
+const financeRoot = portalRoot && typeof portalRoot.get === 'function'
+  ? portalRoot.get('finance')
   : createLocalGunNodeStub();
+const legacyFinanceRoot = gun && typeof gun.get === 'function'
+  ? gun.get('finance')
+  : createLocalGunNodeStub();
+
+function buildSourceList(primary, legacy) {
+  const sources = [];
+  if (primary) {
+    sources.push(primary);
+  }
+  if (legacy && legacy !== primary) {
+    sources.push(legacy);
+  }
+  if (sources.length === 0) {
+    sources.push(createLocalGunNodeStub());
+  }
+  return sources;
+}
+
+const financeLedgerSources = buildSourceList(
+  financeRoot && typeof financeRoot.get === 'function' ? financeRoot.get('expenditures') : null,
+  legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function' ? legacyFinanceRoot.get('expenditures') : null
+);
+const financePayablesSources = buildSourceList(
+  financeRoot && typeof financeRoot.get === 'function' ? financeRoot.get('payables') : null,
+  legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function' ? legacyFinanceRoot.get('payables') : null
+);
+
+function forEachSource(sources, callback) {
+  sources.forEach((source, index) => {
+    if (source && typeof callback === 'function') {
+      callback(source, index);
+    }
+  });
+}
+
+function writeRecordToSources(sources, identifier, record, label) {
+  if (!identifier) {
+    return;
+  }
+  forEachSource(sources, (source, index) => {
+    const node = source && typeof source.get === 'function' ? source.get(identifier) : null;
+    if (node && typeof node.put === 'function') {
+      node.put(record, ack => {
+        if (index === 0 && ack && ack.err) {
+          console.warn(`Failed to persist ${label || 'record'} to primary finance node`, ack.err);
+        }
+      });
+    }
+  });
+}
 
 if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
   try {
@@ -173,16 +285,20 @@ if (dueDateInput) {
 if (form) {
   form.addEventListener('submit', handleSubmit);
 }
-if (financeLedger && typeof financeLedger.map === 'function' && typeof financeLedger.map().on === 'function') {
-  financeLedger.map().on(handleLedgerUpdate);
-}
+forEachSource(financeLedgerSources, source => {
+  if (source && typeof source.map === 'function' && typeof source.map().on === 'function') {
+    source.map().on(handleLedgerUpdate);
+  }
+});
 
 if (payableForm) {
   payableForm.addEventListener('submit', handlePayableSubmit);
 }
-if (financePayables && typeof financePayables.map === 'function' && typeof financePayables.map().on === 'function') {
-  financePayables.map().on(handlePayableUpdate);
-}
+forEachSource(financePayablesSources, source => {
+  if (source && typeof source.map === 'function' && typeof source.map().on === 'function') {
+    source.map().on(handlePayableUpdate);
+  }
+});
 
 function defaultDate() {
   const today = new Date();
@@ -282,10 +398,7 @@ function handleSubmit(event) {
     createdAt: now.toISOString()
   };
 
-  const entryNode = typeof financeLedger.get === 'function' ? financeLedger.get(entryId) : null;
-  if (entryNode && typeof entryNode.put === 'function') {
-    entryNode.put(record);
-  }
+  writeRecordToSources(financeLedgerSources, entryId, record, 'ledger entry');
   form.reset();
   dateInput.value = record.date;
 }
@@ -328,10 +441,7 @@ function handlePayableSubmit(event) {
     settledAt: null
   };
 
-  const payableNode = typeof financePayables.get === 'function' ? financePayables.get(payableId) : null;
-  if (payableNode && typeof payableNode.put === 'function') {
-    payableNode.put(record);
-  }
+  writeRecordToSources(financePayablesSources, payableId, record, 'payable');
 
   payableForm.reset();
   payeeInput.focus();
@@ -572,11 +682,8 @@ function markPayableSettled(identifier) {
     return;
   }
 
-  const node = typeof financePayables.get === 'function' ? financePayables.get(id) : null;
-  if (node && typeof node.put === 'function') {
-    node.put({
-      ...rest,
-      settledAt: new Date().toISOString()
-    });
-  }
+  writeRecordToSources(financePayablesSources, id, {
+    ...rest,
+    settledAt: new Date().toISOString()
+  }, 'payable settlement');
 }
