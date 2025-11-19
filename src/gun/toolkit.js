@@ -7,6 +7,20 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function describePeer(peer) {
+  if (typeof peer === 'string') return peer;
+  if (peer && typeof peer.url === 'string') return peer.url;
+  if (peer?.wire?.url) return peer.wire.url;
+  if (peer && typeof peer.id === 'string') return peer.id;
+  try {
+    const serialized = JSON.stringify(peer);
+    if (serialized && serialized !== '{}') return serialized;
+  } catch (error) {
+    console.warn('[gun] Unable to serialize peer', error);
+  }
+  return String(peer);
+}
+
 export function ensureArray(value) {
   if (Array.isArray(value)) return value;
   if (typeof value === 'string' && value) return [value];
@@ -90,7 +104,8 @@ export async function createGunToolkit(options = {}, deps = {}) {
   }
 
   function setPeerState(peer, state) {
-    peerStatus.set(peer, { state, updatedAt: nowIso() });
+    const label = describePeer(peer);
+    peerStatus.set(label, { state, updatedAt: nowIso(), raw: peer });
     for (const listener of peerListeners) {
       listener(getPeerStatus());
     }

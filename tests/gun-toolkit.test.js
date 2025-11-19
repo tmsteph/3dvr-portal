@@ -142,3 +142,16 @@ test('peer events update state map', async () => {
   const state = toolkit.peers.get().find(peer => peer.peer === 'wss://example');
   assert.equal(state.state, 'disconnected');
 });
+
+test('peer labels prefer URLs when provided', async () => {
+  const env = { ROOT: 'app:pr:test', PR: 'test', APP: '3dvr-tech', RELAY: 'relay', cacheEnabled: true };
+  const stub = await createStubGun({ env });
+  const toolkit = await createGunToolkit({ monitorPeers: true }, { createGun: () => Promise.resolve(stub), getEnvInfo: () => env });
+
+  const peerPayload = { url: 'wss://demo.relay/gun', id: 'abc123' };
+  stub.gun._trigger('hi', peerPayload);
+
+  const state = toolkit.peers.get().find(peer => peer.peer === 'wss://demo.relay/gun');
+  assert.equal(state.state, 'connected');
+  assert.equal(state.raw, peerPayload);
+});

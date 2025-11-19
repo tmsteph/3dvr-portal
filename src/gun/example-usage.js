@@ -1,6 +1,6 @@
 // src/gun/example-usage.js
 // Minimal counter demo so every environment can confirm relay reads/writes are synced.
-import { createGunToolkit } from './toolkit.js';
+import { createGunToolkit, omitMetaFields } from './toolkit.js';
 
 function getElement(id) {
   if (typeof document === 'undefined') return null;
@@ -36,6 +36,14 @@ function makeLogger(container) {
   };
 }
 
+function extractCounterValue(raw) {
+  const cleaned = omitMetaFields(raw);
+  if (cleaned && typeof cleaned === 'object' && 'value' in cleaned) {
+    return cleaned.value;
+  }
+  return cleaned;
+}
+
 (async () => {
   const counterEl = getElement('counter');
   const statusEl = getElement('gun-demo-status');
@@ -60,15 +68,17 @@ function makeLogger(container) {
       log(`[peers] ${states || '—'}`);
     });
 
-    const counter = toolkit.path('demo', 'counter', toolkit.env.PR);
+    const counterPath = ['demo', 'counter', toolkit.env.PR];
+    const counter = toolkit.path(...counterPath);
     log(`[gun] Path demo/counter/${toolkit.env.PR}`);
 
-    const currentRaw = await toolkit.read(['demo', 'counter', toolkit.env.PR]);
-    const current = Number(currentRaw) || 0;
+    const currentRaw = await toolkit.read(counterPath);
+    const currentValue = extractCounterValue(currentRaw);
+    const current = Number(currentValue) || 0;
     log(`[gun] Current value ${current}`);
 
     const nextValue = Number(current) + 1;
-    await toolkit.write(['demo', 'counter', toolkit.env.PR], nextValue);
+    await toolkit.write(counterPath, { value: nextValue, updatedAt: new Date().toISOString() });
     log(`[gun] Wrote value ${nextValue}`);
 
     if (counterEl) {
@@ -77,8 +87,8 @@ function makeLogger(container) {
     writeStatus('Connected and listening', 'success');
 
     const unsubscribe = toolkit.listen(counter, value => {
-      const numericValue = Number(value);
-      const displayValue = Number.isFinite(numericValue) ? numericValue : value;
+      const displayValue = extractCounterValue(value);
+      const numericValue = Number(displayValue);
       log(`[gun] Update received ${JSON.stringify({ value: displayValue })}`);
       if (counterEl) {
         counterEl.textContent = Number.isFinite(numericValue)
@@ -92,8 +102,11 @@ function makeLogger(container) {
       window.__gunToolkit = toolkit;
     }
 
-    const backup = await toolkit.backup.capture(['demo', 'counter', toolkit.env.PR]);
-    log(`[backup] captured depth=${backup.depth} keys=${Object.keys(backup.data || {}).length}`);
+    const backup = await toolkit.backup.capture(counterPath);
+    const keyCount = backup.data && typeof backup.data === 'object'
+      ? Object.keys(backup.data).length
+      : 0;
+    log(`[backup] captured depth=${backup.depth} keys=${keyCount}`);
   } catch (error) {
     console.error('[gun] counter demo failed', error);
     log(`[error] ${error?.message || error}`);
