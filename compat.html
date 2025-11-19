@@ -4,6 +4,15 @@
 <title>Gun Compat Check</title>
 <pre id="log" style="white-space:pre-wrap;padding:12px;font:13px/1.4 ui-monospace,Consolas,monospace"></pre>
 <script type="module">
+  // ---- UTIL ----
+  const log = document.getElementById('log');
+  const out = (...args) => {
+    log.textContent += args.join(' ') + '\n';
+  };
+
+  out('Gun compatibility check starting…');
+  out('User agent', navigator.userAgent);
+
   // ---- CONFIG (Codex replaces {{WSS_RELAY_URL}}) ----
   const PEERS = (window.__GUN_PEERS__ && window.__GUN_PEERS__.length)
     ? window.__GUN_PEERS__
@@ -12,41 +21,66 @@
       'wss://gun-relay-3dvr.fly.dev/gun'
     ];
 
-  // ---- UTIL ----
-  const log = document.getElementById('log');
-  const out = (...args) => {
-    log.textContent += args.join(' ') + '\n';
+  out('Peers', JSON.stringify(PEERS));
+
+  const loadGun = async () => {
+    const mod = await import('https://cdn.jsdelivr.net/npm/gun/gun.js');
+    const GunCtor = mod?.default || mod?.Gun || mod;
+    if (typeof GunCtor !== 'function') {
+      throw new Error('Gun import missing constructor');
+    }
+    return GunCtor;
   };
 
-  // ---- GUN ----
-  import Gun from 'https://cdn.jsdelivr.net/npm/gun/gun.js';
-  const gun = Gun({ peers: PEERS, axe: true, radisk: false, localStorage: false });
-
-  // connectivity signals
-  let connected = false;
-  setTimeout(() => {
-    if (!connected) out('WARN: no peer open after 3000ms');
-  }, 3000);
-  gun.on('hi', peer => {
-    connected = true;
-    out('HI', peer?.url || '');
-  });
-  gun.on('bye', peer => out('BYE', peer?.url || ''));
-
-  const ROOT = 'compat:test';
-  const key = `ts:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-  const sample = { key, ua: navigator.userAgent, when: Date.now() };
-
-  const db = gun.get(ROOT);
-  db.get('roundtrip').get(key).put(sample, ack => {
-    if (ack?.err) {
-      out('PUT ERR', ack.err);
+  const run = async () => {
+    let Gun;
+    try {
+      Gun = await loadGun();
+    } catch (err) {
+      out('IMPORT ERR', err?.message || err);
       return;
     }
-    out('PUT OK', key);
-    db.get('roundtrip').get(key).once(val => {
-      out('READ BACK', JSON.stringify(val));
-      out(val ? 'SUCCESS ✅' : 'FAILED ❌');
+
+    let gun;
+    try {
+      gun = Gun({ peers: PEERS, axe: true, radisk: false, localStorage: false });
+    } catch (err) {
+      out('INIT ERR', err?.message || err);
+      return;
+    }
+
+    // connectivity signals
+    let connected = false;
+    setTimeout(() => {
+      if (!connected) out('WARN: no peer open after 3000ms');
+    }, 3000);
+    gun.on('hi', peer => {
+      connected = true;
+      out('HI', peer?.url || '');
     });
-  });
+    gun.on('bye', peer => out('BYE', peer?.url || ''));
+
+    const ROOT = 'compat:test';
+    const key = `ts:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const sample = { key, ua: navigator.userAgent, when: Date.now() };
+
+    try {
+      const db = gun.get(ROOT);
+      db.get('roundtrip').get(key).put(sample, ack => {
+        if (ack?.err) {
+          out('PUT ERR', ack.err);
+          return;
+        }
+        out('PUT OK', key);
+        db.get('roundtrip').get(key).once(val => {
+          out('READ BACK', JSON.stringify(val));
+          out(val ? 'SUCCESS ✅' : 'FAILED ❌');
+        });
+      });
+    } catch (err) {
+      out('RUNTIME ERR', err?.message || err);
+    }
+  };
+
+  run().catch(err => out('UNCAUGHT', err?.message || err));
 </script>
