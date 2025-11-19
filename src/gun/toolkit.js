@@ -7,18 +7,18 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function ensureArray(value) {
+export function ensureArray(value) {
   if (Array.isArray(value)) return value;
   if (typeof value === 'string' && value) return [value];
   return [];
 }
 
-function omitMetaFields(data = {}) {
+export function omitMetaFields(data = {}) {
   if (data === null || typeof data !== 'object') return data;
-  const clone = {};
+  const clone = Array.isArray(data) ? [] : {};
   for (const key of Object.keys(data)) {
     if (key === '_') continue;
-    clone[key] = data[key];
+    clone[key] = omitMetaFields(data[key]);
   }
   return clone;
 }
@@ -53,7 +53,7 @@ async function snapshotNode(node, depth, seen) {
   });
 }
 
-function searchSnapshot(snapshot, predicate, path = []) {
+export function searchSnapshot(snapshot, predicate, path = []) {
   const hits = [];
   if (predicate(snapshot, path)) {
     hits.push({ path, value: snapshot });
@@ -67,18 +67,23 @@ function searchSnapshot(snapshot, predicate, path = []) {
   return hits;
 }
 
-export async function createGunToolkit(options = {}) {
-  const env = getEnvInfo();
+export async function createGunToolkit(options = {}, deps = {}) {
+  const getEnvDetails = deps.getEnvInfo || getEnvInfo;
+  const createGunImpl = deps.createGun || createGun;
+
+  const env = getEnvDetails();
   const { monitorPeers = true, preferPeers = [] } = options;
 
-  const { gun, root, path, put, sub, once } = await createGun();
+  const { gun, root, path, put, sub, once } = await createGunImpl();
 
   const peerStatus = new Map();
   const statusListeners = new Set();
   const peerListeners = new Set();
+  let latestStatus = null;
 
   function notifyStatus(status, detail = {}) {
     const payload = { status, detail, timestamp: nowIso() };
+    latestStatus = payload;
     for (const listener of statusListeners) {
       listener(payload);
     }
@@ -161,6 +166,9 @@ export async function createGunToolkit(options = {}) {
     status: {
       onStatus: listener => {
         statusListeners.add(listener);
+        if (latestStatus) {
+          listener(latestStatus);
+        }
         return () => statusListeners.delete(listener);
       }
     },
