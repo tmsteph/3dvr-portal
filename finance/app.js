@@ -107,13 +107,39 @@ function ensureGunContext(factory, label) {
   };
 }
 
+// Chrome can throw when localStorage is blocked (third-party cookies disabled). Retry with storage-less config
+// so finance still connects to the shared portal graph instead of falling back to the offline stub.
+function createFinanceGun() {
+  if (typeof Gun !== 'function') {
+    return null;
+  }
+
+  const peers = window.__GUN_PEERS__ || [
+    'wss://relay.3dvr.tech/gun',
+    'wss://gun-relay-3dvr.fly.dev/gun'
+  ];
+
+  try {
+    return Gun({ peers });
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    if (/storage|quota|blocked|third-party/i.test(message)) {
+      console.warn('Retrying Gun init for finance without localStorage (likely blocked cookies)', err);
+      try {
+        return Gun({ peers, radisk: false, localStorage: false });
+      } catch (fallbackErr) {
+        console.warn('Finance Gun fallback init failed', fallbackErr);
+      }
+    } else {
+      console.warn('Finance Gun init failed unexpectedly', err);
+    }
+  }
+
+  return null;
+}
+
 const gunContext = ensureGunContext(
-  () => (typeof Gun === 'function'
-    ? Gun(window.__GUN_PEERS__ || [
-      'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
-    ])
-    : null),
+  createFinanceGun,
   'finance'
 );
 const gun = gunContext.gun;
