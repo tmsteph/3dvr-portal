@@ -1,7 +1,6 @@
 // src/gun/example-usage.js
 // Minimal counter demo so every environment can confirm relay reads/writes are synced.
-import { createGun } from './adapter.js';
-import { getEnvInfo } from './env.js';
+import { createGunToolkit } from './toolkit.js';
 
 function getElement(id) {
   if (typeof document === 'undefined') return null;
@@ -38,8 +37,6 @@ function makeLogger(container) {
 }
 
 (async () => {
-  const { ROOT, PR, isVercelPreview } = getEnvInfo();
-
   const counterEl = getElement('counter');
   const statusEl = getElement('gun-demo-status');
   const logEl = getElement('gun-demo-log');
@@ -52,23 +49,26 @@ function makeLogger(container) {
   }
 
   try {
-    log(`[env] Root ${ROOT} | preview: ${isVercelPreview}`);
-    writeStatus('Connecting to Gun relay…');
+    const toolkit = await createGunToolkit();
 
-    const { path, put, sub, once } = await createGun();
+    toolkit.status.onStatus(payload => {
+      log(`[status] ${payload.status} ${JSON.stringify(payload.detail)}`);
+    });
 
-    log('[gun] Relay module loaded');
+    toolkit.peers.onChange(peers => {
+      const states = peers.map(peer => `${peer.peer} (${peer.state})`).join(', ');
+      log(`[peers] ${states || '—'}`);
+    });
 
-    // Gun graph layout: root -> demo -> counter -> {PR}. Each PR gets an isolated counter node.
-    const counter = path('demo', 'counter', PR);
-    log(`[gun] Path demo/counter/${PR}`);
+    const counter = toolkit.path('demo', 'counter', toolkit.env.PR);
+    log(`[gun] Path demo/counter/${toolkit.env.PR}`);
 
-    const currentRaw = await once(counter);
+    const currentRaw = await toolkit.read(['demo', 'counter', toolkit.env.PR]);
     const current = Number(currentRaw) || 0;
     log(`[gun] Current value ${current}`);
 
     const nextValue = Number(current) + 1;
-    await put(counter, nextValue);
+    await toolkit.write(['demo', 'counter', toolkit.env.PR], nextValue);
     log(`[gun] Wrote value ${nextValue}`);
 
     if (counterEl) {
@@ -76,7 +76,7 @@ function makeLogger(container) {
     }
     writeStatus('Connected and listening', 'success');
 
-    const unsubscribe = sub(counter, value => {
+    const unsubscribe = toolkit.listen(counter, value => {
       const numericValue = Number(value);
       const displayValue = Number.isFinite(numericValue) ? numericValue : value;
       log(`[gun] Update received ${JSON.stringify({ value: displayValue })}`);
@@ -87,10 +87,13 @@ function makeLogger(container) {
       }
     });
 
-    // Expose an escape hatch so previews can manually stop listening if needed.
     if (typeof window !== 'undefined') {
       window.__gunDemoOff = unsubscribe;
+      window.__gunToolkit = toolkit;
     }
+
+    const backup = await toolkit.backup.capture(['demo', 'counter', toolkit.env.PR]);
+    log(`[backup] captured depth=${backup.depth} keys=${Object.keys(backup.data || {}).length}`);
   } catch (error) {
     console.error('[gun] counter demo failed', error);
     log(`[error] ${error?.message || error}`);
