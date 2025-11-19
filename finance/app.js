@@ -144,6 +144,39 @@ const gunContext = ensureGunContext(
 );
 const gun = gunContext.gun;
 
+function attemptFinanceReconnection() {
+  const refreshed = ensureGunContext(createFinanceGun, 'finance-retry');
+  if (refreshed && !refreshed.isStub && refreshed.gun && !refreshed.gun.__isGunStub) {
+    try {
+      window.location.reload();
+    } catch (err) {
+      console.warn('Finance reload after Gun reconnection failed', err);
+    }
+    return true;
+  }
+  return false;
+}
+
+if (gunContext.isStub) {
+  const retryDelays = [500, 1500, 3000];
+  retryDelays.forEach(delay => {
+    setTimeout(() => {
+      if (attemptFinanceReconnection()) {
+        return;
+      }
+    }, delay);
+  });
+  const onFocus = () => {
+    attemptFinanceReconnection();
+  };
+  window.addEventListener('focus', onFocus);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      attemptFinanceReconnection();
+    }
+  });
+}
+
 // Finance data now lives under 3dvr-portal/finance to align with the shared workspace graph. We
 // still read and write legacy finance/<*> nodes so older clients can participate while migrating.
 const portalRoot = gun && typeof gun.get === 'function'
