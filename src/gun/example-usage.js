@@ -44,6 +44,25 @@ function extractCounterValue(raw) {
   return cleaned;
 }
 
+function findLink(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (typeof value['#'] === 'string') return value['#'];
+  for (const child of Object.values(value)) {
+    const link = findLink(child);
+    if (link) return link;
+  }
+  return null;
+}
+
+function formatDisplayValue(value) {
+  const resolved = extractCounterValue(value);
+  const display = typeof resolved === 'object'
+    ? JSON.stringify(resolved)
+    : String(resolved ?? '—');
+  const numeric = Number(resolved);
+  return { resolved, display, numeric, link: findLink(value) };
+}
+
 (async () => {
   const counterEl = getElement('counter');
   const statusEl = getElement('gun-demo-status');
@@ -87,14 +106,34 @@ function extractCounterValue(raw) {
     writeStatus('Connected and listening', 'success');
 
     const unsubscribe = toolkit.listen(counter, value => {
-      const displayValue = extractCounterValue(value);
-      const numericValue = Number(displayValue);
-      log(`[gun] Update received ${JSON.stringify({ value: displayValue })}`);
-      if (counterEl) {
-        counterEl.textContent = Number.isFinite(numericValue)
-          ? String(numericValue)
-          : String(displayValue ?? '—');
+      const formatted = formatDisplayValue(value);
+      log(`[gun] Update received ${formatted.display}`);
+
+      if (!counterEl) return;
+      if (Number.isFinite(formatted.numeric)) {
+        counterEl.textContent = String(formatted.numeric);
+        return;
       }
+
+      if (formatted.link) {
+        counterEl.textContent = 'Resolving…';
+        toolkit.read(counterPath)
+          .then(fresh => formatDisplayValue(fresh))
+          .then(nextFormatted => {
+            const safeValue = Number.isFinite(nextFormatted.numeric)
+              ? String(nextFormatted.numeric)
+              : nextFormatted.display;
+            counterEl.textContent = safeValue;
+            log(`[gun] Resolved linked value ${safeValue}`);
+          })
+          .catch(resolveError => {
+            counterEl.textContent = formatted.display;
+            log(`[gun] Failed to resolve link: ${resolveError?.message || resolveError}`);
+          });
+        return;
+      }
+
+      counterEl.textContent = formatted.display;
     });
 
     if (typeof window !== 'undefined') {
