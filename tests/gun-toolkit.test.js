@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createGunToolkit, ensureArray, omitMetaFields, searchSnapshot } from '../src/gun/toolkit.js';
+import { resolveGunFactory } from '../src/gun/adapter.js';
 
 function createStubGun({ initial = {}, env }) {
   const store = new Map(Object.entries(initial).map(([key, value]) => [key, value]));
@@ -79,6 +80,18 @@ test('ensureArray normalizes inputs', () => {
   assert.deepEqual(ensureArray('peer'), ['peer']);
   assert.deepEqual(ensureArray(['a', 'b']), ['a', 'b']);
   assert.deepEqual(ensureArray(undefined), []);
+});
+
+test('resolveGunFactory tolerates varied module shapes and globals', () => {
+  const factory = () => 'ok';
+  assert.equal(resolveGunFactory(factory), factory);
+  assert.equal(resolveGunFactory({ default: factory }), factory);
+  assert.equal(resolveGunFactory({ Gun: factory }), factory);
+  assert.equal(resolveGunFactory({ default: { Gun: factory } }), factory);
+
+  globalThis.window = { Gun: factory };
+  assert.equal(resolveGunFactory({ something: 'else' }), factory);
+  delete globalThis.window;
 });
 
 test('omitMetaFields strips Gun metadata while preserving fields', () => {
