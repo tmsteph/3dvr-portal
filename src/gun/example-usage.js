@@ -1,7 +1,6 @@
 // src/gun/example-usage.js
 // Minimal counter demo so every environment can confirm relay reads/writes are synced.
-import { createGun } from './adapter.js';
-import { getEnvInfo } from './env.js';
+import { createGunToolkit, omitMetaFields } from './toolkit.js';
 
 function getElement(id) {
   if (typeof document === 'undefined') return null;
@@ -37,9 +36,34 @@ function makeLogger(container) {
   };
 }
 
-(async () => {
-  const { ROOT, PR, isVercelPreview } = getEnvInfo();
+function extractCounterValue(raw) {
+  const cleaned = omitMetaFields(raw);
+  if (cleaned && typeof cleaned === 'object' && 'value' in cleaned) {
+    return cleaned.value;
+  }
+  return cleaned;
+}
 
+function findLink(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (typeof value['#'] === 'string') return value['#'];
+  for (const child of Object.values(value)) {
+    const link = findLink(child);
+    if (link) return link;
+  }
+  return null;
+}
+
+function formatDisplayValue(value) {
+  const resolved = extractCounterValue(value);
+  const display = typeof resolved === 'object'
+    ? JSON.stringify(resolved)
+    : String(resolved ?? '—');
+  const numeric = Number(resolved);
+  return { resolved, display, numeric, link: findLink(value) };
+}
+
+(async () => {
   const counterEl = getElement('counter');
   const statusEl = getElement('gun-demo-status');
   const logEl = getElement('gun-demo-log');
@@ -52,23 +76,28 @@ function makeLogger(container) {
   }
 
   try {
-    log(`[env] Root ${ROOT} | preview: ${isVercelPreview}`);
-    writeStatus('Connecting to Gun relay…');
+    const toolkit = await createGunToolkit();
 
-    const { path, put, sub, once } = await createGun();
+    toolkit.status.onStatus(payload => {
+      log(`[status] ${payload.status} ${JSON.stringify(payload.detail)}`);
+    });
 
-    log('[gun] Relay module loaded');
+    toolkit.peers.onChange(peers => {
+      const states = peers.map(peer => `${peer.peer} (${peer.state})`).join(', ');
+      log(`[peers] ${states || '—'}`);
+    });
 
-    // Gun graph layout: root -> demo -> counter -> {PR}. Each PR gets an isolated counter node.
-    const counter = path('demo', 'counter', PR);
-    log(`[gun] Path demo/counter/${PR}`);
+    const counterPath = ['demo', 'counter', toolkit.env.PR];
+    const counter = toolkit.path(...counterPath);
+    log(`[gun] Path demo/counter/${toolkit.env.PR}`);
 
-    const currentRaw = await once(counter);
-    const current = Number(currentRaw) || 0;
+    const currentRaw = await toolkit.read(counterPath);
+    const currentValue = extractCounterValue(currentRaw);
+    const current = Number(currentValue) || 0;
     log(`[gun] Current value ${current}`);
 
     const nextValue = Number(current) + 1;
-    await put(counter, nextValue);
+    await toolkit.write(counterPath, { value: nextValue, updatedAt: new Date().toISOString() });
     log(`[gun] Wrote value ${nextValue}`);
 
     if (counterEl) {
@@ -76,21 +105,47 @@ function makeLogger(container) {
     }
     writeStatus('Connected and listening', 'success');
 
-    const unsubscribe = sub(counter, value => {
-      const numericValue = Number(value);
-      const displayValue = Number.isFinite(numericValue) ? numericValue : value;
-      log(`[gun] Update received ${JSON.stringify({ value: displayValue })}`);
-      if (counterEl) {
-        counterEl.textContent = Number.isFinite(numericValue)
-          ? String(numericValue)
-          : String(displayValue ?? '—');
+    const unsubscribe = toolkit.listen(counter, value => {
+      const formatted = formatDisplayValue(value);
+      log(`[gun] Update received ${formatted.display}`);
+
+      if (!counterEl) return;
+      if (Number.isFinite(formatted.numeric)) {
+        counterEl.textContent = String(formatted.numeric);
+        return;
       }
+
+      if (formatted.link) {
+        counterEl.textContent = 'Resolving…';
+        toolkit.read(counterPath)
+          .then(fresh => formatDisplayValue(fresh))
+          .then(nextFormatted => {
+            const safeValue = Number.isFinite(nextFormatted.numeric)
+              ? String(nextFormatted.numeric)
+              : nextFormatted.display;
+            counterEl.textContent = safeValue;
+            log(`[gun] Resolved linked value ${safeValue}`);
+          })
+          .catch(resolveError => {
+            counterEl.textContent = formatted.display;
+            log(`[gun] Failed to resolve link: ${resolveError?.message || resolveError}`);
+          });
+        return;
+      }
+
+      counterEl.textContent = formatted.display;
     });
 
-    // Expose an escape hatch so previews can manually stop listening if needed.
     if (typeof window !== 'undefined') {
       window.__gunDemoOff = unsubscribe;
+      window.__gunToolkit = toolkit;
     }
+
+    const backup = await toolkit.backup.capture(counterPath);
+    const keyCount = backup.data && typeof backup.data === 'object'
+      ? Object.keys(backup.data).length
+      : 0;
+    log(`[backup] captured depth=${backup.depth} keys=${keyCount}`);
   } catch (error) {
     console.error('[gun] counter demo failed', error);
     log(`[error] ${error?.message || error}`);
