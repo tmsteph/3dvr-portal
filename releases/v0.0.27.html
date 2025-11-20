@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.27 (Week of November 28, 2025)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.26.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.27</h1>
+  <div class="tag">Week of November 28, 2025</div>
+  <p class="release-summary">
+    Prepping Friday's drop with sturdier finance sync, clearer Gun compatibility checks, and experiments for photo
+    storage plus simultaneous YouTube playback at <a href="https://tmsteph.com" target="_blank" rel="noreferrer">tmsteph.com</a>.
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      This week's commits focus on reliability and experimentation. The finance workspace now re-establishes GunJS
+      connections automatically when storage or module issues arise, while compatibility diagnostics surface clearer
+      context for contributors working on new browsers or build targets. We're also opening up an experimental photo
+      storage lane and a synchronized YouTube playback experience you can try directly on the public portal.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Finance Resilience</h2>
+    <ul>
+      <li>Retry Gun initialization and refresh the page when a connection becomes available so finance data can resync
+      without manual intervention.</li>
+      <li>Handle Chrome storage blocking scenarios by shifting initialization logic and keeping sync paths consistent
+      with the broader portal standard.</li>
+      <li>Align the finance database wiring with the shared storage pattern to keep account entries portable across
+      sessions.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Gun Compatibility &amp; Diagnostics</h2>
+    <ul>
+      <li>Harden Gun adapter imports so varied module shapes still resolve cleanly when tests run across environments.</li>
+      <li>Improve compat page logging and counter displays to reflect linked updates more accurately.</li>
+      <li>Clarify the Gun demo with cleaner output so new contributors can verify connectivity at a glance.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Experiments to Try</h2>
+    <ul>
+      <li>Explore experimental photo storage flows available on <a href="https://tmsteph.com" target="_blank" rel="noreferrer">tmsteph.com</a>, sharing early
+      feedback on upload performance and retrieval speed.</li>
+      <li>Test synchronized YouTube playback on the same site to validate multi-stream controls and latency handling
+      before rolling it into the main portal surfaces.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2025 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
