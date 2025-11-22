@@ -1,7 +1,7 @@
 /* service-worker.js */
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v9';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 
@@ -15,7 +15,14 @@ const STATIC_ASSETS = [
   '/style.css?v=notes-refresh-20240204',
   '/navbar.js',
   '/score.js',
+  '/pwa-install.js',
+  '/styles/install-banner.css',
   '/manifest.webmanifest',
+  '/app-manifests/chat.webmanifest',
+  '/app-manifests/tasks.webmanifest',
+  '/app-manifests/notes.webmanifest',
+  '/app-manifests/calendar.webmanifest',
+  '/app-manifests/contacts.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/maskable-512.png'

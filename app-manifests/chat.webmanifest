@@ -1,0 +1,15 @@
+{
+  "name": "3DVR Chat",
+  "short_name": "Chat",
+  "description": "Join realtime conversations with the 3DVR community.",
+  "start_url": "/chat.html?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
