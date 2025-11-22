@@ -58,6 +58,18 @@ The portal is live and hosted at:
 
 You can sign up, join the chat, and start contributing right now — no downloads or installs required.
 
+### Install individual apps
+
+Most of the portal experiences now ship with their own installable manifests, so you can add just the tools you need as standalones on your device:
+
+- [Tasks](https://3dvr-portal.vercel.app/tasks.html)
+- [Notes](https://3dvr-portal.vercel.app/notes/)
+- [Chat](https://3dvr-portal.vercel.app/chat.html)
+- [Calendar Hub](https://3dvr-portal.vercel.app/calendar/)
+- [Contacts](https://3dvr-portal.vercel.app/contacts/)
+
+Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
+
 ### Brave browser setup
 
 Brave shields can block realtime sync. Click the 🛡️ icon and either turn Shields off for `portal.3dvr.tech` and `relay.3dvr.tech`, or set **Cross-site cookies** to *Allow* and **Fingerprinting** to *Standard*. Use a regular window (not Tor or private mode) for the most reliable GunJS connection.
