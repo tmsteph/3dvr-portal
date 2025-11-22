@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenAI Workbench</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+</head>
+<body>
+  <div class="top-buttons">
+    <a href="../index.html">🏠 Portal</a>
+    <a href="../notes/">📝 Shared Notes</a>
+    <a href="../tasks.html">✅ Task Board</a>
+    <a href="../games.html">🎮 Mini Games</a>
+    <a href="https://3dvr.tech/#subscribe" target="_blank">⭐ Subscribe</a>
+    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
+  </div>
+
+  <main>
+    <header>
+      <p class="eyebrow">AI co-pilot</p>
+      <h1>OpenAI Workbench</h1>
+      <p class="lede">Bring your own OpenAI API key, chat with GPT-4o, and share transcripts through GunDB.</p>
+    </header>
+
+    <section class="card" id="api-key-panel" aria-label="API key configuration">
+      <div class="card-header">
+        <h2>Bring your own key</h2>
+        <p class="meta">Keys stay in your browser; prompts and responses sync to GunDB so teams can reuse what worked.</p>
+      </div>
+      <label for="api-key">OpenAI API key</label>
+      <div class="input-row">
+        <input type="password" id="api-key" placeholder="sk-..." aria-describedby="api-key-help">
+        <button id="save-key" class="primary">Save</button>
+        <button id="clear-key" class="ghost">Clear</button>
+      </div>
+      <p id="api-key-help" class="meta">Stored only in localStorage on this device.</p>
+    </section>
+
+    <section class="grid">
+      <section class="card" id="chat-panel" aria-label="Chat controls">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Compose</p>
+            <h2>Chat with Codex</h2>
+            <p class="meta">Pick a model, type a prompt, and stream the reply into the shared history.</p>
+          </div>
+          <label class="select-group" for="model-select">
+            <span>Model</span>
+            <select id="model-select">
+              <option value="gpt-4o" selected>gpt-4o</option>
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+            </select>
+          </label>
+        </div>
+
+        <label for="message">Your prompt</label>
+        <textarea id="message" placeholder="Ask for code, content, or portal edits..." rows="4"></textarea>
+        <button id="submit-btn" class="primary">Send to OpenAI</button>
+
+        <label for="output">Assistant response</label>
+        <div id="output" class="output">Waiting for response...</div>
+      </section>
+
+      <section class="card" id="preview-panel" aria-label="Live preview">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Prototype</p>
+            <h2>Live preview</h2>
+            <p class="meta">Apply HTML/CSS answers in a sandbox to test ideas before committing them.</p>
+          </div>
+          <button id="apply-preview" class="ghost">Apply response</button>
+        </div>
+        <iframe id="response-preview" title="AI response preview" sandbox="">
+          Your browser does not support iframes.
+        </iframe>
+      </section>
+    </section>
+
+    <section class="card" id="history-panel" aria-label="Shared transcript">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Reuse</p>
+          <h2>Shared transcript</h2>
+          <p class="meta">Entries are stored at <code>ai/workbench/&lt;sessionId&gt;</code> in Gun so teammates can find successful prompts.</p>
+        </div>
+      </div>
+      <ul id="history"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
