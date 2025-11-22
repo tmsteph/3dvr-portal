@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Lab · 3DVR Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="page">
+      <nav class="top-nav" aria-label="Science lab navigation">
+        <a class="brand" href="/">
+          <span class="brand__mark" aria-hidden="true">🧪</span>
+          <span class="brand__label">
+            <span class="brand__title">Science Lab</span>
+            <span class="brand__subtitle">Evidence to VR</span>
+          </span>
+        </a>
+        <div class="top-actions">
+          <a class="button" href="/notes/">Open shared notes</a>
+          <a class="button" href="/education.html">Protocols</a>
+          <a class="button button--primary" href="/">Back to portal</a>
+        </div>
+      </nav>
+
+      <section class="hero" aria-labelledby="science-hero-title">
+        <p class="hero__eyebrow">Applied research</p>
+        <h1 class="hero__title" id="science-hero-title">Run experiments and turn signals into 3DVR tools</h1>
+        <p class="hero__lede">
+          Design evidence loops, sync sensor telemetry through shared Gun relays, and export simulation-ready playbooks so
+          every experiment moves the portal forward.
+        </p>
+        <div class="hero__actions">
+          <a class="button button--primary" href="/notes/">Log an experiment</a>
+          <a class="button" href="/tasks.html">Assign reviewers</a>
+          <div class="hero__meta" aria-label="Key lab routes">
+            <span class="badge">Gun data: science.labs</span>
+            <span class="badge">VR ready exports</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="science-focus-title">
+        <div class="section-heading">
+          <p class="hero__eyebrow">Focus areas</p>
+          <h2 id="science-focus-title">Where the lab speeds up 3DVR delivery</h2>
+          <p>Capture signals, standardize protocols, and iterate on VR playbooks together.</p>
+        </div>
+        <div class="grid" role="list">
+          <article class="card" role="listitem" aria-labelledby="card-evidence-title">
+            <div class="card__icon" aria-hidden="true">🧬</div>
+            <div>
+              <h3 id="card-evidence-title">Evidence loops</h3>
+              <p>Draft hypotheses, publish quick tests, and keep observations synced across devices.</p>
+              <ul>
+                <li>Store methods, controls, and outcomes inside shared Gun nodes.</li>
+                <li>Tag sessions with teammates so reviews and replications are tracked automatically.</li>
+                <li>Link results to VR prototypes to validate comfort and flow.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="card" role="listitem" aria-labelledby="card-sensing-title">
+            <div class="card__icon" aria-hidden="true">📡</div>
+            <div>
+              <h3 id="card-sensing-title">Sensing &amp; telemetry</h3>
+              <p>Mirror wearables, breathwork, or controller data inside collaborative dashboards.</p>
+              <ul>
+                <li>Stream time-series checkpoints into <code>gun.get('science').get('signals')</code>.</li>
+                <li>Compare pre/post metrics for movement, focus, and calm.</li>
+                <li>Map thresholds to rewards so healthy habits unlock in-portal boosts.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="card" role="listitem" aria-labelledby="card-simulation-title">
+            <div class="card__icon" aria-hidden="true">🛰️</div>
+            <div>
+              <h3 id="card-simulation-title">Simulation to production</h3>
+              <p>Translate findings into VR-ready interactions with safety and ergonomics baked in.</p>
+              <ul>
+                <li>Prototype interaction patterns, then export shared playbooks for builders.</li>
+                <li>Attach safety and comfort checks to every experimental branch.</li>
+                <li>Publish reference data so teams can remix proven flows quickly.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="workflow-title">
+        <div class="section-heading">
+          <p class="hero__eyebrow">Workflow</p>
+          <h2 id="workflow-title">From idea to VR deployment</h2>
+          <p>Follow a repeatable cycle that keeps science paired with production builds.</p>
+        </div>
+        <div class="timeline" role="list">
+          <div class="timeline__step" role="listitem">
+            <span class="timeline__label">1 · Plan</span>
+            <p>Log hypotheses and protocols in notes, then route approvals through tasks.</p>
+          </div>
+          <div class="timeline__step" role="listitem">
+            <span class="timeline__label">2 · Run</span>
+            <p>Collect sensor snapshots in <code>gun.get('science').get('runs')</code> for cross-session review.</p>
+          </div>
+          <div class="timeline__step" role="listitem">
+            <span class="timeline__label">3 · Sync</span>
+            <p>Compare cohorts, annotate anomalies, and mark replications as they land from relays.</p>
+          </div>
+          <div class="timeline__step" role="listitem">
+            <span class="timeline__label">4 · Ship</span>
+            <p>Export validated playbooks and share them with builders shipping the next VR features.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="resources-title">
+        <div class="section-heading">
+          <p class="hero__eyebrow">Shared resources</p>
+          <h2 id="resources-title">Jump to the tools that keep experiments moving</h2>
+        </div>
+        <div class="resource-links">
+          <a class="resource" href="/notes/">
+            <div class="resource__title">
+              <span>Notes</span>
+              <span>Protocols, observations, and replication checklists</span>
+            </div>
+            <span aria-hidden="true">↗</span>
+          </a>
+          <a class="resource" href="/tasks.html">
+            <div class="resource__title">
+              <span>Tasks</span>
+              <span>Assign reviewers, track runs, and close out branches</span>
+            </div>
+            <span aria-hidden="true">↗</span>
+          </a>
+          <a class="resource" href="/education.html">
+            <div class="resource__title">
+              <span>Protocols</span>
+              <span>Shared playbooks for sensing, analysis, and VR safety</span>
+            </div>
+            <span aria-hidden="true">↗</span>
+          </a>
+          <a class="resource" href="/games.html">
+            <div class="resource__title">
+              <span>Rewards</span>
+              <span>Connect validated metrics to bonuses inside the portal</span>
+            </div>
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </section>
+
+      <footer class="footer" aria-label="Science lab footer">
+        Keep experiments synced in Gun, keep exports VR-ready, and keep the portal evolving together.
+      </footer>
+    </main>
+  </body>
+</html>
