@@ -6,7 +6,9 @@
   <title>📝 3DVR Notes</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
+  <script src="/pwa-install.js" defer></script>
   <link rel="stylesheet" href="../style.css?v=notes-refresh-20240204">
+  <link rel="stylesheet" href="/styles/install-banner.css">
   <link rel="manifest" href="/app-manifests/notes.webmanifest">
   <meta name="theme-color" content="#0e1116">
 </head>
@@ -21,6 +23,14 @@
       <a href="../profile.html">👤 Profile</a>
     </div>
     <div style="font-size: 0.9rem;">3DVR Portal</div>
+  </div>
+
+  <div class="install-banner" data-install-banner hidden>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Install Notes</p>
+      <p class="install-banner__meta">Access your shared notes offline with a single tap.</p>
+    </div>
+    <button type="button" class="install-banner__action" data-install-button>Install app</button>
   </div>
 
   <div class="notes-shell">

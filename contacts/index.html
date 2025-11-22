@@ -11,7 +11,9 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
   <script src="../score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/pwa-install.js" defer></script>
   <meta name="color-scheme" content="dark light">
+  <link rel="stylesheet" href="/styles/install-banner.css">
   <link rel="manifest" href="/app-manifests/contacts.webmanifest">
   <meta name="theme-color" content="#0e1116">
 </head>
@@ -39,10 +41,18 @@
   >
     <div class="flex flex-col leading-tight">
       <span id="floatingIdentityName" class="font-semibold">👤 Guest</span>
-      <span id="floatingIdentityScore" class="text-xs text-teal-300">⭐ 0</span>
+    <span id="floatingIdentityScore" class="text-xs text-teal-300">⭐ 0</span>
     </div>
     <span class="text-xs text-gray-300">Profile →</span>
   </a>
+
+  <div class="install-banner" data-install-banner hidden>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Install Contacts</p>
+      <p class="install-banner__meta">Open your Rolodex instantly and sync updates even when offline.</p>
+    </div>
+    <button type="button" class="install-banner__action" data-install-button>Install app</button>
+  </div>
 
   <div id="syncStatus" class="max-w-6xl mx-auto px-4 pt-3 text-sm text-amber-300 hidden">
     Changes pending sync. They'll upload automatically when online.

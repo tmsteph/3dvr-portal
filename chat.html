@@ -8,8 +8,10 @@
   <script src="gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="score.js"></script>
+  <script src="/pwa-install.js" defer></script>
   <link rel="stylesheet" href="styles/global.css">
   <link rel="stylesheet" href="styles/chat.css">
+  <link rel="stylesheet" href="/styles/install-banner.css">
   <link rel="manifest" href="/app-manifests/chat.webmanifest">
   <meta name="theme-color" content="#0e1116">
 </head>
@@ -36,6 +38,14 @@
     <a href="profile.html">🧑 Profile</a>
     <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
     <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 Contribute on GitHub</a>
+  </div>
+
+  <div class="install-banner" data-install-banner hidden>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Install Chat</p>
+      <p class="install-banner__meta">Pin the community hub to your dock and stay connected offline.</p>
+    </div>
+    <button type="button" class="install-banner__action" data-install-button>Install app</button>
   </div>
 
   <main id="chatMain" class="chat-shell" aria-labelledby="chatTitle">

@@ -9,8 +9,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles/global.css">
   <link rel="stylesheet" href="/calendar/calendar.css">
+  <link rel="stylesheet" href="/styles/install-banner.css">
   <link rel="manifest" href="/app-manifests/calendar.webmanifest">
   <meta name="theme-color" content="#0e1116">
+  <script src="/pwa-install.js" defer></script>
 </head>
 <body>
   <header class="calendar-header">
@@ -21,6 +23,14 @@
       syncs to Google or Outlook when you need them.
     </p>
   </header>
+
+  <div class="install-banner" data-install-banner hidden>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Install Calendar Hub</p>
+      <p class="install-banner__meta">Open your schedule instantly and keep entries available offline.</p>
+    </div>
+    <button type="button" class="install-banner__action" data-install-button>Install app</button>
+  </div>
 
   <main class="calendar-shell">
     <section class="panel" aria-labelledby="local-calendar-title">
