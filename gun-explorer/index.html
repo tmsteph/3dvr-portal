@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GunJS Explorer · 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./app.css">
+</head>
+<body class="theme-dark">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <main id="mainContent" aria-labelledby="explorer-title">
+    <header>
+      <p class="status-label">GunJS utilities</p>
+      <h1 id="explorer-title">Gun Database Explorer</h1>
+      <p>
+        Inspect any Gun node, follow live updates, and capture snapshots for quick debugging.
+        Each path is relative to the Gun root shown below so previews and production stay isolated.
+      </p>
+    </header>
+
+    <div class="status-grid" role="status" aria-live="polite">
+      <div class="card">
+        <h2>Connection</h2>
+        <div id="explorer-status" class="status-value">Preparing connection…</div>
+      </div>
+      <div class="card">
+        <h2>Root namespace</h2>
+        <div class="status-value" id="root-label">Loading…</div>
+      </div>
+    </div>
+
+    <form id="path-form" class="card" aria-label="Gun node selection">
+      <h2>Pick a node</h2>
+      <div class="form-row">
+        <div>
+          <label for="node-path">Node path (slash separated)</label>
+          <input id="node-path" type="text" name="node-path" autocomplete="off" placeholder="demo/counter/dev" required>
+        </div>
+        <div>
+          <label for="depth">Snapshot depth</label>
+          <input id="depth" type="number" name="depth" min="1" max="6" value="3">
+        </div>
+        <button type="submit">Capture snapshot</button>
+        <label class="toggle" for="live-toggle">
+          <input id="live-toggle" type="checkbox" name="live-toggle"> Listen live
+        </label>
+      </div>
+      <p class="muted">Snapshots use Gun as the source of truth and automatically strip meta fields for readability.</p>
+    </form>
+
+    <div class="panels" aria-live="polite" aria-atomic="false">
+      <section class="card" aria-labelledby="live-data-title">
+        <h2 id="live-data-title">Live updates</h2>
+        <pre id="live-data" class="log-area" aria-live="polite">Live listener paused.</pre>
+      </section>
+      <section class="card" aria-labelledby="snapshot-meta-title">
+        <h2 id="snapshot-meta-title">Snapshot details</h2>
+        <ul id="snapshot-meta" class="meta-list"></ul>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="snapshot-title">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 id="snapshot-title" style="margin: 0;">Snapshot data</h2>
+        <div class="search-area">
+          <label for="search" style="margin: 0;">Search snapshot</label>
+          <input id="search" type="search" name="search" placeholder="key, value, or path fragment">
+        </div>
+      </div>
+      <pre id="snapshot-data" class="log-area" aria-live="polite">No snapshot captured yet.</pre>
+      <div id="search-results" class="search-area" aria-live="polite"></div>
+    </section>
+
+    <section class="card" aria-labelledby="peer-title">
+      <h2 id="peer-title">Peer signals</h2>
+      <ul id="peer-list" class="peer-list">
+        <li><span class="label">Waiting for peer updates…</span></li>
+      </ul>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
