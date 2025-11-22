@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GunJS Explorer · 3DVR Portal</title>
+  <link rel="stylesheet" href="styles/global.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: #e8edf5;
+      background: radial-gradient(circle at 20% -10%, rgba(56, 189, 248, 0.15), transparent 35%),
+        radial-gradient(circle at 85% 10%, rgba(94, 234, 212, 0.15), transparent 35%),
+        #0b1220;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 16px;
+      background: #0e1116;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: top 0.2s ease;
+      z-index: 1000;
+    }
+
+    .skip-link:focus {
+      top: 16px;
+    }
+
+    main {
+      width: min(1100px, 94vw);
+      margin: 48px auto;
+      background: rgba(12, 17, 28, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 24px 48px rgba(3, 6, 12, 0.4);
+      backdrop-filter: blur(18px);
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 4vw, 3rem);
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 0;
+      color: rgba(232, 237, 245, 0.8);
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 28px 0;
+    }
+
+    .card {
+      background: rgba(14, 18, 30, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1.1rem;
+      letter-spacing: 0.01em;
+    }
+
+    .status-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #e8edf5;
+    }
+
+    .status-value[data-state="error"] {
+      color: #ffb4c0;
+    }
+
+    .status-value[data-state="success"] {
+      color: #7fffd4;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1.2fr 0.3fr auto auto;
+      gap: 12px;
+      align-items: end;
+      margin-top: 12px;
+    }
+
+    label {
+      font-weight: 600;
+      color: rgba(232, 237, 245, 0.9);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="search"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(13, 17, 26, 0.9);
+      color: #e8edf5;
+      font-size: 1rem;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="search"]:focus {
+      outline: 2px solid rgba(125, 255, 212, 0.35);
+      outline-offset: 1px;
+    }
+
+    button,
+    .toggle {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: linear-gradient(120deg, rgba(94, 234, 212, 0.18), rgba(56, 189, 248, 0.18));
+      color: #0b1220;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    button:hover,
+    .toggle:hover,
+    button:focus-visible,
+    .toggle:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(94, 234, 212, 0.25);
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(125, 255, 212, 0.15);
+    }
+
+    .toggle input {
+      width: auto;
+      accent-color: #7fffd4;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    ul.meta-list,
+    ul.peer-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    ul.meta-list li,
+    ul.peer-list li {
+      display: flex;
+      flex-direction: column;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(10, 14, 24, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .label {
+      font-size: 0.9rem;
+      color: rgba(232, 237, 245, 0.7);
+    }
+
+    .value,
+    .peer-label {
+      font-weight: 700;
+      color: #e8edf5;
+    }
+
+    .peer-meta {
+      color: rgba(232, 237, 245, 0.65);
+      font-size: 0.95rem;
+    }
+
+    .log-area {
+      background: rgba(7, 10, 18, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 14px;
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      max-height: 320px;
+      overflow: auto;
+      color: #e8edf5;
+    }
+
+    .search-area {
+      margin-top: 16px;
+    }
+
+    .results-list {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .results-list li {
+      background: rgba(8, 12, 20, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .result-path {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #7fffd4;
+      word-break: break-word;
+    }
+
+    .result-value {
+      margin: 0;
+      background: rgba(6, 9, 16, 0.8);
+      border-radius: 8px;
+      padding: 10px;
+      overflow-x: auto;
+    }
+
+    .muted {
+      color: rgba(232, 237, 245, 0.65);
+      margin: 0;
+    }
+
+    @media (max-width: 720px) {
+      main {
+        padding: 24px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      button,
+      .toggle {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+  <script>
+    const prNumber = '{{PR_NUMBER}}';
+    const relayUrl = '{{WSS_RELAY_URL}}';
+    if (typeof window !== 'undefined') {
+      if (!prNumber.includes('{{')) {
+        window.__PR_NUMBER__ = prNumber;
+      }
+      if (!relayUrl.includes('{{')) {
+        window.__GUN_RELAY__ = relayUrl;
+      }
+      window.__APP_NAME__ = window.__APP_NAME__ || '3dvr-tech';
+    }
+  </script>
+</head>
+<body class="theme-dark">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <main id="mainContent" aria-labelledby="explorer-title">
+    <header>
+      <p class="status-label">GunJS utilities</p>
+      <h1 id="explorer-title">Gun Database Explorer</h1>
+      <p>
+        Inspect any Gun node, follow live updates, and capture snapshots for quick debugging.
+        Each path is relative to the Gun root shown below so previews and production stay isolated.
+      </p>
+    </header>
+
+    <div class="status-grid" role="status" aria-live="polite">
+      <div class="card">
+        <h2>Connection</h2>
+        <div id="explorer-status" class="status-value">Preparing connection…</div>
+      </div>
+      <div class="card">
+        <h2>Root namespace</h2>
+        <div class="status-value" id="root-label">Loading…</div>
+      </div>
+    </div>
+
+    <form id="path-form" class="card" aria-label="Gun node selection">
+      <h2>Pick a node</h2>
+      <div class="form-row">
+        <div>
+          <label for="node-path">Node path (slash separated)</label>
+          <input id="node-path" type="text" name="node-path" autocomplete="off" placeholder="demo/counter/dev" required>
+        </div>
+        <div>
+          <label for="depth">Snapshot depth</label>
+          <input id="depth" type="number" name="depth" min="1" max="6" value="3">
+        </div>
+        <button type="submit">Capture snapshot</button>
+        <label class="toggle" for="live-toggle">
+          <input id="live-toggle" type="checkbox" name="live-toggle"> Listen live
+        </label>
+      </div>
+      <p class="muted">Snapshots use Gun as the source of truth and automatically strip meta fields for readability.</p>
+    </form>
+
+    <div class="panels" aria-live="polite" aria-atomic="false">
+      <section class="card" aria-labelledby="live-data-title">
+        <h2 id="live-data-title">Live updates</h2>
+        <pre id="live-data" class="log-area" aria-live="polite">Live listener paused.</pre>
+      </section>
+      <section class="card" aria-labelledby="snapshot-meta-title">
+        <h2 id="snapshot-meta-title">Snapshot details</h2>
+        <ul id="snapshot-meta" class="meta-list"></ul>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="snapshot-title">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 id="snapshot-title" style="margin: 0;">Snapshot data</h2>
+        <div class="search-area">
+          <label for="search" style="margin: 0;">Search snapshot</label>
+          <input id="search" type="search" name="search" placeholder="key, value, or path fragment">
+        </div>
+      </div>
+      <pre id="snapshot-data" class="log-area" aria-live="polite">No snapshot captured yet.</pre>
+      <div id="search-results" class="search-area" aria-live="polite"></div>
+    </section>
+
+    <section class="card" aria-labelledby="peer-title">
+      <h2 id="peer-title">Peer signals</h2>
+      <ul id="peer-list" class="peer-list">
+        <li><span class="label">Waiting for peer updates…</span></li>
+      </ul>
+    </section>
+  </main>
+
+  <script type="module" src="/src/gun/explorer.js"></script>
+</body>
+</html>
