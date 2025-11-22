@@ -116,6 +116,58 @@
           <p id="payables-empty" class="finance-ledger__empty">No payables yet. Log a payment schedule to get started.</p>
         </div>
       </div>
+
+      <div class="finance-card finance-card--form" aria-labelledby="eth-pay-title">
+        <div class="finance-card__header">
+          <h2 id="eth-pay-title" class="finance-card__title">Ethereum payments</h2>
+          <p class="finance-card__subhead">MetaMask ready</p>
+        </div>
+
+        <div class="eth-panel">
+          <p id="eth-status" class="eth-status" role="status">MetaMask not detected yet.</p>
+
+          <div class="eth-connection">
+            <button type="button" id="eth-connect" class="finance-button">Connect MetaMask</button>
+            <div class="eth-connection__details" aria-live="polite">
+              <div>
+                <span class="eth-label">Account</span>
+                <span id="eth-account" class="eth-value">Not connected</span>
+              </div>
+              <div>
+                <span class="eth-label">Network</span>
+                <span id="eth-network" class="eth-value">Unknown</span>
+              </div>
+            </div>
+          </div>
+
+          <form id="eth-payment-form" class="finance-form" autocomplete="off" novalidate>
+            <div class="finance-form__grid">
+              <label class="finance-field">
+                <span class="finance-field__label">Destination wallet</span>
+                <input id="eth-destination" name="ethDestination" type="text" placeholder="0x..." spellcheck="false" required />
+              </label>
+              <label class="finance-field">
+                <span class="finance-field__label">Amount (ETH)</span>
+                <input id="eth-amount" name="ethAmount" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.05" required />
+              </label>
+            </div>
+            <label class="finance-field">
+              <span class="finance-field__label">Notes</span>
+              <textarea id="eth-note" name="ethNote" rows="2" placeholder="Invoice, project, or payable context"></textarea>
+            </label>
+            <button type="submit" class="finance-button finance-button--secondary">Send with MetaMask</button>
+            <p id="eth-message" class="eth-message" role="status" aria-live="polite"></p>
+          </form>
+
+          <div class="eth-log__header">
+            <h3 class="eth-log__title">Recent on-chain payments</h3>
+            <p class="eth-log__hint">Logged to the shared finance graph so the team sees your transfer immediately.</p>
+          </div>
+          <div id="eth-payment-log" class="eth-log" role="list">
+            <p id="eth-log-empty" class="finance-ledger__empty">No Ethereum payments logged yet.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
