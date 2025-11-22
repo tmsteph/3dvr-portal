@@ -97,7 +97,10 @@ origin or cookie sensitive.
 1. In your repository settings, add the following secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` (from the
    Vercel dashboard). Optional: set `VERCEL_DEV_ALIAS` to the `.vercel.app` or custom domain you want the workflow to point at
    (for example `dev-3dvr-portal.vercel.app`).
-2. Enable the "Vercel Dev Preview" workflow in GitHub Actions and trigger it with a push to `main` or `dev`, or run it manually
-   via **Run workflow**.
-3. Each run pulls preview env settings, builds the site, deploys a preview, and—if `VERCEL_DEV_ALIAS` is set—aliases that
-   deployment to the stable dev URL so you can reuse the same link across sessions and team members.
+2. Enable the "Vercel Dev Preview" workflow in GitHub Actions. It now runs on push to `main`/`dev`, pull requests targeting
+   those branches, and manual dispatch via **Run workflow**.
+3. Pull request runs always publish a preview URL so you can test before merging. To also alias that preview to your stable
+   dev URL from a manual run, set the `set_alias` input to `true` when triggering the workflow. Pushes to `main`/`dev` alias
+   automatically when `VERCEL_DEV_ALIAS` is configured.
+4. Each run pulls preview env settings, builds the site, deploys a preview, and—if aliasing is enabled—points the stable dev
+   URL at the new preview so you can reuse the same link across sessions and team members.
