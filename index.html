@@ -193,10 +193,20 @@
             <span class="app-card__title">Meditation</span>
             <span class="app-card__meta">Jump into the breathing room for guided calming cycles.</span>
           </a>
+          <a href="meeting-notes/index.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🗒️</span>
+            <span class="app-card__title">Meetings</span>
+            <span class="app-card__meta">Take attendance and capture collaborative notes.</span>
+          </a>
           <a href="notes/" class="app-card">
             <span class="app-card__icon" aria-hidden="true">📝</span>
             <span class="app-card__title">Notes</span>
             <span class="app-card__meta">Collaborate in real time with the community.</span>
+          </a>
+          <a href="openai-app/index.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🤖</span>
+            <span class="app-card__title">OpenAI Workbench</span>
+            <span class="app-card__meta">Bring your own key to chat with GPT-4o and share prompts via Gun.</span>
           </a>
           <a href="profile.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">👤</span>
@@ -217,6 +227,11 @@
             <span class="app-card__icon" aria-hidden="true">💼</span>
             <span class="app-card__title">Sales</span>
             <span class="app-card__meta">Navigate playbooks, training, and launch kits.</span>
+          </a>
+          <a href="science/" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🧪</span>
+            <span class="app-card__title">Science Lab</span>
+            <span class="app-card__meta">Run experiments, track signals, and publish VR-ready findings.</span>
           </a>
           <a href="website-builder.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🛠️</span>
@@ -1001,12 +1016,32 @@
     );
     const searchInput =
       searchContainer?.querySelector('[data-app-search-input]') ?? null;
-    const appCards = Array.from(document.querySelectorAll('.app-card'));
+    let appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
     const searchTriggers = Array.from(
       document.querySelectorAll('[data-app-search-trigger]')
     );
     const appGrid = document.querySelector('.app-grid');
+    if (appGrid && appCards.length > 0) {
+      const sortedCards = [...appCards].sort((a, b) => {
+        const aTitle = a
+          .querySelector('.app-card__title')
+          ?.textContent?.toLowerCase()
+          .trim();
+        const bTitle = b
+          .querySelector('.app-card__title')
+          ?.textContent?.toLowerCase()
+          .trim();
+
+        return (aTitle ?? '').localeCompare(bTitle ?? '');
+      });
+
+      sortedCards.forEach((card) => {
+        appGrid.appendChild(card);
+      });
+
+      appCards = sortedCards;
+    }
     const prefersReducedMotionQuery =
       typeof window.matchMedia === 'function'
         ? window.matchMedia('(prefers-reduced-motion: reduce)')
