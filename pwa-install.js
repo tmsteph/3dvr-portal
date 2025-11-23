@@ -3,6 +3,20 @@
   const installButton = installBanner?.querySelector('[data-install-button]');
   let deferredPrompt = null;
 
+  const registerServiceWorker = async () => {
+    if (!('serviceWorker' in navigator)) return null;
+
+    try {
+      const existingRegistration = await navigator.serviceWorker.getRegistration();
+      if (existingRegistration) return existingRegistration;
+
+      return navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
+    } catch (error) {
+      console.error('Service worker registration failed', error);
+      return null;
+    }
+  };
+
   if (!installBanner || !installButton) return;
 
   const isInstalled = () => {
@@ -20,6 +34,8 @@
     installBanner.classList.remove('is-hidden');
     installBanner.removeAttribute('hidden');
   };
+
+  registerServiceWorker();
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
