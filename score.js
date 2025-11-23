@@ -112,6 +112,63 @@
   const PORTAL_PUB_STATS_KEY = 'userStatsByPub';
   const USER_PUB_STORAGE_KEY = 'userPubKey';
 
+  function suppressBraveShieldPopups() {
+    if (typeof document === 'undefined' || typeof navigator === 'undefined') {
+      return;
+    }
+
+    const ua = navigator.userAgent || '';
+    const isTouch = typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1;
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua) || isTouch;
+    if (!isMobile) {
+      return;
+    }
+
+    const isBraveWarning = node => {
+      if (!node || typeof node.textContent !== 'string') {
+        return false;
+      }
+      const text = node.textContent.trim();
+      return /Brave Shields are blocking realtime sync/i.test(text)
+        || /Brave browser detected/i.test(text)
+        || /Brave diagnostic/i.test(text);
+    };
+
+    const pruneNode = node => {
+      if (!node || typeof node.remove !== 'function') {
+        return;
+      }
+      node.remove();
+    };
+
+    const scanDocument = () => {
+      document.querySelectorAll('body *').forEach(el => {
+        if (isBraveWarning(el)) {
+          pruneNode(el);
+        }
+      });
+    };
+
+    if (typeof MutationObserver === 'function') {
+      const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+          mutation.addedNodes?.forEach(node => {
+            if (isBraveWarning(node)) {
+              pruneNode(node);
+            }
+          });
+        });
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
+
+    scanDocument();
+  }
+
   function sanitizeScore(value) {
     const numeric = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(numeric)) return 0;
@@ -1054,6 +1111,14 @@
       }
       this._detachPortalAliasRealtime();
       this._detachPortalPubRealtime();
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', suppressBraveShieldPopups, { once: true });
+    } else {
+      suppressBraveShieldPopups();
     }
   }
 
