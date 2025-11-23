@@ -3,8 +3,15 @@
     if (!('serviceWorker' in navigator)) return null;
 
     try {
-      const existingRegistration = await navigator.serviceWorker.getRegistration();
-      if (existingRegistration) return existingRegistration;
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      const isExpectedWorker = registration?.active?.scriptURL?.endsWith('/service-worker.js');
+
+      if (isExpectedWorker) {
+        registration.update().catch((error) => {
+          console.warn('Service worker update skipped', error);
+        });
+        return registration;
+      }
 
       return navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
     } catch (error) {
