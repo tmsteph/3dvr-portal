@@ -1057,6 +1057,7 @@
     }
   }
 
+  // Brave shield popup suppression removed; rely on default browser behavior.
   const ScoreSystem = {
     sanitizeScore,
     ensureGuestIdentity,
