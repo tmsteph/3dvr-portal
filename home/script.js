@@ -84,7 +84,7 @@ const apps = {
     content: `
       <p>Quick commands to orchestrate your workflow.</p>
       <div class="command-grid">
-        <button class="button command" data-open-url="/tasks.html">Open Tasks</button>
+        <button class="button command" data-open-url="/tasks/">Open Tasks</button>
         <button class="button command" data-open-url="/calendar">View Calendar</button>
         <button class="button command" data-open-url="/chat.html">Join Chat</button>
         <button class="button command" data-open-url="/crm">CRM Tools</button>
