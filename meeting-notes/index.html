@@ -6,6 +6,13 @@
   <title>3DVR - Meeting Attendance & Notes</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
+  <script>
+    // Create a Gun instance for the meetings workspace so reads/writes persist across sessions and peers
+    window.gun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
+  </script>
   <link rel="stylesheet" href="/styles/global.css">
   <style>
     :root {
