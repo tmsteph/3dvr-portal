@@ -99,3 +99,20 @@ The new calendar prototype lives at `calendar/index.html`. To experiment with Go
 4. Use the **Create quick events** form to push meetings back to the connected provider.
 
 Tokens are stored in `localStorage` only, making it easy to iterate while you wire up a production-ready OAuth flow.
+
+### Automated dev deployments (GitHub + Vercel)
+
+Use the included GitHub Actions workflow to build and deploy a stable dev site on Vercel whenever you push to `main` or `dev`.
+This keeps preview testing on a predictable URL instead of a new random link every run, which helps debug features that are
+origin or cookie sensitive.
+
+1. In your repository settings, add the following secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` (from the
+   Vercel dashboard). Optional: set `VERCEL_DEV_ALIAS` to the `.vercel.app` or custom domain you want the workflow to point at
+   (for example `dev-3dvr-portal.vercel.app`).
+2. Enable the "Vercel Dev Preview" workflow in GitHub Actions. It now runs on push to `main`/`dev`, pull requests targeting
+   those branches, and manual dispatch via **Run workflow**.
+3. Pull request runs always publish a preview URL so you can test before merging. To also alias that preview to your stable
+   dev URL from a manual run, set the `set_alias` input to `true` when triggering the workflow. Pushes to `main`/`dev` alias
+   automatically when `VERCEL_DEV_ALIAS` is configured.
+4. Each run pulls preview env settings, builds the site, deploys a preview, and—if aliasing is enabled—points the stable dev
+   URL at the new preview so you can reuse the same link across sessions and team members.
