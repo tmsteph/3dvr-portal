@@ -1,0 +1,66 @@
+name: Vercel Dev Preview
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+    inputs:
+      set_alias:
+        description: 'Alias this deployment to the stable dev URL (uses VERCEL_DEV_ALIAS)'
+        required: false
+        default: 'false'
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_DEV_ALIAS: ${{ secrets.VERCEL_DEV_ALIAS }}
+
+jobs:
+  deploy-preview:
+    name: Deploy preview alias
+    runs-on: ubuntu-latest
+    if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
+    env:
+      SHOULD_ALIAS: ${{
+        (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')) ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.set_alias == 'true')
+      }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+
+      - name: Pull preview environment from Vercel
+        run: vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
+
+      - name: Build preview artifact
+        run: vercel build --token=$VERCEL_TOKEN
+
+      - name: Deploy preview artifact
+        id: deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt --target=preview --token=$VERCEL_TOKEN --yes)
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: $DEPLOY_URL"
+
+      - name: Alias deployment to stable dev URL
+        if: ${{ env.VERCEL_DEV_ALIAS != '' && env.SHOULD_ALIAS == 'true' }}
+        run: vercel alias set ${{ steps.deploy.outputs.url }} $VERCEL_DEV_ALIAS --token=$VERCEL_TOKEN
