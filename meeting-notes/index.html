@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR - Meeting Attendance & Notes</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <link rel="stylesheet" href="/styles/global.css">
+  <style>
+    :root {
+      --bg: #090b10;
+      --panel: #0f131a;
+      --panel-strong: #141a24;
+      --text: #e8edf7;
+      --muted: #9aa3b8;
+      --accent: #73cfff;
+      --accent-strong: #5ab6ff;
+      --success: #6ee7b7;
+      --warning: #fcd34d;
+      --danger: #f87171;
+      --border: #1f2632;
+      --radius: 16px;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 10% 20%, rgba(88, 207, 255, 0.06), transparent 35%),
+        radial-gradient(circle at 80% 0%, rgba(123, 255, 196, 0.05), transparent 40%),
+        linear-gradient(180deg, #0a0d14 0%, #07090e 60%, #05070b 100%);
+      color: var(--text);
+    }
+
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-strong); }
+
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 16px;
+      background: var(--accent);
+      color: #041423;
+      padding: 10px 14px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: top 0.2s ease;
+      font-weight: 600;
+      z-index: 10;
+    }
+
+    .skip-link:focus { top: 16px; }
+
+    .meeting-header {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(9, 11, 16, 0.75);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(10px);
+      z-index: 8;
+    }
+
+    .meeting-header__title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .meeting-header__icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(115, 207, 255, 0.2), rgba(90, 182, 255, 0.25));
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      font-size: 20px;
+    }
+
+    .meeting-header__text h1 {
+      margin: 0;
+      font-size: clamp(1.3rem, 2vw, 1.7rem);
+    }
+
+    .meeting-header__text p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .meeting-header__links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .pill-link {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill-link:hover { border-color: var(--accent); color: var(--accent); }
+
+    main {
+      padding: clamp(16px, 4vw, 32px);
+      max-width: 1240px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .meeting-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .panel {
+      background: linear-gradient(145deg, rgba(20, 26, 36, 0.92), rgba(12, 15, 22, 0.92));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .panel p { margin: 0; color: var(--muted); }
+
+    form { display: grid; gap: 10px; }
+
+    label { font-weight: 600; }
+
+    input, textarea, select, button {
+      font: inherit;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .input, .select, textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .input:focus, .select:focus, textarea:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(115, 207, 255, 0.2);
+    }
+
+    .button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #041423;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .button:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2); }
+    .button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .meeting-list {
+      display: grid;
+      gap: 12px;
+      margin: 12px 0 0;
+    }
+
+    .meeting-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .meeting-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .meeting-card--active { border-color: var(--accent); background: var(--panel-strong); }
+
+    .meeting-card__title { margin: 0; font-weight: 700; font-size: 1.05rem; }
+    .meeting-card__meta { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(115, 207, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(115, 207, 255, 0.3);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .notes-area { min-height: 180px; resize: vertical; }
+
+    .attendance-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+
+    .attendance-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+
+    .attendance-row__meta { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .attendance-row__name { margin: 0; font-weight: 700; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .status-present { color: var(--success); border-color: rgba(110, 231, 183, 0.25); }
+    .status-late { color: var(--warning); border-color: rgba(252, 211, 77, 0.3); }
+    .status-absent { color: var(--danger); border-color: rgba(248, 113, 113, 0.35); }
+
+    .status-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .status-button {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .status-button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .empty-copy { margin: 0; color: var(--muted); }
+
+    .meta-grid { display: grid; gap: 6px; }
+
+    @media (max-width: 720px) {
+      .meeting-header { flex-direction: column; align-items: flex-start; }
+      .meeting-header__links { width: 100%; justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to attendance & notes</a>
+
+  <header class="meeting-header">
+    <div class="meeting-header__title">
+      <div class="meeting-header__icon" aria-hidden="true">🗒️</div>
+      <div class="meeting-header__text">
+        <h1>Meeting Attendance & Notes</h1>
+        <p>Track who joined, capture takeaways, and link straight into your calls.</p>
+      </div>
+    </div>
+    <div class="meeting-header__links">
+      <a class="pill-link" href="/index.html">🏠 Portal Home</a>
+      <a class="pill-link" href="/portal.3dvr.tech/video/">🎥 Video Meeting</a>
+    </div>
+  </header>
+
+  <main id="mainContent">
+    <div class="meeting-grid">
+      <section class="panel">
+        <h2>Create a meeting</h2>
+        <p>Set the session details so teammates can check in and leave notes.</p>
+        <form id="meetingForm">
+          <div class="field">
+            <label for="meetingTitle">Meeting title</label>
+            <input class="input" id="meetingTitle" name="title" type="text" required
+              placeholder="Weekly sync, client kickoff, design review...">
+          </div>
+          <div class="field">
+            <label for="meetingDate">Date & time</label>
+            <input class="input" id="meetingDate" name="datetime" type="datetime-local" required>
+          </div>
+          <button class="button" type="submit">Add meeting</button>
+        </form>
+
+        <div class="meeting-list" id="meetingList" aria-live="polite"></div>
+        <p id="emptyListCopy" class="empty-copy">No meetings yet. Create the first session to start tracking attendance.</p>
+      </section>
+
+      <section class="panel">
+        <div class="meta-grid">
+          <div class="tag" id="activeMeetingTag">No meeting selected</div>
+          <h2 id="activeMeetingTitle">Pick a meeting</h2>
+          <p id="activeMeetingMeta" class="empty-copy">Select a meeting from the list to capture attendance and notes.</p>
+        </div>
+
+        <div class="detail-grid">
+          <div>
+            <h3>Attendees</h3>
+            <form id="attendeeForm">
+              <div class="field">
+                <label for="attendeeName">Name</label>
+                <input class="input" id="attendeeName" name="attendee" type="text" required placeholder="Jane Doe">
+              </div>
+              <div class="field">
+                <label for="attendeeStatus">Status</label>
+                <select class="select" id="attendeeStatus" name="status" required>
+                  <option value="present">Present</option>
+                  <option value="late">Late</option>
+                  <option value="absent">Absent</option>
+                </select>
+              </div>
+              <button class="button" type="submit" id="attendeeSubmit" disabled>Add attendee</button>
+            </form>
+            <ul class="attendance-list" id="attendanceList"></ul>
+            <p id="attendanceEmpty" class="empty-copy">Attendance will appear here once added.</p>
+          </div>
+
+          <div>
+            <h3>Notes</h3>
+            <textarea id="notesField" class="notes-area input" rows="10" placeholder="Share key decisions, action items, and follow-ups."
+              aria-label="Meeting notes" disabled></textarea>
+            <p class="empty-copy">Notes save automatically and stay synced through Gun.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const gun = window.gun;
+    // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, createdAt}
+    // Notes live at meeting-notes -> meetings -> {meetingId} -> notes -> {content}
+    // Attendance lives at meeting-notes -> meetings -> {meetingId} -> attendees -> {attendeeId} -> {name, status, updatedAt}
+    const meetingsNode = gun.get('meeting-notes').get('meetings');
+
+    const meetingForm = document.getElementById('meetingForm');
+    const meetingList = document.getElementById('meetingList');
+    const emptyListCopy = document.getElementById('emptyListCopy');
+    const activeMeetingTag = document.getElementById('activeMeetingTag');
+    const activeMeetingTitle = document.getElementById('activeMeetingTitle');
+    const activeMeetingMeta = document.getElementById('activeMeetingMeta');
+    const attendeeForm = document.getElementById('attendeeForm');
+    const attendeeSubmit = document.getElementById('attendeeSubmit');
+    const attendanceList = document.getElementById('attendanceList');
+    const attendanceEmpty = document.getElementById('attendanceEmpty');
+    const notesField = document.getElementById('notesField');
+
+    let currentMeetingId = null;
+    let notesSyncEvent = null;
+    let attendeeEvents = {};
+    let notesUpdateTimer = null;
+    const meetingsCache = new Map();
+
+    const formatDate = (value) => {
+      if (!value) return 'Date not set';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    };
+
+    const updateEmptyStates = () => {
+      emptyListCopy.hidden = meetingList.childElementCount > 0;
+      attendanceEmpty.hidden = attendanceList.childElementCount > 0;
+    };
+
+    const setActiveMeeting = (id, data) => {
+      currentMeetingId = id;
+      activeMeetingTag.textContent = 'Meeting selected';
+      activeMeetingTitle.textContent = data?.title || 'Untitled meeting';
+      activeMeetingMeta.textContent = `Scheduled for ${formatDate(data?.datetime)}`;
+      notesField.disabled = false;
+      attendeeSubmit.disabled = false;
+      notesField.value = '';
+      attendanceList.innerHTML = '';
+      attendanceEmpty.hidden = false;
+      clearNotesSubscription();
+      clearAttendeeSubscriptions();
+      subscribeToNotes(id);
+      subscribeToAttendees(id);
+    };
+
+    const clearNotesSubscription = () => {
+      if (notesSyncEvent && typeof notesSyncEvent.off === 'function') {
+        notesSyncEvent.off();
+      }
+      notesSyncEvent = null;
+    };
+
+    const clearAttendeeSubscriptions = () => {
+      Object.values(attendeeEvents).forEach((evt) => {
+        if (evt && typeof evt.off === 'function') evt.off();
+      });
+      attendeeEvents = {};
+    };
+
+    const renderMeetingCard = (id, data) => {
+      let card = meetingList.querySelector(`[data-meeting-id="${id}"]`);
+      if (!card) {
+        card = document.createElement('article');
+        card.className = 'meeting-card';
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.setAttribute('data-meeting-id', id);
+        meetingList.appendChild(card);
+      }
+
+      const selectMeeting = () => setActiveMeeting(id, meetingsCache.get(id) || data);
+      card.onclick = selectMeeting;
+      card.onkeydown = (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectMeeting();
+        }
+      };
+
+      card.innerHTML = `
+        <div class="tag">${formatDate(data?.datetime)}</div>
+        <h3 class="meeting-card__title">${data?.title || 'Untitled meeting'}</h3>
+        <p class="meeting-card__meta">Created ${formatDate(data?.createdAt)}</p>
+      `;
+
+      card.classList.toggle('meeting-card--active', id === currentMeetingId);
+      updateEmptyStates();
+    };
+
+    const removeMeetingCard = (id) => {
+      const card = meetingList.querySelector(`[data-meeting-id="${id}"]`);
+      if (card) card.remove();
+      if (currentMeetingId === id) {
+        currentMeetingId = null;
+        activeMeetingTag.textContent = 'No meeting selected';
+        activeMeetingTitle.textContent = 'Pick a meeting';
+        activeMeetingMeta.textContent = 'Select a meeting from the list to capture attendance and notes.';
+        notesField.disabled = true;
+        attendeeSubmit.disabled = true;
+        notesField.value = '';
+        attendanceList.innerHTML = '';
+        attendanceEmpty.hidden = false;
+        clearNotesSubscription();
+        clearAttendeeSubscriptions();
+      }
+      updateEmptyStates();
+    };
+
+    const renderAttendee = (attendeeId, data) => {
+      if (!currentMeetingId) return;
+      let row = attendanceList.querySelector(`[data-attendee-id="${attendeeId}"]`);
+      if (!row) {
+        row = document.createElement('li');
+        row.className = 'attendance-row';
+        row.setAttribute('data-attendee-id', attendeeId);
+        attendanceList.appendChild(row);
+      }
+
+      const badgeClass = data?.status === 'present' ? 'status-present'
+        : data?.status === 'late' ? 'status-late' : 'status-absent';
+
+      row.innerHTML = `
+        <div>
+          <p class="attendance-row__name">${data?.name || 'Unnamed attendee'}</p>
+          <p class="attendance-row__meta">Updated ${formatDate(data?.updatedAt)}</p>
+        </div>
+        <div class="status-actions">
+          <span class="status-badge ${badgeClass}">${(data?.status || 'present').toUpperCase()}</span>
+          <button class="status-button" data-status="present">Present</button>
+          <button class="status-button" data-status="late">Late</button>
+          <button class="status-button" data-status="absent">Absent</button>
+        </div>
+      `;
+
+      row.querySelectorAll('.status-button').forEach((button) => {
+        button.addEventListener('click', () => updateAttendeeStatus(attendeeId, data?.name, button.dataset.status));
+      });
+
+      updateEmptyStates();
+    };
+
+    const removeAttendee = (attendeeId) => {
+      const row = attendanceList.querySelector(`[data-attendee-id="${attendeeId}"]`);
+      if (row) row.remove();
+      updateEmptyStates();
+    };
+
+    const subscribeToNotes = (meetingId) => {
+      const meetingNode = meetingsNode.get(meetingId);
+      notesSyncEvent = meetingNode.get('notes').on((note) => {
+        const content = note?.content || '';
+        if (notesField.value !== content) {
+          notesField.value = content;
+        }
+      });
+    };
+
+    const subscribeToAttendees = (meetingId) => {
+      const meetingNode = meetingsNode.get(meetingId);
+      meetingNode.get('attendees').map().on((data, attendeeId, _msg, event) => {
+        attendeeEvents[attendeeId] = event;
+        if (!data) {
+          removeAttendee(attendeeId);
+          return;
+        }
+        renderAttendee(attendeeId, data);
+      });
+    };
+
+    const updateAttendeeStatus = (attendeeId, name, status) => {
+      if (!currentMeetingId) return;
+      const meetingNode = meetingsNode.get(currentMeetingId);
+      meetingNode.get('attendees').get(attendeeId).put({
+        name: name || 'Unnamed attendee',
+        status,
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    meetingForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(meetingForm);
+      const title = formData.get('title');
+      const datetime = formData.get('datetime');
+      const meetingId = crypto.randomUUID ? crypto.randomUUID() : `meeting-${Date.now()}`;
+      meetingsNode.get(meetingId).put({
+        title,
+        datetime,
+        createdAt: new Date().toISOString(),
+      });
+      meetingForm.reset();
+    });
+
+    attendeeForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!currentMeetingId) return;
+      const formData = new FormData(attendeeForm);
+      const name = formData.get('attendee');
+      const status = formData.get('status');
+      const attendeeId = crypto.randomUUID ? crypto.randomUUID() : `attendee-${Date.now()}`;
+      const meetingNode = meetingsNode.get(currentMeetingId);
+      meetingNode.get('attendees').get(attendeeId).put({
+        name,
+        status,
+        updatedAt: new Date().toISOString(),
+      });
+      attendeeForm.reset();
+    });
+
+    notesField.addEventListener('input', () => {
+      if (!currentMeetingId) return;
+      if (notesUpdateTimer) window.clearTimeout(notesUpdateTimer);
+      const content = notesField.value;
+      notesUpdateTimer = window.setTimeout(() => {
+        meetingsNode.get(currentMeetingId).get('notes').put({ content });
+      }, 300);
+    });
+
+    meetingsNode.map().on((data, meetingId) => {
+      if (!data || meetingId === '_') {
+        meetingsCache.delete(meetingId);
+        removeMeetingCard(meetingId);
+        return;
+      }
+      meetingsCache.set(meetingId, data);
+      renderMeetingCard(meetingId, data);
+    });
+
+    updateEmptyStates();
+  </script>
+</body>
+</html>
