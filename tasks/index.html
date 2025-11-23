@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR - Advanced Task Board</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/pwa-install.js" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/install-banner.css">
+  <link rel="manifest" href="/app-manifests/tasks.webmanifest">
+  <meta name="theme-color" content="#0e1116">
+  <style>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3DVR - Advanced Task Board</title>
@@ -777,6 +790,14 @@
 </head>
 <body>
   <div class="page-shell">
+    <div class="install-banner" data-install-banner hidden>
+      <div class="install-banner__text">
+        <p class="install-banner__title">Install Tasks</p>
+        <p class="install-banner__meta">Keep your task board one tap away and ready offline.</p>
+      </div>
+      <button type="button" class="install-banner__action" data-install-button>Install app</button>
+    </div>
+
     <header class="board-header">
       <div class="board-header__top">
         <nav class="board-header__nav" aria-label="Portal navigation">
