@@ -35,11 +35,11 @@
 <body class="landing theme-dark">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="landing-shell">
-    <div class="top-nav top-nav--collapsed">
+    <div class="top-nav top-nav--expanded">
       <button
         class="top-nav__toggle"
         type="button"
-        aria-expanded="false"
+        aria-expanded="true"
         aria-controls="landingQuickLinks"
       >
         <span class="top-nav__toggle-icon" aria-hidden="true"></span>
@@ -70,7 +70,17 @@
         <div class="hero-actions">
           <button type="button" class="cta primary" data-app-search-trigger>Browse apps</button>
           <a href="points.html" class="cta ghost">Start earning</a>
-          <a href="https://3dvr.tech/subscribe" class="cta ghost" target="_blank" rel="noopener">Explore plans</a>
+          <div class="hero-actions__tertiary">
+            <a
+              href="https://3dvr.tech/subscribe"
+              class="inline-link"
+              target="_blank"
+              rel="noopener"
+            >
+              View plans &amp; perks
+            </a>
+            <span class="hero-actions__hint">Progress syncs to your Gun profile automatically.</span>
+          </div>
         </div>
       </section>
 
@@ -128,142 +138,167 @@
           </div>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
-        <div class="app-grid">
-          <a href="calendar/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📅</span>
-            <span class="app-card__title">Calendar</span>
-            <span class="app-card__meta">Connect Google or Outlook and manage events.</span>
-          </a>
-          <a href="chat.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">💬</span>
-            <span class="app-card__title">Chat</span>
-            <span class="app-card__meta">Stay in the loop and ship ideas faster.</span>
-          </a>
-          <a href="contacts/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📇</span>
-            <span class="app-card__title">Contacts</span>
-            <span class="app-card__meta">Keep teammates and partners close.</span>
-          </a>
-          <a href="crm/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📊</span>
-            <span class="app-card__title">CRM</span>
-            <span class="app-card__meta">Track deals and sync with contacts seamlessly.</span>
-          </a>
-          <a href="finance/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">💰</span>
-            <span class="app-card__title">Finance</span>
-            <span class="app-card__meta">Log shared expenditures and keep totals aligned.</span>
-          </a>
-          <a href="games.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🎮</span>
-            <span class="app-card__title">Games</span>
-            <span class="app-card__meta">Compete, sharpen skills, and earn bonus points.</span>
-          </a>
-          <a href="gun-explorer/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🗺️</span>
-            <span class="app-card__title">Gun Explorer</span>
-            <span class="app-card__meta">Inspect GunJS nodes, peers, and live data snapshots.</span>
-          </a>
-          <a href="gun-demo.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🛰️</span>
-            <span class="app-card__title">Gun Sync Lab</span>
-            <span class="app-card__meta">Monitor relays, run the shared counter, and capture backups.</span>
-          </a>
-          <a href="home/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🖥️</span>
-            <span class="app-card__title">Home</span>
-            <span class="app-card__meta">Launch the desktop workspace for portal navigation.</span>
-          </a>
-          <a href="lead-generation.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📈</span>
-            <span class="app-card__title">Lead Capture</span>
-            <span class="app-card__meta">Collect inbound leads and sync with CRM instantly.</span>
-          </a>
-          <a href="education.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🎓</span>
-            <span class="app-card__title">Learn</span>
-            <span class="app-card__meta">Unlock new lessons and level up your skills.</span>
-          </a>
-          <a href="science/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧪</span>
-            <span class="app-card__title">Science Lab</span>
-            <span class="app-card__meta">Run experiments, track signals, and publish VR-ready findings.</span>
-          </a>
-          <a href="meditation/#meditationFlow" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧘</span>
-            <span class="app-card__title">Meditation</span>
-            <span class="app-card__meta">Jump into the breathing room for guided calming cycles.</span>
-          </a>
-          <a href="meeting-notes/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🗒️</span>
-            <span class="app-card__title">Meetings</span>
-            <span class="app-card__meta">Take attendance and capture collaborative notes.</span>
-          </a>
-          <a href="notes/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📝</span>
-            <span class="app-card__title">Notes</span>
-            <span class="app-card__meta">Collaborate in real time with the community.</span>
-          </a>
-          <a href="openai-app/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🤖</span>
-            <span class="app-card__title">OpenAI Workbench</span>
-            <span class="app-card__meta">Bring your own key to chat with GPT-4o and share prompts via Gun.</span>
-          </a>
-          <a href="profile.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">👤</span>
-            <span class="app-card__title">Profile</span>
-            <span class="app-card__meta">Track your progress and manage your rewards.</span>
-          </a>
-          <a href="releases/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🚀</span>
-            <span class="app-card__title">Releases</span>
-            <span class="app-card__meta">Read the latest milestone notes and timelines.</span>
-          </a>
-          <a href="rewards.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🏆</span>
-            <span class="app-card__title">Rewards</span>
-            <span class="app-card__meta">Complete challenges to unlock real perks.</span>
-          </a>
-          <a href="sales/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">💼</span>
-            <span class="app-card__title">Sales</span>
-            <span class="app-card__meta">Navigate playbooks, training, and launch kits.</span>
-          </a>
-          <a href="science/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧪</span>
-            <span class="app-card__title">Science Lab</span>
-            <span class="app-card__meta">Run experiments, track signals, and publish VR-ready findings.</span>
-          </a>
-          <a href="website-builder.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🛠️</span>
-            <span class="app-card__title">Sites</span>
-            <span class="app-card__meta">Launch lightweight pages for your projects.</span>
-          </a>
-          <a href="social/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📣</span>
-            <span class="app-card__title">Social Planning</span>
-            <span class="app-card__meta">Organize campaigns, credentials, and automation plans.</span>
-          </a>
-          <a href="/tasks/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">✅</span>
-            <span class="app-card__title">Tasks</span>
-            <span class="app-card__meta">Plan, assign, and celebrate team wins.</span>
-          </a>
-          <a href="meeting-notes/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🗒️</span>
-            <span class="app-card__title">Meetings</span>
-            <span class="app-card__meta">Take attendance and capture collaborative notes.</span>
-          </a>
-          <a href="video/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🎥</span>
-            <span class="app-card__title">Video Chat</span>
-            <span class="app-card__meta">Jump into 3dvr.tech Ninja meetings in one click.</span>
-          </a>
-          <a href="wellness.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🌿</span>
-            <span class="app-card__title">Wellness</span>
-            <span class="app-card__meta">Explore mindfulness, nutrition, and lifestyle resources.</span>
-          </a>
+        <div class="app-sections">
+          <div class="app-section">
+            <div class="app-section__header">
+              <h3>Collaboration &amp; ops</h3>
+              <p>Plan together, meet often, and keep every workflow synced.</p>
+            </div>
+            <div class="app-grid app-grid--section">
+              <a href="calendar/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">📅</span>
+                <span class="app-card__title">Calendar</span>
+                <span class="app-card__meta">Connect Google or Outlook and manage events.</span>
+              </a>
+              <a href="chat.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">💬</span>
+                <span class="app-card__title">Chat</span>
+                <span class="app-card__meta">Stay in the loop and ship ideas faster.</span>
+              </a>
+              <a href="contacts/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">📇</span>
+                <span class="app-card__title">Contacts</span>
+                <span class="app-card__meta">Keep teammates and partners close.</span>
+              </a>
+              <a href="crm/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">📊</span>
+                <span class="app-card__title">CRM</span>
+                <span class="app-card__meta">Track deals and sync with contacts seamlessly.</span>
+              </a>
+              <a href="finance/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">💰</span>
+                <span class="app-card__title">Finance</span>
+                <span class="app-card__meta">Log shared expenditures and keep totals aligned.</span>
+              </a>
+              <a href="meeting-notes/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🗒️</span>
+                <span class="app-card__title">Meetings</span>
+                <span class="app-card__meta">Take attendance and capture collaborative notes.</span>
+              </a>
+              <a href="notes/" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">📝</span>
+                <span class="app-card__title">Notes</span>
+                <span class="app-card__meta">Collaborate in real time with the community.</span>
+              </a>
+              <a href="/tasks/" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">✅</span>
+                <span class="app-card__title">Tasks</span>
+                <span class="app-card__meta">Plan, assign, and celebrate team wins.</span>
+              </a>
+              <a href="video/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🎥</span>
+                <span class="app-card__title">Video Chat</span>
+                <span class="app-card__meta">Jump into 3dvr.tech Ninja meetings in one click.</span>
+              </a>
+              <a href="home/" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🖥️</span>
+                <span class="app-card__title">Home</span>
+                <span class="app-card__meta">Launch the desktop workspace for portal navigation.</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="app-section">
+            <div class="app-section__header">
+              <h3>Growth &amp; revenue</h3>
+              <p>Attract leads, launch campaigns, and keep teammates aligned.</p>
+            </div>
+            <div class="app-grid app-grid--section">
+              <a href="lead-generation.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">📈</span>
+                <span class="app-card__title">Lead Capture</span>
+                <span class="app-card__meta">Collect inbound leads and sync with CRM instantly.</span>
+              </a>
+              <a href="sales/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">💼</span>
+                <span class="app-card__title">Sales</span>
+                <span class="app-card__meta">Navigate playbooks, training, and launch kits.</span>
+              </a>
+              <a href="releases/" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🚀</span>
+                <span class="app-card__title">Releases</span>
+                <span class="app-card__meta">Read the latest milestone notes and timelines.</span>
+              </a>
+              <a href="website-builder.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🛠️</span>
+                <span class="app-card__title">Sites</span>
+                <span class="app-card__meta">Launch lightweight pages for your projects.</span>
+              </a>
+              <a href="social/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">📣</span>
+                <span class="app-card__title">Social Planning</span>
+                <span class="app-card__meta">Organize campaigns, credentials, and automation plans.</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="app-section">
+            <div class="app-section__header">
+              <h3>Systems &amp; experiments</h3>
+              <p>Inspect Gun data, test relays, and publish findings together.</p>
+            </div>
+            <div class="app-grid app-grid--section">
+              <a href="gun-explorer/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🗺️</span>
+                <span class="app-card__title">Gun Explorer</span>
+                <span class="app-card__meta">Inspect GunJS nodes, peers, and live data snapshots.</span>
+              </a>
+              <a href="gun-demo.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🛰️</span>
+                <span class="app-card__title">Gun Sync Lab</span>
+                <span class="app-card__meta">Monitor relays, run the shared counter, and capture backups.</span>
+              </a>
+              <a href="science/" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🧪</span>
+                <span class="app-card__title">Science Lab</span>
+                <span class="app-card__meta">Run experiments, track signals, and publish VR-ready findings.</span>
+              </a>
+              <a href="openai-app/index.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🤖</span>
+                <span class="app-card__title">OpenAI Workbench</span>
+                <span class="app-card__meta">Bring your own key to chat with GPT-4o and share prompts via Gun.</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="app-section">
+            <div class="app-section__header">
+              <h3>Growth &amp; wellness</h3>
+              <p>Level up your skills, recharge, and keep rewards flowing.</p>
+            </div>
+            <div class="app-grid app-grid--section">
+              <a href="education.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🎓</span>
+                <span class="app-card__title">Learn</span>
+                <span class="app-card__meta">Unlock new lessons and level up your skills.</span>
+              </a>
+              <a href="games.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🎮</span>
+                <span class="app-card__title">Games</span>
+                <span class="app-card__meta">Compete, sharpen skills, and earn bonus points.</span>
+              </a>
+              <a href="meditation/#meditationFlow" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🧘</span>
+                <span class="app-card__title">Meditation</span>
+                <span class="app-card__meta">Jump into the breathing room for guided calming cycles.</span>
+              </a>
+              <a href="wellness.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🌿</span>
+                <span class="app-card__title">Wellness</span>
+                <span class="app-card__meta">Explore mindfulness, nutrition, and lifestyle resources.</span>
+              </a>
+              <a href="profile.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">👤</span>
+                <span class="app-card__title">Profile</span>
+                <span class="app-card__meta">Track your progress and manage your rewards.</span>
+              </a>
+              <a href="rewards.html" class="app-card">
+                <span class="app-card__icon" aria-hidden="true">🏆</span>
+                <span class="app-card__title">Rewards</span>
+                <span class="app-card__meta">Complete challenges to unlock real perks.</span>
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -272,6 +307,7 @@
           <span class="eyebrow">Play to progress</span>
           <h2 id="gamified-dashboard-title">Level up your portal adventure</h2>
           <p>Track your XP, complete daily quests, and keep your streak alive to unlock bigger boosts.</p>
+          <p class="gamified-dashboard__sync" data-gamified-sync>Syncing progress via Gun&hellip;</p>
         </div>
         <div class="gamified-dashboard__grid">
           <article class="gamified-card level-card" aria-labelledby="level-card-title">
@@ -348,6 +384,7 @@
               <span class="quest-progress__fill" data-quest-progress-fill></span>
             </div>
             <p class="quest-card__progress" data-quest-progress>0 / 3 quests complete</p>
+            <p class="quest-card__note">Quest completions sync to your Gun profile so you can resume anywhere.</p>
           </article>
           <article class="gamified-card streak-card" aria-labelledby="streak-card-title">
             <div class="streak-card__heading">
@@ -372,6 +409,7 @@
               <li><strong>Day 3:</strong> Mystery reward drop</li>
               <li><strong>Day 7:</strong> Featured community spotlight</li>
             </ul>
+            <p class="streak-card__note">Streaks auto-save to Gun so your boost survives browser changes.</p>
           </article>
         </div>
       </section>
@@ -394,8 +432,14 @@
       </section>
     </main>
 
-    <footer>
-      3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
+    <footer class="landing-footer">
+      <div class="footer__brand">3DVR.Tech &copy; 2025 · Open Web for Everyone</div>
+      <nav class="footer__links" aria-label="Helpful links">
+        <a href="https://3dvr.tech">Visit 3DVR.Tech</a>
+        <a href="https://3dvr.tech/about" target="_blank" rel="noopener">About</a>
+        <a href="https://status.3dvr.tech" target="_blank" rel="noopener">Status</a>
+        <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">Contribute</a>
+      </nav>
     </footer>
   </div>
 
@@ -581,6 +625,28 @@
 
       const questStateKey = '3dvr:dailyQuests';
       const streakStateKey = '3dvr:questStreak';
+      const syncStatus = document.querySelector('[data-gamified-sync]');
+
+      const profileKey =
+        (user?.is && typeof user.is.pub === 'string' && user.is.pub) ||
+        localStorage.getItem('guestId') ||
+        ensureGuestId();
+
+      // Store gamified progress in Gun at 3dvr-portal/gamified/profiles/{profileKey}
+      const gamifiedRoot =
+        portalRoot?.get('gamified').get('profiles').get(profileKey);
+
+      const setSyncStatus = (message) => {
+        if (syncStatus) {
+          syncStatus.textContent = message;
+        }
+      };
+
+      setSyncStatus(
+        gamifiedRoot
+          ? 'Syncing progress via Gun…'
+          : 'Offline mode: progress stays on this device until Gun reconnects.'
+      );
 
       const safeParseJson = (value) => {
         if (!value) return null;
@@ -637,11 +703,20 @@
         return base;
       };
 
-      const saveQuestState = (state) => {
+      const saveQuestStateLocal = (state) => {
         localStorage.setItem(
           questStateKey,
           JSON.stringify({ date: todayIso, completed: state.completed })
         );
+      };
+
+      const writeQuestStateToGun = (state) => {
+        if (!gamifiedRoot) return;
+        const payload = {
+          date: todayIso,
+          completed: Array.isArray(state.completed) ? state.completed.join(',') : '',
+        };
+        gamifiedRoot.get('quests').put(payload);
       };
 
       const loadStreakState = () => {
@@ -665,7 +740,7 @@
         return streak;
       };
 
-      const saveStreakState = (state) => {
+      const saveStreakStateLocal = (state) => {
         localStorage.setItem(
           streakStateKey,
           JSON.stringify({
@@ -673,6 +748,28 @@
             lastCompleted: state.lastCompleted,
           })
         );
+      };
+
+      const writeStreakStateToGun = (state) => {
+        if (!gamifiedRoot) return;
+        gamifiedRoot.get('streak').put({
+          count: state.count,
+          lastCompleted: state.lastCompleted ?? null,
+        });
+      };
+
+      const persistQuestState = (state, { skipGun = false } = {}) => {
+        saveQuestStateLocal(state);
+        if (!skipGun) {
+          writeQuestStateToGun(state);
+        }
+      };
+
+      const persistStreakState = (state, { skipGun = false } = {}) => {
+        saveStreakStateLocal(state);
+        if (!skipGun) {
+          writeStreakStateToGun(state);
+        }
       };
 
       const formatNumber = (value) => {
@@ -757,9 +854,9 @@
       };
 
       let questState = loadQuestState();
-      saveQuestState(questState);
+      persistQuestState(questState);
       let streakState = loadStreakState();
-      saveStreakState(streakState);
+      persistStreakState(streakState);
 
       const updateStreakUi = () => {
         const streakCountValue = Math.max(0, streakState.count);
@@ -844,14 +941,93 @@
               streakState.count = 1;
             }
             streakState.lastCompleted = todayIso;
-            saveStreakState(streakState);
+            persistStreakState(streakState);
           }
         }
         updateStreakUi();
       };
 
+      const parseCompletedIds = (value) => {
+        if (Array.isArray(value)) {
+          return value
+            .map((id) => (typeof id === 'string' ? id.trim() : ''))
+            .filter(Boolean);
+        }
+        if (typeof value === 'string') {
+          return value
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
+        }
+        return [];
+      };
+
+      const hydrateFromGun = () => {
+        if (!gamifiedRoot) return;
+
+        gamifiedRoot.get('quests').on((data) => {
+          if (!data) return;
+          const completed = parseCompletedIds(data.completed);
+          const date = typeof data.date === 'string' ? data.date : null;
+          if (date && date !== todayIso) {
+            questState = { date: todayIso, completed: [] };
+            persistQuestState(questState, { skipGun: true });
+            applyQuestStateToInputs();
+            updateQuestProgress();
+            setSyncStatus('New day detected—quests refreshed.');
+            return;
+          }
+
+          const remoteState = {
+            date: todayIso,
+            completed,
+          };
+
+          if (remoteState.completed.join(',') === questState.completed.join(',')) {
+            setSyncStatus('Progress synced via Gun.');
+            return;
+          }
+
+          questState = remoteState;
+          applyCompletionFilter(questState);
+          persistQuestState(questState, { skipGun: true });
+          applyQuestStateToInputs();
+          updateQuestProgress();
+          setSyncStatus('Progress synced via Gun.');
+        });
+
+        gamifiedRoot.get('streak').on((data) => {
+          if (!data) return;
+          const remoteCount = Number.isFinite(data.count) ? Math.max(0, Math.round(data.count)) : streakState.count;
+          const remoteLast = typeof data.lastCompleted === 'string' ? data.lastCompleted : streakState.lastCompleted;
+
+          const merged = {
+            count: remoteCount,
+            lastCompleted: remoteLast,
+          };
+
+          if (diffInDays(todayIso, merged.lastCompleted) > 1) {
+            merged.count = 0;
+            merged.lastCompleted = null;
+          }
+
+          if (
+            merged.count === streakState.count &&
+            merged.lastCompleted === streakState.lastCompleted
+          ) {
+            return;
+          }
+
+          streakState = merged;
+          persistStreakState(streakState, { skipGun: true });
+          updateStreakUi();
+          setSyncStatus('Progress synced via Gun.');
+        });
+      };
+
       applyQuestStateToInputs();
       updateQuestProgress();
+      hydrateFromGun();
 
       questDefinitions.forEach((quest) => {
         if (!quest.input) return;
@@ -866,7 +1042,7 @@
             questState.completed = questState.completed.filter((value) => value !== id);
           }
           applyCompletionFilter(questState);
-          saveQuestState(questState);
+          persistQuestState(questState);
           applyQuestStateToInputs();
           updateQuestProgress();
         });

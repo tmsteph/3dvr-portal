@@ -355,6 +355,30 @@ body.landing {
   margin-top: 0.75rem;
 }
 
+.hero-actions__tertiary {
+  display: grid;
+  gap: 0.25rem;
+  text-align: left;
+  align-items: start;
+}
+
+.hero-actions__hint {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.inline-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(34, 211, 238, 0.6);
+}
+
+.inline-link:hover,
+.inline-link:focus-visible {
+  color: var(--accent-strong);
+}
+
 .cta {
   display: inline-flex;
   align-items: center;
@@ -479,6 +503,36 @@ body.landing {
   margin-top: 1.6rem;
 }
 
+.app-sections {
+  display: grid;
+  gap: 2.4rem;
+}
+
+.app-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.app-section__header {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.app-section__header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.app-section__header p {
+  margin: 0;
+  color: var(--color-text-muted);
+  max-width: 680px;
+}
+
+.app-grid--section {
+  margin-top: 0.35rem;
+}
+
 .app-card {
   position: relative;
   display: grid;
@@ -562,6 +616,12 @@ body.landing {
 .gamified-dashboard__header p {
   margin: 0;
   color: rgba(226, 232, 240, 0.8);
+}
+
+.gamified-dashboard__sync {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.98rem;
 }
 
 .gamified-dashboard__grid {
@@ -700,6 +760,13 @@ body.landing {
 .quest-card__subtitle {
   margin: 0;
   color: rgba(224, 231, 255, 0.8);
+  font-size: 0.95rem;
+}
+
+.quest-card__note,
+.streak-card__note {
+  margin: 0;
+  color: var(--color-text-muted);
   font-size: 0.95rem;
 }
 
@@ -943,14 +1010,28 @@ body.landing {
   color: var(--color-text-muted);
 }
 
-footer {
+.landing-footer {
   margin-top: 4rem;
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
-footer a {
+.footer__brand {
+  font-weight: 600;
+}
+
+.footer__links {
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.footer__links a {
   color: var(--accent);
   text-decoration: underline;
 }
@@ -1063,6 +1144,11 @@ footer a {
   .top-nav {
     width: 100%;
     align-items: stretch;
+  }
+
+  .hero-actions__tertiary {
+    text-align: center;
+    align-items: center;
   }
 
   .top-nav__toggle {
