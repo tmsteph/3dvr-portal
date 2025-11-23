@@ -1,8 +1,4 @@
 (() => {
-  const installBanner = document.querySelector('[data-install-banner]');
-  const installButton = installBanner?.querySelector('[data-install-button]');
-  let deferredPrompt = null;
-
   const registerServiceWorker = async () => {
     if (!('serviceWorker' in navigator)) return null;
 
@@ -16,6 +12,12 @@
       return null;
     }
   };
+
+  registerServiceWorker();
+
+  const installBanner = document.querySelector('[data-install-banner]');
+  const installButton = installBanner?.querySelector('[data-install-button]');
+  let deferredPrompt = null;
 
   if (!installBanner || !installButton) return;
 
@@ -34,8 +36,6 @@
     installBanner.classList.remove('is-hidden');
     installBanner.removeAttribute('hidden');
   };
-
-  registerServiceWorker();
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();

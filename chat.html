@@ -847,19 +847,20 @@ function initNotifications() {
   }
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistration().then(existingRegistration => {
-      if (existingRegistration) {
-        serviceWorkerRegistration = existingRegistration;
-        return existingRegistration;
-      }
-      return navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
-        .then(registration => {
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        serviceWorkerRegistration = registration;
+        return registration;
+      })
+      .catch(() => navigator.serviceWorker.register('/service-worker.js', { scope: '/' }))
+      .then((registration) => {
+        if (registration) {
           serviceWorkerRegistration = registration;
-          return registration;
-        });
-    }).catch(error => {
-      console.error('Service worker registration failed for chat notifications', error);
-    });
+        }
+      })
+      .catch((error) => {
+        console.error('Service worker registration failed for chat notifications', error);
+      });
   }
 
   const savedPreference = localStorage.getItem(notificationsPreferenceKey) === 'true';
