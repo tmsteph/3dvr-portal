@@ -180,6 +180,48 @@
     font-size: 0.85rem;
   }
 
+  .leaderboard {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .leaderboard-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  .leaderboard-rank {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 1.1rem;
+  }
+
+  .leaderboard-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .leaderboard-info span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
+  .leaderboard-points {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
   .actions {
     display: flex;
     gap: 8px;
@@ -311,6 +353,14 @@
       </div>
 
       <div class="card">
+        <h2>Leaderboard</h2>
+        <p class="text-muted">Top 10 users ranked by total points.</p>
+        <ol id="leaderboard" class="leaderboard" aria-live="polite">
+          <li class="empty-state">Waiting for leaderboard data...</li>
+        </ol>
+      </div>
+
+      <div class="card">
         <h2>User Points Overview</h2>
         <div class="table-wrapper">
           <table aria-describedby="total-users">
@@ -398,6 +448,7 @@
   const addAdminInput = document.getElementById('new-admin');
   const addAdminButton = document.getElementById('add-admin-button');
   const requestListEl = document.getElementById('request-list');
+  const leaderboardEl = document.getElementById('leaderboard');
 
   function init() {
     ensureRootAdmin();
@@ -570,6 +621,31 @@
         <td>${formatDate(record.lastLogin)}</td>
       </tr>
     `).join('');
+
+    renderLeaderboard(rows);
+  }
+
+  function renderLeaderboard(rows) {
+    if (!rows.length) {
+      leaderboardEl.innerHTML = '<li class="empty-state">No leaderboard data yet.</li>';
+      return;
+    }
+
+    const topTen = rows.slice(0, 10);
+    leaderboardEl.innerHTML = topTen.map((record, index) => {
+      const rank = index + 1;
+      const badge = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+      return `
+        <li class="leaderboard-item">
+          <div class="leaderboard-rank">${badge}</div>
+          <div class="leaderboard-info">
+            <strong>${escapeHtml(record.username)}</strong>
+            <span>${escapeHtml(record.alias)}</span>
+          </div>
+          <div class="leaderboard-points">${record.points} pts</div>
+        </li>
+      `;
+    }).join('');
   }
 
   function renderAdmins() {
