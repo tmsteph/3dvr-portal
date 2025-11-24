@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR - Job Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script>
+    // Create a dedicated Gun workspace for the jobs app so reads/writes persist across peers and sessions.
+    window.gun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/global.css">
+  <style>
+    :root {
+      --bg: #05070c;
+      --panel: #0b0f18;
+      --panel-strong: #101725;
+      --panel-soft: rgba(255, 255, 255, 0.04);
+      --text: #e8eef9;
+      --muted: #9aa8c2;
+      --accent: #5cc4ff;
+      --accent-strong: #38bdf8;
+      --success: #34d399;
+      --warning: #f59e0b;
+      --danger: #f87171;
+      --border: rgba(148, 163, 184, 0.3);
+      --radius: 16px;
+      --shadow: 0 26px 90px rgba(0, 0, 0, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 12% 20%, rgba(88, 207, 255, 0.06), transparent 35%),
+        radial-gradient(circle at 82% 0%, rgba(123, 255, 196, 0.05), transparent 40%),
+        linear-gradient(180deg, #05070c 0%, #03050b 55%, #020409 100%);
+      color: var(--text);
+      padding: 32px clamp(18px, 4vw, 44px);
+    }
+
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-strong); }
+
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 16px;
+      background: var(--accent);
+      color: #041423;
+      padding: 10px 14px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: top 0.2s ease;
+      font-weight: 600;
+      z-index: 10;
+    }
+
+    .skip-link:focus {
+      top: 16px;
+    }
+
+    main {
+      display: grid;
+      gap: clamp(22px, 3vw, 32px);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: grid;
+      gap: 12px;
+      background: linear-gradient(120deg, rgba(56, 189, 248, 0.18) 0%, rgba(59, 130, 246, 0.15) 46%, rgba(34, 211, 238, 0.2) 100%);
+      border: 1px solid rgba(94, 234, 212, 0.25);
+      border-radius: 22px;
+      padding: clamp(20px, 4vw, 28px);
+      box-shadow: 0 26px 70px rgba(4, 9, 20, 0.58);
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.24), transparent 60%);
+      filter: blur(12px);
+      opacity: 0.7;
+      inset: auto -80px -120px auto;
+      z-index: -1;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: rgba(232, 238, 249, 0.8);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 2.8vw + 1.2rem, 3rem);
+      line-height: 1.15;
+    }
+
+    header p {
+      margin: 0;
+      color: rgba(232, 238, 249, 0.8);
+      max-width: 760px;
+      font-size: 1.05rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      gap: clamp(18px, 2.6vw, 28px);
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: clamp(18px, 3vw, 24px);
+    }
+
+    .panel-title {
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.2rem;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .link-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+
+    .link-card {
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: grid;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.35);
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .link-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(56, 189, 248, 0.4);
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .link-card span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .link-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .board-layout {
+      display: grid;
+      gap: clamp(16px, 2vw, 24px);
+      grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .board-left {
+      display: grid;
+      gap: 14px;
+    }
+
+    .summary-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .summary-card {
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .summary-card strong {
+      font-size: 1.3rem;
+    }
+
+    form {
+      display: grid;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-weight: 600;
+      color: #dbe3f6;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-strong);
+      color: var(--text);
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: linear-gradient(120deg, #38bdf8, #22d3ee);
+      color: #032436;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 10px 30px rgba(34, 211, 238, 0.28);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    .board-columns {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .column {
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      min-height: 280px;
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .column-header h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .column-body {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .job-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .job-card header {
+      padding: 0;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .job-title {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .controls {
+      display: grid;
+      gap: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .control-row select,
+    .control-row input {
+      flex: 1;
+    }
+
+    .inline-btn {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent);
+      font-weight: 700;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 0.95rem;
+      text-align: center;
+      padding: 12px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+    }
+
+    @media (max-width: 880px) {
+      .board-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#jobs-board">Skip to job board</a>
+  <main>
+    <header>
+      <span class="eyebrow">Jobs</span>
+      <h1>Dedicated job tracker</h1>
+      <p>Keep every opening in one flow. Pair action items, calendars, notes, and CRM context so recruiters, hiring managers, and coordinators stay on the same page.</p>
+      <div class="hero-actions">
+        <span class="badge">✅ Linked to tasks, calendar, and notes</span>
+        <span class="badge">🔒 Synced through Gun across peers</span>
+      </div>
+    </header>
+
+    <section class="panel grid" aria-labelledby="job-links-title">
+      <div class="panel-title" id="job-links-title">
+        <span>🔗</span>
+        <span>Job coordination shortcuts</span>
+      </div>
+      <p class="muted">Jump to the tools that keep every candidate touchpoint connected.</p>
+      <div class="link-grid">
+        <a class="link-card" href="/tasks/">
+          <span>✅ Task list</span>
+          <p>Assign next steps for each opening and watch updates flow to teammates.</p>
+        </a>
+        <a class="link-card" href="/calendar/">
+          <span>📅 Calendar</span>
+          <p>Drop interviews and holds onto the shared schedule.</p>
+        </a>
+        <a class="link-card" href="/notes/">
+          <span>📝 Notes</span>
+          <p>Capture interview recaps and role details in one workspace.</p>
+        </a>
+        <a class="link-card" href="/crm/">
+          <span>📊 CRM</span>
+          <p>Sync deal and candidate data as they move through the pipeline.</p>
+        </a>
+        <a class="link-card" href="/contacts/">
+          <span>📇 Contacts</span>
+          <p>Pull up candidate and referrer profiles during every conversation.</p>
+        </a>
+        <a class="link-card" href="/meeting-notes/">
+          <span>🗒️ Meetings</span>
+          <p>Log attendance and decisions without losing historical context.</p>
+        </a>
+        <a class="link-card" href="/chat.html">
+          <span>💬 Chat</span>
+          <p>Share progress updates and celebrate hires with the team.</p>
+        </a>
+      </div>
+    </section>
+
+    <section id="jobs-board" class="panel board-layout" aria-labelledby="jobs-board-title">
+      <div class="board-left">
+        <div>
+          <div class="panel-title" id="jobs-board-title">
+            <span>📂</span>
+            <span>Pipeline overview</span>
+          </div>
+          <p class="muted">Add an opening, set the next step, and keep stages current for every candidate slate.</p>
+        </div>
+
+        <div class="summary-grid" aria-live="polite">
+          <div class="summary-card">
+            <span class="muted">Open</span>
+            <strong id="count-open">0</strong>
+          </div>
+          <div class="summary-card">
+            <span class="muted">Interviewing</span>
+            <strong id="count-interview">0</strong>
+          </div>
+          <div class="summary-card">
+            <span class="muted">Offers</span>
+            <strong id="count-offer">0</strong>
+          </div>
+          <div class="summary-card">
+            <span class="muted">Closed</span>
+            <strong id="count-closed">0</strong>
+          </div>
+        </div>
+
+        <form id="jobForm" aria-label="Create a new job">
+          <label>
+            Role title
+            <input type="text" id="jobTitle" name="title" placeholder="e.g., Senior Product Designer" required />
+          </label>
+          <label>
+            Company or team
+            <input type="text" id="jobCompany" name="company" placeholder="e.g., 3DVR Labs" required />
+          </label>
+          <label>
+            Current stage
+            <select id="jobStatus" name="status">
+              <option value="open">Open</option>
+              <option value="screening">Screening</option>
+              <option value="interviewing">Interviewing</option>
+              <option value="offer">Offer</option>
+              <option value="hired">Hired</option>
+              <option value="on-hold">On hold</option>
+            </select>
+          </label>
+          <label>
+            Next step
+            <textarea id="jobNextStep" name="nextStep" placeholder="Schedule panel, request portfolio, etc."></textarea>
+          </label>
+          <button type="submit">Add job to board</button>
+        </form>
+      </div>
+
+      <div class="board-columns" aria-live="polite" id="boardColumns"></div>
+    </section>
+  </main>
+
+  <script>
+    const gun = window.gun;
+    // Gun graph:
+    // job-tracker -> jobs -> {jobId} -> {title, company, status, nextStep, createdAt, updatedAt}
+    const jobsNode = gun.get('job-tracker').get('jobs');
+
+    const statusColumns = [
+      { key: 'open', label: 'Open', icon: '🟢', bucket: 'open' },
+      { key: 'screening', label: 'Screening', icon: '🔍', bucket: 'open' },
+      { key: 'interviewing', label: 'Interviewing', icon: '🎙️', bucket: 'interview' },
+      { key: 'offer', label: 'Offer', icon: '📄', bucket: 'offer' },
+      { key: 'hired', label: 'Hired', icon: '🎉', bucket: 'closed' },
+      { key: 'on-hold', label: 'On hold', icon: '⏸️', bucket: 'open' }
+    ];
+
+    const boardColumns = document.getElementById('boardColumns');
+    const jobForm = document.getElementById('jobForm');
+    const titleField = document.getElementById('jobTitle');
+    const companyField = document.getElementById('jobCompany');
+    const statusField = document.getElementById('jobStatus');
+    const nextStepField = document.getElementById('jobNextStep');
+    const countOpen = document.getElementById('count-open');
+    const countInterview = document.getElementById('count-interview');
+    const countOffer = document.getElementById('count-offer');
+    const countClosed = document.getElementById('count-closed');
+
+    const jobCache = new Map();
+
+    const pluralize = (value, word) => `${value} ${value === 1 ? word : `${word}s`}`;
+
+    const formatDate = (timestamp) => {
+      if (!timestamp) return 'Just now';
+      const date = new Date(timestamp);
+      if (Number.isNaN(date.getTime())) return 'Just now';
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    };
+
+    const buildColumn = (column) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'column';
+      wrapper.dataset.status = column.key;
+
+      const header = document.createElement('div');
+      header.className = 'column-header';
+      const title = document.createElement('h3');
+      title.textContent = `${column.icon} ${column.label}`;
+      const pill = document.createElement('span');
+      pill.className = 'pill';
+      pill.dataset.count = column.key;
+      pill.textContent = '0';
+
+      header.append(title, pill);
+      wrapper.append(header);
+
+      const list = document.createElement('div');
+      list.className = 'column-body';
+      list.id = `list-${column.key}`;
+      list.setAttribute('role', 'list');
+      list.setAttribute('aria-label', `${column.label} jobs`);
+      wrapper.append(list);
+
+      return wrapper;
+    };
+
+    const renderBoard = () => {
+      const grouped = new Map();
+      statusColumns.forEach((column) => grouped.set(column.key, []));
+
+      jobCache.forEach((value, id) => {
+        const column = grouped.get(value.status);
+        if (column) {
+          column.push({ ...value, id });
+        }
+      });
+
+      statusColumns.forEach((column) => {
+        let columnNode = document.getElementById(`list-${column.key}`);
+        if (!columnNode) {
+          const built = buildColumn(column);
+          boardColumns.append(built);
+          columnNode = document.getElementById(`list-${column.key}`);
+        }
+
+        columnNode.innerHTML = '';
+        const jobs = grouped.get(column.key) || [];
+        const countTag = columnNode.previousElementSibling.querySelector('[data-count]');
+        if (countTag) {
+          countTag.textContent = pluralize(jobs.length, 'role');
+        }
+
+        if (!jobs.length) {
+          const empty = document.createElement('p');
+          empty.className = 'empty';
+          empty.textContent = 'No roles in this stage yet.';
+          columnNode.append(empty);
+          return;
+        }
+
+        jobs
+          .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+          .forEach((job) => columnNode.append(buildJobCard(job)));
+      });
+
+      const totals = Array.from(jobCache.values()).reduce((acc, job) => {
+        const bucket = statusColumns.find((item) => item.key === job.status)?.bucket || 'open';
+        acc[bucket] = (acc[bucket] || 0) + 1;
+        return acc;
+      }, {});
+
+      countOpen.textContent = (totals.open || 0).toString();
+      countInterview.textContent = (totals.interview || 0).toString();
+      countOffer.textContent = (totals.offer || 0).toString();
+      countClosed.textContent = (totals.closed || 0).toString();
+    };
+
+    const buildJobCard = (job) => {
+      const card = document.createElement('article');
+      card.className = 'job-card';
+      card.dataset.jobId = job.id;
+      card.setAttribute('role', 'listitem');
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      const title = document.createElement('h4');
+      title.className = 'job-title';
+      title.textContent = job.title || 'Untitled role';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const company = document.createElement('span');
+      company.textContent = job.company || 'Team TBD';
+      const updated = document.createElement('span');
+      updated.textContent = `Updated ${formatDate(job.updatedAt || job.createdAt)}`;
+      meta.append(company, updated);
+      header.append(title, meta);
+
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+
+      const statusRow = document.createElement('div');
+      statusRow.className = 'control-row';
+      const statusLabel = document.createElement('label');
+      statusLabel.textContent = 'Stage';
+      statusLabel.setAttribute('for', `status-${job.id}`);
+      const statusSelect = document.createElement('select');
+      statusSelect.id = `status-${job.id}`;
+      statusSelect.dataset.jobId = job.id;
+      statusSelect.className = 'status-select';
+
+      statusColumns.forEach((column) => {
+        const option = document.createElement('option');
+        option.value = column.key;
+        option.textContent = column.label;
+        if (column.key === job.status) {
+          option.selected = true;
+        }
+        statusSelect.append(option);
+      });
+
+      statusRow.append(statusLabel, statusSelect);
+      controls.append(statusRow);
+
+      const nextRow = document.createElement('div');
+      nextRow.className = 'control-row';
+      const nextInput = document.createElement('input');
+      nextInput.type = 'text';
+      nextInput.placeholder = 'Next step';
+      nextInput.value = job.nextStep || '';
+      nextInput.dataset.jobId = job.id;
+      nextInput.dataset.nextStep = job.id;
+      const saveNext = document.createElement('button');
+      saveNext.type = 'button';
+      saveNext.className = 'inline-btn';
+      saveNext.dataset.saveNext = job.id;
+      saveNext.textContent = 'Save next step';
+      nextRow.append(nextInput, saveNext);
+      controls.append(nextRow);
+
+      card.append(header, controls);
+      return card;
+    };
+
+    jobsNode.map().on((data, id) => {
+      if (!id) return;
+      if (!data) {
+        jobCache.delete(id);
+        renderBoard();
+        return;
+      }
+
+      const { title, company, status, nextStep, createdAt, updatedAt } = data;
+      if (!title && !company && !status) {
+        jobCache.delete(id);
+        renderBoard();
+        return;
+      }
+
+      jobCache.set(id, {
+        title: title || 'Untitled role',
+        company: company || 'Team TBD',
+        status: status || 'open',
+        nextStep: nextStep || '',
+        createdAt: createdAt || Date.now(),
+        updatedAt: updatedAt || Date.now()
+      });
+      renderBoard();
+    });
+
+    jobForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const title = titleField.value.trim();
+      const company = companyField.value.trim();
+      const status = statusField.value;
+      const nextStep = nextStepField.value.trim();
+      const timestamp = Date.now();
+
+      jobsNode.get(id).put({
+        title: title || 'Untitled role',
+        company: company || 'Team TBD',
+        status,
+        nextStep,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+
+      jobForm.reset();
+      statusField.value = 'open';
+    });
+
+    boardColumns.addEventListener('change', (event) => {
+      if (event.target.matches('.status-select')) {
+        const jobId = event.target.dataset.jobId;
+        jobsNode.get(jobId).put({ status: event.target.value, updatedAt: Date.now() });
+      }
+    });
+
+    boardColumns.addEventListener('click', (event) => {
+      if (event.target.dataset.saveNext) {
+        const jobId = event.target.dataset.saveNext;
+        const field = document.querySelector(`[data-next-step="${jobId}"]`);
+        jobsNode.get(jobId).put({ nextStep: field.value.trim(), updatedAt: Date.now() });
+      }
+    });
+
+    renderBoard();
+  </script>
+</body>
+</html>
