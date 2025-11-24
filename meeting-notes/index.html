@@ -444,39 +444,45 @@
       attendeeEvents = {};
     };
 
-    const renderMeetingCard = (id, data) => {
-      let card = meetingList.querySelector(`[data-meeting-id="${id}"]`);
-      if (!card) {
-        card = document.createElement('article');
-        card.className = 'meeting-card';
-        card.tabIndex = 0;
-        card.setAttribute('role', 'button');
-        card.setAttribute('data-meeting-id', id);
-        meetingList.appendChild(card);
-      }
+    const renderMeetingList = () => {
+      meetingList.innerHTML = '';
 
-      const selectMeeting = () => setActiveMeeting(id, meetingsCache.get(id) || data);
-      card.onclick = selectMeeting;
-      card.onkeydown = (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          selectMeeting();
-        }
-      };
+      Array.from(meetingsCache.entries())
+        .sort(([_idA, a], [_idB, b]) => {
+          const dateA = new Date(a?.datetime || a?.createdAt || 0).getTime();
+          const dateB = new Date(b?.datetime || b?.createdAt || 0).getTime();
+          return dateB - dateA;
+        })
+        .forEach(([id, data]) => {
+          const card = document.createElement('article');
+          card.className = 'meeting-card';
+          card.tabIndex = 0;
+          card.setAttribute('role', 'button');
+          card.setAttribute('data-meeting-id', id);
 
-      card.innerHTML = `
-        <div class="tag">${formatDate(data?.datetime)}</div>
-        <h3 class="meeting-card__title">${data?.title || 'Untitled meeting'}</h3>
-        <p class="meeting-card__meta">Created ${formatDate(data?.createdAt)}</p>
-      `;
+          const selectMeeting = () => setActiveMeeting(id, meetingsCache.get(id) || data);
+          card.onclick = selectMeeting;
+          card.onkeydown = (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              selectMeeting();
+            }
+          };
 
-      card.classList.toggle('meeting-card--active', id === currentMeetingId);
+          card.innerHTML = `
+            <div class="tag">${formatDate(data?.datetime)}</div>
+            <h3 class="meeting-card__title">${data?.title || 'Untitled meeting'}</h3>
+            <p class="meeting-card__meta">Created ${formatDate(data?.createdAt)}</p>
+          `;
+
+          card.classList.toggle('meeting-card--active', id === currentMeetingId);
+          meetingList.appendChild(card);
+        });
+
       updateEmptyStates();
     };
 
     const removeMeetingCard = (id) => {
-      const card = meetingList.querySelector(`[data-meeting-id="${id}"]`);
-      if (card) card.remove();
       if (currentMeetingId === id) {
         currentMeetingId = null;
         activeMeetingTag.textContent = 'No meeting selected';
@@ -490,7 +496,7 @@
         clearNotesSubscription();
         clearAttendeeSubscriptions();
       }
-      updateEmptyStates();
+      renderMeetingList();
     };
 
     const renderAttendee = (attendeeId, data) => {
@@ -610,7 +616,7 @@
         return;
       }
       meetingsCache.set(meetingId, data);
-      renderMeetingCard(meetingId, data);
+      renderMeetingList();
     });
 
     updateEmptyStates();
