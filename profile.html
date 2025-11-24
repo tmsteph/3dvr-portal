@@ -10,144 +10,340 @@
   <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <style>
-    body {
-      background: #e9f0f5;
-      color: #222;
+    body.profile-page {
+      background: var(--page-background);
+      color: var(--color-text);
       font-family: 'Poppins', sans-serif;
       margin: 0;
-      padding: 20px;
+      padding: 0 1.25rem 2.5rem;
       min-height: 100vh;
     }
+
+    .page-shell {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      text-align: center;
+      margin: 1.5rem auto 2rem;
+      max-width: 720px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.12);
+      color: var(--accent-strong);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      border: 1px solid rgba(37, 99, 235, 0.18);
+    }
+
     h1 {
-      text-align: center;
-      color: #333;
-      font-size: 2.4rem;
-      margin-top: 0;
+      margin: 0.85rem 0 0.35rem;
+      font-size: clamp(2rem, 3vw, 2.6rem);
+      color: var(--color-text);
     }
-    #profile {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 30px;
-      max-width: 400px;
-      margin: auto;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      text-align: center;
+
+    .lede {
+      margin: 0;
+      color: var(--color-text-muted);
+      font-size: 1.05rem;
+      line-height: 1.65;
     }
-    #profile p {
-      margin: 10px 0;
-      font-size: 1.1rem;
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.25rem;
     }
-    input {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      width: 80%;
-    }
-    button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      border-radius: 8px;
-      background: #66c2b0;
-      color: white;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.3s ease;
-    }
-    button:hover {
-      background: #5ca0d3;
-    }
-    .progress-bar {
-      width: 100%;
-      background-color: #eee;
-      border-radius: 8px;
-      margin-top: 20px;
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      padding: 1.4rem;
+      position: relative;
       overflow: hidden;
     }
-    .progress {
-      height: 20px;
-      background-color: #66c2b0;
-      width: 0%;
-      transition: width 0.5s ease;
+
+    .card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 12% 20%, rgba(37, 99, 235, 0.08), transparent 35%),
+        radial-gradient(circle at 82% 12%, rgba(37, 99, 235, 0.06), transparent 28%);
+      pointer-events: none;
+      z-index: 0;
     }
-    .teaser {
-      margin-top: 20px;
-      color: #666;
-      font-size: 0.9rem;
+
+    .card > * {
+      position: relative;
+      z-index: 1;
     }
-    .reset-btn {
-      margin-top: 20px;
-      font-size: 0.8rem;
-      background: none;
-      border: none;
-      color: #5ca0d3;
-      text-decoration: underline;
-      cursor: pointer;
+
+    .profile-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
     }
-    .reset-btn:hover {
-      color: #3498db;
+
+    .avatar {
+      width: 64px;
+      height: 64px;
+      display: grid;
+      place-items: center;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(37, 99, 235, 0.26));
+      border: 1px solid rgba(37, 99, 235, 0.18);
+      font-size: 1.8rem;
+      color: var(--color-text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
     }
-    .admin-card {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 24px;
-      max-width: 640px;
-      margin: 24px auto 0;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
-    }
-    .admin-card h2 {
-      margin: 0 0 8px;
-      font-size: 1.4rem;
-      color: #2d3e50;
-      text-align: center;
-    }
-    .admin-subtitle {
+
+    .label {
       margin: 0;
-      text-align: center;
-      color: #607080;
       font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+      font-weight: 700;
     }
-    .admin-status {
-      margin-top: 16px;
-      text-align: center;
-      color: #2d3e50;
+
+    .display-name {
+      margin: 0.15rem 0 0.25rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.2;
+    }
+
+    .helper-text {
+      margin: 0;
+      color: var(--color-text-muted);
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+
+    .stat {
+      padding: 0.9rem 1rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-alt);
+      border: 1px solid var(--surface-border);
+    }
+
+    .stat-value {
+      margin: 0.2rem 0 0;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--color-text);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.12);
+      color: var(--accent-strong);
+      font-weight: 700;
+      border: 1px solid rgba(37, 99, 235, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    .progress-wrap {
+      margin: 1rem 0;
+    }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+      color: var(--color-text-muted);
       font-weight: 600;
     }
-    .admin-actions {
+
+    .progress-bar {
+      width: 100%;
+      background-color: #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(15, 23, 42, 0.05);
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+      height: 16px;
+    }
+
+    .progress {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2563eb, #22c55e);
+      transition: width 0.5s ease;
+    }
+
+    .unlock-hints {
+      margin: 0.5rem 0 1.25rem;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-md);
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--color-text);
+      border: 1px dashed rgba(37, 99, 235, 0.32);
+      font-weight: 600;
+      line-height: 1.5;
+    }
+
+    .name-form {
+      display: grid;
+      gap: 0.55rem;
+      margin-top: 0.5rem;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    input {
+      padding: 0.75rem 0.9rem;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #fff;
+      font-size: 1rem;
+      width: 100%;
+      color: var(--color-text);
+    }
+
+    input:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.35);
+      outline-offset: 2px;
+    }
+
+    button {
+      padding: 0.8rem 1rem;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform var(--transition-base), box-shadow var(--transition-base), opacity var(--transition-base);
+      box-shadow: 0 14px 28px rgba(37, 99, 235, 0.3);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 36px rgba(37, 99, 235, 0.36);
+    }
+
+    button:active {
+      transform: translateY(0);
+      opacity: 0.95;
+    }
+
+    .ghost {
+      background: rgba(15, 23, 42, 0.04);
+      color: var(--color-text);
+      border-color: rgba(15, 23, 42, 0.08);
+      box-shadow: none;
+    }
+
+    .ghost:hover {
+      background: rgba(15, 23, 42, 0.08);
+      box-shadow: none;
+    }
+
+    .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      justify-content: center;
-      margin-top: 16px;
+      gap: 0.65rem;
+      margin-top: 0.25rem;
     }
+
+    .admin-card {
+      padding: 1.6rem;
+      text-align: left;
+    }
+
+    .admin-card h2 {
+      margin: 0 0 0.35rem;
+      font-size: 1.35rem;
+      color: var(--color-text);
+    }
+
+    .admin-subtitle {
+      margin: 0 0 0.75rem;
+      color: var(--color-text-muted);
+      line-height: 1.55;
+    }
+
+    .admin-status {
+      margin: 0.25rem 0 0.85rem;
+      color: var(--color-text);
+      font-weight: 700;
+    }
+
+    .admin-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
     .admin-actions a {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 10px 14px;
-      border-radius: 10px;
-      background: #f0f7ff;
-      color: #2d3e50;
-      text-decoration: none;
-      font-weight: 600;
-      border: 1px solid #dbe7f5;
-      transition: background 0.2s ease, transform 0.2s ease;
+      gap: 0.5rem;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-md);
+      background: rgba(15, 23, 42, 0.04);
+      color: var(--color-text);
+      font-weight: 700;
+      border: 1px solid var(--surface-border);
+      transition: transform var(--transition-base), background var(--transition-base), border-color var(--transition-base);
     }
+
     .admin-actions a:hover {
-      background: #e2efff;
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      background: rgba(37, 99, 235, 0.08);
+      border-color: rgba(37, 99, 235, 0.28);
     }
+
     .admin-actions a[aria-disabled="true"] {
       opacity: 0.55;
       cursor: not-allowed;
       pointer-events: none;
-      background: #f5f6f8;
-      border-color: #e0e6ed;
+      background: rgba(15, 23, 42, 0.02);
+    }
+
+    @media (max-width: 640px) {
+      .input-row {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
-<body>
+<body class="profile-page theme-dark">
 
 <div class="top-buttons">
   <a href="index.html">🏠 Portal</a>
@@ -158,39 +354,76 @@
   <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
 </div>
 
-<h1>👤 Profile</h1>
+<main class="page-shell">
+  <header class="page-header">
+    <div class="eyebrow">Identity & score</div>
+    <h1>👤 Profile</h1>
+    <p class="lede">Curate your display name, check your score, and jump into the admin tools that keep the 3DVR portal humming.</p>
+  </header>
 
-<div id="profile">
-  <p><strong>Username:</strong> <span id="username">Guest</span></p>
-  <p><strong>Score:</strong> <span id="score">0</span></p>
-  <p><strong>Level:</strong> <span id="level">Explorer</span></p>
+  <section class="profile-grid">
+    <article class="card" id="profile" aria-live="polite">
+      <div class="profile-meta">
+        <div class="avatar" aria-hidden="true">🪐</div>
+        <div>
+          <p class="label">Display name</p>
+          <p class="display-name" id="username">Guest</p>
+          <p class="helper-text">Tied to your Gun identity and visible across shared spaces.</p>
+        </div>
+      </div>
 
-  <div class="progress-bar">
-    <div class="progress" id="progress"></div>
-  </div>
+      <div class="stat-row">
+        <div class="stat">
+          <p class="label">Score</p>
+          <p class="stat-value" id="score">0</p>
+        </div>
+        <div class="stat">
+          <p class="label">Level</p>
+          <div class="chip" id="level">Explorer</div>
+        </div>
+      </div>
 
-  <input type="text" id="name-input" placeholder="Enter new username...">
-  <button onclick="saveUsername()">Save Username</button>
+      <div class="progress-wrap">
+        <div class="progress-header">
+          <span>Progress to next tier</span>
+          <span class="chip">Live sync</span>
+        </div>
+        <div class="progress-bar" aria-label="Score progress">
+          <div class="progress" id="progress"></div>
+        </div>
+      </div>
 
-  <div class="teaser">
-    📚 Unlock Education at 500 Score • 🛠️ Become a Creator at 1500 • 🚀 Become a Builder at 3000
-  </div>
+      <div class="unlock-hints">
+        📚 Education unlocks at 500 • 🛠️ Creator tools at 1500 • 🚀 Builder status at 3000
+      </div>
 
-  <button onclick="addPoints(100)">+100 Points</button>
-  <button class="reset-btn" onclick="resetScore()">Reset Score</button>
-</div>
+      <form class="name-form" onsubmit="event.preventDefault(); saveUsername();">
+        <label class="label" for="name-input">Update display name</label>
+        <div class="input-row">
+          <input type="text" id="name-input" placeholder="Enter new username...">
+          <button type="submit">Save Username</button>
+        </div>
+      </form>
 
-<div class="admin-card" aria-live="polite">
-  <h2><span id="admin-badge">Admin</span> Control</h2>
-  <p class="admin-subtitle">Quick links to keep the portal healthy and organized.</p>
-  <p class="admin-status" id="admin-status">Sign in to unlock admin shortcuts.</p>
-  <div class="admin-actions" id="admin-actions">
-    <a href="/admin/" role="button">🛠️ Portal Admin</a>
-    <a href="/tasks/" role="button">✅ Task Board</a>
-    <a href="/gun-explorer/" role="button">🕸️ Gun Explorer</a>
-    <a href="/notes/" role="button">📝 Shared Notes</a>
-  </div>
-</div>
+      <div class="actions">
+        <button type="button" onclick="addPoints(100)">+100 Points</button>
+        <button type="button" class="ghost" onclick="resetScore()">Reset Score</button>
+      </div>
+    </article>
+
+    <article class="card admin-card" aria-live="polite">
+      <h2><span id="admin-badge">Admin</span> Control</h2>
+      <p class="admin-subtitle">Quick links that keep the portal healthy, curated, and in sync for everyone.</p>
+      <p class="admin-status" id="admin-status">Sign in to unlock admin shortcuts.</p>
+      <div class="admin-actions" id="admin-actions">
+        <a href="/admin/" role="button">🛠️ Portal Admin</a>
+        <a href="/tasks/" role="button">✅ Task Board</a>
+        <a href="/gun-explorer/" role="button">🕸️ Gun Explorer</a>
+        <a href="/notes/" role="button">📝 Shared Notes</a>
+      </div>
+    </article>
+  </section>
+</main>
 
 <script>
 const gun = Gun(window.__GUN_PEERS__ || [
