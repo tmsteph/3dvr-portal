@@ -88,6 +88,63 @@
     .reset-btn:hover {
       color: #3498db;
     }
+    .admin-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 640px;
+      margin: 24px auto 0;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+    }
+    .admin-card h2 {
+      margin: 0 0 8px;
+      font-size: 1.4rem;
+      color: #2d3e50;
+      text-align: center;
+    }
+    .admin-subtitle {
+      margin: 0;
+      text-align: center;
+      color: #607080;
+      font-size: 0.95rem;
+    }
+    .admin-status {
+      margin-top: 16px;
+      text-align: center;
+      color: #2d3e50;
+      font-weight: 600;
+    }
+    .admin-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 16px;
+    }
+    .admin-actions a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #f0f7ff;
+      color: #2d3e50;
+      text-decoration: none;
+      font-weight: 600;
+      border: 1px solid #dbe7f5;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .admin-actions a:hover {
+      background: #e2efff;
+      transform: translateY(-1px);
+    }
+    .admin-actions a[aria-disabled="true"] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+      background: #f5f6f8;
+      border-color: #e0e6ed;
+    }
   </style>
 </head>
 <body>
@@ -121,6 +178,18 @@
 
   <button onclick="addPoints(100)">+100 Points</button>
   <button class="reset-btn" onclick="resetScore()">Reset Score</button>
+</div>
+
+<div class="admin-card" aria-live="polite">
+  <h2><span id="admin-badge">Admin</span> Control</h2>
+  <p class="admin-subtitle">Quick links to keep the portal healthy and organized.</p>
+  <p class="admin-status" id="admin-status">Sign in to unlock admin shortcuts.</p>
+  <div class="admin-actions" id="admin-actions">
+    <a href="/admin/" role="button">🛠️ Portal Admin</a>
+    <a href="/tasks/" role="button">✅ Task Board</a>
+    <a href="/gun-explorer/" role="button">🕸️ Gun Explorer</a>
+    <a href="/notes/" role="button">📝 Shared Notes</a>
+  </div>
 </div>
 
 <script>
@@ -170,6 +239,9 @@ const usernameEl = document.getElementById('username');
 const scoreEl = document.getElementById('score');
 const levelEl = document.getElementById('level');
 const progressEl = document.getElementById('progress');
+const adminStatusEl = document.getElementById('admin-status');
+const adminActionsEl = document.getElementById('admin-actions');
+const adminBadgeEl = document.getElementById('admin-badge');
 
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
@@ -193,6 +265,24 @@ function computeDisplayName() {
 
 function applyDisplayName() {
   usernameEl.innerText = computeDisplayName();
+}
+
+function updateAdminCard() {
+  if (!adminStatusEl || !adminActionsEl || !adminBadgeEl) return;
+
+  if (isSignedIn) {
+    adminBadgeEl.innerText = 'Admin (signed in)';
+    adminStatusEl.innerText = 'You have access to curation tools and shared system controls.';
+    Array.from(adminActionsEl.querySelectorAll('a')).forEach(link => {
+      link.setAttribute('aria-disabled', 'false');
+    });
+  } else {
+    adminBadgeEl.innerText = 'Admin (guest view)';
+    adminStatusEl.innerText = 'Sign in to unlock admin shortcuts and synced changes.';
+    Array.from(adminActionsEl.querySelectorAll('a')).forEach(link => {
+      link.setAttribute('aria-disabled', 'true');
+    });
+  }
 }
 
 function updateProfile(scoreValue) {
@@ -324,6 +414,7 @@ function initializeSignedInProfile() {
   watchUsername(activeProfile);
   applyDisplayName();
   subscribeToScore();
+  updateAdminCard();
 }
 
 function initializeGuestProfile() {
@@ -334,6 +425,7 @@ function initializeGuestProfile() {
   watchUsername(activeProfile);
   applyDisplayName();
   subscribeToScore();
+  updateAdminCard();
 }
 
 const signedInAlias = (localStorage.getItem('alias') || '').trim();
