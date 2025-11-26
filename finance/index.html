@@ -22,6 +22,34 @@
       </p>
     </header>
 
+    <section class="finance-layout finance-layout--feature" aria-labelledby="stripe-overview-title">
+      <div class="finance-card finance-card--stripe">
+        <div class="finance-card__header">
+          <h2 id="stripe-overview-title" class="finance-card__title">Stripe total</h2>
+          <p class="finance-card__subhead">Topline revenue from Stripe reports</p>
+        </div>
+        <p class="stripe-total__value" id="stripe-net">$0.00</p>
+        <dl class="finance-summary__grid stripe-summary">
+          <div class="finance-summary__stat">
+            <dt>Gross volume</dt>
+            <dd id="stripe-gross">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Fees</dt>
+            <dd id="stripe-fees">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Latest payout</dt>
+            <dd id="stripe-last-payout">No payouts logged</dd>
+          </div>
+        </dl>
+        <div class="finance-card__actions">
+          <a class="finance-button finance-button--secondary" href="./pages/stripe.html">Open Stripe workspace</a>
+          <p class="finance-helper">Totals stay in sync with the Stripe accounting page.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="finance-layout" aria-labelledby="snapshot-title">
       <div class="finance-card finance-card--metrics" id="finance-summary">
         <h2 id="snapshot-title" class="finance-card__title">Finance at a glance</h2>
