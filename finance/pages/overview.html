@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance overview | 3dvr Finance</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../../gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="../../score.js"></script>
+</head>
+<body class="finance-body">
+  <a href="#page-main" class="finance-skip-link">Skip to finance content</a>
+  <main id="page-main" class="finance-shell" aria-labelledby="page-title">
+    <header class="finance-hero">
+      <p class="finance-hero__eyebrow">Finance workspace</p>
+      <h1 id="page-title" class="finance-hero__title">Spending &amp; ledger</h1>
+      <p class="finance-hero__lead">
+        Capture expenditures, upcoming payables, and Ethereum payouts in one shared graph so finance stays in sync with the rest of the portal.
+      </p>
+      <p class="finance-hero__breadcrumb"><a href="../index.html">Back to finance directory</a></p>
+    </header>
+
+    <section class="finance-layout" aria-labelledby="overview-title">
+      <div class="finance-card finance-card--metrics" id="finance-summary">
+        <h2 id="overview-title" class="finance-card__title">Overview</h2>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Total logged</dt>
+            <dd id="total-amount">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Latest entry</dt>
+            <dd id="latest-entry">No entries yet</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Outstanding payables</dt>
+            <dd id="outstanding-amount">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Next payment</dt>
+            <dd id="next-payable">No payables logged</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="finance-card finance-card--form" aria-labelledby="form-title">
+        <div class="finance-card__header">
+          <h2 id="form-title" class="finance-card__title">Add an expenditure</h2>
+          <p class="finance-card__subhead">Synced with Gun</p>
+        </div>
+        <form id="expenditure-form" class="finance-form" autocomplete="off" novalidate>
+          <div class="finance-form__grid">
+            <label class="finance-field">
+              <span class="finance-field__label">Amount (USD)</span>
+              <input id="amount" name="amount" type="number" step="0.01" min="0" inputmode="decimal" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Date</span>
+              <input id="date" name="date" type="date" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Category</span>
+              <input id="category" name="category" type="text" placeholder="Hardware, software, travel" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Paid with</span>
+              <input id="payment-method" name="paymentMethod" type="text" placeholder="Card, crypto, invoice" required>
+            </label>
+          </div>
+          <label class="finance-field">
+            <span class="finance-field__label">Notes</span>
+            <textarea id="notes" name="notes" rows="3" placeholder="Context, links, or shared collaborators"></textarea>
+          </label>
+          <button type="submit" class="finance-button">Log expenditure</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="finance-layout" aria-labelledby="payables-title">
+      <div class="finance-card finance-card--form" aria-labelledby="payable-form-title">
+        <div class="finance-card__header">
+          <h2 id="payable-form-title" class="finance-card__title">Schedule a payment</h2>
+          <p class="finance-card__subhead">Track payables</p>
+        </div>
+        <form id="payable-form" class="finance-form" autocomplete="off" novalidate>
+          <div class="finance-form__grid">
+            <label class="finance-field">
+              <span class="finance-field__label">Payee</span>
+              <input id="payee" name="payee" type="text" placeholder="Who is owed" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Amount (USD)</span>
+              <input id="payable-amount" name="payableAmount" type="number" step="0.01" min="0" inputmode="decimal" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Due date</span>
+              <input id="due-date" name="dueDate" type="date" required>
+            </label>
+          </div>
+          <label class="finance-field">
+            <span class="finance-field__label">Notes</span>
+            <textarea id="payable-notes" name="payableNotes" rows="3" placeholder="Context or project details"></textarea>
+          </label>
+          <button type="submit" class="finance-button">Add payable</button>
+        </form>
+      </div>
+
+      <div class="finance-card finance-card--ledger" aria-labelledby="payables-title">
+        <div class="finance-card__header">
+          <h2 id="payables-title" class="finance-card__title">Payables</h2>
+          <span class="finance-card__subhead">Upcoming obligations</span>
+        </div>
+        <div id="payables-list" class="finance-ledger finance-payables" role="list">
+          <p id="payables-empty" class="finance-ledger__empty">No payables yet. Log a payment schedule to get started.</p>
+        </div>
+      </div>
+
+      <div class="finance-card finance-card--form" aria-labelledby="eth-pay-title">
+        <div class="finance-card__header">
+          <h2 id="eth-pay-title" class="finance-card__title">Ethereum payments</h2>
+          <p class="finance-card__subhead">MetaMask ready</p>
+        </div>
+
+        <div class="eth-panel">
+          <p id="eth-status" class="eth-status" role="status">MetaMask not detected yet.</p>
+
+          <div class="eth-connection">
+            <button type="button" id="eth-connect" class="finance-button">Connect MetaMask</button>
+            <div class="eth-connection__details" aria-live="polite">
+              <div>
+                <span class="eth-label">Account</span>
+                <span id="eth-account" class="eth-value">Not connected</span>
+              </div>
+              <div>
+                <span class="eth-label">Network</span>
+                <span id="eth-network" class="eth-value">Unknown</span>
+              </div>
+            </div>
+          </div>
+
+          <form id="eth-payment-form" class="finance-form" autocomplete="off" novalidate>
+            <div class="finance-form__grid">
+              <label class="finance-field">
+                <span class="finance-field__label">Destination wallet</span>
+                <input id="eth-destination" name="ethDestination" type="text" placeholder="0x..." spellcheck="false" required />
+              </label>
+              <label class="finance-field">
+                <span class="finance-field__label">Amount (ETH)</span>
+                <input id="eth-amount" name="ethAmount" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.05" required />
+              </label>
+            </div>
+            <label class="finance-field">
+              <span class="finance-field__label">Notes</span>
+              <textarea id="eth-note" name="ethNote" rows="2" placeholder="Invoice, project, or payable context"></textarea>
+            </label>
+            <button type="submit" class="finance-button finance-button--secondary">Send with MetaMask</button>
+            <p id="eth-message" class="eth-message" role="status" aria-live="polite"></p>
+          </form>
+
+          <div class="eth-log__header">
+            <h3 class="eth-log__title">Recent on-chain payments</h3>
+            <p class="eth-log__hint">Logged to the shared finance graph so the team sees your transfer immediately.</p>
+          </div>
+          <div id="eth-payment-log" class="eth-log" role="list">
+            <p id="eth-log-empty" class="finance-ledger__empty">No Ethereum payments logged yet.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
+      <div class="finance-card__header">
+        <h2 id="ledger-title" class="finance-card__title">Ledger</h2>
+        <span class="finance-card__subhead">Live feed</span>
+      </div>
+      <div id="finance-ledger" class="finance-ledger" role="list">
+        <p id="finance-empty" class="finance-ledger__empty">No expenditures yet. Add your first entry above.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="../app.js"></script>
+</body>
+</html>

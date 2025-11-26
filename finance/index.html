@@ -22,218 +22,46 @@
       </p>
     </header>
 
-    <section class="finance-layout" aria-labelledby="stripe-title">
-      <div class="finance-card finance-card--metrics" id="stripe-summary">
+    <nav class="finance-directory" aria-label="Finance sections">
+      <div class="finance-card finance-card--directory">
         <div class="finance-card__header">
-          <h2 id="stripe-title" class="finance-card__title">Stripe accounting</h2>
-          <p class="finance-card__subhead">Live totals and subscribers</p>
+          <h2 class="finance-card__title">Where to work</h2>
+          <p class="finance-card__subhead">Pick a focused workspace to keep the graph tidy.</p>
         </div>
-        <div class="finance-card__actions">
-          <p id="stripe-live-status" class="finance-helper" role="status" aria-live="polite">Live Stripe balance and subscriber counts will sync shortly.</p>
-          <button type="button" id="stripe-live-refresh" class="finance-button finance-button--secondary">Refresh live totals</button>
-        </div>
-        <dl class="finance-summary__grid">
-          <div class="finance-summary__stat">
-            <dt>Live available balance</dt>
-            <dd id="stripe-live-balance">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Active subscribers</dt>
-            <dd id="stripe-live-subscribers">0</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Gross volume</dt>
-            <dd id="stripe-gross">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Fees</dt>
-            <dd id="stripe-fees">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Net after refunds</dt>
-            <dd id="stripe-net">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Latest payout</dt>
-            <dd id="stripe-last-payout">No payouts logged</dd>
-          </div>
-        </dl>
+        <ul class="finance-directory__links">
+          <li class="finance-directory__item">
+            <a class="finance-directory__link" href="./pages/overview.html">
+              <span class="finance-directory__title">Spending &amp; ledger</span>
+              <span class="finance-directory__desc">Track expenditures, payables, and the shared feed.</span>
+            </a>
+          </li>
+          <li class="finance-directory__item">
+            <a class="finance-directory__link" href="./pages/stripe.html">
+              <span class="finance-directory__title">Stripe accounting</span>
+              <span class="finance-directory__desc">Live balances, subscriber counts, and webhook activity.</span>
+            </a>
+          </li>
+          <li class="finance-directory__item">
+            <a class="finance-directory__link" href="./pages/crypto.html">
+              <span class="finance-directory__title">Crypto payouts</span>
+              <span class="finance-directory__desc">MetaMask-ready ETH payouts synced to the finance graph.</span>
+            </a>
+          </li>
+        </ul>
       </div>
 
-      <div class="finance-card finance-card--ledger" aria-labelledby="stripe-webhooks-title">
+      <div class="finance-card finance-card--directory">
         <div class="finance-card__header">
-          <h2 id="stripe-webhooks-title" class="finance-card__title">Stripe webhooks</h2>
-          <span class="finance-card__subhead">Live events from the Stripe API</span>
+          <h2 class="finance-card__title">Directory map</h2>
+          <p class="finance-card__subhead">Pages live under <code>/finance/pages</code> so each flow stays contained.</p>
         </div>
-
-        <div class="finance-card__actions">
-          <button type="button" id="stripe-events-refresh" class="finance-button finance-button--secondary">Refresh from Stripe</button>
-          <p id="stripe-events-status" class="finance-helper" role="status" aria-live="polite">Connect your webhook endpoint to start streaming events.</p>
-        </div>
-
-        <div id="stripe-events" class="finance-ledger" role="list">
-          <p id="stripe-events-empty" class="finance-ledger__empty">No webhook events synced yet.</p>
-        </div>
+        <ul class="finance-directory__links finance-directory__links--compact">
+          <li class="finance-directory__item">Overview: ledgers, payables, and summary tiles.</li>
+          <li class="finance-directory__item">Stripe: live metrics, webhook feed, and reports.</li>
+          <li class="finance-directory__item">Crypto: on-chain payout logging with MetaMask.</li>
+        </ul>
       </div>
-    </section>
-
-    <section class="finance-layout" aria-labelledby="overview-title">
-      <div class="finance-card finance-card--metrics" id="finance-summary">
-        <h2 id="overview-title" class="finance-card__title">Overview</h2>
-        <dl class="finance-summary__grid">
-          <div class="finance-summary__stat">
-            <dt>Total logged</dt>
-            <dd id="total-amount">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Latest entry</dt>
-            <dd id="latest-entry">No entries yet</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Outstanding payables</dt>
-            <dd id="outstanding-amount">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Next payment</dt>
-            <dd id="next-payable">No payables logged</dd>
-          </div>
-        </dl>
-      </div>
-
-      <div class="finance-card finance-card--form" aria-labelledby="form-title">
-        <div class="finance-card__header">
-          <h2 id="form-title" class="finance-card__title">Add an expenditure</h2>
-          <p class="finance-card__subhead">Synced with Gun</p>
-        </div>
-        <form id="expenditure-form" class="finance-form" autocomplete="off" novalidate>
-          <div class="finance-form__grid">
-            <label class="finance-field">
-              <span class="finance-field__label">Amount (USD)</span>
-              <input id="amount" name="amount" type="number" step="0.01" min="0" inputmode="decimal" required>
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Date</span>
-              <input id="date" name="date" type="date" required>
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Category</span>
-              <input id="category" name="category" type="text" placeholder="Hardware, software, travel" required>
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Paid with</span>
-              <input id="payment-method" name="paymentMethod" type="text" placeholder="Card, crypto, invoice" required>
-            </label>
-          </div>
-          <label class="finance-field">
-            <span class="finance-field__label">Notes</span>
-            <textarea id="notes" name="notes" rows="3" placeholder="Context, links, or shared collaborators"></textarea>
-          </label>
-          <button type="submit" class="finance-button">Log expenditure</button>
-        </form>
-      </div>
-    </section>
-
-    <section class="finance-layout" aria-labelledby="payables-title">
-      <div class="finance-card finance-card--form" aria-labelledby="payable-form-title">
-        <div class="finance-card__header">
-          <h2 id="payable-form-title" class="finance-card__title">Schedule a payment</h2>
-          <p class="finance-card__subhead">Track payables</p>
-        </div>
-        <form id="payable-form" class="finance-form" autocomplete="off" novalidate>
-          <div class="finance-form__grid">
-            <label class="finance-field">
-              <span class="finance-field__label">Payee</span>
-              <input id="payee" name="payee" type="text" placeholder="Who is owed" required>
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Amount (USD)</span>
-              <input id="payable-amount" name="payableAmount" type="number" step="0.01" min="0" inputmode="decimal" required>
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Due date</span>
-              <input id="due-date" name="dueDate" type="date" required>
-            </label>
-          </div>
-          <label class="finance-field">
-            <span class="finance-field__label">Notes</span>
-            <textarea id="payable-notes" name="payableNotes" rows="3" placeholder="Context or project details"></textarea>
-          </label>
-          <button type="submit" class="finance-button">Add payable</button>
-        </form>
-      </div>
-
-      <div class="finance-card finance-card--ledger" aria-labelledby="payables-title">
-        <div class="finance-card__header">
-          <h2 id="payables-title" class="finance-card__title">Payables</h2>
-          <span class="finance-card__subhead">Upcoming obligations</span>
-        </div>
-        <div id="payables-list" class="finance-ledger finance-payables" role="list">
-          <p id="payables-empty" class="finance-ledger__empty">No payables yet. Log a payment schedule to get started.</p>
-        </div>
-      </div>
-
-      <div class="finance-card finance-card--form" aria-labelledby="eth-pay-title">
-        <div class="finance-card__header">
-          <h2 id="eth-pay-title" class="finance-card__title">Ethereum payments</h2>
-          <p class="finance-card__subhead">MetaMask ready</p>
-        </div>
-
-        <div class="eth-panel">
-          <p id="eth-status" class="eth-status" role="status">MetaMask not detected yet.</p>
-
-          <div class="eth-connection">
-            <button type="button" id="eth-connect" class="finance-button">Connect MetaMask</button>
-            <div class="eth-connection__details" aria-live="polite">
-              <div>
-                <span class="eth-label">Account</span>
-                <span id="eth-account" class="eth-value">Not connected</span>
-              </div>
-              <div>
-                <span class="eth-label">Network</span>
-                <span id="eth-network" class="eth-value">Unknown</span>
-              </div>
-            </div>
-          </div>
-
-          <form id="eth-payment-form" class="finance-form" autocomplete="off" novalidate>
-            <div class="finance-form__grid">
-              <label class="finance-field">
-                <span class="finance-field__label">Destination wallet</span>
-                <input id="eth-destination" name="ethDestination" type="text" placeholder="0x..." spellcheck="false" required />
-              </label>
-              <label class="finance-field">
-                <span class="finance-field__label">Amount (ETH)</span>
-                <input id="eth-amount" name="ethAmount" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.05" required />
-              </label>
-            </div>
-            <label class="finance-field">
-              <span class="finance-field__label">Notes</span>
-              <textarea id="eth-note" name="ethNote" rows="2" placeholder="Invoice, project, or payable context"></textarea>
-            </label>
-            <button type="submit" class="finance-button finance-button--secondary">Send with MetaMask</button>
-            <p id="eth-message" class="eth-message" role="status" aria-live="polite"></p>
-          </form>
-
-          <div class="eth-log__header">
-            <h3 class="eth-log__title">Recent on-chain payments</h3>
-            <p class="eth-log__hint">Logged to the shared finance graph so the team sees your transfer immediately.</p>
-          </div>
-          <div id="eth-payment-log" class="eth-log" role="list">
-            <p id="eth-log-empty" class="finance-ledger__empty">No Ethereum payments logged yet.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
-      <div class="finance-card__header">
-        <h2 id="ledger-title" class="finance-card__title">Ledger</h2>
-        <span class="finance-card__subhead">Live feed</span>
-      </div>
-      <div id="finance-ledger" class="finance-ledger" role="list">
-        <p id="finance-empty" class="finance-ledger__empty">No expenditures yet. Add your first entry above.</p>
-      </div>
-    </section>
+    </nav>
   </main>
 
   <script src="./app.js"></script>
