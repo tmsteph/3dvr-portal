@@ -28,6 +28,32 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+async function logStripeEvent(event, context = {}) {
+  if (!process.env.STRIPE_LOG_EMAIL) {
+    return;
+  }
+
+  try {
+    const summary = {
+      id: event.id,
+      type: event.type,
+      created: event.created,
+      ...context,
+    };
+
+    await transporter.sendMail({
+      from: `"3DVR.Tech Stripe Logger" <${process.env.GMAIL_USER}>`,
+      to: process.env.STRIPE_LOG_EMAIL,
+      subject: `[Stripe] ${event.type}`,
+      text: JSON.stringify({ summary, event }, null, 2),
+    });
+
+    console.log(`Stripe event logged automatically: ${event.type}`);
+  } catch (err) {
+    console.error('Failed to send Stripe log email:', err.message);
+  }
+}
+
 async function sendWelcomeEmail(to) {
   try {
     const info = await transporter.sendMail({
@@ -96,6 +122,8 @@ export default async function handler(req, res) {
     console.error('Webhook error:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  await logStripeEvent(event, { receivedAt: new Date().toISOString() });
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;

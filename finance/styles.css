@@ -136,6 +136,24 @@ body {
   align-items: flex-start;
 }
 
+.finance-card__actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+}
+
+.finance-helper {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 0.95rem;
+}
+
+.finance-helper--error {
+  color: #fca5a5;
+}
+
 .finance-card__subhead {
   margin: 0;
   letter-spacing: 0.32em;
