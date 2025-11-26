@@ -994,6 +994,8 @@ async function fetchStripeMetrics(quiet = false) {
   }
 }
 
+const stripeEventsLimit = 5;
+
 async function fetchStripeEvents() {
   if (!stripeEventsStatus) {
     return;
@@ -1010,8 +1012,12 @@ async function fetchStripeEvents() {
 
     const payload = await response.json();
     const events = Array.isArray(payload.events) ? payload.events : [];
+    const limitedEvents = events
+      .slice()
+      .sort((a, b) => (b.created || 0) - (a.created || 0))
+      .slice(0, stripeEventsLimit);
 
-    events.forEach(event => {
+    limitedEvents.forEach(event => {
       const createdAt = event.created
         ? new Date(event.created * 1000).toISOString()
         : new Date().toISOString();
@@ -1030,15 +1036,43 @@ async function fetchStripeEvents() {
       }
     });
 
-    if (events.length === 0) {
+    const keepIds = new Set(limitedEvents.map(event => event.id).filter(Boolean));
+    pruneStripeEvents(stripeEventSources, keepIds);
+
+    if (limitedEvents.length === 0) {
       stripeEventsStatus.textContent = 'No webhook events returned by the Stripe API yet.';
     } else {
-      stripeEventsStatus.textContent = `Synced ${events.length} Stripe webhook events.`;
+      stripeEventsStatus.textContent = `Synced ${limitedEvents.length} Stripe webhook events.`;
     }
   } catch (err) {
     stripeEventsStatus.textContent = `Unable to fetch Stripe events: ${err.message}`;
     stripeEventsStatus.classList.add('finance-helper--error');
   }
+}
+
+function pruneStripeEvents(sources, keepIds) {
+  const keepSet = keepIds instanceof Set ? keepIds : new Set();
+
+  const currentIds = Array.from(stripeEvents.keys());
+  const removableIds = keepSet.size === 0
+    ? currentIds
+    : currentIds.filter(id => !keepSet.has(id));
+
+  if (removableIds.length === 0) {
+    return;
+  }
+
+  removableIds.forEach(id => {
+    stripeEvents.delete(id);
+    forEachSource(sources, source => {
+      const node = source && typeof source.get === 'function' ? source.get(id) : null;
+      if (node && typeof node.put === 'function') {
+        node.put(null);
+      }
+    });
+  });
+
+  renderStripeEvents();
 }
 
 function handleStripeUpdate(data, key) {
