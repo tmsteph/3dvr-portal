@@ -14,11 +14,13 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Stripe is not configured on the server.' });
   }
 
-  const limit = Number.parseInt(req.query.limit, 10) || 20;
+  const defaultLimit = 5;
+  const requestedLimit = Number.parseInt(req.query.limit, 10);
+  const limit = Number.isNaN(requestedLimit) ? defaultLimit : requestedLimit;
 
   try {
     const events = await stripeClient.events.list({
-      limit: Number.isNaN(limit) ? 20 : limit,
+      limit,
     });
 
     const payload = events.data.map(event => ({
