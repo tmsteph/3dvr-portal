@@ -24,7 +24,7 @@ function createMailTransport(config) {
 }
 
 export function createTrialHandler(options = {}) {
-  const {
+  const { 
     stripeClient,
     mailTransport,
     config = process.env,
@@ -65,6 +65,25 @@ export function createTrialHandler(options = {}) {
       subject: `New Free Trial Started: ${email}`,
       html: `<p><strong>${email}</strong> just signed up for a free trial.</p>`
     });
+  }
+
+  async function logStripeActivity(subject, payload) {
+    if (!config.STRIPE_LOG_EMAIL) {
+      return;
+    }
+
+    try {
+      await transporter.sendMail({
+        from: `"3DVR.Tech Stripe Logger" <${config.GMAIL_USER}>`,
+        to: config.STRIPE_LOG_EMAIL,
+        subject,
+        text: JSON.stringify(payload, null, 2),
+      });
+
+      console.log(`Stripe activity logged automatically: ${subject}`);
+    } catch (err) {
+      console.error('Failed to log Stripe activity:', err.message);
+    }
   }
 
   return async function handler(req, res) {
@@ -117,10 +136,20 @@ export function createTrialHandler(options = {}) {
 
       await sendWelcomeEmail(email);
       await notifyTeam(email);
+      await logStripeActivity('Trial subscription started', {
+        email,
+        subscriptionId: subscription.id,
+        customerId: customer.id,
+      });
 
       return res.status(200).json({ success: true, subscriptionId: subscription.id });
     } catch (err) {
       console.error('🔥 FINAL ERROR:', err);
+      await logStripeActivity('Trial signup failed', {
+        email,
+        error: err.message,
+        stack: err.stack,
+      });
       return res.status(500).json({ error: err.message || 'Unexpected error occurred.' });
     }
   };

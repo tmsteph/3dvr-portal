@@ -237,6 +237,10 @@ const stripeReportSources = buildSourceList(
   stripeRoot && typeof stripeRoot.get === 'function' ? stripeRoot.get('reports') : null,
   legacyStripeRoot && typeof legacyStripeRoot.get === 'function' ? legacyStripeRoot.get('reports') : null
 );
+const stripeEventSources = buildSourceList(
+  stripeRoot && typeof stripeRoot.get === 'function' ? stripeRoot.get('events') : null,
+  legacyStripeRoot && typeof legacyStripeRoot.get === 'function' ? legacyStripeRoot.get('events') : null
+);
 
 function forEachSource(sources, callback) {
   sources.forEach((source, index) => {
@@ -305,6 +309,10 @@ const stripeGrossTotal = document.getElementById('stripe-gross');
 const stripeFeesTotal = document.getElementById('stripe-fees');
 const stripeNetTotal = document.getElementById('stripe-net');
 const stripeLastPayout = document.getElementById('stripe-last-payout');
+const stripeEventsList = document.getElementById('stripe-events');
+const stripeEventsEmpty = document.getElementById('stripe-events-empty');
+const stripeEventsStatus = document.getElementById('stripe-events-status');
+const stripeEventsRefresh = document.getElementById('stripe-events-refresh');
 
 const ethStatus = document.getElementById('eth-status');
 const ethConnectButton = document.getElementById('eth-connect');
@@ -322,6 +330,7 @@ const entries = new Map();
 const payables = new Map();
 const ethPayments = new Map();
 const stripeReports = new Map();
+const stripeEvents = new Map();
 const ethState = {
   account: null,
   chainId: null,
@@ -375,6 +384,21 @@ forEachSource(stripeReportSources, source => {
     source.map().on(handleStripeUpdate);
   }
 });
+
+if (stripeEventsRefresh) {
+  stripeEventsRefresh.addEventListener('click', event => {
+    event.preventDefault();
+    fetchStripeEvents();
+  });
+}
+forEachSource(stripeEventSources, source => {
+  if (source && typeof source.map === 'function' && typeof source.map().on === 'function') {
+    source.map().on(handleStripeEventUpdate);
+  }
+});
+if (stripeEventsStatus) {
+  fetchStripeEvents();
+}
 
 if (ethConnectButton) {
   ethConnectButton.addEventListener('click', connectMetaMask);
@@ -881,6 +905,53 @@ function handleStripeSubmit(event) {
   }
 }
 
+async function fetchStripeEvents() {
+  if (!stripeEventsStatus) {
+    return;
+  }
+
+  stripeEventsStatus.textContent = 'Fetching latest Stripe events...';
+  stripeEventsStatus.classList.remove('finance-helper--error');
+
+  try {
+    const response = await fetch('/api/stripe/events');
+    if (!response.ok) {
+      throw new Error(`Stripe API responded with ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const events = Array.isArray(payload.events) ? payload.events : [];
+
+    events.forEach(event => {
+      const createdAt = event.created
+        ? new Date(event.created * 1000).toISOString()
+        : new Date().toISOString();
+      const record = {
+        id: event.id,
+        type: event.type || 'stripe.event',
+        createdAt,
+        apiVersion: event.apiVersion || '',
+        pendingWebhooks: typeof event.pendingWebhooks === 'number' ? event.pendingWebhooks : null,
+        requestId: event.requestId || '',
+        objectType: event.objectType || '',
+      };
+
+      if (record.id) {
+        writeRecordToSources(stripeEventSources, record.id, record, 'stripe event');
+      }
+    });
+
+    if (events.length === 0) {
+      stripeEventsStatus.textContent = 'No webhook events returned by the Stripe API yet.';
+    } else {
+      stripeEventsStatus.textContent = `Synced ${events.length} Stripe webhook events.`;
+    }
+  } catch (err) {
+    stripeEventsStatus.textContent = `Unable to fetch Stripe events: ${err.message}`;
+    stripeEventsStatus.classList.add('finance-helper--error');
+  }
+}
+
 function handleStripeUpdate(data, key) {
   if (!key || key === '_') {
     return;
@@ -1022,6 +1093,104 @@ function renderStripeReports() {
       ? mostRecentPayout.toLocaleDateString()
       : 'No payouts logged';
   }
+}
+
+function handleStripeEventUpdate(data, key) {
+  if (!key || key === '_') {
+    return;
+  }
+
+  if (!data) {
+    stripeEvents.delete(key);
+    renderStripeEvents();
+    return;
+  }
+
+  const createdAt = data.createdAt || data.created;
+  const normalizedCreated = createdAt ? new Date(createdAt).toISOString() : new Date().toISOString();
+
+  stripeEvents.set(key, {
+    id: key,
+    type: data.type || 'stripe.event',
+    createdAt: normalizedCreated,
+    apiVersion: data.apiVersion || '',
+    pendingWebhooks: typeof data.pendingWebhooks === 'number' ? data.pendingWebhooks : null,
+    requestId: data.requestId || '',
+    objectType: data.objectType || '',
+  });
+
+  renderStripeEvents();
+}
+
+function renderStripeEvents() {
+  if (!stripeEventsList) {
+    return;
+  }
+
+  const sorted = Array.from(stripeEvents.values()).sort((a, b) => {
+    const aStamp = Date.parse(a.createdAt || 0);
+    const bStamp = Date.parse(b.createdAt || 0);
+    if (Number.isNaN(aStamp) || Number.isNaN(bStamp)) {
+      return 0;
+    }
+    return bStamp - aStamp;
+  });
+
+  stripeEventsList.innerHTML = '';
+
+  if (sorted.length === 0) {
+    if (stripeEventsEmpty) {
+      stripeEventsEmpty.hidden = false;
+      stripeEventsList.append(stripeEventsEmpty);
+    }
+    return;
+  }
+
+  if (stripeEventsEmpty) {
+    stripeEventsEmpty.hidden = true;
+  }
+
+  sorted.forEach(event => {
+    const container = document.createElement('article');
+    container.className = 'finance-entry';
+    container.setAttribute('role', 'listitem');
+
+    const header = document.createElement('div');
+    header.className = 'finance-entry__header';
+
+    const title = document.createElement('h3');
+    title.className = 'finance-entry__title';
+    title.textContent = event.type || 'Stripe event';
+
+    const createdDate = event.createdAt ? new Date(event.createdAt) : null;
+    const createdLabel = createdDate && !Number.isNaN(createdDate.getTime())
+      ? createdDate.toLocaleString()
+      : 'Recently received';
+
+    const meta = document.createElement('p');
+    meta.className = 'finance-entry__meta';
+    const objectLabel = event.objectType ? `Object: ${event.objectType}` : 'Stripe event payload';
+    meta.textContent = `${createdLabel} • ${objectLabel}`;
+
+    header.append(title);
+
+    const details = document.createElement('p');
+    details.className = 'finance-entry__notes';
+    const parts = [];
+    if (event.requestId) {
+      parts.push(`Request ${event.requestId}`);
+    }
+    if (event.pendingWebhooks !== null && event.pendingWebhooks !== undefined) {
+      parts.push(`${event.pendingWebhooks} pending webhook(s)`);
+    }
+    if (event.apiVersion) {
+      parts.push(`API ${event.apiVersion}`);
+    }
+    details.textContent = parts.length > 0 ? parts.join(' • ') : 'Synced from Stripe webhooks';
+
+    container.append(header, meta, details);
+    stripeEventsList.append(container);
+  });
 }
 
 function renderEthPayments() {

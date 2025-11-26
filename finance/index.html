@@ -239,6 +239,22 @@
           <p id="stripe-empty" class="finance-ledger__empty">No Stripe entries yet. Add a period summary to get started.</p>
         </div>
       </div>
+
+      <div class="finance-card finance-card--ledger" aria-labelledby="stripe-webhooks-title">
+        <div class="finance-card__header">
+          <h2 id="stripe-webhooks-title" class="finance-card__title">Stripe webhooks</h2>
+          <span class="finance-card__subhead">Live events from the Stripe API</span>
+        </div>
+
+        <div class="finance-card__actions">
+          <button type="button" id="stripe-events-refresh" class="finance-button finance-button--secondary">Refresh from Stripe</button>
+          <p id="stripe-events-status" class="finance-helper" role="status" aria-live="polite">Connect your webhook endpoint to start streaming events.</p>
+        </div>
+
+        <div id="stripe-events" class="finance-ledger" role="list">
+          <p id="stripe-events-empty" class="finance-ledger__empty">No webhook events synced yet.</p>
+        </div>
+      </div>
     </section>
 
     <section class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
