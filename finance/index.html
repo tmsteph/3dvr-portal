@@ -22,6 +22,50 @@
       </p>
     </header>
 
+    <section class="finance-layout" aria-labelledby="snapshot-title">
+      <div class="finance-card finance-card--metrics" id="finance-summary">
+        <h2 id="snapshot-title" class="finance-card__title">Finance at a glance</h2>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Total logged</dt>
+            <dd id="total-amount">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Latest entry</dt>
+            <dd id="latest-entry">No entries yet</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Outstanding payables</dt>
+            <dd id="outstanding-amount">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Next payment</dt>
+            <dd id="next-payable">No payables logged</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
+        <div class="finance-card__header">
+          <h2 id="ledger-title" class="finance-card__title">Ledger preview</h2>
+          <span class="finance-card__subhead">Recent spending</span>
+        </div>
+        <div id="finance-ledger" class="finance-ledger" role="list">
+          <p id="finance-empty" class="finance-ledger__empty">No expenditures yet. Add your first entry in the ledger workspace.</p>
+        </div>
+      </div>
+
+      <div class="finance-card finance-card--ledger" aria-labelledby="payables-title">
+        <div class="finance-card__header">
+          <h2 id="payables-title" class="finance-card__title">Payables preview</h2>
+          <span class="finance-card__subhead">What is coming due</span>
+        </div>
+        <div id="payables-list" class="finance-ledger finance-payables" role="list">
+          <p id="payables-empty" class="finance-ledger__empty">No payables yet. Log a payment schedule in the ledger workspace.</p>
+        </div>
+      </div>
+    </section>
+
     <nav class="finance-directory" aria-label="Finance sections">
       <div class="finance-card finance-card--directory">
         <div class="finance-card__header">
