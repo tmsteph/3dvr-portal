@@ -22,6 +22,61 @@
       </p>
     </header>
 
+    <section class="finance-layout" aria-labelledby="stripe-title">
+      <div class="finance-card finance-card--metrics" id="stripe-summary">
+        <div class="finance-card__header">
+          <h2 id="stripe-title" class="finance-card__title">Stripe accounting</h2>
+          <p class="finance-card__subhead">Live totals and subscribers</p>
+        </div>
+        <div class="finance-card__actions">
+          <p id="stripe-live-status" class="finance-helper" role="status" aria-live="polite">Live Stripe balance and subscriber counts will sync shortly.</p>
+          <button type="button" id="stripe-live-refresh" class="finance-button finance-button--secondary">Refresh live totals</button>
+        </div>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Live available balance</dt>
+            <dd id="stripe-live-balance">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Active subscribers</dt>
+            <dd id="stripe-live-subscribers">0</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Gross volume</dt>
+            <dd id="stripe-gross">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Fees</dt>
+            <dd id="stripe-fees">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Net after refunds</dt>
+            <dd id="stripe-net">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Latest payout</dt>
+            <dd id="stripe-last-payout">No payouts logged</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="finance-card finance-card--ledger" aria-labelledby="stripe-webhooks-title">
+        <div class="finance-card__header">
+          <h2 id="stripe-webhooks-title" class="finance-card__title">Stripe webhooks</h2>
+          <span class="finance-card__subhead">Live events from the Stripe API</span>
+        </div>
+
+        <div class="finance-card__actions">
+          <button type="button" id="stripe-events-refresh" class="finance-button finance-button--secondary">Refresh from Stripe</button>
+          <p id="stripe-events-status" class="finance-helper" role="status" aria-live="polite">Connect your webhook endpoint to start streaming events.</p>
+        </div>
+
+        <div id="stripe-events" class="finance-ledger" role="list">
+          <p id="stripe-events-empty" class="finance-ledger__empty">No webhook events synced yet.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="finance-layout" aria-labelledby="overview-title">
       <div class="finance-card finance-card--metrics" id="finance-summary">
         <h2 id="overview-title" class="finance-card__title">Overview</h2>
@@ -166,107 +221,6 @@
           <div id="eth-payment-log" class="eth-log" role="list">
             <p id="eth-log-empty" class="finance-ledger__empty">No Ethereum payments logged yet.</p>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="finance-layout" aria-labelledby="stripe-title">
-      <div class="finance-card finance-card--metrics" id="stripe-summary">
-        <div class="finance-card__header">
-          <h2 id="stripe-title" class="finance-card__title">Stripe accounting</h2>
-          <p class="finance-card__subhead">Gross, fees, and payouts</p>
-        </div>
-        <div class="finance-card__actions">
-          <p id="stripe-live-status" class="finance-helper" role="status" aria-live="polite">Live Stripe balance and subscriber counts will sync shortly.</p>
-          <button type="button" id="stripe-live-refresh" class="finance-button finance-button--secondary">Refresh live totals</button>
-        </div>
-        <dl class="finance-summary__grid">
-          <div class="finance-summary__stat">
-            <dt>Live available balance</dt>
-            <dd id="stripe-live-balance">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Active subscribers</dt>
-            <dd id="stripe-live-subscribers">0</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Gross volume</dt>
-            <dd id="stripe-gross">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Fees</dt>
-            <dd id="stripe-fees">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Net after refunds</dt>
-            <dd id="stripe-net">$0.00</dd>
-          </div>
-          <div class="finance-summary__stat">
-            <dt>Latest payout</dt>
-            <dd id="stripe-last-payout">No payouts logged</dd>
-          </div>
-        </dl>
-      </div>
-
-      <div class="finance-card finance-card--form" aria-labelledby="stripe-form-title">
-        <div class="finance-card__header">
-          <h2 id="stripe-form-title" class="finance-card__title">Log Stripe period</h2>
-          <p class="finance-card__subhead">Track gross, fees, and refunds</p>
-        </div>
-        <form id="stripe-form" class="finance-form" autocomplete="off" novalidate>
-          <div class="finance-form__grid">
-            <label class="finance-field">
-              <span class="finance-field__label">Period</span>
-              <input id="stripe-period" name="stripePeriod" type="month" required>
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Gross volume (USD)</span>
-              <input id="stripe-gross-input" name="stripeGross" type="number" step="0.01" min="0" inputmode="decimal" required>
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Fees (USD)</span>
-              <input id="stripe-fees-input" name="stripeFees" type="number" step="0.01" min="0" inputmode="decimal" required>
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Refunds (USD)</span>
-              <input id="stripe-refunds-input" name="stripeRefunds" type="number" step="0.01" min="0" inputmode="decimal" value="0">
-            </label>
-            <label class="finance-field">
-              <span class="finance-field__label">Payout date</span>
-              <input id="stripe-payout" name="stripePayout" type="date">
-            </label>
-          </div>
-          <label class="finance-field">
-            <span class="finance-field__label">Notes</span>
-            <textarea id="stripe-notes" name="stripeNotes" rows="3" placeholder="Stripe balance transfers, invoices, or adjustments"></textarea>
-          </label>
-          <button type="submit" class="finance-button">Save Stripe summary</button>
-        </form>
-      </div>
-
-      <div class="finance-card finance-card--ledger" aria-labelledby="stripe-ledger-title">
-        <div class="finance-card__header">
-          <h2 id="stripe-ledger-title" class="finance-card__title">Stripe ledger</h2>
-          <span class="finance-card__subhead">Period snapshots</span>
-        </div>
-        <div id="stripe-ledger" class="finance-ledger" role="list">
-          <p id="stripe-empty" class="finance-ledger__empty">No Stripe entries yet. Add a period summary to get started.</p>
-        </div>
-      </div>
-
-      <div class="finance-card finance-card--ledger" aria-labelledby="stripe-webhooks-title">
-        <div class="finance-card__header">
-          <h2 id="stripe-webhooks-title" class="finance-card__title">Stripe webhooks</h2>
-          <span class="finance-card__subhead">Live events from the Stripe API</span>
-        </div>
-
-        <div class="finance-card__actions">
-          <button type="button" id="stripe-events-refresh" class="finance-button finance-button--secondary">Refresh from Stripe</button>
-          <p id="stripe-events-status" class="finance-helper" role="status" aria-live="polite">Connect your webhook endpoint to start streaming events.</p>
-        </div>
-
-        <div id="stripe-events" class="finance-ledger" role="list">
-          <p id="stripe-events-empty" class="finance-ledger__empty">No webhook events synced yet.</p>
         </div>
       </div>
     </section>
