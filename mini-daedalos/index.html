@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mini DaedalOS – Vanilla + Gun.js</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #0b1220;
+      --bg-soft: #111827;
+      --bg-softer: #020617;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.18);
+      --border: rgba(148, 163, 184, 0.4);
+      --text: #e5e7eb;
+      --text-soft: #9ca3af;
+      --danger: #f97373;
+      --radius: 10px;
+      --shadow: 0 18px 35px rgba(0, 0, 0, 0.65);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%);
+    }
+
+    #desktop {
+      position: relative;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      background-image:
+        radial-gradient(circle at 10% 20%, rgba(56,189,248,0.18) 0, transparent 45%),
+        radial-gradient(circle at 80% 10%, rgba(129,140,248,0.22) 0, transparent 40%),
+        radial-gradient(circle at 50% 80%, rgba(45,212,191,0.22) 0, transparent 45%);
+      background-color: var(--bg-softer);
+    }
+
+    /* Desktop icons */
+
+    .desktop-icons {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 1;
+    }
+
+    .desktop-icon {
+      width: 72px;
+      text-align: center;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+      background: transparent;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .desktop-icon:hover {
+      background: rgba(15,23,42,0.6);
+      transform: translateY(-1px);
+    }
+
+    .desktop-icon .icon-square {
+      width: 38px;
+      height: 38px;
+      margin: 0 auto 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.3);
+      background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.4));
+      box-shadow: 0 8px 18px rgba(15,23,42,0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .desktop-icon span {
+      display: block;
+      font-size: 11px;
+      color: var(--text-soft);
+      text-shadow: 0 2px 3px rgba(0,0,0,0.7);
+    }
+
+    /* Windows */
+
+    .window {
+      position: absolute;
+      min-width: 260px;
+      min-height: 160px;
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.16), rgba(15,23,42,0.96));
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .window-header {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      background: linear-gradient(to right, rgba(15,23,42,0.98), rgba(15,23,42,0.75));
+      border-bottom: 1px solid rgba(15,23,42,1);
+      cursor: grab;
+    }
+
+    .window-header:active {
+      cursor: grabbing;
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 6px;
+      margin-right: 10px;
+    }
+
+    .window-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(51,65,85,1);
+      border: 1px solid rgba(15,23,42,1);
+    }
+
+    .window-dot.close {
+      background: #f97373;
+    }
+
+    .window-dot.min {
+      background: #facc15;
+    }
+
+    .window-dot.max {
+      background: #4ade80;
+    }
+
+    .window-title {
+      font-size: 13px;
+      color: var(--text-soft);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .window-body {
+      flex: 1;
+      padding: 10px;
+      background: radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
+      font-size: 13px;
+      overflow: auto;
+    }
+
+    .window-body h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .window-body p {
+      margin: 0 0 8px;
+      color: var(--text-soft);
+      line-height: 1.4;
+    }
+
+    .window-body small {
+      color: var(--text-soft);
+      opacity: 0.8;
+    }
+
+    .window-resize-handle {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 12px;
+      height: 12px;
+      cursor: se-resize;
+      background: linear-gradient(
+        135deg,
+        transparent 0,
+        transparent 45%,
+        rgba(148,163,184,0.8) 45%,
+        rgba(148,163,184,0.8) 100%
+      );
+      opacity: 0.7;
+    }
+
+    /* Notes specific */
+
+    .notes-textarea {
+      width: 100%;
+      height: 140px;
+      background: rgba(15,23,42,0.9);
+      color: var(--text);
+      border-radius: 8px;
+      border: 1px solid rgba(51,65,85,0.9);
+      padding: 8px;
+      resize: none;
+      font-size: 13px;
+      line-height: 1.4;
+      outline: none;
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,0.8);
+    }
+
+    .notes-status {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.4);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: rgba(15,23,42,0.7);
+      gap: 4px;
+    }
+
+    .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    /* Settings list */
+
+    .settings-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .settings-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+
+    .settings-toggle {
+      width: 32px;
+      height: 18px;
+      border-radius: 999px;
+      background: rgba(15,23,42,1);
+      border: 1px solid rgba(51,65,85,1);
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .settings-toggle-knob {
+      position: absolute;
+      top: 1px;
+      left: 1px;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.9);
+      transition: transform 0.15s ease;
+    }
+
+    .settings-toggle.on {
+      background: rgba(56,189,248,0.35);
+      border-color: rgba(56,189,248,0.6);
+    }
+
+    .settings-toggle.on .settings-toggle-knob {
+      transform: translateX(12px);
+      background: #e0f2fe;
+    }
+
+    /* Taskbar */
+
+    #taskbar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 34px;
+      padding: 4px 10px;
+      background: linear-gradient(to top, rgba(15,23,42,0.96), rgba(15,23,42,0.92));
+      border-top: 1px solid rgba(30,64,175,0.7);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 999;
+    }
+
+    .start-button {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.4), rgba(15,23,42,1));
+      border: 1px solid rgba(30,64,175,0.8);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      box-shadow: 0 10px 18px rgba(15,23,42,0.75);
+    }
+
+    .start-button span.logo {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: conic-gradient(from 180deg, #38bdf8, #22c55e, #a855f7, #38bdf8);
+    }
+
+    .start-button span.label {
+      text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+    }
+
+    .taskbar-windows {
+      flex: 1;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+
+    .taskbar-item {
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(51,65,85,1);
+      font-size: 11px;
+      white-space: nowrap;
+      cursor: pointer;
+      color: var(--text-soft);
+    }
+
+    .taskbar-item.active {
+      background: rgba(56,189,248,0.28);
+      border-color: rgba(56,189,248,0.8);
+      color: var(--text);
+    }
+
+    .taskbar-clock {
+      font-size: 12px;
+      color: var(--text-soft);
+      text-align: right;
+      min-width: 80px;
+    }
+
+    /* Small screens */
+
+    @media (max-width: 600px) {
+      .desktop-icons {
+        flex-direction: row;
+        top: auto;
+        bottom: 40px;
+      }
+      .window {
+        min-width: 220px;
+        min-height: 140px;
+      }
+      .window-body {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="desktop">
+    <div class="desktop-icons">
+      <div class="desktop-icon" data-app="about">
+        <div class="icon-square">🖥️</div>
+        <span>About</span>
+      </div>
+      <div class="desktop-icon" data-app="notes">
+        <div class="icon-square">📝</div>
+        <span>Notes</span>
+      </div>
+      <div class="desktop-icon" data-app="settings">
+        <div class="icon-square">⚙️</div>
+        <span>Settings</span>
+      </div>
+    </div>
+
+    <div id="taskbar">
+      <button class="start-button" id="startButton">
+        <span class="logo"></span>
+        <span class="label">Start</span>
+      </button>
+      <div class="taskbar-windows" id="taskbarWindows"></div>
+      <div class="taskbar-clock" id="taskbarClock"></div>
+    </div>
+  </div>
+
+  <!-- Gun.js (vanilla) -->
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.min.js"></script>
+
+  <script>
+    // --- Gun.js setup -------------------------------------------------------
+    const gun = Gun();
+    // Root node for the desktop; window positions live under `mini-daedalos-desktop/windowPositions`
+    // and notes are stored under `mini-daedalos-desktop/note`.
+    const desktopNode = gun.get('mini-daedalos-desktop');
+
+    // --- Desktop state ------------------------------------------------------
+    const desktop = document.getElementById('desktop');
+    const taskbarWindows = document.getElementById('taskbarWindows');
+    const clockEl = document.getElementById('taskbarClock');
+
+    let zCounter = 10;
+    const windows = {}; // id -> DOM element
+
+    const initialWindowState = {
+      about: { x: 120, y: 100, w: 340, h: 220, title: 'About – Mini DaedalOS' },
+      notes: { x: 260, y: 150, w: 360, h: 260, title: 'Notes (Gun.js synced)' },
+      settings: { x: 180, y: 220, w: 320, h: 220, title: 'Settings' }
+    };
+
+    // Try to restore positions from Gun
+    const windowPositions = { ...initialWindowState };
+    desktopNode.get('windowPositions').once(data => {
+      if (data && typeof data.json === 'string') {
+        try {
+          const parsed = JSON.parse(data.json);
+          Object.keys(parsed).forEach(id => {
+            if (windowPositions[id]) {
+              windowPositions[id].x = parsed[id].x ?? windowPositions[id].x;
+              windowPositions[id].y = parsed[id].y ?? windowPositions[id].y;
+              windowPositions[id].w = parsed[id].w ?? windowPositions[id].w;
+              windowPositions[id].h = parsed[id].h ?? windowPositions[id].h;
+            } else {
+              windowPositions[id] = parsed[id];
+            }
+          });
+        } catch (e) {
+          console.warn('Failed to parse windowPositions from Gun:', e);
+        }
+      }
+    });
+
+    function saveWindowPositionsToGun() {
+      const snapshot = {};
+      Object.keys(windows).forEach(id => {
+        const el = windows[id];
+        snapshot[id] = {
+          x: parseInt(el.style.left || 0, 10),
+          y: parseInt(el.style.top || 0, 10),
+          w: parseInt(el.style.width || el.offsetWidth, 10),
+          h: parseInt(el.style.height || el.offsetHeight, 10)
+        };
+      });
+      desktopNode.get('windowPositions').put({ json: JSON.stringify(snapshot) });
+    }
+
+    // --- Clock --------------------------------------------------------------
+    function updateClock() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      clockEl.textContent = `${hh}:${mm}`;
+    }
+    updateClock();
+    setInterval(updateClock, 30_000);
+
+    // --- Window creation helpers -------------------------------------------
+    function focusWindow(id) {
+      const el = windows[id];
+      if (!el) return;
+      zCounter += 1;
+      el.style.zIndex = String(zCounter);
+
+      document.querySelectorAll('.taskbar-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.app === id);
+      });
+    }
+
+    function ensureTaskbarButton(id, title) {
+      let btn = taskbarWindows.querySelector(`.taskbar-item[data-app="${id}"]`);
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.className = 'taskbar-item';
+        btn.dataset.app = id;
+        btn.textContent = title.replace(/ – .*/, '');
+        btn.addEventListener('click', () => {
+          const win = windows[id];
+          if (!win) return;
+          // Toggle minimize
+          if (win.dataset.minimized === 'true') {
+            win.style.display = 'flex';
+            win.dataset.minimized = 'false';
+            focusWindow(id);
+          } else {
+            win.style.display = 'none';
+            win.dataset.minimized = 'true';
+            btn.classList.remove('active');
+          }
+        });
+        taskbarWindows.appendChild(btn);
+      }
+      btn.classList.add('active');
+    }
+
+    function closeWindow(id) {
+      const win = windows[id];
+      if (!win) return;
+      win.remove();
+      delete windows[id];
+      const btn = taskbarWindows.querySelector(`.taskbar-item[data-app="${id}"]`);
+      if (btn) btn.remove();
+      saveWindowPositionsToGun();
+    }
+
+    function makeDraggable(win, id) {
+      const header = win.querySelector('.window-header');
+      const resizeHandle = win.querySelector('.window-resize-handle');
+      let offsetX, offsetY;
+      let startW, startH, startX, startY;
+      let dragging = false;
+      let resizing = false;
+
+      header.addEventListener('mousedown', e => {
+        dragging = true;
+        focusWindow(id);
+        const rect = win.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', stopDrag);
+      });
+
+      function onDrag(e) {
+        if (!dragging) return;
+        e.preventDefault();
+        const x = e.clientX - offsetX;
+        const y = e.clientY - offsetY;
+        win.style.left = `${x}px`;
+        win.style.top = `${y}px`;
+      }
+
+      function stopDrag() {
+        if (!dragging) return;
+        dragging = false;
+        document.removeEventListener('mousemove', onDrag);
+        document.removeEventListener('mouseup', stopDrag);
+        saveWindowPositionsToGun();
+      }
+
+      resizeHandle.addEventListener('mousedown', e => {
+        e.stopPropagation();
+        resizing = true;
+        const rect = win.getBoundingClientRect();
+        startW = rect.width;
+        startH = rect.height;
+        startX = e.clientX;
+        startY = e.clientY;
+        document.addEventListener('mousemove', onResize);
+        document.addEventListener('mouseup', stopResize);
+      });
+
+      function onResize(e) {
+        if (!resizing) return;
+        e.preventDefault();
+        const newW = Math.max(220, startW + (e.clientX - startX));
+        const newH = Math.max(140, startH + (e.clientY - startY));
+        win.style.width = `${newW}px`;
+        win.style.height = `${newH}px`;
+      }
+
+      function stopResize() {
+        if (!resizing) return;
+        resizing = false;
+        document.removeEventListener('mousemove', onResize);
+        document.removeEventListener('mouseup', stopResize);
+        saveWindowPositionsToGun();
+      }
+    }
+
+    // --- Window content factories ------------------------------------------
+
+    function createAboutContent() {
+      const container = document.createElement('div');
+      container.innerHTML = `
+        <h2>Mini DaedalOS</h2>
+        <p>
+          This is a minimal, pure HTML + CSS + JavaScript desktop inspired by
+          <strong>DaedalOS</strong> (dustinbrett.com).
+        </p>
+        <p>
+          State (like window positions & notes) is synced using <strong>Gun.js</strong>,
+          a graph database that lives right in the browser.
+        </p>
+        <p>
+          From here, you can add:<br/>
+          – File explorer<br/>
+          – Terminal<br/>
+          – Apps / games<br/>
+          – Multi-user sync via Gun peers
+        </p>
+        <small>Built as a starter shell you can grow into TommyOS.</small>
+      `;
+      return container;
+    }
+
+    function createNotesContent() {
+      const container = document.createElement('div');
+      const title = document.createElement('h2');
+      title.textContent = 'Notes';
+
+      const p = document.createElement('p');
+      p.textContent = 'This note is stored in Gun.js, so it survives refresh (per browser).';
+
+      const textarea = document.createElement('textarea');
+      textarea.className = 'notes-textarea';
+      textarea.placeholder = 'Start typing...';
+
+      const status = document.createElement('div');
+      status.className = 'notes-status';
+      status.innerHTML = `
+        <div class="pill">
+          <span class="pill-dot"></span>
+          Gun.js local
+        </div>
+        <span id="notesSavedState">Idle</span>
+      `;
+
+      container.appendChild(title);
+      container.appendChild(p);
+      container.appendChild(textarea);
+      container.appendChild(status);
+
+      // Load from Gun
+      const noteNode = desktopNode.get('note');
+      noteNode.once(data => {
+        if (data && typeof data.text === 'string') {
+          textarea.value = data.text;
+        }
+      });
+
+      let saveTimer;
+      textarea.addEventListener('input', () => {
+        const savedState = container.querySelector('#notesSavedState');
+        if (savedState) savedState.textContent = 'Typing...';
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          noteNode.put({ text: textarea.value });
+          if (savedState) savedState.textContent = 'Saved';
+        }, 500);
+      });
+
+      return container;
+    }
+
+    function createSettingsContent() {
+      const container = document.createElement('div');
+      container.innerHTML = `
+        <h2>Settings</h2>
+        <p>Simple local UI toggles (no real effect yet):</p>
+        <ul class="settings-list">
+          <li>
+            <span>Dark mode</span>
+            <div class="settings-toggle on" data-setting="dark">
+              <div class="settings-toggle-knob"></div>
+            </div>
+          </li>
+          <li>
+            <span>Reduced motion</span>
+            <div class="settings-toggle" data-setting="motion">
+              <div class="settings-toggle-knob"></div>
+            </div>
+          </li>
+          <li>
+            <span>Large text</span>
+            <div class="settings-toggle" data-setting="text">
+              <div class="settings-toggle-knob"></div>
+            </div>
+          </li>
+        </ul>
+      `;
+      container.querySelectorAll('.settings-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+          toggle.classList.toggle('on');
+        });
+      });
+      return container;
+    }
+
+    function getContentForApp(id) {
+      if (id === 'about') return createAboutContent();
+      if (id === 'notes') return createNotesContent();
+      if (id === 'settings') return createSettingsContent();
+      const div = document.createElement('div');
+      div.textContent = `Unknown app: ${id}`;
+      return div;
+    }
+
+    function openWindow(id) {
+      if (windows[id]) {
+        const win = windows[id];
+        win.style.display = 'flex';
+        win.dataset.minimized = 'false';
+        focusWindow(id);
+        ensureTaskbarButton(id, win.querySelector('.window-title').textContent);
+        return;
+      }
+
+      const state = windowPositions[id] || {
+        x: 120,
+        y: 120,
+        w: 320,
+        h: 220,
+        title: id
+      };
+
+      const win = document.createElement('div');
+      win.className = 'window';
+      win.dataset.app = id;
+      win.dataset.minimized = 'false';
+
+      win.style.left = `${state.x}px`;
+      win.style.top = `${state.y}px`;
+      win.style.width = `${state.w}px`;
+      win.style.height = `${state.h}px`;
+      win.style.zIndex = String(++zCounter);
+
+      win.innerHTML = `
+        <div class="window-header">
+          <div class="window-controls">
+            <div class="window-dot close"></div>
+            <div class="window-dot min"></div>
+            <div class="window-dot max"></div>
+          </div>
+          <div class="window-title">${state.title}</div>
+        </div>
+        <div class="window-body"></div>
+        <div class="window-resize-handle"></div>
+      `;
+
+      const body = win.querySelector('.window-body');
+      body.appendChild(getContentForApp(id));
+
+      const closeBtn = win.querySelector('.window-dot.close');
+      const minBtn = win.querySelector('.window-dot.min');
+      const maxBtn = win.querySelector('.window-dot.max');
+
+      closeBtn.addEventListener('click', () => closeWindow(id));
+      minBtn.addEventListener('click', () => {
+        win.style.display = 'none';
+        win.dataset.minimized = 'true';
+        const btn = taskbarWindows.querySelector(`.taskbar-item[data-app="${id}"]`);
+        if (btn) btn.classList.remove('active');
+      });
+      maxBtn.addEventListener('click', () => {
+        // Simple maximize/restore toggle
+        if (win.dataset.maximized === 'true') {
+          win.style.left = `${state.x}px`;
+          win.style.top = `${state.y}px`;
+          win.style.width = `${state.w}px`;
+          win.style.height = `${state.h}px`;
+          win.dataset.maximized = 'false';
+        } else {
+          state.x = parseInt(win.style.left, 10);
+          state.y = parseInt(win.style.top, 10);
+          state.w = parseInt(win.style.width, 10);
+          state.h = parseInt(win.style.height, 10);
+          win.style.left = '20px';
+          win.style.top = '20px';
+          win.style.width = `${window.innerWidth - 40}px`;
+          win.style.height = `${window.innerHeight - 80}px`;
+          win.dataset.maximized = 'true';
+        }
+        saveWindowPositionsToGun();
+      });
+
+      desktop.appendChild(win);
+      windows[id] = win;
+      makeDraggable(win, id);
+      ensureTaskbarButton(id, state.title);
+      focusWindow(id);
+      saveWindowPositionsToGun();
+    }
+
+    // --- Desktop icons & start button --------------------------------------
+
+    document.querySelectorAll('.desktop-icon').forEach(icon => {
+      icon.addEventListener('dblclick', () => {
+        const app = icon.dataset.app;
+        openWindow(app);
+      });
+      icon.addEventListener('click', () => {
+        const app = icon.dataset.app;
+        openWindow(app);
+      });
+    });
+
+    document.getElementById('startButton').addEventListener('click', () => {
+      // Simple behavior: (re)open About window
+      openWindow('about');
+    });
+
+    // Optionally auto-open About on load
+    openWindow('about');
+  </script>
+</body>
+</html>
