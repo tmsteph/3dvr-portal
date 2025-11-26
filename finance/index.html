@@ -172,9 +172,23 @@
 
     <section class="finance-layout" aria-labelledby="stripe-title">
       <div class="finance-card finance-card--metrics" id="stripe-summary">
-        <h2 id="stripe-title" class="finance-card__title">Stripe accounting</h2>
-        <p class="finance-card__subhead">Gross, fees, and payouts</p>
+        <div class="finance-card__header">
+          <h2 id="stripe-title" class="finance-card__title">Stripe accounting</h2>
+          <p class="finance-card__subhead">Gross, fees, and payouts</p>
+        </div>
+        <div class="finance-card__actions">
+          <p id="stripe-live-status" class="finance-helper" role="status" aria-live="polite">Live Stripe balance and subscriber counts will sync shortly.</p>
+          <button type="button" id="stripe-live-refresh" class="finance-button finance-button--secondary">Refresh live totals</button>
+        </div>
         <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Live available balance</dt>
+            <dd id="stripe-live-balance">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Active subscribers</dt>
+            <dd id="stripe-live-subscribers">0</dd>
+          </div>
           <div class="finance-summary__stat">
             <dt>Gross volume</dt>
             <dd id="stripe-gross">$0.00</dd>

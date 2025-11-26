@@ -313,6 +313,10 @@ const stripeEventsList = document.getElementById('stripe-events');
 const stripeEventsEmpty = document.getElementById('stripe-events-empty');
 const stripeEventsStatus = document.getElementById('stripe-events-status');
 const stripeEventsRefresh = document.getElementById('stripe-events-refresh');
+const stripeLiveBalance = document.getElementById('stripe-live-balance');
+const stripeLiveSubscribers = document.getElementById('stripe-live-subscribers');
+const stripeLiveStatus = document.getElementById('stripe-live-status');
+const stripeLiveRefresh = document.getElementById('stripe-live-refresh');
 
 const ethStatus = document.getElementById('eth-status');
 const ethConnectButton = document.getElementById('eth-connect');
@@ -331,6 +335,7 @@ const payables = new Map();
 const ethPayments = new Map();
 const stripeReports = new Map();
 const stripeEvents = new Map();
+let stripeMetricsIntervalId = null;
 const ethState = {
   account: null,
   chainId: null,
@@ -398,6 +403,19 @@ forEachSource(stripeEventSources, source => {
 });
 if (stripeEventsStatus) {
   fetchStripeEvents();
+}
+
+if (stripeLiveRefresh) {
+  stripeLiveRefresh.addEventListener('click', event => {
+    event.preventDefault();
+    fetchStripeMetrics(false);
+  });
+}
+if (stripeLiveBalance && stripeLiveSubscribers && stripeLiveStatus) {
+  fetchStripeMetrics(true);
+  stripeMetricsIntervalId = window.setInterval(() => {
+    fetchStripeMetrics(true);
+  }, 60000);
 }
 
 if (ethConnectButton) {
@@ -902,6 +920,77 @@ function handleStripeSubmit(event) {
   stripePeriodInput.value = period;
   if (stripePayoutInput) {
     stripePayoutInput.value = payoutDate || defaultDate();
+  }
+}
+
+function formatStripeTotals(totals) {
+  const entries = totals && typeof totals === 'object'
+    ? Object.entries(totals).filter(([, amount]) => typeof amount === 'number')
+    : [];
+
+  if (entries.length === 0) {
+    return { label: numberFormatter.format(0), currency: 'USD', amount: 0 };
+  }
+
+  const preferred = entries.find(([currency]) => currency.toUpperCase() === 'USD') || entries[0];
+  const currency = preferred[0].toUpperCase();
+  const amount = preferred[1];
+
+  let formatter = numberFormatter;
+  try {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2
+    });
+  } catch (err) {
+    formatter = numberFormatter;
+  }
+
+  return {
+    label: formatter.format(normalizeAmount(amount / 100)),
+    currency,
+    amount
+  };
+}
+
+async function fetchStripeMetrics(quiet = false) {
+  if (!stripeLiveBalance || !stripeLiveSubscribers || !stripeLiveStatus) {
+    return;
+  }
+
+  if (!quiet) {
+    stripeLiveStatus.classList.remove('finance-helper--error');
+    stripeLiveStatus.textContent = 'Refreshing live Stripe metrics...';
+  }
+
+  try {
+    const response = await fetch('/api/stripe/metrics');
+    if (!response.ok) {
+      throw new Error(`Stripe API responded with ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const availableTotals = formatStripeTotals(payload.available);
+    const pendingTotals = formatStripeTotals(payload.pending);
+    const subscriberCount = Number.isFinite(payload.activeSubscribers)
+      ? payload.activeSubscribers
+      : 0;
+
+    stripeLiveBalance.textContent = availableTotals.label;
+    stripeLiveSubscribers.textContent = subscriberCount.toLocaleString();
+
+    const statusParts = [`Available ${availableTotals.currency} balance updated.`];
+    if (pendingTotals.amount > 0) {
+      statusParts.push(`Pending ${pendingTotals.label}.`);
+    }
+    statusParts.push(`Active subscribers: ${subscriberCount.toLocaleString()}.`);
+
+    stripeLiveStatus.textContent = statusParts.join(' ');
+    stripeLiveStatus.classList.remove('finance-helper--error');
+  } catch (err) {
+    stripeLiveStatus.textContent = `Unable to load live Stripe metrics: ${err.message}`;
+    stripeLiveStatus.classList.add('finance-helper--error');
   }
 }
 
