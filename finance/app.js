@@ -196,6 +196,12 @@ const ethereumRoot = financeRoot && typeof financeRoot.get === 'function'
 const legacyEthereumRoot = legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function'
   ? legacyFinanceRoot.get('ethereum')
   : createLocalGunNodeStub();
+const stripeRoot = financeRoot && typeof financeRoot.get === 'function'
+  ? financeRoot.get('stripe')
+  : createLocalGunNodeStub();
+const legacyStripeRoot = legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function'
+  ? legacyFinanceRoot.get('stripe')
+  : createLocalGunNodeStub();
 
 function buildSourceList(primary, legacy) {
   const sources = [];
@@ -226,6 +232,10 @@ const ethereumConfigSources = buildSourceList(
 const ethereumPaymentsSources = buildSourceList(
   ethereumRoot && typeof ethereumRoot.get === 'function' ? ethereumRoot.get('payments') : null,
   legacyEthereumRoot && typeof legacyEthereumRoot.get === 'function' ? legacyEthereumRoot.get('payments') : null
+);
+const stripeReportSources = buildSourceList(
+  stripeRoot && typeof stripeRoot.get === 'function' ? stripeRoot.get('reports') : null,
+  legacyStripeRoot && typeof legacyStripeRoot.get === 'function' ? legacyStripeRoot.get('reports') : null
 );
 
 function forEachSource(sources, callback) {
@@ -282,6 +292,20 @@ const payableNotesInput = document.getElementById('payable-notes');
 const payablesList = document.getElementById('payables-list');
 const payablesEmptyState = document.getElementById('payables-empty');
 
+const stripeForm = document.getElementById('stripe-form');
+const stripePeriodInput = document.getElementById('stripe-period');
+const stripeGrossInput = document.getElementById('stripe-gross-input');
+const stripeFeesInput = document.getElementById('stripe-fees-input');
+const stripeRefundsInput = document.getElementById('stripe-refunds-input');
+const stripePayoutInput = document.getElementById('stripe-payout');
+const stripeNotesInput = document.getElementById('stripe-notes');
+const stripeLedger = document.getElementById('stripe-ledger');
+const stripeEmpty = document.getElementById('stripe-empty');
+const stripeGrossTotal = document.getElementById('stripe-gross');
+const stripeFeesTotal = document.getElementById('stripe-fees');
+const stripeNetTotal = document.getElementById('stripe-net');
+const stripeLastPayout = document.getElementById('stripe-last-payout');
+
 const ethStatus = document.getElementById('eth-status');
 const ethConnectButton = document.getElementById('eth-connect');
 const ethAccountLabel = document.getElementById('eth-account');
@@ -297,6 +321,7 @@ const ethLogEmpty = document.getElementById('eth-log-empty');
 const entries = new Map();
 const payables = new Map();
 const ethPayments = new Map();
+const stripeReports = new Map();
 const ethState = {
   account: null,
   chainId: null,
@@ -316,6 +341,14 @@ if (dueDateInput) {
   dueDateInput.value = defaultDate();
 }
 
+if (stripePeriodInput) {
+  stripePeriodInput.value = defaultMonth();
+}
+
+if (stripePayoutInput) {
+  stripePayoutInput.value = defaultDate();
+}
+
 if (form) {
   form.addEventListener('submit', handleSubmit);
 }
@@ -331,6 +364,15 @@ if (payableForm) {
 forEachSource(financePayablesSources, source => {
   if (source && typeof source.map === 'function' && typeof source.map().on === 'function') {
     source.map().on(handlePayableUpdate);
+  }
+});
+
+if (stripeForm) {
+  stripeForm.addEventListener('submit', handleStripeSubmit);
+}
+forEachSource(stripeReportSources, source => {
+  if (source && typeof source.map === 'function' && typeof source.map().on === 'function') {
+    source.map().on(handleStripeUpdate);
   }
 });
 
@@ -354,6 +396,12 @@ forEachSource(ethereumPaymentsSources, source => {
 function defaultDate() {
   const today = new Date();
   return today.toISOString().slice(0, 10);
+}
+
+function defaultMonth() {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  return `${today.getFullYear()}-${month}`;
 }
 
 function sanitizeRecord(raw) {
@@ -768,6 +816,212 @@ function handlePayableSubmit(event) {
   payableForm.reset();
   payeeInput.focus();
   dueDateInput.value = record.dueDate;
+}
+
+function handleStripeSubmit(event) {
+  event.preventDefault();
+
+  if (!stripeForm || !stripePeriodInput || !stripeGrossInput || !stripeFeesInput || !stripeRefundsInput) {
+    return;
+  }
+
+  const period = stripePeriodInput.value || defaultMonth();
+  const grossVolume = normalizeAmount(stripeGrossInput.value);
+  const fees = normalizeAmount(stripeFeesInput.value);
+  const refunds = normalizeAmount(stripeRefundsInput.value || 0);
+
+  if (grossVolume <= 0) {
+    stripeGrossInput.focus();
+    stripeGrossInput.setCustomValidity('Enter gross volume above $0.');
+    stripeGrossInput.reportValidity();
+    return;
+  }
+  stripeGrossInput.setCustomValidity('');
+
+  if (fees < 0) {
+    stripeFeesInput.focus();
+    stripeFeesInput.setCustomValidity('Fees cannot be negative.');
+    stripeFeesInput.reportValidity();
+    return;
+  }
+  stripeFeesInput.setCustomValidity('');
+
+  if (refunds < 0) {
+    stripeRefundsInput.focus();
+    stripeRefundsInput.setCustomValidity('Refunds cannot be negative.');
+    stripeRefundsInput.reportValidity();
+    return;
+  }
+  stripeRefundsInput.setCustomValidity('');
+
+  const recordId = typeof Gun !== 'undefined' && Gun.text && typeof Gun.text.random === 'function'
+    ? Gun.text.random(16)
+    : Math.random().toString(36).slice(2, 10);
+  const now = new Date();
+  const net = normalizeAmount(grossVolume - fees - refunds);
+  const payoutDate = stripePayoutInput && stripePayoutInput.value ? stripePayoutInput.value : '';
+
+  const record = {
+    period,
+    grossVolume,
+    fees,
+    refunds,
+    net,
+    payoutDate,
+    notes: stripeNotesInput ? stripeNotesInput.value.trim() : '',
+    createdAt: now.toISOString()
+  };
+
+  writeRecordToSources(stripeReportSources, recordId, record, 'stripe report');
+
+  stripeForm.reset();
+  stripePeriodInput.value = period;
+  if (stripePayoutInput) {
+    stripePayoutInput.value = payoutDate || defaultDate();
+  }
+}
+
+function handleStripeUpdate(data, key) {
+  if (!key || key === '_') {
+    return;
+  }
+
+  if (!data) {
+    stripeReports.delete(key);
+    renderStripeReports();
+    return;
+  }
+
+  const record = sanitizeRecord(data);
+  if (!record) {
+    stripeReports.delete(key);
+    renderStripeReports();
+    return;
+  }
+
+  const grossVolume = normalizeAmount(record.grossVolume || record.gross || 0);
+  const fees = normalizeAmount(record.fees || 0);
+  const refunds = normalizeAmount(record.refunds || 0);
+  const net = normalizeAmount(record.net !== undefined ? record.net : grossVolume - fees - refunds);
+
+  stripeReports.set(key, {
+    ...record,
+    id: key,
+    grossVolume,
+    fees,
+    refunds,
+    net
+  });
+  renderStripeReports();
+}
+
+function renderStripeReports() {
+  if (!stripeLedger) {
+    return;
+  }
+
+  const sorted = Array.from(stripeReports.values()).sort((a, b) => {
+    const aStamp = Date.parse(a.payoutDate || a.createdAt || 0);
+    const bStamp = Date.parse(b.payoutDate || b.createdAt || 0);
+    if (Number.isNaN(aStamp) || Number.isNaN(bStamp)) {
+      return 0;
+    }
+    return bStamp - aStamp;
+  });
+
+  stripeLedger.innerHTML = '';
+
+  if (sorted.length === 0) {
+    if (stripeEmpty) {
+      stripeEmpty.hidden = false;
+      stripeLedger.append(stripeEmpty);
+    }
+    if (stripeGrossTotal) {
+      stripeGrossTotal.textContent = numberFormatter.format(0);
+    }
+    if (stripeFeesTotal) {
+      stripeFeesTotal.textContent = numberFormatter.format(0);
+    }
+    if (stripeNetTotal) {
+      stripeNetTotal.textContent = numberFormatter.format(0);
+    }
+    if (stripeLastPayout) {
+      stripeLastPayout.textContent = 'No payouts logged';
+    }
+    return;
+  }
+
+  if (stripeEmpty) {
+    stripeEmpty.hidden = true;
+  }
+
+  let grossSum = 0;
+  let feeSum = 0;
+  let netSum = 0;
+  let mostRecentPayout = null;
+
+  sorted.forEach(entry => {
+    grossSum += normalizeAmount(entry.grossVolume);
+    feeSum += normalizeAmount(entry.fees);
+    netSum += normalizeAmount(entry.net);
+
+    const payout = entry.payoutDate ? new Date(entry.payoutDate) : null;
+    if (payout && !Number.isNaN(payout.getTime())) {
+      if (!mostRecentPayout || payout > mostRecentPayout) {
+        mostRecentPayout = payout;
+      }
+    }
+
+    const container = document.createElement('article');
+    container.className = 'finance-entry';
+    container.setAttribute('role', 'listitem');
+
+    const header = document.createElement('div');
+    header.className = 'finance-entry__header';
+
+    const title = document.createElement('h3');
+    title.className = 'finance-entry__title';
+    title.textContent = entry.period ? `Stripe ${entry.period}` : 'Stripe period';
+
+    const amountLabel = document.createElement('span');
+    amountLabel.className = 'finance-entry__amount';
+    amountLabel.textContent = numberFormatter.format(entry.net);
+
+    header.append(title, amountLabel);
+
+    const meta = document.createElement('p');
+    meta.className = 'finance-entry__meta';
+    const payoutLabel = entry.payoutDate
+      ? new Date(entry.payoutDate).toLocaleDateString()
+      : 'Pending payout';
+    meta.textContent = `${numberFormatter.format(entry.grossVolume)} gross • ${numberFormatter.format(entry.fees)} fees • ${numberFormatter.format(entry.refunds)} refunds • ${payoutLabel}`;
+
+    container.append(header, meta);
+
+    if (entry.notes) {
+      const notes = document.createElement('p');
+      notes.className = 'finance-entry__notes';
+      notes.textContent = entry.notes;
+      container.append(notes);
+    }
+
+    stripeLedger.append(container);
+  });
+
+  if (stripeGrossTotal) {
+    stripeGrossTotal.textContent = numberFormatter.format(grossSum);
+  }
+  if (stripeFeesTotal) {
+    stripeFeesTotal.textContent = numberFormatter.format(feeSum);
+  }
+  if (stripeNetTotal) {
+    stripeNetTotal.textContent = numberFormatter.format(netSum);
+  }
+  if (stripeLastPayout) {
+    stripeLastPayout.textContent = mostRecentPayout
+      ? mostRecentPayout.toLocaleDateString()
+      : 'No payouts logged';
+  }
 }
 
 function renderEthPayments() {

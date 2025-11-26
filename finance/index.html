@@ -170,6 +170,77 @@
       </div>
     </section>
 
+    <section class="finance-layout" aria-labelledby="stripe-title">
+      <div class="finance-card finance-card--metrics" id="stripe-summary">
+        <h2 id="stripe-title" class="finance-card__title">Stripe accounting</h2>
+        <p class="finance-card__subhead">Gross, fees, and payouts</p>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Gross volume</dt>
+            <dd id="stripe-gross">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Fees</dt>
+            <dd id="stripe-fees">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Net after refunds</dt>
+            <dd id="stripe-net">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Latest payout</dt>
+            <dd id="stripe-last-payout">No payouts logged</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="finance-card finance-card--form" aria-labelledby="stripe-form-title">
+        <div class="finance-card__header">
+          <h2 id="stripe-form-title" class="finance-card__title">Log Stripe period</h2>
+          <p class="finance-card__subhead">Track gross, fees, and refunds</p>
+        </div>
+        <form id="stripe-form" class="finance-form" autocomplete="off" novalidate>
+          <div class="finance-form__grid">
+            <label class="finance-field">
+              <span class="finance-field__label">Period</span>
+              <input id="stripe-period" name="stripePeriod" type="month" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Gross volume (USD)</span>
+              <input id="stripe-gross-input" name="stripeGross" type="number" step="0.01" min="0" inputmode="decimal" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Fees (USD)</span>
+              <input id="stripe-fees-input" name="stripeFees" type="number" step="0.01" min="0" inputmode="decimal" required>
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Refunds (USD)</span>
+              <input id="stripe-refunds-input" name="stripeRefunds" type="number" step="0.01" min="0" inputmode="decimal" value="0">
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Payout date</span>
+              <input id="stripe-payout" name="stripePayout" type="date">
+            </label>
+          </div>
+          <label class="finance-field">
+            <span class="finance-field__label">Notes</span>
+            <textarea id="stripe-notes" name="stripeNotes" rows="3" placeholder="Stripe balance transfers, invoices, or adjustments"></textarea>
+          </label>
+          <button type="submit" class="finance-button">Save Stripe summary</button>
+        </form>
+      </div>
+
+      <div class="finance-card finance-card--ledger" aria-labelledby="stripe-ledger-title">
+        <div class="finance-card__header">
+          <h2 id="stripe-ledger-title" class="finance-card__title">Stripe ledger</h2>
+          <span class="finance-card__subhead">Period snapshots</span>
+        </div>
+        <div id="stripe-ledger" class="finance-ledger" role="list">
+          <p id="stripe-empty" class="finance-ledger__empty">No Stripe entries yet. Add a period summary to get started.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
       <div class="finance-card__header">
         <h2 id="ledger-title" class="finance-card__title">Ledger</h2>
