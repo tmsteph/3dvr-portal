@@ -1110,10 +1110,6 @@ function handleStripeUpdate(data, key) {
 }
 
 function renderStripeReports() {
-  if (!stripeLedger) {
-    return;
-  }
-
   const sorted = Array.from(stripeReports.values()).sort((a, b) => {
     const aStamp = Date.parse(a.payoutDate || a.createdAt || 0);
     const bStamp = Date.parse(b.payoutDate || b.createdAt || 0);
@@ -1123,10 +1119,12 @@ function renderStripeReports() {
     return bStamp - aStamp;
   });
 
-  stripeLedger.innerHTML = '';
+  if (stripeLedger) {
+    stripeLedger.innerHTML = '';
+  }
 
   if (sorted.length === 0) {
-    if (stripeEmpty) {
+    if (stripeLedger && stripeEmpty) {
       stripeEmpty.hidden = false;
       stripeLedger.append(stripeEmpty);
     }
@@ -1145,7 +1143,7 @@ function renderStripeReports() {
     return;
   }
 
-  if (stripeEmpty) {
+  if (stripeLedger && stripeEmpty) {
     stripeEmpty.hidden = true;
   }
 
@@ -1166,40 +1164,42 @@ function renderStripeReports() {
       }
     }
 
-    const container = document.createElement('article');
-    container.className = 'finance-entry';
-    container.setAttribute('role', 'listitem');
+    if (stripeLedger) {
+      const container = document.createElement('article');
+      container.className = 'finance-entry';
+      container.setAttribute('role', 'listitem');
 
-    const header = document.createElement('div');
-    header.className = 'finance-entry__header';
+      const header = document.createElement('div');
+      header.className = 'finance-entry__header';
 
-    const title = document.createElement('h3');
-    title.className = 'finance-entry__title';
-    title.textContent = entry.period ? `Stripe ${entry.period}` : 'Stripe period';
+      const title = document.createElement('h3');
+      title.className = 'finance-entry__title';
+      title.textContent = entry.period ? `Stripe ${entry.period}` : 'Stripe period';
 
-    const amountLabel = document.createElement('span');
-    amountLabel.className = 'finance-entry__amount';
-    amountLabel.textContent = numberFormatter.format(entry.net);
+      const amountLabel = document.createElement('span');
+      amountLabel.className = 'finance-entry__amount';
+      amountLabel.textContent = numberFormatter.format(entry.net);
 
-    header.append(title, amountLabel);
+      header.append(title, amountLabel);
 
-    const meta = document.createElement('p');
-    meta.className = 'finance-entry__meta';
-    const payoutLabel = entry.payoutDate
-      ? new Date(entry.payoutDate).toLocaleDateString()
-      : 'Pending payout';
-    meta.textContent = `${numberFormatter.format(entry.grossVolume)} gross • ${numberFormatter.format(entry.fees)} fees • ${numberFormatter.format(entry.refunds)} refunds • ${payoutLabel}`;
+      const meta = document.createElement('p');
+      meta.className = 'finance-entry__meta';
+      const payoutLabel = entry.payoutDate
+        ? new Date(entry.payoutDate).toLocaleDateString()
+        : 'Pending payout';
+      meta.textContent = `${numberFormatter.format(entry.grossVolume)} gross • ${numberFormatter.format(entry.fees)} fees • ${numberFormatter.format(entry.refunds)} refunds • ${payoutLabel}`;
 
-    container.append(header, meta);
+      container.append(header, meta);
 
-    if (entry.notes) {
-      const notes = document.createElement('p');
-      notes.className = 'finance-entry__notes';
-      notes.textContent = entry.notes;
-      container.append(notes);
+      if (entry.notes) {
+        const notes = document.createElement('p');
+        notes.className = 'finance-entry__notes';
+        notes.textContent = entry.notes;
+        container.append(notes);
+      }
+
+      stripeLedger.append(container);
     }
-
-    stripeLedger.append(container);
   });
 
   if (stripeGrossTotal) {
