@@ -345,6 +345,11 @@ const ethPayments = new Map();
 const stripeReports = new Map();
 const stripeEvents = new Map();
 let stripeMetricsIntervalId = null;
+const stripeCache = window.FinanceStripeCache
+  && typeof window.FinanceStripeCache.loadStripeReportsCache === 'function'
+  && typeof window.FinanceStripeCache.saveStripeReportsCache === 'function'
+  ? window.FinanceStripeCache
+  : null;
 const ethState = {
   account: null,
   chainId: null,
@@ -371,6 +376,8 @@ if (stripePeriodInput) {
 if (stripePayoutInput) {
   stripePayoutInput.value = defaultDate();
 }
+
+hydrateStripeReportsCache();
 
 if (form) {
   form.addEventListener('submit', handleSubmit);
@@ -467,6 +474,47 @@ function sanitizeRecord(raw) {
     cleaned[key] = value;
   }
   return cleaned;
+}
+
+function hydrateStripeReportsCache() {
+  if (!stripeCache) {
+    return;
+  }
+
+  const cached = stripeCache.loadStripeReportsCache();
+  if (!Array.isArray(cached) || cached.length === 0) {
+    return;
+  }
+
+  cached.forEach(entry => {
+    const record = sanitizeRecord(entry);
+    if (!record || !record.id) {
+      return;
+    }
+    const grossVolume = normalizeAmount(record.grossVolume || record.gross || 0);
+    const fees = normalizeAmount(record.fees || 0);
+    const refunds = normalizeAmount(record.refunds || 0);
+    const net = normalizeAmount(record.net !== undefined ? record.net : grossVolume - fees - refunds);
+
+    stripeReports.set(record.id, {
+      ...record,
+      grossVolume,
+      fees,
+      refunds,
+      net
+    });
+  });
+
+  renderStripeReports();
+}
+
+function persistStripeReportsCache() {
+  if (!stripeCache) {
+    return;
+  }
+
+  const snapshot = Array.from(stripeReports.values()).map(entry => ({ ...entry }));
+  stripeCache.saveStripeReportsCache(snapshot);
 }
 
 initializeEthStatus();
@@ -1149,6 +1197,7 @@ function renderStripeReports() {
     if (stripeLastPayout) {
       stripeLastPayout.textContent = 'No payouts logged';
     }
+    persistStripeReportsCache();
     return;
   }
 
@@ -1217,6 +1266,8 @@ function renderStripeReports() {
       ? totals.lastPayout.toLocaleDateString()
       : 'No payouts logged';
   }
+
+  persistStripeReportsCache();
 }
 
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
