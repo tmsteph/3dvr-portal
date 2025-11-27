@@ -58,7 +58,10 @@ describe('contacts identity flows', () => {
       return await chromium.launch();
     } catch (error) {
       const message = error && typeof error.message === 'string' ? error.message : String(error);
-      if (message.includes('dependencies to run browsers')) {
+      if (
+        message.includes('dependencies to run browsers') ||
+        message.includes("Executable doesn't exist")
+      ) {
         t.skip('Playwright browser dependencies are not installed in this environment.');
         return null;
       }

@@ -1219,6 +1219,14 @@ function renderStripeReports() {
   }
 }
 
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('finance:stripe-totals-ready', () => {
+    if (stripeReports.size > 0) {
+      renderStripeReports();
+    }
+  });
+}
+
 function handleStripeEventUpdate(data, key) {
   if (!key || key === '_') {
     return;

@@ -44,4 +44,9 @@ if (typeof globalThis !== 'undefined') {
     computeStripeTotals,
     normalizeStripeAmount
   };
+
+  if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
+    const readyEvent = new CustomEvent('finance:stripe-totals-ready');
+    globalThis.dispatchEvent(readyEvent);
+  }
 }
