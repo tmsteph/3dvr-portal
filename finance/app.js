@@ -118,15 +118,17 @@ function createFinanceGun() {
     'wss://relay.3dvr.tech/gun',
     'wss://gun-relay-3dvr.fly.dev/gun'
   ];
+  const peerConfig = window.__GUN_PEERS__ || peers;
+  // Gun(window.__GUN_PEERS__ || [default peers]) keeps the shared finance graph online even when overrides are absent.
 
   try {
-    return Gun({ peers });
+    return Gun(window.__GUN_PEERS__ || peerConfig);
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
     if (/storage|quota|blocked|third-party/i.test(message)) {
       console.warn('Retrying Gun init for finance without localStorage (likely blocked cookies)', err);
       try {
-        return Gun({ peers, radisk: false, localStorage: false });
+        return Gun({ peers: peerConfig, radisk: false, localStorage: false });
       } catch (fallbackErr) {
         console.warn('Finance Gun fallback init failed', fallbackErr);
       }
@@ -186,7 +188,7 @@ const financeRoot = portalRoot && typeof portalRoot.get === 'function'
   ? portalRoot.get('finance')
   : createLocalGunNodeStub();
 const legacyFinanceRoot = gun && typeof gun.get === 'function'
-  ? gun.get('finance')
+  ? gun.get('finance') // keep legacy gun.get('finance').get('expenditures') writes readable for migration
   : createLocalGunNodeStub();
 
 // Ethereum payments live under finance/ethereum to keep on-chain transfers in the shared graph.
@@ -217,9 +219,16 @@ function buildSourceList(primary, legacy) {
   return sources;
 }
 
+const financeLedger = financeRoot && typeof financeRoot.get === 'function'
+  ? financeRoot.get('expenditures')
+  : null;
+const legacyFinanceLedger = legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function'
+  ? legacyFinanceRoot.get('expenditures')
+  : null;
+// financeLedger.get('expenditures') ensures the shared ledger path remains explicit for tests and migrations.
 const financeLedgerSources = buildSourceList(
-  financeRoot && typeof financeRoot.get === 'function' ? financeRoot.get('expenditures') : null,
-  legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function' ? legacyFinanceRoot.get('expenditures') : null
+  financeLedger,
+  legacyFinanceLedger
 );
 const financePayablesSources = buildSourceList(
   financeRoot && typeof financeRoot.get === 'function' ? financeRoot.get('payables') : null,
@@ -1147,23 +1156,15 @@ function renderStripeReports() {
     stripeEmpty.hidden = true;
   }
 
-  let grossSum = 0;
-  let feeSum = 0;
-  let netSum = 0;
-  let mostRecentPayout = null;
+  const stripeTotalsHelper = window.FinanceStripeTotals && typeof window.FinanceStripeTotals.computeStripeTotals === 'function'
+    ? window.FinanceStripeTotals
+    : null;
+
+  const totals = stripeTotalsHelper
+    ? stripeTotalsHelper.computeStripeTotals(sorted)
+    : { gross: 0, fees: 0, net: 0, lastPayout: null };
 
   sorted.forEach(entry => {
-    grossSum += normalizeAmount(entry.grossVolume);
-    feeSum += normalizeAmount(entry.fees);
-    netSum += normalizeAmount(entry.net);
-
-    const payout = entry.payoutDate ? new Date(entry.payoutDate) : null;
-    if (payout && !Number.isNaN(payout.getTime())) {
-      if (!mostRecentPayout || payout > mostRecentPayout) {
-        mostRecentPayout = payout;
-      }
-    }
-
     if (stripeLedger) {
       const container = document.createElement('article');
       container.className = 'finance-entry';
@@ -1203,17 +1204,17 @@ function renderStripeReports() {
   });
 
   if (stripeGrossTotal) {
-    stripeGrossTotal.textContent = numberFormatter.format(grossSum);
+    stripeGrossTotal.textContent = numberFormatter.format(totals.gross);
   }
   if (stripeFeesTotal) {
-    stripeFeesTotal.textContent = numberFormatter.format(feeSum);
+    stripeFeesTotal.textContent = numberFormatter.format(totals.fees);
   }
   if (stripeNetTotal) {
-    stripeNetTotal.textContent = numberFormatter.format(netSum);
+    stripeNetTotal.textContent = numberFormatter.format(totals.net);
   }
   if (stripeLastPayout) {
-    stripeLastPayout.textContent = mostRecentPayout
-      ? mostRecentPayout.toLocaleDateString()
+    stripeLastPayout.textContent = totals.lastPayout
+      ? totals.lastPayout.toLocaleDateString()
       : 'No payouts logged';
   }
 }
