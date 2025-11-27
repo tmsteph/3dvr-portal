@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.28 (Week of December 5, 2025)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.27.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.28</h1>
+  <div class="tag">Week of December 5, 2025</div>
+  <p class="release-summary">
+    December's opening build hardens sync and collaboration: release hub links now stay current, CRM records surface
+    merge previews before writing to Gun, and calendars support quick reschedules alongside steadier task summaries.
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      We focused this week on release readiness and everyday flow polish. The release landing page stays pinned to the
+      latest milestone, CRM workspaces can stage merges without risking data collisions, and the calendar/task stack
+      supports faster adjustments when plans shift. Underneath, Gun session locks and retry loops aim to keep data in
+      sync even on flaky connections.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Portal quick links</h2>
+    <ul>
+      <li><a href="../index.html">Portal home</a> – hop across workspaces and the release hub.</li>
+      <li><a href="../releases/index.html">Release hub</a> – browse every weekly milestone.</li>
+      <li><a href="../contacts/index.html">CRM &amp; contacts</a> – review merge candidates before committing to Gun.</li>
+      <li><a href="../calendar/index.html">Calendar</a> – reschedule entries and keep invite status visible.</li>
+      <li><a href="../tasks/index.html">Tasks</a> – scan updated summaries and cross-links to calendar items.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Portal shell &amp; navigation</h2>
+    <ul>
+      <li>Highlight the current weekly milestone on the release hub so contributors land on the newest notes first.</li>
+      <li>Reuse the consistent back-links and navigation affordances to speed up context switching between releases and
+      active workspaces.</li>
+      <li>Retain dark theme spacing and typography adjustments that keep long-form notes readable on mobile and desktop.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>CRM &amp; contacts</h2>
+    <ul>
+      <li>Surface merge previews before writes so CRM updates stay in sync with shared Gun nodes.</li>
+      <li>Keep contact detail panels aligned with identity fields used elsewhere in the portal (tasks, meetings, and
+      rewards), reducing duplicate typing.</li>
+      <li>Clarify inline guidance for contributors linking external accounts, improving how we test cross-device
+      replication.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Calendar &amp; tasks</h2>
+    <ul>
+      <li>Add reschedule prompts for calendar entries to simplify moving meetings while maintaining invite visibility.</li>
+      <li>Refresh task summaries and status badges so they reflect the latest schedule changes from the calendar view.</li>
+      <li>Preserve quick navigation between agenda items and related notes to keep workstreams connected.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Reliability &amp; sync</h2>
+    <ul>
+      <li>Use Gun session locks and retry loops to keep writes queued when a connection blips, then flush changes once the
+      node is reachable.</li>
+      <li>Continue testing across browsers to ensure compatibility shims, module detection, and cache-clearing steps work
+      without manual intervention.</li>
+      <li>Document the sync behaviors directly in release notes so contributors can verify storage flows alongside their
+      weekly checklists.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2025 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
