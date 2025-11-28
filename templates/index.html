@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Templates</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <style>
+    body {
+      background: radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.08), transparent 25%),
+        radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.12), transparent 30%),
+        var(--page-background);
+      color: var(--color-text);
+    }
+
+    .template-shell {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 4rem;
+    }
+
+    .page-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: flex-start;
+      margin-bottom: 2.5rem;
+    }
+
+    .page-header__back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      border: 1px solid var(--surface-border);
+      background: rgba(255, 255, 255, 0.6);
+      color: var(--color-text);
+      text-decoration: none;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    .page-header__back:hover {
+      color: var(--accent-strong);
+      border-color: var(--accent);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.12);
+      color: var(--accent-strong);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      line-height: 1.2;
+    }
+
+    .lede {
+      margin: 0;
+      color: var(--color-text-muted);
+      max-width: 720px;
+      font-size: 1.05rem;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--surface-border);
+      background: var(--surface);
+      color: var(--color-text);
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    .pill:hover {
+      border-color: var(--accent);
+      color: var(--accent-strong);
+    }
+
+    .pill--accent {
+      background: linear-gradient(135deg, #2563eb, #22d3ee);
+      color: white;
+      border: none;
+      box-shadow: 0 16px 36px rgba(37, 99, 235, 0.35);
+    }
+
+    .pill--accent:hover {
+      filter: brightness(1.03);
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .template-card {
+      padding: 1.25rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--surface-border);
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .template-card h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .template-card p {
+      margin: 0;
+      color: var(--color-text-muted);
+    }
+
+    .template-list {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: var(--color-text-muted);
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    .template-list a {
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+
+    .template-list a:hover {
+      text-decoration: underline;
+    }
+
+    .usage-panel {
+      border: 1px solid var(--surface-border);
+      background: rgba(255, 255, 255, 0.82);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.1);
+      display: grid;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .usage-steps {
+      list-style: decimal;
+      padding-left: 1.5rem;
+      margin: 0;
+      color: var(--color-text-muted);
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .usage-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .badge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    .badge-list li {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.12);
+      color: var(--accent-strong);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 640px) {
+      .page-header {
+        margin-bottom: 2rem;
+      }
+
+      .template-shell {
+        padding: 2.5rem 1.2rem 3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="template-shell">
+    <a class="page-header__back" href="../index.html" aria-label="Back to the homepage">
+      <span aria-hidden="true">←</span>
+      Back to homepage
+    </a>
+    <header class="page-header">
+      <span class="eyebrow">Template library</span>
+      <h1>Build faster with ready-to-use templates</h1>
+      <p class="lede">
+        Jump-start launches, playbooks, and collaboration with curated layouts that pair with your Gun-backed workspaces.
+        Duplicate a template, personalize it, and keep shipping.
+      </p>
+      <div class="header-actions">
+        <a class="pill pill--accent" href="../website-builder.html">Open the site builder</a>
+        <a class="pill" href="../tasks/">Plan with tasks</a>
+        <a class="pill" href="../meeting-notes/index.html">Start meeting notes</a>
+      </div>
+    </header>
+
+    <section class="template-grid" aria-label="Template categories">
+      <article class="template-card">
+        <h2>Team operations</h2>
+        <p>Keep ceremonies predictable with reusable outlines and checklists.</p>
+        <ul class="template-list">
+          <li><a href="../meeting-notes/index.html">Meeting agenda</a> with attendance tracking and shared notes.</li>
+          <li><a href="../calendar/index.html">Weekly planning</a> with sprint checkpoints and scheduling.</li>
+          <li><a href="../contacts/index.html">Partner updates</a> to sync stakeholders and ownership.</li>
+        </ul>
+      </article>
+
+      <article class="template-card">
+        <h2>Go-to-market</h2>
+        <p>Ship launches with repeatable GTM briefs, metrics, and experiments.</p>
+        <ul class="template-list">
+          <li><a href="../sales/index.html">Launch brief</a> covering audience, message, and channels.</li>
+          <li><a href="../sales/training/">Sales enablement</a> playbook with scripts and positioning.</li>
+          <li><a href="../social/index.html">Campaign planner</a> with content drops and approval cadence.</li>
+        </ul>
+      </article>
+
+      <article class="template-card">
+        <h2>Creation kits</h2>
+        <p>Turn ideas into pages, demos, and prototypes without starting from scratch.</p>
+        <ul class="template-list">
+          <li><a href="../website-builder.html">Landing page</a> frames ready for copy, visuals, and CTAs.</li>
+          <li><a href="../openai-app/index.html">Prompt library</a> blocks for research, drafting, and QA.</li>
+          <li><a href="../mini-daedalos/">Desktop shell</a> template with notes, windows, and quick launchers.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="usage-panel" aria-label="How to use the templates">
+      <div>
+        <h2 style="margin: 0 0 0.35rem 0;">How to use this library</h2>
+        <p class="lede" style="font-size: 1rem;">
+          Every template links to a live workspace so you can duplicate layouts, save them to your Gun nodes, and share with the
+          team.
+        </p>
+      </div>
+      <ol class="usage-steps">
+        <li>Pick a template that matches your workflow and open the linked workspace.</li>
+        <li>Duplicate the page or card, then customize names, timelines, and data fields.</li>
+        <li>Share the link with teammates and keep iterating together.</li>
+      </ol>
+      <div class="usage-actions">
+        <a class="pill pill--accent" href="../gun-explorer/index.html">Check the shared Gun nodes</a>
+        <a class="pill" href="../releases/">Track release-ready templates</a>
+      </div>
+    </section>
+
+    <section aria-label="Featured template badges">
+      <h2 style="margin: 0 0 0.75rem 0;">Featured starters</h2>
+      <ul class="badge-list">
+        <li>Product discovery</li>
+        <li>VR session prep</li>
+        <li>Customer success</li>
+        <li>Hackathon kickoff</li>
+        <li>Postmortem review</li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>
