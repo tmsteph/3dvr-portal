@@ -82,19 +82,18 @@
   <h1>Release v0.0.28</h1>
   <div class="tag">Week of November 30, 2025</div>
   <p class="release-summary">
-    End-of-November build shipping internally now (external on Monday): release hub links stay current, CRM records now
-    show exactly which fields will win in a merge before anything writes to Gun, and calendars support quick reschedules
-    with steadier task summaries.
+    Finance-forward sprint: reconciliations stay in lockstep with the ledger, forecasting tiles summarize the quarter,
+    and transaction edits stay safer by writing through shared Gun nodes with clearer audit context. Navigation remains
+    consistent so contributors can jump between finance, CRM, and calendar without losing their place.
   </p>
 
   <div class="section">
     <h2>Overview</h2>
     <p>
-      We focused this week on release readiness and everyday flow polish. The release landing page stays pinned to the
-      latest milestone, CRM workspaces can stage merges without risking data collisions, and the calendar/task stack
-      supports faster adjustments when plans shift. Underneath, Gun session locks and retry loops aim to keep data in
-      sync even on flaky connections. This is an internal drop at the end of November, with external publication set
-      for Monday.
+      Finance moved from experimental to dependable. Reconciliation checkpoints mirror the real ledger, forecasting
+      tiles summarize cash posture for the coming quarter, and edits stay reversible thanks to audit-friendly Gun
+      writes. We aligned navigation to keep finance close to CRM records and scheduled follow-ups, so teams can trace
+      revenue and spend back to the people and meetings that drive them.
     </p>
   </div>
 
@@ -103,8 +102,9 @@
     <ul>
       <li><a href="../index.html">Portal home</a> – hop across workspaces and the release hub.</li>
       <li><a href="../releases/index.html">Release hub</a> – browse every weekly milestone.</li>
-      <li><a href="../contacts/index.html">CRM &amp; contacts</a> – review merge candidates before committing to Gun.</li>
-      <li><a href="../calendar/index.html">Calendar</a> – reschedule entries and keep invite status visible.</li>
+      <li><a href="../finance/index.html">Finance</a> – reconcile ledgers, edit transactions, and track forecasts.</li>
+      <li><a href="../contacts/index.html">CRM &amp; contacts</a> – keep revenue owners in view while reviewing deals.</li>
+      <li><a href="../calendar/index.html">Calendar</a> – line up follow-up meetings tied to finance checkpoints.</li>
       <li><a href="../tasks/index.html">Tasks</a> – scan updated summaries and cross-links to calendar items.</li>
     </ul>
   </div>
@@ -112,43 +112,54 @@
   <div class="section">
     <h2>Portal shell &amp; navigation</h2>
     <ul>
-      <li>Highlight the current weekly milestone on the release hub so contributors land on the newest notes first.</li>
-      <li>Reuse the consistent back-links and navigation affordances to speed up context switching between releases and
-      active workspaces.</li>
+      <li>Keep the current weekly milestone pinned on the release hub so finance contributors land on the newest notes
+      first.</li>
+      <li>Reuse consistent back-links and navigation affordances so switching between finance, CRM, and calendar views
+      keeps context intact.</li>
       <li>Retain dark theme spacing and typography adjustments that keep long-form notes readable on mobile and desktop.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Finance &amp; forecasting</h2>
+    <ul>
+      <li>Introduce reconciliation checkpoints with side-by-side ledger comparisons, keeping Gun as the source of
+      truth for every adjustment.</li>
+      <li>Add forecasting tiles that roll up near-term revenue, burn, and runway so finance reviewers see the quarter at
+      a glance.</li>
+      <li>Harden transaction editing by routing writes through shared nodes, logging who changed what, and surfacing
+      audit context before saves.</li>
+      <li>Improve filters for categories, accounts, and timeframes to speed up weekly close reviews.</li>
     </ul>
   </div>
 
   <div class="section">
     <h2>CRM &amp; contacts</h2>
     <ul>
-      <li>Surface merge previews before writes, with a field-by-field view of what changes, so CRM updates stay in sync
-      with shared Gun nodes.</li>
-      <li>Keep contact detail panels aligned with identity fields used elsewhere in the portal (tasks, meetings, and
-      rewards), reducing duplicate typing.</li>
-      <li>Clarify inline guidance for contributors linking external accounts, improving how we test cross-device
-      replication.</li>
+      <li>Link finance owners back to CRM records so deal stages and revenue forecasts stay aligned.</li>
+      <li>Carry contact identity fields into finance notes for quick attribution and fewer duplicate entries.</li>
+      <li>Keep merge previews readable while showing the finance impact of field changes before they write to Gun.</li>
     </ul>
   </div>
 
   <div class="section">
-    <h2>Calendar &amp; tasks</h2>
+    <h2>Calendar &amp; workflow</h2>
     <ul>
-      <li>Add reschedule prompts for calendar entries to simplify moving meetings while maintaining invite visibility.</li>
-      <li>Refresh task summaries and status badges so they reflect the latest schedule changes from the calendar view.</li>
-      <li>Preserve quick navigation between agenda items and related notes to keep workstreams connected.</li>
+      <li>Surface finance follow-ups directly on the calendar with links back to the reconciled ledger checkpoints.</li>
+      <li>Respect navigation breadcrumbs so switching between finance reviews and meetings keeps the same context.</li>
+      <li>Preserve keyboard-accessible affordances across release and finance pages to keep review loops fast.</li>
     </ul>
   </div>
 
   <div class="section">
     <h2>Reliability &amp; sync</h2>
     <ul>
-      <li>Use Gun session locks and retry loops to keep writes queued when a connection blips, then flush changes once the
-      node is reachable.</li>
-      <li>Continue testing across browsers to ensure compatibility shims, module detection, and cache-clearing steps work
-      without manual intervention.</li>
-      <li>Document the sync behaviors directly in release notes so contributors can verify storage flows alongside their
-      weekly checklists.</li>
+      <li>Continue to treat shared Gun nodes as the authoritative ledger for transactions, with retries keeping edits
+      queued when offline.</li>
+      <li>Document audit trails inline so contributors understand how finance edits replicate across sessions and
+      browsers.</li>
+      <li>Maintain dark-theme readability and consistent spacing for long-form finance notes on both desktop and
+      mobile.</li>
     </ul>
   </div>
 
