@@ -90,6 +90,109 @@
       </div>
       <ul id="history"></ul>
     </section>
+
+    <section class="grid">
+      <section class="card" id="vercel-panel" aria-label="Vercel deployment">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Publish</p>
+            <h2>Deploy to Vercel</h2>
+            <p class="meta">Turn the current response into a live site by deploying a static <code>index.html</code>.</p>
+          </div>
+        </div>
+
+        <label for="vercel-token">Vercel token</label>
+        <div class="input-row">
+          <input type="password" id="vercel-token" placeholder="Access token from Vercel settings" aria-describedby="vercel-help">
+          <button id="save-vercel" class="primary">Save</button>
+          <button id="clear-vercel" class="ghost">Clear</button>
+        </div>
+        <p id="vercel-help" class="meta">Token stays in localStorage; the deployment request is proxied through this domain.</p>
+
+        <div class="grid compact-grid">
+          <div>
+            <label for="vercel-project">Project name</label>
+            <input id="vercel-project" type="text" placeholder="my-ai-site" aria-describedby="project-help">
+            <p id="project-help" class="meta">Letters, numbers, and dashes only. A new Vercel project will be created if needed.</p>
+          </div>
+          <div>
+            <label for="deploy-note">Notes</label>
+            <input id="deploy-note" type="text" placeholder="What changed in this deployment?">
+          </div>
+        </div>
+
+        <button id="deploy-btn" class="primary">Deploy current response</button>
+        <div id="vercel-status" class="output" aria-live="polite">Paste your token and project name to start.</div>
+      </section>
+
+      <section class="card" id="deploy-history" aria-label="Deployment history">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Audit</p>
+            <h2>Recent deployments</h2>
+            <p class="meta">Saved to <code>ai/vercel/&lt;sessionId&gt;</code> in Gun so the team can reuse URLs.</p>
+          </div>
+        </div>
+        <ul id="deployments"></ul>
+      </section>
+    </section>
+
+    <section class="grid">
+      <section class="card" id="github-panel" aria-label="GitHub publishing">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Commit</p>
+            <h2>Publish to GitHub</h2>
+            <p class="meta">Save the generated HTML into a repository so teammates can track changes.</p>
+          </div>
+        </div>
+
+        <label for="github-token">GitHub token</label>
+        <div class="input-row">
+          <input type="password" id="github-token" placeholder="GitHub personal access token" aria-describedby="github-help">
+          <button id="save-github" class="primary">Save</button>
+          <button id="clear-github" class="ghost">Clear</button>
+        </div>
+        <p id="github-help" class="meta">Token stays in localStorage; commits use the GitHub contents API.</p>
+
+        <div class="grid compact-grid">
+          <div>
+            <label for="github-repo">Repository (owner/name)</label>
+            <input id="github-repo" type="text" placeholder="org/website-repo" aria-describedby="repo-help">
+            <p id="repo-help" class="meta">The repo must already exist and your token must grant contents access.</p>
+          </div>
+          <div>
+            <label for="github-branch">Branch</label>
+            <input id="github-branch" type="text" placeholder="main" value="main">
+          </div>
+        </div>
+
+        <div class="grid compact-grid">
+          <div>
+            <label for="github-path">File path</label>
+            <input id="github-path" type="text" placeholder="openai-output/index.html" value="index.html">
+          </div>
+          <div>
+            <label for="github-message">Commit message</label>
+            <input id="github-message" type="text" placeholder="Publish latest AI output">
+          </div>
+        </div>
+
+        <button id="github-btn" class="primary">Publish current response</button>
+        <div id="github-status" class="output" aria-live="polite">Add your token and repo to push HTML.</div>
+      </section>
+
+      <section class="card" id="github-history-panel" aria-label="GitHub history">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Record</p>
+            <h2>Recent commits</h2>
+            <p class="meta">Saved to <code>ai/github/&lt;sessionId&gt;</code> in Gun to track publish events.</p>
+          </div>
+        </div>
+        <ul id="github-history"></ul>
+      </section>
+    </section>
   </main>
 
   <script src="app.js"></script>

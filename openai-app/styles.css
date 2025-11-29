@@ -164,6 +164,10 @@ button.ghost:hover {
   gap: 20px;
 }
 
+.compact-grid {
+  grid-template-columns: 1fr;
+}
+
 iframe {
   width: 100%;
   min-height: 300px;
@@ -177,8 +181,45 @@ iframe {
   margin-top: 4px;
 }
 
+#deployments,
+#github-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#deployments li,
+#github-history li {
+  border: 1px solid #e0e7f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+#deployments a,
+#github-history a {
+  color: #5ca0d3;
+  font-weight: 700;
+}
+
+#deployments .meta-row,
+#github-history .meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  color: #6c7681;
+}
+
 @media (min-width: 960px) {
   .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compact-grid {
     grid-template-columns: 1fr 1fr;
   }
 }
