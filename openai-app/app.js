@@ -1,11 +1,104 @@
 const gun = Gun();
+
+const storage = (() => {
+  const memoryStore = {};
+
+  function isUsable(store) {
+    try {
+      const testKey = '__storage-test__';
+      store.setItem(testKey, 'ok');
+      const ok = store.getItem(testKey) === 'ok';
+      store.removeItem(testKey);
+      return ok;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  const primary = isUsable(localStorage) ? localStorage : null;
+  const secondary = isUsable(sessionStorage) ? sessionStorage : null;
+
+  function setItem(key, value) {
+    if (primary) {
+      try {
+        primary.setItem(key, value);
+        return 'localStorage';
+      } catch (error) {
+        // fall through to secondary options
+      }
+    }
+
+    if (secondary) {
+      try {
+        secondary.setItem(key, value);
+        return 'sessionStorage';
+      } catch (error) {
+        // fall through to memory store
+      }
+    }
+
+    memoryStore[key] = value;
+    return 'memory';
+  }
+
+  function getItem(key) {
+    if (primary) {
+      try {
+        const value = primary.getItem(key);
+        if (value !== null) return value;
+      } catch (error) {
+        // fall through to secondary options
+      }
+    }
+
+    if (secondary) {
+      try {
+        const value = secondary.getItem(key);
+        if (value !== null) return value;
+      } catch (error) {
+        // fall through to memory store
+      }
+    }
+
+    return memoryStore[key] || null;
+  }
+
+  function removeItem(key) {
+    if (primary) {
+      try {
+        primary.removeItem(key);
+      } catch (error) {
+        // ignore
+      }
+    }
+
+    if (secondary) {
+      try {
+        secondary.removeItem(key);
+      } catch (error) {
+        // ignore
+      }
+    }
+
+    delete memoryStore[key];
+  }
+
+  function mode() {
+    if (primary) return 'localStorage';
+    if (secondary) return 'sessionStorage';
+    return 'memory';
+  }
+
+  return { setItem, getItem, removeItem, mode };
+})();
+
 const apiKeyStorageKey = 'openai-api-key';
 const vercelTokenStorageKey = 'vercel-token';
 const githubTokenStorageKey = 'github-token';
 const sessionKey = 'openai-workbench-session';
-const storedSession = localStorage.getItem(sessionKey);
+const storedSession = storage.getItem(sessionKey);
 const sessionId = storedSession || Gun.text.random();
-localStorage.setItem(sessionKey, sessionId);
+storage.setItem(sessionKey, sessionId);
 // Gun graph: ai/workbench/<sessionId> -> { prompt, response, createdAt }
 const transcriptNode = gun.get('ai').get('workbench').get(sessionId);
 const deploymentNode = gun.get('ai').get('vercel').get(sessionId);
@@ -39,6 +132,7 @@ const githubMessageInput = document.getElementById('github-message');
 const githubBtn = document.getElementById('github-btn');
 const githubStatus = document.getElementById('github-status');
 const githubHistoryList = document.getElementById('github-history');
+const storageModeNotice = document.getElementById('storage-mode');
 
 const systemPrompt = [
   'You are the 3dvr portal co-pilot.',
@@ -46,22 +140,39 @@ const systemPrompt = [
   'When providing HTML/CSS/JS, keep it minimal and ready for copy/paste.'
 ].join(' ');
 
+function updateStorageModeNotice(context) {
+  if (!storageModeNotice) return;
+
+  const mode = storage.mode();
+  if (mode === 'localStorage') {
+    storageModeNotice.textContent = context || 'Keys persist with localStorage. They should survive refreshes in most browsers, including Brave when shields allow storage.';
+    return;
+  }
+
+  if (mode === 'sessionStorage') {
+    storageModeNotice.textContent = context || 'Local storage is blocked, so keys are stored in sessionStorage. They will survive refreshes but not closing the tab. Try lowering Brave shields to allow local storage.';
+    return;
+  }
+
+  storageModeNotice.textContent = context || 'Persistent storage is blocked. Keys stay only for this page load. Adjust Brave Shields or enable storage to keep your key across refreshes.';
+}
+
 function loadStoredKey() {
-  const stored = localStorage.getItem(apiKeyStorageKey);
+  const stored = storage.getItem(apiKeyStorageKey);
   if (stored) {
     apiKeyInput.value = stored;
   }
 }
 
 function loadStoredVercelToken() {
-  const stored = localStorage.getItem(vercelTokenStorageKey);
+  const stored = storage.getItem(vercelTokenStorageKey);
   if (stored) {
     vercelTokenInput.value = stored;
   }
 }
 
 function loadStoredGithubToken() {
-  const stored = localStorage.getItem(githubTokenStorageKey);
+  const stored = storage.getItem(githubTokenStorageKey);
   if (stored) {
     githubTokenInput.value = stored;
   }
@@ -413,12 +524,15 @@ saveKeyBtn.addEventListener('click', () => {
     outputBox.textContent = 'Enter a valid API key first.';
     return;
   }
-  localStorage.setItem(apiKeyStorageKey, key);
-  outputBox.textContent = 'API key saved locally.';
+  const mode = storage.setItem(apiKeyStorageKey, key);
+  updateStorageModeNotice(`API key saved to ${mode}.`);
+  outputBox.textContent = mode === 'memory'
+    ? 'API key saved for this page only. Adjust Brave Shields or storage settings to persist across refreshes.'
+    : `API key saved to ${mode}.`;
 });
 
 clearKeyBtn.addEventListener('click', () => {
-  localStorage.removeItem(apiKeyStorageKey);
+  storage.removeItem(apiKeyStorageKey);
   apiKeyInput.value = '';
   outputBox.textContent = 'API key cleared from this browser.';
 });
@@ -432,12 +546,15 @@ saveVercelBtn.addEventListener('click', () => {
     return;
   }
 
-  localStorage.setItem(vercelTokenStorageKey, token);
-  setVercelStatus('Vercel token saved locally.');
+  const mode = storage.setItem(vercelTokenStorageKey, token);
+  updateStorageModeNotice();
+  setVercelStatus(mode === 'memory'
+    ? 'Vercel token saved for this page only. Allow storage for persistence.'
+    : `Vercel token saved to ${mode}.`);
 });
 
 clearVercelBtn.addEventListener('click', () => {
-  localStorage.removeItem(vercelTokenStorageKey);
+  storage.removeItem(vercelTokenStorageKey);
   vercelTokenInput.value = '';
   setVercelStatus('Vercel token cleared from this browser.');
 });
@@ -451,18 +568,22 @@ saveGithubBtn.addEventListener('click', () => {
     return;
   }
 
-  localStorage.setItem(githubTokenStorageKey, token);
-  setGithubStatus('GitHub token saved locally.');
+  const mode = storage.setItem(githubTokenStorageKey, token);
+  updateStorageModeNotice();
+  setGithubStatus(mode === 'memory'
+    ? 'GitHub token saved for this page only. Allow storage for persistence.'
+    : `GitHub token saved to ${mode}.`);
 });
 
 clearGithubBtn.addEventListener('click', () => {
-  localStorage.removeItem(githubTokenStorageKey);
+  storage.removeItem(githubTokenStorageKey);
   githubTokenInput.value = '';
   setGithubStatus('GitHub token cleared from this browser.');
 });
 
 githubBtn.addEventListener('click', publishToGithub);
 
+updateStorageModeNotice();
 loadStoredKey();
 loadStoredVercelToken();
 loadStoredGithubToken();
