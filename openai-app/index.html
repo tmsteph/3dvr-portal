@@ -41,6 +41,36 @@
       <p id="storage-mode" class="meta" aria-live="polite"></p>
     </section>
 
+    <section class="card" id="vault-panel" aria-label="Gun key vault">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Sync</p>
+          <h2>Gun key vault</h2>
+          <p class="meta">Encrypt your API key with a passphrase and keep it in Gun so it follows you across previews and devices.</p>
+        </div>
+      </div>
+
+      <div class="grid compact-grid">
+        <div>
+          <label for="vault-alias">Vault label</label>
+          <input id="vault-alias" type="text" placeholder="workbench-default" aria-describedby="vault-alias-help">
+          <p id="vault-alias-help" class="meta">Letters, numbers, and dashes only. Use the same label on every device.</p>
+        </div>
+        <div>
+          <label for="vault-passphrase">Passphrase</label>
+          <input id="vault-passphrase" type="password" placeholder="Required to encrypt/decrypt" aria-describedby="vault-passphrase-help">
+          <p id="vault-passphrase-help" class="meta">Passphrase never leaves the browser; it only decrypts your key locally.</p>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <button id="vault-save" class="primary">Save API key to Gun</button>
+        <button id="vault-load" class="ghost">Load API key from Gun</button>
+      </div>
+
+      <p id="vault-status" class="status" aria-live="polite">Use the vault to keep your key handy when Vercel preview URLs change.</p>
+    </section>
+
     <section class="grid">
       <section class="card" id="chat-panel" aria-label="Chat controls">
         <div class="card-header">

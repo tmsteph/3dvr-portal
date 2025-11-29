@@ -101,8 +101,12 @@ const sessionId = storedSession || Gun.text.random();
 storage.setItem(sessionKey, sessionId);
 // Gun graph: ai/workbench/<sessionId> -> { prompt, response, createdAt }
 const transcriptNode = gun.get('ai').get('workbench').get(sessionId);
+// Gun graph: ai/vercel/<sessionId>/<deploymentId> -> deployment metadata
 const deploymentNode = gun.get('ai').get('vercel').get(sessionId);
+// Gun graph: ai/github/<sessionId>/<commitSha> -> commit metadata
 const githubNode = gun.get('ai').get('github').get(sessionId);
+// Gun graph: ai/key-vault/<alias> -> { cipher, updatedAt, alias }
+const keyVaultNode = gun.get('ai').get('key-vault');
 
 const apiKeyInput = document.getElementById('api-key');
 const saveKeyBtn = document.getElementById('save-key');
@@ -133,6 +137,11 @@ const githubBtn = document.getElementById('github-btn');
 const githubStatus = document.getElementById('github-status');
 const githubHistoryList = document.getElementById('github-history');
 const storageModeNotice = document.getElementById('storage-mode');
+const vaultAliasInput = document.getElementById('vault-alias');
+const vaultPassphraseInput = document.getElementById('vault-passphrase');
+const vaultSaveBtn = document.getElementById('vault-save');
+const vaultLoadBtn = document.getElementById('vault-load');
+const vaultStatus = document.getElementById('vault-status');
 
 const systemPrompt = [
   'You are the 3dvr portal co-pilot.',
@@ -164,10 +173,104 @@ function updateStorageModeNotice(context) {
   storageModeNotice.textContent = context || 'Persistent storage is blocked. Keys stay only for this page load. Adjust Brave Shields or enable storage to keep your key across refreshes.';
 }
 
+function setVaultStatus(message) {
+  if (vaultStatus) {
+    vaultStatus.textContent = message;
+  }
+}
+
+function sanitizeVaultAlias(input) {
+  return (input || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 64);
+}
+
 function loadStoredKey() {
   const stored = storage.getItem(apiKeyStorageKey);
   if (stored) {
     apiKeyInput.value = stored;
+  }
+}
+
+async function saveKeyToVault() {
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const passphrase = vaultPassphraseInput?.value || '';
+  const apiKey = apiKeyInput.value.trim();
+
+  if (!alias) {
+    setVaultStatus('Add a vault label using letters, numbers, or dashes.');
+    return;
+  }
+
+  if (!passphrase || passphrase.length < 6) {
+    setVaultStatus('Add a passphrase (6+ characters) to encrypt your key.');
+    return;
+  }
+
+  if (!apiKey) {
+    setVaultStatus('Paste your OpenAI API key before saving to Gun.');
+    return;
+  }
+
+  if (!Gun.SEA || typeof Gun.SEA.encrypt !== 'function') {
+    setVaultStatus('Gun SEA not available. Refresh the page and try again.');
+    return;
+  }
+
+  try {
+    const cipher = await Gun.SEA.encrypt(apiKey, passphrase);
+    const record = { alias, cipher, updatedAt: Date.now() };
+    keyVaultNode.get(alias).put(record);
+    setVaultStatus('API key encrypted and stored in Gun. Use the same alias and passphrase on any device.');
+  } catch (error) {
+    setVaultStatus(`Error encrypting or saving: ${error.message}`);
+  }
+}
+
+function fetchVaultRecord(alias) {
+  return new Promise((resolve) => {
+    keyVaultNode.get(alias).once((data) => resolve(data));
+  });
+}
+
+async function loadKeyFromVault() {
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const passphrase = vaultPassphraseInput?.value || '';
+
+  if (!alias) {
+    setVaultStatus('Enter the vault label you used when saving your key.');
+    return;
+  }
+
+  if (!passphrase) {
+    setVaultStatus('Enter the passphrase used to encrypt your key.');
+    return;
+  }
+
+  if (!Gun.SEA || typeof Gun.SEA.decrypt !== 'function') {
+    setVaultStatus('Gun SEA not available. Refresh the page and try again.');
+    return;
+  }
+
+  setVaultStatus('Fetching and decrypting key from Gun...');
+
+  try {
+    const record = await fetchVaultRecord(alias);
+    if (!record || !record.cipher) {
+      setVaultStatus('No encrypted key found for that alias.');
+      return;
+    }
+
+    const decrypted = await Gun.SEA.decrypt(record.cipher, passphrase);
+    if (!decrypted) {
+      setVaultStatus('Decryption failed. Check your passphrase and try again.');
+      return;
+    }
+
+    apiKeyInput.value = decrypted;
+    storage.setItem(apiKeyStorageKey, decrypted);
+    updateStorageModeNotice('Key loaded from Gun and stored locally for this device.');
+    setVaultStatus('API key loaded from Gun and applied to this session.');
+  } catch (error) {
+    setVaultStatus(`Error loading from Gun: ${error.message}`);
   }
 }
 
@@ -594,6 +697,8 @@ clearGithubBtn.addEventListener('click', () => {
 });
 
 githubBtn.addEventListener('click', publishToGithub);
+vaultSaveBtn?.addEventListener('click', saveKeyToVault);
+vaultLoadBtn?.addEventListener('click', loadKeyFromVault);
 
 updateStorageModeNotice();
 loadStoredKey();
