@@ -91,6 +91,18 @@ const apps = {
       </div>
       <p class="muted">Command palette coming soon with GunDB integration.</p>
     `
+  },
+  moneyAI: {
+    title: 'Money-Making AI',
+    icon: '💸',
+    content: `
+      <p>Prototype your personal, income-generating AI with the new landing page.</p>
+      <div class="stacked-links">
+        <a class="button" href="/money-ai/">Open Money-Making AI</a>
+        <button class="button command" data-open-url="/money-ai/">Launch in new tab</button>
+      </div>
+      <p class="muted">Static HTML today, ready to wire into TommyOS or GunDB flows.</p>
+    `
   }
 };
 
