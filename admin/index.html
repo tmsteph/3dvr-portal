@@ -352,6 +352,29 @@
         </div>
       </div>
 
+      <div class="card" id="defaults-card">
+        <h2>OpenAI Workbench Defaults</h2>
+        <p class="text-muted">Encrypt a shared default OpenAI key so teammates can load it with a passphrase.</p>
+        <div class="form-group">
+          <label for="default-api-key">Default OpenAI API key</label>
+          <input id="default-api-key" type="password" placeholder="sk-..." />
+        </div>
+        <div class="form-group">
+          <label for="default-api-passphrase">Encryption passphrase</label>
+          <input id="default-api-passphrase" type="password" placeholder="Required to encrypt and decrypt" />
+          <p class="text-muted">Passphrase is never stored; share it privately with the team so they can unlock the default.</p>
+        </div>
+        <div class="form-group">
+          <label for="default-api-hint">Passphrase hint (optional)</label>
+          <input id="default-api-hint" type="text" placeholder="Example: same passphrase as portal admin" />
+        </div>
+        <div class="actions" style="margin-top: 10px;">
+          <button id="save-default-key" class="btn-primary" type="button">Save default key</button>
+          <button id="clear-default-key" class="btn-danger" type="button">Clear default</button>
+        </div>
+        <p id="default-status" class="text-muted"></p>
+      </div>
+
       <div class="card">
         <h2>Leaderboard</h2>
         <p class="text-muted">Top 10 users ranked by total points.</p>
@@ -418,6 +441,7 @@
   const adminRequests = portalRoot.get('adminRequests');
   const userIndex = portalRoot.get('userIndex');
   const userStats = portalRoot.get('userStats');
+  const workbenchDefaults = portalRoot.get('ai-workbench').get('defaults');
 
   const alias = localStorage.getItem('alias');
   const password = localStorage.getItem('password');
@@ -429,6 +453,7 @@
   const pointsRecords = {};
   const adminRecords = {};
   const requestRecords = {};
+  let defaultRecord = {};
 
   let isAdmin = false;
   let isRootAdmin = false;
@@ -449,6 +474,13 @@
   const addAdminButton = document.getElementById('add-admin-button');
   const requestListEl = document.getElementById('request-list');
   const leaderboardEl = document.getElementById('leaderboard');
+  const defaultsCard = document.getElementById('defaults-card');
+  const defaultKeyInput = document.getElementById('default-api-key');
+  const defaultPassphraseInput = document.getElementById('default-api-passphrase');
+  const defaultHintInput = document.getElementById('default-api-hint');
+  const defaultStatusEl = document.getElementById('default-status');
+  const saveDefaultKeyBtn = document.getElementById('save-default-key');
+  const clearDefaultKeyBtn = document.getElementById('clear-default-key');
 
   function init() {
     ensureRootAdmin();
@@ -502,6 +534,11 @@
   function showDashboard() {
     hideElement(requestCardEl);
     showElement(dashboardEl);
+    if (isAdmin) {
+      showElement(defaultsCard);
+    } else {
+      hideElement(defaultsCard);
+    }
     if (isRootAdmin) {
       showElement(addAdminSection);
     }
@@ -578,6 +615,13 @@
       }
       renderRequests();
     });
+
+    if (isAdmin) {
+      workbenchDefaults.on(data => {
+        defaultRecord = data || {};
+        renderDefaults();
+      });
+    }
   }
 
   function renderUsers() {
@@ -731,6 +775,96 @@
     }
   }
 
+  function renderDefaults() {
+    if (!defaultStatusEl) return;
+    const hasKey = Boolean(defaultRecord.apiKeyCipher);
+
+    if (!hasKey) {
+      defaultStatusEl.innerText = 'No default OpenAI key has been saved yet.';
+      return;
+    }
+
+    const updated = formatDate(defaultRecord.updatedAt);
+    const updatedBy = escapeHtml(defaultRecord.updatedBy || 'admin');
+    const hint = defaultRecord.hint ? `Hint: ${escapeHtml(defaultRecord.hint)}` : 'No hint set.';
+    defaultStatusEl.innerHTML = `Encrypted default saved by ${updatedBy} on ${updated}. ${hint}`;
+  }
+
+  function updateDefaultStatus(message) {
+    if (defaultStatusEl) {
+      defaultStatusEl.innerText = message;
+    }
+  }
+
+  async function saveDefaultKey() {
+    if (!isAdmin) {
+      updateDefaultStatus('Only admins can change OpenAI defaults.');
+      return;
+    }
+
+    const apiKey = (defaultKeyInput.value || '').trim();
+    const passphrase = (defaultPassphraseInput.value || '').trim();
+    const hint = (defaultHintInput.value || '').trim();
+
+    if (!apiKey) {
+      updateDefaultStatus('Enter an API key to save.');
+      return;
+    }
+
+    if (!passphrase || passphrase.length < 6) {
+      updateDefaultStatus('Add a passphrase (6+ characters) to encrypt the key.');
+      return;
+    }
+
+    if (!Gun.SEA || typeof Gun.SEA.encrypt !== 'function') {
+      updateDefaultStatus('Gun SEA not available. Please refresh and try again.');
+      return;
+    }
+
+    updateDefaultStatus('Encrypting and saving the default key...');
+
+    try {
+      const cipher = await Gun.SEA.encrypt(apiKey, passphrase);
+      const payload = {
+        apiKeyCipher: cipher,
+        hint,
+        updatedAt: Date.now(),
+        updatedBy: alias || 'admin'
+      };
+      workbenchDefaults.put(payload, ack => {
+        if (ack?.err) {
+          updateDefaultStatus('Could not save the default key.');
+          return;
+        }
+        defaultKeyInput.value = '';
+        updateDefaultStatus('Default OpenAI key saved. Share the passphrase privately with your team.');
+      });
+    } catch (error) {
+      updateDefaultStatus('Failed to encrypt the default key.');
+    }
+  }
+
+  function clearDefaultKey() {
+    if (!isAdmin) return;
+
+    workbenchDefaults.put({
+      apiKeyCipher: null,
+      hint: '',
+      updatedAt: Date.now(),
+      updatedBy: alias || 'admin'
+    }, ack => {
+      if (ack?.err) {
+        updateDefaultStatus('Unable to clear the default key.');
+        return;
+      }
+      defaultRecord = {};
+      defaultKeyInput.value = '';
+      defaultPassphraseInput.value = '';
+      defaultHintInput.value = '';
+      updateDefaultStatus('Default key cleared.');
+    });
+  }
+
   function approveRequest(targetAlias) {
     const record = requestRecords[targetAlias];
     if (!record) return;
@@ -856,6 +990,9 @@
     addAdminInput.value = '';
     setStatus(`${displayName} promoted to admin.`);
   });
+
+  saveDefaultKeyBtn.addEventListener('click', saveDefaultKey);
+  clearDefaultKeyBtn.addEventListener('click', clearDefaultKey);
 
   window.addEventListener('load', init);
   </script>
