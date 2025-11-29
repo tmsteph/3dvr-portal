@@ -7,45 +7,81 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="gun-init.js"></script>
   <link rel="stylesheet" href="styles/global.css">
- <style>
+  <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
       background: #f0f4f8;
       color: #333;
-      max-width: 600px;
+      max-width: 960px;
       margin: auto;
     }
+
     h1 {
       text-align: center;
       color: #444;
+      margin-bottom: 12px;
     }
+
+    p.lede {
+      text-align: center;
+      margin-bottom: 24px;
+      color: #2d3b4f;
+    }
+
     label {
       font-weight: bold;
       display: block;
-      margin-top: 20px;
+      margin-top: 16px;
     }
-    textarea, input {
+
+    textarea,
+    input,
+    select {
       width: 100%;
       padding: 10px;
-      margin-top: 5px;
+      margin-top: 6px;
       border-radius: 6px;
       border: 1px solid #ccc;
       font-size: 1rem;
+      box-sizing: border-box;
     }
-    #submit-btn {
-      background: #66c2b0;
-      color: white;
+
+    textarea {
+      min-height: 90px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .primary,
+    .secondary {
       border: none;
-      margin-top: 20px;
-      padding: 12px;
+      padding: 12px 16px;
       border-radius: 6px;
       font-size: 1rem;
       cursor: pointer;
     }
-    #submit-btn:hover {
-      background: #5ca0d3;
+
+    .primary {
+      background: #66c2b0;
+      color: white;
     }
+
+    .primary:disabled {
+      background: #94d8cb;
+      cursor: not-allowed;
+    }
+
+    .secondary {
+      background: #e5edf3;
+      color: #264057;
+    }
+
     #output {
       background: #fff;
       border: 1px solid #ccc;
@@ -54,6 +90,71 @@
       min-height: 100px;
       white-space: pre-wrap;
       border-radius: 6px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #d1d8e0;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      color: #30445c;
+    }
+
+    .history {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .history li {
+      border: 1px solid #d5dce4;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f9fbfd;
+    }
+
+    .history-title {
+      font-weight: 700;
+      color: #2c3b52;
+      margin-bottom: 4px;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    iframe {
+      width: 100%;
+      min-height: 460px;
+      border: 1px solid #c7d0db;
+      border-radius: 8px;
+      background: white;
+    }
+
+    @media (max-width: 820px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -69,79 +170,240 @@
 </div>
 
 <h1>Website Builder</h1>
+<p class="lede">Describe the site you want, preview the generated page, and keep versions synced in Gun.</p>
 
-<label for="output">Builder Assistant Message</label>
-<div id="output"></div>
-  
-<label for="message">User Input</label>
-<input type="text" id="message" placeholder="Enter User Input" />
+<div class="card">
+  <label for="site-title">Site title</label>
+  <input id="site-title" type="text" placeholder="Coaching Studio" />
 
-<button id="submit-btn">Send</button>
+  <label for="site-goal">Goal or call to action</label>
+  <input id="site-goal" type="text" placeholder="Book a consultation with our team" />
+
+  <label for="audience">Audience</label>
+  <input id="audience" type="text" placeholder="Entrepreneurs, VR explorers, and creators" />
+
+  <label for="visual-style">Visual style</label>
+  <select id="visual-style">
+    <option value="clean">Clean and calming</option>
+    <option value="bold">Bold and high-contrast</option>
+    <option value="playful">Playful and colorful</option>
+    <option value="futuristic">Futuristic and tech-forward</option>
+  </select>
+
+  <label for="prompt">Extra instructions</label>
+  <textarea id="prompt" placeholder="Add hero image blocks, testimonials, and pricing tiers."></textarea>
+
+  <div class="button-row">
+    <button id="submit-btn" class="primary">Generate with OpenAI</button>
+    <button id="save-btn" class="secondary" disabled>Save to Gun</button>
+  </div>
+
+  <div id="output" aria-live="polite"></div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Preview</h2>
+    <iframe id="response-preview" title="Site preview"></iframe>
+  </div>
+  <div class="card">
+    <h2>Saved sites</h2>
+    <p class="lede" style="margin-top:0;">Reload any draft from the Gun graph and reopen it in the preview.</p>
+    <ul id="history" class="history"></ul>
+  </div>
+</div>
 
 <script>
   const gun = Gun(window.__GUN_PEERS__ || [
     'wss://relay.3dvr.tech/gun',
     'wss://gun-relay-3dvr.fly.dev/gun'
   ]);
-  let threadId = null;
-  let openAiAssistantUrl = null;
-  
-  gun.get('system').get('OPENAI_ASSISTANT_URL').once(url => {
-    if (url) {
-      openAiAssistantUrl = url;
-      console.log('Assistant URL is:', openAiAssistantUrl);
-    } else {
-      console.warn('No assistant URL set yet');
-    }
-  });
-    
-  document.getElementById('submit-btn').addEventListener('click', async () => {
-    const message = document.getElementById('message').value;
-    const outputBox = document.getElementById('output');
 
-    if (!openAiAssistantUrl) {
-      outputBox.textContent = "Assistant URL not loaded yet.";
+  const sessionKey = 'site-builder-session';
+  const storedSession = localStorage.getItem(sessionKey);
+  const sessionId = storedSession || Gun.text.random();
+  localStorage.setItem(sessionKey, sessionId);
+
+  // Gun graph: ai/site-builder/<sessionId>/<siteId> => versioned drafts for the current user
+  //             ai/site-builder/gallery/<siteId> => shared gallery of saved sites
+  const draftsNode = gun.get('ai').get('site-builder').get(sessionId);
+  const galleryNode = gun.get('ai').get('site-builder').get('gallery');
+
+  const siteTitleInput = document.getElementById('site-title');
+  const goalInput = document.getElementById('site-goal');
+  const audienceInput = document.getElementById('audience');
+  const promptInput = document.getElementById('prompt');
+  const visualSelect = document.getElementById('visual-style');
+  const outputBox = document.getElementById('output');
+  const historyList = document.getElementById('history');
+  const previewFrame = document.getElementById('response-preview');
+  const submitBtn = document.getElementById('submit-btn');
+  const saveBtn = document.getElementById('save-btn');
+
+  let lastDraft = null;
+
+  function setStatus(message) {
+    outputBox.textContent = message;
+  }
+
+  function buildPrompt() {
+    const base = [
+      `Create a single-page site titled "${siteTitleInput.value || 'Untitled'}".`,
+      `Primary goal: ${goalInput.value || 'Explain the offer and capture interest.'}`,
+      `Audience: ${audienceInput.value || 'general visitors'}.`,
+      `Style: ${visualSelect.value}.`,
+      'Use semantic HTML with inline CSS for colors and spacing.',
+      'Include a hero, supporting sections, and a clear call-to-action button.',
+      'Avoid external assets or scripts, use accessible contrast and readable fonts.'
+    ];
+
+    if (promptInput.value.trim()) {
+      base.push(`Extras: ${promptInput.value.trim()}`);
+    }
+
+    return base.join(' ');
+  }
+
+  function renderPreview(html) {
+    const baseStyle = [
+      "<style>body{font-family:'Inter',sans-serif;margin:0;padding:0;background:#f7fbff;color:#1f2a3c;}",
+      "a.button{display:inline-block;padding:12px 18px;background:#5ca0d3;color:#fff;border-radius:8px;text-decoration:none;}",
+      "section{padding:32px 24px;}h1,h2,h3{margin:0 0 12px;}p{margin:0 0 12px;line-height:1.6;}</style>"
+    ].join('');
+    previewFrame.srcdoc = `${baseStyle}${html || ''}`;
+  }
+
+  function renderHistoryItem(entry) {
+    if (!entry || !entry.id) return;
+
+    const listItem = document.createElement('li');
+    const title = document.createElement('div');
+    title.className = 'history-title';
+    title.textContent = entry.title || 'Untitled site';
+
+    const meta = document.createElement('div');
+    const created = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : 'unsaved time';
+    meta.textContent = `Saved ${created}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'history-actions';
+
+    const loadBtn = document.createElement('button');
+    loadBtn.textContent = 'Load';
+    loadBtn.className = 'secondary';
+    loadBtn.addEventListener('click', () => {
+      lastDraft = entry;
+      renderPreview(entry.html);
+      setStatus(entry.prompt || 'Loaded saved site.');
+      siteTitleInput.value = entry.title || '';
+      goalInput.value = entry.goal || '';
+      audienceInput.value = entry.audience || '';
+      promptInput.value = entry.extras || '';
+      saveBtn.disabled = false;
+    });
+
+    const openBtn = document.createElement('button');
+    openBtn.textContent = 'Open as page';
+    openBtn.className = 'secondary';
+    openBtn.addEventListener('click', () => {
+      const newWindow = window.open('', '_blank');
+      if (newWindow) {
+        newWindow.document.write(entry.html || '');
+        newWindow.document.close();
+      }
+    });
+
+    actions.appendChild(loadBtn);
+    actions.appendChild(openBtn);
+
+    listItem.appendChild(title);
+    listItem.appendChild(meta);
+    listItem.appendChild(actions);
+
+    historyList.prepend(listItem);
+  }
+
+  function startHistorySubscription() {
+    draftsNode.map().once(data => {
+      if (!data || !data.id) return;
+      renderHistoryItem(data);
+    });
+  }
+
+  function persistDraft(entry) {
+    const id = entry.id || Gun.text.random();
+    const record = {
+      ...entry,
+      id,
+      updatedAt: Date.now()
+    };
+
+    draftsNode.get(id).put(record);
+    galleryNode.get(id).put(record);
+    return record;
+  }
+
+  async function generateSite() {
+    const prompt = buildPrompt();
+    setStatus('Sending to OpenAI...');
+    submitBtn.disabled = true;
+
+    try {
+      const response = await fetch('/api/openai-site', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API Error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      const html = data.html || '';
+
+      setStatus(data.summary || 'Site ready. Save to Gun to keep a copy.');
+      renderPreview(html);
+      saveBtn.disabled = false;
+
+      lastDraft = persistDraft({
+        id: lastDraft?.id,
+        title: data.title || siteTitleInput.value || 'Untitled site',
+        goal: goalInput.value,
+        audience: audienceInput.value,
+        extras: promptInput.value,
+        prompt,
+        html
+      });
+    } catch (error) {
+      setStatus(`Error: ${error.message}`);
+    } finally {
+      submitBtn.disabled = false;
+    }
+  }
+
+  function saveDraft() {
+    if (!lastDraft) {
+      setStatus('Generate a site before saving.');
       return;
     }
 
-    outputBox.textContent = "Sending...";
+    lastDraft = persistDraft(lastDraft);
+    setStatus('Saved to Gun.');
+  }
 
-    try {
-      const response = await fetch(openAiAssistantUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          message: message,
-          threadId: threadId
-        })
-      });
+  submitBtn.addEventListener('click', generateSite);
+  saveBtn.addEventListener('click', saveDraft);
 
-      document.getElementById('message').value = "";
-
-      if (!response.ok) throw new Error("API Error: " + response.status);
-
-      const data = await response.json();
-
-      if (!threadId) {
-        threadId = data.threadId;
-        console.log('Set threadId to ', threadId.toString());
-      }
-    
-      outputBox.textContent = data.reply || "No reply received.";
-    } catch (error) {
-      outputBox.textContent = "Error: " + error.message;
+  document.getElementById('prompt').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      submitBtn.click();
     }
   });
 
-  // Trigger click on "Enter" key
-  document.getElementById('message').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault(); // Prevent form submission or newline
-      document.getElementById('submit-btn').click();
-    }
-  });
+  startHistorySubscription();
 </script>
 
 </body>
