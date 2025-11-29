@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Money-Making AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="A personal, open-source AI assistant that helps you earn money, automate tasks, and build your own micro-business." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #020617;
+      --bg-soft: #020b24;
+      --bg-card: #020b24;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.09);
+      --accent-strong: #0ea5e9;
+      --gold: #fbbf24;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border-soft: rgba(148, 163, 184, 0.25);
+      --shadow-soft: 0 30px 80px rgba(15, 23, 42, 0.8);
+      --radius-lg: 22px;
+      --radius-xl: 30px;
+      --transition-fast: 150ms ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #020817 0, #020617 40%, #000 100%);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 18px 18px 32px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.4));
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 30% 0%, rgba(248, 250, 252, 0.25), transparent 55%),
+        radial-gradient(circle at 0% 80%, rgba(56, 189, 248, 0.5), transparent 60%),
+        radial-gradient(circle at 90% 90%, rgba(251, 191, 36, 0.9), transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.95));
+      position: relative;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.9);
+      border: 1px solid rgba(248, 250, 252, 0.18);
+    }
+
+    .brand-orbit {
+      position: absolute;
+      inset: 4px;
+      border-radius: inherit;
+      border: 1px dashed rgba(148, 163, 184, 0.4);
+      border-top-color: transparent;
+      border-left-color: transparent;
+      transform: rotate(-18deg);
+    }
+
+    .brand-text-main {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .brand-text-sub {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.25);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      margin-top: 24px;
+      max-width: 1100px;
+      width: 100%;
+      margin-inline: auto;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .hero {
+      flex: 1 1 320px;
+      max-width: 640px;
+    }
+
+    .hero-pill-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .hero-pill-badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      color: var(--accent);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      white-space: nowrap;
+    }
+
+    .hero-pill-text {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .hero-title {
+      font-size: clamp(2.1rem, 4vw, 2.9rem);
+      line-height: 1.1;
+      margin-bottom: 14px;
+      letter-spacing: -0.03em;
+    }
+
+    .hero-title span.gold {
+      color: var(--gold);
+      text-shadow: 0 0 18px rgba(251, 191, 36, 0.4);
+    }
+
+    .hero-title span.accent {
+      background: linear-gradient(120deg, var(--accent), var(--accent-strong));
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--muted);
+      max-width: 32rem;
+      margin-bottom: 20px;
+    }
+
+    .hero-subtext {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    .btn-primary,
+    .btn-ghost {
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: radial-gradient(circle at top left, #22d3ee, #0f172a 65%);
+      border-color: rgba(56, 189, 248, 0.6);
+      color: #f9fafb;
+      box-shadow: 0 12px 35px rgba(56, 189, 248, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 40px rgba(56, 189, 248, 0.7);
+    }
+
+    .btn-ghost {
+      background: rgba(15, 23, 42, 0.75);
+      border-color: rgba(148, 163, 184, 0.6);
+      color: var(--muted);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(15, 23, 42, 0.95);
+      border-color: rgba(148, 163, 184, 1);
+    }
+
+    .btn-primary-icon {
+      font-size: 14px;
+      transform-origin: center;
+    }
+
+    .btn-primary:hover .btn-primary-icon {
+      transform: translateX(2px);
+    }
+
+    .hero-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .hero-meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+    }
+
+    .meta-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .hero-meta-pill strong {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+
+    .panel {
+      flex: 1 1 260px;
+      max-width: 420px;
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.2), transparent 55%),
+                  radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.15), transparent 60%),
+                  var(--bg-soft);
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: var(--shadow-soft);
+      padding: 16px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+    }
+
+    .panel-tag {
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .panel-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      gap: 10px;
+    }
+
+    .panel-section {
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-soft);
+      padding: 12px 11px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .panel-section p {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 1px;
+    }
+
+    .chip {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .chip.accent {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.7);
+      color: var(--accent);
+    }
+
+    .chip.gold {
+      background: rgba(251, 191, 36, 0.12);
+      border-color: rgba(251, 191, 36, 0.7);
+      color: var(--gold);
+    }
+
+    .panel-list {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .panel-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .panel-item-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-item-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.7);
+    }
+
+    .panel-item-value {
+      font-variant-numeric: tabular-nums;
+      color: #e5e7eb;
+      font-size: 12px;
+    }
+
+    .panel-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .panel-footer span strong {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+
+    .panel-footer-btn {
+      border-radius: 999px;
+      padding: 7px 10px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+    }
+
+    .panel-footer-btn:hover {
+      background: rgba(15, 23, 42, 1);
+      border-color: rgba(248, 250, 252, 0.7);
+      color: #e5e7eb;
+      transform: translateY(-0.5px);
+    }
+
+    .panel-badge {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.6);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .panel-overlay-orbit {
+      pointer-events: none;
+      position: absolute;
+      inset: -60%;
+      border-radius: 50%;
+      border: 1px dashed rgba(148, 163, 184, 0.16);
+      transform: translate(14%, -6%) rotate(-21deg);
+    }
+
+    footer {
+      margin-top: 26px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      opacity: 0.8;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Tiny animation for task insertion */
+    .task-add-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+      opacity: 0.9;
+    }
+
+    @media (max-width: 800px) {
+      header {
+        border-radius: 18px;
+        padding-inline: 12px;
+      }
+      .brand-text-sub {
+        display: none;
+      }
+      main {
+        margin-top: 18px;
+      }
+      .panel {
+        margin-top: 4px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero-title {
+        font-size: 1.9rem;
+      }
+      .panel {
+        padding: 14px 12px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="brand">
+        <div class="brand-logo">
+          <div class="brand-orbit"></div>
+        </div>
+        <div>
+          <div class="brand-text-main">My Money-Making AI</div>
+          <div class="brand-text-sub">Decentralized · Personal · Open</div>
+        </div>
+      </div>
+      <div class="pill">
+        <div class="pill-dot"></div>
+        <span>Prototype · Local-First Vision</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-pill-row">
+          <div class="hero-pill-badge">For Humans, Not Corporations</div>
+          <div class="hero-pill-text">Your own AI-powered micro-business in a browser tab.</div>
+        </div>
+
+        <h1 class="hero-title">
+          Turn your <span class="gold">ideas</span> into <span class="accent">income</span>
+          with a personal AI you actually own.
+        </h1>
+
+        <p class="hero-subtitle">
+          This page is the seed of a system where every person has their own
+          <strong>income-generating AI</strong> — open, local-friendly, and designed to automate
+          real work: emails, landing pages, marketing, customer replies, and more.
+        </p>
+
+        <div class="hero-actions">
+          <button class="btn-primary" type="button" id="cta-start">
+            <span>Start planning my AI business</span>
+            <span class="btn-primary-icon">→</span>
+          </button>
+          <button class="btn-ghost" type="button" id="cta-ideas">
+            View example automations
+          </button>
+        </div>
+
+        <p class="hero-subtext">
+          This is just static HTML + CSS + a little JS — ready to evolve into TommyOS / 3dvr
+          style tools, PWAs, or a full decentralized dashboard.
+        </p>
+
+        <div class="hero-meta-row">
+          <div class="hero-meta-pill">
+            <span class="meta-dot"></span>
+            <span><strong>Local-first friendly</strong> · can be bundled with open models</span>
+          </div>
+          <div class="hero-meta-pill">
+            <span class="meta-dot"></span>
+            <span>Designed for <strong>solo founders, creators, and small crews</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel" aria-label="AI business control panel">
+        <div class="panel-title-row">
+          <div class="panel-title">AI Business Snapshot</div>
+          <div class="panel-tag">Sandbox · Not Connected</div>
+        </div>
+
+        <div class="panel-grid">
+          <div class="panel-section">
+            <h3>Money-Making Loops</h3>
+            <p>Describe what you want your AI to do, then later plug in real models and APIs.</p>
+            <div class="chip-row" id="loops-chips">
+              <span class="chip accent">Write &amp; send emails</span>
+              <span class="chip">Post to social</span>
+              <span class="chip">Build simple landing pages</span>
+              <span class="chip gold">Reply to leads</span>
+            </div>
+            <p class="task-add-hint">
+              Tip: You can treat each chip as a “job” your AI will eventually learn.
+            </p>
+          </div>
+
+          <div class="panel-section">
+            <h3>Today’s Focus</h3>
+            <div class="panel-list" id="focus-list">
+              <div class="panel-item">
+                <div class="panel-item-label">
+                  <span class="panel-item-dot"></span>
+                  <span>Define your first offer</span>
+                </div>
+                <div class="panel-item-value">Step 1</div>
+              </div>
+              <div class="panel-item">
+                <div class="panel-item-label">
+                  <span class="panel-item-dot"></span>
+                  <span>List tasks AI can automate</span>
+                </div>
+                <div class="panel-item-value">Step 2</div>
+              </div>
+              <div class="panel-item">
+                <div class="panel-item-label">
+                  <span class="panel-item-dot"></span>
+                  <span>Decide where to deploy</span>
+                </div>
+                <div class="panel-item-value">Step 3</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section" style="margin-top: 4px;">
+          <h3>Quick Plan (Client-Ready)</h3>
+          <p id="plan-text">
+            Click “Start planning” to generate a tiny outline of how your AI will help you
+            earn money. You can later wire this up to a real backend, Gun.js, or local models.
+          </p>
+        </div>
+
+        <div class="panel-footer">
+          <span>
+            Draft concept by <strong>you + your AI</strong>. Fully offline-capable HTML file.
+          </span>
+          <button class="panel-footer-btn" type="button" id="btn-reset">
+            Reset demo
+          </button>
+        </div>
+
+        <div class="panel-badge">v0.0.1 · Static</div>
+        <div class="panel-overlay-orbit"></div>
+      </aside>
+    </main>
+
+    <footer>
+      Built as a starting point. Turn this into a PWA, hook in local models, or serve it from
+      your own stack. Designed to evolve into <a href="#" aria-label="3dvr.tech or TommyOS">TommyOS / 3dvr-style</a> tools.
+    </footer>
+  </div>
+
+  <script>
+    // Simple demo behavior to make it feel a bit "alive" without any backend.
+
+    const startBtn = document.getElementById("cta-start");
+    const ideasBtn = document.getElementById("cta-ideas");
+    const planText = document.getElementById("plan-text");
+    const loopsChips = document.getElementById("loops-chips");
+    const focusList = document.getElementById("focus-list");
+    const resetBtn = document.getElementById("btn-reset");
+
+    const originalPlanText = planText.textContent;
+    const originalChipsHTML = loopsChips.innerHTML;
+    const originalFocusHTML = focusList.innerHTML;
+
+    startBtn?.addEventListener("click", () => {
+      planText.textContent =
+        "1) Choose one simple service you can offer (e.g., email clean-ups for solo founders). " +
+        "2) List 3–5 repetitive tasks inside that service. " +
+        "3) Mark which tasks your AI will generate (copy, replies, content) and which tasks you will still do (calls, custom decisions). " +
+        "4) Use this page as the control panel for that micro-business.";
+    });
+
+    ideasBtn?.addEventListener("click", () => {
+      loopsChips.innerHTML = "";
+      const ideas = [
+        "Weekly newsletter ghostwriting",
+        "Auto-generated IG / FB posts",
+        "Lead follow-up emails",
+        "Simple 1-page websites",
+        "FAQ chatbots for small sites",
+        "Customer onboarding sequences"
+      ];
+
+      ideas.forEach((idea, index) => {
+        const span = document.createElement("span");
+        span.className = "chip" + (index % 2 === 0 ? " accent" : "");
+        span.textContent = idea;
+        loopsChips.appendChild(span);
+      });
+
+      focusList.innerHTML = "";
+      const steps = [
+        "Pick your favorite idea from the chips above",
+        "Write a 1–2 sentence promise your AI can help you deliver",
+        "Draft a list of inputs your AI needs (email access, product details, etc.)",
+        "Decide where to run it: local dev, VPS, or full TommyOS stack"
+      ];
+
+      steps.forEach((step, index) => {
+        const row = document.createElement("div");
+        row.className = "panel-item";
+        row.innerHTML = `
+          <div class="panel-item-label">
+            <span class="panel-item-dot"></span>
+            <span>${step}</span>
+          </div>
+          <div class="panel-item-value">Step ${index + 1}</div>
+        `;
+        focusList.appendChild(row);
+      });
+    });
+
+    resetBtn?.addEventListener("click", () => {
+      planText.textContent = originalPlanText;
+      loopsChips.innerHTML = originalChipsHTML;
+      focusList.innerHTML = originalFocusHTML;
+    });
+  </script>
+</body>
+</html>
