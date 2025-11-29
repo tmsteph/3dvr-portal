@@ -140,6 +140,13 @@ const systemPrompt = [
   'When providing HTML/CSS/JS, keep it minimal and ready for copy/paste.'
 ].join(' ');
 
+const developerPrompt = [
+  'Always respond with a complete, self-contained HTML document.',
+  'Include inline styling when needed so the page previews correctly without extra assets.',
+  'Avoid Markdown or plaintext summaries—return production-ready HTML only.',
+  'The response will be rendered live, so structure it for immediate display in the preview iframe.'
+].join(' ');
+
 function updateStorageModeNotice(context) {
   if (!storageModeNotice) return;
 
@@ -366,6 +373,10 @@ async function sendToOpenAI() {
         content: systemPrompt
       },
       {
+        role: 'developer',
+        content: developerPrompt
+      },
+      {
         role: 'user',
         content: prompt
       }
@@ -390,6 +401,7 @@ async function sendToOpenAI() {
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || 'No reply received.';
     outputBox.textContent = reply;
+    applyPreview();
     transcriptNode.set({ prompt, response: reply, createdAt: Date.now() });
   } catch (error) {
     outputBox.textContent = `Error: ${error.message}`;
