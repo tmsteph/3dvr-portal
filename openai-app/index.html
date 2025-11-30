@@ -64,8 +64,8 @@
       <div class="card-header">
         <div>
           <p class="eyebrow">Sync</p>
-          <h2>Gun key vault</h2>
-          <p class="meta">Encrypt your API key with a passphrase and keep it in Gun so it follows you across previews and devices.</p>
+          <h2>Gun secret vault</h2>
+          <p class="meta">Encrypt any Workbench secret with a passphrase and keep it in Gun so it follows you across previews and devices.</p>
         </div>
       </div>
 
@@ -78,16 +78,25 @@
         <div>
           <label for="vault-passphrase">Passphrase</label>
           <input id="vault-passphrase" type="password" placeholder="Required to encrypt/decrypt" aria-describedby="vault-passphrase-help">
-          <p id="vault-passphrase-help" class="meta">Passphrase never leaves the browser; it only decrypts your key locally.</p>
+          <p id="vault-passphrase-help" class="meta">Passphrase never leaves the browser; it only decrypts your secret locally.</p>
+        </div>
+        <div>
+          <label for="vault-target">Secret type</label>
+          <select id="vault-target" aria-describedby="vault-target-help">
+            <option value="openai">OpenAI API key</option>
+            <option value="vercel">Vercel token</option>
+            <option value="github">GitHub token</option>
+          </select>
+          <p id="vault-target-help" class="meta">Choose which field to pull from and where the decrypted secret should be applied.</p>
         </div>
       </div>
 
       <div class="input-row">
-        <button id="vault-save" class="primary">Save API key to Gun</button>
-        <button id="vault-load" class="ghost">Load API key from Gun</button>
+        <button id="vault-save" class="primary">Save secret to Gun</button>
+        <button id="vault-load" class="ghost">Load secret from Gun</button>
       </div>
 
-      <p id="vault-status" class="status" aria-live="polite">Use the vault to keep your key handy when Vercel preview URLs change.</p>
+      <p id="vault-status" class="status" aria-live="polite">Use the vault to keep keys, tokens, and other secrets handy when Vercel preview URLs change.</p>
     </section>
 
     <section class="grid">
