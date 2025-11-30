@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stable Dev Alias | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">Previews</div>
+      <h1 class="guide-title">Reuse the same preview URL with a dev alias</h1>
+      <p class="guide-description">
+        Give QA and teammates one stable link by pointing every preview at a single dev domain.
+      </p>
+    </div>
+
+    <section class="guide-section">
+      <h2>Pick your alias</h2>
+      <ol class="guide-list">
+        <li>In your Vercel project, open <strong>Settings → Domains</strong>.</li>
+        <li>Decide which <strong>.vercel.app</strong> subdomain (or custom domain) should always map to dev builds.</li>
+        <li>Copy the value (for example <span class="inline-code">dev-3dvr-portal.vercel.app</span>) and store it as <span class="inline-code">VERCEL_DEV_ALIAS</span>.</li>
+      </ol>
+    </section>
+
+    <section class="guide-section">
+      <h2>When aliasing happens</h2>
+      <ul class="guide-list">
+        <li>Pushes to <strong>main</strong> and <strong>dev</strong> alias automatically when <span class="inline-code">VERCEL_DEV_ALIAS</span> is set.</li>
+        <li>Pull request runs always publish a preview URL; manual runs can also alias when you set <span class="inline-code">set_alias</span> to <strong>true</strong>.</li>
+      </ul>
+    </section>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="./index.html">⬅ Back to guides</a>
+      <a href="./secrets-and-workflow.html">Next: Add secrets &amp; run the workflow</a>
+    </div>
+  </div>
+</body>
+</html>

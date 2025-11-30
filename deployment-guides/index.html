@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deployment Guides | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">Deployment</div>
+      <h1 class="guide-title">GitHub &amp; Vercel Setup Guides</h1>
+      <p class="guide-description">
+        Quickly collect the GitHub and Vercel values our automated dev deployments rely on. Each short guide
+        walks you through a single step so you can jump back into building faster.
+      </p>
+    </div>
+
+    <div class="guide-grid" aria-label="Deployment setup guides">
+      <a class="guide-card" href="./github-token.html">
+        <span class="guide-card__eyebrow">GitHub</span>
+        <h2 class="guide-card__title">Generate a GitHub token</h2>
+        <p class="guide-card__body">Create a fine-grained PAT with the exact scopes the workflow uses.</p>
+      </a>
+      <a class="guide-card" href="./vercel-token.html">
+        <span class="guide-card__eyebrow">Vercel</span>
+        <h2 class="guide-card__title">Create a Vercel API token &amp; IDs</h2>
+        <p class="guide-card__body">Copy your token, org ID, and project ID straight from the Vercel dashboard.</p>
+      </a>
+      <a class="guide-card" href="./dev-alias.html">
+        <span class="guide-card__eyebrow">Previews</span>
+        <h2 class="guide-card__title">Use a stable dev alias</h2>
+        <p class="guide-card__body">Reuse the same preview URL every run so QA links stay predictable.</p>
+      </a>
+      <a class="guide-card" href="./secrets-and-workflow.html">
+        <span class="guide-card__eyebrow">Actions</span>
+        <h2 class="guide-card__title">Wire up secrets &amp; workflow</h2>
+        <p class="guide-card__body">Add the secrets in GitHub and trigger the Vercel Dev Preview workflow.</p>
+      </a>
+    </div>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="/index.html">⬅ Back to Portal</a>
+      <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">View repo</a>
+    </div>
+  </div>
+</body>
+</html>

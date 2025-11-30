@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vercel Token &amp; IDs | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">Vercel</div>
+      <h1 class="guide-title">Create a Vercel API token and grab your IDs</h1>
+      <p class="guide-description">
+        Copy the token, org (team) ID, and project ID that the Vercel Dev Preview workflow needs.
+      </p>
+    </div>
+
+    <section class="guide-section">
+      <h2>Generate the API token</h2>
+      <ol class="guide-list">
+        <li>Open Vercel and navigate to <strong>Settings → Tokens</strong>.</li>
+        <li>Click <strong>Create Token</strong>, name it (for example <span class="inline-code">3dvr-portal-ci</span>), and create it.</li>
+        <li>Copy the value immediately and save it as <span class="inline-code">VERCEL_TOKEN</span> in your repository secrets.</li>
+      </ol>
+    </section>
+
+    <section class="guide-section">
+      <h2>Collect the org (team) and project IDs</h2>
+      <ol class="guide-list">
+        <li>Open the Vercel project dashboard for this site.</li>
+        <li>Go to <strong>Settings → General</strong> and copy the <strong>Project ID</strong> into a secret named <span class="inline-code">VERCEL_PROJECT_ID</span>.</li>
+        <li>Click your team name in the header, then open <strong>Settings → General</strong> to copy the <strong>Team ID</strong> (Org ID). Store it as <span class="inline-code">VERCEL_ORG_ID</span>.</li>
+      </ol>
+    </section>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="./index.html">⬅ Back to guides</a>
+      <a href="./dev-alias.html">Next: Stable dev alias</a>
+    </div>
+  </div>
+</body>
+</html>

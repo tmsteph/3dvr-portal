@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub Token Guide | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">GitHub</div>
+      <h1 class="guide-title">Generate a GitHub personal access token</h1>
+      <p class="guide-description">
+        Create a fine-grained token so GitHub Actions can call the APIs needed for deployments.
+        If your org requires classic tokens, follow the classic note below instead.
+      </p>
+    </div>
+
+    <section class="guide-section">
+      <h2>Fine-grained token steps</h2>
+      <ol class="guide-list">
+        <li>Open <strong>GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong>.</li>
+        <li>Select <strong>Generate new token</strong> and scope it to this repository.</li>
+        <li>Under <strong>Repository permissions</strong>, grant at least <strong>Contents: Read</strong> and <strong>Actions: Write</strong>.</li>
+        <li>Name the token (for example <span class="inline-code">3dvr-portal-ci</span>), set an expiration, and generate it.</li>
+        <li>Copy the token and store it as a repository secret such as <span class="inline-code">GH_PAT</span> if
+          you need more than the default <span class="inline-code">GITHUB_TOKEN</span> provides.
+        </li>
+      </ol>
+    </section>
+
+    <section class="guide-section">
+      <h2>Classic token note</h2>
+      <p class="guide-description">
+        If your organization requires classic tokens, generate one under
+        <strong>Personal access tokens (classic)</strong> with the <strong>repo</strong> and
+        <strong>workflow</strong> scopes. Store it in the same <span class="inline-code">GH_PAT</span> secret.
+      </p>
+    </section>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="./index.html">⬅ Back to guides</a>
+      <a href="./vercel-token.html">Next: Vercel token &amp; IDs</a>
+    </div>
+  </div>
+</body>
+</html>
