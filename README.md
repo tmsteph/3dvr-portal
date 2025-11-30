@@ -106,6 +106,30 @@ Use the included GitHub Actions workflow to build and deploy a stable dev site o
 This keeps preview testing on a predictable URL instead of a new random link every run, which helps debug features that are
 origin or cookie sensitive.
 
+#### Retrieving the required API tokens
+
+Follow these steps to collect the GitHub and Vercel values the workflow needs:
+
+1. **GitHub token (optional, for extra GitHub API access)**
+   - Go to **GitHub.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens**.
+   - Click **Generate new token**, scope it to the repository that hosts this project, and grant at least `contents:read` and
+     `actions:write` permissions.
+   - Save it as a repository secret such as `GH_PAT` if you need Actions to call GitHub APIs beyond what the default
+     `GITHUB_TOKEN` allows.
+   - If your org requires classic tokens, use **Personal access tokens (classic)** and grant `repo` and `workflow` scopes.
+2. **Vercel API token**
+   - In Vercel, open **Settings → Tokens** and click **Create Token**.
+   - Name the token (for example `3dvr-portal-ci`) and copy it; store it in the repository as `VERCEL_TOKEN`.
+3. **Vercel org and project IDs**
+   - Log in to Vercel and open the project dashboard for this site.
+   - Open **Settings → General** and scroll to **Project ID**; copy it into a secret called `VERCEL_PROJECT_ID`.
+   - In the same project, click your team name in the header, then **Settings → General** to find the **Team ID** (Org ID);
+     copy it into a secret called `VERCEL_ORG_ID`.
+4. **Optional: stable dev alias**
+   - In the Vercel project settings, open **Domains** and note the `.vercel.app` domain you want to reuse for dev testing
+     (for example `dev-3dvr-portal.vercel.app`).
+   - Store that value as `VERCEL_DEV_ALIAS` if you want the workflow to point every preview at the same stable URL.
+
 1. In your repository settings, add the following secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` (from the
    Vercel dashboard). Optional: set `VERCEL_DEV_ALIAS` to the `.vercel.app` or custom domain you want the workflow to point at
    (for example `dev-3dvr-portal.vercel.app`).
