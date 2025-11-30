@@ -1051,6 +1051,24 @@
       const query = value.trim().toLowerCase();
       let visibleCount = 0;
 
+      if (!query) {
+        appCards.forEach((card) => {
+          card.hidden = false;
+          if (appGrid) {
+            appGrid.appendChild(card);
+          }
+          visibleCount += 1;
+        });
+
+        if (appSearchEmpty) {
+          appSearchEmpty.hidden = visibleCount > 0;
+        }
+        return;
+      }
+
+      const nameMatches = [];
+      const descriptionMatches = [];
+
       appCards.forEach((card) => {
         const titleText = card
           .querySelector('.app-card__title')
@@ -1058,13 +1076,27 @@
         const metaText = card
           .querySelector('.app-card__meta')
           ?.textContent?.toLowerCase() ?? '';
-        const matches = !query || titleText.includes(query) || metaText.includes(query);
+        const titleIncludesQuery = titleText.includes(query);
+        const metaIncludesQuery = metaText.includes(query);
+        const matches = titleIncludesQuery || metaIncludesQuery;
 
         card.hidden = !matches;
         if (matches) {
           visibleCount += 1;
+          if (titleIncludesQuery) {
+            nameMatches.push(card);
+          } else if (metaIncludesQuery) {
+            descriptionMatches.push(card);
+          }
         }
       });
+
+      const orderedResults = [...nameMatches, ...descriptionMatches];
+      if (appGrid) {
+        orderedResults.forEach((card) => {
+          appGrid.appendChild(card);
+        });
+      }
 
       if (appSearchEmpty) {
         appSearchEmpty.hidden = visibleCount > 0;
