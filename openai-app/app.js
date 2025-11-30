@@ -168,6 +168,24 @@ const developerPrompt = [
 let currentDefaultConfig = {};
 let subscriptionVersion = 0;
 
+function sanitizeResponseContent(content) {
+  if (!content) return '';
+
+  let cleaned = content.trim();
+
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, '');
+    cleaned = cleaned.replace(/```\s*$/, '');
+  }
+
+  if (cleaned.startsWith('"""')) {
+    cleaned = cleaned.replace(/^"""\s*/, '');
+    cleaned = cleaned.replace(/"""\s*$/, '');
+  }
+
+  return cleaned.trim();
+}
+
 function updateAccountStatus(message) {
   if (accountStatus) {
     accountStatus.textContent = message;
@@ -700,9 +718,10 @@ async function sendToOpenAI() {
 
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || 'No reply received.';
-    outputBox.textContent = reply;
-    applyPreview();
-    transcriptNode.set({ prompt, response: reply, createdAt: Date.now() });
+    const cleanedReply = sanitizeResponseContent(reply);
+    outputBox.textContent = cleanedReply;
+    applyPreview(cleanedReply);
+    transcriptNode.set({ prompt, response: cleanedReply, createdAt: Date.now() });
   } catch (error) {
     outputBox.textContent = `Error: ${error.message}`;
   } finally {
@@ -710,20 +729,20 @@ async function sendToOpenAI() {
   }
 }
 
-function applyPreview() {
-  const content = outputBox.textContent || '';
+function applyPreview(content) {
+  const sanitizedContent = sanitizeResponseContent(content ?? (outputBox.textContent || ''));
   const previewStyle = [
     "<style>body{font-family:'Poppins',sans-serif;padding:16px;",
     "background:#f8fbff;color:#1d1d1f;}a{color:#5ca0d3;}</style>"
   ].join('');
-  previewFrame.srcdoc = `${previewStyle}${content}`;
+  previewFrame.srcdoc = `${previewStyle}${sanitizedContent}`;
 }
 
 async function deployCurrentResponse() {
   const token = vercelTokenInput.value.trim();
   const projectName = projectInput.value.trim();
   const note = deployNoteInput.value.trim();
-  const html = (outputBox.textContent || '').trim();
+  const html = sanitizeResponseContent(outputBox.textContent || '');
 
   if (!token) {
     setVercelStatus('Add your Vercel token to deploy.');
@@ -779,7 +798,7 @@ async function publishToGithub() {
   const branch = githubBranchInput.value.trim() || 'main';
   const path = githubPathInput.value.trim() || 'index.html';
   const message = githubMessageInput.value.trim();
-  const html = (outputBox.textContent || '').trim();
+  const html = sanitizeResponseContent(outputBox.textContent || '');
 
   if (!token) {
     setGithubStatus('Add your GitHub token to publish.');
