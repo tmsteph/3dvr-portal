@@ -1,4 +1,10 @@
-const gun = Gun();
+const gun = Gun({ peers: window.__GUN_PEERS__ || undefined });
+const user = gun.user();
+const portalRoot = gun.get('3dvr-portal');
+// Gun graph: 3dvr-portal/ai-workbench/<identityKey>/<resource>
+const workbenchRoot = portalRoot.get('ai-workbench');
+// Gun graph: 3dvr-portal/ai-workbench/defaults -> { apiKeyCipher, hint, updatedAt, updatedBy }
+const defaultsNode = workbenchRoot.get('defaults');
 
 const storage = (() => {
   const memoryStore = {};
@@ -97,14 +103,13 @@ const vercelTokenStorageKey = 'vercel-token';
 const githubTokenStorageKey = 'github-token';
 const sessionKey = 'openai-workbench-session';
 const storedSession = storage.getItem(sessionKey);
-const sessionId = storedSession || Gun.text.random();
+let sessionId = storedSession || Gun.text.random();
 storage.setItem(sessionKey, sessionId);
-// Gun graph: ai/workbench/<sessionId> -> { prompt, response, createdAt }
-const transcriptNode = gun.get('ai').get('workbench').get(sessionId);
-// Gun graph: ai/vercel/<sessionId>/<deploymentId> -> deployment metadata
-const deploymentNode = gun.get('ai').get('vercel').get(sessionId);
-// Gun graph: ai/github/<sessionId>/<commitSha> -> commit metadata
-const githubNode = gun.get('ai').get('github').get(sessionId);
+let identityKey = sessionId;
+let transcriptNode = workbenchRoot.get(identityKey).get('transcripts');
+let deploymentNode = workbenchRoot.get(identityKey).get('vercel');
+let githubNode = workbenchRoot.get(identityKey).get('github');
+let secretsNode = workbenchRoot.get(identityKey).get('secrets');
 // Gun graph: ai/key-vault/<alias> -> { cipher, updatedAt, alias }
 const keyVaultNode = gun.get('ai').get('key-vault');
 
@@ -137,11 +142,15 @@ const githubBtn = document.getElementById('github-btn');
 const githubStatus = document.getElementById('github-status');
 const githubHistoryList = document.getElementById('github-history');
 const storageModeNotice = document.getElementById('storage-mode');
+const accountStatus = document.getElementById('account-status');
 const vaultAliasInput = document.getElementById('vault-alias');
 const vaultPassphraseInput = document.getElementById('vault-passphrase');
 const vaultSaveBtn = document.getElementById('vault-save');
 const vaultLoadBtn = document.getElementById('vault-load');
 const vaultStatus = document.getElementById('vault-status');
+const defaultPassphraseInput = document.getElementById('default-passphrase');
+const loadDefaultBtn = document.getElementById('load-default');
+const defaultKeyStatus = document.getElementById('default-key-status');
 
 const systemPrompt = [
   'You are the 3dvr portal co-pilot.',
@@ -155,6 +164,61 @@ const developerPrompt = [
   'Avoid Markdown or plaintext summaries—return production-ready HTML only.',
   'The response will be rendered live, so structure it for immediate display in the preview iframe.'
 ].join(' ');
+
+let currentDefaultConfig = {};
+let subscriptionVersion = 0;
+
+function updateAccountStatus(message) {
+  if (accountStatus) {
+    accountStatus.textContent = message;
+  }
+}
+
+function setIdentityScope(key) {
+  if (!key || key === identityKey) return;
+
+  identityKey = key;
+  transcriptNode = workbenchRoot.get(identityKey).get('transcripts');
+  deploymentNode = workbenchRoot.get(identityKey).get('vercel');
+  githubNode = workbenchRoot.get(identityKey).get('github');
+  secretsNode = workbenchRoot.get(identityKey).get('secrets');
+  subscriptionVersion += 1;
+  historyList.innerHTML = '';
+  deploymentsList.innerHTML = '';
+  githubHistoryList.innerHTML = '';
+  startHistorySubscription();
+  startDeploymentSubscription();
+  startGithubSubscription();
+  hydrateAccountSecrets();
+}
+
+function recallUserSession() {
+  try {
+    user.recall({ sessionStorage: true, localStorage: true });
+  } catch (error) {
+    updateAccountStatus('Unable to recall session.');
+  }
+}
+
+function attemptStoredAuth() {
+  const storedAlias = (localStorage.getItem('alias') || '').trim();
+  const storedPassword = (localStorage.getItem('password') || '').trim();
+
+  if (!storedAlias || !storedPassword) {
+    updateAccountStatus('Not signed in. Data stays device-local until you sign in.');
+    return;
+  }
+
+  updateAccountStatus(`Signing in as ${storedAlias}...`);
+  user.auth(storedAlias, storedPassword, ack => {
+    if (ack?.err) {
+      updateAccountStatus('Sign-in failed. Keys remain device-local.');
+      return;
+    }
+    setIdentityScope(user?.is?.pub || identityKey);
+    updateAccountStatus(`Synced to ${storedAlias}. Secrets will follow you across browsers.`);
+  });
+}
 
 function updateStorageModeNotice(context) {
   if (!storageModeNotice) return;
@@ -171,6 +235,135 @@ function updateStorageModeNotice(context) {
   }
 
   storageModeNotice.textContent = context || 'Persistent storage is blocked. Keys stay only for this page load. Adjust Brave Shields or enable storage to keep your key across refreshes.';
+}
+
+function setDefaultKeyStatus(message) {
+  if (defaultKeyStatus) {
+    defaultKeyStatus.textContent = message;
+  }
+}
+
+async function saveSecretToAccount(field, value) {
+  if (!user?.is || !user?._?.sea) {
+    updateAccountStatus('Sign in to sync secrets with your Gun account.');
+    return false;
+  }
+
+  if (!value) {
+    return removeAccountSecret(field);
+  }
+
+  try {
+    const cipher = await Gun.SEA.encrypt(value, user._.sea);
+    return new Promise(resolve => {
+      secretsNode.get(field).put({ cipher, updatedAt: Date.now() }, ack => {
+        if (ack?.err) {
+          updateAccountStatus('Unable to sync with Gun right now.');
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      });
+    });
+  } catch (error) {
+    updateAccountStatus('Encryption failed. Refresh and try again.');
+    return false;
+  }
+}
+
+function removeAccountSecret(field) {
+  if (!user?.is) return false;
+
+  return new Promise(resolve => {
+    secretsNode.get(field).put(null, () => resolve(true));
+  });
+}
+
+function fetchAccountSecret(field) {
+  return new Promise(resolve => {
+    secretsNode.get(field).once(async data => {
+      if (!data?.cipher || !user?._?.sea) {
+        resolve(null);
+        return;
+      }
+
+      try {
+        const decrypted = await Gun.SEA.decrypt(data.cipher, user._.sea);
+        resolve(typeof decrypted === 'string' ? decrypted : null);
+      } catch (error) {
+        resolve(null);
+      }
+    });
+  });
+}
+
+async function hydrateAccountSecrets() {
+  if (!user?.is) return;
+
+  const [apiKey, vercelToken, githubToken] = await Promise.all([
+    fetchAccountSecret('openaiApiKey'),
+    fetchAccountSecret('vercelToken'),
+    fetchAccountSecret('githubToken')
+  ]);
+
+  if (apiKey) {
+    apiKeyInput.value = apiKey;
+    storage.setItem(apiKeyStorageKey, apiKey);
+    updateStorageModeNotice('OpenAI key loaded from your Gun account.');
+  }
+
+  if (vercelToken) {
+    vercelTokenInput.value = vercelToken;
+    storage.setItem(vercelTokenStorageKey, vercelToken);
+  }
+
+  if (githubToken) {
+    githubTokenInput.value = githubToken;
+    storage.setItem(githubTokenStorageKey, githubToken);
+  }
+
+  if (apiKey || vercelToken || githubToken) {
+    updateAccountStatus('Secrets restored from your Gun account.');
+  }
+}
+
+function subscribeToDefaults() {
+  defaultsNode.on(data => {
+    currentDefaultConfig = data || {};
+    if (currentDefaultConfig.apiKeyCipher) {
+      setDefaultKeyStatus(currentDefaultConfig.hint || 'Admin provided a default key. Add the passphrase to apply it.');
+    } else {
+      setDefaultKeyStatus('No admin default key configured yet.');
+    }
+  });
+}
+
+async function loadDefaultKey() {
+  if (!currentDefaultConfig.apiKeyCipher) {
+    setDefaultKeyStatus('No default key available yet.');
+    return;
+  }
+
+  const passphrase = (defaultPassphraseInput?.value || '').trim();
+  if (!passphrase) {
+    setDefaultKeyStatus('Enter the passphrase to unlock the admin default key.');
+    return;
+  }
+
+  try {
+    const decrypted = await Gun.SEA.decrypt(currentDefaultConfig.apiKeyCipher, passphrase);
+    if (!decrypted) {
+      setDefaultKeyStatus('Passphrase incorrect. Try again.');
+      return;
+    }
+    apiKeyInput.value = decrypted;
+    storage.setItem(apiKeyStorageKey, decrypted);
+    await saveSecretToAccount('openaiApiKey', decrypted);
+    updateStorageModeNotice('Loaded admin default key.');
+    setDefaultKeyStatus('Default key applied to this session.');
+  } catch (error) {
+    setDefaultKeyStatus('Unable to decrypt the default key.');
+  }
 }
 
 function setVaultStatus(message) {
@@ -267,6 +460,7 @@ async function loadKeyFromVault() {
 
     apiKeyInput.value = decrypted;
     storage.setItem(apiKeyStorageKey, decrypted);
+    saveSecretToAccount('openaiApiKey', decrypted);
     updateStorageModeNotice('Key loaded from Gun and stored locally for this device.');
     setVaultStatus('API key loaded from Gun and applied to this session.');
   } catch (error) {
@@ -397,22 +591,25 @@ function renderGithubCommit(entry) {
 }
 
 function startHistorySubscription() {
+  const version = subscriptionVersion;
   transcriptNode.map().once((data) => {
-    if (!data) return;
+    if (!data || subscriptionVersion !== version) return;
     renderHistoryItem(data);
   });
 }
 
 function startDeploymentSubscription() {
+  const version = subscriptionVersion;
   deploymentNode.map().once((data) => {
-    if (!data || !data.id) return;
+    if (!data || !data.id || subscriptionVersion !== version) return;
     renderDeploymentItem(data);
   });
 }
 
 function startGithubSubscription() {
+  const version = subscriptionVersion;
   githubNode.map().once((data) => {
-    if (!data || !data.commitSha) return;
+    if (!data || !data.commitSha || subscriptionVersion !== version) return;
     renderGithubCommit(data);
   });
 }
@@ -445,7 +642,7 @@ function persistGithubCommit(entry) {
     createdAt: entry.createdAt || Date.now(),
   };
 
-  // Gun graph: ai/github/<sessionId>/<commitSha>
+  // Gun graph: 3dvr-portal/ai-workbench/<identityKey>/github/<commitSha>
   githubNode.get(id).put(record);
   return record;
 }
@@ -644,12 +841,14 @@ saveKeyBtn.addEventListener('click', () => {
   outputBox.textContent = mode === 'memory'
     ? 'API key saved for this page only. Adjust Brave Shields or storage settings to persist across refreshes.'
     : `API key saved to ${mode}.`;
+  saveSecretToAccount('openaiApiKey', key);
 });
 
 clearKeyBtn.addEventListener('click', () => {
   storage.removeItem(apiKeyStorageKey);
   apiKeyInput.value = '';
   outputBox.textContent = 'API key cleared from this browser.';
+  removeAccountSecret('openaiApiKey');
 });
 
 submitBtn.addEventListener('click', sendToOpenAI);
@@ -666,12 +865,14 @@ saveVercelBtn.addEventListener('click', () => {
   setVercelStatus(mode === 'memory'
     ? 'Vercel token saved for this page only. Allow storage for persistence.'
     : `Vercel token saved to ${mode}.`);
+  saveSecretToAccount('vercelToken', token);
 });
 
 clearVercelBtn.addEventListener('click', () => {
   storage.removeItem(vercelTokenStorageKey);
   vercelTokenInput.value = '';
   setVercelStatus('Vercel token cleared from this browser.');
+  removeAccountSecret('vercelToken');
 });
 
 deployBtn.addEventListener('click', deployCurrentResponse);
@@ -688,17 +889,37 @@ saveGithubBtn.addEventListener('click', () => {
   setGithubStatus(mode === 'memory'
     ? 'GitHub token saved for this page only. Allow storage for persistence.'
     : `GitHub token saved to ${mode}.`);
+  saveSecretToAccount('githubToken', token);
 });
 
 clearGithubBtn.addEventListener('click', () => {
   storage.removeItem(githubTokenStorageKey);
   githubTokenInput.value = '';
   setGithubStatus('GitHub token cleared from this browser.');
+  removeAccountSecret('githubToken');
 });
+
+loadDefaultBtn?.addEventListener('click', loadDefaultKey);
 
 githubBtn.addEventListener('click', publishToGithub);
 vaultSaveBtn?.addEventListener('click', saveKeyToVault);
 vaultLoadBtn?.addEventListener('click', loadKeyFromVault);
+
+recallUserSession();
+subscribeToDefaults();
+user.on('auth', () => {
+  const pub = user?.is?.pub;
+  if (pub) {
+    setIdentityScope(pub);
+  }
+  user.get('alias').once((value) => {
+    if (value) {
+      updateAccountStatus(`Synced to ${value}. Secrets will follow you across browsers.`);
+    }
+  });
+  hydrateAccountSecrets();
+});
+attemptStoredAuth();
 
 updateStorageModeNotice();
 loadStoredKey();

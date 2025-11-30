@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="../styles/global.css">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
 </head>
 <body>
@@ -39,6 +40,12 @@
       </div>
       <p id="api-key-help" class="meta">Stored only in localStorage on this device.</p>
       <p id="storage-mode" class="meta" aria-live="polite"></p>
+      <p id="account-status" class="status" aria-live="polite">Connect your Gun account to sync keys across browsers.</p>
+      <div class="input-row">
+        <input type="password" id="default-passphrase" placeholder="Passphrase for admin default key">
+        <button id="load-default" class="ghost">Use default key</button>
+      </div>
+      <p id="default-key-status" class="meta" aria-live="polite"></p>
     </section>
 
     <section class="card" id="vault-panel" aria-label="Gun key vault">
