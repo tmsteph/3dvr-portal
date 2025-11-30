@@ -20,10 +20,19 @@
     <section class="guide-section">
       <h2>Generate the API token</h2>
       <ol class="guide-list">
-        <li>Open Vercel and navigate to <strong>Settings → Tokens</strong>.</li>
-        <li>Click <strong>Create Token</strong>, name it (for example <span class="inline-code">3dvr-portal-ci</span>), and create it.</li>
+        <li>
+          Open Vercel and go to <strong>Settings → Tokens</strong>. Personal tokens live at
+          <a href="https://vercel.com/account/tokens" target="_blank" rel="noopener">vercel.com/account/tokens</a>.
+          Team tokens are under <strong>Team Settings → Tokens</strong> at
+          <a href="https://vercel.com/teams/:team-slug/settings/tokens" target="_blank" rel="noopener">vercel.com/teams/:team-slug/settings/tokens</a>.
+        </li>
+        <li>Click <strong>Create Token</strong>, name it (for example <span class="inline-code">3dvr-portal-ci</span>), and create it. Tokens are shown only once.</li>
         <li>Copy the value immediately and save it as <span class="inline-code">VERCEL_TOKEN</span> in your repository secrets.</li>
       </ol>
+      <p class="guide-description">
+        If you see an <strong>Apps</strong> section instead of <strong>Tokens</strong>, that is for OAuth client credentials.
+        Stick with API tokens for CI/CD and CLI access.
+      </p>
     </section>
 
     <section class="guide-section">
