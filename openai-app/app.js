@@ -145,6 +145,7 @@ const storageModeNotice = document.getElementById('storage-mode');
 const accountStatus = document.getElementById('account-status');
 const vaultAliasInput = document.getElementById('vault-alias');
 const vaultPassphraseInput = document.getElementById('vault-passphrase');
+const vaultTargetSelect = document.getElementById('vault-target');
 const vaultSaveBtn = document.getElementById('vault-save');
 const vaultLoadBtn = document.getElementById('vault-load');
 const vaultStatus = document.getElementById('vault-status');
@@ -167,6 +168,27 @@ const developerPrompt = [
 
 let currentDefaultConfig = {};
 let subscriptionVersion = 0;
+
+const vaultTargets = {
+  openai: {
+    label: 'OpenAI API key',
+    input: apiKeyInput,
+    storageKey: apiKeyStorageKey,
+    accountField: 'openaiApiKey',
+  },
+  vercel: {
+    label: 'Vercel token',
+    input: vercelTokenInput,
+    storageKey: vercelTokenStorageKey,
+    accountField: 'vercelToken',
+  },
+  github: {
+    label: 'GitHub token',
+    input: githubTokenInput,
+    storageKey: githubTokenStorageKey,
+    accountField: 'githubToken',
+  }
+};
 
 function updateAccountStatus(message) {
   if (accountStatus) {
@@ -372,6 +394,18 @@ function setVaultStatus(message) {
   }
 }
 
+function getVaultTargetConfig(targetKey) {
+  if (vaultTargets[targetKey]) {
+    return { key: targetKey, ...vaultTargets[targetKey] };
+  }
+  return { key: 'openai', ...vaultTargets.openai };
+}
+
+function getSelectedVaultTarget() {
+  const selected = vaultTargetSelect?.value || 'openai';
+  return getVaultTargetConfig(selected);
+}
+
 function sanitizeVaultAlias(input) {
   return (input || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 64);
 }
@@ -386,7 +420,8 @@ function loadStoredKey() {
 async function saveKeyToVault() {
   const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
   const passphrase = vaultPassphraseInput?.value || '';
-  const apiKey = apiKeyInput.value.trim();
+  const target = getSelectedVaultTarget();
+  const secretValue = target.input?.value?.trim() || '';
 
   if (!alias) {
     setVaultStatus('Add a vault label using letters, numbers, or dashes.');
@@ -394,12 +429,12 @@ async function saveKeyToVault() {
   }
 
   if (!passphrase || passphrase.length < 6) {
-    setVaultStatus('Add a passphrase (6+ characters) to encrypt your key.');
+    setVaultStatus('Add a passphrase (6+ characters) to encrypt your secret.');
     return;
   }
 
-  if (!apiKey) {
-    setVaultStatus('Paste your OpenAI API key before saving to Gun.');
+  if (!secretValue) {
+    setVaultStatus(`Add your ${target.label} before saving to Gun.`);
     return;
   }
 
@@ -409,10 +444,10 @@ async function saveKeyToVault() {
   }
 
   try {
-    const cipher = await Gun.SEA.encrypt(apiKey, passphrase);
-    const record = { alias, cipher, updatedAt: Date.now() };
+    const cipher = await Gun.SEA.encrypt(secretValue, passphrase);
+    const record = { alias, cipher, updatedAt: Date.now(), target: target.key };
     keyVaultNode.get(alias).put(record);
-    setVaultStatus('API key encrypted and stored in Gun. Use the same alias and passphrase on any device.');
+    setVaultStatus(`${target.label} encrypted and stored in Gun. Use the same alias and passphrase on any device.`);
   } catch (error) {
     setVaultStatus(`Error encrypting or saving: ${error.message}`);
   }
@@ -427,14 +462,15 @@ function fetchVaultRecord(alias) {
 async function loadKeyFromVault() {
   const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
   const passphrase = vaultPassphraseInput?.value || '';
+  const selectedTarget = getSelectedVaultTarget();
 
   if (!alias) {
-    setVaultStatus('Enter the vault label you used when saving your key.');
+    setVaultStatus('Enter the vault label you used when saving your secret.');
     return;
   }
 
   if (!passphrase) {
-    setVaultStatus('Enter the passphrase used to encrypt your key.');
+    setVaultStatus('Enter the passphrase used to encrypt your secret.');
     return;
   }
 
@@ -443,13 +479,19 @@ async function loadKeyFromVault() {
     return;
   }
 
-  setVaultStatus('Fetching and decrypting key from Gun...');
+  setVaultStatus('Fetching and decrypting secret from Gun...');
 
   try {
     const record = await fetchVaultRecord(alias);
     if (!record || !record.cipher) {
-      setVaultStatus('No encrypted key found for that alias.');
+      setVaultStatus('No encrypted secret found for that alias.');
       return;
+    }
+
+    const vaultTarget = getVaultTargetConfig(record.target || selectedTarget.key);
+
+    if (vaultTargetSelect) {
+      vaultTargetSelect.value = vaultTarget.key;
     }
 
     const decrypted = await Gun.SEA.decrypt(record.cipher, passphrase);
@@ -458,11 +500,20 @@ async function loadKeyFromVault() {
       return;
     }
 
-    apiKeyInput.value = decrypted;
-    storage.setItem(apiKeyStorageKey, decrypted);
-    saveSecretToAccount('openaiApiKey', decrypted);
-    updateStorageModeNotice('Key loaded from Gun and stored locally for this device.');
-    setVaultStatus('API key loaded from Gun and applied to this session.');
+    if (vaultTarget.input) {
+      vaultTarget.input.value = decrypted;
+    }
+
+    if (vaultTarget.storageKey) {
+      storage.setItem(vaultTarget.storageKey, decrypted);
+    }
+
+    if (vaultTarget.accountField) {
+      saveSecretToAccount(vaultTarget.accountField, decrypted);
+    }
+
+    updateStorageModeNotice(`${vaultTarget.label} loaded from Gun and stored locally for this device.`);
+    setVaultStatus(`${vaultTarget.label} loaded from Gun and applied to this session.`);
   } catch (error) {
     setVaultStatus(`Error loading from Gun: ${error.message}`);
   }
