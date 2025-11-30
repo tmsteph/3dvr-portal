@@ -27,6 +27,18 @@
       <p class="lede">Bring your own OpenAI API key, chat with GPT-4o, and share transcripts through GunDB.</p>
     </header>
 
+    <section class="card info-card" aria-label="Deployment guides">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Instructions</p>
+          <h2>Deployment guide hub</h2>
+          <p class="meta">Step through GitHub PATs, Vercel tokens and IDs, and alias setup without leaving the Workbench.</p>
+        </div>
+        <a class="primary-link" href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Open guides</a>
+      </div>
+      <p class="meta">Opens in a new tab so you can paste secrets directly into the panels below.</p>
+    </section>
+
     <section class="card" id="api-key-panel" aria-label="API key configuration">
       <div class="card-header">
         <h2>Bring your own key</h2>
@@ -145,7 +157,7 @@
           <button id="save-vercel" class="primary">Save</button>
           <button id="clear-vercel" class="ghost">Clear</button>
         </div>
-        <p id="vercel-help" class="meta">Token stays in localStorage; the deployment request is proxied through this domain.</p>
+        <p id="vercel-help" class="meta">Token stays in localStorage; the deployment request is proxied through this domain. <a href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Need the steps?</a></p>
 
         <div class="grid compact-grid">
           <div>
@@ -191,7 +203,7 @@
           <button id="save-github" class="primary">Save</button>
           <button id="clear-github" class="ghost">Clear</button>
         </div>
-        <p id="github-help" class="meta">Token stays in localStorage; commits use the GitHub contents API.</p>
+        <p id="github-help" class="meta">Token stays in localStorage; commits use the GitHub contents API. <a href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Open the guide</a> for PAT scopes.</p>
 
         <div class="grid compact-grid">
           <div>

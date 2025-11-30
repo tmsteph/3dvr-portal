@@ -106,13 +106,17 @@ Use the included GitHub Actions workflow to build and deploy a stable dev site o
 This keeps preview testing on a predictable URL instead of a new random link every run, which helps debug features that are
 origin or cookie sensitive.
 
-1. In your repository settings, add the following secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` (from the
-   Vercel dashboard). Optional: set `VERCEL_DEV_ALIAS` to the `.vercel.app` or custom domain you want the workflow to point at
-   (for example `dev-3dvr-portal.vercel.app`).
-2. Enable the "Vercel Dev Preview" workflow in GitHub Actions. It now runs on push to `main`/`dev`, pull requests targeting
-   those branches, and manual dispatch via **Run workflow**.
-3. Pull request runs always publish a preview URL so you can test before merging. To also alias that preview to your stable
-   dev URL from a manual run, set the `set_alias` input to `true` when triggering the workflow. Pushes to `main`/`dev` alias
-   automatically when `VERCEL_DEV_ALIAS` is configured.
-4. Each run pulls preview env settings, builds the site, deploys a preview, and—if aliasing is enabled—points the stable dev
-   URL at the new preview so you can reuse the same link across sessions and team members.
+#### Retrieving the required API tokens
+
+Open the in-app **Deployment Guides** at [`/deployment-guides/`](https://3dvr-portal.vercel.app/deployment-guides/) for
+step-by-step pages covering the GitHub token, Vercel token and IDs, optional stable alias, and wiring the workflow
+secrets. Quick checklist:
+
+1. Add repository secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`. Optional: include `VERCEL_DEV_ALIAS`
+   (stable preview) and `GH_PAT` (extra GitHub API scope).
+2. Enable the "Vercel Dev Preview" workflow in GitHub Actions. It runs on pushes to `main`/`dev`, pull requests into those
+   branches, and manual dispatch.
+3. Pull request runs always publish a preview URL; manual runs can also alias to your stable dev domain when
+   `set_alias=true`. Pushes to `main`/`dev` alias automatically when `VERCEL_DEV_ALIAS` is set.
+4. Each run pulls preview env settings, builds the site, deploys, and—when aliasing is enabled—points the stable dev URL at
+   the new preview.

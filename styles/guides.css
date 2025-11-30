@@ -1,0 +1,151 @@
+.guide-page {
+  background: radial-gradient(circle at 15% 20%, #1e2635 0, #0f1219 45%), #0b0d12;
+  color: #e6e9f0;
+  min-height: 100vh;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+.guide-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+.guide-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 16px;
+}
+
+.guide-eyebrow {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #92c5ff;
+}
+
+.guide-title {
+  font-size: 32px;
+  margin: 0;
+}
+
+.guide-description {
+  margin: 0;
+  color: #cfd6e3;
+  line-height: 1.6;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.guide-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 16px 18px;
+  color: inherit;
+  text-decoration: none;
+  display: grid;
+  gap: 10px;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.guide-card:hover,
+.guide-card:focus-visible {
+  border-color: #6ec1ff;
+  background: rgba(110, 193, 255, 0.08);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.guide-card__eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a2b8ff;
+}
+
+.guide-card__title {
+  font-size: 18px;
+  margin: 0;
+  color: #f4f7ff;
+}
+
+.guide-card__body {
+  margin: 0;
+  color: #cfd6e3;
+  line-height: 1.5;
+}
+
+.guide-section {
+  margin: 28px 0;
+  padding: 20px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.guide-section h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 24px;
+}
+
+.guide-list {
+  padding-left: 18px;
+  margin: 0;
+  color: #d7deeb;
+  line-height: 1.7;
+}
+
+.guide-list li + li {
+  margin-top: 10px;
+}
+
+.guide-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.guide-nav a {
+  color: #9dd1ff;
+  text-decoration: none;
+  padding: 8px 12px;
+  border: 1px solid rgba(157, 209, 255, 0.4);
+  border-radius: 10px;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.guide-nav a:hover,
+.guide-nav a:focus-visible {
+  background: rgba(157, 209, 255, 0.12);
+  border-color: #9dd1ff;
+  color: #f5f8ff;
+  outline: none;
+}
+
+.inline-code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .guide-shell {
+    padding: 28px 16px 40px;
+  }
+
+  .guide-title {
+    font-size: 26px;
+  }
+}

@@ -44,6 +44,10 @@ header .lede {
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
 }
 
+.info-card {
+  border-left: 4px solid #5ca0d3;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -64,6 +68,19 @@ label {
   font-weight: 600;
   display: block;
   margin-bottom: 6px;
+}
+
+.primary-link {
+  background: #66c2b0;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.primary-link:hover {
+  background: #5ca0d3;
 }
 
 .input-row {
