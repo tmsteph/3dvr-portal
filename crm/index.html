@@ -44,6 +44,41 @@
   </a>
 
   <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <section class="grid gap-4 lg:grid-cols-[1fr,320px]">
+      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-xl font-semibold">Three-touch weekly game</h2>
+          <span id="challengeStatus" class="text-xs px-2 py-1 rounded bg-white/10 text-gray-200">Loading…</span>
+        </div>
+        <p class="text-sm text-gray-300">
+          Log three contacts each week directly in the CRM. Calling, emailing, or messaging the same person three times all
+          counts—just make sure every touch is captured here.
+        </p>
+        <p class="text-sm text-amber-200/90 bg-amber-900/30 border border-amber-500/30 rounded-lg p-3">
+          After each touch, ask the person when you can follow up and record the date. Consistent follow-ups keep the streak
+          alive.
+        </p>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-sm text-gray-300">
+            <span><span id="challengeWeeklyCount">0</span> / <span id="challengeWeeklyGoal">3</span> touches logged this week</span>
+            <span id="challengeWeeklyDetail" class="text-xs text-gray-400">Waiting for first log…</span>
+          </div>
+          <div class="h-3 bg-gray-900/70 rounded-full overflow-hidden border border-white/5">
+            <div id="challengeProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-sky-500" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-lg font-semibold">This week’s log</h3>
+          <span class="text-xs uppercase tracking-[0.28em] text-gray-400">Live</span>
+        </div>
+        <div id="challengeRecentList" class="space-y-3 text-sm text-gray-300">
+          <p class="text-gray-400">Logs will appear after you click “Log touch” on a CRM record.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="grid gap-4 md:grid-cols-2">
       <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
         <h2 class="text-lg font-semibold mb-2">Shared context</h2>
@@ -228,6 +263,12 @@
     const crmFloatingName = document.getElementById('crmFloatingName');
     const crmFloatingScore = document.getElementById('crmFloatingScore');
     const crmCreateOverlay = document.getElementById('crmCreateOverlay');
+    const challengeWeeklyCount = document.getElementById('challengeWeeklyCount');
+    const challengeWeeklyGoal = document.getElementById('challengeWeeklyGoal');
+    const challengeWeeklyDetail = document.getElementById('challengeWeeklyDetail');
+    const challengeProgressBar = document.getElementById('challengeProgressBar');
+    const challengeRecentList = document.getElementById('challengeRecentList');
+    const challengeStatus = document.getElementById('challengeStatus');
     const openCrmCreateBtn = document.getElementById('openCrmCreate');
     const closeCrmCreateBtn = document.getElementById('closeCrmCreate');
     const cancelCrmCreateBtn = document.getElementById('cancelCrmCreate');
@@ -240,6 +281,10 @@
     let contactsSpaceKey = 'public-demo';
     let contactWorkspaceIndex = {};
     const contactsWorkspaceWaiters = [];
+    const touchLogRoot = portalRoot.get('crm-touch-log');
+    const touchLogIndex = new Map();
+    const WEEKLY_CHALLENGE_GOAL = 3;
+    const participantId = getParticipantId();
 
     function sanitizeRecord(data) {
       if (!data || typeof data !== 'object') return {};
@@ -249,6 +294,49 @@
         clean[key] = value;
       });
       return clean;
+    }
+
+    function getParticipantId() {
+      const storedUsername = (ls.getItem('username') || '').trim();
+      const storedAlias = (alias || '').trim();
+      const guestId = (ls.getItem('guestId') || '').trim();
+      return storedUsername || storedAlias || guestId || 'guest';
+    }
+
+    function getParticipantLabel() {
+      const username = (ls.getItem('username') || '').trim();
+      const aliasName = (alias || '').trim();
+      if (username) return username;
+      if (aliasName) return aliasName;
+      const guestDisplay = (ls.getItem('guestDisplayName') || '').trim();
+      return guestDisplay || 'Guest';
+    }
+
+    function startOfCurrentWeek() {
+      const now = new Date();
+      const start = new Date(now);
+      const day = start.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() + diff);
+      return start;
+    }
+
+    function isTimestampInCurrentWeek(timestamp, weekStart = startOfCurrentWeek()) {
+      const date = new Date(timestamp);
+      if (Number.isNaN(date.getTime())) return false;
+      return date >= weekStart;
+    }
+
+    function normalizeFollowUpInput(input) {
+      const raw = (input || '').trim();
+      if (!raw) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().slice(0, 10);
+      }
+      return raw;
     }
 
     function getContactButtonLabel(record, id) {
@@ -277,6 +365,60 @@
       const numeric = typeof value === 'number' ? value : Number(value);
       if (!Number.isFinite(numeric)) return 0;
       return Math.max(0, Math.round(numeric));
+    }
+
+    function renderRecentTouchList(entries) {
+      if (!challengeRecentList) return;
+      if (!entries || entries.length === 0) {
+        challengeRecentList.innerHTML = '<p class="text-gray-400">Logs will appear after you click “Log touch” on a CRM record.</p>';
+        return;
+      }
+      const sorted = entries.slice().sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+      const rows = sorted.slice(0, 5).map(entry => {
+        const followUp = entry.followUp ? safe(entry.followUp) : 'Not scheduled';
+        const contactName = entry.contactName ? safe(entry.contactName) : 'Unnamed contact';
+        const timeLabel = entry.timestamp ? safe(timeAgo(entry.timestamp)) : 'Unknown time';
+        const absTime = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '';
+        const loggedBy = safe(entry.loggedBy || entry.participantId || 'Unknown');
+        return `
+          <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3">
+            <div class="flex flex-wrap justify-between text-sm text-gray-200">
+              <span class="font-semibold">${contactName}</span>
+              <span class="text-xs text-gray-400" title="${safeAttr(absTime)}">${timeLabel}</span>
+            </div>
+            <p class="text-xs text-gray-300 mt-1">Next follow-up: ${followUp}</p>
+            <p class="text-xs text-gray-400">Logged by ${loggedBy}</p>
+          </div>
+        `;
+      }).join('');
+      challengeRecentList.innerHTML = rows;
+    }
+
+    function renderWeeklyChallenge() {
+      if (challengeWeeklyGoal) {
+        challengeWeeklyGoal.textContent = WEEKLY_CHALLENGE_GOAL;
+      }
+      if (!challengeWeeklyCount || !challengeProgressBar || !challengeWeeklyDetail) return;
+      const weekStart = startOfCurrentWeek();
+      const entries = Array.from(touchLogIndex.values()).filter(entry => {
+        if (!entry || !entry.timestamp) return false;
+        const matchesOwner = !entry.participantId || entry.participantId === participantId;
+        return matchesOwner && isTimestampInCurrentWeek(entry.timestamp, weekStart);
+      });
+      const count = entries.length;
+      const remaining = Math.max(0, WEEKLY_CHALLENGE_GOAL - count);
+      const percent = Math.min(100, Math.round((count / WEEKLY_CHALLENGE_GOAL) * 100));
+      challengeWeeklyCount.textContent = count;
+      challengeProgressBar.style.width = `${percent}%`;
+      challengeWeeklyDetail.textContent = count >= WEEKLY_CHALLENGE_GOAL
+        ? 'Goal met—keep going!'
+        : `${remaining} to go this week`;
+      if (challengeStatus) {
+        challengeStatus.textContent = count >= WEEKLY_CHALLENGE_GOAL ? 'On track' : 'Keep going';
+        challengeStatus.classList.toggle('bg-emerald-600/40', count >= WEEKLY_CHALLENGE_GOAL);
+        challengeStatus.classList.toggle('bg-white/10', count < WEEKLY_CHALLENGE_GOAL);
+      }
+      renderRecentTouchList(entries);
     }
 
     if (crmFloatingIdentity && crmFloatingName && crmFloatingScore) {
@@ -365,6 +507,25 @@
           }
         }
       }
+    }
+
+    if (touchLogRoot && typeof touchLogRoot.map === 'function') {
+      touchLogRoot.map().on((data, id) => {
+        if (!id) return;
+        if (!data) {
+          touchLogIndex.delete(id);
+        } else {
+          const sanitized = sanitizeRecord(data);
+          touchLogIndex.set(id, {
+            ...sanitized,
+            id,
+            timestamp: sanitized.timestamp || sanitized.time || sanitized.lastContacted || ''
+          });
+        }
+        renderWeeklyChallenge();
+      });
+    } else {
+      renderWeeklyChallenge();
     }
     const crmDetailOverlay = document.getElementById('crmDetailOverlay');
     const crmDetailName = document.getElementById('crmDetailName');
@@ -1135,6 +1296,8 @@
       const record = sanitizeRecord(crmIndex[id]);
       if (!record || Object.keys(record).length === 0) return;
       const now = new Date().toISOString();
+      const followUpInput = window.prompt('When can you follow up?', record.nextFollowUp || '');
+      const followUpValue = normalizeFollowUpInput(followUpInput || record.nextFollowUp || '');
       const touchesRaw = Number.parseInt(record.activityCount, 10);
       const touches = Number.isNaN(touchesRaw) ? 0 : touchesRaw;
       const next = {
@@ -1143,10 +1306,26 @@
         contactId: record.contactId || record.id || id,
         lastContacted: now,
         activityCount: touches + 1,
+        nextFollowUp: followUpValue || record.nextFollowUp || '',
         updated: now,
         created: record.created || now
       };
       crmRecords.get(id).put(next);
+      if (touchLogRoot && typeof touchLogRoot.get === 'function') {
+        const logId = `${id}-${Date.now()}`;
+        const entry = {
+          id: logId,
+          recordId: record.contactId || record.id || id,
+          contactName: record.name || record.email || 'Unnamed contact',
+          timestamp: now,
+          followUp: followUpValue || record.nextFollowUp || '',
+          participantId,
+          loggedBy: getParticipantLabel()
+        };
+        touchLogRoot.get(logId).put(entry);
+        touchLogIndex.set(logId, entry);
+        renderWeeklyChallenge();
+      }
     }
 
     function quickFollowUp(id) {
