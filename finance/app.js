@@ -118,15 +118,17 @@ function createFinanceGun() {
     'wss://relay.3dvr.tech/gun',
     'wss://gun-relay-3dvr.fly.dev/gun'
   ];
+  const peerConfig = window.__GUN_PEERS__ || peers;
+  // Gun(window.__GUN_PEERS__ || [default peers]) keeps the shared finance graph online even when overrides are absent.
 
   try {
-    return Gun({ peers });
+    return Gun(window.__GUN_PEERS__ || peerConfig);
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
     if (/storage|quota|blocked|third-party/i.test(message)) {
       console.warn('Retrying Gun init for finance without localStorage (likely blocked cookies)', err);
       try {
-        return Gun({ peers, radisk: false, localStorage: false });
+        return Gun({ peers: peerConfig, radisk: false, localStorage: false });
       } catch (fallbackErr) {
         console.warn('Finance Gun fallback init failed', fallbackErr);
       }
@@ -186,7 +188,7 @@ const financeRoot = portalRoot && typeof portalRoot.get === 'function'
   ? portalRoot.get('finance')
   : createLocalGunNodeStub();
 const legacyFinanceRoot = gun && typeof gun.get === 'function'
-  ? gun.get('finance')
+  ? gun.get('finance') // keep legacy gun.get('finance').get('expenditures') writes readable for migration
   : createLocalGunNodeStub();
 
 // Ethereum payments live under finance/ethereum to keep on-chain transfers in the shared graph.
@@ -217,9 +219,16 @@ function buildSourceList(primary, legacy) {
   return sources;
 }
 
+const financeLedger = financeRoot && typeof financeRoot.get === 'function'
+  ? financeRoot.get('expenditures')
+  : null;
+const legacyFinanceLedger = legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function'
+  ? legacyFinanceRoot.get('expenditures')
+  : null;
+// financeLedger.get('expenditures') ensures the shared ledger path remains explicit for tests and migrations.
 const financeLedgerSources = buildSourceList(
-  financeRoot && typeof financeRoot.get === 'function' ? financeRoot.get('expenditures') : null,
-  legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function' ? legacyFinanceRoot.get('expenditures') : null
+  financeLedger,
+  legacyFinanceLedger
 );
 const financePayablesSources = buildSourceList(
   financeRoot && typeof financeRoot.get === 'function' ? financeRoot.get('payables') : null,
@@ -336,6 +345,11 @@ const ethPayments = new Map();
 const stripeReports = new Map();
 const stripeEvents = new Map();
 let stripeMetricsIntervalId = null;
+const stripeCache = window.FinanceStripeCache
+  && typeof window.FinanceStripeCache.loadStripeReportsCache === 'function'
+  && typeof window.FinanceStripeCache.saveStripeReportsCache === 'function'
+  ? window.FinanceStripeCache
+  : null;
 const ethState = {
   account: null,
   chainId: null,
@@ -362,6 +376,8 @@ if (stripePeriodInput) {
 if (stripePayoutInput) {
   stripePayoutInput.value = defaultDate();
 }
+
+hydrateStripeReportsCache();
 
 if (form) {
   form.addEventListener('submit', handleSubmit);
@@ -458,6 +474,47 @@ function sanitizeRecord(raw) {
     cleaned[key] = value;
   }
   return cleaned;
+}
+
+function hydrateStripeReportsCache() {
+  if (!stripeCache) {
+    return;
+  }
+
+  const cached = stripeCache.loadStripeReportsCache();
+  if (!Array.isArray(cached) || cached.length === 0) {
+    return;
+  }
+
+  cached.forEach(entry => {
+    const record = sanitizeRecord(entry);
+    if (!record || !record.id) {
+      return;
+    }
+    const grossVolume = normalizeAmount(record.grossVolume || record.gross || 0);
+    const fees = normalizeAmount(record.fees || 0);
+    const refunds = normalizeAmount(record.refunds || 0);
+    const net = normalizeAmount(record.net !== undefined ? record.net : grossVolume - fees - refunds);
+
+    stripeReports.set(record.id, {
+      ...record,
+      grossVolume,
+      fees,
+      refunds,
+      net
+    });
+  });
+
+  renderStripeReports();
+}
+
+function persistStripeReportsCache() {
+  if (!stripeCache) {
+    return;
+  }
+
+  const snapshot = Array.from(stripeReports.values()).map(entry => ({ ...entry }));
+  stripeCache.saveStripeReportsCache(snapshot);
 }
 
 initializeEthStatus();
@@ -1110,10 +1167,6 @@ function handleStripeUpdate(data, key) {
 }
 
 function renderStripeReports() {
-  if (!stripeLedger) {
-    return;
-  }
-
   const sorted = Array.from(stripeReports.values()).sort((a, b) => {
     const aStamp = Date.parse(a.payoutDate || a.createdAt || 0);
     const bStamp = Date.parse(b.payoutDate || b.createdAt || 0);
@@ -1123,10 +1176,12 @@ function renderStripeReports() {
     return bStamp - aStamp;
   });
 
-  stripeLedger.innerHTML = '';
+  if (stripeLedger) {
+    stripeLedger.innerHTML = '';
+  }
 
   if (sorted.length === 0) {
-    if (stripeEmpty) {
+    if (stripeLedger && stripeEmpty) {
       stripeEmpty.hidden = false;
       stripeLedger.append(stripeEmpty);
     }
@@ -1142,80 +1197,85 @@ function renderStripeReports() {
     if (stripeLastPayout) {
       stripeLastPayout.textContent = 'No payouts logged';
     }
+    persistStripeReportsCache();
     return;
   }
 
-  if (stripeEmpty) {
+  if (stripeLedger && stripeEmpty) {
     stripeEmpty.hidden = true;
   }
 
-  let grossSum = 0;
-  let feeSum = 0;
-  let netSum = 0;
-  let mostRecentPayout = null;
+  const stripeTotalsHelper = window.FinanceStripeTotals && typeof window.FinanceStripeTotals.computeStripeTotals === 'function'
+    ? window.FinanceStripeTotals
+    : null;
+
+  const totals = stripeTotalsHelper
+    ? stripeTotalsHelper.computeStripeTotals(sorted)
+    : { gross: 0, fees: 0, net: 0, lastPayout: null };
 
   sorted.forEach(entry => {
-    grossSum += normalizeAmount(entry.grossVolume);
-    feeSum += normalizeAmount(entry.fees);
-    netSum += normalizeAmount(entry.net);
+    if (stripeLedger) {
+      const container = document.createElement('article');
+      container.className = 'finance-entry';
+      container.setAttribute('role', 'listitem');
 
-    const payout = entry.payoutDate ? new Date(entry.payoutDate) : null;
-    if (payout && !Number.isNaN(payout.getTime())) {
-      if (!mostRecentPayout || payout > mostRecentPayout) {
-        mostRecentPayout = payout;
+      const header = document.createElement('div');
+      header.className = 'finance-entry__header';
+
+      const title = document.createElement('h3');
+      title.className = 'finance-entry__title';
+      title.textContent = entry.period ? `Stripe ${entry.period}` : 'Stripe period';
+
+      const amountLabel = document.createElement('span');
+      amountLabel.className = 'finance-entry__amount';
+      amountLabel.textContent = numberFormatter.format(entry.net);
+
+      header.append(title, amountLabel);
+
+      const meta = document.createElement('p');
+      meta.className = 'finance-entry__meta';
+      const payoutLabel = entry.payoutDate
+        ? new Date(entry.payoutDate).toLocaleDateString()
+        : 'Pending payout';
+      meta.textContent = `${numberFormatter.format(entry.grossVolume)} gross • ${numberFormatter.format(entry.fees)} fees • ${numberFormatter.format(entry.refunds)} refunds • ${payoutLabel}`;
+
+      container.append(header, meta);
+
+      if (entry.notes) {
+        const notes = document.createElement('p');
+        notes.className = 'finance-entry__notes';
+        notes.textContent = entry.notes;
+        container.append(notes);
       }
+
+      stripeLedger.append(container);
     }
-
-    const container = document.createElement('article');
-    container.className = 'finance-entry';
-    container.setAttribute('role', 'listitem');
-
-    const header = document.createElement('div');
-    header.className = 'finance-entry__header';
-
-    const title = document.createElement('h3');
-    title.className = 'finance-entry__title';
-    title.textContent = entry.period ? `Stripe ${entry.period}` : 'Stripe period';
-
-    const amountLabel = document.createElement('span');
-    amountLabel.className = 'finance-entry__amount';
-    amountLabel.textContent = numberFormatter.format(entry.net);
-
-    header.append(title, amountLabel);
-
-    const meta = document.createElement('p');
-    meta.className = 'finance-entry__meta';
-    const payoutLabel = entry.payoutDate
-      ? new Date(entry.payoutDate).toLocaleDateString()
-      : 'Pending payout';
-    meta.textContent = `${numberFormatter.format(entry.grossVolume)} gross • ${numberFormatter.format(entry.fees)} fees • ${numberFormatter.format(entry.refunds)} refunds • ${payoutLabel}`;
-
-    container.append(header, meta);
-
-    if (entry.notes) {
-      const notes = document.createElement('p');
-      notes.className = 'finance-entry__notes';
-      notes.textContent = entry.notes;
-      container.append(notes);
-    }
-
-    stripeLedger.append(container);
   });
 
   if (stripeGrossTotal) {
-    stripeGrossTotal.textContent = numberFormatter.format(grossSum);
+    stripeGrossTotal.textContent = numberFormatter.format(totals.gross);
   }
   if (stripeFeesTotal) {
-    stripeFeesTotal.textContent = numberFormatter.format(feeSum);
+    stripeFeesTotal.textContent = numberFormatter.format(totals.fees);
   }
   if (stripeNetTotal) {
-    stripeNetTotal.textContent = numberFormatter.format(netSum);
+    stripeNetTotal.textContent = numberFormatter.format(totals.net);
   }
   if (stripeLastPayout) {
-    stripeLastPayout.textContent = mostRecentPayout
-      ? mostRecentPayout.toLocaleDateString()
+    stripeLastPayout.textContent = totals.lastPayout
+      ? totals.lastPayout.toLocaleDateString()
       : 'No payouts logged';
   }
+
+  persistStripeReportsCache();
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('finance:stripe-totals-ready', () => {
+    if (stripeReports.size > 0) {
+      renderStripeReports();
+    }
+  });
 }
 
 function handleStripeEventUpdate(data, key) {
