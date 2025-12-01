@@ -350,6 +350,64 @@
       opacity: 0.6;
     }
 
+    .user-search {
+      margin-top: 1rem;
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .user-search input[type="search"] {
+      width: 100%;
+    }
+
+    .user-results {
+      display: grid;
+      gap: 0.4rem;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .user-result {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.65rem 0.75rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--surface-border);
+      background: rgba(15, 23, 42, 0.02);
+      cursor: pointer;
+      transition: transform var(--transition-base), border-color var(--transition-base);
+    }
+
+    .user-result:hover {
+      transform: translateY(-1px);
+      border-color: rgba(37, 99, 235, 0.24);
+    }
+
+    .user-result.active {
+      border-color: rgba(37, 99, 235, 0.28);
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    .user-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .user-meta strong {
+      color: var(--color-text);
+    }
+
+    .user-meta small {
+      color: var(--color-text-muted);
+    }
+
+    .user-points {
+      font-weight: 800;
+      color: var(--accent-strong);
+    }
+
     @media (max-width: 640px) {
       .input-row {
         grid-template-columns: 1fr;
@@ -446,6 +504,11 @@
           <input type="number" id="admin-score-input" min="1" step="50" aria-label="Points to award" placeholder="Add points (e.g., 250)">
           <button type="button" id="admin-score-button" onclick="awardAdminScore()">Award Score</button>
         </div>
+        <div class="user-search" id="user-search" aria-live="polite">
+          <label class="label" for="user-search-input">Find a user to reward</label>
+          <input type="search" id="user-search-input" placeholder="Search by alias or username" aria-label="Search for user" oninput="handleUserSearch(event)">
+          <div class="user-results" id="user-results"></div>
+        </div>
       </div>
     </article>
   </section>
@@ -504,11 +567,39 @@ const adminBadgeEl = document.getElementById('admin-badge');
 const adminScoreInput = document.getElementById('admin-score-input');
 const adminScoreButton = document.getElementById('admin-score-button');
 const adminScoreHelper = document.getElementById('admin-score-helper');
+const userSearchEl = document.getElementById('user-search');
+const userSearchInput = document.getElementById('user-search-input');
+const userResultsEl = document.getElementById('user-results');
+
+const userIndexNode = portalRoot.get('userIndex');
+const userStatsNode = portalRoot.get('userStats');
+// adminScoreGrants keeps a per-admin log of recent awards for rate limiting and auditability.
+const adminGrantsNode = portalRoot.get('adminScoreGrants');
+const ADMIN_RATE_LIMIT = {
+  windowMs: 15 * 60 * 1000,
+  maxGrants: 5,
+  maxPointsPerGrant: 10000
+};
+
+const knownUsers = new Map();
+const knownStats = new Map();
+let grantHistory = [];
+let selectedUserAlias = '';
+let selectedUserName = '';
 
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
   if (!normalized) return '';
   return normalized.includes('@') ? normalized.split('@')[0] : normalized;
+}
+
+function sanitizeScoreValue(scoreValue) {
+  if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
+    return window.ScoreSystem.sanitizeScore(scoreValue);
+  }
+  const numeric = typeof scoreValue === 'number' ? scoreValue : Number(scoreValue);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.round(numeric));
 }
 
 function computeDisplayName() {
@@ -545,6 +636,9 @@ function updateAdminCard() {
     if (adminScoreHelper) {
       adminScoreHelper.innerText = 'Award points to this profile after confirming progress.';
     }
+    if (userSearchEl) {
+      userSearchEl.style.display = 'grid';
+    }
   } else {
     adminBadgeEl.innerText = 'Admin (guest view)';
     adminStatusEl.innerText = 'Sign in to unlock admin shortcuts and synced changes.';
@@ -558,17 +652,14 @@ function updateAdminCard() {
     if (adminScoreHelper) {
       adminScoreHelper.innerText = 'Sign in as an admin to award score.';
     }
+    if (userSearchEl) {
+      userSearchEl.style.display = 'none';
+    }
   }
 }
 
 function updateProfile(scoreValue) {
-  const safeScore = window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function'
-    ? window.ScoreSystem.sanitizeScore(scoreValue)
-    : (() => {
-      const numeric = typeof scoreValue === 'number' ? scoreValue : Number(scoreValue);
-      if (!Number.isFinite(numeric)) return 0;
-      return Math.max(0, Math.round(numeric));
-    })();
+  const safeScore = sanitizeScoreValue(scoreValue);
 
   scoreEl.innerText = safeScore;
 
@@ -690,6 +781,9 @@ function initializeSignedInProfile() {
   watchUsername(activeProfile);
   applyDisplayName();
   subscribeToScore();
+  subscribeToUserDirectory();
+  subscribeToGrantLog();
+  renderUserResults();
   updateAdminCard();
 }
 
@@ -697,6 +791,7 @@ function initializeGuestProfile() {
   isSignedIn = false;
   isGuest = true;
   aliasName = '';
+  selectedUserAlias = '';
   activeProfile = ensureGuestProfileNode();
   watchUsername(activeProfile);
   applyDisplayName();
@@ -776,12 +871,189 @@ function awardAdminScore() {
   }
 
   const normalized = Math.round(bonus);
-  scoreManager.increment(normalized);
-  adminScoreInput.value = '';
+  if (selectedUserAlias) {
+    awardTargetUser(selectedUserAlias, normalized);
+  } else {
+    scoreManager.increment(normalized);
+    adminScoreInput.value = '';
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = `Awarded ${normalized} points to this profile.`;
+    }
+  }
+}
+
+function handleUserSearch(event) {
+  const term = typeof event?.target?.value === 'string' ? event.target.value.trim().toLowerCase() : '';
+  renderUserResults(term);
+}
+
+function renderUserResults(term = '') {
+  if (!userResultsEl) return;
+
+  const entries = Array.from(knownUsers.values()).map(profile => {
+    const stats = knownStats.get(profile.alias) || {};
+    return {
+      ...profile,
+      points: sanitizeScoreValue(stats.points || 0),
+      lastUpdated: stats.lastUpdated
+    };
+  });
+
+  const filtered = term
+    ? entries.filter(item => item.alias.toLowerCase().includes(term) || (item.username || '').toLowerCase().includes(term))
+    : entries;
+
+  filtered.sort((a, b) => b.points - a.points);
+
+  if (!filtered.length) {
+    userResultsEl.innerHTML = '<p class="helper-text">No users found. Keep typing to search.</p>';
+    return;
+  }
+
+  const topResults = filtered.slice(0, 8);
+  userResultsEl.innerHTML = topResults.map(user => {
+    const activeClass = user.alias === selectedUserAlias ? 'user-result active' : 'user-result';
+    const safeUsername = user.username || user.alias;
+    const lastUpdated = user.lastUpdated ? new Date(user.lastUpdated).toLocaleString() : 'No recent activity';
+    return `
+      <button type="button" class="${activeClass}" onclick="selectUser('${user.alias.replace(/'/g, "&#39;")}')">
+        <span class="user-meta">
+          <strong>${safeUsername}</strong>
+          <small>${user.alias} • ${lastUpdated}</small>
+        </span>
+        <span class="user-points">${user.points} pts</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function selectUser(alias) {
+  const record = knownUsers.get(alias);
+  const stats = knownStats.get(alias) || {};
+  selectedUserAlias = alias;
+  selectedUserName = record?.username || alias;
+  renderUserResults(userSearchInput ? userSearchInput.value.trim().toLowerCase() : '');
 
   if (adminScoreHelper) {
-    adminScoreHelper.innerText = `Awarded ${normalized} points to this profile.`;
+    const points = sanitizeScoreValue(stats.points || 0);
+    adminScoreHelper.innerText = `Ready to award ${selectedUserName} (${alias}) who currently has ${points} points.`;
   }
+}
+
+function subscribeToUserDirectory() {
+  // Admin grant tool relies on portal user directory to find recipients.
+  // userIndex stores per-alias metadata and userStats tracks published points
+  // so we can target their portal stat node, which syncs back to their profile score.
+  try {
+    userIndexNode.map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        knownUsers.delete(key);
+      } else {
+        knownUsers.set(key, {
+          alias: key,
+          username: (data.username || '').trim() || key.replace('@3dvr', ''),
+          createdAt: data.createdAt || 0,
+          lastLogin: data.lastLogin || 0
+        });
+      }
+      renderUserResults(userSearchInput ? userSearchInput.value.trim().toLowerCase() : '');
+    });
+
+    userStatsNode.map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        knownStats.delete(key);
+      } else {
+        knownStats.set(key, { ...data });
+      }
+      renderUserResults(userSearchInput ? userSearchInput.value.trim().toLowerCase() : '');
+    });
+  } catch (err) {
+    console.warn('Failed to subscribe to user directory', err);
+  }
+}
+
+function subscribeToGrantLog() {
+  const adminAlias = (localStorage.getItem('alias') || '').trim();
+  if (!adminAlias) return;
+  try {
+    adminGrantsNode.get(adminAlias).map().on((entry, key) => {
+      if (!key) return;
+      if (!entry) {
+        grantHistory = grantHistory.filter(item => item.key !== key);
+      } else {
+        grantHistory = grantHistory.filter(item => item.key !== key);
+        grantHistory.push({
+          key,
+          at: entry.at || Number(key),
+          amount: Number(entry.amount) || 0,
+          targetAlias: entry.targetAlias || ''
+        });
+      }
+      grantHistory.sort((a, b) => b.at - a.at);
+    });
+  } catch (err) {
+    console.warn('Failed to subscribe to grant log', err);
+  }
+}
+
+function isRateLimited(amount) {
+  const now = Date.now();
+  const recent = grantHistory.filter(item => now - item.at <= ADMIN_RATE_LIMIT.windowMs);
+  if (recent.length >= ADMIN_RATE_LIMIT.maxGrants) {
+    const minutes = Math.ceil(ADMIN_RATE_LIMIT.windowMs / 60000);
+    adminScoreHelper.innerText = `Rate limit: max ${ADMIN_RATE_LIMIT.maxGrants} grants every ${minutes} minutes.`;
+    return true;
+  }
+  if (amount > ADMIN_RATE_LIMIT.maxPointsPerGrant) {
+    adminScoreHelper.innerText = `Keep awards under ${ADMIN_RATE_LIMIT.maxPointsPerGrant} points at a time.`;
+    return true;
+  }
+  return false;
+}
+
+function awardTargetUser(alias, amount) {
+  const adminAlias = (localStorage.getItem('alias') || '').trim();
+  if (!adminAlias) {
+    adminScoreHelper.innerText = 'Sign in as an admin to grant points to other users.';
+    return;
+  }
+  const recipient = knownUsers.get(alias);
+  const currentStats = knownStats.get(alias) || {};
+  const currentPoints = sanitizeScoreValue(currentStats.points || 0);
+
+  if (isRateLimited(amount)) {
+    return;
+  }
+
+  const updatedPoints = sanitizeScoreValue(currentPoints + amount);
+  const payload = {
+    alias,
+    username: (recipient?.username || '').trim() || alias,
+    points: updatedPoints,
+    lastUpdated: Date.now(),
+    lastGrantedBy: adminAlias
+  };
+
+  // Persist award to portal stats so the recipient's profile syncs the change and writes it back to their user node.
+  userStatsNode.get(alias).put(payload, ack => {
+    if (ack && ack.err) {
+      console.warn('Failed to grant points to user', ack.err);
+      if (adminScoreHelper) {
+        adminScoreHelper.innerText = 'Could not save award. Try again in a moment.';
+      }
+      return;
+    }
+
+    const logEntry = { at: Date.now(), amount, targetAlias: alias };
+    adminGrantsNode.get(adminAlias).get(String(logEntry.at)).put(logEntry);
+
+    adminScoreInput.value = '';
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = `Awarded ${amount} points to ${payload.username}. New total: ${updatedPoints}.`;
+    }
+  });
 }
 
 function resetScore() {
