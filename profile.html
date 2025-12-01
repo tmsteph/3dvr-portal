@@ -332,6 +332,24 @@
       background: rgba(15, 23, 42, 0.02);
     }
 
+    .admin-score {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-alt);
+      border: 1px dashed rgba(37, 99, 235, 0.32);
+    }
+
+    .admin-score .input-row {
+      margin-top: 0.5rem;
+    }
+
+    .admin-score button[disabled],
+    .admin-score input[disabled] {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
     @media (max-width: 640px) {
       .input-row {
         grid-template-columns: 1fr;
@@ -406,7 +424,6 @@
       </form>
 
       <div class="actions">
-        <button type="button" onclick="addPoints(100)">+100 Points</button>
         <button type="button" class="ghost" onclick="resetScore()">Reset Score</button>
       </div>
     </article>
@@ -420,6 +437,15 @@
         <a href="/tasks/" role="button">✅ Task Board</a>
         <a href="/gun-explorer/" role="button">🕸️ Gun Explorer</a>
         <a href="/notes/" role="button">📝 Shared Notes</a>
+      </div>
+
+      <div class="admin-score" aria-live="polite">
+        <p class="label">Score controls</p>
+        <p class="helper-text" id="admin-score-helper">Sign in as an admin to award points.</p>
+        <div class="input-row">
+          <input type="number" id="admin-score-input" min="1" step="50" aria-label="Points to award" placeholder="Add points (e.g., 250)">
+          <button type="button" id="admin-score-button" onclick="awardAdminScore()">Award Score</button>
+        </div>
       </div>
     </article>
   </section>
@@ -475,6 +501,9 @@ const progressEl = document.getElementById('progress');
 const adminStatusEl = document.getElementById('admin-status');
 const adminActionsEl = document.getElementById('admin-actions');
 const adminBadgeEl = document.getElementById('admin-badge');
+const adminScoreInput = document.getElementById('admin-score-input');
+const adminScoreButton = document.getElementById('admin-score-button');
+const adminScoreHelper = document.getElementById('admin-score-helper');
 
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
@@ -509,12 +538,26 @@ function updateAdminCard() {
     Array.from(adminActionsEl.querySelectorAll('a')).forEach(link => {
       link.setAttribute('aria-disabled', 'false');
     });
+    if (adminScoreInput && adminScoreButton) {
+      adminScoreInput.removeAttribute('disabled');
+      adminScoreButton.removeAttribute('disabled');
+    }
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = 'Award points to this profile after confirming progress.';
+    }
   } else {
     adminBadgeEl.innerText = 'Admin (guest view)';
     adminStatusEl.innerText = 'Sign in to unlock admin shortcuts and synced changes.';
     Array.from(adminActionsEl.querySelectorAll('a')).forEach(link => {
       link.setAttribute('aria-disabled', 'true');
     });
+    if (adminScoreInput && adminScoreButton) {
+      adminScoreInput.setAttribute('disabled', 'true');
+      adminScoreButton.setAttribute('disabled', 'true');
+    }
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = 'Sign in as an admin to award score.';
+    }
   }
 }
 
@@ -705,10 +748,40 @@ function saveUsername() {
   nameInput.value = '';
 }
 
-function addPoints(amount) {
-  const bonus = Number(amount);
-  if (!Number.isFinite(bonus) || bonus <= 0 || !scoreManager) return;
-  scoreManager.increment(bonus);
+function awardAdminScore() {
+  if (!isSignedIn) {
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = 'Sign in as an admin to award score.';
+    }
+    return;
+  }
+
+  if (!scoreManager || typeof scoreManager.increment !== 'function') {
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = 'Score system unavailable. Please try again later.';
+    }
+    return;
+  }
+
+  if (!adminScoreInput) {
+    return;
+  }
+
+  const bonus = Number(adminScoreInput.value);
+  if (!Number.isFinite(bonus) || bonus <= 0) {
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = 'Enter a positive number of points to award.';
+    }
+    return;
+  }
+
+  const normalized = Math.round(bonus);
+  scoreManager.increment(normalized);
+  adminScoreInput.value = '';
+
+  if (adminScoreHelper) {
+    adminScoreHelper.innerText = `Awarded ${normalized} points to this profile.`;
+  }
 }
 
 function resetScore() {
