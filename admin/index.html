@@ -1057,11 +1057,15 @@
       const payload = await response.json();
       const customers = payload.customers || [];
       const updatedAt = Date.now();
+      const nextKeys = new Set();
 
       customers.forEach(record => {
-        const key = record.customerId || record.email || `customer-${Math.random()}`;
+        const key = record.aggregateKey || record.email || record.customerId || `customer-${Math.random()}`;
+        nextKeys.add(key);
         stripeCustomersNode.get(key).put({
           customerId: record.customerId || key,
+          aggregateKey: record.aggregateKey || key,
+          customerIds: record.customerIds || [],
           email: record.email || '',
           name: record.name || '',
           currency: record.currency || 'USD',
@@ -1070,6 +1074,12 @@
           lastInvoiceAt: record.lastInvoiceAt || null,
           updatedAt
         });
+      });
+
+      Object.keys(stripeCustomerRecords).forEach(existingKey => {
+        if (!nextKeys.has(existingKey)) {
+          stripeCustomersNode.get(existingKey).put(null);
+        }
       });
 
       stripeStatusEl.innerText = `Synced ${customers.length} subscribers from Stripe at ${formatDate(updatedAt)}.`;

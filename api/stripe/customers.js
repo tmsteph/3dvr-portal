@@ -13,6 +13,10 @@ function toMilliseconds(seconds) {
   }
 }
 
+function normalizeEmail(email) {
+  return (email || '').trim().toLowerCase();
+}
+
 function summarizeInvoices(invoices) {
   const totals = new Map();
 
@@ -27,9 +31,13 @@ function summarizeInvoices(invoices) {
     const amountPaid = typeof invoice.amount_paid === 'number' ? invoice.amount_paid : 0;
     const email = invoice.customer_email || invoice.customer?.email || '';
     const name = invoice.customer_name || invoice.customer?.name || '';
+    const aggregateKey = normalizeEmail(email) || customerId;
 
-    const existing = totals.get(customerId) || {
-      customerId,
+    if (!aggregateKey) return;
+
+    const existing = totals.get(aggregateKey) || {
+      aggregateKey,
+      customerIds: new Set(),
       currency,
       amountPaid: 0,
       invoiceCount: 0,
@@ -38,16 +46,23 @@ function summarizeInvoices(invoices) {
       lastInvoiceAt: null,
     };
 
+    existing.customerIds.add(customerId);
     existing.amountPaid += amountPaid;
     existing.invoiceCount += 1;
     existing.lastInvoiceAt = Math.max(existing.lastInvoiceAt || 0, toMilliseconds(invoice.created) || 0) || existing.lastInvoiceAt;
 
     if (email && !existing.email) existing.email = email;
     if (name && !existing.name) existing.name = name;
-    totals.set(customerId, existing);
+    if (!existing.currency) existing.currency = currency;
+    totals.set(aggregateKey, existing);
   });
 
-  return Array.from(totals.values()).sort((a, b) => b.amountPaid - a.amountPaid);
+  return Array.from(totals.values())
+    .map(entry => ({
+      ...entry,
+      customerIds: Array.from(entry.customerIds),
+    }))
+    .sort((a, b) => b.amountPaid - a.amountPaid);
 }
 
 export default async function handler(req, res) {
