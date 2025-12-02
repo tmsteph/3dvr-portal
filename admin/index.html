@@ -663,10 +663,10 @@
       if (!data) {
         delete stripeCustomerRecords[key];
       } else {
-        stripeCustomerRecords[key] = {
+        stripeCustomerRecords[key] = normalizeStripeRecord({
           ...stripeCustomerRecords[key],
           ...data
-        };
+        });
       }
       renderStripeCustomers();
     });
@@ -749,7 +749,8 @@
 
   function renderStripeCustomers() {
     const records = Object.values(stripeCustomerRecords)
-      .filter(item => typeof item.amountPaid === 'number')
+      .map(normalizeStripeRecord)
+      .filter(item => typeof item.amountPaid === 'number' && !Number.isNaN(item.amountPaid))
       .sort((a, b) => b.amountPaid - a.amountPaid);
 
     if (!records.length) {
@@ -1027,6 +1028,23 @@
     return trimmed.includes('@') ? trimmed : `${trimmed}@3dvr`;
   }
 
+  function normalizeStripeRecord(record = {}) {
+    const amountPaid = Number(record.amountPaid);
+    const invoiceCount = Number(record.invoiceCount);
+    const currency = (record.currency || 'USD').toUpperCase();
+
+    return {
+      ...record,
+      aggregateKey: record.aggregateKey || record.email || record.customerId || '',
+      amountPaid: Number.isNaN(amountPaid) ? 0 : amountPaid,
+      invoiceCount: Number.isNaN(invoiceCount) ? 0 : invoiceCount,
+      currency,
+      lastInvoiceAt: record.lastInvoiceAt || null,
+      name: record.name || '',
+      email: record.email || ''
+    };
+  }
+
   function buildRequestMessage(data) {
     const status = data.status || 'pending';
     if (status === 'approved') {
@@ -1062,15 +1080,17 @@
       customers.forEach(record => {
         const key = record.aggregateKey || record.email || record.customerId || `customer-${Math.random()}`;
         nextKeys.add(key);
+        stripeCustomerRecords[key] = normalizeStripeRecord({ ...record, aggregateKey: record.aggregateKey || key });
+        renderStripeCustomers();
         stripeCustomersNode.get(key).put({
           customerId: record.customerId || key,
           aggregateKey: record.aggregateKey || key,
           customerIds: record.customerIds || [],
           email: record.email || '',
           name: record.name || '',
-          currency: record.currency || 'USD',
-          amountPaid: record.amountPaid || 0,
-          invoiceCount: record.invoiceCount || 0,
+          currency: (record.currency || 'USD').toUpperCase(),
+          amountPaid: Number(record.amountPaid || 0),
+          invoiceCount: Number(record.invoiceCount || 0),
           lastInvoiceAt: record.lastInvoiceAt || null,
           updatedAt
         });
