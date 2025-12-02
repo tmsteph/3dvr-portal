@@ -1,5 +1,5 @@
 # Score + Stripe Integration Plan
 
-This plan moved to **notes/plans/score-stripe-integration/README.md** for easier discovery from the shared plans area.
+This plan moved out of the notes workspace into the dedicated score rewards hub.
 
-You can open the latest version here: [/notes/plans/score-stripe-integration/README.md](./plans/score-stripe-integration/README.md).
+You can open the latest version here: [/score-rewards/](../score-rewards/).
