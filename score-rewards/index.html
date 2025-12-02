@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stripe-linked Score Rewards</title>
+  <link rel="stylesheet" href="/styles/global.css" />
+  <style>
+    body {
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #0f172a, #111827);
+      color: #e5e7eb;
+      margin: 0;
+      min-height: 100vh;
+    }
+    .page-shell {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      gap: 12px;
+    }
+    .top-nav a {
+      color: #a5b4fc;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .top-nav a:hover {
+      color: #c4d3ff;
+    }
+    h1 {
+      font-size: 2.2rem;
+      margin: 12px 0 8px;
+      color: #fff;
+    }
+    p.lede {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #e5e7eb;
+      max-width: 820px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(99, 102, 241, 0.14);
+      color: #c7d2fe;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin: 16px 0 8px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 18px 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+    .card h3 {
+      margin: 0 0 8px;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+    .card p, .card li {
+      color: #d1d5db;
+      line-height: 1.5;
+    }
+    section {
+      margin-top: 28px;
+    }
+    section h2 {
+      margin: 0 0 10px;
+      color: #f9fafb;
+    }
+    ul, ol {
+      padding-left: 18px;
+    }
+    dl {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin: 12px 0;
+    }
+    dt {
+      font-weight: 700;
+      color: #e0e7ff;
+    }
+    dd {
+      margin: 4px 0 0;
+      color: #cbd5e1;
+    }
+    .tag {
+      display: inline-block;
+      background: rgba(52, 211, 153, 0.12);
+      color: #6ee7b7;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    @media (max-width: 640px) {
+      .top-nav {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <nav class="top-nav" aria-label="Breadcrumb">
+      <a href="/index.html">⬅ Back to portal</a>
+      <a href="/points.html">View points overview</a>
+    </nav>
+
+    <div class="pill">Stripe-linked score rewards</div>
+    <h1>Protect the pool, reward growth</h1>
+    <p class="lede">
+      This plan ties score balances to real Stripe inflows while pacing redemptions so the account stays healthy. Buying,
+      selling, and subscriptions all mint points through the same ledger with reserve floors, daily caps, and cooldowns
+      that prevent drains.
+    </p>
+
+    <section>
+      <h2>Objectives</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Map Stripe to score</h3>
+          <p>Treat Stripe payments and subscriptions as on-ramps for minting points that reflect each member’s contribution.</p>
+        </div>
+        <div class="card">
+          <h3>Guard against drains</h3>
+          <p>Use reserve floors, pacing caps, and cooldowns so no single request can empty the Stripe balance.</p>
+        </div>
+        <div class="card">
+          <h3>Enable buy and sell</h3>
+          <p>Create a clear marketplace where people can purchase score or redeem it back into the pool with approvals.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Data model (Gun-first)</h2>
+      <dl>
+        <div>
+          <dt>Stripe namespace</dt>
+          <dd>Store normalized events under <code>gun.get('stripe').get('events')</code> and customer metadata under <code>gun.get('stripe').get('customers')</code>.</dd>
+        </div>
+        <div>
+          <dt>Score ledger</dt>
+          <dd>Write every award or redemption to <code>gun.get('score').get('ledger')</code> with event ids, customer ids, amounts, currencies, and rule versions.</dd>
+        </div>
+        <div>
+          <dt>Aggregates</dt>
+          <dd>Cache pool totals per currency at <code>gun.get('score').get('totals')</code> for quick UI reads.</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section>
+      <h2>Earning rules</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>One-time payments</h3>
+          <p>Mint <strong>10 points per net dollar</strong> (configurable) with currency multipliers and round down to avoid over-awarding.</p>
+        </div>
+        <div class="card">
+          <h3>Subscriptions</h3>
+          <p>Add a recurring monthly bonus after <code>invoice.payment_succeeded</code>, capped to one bonus per period.</p>
+        </div>
+        <div class="card">
+          <h3>Referrals</h3>
+          <p>Mirror <strong>10% of the subscription bonus</strong> to the referrer when <code>customer.referrerPub</code> is present.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Redemption &amp; anti-drain guardrails</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Reserve floor</h3>
+          <p>Lock <strong>35%</strong> of the Stripe balance as untouchable reserve before any payout is approved.</p>
+        </div>
+        <div class="card">
+          <h3>Pacing caps</h3>
+          <p>Limit daily unlocks to 10% of available funds or a fixed ceiling per currency, whichever is lower.</p>
+        </div>
+        <div class="card">
+          <h3>Cooldowns &amp; approvals</h3>
+          <p>Enforce 7-day waits between user withdrawals and require dual approvals for requests over $500 equivalent.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Buy, sell, and price score</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Buying score</h3>
+          <p>Checkout sessions tagged with <code>userPub</code> mint points from the payment amount and log to the ledger.</p>
+        </div>
+        <div class="card">
+          <h3>Selling score</h3>
+          <p>Redemption requests sit in <code>score/redemptions</code> until reserve, pacing, and cooldown checks mark them approved.</p>
+        </div>
+        <div class="card">
+          <h3>Marketplace pricing</h3>
+          <p>Publish live <code>pointValue</code> per currency at <code>score/pricing</code>, net of a 2–5% sustainability fee.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Stripe webhook handling</h2>
+      <ol>
+        <li>Verify signatures with <code>STRIPE_WEBHOOK_SECRET</code> and deduplicate by event id.</li>
+        <li>Update Stripe customer metadata and normalize payloads into <code>stripe/events</code>.</li>
+        <li>Mint points using earning rules, write ledger entries, and refresh <code>score/totals</code>.</li>
+        <li>Persist <code>lastEventId</code> on each Stripe customer node for replay protection.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Incentives to grow the pot</h2>
+      <div>
+        <span class="tag">Growth multipliers</span>
+        <span class="tag">Tiered referrals</span>
+        <span class="tag">Rollover rewards</span>
+      </div>
+      <p>
+        Publish weekly inflow growth bonuses, award larger referral shares as more active subscribers join, and grant
+        compounding boosters for members who defer redemptions to keep the shared pool growing.
+      </p>
+    </section>
+
+    <section>
+      <h2>Next steps</h2>
+      <ol>
+        <li>Ship the signed Stripe webhook route that writes normalized events into Gun.</li>
+        <li>Implement the scoring service that updates the ledger plus <code>score/totals</code> with reserve and pacing checks.</li>
+        <li>Expose pool totals and redemption eligibility inside points and rewards dashboards.</li>
+        <li>Tag subscription creation flows with <code>userPub</code> metadata so monthly bonuses post automatically.</li>
+      </ol>
+    </section>
+  </div>
+</body>
+</html>

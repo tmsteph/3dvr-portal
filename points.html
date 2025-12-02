@@ -39,10 +39,18 @@
             When redemptions launch, we will publish the pool size, calculate the value per point, and let you cash in or
             roll points forward for future drops.
           </p>
+          <p>
+            Stripe payments are now mapped directly to score. One-time payments mint points from the net charge, while
+            subscriptions add a recurring monthly bonus so supporters accumulate a larger share the longer they stay
+            active.
+          </p>
+          <p class="info-note">
+            See the full Stripe-linked score safeguards in the <a href="/score-rewards/">score rewards plan</a>.
+          </p>
           <dl class="points-stats">
             <div>
               <dt>Current status</dt>
-              <dd>In design &mdash; tracking contributions only</dd>
+              <dd>Designing Stripe-aligned score minting &amp; guardrails</dd>
             </div>
             <div>
               <dt>Redemption model</dt>
@@ -95,6 +103,40 @@
             <article>
               <h3>Opt-in flexibility</h3>
               <p>Keep points for long-term rewards or redeem them during seasonal cash-out windows.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="points-section">
+        <div class="section-card">
+          <h2>Stripe-linked score economy</h2>
+          <p>
+            Score growth is tied to real revenue while keeping the Stripe balance safe from drains. We enforce a reserve floor
+            so redemptions never empty the account, set daily pacing caps, and add cooldowns between withdrawals to stop rapid
+            outflows.
+          </p>
+          <div class="transparency-grid">
+            <article>
+              <h3>Buying score</h3>
+              <p>
+                Checkout sessions tagged with your 3dvr.tech identity mint points from the payment amount. If you bring new
+                members, referral links mirror a share of their monthly subscription bonus to your balance.
+              </p>
+            </article>
+            <article>
+              <h3>Selling score</h3>
+              <p>
+                Redemptions move through a review queue with reserve checks, multi-approver thresholds, and short cooldowns.
+                Pending requests stay visible in the ledger until funds are approved and paid out through Stripe.
+              </p>
+            </article>
+            <article>
+              <h3>Subscription boosts</h3>
+              <p>
+                Active subscriptions add recurring score drops every billing cycle. Long-term subscribers unlock growth
+                multipliers that make the shared pot larger for everyone, encouraging renewals over one-time withdrawals.
+              </p>
             </article>
           </div>
         </div>
