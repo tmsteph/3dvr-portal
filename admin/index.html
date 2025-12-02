@@ -228,6 +228,12 @@
     flex-wrap: wrap;
   }
 
+  .stripe-status {
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
   button {
     border: none;
     border-radius: 10px;
@@ -384,6 +390,36 @@
       </div>
 
       <div class="card">
+        <div class="actions" style="justify-content: space-between; align-items: center;">
+          <div>
+            <h2 style="margin: 0 0 4px;">Stripe Subscriber Leaderboard</h2>
+            <p class="text-muted" style="margin: 0;">100 points per dollar spent across paid invoices.</p>
+          </div>
+          <button id="stripe-refresh" class="btn-primary" type="button">Refresh from Stripe</button>
+        </div>
+        <div class="table-wrapper" style="margin-top: 12px;">
+          <table aria-label="Stripe subscriber leaderboard">
+            <thead>
+              <tr>
+                <th scope="col">Rank</th>
+                <th scope="col">Subscriber</th>
+                <th scope="col">Email</th>
+                <th scope="col">Amount Spent</th>
+                <th scope="col">Points</th>
+                <th scope="col">Last Invoice</th>
+              </tr>
+            </thead>
+            <tbody id="stripe-customer-table">
+              <tr class="empty-state">
+                <td colspan="6">Waiting for Stripe data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="stripe-status" class="stripe-status"></p>
+      </div>
+
+      <div class="card">
         <h2>User Points Overview</h2>
         <div class="table-wrapper">
           <table aria-describedby="total-users">
@@ -442,6 +478,8 @@
   const userIndex = portalRoot.get('userIndex');
   const userStats = portalRoot.get('userStats');
   const workbenchDefaults = portalRoot.get('ai-workbench').get('defaults');
+  // Stripe subscriber summaries live under finance/stripeCustomers to keep shared totals in GunJS.
+  const stripeCustomersNode = portalRoot.get('finance').get('stripeCustomers');
 
   const alias = localStorage.getItem('alias');
   const password = localStorage.getItem('password');
@@ -451,6 +489,7 @@
 
   const userRecords = {};
   const pointsRecords = {};
+  const stripeCustomerRecords = {};
   const adminRecords = {};
   const requestRecords = {};
   let defaultRecord = {};
@@ -474,6 +513,9 @@
   const addAdminButton = document.getElementById('add-admin-button');
   const requestListEl = document.getElementById('request-list');
   const leaderboardEl = document.getElementById('leaderboard');
+  const stripeTableEl = document.getElementById('stripe-customer-table');
+  const stripeStatusEl = document.getElementById('stripe-status');
+  const stripeRefreshBtn = document.getElementById('stripe-refresh');
   const defaultsCard = document.getElementById('defaults-card');
   const defaultKeyInput = document.getElementById('default-api-key');
   const defaultPassphraseInput = document.getElementById('default-api-passphrase');
@@ -616,6 +658,19 @@
       renderRequests();
     });
 
+    stripeCustomersNode.map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        delete stripeCustomerRecords[key];
+      } else {
+        stripeCustomerRecords[key] = {
+          ...stripeCustomerRecords[key],
+          ...data
+        };
+      }
+      renderStripeCustomers();
+    });
+
     if (isAdmin) {
       workbenchDefaults.on(data => {
         defaultRecord = data || {};
@@ -688,6 +743,39 @@
           </div>
           <div class="leaderboard-points">${record.points} pts</div>
         </li>
+      `;
+    }).join('');
+  }
+
+  function renderStripeCustomers() {
+    const records = Object.values(stripeCustomerRecords)
+      .filter(item => typeof item.amountPaid === 'number')
+      .sort((a, b) => b.amountPaid - a.amountPaid);
+
+    if (!records.length) {
+      stripeTableEl.innerHTML = '<tr class="empty-state"><td colspan="6">No Stripe subscribers yet.</td></tr>';
+      return;
+    }
+
+    stripeTableEl.innerHTML = records.map((record, index) => {
+      const dollars = (record.amountPaid || 0) / 100;
+      const points = Math.round(dollars * 100);
+      const rank = index + 1;
+      const email = escapeHtml(record.email || '—');
+      const name = escapeHtml(record.name || '—');
+      const lastInvoice = record.lastInvoiceAt ? formatDate(record.lastInvoiceAt) : '—';
+      const currency = (record.currency || 'USD').toUpperCase();
+      const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency });
+
+      return `
+        <tr>
+          <td>${rank}</td>
+          <td>${name}</td>
+          <td>${email}</td>
+          <td>${formatter.format(dollars)}</td>
+          <td>${points.toLocaleString()} pts</td>
+          <td>${lastInvoice}</td>
+        </tr>
       `;
     }).join('');
   }
@@ -950,6 +1038,48 @@
     return 'You already have a pending request. We will notify tmsteph.';
   }
 
+  async function refreshStripeCustomers() {
+    if (!isAdmin) {
+      setStatus('Only admins can refresh Stripe subscriber data.');
+      return;
+    }
+
+    stripeStatusEl.innerText = 'Fetching latest Stripe subscribers...';
+    stripeRefreshBtn.disabled = true;
+
+    try {
+      const response = await fetch('/api/stripe/customers');
+      if (!response.ok) {
+        stripeStatusEl.innerText = 'Unable to load Stripe customers right now.';
+        return;
+      }
+
+      const payload = await response.json();
+      const customers = payload.customers || [];
+      const updatedAt = Date.now();
+
+      customers.forEach(record => {
+        const key = record.customerId || record.email || `customer-${Math.random()}`;
+        stripeCustomersNode.get(key).put({
+          customerId: record.customerId || key,
+          email: record.email || '',
+          name: record.name || '',
+          currency: record.currency || 'USD',
+          amountPaid: record.amountPaid || 0,
+          invoiceCount: record.invoiceCount || 0,
+          lastInvoiceAt: record.lastInvoiceAt || null,
+          updatedAt
+        });
+      });
+
+      stripeStatusEl.innerText = `Synced ${customers.length} subscribers from Stripe at ${formatDate(updatedAt)}.`;
+    } catch (error) {
+      stripeStatusEl.innerText = 'Failed to refresh Stripe data. Please try again.';
+    } finally {
+      stripeRefreshBtn.disabled = false;
+    }
+  }
+
   requestButton.addEventListener('click', () => {
     if (!alias) {
       setStatus('Please sign in before requesting admin access.');
@@ -993,6 +1123,7 @@
 
   saveDefaultKeyBtn.addEventListener('click', saveDefaultKey);
   clearDefaultKeyBtn.addEventListener('click', clearDefaultKey);
+  stripeRefreshBtn.addEventListener('click', refreshStripeCustomers);
 
   window.addEventListener('load', init);
   </script>
