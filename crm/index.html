@@ -376,6 +376,7 @@
       const sorted = entries.slice().sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
       const rows = sorted.slice(0, 5).map(entry => {
         const followUp = entry.followUp ? safe(entry.followUp) : 'Not scheduled';
+        const noteLine = entry.note ? `<p class="text-xs text-gray-200 mt-2 whitespace-pre-line">Touch notes: ${safe(entry.note)}</p>` : '';
         const contactName = entry.contactName ? safe(entry.contactName) : 'Unnamed contact';
         const timeLabel = entry.timestamp ? safe(timeAgo(entry.timestamp)) : 'Unknown time';
         const absTime = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '';
@@ -387,6 +388,7 @@
               <span class="text-xs text-gray-400" title="${safeAttr(absTime)}">${timeLabel}</span>
             </div>
             <p class="text-xs text-gray-300 mt-1">Next follow-up: ${followUp}</p>
+            ${noteLine}
             <p class="text-xs text-gray-400">Logged by ${loggedBy}</p>
           </div>
         `;
@@ -1292,14 +1294,112 @@
       crmRecords.get(id).put(null);
     }
 
-    function logTouch(id) {
+    function openTouchPrompt(record) {
+      return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto flex items-start justify-center';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.innerHTML = `
+          <div class="w-full max-w-xl bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 space-y-4" role="document">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-[0.32em] text-amber-300">Log touch</p>
+                <h3 class="text-xl font-semibold text-white">${safe(record.name || record.email || 'Unnamed contact')}</h3>
+                <p class="text-sm text-gray-300">Capture quick context now or leave blank to add later.</p>
+              </div>
+              <button type="button" class="text-sm text-gray-300 hover:text-white" data-touch-cancel>Cancel</button>
+            </div>
+            <form class="space-y-4" data-touch-form>
+              <div class="space-y-2">
+                <label class="block text-sm text-gray-200">Any notes about this touch?</label>
+                <textarea class="w-full p-2 rounded text-black" rows="3" placeholder="Add quick notes (optional)" data-touch-note></textarea>
+                <p class="text-xs text-gray-400">You can leave this empty and add notes later.</p>
+              </div>
+              <div class="space-y-2">
+                <label class="block text-sm text-gray-200" for="touch-follow-up">Schedule the next touch</label>
+                <input id="touch-follow-up" type="date" class="w-full p-2 rounded text-black" data-touch-follow-up />
+                <p class="text-xs text-gray-400">Choose a date or skip for now—you can set a follow-up later.</p>
+                <button type="button" class="text-xs text-sky-300 hover:text-sky-200" data-touch-clear-follow>Skip follow-up date</button>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded text-sm font-medium">Log touch</button>
+                <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm" data-touch-skip>Log without updates</button>
+              </div>
+            </form>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const form = overlay.querySelector('[data-touch-form]');
+        const noteInput = overlay.querySelector('[data-touch-note]');
+        const followInput = overlay.querySelector('[data-touch-follow-up]');
+        const skipBtn = overlay.querySelector('[data-touch-skip]');
+        const cancelBtn = overlay.querySelector('[data-touch-cancel]');
+        const clearFollowBtn = overlay.querySelector('[data-touch-clear-follow]');
+
+        if (followInput && record.nextFollowUp) {
+          followInput.value = normalizeFollowUpInput(record.nextFollowUp);
+        }
+
+        function close(result) {
+          if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+          }
+          resolve(result);
+        }
+
+        overlay.addEventListener('click', evt => {
+          if (evt.target === overlay) {
+            close(null);
+          }
+        });
+
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', () => close(null));
+        }
+
+        if (clearFollowBtn && followInput) {
+          clearFollowBtn.addEventListener('click', evt => {
+            evt.preventDefault();
+            followInput.value = '';
+          });
+        }
+
+        if (skipBtn) {
+          skipBtn.addEventListener('click', evt => {
+            evt.preventDefault();
+            close({ notes: '', followUp: '' });
+          });
+        }
+
+        if (form) {
+          form.addEventListener('submit', evt => {
+            evt.preventDefault();
+            const notes = noteInput ? noteInput.value.trim() : '';
+            const followUp = followInput ? followInput.value : '';
+            close({ notes, followUp });
+          });
+        }
+      });
+    }
+
+    async function logTouch(id) {
       const record = sanitizeRecord(crmIndex[id]);
       if (!record || Object.keys(record).length === 0) return;
       const now = new Date().toISOString();
-      const followUpInput = window.prompt('When can you follow up?', record.nextFollowUp || '');
-      const followUpValue = normalizeFollowUpInput(followUpInput || record.nextFollowUp || '');
+      const promptResult = await openTouchPrompt(record);
+      if (!promptResult) return;
+      const followUpValue = normalizeFollowUpInput(promptResult.followUp || record.nextFollowUp || '');
+      const touchNotes = (promptResult.notes || '').trim();
       const touchesRaw = Number.parseInt(record.activityCount, 10);
       const touches = Number.isNaN(touchesRaw) ? 0 : touchesRaw;
+      const notePrefix = touchNotes
+        ? `[Touch ${new Date(now).toLocaleString()}] ${touchNotes}`
+        : '';
+      const mergedNotes = notePrefix
+        ? (record.notes ? `${record.notes}\n\n${notePrefix}` : notePrefix)
+        : record.notes || '';
       const next = {
         ...record,
         id,
@@ -1307,6 +1407,7 @@
         lastContacted: now,
         activityCount: touches + 1,
         nextFollowUp: followUpValue || record.nextFollowUp || '',
+        notes: mergedNotes,
         updated: now,
         created: record.created || now
       };
@@ -1319,6 +1420,7 @@
           contactName: record.name || record.email || 'Unnamed contact',
           timestamp: now,
           followUp: followUpValue || record.nextFollowUp || '',
+          note: touchNotes,
           participantId,
           loggedBy: getParticipantLabel()
         };
