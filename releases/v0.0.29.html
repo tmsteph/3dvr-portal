@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.29 (Week of December 8, 2025)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.28.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.29</h1>
+  <div class="tag">Week of December 8, 2025</div>
+  <p class="release-summary">
+    Rewards and CRM alignment: Stripe subscribers now power score tallies and leaderboards, admins can grant or search
+    points with confidence, and CRM follow-ups log touches faster through guided dialogs and weekly challenges.
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      This sprint ties finance signals directly into rewards and CRM execution. Stripe subscribers dedupe into a live
+      leaderboard, the admin console can search accounts and award points immediately, and the portal surfaces score
+      rewards in the app hub. CRM contributors gain a weekly contact challenge plus a guided touch logger that pairs
+      notes with scheduled follow-ups so revenue teams keep momentum.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Portal quick links</h2>
+    <ul>
+      <li><a href="../index.html">Portal home</a> – hop across workspaces and the release hub.</li>
+      <li><a href="../releases/index.html">Release hub</a> – browse every weekly milestone.</li>
+      <li>
+        <a href="../admin/index.html">Admin</a> – grant points, review subscriber leaderboards, and manage rewards.
+      </li>
+      <li>
+        <a href="../sales/index.html">Sales</a> – keep score cards, top performers, and contact follow-ups in view.
+      </li>
+      <li>
+        <a href="../contacts/index.html">CRM &amp; contacts</a> – log touches, schedule follow-ups, and track the weekly
+        challenge.
+      </li>
+      <li>
+        <a href="../finance/index.html">Finance</a> – reconcile ledgers, track Stripe subscriber sync, and review forecasts.
+      </li>
+      <li><a href="../tasks/index.html">Tasks</a> – scan updated summaries and cross-links to calendar items.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Rewards, score, &amp; finance</h2>
+    <ul>
+      <li>Transform Stripe subscribers into score tallies with deduping by email and immediate refreshes so the
+      leaderboard reflects the latest plans.</li>
+      <li>Surface subscriber score cards and rewards in the app hub so contributors can celebrate the latest balances.</li>
+      <li>Enable admin search and manual point grants from the console while keeping Gun-backed identity as the source
+      of truth.</li>
+      <li>Highlight top sales performers with live leaderboard tiles to keep revenue teams motivated.</li>
+      <li>Organize Stripe plans and safeguards to keep score logic discoverable while aligning with finance summaries.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>CRM &amp; follow-ups</h2>
+    <ul>
+      <li>Introduce a weekly contact logging challenge so CRM owners have a simple target to keep outreach consistent.</li>
+      <li>Add a touch logging dialog that pairs note-taking with follow-up scheduling to keep context attached to every
+      interaction.</li>
+      <li>Keep identity and merge guidance close to contact edits to reduce duplicates while writing back through shared
+      Gun nodes.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Workbench &amp; deployment guides</h2>
+    <ul>
+      <li>Link OpenAI Workbench directly to GitHub and Vercel setup guides so developers can ship generated sites
+      without losing context.</li>
+      <li>Clarify vault handling for OpenAI keys and deployment secrets, keeping Gun syncing as the underlying source of
+      truth.</li>
+      <li>Prioritize app search rankings by name to make new directories and builder experiences easier to discover.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Reliability &amp; sync</h2>
+    <ul>
+      <li>Maintain Gun as the authority for score and contact changes while surfacing deduped subscriber states across
+      devices.</li>
+      <li>Keep dark theme readability and responsive spacing for the release hub and finance views on desktop and
+      mobile.</li>
+      <li>Retain navigational breadcrumbs between admin, sales, and CRM spaces so reviewers can bounce between leaderboards
+      and follow-ups without losing their place.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2025 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
