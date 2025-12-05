@@ -1,14 +1,14 @@
 :root {
-  --accent: #7c6cf6;
-  --accent-strong: #5a50d4;
-  --accent-soft: #eeecff;
-  --bg: #f3f4fb;
-  --card: #ffffff;
-  --text: #1f2428;
-  --muted: #4d5a65;
-  --border: #e0e7f0;
-  --ghost: #eef2fa;
-  --ghost-strong: #e2e5f5;
+  --accent: #a5a9ff;
+  --accent-strong: #8a8fe3;
+  --accent-soft: #1c2233;
+  --bg: #0f131c;
+  --card: #161c27;
+  --text: #e6edf7;
+  --muted: #a1acc2;
+  --border: #293347;
+  --ghost: #1d2432;
+  --ghost-strong: #252e3f;
 }
 
 body {
@@ -29,7 +29,7 @@ header {
   background: var(--card);
   padding: 20px;
   border-radius: 16px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 header h1 {
@@ -54,7 +54,7 @@ header .lede {
   background: var(--card);
   border-radius: 16px;
   padding: 18px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .info-card {
@@ -106,14 +106,14 @@ input[type="password"],
 textarea,
 select {
   border-radius: 10px;
-  border: 1px solid #d5dce4;
+  border: 1px solid var(--border);
   padding: 10px 12px;
   font-size: 1rem;
   font-family: 'Poppins', sans-serif;
   width: 100%;
   box-sizing: border-box;
-  color: #1f2428;
-  background: #fbfdff;
+  color: var(--text);
+  background: var(--ghost);
 }
 
 textarea {
@@ -142,7 +142,7 @@ button.primary:hover {
 
 button.ghost {
   background: var(--ghost);
-  color: #1f2428;
+  color: var(--text);
 }
 
 button.ghost:hover {
@@ -162,7 +162,7 @@ button.ghost:hover {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
-  color: #1f2428;
+  color: var(--text);
   white-space: pre-wrap;
 }
 
@@ -171,7 +171,7 @@ button.ghost:hover {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 12px;
-  color: #1f2428;
+  color: var(--text);
 }
 
 #history {
@@ -187,11 +187,11 @@ button.ghost:hover {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
-  background: #fbfdff;
+  background: var(--ghost);
 }
 
 #history .meta {
-  color: #6c7681;
+  color: var(--muted);
   margin-top: 6px;
   font-size: 0.9rem;
 }
@@ -215,7 +215,7 @@ iframe {
 }
 
 .meta {
-  color: #6c7681;
+  color: var(--muted);
   margin-top: 4px;
 }
 
@@ -234,7 +234,7 @@ iframe {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
-  background: #fbfdff;
+  background: var(--ghost);
 }
 
 #deployments a,
@@ -249,7 +249,7 @@ iframe {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 6px;
-  color: #6c7681;
+  color: var(--muted);
 }
 
 @media (min-width: 960px) {
