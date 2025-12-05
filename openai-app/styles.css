@@ -1,7 +1,20 @@
+:root {
+  --accent: #7c6cf6;
+  --accent-strong: #5a50d4;
+  --accent-soft: #eeecff;
+  --bg: #f3f4fb;
+  --card: #ffffff;
+  --text: #1f2428;
+  --muted: #4d5a65;
+  --border: #e0e7f0;
+  --ghost: #eef2fa;
+  --ghost-strong: #e2e5f5;
+}
+
 body {
   font-family: 'Poppins', sans-serif;
-  background: #e9f0f5;
-  color: #1f2428;
+  background: var(--bg);
+  color: var(--text);
   margin: 0;
   padding: 20px;
 }
@@ -13,7 +26,7 @@ main {
 }
 
 header {
-  background: #ffffff;
+  background: var(--card);
   padding: 20px;
   border-radius: 16px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
@@ -25,7 +38,7 @@ header h1 {
 }
 
 header .lede {
-  color: #4d5a65;
+  color: var(--muted);
   margin: 0;
 }
 
@@ -33,19 +46,19 @@ header .lede {
   text-transform: uppercase;
   letter-spacing: 1px;
   font-size: 0.8rem;
-  color: #5ca0d3;
+  color: var(--accent);
   margin: 0;
 }
 
 .card {
-  background: #ffffff;
+  background: var(--card);
   border-radius: 16px;
   padding: 18px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
 }
 
 .info-card {
-  border-left: 4px solid #5ca0d3;
+  border-left: 4px solid var(--accent);
 }
 
 .card-header {
@@ -71,7 +84,7 @@ label {
 }
 
 .primary-link {
-  background: #66c2b0;
+  background: var(--accent);
   color: #ffffff;
   padding: 10px 16px;
   border-radius: 10px;
@@ -80,7 +93,7 @@ label {
 }
 
 .primary-link:hover {
-  background: #5ca0d3;
+  background: var(--accent-strong);
 }
 
 .input-row {
@@ -119,21 +132,21 @@ button {
 }
 
 button.primary {
-  background: #66c2b0;
+  background: var(--accent);
   color: #ffffff;
 }
 
 button.primary:hover {
-  background: #5ca0d3;
+  background: var(--accent-strong);
 }
 
 button.ghost {
-  background: #eef3f7;
+  background: var(--ghost);
   color: #1f2428;
 }
 
 button.ghost:hover {
-  background: #dfe9f2;
+  background: var(--ghost-strong);
 }
 
 .select-group {
@@ -145,8 +158,8 @@ button.ghost:hover {
 
 .output {
   min-height: 120px;
-  background: #f6f8fb;
-  border: 1px solid #e0e7f0;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
   color: #1f2428;
@@ -154,8 +167,8 @@ button.ghost:hover {
 }
 
 .status {
-  background: #f6f8fb;
-  border: 1px solid #e0e7f0;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 12px;
   color: #1f2428;
@@ -171,7 +184,7 @@ button.ghost:hover {
 }
 
 #history li {
-  border: 1px solid #e0e7f0;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
   background: #fbfdff;
@@ -196,9 +209,9 @@ button.ghost:hover {
 iframe {
   width: 100%;
   min-height: 300px;
-  border: 1px solid #e0e7f0;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--card);
 }
 
 .meta {
@@ -218,7 +231,7 @@ iframe {
 
 #deployments li,
 #github-history li {
-  border: 1px solid #e0e7f0;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
   background: #fbfdff;
@@ -226,7 +239,7 @@ iframe {
 
 #deployments a,
 #github-history a {
-  color: #5ca0d3;
+  color: var(--accent);
   font-weight: 700;
 }
 
