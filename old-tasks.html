@@ -191,6 +191,22 @@ button:hover {
   color: #334;
 }
 
+.edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.edit-input {
+  flex: 1;
+  min-width: 260px;
+  max-width: 100%;
+  border: 1px solid #d1d9de;
+  background: #fff;
+  color: #333;
+}
+
 .name-label input {
   min-width: 220px;
 }
@@ -321,6 +337,10 @@ function getCreatedAt(task) {
     : 0;
 }
 
+function getTaskText(task) {
+  return typeof task.text === 'string' ? task.text.trim() : '';
+}
+
 function getPriority(task) {
   const priority = typeof task.priority === 'string' ? task.priority : '';
   return PRIORITY_LEVELS.includes(priority) ? priority : 'Medium';
@@ -364,6 +384,12 @@ function addTask() {
   tasks.set({ text, priority, createdAt: Date.now(), assignedTo });
   document.getElementById('task-input').value = '';
   document.getElementById('assignee-input').value = '';
+}
+
+function updateTaskText(taskId, newText) {
+  const trimmed = newText.trim();
+  if (!trimmed) return;
+  tasks.get(taskId).put({ text: trimmed });
 }
 
 document.getElementById('sort-mode').onchange = event => {
@@ -431,10 +457,40 @@ function renderTasks() {
       const timestamp = createdAt ? timeAgoOrFullDate(createdAt) : 'Just now';
       const priority = getPriority(task);
       const assignee = getAssignee(task);
+      const taskText = getTaskText(task);
 
       const textDiv = document.createElement('div');
       textDiv.className = 'task-text';
-      textDiv.textContent = task.text;
+      textDiv.textContent = taskText || 'Untitled task';
+
+      const editRow = document.createElement('div');
+      editRow.className = 'edit-row';
+
+      const editLabel = document.createElement('label');
+      editLabel.className = 'sr-only';
+      editLabel.setAttribute('for', `edit-${id}`);
+      editLabel.textContent = 'Edit task text';
+
+      const editInput = document.createElement('input');
+      editInput.type = 'text';
+      editInput.className = 'edit-input';
+      editInput.id = `edit-${id}`;
+      editInput.value = taskText;
+      editInput.placeholder = 'Update task description';
+      editInput.onkeydown = event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          updateTaskText(id, editInput.value);
+        }
+      };
+
+      const saveEditButton = document.createElement('button');
+      saveEditButton.textContent = 'Update Task';
+      saveEditButton.onclick = () => updateTaskText(id, editInput.value);
+
+      editRow.appendChild(editLabel);
+      editRow.appendChild(editInput);
+      editRow.appendChild(saveEditButton);
 
       const priorityBadge = document.createElement('div');
       priorityBadge.className = `priority priority-${priority.toLowerCase()}`;
@@ -508,6 +564,7 @@ function renderTasks() {
       deleteBtn.onclick = () => tasks.get(id).put(null);
 
       div.appendChild(textDiv);
+      div.appendChild(editRow);
       div.appendChild(metaRow);
       div.appendChild(assignmentRow);
       div.appendChild(deleteBtn);
