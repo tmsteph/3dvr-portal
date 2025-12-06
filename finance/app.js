@@ -271,12 +271,17 @@ if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'fun
 }
 
 // finance/expenditures/<entryId> remains the shared ledger node used across the portal.
+const pageContext = document.body && document.body.dataset ? document.body.dataset : {};
+const ledgerView = pageContext.ledgerView || 'all';
+const defaultEntryDirection = pageContext.entryDirection || 'outgoing';
+
 const form = document.getElementById('expenditure-form');
 const amountInput = document.getElementById('amount');
 const dateInput = document.getElementById('date');
 const categoryInput = document.getElementById('category');
 const paymentInput = document.getElementById('payment-method');
 const notesInput = document.getElementById('notes');
+const entryDirectionInput = document.getElementById('entry-direction');
 const ledgerList = document.getElementById('finance-ledger');
 const emptyState = document.getElementById('finance-empty');
 const totalAmount = document.getElementById('total-amount');
@@ -765,13 +770,17 @@ function handleSubmit(event) {
     ? Gun.text.random(16)
     : Math.random().toString(36).slice(2, 10);
   const now = new Date();
+  const direction = entryDirectionInput && entryDirectionInput.value
+    ? entryDirectionInput.value
+    : defaultEntryDirection;
   const record = {
     amount,
     date: dateInput.value || defaultDate(),
     category: categoryInput.value.trim() || 'General expenditure',
     paymentMethod: paymentInput.value.trim() || 'Unspecified',
     notes: notesInput.value.trim(),
-    createdAt: now.toISOString()
+    createdAt: now.toISOString(),
+    direction
   };
 
   writeRecordToSources(financeLedgerSources, entryId, record, 'ledger entry');
@@ -1159,9 +1168,20 @@ function renderEntries() {
     return bStamp - aStamp;
   });
 
+  const filtered = sorted.filter(entry => {
+    const direction = entry.direction || 'outgoing';
+    if (ledgerView === 'incoming') {
+      return direction === 'incoming';
+    }
+    if (ledgerView === 'outgoing') {
+      return direction !== 'incoming';
+    }
+    return true;
+  });
+
   ledgerList.innerHTML = '';
 
-  if (sorted.length === 0) {
+  if (filtered.length === 0) {
     if (emptyState) {
       emptyState.hidden = false;
       ledgerList.append(emptyState);
@@ -1180,7 +1200,7 @@ function renderEntries() {
   }
 
   let total = 0;
-  sorted.forEach(entry => {
+  filtered.forEach(entry => {
     const container = document.createElement('article');
     container.className = 'finance-entry';
     container.setAttribute('role', 'listitem');
@@ -1203,7 +1223,8 @@ function renderEntries() {
     const date = entry.date ? new Date(entry.date) : new Date(entry.createdAt || Date.now());
     const formattedDate = Number.isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleDateString();
     const method = entry.paymentMethod ? entry.paymentMethod : 'Unspecified method';
-    meta.textContent = `${formattedDate} • Paid with ${method}`;
+    const direction = entry.direction === 'incoming' ? 'Incoming' : 'Outgoing';
+    meta.textContent = `${formattedDate} • ${direction} • Paid with ${method}`;
 
     container.append(header, meta);
 
@@ -1221,7 +1242,7 @@ function renderEntries() {
   if (totalAmount) {
     totalAmount.textContent = numberFormatter.format(total);
   }
-  const latest = sorted[0];
+  const latest = filtered[0];
   if (latest) {
     const latestDate = latest.date ? new Date(latest.date) : new Date(latest.createdAt || Date.now());
     const formatted = Number.isNaN(latestDate.getTime()) ? 'Recently logged' : latestDate.toLocaleDateString();
@@ -1232,7 +1253,8 @@ function renderEntries() {
 }
 
 function renderPayables() {
-  if (!payablesList) {
+  const hasList = Boolean(payablesList);
+  if (!hasList && !outstandingAmount && !nextPayable) {
     return;
   }
 
@@ -1255,10 +1277,12 @@ function renderPayables() {
     return aStamp - bStamp;
   });
 
-  payablesList.innerHTML = '';
+  if (hasList) {
+    payablesList.innerHTML = '';
+  }
 
   if (sorted.length === 0) {
-    if (payablesEmptyState) {
+    if (payablesEmptyState && hasList) {
       payablesEmptyState.hidden = false;
       payablesList.append(payablesEmptyState);
     }
@@ -1271,7 +1295,7 @@ function renderPayables() {
     return;
   }
 
-  if (payablesEmptyState) {
+  if (payablesEmptyState && hasList) {
     payablesEmptyState.hidden = true;
   }
 
@@ -1279,66 +1303,71 @@ function renderPayables() {
   let upcoming = null;
 
   sorted.forEach(entry => {
-    const container = document.createElement('article');
-    container.className = 'finance-entry finance-payable';
-    if (entry.settledAt) {
-      container.classList.add('finance-payable--settled');
-    }
-    container.setAttribute('role', 'listitem');
+    if (hasList) {
+      const container = document.createElement('article');
+      container.className = 'finance-entry finance-payable';
+      if (entry.settledAt) {
+        container.classList.add('finance-payable--settled');
+      }
+      container.setAttribute('role', 'listitem');
 
-    const header = document.createElement('div');
-    header.className = 'finance-entry__header';
+      const header = document.createElement('div');
+      header.className = 'finance-entry__header';
 
-    const title = document.createElement('h3');
-    title.className = 'finance-entry__title';
-    title.textContent = entry.payee || 'Unnamed payee';
+      const title = document.createElement('h3');
+      title.className = 'finance-entry__title';
+      title.textContent = entry.payee || 'Unnamed payee';
 
-    const amountLabel = document.createElement('span');
-    amountLabel.className = 'finance-entry__amount';
-    amountLabel.textContent = numberFormatter.format(normalizeAmount(entry.amount));
+      const amountLabel = document.createElement('span');
+      amountLabel.className = 'finance-entry__amount';
+      amountLabel.textContent = numberFormatter.format(normalizeAmount(entry.amount));
 
-    header.append(title, amountLabel);
+      header.append(title, amountLabel);
 
-    const meta = document.createElement('p');
-    meta.className = 'finance-entry__meta';
-    const dueDate = entry.dueDate ? new Date(entry.dueDate) : new Date(entry.createdAt || Date.now());
-    const formattedDue = Number.isNaN(dueDate.getTime()) ? 'No due date' : dueDate.toLocaleDateString();
-    if (entry.settledAt) {
-      const settledDate = new Date(entry.settledAt);
-      const formattedSettled = Number.isNaN(settledDate.getTime()) ? 'Settled' : `Settled ${settledDate.toLocaleDateString()}`;
-      meta.textContent = `${formattedDue} • ${formattedSettled}`;
-    } else {
-      meta.textContent = `${formattedDue} • Pending payment`;
-    }
+      const meta = document.createElement('p');
+      meta.className = 'finance-entry__meta';
+      const dueDate = entry.dueDate ? new Date(entry.dueDate) : new Date(entry.createdAt || Date.now());
+      const formattedDue = Number.isNaN(dueDate.getTime()) ? 'No due date' : dueDate.toLocaleDateString();
+      if (entry.settledAt) {
+        const settledDate = new Date(entry.settledAt);
+        const formattedSettled = Number.isNaN(settledDate.getTime()) ? 'Settled' : `Settled ${settledDate.toLocaleDateString()}`;
+        meta.textContent = `${formattedDue} • ${formattedSettled}`;
+      } else {
+        meta.textContent = `${formattedDue} • Pending payment`;
+      }
 
-    container.append(header, meta);
+      container.append(header, meta);
 
-    if (entry.notes) {
-      const notes = document.createElement('p');
-      notes.className = 'finance-entry__notes';
-      notes.textContent = entry.notes;
-      container.append(notes);
+      if (entry.notes) {
+        const notes = document.createElement('p');
+        notes.className = 'finance-entry__notes';
+        notes.textContent = entry.notes;
+        container.append(notes);
+      }
+
+      if (!entry.settledAt) {
+        const actions = document.createElement('div');
+        actions.className = 'finance-payable__actions';
+        const settleButton = document.createElement('button');
+        settleButton.type = 'button';
+        settleButton.className = 'finance-button finance-button--secondary';
+        settleButton.textContent = 'Mark as paid';
+        settleButton.addEventListener('click', () => {
+          markPayableSettled(entry.id);
+        });
+        actions.append(settleButton);
+        container.append(actions);
+      }
+
+      payablesList.append(container);
     }
 
     if (!entry.settledAt) {
-      const actions = document.createElement('div');
-      actions.className = 'finance-payable__actions';
-      const settleButton = document.createElement('button');
-      settleButton.type = 'button';
-      settleButton.className = 'finance-button finance-button--secondary';
-      settleButton.textContent = 'Mark as paid';
-      settleButton.addEventListener('click', () => {
-        markPayableSettled(entry.id);
-      });
-      actions.append(settleButton);
-      container.append(actions);
       if (!upcoming) {
         upcoming = entry;
       }
       outstandingTotal += normalizeAmount(entry.amount);
     }
-
-    payablesList.append(container);
   });
 
   if (outstandingAmount) {
