@@ -222,6 +222,19 @@ button:hover {
   white-space: nowrap;
   border: 0;
 }
+
+.backup-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.backup-info {
+  font-size: 0.95rem;
+  color: #334;
+}
 </style>
 </head>
 <body>
@@ -278,6 +291,15 @@ button:hover {
   </label>
 </div>
 
+<div class="controls" aria-label="Backup and restore tasks">
+  <div class="backup-row">
+    <button id="download-backup">Download Backup</button>
+    <button id="restore-backup">Restore Backup</button>
+    <input type="file" id="backup-file" accept="application/json" hidden aria-label="Upload task backup">
+    <div class="backup-info">Keep a backup JSON so you can reimport tasks later.</div>
+  </div>
+</div>
+
 <div id="tasks"></div>
 
 <script>
@@ -291,6 +313,7 @@ const gun = Gun({
 
 const PRIORITY_LEVELS = ['Critical', 'High', 'Medium', 'Low', 'Backlog'];
 const USERNAME_STORAGE_KEY = '3dvr-task-board-username';
+const BACKUP_FILENAME = '3dvr-task-board-backup.json';
 
 // Tasks stored in Gun as { text, priority, createdAt, assignedTo } for shared visibility across sessions.
 const tasks = gun.get('3dvr-tasks');
@@ -350,6 +373,11 @@ function getAssignee(task) {
   return typeof task.assignedTo === 'string' ? task.assignedTo.trim() : '';
 }
 
+function getCreatedOrNow(task) {
+  const timestamp = getCreatedAt(task);
+  return timestamp || Date.now();
+}
+
 function priorityWeight(priority) {
   const index = PRIORITY_LEVELS.indexOf(priority);
   return index === -1 ? PRIORITY_LEVELS.indexOf('Medium') : index;
@@ -373,6 +401,68 @@ function createPrioritySelect(selectedPriority, taskId) {
     tasks.get(taskId).put({ priority: newPriority });
   };
   return select;
+}
+
+function normalizeTask(task) {
+  const text = getTaskText(task) || 'Untitled task';
+  return {
+    text,
+    priority: getPriority(task),
+    assignedTo: getAssignee(task),
+    createdAt: getCreatedOrNow(task)
+  };
+}
+
+function buildBackupPayload() {
+  const entries = Object.entries(taskList)
+    .map(([id, task]) => ({ id, ...normalizeTask(task) }));
+  return {
+    exportedAt: Date.now(),
+    tasks: entries
+  };
+}
+
+function downloadBackup() {
+  const payload = buildBackupPayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json'
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = BACKUP_FILENAME;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function restoreFromBackup(file) {
+  const reader = new FileReader();
+  reader.onload = event => {
+    try {
+      const data = JSON.parse(event.target.result);
+      if (!data || !Array.isArray(data.tasks)) return;
+      data.tasks.forEach(entry => {
+        if (!entry || typeof entry !== 'object') return;
+        const normalized = normalizeTask(entry);
+        if (entry.id && typeof entry.id === 'string') {
+          tasks.get(entry.id).put(normalized);
+        } else {
+          tasks.set(normalized);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to restore backup', error);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function handleRestoreClick() {
+  const fileInput = document.getElementById('backup-file');
+  fileInput.value = '';
+  fileInput.click();
 }
 
 // Add new task
@@ -401,6 +491,21 @@ document.getElementById('priority-filter').onchange = event => {
   priorityFilter = event.target.value;
   renderTasks();
 };
+
+document.getElementById('download-backup').onclick = () => {
+  downloadBackup();
+};
+
+document.getElementById('restore-backup').onclick = () => {
+  handleRestoreClick();
+};
+
+document.getElementById('backup-file').addEventListener('change', event => {
+  const [file] = event.target.files || [];
+  if (file) {
+    restoreFromBackup(file);
+  }
+});
 
 // Store and render tasks
 const taskList = {};
