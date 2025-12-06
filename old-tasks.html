@@ -36,9 +36,10 @@ h1 {
   gap: 10px;
   justify-content: center;
   margin-bottom: 30px;
+  flex-wrap: wrap;
 }
 
-input, button {
+input, button, select {
   padding: 10px;
   font-size: 1rem;
   border-radius: 8px;
@@ -48,6 +49,13 @@ input, button {
 input {
   flex-grow: 1;
   max-width: 400px;
+}
+
+select {
+  min-width: 140px;
+  background: #ffffff;
+  color: #333;
+  border: 1px solid #d1d9de;
 }
 
 button {
@@ -92,6 +100,60 @@ button:hover {
   color: #666;
   font-size: 0.95rem;
 }
+
+.priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 20px;
+  background: #eef4f7;
+  color: #334;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.priority-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.priority-critical .priority-dot {
+  background: #d93737;
+}
+
+.priority-high .priority-dot {
+  background: #e58f00;
+}
+
+.priority-medium .priority-dot {
+  background: #66c2b0;
+}
+
+.priority-low .priority-dot {
+  background: #5ca0d3;
+}
+
+.priority-backlog .priority-dot {
+  background: #8c95a1;
+}
+
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.priority-select {
+  min-width: 120px;
+  padding: 6px 8px;
+  border: 1px solid #d1d9de;
+  background: #fff;
+  color: #333;
+}
 </style>
 </head>
 <body>
@@ -107,6 +169,13 @@ button:hover {
 
 <div id="new-task">
   <input type="text" id="task-input" placeholder="New Task...">
+  <select id="priority-input" aria-label="Task priority">
+    <option value="Critical">Critical</option>
+    <option value="High">High</option>
+    <option value="Medium" selected>Medium</option>
+    <option value="Low">Low</option>
+    <option value="Backlog">Backlog</option>
+  </select>
   <button onclick="addTask()">Add Task</button>
 </div>
 
@@ -121,6 +190,9 @@ const gun = Gun({
   ]
 });
 
+const PRIORITY_LEVELS = ['Critical', 'High', 'Medium', 'Low', 'Backlog'];
+
+// Tasks stored in Gun as { text, priority, createdAt } for shared visibility across sessions.
 const tasks = gun.get('3dvr-tasks');
 
 function timeAgoOrFullDate(timestamp) {
@@ -141,11 +213,42 @@ function getCreatedAt(task) {
     : 0;
 }
 
+function getPriority(task) {
+  const priority = typeof task.priority === 'string' ? task.priority : '';
+  return PRIORITY_LEVELS.includes(priority) ? priority : 'Medium';
+}
+
+function priorityWeight(priority) {
+  const index = PRIORITY_LEVELS.indexOf(priority);
+  return index === -1 ? PRIORITY_LEVELS.indexOf('Medium') : index;
+}
+
+function createPrioritySelect(selectedPriority, taskId) {
+  const select = document.createElement('select');
+  select.className = 'priority-select';
+  select.setAttribute('aria-label', 'Edit task priority');
+  PRIORITY_LEVELS.forEach(level => {
+    const option = document.createElement('option');
+    option.value = level;
+    option.textContent = level;
+    if (level === selectedPriority) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+  select.onchange = event => {
+    const newPriority = event.target.value;
+    tasks.get(taskId).put({ priority: newPriority });
+  };
+  return select;
+}
+
 // Add new task
 function addTask() {
   const text = document.getElementById('task-input').value.trim();
+  const priority = document.getElementById('priority-input').value;
   if (!text) return;
-  tasks.set({ text, createdAt: Date.now() });
+  tasks.set({ text, priority, createdAt: Date.now() });
   document.getElementById('task-input').value = '';
 }
 
@@ -166,19 +269,52 @@ function renderTasks() {
   const container = document.getElementById('tasks');
   container.innerHTML = '';
   Object.entries(taskList)
-    .sort((a, b) => getCreatedAt(b[1]) - getCreatedAt(a[1]))
+    .sort((a, b) => {
+      const priorityDiff = priorityWeight(getPriority(a[1])) - priorityWeight(getPriority(b[1]));
+      if (priorityDiff !== 0) return priorityDiff;
+      return getCreatedAt(b[1]) - getCreatedAt(a[1]);
+    })
     .forEach(([id, task]) => {
       const div = document.createElement('div');
       div.className = 'task';
       div.id = id;
       const createdAt = getCreatedAt(task);
       const timestamp = createdAt ? timeAgoOrFullDate(createdAt) : 'Just now';
-      div.innerHTML = `
-        <div class="task-text">${task.text}</div>
-        <div class="meta">Added ${timestamp}</div>
-        <span class="delete">🗑</span>
-      `;
-      div.querySelector('.delete').onclick = () => tasks.get(id).put(null);
+      const priority = getPriority(task);
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'task-text';
+      textDiv.textContent = task.text;
+
+      const priorityBadge = document.createElement('div');
+      priorityBadge.className = `priority priority-${priority.toLowerCase()}`;
+      const dot = document.createElement('span');
+      dot.className = 'priority-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      const label = document.createElement('span');
+      label.className = 'priority-label';
+      label.textContent = `${priority} priority`;
+      priorityBadge.appendChild(dot);
+      priorityBadge.appendChild(label);
+
+      const metaRow = document.createElement('div');
+      metaRow.className = 'task-meta';
+      metaRow.appendChild(priorityBadge);
+      metaRow.appendChild(createPrioritySelect(priority, id));
+
+      const metaText = document.createElement('div');
+      metaText.className = 'meta';
+      metaText.textContent = `Added ${timestamp}`;
+      metaRow.appendChild(metaText);
+
+      const deleteBtn = document.createElement('span');
+      deleteBtn.className = 'delete';
+      deleteBtn.textContent = '🗑';
+      deleteBtn.onclick = () => tasks.get(id).put(null);
+
+      div.appendChild(textDiv);
+      div.appendChild(metaRow);
+      div.appendChild(deleteBtn);
       container.appendChild(div);
     });
 }
