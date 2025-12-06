@@ -191,6 +191,22 @@ button:hover {
   color: #334;
 }
 
+.edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.edit-input {
+  flex: 1;
+  min-width: 260px;
+  max-width: 100%;
+  border: 1px solid #d1d9de;
+  background: #fff;
+  color: #333;
+}
+
 .name-label input {
   min-width: 220px;
 }
@@ -205,6 +221,19 @@ button:hover {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.backup-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.backup-info {
+  font-size: 0.95rem;
+  color: #334;
 }
 </style>
 </head>
@@ -262,6 +291,17 @@ button:hover {
   </label>
 </div>
 
+<div class="controls" aria-label="Backup and restore tasks">
+  <div class="backup-row">
+    <button id="download-backup">Download Backup</button>
+    <button id="restore-backup">Restore Backup</button>
+    <input type="file" id="backup-file" accept="application/json" hidden aria-label="Upload task backup">
+    <select id="archive-select" aria-label="Select archived task"></select>
+    <button id="restore-archive" disabled>Restore Archived Task</button>
+    <div class="backup-info">Keep a backup JSON or restore from Gun archives kept for 30 days.</div>
+  </div>
+</div>
+
 <div id="tasks"></div>
 
 <script>
@@ -275,6 +315,11 @@ const gun = Gun({
 
 const PRIORITY_LEVELS = ['Critical', 'High', 'Medium', 'Low', 'Backlog'];
 const USERNAME_STORAGE_KEY = '3dvr-task-board-username';
+const BACKUP_FILENAME = '3dvr-task-board-backup.json';
+const ARCHIVE_RETENTION_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+
+// Archive node for soft-deleted tasks so they can be restored from Gun.
+const archivedTasks = gun.get('3dvr-tasks-archive');
 
 // Tasks stored in Gun as { text, priority, createdAt, assignedTo } for shared visibility across sessions.
 const tasks = gun.get('3dvr-tasks');
@@ -321,6 +366,10 @@ function getCreatedAt(task) {
     : 0;
 }
 
+function getTaskText(task) {
+  return typeof task.text === 'string' ? task.text.trim() : '';
+}
+
 function getPriority(task) {
   const priority = typeof task.priority === 'string' ? task.priority : '';
   return PRIORITY_LEVELS.includes(priority) ? priority : 'Medium';
@@ -328,6 +377,31 @@ function getPriority(task) {
 
 function getAssignee(task) {
   return typeof task.assignedTo === 'string' ? task.assignedTo.trim() : '';
+}
+
+function getCompletedBy(task) {
+  return typeof task.completedBy === 'string' ? task.completedBy.trim() : '';
+}
+
+function getCompletedAt(task) {
+  return typeof task.completedAt === 'number' && Number.isFinite(task.completedAt)
+    ? task.completedAt
+    : 0;
+}
+
+function isArchivedTask(task) {
+  return Boolean(task && task.archived);
+}
+
+function getArchivedAt(task) {
+  return typeof task.archivedAt === 'number' && Number.isFinite(task.archivedAt)
+    ? task.archivedAt
+    : 0;
+}
+
+function getCreatedOrNow(task) {
+  const timestamp = getCreatedAt(task);
+  return timestamp || Date.now();
 }
 
 function priorityWeight(priority) {
@@ -355,15 +429,88 @@ function createPrioritySelect(selectedPriority, taskId) {
   return select;
 }
 
+function normalizeTask(task) {
+  const text = getTaskText(task) || 'Untitled task';
+  return {
+    text,
+    priority: getPriority(task),
+    assignedTo: getAssignee(task),
+    createdAt: getCreatedOrNow(task),
+    completedBy: getCompletedBy(task),
+    completedAt: getCompletedAt(task),
+    archived: isArchivedTask(task),
+    archivedAt: getArchivedAt(task)
+  };
+}
+
+function buildBackupPayload() {
+  const entries = Object.entries(taskList)
+    .filter(([, task]) => !isArchivedTask(task))
+    .map(([id, task]) => ({ id, ...normalizeTask(task) }));
+  return {
+    exportedAt: Date.now(),
+    tasks: entries
+  };
+}
+
+function downloadBackup() {
+  const payload = buildBackupPayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json'
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = BACKUP_FILENAME;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function restoreFromBackup(file) {
+  const reader = new FileReader();
+  reader.onload = event => {
+    try {
+      const data = JSON.parse(event.target.result);
+      if (!data || !Array.isArray(data.tasks)) return;
+      data.tasks.forEach(entry => {
+        if (!entry || typeof entry !== 'object') return;
+        const normalized = normalizeTask(entry);
+        if (entry.id && typeof entry.id === 'string') {
+          tasks.get(entry.id).put(normalized);
+        } else {
+          tasks.set(normalized);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to restore backup', error);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function handleRestoreClick() {
+  const fileInput = document.getElementById('backup-file');
+  fileInput.value = '';
+  fileInput.click();
+}
+
 // Add new task
 function addTask() {
   const text = document.getElementById('task-input').value.trim();
   const priority = document.getElementById('priority-input').value;
   const assignedTo = document.getElementById('assignee-input').value.trim();
   if (!text) return;
-  tasks.set({ text, priority, createdAt: Date.now(), assignedTo });
+  tasks.set({ text, priority, createdAt: Date.now(), assignedTo, archived: false, archivedAt: 0 });
   document.getElementById('task-input').value = '';
   document.getElementById('assignee-input').value = '';
+}
+
+function updateTaskText(taskId, newText) {
+  const trimmed = newText.trim();
+  if (!trimmed) return;
+  tasks.get(taskId).put({ text: trimmed });
 }
 
 document.getElementById('sort-mode').onchange = event => {
@@ -376,8 +523,85 @@ document.getElementById('priority-filter').onchange = event => {
   renderTasks();
 };
 
+document.getElementById('download-backup').onclick = () => {
+  downloadBackup();
+};
+
+document.getElementById('restore-backup').onclick = () => {
+  handleRestoreClick();
+};
+
+document.getElementById('restore-archive').onclick = () => {
+  const select = document.getElementById('archive-select');
+  if (select && select.value) {
+    restoreArchivedTask(select.value);
+  }
+};
+
+document.getElementById('backup-file').addEventListener('change', event => {
+  const [file] = event.target.files || [];
+  if (file) {
+    restoreFromBackup(file);
+  }
+});
+
 // Store and render tasks
 const taskList = {};
+const archivedTaskList = {};
+
+function refreshArchiveSelect() {
+  const select = document.getElementById('archive-select');
+  const restoreButton = document.getElementById('restore-archive');
+  if (!select || !restoreButton) return;
+
+  select.innerHTML = '';
+  const entries = Object.entries(archivedTaskList)
+    .filter(([, task]) => {
+      const archivedAt = getArchivedAt(task);
+      return archivedAt && Date.now() - archivedAt <= ARCHIVE_RETENTION_MS;
+    })
+    .sort((a, b) => getArchivedAt(b[1]) - getArchivedAt(a[1]));
+
+  if (!entries.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No archived tasks ready to restore';
+    select.appendChild(option);
+    select.disabled = true;
+    restoreButton.disabled = true;
+    return;
+  }
+
+  select.disabled = false;
+  entries.forEach(([id, task]) => {
+    const option = document.createElement('option');
+    option.value = id;
+    const summary = getTaskText(task) || 'Untitled task';
+    const timestamp = timeAgoOrFullDate(getArchivedAt(task));
+    option.textContent = `${summary} (archived ${timestamp})`;
+    select.appendChild(option);
+  });
+  restoreButton.disabled = false;
+}
+
+refreshArchiveSelect();
+
+function archiveTask(taskId) {
+  const task = normalizeTask(taskList[taskId] || {});
+  const archivedAt = Date.now();
+  const archivedEntry = { ...task, archived: true, archivedAt, originalId: taskId };
+  archivedTasks.get(taskId).put(archivedEntry);
+  tasks.get(taskId).put({ ...task, archived: true, archivedAt });
+}
+
+function restoreArchivedTask(archiveId) {
+  const archived = archivedTaskList[archiveId];
+  if (!archived) return;
+  const normalized = normalizeTask(archived);
+  const originalId = typeof archived.originalId === 'string' ? archived.originalId : archiveId;
+  tasks.get(originalId).put({ ...normalized, archived: false, archivedAt: 0 });
+  archivedTasks.get(archiveId).put({ ...archived, restoredAt: Date.now() });
+}
 
 document.getElementById('save-name').onclick = () => {
   const name = document.getElementById('user-name').value;
@@ -394,6 +618,22 @@ document.getElementById('user-name').addEventListener('keydown', event => {
 currentUserName = loadUserName();
 document.getElementById('user-name').value = currentUserName;
 
+archivedTasks.map().on((task, id) => {
+  if (!task) {
+    delete archivedTaskList[id];
+    refreshArchiveSelect();
+    return;
+  }
+  const archivedAt = getArchivedAt(task);
+  if (archivedAt && Date.now() - archivedAt > ARCHIVE_RETENTION_MS) {
+    delete archivedTaskList[id];
+    refreshArchiveSelect();
+    return;
+  }
+  archivedTaskList[id] = task;
+  refreshArchiveSelect();
+});
+
 tasks.map().on((task, id) => {
   if (!task) {
     document.getElementById(id)?.remove();
@@ -409,6 +649,7 @@ function renderTasks() {
   container.innerHTML = '';
   Object.entries(taskList)
     .filter(([, task]) => {
+      if (isArchivedTask(task)) return false;
       const priority = getPriority(task);
       return priorityFilter === 'All' || priority === priorityFilter;
     })
@@ -431,10 +672,42 @@ function renderTasks() {
       const timestamp = createdAt ? timeAgoOrFullDate(createdAt) : 'Just now';
       const priority = getPriority(task);
       const assignee = getAssignee(task);
+      const taskText = getTaskText(task);
+      const completedBy = getCompletedBy(task);
+      const completedAt = getCompletedAt(task);
 
       const textDiv = document.createElement('div');
       textDiv.className = 'task-text';
-      textDiv.textContent = task.text;
+      textDiv.textContent = taskText || 'Untitled task';
+
+      const editRow = document.createElement('div');
+      editRow.className = 'edit-row';
+
+      const editLabel = document.createElement('label');
+      editLabel.className = 'sr-only';
+      editLabel.setAttribute('for', `edit-${id}`);
+      editLabel.textContent = 'Edit task text';
+
+      const editInput = document.createElement('input');
+      editInput.type = 'text';
+      editInput.className = 'edit-input';
+      editInput.id = `edit-${id}`;
+      editInput.value = taskText;
+      editInput.placeholder = 'Update task description';
+      editInput.onkeydown = event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          updateTaskText(id, editInput.value);
+        }
+      };
+
+      const saveEditButton = document.createElement('button');
+      saveEditButton.textContent = 'Update Task';
+      saveEditButton.onclick = () => updateTaskText(id, editInput.value);
+
+      editRow.appendChild(editLabel);
+      editRow.appendChild(editInput);
+      editRow.appendChild(saveEditButton);
 
       const priorityBadge = document.createElement('div');
       priorityBadge.className = `priority priority-${priority.toLowerCase()}`;
@@ -472,12 +745,18 @@ function renderTasks() {
         tasks.get(id).put({ assignedTo: assignInput.value.trim() });
       };
 
-      const claimButton = document.createElement('button');
-      claimButton.textContent = currentUserName ? 'Claim as Me' : 'Set name to claim';
-      claimButton.disabled = !currentUserName;
-      claimButton.onclick = () => {
-        if (!currentUserName) return;
-        tasks.get(id).put({ assignedTo: currentUserName });
+      const completeInput = document.createElement('input');
+      completeInput.type = 'text';
+      completeInput.className = 'assign-input';
+      completeInput.value = completedBy || currentUserName || '';
+      completeInput.placeholder = 'Completed by';
+      completeInput.setAttribute('aria-label', 'Completed by');
+
+      const completeButton = document.createElement('button');
+      completeButton.textContent = 'Mark Complete';
+      completeButton.onclick = () => {
+        const completedName = completeInput.value.trim();
+        tasks.get(id).put({ completedBy: completedName, completedAt: Date.now() });
       };
 
       const clearButton = document.createElement('button');
@@ -489,13 +768,21 @@ function renderTasks() {
 
       assignmentControls.appendChild(assignInput);
       assignmentControls.appendChild(assignButton);
-      assignmentControls.appendChild(claimButton);
+      assignmentControls.appendChild(completeInput);
+      assignmentControls.appendChild(completeButton);
       assignmentControls.appendChild(clearButton);
 
       const metaText = document.createElement('div');
       metaText.className = 'meta';
       metaText.textContent = `Added ${timestamp}`;
       metaRow.appendChild(metaText);
+
+      const completionMeta = document.createElement('div');
+      completionMeta.className = 'meta';
+      completionMeta.textContent = completedBy
+        ? `Completed by ${completedBy}${completedAt ? ` (${timeAgoOrFullDate(completedAt)})` : ''}`
+        : 'Not completed yet';
+      metaRow.appendChild(completionMeta);
 
       const assignmentRow = document.createElement('div');
       assignmentRow.className = 'assignment-row';
@@ -505,9 +792,10 @@ function renderTasks() {
       const deleteBtn = document.createElement('span');
       deleteBtn.className = 'delete';
       deleteBtn.textContent = '🗑';
-      deleteBtn.onclick = () => tasks.get(id).put(null);
+      deleteBtn.onclick = () => archiveTask(id);
 
       div.appendChild(textDiv);
+      div.appendChild(editRow);
       div.appendChild(metaRow);
       div.appendChild(assignmentRow);
       div.appendChild(deleteBtn);
