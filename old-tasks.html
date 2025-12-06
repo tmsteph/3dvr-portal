@@ -163,6 +163,38 @@ button:hover {
   color: #333;
 }
 
+.assignment-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.assignment-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.assign-input {
+  flex: 1;
+  min-width: 200px;
+  max-width: 260px;
+  border: 1px solid #d1d9de;
+  background: #fff;
+  color: #333;
+}
+
+.assignment {
+  font-weight: 600;
+  color: #334;
+}
+
+.name-label input {
+  min-width: 220px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -196,7 +228,16 @@ button:hover {
     <option value="Low">Low</option>
     <option value="Backlog">Backlog</option>
   </select>
+  <input type="text" id="assignee-input" placeholder="Assignee (optional)">
   <button onclick="addTask()">Add Task</button>
+</div>
+
+<div class="controls" aria-label="Your identity">
+  <label class="name-label" for="user-name">
+    <span class="sr-only">Your display name</span>
+    <input type="text" id="user-name" placeholder="Your name" aria-label="Your display name">
+  </label>
+  <button id="save-name">Save Name</button>
 </div>
 
 <div class="controls" aria-label="Task sorting and filters">
@@ -233,12 +274,34 @@ const gun = Gun({
 });
 
 const PRIORITY_LEVELS = ['Critical', 'High', 'Medium', 'Low', 'Backlog'];
+const USERNAME_STORAGE_KEY = '3dvr-task-board-username';
 
-// Tasks stored in Gun as { text, priority, createdAt } for shared visibility across sessions.
+// Tasks stored in Gun as { text, priority, createdAt, assignedTo } for shared visibility across sessions.
 const tasks = gun.get('3dvr-tasks');
 
 let sortMode = 'chronological';
 let priorityFilter = 'All';
+let currentUserName = '';
+
+function loadUserName() {
+  if (typeof localStorage === 'undefined') {
+    return '';
+  }
+  const stored = localStorage.getItem(USERNAME_STORAGE_KEY);
+  return typeof stored === 'string' ? stored : '';
+}
+
+function saveUserName(name) {
+  currentUserName = name.trim();
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(USERNAME_STORAGE_KEY, currentUserName);
+  }
+  const input = document.getElementById('user-name');
+  if (input) {
+    input.value = currentUserName;
+  }
+  renderTasks();
+}
 
 function timeAgoOrFullDate(timestamp) {
   const now = Date.now();
@@ -261,6 +324,10 @@ function getCreatedAt(task) {
 function getPriority(task) {
   const priority = typeof task.priority === 'string' ? task.priority : '';
   return PRIORITY_LEVELS.includes(priority) ? priority : 'Medium';
+}
+
+function getAssignee(task) {
+  return typeof task.assignedTo === 'string' ? task.assignedTo.trim() : '';
 }
 
 function priorityWeight(priority) {
@@ -292,9 +359,11 @@ function createPrioritySelect(selectedPriority, taskId) {
 function addTask() {
   const text = document.getElementById('task-input').value.trim();
   const priority = document.getElementById('priority-input').value;
+  const assignedTo = document.getElementById('assignee-input').value.trim();
   if (!text) return;
-  tasks.set({ text, priority, createdAt: Date.now() });
+  tasks.set({ text, priority, createdAt: Date.now(), assignedTo });
   document.getElementById('task-input').value = '';
+  document.getElementById('assignee-input').value = '';
 }
 
 document.getElementById('sort-mode').onchange = event => {
@@ -309,6 +378,21 @@ document.getElementById('priority-filter').onchange = event => {
 
 // Store and render tasks
 const taskList = {};
+
+document.getElementById('save-name').onclick = () => {
+  const name = document.getElementById('user-name').value;
+  saveUserName(name);
+};
+
+document.getElementById('user-name').addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    saveUserName(event.target.value);
+  }
+});
+
+currentUserName = loadUserName();
+document.getElementById('user-name').value = currentUserName;
 
 tasks.map().on((task, id) => {
   if (!task) {
@@ -346,6 +430,7 @@ function renderTasks() {
       const createdAt = getCreatedAt(task);
       const timestamp = createdAt ? timeAgoOrFullDate(createdAt) : 'Just now';
       const priority = getPriority(task);
+      const assignee = getAssignee(task);
 
       const textDiv = document.createElement('div');
       textDiv.className = 'task-text';
@@ -367,10 +452,55 @@ function renderTasks() {
       metaRow.appendChild(priorityBadge);
       metaRow.appendChild(createPrioritySelect(priority, id));
 
+      const assignment = document.createElement('div');
+      assignment.className = 'meta assignment';
+      assignment.textContent = assignee ? `Assigned to ${assignee}` : 'Unassigned';
+
+      const assignmentControls = document.createElement('div');
+      assignmentControls.className = 'assignment-controls';
+
+      const assignInput = document.createElement('input');
+      assignInput.type = 'text';
+      assignInput.className = 'assign-input';
+      assignInput.value = assignee;
+      assignInput.placeholder = 'Assign to name';
+      assignInput.setAttribute('aria-label', 'Assign task to user');
+
+      const assignButton = document.createElement('button');
+      assignButton.textContent = 'Assign';
+      assignButton.onclick = () => {
+        tasks.get(id).put({ assignedTo: assignInput.value.trim() });
+      };
+
+      const claimButton = document.createElement('button');
+      claimButton.textContent = currentUserName ? 'Claim as Me' : 'Set name to claim';
+      claimButton.disabled = !currentUserName;
+      claimButton.onclick = () => {
+        if (!currentUserName) return;
+        tasks.get(id).put({ assignedTo: currentUserName });
+      };
+
+      const clearButton = document.createElement('button');
+      clearButton.textContent = 'Unassign';
+      clearButton.onclick = () => {
+        tasks.get(id).put({ assignedTo: '' });
+        assignInput.value = '';
+      };
+
+      assignmentControls.appendChild(assignInput);
+      assignmentControls.appendChild(assignButton);
+      assignmentControls.appendChild(claimButton);
+      assignmentControls.appendChild(clearButton);
+
       const metaText = document.createElement('div');
       metaText.className = 'meta';
       metaText.textContent = `Added ${timestamp}`;
       metaRow.appendChild(metaText);
+
+      const assignmentRow = document.createElement('div');
+      assignmentRow.className = 'assignment-row';
+      assignmentRow.appendChild(assignment);
+      assignmentRow.appendChild(assignmentControls);
 
       const deleteBtn = document.createElement('span');
       deleteBtn.className = 'delete';
@@ -379,6 +509,7 @@ function renderTasks() {
 
       div.appendChild(textDiv);
       div.appendChild(metaRow);
+      div.appendChild(assignmentRow);
       div.appendChild(deleteBtn);
       container.appendChild(div);
     });
