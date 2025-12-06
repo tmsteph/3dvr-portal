@@ -116,7 +116,7 @@
 
       <!-- Filters -->
       <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
-        <div class="grid gap-2 md:grid-cols-[1fr,200px,200px] items-end">
+        <div class="grid gap-2 md:grid-cols-[1fr,200px,200px,200px] items-end">
           <div>
             <label class="text-sm text-gray-300">Search</label>
             <input id="search" placeholder="Name, email, company, tags…" class="w-full p-2 rounded text-black" />
@@ -137,6 +137,15 @@
               <option value="today">Due today</option>
               <option value="week">Due this week</option>
               <option value="none">No follow-up</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-gray-300">Sort</label>
+            <select id="sortOrder" class="w-full p-2 rounded text-black">
+              <option value="name-first">Name (first → last)</option>
+              <option value="name-last">Name (last → first)</option>
+              <option value="follow-up">Next follow-up</option>
+              <option value="recent">Recently updated</option>
             </select>
           </div>
         </div>
@@ -1056,6 +1065,7 @@ const btnReset = document.getElementById('btnReset');
 const searchEl = document.getElementById('search');
 const filterStatusEl = document.getElementById('filterStatus');
 const filterFollowEl = document.getElementById('filterFollow');
+const sortOrderEl = document.getElementById('sortOrder');
 const countEl = document.getElementById('count');
 const duplicateSummaryEl = document.getElementById('duplicateSummary');
 const prevPageBtn = document.getElementById('prevPage');
@@ -1930,6 +1940,7 @@ function addContactToCrm(id){
 searchEl.addEventListener('input', debounce(()=>{ page=1; updateList(); }, 200));
 filterStatusEl.addEventListener('change', ()=>{ page=1; updateList(); });
 filterFollowEl.addEventListener('change', ()=>{ page=1; updateList(); });
+sortOrderEl.addEventListener('change', ()=>{ page=1; updateList(); });
 
 prevPageBtn.addEventListener('click', ()=>{ if(page>1){ page--; updateList(); }});
 nextPageBtn.addEventListener('click', ()=>{ page++; updateList(); });
@@ -1938,6 +1949,7 @@ function applyFilters(items){
   const q = searchEl.value.trim().toLowerCase();
   const fS = filterStatusEl.value;
   const fF = filterFollowEl.value;
+  const sortMode = sortOrderEl.value || 'name-first';
   const today = new Date(); today.setHours(0,0,0,0);
 
   return items.filter(c=>{
@@ -1962,13 +1974,50 @@ function applyFilters(items){
     }
     return true;
   }).sort((a,b)=>{
-    const aNF = a.nextFollowUp || '';
-    const bNF = b.nextFollowUp || '';
-    if(aNF && bNF && aNF !== bNF) return aNF < bNF ? -1 : 1;
-    if(aNF && !bNF) return -1;
-    if(!aNF && bNF) return 1;
-    return (b.updated||'').localeCompare(a.updated||'');
+    if(sortMode === 'follow-up') return compareByFollowUp(a,b);
+    if(sortMode === 'recent') return compareByRecent(a,b);
+    if(sortMode === 'name-last') return compareByNameOrder(a,b, { primary: 'last', secondary: 'first' });
+    return compareByNameOrder(a,b, { primary: 'first', secondary: 'last' });
   });
+}
+
+function normalizeNameParts(name){
+  const trimmed = (name || '').trim();
+  if(!trimmed) return { first: '', last: '', fallback: '' };
+  const parts = trimmed.split(/\s+/);
+  const first = parts[0] || '';
+  const last = parts.length > 1 ? parts.slice(1).join(' ') : '';
+  return { first: first.toLowerCase(), last: last.toLowerCase(), fallback: trimmed.toLowerCase() };
+}
+
+function compareByNameOrder(a,b, { primary = 'first', secondary = 'last' } = {}){
+  const aParts = normalizeNameParts(a.name);
+  const bParts = normalizeNameParts(b.name);
+  const primaryField = primary === 'last' ? 'last' : 'first';
+  const secondaryField = secondary === 'first' ? 'first' : 'last';
+  const primaryDiff = aParts[primaryField].localeCompare(bParts[primaryField]);
+  if(primaryDiff) return primaryDiff;
+  const secondaryDiff = aParts[secondaryField].localeCompare(bParts[secondaryField]);
+  if(secondaryDiff) return secondaryDiff;
+  const fallbackDiff = aParts.fallback.localeCompare(bParts.fallback);
+  if(fallbackDiff) return fallbackDiff;
+  const emailDiff = (a.email||'').toLowerCase().localeCompare((b.email||'').toLowerCase());
+  if(emailDiff) return emailDiff;
+  return (a.id||'').localeCompare(b.id||'');
+}
+
+function compareByRecent(a,b){
+  const aUpdated = a.updated || a.created || '';
+  const bUpdated = b.updated || b.created || '';
+  if(aUpdated !== bUpdated) return bUpdated.localeCompare(aUpdated);
+  return compareByNameOrder(a,b, { primary: 'first', secondary: 'last' });
+}
+
+function compareByFollowUp(a,b){
+  const aNF = a.nextFollowUp ? new Date(a.nextFollowUp).getTime() : Infinity;
+  const bNF = b.nextFollowUp ? new Date(b.nextFollowUp).getTime() : Infinity;
+  if(aNF !== bNF) return aNF - bNF;
+  return compareByRecent(a,b);
 }
 
 function updateList(){
