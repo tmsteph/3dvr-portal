@@ -138,6 +138,22 @@ button:hover {
 .priority-backlog .priority-dot {
   background: #8c95a1;
 }
+
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.priority-select {
+  min-width: 120px;
+  padding: 6px 8px;
+  border: 1px solid #d1d9de;
+  background: #fff;
+  color: #333;
+}
 </style>
 </head>
 <body>
@@ -207,6 +223,26 @@ function priorityWeight(priority) {
   return index === -1 ? PRIORITY_LEVELS.indexOf('Medium') : index;
 }
 
+function createPrioritySelect(selectedPriority, taskId) {
+  const select = document.createElement('select');
+  select.className = 'priority-select';
+  select.setAttribute('aria-label', 'Edit task priority');
+  PRIORITY_LEVELS.forEach(level => {
+    const option = document.createElement('option');
+    option.value = level;
+    option.textContent = level;
+    if (level === selectedPriority) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+  select.onchange = event => {
+    const newPriority = event.target.value;
+    tasks.get(taskId).put({ priority: newPriority });
+  };
+  return select;
+}
+
 // Add new task
 function addTask() {
   const text = document.getElementById('task-input').value.trim();
@@ -245,16 +281,40 @@ function renderTasks() {
       const createdAt = getCreatedAt(task);
       const timestamp = createdAt ? timeAgoOrFullDate(createdAt) : 'Just now';
       const priority = getPriority(task);
-      div.innerHTML = `
-        <div class="task-text">${task.text}</div>
-        <div class="priority priority-${priority.toLowerCase()}">
-          <span class="priority-dot" aria-hidden="true"></span>
-          <span class="priority-label">${priority} priority</span>
-        </div>
-        <div class="meta">Added ${timestamp}</div>
-        <span class="delete">🗑</span>
-      `;
-      div.querySelector('.delete').onclick = () => tasks.get(id).put(null);
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'task-text';
+      textDiv.textContent = task.text;
+
+      const priorityBadge = document.createElement('div');
+      priorityBadge.className = `priority priority-${priority.toLowerCase()}`;
+      const dot = document.createElement('span');
+      dot.className = 'priority-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      const label = document.createElement('span');
+      label.className = 'priority-label';
+      label.textContent = `${priority} priority`;
+      priorityBadge.appendChild(dot);
+      priorityBadge.appendChild(label);
+
+      const metaRow = document.createElement('div');
+      metaRow.className = 'task-meta';
+      metaRow.appendChild(priorityBadge);
+      metaRow.appendChild(createPrioritySelect(priority, id));
+
+      const metaText = document.createElement('div');
+      metaText.className = 'meta';
+      metaText.textContent = `Added ${timestamp}`;
+      metaRow.appendChild(metaText);
+
+      const deleteBtn = document.createElement('span');
+      deleteBtn.className = 'delete';
+      deleteBtn.textContent = '🗑';
+      deleteBtn.onclick = () => tasks.get(id).put(null);
+
+      div.appendChild(textDiv);
+      div.appendChild(metaRow);
+      div.appendChild(deleteBtn);
       container.appendChild(div);
     });
 }
