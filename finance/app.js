@@ -346,6 +346,7 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
   currency: 'USD',
   minimumFractionDigits: 2
 });
+const stripeTotalsPlaceholder = '—';
 
 if (dateInput) {
   dateInput.value = defaultDate();
@@ -994,7 +995,7 @@ async function fetchStripeMetrics(quiet = false) {
   }
 }
 
-const stripeEventsLimit = 5;
+const stripeEventsLimit = 3;
 
 async function fetchStripeEvents() {
   if (!stripeEventsStatus) {
@@ -1131,13 +1132,13 @@ function renderStripeReports() {
       stripeLedger.append(stripeEmpty);
     }
     if (stripeGrossTotal) {
-      stripeGrossTotal.textContent = numberFormatter.format(0);
+      stripeGrossTotal.textContent = stripeTotalsPlaceholder;
     }
     if (stripeFeesTotal) {
-      stripeFeesTotal.textContent = numberFormatter.format(0);
+      stripeFeesTotal.textContent = stripeTotalsPlaceholder;
     }
     if (stripeNetTotal) {
-      stripeNetTotal.textContent = numberFormatter.format(0);
+      stripeNetTotal.textContent = stripeTotalsPlaceholder;
     }
     if (stripeLastPayout) {
       stripeLastPayout.textContent = 'No payouts logged';
