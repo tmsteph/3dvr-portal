@@ -6,6 +6,7 @@
 <title>3DVR - Task Board</title>
 <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 <script src="gun-init.js"></script>
+<script src="score.js"></script>
 <link rel="stylesheet" href="styles/global.css">
 <style>
 body {
@@ -29,6 +30,65 @@ h1 {
   color: #333;
   margin-top: 0;
   font-size: 2.4rem;
+}
+
+.score-card {
+  max-width: 920px;
+  margin: 10px auto 24px;
+  padding: 14px 16px;
+  background: #f7fbff;
+  border: 1px solid #d9e5ee;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.score-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.score-meta strong {
+  color: #1f3a56;
+}
+
+.score-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0c7f6f;
+  padding: 8px 14px;
+  background: #e6f6f1;
+  border-radius: 12px;
+  border: 1px solid #bfe5da;
+}
+
+.score-value small {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f3a56;
+}
+
+.score-card[data-ready="true"] .score-value {
+  animation: pulse-in 180ms ease-out;
+}
+
+@keyframes pulse-in {
+  from {
+    transform: scale(0.97);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 #new-task {
@@ -94,15 +154,6 @@ button:hover {
   font-size: 1.1rem;
 }
 
-.task .delete {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  cursor: pointer;
-  color: red;
-  font-weight: bold;
-}
-
 .task .meta {
   margin-top: 8px;
   color: #666;
@@ -155,6 +206,24 @@ button:hover {
   margin-top: 10px;
 }
 
+.complete {
+  position: absolute;
+  top: 10px;
+  right: 60px;
+  cursor: pointer;
+  background: #0f9b81;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.complete:hover {
+  background: #0c826b;
+}
+
 .priority-select {
   min-width: 120px;
   padding: 6px 8px;
@@ -186,6 +255,17 @@ button:hover {
 </div>
 
 <h1>✅ Task Board</h1>
+
+<section class="score-card" id="score-card" aria-live="polite" aria-label="Task score status">
+  <div class="score-meta">
+    <strong>Earn score as you stay on top of tasks</strong>
+    <span>+5 for new tasks, +25 for completions. Shared across your devices via Gun.</span>
+  </div>
+  <div class="score-value" id="score-value" aria-label="Current score">
+    <span>0</span>
+    <small>score</small>
+  </div>
+</section>
 
 <div id="new-task">
   <input type="text" id="task-input" placeholder="New Task...">
@@ -231,6 +311,55 @@ const gun = Gun({
     'wss://gun-relay-3dvr.fly.dev/gun'
   ]
 });
+
+const portalRoot = gun.get('3dvr-portal');
+const portalUser = gun.user();
+const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
+  ? window.ScoreSystem.getManager({ gun, user: portalUser, portalRoot })
+  : null;
+
+const SCORE_FOR_CREATE = 5;
+const SCORE_FOR_COMPLETE = 25;
+
+function sanitizeScoreDisplay(value) {
+  if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
+    return window.ScoreSystem.sanitizeScore(value);
+  }
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.round(numeric));
+}
+
+function updateScoreDisplay(value) {
+  const safeScore = sanitizeScoreDisplay(value);
+  const scoreValueEl = document.getElementById('score-value');
+  const scoreCardEl = document.getElementById('score-card');
+  if (scoreValueEl) {
+    const numberEl = scoreValueEl.querySelector('span');
+    if (numberEl) numberEl.textContent = safeScore;
+  }
+  if (scoreCardEl) {
+    scoreCardEl.setAttribute('data-ready', 'true');
+  }
+}
+
+if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+  window.ScoreSystem.ensureGuestIdentity();
+}
+
+if (scoreManager && typeof scoreManager.subscribe === 'function') {
+  scoreManager.subscribe(updateScoreDisplay);
+  if (typeof scoreManager.whenReady === 'function') {
+    scoreManager.whenReady().then(updateScoreDisplay);
+  }
+} else {
+  updateScoreDisplay(0);
+}
+
+function awardScore(amount) {
+  if (!scoreManager || typeof scoreManager.increment !== 'function') return;
+  scoreManager.increment(amount);
+}
 
 const PRIORITY_LEVELS = ['Critical', 'High', 'Medium', 'Low', 'Backlog'];
 
@@ -295,6 +424,7 @@ function addTask() {
   if (!text) return;
   tasks.set({ text, priority, createdAt: Date.now() });
   document.getElementById('task-input').value = '';
+  awardScore(SCORE_FOR_CREATE);
 }
 
 document.getElementById('sort-mode').onchange = event => {
@@ -372,14 +502,19 @@ function renderTasks() {
       metaText.textContent = `Added ${timestamp}`;
       metaRow.appendChild(metaText);
 
-      const deleteBtn = document.createElement('span');
-      deleteBtn.className = 'delete';
-      deleteBtn.textContent = '🗑';
-      deleteBtn.onclick = () => tasks.get(id).put(null);
+      const completeBtn = document.createElement('button');
+      completeBtn.className = 'complete';
+      completeBtn.type = 'button';
+      completeBtn.textContent = 'Complete';
+      completeBtn.setAttribute('aria-label', 'Complete task and earn score');
+      completeBtn.onclick = () => {
+        tasks.get(id).put(null);
+        awardScore(SCORE_FOR_COMPLETE);
+      };
 
       div.appendChild(textDiv);
       div.appendChild(metaRow);
-      div.appendChild(deleteBtn);
+      div.appendChild(completeBtn);
       container.appendChild(div);
     });
 }
