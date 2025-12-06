@@ -35,6 +35,14 @@ h1 {
   display: flex;
   gap: 10px;
   justify-content: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
   margin-bottom: 30px;
   flex-wrap: wrap;
 }
@@ -154,6 +162,18 @@ button:hover {
   background: #fff;
   color: #333;
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 </style>
 </head>
 <body>
@@ -179,6 +199,28 @@ button:hover {
   <button onclick="addTask()">Add Task</button>
 </div>
 
+<div class="controls" aria-label="Task sorting and filters">
+  <label>
+    <span class="sr-only">Sort tasks</span>
+    <select id="sort-mode" aria-label="Sort tasks">
+      <option value="chronological" selected>Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="priority">Priority then newest</option>
+    </select>
+  </label>
+  <label>
+    <span class="sr-only">Filter by priority</span>
+    <select id="priority-filter" aria-label="Filter by priority">
+      <option value="All" selected>All priorities</option>
+      <option value="Critical">Critical only</option>
+      <option value="High">High only</option>
+      <option value="Medium">Medium only</option>
+      <option value="Low">Low only</option>
+      <option value="Backlog">Backlog only</option>
+    </select>
+  </label>
+</div>
+
 <div id="tasks"></div>
 
 <script>
@@ -194,6 +236,9 @@ const PRIORITY_LEVELS = ['Critical', 'High', 'Medium', 'Low', 'Backlog'];
 
 // Tasks stored in Gun as { text, priority, createdAt } for shared visibility across sessions.
 const tasks = gun.get('3dvr-tasks');
+
+let sortMode = 'chronological';
+let priorityFilter = 'All';
 
 function timeAgoOrFullDate(timestamp) {
   const now = Date.now();
@@ -252,6 +297,16 @@ function addTask() {
   document.getElementById('task-input').value = '';
 }
 
+document.getElementById('sort-mode').onchange = event => {
+  sortMode = event.target.value;
+  renderTasks();
+};
+
+document.getElementById('priority-filter').onchange = event => {
+  priorityFilter = event.target.value;
+  renderTasks();
+};
+
 // Store and render tasks
 const taskList = {};
 
@@ -269,9 +324,19 @@ function renderTasks() {
   const container = document.getElementById('tasks');
   container.innerHTML = '';
   Object.entries(taskList)
+    .filter(([, task]) => {
+      const priority = getPriority(task);
+      return priorityFilter === 'All' || priority === priorityFilter;
+    })
     .sort((a, b) => {
-      const priorityDiff = priorityWeight(getPriority(a[1])) - priorityWeight(getPriority(b[1]));
-      if (priorityDiff !== 0) return priorityDiff;
+      if (sortMode === 'priority') {
+        const priorityDiff = priorityWeight(getPriority(a[1])) - priorityWeight(getPriority(b[1]));
+        if (priorityDiff !== 0) return priorityDiff;
+        return getCreatedAt(b[1]) - getCreatedAt(a[1]);
+      }
+      if (sortMode === 'oldest') {
+        return getCreatedAt(a[1]) - getCreatedAt(b[1]);
+      }
       return getCreatedAt(b[1]) - getCreatedAt(a[1]);
     })
     .forEach(([id, task]) => {
