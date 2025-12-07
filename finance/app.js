@@ -331,6 +331,12 @@ const payables = new Map();
 const ethPayments = new Map();
 const stripeEvents = new Map();
 let stripeMetricsIntervalId = null;
+const stripeMetricsState = {
+  available: {},
+  pending: {},
+  activeSubscribers: 0,
+  updatedAt: null
+};
 const ethState = {
   account: null,
   chainId: null,
@@ -384,6 +390,19 @@ forEachSource(stripeMetricsSources, source => {
     : null;
   if (latestNode && typeof latestNode.on === 'function') {
     latestNode.on(handleStripeMetricsUpdate);
+  }
+
+  if (latestNode && typeof latestNode.get === 'function') {
+    const availableNode = latestNode.get('available');
+    const pendingNode = latestNode.get('pending');
+
+    if (availableNode && typeof availableNode.on === 'function') {
+      availableNode.on(data => handleStripeTotalsUpdate('available', data));
+    }
+
+    if (pendingNode && typeof pendingNode.on === 'function') {
+      pendingNode.on(data => handleStripeTotalsUpdate('pending', data));
+    }
   }
 });
 if (stripeEventsStatus) {
@@ -853,8 +872,9 @@ function handlePayableSubmit(event) {
 }
 
 function formatStripeTotals(totals) {
-  const entries = totals && typeof totals === 'object'
-    ? Object.entries(totals).filter(([, amount]) => typeof amount === 'number')
+  const normalizedTotals = normalizeStripeTotals(totals);
+  const entries = normalizedTotals && typeof normalizedTotals === 'object'
+    ? Object.entries(normalizedTotals).filter(([, amount]) => typeof amount === 'number')
     : [];
 
   if (entries.length === 0) {
@@ -881,6 +901,30 @@ function formatStripeTotals(totals) {
     currency,
     amount
   };
+}
+
+function normalizeStripeTotals(rawTotals) {
+  if (!rawTotals || typeof rawTotals !== 'object') {
+    return null;
+  }
+
+  const totals = Object.entries(rawTotals).reduce((acc, [currency, amount]) => {
+    if (currency === '_' || typeof amount === 'function') {
+      return acc;
+    }
+
+    const numeric = typeof amount === 'number'
+      ? amount
+      : parseFloat(String(amount));
+
+    if (Number.isFinite(numeric)) {
+      acc[currency] = numeric;
+    }
+
+    return acc;
+  }, {});
+
+  return Object.keys(totals).length ? totals : null;
 }
 
 function updateStripeDisplays(metrics) {
@@ -914,6 +958,90 @@ function updateStripeDisplays(metrics) {
   }
 }
 
+function applyStripeMetricsPatch(patch) {
+  if (!patch || typeof patch !== 'object') {
+    return;
+  }
+
+  const availableTotals = normalizeStripeTotals(patch.available);
+  const pendingTotals = normalizeStripeTotals(patch.pending);
+
+  if (availableTotals) {
+    stripeMetricsState.available = availableTotals;
+  }
+
+  if (pendingTotals) {
+    stripeMetricsState.pending = pendingTotals;
+  }
+
+  if (Number.isFinite(patch.activeSubscribers)) {
+    stripeMetricsState.activeSubscribers = patch.activeSubscribers;
+  }
+
+  if (patch.updatedAt) {
+    stripeMetricsState.updatedAt = patch.updatedAt;
+  }
+
+  updateStripeDisplays(stripeMetricsState);
+}
+
+function handleStripeTotalsUpdate(kind, rawTotals) {
+  const normalized = normalizeStripeTotals(rawTotals);
+  if (!normalized || (kind !== 'available' && kind !== 'pending')) {
+    return;
+  }
+
+  stripeMetricsState[kind] = normalized;
+  updateStripeDisplays(stripeMetricsState);
+}
+
+function writeStripeMetrics(metrics) {
+  forEachSource(stripeMetricsSources, (source, index) => {
+    const latestNode = source && typeof source.get === 'function'
+      ? source.get('latest')
+      : null;
+
+    if (!latestNode || typeof latestNode.put !== 'function') {
+      return;
+    }
+
+    const scalarRecord = {
+      activeSubscribers: metrics.activeSubscribers,
+      updatedAt: metrics.updatedAt
+    };
+
+    latestNode.put(scalarRecord, ack => {
+      if (index === 0 && ack && ack.err) {
+        console.warn('Failed to persist stripe metrics scalars to primary node', ack.err);
+      }
+    });
+
+    const availableTotals = normalizeStripeTotals(metrics.available) || {};
+    const pendingTotals = normalizeStripeTotals(metrics.pending) || {};
+
+    if (typeof latestNode.get === 'function') {
+      const availableNode = latestNode.get('available');
+      const pendingNode = latestNode.get('pending');
+
+      if (availableNode && typeof availableNode.put === 'function') {
+        availableNode.put(availableTotals, ack => {
+          if (index === 0 && ack && ack.err) {
+            console.warn('Failed to persist available stripe totals to primary node', ack.err);
+          }
+        });
+      }
+
+      if (pendingNode && typeof pendingNode.put === 'function') {
+        pendingNode.put(pendingTotals, ack => {
+          if (index === 0 && ack && ack.err) {
+            console.warn('Failed to persist pending stripe totals to primary node', ack.err);
+          }
+        });
+      }
+    }
+  });
+}
+
 async function fetchStripeMetrics(quiet = false) {
   if (stripeBalanceDisplays.length === 0 && stripeSubscriberDisplays.length === 0 && !stripeLiveStatus) {
     return;
@@ -939,8 +1067,8 @@ async function fetchStripeMetrics(quiet = false) {
       updatedAt: new Date().toISOString()
     };
 
-    updateStripeDisplays(metricsRecord);
-    writeRecordToSources(stripeMetricsSources, 'latest', metricsRecord, 'stripe metrics');
+    applyStripeMetricsPatch(metricsRecord);
+    writeStripeMetrics(metricsRecord);
   } catch (err) {
     if (stripeLiveStatus) {
       stripeLiveStatus.textContent = `Unable to load live Stripe metrics: ${err.message}`;
@@ -954,7 +1082,7 @@ function handleStripeMetricsUpdate(raw) {
   if (!metrics) {
     return;
   }
-  updateStripeDisplays(metrics);
+  applyStripeMetricsPatch(metrics);
 }
 
 const stripeEventsLimit = 3;
