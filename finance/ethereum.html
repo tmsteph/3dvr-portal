@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ethereum payments • 3dvr Finance</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="../score.js"></script>
+</head>
+<body class="finance-body" data-ledger-view="ethereum">
+  <a href="#page-main" class="finance-skip-link">Skip to finance content</a>
+  <nav class="finance-nav" aria-label="Portal navigation">
+    <a class="finance-nav__link" href="./index.html">Finance overview</a>
+    <a class="finance-nav__link" href="./stripe.html">Stripe</a>
+    <a class="finance-nav__link" href="./incoming.html">Incoming</a>
+    <a class="finance-nav__link" href="./outgoing.html">Outgoing</a>
+  </nav>
+  <main id="page-main" class="finance-shell" aria-labelledby="page-title">
+    <header class="finance-hero">
+      <p class="finance-hero__eyebrow">Ethereum workspace</p>
+      <h1 id="page-title" class="finance-hero__title">Ethereum payments</h1>
+      <p class="finance-hero__lead">
+        Send MetaMask-backed payments and log them to the shared finance graph so the team sees them instantly.
+      </p>
+    </header>
+
+    <section class="finance-card finance-card--form" aria-labelledby="eth-pay-title">
+      <div class="finance-card__header">
+        <h2 id="eth-pay-title" class="finance-card__title">Ethereum payments</h2>
+        <p class="finance-card__subhead">MetaMask ready</p>
+      </div>
+
+      <div class="eth-panel">
+        <p id="eth-status" class="eth-status" role="status">MetaMask not detected yet.</p>
+
+        <div class="eth-connection">
+          <button type="button" id="eth-connect" class="finance-button">Connect MetaMask</button>
+          <div class="eth-connection__details" aria-live="polite">
+            <div>
+              <span class="eth-label">Account</span>
+              <span id="eth-account" class="eth-value">Not connected</span>
+            </div>
+            <div>
+              <span class="eth-label">Network</span>
+              <span id="eth-network" class="eth-value">Unknown</span>
+            </div>
+          </div>
+        </div>
+
+        <form id="eth-payment-form" class="finance-form" autocomplete="off" novalidate>
+          <div class="finance-form__grid">
+            <label class="finance-field">
+              <span class="finance-field__label">Destination wallet</span>
+              <input id="eth-destination" name="ethDestination" type="text" placeholder="0x..." spellcheck="false" required />
+            </label>
+            <label class="finance-field">
+              <span class="finance-field__label">Amount (ETH)</span>
+              <input id="eth-amount" name="ethAmount" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.05" required />
+            </label>
+          </div>
+          <label class="finance-field">
+            <span class="finance-field__label">Notes</span>
+            <textarea id="eth-note" name="ethNote" rows="2" placeholder="Invoice, project, or payable context"></textarea>
+          </label>
+          <button type="submit" class="finance-button finance-button--secondary">Send with MetaMask</button>
+          <p id="eth-message" class="eth-message" role="status" aria-live="polite"></p>
+        </form>
+
+        <div class="eth-log__header">
+          <h3 class="eth-log__title">Recent on-chain payments</h3>
+          <p class="eth-log__hint">Logged to the shared finance graph so the team sees your transfer immediately.</p>
+        </div>
+        <div id="eth-payment-log" class="eth-log" role="list">
+          <p id="eth-log-empty" class="finance-ledger__empty">No Ethereum payments logged yet.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
