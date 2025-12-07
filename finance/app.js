@@ -237,6 +237,10 @@ const stripeEventSources = buildSourceList(
   stripeRoot && typeof stripeRoot.get === 'function' ? stripeRoot.get('events') : null,
   legacyStripeRoot && typeof legacyStripeRoot.get === 'function' ? legacyStripeRoot.get('events') : null
 );
+const stripeMetricsSources = buildSourceList(
+  stripeRoot && typeof stripeRoot.get === 'function' ? stripeRoot.get('metrics') : null,
+  legacyStripeRoot && typeof legacyStripeRoot.get === 'function' ? legacyStripeRoot.get('metrics') : null
+);
 
 function forEachSource(sources, callback) {
   sources.forEach((source, index) => {
@@ -372,6 +376,11 @@ if (stripeEventsRefresh) {
 forEachSource(stripeEventSources, source => {
   if (source && typeof source.map === 'function' && typeof source.map().on === 'function') {
     source.map().on(handleStripeEventUpdate);
+  }
+});
+forEachSource(stripeMetricsSources, source => {
+  if (source && typeof source.on === 'function') {
+    source.on(handleStripeMetricsUpdate);
   }
 });
 if (stripeEventsStatus) {
@@ -871,6 +880,37 @@ function formatStripeTotals(totals) {
   };
 }
 
+function updateStripeDisplays(metrics) {
+  if (!metrics || typeof metrics !== 'object') {
+    return;
+  }
+
+  const availableTotals = formatStripeTotals(metrics.available);
+  const pendingTotals = formatStripeTotals(metrics.pending);
+  const subscriberCount = Number.isFinite(metrics.activeSubscribers)
+    ? metrics.activeSubscribers
+    : 0;
+
+  stripeBalanceDisplays.forEach(display => {
+    display.textContent = availableTotals.label;
+  });
+
+  stripeSubscriberDisplays.forEach(display => {
+    display.textContent = subscriberCount.toLocaleString();
+  });
+
+  if (stripeLiveStatus) {
+    const statusParts = [`Available ${availableTotals.currency} balance updated.`];
+    if (pendingTotals.amount > 0) {
+      statusParts.push(`Pending ${pendingTotals.label}.`);
+    }
+    statusParts.push(`Active subscribers: ${subscriberCount.toLocaleString()}.`);
+
+    stripeLiveStatus.textContent = statusParts.join(' ');
+    stripeLiveStatus.classList.remove('finance-helper--error');
+  }
+}
+
 async function fetchStripeMetrics(quiet = false) {
   if (stripeBalanceDisplays.length === 0 && stripeSubscriberDisplays.length === 0 && !stripeLiveStatus) {
     return;
@@ -888,36 +928,30 @@ async function fetchStripeMetrics(quiet = false) {
     }
 
     const payload = await response.json();
-    const availableTotals = formatStripeTotals(payload.available);
-    const pendingTotals = formatStripeTotals(payload.pending);
-    const subscriberCount = Number.isFinite(payload.activeSubscribers)
-      ? payload.activeSubscribers
-      : 0;
 
-    stripeBalanceDisplays.forEach(display => {
-      display.textContent = availableTotals.label;
-    });
+    const metricsRecord = {
+      available: payload.available,
+      pending: payload.pending,
+      activeSubscribers: payload.activeSubscribers,
+      updatedAt: new Date().toISOString()
+    };
 
-    stripeSubscriberDisplays.forEach(display => {
-      display.textContent = subscriberCount.toLocaleString();
-    });
-
-    if (stripeLiveStatus) {
-      const statusParts = [`Available ${availableTotals.currency} balance updated.`];
-      if (pendingTotals.amount > 0) {
-        statusParts.push(`Pending ${pendingTotals.label}.`);
-      }
-      statusParts.push(`Active subscribers: ${subscriberCount.toLocaleString()}.`);
-
-      stripeLiveStatus.textContent = statusParts.join(' ');
-      stripeLiveStatus.classList.remove('finance-helper--error');
-    }
+    updateStripeDisplays(metricsRecord);
+    writeRecordToSources(stripeMetricsSources, 'latest', metricsRecord, 'stripe metrics');
   } catch (err) {
     if (stripeLiveStatus) {
       stripeLiveStatus.textContent = `Unable to load live Stripe metrics: ${err.message}`;
       stripeLiveStatus.classList.add('finance-helper--error');
     }
   }
+}
+
+function handleStripeMetricsUpdate(raw) {
+  const metrics = sanitizeRecord(raw);
+  if (!metrics) {
+    return;
+  }
+  updateStripeDisplays(metrics);
 }
 
 const stripeEventsLimit = 3;
