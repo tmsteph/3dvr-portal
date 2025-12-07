@@ -307,6 +307,8 @@ const stripeLiveStatus = document.getElementById('stripe-live-status');
 const stripeLiveRefresh = document.getElementById('stripe-live-refresh');
 const stripeOverviewBalance = document.getElementById('stripe-overview-balance');
 const stripeBalanceDisplays = [stripeLiveBalance, stripeOverviewBalance].filter(Boolean);
+const stripeOverviewSubscribers = document.getElementById('stripe-overview-subscribers');
+const stripeSubscriberDisplays = [stripeLiveSubscribers, stripeOverviewSubscribers].filter(Boolean);
 
 const ethStatus = document.getElementById('eth-status');
 const ethConnectButton = document.getElementById('eth-connect');
@@ -383,7 +385,7 @@ if (stripeLiveRefresh) {
   });
 }
 const shouldPollStripeMetrics = stripeBalanceDisplays.length > 0
-  || stripeLiveSubscribers
+  || stripeSubscriberDisplays.length > 0
   || stripeLiveStatus;
 if (shouldPollStripeMetrics) {
   fetchStripeMetrics(true);
@@ -870,7 +872,7 @@ function formatStripeTotals(totals) {
 }
 
 async function fetchStripeMetrics(quiet = false) {
-  if (stripeBalanceDisplays.length === 0 && !stripeLiveSubscribers && !stripeLiveStatus) {
+  if (stripeBalanceDisplays.length === 0 && stripeSubscriberDisplays.length === 0 && !stripeLiveStatus) {
     return;
   }
 
@@ -896,9 +898,9 @@ async function fetchStripeMetrics(quiet = false) {
       display.textContent = availableTotals.label;
     });
 
-    if (stripeLiveSubscribers) {
-      stripeLiveSubscribers.textContent = subscriberCount.toLocaleString();
-    }
+    stripeSubscriberDisplays.forEach(display => {
+      display.textContent = subscriberCount.toLocaleString();
+    });
 
     if (stripeLiveStatus) {
       const statusParts = [`Available ${availableTotals.currency} balance updated.`];
