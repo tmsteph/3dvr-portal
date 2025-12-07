@@ -379,8 +379,11 @@ forEachSource(stripeEventSources, source => {
   }
 });
 forEachSource(stripeMetricsSources, source => {
-  if (source && typeof source.on === 'function') {
-    source.on(handleStripeMetricsUpdate);
+  const latestNode = source && typeof source.get === 'function'
+    ? source.get('latest')
+    : null;
+  if (latestNode && typeof latestNode.on === 'function') {
+    latestNode.on(handleStripeMetricsUpdate);
   }
 });
 if (stripeEventsStatus) {
