@@ -305,6 +305,8 @@ const stripeLiveBalance = document.getElementById('stripe-live-balance');
 const stripeLiveSubscribers = document.getElementById('stripe-live-subscribers');
 const stripeLiveStatus = document.getElementById('stripe-live-status');
 const stripeLiveRefresh = document.getElementById('stripe-live-refresh');
+const stripeOverviewBalance = document.getElementById('stripe-overview-balance');
+const stripeBalanceDisplays = [stripeLiveBalance, stripeOverviewBalance].filter(Boolean);
 
 const ethStatus = document.getElementById('eth-status');
 const ethConnectButton = document.getElementById('eth-connect');
@@ -380,7 +382,10 @@ if (stripeLiveRefresh) {
     fetchStripeMetrics(false);
   });
 }
-if (stripeLiveBalance && stripeLiveSubscribers && stripeLiveStatus) {
+const shouldPollStripeMetrics = stripeBalanceDisplays.length > 0
+  || stripeLiveSubscribers
+  || stripeLiveStatus;
+if (shouldPollStripeMetrics) {
   fetchStripeMetrics(true);
   stripeMetricsIntervalId = window.setInterval(() => {
     fetchStripeMetrics(true);
@@ -865,11 +870,11 @@ function formatStripeTotals(totals) {
 }
 
 async function fetchStripeMetrics(quiet = false) {
-  if (!stripeLiveBalance || !stripeLiveSubscribers || !stripeLiveStatus) {
+  if (stripeBalanceDisplays.length === 0 && !stripeLiveSubscribers && !stripeLiveStatus) {
     return;
   }
 
-  if (!quiet) {
+  if (!quiet && stripeLiveStatus) {
     stripeLiveStatus.classList.remove('finance-helper--error');
     stripeLiveStatus.textContent = 'Refreshing live Stripe metrics...';
   }
@@ -887,20 +892,29 @@ async function fetchStripeMetrics(quiet = false) {
       ? payload.activeSubscribers
       : 0;
 
-    stripeLiveBalance.textContent = availableTotals.label;
-    stripeLiveSubscribers.textContent = subscriberCount.toLocaleString();
+    stripeBalanceDisplays.forEach(display => {
+      display.textContent = availableTotals.label;
+    });
 
-    const statusParts = [`Available ${availableTotals.currency} balance updated.`];
-    if (pendingTotals.amount > 0) {
-      statusParts.push(`Pending ${pendingTotals.label}.`);
+    if (stripeLiveSubscribers) {
+      stripeLiveSubscribers.textContent = subscriberCount.toLocaleString();
     }
-    statusParts.push(`Active subscribers: ${subscriberCount.toLocaleString()}.`);
 
-    stripeLiveStatus.textContent = statusParts.join(' ');
-    stripeLiveStatus.classList.remove('finance-helper--error');
+    if (stripeLiveStatus) {
+      const statusParts = [`Available ${availableTotals.currency} balance updated.`];
+      if (pendingTotals.amount > 0) {
+        statusParts.push(`Pending ${pendingTotals.label}.`);
+      }
+      statusParts.push(`Active subscribers: ${subscriberCount.toLocaleString()}.`);
+
+      stripeLiveStatus.textContent = statusParts.join(' ');
+      stripeLiveStatus.classList.remove('finance-helper--error');
+    }
   } catch (err) {
-    stripeLiveStatus.textContent = `Unable to load live Stripe metrics: ${err.message}`;
-    stripeLiveStatus.classList.add('finance-helper--error');
+    if (stripeLiveStatus) {
+      stripeLiveStatus.textContent = `Unable to load live Stripe metrics: ${err.message}`;
+      stripeLiveStatus.classList.add('finance-helper--error');
+    }
   }
 }
 
