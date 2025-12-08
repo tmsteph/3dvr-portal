@@ -65,6 +65,58 @@
       </section>
 
       <section class="points-section">
+        <div class="section-card ratio-card" aria-labelledby="ratioHeading">
+          <div class="ratio-header">
+            <div>
+              <p class="points-eyebrow">Live pool math</p>
+              <h2 id="ratioHeading">Point-to-dollar ratio preview</h2>
+              <p class="info-note">
+                Enter the total active points and the current Stripe pool to see how much each point could be worth. Adjust
+                your own points to estimate a potential cash-out.
+              </p>
+            </div>
+            <div class="ratio-badge" aria-live="polite">
+              <p class="ratio-badge-label">Dollar value per point</p>
+              <p class="ratio-badge-value" id="ratioHighlight">$0.00</p>
+            </div>
+          </div>
+
+          <form class="ratio-form" aria-label="Point to dollar calculator">
+            <div class="ratio-input">
+              <label for="totalPoints">Total active points</label>
+              <input id="totalPoints" name="totalPoints" type="number" min="0" step="1" value="100000" />
+            </div>
+            <div class="ratio-input">
+              <label for="poolDollars">Stripe pool (USD)</label>
+              <input id="poolDollars" name="poolDollars" type="number" min="0" step="50" value="25000" />
+            </div>
+            <div class="ratio-input">
+              <label for="yourPoints">Your points to redeem</label>
+              <input id="yourPoints" name="yourPoints" type="number" min="0" step="50" value="5000" />
+            </div>
+          </form>
+
+          <div class="ratio-grid" aria-live="polite">
+            <div class="ratio-stat">
+              <p class="ratio-label">Dollar value per point</p>
+              <p class="ratio-value" id="dollarPerPoint">$0.00</p>
+              <p class="ratio-hint">Pool divided by total active points</p>
+            </div>
+            <div class="ratio-stat">
+              <p class="ratio-label">Points needed per dollar</p>
+              <p class="ratio-value" id="pointsPerDollar">0</p>
+              <p class="ratio-hint">Total points divided by pool</p>
+            </div>
+            <div class="ratio-stat">
+              <p class="ratio-label">Potential cash-out</p>
+              <p class="ratio-value" id="cashoutEstimate">$0.00</p>
+              <p class="ratio-hint">Your points × dollar value per point</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="points-section">
         <div class="section-grid">
           <article class="info-card">
             <h3>How you earn points today</h3>
@@ -227,6 +279,59 @@
         </div>
       </section>
     </main>
+
+    <script>
+      (function() {
+        const totalPointsInput = document.getElementById('totalPoints');
+        const poolDollarsInput = document.getElementById('poolDollars');
+        const yourPointsInput = document.getElementById('yourPoints');
+        const dollarPerPointEl = document.getElementById('dollarPerPoint');
+        const pointsPerDollarEl = document.getElementById('pointsPerDollar');
+        const cashoutEstimateEl = document.getElementById('cashoutEstimate');
+        const ratioHighlightEl = document.getElementById('ratioHighlight');
+
+        function formatCurrency(value) {
+          return `$${value.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          })}`;
+        }
+
+        function formatNumber(value) {
+          return value.toLocaleString(undefined, {
+            maximumFractionDigits: 2
+          });
+        }
+
+        function safeNumber(input) {
+          const value = Number(input?.value || 0);
+          if (!Number.isFinite(value) || value < 0) return 0;
+          return value;
+        }
+
+        function updateRatios() {
+          const totalPoints = safeNumber(totalPointsInput);
+          const poolDollars = safeNumber(poolDollarsInput);
+          const yourPoints = safeNumber(yourPointsInput);
+
+          const hasPool = totalPoints > 0 && poolDollars > 0;
+          const dollarPerPoint = hasPool ? poolDollars / totalPoints : 0;
+          const pointsPerDollar = hasPool ? totalPoints / poolDollars : 0;
+          const cashoutEstimate = hasPool ? dollarPerPoint * yourPoints : 0;
+
+          dollarPerPointEl.textContent = hasPool ? formatCurrency(dollarPerPoint) : '$0.00';
+          pointsPerDollarEl.textContent = hasPool ? formatNumber(pointsPerDollar) : '0';
+          cashoutEstimateEl.textContent = hasPool ? formatCurrency(cashoutEstimate) : '$0.00';
+          ratioHighlightEl.textContent = hasPool ? formatCurrency(dollarPerPoint) : '$0.00';
+        }
+
+        totalPointsInput?.addEventListener('input', updateRatios);
+        poolDollarsInput?.addEventListener('input', updateRatios);
+        yourPointsInput?.addEventListener('input', updateRatios);
+
+        updateRatios();
+      })();
+    </script>
 
     <footer class="points-footer">
       <p>Questions or ideas? Email <a href="mailto:hello@3dvr.tech">hello@3dvr.tech</a> and we will get back to you.</p>
