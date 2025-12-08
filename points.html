@@ -21,7 +21,8 @@
         <h1>How the 3dvr.tech point system works</h1>
         <p class="points-intro">
           We are building a transparent way to reward every contribution. Points track your impact today and will soon
-          convert into a share of the revenue that flows through our Stripe account.
+          convert into a share of the revenue that flows through our Stripe account. We peg point value to Stripe dollars
+          so 100 points map to roughly $1 of the available balance after reserve floors are applied.
         </p>
         <div class="points-cta">
           <a class="cta primary" href="sign-in.html">Sign in to track your points</a>
@@ -40,6 +41,10 @@
             roll points forward for future drops.
           </p>
           <p>
+            The baseline peg is simple: 100 points equal $1 of the Stripe balance that remains after our reserve floor. The
+            live value per point updates as the pool and total outstanding points change.
+          </p>
+          <p>
             Stripe payments are now mapped directly to score. One-time payments mint points from the net charge, while
             subscriptions add a recurring monthly bonus so supporters accumulate a larger share the longer they stay
             active.
@@ -55,6 +60,10 @@
             <div>
               <dt>Redemption model</dt>
               <dd>Points × percentage share of monthly Stripe revenue</dd>
+            </div>
+            <div>
+              <dt>Baseline peg</dt>
+              <dd>100 points ≈ $1 USD of available Stripe balance after reserves</dd>
             </div>
             <div>
               <dt>Launch target</dt>
@@ -206,7 +215,8 @@
               <summary>How will the point value be calculated?</summary>
               <p>
                 We will divide the Stripe revenue pool by the total active points. Your payout equals the number of points
-                you redeem multiplied by that value.
+                you redeem multiplied by that value. The peg starts at 100 points per $1 of available Stripe balance and
+                adjusts dynamically as deposits and redemptions move the pool.
               </p>
             </details>
             <details>
