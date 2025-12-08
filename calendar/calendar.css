@@ -670,13 +670,14 @@ button:hover {
   }
 
   .calendar-view__grid-inner {
-    min-width: 720px;
+    min-width: 100%;
+    width: 100%;
   }
 
   .calendar-view__day-names,
   .calendar-view__days {
     gap: 8px;
-    grid-template-columns: repeat(7, minmax(100px, 1fr));
+    grid-template-columns: repeat(7, 1fr);
   }
 
   .calendar-view__day {
@@ -760,12 +761,13 @@ button:hover {
   .calendar-view__grid-inner {
     gap: 8px;
     min-width: 100%;
+    width: 100%;
   }
 
   .calendar-view__day-names,
   .calendar-view__days {
     gap: 6px;
-    grid-template-columns: repeat(7, minmax(64px, 1fr));
+    grid-template-columns: repeat(7, 1fr);
   }
 
   .calendar-view__day {
