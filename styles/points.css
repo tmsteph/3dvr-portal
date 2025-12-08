@@ -118,6 +118,23 @@
   gap: 1rem;
 }
 
+.ratio-live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ratio-live__status {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.ratio-live__status.is-error {
+  color: #f43f5e;
+}
+
 .ratio-badge {
   min-width: 220px;
   background: var(--surface-alt);

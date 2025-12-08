@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>3dvr.tech Points Overview</title>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script src="gun-init.js"></script>
     <link rel="stylesheet" href="styles/global.css" />
     <link rel="stylesheet" href="styles/points.css" />
   </head>
@@ -81,18 +83,23 @@
             </div>
           </div>
 
+          <div class="ratio-live">
+            <p class="ratio-live__status" id="ratioStatus" aria-live="polite">Loading live pool and leaderboard data...</p>
+            <button class="cta ghost" type="button" id="ratioRefresh">Refresh live data</button>
+          </div>
+
           <form class="ratio-form" aria-label="Point to dollar calculator">
             <div class="ratio-input">
               <label for="totalPoints">Total active points</label>
-              <input id="totalPoints" name="totalPoints" type="number" min="0" step="1" value="100000" />
+              <input id="totalPoints" name="totalPoints" type="number" min="0" step="1" value="0" />
             </div>
             <div class="ratio-input">
               <label for="poolDollars">Stripe pool (USD)</label>
-              <input id="poolDollars" name="poolDollars" type="number" min="0" step="50" value="25000" />
+              <input id="poolDollars" name="poolDollars" type="number" min="0" step="50" value="0" />
             </div>
             <div class="ratio-input">
               <label for="yourPoints">Your points to redeem</label>
-              <input id="yourPoints" name="yourPoints" type="number" min="0" step="50" value="5000" />
+              <input id="yourPoints" name="yourPoints" type="number" min="0" step="50" value="0" />
             </div>
           </form>
 
@@ -280,58 +287,7 @@
       </section>
     </main>
 
-    <script>
-      (function() {
-        const totalPointsInput = document.getElementById('totalPoints');
-        const poolDollarsInput = document.getElementById('poolDollars');
-        const yourPointsInput = document.getElementById('yourPoints');
-        const dollarPerPointEl = document.getElementById('dollarPerPoint');
-        const pointsPerDollarEl = document.getElementById('pointsPerDollar');
-        const cashoutEstimateEl = document.getElementById('cashoutEstimate');
-        const ratioHighlightEl = document.getElementById('ratioHighlight');
-
-        function formatCurrency(value) {
-          return `$${value.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-          })}`;
-        }
-
-        function formatNumber(value) {
-          return value.toLocaleString(undefined, {
-            maximumFractionDigits: 2
-          });
-        }
-
-        function safeNumber(input) {
-          const value = Number(input?.value || 0);
-          if (!Number.isFinite(value) || value < 0) return 0;
-          return value;
-        }
-
-        function updateRatios() {
-          const totalPoints = safeNumber(totalPointsInput);
-          const poolDollars = safeNumber(poolDollarsInput);
-          const yourPoints = safeNumber(yourPointsInput);
-
-          const hasPool = totalPoints > 0 && poolDollars > 0;
-          const dollarPerPoint = hasPool ? poolDollars / totalPoints : 0;
-          const pointsPerDollar = hasPool ? totalPoints / poolDollars : 0;
-          const cashoutEstimate = hasPool ? dollarPerPoint * yourPoints : 0;
-
-          dollarPerPointEl.textContent = hasPool ? formatCurrency(dollarPerPoint) : '$0.00';
-          pointsPerDollarEl.textContent = hasPool ? formatNumber(pointsPerDollar) : '0';
-          cashoutEstimateEl.textContent = hasPool ? formatCurrency(cashoutEstimate) : '$0.00';
-          ratioHighlightEl.textContent = hasPool ? formatCurrency(dollarPerPoint) : '$0.00';
-        }
-
-        totalPointsInput?.addEventListener('input', updateRatios);
-        poolDollarsInput?.addEventListener('input', updateRatios);
-        yourPointsInput?.addEventListener('input', updateRatios);
-
-        updateRatios();
-      })();
-    </script>
+      <script src="/points-ratio/pool-ratio.js" defer></script>
 
     <footer class="points-footer">
       <p>Questions or ideas? Email <a href="mailto:hello@3dvr.tech">hello@3dvr.tech</a> and we will get back to you.</p>
