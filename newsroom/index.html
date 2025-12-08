@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News & Social Lounge | 3DVR Portal</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="./newsroom.css">
+</head>
+<body class="newsroom theme-dark">
+  <a class="skip-link" href="#newsroomMain">Skip to news and social feed</a>
+  <div class="newsroom-shell">
+    <header class="newsroom-hero" aria-labelledby="newsroomTitle">
+      <p class="newsroom-hero__eyebrow">News &amp; Social</p>
+      <h1 id="newsroomTitle" class="newsroom-hero__title">Signal Lounge</h1>
+      <p class="newsroom-hero__lead">
+        Catch the latest tech, XR, and community headlines in one calm scroll. Each feed updates live from trusted RSS sources
+        so you can read, react, and share without leaving the portal.
+      </p>
+      <div class="newsroom-hero__actions">
+        <a class="cta primary" href="../index.html">⬅️ Back to portal</a>
+        <button class="cta ghost" type="button" data-refresh-all>🔄 Refresh all feeds</button>
+      </div>
+    </header>
+
+    <main id="newsroomMain" class="newsroom-grid" aria-label="News and social feeds">
+      <article class="feed-card" data-feed="open-web">
+        <header class="feed-card__header">
+          <div>
+            <p class="feed-card__eyebrow">Open web pulse</p>
+            <h2 class="feed-card__title">Tech headlines</h2>
+            <p class="feed-card__summary">Fresh drops from The Verge, Engadget, and friends.</p>
+          </div>
+          <button class="feed-card__refresh" type="button" data-feed-refresh>
+            <span aria-hidden="true">⟳</span>
+            <span class="sr-only">Refresh tech headlines</span>
+          </button>
+        </header>
+        <p class="feed-card__status" data-feed-status aria-live="polite">Loading latest stories…</p>
+        <ol class="feed-card__list" data-feed-list></ol>
+      </article>
+
+      <article class="feed-card" data-feed="immersive">
+        <header class="feed-card__header">
+          <div>
+            <p class="feed-card__eyebrow">VR + Play</p>
+            <h2 class="feed-card__title">Immersive culture</h2>
+            <p class="feed-card__summary">Road to VR, UploadVR, and XR creators in one lane.</p>
+          </div>
+          <button class="feed-card__refresh" type="button" data-feed-refresh>
+            <span aria-hidden="true">⟳</span>
+            <span class="sr-only">Refresh immersive stories</span>
+          </button>
+        </header>
+        <p class="feed-card__status" data-feed-status aria-live="polite">Loading immersive drops…</p>
+        <ol class="feed-card__list" data-feed-list></ol>
+      </article>
+
+      <article class="feed-card" data-feed="community">
+        <header class="feed-card__header">
+          <div>
+            <p class="feed-card__eyebrow">Community chatter</p>
+            <h2 class="feed-card__title">Social stream</h2>
+            <p class="feed-card__summary">Reddit and HN threads that keep builders laughing and thinking.</p>
+          </div>
+          <button class="feed-card__refresh" type="button" data-feed-refresh>
+            <span aria-hidden="true">⟳</span>
+            <span class="sr-only">Refresh community stream</span>
+          </button>
+        </header>
+        <p class="feed-card__status" data-feed-status aria-live="polite">Loading social threads…</p>
+        <ol class="feed-card__list" data-feed-list></ol>
+      </article>
+    </main>
+  </div>
+
+  <script src="./newsroom.js"></script>
+</body>
+</html>
