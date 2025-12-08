@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>3dvr.tech Points Overview</title>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script src="gun-init.js"></script>
     <link rel="stylesheet" href="styles/global.css" />
     <link rel="stylesheet" href="styles/points.css" />
   </head>
@@ -61,6 +63,63 @@
               <dd>Stripe redemption beta in Q1 2025</dd>
             </div>
           </dl>
+        </div>
+      </section>
+
+      <section class="points-section">
+        <div class="section-card ratio-card" aria-labelledby="ratioHeading">
+          <div class="ratio-header">
+            <div>
+              <p class="points-eyebrow">Live pool math</p>
+              <h2 id="ratioHeading">Point-to-dollar ratio preview</h2>
+              <p class="info-note">
+                Enter the total active points and the current Stripe pool to see how much each point could be worth. Adjust
+                your own points to estimate a potential cash-out.
+              </p>
+            </div>
+            <div class="ratio-badge" aria-live="polite">
+              <p class="ratio-badge-label">Dollar value per point</p>
+              <p class="ratio-badge-value" id="ratioHighlight">$0.00</p>
+            </div>
+          </div>
+
+          <div class="ratio-live">
+            <p class="ratio-live__status" id="ratioStatus" aria-live="polite">Loading live pool and leaderboard data...</p>
+            <button class="cta ghost" type="button" id="ratioRefresh">Refresh live data</button>
+          </div>
+
+          <form class="ratio-form" aria-label="Point to dollar calculator">
+            <div class="ratio-input">
+              <label for="totalPoints">Total active points</label>
+              <input id="totalPoints" name="totalPoints" type="number" min="0" step="1" value="0" />
+            </div>
+            <div class="ratio-input">
+              <label for="poolDollars">Stripe pool (USD)</label>
+              <input id="poolDollars" name="poolDollars" type="number" min="0" step="50" value="0" />
+            </div>
+            <div class="ratio-input">
+              <label for="yourPoints">Your points to redeem</label>
+              <input id="yourPoints" name="yourPoints" type="number" min="0" step="50" value="0" />
+            </div>
+          </form>
+
+          <div class="ratio-grid" aria-live="polite">
+            <div class="ratio-stat">
+              <p class="ratio-label">Dollar value per point</p>
+              <p class="ratio-value" id="dollarPerPoint">$0.00</p>
+              <p class="ratio-hint">Pool divided by total active points</p>
+            </div>
+            <div class="ratio-stat">
+              <p class="ratio-label">Points needed per dollar</p>
+              <p class="ratio-value" id="pointsPerDollar">0</p>
+              <p class="ratio-hint">Total points divided by pool</p>
+            </div>
+            <div class="ratio-stat">
+              <p class="ratio-label">Potential cash-out</p>
+              <p class="ratio-value" id="cashoutEstimate">$0.00</p>
+              <p class="ratio-hint">Your points × dollar value per point</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -227,6 +286,8 @@
         </div>
       </section>
     </main>
+
+      <script src="/points-ratio/pool-ratio.js" defer></script>
 
     <footer class="points-footer">
       <p>Questions or ideas? Email <a href="mailto:hello@3dvr.tech">hello@3dvr.tech</a> and we will get back to you.</p>
