@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debian in the Browser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/debian-browser/style.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__content">
+        <p class="eyebrow">Experimental Lab</p>
+        <h1>Run Debian in the browser</h1>
+        <p class="lede">
+          Spin up a Debian environment with WebAssembly emulation or streamed desktops. This
+          page outlines practical ways to try it without leaving the portal.
+        </p>
+        <div class="hero__actions">
+          <a class="button primary" href="#options">Choose an approach</a>
+          <a class="button ghost" href="#steps">Follow the setup steps</a>
+        </div>
+      </div>
+      <div class="hero__panel">
+        <div class="panel-label">What to expect</div>
+        <ul class="panel-list">
+          <li>Full Debian userland without local installs</li>
+          <li>Browser-based file access and terminal</li>
+          <li>Portable demos that work from a static host</li>
+        </ul>
+        <p class="panel-footnote">
+          Heavy builds or Docker-in-Docker are out of scope; lean on WebAssembly or remote
+          desktops for heavier workloads.
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <section id="options" class="section">
+        <div class="section__heading">
+          <p class="eyebrow">Ways to try</p>
+          <h2>Pick the approach that fits your demo</h2>
+          <p class="section__lede">
+            Choose between a WebAssembly VM that runs entirely in the browser or a streamed
+            desktop session. Both keep visitors inside the portal experience.
+          </p>
+        </div>
+        <div class="cards">
+          <article class="card">
+            <div class="card__icon">🧩</div>
+            <h3>WebAssembly VM (v86)</h3>
+            <p>
+              Use the open-source <code>v86</code> emulator to boot a lightweight Debian image
+              directly in the browser. Ideal for terminal-first demos.
+            </p>
+            <ul>
+              <li>Fetch a prebuilt <code>.wasm</code> bundle and disk image</li>
+              <li>Mount a persistent file system via IndexedDB</li>
+              <li>Expose a serial console for interactive shell access</li>
+            </ul>
+            <div class="card__actions">
+              <a class="button secondary" href="https://copy.sh/v86/?profile=debian-stretch"
+                >Open v86 Debian demo</a
+              >
+              <a class="text-link" href="#steps">See integration steps</a>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card__icon">🖥️</div>
+            <h3>Streamed desktop (noVNC)</h3>
+            <p>
+              Host Debian on a small VM or container and relay its desktop through
+              <code>noVNC</code>. Great for showcasing graphical apps without heavy client
+              downloads.
+            </p>
+            <ul>
+              <li>Start an x11vnc or TigerVNC server on the host machine</li>
+              <li>Proxy traffic through a WebSocket-compatible endpoint</li>
+              <li>Embed the noVNC client in this portal for seamless access</li>
+            </ul>
+            <div class="card__actions">
+              <a class="button secondary" href="https://novnc.com/info.html">noVNC project</a>
+              <a class="text-link" href="#considerations">Review constraints</a>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card__icon">🧭</div>
+            <h3>Hosted snapshot</h3>
+            <p>
+              Use a pre-recorded session or guided walkthrough when interactivity is not
+              required. Keep bandwidth low while still showing the Debian flow.
+            </p>
+            <ul>
+              <li>Capture asciinema or short WebM clips for key tasks</li>
+              <li>Offer downloadable configs and disk images</li>
+              <li>Pair with transcripts so content is searchable</li>
+            </ul>
+            <div class="card__actions">
+              <a class="button secondary" href="https://asciinema.org/">Record with asciinema</a>
+              <a class="text-link" href="#steps">Add to this directory</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="steps" class="section alt">
+        <div class="section__heading">
+          <p class="eyebrow">Build in this repo</p>
+          <h2>Drop in a v86-powered Debian lab</h2>
+          <p class="section__lede">
+            Keep assets self-contained so the experience works from static hosting. The steps
+            below outline a minimal integration that can be iterated later.
+          </p>
+        </div>
+        <ol class="steps">
+          <li>
+            <div class="step-number">1</div>
+            <div>
+              <h3>Bundle assets</h3>
+              <p>
+                Place the <code>v86.wasm</code>, supporting JS, and a small Debian disk image in
+                <code>/debian-browser/assets/</code>. Prefer compressed, read-only images to keep
+                load times low.
+              </p>
+            </div>
+          </li>
+          <li>
+            <div class="step-number">2</div>
+            <div>
+              <h3>Wire up the emulator</h3>
+              <p>
+                Initialize <code>V86Starter</code> with the local assets, attach to a canvas, and
+                expose the serial console in this page. Keep the configuration in a dedicated JS
+                module to simplify future tweaks.
+              </p>
+            </div>
+          </li>
+          <li>
+            <div class="step-number">3</div>
+            <div>
+              <h3>Persist user files</h3>
+              <p>
+                Map <code>/home</code> to an IndexedDB-backed file system using
+                <code>IDBFS</code> or the built-in v86 browserfs layer so sessions survive page
+                reloads.
+              </p>
+            </div>
+          </li>
+          <li>
+            <div class="step-number">4</div>
+            <div>
+              <h3>Streamline controls</h3>
+              <p>
+                Add keyboard shortcuts for common actions (reset, screenshot, copy/paste) and keep
+                them documented near the canvas for discoverability.
+              </p>
+            </div>
+          </li>
+          <li>
+            <div class="step-number">5</div>
+            <div>
+              <h3>Test offline</h3>
+              <p>
+                Serve the directory locally with <code>npx serve debian-browser</code> and confirm
+                the emulator loads without network access once assets are cached.
+              </p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section id="considerations" class="section">
+        <div class="section__heading">
+          <p class="eyebrow">Constraints</p>
+          <h2>What to keep in mind</h2>
+          <p class="section__lede">
+            Browser-hosted operating systems are resource-intensive. Plan around visitor network
+            conditions and keep recovery paths visible.
+          </p>
+        </div>
+        <div class="callouts">
+          <article class="callout">
+            <h3>Performance</h3>
+            <p>
+              WebAssembly emulation is CPU heavy. Favor minimal Debian images, avoid background
+              daemons, and provide a pause button for laptop users.
+            </p>
+          </article>
+          <article class="callout">
+            <h3>Storage</h3>
+            <p>
+              IndexedDB quotas vary by browser. Clearly show how much space an image consumes and
+              provide a one-click reset to reclaim storage.
+            </p>
+          </article>
+          <article class="callout">
+            <h3>Security</h3>
+            <p>
+              Keep all assets static and signed. Avoid mounting untrusted disk images and make sure
+              any remote desktop endpoints require authentication.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
