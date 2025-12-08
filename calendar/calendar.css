@@ -550,6 +550,7 @@ button:hover {
   color: var(--calendar-primary-dark);
   font-weight: 600;
   text-decoration: none;
+  word-break: break-word;
 }
 
 .event-card__link:hover {
@@ -684,5 +685,141 @@ button:hover {
 
   .calendar-view__details {
     margin-top: 12px;
+  }
+}
+
+@media (max-width: 540px) {
+  body {
+    padding: 18px 14px 52px;
+  }
+
+  .calendar-shell {
+    gap: 20px;
+  }
+
+  .panel {
+    padding: 20px 16px;
+  }
+
+  .calendar-header {
+    margin-bottom: 28px;
+    text-align: left;
+  }
+
+  .calendar-header__title {
+    font-size: 1.8rem;
+  }
+
+  .calendar-header__subtitle {
+    font-size: 0.95rem;
+  }
+
+  .create-event-actions {
+    justify-content: stretch;
+  }
+
+  .create-event-actions button {
+    width: 100%;
+  }
+
+  .create-event-form__row {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-card {
+    padding: 18px;
+  }
+
+  .calendar-view {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .calendar-view__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .calendar-view__controls {
+    gap: 8px;
+    width: 100%;
+  }
+
+  .calendar-view__controls button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .calendar-view__current {
+    background: rgba(92, 160, 211, 0.12);
+    border-radius: 12px;
+    padding: 8px 10px;
+    width: 100%;
+  }
+
+  .calendar-view__grid-inner {
+    gap: 8px;
+    min-width: 100%;
+  }
+
+  .calendar-view__day-names,
+  .calendar-view__days {
+    gap: 6px;
+    grid-template-columns: repeat(7, minmax(64px, 1fr));
+  }
+
+  .calendar-view__day {
+    min-height: 82px;
+    padding: 10px 8px;
+  }
+
+  .calendar-view__date {
+    font-size: 1rem;
+  }
+
+  .calendar-view__event {
+    font-size: 0.8rem;
+    padding: 5px 6px;
+  }
+
+  .calendar-view__details {
+    padding-top: 12px;
+  }
+
+  .calendar-view__details-title {
+    font-size: 0.95rem;
+  }
+
+  .calendar-view__details-item {
+    gap: 6px;
+  }
+
+  .event-card {
+    padding: 16px;
+  }
+
+  .event-card__footer {
+    gap: 10px;
+  }
+
+  .event-card__footer-actions {
+    width: 100%;
+  }
+
+  .sync-controls {
+    align-items: stretch;
+  }
+
+  .sync-controls__group {
+    width: 100%;
+  }
+
+  .sync-controls__actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .sync-controls__actions button {
+    width: 100%;
   }
 }
