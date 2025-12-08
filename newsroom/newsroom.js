@@ -52,6 +52,21 @@ function renderItems(card, items = []) {
     const listItem = document.createElement('li');
     listItem.className = 'feed-card__item';
 
+    if (item.link) {
+      listItem.classList.add('feed-card__item--linked');
+      listItem.tabIndex = 0;
+      listItem.addEventListener('click', (event) => {
+        if (event.target instanceof Element && event.target.closest('a')) return;
+        window.open(item.link, '_blank', 'noopener,noreferrer');
+      });
+      listItem.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          window.open(item.link, '_blank', 'noopener,noreferrer');
+        }
+      });
+    }
+
     const link = document.createElement('a');
     link.href = item.link;
     link.target = '_blank';
