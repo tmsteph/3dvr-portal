@@ -340,6 +340,27 @@
       border: 1px dashed rgba(37, 99, 235, 0.32);
     }
 
+    .admin-create {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      background: rgba(37, 99, 235, 0.06);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .admin-create .input-grid {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .admin-create .inline-inputs {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem;
+    }
+
     .admin-score .input-row {
       margin-top: 0.5rem;
     }
@@ -497,6 +518,43 @@
         <a href="/notes/" role="button">📝 Shared Notes</a>
       </div>
 
+      <div class="admin-create" aria-live="polite">
+        <p class="label">Create coworker accounts</p>
+        <p class="helper-text" id="coworker-helper">Add teammates and optionally seed starter points.</p>
+        <div class="input-grid">
+          <label class="label" for="coworker-name-input">Coworker handle</label>
+          <input
+            type="text"
+            id="coworker-name-input"
+            placeholder="e.g., alex or alex@3dvr"
+            autocomplete="username"
+          >
+        </div>
+        <div class="input-grid">
+          <label class="label" for="coworker-password-input">Temporary password</label>
+          <input
+            type="password"
+            id="coworker-password-input"
+            placeholder="Set a password to share"
+            autocomplete="new-password"
+          >
+        </div>
+        <div class="input-grid">
+          <label class="label" for="coworker-points-input">Starter points</label>
+          <div class="inline-inputs">
+            <input
+              type="number"
+              id="coworker-points-input"
+              min="0"
+              step="50"
+              value="0"
+              aria-label="Starter points"
+            >
+            <button type="button" id="coworker-button" onclick="createCoworkerAccount()">Create account</button>
+          </div>
+        </div>
+      </div>
+
       <div class="admin-score" aria-live="polite">
         <p class="label">Score controls</p>
         <p class="helper-text" id="admin-score-helper">Sign in as an admin to award points.</p>
@@ -567,6 +625,11 @@ const adminBadgeEl = document.getElementById('admin-badge');
 const adminScoreInput = document.getElementById('admin-score-input');
 const adminScoreButton = document.getElementById('admin-score-button');
 const adminScoreHelper = document.getElementById('admin-score-helper');
+const coworkerHelper = document.getElementById('coworker-helper');
+const coworkerNameInput = document.getElementById('coworker-name-input');
+const coworkerPasswordInput = document.getElementById('coworker-password-input');
+const coworkerPointsInput = document.getElementById('coworker-points-input');
+const coworkerButton = document.getElementById('coworker-button');
 const userSearchEl = document.getElementById('user-search');
 const userSearchInput = document.getElementById('user-search-input');
 const userResultsEl = document.getElementById('user-results');
@@ -593,6 +656,18 @@ function aliasToDisplay(alias) {
   return normalized.includes('@') ? normalized.split('@')[0] : normalized;
 }
 
+function normalizeAliasInput(raw) {
+  const trimmed = (raw || '').trim().toLowerCase();
+  if (!trimmed) return '';
+  const cleaned = trimmed
+    .replace(/[^a-z0-9.@_-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  if (!cleaned) return '';
+  if (cleaned.includes('@')) return cleaned;
+  return `${cleaned}@3dvr`;
+}
+
 function sanitizeScoreValue(scoreValue) {
   if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
     return window.ScoreSystem.sanitizeScore(scoreValue);
@@ -600,6 +675,44 @@ function sanitizeScoreValue(scoreValue) {
   const numeric = typeof scoreValue === 'number' ? scoreValue : Number(scoreValue);
   if (!Number.isFinite(numeric)) return 0;
   return Math.max(0, Math.round(numeric));
+}
+
+function setCoworkerControlsDisabled(disabled) {
+  const inputs = [coworkerNameInput, coworkerPasswordInput, coworkerPointsInput, coworkerButton];
+  inputs.forEach(input => {
+    if (!input) return;
+    if (disabled) {
+      input.setAttribute('disabled', 'true');
+    } else {
+      input.removeAttribute('disabled');
+    }
+  });
+}
+
+function upsertUserDirectory(alias, username) {
+  return new Promise(resolve => {
+    const recordNode = userIndexNode.get(alias);
+    recordNode.once(existing => {
+      const createdAt = existing && existing.createdAt ? existing.createdAt : Date.now();
+      const lastLogin = existing && existing.lastLogin ? existing.lastLogin : 0;
+      recordNode.put({
+        username,
+        alias,
+        createdAt,
+        lastLogin
+      }, () => resolve({ createdAt, lastLogin }));
+    });
+  });
+}
+
+function ensureKnownUser(alias, username, metadata = {}) {
+  knownUsers.set(alias, {
+    alias,
+    username: username || aliasToDisplay(alias),
+    createdAt: metadata.createdAt || 0,
+    lastLogin: metadata.lastLogin || 0
+  });
+  renderUserResults(userSearchInput ? userSearchInput.value.trim().toLowerCase() : '');
 }
 
 function computeDisplayName() {
@@ -629,6 +742,10 @@ function updateAdminCard() {
     Array.from(adminActionsEl.querySelectorAll('a')).forEach(link => {
       link.setAttribute('aria-disabled', 'false');
     });
+    setCoworkerControlsDisabled(false);
+    if (coworkerHelper) {
+      coworkerHelper.innerText = 'Create portal accounts for teammates without leaving your admin session.';
+    }
     if (adminScoreInput && adminScoreButton) {
       adminScoreInput.removeAttribute('disabled');
       adminScoreButton.removeAttribute('disabled');
@@ -645,6 +762,10 @@ function updateAdminCard() {
     Array.from(adminActionsEl.querySelectorAll('a')).forEach(link => {
       link.setAttribute('aria-disabled', 'true');
     });
+    setCoworkerControlsDisabled(true);
+    if (coworkerHelper) {
+      coworkerHelper.innerText = 'Sign in to add coworkers or seed their starter points.';
+    }
     if (adminScoreInput && adminScoreButton) {
       adminScoreInput.setAttribute('disabled', 'true');
       adminScoreButton.setAttribute('disabled', 'true');
@@ -679,6 +800,92 @@ function updateProfile(scoreValue) {
 
   levelEl.innerText = level;
   progressEl.style.width = `${Math.max(0, Math.min(progress, 100))}%`;
+}
+
+async function createCoworkerAccount() {
+  if (!coworkerHelper) return;
+  if (!isSignedIn) {
+    coworkerHelper.innerText = 'Sign in as an admin to create teammate accounts.';
+    return;
+  }
+
+  const alias = normalizeAliasInput(coworkerNameInput ? coworkerNameInput.value : '');
+  if (!alias) {
+    coworkerHelper.innerText = 'Enter a coworker handle to create their account.';
+    return;
+  }
+
+  const password = coworkerPasswordInput ? coworkerPasswordInput.value.trim() : '';
+  if (!password || password.length < 6) {
+    coworkerHelper.innerText = 'Use a password with at least 6 characters to share with your teammate.';
+    return;
+  }
+
+  const starterPoints = sanitizeScoreValue(coworkerPointsInput ? coworkerPointsInput.value : 0);
+
+  if (!gun || gun.__isGunStub) {
+    coworkerHelper.innerText = 'Gun is offline. Try again once peers reconnect.';
+    return;
+  }
+
+  if (coworkerButton) {
+    coworkerButton.setAttribute('disabled', 'true');
+  }
+  coworkerHelper.innerText = 'Creating account...';
+
+  const creationUser = typeof gun.user === 'function' ? gun.user() : null;
+  if (!creationUser || typeof creationUser.create !== 'function') {
+    coworkerHelper.innerText = 'Gun user instance is unavailable. Refresh and try again.';
+    if (coworkerButton) {
+      coworkerButton.removeAttribute('disabled');
+    }
+    return;
+  }
+
+  let creationAck = null;
+  await new Promise(resolve => {
+    try {
+      creationUser.create(alias, password, ack => {
+        creationAck = ack;
+        resolve();
+      });
+    } catch (err) {
+      creationAck = { err: err && err.message ? err.message : 'account-creation-failed' };
+      resolve();
+    }
+  });
+
+  const alreadyExists = creationAck && creationAck.err && String(creationAck.err).includes('User already created');
+  if (creationAck && creationAck.err && !alreadyExists) {
+    coworkerHelper.innerText = `Could not create account: ${creationAck.err}`;
+    if (coworkerButton) {
+      coworkerButton.removeAttribute('disabled');
+    }
+    return;
+  }
+
+  const username = aliasToDisplay(alias);
+  ensureKnownUser(alias, username);
+  upsertUserDirectory(alias, username).then(meta => ensureKnownUser(alias, username, meta));
+
+  if (!knownStats.has(alias)) {
+    knownStats.set(alias, { alias, username, points: 0 });
+  }
+
+  if (starterPoints > 0) {
+    coworkerHelper.innerText = alreadyExists
+      ? `Account exists for ${username}. Awarding ${starterPoints} starter points now.`
+      : `Account ready for ${username}. Awarding ${starterPoints} starter points now.`;
+    awardTargetUser(alias, starterPoints);
+  } else {
+    coworkerHelper.innerText = alreadyExists
+      ? `Account exists for ${username}. You can award points as they contribute.`
+      : `Account ready for ${username}. Share their login so they can start earning points.`;
+  }
+
+  if (coworkerButton) {
+    coworkerButton.removeAttribute('disabled');
+  }
 }
 
 function handleProfileName(name) {
