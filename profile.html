@@ -1173,6 +1173,11 @@ function subscribeToUserDirectory() {
         knownStats.delete(key);
       } else {
         knownStats.set(key, { ...data });
+        if (!knownUsers.has(key)) {
+          const username = (data.username || '').trim() || key.replace('@3dvr', '');
+          const lastLogin = data.lastUpdated || 0;
+          ensureKnownUser(key, username, { lastLogin });
+        }
       }
       renderUserResults(userSearchInput ? userSearchInput.value.trim().toLowerCase() : '');
     });
