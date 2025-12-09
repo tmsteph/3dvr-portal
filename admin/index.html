@@ -430,11 +430,12 @@
                 <th scope="col">Points</th>
                 <th scope="col">Last Updated</th>
                 <th scope="col">Last Login</th>
+                <th scope="col" id="user-actions-header" class="hidden">Actions</th>
               </tr>
             </thead>
             <tbody id="user-table">
               <tr class="empty-state">
-                <td colspan="5">Awaiting user data...</td>
+                <td colspan="6">Awaiting user data...</td>
               </tr>
             </tbody>
           </table>
@@ -498,6 +499,7 @@
   const adminRequests = portalRoot.get('adminRequests');
   const userIndex = portalRoot.get('userIndex');
   const userStats = portalRoot.get('userStats');
+  const userDeletionLog = portalRoot.get('userDeletions');
   const workbenchDefaults = portalRoot.get('ai-workbench').get('defaults');
   // Stripe subscriber summaries live under finance/stripeCustomers to keep shared totals in GunJS.
   const stripeCustomersNode = portalRoot.get('finance').get('stripeCustomers');
@@ -551,6 +553,7 @@
   const recoveryPasswordInput = document.getElementById('recovery-password');
   const recoveryButton = document.getElementById('recovery-button');
   const recoveryStatusEl = document.getElementById('recovery-status');
+  const userActionsHeader = document.getElementById('user-actions-header');
 
   function init() {
     ensureRootAdmin();
@@ -713,8 +716,15 @@
       ...Object.keys(pointsRecords)
     ]);
     const aliases = Array.from(aliasSet);
+    const showActions = Boolean(isAdmin);
+    const columnCount = showActions ? 6 : 5;
+
+    if (userActionsHeader) {
+      userActionsHeader.classList.toggle('hidden', !showActions);
+    }
+
     if (!aliases.length) {
-      userTable.innerHTML = '<tr class="empty-state"><td colspan="5">No registered users yet.</td></tr>';
+      userTable.innerHTML = `<tr class="empty-state"><td colspan="${columnCount}">No registered users yet.</td></tr>`;
       totalUsersEl.innerText = '0';
       totalPointsEl.innerText = '0';
       return;
@@ -741,15 +751,41 @@
     totalUsersEl.innerText = activeRows.length.toString();
     totalPointsEl.innerText = totalPoints.toString();
 
-    userTable.innerHTML = activeRows.map(record => `
-      <tr>
-        <td>${escapeHtml(record.username)}</td>
-        <td>${escapeHtml(record.alias)}</td>
-        <td>${record.points}</td>
-        <td>${formatDate(record.lastUpdated)}</td>
-        <td>${formatDate(record.lastLogin)}</td>
-      </tr>
-    `).join('');
+    userTable.innerHTML = activeRows.map(record => {
+      const actions = showActions ? `
+        <td>
+          <div class="actions">
+            <button
+              class="btn-danger"
+              data-action="delete-user"
+              data-alias="${escapeAttr(record.alias)}"
+              data-username="${escapeAttr(record.username)}"
+            >Delete</button>
+          </div>
+        </td>
+      ` : '';
+
+      return `
+        <tr>
+          <td>${escapeHtml(record.username)}</td>
+          <td>${escapeHtml(record.alias)}</td>
+          <td>${record.points}</td>
+          <td>${formatDate(record.lastUpdated)}</td>
+          <td>${formatDate(record.lastLogin)}</td>
+          ${actions}
+        </tr>
+      `;
+    }).join('');
+
+    if (showActions) {
+      userTable.querySelectorAll('button[data-action="delete-user"]').forEach(button => {
+        button.addEventListener('click', () => {
+          const targetAlias = button.dataset.alias;
+          const targetName = button.dataset.username;
+          confirmUserDeletion(targetAlias, targetName);
+        });
+      });
+    }
 
     renderLeaderboard(activeRows);
   }
@@ -1162,6 +1198,45 @@
       addedAt: Date.now(),
       addedBy: alias
     });
+  }
+
+  function confirmUserDeletion(targetAlias, targetName) {
+    if (!isAdmin) {
+      setStatus('Only admins can delete users.');
+      return;
+    }
+
+    const normalizedAlias = normalizeAlias(targetAlias);
+    const displayName = targetName || normalizedAlias.replace('@3dvr', '');
+    const confirmationMessage = [
+      `Delete ${displayName} (${normalizedAlias})?`,
+      'This removes their profile, points, and admin records.'
+    ].join(' ');
+    const confirmed = window.confirm(confirmationMessage);
+
+    if (!confirmed) return;
+    deleteUser(normalizedAlias, displayName);
+  }
+
+  function deleteUser(normalizedAlias, displayName) {
+    const deletionAt = Date.now();
+    const stats = pointsRecords[normalizedAlias] || {};
+    const auditRecord = {
+      alias: normalizedAlias,
+      username: displayName,
+      pointsAtDeletion: sanitizePointsValue(stats.points),
+      deletedAt: deletionAt,
+      deletedBy: alias || 'admin'
+    };
+
+    // Remove portal metadata for the deleted user and record the deletion event for traceability.
+    userDeletionLog.get(`${normalizedAlias}-${deletionAt}`).put(auditRecord);
+    userIndex.get(normalizedAlias).put(null);
+    userStats.get(normalizedAlias).put(null);
+    portalAdmins.get(normalizedAlias).put(null);
+    adminRequests.get(normalizedAlias).put(null);
+
+    setStatus(`${displayName} removed from portal records.`);
   }
 
   function setStatus(message) {
