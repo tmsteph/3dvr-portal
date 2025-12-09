@@ -993,6 +993,26 @@
       return this.current;
     }
 
+    decrement(amount, { floor = 0, maxDrop } = {}) {
+      const delta = Number(amount);
+      if (!Number.isFinite(delta) || delta === 0) {
+        return this.current;
+      }
+
+      const magnitude = Math.max(0, Math.round(Math.abs(delta)));
+      const cappedDrop = Number.isFinite(maxDrop) ? Math.max(0, Math.round(maxDrop)) : magnitude;
+      const appliedDrop = Math.min(magnitude, cappedDrop);
+      const floorValue = Math.min(this.current, sanitizeScore(floor));
+      const target = Math.max(floorValue, this.current - appliedDrop);
+
+      if (target === this.current) {
+        return this.current;
+      }
+
+      this._updateCurrent(target, { persist: true });
+      return this.current;
+    }
+
     set(value) {
       const normalized = sanitizeScore(value);
       if (normalized === this.current) {
