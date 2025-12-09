@@ -12,6 +12,9 @@
   const totalPointsDisplayEl = document.getElementById('totalPointsDisplay');
   const liveUpdatedAtEl = document.getElementById('liveUpdatedAt');
   const leaderboardListEl = document.getElementById('liveLeaderboard');
+  const valueTableEl = document.getElementById('valueTable');
+  const valueTableBodyEl = document.getElementById('valueTableBody');
+  const valueTableEmptyEl = document.getElementById('valueTableEmpty');
   const refreshButtons = Array.from(document.querySelectorAll('#ratioRefresh'));
 
   if (!totalPointsInput || !poolDollarsInput || !yourPointsInput) {
@@ -68,13 +71,20 @@
     return value;
   }
 
+  function calculateDollarPerPoint() {
+    const totalPoints = safeNumber(totalPointsInput);
+    const poolDollars = safeNumber(poolDollarsInput);
+    if (totalPoints <= 0 || poolDollars <= 0) return 0;
+    return poolDollars / totalPoints;
+  }
+
   function updateRatios() {
     const totalPoints = safeNumber(totalPointsInput);
     const poolDollars = safeNumber(poolDollarsInput);
     const yourPoints = safeNumber(yourPointsInput);
 
     const hasPool = totalPoints > 0 && poolDollars > 0;
-    const dollarPerPoint = hasPool ? poolDollars / totalPoints : 0;
+    const dollarPerPoint = hasPool ? calculateDollarPerPoint() : 0;
     const pointsPerDollar = hasPool ? totalPoints / poolDollars : 0;
     const cashoutEstimate = hasPool ? dollarPerPoint * yourPoints : 0;
 
@@ -83,6 +93,7 @@
     pointsPerDollarEl && (pointsPerDollarEl.textContent = hasPool ? formatNumber(pointsPerDollar, { maximumFractionDigits: 2 }) : '0');
     cashoutEstimateEl && (cashoutEstimateEl.textContent = hasPool ? formatCurrency(cashoutEstimate, currency) : '$0.00');
     ratioHighlightEl && (ratioHighlightEl.textContent = hasPool ? formatCurrency(dollarPerPoint, currency) : '$0.00');
+    renderDollarTable();
   }
 
   function describePoolBreakdown(currency) {
@@ -177,6 +188,50 @@
           </div>
           <p class="leaderboard-points">${formatNumber(record.points)} pts</p>
         </li>
+      `;
+    }).join('');
+    renderDollarTable();
+  }
+
+  function renderDollarTable() {
+    if (!valueTableEl || !valueTableBodyEl || !valueTableEmptyEl) return;
+
+    const dollarPerPoint = calculateDollarPerPoint();
+    const currency = ratioState.currency || 'USD';
+
+    const records = Array.from(ratioState.leaderboard.values())
+      .filter(record => Number.isFinite(record.points) && record.points > 0)
+      .sort((a, b) => b.points - a.points);
+
+    if (!records.length) {
+      valueTableBodyEl.innerHTML = '';
+      valueTableEl.style.display = 'none';
+      valueTableEmptyEl.textContent = 'Waiting for leaderboard data...';
+      valueTableEmptyEl.style.display = 'block';
+      return;
+    }
+
+    valueTableEl.style.display = 'table';
+    valueTableEmptyEl.style.display = dollarPerPoint > 0 ? 'none' : 'block';
+    if (dollarPerPoint <= 0) {
+      valueTableEmptyEl.textContent = 'Enter a pool amount to estimate dollar values.';
+    }
+
+    valueTableBodyEl.innerHTML = records.map(record => {
+      const cashValue = dollarPerPoint > 0 ? record.points * dollarPerPoint : 0;
+      const safeName = escapeHtml(record.username);
+      const safeAlias = escapeHtml(record.alias);
+      return `
+        <tr>
+          <td>
+            <div class="value-name">
+              <span>${safeName}</span>
+              <span class="value-name__alias">${safeAlias}</span>
+            </div>
+          </td>
+          <td>${formatNumber(record.points)}</td>
+          <td>${formatCurrency(cashValue, currency)}</td>
+        </tr>
       `;
     }).join('');
   }

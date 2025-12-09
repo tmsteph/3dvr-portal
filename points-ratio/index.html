@@ -117,6 +117,23 @@
             </ul>
             <p class="info-note">If a currency other than USD is active, the page will display that currency code.</p>
           </article>
+          <article class="info-card">
+            <h3>Dollar value per person</h3>
+            <p class="info-note">Uses the live pool and leaderboard totals to estimate each person’s share.</p>
+            <div class="value-table" role="region" aria-live="polite">
+              <div class="value-table__empty" id="valueTableEmpty">Waiting for pool and leaderboard data...</div>
+              <table id="valueTable" class="value-table__table" aria-label="Point value per person">
+                <thead>
+                  <tr>
+                    <th scope="col">Person</th>
+                    <th scope="col">Points</th>
+                    <th scope="col">Estimated value</th>
+                  </tr>
+                </thead>
+                <tbody id="valueTableBody"></tbody>
+              </table>
+            </div>
+          </article>
         </div>
       </section>
     </main>
