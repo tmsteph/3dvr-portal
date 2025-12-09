@@ -489,6 +489,93 @@
     const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
     const gunIsStub = !!gunContext.isStub;
 
+    function ensureGuestIdentity() {
+      const stored = localStorage.getItem('guestUid') || localStorage.getItem('guestId');
+      if (stored) {
+        localStorage.setItem('guestId', stored);
+        localStorage.setItem('guestUid', stored);
+      }
+      const guestId = stored || `guest_${Math.random().toString(36).substr(2, 9)}`;
+      if (!stored) {
+        localStorage.setItem('guestId', guestId);
+        localStorage.setItem('guestUid', guestId);
+        localStorage.setItem('guestCreatedAt', `${Date.now()}`);
+      } else if (!localStorage.getItem('guestCreatedAt')) {
+        localStorage.setItem('guestCreatedAt', `${Date.now()}`);
+      }
+      if (!localStorage.getItem('guestDisplayName')) {
+        localStorage.setItem('guestDisplayName', 'Guest');
+      }
+      localStorage.setItem('guest', 'true');
+      return {
+        guestId,
+        displayName: (localStorage.getItem('guestDisplayName') || '').trim() || 'Guest',
+        createdAt: Number(localStorage.getItem('guestCreatedAt')) || Date.now()
+      };
+    }
+
+    function syncGuestProfileToPortal(identity) {
+      if (!identity || !identity.guestId) return;
+      if (!portalRoot || typeof portalRoot.get !== 'function') return;
+      const profileNode = portalRoot.get('guestProfiles').get(identity.guestId);
+      try {
+        profileNode.put({
+          guestId: identity.guestId,
+          uid: identity.guestId,
+          displayName: identity.displayName || 'Guest',
+          createdAt: identity.createdAt || Date.now(),
+          lastSeen: Date.now(),
+        });
+      } catch (err) {
+        console.warn('Unable to sync guest profile for sign-in page', err);
+      }
+    }
+
+    function linkGuestToAlias(guestId, alias, displayName, createdAt) {
+      const normalizedAlias = typeof alias === 'string' ? alias.trim() : '';
+      if (!guestId || !normalizedAlias) return;
+      if (!portalRoot || typeof portalRoot.get !== 'function') return;
+      const safeName = (displayName || '').trim() || 'Guest';
+      const created = createdAt || Number(localStorage.getItem('guestCreatedAt')) || Date.now();
+      try {
+        portalRoot.get('guestAliasIndex').get(normalizedAlias).put({
+          guestId,
+          alias: normalizedAlias,
+          linkedAt: Date.now(),
+          lastSeen: Date.now(),
+        });
+        portalRoot.get('guestProfiles').get(guestId).put({
+          guestId,
+          uid: guestId,
+          displayName: safeName,
+          createdAt: created,
+          linkedAlias: normalizedAlias,
+          lastSeen: Date.now(),
+        });
+      } catch (err) {
+        console.warn('Failed to link guest to alias', err);
+      }
+    }
+
+    function lookupGuestIdForAlias(alias) {
+      const normalizedAlias = typeof alias === 'string' ? alias.trim() : '';
+      return new Promise(resolve => {
+        if (!normalizedAlias || !portalRoot || typeof portalRoot.get !== 'function') {
+          resolve('');
+          return;
+        }
+        try {
+          portalRoot.get('guestAliasIndex').get(normalizedAlias).once(data => {
+            const guestId = data && typeof data.guestId === 'string' ? data.guestId.trim() : '';
+            resolve(guestId);
+          });
+        } catch (err) {
+          console.warn('Unable to look up guest id by alias', err);
+          resolve('');
+        }
+      });
+    }
+
     function signIn() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
@@ -566,11 +653,15 @@
         });
     }
 
-    function clearGuestSession() {
+    function clearGuestSession({ preserveIdentity = true } = {}) {
       localStorage.removeItem('guest');
-      localStorage.removeItem('guestId');
       localStorage.removeItem('guestDisplayName');
       localStorage.removeItem('userId');
+      if (!preserveIdentity) {
+        localStorage.removeItem('guestId');
+        localStorage.removeItem('guestUid');
+        localStorage.removeItem('guestCreatedAt');
+      }
     }
 
     function sanitizeScore(value) {
@@ -621,37 +712,67 @@
 
     function migrateGuestProgress() {
       return new Promise(resolve => {
-        const guestId = localStorage.getItem('guestId');
-        if (!guestId) {
-          clearGuestSession();
-          resolve();
-          return;
-        }
+        const alias = (localStorage.getItem('alias') || '').trim();
+        lookupGuestIdForAlias(alias)
+          .then(foundGuestId => {
+            const identity = ensureGuestIdentity();
+            const guestId = foundGuestId || identity.guestId;
+            if (!guestId) {
+              clearGuestSession({ preserveIdentity: false });
+              resolve();
+              return;
+            }
 
-        const guestProfile = gun.get('3dvr-guests').get(guestId);
-        guestProfile.once(snapshot => {
-          const guestName = snapshot && typeof snapshot.username === 'string'
-            ? snapshot.username.trim()
-            : '';
-          const guestScore = sanitizeScore(snapshot && snapshot.score);
+            if (foundGuestId && !localStorage.getItem('guestId')) {
+              localStorage.setItem('guestId', foundGuestId);
+              localStorage.setItem('guestUid', foundGuestId);
+            }
 
-          if (guestName) {
-            user.get('username').put(guestName);
-            localStorage.setItem('username', guestName);
-          }
-
-          if (guestScore) {
-            user.get('score').once(current => {
-              const currentScore = sanitizeScore(current);
-              if (guestScore > currentScore) {
-                user.get('score').put(guestScore);
-              }
+            syncGuestProfileToPortal({
+              guestId,
+              displayName: identity.displayName,
+              createdAt: identity.createdAt,
             });
-          }
 
-          clearGuestSession();
-          resolve();
-        });
+            const guestProfile = gun.get('3dvr-guests').get(guestId);
+            guestProfile.once(snapshot => {
+              const guestName = snapshot && typeof snapshot.username === 'string'
+                ? snapshot.username.trim()
+                : '';
+              const guestScore = sanitizeScore(snapshot && snapshot.score);
+
+              if (guestName) {
+                user.get('username').put(guestName);
+                localStorage.setItem('username', guestName);
+              }
+
+              if (guestScore) {
+                user.get('score').once(current => {
+                  const currentScore = sanitizeScore(current);
+                  if (guestScore > currentScore) {
+                    user.get('score').put(guestScore);
+                  }
+                });
+              }
+
+              if (alias) {
+                linkGuestToAlias(
+                  guestId,
+                  alias,
+                  guestName || identity.displayName,
+                  identity.createdAt
+                );
+              }
+
+              clearGuestSession({ preserveIdentity: true });
+              resolve();
+            });
+          })
+          .catch(err => {
+            console.warn('Unable to migrate guest progress', err);
+            clearGuestSession({ preserveIdentity: true });
+            resolve();
+          });
       });
     }
 
@@ -670,7 +791,8 @@
     }
 
     function continueAsGuest() {
-      localStorage.setItem('guest', 'true');
+      const identity = ensureGuestIdentity();
+      syncGuestProfileToPortal(identity);
       window.location.href = 'index.html';
     }
 

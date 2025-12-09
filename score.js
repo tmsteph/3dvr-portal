@@ -178,6 +178,17 @@
     }
   }
 
+  function generateGuestId() {
+    try {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return `guest_${crypto.randomUUID()}`;
+      }
+    } catch (err) {
+      console.warn('Failed to use crypto.randomUUID for guest id', err);
+    }
+    return `guest_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
   function ensureGuestIdentity() {
     try {
       const legacyId = localStorage.getItem('userId');
@@ -187,10 +198,14 @@
       if (legacyId) {
         localStorage.removeItem('userId');
       }
-      let guestId = localStorage.getItem('guestId');
+      let guestId = localStorage.getItem('guestUid') || localStorage.getItem('guestId');
       if (!guestId) {
-        guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+        guestId = generateGuestId();
         localStorage.setItem('guestId', guestId);
+      }
+      localStorage.setItem('guestUid', guestId);
+      if (!localStorage.getItem('guestCreatedAt')) {
+        localStorage.setItem('guestCreatedAt', `${Date.now()}`);
       }
       if (!localStorage.getItem('guestDisplayName')) {
         localStorage.setItem('guestDisplayName', 'Guest');
@@ -230,6 +245,120 @@
     return {
       mode: 'anon'
     };
+  }
+
+  function snapshotGuestIdentity() {
+    const guestId = ensureGuestIdentity();
+    const displayName = (localStorage.getItem('guestDisplayName') || '').trim() || 'Guest';
+    const createdAt = Number(localStorage.getItem('guestCreatedAt')) || Date.now();
+    return { guestId, displayName, createdAt };
+  }
+
+  function resolvePortalRoot(deps = {}) {
+    if (deps.portalRoot) return deps.portalRoot;
+    if (deps.gun && typeof deps.gun.get === 'function') {
+      return deps.gun.get(PORTAL_ROOT_KEY);
+    }
+    if (typeof window !== 'undefined' && window.gun && typeof window.gun.get === 'function') {
+      return window.gun.get(PORTAL_ROOT_KEY);
+    }
+    return null;
+  }
+
+  function syncGuestProfile(identity, deps = {}) {
+    const portalRoot = resolvePortalRoot(deps);
+    const snapshot = identity && identity.guestId ? identity : snapshotGuestIdentity();
+    if (!portalRoot || !snapshot.guestId) return snapshot;
+    try {
+      portalRoot.get('guestProfiles').get(snapshot.guestId).put({
+        guestId: snapshot.guestId,
+        uid: snapshot.guestId,
+        displayName: snapshot.displayName || 'Guest',
+        createdAt: snapshot.createdAt || Date.now(),
+        lastSeen: Date.now(),
+      });
+    } catch (err) {
+      console.warn('Failed to sync guest profile to portal root', err);
+    }
+    return snapshot;
+  }
+
+  function linkGuestToAlias(alias, deps = {}) {
+    const normalizedAlias = typeof alias === 'string' ? alias.trim() : '';
+    if (!normalizedAlias) return false;
+    const portalRoot = resolvePortalRoot(deps);
+    if (!portalRoot) return false;
+    const snapshot = snapshotGuestIdentity();
+    try {
+      portalRoot.get('guestAliasIndex').get(normalizedAlias).put({
+        guestId: snapshot.guestId,
+        alias: normalizedAlias,
+        linkedAt: Date.now(),
+        lastSeen: Date.now(),
+      });
+      portalRoot.get('guestProfiles').get(snapshot.guestId).put({
+        guestId: snapshot.guestId,
+        uid: snapshot.guestId,
+        displayName: snapshot.displayName || 'Guest',
+        createdAt: snapshot.createdAt,
+        linkedAlias: normalizedAlias,
+        lastSeen: Date.now(),
+      });
+      return true;
+    } catch (err) {
+      console.warn('Failed to link guest to alias from ScoreSystem', err);
+      return false;
+    }
+  }
+
+  function lookupGuestIdForAlias(alias, deps = {}) {
+    const normalizedAlias = typeof alias === 'string' ? alias.trim() : '';
+    const portalRoot = resolvePortalRoot(deps);
+    return new Promise(resolve => {
+      if (!normalizedAlias || !portalRoot) {
+        resolve('');
+        return;
+      }
+      try {
+        portalRoot.get('guestAliasIndex').get(normalizedAlias).once(data => {
+          const guestId = data && typeof data.guestId === 'string' ? data.guestId.trim() : '';
+          resolve(guestId);
+        });
+      } catch (err) {
+        console.warn('Failed to look up guest id for alias', err);
+        resolve('');
+      }
+    });
+  }
+
+  function createGhostAccount({ alias = '', displayName = 'Guest', createdAt = Date.now() } = {}, deps = {}) {
+    const guestId = generateGuestId();
+    const portalRoot = resolvePortalRoot(deps);
+    const normalizedAlias = typeof alias === 'string' ? alias.trim() : '';
+    if (portalRoot) {
+      try {
+        portalRoot.get('guestProfiles').get(guestId).put({
+          guestId,
+          uid: guestId,
+          displayName: displayName.trim() || 'Guest',
+          createdAt,
+          lastSeen: Date.now(),
+          ghost: true,
+        });
+        if (normalizedAlias) {
+          portalRoot.get('guestAliasIndex').get(normalizedAlias).put({
+            guestId,
+            alias: normalizedAlias,
+            linkedAt: Date.now(),
+            lastSeen: Date.now(),
+            ghost: true,
+          });
+        }
+      } catch (err) {
+        console.warn('Unable to create ghost account', err);
+      }
+    }
+    return guestId;
   }
 
   function cacheKeyForState(state) {
@@ -422,6 +551,12 @@
           this.bootstrap();
         });
 
+      if (this.state.mode === 'user') {
+        this._linkStoredGuestToAlias();
+      }
+
+      this._syncGuestProfile();
+
       if (typeof window !== 'undefined') {
         this._handleOnline = () => {
           this._flushPendingScore();
@@ -456,6 +591,10 @@
       this._attachRealtime();
       if (this.state.mode === 'user') {
         this._attachPortalRealtime();
+      }
+
+      if (this.state.mode === 'guest') {
+        this._syncGuestProfile();
       }
 
       if (this.pending > 0) {
@@ -795,6 +934,51 @@
       this._putPortalStats(this.current);
     }
 
+    _syncGuestProfile() {
+      if (!this.portalRoot) return;
+      if (this.state.mode !== 'guest') return;
+      const guestId = this.state.guestId || ensureGuestIdentity();
+      if (!guestId) return;
+      const displayName = (localStorage.getItem('guestDisplayName') || '').trim() || 'Guest';
+      const createdAt = Number(localStorage.getItem('guestCreatedAt')) || Date.now();
+      const profileNode = this.portalRoot.get('guestProfiles').get(guestId);
+      try {
+        profileNode.put({
+          guestId,
+          uid: guestId,
+          displayName,
+          createdAt,
+          lastSeen: Date.now(),
+        });
+      } catch (err) {
+        console.warn('Failed to sync guest profile', err);
+      }
+    }
+
+    _linkStoredGuestToAlias() {
+      if (!this.portalRoot) return;
+      const alias = (localStorage.getItem('alias') || '').trim();
+      const guestId = (localStorage.getItem('guestUid') || localStorage.getItem('guestId') || '').trim();
+      if (!alias || !guestId) return;
+      const displayName = (localStorage.getItem('guestDisplayName') || '').trim() || 'Guest';
+      const createdAt = Number(localStorage.getItem('guestCreatedAt')) || Date.now();
+      try {
+        const aliasNode = this.portalRoot.get('guestAliasIndex').get(alias);
+        aliasNode.put({ guestId, alias, linkedAt: Date.now(), lastSeen: Date.now() });
+        const profileNode = this.portalRoot.get('guestProfiles').get(guestId);
+        profileNode.put({
+          guestId,
+          uid: guestId,
+          displayName,
+          createdAt,
+          linkedAlias: alias,
+          lastSeen: Date.now(),
+        });
+      } catch (err) {
+        console.warn('Failed to link stored guest identity to alias', err);
+      }
+    }
+
     _attachPortalAliasRealtime() {
       if (!this.portalRoot) return;
       const alias = (this.state.alias || '').trim() || (localStorage.getItem('alias') || '').trim();
@@ -1061,6 +1245,11 @@
   const ScoreSystem = {
     sanitizeScore,
     ensureGuestIdentity,
+    snapshotGuestIdentity,
+    syncGuestProfile,
+    linkGuestToAlias,
+    lookupGuestIdForAlias,
+    createGhostAccount,
     computeAuthState,
     recallUserSession,
     ensureGun,
