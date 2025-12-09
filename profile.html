@@ -562,6 +562,10 @@
           <input type="number" id="admin-score-input" min="1" step="50" aria-label="Points to award" placeholder="Add points (e.g., 250)">
           <button type="button" id="admin-score-button" onclick="awardAdminScore()">Award Score</button>
         </div>
+        <div class="input-row" id="admin-deduct-row">
+          <input type="number" id="admin-deduct-input" min="1" step="50" aria-label="Points to deduct" placeholder="Deduct points (e.g., 50)">
+          <button type="button" id="admin-deduct-button" onclick="deductAdminScore()">Deduct Score</button>
+        </div>
         <div class="user-search" id="user-search" aria-live="polite">
           <label class="label" for="user-search-input">Find a user to reward</label>
           <input type="search" id="user-search-input" placeholder="Search by alias or username" aria-label="Search for user" oninput="handleUserSearch(event)">
@@ -599,6 +603,8 @@ const scoreManager = window.ScoreSystem
   ? window.ScoreSystem.getManager({ gun, user, portalRoot })
   : null;
 
+const portalAdminsNode = portalRoot.get('admins');
+
 let authState = scoreManager
   ? scoreManager.getState()
   : (window.ScoreSystem && typeof window.ScoreSystem.computeAuthState === 'function'
@@ -607,6 +613,7 @@ let authState = scoreManager
 
 isSignedIn = authState.mode === 'user';
 let isGuest = authState.mode === 'guest';
+let isAdmin = false;
 
 let activeProfile = scoreManager ? scoreManager.getNode() : null;
 let latestProfileName = '';
@@ -624,6 +631,8 @@ const adminActionsEl = document.getElementById('admin-actions');
 const adminBadgeEl = document.getElementById('admin-badge');
 const adminScoreInput = document.getElementById('admin-score-input');
 const adminScoreButton = document.getElementById('admin-score-button');
+const adminDeductInput = document.getElementById('admin-deduct-input');
+const adminDeductButton = document.getElementById('admin-deduct-button');
 const adminScoreHelper = document.getElementById('admin-score-helper');
 const coworkerHelper = document.getElementById('coworker-helper');
 const coworkerNameInput = document.getElementById('coworker-name-input');
@@ -736,7 +745,7 @@ function applyDisplayName() {
 function updateAdminCard() {
   if (!adminStatusEl || !adminActionsEl || !adminBadgeEl) return;
 
-  if (isSignedIn) {
+  if (isSignedIn && isAdmin) {
     adminBadgeEl.innerText = 'Admin (signed in)';
     adminStatusEl.innerText = 'You have access to curation tools and shared system controls.';
     Array.from(adminActionsEl.querySelectorAll('a')).forEach(link => {
@@ -750,32 +759,64 @@ function updateAdminCard() {
       adminScoreInput.removeAttribute('disabled');
       adminScoreButton.removeAttribute('disabled');
     }
+    if (adminDeductInput && adminDeductButton) {
+      adminDeductInput.removeAttribute('disabled');
+      adminDeductButton.removeAttribute('disabled');
+    }
     if (adminScoreHelper) {
-      adminScoreHelper.innerText = 'Award points to this profile after confirming progress.';
+      adminScoreHelper.innerText = 'Award or deduct points after confirming progress.';
     }
     if (userSearchEl) {
       userSearchEl.style.display = 'grid';
     }
   } else {
-    adminBadgeEl.innerText = 'Admin (guest view)';
-    adminStatusEl.innerText = 'Sign in to unlock admin shortcuts and synced changes.';
+    adminBadgeEl.innerText = isSignedIn ? 'Admin (restricted)' : 'Admin (guest view)';
+    adminStatusEl.innerText = isSignedIn
+      ? 'Only admins can use these curation shortcuts.'
+      : 'Sign in to unlock admin shortcuts and synced changes.';
     Array.from(adminActionsEl.querySelectorAll('a')).forEach(link => {
       link.setAttribute('aria-disabled', 'true');
     });
     setCoworkerControlsDisabled(true);
     if (coworkerHelper) {
-      coworkerHelper.innerText = 'Sign in to add coworkers or seed their starter points.';
+      coworkerHelper.innerText = isSignedIn
+        ? 'Only admins can add coworkers or seed starter points.'
+        : 'Sign in to add coworkers or seed their starter points.';
     }
     if (adminScoreInput && adminScoreButton) {
       adminScoreInput.setAttribute('disabled', 'true');
       adminScoreButton.setAttribute('disabled', 'true');
     }
+    if (adminDeductInput && adminDeductButton) {
+      adminDeductInput.setAttribute('disabled', 'true');
+      adminDeductButton.setAttribute('disabled', 'true');
+    }
     if (adminScoreHelper) {
-      adminScoreHelper.innerText = 'Sign in as an admin to award score.';
+      adminScoreHelper.innerText = 'Only admins can adjust score.';
     }
     if (userSearchEl) {
       userSearchEl.style.display = 'none';
     }
+  }
+}
+
+function subscribeToAdminStatus() {
+  const alias = (localStorage.getItem('alias') || '').trim();
+  if (!alias) {
+    isAdmin = false;
+    updateAdminCard();
+    return;
+  }
+
+  try {
+    portalAdminsNode.get(alias).on(record => {
+      isAdmin = Boolean(record);
+      updateAdminCard();
+    });
+  } catch (err) {
+    console.warn('Failed to subscribe to admin status', err);
+    isAdmin = false;
+    updateAdminCard();
   }
 }
 
@@ -987,6 +1028,7 @@ function initializeSignedInProfile() {
 
   watchUsername(activeProfile);
   applyDisplayName();
+  subscribeToAdminStatus();
   subscribeToScore();
   subscribeToUserDirectory();
   subscribeToGrantLog();
@@ -1000,6 +1042,7 @@ function initializeGuestProfile() {
   aliasName = '';
   selectedUserAlias = '';
   activeProfile = ensureGuestProfileNode();
+  isAdmin = false;
   watchUsername(activeProfile);
   applyDisplayName();
   subscribeToScore();
@@ -1051,9 +1094,9 @@ function saveUsername() {
 }
 
 function awardAdminScore() {
-  if (!isSignedIn) {
+  if (!isSignedIn || !isAdmin) {
     if (adminScoreHelper) {
-      adminScoreHelper.innerText = 'Sign in as an admin to award score.';
+      adminScoreHelper.innerText = 'Only admins can award score.';
     }
     return;
   }
@@ -1085,6 +1128,45 @@ function awardAdminScore() {
     adminScoreInput.value = '';
     if (adminScoreHelper) {
       adminScoreHelper.innerText = `Awarded ${normalized} points to this profile.`;
+    }
+  }
+}
+
+function deductAdminScore() {
+  if (!isSignedIn || !isAdmin) {
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = 'Only admins can deduct score.';
+    }
+    return;
+  }
+
+  if (!scoreManager || typeof scoreManager.decrement !== 'function') {
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = 'Score system unavailable. Please try again later.';
+    }
+    return;
+  }
+
+  if (!adminDeductInput) {
+    return;
+  }
+
+  const penalty = Number(adminDeductInput.value);
+  if (!Number.isFinite(penalty) || penalty <= 0) {
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = 'Enter a positive number of points to deduct.';
+    }
+    return;
+  }
+
+  const normalized = Math.round(penalty);
+  if (selectedUserAlias) {
+    deductTargetUser(selectedUserAlias, normalized);
+  } else {
+    scoreManager.decrement(normalized);
+    adminDeductInput.value = '';
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = `Deducted ${normalized} points from this profile.`;
     }
   }
 }
@@ -1263,7 +1345,46 @@ function awardTargetUser(alias, amount) {
 
     adminScoreInput.value = '';
     if (adminScoreHelper) {
-      adminScoreHelper.innerText = `Awarded ${amount} points to ${payload.username}. New total: ${updatedPoints}.`;
+    adminScoreHelper.innerText = `Awarded ${amount} points to ${payload.username}. New total: ${updatedPoints}.`;
+    }
+  });
+}
+
+function deductTargetUser(alias, amount) {
+  const adminAlias = (localStorage.getItem('alias') || '').trim();
+  if (!adminAlias) {
+    adminScoreHelper.innerText = 'Sign in as an admin to grant points to other users.';
+    return;
+  }
+
+  const recipient = knownUsers.get(alias);
+  const currentStats = knownStats.get(alias) || {};
+  const currentPoints = sanitizeScoreValue(currentStats.points || 0);
+
+  const updatedPoints = Math.max(0, currentPoints - amount);
+  const payload = {
+    alias,
+    username: (recipient?.username || '').trim() || alias,
+    points: updatedPoints,
+    lastUpdated: Date.now(),
+    lastGrantedBy: adminAlias
+  };
+
+  userStatsNode.get(alias).put(payload, ack => {
+    if (ack && ack.err) {
+      console.warn('Failed to deduct points from user', ack.err);
+      if (adminScoreHelper) {
+        adminScoreHelper.innerText = 'Could not save deduction. Try again in a moment.';
+      }
+      return;
+    }
+
+    const logEntry = { at: Date.now(), amount: -amount, targetAlias: alias };
+    adminGrantsNode.get(adminAlias).get(String(logEntry.at)).put(logEntry);
+
+    adminDeductInput.value = '';
+    if (adminScoreHelper) {
+      adminScoreHelper.innerText = `Deducted ${amount} points from ${payload.username}. New total: ${updatedPoints}.`;
     }
   });
 }
