@@ -22,8 +22,8 @@
           page outlines practical ways to try it without leaving the portal.
         </p>
         <div class="hero__actions">
-          <a class="button primary" href="#options">Choose an approach</a>
-          <a class="button ghost" href="#steps">Follow the setup steps</a>
+          <a class="button primary" href="#desktop">Open GNOME desktop</a>
+          <a class="button ghost" href="#options">Choose an approach</a>
         </div>
       </div>
       <div class="hero__panel">
@@ -41,6 +41,100 @@
     </header>
 
     <main>
+      <section id="desktop" class="section alt">
+        <div class="section__heading">
+          <p class="eyebrow">Live desktop</p>
+          <h2>Full Debian GNOME session from the portal</h2>
+          <p class="section__lede">
+            Host a Debian GNOME desktop with noVNC and open it inline so phones, tablets, and
+            laptops get the same experience. Pair it with a reverse proxy on your domain to
+            keep the session inside this portal.
+          </p>
+        </div>
+        <div class="desktop">
+          <div class="desktop__layout">
+            <div class="desktop__card">
+              <div class="card__icon">🚀</div>
+              <h3>Bring your own Debian GNOME</h3>
+              <p class="muted">
+                The <code>linuxserver/webtop:debian-gnome</code> image ships with a GNOME desktop
+                and noVNC. Expose it behind HTTPS so the embed below can connect from anywhere.
+              </p>
+              <ol class="steps steps--compact">
+                <li>
+                  <div class="step-number">1</div>
+                  <div>
+                    <h4>Start the container</h4>
+                    <p>
+                      <code>
+                        docker run -d --name debian-gnome -e PUID=1000 -e PGID=1000 -e TZ=UTC \
+                        -p 3000:3000 -v /opt/webtop:/config ghcr.io/linuxserver/webtop:debian-gnome
+                      </code>
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <div class="step-number">2</div>
+                  <div>
+                    <h4>Secure and publish</h4>
+                    <p>
+                      Put a reverse proxy (Caddy, Nginx, or Traefik) in front of <code>3000</code>
+                      with HTTPS and an auth gateway. Mobile browsers need HTTPS to allow iframes
+                      and clipboard support.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <div class="step-number">3</div>
+                  <div>
+                    <h4>Embed inside the portal</h4>
+                    <p>
+                      Point the embed URL to your proxy. Visitors stay on the portal while
+                      interacting with GNOME through noVNC, including touch controls on Android.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+              <p class="muted">
+                Tip: set <code>WEBSOCKET_COMPRESSION=false</code> if you run through a VPN or slow
+                network to reduce latency.
+              </p>
+            </div>
+            <div class="desktop__card desktop__card--embed">
+              <div class="card__icon">🪟</div>
+              <h3>Open your GNOME session here</h3>
+              <p class="muted">
+                Drop the public HTTPS address for your webtop container. We load it in an iframe
+                so it behaves like a native portal app.
+              </p>
+              <form id="embed-form" class="embed-form">
+                <label class="embed-label" for="embed-url">Public HTTPS URL</label>
+                <div class="embed-input">
+                  <input
+                    id="embed-url"
+                    name="embed-url"
+                    type="url"
+                    inputmode="url"
+                    placeholder="https://debian.example.com"
+                    required
+                  />
+                  <button class="button primary" type="submit">Launch GNOME</button>
+                </div>
+                <p class="muted embed-hint">
+                  The URL should point to the root of the webtop/noVNC page (default port 3000).
+                </p>
+              </form>
+              <div class="embed-frame" id="embed-frame">
+                <p class="muted">
+                  Your GNOME desktop will appear here once you supply the URL. This area is touch
+                  friendly for mobile; pinch and drag gestures map to the remote desktop.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="options" class="section">
         <div class="section__heading">
           <p class="eyebrow">Ways to try</p>
@@ -208,5 +302,32 @@
         </div>
       </section>
     </main>
+
+    <script>
+      const form = document.getElementById('embed-form');
+      const urlInput = document.getElementById('embed-url');
+      const frame = document.getElementById('embed-frame');
+
+      form?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const targetUrl = urlInput?.value?.trim();
+
+        if (!targetUrl) {
+          return;
+        }
+
+        if (!targetUrl.startsWith('https://')) {
+          alert('Please use an HTTPS URL so browsers allow embedding and clipboard support.');
+          return;
+        }
+
+        frame.innerHTML = '';
+        const iframe = document.createElement('iframe');
+        iframe.src = targetUrl;
+        iframe.title = 'Debian GNOME desktop';
+        iframe.loading = 'lazy';
+        frame.appendChild(iframe);
+      });
+    </script>
   </body>
 </html>
