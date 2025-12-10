@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.30 (Week of December 15, 2025)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.29.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.30</h1>
+  <div class="tag">Week of December 15, 2025</div>
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      Score governance and payout math get sharper this week. The live point-to-dollar dashboard now estimates value per
+      person directly from Stripe balances, while the admin console picks up dedicated score deductions with caps to
+      prevent steep drops. The Score system itself enforces bounded decrements so profile totals stay resilient during
+      audits and retroactive fixes.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Portal quick links</h2>
+    <ul>
+      <li><a href="../index.html">Portal home</a> – hop across workspaces and the release hub.</li>
+      <li><a href="../releases/index.html">Release hub</a> – browse every weekly milestone.</li>
+      <li><a href="../points.html">Points</a> – review reward structures and leaderboard signals.</li>
+      <li><a href="../points-ratio/index.html">Point-to-dollar ratio</a> – see live pool math, cashout previews, and
+      per-person value estimates.</li>
+      <li><a href="../admin/index.html">Admin</a> – search profiles, award or deduct points, and manage rewards.</li>
+      <li><a href="../sales/index.html">Sales</a> – keep score cards, top performers, and contact follow-ups in view.</li>
+      <li><a href="../contacts/index.html">CRM &amp; contacts</a> – log touches, schedule follow-ups, and track the weekly
+      challenge.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Points, payouts, and transparency</h2>
+    <ul>
+      <li>Surface a "Dollar value per person" table on the <a href="../points-ratio/index.html">point-to-dollar
+      ratio</a> page so contributors can see estimated cash value alongside points.</li>
+      <li>Keep live pool, leaderboard totals, and per-person estimates synchronized with Stripe and Gun-backed scores for
+      accurate cashout previews.</li>
+      <li>Clarify the path back to <a href="../points.html">points overview</a> while preserving refresh controls for
+      real-time calculations.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Score governance and safeguards</h2>
+    <ul>
+      <li>Add admin-only score deduction controls with helper messaging so leaders can correct totals without manual
+      edits.</li>
+      <li>Apply decrement caps and floors inside the Score system to guard against steep drops and keep leaderboard math
+      consistent across devices.</li>
+      <li>Retain admin search and selection flows, making it easy to grant or deduct points against the correct profile.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Reliability &amp; navigation</h2>
+    <ul>
+      <li>Maintain dark-theme readability and responsive spacing for the release hub, admin console, and points ratio
+      dashboard on desktop and mobile.</li>
+      <li>Keep breadcrumb-style navigation between releases and the broader portal so reviewers stay oriented during
+      audits.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2025 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
