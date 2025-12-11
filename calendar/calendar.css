@@ -150,6 +150,16 @@ body {
   gap: 6px;
 }
 
+.field--checkbox {
+  align-items: flex-start;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.field--checkbox input[type="checkbox"] {
+  margin-top: 4px;
+}
+
 .field__label {
   color: #1b2433;
   font-size: 0.95rem;
