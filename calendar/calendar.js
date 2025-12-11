@@ -1333,13 +1333,14 @@ async function triggerReminderEmail(eventId, options = {}) {
   }
   try {
     await sendReminderEmail(event, reminder);
-    const now = new Date().toISOString();
+    const sendAtTimestamp = Date.parse(reminder.sendAt) || Date.now();
+    const lastSentValue = new Date(Math.max(sendAtTimestamp, Date.now())).toISOString();
     updateLocalEvent(event.id, {
       metadata: {
         ...(event.metadata || {}),
         reminder: {
           ...reminder,
-          lastSentAt: now
+          lastSentAt: lastSentValue
         }
       }
     });
@@ -1590,6 +1591,7 @@ async function handleCreateEvent(event) {
     ? reminderDayOffsetRaw
     : DEFAULT_REMINDER_DAY_OFFSET;
   const requestedRecipients = formData.get('reminderRecipients')?.toString() || '';
+  const sendReminderAfterSave = formData.get('sendReminderAfterSave') === 'on';
   const reminderRecipients = normalizeRecipientList(requestedRecipients);
   const defaultRecipients = resolveDefaultRecipientAddresses();
   const reminderOptions = {
@@ -1690,6 +1692,22 @@ async function handleCreateEvent(event) {
     }
     if (result.type === 'error') {
       messageType = 'error';
+    }
+  }
+
+  if (sendReminderAfterSave && storedEvent) {
+    const reminder = normalizeReminderMetadata(storedEvent.metadata?.reminder);
+    if (!reminder.sendAt || !reminder.recipients?.length) {
+      messages.push('Reminder not sent: add a reminder time and at least one recipient.');
+      messageType = 'error';
+    } else {
+      try {
+        await triggerReminderEmail(storedEvent.id, { silent: true });
+        messages.push('Reminder email sent immediately.');
+      } catch (err) {
+        messages.push(err.message || 'Unable to send the reminder email after saving.');
+        messageType = 'error';
+      }
     }
   }
 

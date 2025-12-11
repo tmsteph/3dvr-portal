@@ -99,13 +99,18 @@
                 <span class="field__label">At</span>
                 <input type="time" name="reminderTime" value="10:00">
               </label>
-              <label class="field">
-                <span class="field__label">Recipients</span>
-                <input type="text" name="reminderRecipients" placeholder="team@example.com, guest@example.com">
-                <span class="field__help">Comma separate addresses. Defaults to you if left blank.</span>
-              </label>
-            </div>
-          </fieldset>
+            <label class="field">
+              <span class="field__label">Recipients</span>
+              <input type="text" name="reminderRecipients" placeholder="team@example.com, guest@example.com">
+              <span class="field__help">Comma separate addresses. Defaults to you if left blank.</span>
+            </label>
+            <label class="field field--checkbox">
+              <input type="checkbox" name="sendReminderAfterSave">
+              <span class="field__label">Send reminder right after saving</span>
+              <span class="field__help">Uses the reminder schedule above and recipients to email immediately.</span>
+            </label>
+          </div>
+        </fieldset>
 
           <fieldset class="create-event-form__sync">
             <legend>Optional sync</legend>
