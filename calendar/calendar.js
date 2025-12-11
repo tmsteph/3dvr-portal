@@ -235,6 +235,14 @@ function normalizeReminderMetadata(value) {
     result.recipients = recipients;
   }
 
+  if (typeof value.message === 'string' && value.message.trim()) {
+    result.message = value.message.trim();
+  }
+
+  if (typeof value.link === 'string' && value.link.trim()) {
+    result.link = value.link.trim();
+  }
+
   if (value.sendAt && !Number.isNaN(Date.parse(value.sendAt))) {
     result.sendAt = new Date(value.sendAt).toISOString();
   }
@@ -1040,7 +1048,15 @@ function formatReminderLabel(reminder, event) {
   const timeLabel = formatCalendarTime(reminder.sendAt, event?.timeZone || DEFAULT_TIME_ZONE || 'UTC');
   const recipients = Array.isArray(reminder.recipients) ? reminder.recipients.join(', ') : '';
   const recipientLabel = recipients ? ` • ${recipients}` : '';
-  return `${dateLabel} at ${timeLabel}${recipientLabel}`;
+  const extras = [];
+  if (reminder.message) {
+    extras.push('custom note');
+  }
+  if (reminder.link) {
+    extras.push('link');
+  }
+  const extrasLabel = extras.length ? ` • ${extras.join(' and ')} included` : '';
+  return `${dateLabel} at ${timeLabel}${recipientLabel}${extrasLabel}`;
 }
 
 async function callProvider(provider, payload) {
@@ -1170,7 +1186,9 @@ function buildReminderMetadata(eventStart, options = {}, previous = {}) {
         : typeof previous.dayOffset === 'number'
           ? previous.dayOffset
           : DEFAULT_REMINDER_DAY_OFFSET,
-    recipients: normalizeRecipientList(options.recipients?.length ? options.recipients : previous.recipients)
+    recipients: normalizeRecipientList(options.recipients?.length ? options.recipients : previous.recipients),
+    message: typeof options.message === 'string' ? options.message : previous.message,
+    link: typeof options.link === 'string' ? options.link : previous.link
   });
 
   const sendAt = computeReminderSendAt(
@@ -1365,7 +1383,9 @@ async function sendReminderEmail(event, reminder) {
       end: event.end,
       timeZone: event.timeZone,
       link: event.link,
-      reminderSendAt: reminder.sendAt
+      reminderSendAt: reminder.sendAt,
+      reminderMessage: reminder.message,
+      reminderLink: reminder.link
     }
   };
 
@@ -1521,6 +1541,16 @@ function openEventEditor(eventId) {
       : '';
   }
 
+  const reminderMessageField = createEventForm.elements.namedItem('reminderMessage');
+  if (reminderMessageField instanceof HTMLTextAreaElement) {
+    reminderMessageField.value = target.metadata?.reminder?.message || '';
+  }
+
+  const reminderLinkField = createEventForm.elements.namedItem('reminderLink');
+  if (reminderLinkField instanceof HTMLInputElement) {
+    reminderLinkField.value = target.metadata?.reminder?.link || '';
+  }
+
   const syncCheckboxes = createEventForm.querySelectorAll('input[name="syncProviders"]');
   const syncedProviders = Array.isArray(target.metadata?.syncedProviders)
     ? target.metadata.syncedProviders
@@ -1591,13 +1621,17 @@ async function handleCreateEvent(event) {
     ? reminderDayOffsetRaw
     : DEFAULT_REMINDER_DAY_OFFSET;
   const requestedRecipients = formData.get('reminderRecipients')?.toString() || '';
+  const reminderMessage = formData.get('reminderMessage')?.toString().trim() || '';
+  const reminderLink = formData.get('reminderLink')?.toString().trim() || '';
   const sendReminderAfterSave = formData.get('sendReminderAfterSave') === 'on';
   const reminderRecipients = normalizeRecipientList(requestedRecipients);
   const defaultRecipients = resolveDefaultRecipientAddresses();
   const reminderOptions = {
     timeOfDay: reminderTime,
     dayOffset: reminderDayOffset,
-    recipients: reminderRecipients.length ? reminderRecipients : defaultRecipients
+    recipients: reminderRecipients.length ? reminderRecipients : defaultRecipients,
+    message: reminderMessage,
+    link: reminderLink
   };
 
   if (!title || !startValue || !endValue) {

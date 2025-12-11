@@ -104,6 +104,16 @@
               <input type="text" name="reminderRecipients" placeholder="team@example.com, guest@example.com">
               <span class="field__help">Comma separate addresses. Defaults to you if left blank.</span>
             </label>
+            <label class="field">
+              <span class="field__label">Reminder link</span>
+              <input type="url" name="reminderLink" placeholder="https://meet.example.com/room">
+              <span class="field__help">Optional meeting or watch link to include in reminder emails.</span>
+            </label>
+            <label class="field">
+              <span class="field__label">Reminder message</span>
+              <textarea name="reminderMessage" rows="3" placeholder="Add the invite link and quick instructions"></textarea>
+              <span class="field__help">Shared in the reminder email along with the event details.</span>
+            </label>
             <label class="field field--checkbox">
               <input type="checkbox" name="sendReminderAfterSave">
               <span class="field__label">Send reminder right after saving</span>

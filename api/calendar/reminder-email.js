@@ -1,5 +1,19 @@
 import nodemailer from 'nodemailer';
 
+function escapeHtml(value = '') {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatMessage(value = '') {
+  const escaped = escapeHtml(value.trim());
+  return escaped.replace(/\n/g, '<br>');
+}
+
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -35,7 +49,8 @@ function createTransport(config = process.env) {
 function buildEmailContent(event = {}) {
   const title = event.title || 'Upcoming event';
   const description = event.description || '';
-  const link = event.link || '';
+  const reminderMessage = event.reminderMessage || '';
+  const link = event.reminderLink || event.link || '';
   const timeZone = event.timeZone || 'UTC';
 
   const start = event.start ? new Date(event.start) : null;
@@ -56,7 +71,8 @@ function buildEmailContent(event = {}) {
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2 style="margin: 0 0 12px;">${title}</h2>
         <p style="margin: 0 0 12px;">${startLabel}${endLabel ? ` – ${endLabel}` : ''}</p>
-        ${description ? `<p style="margin: 0 0 12px;">${description}</p>` : ''}
+        ${description ? `<p style="margin: 0 0 12px;">${escapeHtml(description)}</p>` : ''}
+        ${reminderMessage ? `<p style="margin: 0 0 12px;">${formatMessage(reminderMessage)}</p>` : ''}
         ${link ? `<p style="margin: 0 0 12px;"><a href="${link}" target="_blank" rel="noreferrer noopener">Join / view event</a></p>` : ''}
         <p style="margin: 0; color: #555;">This reminder was scheduled in the 3DVR Calendar Hub.</p>
       </div>
