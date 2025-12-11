@@ -24,6 +24,8 @@ const DEFAULT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const DEFAULT_EVENT_START_OFFSET_MINUTES = 5;
 const DEFAULT_EVENT_DURATION_MINUTES = 10;
 const AUTO_SEEDED_METADATA_KEY = 'autoSeededOn';
+const DEFAULT_REMINDER_TIME = '10:00';
+const DEFAULT_REMINDER_DAY_OFFSET = 0;
 
 function startOfMonth(date) {
   const result = new Date(date);
@@ -57,6 +59,7 @@ const calendarState = {
   selectedDate: today.toISOString().slice(0, 10),
   dayEvents: new Map()
 };
+const reminderTimers = new Map();
 
 const GUN_PEERS = (typeof window !== 'undefined' && window.__GUN_PEERS__) || [
   'wss://relay.3dvr.tech/gun',
@@ -199,6 +202,50 @@ function normalizeSyncedProviders(value) {
   return [];
 }
 
+function normalizeRecipientList(value) {
+  const asArray = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(',')
+      : [];
+  const emails = asArray
+    .map(entry => (typeof entry === 'string' ? entry.trim().toLowerCase() : ''))
+    .filter(Boolean)
+    .filter(entry => /.+@.+\..+/.test(entry));
+  return Array.from(new Set(emails));
+}
+
+function normalizeReminderMetadata(value) {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const result = {};
+
+  if (typeof value.timeOfDay === 'string' && /^\d{2}:\d{2}$/.test(value.timeOfDay.trim())) {
+    result.timeOfDay = value.timeOfDay.trim();
+  }
+
+  if (typeof value.dayOffset === 'number' && Number.isFinite(value.dayOffset)) {
+    result.dayOffset = value.dayOffset;
+  }
+
+  const recipients = normalizeRecipientList(value.recipients);
+  if (recipients.length) {
+    result.recipients = recipients;
+  }
+
+  if (value.sendAt && !Number.isNaN(Date.parse(value.sendAt))) {
+    result.sendAt = new Date(value.sendAt).toISOString();
+  }
+
+  if (value.lastSentAt && !Number.isNaN(Date.parse(value.lastSentAt))) {
+    result.lastSentAt = new Date(value.lastSentAt).toISOString();
+  }
+
+  return result;
+}
+
 function sanitizeMetadata(metadata) {
   if (!metadata || typeof metadata !== 'object') {
     return {};
@@ -212,6 +259,13 @@ function sanitizeMetadata(metadata) {
       const providers = normalizeSyncedProviders(value);
       if (providers.length) {
         cleaned.syncedProviders = providers;
+      }
+      return;
+    }
+    if (key === 'reminder') {
+      const reminder = normalizeReminderMetadata(value);
+      if (Object.keys(reminder).length) {
+        cleaned.reminder = reminder;
       }
       return;
     }
@@ -485,6 +539,7 @@ function writeLocalEvents(events, options = {}) {
     console.warn('Unable to persist local events', err);
   }
   renderEvents();
+  scheduleReminders(sorted);
   if (gunEvents && !skipGunSync && !isGunApplying) {
     syncEventsToGun(sorted, previousIds);
   }
@@ -494,6 +549,7 @@ function hydrateLocalEvents() {
   const events = sortEvents(readLocalEvents());
   state.localEvents = events;
   renderEvents();
+  scheduleReminders(events);
 }
 
 function ensureDefaultTodayEvent() {
@@ -877,6 +933,14 @@ function renderEvents(events = state.localEvents) {
     fragment.querySelector('[data-field="start"]').textContent = entry.start;
     fragment.querySelector('[data-field="end"]').textContent = entry.end;
     fragment.querySelector('[data-field="description"]').textContent = entry.description;
+    const reminderText = fragment.querySelector('[data-field="reminder"]');
+    const reminderBlock = fragment.querySelector('[data-reminder-block]');
+    if (reminderText) {
+      reminderText.textContent = entry.reminderLabel;
+    }
+    if (reminderBlock) {
+      reminderBlock.hidden = !entry.reminderEnabled;
+    }
     const link = fragment.querySelector('[data-field="link"]');
     if (link) {
       if (entry.link) {
@@ -899,6 +963,11 @@ function renderEvents(events = state.localEvents) {
     if (deleteButton) {
       deleteButton.dataset.eventId = entry.id;
     }
+    const reminderButton = fragment.querySelector('[data-action="send-reminder"]');
+    if (reminderButton) {
+      reminderButton.dataset.eventId = entry.id;
+      reminderButton.hidden = !entry.reminderEnabled;
+    }
     eventList.appendChild(fragment);
   });
 }
@@ -910,6 +979,7 @@ function normalizeEvent(entry) {
   const syncedProviders = Array.isArray(entry.metadata?.syncedProviders)
     ? entry.metadata.syncedProviders
     : [];
+  const reminder = normalizeReminderMetadata(entry.metadata?.reminder);
   let providerLabel = baseLabel;
   if (provider === 'local' && syncedProviders.length) {
     const syncedLabels = syncedProviders
@@ -923,6 +993,8 @@ function normalizeEvent(entry) {
   const description = entry.description || '';
   const start = withTimeZoneLabel(formatDateTime(entry.start, entry.timeZone), entry.timeZone);
   const end = withTimeZoneLabel(formatDateTime(entry.end, entry.timeZone), entry.timeZone);
+  const reminderLabel = formatReminderLabel(reminder, entry);
+  const reminderEnabled = Boolean(reminder.sendAt && reminder.recipients?.length);
   return {
     id: entry.id,
     provider,
@@ -931,7 +1003,9 @@ function normalizeEvent(entry) {
     description,
     start,
     end,
-    link: entry.link || ''
+    link: entry.link || '',
+    reminderLabel,
+    reminderEnabled
   };
 }
 
@@ -952,6 +1026,21 @@ function formatDateTime(value, timeZone) {
     console.warn('Unable to format date', value, err);
     return '—';
   }
+}
+
+function formatReminderLabel(reminder, event) {
+  if (!reminder || !reminder.sendAt) {
+    return 'No reminder scheduled';
+  }
+  const sendDate = new Date(reminder.sendAt);
+  if (Number.isNaN(sendDate.getTime())) {
+    return 'No reminder scheduled';
+  }
+  const dateLabel = calendarFullDateFormatter.format(sendDate);
+  const timeLabel = formatCalendarTime(reminder.sendAt, event?.timeZone || DEFAULT_TIME_ZONE || 'UTC');
+  const recipients = Array.isArray(reminder.recipients) ? reminder.recipients.join(', ') : '';
+  const recipientLabel = recipients ? ` • ${recipients}` : '';
+  return `${dateLabel} at ${timeLabel}${recipientLabel}`;
 }
 
 async function callProvider(provider, payload) {
@@ -1041,6 +1130,62 @@ function computeDefaultEventTimes(dateString) {
   end.setMinutes(end.getMinutes() + DEFAULT_EVENT_DURATION_MINUTES);
 
   return { start, end };
+}
+
+function resolveDefaultRecipientAddresses() {
+  try {
+    const candidates = [
+      localStorage.getItem('email'),
+      localStorage.getItem('userEmail'),
+      localStorage.getItem('contactEmail')
+    ];
+    return normalizeRecipientList(candidates.filter(Boolean));
+  } catch (err) {
+    console.warn('Unable to read default reminder recipients', err);
+    return [];
+  }
+}
+
+function computeReminderSendAt(startIso, timeOfDay, dayOffset = DEFAULT_REMINDER_DAY_OFFSET) {
+  if (!startIso) return null;
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) return null;
+  const [hours = '0', minutes = '0'] = (timeOfDay || '').split(':');
+  const target = new Date(start);
+  target.setDate(target.getDate() + Number(dayOffset || 0));
+  target.setHours(Number(hours), Number(minutes), 0, 0);
+  if (Number.isNaN(target.getTime())) {
+    return null;
+  }
+  return target;
+}
+
+function buildReminderMetadata(eventStart, options = {}, previous = {}) {
+  const merged = normalizeReminderMetadata({
+    ...previous,
+    timeOfDay: options.timeOfDay || previous.timeOfDay || DEFAULT_REMINDER_TIME,
+    dayOffset:
+      typeof options.dayOffset === 'number'
+        ? options.dayOffset
+        : typeof previous.dayOffset === 'number'
+          ? previous.dayOffset
+          : DEFAULT_REMINDER_DAY_OFFSET,
+    recipients: normalizeRecipientList(options.recipients?.length ? options.recipients : previous.recipients)
+  });
+
+  const sendAt = computeReminderSendAt(
+    eventStart,
+    merged.timeOfDay || DEFAULT_REMINDER_TIME,
+    typeof merged.dayOffset === 'number' ? merged.dayOffset : DEFAULT_REMINDER_DAY_OFFSET
+  );
+
+  if (sendAt) {
+    merged.sendAt = sendAt.toISOString();
+  } else {
+    delete merged.sendAt;
+  }
+
+  return Object.keys(merged).length ? merged : undefined;
 }
 
 function generateLocalId(prefix = 'local') {
@@ -1170,6 +1315,104 @@ async function handleFetchEvents() {
   }
 }
 
+async function triggerReminderEmail(eventId, options = {}) {
+  const { silent = false } = options;
+  const event = state.localEvents.find(entry => entry.id === eventId);
+  if (!event) {
+    if (!silent) {
+      showLog('This event is no longer available for reminders.', 'error');
+    }
+    return;
+  }
+  const reminder = normalizeReminderMetadata(event.metadata?.reminder);
+  if (!reminder.sendAt || !reminder.recipients?.length) {
+    if (!silent) {
+      showLog('Add a reminder time and at least one recipient before sending.', 'error');
+    }
+    return;
+  }
+  try {
+    await sendReminderEmail(event, reminder);
+    const now = new Date().toISOString();
+    updateLocalEvent(event.id, {
+      metadata: {
+        ...(event.metadata || {}),
+        reminder: {
+          ...reminder,
+          lastSentAt: now
+        }
+      }
+    });
+    scheduleReminders(state.localEvents);
+    if (!silent) {
+      showLog('Reminder email sent.', 'success');
+    }
+  } catch (err) {
+    if (!silent) {
+      showLog(err.message || 'Unable to send reminder email.', 'error');
+    }
+  }
+}
+
+async function sendReminderEmail(event, reminder) {
+  const payload = {
+    recipients: reminder.recipients,
+    event: {
+      title: event.title,
+      description: event.description,
+      start: event.start,
+      end: event.end,
+      timeZone: event.timeZone,
+      link: event.link,
+      reminderSendAt: reminder.sendAt
+    }
+  };
+
+  const response = await fetch('/api/calendar/reminder-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.error || data?.message || 'Unable to send reminder email.';
+    throw new Error(message);
+  }
+  return data;
+}
+
+function scheduleReminders(events = state.localEvents) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  reminderTimers.forEach(timer => clearTimeout(timer));
+  reminderTimers.clear();
+
+  const now = Date.now();
+
+  events.forEach(event => {
+    const reminder = normalizeReminderMetadata(event.metadata?.reminder);
+    if (!reminder.sendAt || !reminder.recipients?.length) {
+      return;
+    }
+    const sendAt = Date.parse(reminder.sendAt);
+    if (Number.isNaN(sendAt)) {
+      return;
+    }
+    if (reminder.lastSentAt && Date.parse(reminder.lastSentAt) >= sendAt) {
+      return;
+    }
+    const delay = sendAt - now;
+    if (delay <= 0) {
+      triggerReminderEmail(event.id, { silent: true });
+      return;
+    }
+    const timeout = window.setTimeout(() => triggerReminderEmail(event.id, { silent: true }), delay);
+    reminderTimers.set(event.id, timeout);
+  });
+}
+
 function updateLocalEvent(eventId, patch, options = {}) {
   const list = state.localEvents.map(entry => {
     if (entry.id !== eventId) {
@@ -1257,6 +1500,26 @@ function openEventEditor(eventId) {
     descriptionField.value = target.description || '';
   }
 
+  const reminderTimeField = createEventForm.elements.namedItem('reminderTime');
+  if (reminderTimeField instanceof HTMLInputElement) {
+    const timeOfDay = target.metadata?.reminder?.timeOfDay || DEFAULT_REMINDER_TIME;
+    reminderTimeField.value = timeOfDay;
+  }
+  const reminderDayField = createEventForm.elements.namedItem('reminderDayOffset');
+  if (reminderDayField instanceof HTMLSelectElement || reminderDayField instanceof HTMLInputElement) {
+    const dayOffset =
+      typeof target.metadata?.reminder?.dayOffset === 'number'
+        ? target.metadata.reminder.dayOffset
+        : DEFAULT_REMINDER_DAY_OFFSET;
+    reminderDayField.value = String(dayOffset);
+  }
+  const reminderRecipientsField = createEventForm.elements.namedItem('reminderRecipients');
+  if (reminderRecipientsField instanceof HTMLInputElement) {
+    reminderRecipientsField.value = Array.isArray(target.metadata?.reminder?.recipients)
+      ? target.metadata.reminder.recipients.join(', ')
+      : '';
+  }
+
   const syncCheckboxes = createEventForm.querySelectorAll('input[name="syncProviders"]');
   const syncedProviders = Array.isArray(target.metadata?.syncedProviders)
     ? target.metadata.syncedProviders
@@ -1279,6 +1542,15 @@ function handleEventListClick(event) {
     const { eventId } = editButton.dataset;
     if (eventId) {
       openEventEditor(eventId);
+    }
+    return;
+  }
+
+  const reminderButton = event.target.closest('button[data-action="send-reminder"]');
+  if (reminderButton) {
+    const { eventId } = reminderButton.dataset;
+    if (eventId) {
+      triggerReminderEmail(eventId);
     }
     return;
   }
@@ -1312,6 +1584,19 @@ async function handleCreateEvent(event) {
   const endValue = formData.get('end')?.toString();
   const timeZone = formData.get('timeZone')?.toString().trim() || DEFAULT_TIME_ZONE || 'UTC';
   const description = formData.get('description')?.toString().trim() || '';
+  const reminderTime = formData.get('reminderTime')?.toString() || DEFAULT_REMINDER_TIME;
+  const reminderDayOffsetRaw = Number.parseInt(formData.get('reminderDayOffset'), 10);
+  const reminderDayOffset = Number.isFinite(reminderDayOffsetRaw)
+    ? reminderDayOffsetRaw
+    : DEFAULT_REMINDER_DAY_OFFSET;
+  const requestedRecipients = formData.get('reminderRecipients')?.toString() || '';
+  const reminderRecipients = normalizeRecipientList(requestedRecipients);
+  const defaultRecipients = resolveDefaultRecipientAddresses();
+  const reminderOptions = {
+    timeOfDay: reminderTime,
+    dayOffset: reminderDayOffset,
+    recipients: reminderRecipients.length ? reminderRecipients : defaultRecipients
+  };
 
   if (!title || !startValue || !endValue) {
     showLog('Please provide a title, start, and end time.', 'error');
@@ -1341,12 +1626,17 @@ async function handleCreateEvent(event) {
       setCreateEventExpanded(false, { focusToggle: true });
       return;
     }
+    const reminder = buildReminderMetadata(start, reminderOptions, existing.metadata?.reminder);
     updateLocalEvent(requestedId, {
       title,
       description,
       start,
       end,
-      timeZone
+      timeZone,
+      metadata: {
+        ...(existing.metadata || {}),
+        reminder
+      }
     });
     storedEvent = state.localEvents.find(item => item.id === requestedId) || {
       ...existing,
@@ -1354,10 +1644,15 @@ async function handleCreateEvent(event) {
       description,
       start,
       end,
-      timeZone
+      timeZone,
+      metadata: {
+        ...(existing.metadata || {}),
+        reminder
+      }
     };
     messages.push('Event updated in your local calendar.');
   } else {
+    const reminder = buildReminderMetadata(start, reminderOptions);
     const localEvent = {
       id: generateLocalId('local'),
       provider: 'local',
@@ -1367,7 +1662,10 @@ async function handleCreateEvent(event) {
       end,
       timeZone,
       link: '',
-      metadata: { createdFrom: 'local' },
+      metadata: {
+        createdFrom: 'local',
+        reminder
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -1554,6 +1852,14 @@ function prefillCreateEventForm(dateString, options = {}) {
 function hydrateCreateFormDefaults() {
   if (!createEventForm) return;
   resetCreateEventFormDirty();
+  const reminderTimeField = createEventForm.elements.namedItem('reminderTime');
+  if (reminderTimeField instanceof HTMLInputElement && !reminderTimeField.value) {
+    reminderTimeField.value = DEFAULT_REMINDER_TIME;
+  }
+  const reminderDayField = createEventForm.elements.namedItem('reminderDayOffset');
+  if (reminderDayField instanceof HTMLSelectElement || reminderDayField instanceof HTMLInputElement) {
+    reminderDayField.value = String(DEFAULT_REMINDER_DAY_OFFSET);
+  }
   prefillCreateEventForm(calendarState.selectedDate, { force: true });
 }
 

@@ -84,6 +84,29 @@
             </label>
           </div>
 
+          <fieldset class="create-event-form__reminder">
+            <legend>Email reminder</legend>
+            <p class="field__help">Choose when to email attendees about this event.</p>
+            <div class="create-event-form__row">
+              <label class="field">
+                <span class="field__label">Send reminder</span>
+                <select name="reminderDayOffset">
+                  <option value="0">The day of the event</option>
+                  <option value="-1">Day before</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field__label">At</span>
+                <input type="time" name="reminderTime" value="10:00">
+              </label>
+              <label class="field">
+                <span class="field__label">Recipients</span>
+                <input type="text" name="reminderRecipients" placeholder="team@example.com, guest@example.com">
+                <span class="field__help">Comma separate addresses. Defaults to you if left blank.</span>
+              </label>
+            </div>
+          </fieldset>
+
           <fieldset class="create-event-form__sync">
             <legend>Optional sync</legend>
             <p>Select the services that should also receive this event after it is stored locally.</p>
@@ -278,6 +301,13 @@
         <div>
           <dt>Ends</dt>
           <dd data-field="end"></dd>
+        </div>
+        <div data-reminder-block>
+          <dt>Reminder</dt>
+          <dd>
+            <span data-field="reminder"></span>
+            <button type="button" class="button-secondary" data-action="send-reminder">Send now</button>
+          </dd>
         </div>
       </dl>
       <p class="event-card__description" data-field="description"></p>
