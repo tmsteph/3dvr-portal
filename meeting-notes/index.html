@@ -198,6 +198,37 @@
     }
 
     .button:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2); }
+
+    .button-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .button-ghost {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      border: 1px solid var(--border);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .button[aria-disabled="true"],
+    .button:disabled,
+    .button-ghost[aria-disabled="true"] {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
     .button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
     .meeting-list {
@@ -292,6 +323,61 @@
 
     .meta-grid { display: grid; gap: 6px; }
 
+    .meeting-dialog {
+      border: none;
+      border-radius: var(--radius);
+      padding: 0;
+      max-width: 640px;
+      width: 90vw;
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    .meeting-dialog::backdrop {
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(2px);
+    }
+
+    .dialog-content { padding: 20px; display: grid; gap: 12px; }
+
+    .dialog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .dialog-body { display: grid; gap: 12px; }
+
+    .dialog-copy { white-space: pre-wrap; color: var(--muted); }
+
+    .dialog-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .dialog-list li {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .close-button {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
     @media (max-width: 720px) {
       .meeting-header { flex-direction: column; align-items: flex-start; }
       .meeting-header__links { width: 100%; justify-content: flex-start; }
@@ -371,11 +457,38 @@
             <textarea id="notesField" class="notes-area input" rows="10" placeholder="Share key decisions, action items, and follow-ups."
               aria-label="Meeting notes" disabled></textarea>
             <p class="empty-copy">Notes save automatically and stay synced through Gun.</p>
+            <div class="detail-actions">
+              <button class="button button-secondary" type="button" id="openPopover" disabled>Open pop-over</button>
+              <a class="button button-ghost" id="openMeetingPage" href="#" aria-disabled="true">Open meeting page</a>
+            </div>
           </div>
         </div>
       </section>
     </div>
   </main>
+
+  <dialog id="meetingDialog" class="meeting-dialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <div>
+          <p class="tag" id="dialogMeta"></p>
+          <h3 id="dialogTitle">Meeting preview</h3>
+        </div>
+        <button id="dialogClose" class="close-button" aria-label="Close pop-over">×</button>
+      </div>
+      <div class="dialog-body">
+        <section>
+          <h4>Notes</h4>
+          <p id="dialogNotes" class="dialog-copy"></p>
+        </section>
+        <section>
+          <h4>Attendees</h4>
+          <ul id="dialogAttendees" class="dialog-list"></ul>
+          <p id="dialogAttendeesEmpty" class="empty-copy">No attendees have been added yet.</p>
+        </section>
+      </div>
+    </div>
+  </dialog>
 
   <script>
     const gun = window.gun;
@@ -395,12 +508,22 @@
     const attendanceList = document.getElementById('attendanceList');
     const attendanceEmpty = document.getElementById('attendanceEmpty');
     const notesField = document.getElementById('notesField');
+    const openPopoverButton = document.getElementById('openPopover');
+    const openMeetingPageLink = document.getElementById('openMeetingPage');
     const shareLinkButton = document.createElement('button');
     shareLinkButton.className = 'button';
     shareLinkButton.type = 'button';
     shareLinkButton.textContent = 'Copy meeting link';
     shareLinkButton.style.margin = '12px 0 0';
     shareLinkButton.disabled = true;
+
+    const dialog = document.getElementById('meetingDialog');
+    const dialogTitle = document.getElementById('dialogTitle');
+    const dialogMeta = document.getElementById('dialogMeta');
+    const dialogNotes = document.getElementById('dialogNotes');
+    const dialogAttendees = document.getElementById('dialogAttendees');
+    const dialogAttendeesEmpty = document.getElementById('dialogAttendeesEmpty');
+    const dialogClose = document.getElementById('dialogClose');
 
     const metaGrid = document.querySelector('.meta-grid');
     metaGrid.appendChild(shareLinkButton);
@@ -415,6 +538,13 @@
     const getMeetingIdFromUrl = () => {
       const url = new URL(window.location.href);
       return url.searchParams.get('meeting');
+    };
+
+    const buildMeetingPageUrl = (meetingId) => {
+      const url = new URL(window.location.href);
+      url.pathname = '/meeting-notes/meeting.html';
+      url.searchParams.set('meeting', meetingId);
+      return url.toString();
     };
 
     const updateUrlForMeeting = (meetingId) => {
@@ -449,6 +579,11 @@
       notesField.value = '';
       attendanceList.innerHTML = '';
       attendanceEmpty.hidden = false;
+      openPopoverButton.disabled = false;
+      const meetingPageUrl = buildMeetingPageUrl(id);
+      openMeetingPageLink.href = meetingPageUrl;
+      openMeetingPageLink.setAttribute('aria-disabled', 'false');
+      openMeetingPageLink.target = '_blank';
       clearNotesSubscription();
       clearAttendeeSubscriptions();
       subscribeToNotes(id);
@@ -456,6 +591,7 @@
       updateUrlForMeeting(id);
       shareLinkButton.disabled = false;
       shareLinkButton.dataset.meetingId = id;
+      shareLinkButton.dataset.meetingLink = meetingPageUrl;
     };
 
     const clearNotesSubscription = () => {
@@ -525,6 +661,11 @@
         clearAttendeeSubscriptions();
         updateUrlForMeeting(null);
         shareLinkButton.disabled = true;
+        shareLinkButton.dataset.meetingId = '';
+        shareLinkButton.dataset.meetingLink = '';
+        openPopoverButton.disabled = true;
+        openMeetingPageLink.href = '#';
+        openMeetingPageLink.setAttribute('aria-disabled', 'true');
       }
       renderMeetingList();
     };
@@ -566,6 +707,27 @@
       const row = attendanceList.querySelector(`[data-attendee-id="${attendeeId}"]`);
       if (row) row.remove();
       updateEmptyStates();
+    };
+
+    const populateDialogContent = () => {
+      if (!currentMeetingId) return;
+      const meeting = meetingsCache.get(currentMeetingId) || {};
+      dialogTitle.textContent = meeting.title || 'Untitled meeting';
+      dialogMeta.textContent = `Scheduled for ${formatDate(meeting.datetime)}`;
+      const notesCopy = (notesField.value || '').trim();
+      dialogNotes.textContent = notesCopy || 'No notes yet.';
+
+      dialogAttendees.innerHTML = '';
+      attendanceList.querySelectorAll('.attendance-row').forEach((row) => {
+        const name = row.querySelector('.attendance-row__name')?.textContent || 'Unnamed attendee';
+        const status = row.querySelector('.status-badge')?.textContent || '';
+        const item = document.createElement('li');
+        item.textContent = status ? `${name} — ${status}` : name;
+        dialogAttendees.appendChild(item);
+      });
+
+      const hasAttendees = dialogAttendees.childElementCount > 0;
+      dialogAttendeesEmpty.hidden = hasAttendees;
     };
 
     const subscribeToNotes = (meetingId) => {
@@ -641,11 +803,10 @@
 
     shareLinkButton.addEventListener('click', async () => {
       const meetingId = shareLinkButton.dataset.meetingId;
-      if (!meetingId) return;
-      const url = new URL(window.location.href);
-      url.searchParams.set('meeting', meetingId);
+      const meetingLink = shareLinkButton.dataset.meetingLink;
+      if (!meetingId || !meetingLink) return;
       try {
-        await navigator.clipboard.writeText(url.toString());
+        await navigator.clipboard.writeText(meetingLink);
         shareLinkButton.textContent = 'Link copied';
         window.setTimeout(() => {
           shareLinkButton.textContent = 'Copy meeting link';
@@ -657,6 +818,19 @@
           shareLinkButton.textContent = 'Copy meeting link';
         }, 2000);
       }
+    });
+
+    openPopoverButton.addEventListener('click', () => {
+      if (!currentMeetingId) return;
+      populateDialogContent();
+      if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+      }
+    });
+
+    dialogClose.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
     });
 
     const maybeSetInitialMeeting = () => {
