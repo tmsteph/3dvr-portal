@@ -84,6 +84,22 @@
             </label>
           </div>
 
+          <div class="create-event-form__row">
+            <fieldset class="field">
+              <legend class="field__label">Repeat</legend>
+              <p class="field__help">Create weekly copies so recurring meetings stay in sync.</p>
+              <label class="field field--checkbox">
+                <input type="checkbox" name="repeatWeekly">
+                <span class="field__label">Repeat every week</span>
+              </label>
+              <label class="field">
+                <span class="field__label">Number of weeks</span>
+                <input type="number" name="repeatWeeks" min="1" max="52" value="4">
+                <span class="field__help">Includes the first week.</span>
+              </label>
+            </fieldset>
+          </div>
+
           <fieldset class="create-event-form__reminder">
             <legend>Email reminder</legend>
             <p class="field__help">Choose when to email attendees about this event.</p>

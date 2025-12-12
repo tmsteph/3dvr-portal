@@ -26,6 +26,8 @@ const DEFAULT_EVENT_DURATION_MINUTES = 10;
 const AUTO_SEEDED_METADATA_KEY = 'autoSeededOn';
 const DEFAULT_REMINDER_TIME = '10:00';
 const DEFAULT_REMINDER_DAY_OFFSET = 0;
+const DEFAULT_REPEAT_WEEKS = 4;
+const MAX_REPEAT_WEEKS = 52;
 
 function startOfMonth(date) {
   const result = new Date(date);
@@ -254,6 +256,40 @@ function normalizeReminderMetadata(value) {
   return result;
 }
 
+function clampRepeatWeeks(value) {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+  const bounded = Math.max(1, Math.min(Math.trunc(value), MAX_REPEAT_WEEKS));
+  return bounded;
+}
+
+function normalizeRecurrenceMetadata(value) {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const frequency = value.frequency === 'weekly' ? 'weekly' : null;
+  if (!frequency) {
+    return null;
+  }
+
+  const recurrence = { frequency };
+  const count = clampRepeatWeeks(Number.parseInt(value.count, 10));
+  if (Number.isFinite(count)) {
+    recurrence.count = count;
+  }
+  const sequence = clampRepeatWeeks(Number.parseInt(value.sequence, 10));
+  if (Number.isFinite(sequence)) {
+    recurrence.sequence = sequence;
+  }
+  if (typeof value.seriesId === 'string' && value.seriesId.trim()) {
+    recurrence.seriesId = value.seriesId.trim();
+  }
+
+  return recurrence;
+}
+
 function sanitizeMetadata(metadata) {
   if (!metadata || typeof metadata !== 'object') {
     return {};
@@ -274,6 +310,13 @@ function sanitizeMetadata(metadata) {
       const reminder = normalizeReminderMetadata(value);
       if (Object.keys(reminder).length) {
         cleaned.reminder = reminder;
+      }
+      return;
+    }
+    if (key === 'recurrence') {
+      const recurrence = normalizeRecurrenceMetadata(value);
+      if (recurrence) {
+        cleaned.recurrence = recurrence;
       }
       return;
     }
@@ -997,6 +1040,10 @@ function normalizeEvent(entry) {
   } else if (provider !== 'local') {
     providerLabel = `${baseLabel} • Imported`;
   }
+  const recurrence = normalizeRecurrenceMetadata(entry.metadata?.recurrence);
+  if (recurrence?.frequency === 'weekly') {
+    providerLabel = `${providerLabel} • Weekly`;
+  }
   const title = entry.title || 'Untitled event';
   const description = entry.description || '';
   const start = withTimeZoneLabel(formatDateTime(entry.start, entry.timeZone), entry.timeZone);
@@ -1146,6 +1193,17 @@ function computeDefaultEventTimes(dateString) {
   end.setMinutes(end.getMinutes() + DEFAULT_EVENT_DURATION_MINUTES);
 
   return { start, end };
+}
+
+function addDaysToIso(isoString, days) {
+  if (!isoString) return null;
+  const base = new Date(isoString);
+  if (Number.isNaN(base.getTime())) {
+    return null;
+  }
+  const shifted = new Date(base);
+  shifted.setDate(shifted.getDate() + Number(days || 0));
+  return Number.isNaN(shifted.getTime()) ? null : shifted.toISOString();
 }
 
 function resolveDefaultRecipientAddresses() {
@@ -1551,6 +1609,18 @@ function openEventEditor(eventId) {
     reminderLinkField.value = target.metadata?.reminder?.link || '';
   }
 
+  const recurrence = normalizeRecurrenceMetadata(target.metadata?.recurrence);
+  const repeatWeeklyField = createEventForm.elements.namedItem('repeatWeekly');
+  if (repeatWeeklyField instanceof HTMLInputElement) {
+    repeatWeeklyField.checked = recurrence?.frequency === 'weekly';
+  }
+  const repeatWeeksField = createEventForm.elements.namedItem('repeatWeeks');
+  if (repeatWeeksField instanceof HTMLInputElement) {
+    repeatWeeksField.value = recurrence?.count
+      ? String(recurrence.count)
+      : String(DEFAULT_REPEAT_WEEKS);
+  }
+
   const syncCheckboxes = createEventForm.querySelectorAll('input[name="syncProviders"]');
   const syncedProviders = Array.isArray(target.metadata?.syncedProviders)
     ? target.metadata.syncedProviders
@@ -1624,6 +1694,8 @@ async function handleCreateEvent(event) {
   const reminderMessage = formData.get('reminderMessage')?.toString().trim() || '';
   const reminderLink = formData.get('reminderLink')?.toString().trim() || '';
   const sendReminderAfterSave = formData.get('sendReminderAfterSave') === 'on';
+  const repeatWeekly = formData.get('repeatWeekly') === 'on';
+  const repeatWeeks = clampRepeatWeeks(Number.parseInt(formData.get('repeatWeeks'), 10));
   const reminderRecipients = normalizeRecipientList(requestedRecipients);
   const defaultRecipients = resolveDefaultRecipientAddresses();
   const reminderOptions = {
@@ -1651,7 +1723,7 @@ async function handleCreateEvent(event) {
     return;
   }
 
-  let storedEvent;
+  const storedEvents = [];
   const messages = [];
   let messageType = 'success';
 
@@ -1674,7 +1746,7 @@ async function handleCreateEvent(event) {
         reminder
       }
     });
-    storedEvent = state.localEvents.find(item => item.id === requestedId) || {
+    const storedEvent = state.localEvents.find(item => item.id === requestedId) || {
       ...existing,
       title,
       description,
@@ -1686,28 +1758,58 @@ async function handleCreateEvent(event) {
         reminder
       }
     };
+    storedEvents.push(storedEvent);
     messages.push('Event updated in your local calendar.');
   } else {
-    const reminder = buildReminderMetadata(start, reminderOptions);
-    const localEvent = {
-      id: generateLocalId('local'),
-      provider: 'local',
-      title,
-      description,
-      start,
-      end,
-      timeZone,
-      link: '',
-      metadata: {
+    const recurrenceSeriesId = repeatWeekly && repeatWeeks > 1 ? generateLocalId('series') : null;
+    const now = new Date().toISOString();
+    const nextEvents = [];
+    for (let index = 0; index < (repeatWeekly ? repeatWeeks : 1); index += 1) {
+      const startIso = index === 0 ? start : addDaysToIso(start, index * 7);
+      const endIso = index === 0 ? end : addDaysToIso(end, index * 7);
+      if (!startIso || !endIso) {
+        continue;
+      }
+      const reminder = buildReminderMetadata(startIso, reminderOptions);
+      const metadata = {
         createdFrom: 'local',
         reminder
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    writeLocalEvents([...state.localEvents, localEvent]);
-    storedEvent = state.localEvents.find(item => item.id === localEvent.id) || localEvent;
-    messages.push('Event saved to your local calendar.');
+      };
+      if (recurrenceSeriesId) {
+        metadata.recurrence = {
+          frequency: 'weekly',
+          count: repeatWeeks,
+          seriesId: recurrenceSeriesId,
+          sequence: index + 1
+        };
+      }
+      nextEvents.push({
+        id: generateLocalId('local'),
+        provider: 'local',
+        title,
+        description,
+        start: startIso,
+        end: endIso,
+        timeZone,
+        link: '',
+        metadata,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    if (!nextEvents.length) {
+      showLog('Unable to schedule this event. Please try again.', 'error');
+      return;
+    }
+
+    writeLocalEvents([...state.localEvents, ...nextEvents]);
+    storedEvents.push(...nextEvents);
+    if (recurrenceSeriesId) {
+      messages.push(`Saved ${nextEvents.length} weekly events to your local calendar.`);
+    } else {
+      messages.push('Event saved to your local calendar.');
+    }
   }
 
   const syncTargets = Array.from(
@@ -1719,24 +1821,27 @@ async function handleCreateEvent(event) {
     )
   );
 
-  if (syncTargets.length) {
-    const result = await syncEventToProviders(storedEvent, syncTargets);
-    if (result.lines.length) {
-      messages.push(...result.lines);
-    }
-    if (result.type === 'error') {
-      messageType = 'error';
+  if (syncTargets.length && storedEvents.length) {
+    for (const eventEntry of storedEvents) {
+      const result = await syncEventToProviders(eventEntry, syncTargets);
+      if (result.lines.length) {
+        messages.push(...result.lines);
+      }
+      if (result.type === 'error') {
+        messageType = 'error';
+      }
     }
   }
 
-  if (sendReminderAfterSave && storedEvent) {
-    const reminder = normalizeReminderMetadata(storedEvent.metadata?.reminder);
+  const primaryEvent = storedEvents[0];
+  if (sendReminderAfterSave && primaryEvent) {
+    const reminder = normalizeReminderMetadata(primaryEvent.metadata?.reminder);
     if (!reminder.sendAt || !reminder.recipients?.length) {
       messages.push('Reminder not sent: add a reminder time and at least one recipient.');
       messageType = 'error';
     } else {
       try {
-        await triggerReminderEmail(storedEvent.id, { silent: true });
+        await triggerReminderEmail(primaryEvent.id, { silent: true });
         messages.push('Reminder email sent immediately.');
       } catch (err) {
         messages.push(err.message || 'Unable to send the reminder email after saving.');
@@ -1911,6 +2016,14 @@ function hydrateCreateFormDefaults() {
   const reminderDayField = createEventForm.elements.namedItem('reminderDayOffset');
   if (reminderDayField instanceof HTMLSelectElement || reminderDayField instanceof HTMLInputElement) {
     reminderDayField.value = String(DEFAULT_REMINDER_DAY_OFFSET);
+  }
+  const repeatWeeklyField = createEventForm.elements.namedItem('repeatWeekly');
+  if (repeatWeeklyField instanceof HTMLInputElement) {
+    repeatWeeklyField.checked = false;
+  }
+  const repeatWeeksField = createEventForm.elements.namedItem('repeatWeeks');
+  if (repeatWeeksField instanceof HTMLInputElement && !repeatWeeksField.value) {
+    repeatWeeksField.value = String(DEFAULT_REPEAT_WEEKS);
   }
   prefillCreateEventForm(calendarState.selectedDate, { force: true });
 }
