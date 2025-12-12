@@ -1736,32 +1736,106 @@ async function handleCreateEvent(event) {
       setCreateEventExpanded(false, { focusToggle: true });
       return;
     }
+    const existingRecurrence = normalizeRecurrenceMetadata(existing.metadata?.recurrence);
     const reminder = buildReminderMetadata(start, reminderOptions, existing.metadata?.reminder);
-    updateLocalEvent(requestedId, {
-      title,
-      description,
-      start,
-      end,
-      timeZone,
-      metadata: {
+    const recurrenceSeriesId = repeatWeekly && repeatWeeks > 1
+      ? existingRecurrence?.seriesId || generateLocalId('series')
+      : null;
+    const recurrenceCount = repeatWeeksValue;
+    if (repeatWeekly && repeatWeeks > 0) {
+      const now = new Date().toISOString();
+      const baseMetadata = {
         ...(existing.metadata || {}),
-        reminder
+        reminder,
+        recurrence: recurrenceSeriesId
+          ? {
+            frequency: 'weekly',
+            ...(Number.isFinite(recurrenceCount) ? { count: recurrenceCount } : {}),
+            seriesId: recurrenceSeriesId,
+            sequence: 1
+          }
+          : null
+      };
+      const regenerated = [
+        {
+          ...existing,
+          title,
+          description,
+          start,
+          end,
+          timeZone,
+          metadata: baseMetadata,
+          updatedAt: now
+        }
+      ];
+      for (let index = 1; index < repeatWeeks; index += 1) {
+        const startIso = addDaysToIso(start, index * 7);
+        const endIso = addDaysToIso(end, index * 7);
+        if (!startIso || !endIso) {
+          continue;
+        }
+        regenerated.push({
+          ...existing,
+          id: generateLocalId('local'),
+          start: startIso,
+          end: endIso,
+          metadata: {
+            ...(existing.metadata || {}),
+            reminder: buildReminderMetadata(startIso, reminderOptions, existing.metadata?.reminder),
+            recurrence: recurrenceSeriesId
+              ? {
+                frequency: 'weekly',
+                ...(Number.isFinite(recurrenceCount) ? { count: recurrenceCount } : {}),
+                seriesId: recurrenceSeriesId,
+                sequence: index + 1
+              }
+              : null
+          },
+          createdAt: existing.createdAt || now,
+          updatedAt: now
+        });
       }
-    });
-    const storedEvent = state.localEvents.find(item => item.id === requestedId) || {
-      ...existing,
-      title,
-      description,
-      start,
-      end,
-      timeZone,
-      metadata: {
-        ...(existing.metadata || {}),
-        reminder
-      }
-    };
-    storedEvents.push(storedEvent);
-    messages.push('Event updated in your local calendar.');
+      const filtered = recurrenceSeriesId
+        ? state.localEvents.filter(entry => {
+          const recurrence = normalizeRecurrenceMetadata(entry.metadata?.recurrence);
+          if (entry.id === existing.id) {
+            return false;
+          }
+          return recurrence?.seriesId !== recurrenceSeriesId;
+        })
+        : state.localEvents.filter(entry => entry.id !== existing.id);
+      writeLocalEvents([...filtered, ...regenerated]);
+      storedEvents.push(...regenerated);
+      messages.push(`Saved ${regenerated.length} weekly events to your local calendar.`);
+    } else {
+      updateLocalEvent(requestedId, {
+        title,
+        description,
+        start,
+        end,
+        timeZone,
+        metadata: {
+          ...(existing.metadata || {}),
+          reminder,
+          recurrence: null
+        }
+      });
+      const storedEvent = state.localEvents.find(item => item.id === requestedId) || {
+        ...existing,
+        title,
+        description,
+        start,
+        end,
+        timeZone,
+        metadata: {
+          ...(existing.metadata || {}),
+          reminder,
+          recurrence: null
+        }
+      };
+      storedEvents.push(storedEvent);
+      messages.push('Event updated in your local calendar.');
+    }
   } else {
     const recurrenceSeriesId = repeatWeekly && repeatWeeks > 1 ? generateLocalId('series') : null;
     const now = new Date().toISOString();
