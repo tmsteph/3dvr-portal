@@ -190,23 +190,24 @@
       box-shadow: 0 12px 30px rgba(240, 199, 94, 0.32);
     }
 
-    .guest-button {
-      width: 100%;
-      padding: 14px 18px;
-      border-radius: 14px;
-      border: 1px solid var(--border-color);
-      background: transparent;
-      color: var(--accent-strong);
-      font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: border 0.2s ease, color 0.2s ease, background 0.2s ease;
+    .guest-note {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      text-align: center;
     }
 
-    .guest-button:hover {
-      border-color: rgba(240, 199, 94, 0.6);
-      color: #ffe6b0;
-      background: rgba(240, 199, 94, 0.08);
+    .guest-note button {
+      border: none;
+      background: none;
+      color: var(--accent-strong);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0 6px;
+    }
+
+    .guest-note button:hover {
+      text-decoration: underline;
     }
 
     .disclaimer {
@@ -335,9 +336,12 @@
           </div>
           <div class="actions">
             <button type="submit" class="primary-button">Sign in or sign up</button>
-            <button type="button" class="guest-button" onclick="continueAsGuest()">Continue as guest</button>
           </div>
           <p class="disclaimer">We use decentralized GUN.js storage. Your credentials are encrypted before leaving your device.</p>
+          <p class="guest-note">
+            Prefer to browse without an account?
+            <button type="button" onclick="continueAsGuest()">Continue as guest</button>
+          </p>
         </form>
       </section>
       <aside class="auth-aside" aria-label="3dvr portal benefits">
