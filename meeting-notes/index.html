@@ -535,6 +535,14 @@
     const meetingsCache = new Map();
     let initialMeetingId = null;
 
+    const slugify = (value) => {
+      return (value || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+    };
+
     const getMeetingIdFromUrl = () => {
       const url = new URL(window.location.href);
       return url.searchParams.get('meeting');
@@ -592,6 +600,17 @@
       shareLinkButton.disabled = false;
       shareLinkButton.dataset.meetingId = id;
       shareLinkButton.dataset.meetingLink = meetingPageUrl;
+    };
+
+    const ensureUniqueMeetingId = (title) => {
+      const baseSlug = slugify(title) || 'meeting';
+      let candidate = baseSlug;
+
+      while (meetingsCache.has(candidate)) {
+        candidate = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+      }
+
+      return candidate;
     };
 
     const clearNotesSubscription = () => {
@@ -732,6 +751,10 @@
 
     const subscribeToNotes = (meetingId) => {
       const meetingNode = meetingsNode.get(meetingId);
+      meetingNode.get('notes').once((note) => {
+        const content = note?.content || '';
+        notesField.value = content;
+      });
       notesSyncEvent = meetingNode.get('notes').on((note) => {
         const content = note?.content || '';
         if (notesField.value !== content) {
@@ -742,6 +765,10 @@
 
     const subscribeToAttendees = (meetingId) => {
       const meetingNode = meetingsNode.get(meetingId);
+      meetingNode.get('attendees').map().once((data, attendeeId) => {
+        if (!data) return;
+        renderAttendee(attendeeId, data);
+      });
       meetingNode.get('attendees').map().on((data, attendeeId, _msg, event) => {
         attendeeEvents[attendeeId] = event;
         if (!data) {
@@ -767,7 +794,7 @@
       const formData = new FormData(meetingForm);
       const title = formData.get('title');
       const datetime = formData.get('datetime');
-      const meetingId = crypto.randomUUID ? crypto.randomUUID() : `meeting-${Date.now()}`;
+      const meetingId = ensureUniqueMeetingId(title);
       meetingsNode.get(meetingId).put({
         title,
         datetime,
@@ -837,6 +864,13 @@
       if (!initialMeetingId || currentMeetingId || !meetingsCache.has(initialMeetingId)) return;
       setActiveMeeting(initialMeetingId, meetingsCache.get(initialMeetingId));
     };
+
+    meetingsNode.map().once((data, meetingId) => {
+      if (!data || meetingId === '_') return;
+      meetingsCache.set(meetingId, data);
+      renderMeetingList();
+      maybeSetInitialMeeting();
+    });
 
     meetingsNode.map().on((data, meetingId) => {
       if (!data || meetingId === '_') {
