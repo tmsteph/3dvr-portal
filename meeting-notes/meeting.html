@@ -247,6 +247,15 @@
         }
       });
 
+      meetingNode.once((data) => {
+        if (!data) return;
+        meetingTag.textContent = 'Meeting';
+        meetingTitle.textContent = data.title || 'Untitled meeting';
+        meetingMeta.textContent = `Scheduled for ${formatDate(data.datetime)} (created ${formatDate(data.createdAt)})`;
+        notesField.disabled = false;
+        attendeeSubmit.disabled = false;
+      });
+
       meetingNode.on((data) => {
         if (!data) return;
         meetingTag.textContent = 'Meeting';
@@ -256,11 +265,21 @@
         attendeeSubmit.disabled = false;
       });
 
+      meetingNode.get('notes').once((note) => {
+        const content = note?.content || '';
+        notesField.value = content;
+      });
+
       meetingNode.get('notes').on((note) => {
         const content = note?.content || '';
         if (notesField.value !== content) {
           notesField.value = content;
         }
+      });
+
+      meetingNode.get('attendees').map().once((attendee, attendeeId) => {
+        if (!attendee) return;
+        renderAttendee(attendeeId, attendee);
       });
 
       meetingNode.get('attendees').map().on((attendee, attendeeId) => {
