@@ -395,12 +395,37 @@
     const attendanceList = document.getElementById('attendanceList');
     const attendanceEmpty = document.getElementById('attendanceEmpty');
     const notesField = document.getElementById('notesField');
+    const shareLinkButton = document.createElement('button');
+    shareLinkButton.className = 'button';
+    shareLinkButton.type = 'button';
+    shareLinkButton.textContent = 'Copy meeting link';
+    shareLinkButton.style.margin = '12px 0 0';
+    shareLinkButton.disabled = true;
+
+    const metaGrid = document.querySelector('.meta-grid');
+    metaGrid.appendChild(shareLinkButton);
 
     let currentMeetingId = null;
     let notesSyncEvent = null;
     let attendeeEvents = {};
     let notesUpdateTimer = null;
     const meetingsCache = new Map();
+    let initialMeetingId = null;
+
+    const getMeetingIdFromUrl = () => {
+      const url = new URL(window.location.href);
+      return url.searchParams.get('meeting');
+    };
+
+    const updateUrlForMeeting = (meetingId) => {
+      const url = new URL(window.location.href);
+      if (meetingId) {
+        url.searchParams.set('meeting', meetingId);
+      } else {
+        url.searchParams.delete('meeting');
+      }
+      window.history.replaceState({}, '', url.toString());
+    };
 
     const formatDate = (value) => {
       if (!value) return 'Date not set';
@@ -428,6 +453,9 @@
       clearAttendeeSubscriptions();
       subscribeToNotes(id);
       subscribeToAttendees(id);
+      updateUrlForMeeting(id);
+      shareLinkButton.disabled = false;
+      shareLinkButton.dataset.meetingId = id;
     };
 
     const clearNotesSubscription = () => {
@@ -479,7 +507,7 @@
           meetingList.appendChild(card);
         });
 
-      updateEmptyStates();
+        updateEmptyStates();
     };
 
     const removeMeetingCard = (id) => {
@@ -495,6 +523,8 @@
         attendanceEmpty.hidden = false;
         clearNotesSubscription();
         clearAttendeeSubscriptions();
+        updateUrlForMeeting(null);
+        shareLinkButton.disabled = true;
       }
       renderMeetingList();
     };
@@ -609,6 +639,31 @@
       }, 300);
     });
 
+    shareLinkButton.addEventListener('click', async () => {
+      const meetingId = shareLinkButton.dataset.meetingId;
+      if (!meetingId) return;
+      const url = new URL(window.location.href);
+      url.searchParams.set('meeting', meetingId);
+      try {
+        await navigator.clipboard.writeText(url.toString());
+        shareLinkButton.textContent = 'Link copied';
+        window.setTimeout(() => {
+          shareLinkButton.textContent = 'Copy meeting link';
+        }, 2000);
+      } catch (error) {
+        shareLinkButton.textContent = 'Copy not available';
+        console.error('Failed to copy meeting link', error);
+        window.setTimeout(() => {
+          shareLinkButton.textContent = 'Copy meeting link';
+        }, 2000);
+      }
+    });
+
+    const maybeSetInitialMeeting = () => {
+      if (!initialMeetingId || currentMeetingId || !meetingsCache.has(initialMeetingId)) return;
+      setActiveMeeting(initialMeetingId, meetingsCache.get(initialMeetingId));
+    };
+
     meetingsNode.map().on((data, meetingId) => {
       if (!data || meetingId === '_') {
         meetingsCache.delete(meetingId);
@@ -617,8 +672,11 @@
       }
       meetingsCache.set(meetingId, data);
       renderMeetingList();
+      maybeSetInitialMeeting();
     });
 
+    initialMeetingId = getMeetingIdFromUrl();
+    maybeSetInitialMeeting();
     updateEmptyStates();
   </script>
 </body>
