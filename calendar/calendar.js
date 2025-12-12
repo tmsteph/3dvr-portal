@@ -26,8 +26,9 @@ const DEFAULT_EVENT_DURATION_MINUTES = 10;
 const AUTO_SEEDED_METADATA_KEY = 'autoSeededOn';
 const DEFAULT_REMINDER_TIME = '10:00';
 const DEFAULT_REMINDER_DAY_OFFSET = 0;
-const DEFAULT_REPEAT_WEEKS = 4;
+const DEFAULT_REPEAT_WEEKS = null;
 const MAX_REPEAT_WEEKS = 52;
+const DEFAULT_REPEAT_GENERATION_WEEKS = MAX_REPEAT_WEEKS;
 
 function startOfMonth(date) {
   const result = new Date(date);
@@ -258,7 +259,7 @@ function normalizeReminderMetadata(value) {
 
 function clampRepeatWeeks(value) {
   if (!Number.isFinite(value)) {
-    return 1;
+    return null;
   }
   const bounded = Math.max(1, Math.min(Math.trunc(value), MAX_REPEAT_WEEKS));
   return bounded;
@@ -1616,9 +1617,7 @@ function openEventEditor(eventId) {
   }
   const repeatWeeksField = createEventForm.elements.namedItem('repeatWeeks');
   if (repeatWeeksField instanceof HTMLInputElement) {
-    repeatWeeksField.value = recurrence?.count
-      ? String(recurrence.count)
-      : String(DEFAULT_REPEAT_WEEKS);
+    repeatWeeksField.value = recurrence?.count ? String(recurrence.count) : '';
   }
 
   const syncCheckboxes = createEventForm.querySelectorAll('input[name="syncProviders"]');
@@ -1695,7 +1694,10 @@ async function handleCreateEvent(event) {
   const reminderLink = formData.get('reminderLink')?.toString().trim() || '';
   const sendReminderAfterSave = formData.get('sendReminderAfterSave') === 'on';
   const repeatWeekly = formData.get('repeatWeekly') === 'on';
-  const repeatWeeks = clampRepeatWeeks(Number.parseInt(formData.get('repeatWeeks'), 10));
+  const repeatWeeksValue = clampRepeatWeeks(Number.parseInt(formData.get('repeatWeeks'), 10));
+  const repeatWeeks = repeatWeekly
+    ? repeatWeeksValue ?? DEFAULT_REPEAT_GENERATION_WEEKS
+    : 1;
   const reminderRecipients = normalizeRecipientList(requestedRecipients);
   const defaultRecipients = resolveDefaultRecipientAddresses();
   const reminderOptions = {
@@ -1764,6 +1766,7 @@ async function handleCreateEvent(event) {
     const recurrenceSeriesId = repeatWeekly && repeatWeeks > 1 ? generateLocalId('series') : null;
     const now = new Date().toISOString();
     const nextEvents = [];
+    const recurrenceCount = repeatWeeksValue;
     for (let index = 0; index < (repeatWeekly ? repeatWeeks : 1); index += 1) {
       const startIso = index === 0 ? start : addDaysToIso(start, index * 7);
       const endIso = index === 0 ? end : addDaysToIso(end, index * 7);
@@ -1778,7 +1781,7 @@ async function handleCreateEvent(event) {
       if (recurrenceSeriesId) {
         metadata.recurrence = {
           frequency: 'weekly',
-          count: repeatWeeks,
+          ...(Number.isFinite(recurrenceCount) ? { count: recurrenceCount } : {}),
           seriesId: recurrenceSeriesId,
           sequence: index + 1
         };
@@ -2023,7 +2026,7 @@ function hydrateCreateFormDefaults() {
   }
   const repeatWeeksField = createEventForm.elements.namedItem('repeatWeeks');
   if (repeatWeeksField instanceof HTMLInputElement && !repeatWeeksField.value) {
-    repeatWeeksField.value = String(DEFAULT_REPEAT_WEEKS);
+    repeatWeeksField.value = '';
   }
   prefillCreateEventForm(calendarState.selectedDate, { force: true });
 }
