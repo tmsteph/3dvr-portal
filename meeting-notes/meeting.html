@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meeting - 3DVR Notes</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <link rel="stylesheet" href="/styles/global.css">
+  <style>
+    :root {
+      --bg: #090b10;
+      --panel: #0f131a;
+      --panel-strong: #141a24;
+      --text: #e8edf7;
+      --muted: #9aa3b8;
+      --accent: #73cfff;
+      --accent-strong: #5ab6ff;
+      --success: #6ee7b7;
+      --warning: #fcd34d;
+      --danger: #f87171;
+      --border: #1f2632;
+      --radius: 16px;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #0a0d14 0%, #07090e 60%, #05070b 100%);
+      color: var(--text);
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-strong); }
+
+    .panel {
+      background: linear-gradient(145deg, rgba(20, 26, 36, 0.92), rgba(12, 15, 22, 0.92));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #041423;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .button:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2); }
+
+    .button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(115, 207, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(115, 207, 255, 0.3);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .meta { color: var(--muted); margin: 4px 0 0; }
+
+    .notes-area { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04); color: var(--text); font: inherit; min-height: 180px; }
+    .notes-area:disabled { opacity: 0.6; }
+
+    .field { display: grid; gap: 6px; }
+    .input, .select { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04); color: var(--text); font: inherit; }
+
+    .attendance-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+    .attendance-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); }
+    .attendance-row__meta { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .attendance-row__name { margin: 0; font-weight: 700; }
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-weight: 700; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04); }
+    .status-present { color: var(--success); border-color: rgba(110, 231, 183, 0.25); }
+    .status-late { color: var(--warning); border-color: rgba(252, 211, 77, 0.3); }
+    .status-absent { color: var(--danger); border-color: rgba(248, 113, 113, 0.35); }
+
+    .status-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .status-button { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.03); color: var(--text); cursor: pointer; font-weight: 600; }
+    .status-button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .empty-copy { margin: 0; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <div>
+      <div class="tag" id="meetingTag">Loading meeting...</div>
+      <h1 id="meetingTitle">Meeting</h1>
+      <p class="meta" id="meetingMeta">Fetching details...</p>
+    </div>
+    <div class="page-actions">
+      <a class="button" href="/meeting-notes/">Back to meetings</a>
+      <button class="button" type="button" id="copyLink" disabled>Copy page link</button>
+    </div>
+  </header>
+
+  <main class="panel">
+    <section>
+      <h2>Notes</h2>
+      <textarea id="notesField" class="notes-area" rows="10" placeholder="Share key decisions, action items, and follow-ups." aria-label="Meeting notes" disabled></textarea>
+      <p class="empty-copy">Notes save automatically and stay synced through Gun.</p>
+    </section>
+
+    <section>
+      <h2>Attendees</h2>
+      <form id="attendeeForm">
+        <div class="field">
+          <label for="attendeeName">Name</label>
+          <input class="input" id="attendeeName" name="attendee" type="text" required placeholder="Jane Doe">
+        </div>
+        <div class="field">
+          <label for="attendeeStatus">Status</label>
+          <select class="select" id="attendeeStatus" name="status" required>
+            <option value="present">Present</option>
+            <option value="late">Late</option>
+            <option value="absent">Absent</option>
+          </select>
+        </div>
+        <button class="button" type="submit" id="attendeeSubmit" disabled>Add attendee</button>
+      </form>
+      <ul class="attendance-list" id="attendanceList"></ul>
+      <p id="attendanceEmpty" class="empty-copy">Attendance will appear here once added.</p>
+    </section>
+  </main>
+
+  <script>
+    // Create a Gun instance for the meetings workspace so reads/writes persist across sessions and peers
+    window.gun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
+
+    const gun = window.gun;
+    const meetingId = new URL(window.location.href).searchParams.get('meeting');
+    const meetingNode = meetingId ? gun.get('meeting-notes').get('meetings').get(meetingId) : null;
+
+    const meetingTag = document.getElementById('meetingTag');
+    const meetingTitle = document.getElementById('meetingTitle');
+    const meetingMeta = document.getElementById('meetingMeta');
+    const notesField = document.getElementById('notesField');
+    const attendeeForm = document.getElementById('attendeeForm');
+    const attendeeSubmit = document.getElementById('attendeeSubmit');
+    const attendanceList = document.getElementById('attendanceList');
+    const attendanceEmpty = document.getElementById('attendanceEmpty');
+    const copyLinkButton = document.getElementById('copyLink');
+
+    let notesUpdateTimer = null;
+
+    const formatDate = (value) => {
+      if (!value) return 'Date not set';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    };
+
+    const updateEmptyStates = () => {
+      attendanceEmpty.hidden = attendanceList.childElementCount > 0;
+    };
+
+    const renderAttendee = (attendeeId, data) => {
+      let row = attendanceList.querySelector(`[data-attendee-id="${attendeeId}"]`);
+      if (!row) {
+        row = document.createElement('li');
+        row.className = 'attendance-row';
+        row.setAttribute('data-attendee-id', attendeeId);
+        attendanceList.appendChild(row);
+      }
+
+      const badgeClass = data?.status === 'present' ? 'status-present'
+        : data?.status === 'late' ? 'status-late' : 'status-absent';
+
+      row.innerHTML = `
+        <div>
+          <p class="attendance-row__name">${data?.name || 'Unnamed attendee'}</p>
+          <p class="attendance-row__meta">Updated ${formatDate(data?.updatedAt)}</p>
+        </div>
+        <div class="status-actions">
+          <span class="status-badge ${badgeClass}">${(data?.status || 'present').toUpperCase()}</span>
+          <button class="status-button" data-status="present">Present</button>
+          <button class="status-button" data-status="late">Late</button>
+          <button class="status-button" data-status="absent">Absent</button>
+        </div>
+      `;
+
+      row.querySelectorAll('.status-button').forEach((button) => {
+        button.addEventListener('click', () => updateAttendeeStatus(attendeeId, data?.name, button.dataset.status));
+      });
+
+      updateEmptyStates();
+    };
+
+    const removeAttendee = (attendeeId) => {
+      const row = attendanceList.querySelector(`[data-attendee-id="${attendeeId}"]`);
+      if (row) row.remove();
+      updateEmptyStates();
+    };
+
+    const updateAttendeeStatus = (attendeeId, name, status) => {
+      if (!meetingNode) return;
+      meetingNode.get('attendees').get(attendeeId).put({
+        name: name || 'Unnamed attendee',
+        status,
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    if (!meetingNode) {
+      meetingTag.textContent = 'No meeting id provided';
+      meetingTitle.textContent = 'Missing meeting';
+      meetingMeta.textContent = 'Pass a meeting id in the URL to load its notes.';
+      attendeeSubmit.disabled = true;
+      notesField.disabled = true;
+    } else {
+      copyLinkButton.disabled = false;
+      copyLinkButton.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          copyLinkButton.textContent = 'Link copied';
+          window.setTimeout(() => { copyLinkButton.textContent = 'Copy page link'; }, 2000);
+        } catch (error) {
+          console.error('Failed to copy meeting page link', error);
+        }
+      });
+
+      meetingNode.on((data) => {
+        if (!data) return;
+        meetingTag.textContent = 'Meeting';
+        meetingTitle.textContent = data.title || 'Untitled meeting';
+        meetingMeta.textContent = `Scheduled for ${formatDate(data.datetime)} (created ${formatDate(data.createdAt)})`;
+        notesField.disabled = false;
+        attendeeSubmit.disabled = false;
+      });
+
+      meetingNode.get('notes').on((note) => {
+        const content = note?.content || '';
+        if (notesField.value !== content) {
+          notesField.value = content;
+        }
+      });
+
+      meetingNode.get('attendees').map().on((attendee, attendeeId) => {
+        if (!attendee) {
+          removeAttendee(attendeeId);
+          return;
+        }
+        renderAttendee(attendeeId, attendee);
+      });
+    }
+
+    notesField.addEventListener('input', () => {
+      if (!meetingNode) return;
+      if (notesUpdateTimer) window.clearTimeout(notesUpdateTimer);
+      const content = notesField.value;
+      notesUpdateTimer = window.setTimeout(() => {
+        meetingNode.get('notes').put({ content });
+      }, 300);
+    });
+
+    attendeeForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!meetingNode) return;
+      const formData = new FormData(attendeeForm);
+      const name = formData.get('attendee');
+      const status = formData.get('status');
+      const attendeeId = crypto.randomUUID ? crypto.randomUUID() : `attendee-${Date.now()}`;
+      meetingNode.get('attendees').get(attendeeId).put({
+        name,
+        status,
+        updatedAt: new Date().toISOString(),
+      });
+      attendeeForm.reset();
+    });
+  </script>
+</body>
+</html>
