@@ -242,8 +242,11 @@
       border-radius: 12px;
       padding: 12px;
       background: var(--panel);
+      color: var(--text);
       cursor: pointer;
+      display: block;
       transition: border-color 0.15s ease, transform 0.15s ease;
+      text-decoration: none;
     }
 
     .meeting-card:hover { border-color: var(--accent); transform: translateY(-1px); }
@@ -637,18 +640,22 @@
           return dateB - dateA;
         })
         .forEach(([id, data]) => {
-          const card = document.createElement('article');
+          const card = document.createElement('a');
+          const meetingPageUrl = buildMeetingPageUrl(id);
           card.className = 'meeting-card';
-          card.tabIndex = 0;
-          card.setAttribute('role', 'button');
+          card.href = meetingPageUrl;
           card.setAttribute('data-meeting-id', id);
 
-          const selectMeeting = () => setActiveMeeting(id, meetingsCache.get(id) || data);
-          card.onclick = selectMeeting;
+          const openMeetingPage = (event) => {
+            event.preventDefault();
+            window.location.href = meetingPageUrl;
+          };
+
+          card.onclick = openMeetingPage;
           card.onkeydown = (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              selectMeeting();
+              openMeetingPage(event);
             }
           };
 
