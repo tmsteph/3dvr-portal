@@ -96,6 +96,18 @@
         <button id="vault-load" class="ghost">Load secret from Gun</button>
       </div>
 
+      <div class="auto-sync-row">
+        <label class="checkbox-row" for="vault-auto-sync">
+          <input id="vault-auto-sync" type="checkbox">
+          <span>Auto-sync secrets to Gun after saving</span>
+        </label>
+        <label class="checkbox-row" for="vault-remember-passphrase">
+          <input id="vault-remember-passphrase" type="checkbox">
+          <span>Remember passphrase for this session</span>
+        </label>
+      </div>
+
+      <p id="vault-auto-status" class="meta" aria-live="polite">Enable auto-sync to encrypt secrets immediately after you save them.</p>
       <p id="vault-status" class="status" aria-live="polite">Use the vault to keep keys, tokens, and other secrets handy when Vercel preview URLs change.</p>
     </section>
 
