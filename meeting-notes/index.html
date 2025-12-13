@@ -170,7 +170,7 @@
       gap: 6px;
     }
 
-    .input, .select, textarea {
+    .input, .select {
       width: 100%;
       padding: 12px;
       border-radius: 12px;
@@ -180,7 +180,7 @@
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .input:focus, .select:focus, textarea:focus {
+    .input:focus, .select:focus {
       border-color: var(--accent);
       outline: none;
       box-shadow: 0 0 0 3px rgba(115, 207, 255, 0.2);
@@ -229,14 +229,6 @@
       pointer-events: none;
     }
 
-    .detail-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-    .button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
-
     .meeting-list {
       display: grid;
       gap: 12px;
@@ -246,20 +238,21 @@
     .meeting-card {
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 12px;
+      padding: 14px;
       background: var(--panel);
       color: var(--text);
-      cursor: pointer;
-      display: block;
-      transition: border-color 0.15s ease, transform 0.15s ease;
-      text-decoration: none;
+      display: grid;
+      gap: 10px;
     }
 
-    .meeting-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-    .meeting-card--active { border-color: var(--accent); background: var(--panel-strong); }
-
     .meeting-card__title { margin: 0; font-weight: 700; font-size: 1.05rem; }
-    .meeting-card__meta { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
+    .meeting-card__meta { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+    .meeting-card__actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
     .tag {
       display: inline-flex;
@@ -272,136 +265,21 @@
       border: 1px solid rgba(115, 207, 255, 0.3);
       font-weight: 700;
       font-size: 0.9rem;
+      width: fit-content;
     }
-
-    .detail-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
-      align-items: start;
-    }
-
-    .notes-area { min-height: 180px; resize: vertical; }
-
-    .attendance-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
-
-    .attendance-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      align-items: center;
-      padding: 12px;
-      border-radius: 12px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-    }
-
-    .attendance-row__meta { margin: 0; color: var(--muted); font-size: 0.9rem; }
-    .attendance-row__name { margin: 0; font-weight: 700; }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-weight: 700;
-      border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    .status-present { color: var(--success); border-color: rgba(110, 231, 183, 0.25); }
-    .status-late { color: var(--warning); border-color: rgba(252, 211, 77, 0.3); }
-    .status-absent { color: var(--danger); border-color: rgba(248, 113, 113, 0.35); }
-
-    .status-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-
-    .status-button {
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--text);
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    .status-button:hover { border-color: var(--accent); color: var(--accent); }
 
     .empty-copy { margin: 0; color: var(--muted); }
-
-    .meta-grid { display: grid; gap: 6px; }
-
-    .meeting-dialog {
-      border: none;
-      border-radius: var(--radius);
-      padding: 0;
-      max-width: 640px;
-      width: 90vw;
-      background: var(--panel);
-      color: var(--text);
-      box-shadow: var(--shadow);
-    }
-
-    .meeting-dialog::backdrop {
-      background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(2px);
-    }
-
-    .dialog-content { padding: 20px; display: grid; gap: 12px; }
-
-    .dialog-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .dialog-body { display: grid; gap: 12px; }
-
-    .dialog-copy { white-space: pre-wrap; color: var(--muted); }
-
-    .dialog-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 8px;
-    }
-
-    .dialog-list li {
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .close-button {
-      border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text);
-      border-radius: 50%;
-      width: 36px;
-      height: 36px;
-      font-size: 18px;
-      cursor: pointer;
-    }
-
-    @media (max-width: 720px) {
-      .meeting-header { flex-direction: column; align-items: flex-start; }
-      .meeting-header__links { width: 100%; justify-content: flex-start; }
-    }
   </style>
 </head>
 <body>
-  <a class="skip-link" href="#mainContent">Skip to attendance & notes</a>
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
 
   <header class="meeting-header">
     <div class="meeting-header__title">
       <div class="meeting-header__icon" aria-hidden="true">🗒️</div>
       <div class="meeting-header__text">
         <h1>Meeting Attendance & Notes</h1>
-        <p>Track who joined, capture takeaways, and link straight into your calls.</p>
+        <p>Track sessions, share links, and clean up past events.</p>
       </div>
     </div>
     <div class="meeting-header__links">
@@ -414,7 +292,7 @@
     <div class="meeting-grid">
       <section class="panel">
         <h2>Create a meeting</h2>
-        <p>Set the session details so teammates can check in and leave notes.</p>
+        <p>Set the session details so teammates can join and capture notes.</p>
         <form id="meetingForm">
           <div class="field">
             <label for="meetingTitle">Meeting title</label>
@@ -427,129 +305,27 @@
           </div>
           <button class="button" type="submit">Add meeting</button>
         </form>
-
-        <div class="meeting-list" id="meetingList" aria-live="polite"></div>
-        <p id="emptyListCopy" class="empty-copy">No meetings yet. Create the first session to start tracking attendance.</p>
       </section>
 
       <section class="panel">
-        <div class="meta-grid">
-          <div class="tag" id="activeMeetingTag">No meeting selected</div>
-          <h2 id="activeMeetingTitle">Pick a meeting</h2>
-          <p id="activeMeetingMeta" class="empty-copy">Select a meeting from the list to capture attendance and notes.</p>
-        </div>
-
-        <div class="detail-grid">
-          <div>
-            <h3>Attendees</h3>
-            <form id="attendeeForm">
-              <div class="field">
-                <label for="attendeeName">Name</label>
-                <input class="input" id="attendeeName" name="attendee" type="text" required placeholder="Jane Doe">
-              </div>
-              <div class="field">
-                <label for="attendeeStatus">Status</label>
-                <select class="select" id="attendeeStatus" name="status" required>
-                  <option value="present">Present</option>
-                  <option value="late">Late</option>
-                  <option value="absent">Absent</option>
-                </select>
-              </div>
-              <button class="button" type="submit" id="attendeeSubmit" disabled>Add attendee</button>
-            </form>
-            <ul class="attendance-list" id="attendanceList"></ul>
-            <p id="attendanceEmpty" class="empty-copy">Attendance will appear here once added.</p>
-          </div>
-
-          <div>
-            <h3>Notes</h3>
-            <textarea id="notesField" class="notes-area input" rows="10" placeholder="Share key decisions, action items, and follow-ups."
-              aria-label="Meeting notes" disabled></textarea>
-            <p class="empty-copy">Notes save automatically and stay synced through Gun.</p>
-            <div class="detail-actions">
-              <button class="button button-secondary" type="button" id="openPopover" disabled>Open pop-over</button>
-              <a class="button button-ghost" id="openMeetingPage" href="#" aria-disabled="true">Open meeting page</a>
-            </div>
-          </div>
-        </div>
+        <h2>Meeting overview</h2>
+        <p>Open or delete meetings directly from the list.</p>
+        <div class="meeting-list" id="meetingList" aria-live="polite"></div>
+        <p id="emptyListCopy" class="empty-copy">No meetings yet. Create the first session to start tracking attendance.</p>
       </section>
     </div>
   </main>
 
-  <dialog id="meetingDialog" class="meeting-dialog">
-    <div class="dialog-content">
-      <div class="dialog-header">
-        <div>
-          <p class="tag" id="dialogMeta"></p>
-          <h3 id="dialogTitle">Meeting preview</h3>
-        </div>
-        <button id="dialogClose" class="close-button" aria-label="Close pop-over">×</button>
-      </div>
-      <div class="dialog-body">
-        <section>
-          <h4>Notes</h4>
-          <p id="dialogNotes" class="dialog-copy"></p>
-        </section>
-        <section>
-          <h4>Attendees</h4>
-          <ul id="dialogAttendees" class="dialog-list"></ul>
-          <p id="dialogAttendeesEmpty" class="empty-copy">No attendees have been added yet.</p>
-        </section>
-      </div>
-    </div>
-  </dialog>
-
   <script>
     const gun = window.gun;
     // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, createdAt}
-    // Notes live at meeting-notes -> meetings -> {meetingId} -> notes -> {content}
-    // Attendance lives at meeting-notes -> meetings -> {meetingId} -> attendees -> {attendeeId} -> {name, status, updatedAt}
     const meetingsNode = gun.get('meeting-notes').get('meetings');
 
     const meetingForm = document.getElementById('meetingForm');
     const meetingList = document.getElementById('meetingList');
     const emptyListCopy = document.getElementById('emptyListCopy');
-    const activeMeetingTag = document.getElementById('activeMeetingTag');
-    const activeMeetingTitle = document.getElementById('activeMeetingTitle');
-    const activeMeetingMeta = document.getElementById('activeMeetingMeta');
-    const attendeeForm = document.getElementById('attendeeForm');
-    const attendeeSubmit = document.getElementById('attendeeSubmit');
-    const attendanceList = document.getElementById('attendanceList');
-    const attendanceEmpty = document.getElementById('attendanceEmpty');
-    const notesField = document.getElementById('notesField');
-    const openPopoverButton = document.getElementById('openPopover');
-    const openMeetingPageLink = document.getElementById('openMeetingPage');
-    const shareLinkButton = document.createElement('button');
-    shareLinkButton.className = 'button';
-    shareLinkButton.type = 'button';
-    shareLinkButton.textContent = 'Copy meeting link';
-    shareLinkButton.style.margin = '12px 0 0';
-    shareLinkButton.disabled = true;
-    const deleteMeetingButton = document.createElement('button');
-    deleteMeetingButton.className = 'button button-danger';
-    deleteMeetingButton.type = 'button';
-    deleteMeetingButton.textContent = 'Delete meeting';
-    deleteMeetingButton.style.margin = '12px 0 0';
-    deleteMeetingButton.disabled = true;
 
-    const dialog = document.getElementById('meetingDialog');
-    const dialogTitle = document.getElementById('dialogTitle');
-    const dialogMeta = document.getElementById('dialogMeta');
-    const dialogNotes = document.getElementById('dialogNotes');
-    const dialogAttendees = document.getElementById('dialogAttendees');
-    const dialogAttendeesEmpty = document.getElementById('dialogAttendeesEmpty');
-    const dialogClose = document.getElementById('dialogClose');
-
-    const metaGrid = document.querySelector('.meta-grid');
-    metaGrid.appendChild(deleteMeetingButton);
-    metaGrid.appendChild(shareLinkButton);
-
-    let currentMeetingId = null;
-    let notesSyncEvent = null;
-    let attendeeEvents = {};
-    let notesUpdateTimer = null;
     const meetingsCache = new Map();
-    let initialMeetingId = null;
 
     const slugify = (value) => {
       return (value || '')
@@ -557,66 +333,6 @@
         .trim()
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-');
-    };
-
-    const getMeetingIdFromUrl = () => {
-      const url = new URL(window.location.href);
-      return url.searchParams.get('meeting');
-    };
-
-    const buildMeetingPageUrl = (meetingId) => {
-      const url = new URL(window.location.href);
-      url.pathname = '/meeting-notes/meeting.html';
-      url.searchParams.set('meeting', meetingId);
-      return url.toString();
-    };
-
-    const updateUrlForMeeting = (meetingId) => {
-      const url = new URL(window.location.href);
-      if (meetingId) {
-        url.searchParams.set('meeting', meetingId);
-      } else {
-        url.searchParams.delete('meeting');
-      }
-      window.history.replaceState({}, '', url.toString());
-    };
-
-    const formatDate = (value) => {
-      if (!value) return 'Date not set';
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return value;
-      return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-    };
-
-    const updateEmptyStates = () => {
-      emptyListCopy.hidden = meetingList.childElementCount > 0;
-      attendanceEmpty.hidden = attendanceList.childElementCount > 0;
-    };
-
-    const setActiveMeeting = (id, data) => {
-      currentMeetingId = id;
-      activeMeetingTag.textContent = 'Meeting selected';
-      activeMeetingTitle.textContent = data?.title || 'Untitled meeting';
-      activeMeetingMeta.textContent = `Scheduled for ${formatDate(data?.datetime)}`;
-      notesField.disabled = false;
-      attendeeSubmit.disabled = false;
-      notesField.value = '';
-      attendanceList.innerHTML = '';
-      attendanceEmpty.hidden = false;
-      openPopoverButton.disabled = false;
-      const meetingPageUrl = buildMeetingPageUrl(id);
-      openMeetingPageLink.href = meetingPageUrl;
-      openMeetingPageLink.setAttribute('aria-disabled', 'false');
-      openMeetingPageLink.target = '_blank';
-      clearNotesSubscription();
-      clearAttendeeSubscriptions();
-      subscribeToNotes(id);
-      subscribeToAttendees(id);
-      updateUrlForMeeting(id);
-      shareLinkButton.disabled = false;
-      shareLinkButton.dataset.meetingId = id;
-      shareLinkButton.dataset.meetingLink = meetingPageUrl;
-      deleteMeetingButton.disabled = false;
     };
 
     const ensureUniqueMeetingId = (title) => {
@@ -630,18 +346,22 @@
       return candidate;
     };
 
-    const clearNotesSubscription = () => {
-      if (notesSyncEvent && typeof notesSyncEvent.off === 'function') {
-        notesSyncEvent.off();
-      }
-      notesSyncEvent = null;
+    const formatDate = (value) => {
+      if (!value) return 'Date not set';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
     };
 
-    const clearAttendeeSubscriptions = () => {
-      Object.values(attendeeEvents).forEach((evt) => {
-        if (evt && typeof evt.off === 'function') evt.off();
-      });
-      attendeeEvents = {};
+    const buildMeetingPageUrl = (meetingId) => {
+      const url = new URL(window.location.href);
+      url.pathname = '/meeting-notes/meeting.html';
+      url.searchParams.set('meeting', meetingId);
+      return url.toString();
+    };
+
+    const updateEmptyStates = () => {
+      emptyListCopy.hidden = meetingList.childElementCount > 0;
     };
 
     const renderMeetingList = () => {
@@ -654,161 +374,81 @@
           return dateB - dateA;
         })
         .forEach(([id, data]) => {
-          const card = document.createElement('a');
           const meetingPageUrl = buildMeetingPageUrl(id);
+
+          const card = document.createElement('article');
           card.className = 'meeting-card';
-          card.href = meetingPageUrl;
           card.setAttribute('data-meeting-id', id);
 
-          const openMeetingPage = (event) => {
-            event.preventDefault();
-            window.location.href = meetingPageUrl;
-          };
+          const dateTag = document.createElement('div');
+          dateTag.className = 'tag';
+          dateTag.textContent = formatDate(data?.datetime);
 
-          card.onclick = openMeetingPage;
-          card.onkeydown = (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              openMeetingPage(event);
+          const title = document.createElement('h3');
+          title.className = 'meeting-card__title';
+          title.textContent = data?.title || 'Untitled meeting';
+
+          const meta = document.createElement('p');
+          meta.className = 'meeting-card__meta';
+          meta.textContent = `Created ${formatDate(data?.createdAt)}`;
+
+          const actions = document.createElement('div');
+          actions.className = 'meeting-card__actions';
+
+          const openLink = document.createElement('a');
+          openLink.className = 'button button-secondary';
+          openLink.href = meetingPageUrl;
+          openLink.textContent = 'Open meeting';
+          openLink.target = '_blank';
+          openLink.rel = 'noopener';
+
+          const copyButton = document.createElement('button');
+          copyButton.className = 'button button-ghost';
+          copyButton.type = 'button';
+          copyButton.textContent = 'Copy link';
+          copyButton.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(meetingPageUrl);
+              copyButton.textContent = 'Link copied';
+              window.setTimeout(() => {
+                copyButton.textContent = 'Copy link';
+              }, 2000);
+            } catch (error) {
+              copyButton.textContent = 'Copy not available';
+              console.error('Failed to copy meeting link', error);
+              window.setTimeout(() => {
+                copyButton.textContent = 'Copy link';
+              }, 2000);
             }
-          };
+          });
 
-          card.innerHTML = `
-            <div class="tag">${formatDate(data?.datetime)}</div>
-            <h3 class="meeting-card__title">${data?.title || 'Untitled meeting'}</h3>
-            <p class="meeting-card__meta">Created ${formatDate(data?.createdAt)}</p>
-          `;
+          const deleteButton = document.createElement('button');
+          deleteButton.className = 'button button-danger';
+          deleteButton.type = 'button';
+          deleteButton.textContent = 'Delete meeting';
+          deleteButton.addEventListener('click', () => {
+            const confirmation = window.confirm(
+              `Delete "${data?.title || 'this meeting'}"? This removes its notes and attendance.`,
+            );
+            if (!confirmation) return;
+            meetingsNode.get(id).put(null);
+            meetingsCache.delete(id);
+            renderMeetingList();
+          });
 
-          card.classList.toggle('meeting-card--active', id === currentMeetingId);
+          actions.appendChild(openLink);
+          actions.appendChild(copyButton);
+          actions.appendChild(deleteButton);
+
+          card.appendChild(dateTag);
+          card.appendChild(title);
+          card.appendChild(meta);
+          card.appendChild(actions);
+
           meetingList.appendChild(card);
         });
 
-        updateEmptyStates();
-    };
-
-    const removeMeetingCard = (id) => {
-      if (currentMeetingId === id) {
-        currentMeetingId = null;
-        activeMeetingTag.textContent = 'No meeting selected';
-        activeMeetingTitle.textContent = 'Pick a meeting';
-        activeMeetingMeta.textContent = 'Select a meeting from the list to capture attendance and notes.';
-        notesField.disabled = true;
-        attendeeSubmit.disabled = true;
-        notesField.value = '';
-        attendanceList.innerHTML = '';
-        attendanceEmpty.hidden = false;
-        clearNotesSubscription();
-        clearAttendeeSubscriptions();
-        updateUrlForMeeting(null);
-        shareLinkButton.disabled = true;
-        shareLinkButton.dataset.meetingId = '';
-        shareLinkButton.dataset.meetingLink = '';
-        openPopoverButton.disabled = true;
-        openMeetingPageLink.href = '#';
-        openMeetingPageLink.setAttribute('aria-disabled', 'true');
-        deleteMeetingButton.disabled = true;
-      }
-      renderMeetingList();
-    };
-
-    const renderAttendee = (attendeeId, data) => {
-      if (!currentMeetingId) return;
-      let row = attendanceList.querySelector(`[data-attendee-id="${attendeeId}"]`);
-      if (!row) {
-        row = document.createElement('li');
-        row.className = 'attendance-row';
-        row.setAttribute('data-attendee-id', attendeeId);
-        attendanceList.appendChild(row);
-      }
-
-      const badgeClass = data?.status === 'present' ? 'status-present'
-        : data?.status === 'late' ? 'status-late' : 'status-absent';
-
-      row.innerHTML = `
-        <div>
-          <p class="attendance-row__name">${data?.name || 'Unnamed attendee'}</p>
-          <p class="attendance-row__meta">Updated ${formatDate(data?.updatedAt)}</p>
-        </div>
-        <div class="status-actions">
-          <span class="status-badge ${badgeClass}">${(data?.status || 'present').toUpperCase()}</span>
-          <button class="status-button" data-status="present">Present</button>
-          <button class="status-button" data-status="late">Late</button>
-          <button class="status-button" data-status="absent">Absent</button>
-        </div>
-      `;
-
-      row.querySelectorAll('.status-button').forEach((button) => {
-        button.addEventListener('click', () => updateAttendeeStatus(attendeeId, data?.name, button.dataset.status));
-      });
-
       updateEmptyStates();
-    };
-
-    const removeAttendee = (attendeeId) => {
-      const row = attendanceList.querySelector(`[data-attendee-id="${attendeeId}"]`);
-      if (row) row.remove();
-      updateEmptyStates();
-    };
-
-    const populateDialogContent = () => {
-      if (!currentMeetingId) return;
-      const meeting = meetingsCache.get(currentMeetingId) || {};
-      dialogTitle.textContent = meeting.title || 'Untitled meeting';
-      dialogMeta.textContent = `Scheduled for ${formatDate(meeting.datetime)}`;
-      const notesCopy = (notesField.value || '').trim();
-      dialogNotes.textContent = notesCopy || 'No notes yet.';
-
-      dialogAttendees.innerHTML = '';
-      attendanceList.querySelectorAll('.attendance-row').forEach((row) => {
-        const name = row.querySelector('.attendance-row__name')?.textContent || 'Unnamed attendee';
-        const status = row.querySelector('.status-badge')?.textContent || '';
-        const item = document.createElement('li');
-        item.textContent = status ? `${name} — ${status}` : name;
-        dialogAttendees.appendChild(item);
-      });
-
-      const hasAttendees = dialogAttendees.childElementCount > 0;
-      dialogAttendeesEmpty.hidden = hasAttendees;
-    };
-
-    const subscribeToNotes = (meetingId) => {
-      const meetingNode = meetingsNode.get(meetingId);
-      meetingNode.get('notes').once((note) => {
-        const content = note?.content || '';
-        notesField.value = content;
-      });
-      notesSyncEvent = meetingNode.get('notes').on((note) => {
-        const content = note?.content || '';
-        if (notesField.value !== content) {
-          notesField.value = content;
-        }
-      });
-    };
-
-    const subscribeToAttendees = (meetingId) => {
-      const meetingNode = meetingsNode.get(meetingId);
-      meetingNode.get('attendees').map().once((data, attendeeId) => {
-        if (!data) return;
-        renderAttendee(attendeeId, data);
-      });
-      meetingNode.get('attendees').map().on((data, attendeeId, _msg, event) => {
-        attendeeEvents[attendeeId] = event;
-        if (!data) {
-          removeAttendee(attendeeId);
-          return;
-        }
-        renderAttendee(attendeeId, data);
-      });
-    };
-
-    const updateAttendeeStatus = (attendeeId, name, status) => {
-      if (!currentMeetingId) return;
-      const meetingNode = meetingsNode.get(currentMeetingId);
-      meetingNode.get('attendees').get(attendeeId).put({
-        name: name || 'Unnamed attendee',
-        status,
-        updatedAt: new Date().toISOString(),
-      });
     };
 
     meetingForm.addEventListener('submit', (event) => {
@@ -825,102 +465,22 @@
       meetingForm.reset();
     });
 
-    attendeeForm.addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (!currentMeetingId) return;
-      const formData = new FormData(attendeeForm);
-      const name = formData.get('attendee');
-      const status = formData.get('status');
-      const attendeeId = crypto.randomUUID ? crypto.randomUUID() : `attendee-${Date.now()}`;
-      const meetingNode = meetingsNode.get(currentMeetingId);
-      meetingNode.get('attendees').get(attendeeId).put({
-        name,
-        status,
-        updatedAt: new Date().toISOString(),
-      });
-      attendeeForm.reset();
-    });
-
-    notesField.addEventListener('input', () => {
-      if (!currentMeetingId) return;
-      if (notesUpdateTimer) window.clearTimeout(notesUpdateTimer);
-      const content = notesField.value;
-      notesUpdateTimer = window.setTimeout(() => {
-        meetingsNode.get(currentMeetingId).get('notes').put({ content });
-      }, 300);
-    });
-
-    shareLinkButton.addEventListener('click', async () => {
-      const meetingId = shareLinkButton.dataset.meetingId;
-      const meetingLink = shareLinkButton.dataset.meetingLink;
-      if (!meetingId || !meetingLink) return;
-      try {
-        await navigator.clipboard.writeText(meetingLink);
-        shareLinkButton.textContent = 'Link copied';
-        window.setTimeout(() => {
-          shareLinkButton.textContent = 'Copy meeting link';
-        }, 2000);
-      } catch (error) {
-        shareLinkButton.textContent = 'Copy not available';
-        console.error('Failed to copy meeting link', error);
-        window.setTimeout(() => {
-          shareLinkButton.textContent = 'Copy meeting link';
-        }, 2000);
-      }
-    });
-
-    deleteMeetingButton.addEventListener('click', () => {
-      if (!currentMeetingId) return;
-      const meeting = meetingsCache.get(currentMeetingId) || {};
-      const confirmation = window.confirm(
-        `Delete "${meeting.title || 'this meeting'}"? This removes its notes and attendance.`,
-      );
-      if (!confirmation) return;
-      clearNotesSubscription();
-      clearAttendeeSubscriptions();
-      meetingsNode.get(currentMeetingId).put(null);
-      meetingsCache.delete(currentMeetingId);
-      removeMeetingCard(currentMeetingId);
-    });
-
-    openPopoverButton.addEventListener('click', () => {
-      if (!currentMeetingId) return;
-      populateDialogContent();
-      if (typeof dialog.showModal === 'function') {
-        dialog.showModal();
-      }
-    });
-
-    dialogClose.addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', (event) => {
-      if (event.target === dialog) dialog.close();
-    });
-
-    const maybeSetInitialMeeting = () => {
-      if (!initialMeetingId || currentMeetingId || !meetingsCache.has(initialMeetingId)) return;
-      setActiveMeeting(initialMeetingId, meetingsCache.get(initialMeetingId));
-    };
-
     meetingsNode.map().once((data, meetingId) => {
       if (!data || meetingId === '_') return;
       meetingsCache.set(meetingId, data);
       renderMeetingList();
-      maybeSetInitialMeeting();
     });
 
     meetingsNode.map().on((data, meetingId) => {
       if (!data || meetingId === '_') {
         meetingsCache.delete(meetingId);
-        removeMeetingCard(meetingId);
+        renderMeetingList();
         return;
       }
       meetingsCache.set(meetingId, data);
       renderMeetingList();
-      maybeSetInitialMeeting();
     });
 
-    initialMeetingId = getMeetingIdFromUrl();
-    maybeSetInitialMeeting();
     updateEmptyStates();
   </script>
 </body>
