@@ -106,6 +106,8 @@ const vaultAutoEnabledKey = 'vault-auto-enabled';
 const vaultRememberPassphraseKey = 'vault-remember-passphrase';
 const vaultAutoAliasKey = 'vault-auto-alias';
 const vaultAutoPassphraseKey = 'vault-auto-passphrase';
+const vaultUseAccountAliasKey = 'vault-use-account-alias';
+const vaultAutoLoadKey = 'vault-auto-load';
 const storedSession = storage.getItem(sessionKey);
 let sessionId = storedSession || Gun.text.random();
 storage.setItem(sessionKey, sessionId);
@@ -155,6 +157,8 @@ const vaultLoadBtn = document.getElementById('vault-load');
 const vaultStatus = document.getElementById('vault-status');
 const vaultAutoSyncToggle = document.getElementById('vault-auto-sync');
 const vaultRememberPassphraseToggle = document.getElementById('vault-remember-passphrase');
+const vaultAccountAliasToggle = document.getElementById('vault-use-account-alias');
+const vaultAutoLoadToggle = document.getElementById('vault-auto-load');
 const vaultAutoStatus = document.getElementById('vault-auto-status');
 const defaultPassphraseInput = document.getElementById('default-passphrase');
 const loadDefaultBtn = document.getElementById('load-default');
@@ -175,6 +179,7 @@ const developerPrompt = [
 
 let currentDefaultConfig = {};
 let subscriptionVersion = 0;
+let accountAlias = '';
 
 function sanitizeResponseContent(content) {
   if (!content) return '';
@@ -467,11 +472,15 @@ function saveAutoVaultPreferences() {
   const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
   const autoEnabled = !!vaultAutoSyncToggle?.checked;
   const rememberPassphrase = !!vaultRememberPassphraseToggle?.checked;
+  const useAccountAlias = vaultAccountAliasToggle?.checked !== false;
+  const autoLoad = vaultAutoLoadToggle?.checked !== false;
   const passphrase = vaultPassphraseInput?.value || '';
 
   storage.setItem(vaultAutoAliasKey, alias || '');
   storage.setItem(vaultAutoEnabledKey, autoEnabled ? 'true' : 'false');
   storage.setItem(vaultRememberPassphraseKey, rememberPassphrase ? 'true' : 'false');
+  storage.setItem(vaultUseAccountAliasKey, useAccountAlias ? 'true' : 'false');
+  storage.setItem(vaultAutoLoadKey, autoLoad ? 'true' : 'false');
 
   if (rememberPassphrase && passphrase) {
     storage.setItem(vaultAutoPassphraseKey, passphrase);
@@ -484,6 +493,8 @@ function restoreAutoVaultPreferences() {
   const savedAlias = storage.getItem(vaultAutoAliasKey) || '';
   const savedAutoEnabled = storage.getItem(vaultAutoEnabledKey) === 'true';
   const savedRemember = storage.getItem(vaultRememberPassphraseKey) === 'true';
+  const savedUseAccountAlias = storage.getItem(vaultUseAccountAliasKey);
+  const savedAutoLoad = storage.getItem(vaultAutoLoadKey);
   const savedPassphrase = savedRemember ? storage.getItem(vaultAutoPassphraseKey) || '' : '';
 
   if (vaultAliasInput && savedAlias) {
@@ -498,11 +509,63 @@ function restoreAutoVaultPreferences() {
     vaultRememberPassphraseToggle.checked = savedRemember;
   }
 
+  if (vaultAccountAliasToggle) {
+    vaultAccountAliasToggle.checked = savedUseAccountAlias !== 'false';
+  }
+
+  if (vaultAutoLoadToggle) {
+    vaultAutoLoadToggle.checked = savedAutoLoad !== 'false';
+  }
+
   if (vaultPassphraseInput && savedPassphrase) {
     vaultPassphraseInput.value = savedPassphrase;
   }
 
   updateVaultAutoStatus();
+}
+
+function applyAccountAliasToVault() {
+  if (!accountAlias || !vaultAliasInput) return;
+  if (vaultAccountAliasToggle?.checked === false) return;
+
+  vaultAliasInput.value = accountAlias;
+  saveAutoVaultPreferences();
+  updateVaultAutoStatus();
+}
+
+async function autoLoadVaultForAccount({ silent = true } = {}) {
+  if (vaultAutoLoadToggle?.checked === false) return;
+
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim()) || accountAlias;
+  const passphrase = vaultPassphraseInput?.value || '';
+
+  if (!alias) return;
+
+  if (!passphrase) {
+    if (!silent) {
+      setVaultAutoStatus('Add your vault passphrase to load secrets tied to your username.');
+    }
+    return;
+  }
+
+  const selectedTarget = getSelectedVaultTarget();
+  const loaded = await loadVaultSecret({
+    alias,
+    passphrase,
+    targetKey: selectedTarget.key,
+    silent,
+  });
+
+  if (loaded && !silent) {
+    setVaultAutoStatus(`${selectedTarget.label} loaded using your username vault.`);
+  }
+}
+
+function setAccountAlias(value) {
+  accountAlias = sanitizeVaultAlias(value);
+  if (accountAlias) {
+    applyAccountAliasToVault();
+  }
 }
 
 function sanitizeVaultAlias(input) {
@@ -1085,6 +1148,7 @@ vaultAliasInput?.addEventListener('input', () => {
 vaultPassphraseInput?.addEventListener('input', () => {
   saveAutoVaultPreferences();
   updateVaultAutoStatus();
+  autoLoadVaultForAccount({ silent: true });
 });
 
 vaultAutoSyncToggle?.addEventListener('change', () => {
@@ -1098,6 +1162,20 @@ vaultAutoSyncToggle?.addEventListener('change', () => {
 vaultRememberPassphraseToggle?.addEventListener('change', () => {
   saveAutoVaultPreferences();
   updateVaultAutoStatus();
+});
+
+vaultAccountAliasToggle?.addEventListener('change', () => {
+  saveAutoVaultPreferences();
+  if (vaultAccountAliasToggle.checked) {
+    applyAccountAliasToVault();
+  }
+});
+
+vaultAutoLoadToggle?.addEventListener('change', () => {
+  saveAutoVaultPreferences();
+  if (vaultAutoLoadToggle.checked) {
+    autoLoadVaultForAccount({ silent: false });
+  }
 });
 
 clearKeyBtn.addEventListener('click', () => {
@@ -1174,7 +1252,9 @@ user.on('auth', () => {
   }
   user.get('alias').once((value) => {
     if (value) {
+      setAccountAlias(value);
       updateAccountStatus(`Synced to ${value}. Secrets will follow you across browsers.`);
+      autoLoadVaultForAccount({ silent: true });
     }
   });
   hydrateAccountSecrets();
