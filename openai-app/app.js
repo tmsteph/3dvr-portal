@@ -102,6 +102,10 @@ const apiKeyStorageKey = 'openai-api-key';
 const vercelTokenStorageKey = 'vercel-token';
 const githubTokenStorageKey = 'github-token';
 const sessionKey = 'openai-workbench-session';
+const vaultAutoEnabledKey = 'vault-auto-enabled';
+const vaultRememberPassphraseKey = 'vault-remember-passphrase';
+const vaultAutoAliasKey = 'vault-auto-alias';
+const vaultAutoPassphraseKey = 'vault-auto-passphrase';
 const storedSession = storage.getItem(sessionKey);
 let sessionId = storedSession || Gun.text.random();
 storage.setItem(sessionKey, sessionId);
@@ -149,6 +153,9 @@ const vaultTargetSelect = document.getElementById('vault-target');
 const vaultSaveBtn = document.getElementById('vault-save');
 const vaultLoadBtn = document.getElementById('vault-load');
 const vaultStatus = document.getElementById('vault-status');
+const vaultAutoSyncToggle = document.getElementById('vault-auto-sync');
+const vaultRememberPassphraseToggle = document.getElementById('vault-remember-passphrase');
+const vaultAutoStatus = document.getElementById('vault-auto-status');
 const defaultPassphraseInput = document.getElementById('default-passphrase');
 const loadDefaultBtn = document.getElementById('load-default');
 const defaultKeyStatus = document.getElementById('default-key-status');
@@ -411,6 +418,12 @@ function setVaultStatus(message) {
   }
 }
 
+function setVaultAutoStatus(message) {
+  if (vaultAutoStatus) {
+    vaultAutoStatus.textContent = message;
+  }
+}
+
 function getVaultTargetConfig(targetKey) {
   if (vaultTargets[targetKey]) {
     return { key: targetKey, ...vaultTargets[targetKey] };
@@ -423,6 +436,75 @@ function getSelectedVaultTarget() {
   return getVaultTargetConfig(selected);
 }
 
+function updateVaultAutoStatus(message) {
+  if (!vaultAutoStatus) return;
+
+  if (message) {
+    setVaultAutoStatus(message);
+    return;
+  }
+
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const hasPassphrase = !!(vaultPassphraseInput?.value || '').trim();
+
+  if (vaultAutoSyncToggle?.checked) {
+    if (!alias) {
+      setVaultAutoStatus('Set a vault label to auto-sync secrets across devices.');
+      return;
+    }
+    if (!hasPassphrase) {
+      setVaultAutoStatus('Add a passphrase to encrypt secrets before auto-syncing.');
+      return;
+    }
+    setVaultAutoStatus('Auto-sync is on. Secrets encrypt locally after you save them.');
+    return;
+  }
+
+  setVaultAutoStatus('Enable auto-sync to push encrypted secrets to Gun after saving.');
+}
+
+function saveAutoVaultPreferences() {
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const autoEnabled = !!vaultAutoSyncToggle?.checked;
+  const rememberPassphrase = !!vaultRememberPassphraseToggle?.checked;
+  const passphrase = vaultPassphraseInput?.value || '';
+
+  storage.setItem(vaultAutoAliasKey, alias || '');
+  storage.setItem(vaultAutoEnabledKey, autoEnabled ? 'true' : 'false');
+  storage.setItem(vaultRememberPassphraseKey, rememberPassphrase ? 'true' : 'false');
+
+  if (rememberPassphrase && passphrase) {
+    storage.setItem(vaultAutoPassphraseKey, passphrase);
+  } else {
+    storage.removeItem(vaultAutoPassphraseKey);
+  }
+}
+
+function restoreAutoVaultPreferences() {
+  const savedAlias = storage.getItem(vaultAutoAliasKey) || '';
+  const savedAutoEnabled = storage.getItem(vaultAutoEnabledKey) === 'true';
+  const savedRemember = storage.getItem(vaultRememberPassphraseKey) === 'true';
+  const savedPassphrase = savedRemember ? storage.getItem(vaultAutoPassphraseKey) || '' : '';
+
+  if (vaultAliasInput && savedAlias) {
+    vaultAliasInput.value = savedAlias;
+  }
+
+  if (vaultAutoSyncToggle) {
+    vaultAutoSyncToggle.checked = savedAutoEnabled;
+  }
+
+  if (vaultRememberPassphraseToggle) {
+    vaultRememberPassphraseToggle.checked = savedRemember;
+  }
+
+  if (vaultPassphraseInput && savedPassphrase) {
+    vaultPassphraseInput.value = savedPassphrase;
+  }
+
+  updateVaultAutoStatus();
+}
+
 function sanitizeVaultAlias(input) {
   return (input || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 64);
 }
@@ -432,6 +514,25 @@ function loadStoredKey() {
   if (stored) {
     apiKeyInput.value = stored;
   }
+}
+
+async function putVaultRecord(alias, passphrase, targetKey, secretValue) {
+  if (!Gun.SEA || typeof Gun.SEA.encrypt !== 'function') {
+    throw new Error('Gun SEA not available. Refresh and try again.');
+  }
+
+  const cipher = await Gun.SEA.encrypt(secretValue, passphrase);
+  const record = { alias, cipher, updatedAt: Date.now(), target: targetKey };
+
+  return new Promise((resolve, reject) => {
+    keyVaultNode.get(alias).put(record, ack => {
+      if (ack?.err) {
+        reject(new Error(ack.err));
+        return;
+      }
+      resolve(record);
+    });
+  });
 }
 
 async function saveKeyToVault() {
@@ -455,15 +556,8 @@ async function saveKeyToVault() {
     return;
   }
 
-  if (!Gun.SEA || typeof Gun.SEA.encrypt !== 'function') {
-    setVaultStatus('Gun SEA not available. Refresh the page and try again.');
-    return;
-  }
-
   try {
-    const cipher = await Gun.SEA.encrypt(secretValue, passphrase);
-    const record = { alias, cipher, updatedAt: Date.now(), target: target.key };
-    keyVaultNode.get(alias).put(record);
+    await putVaultRecord(alias, passphrase, target.key, secretValue);
     setVaultStatus(`${target.label} encrypted and stored in Gun. Use the same alias and passphrase on any device.`);
   } catch (error) {
     setVaultStatus(`Error encrypting or saving: ${error.message}`);
@@ -476,36 +570,42 @@ function fetchVaultRecord(alias) {
   });
 }
 
-async function loadKeyFromVault() {
-  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
-  const passphrase = vaultPassphraseInput?.value || '';
-  const selectedTarget = getSelectedVaultTarget();
-
+async function loadVaultSecret({ alias, passphrase, targetKey, silent = false }) {
   if (!alias) {
-    setVaultStatus('Enter the vault label you used when saving your secret.');
-    return;
+    if (!silent) {
+      setVaultStatus('Enter the vault label you used when saving your secret.');
+    }
+    return false;
   }
 
   if (!passphrase) {
-    setVaultStatus('Enter the passphrase used to encrypt your secret.');
-    return;
+    if (!silent) {
+      setVaultStatus('Enter the passphrase used to encrypt your secret.');
+    }
+    return false;
   }
 
   if (!Gun.SEA || typeof Gun.SEA.decrypt !== 'function') {
-    setVaultStatus('Gun SEA not available. Refresh the page and try again.');
-    return;
+    if (!silent) {
+      setVaultStatus('Gun SEA not available. Refresh the page and try again.');
+    }
+    return false;
   }
 
-  setVaultStatus('Fetching and decrypting secret from Gun...');
+  if (!silent) {
+    setVaultStatus('Fetching and decrypting secret from Gun...');
+  }
 
   try {
     const record = await fetchVaultRecord(alias);
     if (!record || !record.cipher) {
-      setVaultStatus('No encrypted secret found for that alias.');
-      return;
+      if (!silent) {
+        setVaultStatus('No encrypted secret found for that alias.');
+      }
+      return false;
     }
 
-    const vaultTarget = getVaultTargetConfig(record.target || selectedTarget.key);
+    const vaultTarget = getVaultTargetConfig(record.target || targetKey || 'openai');
 
     if (vaultTargetSelect) {
       vaultTargetSelect.value = vaultTarget.key;
@@ -513,8 +613,10 @@ async function loadKeyFromVault() {
 
     const decrypted = await Gun.SEA.decrypt(record.cipher, passphrase);
     if (!decrypted) {
-      setVaultStatus('Decryption failed. Check your passphrase and try again.');
-      return;
+      if (!silent) {
+        setVaultStatus('Decryption failed. Check your passphrase and try again.');
+      }
+      return false;
     }
 
     if (vaultTarget.input) {
@@ -529,10 +631,71 @@ async function loadKeyFromVault() {
       saveSecretToAccount(vaultTarget.accountField, decrypted);
     }
 
-    updateStorageModeNotice(`${vaultTarget.label} loaded from Gun and stored locally for this device.`);
-    setVaultStatus(`${vaultTarget.label} loaded from Gun and applied to this session.`);
+    if (!silent) {
+      updateStorageModeNotice(`${vaultTarget.label} loaded from Gun and stored locally for this device.`);
+      setVaultStatus(`${vaultTarget.label} loaded from Gun and applied to this session.`);
+    }
+
+    return true;
   } catch (error) {
-    setVaultStatus(`Error loading from Gun: ${error.message}`);
+    if (!silent) {
+      setVaultStatus(`Error loading from Gun: ${error.message}`);
+    }
+    return false;
+  }
+}
+
+async function loadKeyFromVault() {
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const passphrase = vaultPassphraseInput?.value || '';
+  const selectedTarget = getSelectedVaultTarget();
+
+  await loadVaultSecret({ alias, passphrase, targetKey: selectedTarget.key });
+}
+
+async function autoSyncSecret(targetKey, secretValue) {
+  if (!vaultAutoSyncToggle?.checked) return;
+
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const passphrase = vaultPassphraseInput?.value || '';
+  const target = getVaultTargetConfig(targetKey);
+
+  if (!alias || !passphrase) {
+    updateVaultAutoStatus('Add a vault label and passphrase to keep auto-sync running.');
+    return;
+  }
+
+  if (!secretValue) {
+    updateVaultAutoStatus(`Add your ${target.label.toLowerCase()} before auto-syncing.`);
+    return;
+  }
+
+  try {
+    await putVaultRecord(alias, passphrase, target.key, secretValue);
+    updateVaultAutoStatus(`${target.label} auto-synced to Gun for your next device.`);
+  } catch (error) {
+    updateVaultAutoStatus(`Auto-sync failed: ${error.message}`);
+  }
+}
+
+async function maybeAutoLoadVaultSecret() {
+  if (!vaultAutoSyncToggle?.checked) return;
+
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const passphrase = vaultPassphraseInput?.value || '';
+  const selectedTarget = getSelectedVaultTarget();
+
+  if (!alias || !passphrase) return;
+
+  const loaded = await loadVaultSecret({
+    alias,
+    passphrase,
+    targetKey: selectedTarget.key,
+    silent: true,
+  });
+
+  if (loaded) {
+    updateVaultAutoStatus(`${selectedTarget.label} restored automatically from Gun.`);
   }
 }
 
@@ -911,6 +1074,30 @@ saveKeyBtn.addEventListener('click', () => {
     ? 'API key saved for this page only. Adjust Brave Shields or storage settings to persist across refreshes.'
     : `API key saved to ${mode}.`;
   saveSecretToAccount('openaiApiKey', key);
+  autoSyncSecret('openai', key);
+});
+
+vaultAliasInput?.addEventListener('input', () => {
+  saveAutoVaultPreferences();
+  updateVaultAutoStatus();
+});
+
+vaultPassphraseInput?.addEventListener('input', () => {
+  saveAutoVaultPreferences();
+  updateVaultAutoStatus();
+});
+
+vaultAutoSyncToggle?.addEventListener('change', () => {
+  saveAutoVaultPreferences();
+  updateVaultAutoStatus();
+  if (vaultAutoSyncToggle.checked) {
+    maybeAutoLoadVaultSecret();
+  }
+});
+
+vaultRememberPassphraseToggle?.addEventListener('change', () => {
+  saveAutoVaultPreferences();
+  updateVaultAutoStatus();
 });
 
 clearKeyBtn.addEventListener('click', () => {
@@ -935,6 +1122,7 @@ saveVercelBtn.addEventListener('click', () => {
     ? 'Vercel token saved for this page only. Allow storage for persistence.'
     : `Vercel token saved to ${mode}.`);
   saveSecretToAccount('vercelToken', token);
+  autoSyncSecret('vercel', token);
 });
 
 clearVercelBtn.addEventListener('click', () => {
@@ -959,6 +1147,7 @@ saveGithubBtn.addEventListener('click', () => {
     ? 'GitHub token saved for this page only. Allow storage for persistence.'
     : `GitHub token saved to ${mode}.`);
   saveSecretToAccount('githubToken', token);
+  autoSyncSecret('github', token);
 });
 
 clearGithubBtn.addEventListener('click', () => {
@@ -973,6 +1162,8 @@ loadDefaultBtn?.addEventListener('click', loadDefaultKey);
 githubBtn.addEventListener('click', publishToGithub);
 vaultSaveBtn?.addEventListener('click', saveKeyToVault);
 vaultLoadBtn?.addEventListener('click', loadKeyFromVault);
+
+restoreAutoVaultPreferences();
 
 recallUserSession();
 subscribeToDefaults();
@@ -994,6 +1185,7 @@ updateStorageModeNotice();
 loadStoredKey();
 loadStoredVercelToken();
 loadStoredGithubToken();
+maybeAutoLoadVaultSecret();
 startHistorySubscription();
 startDeploymentSubscription();
 startGithubSubscription();

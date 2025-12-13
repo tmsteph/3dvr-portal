@@ -102,6 +102,24 @@ label {
   gap: 8px;
 }
 
+.auto-sync-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.checkbox-row span {
+  color: var(--text);
+}
+
 input[type="password"],
 textarea,
 select {
