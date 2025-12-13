@@ -1,0 +1,70 @@
+body {
+  background: var(--base-01);
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.card .meta-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0;
+}
+
+.meta-list dt {
+  color: var(--muted-02);
+  font-size: 0.9rem;
+}
+
+.meta-list dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.list li {
+  padding: 0.75rem;
+  border: 1px solid var(--base-03);
+  border-radius: 12px;
+  background: var(--base-00);
+}
+
+.list h3 {
+  margin: 0 0 0.35rem 0;
+}
+
+.list .meta-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  color: var(--muted-02);
+  font-size: 0.9rem;
+}
+
+.identity-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.status {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 700px) {
+  .identity-actions {
+    align-items: stretch;
+  }
+}

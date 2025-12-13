@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workbench Explorer</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+</head>
+<body>
+  <div class="top-buttons">
+    <a href="../index.html">🏠 Portal</a>
+    <a href="../openai-app/">🧪 Workbench</a>
+    <a href="../tasks.html">✅ Task Board</a>
+    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noreferrer">🚀 GitHub</a>
+  </div>
+
+  <main>
+    <header>
+      <p class="eyebrow">AI co-pilot</p>
+      <h1>Workbench Explorer</h1>
+      <p class="lede">Browse the shared OpenAI Workbench data stored in Gun so you can reuse prompts, deploy links, and defaults.</p>
+    </header>
+
+    <section class="card info-card" aria-label="Session controls">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Scope</p>
+          <h2>Choose a Workbench identity</h2>
+          <p class="meta">Data is stored under <code>3dvr-portal/ai-workbench/&lt;identityKey&gt;</code>. Switch to your session or the shared <code>default</code> feed.</p>
+        </div>
+      </div>
+      <div class="grid compact-grid">
+        <div>
+          <label for="identity-input">Identity key</label>
+          <input id="identity-input" type="text" placeholder="default" aria-describedby="identity-help">
+          <p id="identity-help" class="meta">Use the same value in the Workbench to sync history across devices.</p>
+        </div>
+        <div class="identity-actions">
+          <button id="apply-identity" class="primary">Load data</button>
+          <p id="storage-mode" class="meta" aria-live="polite"></p>
+        </div>
+      </div>
+      <p id="identity-status" class="status" aria-live="polite">Waiting for an identity key.</p>
+    </section>
+
+    <section class="grid">
+      <section class="card" aria-label="Workbench defaults">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Defaults</p>
+            <h2>Shared API key vault</h2>
+            <p class="meta">Reads from <code>ai-workbench/defaults</code> to show when the team last rotated the admin key.</p>
+          </div>
+        </div>
+        <dl class="meta-list">
+          <div>
+            <dt>Hint</dt>
+            <dd id="default-hint">Loading...</dd>
+          </div>
+          <div>
+            <dt>Updated by</dt>
+            <dd id="default-updated-by">–</dd>
+          </div>
+          <div>
+            <dt>Updated at</dt>
+            <dd id="default-updated-at">–</dd>
+          </div>
+        </dl>
+        <p id="default-status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-label="Session summary">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Snapshot</p>
+            <h2>Session activity</h2>
+            <p class="meta">Counts reflect content under the active identity.</p>
+          </div>
+        </div>
+        <dl class="meta-list">
+          <div>
+            <dt>Prompts saved</dt>
+            <dd id="prompt-count">0</dd>
+          </div>
+          <div>
+            <dt>Deployments</dt>
+            <dd id="deploy-count">0</dd>
+          </div>
+          <div>
+            <dt>GitHub publishes</dt>
+            <dd id="github-count">0</dd>
+          </div>
+        </dl>
+        <p class="meta">Data updates live as Gun events arrive.</p>
+      </section>
+    </section>
+
+    <section class="card" aria-label="Prompt history">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Prompts</p>
+          <h2>Recent transcript entries</h2>
+          <p class="meta">Pulled from <code>ai-workbench/&lt;identity&gt;/transcripts</code>. Entries include the prompt, model, and when it was saved.</p>
+        </div>
+      </div>
+      <ul id="transcript-list" class="list"></ul>
+      <p id="transcript-status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="grid">
+      <section class="card" aria-label="Deployment history">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Vercel</p>
+            <h2>Deployments</h2>
+            <p class="meta">Reads from <code>ai-workbench/&lt;identity&gt;/vercel</code> to surface preview URLs and notes.</p>
+          </div>
+        </div>
+        <ul id="deploy-list" class="list"></ul>
+        <p id="deploy-status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-label="GitHub publish history">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">GitHub</p>
+            <h2>Publish history</h2>
+            <p class="meta">Pulled from <code>ai-workbench/&lt;identity&gt;/github</code> so you can reopen past commits.</p>
+          </div>
+        </div>
+        <ul id="github-list" class="list"></ul>
+        <p id="github-status" class="status" aria-live="polite"></p>
+      </section>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
