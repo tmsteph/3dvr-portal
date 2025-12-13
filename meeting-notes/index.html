@@ -205,6 +205,12 @@
       border: 1px solid var(--border);
     }
 
+    .button-danger {
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.9), rgba(239, 68, 68, 0.9));
+      color: #041423;
+      border: none;
+    }
+
     .button-ghost {
       background: rgba(255, 255, 255, 0.04);
       color: var(--text);
@@ -519,6 +525,12 @@
     shareLinkButton.textContent = 'Copy meeting link';
     shareLinkButton.style.margin = '12px 0 0';
     shareLinkButton.disabled = true;
+    const deleteMeetingButton = document.createElement('button');
+    deleteMeetingButton.className = 'button button-danger';
+    deleteMeetingButton.type = 'button';
+    deleteMeetingButton.textContent = 'Delete meeting';
+    deleteMeetingButton.style.margin = '12px 0 0';
+    deleteMeetingButton.disabled = true;
 
     const dialog = document.getElementById('meetingDialog');
     const dialogTitle = document.getElementById('dialogTitle');
@@ -529,6 +541,7 @@
     const dialogClose = document.getElementById('dialogClose');
 
     const metaGrid = document.querySelector('.meta-grid');
+    metaGrid.appendChild(deleteMeetingButton);
     metaGrid.appendChild(shareLinkButton);
 
     let currentMeetingId = null;
@@ -603,6 +616,7 @@
       shareLinkButton.disabled = false;
       shareLinkButton.dataset.meetingId = id;
       shareLinkButton.dataset.meetingLink = meetingPageUrl;
+      deleteMeetingButton.disabled = false;
     };
 
     const ensureUniqueMeetingId = (title) => {
@@ -692,6 +706,7 @@
         openPopoverButton.disabled = true;
         openMeetingPageLink.href = '#';
         openMeetingPageLink.setAttribute('aria-disabled', 'true');
+        deleteMeetingButton.disabled = true;
       }
       renderMeetingList();
     };
@@ -852,6 +867,20 @@
           shareLinkButton.textContent = 'Copy meeting link';
         }, 2000);
       }
+    });
+
+    deleteMeetingButton.addEventListener('click', () => {
+      if (!currentMeetingId) return;
+      const meeting = meetingsCache.get(currentMeetingId) || {};
+      const confirmation = window.confirm(
+        `Delete "${meeting.title || 'this meeting'}"? This removes its notes and attendance.`,
+      );
+      if (!confirmation) return;
+      clearNotesSubscription();
+      clearAttendeeSubscriptions();
+      meetingsNode.get(currentMeetingId).put(null);
+      meetingsCache.delete(currentMeetingId);
+      removeMeetingCard(currentMeetingId);
     });
 
     openPopoverButton.addEventListener('click', () => {
