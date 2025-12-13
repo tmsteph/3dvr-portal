@@ -12,6 +12,10 @@ const deployList = document.getElementById('deploy-list');
 const deployStatus = document.getElementById('deploy-status');
 const githubList = document.getElementById('github-list');
 const githubStatus = document.getElementById('github-status');
+const secretOpenAI = document.getElementById('secret-openai');
+const secretVercel = document.getElementById('secret-vercel');
+const secretGithub = document.getElementById('secret-github');
+const secretStatus = document.getElementById('secret-status');
 const defaultHint = document.getElementById('default-hint');
 const defaultUpdatedBy = document.getElementById('default-updated-by');
 const defaultUpdatedAt = document.getElementById('default-updated-at');
@@ -62,6 +66,10 @@ function clearLists() {
   promptCount.textContent = '0';
   deployCount.textContent = '0';
   githubCount.textContent = '0';
+  secretOpenAI.textContent = 'Checking...';
+  secretVercel.textContent = 'Checking...';
+  secretGithub.textContent = 'Checking...';
+  secretStatus.textContent = 'Watching for secrets...';
 }
 
 function renderTranscript(key, entry) {
@@ -150,6 +158,7 @@ function hydrateIdentity(identity) {
   const transcriptNode = workbenchRoot.get(identity).get('transcripts');
   const deploymentNode = workbenchRoot.get(identity).get('vercel');
   const githubNode = workbenchRoot.get(identity).get('github');
+  const secretsNode = workbenchRoot.get(identity).get('secrets');
 
   addSubscription(transcriptNode.map(), (entry, key) => {
     if (!entry || entry === null) return;
@@ -166,9 +175,32 @@ function hydrateIdentity(identity) {
     renderGithub(key, entry);
   });
 
+  addSubscription(secretsNode, (entry = {}) => {
+    const { openaiApiKey, vercelToken, githubToken } = entry;
+    const openaiHasKey = !!openaiApiKey?.cipher;
+    const vercelHasKey = !!vercelToken?.cipher;
+    const githubHasKey = !!githubToken?.cipher;
+
+    secretOpenAI.textContent = openaiHasKey
+      ? `Encrypted • ${safeDate(openaiApiKey.updatedAt)}`
+      : 'Not found yet';
+    secretVercel.textContent = vercelHasKey
+      ? `Encrypted • ${safeDate(vercelToken.updatedAt)}`
+      : 'Not found yet';
+    secretGithub.textContent = githubHasKey
+      ? `Encrypted • ${safeDate(githubToken.updatedAt)}`
+      : 'Not found yet';
+
+    const anyKeys = openaiHasKey || vercelHasKey || githubHasKey;
+    secretStatus.textContent = anyKeys
+      ? 'Encrypted keys detected. Unlock them in the Workbench.'
+      : 'No encrypted keys stored for this identity yet.';
+  });
+
   updateStatus(transcriptStatus, 'Subscribed to transcript feed...');
   updateStatus(deployStatus, 'Subscribed to deployment feed...');
   updateStatus(githubStatus, 'Subscribed to GitHub feed...');
+  updateStatus(secretStatus, 'Watching for encrypted keys...');
 }
 
 function applyIdentity() {

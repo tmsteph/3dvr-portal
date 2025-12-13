@@ -72,6 +72,31 @@
         <p id="default-status" class="status" aria-live="polite"></p>
       </section>
 
+      <section class="card" aria-label="Identity secrets">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Secrets</p>
+            <h2>Identity key ring</h2>
+            <p class="meta">Shows whether encrypted keys exist under <code>ai-workbench/&lt;identity&gt;/secrets</code>. Unlock them in the Workbench.</p>
+          </div>
+        </div>
+        <dl class="meta-list">
+          <div>
+            <dt>OpenAI key</dt>
+            <dd id="secret-openai">Checking...</dd>
+          </div>
+          <div>
+            <dt>Vercel token</dt>
+            <dd id="secret-vercel">Checking...</dd>
+          </div>
+          <div>
+            <dt>GitHub token</dt>
+            <dd id="secret-github">Checking...</dd>
+          </div>
+        </dl>
+        <p id="secret-status" class="status" aria-live="polite"></p>
+      </section>
+
       <section class="card" aria-label="Session summary">
         <div class="card-header">
           <div>
