@@ -256,7 +256,7 @@ function attemptStoredAuth() {
   const storedPassword = (localStorage.getItem('password') || '').trim();
 
   if (!storedAlias || !storedPassword) {
-    updateAccountStatus('Not signed in. Data stays device-local until you sign in.');
+    updateAccountStatus('Not signed in. Keys stay with this device until you connect your account.');
     return;
   }
 
@@ -276,16 +276,16 @@ function updateStorageModeNotice(context) {
 
   const mode = storage.mode();
   if (mode === 'localStorage') {
-    storageModeNotice.textContent = context || 'Keys persist with localStorage. They should survive refreshes in most browsers, including Brave when shields allow storage.';
+    storageModeNotice.textContent = context || 'Keys save to your Gun account when signed in; otherwise they persist in localStorage on this device.';
     return;
   }
 
   if (mode === 'sessionStorage') {
-    storageModeNotice.textContent = context || 'Local storage is blocked, so keys are stored in sessionStorage. They will survive refreshes but not closing the tab. Try lowering Brave shields to allow local storage.';
+    storageModeNotice.textContent = context || 'Signed-in users sync to Gun; otherwise keys sit in sessionStorage until the tab closes.';
     return;
   }
 
-  storageModeNotice.textContent = context || 'Persistent storage is blocked. Keys stay only for this page load. Adjust Brave Shields or enable storage to keep your key across refreshes.';
+  storageModeNotice.textContent = context || 'Storage is blocked. Keys remain for this page load unless you sign in so Gun can hold them for you.';
 }
 
 function setDefaultKeyStatus(message) {
@@ -313,6 +313,7 @@ async function saveSecretToAccount(field, value) {
           resolve(false);
           return;
         }
+        updateAccountStatus('Saved to your Gun account.');
         resolve(true);
       });
     });
@@ -1132,10 +1133,13 @@ saveKeyBtn.addEventListener('click', () => {
     return;
   }
   const mode = storage.setItem(apiKeyStorageKey, key);
-  updateStorageModeNotice(`API key saved to ${mode}.`);
-  outputBox.textContent = mode === 'memory'
-    ? 'API key saved for this page only. Adjust Brave Shields or storage settings to persist across refreshes.'
-    : `API key saved to ${mode}.`;
+  const savedMessage = user?.is
+    ? 'API key saved to your Gun account and cached locally.'
+    : mode === 'memory'
+      ? 'API key saved for this page only. Adjust Brave Shields or storage settings to persist across refreshes.'
+      : `API key saved to ${mode}.`;
+  updateStorageModeNotice(savedMessage);
+  outputBox.textContent = savedMessage;
   saveSecretToAccount('openaiApiKey', key);
   autoSyncSecret('openai', key);
 });
@@ -1195,10 +1199,13 @@ saveVercelBtn.addEventListener('click', () => {
   }
 
   const mode = storage.setItem(vercelTokenStorageKey, token);
-  updateStorageModeNotice();
-  setVercelStatus(mode === 'memory'
-    ? 'Vercel token saved for this page only. Allow storage for persistence.'
-    : `Vercel token saved to ${mode}.`);
+  const status = user?.is
+    ? 'Vercel token saved to your Gun account and cached locally.'
+    : mode === 'memory'
+      ? 'Vercel token saved for this page only. Allow storage for persistence.'
+      : `Vercel token saved to ${mode}.`;
+  updateStorageModeNotice(status);
+  setVercelStatus(status);
   saveSecretToAccount('vercelToken', token);
   autoSyncSecret('vercel', token);
 });
@@ -1220,10 +1227,13 @@ saveGithubBtn.addEventListener('click', () => {
   }
 
   const mode = storage.setItem(githubTokenStorageKey, token);
-  updateStorageModeNotice();
-  setGithubStatus(mode === 'memory'
-    ? 'GitHub token saved for this page only. Allow storage for persistence.'
-    : `GitHub token saved to ${mode}.`);
+  const githubMessage = user?.is
+    ? 'GitHub token saved to your Gun account and cached locally.'
+    : mode === 'memory'
+      ? 'GitHub token saved for this page only. Allow storage for persistence.'
+      : `GitHub token saved to ${mode}.`;
+  updateStorageModeNotice(githubMessage);
+  setGithubStatus(githubMessage);
   saveSecretToAccount('githubToken', token);
   autoSyncSecret('github', token);
 });

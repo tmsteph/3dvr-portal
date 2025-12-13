@@ -41,8 +41,8 @@
 
     <section class="card" id="api-key-panel" aria-label="API key configuration">
       <div class="card-header">
-        <h2>Bring your own key</h2>
-        <p class="meta">Keys stay in your browser; prompts and responses sync to GunDB so teams can reuse what worked.</p>
+        <h2>Account-linked keys</h2>
+        <p class="meta">Keys follow your Gun account when signed in and fall back to secure, device-local storage.</p>
       </div>
       <label for="api-key">OpenAI API key</label>
       <div class="input-row">
@@ -50,73 +50,14 @@
         <button id="save-key" class="primary">Save</button>
         <button id="clear-key" class="ghost">Clear</button>
       </div>
-      <p id="api-key-help" class="meta">Stored only in localStorage on this device.</p>
+      <p id="api-key-help" class="meta">Saved to your Gun account first when available; otherwise stored on this device.</p>
       <p id="storage-mode" class="meta" aria-live="polite"></p>
-      <p id="account-status" class="status" aria-live="polite">Connect your Gun account to sync keys across browsers.</p>
+      <p id="account-status" class="status" aria-live="polite">Sign in so keys attach to your account instead of this device.</p>
       <div class="input-row">
         <input type="password" id="default-passphrase" placeholder="Passphrase for admin default key">
         <button id="load-default" class="ghost">Use default key</button>
       </div>
       <p id="default-key-status" class="meta" aria-live="polite"></p>
-    </section>
-
-    <section class="card" id="vault-panel" aria-label="Gun key vault">
-      <div class="card-header">
-        <div>
-          <p class="eyebrow">Sync</p>
-          <h2>Gun secret vault</h2>
-          <p class="meta">Encrypt any Workbench secret with a passphrase and keep it in Gun so it follows you across previews and devices.</p>
-        </div>
-      </div>
-
-      <div class="grid compact-grid">
-        <div>
-          <label for="vault-alias">Vault label</label>
-          <input id="vault-alias" type="text" placeholder="workbench-default" aria-describedby="vault-alias-help">
-          <p id="vault-alias-help" class="meta">Letters, numbers, and dashes only. Use the same label on every device.</p>
-        </div>
-        <div>
-          <label for="vault-passphrase">Passphrase</label>
-          <input id="vault-passphrase" type="password" placeholder="Required to encrypt/decrypt" aria-describedby="vault-passphrase-help">
-          <p id="vault-passphrase-help" class="meta">Passphrase never leaves the browser; it only decrypts your secret locally.</p>
-        </div>
-        <div>
-          <label for="vault-target">Secret type</label>
-          <select id="vault-target" aria-describedby="vault-target-help">
-            <option value="openai">OpenAI API key</option>
-            <option value="vercel">Vercel token</option>
-            <option value="github">GitHub token</option>
-          </select>
-          <p id="vault-target-help" class="meta">Choose which field to pull from and where the decrypted secret should be applied.</p>
-        </div>
-      </div>
-
-      <div class="input-row">
-        <button id="vault-save" class="primary">Save secret to Gun</button>
-        <button id="vault-load" class="ghost">Load secret from Gun</button>
-      </div>
-
-      <div class="auto-sync-row">
-        <label class="checkbox-row" for="vault-auto-sync">
-          <input id="vault-auto-sync" type="checkbox">
-          <span>Auto-sync secrets to Gun after saving</span>
-        </label>
-        <label class="checkbox-row" for="vault-remember-passphrase">
-          <input id="vault-remember-passphrase" type="checkbox">
-          <span>Remember passphrase for this session</span>
-        </label>
-        <label class="checkbox-row" for="vault-use-account-alias">
-          <input id="vault-use-account-alias" type="checkbox" checked>
-          <span>Use my username as the vault label</span>
-        </label>
-        <label class="checkbox-row" for="vault-auto-load">
-          <input id="vault-auto-load" type="checkbox" checked>
-          <span>Auto-load secrets after signing in</span>
-        </label>
-      </div>
-
-      <p id="vault-auto-status" class="meta" aria-live="polite">Enable auto-sync to encrypt secrets immediately after you save them.</p>
-      <p id="vault-status" class="status" aria-live="polite">Use the vault to keep keys, tokens, and other secrets handy when Vercel preview URLs change.</p>
     </section>
 
     <section class="grid">
@@ -271,6 +212,65 @@
         </div>
         <ul id="github-history"></ul>
       </section>
+    </section>
+
+    <section class="card" id="vault-panel" aria-label="Gun key vault">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Backup</p>
+          <h2>Gun secret vault</h2>
+          <p class="meta">Optional encrypted vault for when you need a passphrase-based backup beyond your account.</p>
+        </div>
+      </div>
+
+      <div class="grid compact-grid">
+        <div>
+          <label for="vault-alias">Vault label</label>
+          <input id="vault-alias" type="text" placeholder="workbench-default" aria-describedby="vault-alias-help">
+          <p id="vault-alias-help" class="meta">Letters, numbers, and dashes only. Defaults to your account handle when signed in.</p>
+        </div>
+        <div>
+          <label for="vault-passphrase">Passphrase</label>
+          <input id="vault-passphrase" type="password" placeholder="Required to encrypt/decrypt" aria-describedby="vault-passphrase-help">
+          <p id="vault-passphrase-help" class="meta">Passphrase never leaves the browser; it only decrypts your secret locally.</p>
+        </div>
+        <div>
+          <label for="vault-target">Secret type</label>
+          <select id="vault-target" aria-describedby="vault-target-help">
+            <option value="openai">OpenAI API key</option>
+            <option value="vercel">Vercel token</option>
+            <option value="github">GitHub token</option>
+          </select>
+          <p id="vault-target-help" class="meta">Choose which field to pull from and where the decrypted secret should be applied.</p>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <button id="vault-save" class="primary">Save secret to Gun</button>
+        <button id="vault-load" class="ghost">Load secret from Gun</button>
+      </div>
+
+      <div class="auto-sync-row">
+        <label class="checkbox-row" for="vault-auto-sync">
+          <input id="vault-auto-sync" type="checkbox">
+          <span>Auto-sync secrets to Gun after saving</span>
+        </label>
+        <label class="checkbox-row" for="vault-remember-passphrase">
+          <input id="vault-remember-passphrase" type="checkbox">
+          <span>Remember passphrase for this session</span>
+        </label>
+        <label class="checkbox-row" for="vault-use-account-alias">
+          <input id="vault-use-account-alias" type="checkbox" checked>
+          <span>Use my username as the vault label</span>
+        </label>
+        <label class="checkbox-row" for="vault-auto-load">
+          <input id="vault-auto-load" type="checkbox" checked>
+          <span>Auto-load secrets after signing in</span>
+        </label>
+      </div>
+
+      <p id="vault-auto-status" class="meta" aria-live="polite">Enable auto-sync to encrypt secrets immediately after you save them.</p>
+      <p id="vault-status" class="status" aria-live="polite">Use the vault when you need a passphrase-protected backup alongside your account.</p>
     </section>
   </main>
 
