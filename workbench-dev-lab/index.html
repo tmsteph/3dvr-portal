@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workbench Dev Lab</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+</head>
+<body class="lab-shell">
+  <div class="top-buttons">
+    <a href="../index.html">🏠 Portal</a>
+    <a href="../openai-app/">🤖 Workbench</a>
+    <a href="../workbench-site-builder/">🏗️ Site Builder</a>
+    <a href="../notes/">📝 Shared Notes</a>
+  </div>
+
+  <header class="lab-header">
+    <p class="eyebrow">Rapid experiments</p>
+    <h1>Workbench Dev Lab</h1>
+    <p class="lede">
+      Prototype prompts, site templates, and QA checklists side-by-side. Everything stays simple so you can swap between
+      Workbench chats and the Site Builder without losing your place.
+    </p>
+    <div class="status-row" id="keyStatus" aria-live="polite"></div>
+  </header>
+
+  <main class="lab-grid">
+    <section class="card" aria-label="Set up a run">
+      <header>
+        <p class="eyebrow">Plan</p>
+        <h2>Set up a run</h2>
+        <p class="meta">Capture the essentials before you hop into the Workbench or Builder.</p>
+      </header>
+      <form id="runForm" class="form-grid">
+        <label for="runTitle">Run title</label>
+        <input id="runTitle" name="runTitle" type="text" placeholder="e.g., Builder QA flow for onboarding">
+
+        <label for="runGoal">Outcome to validate</label>
+        <input id="runGoal" name="runGoal" type="text" placeholder="Generate a stable landing page + publishable copy">
+
+        <label for="runPrompt">Prompt or context</label>
+        <textarea
+          id="runPrompt"
+          name="runPrompt"
+          rows="3"
+          placeholder="Paste a Workbench prompt or builder note"
+        ></textarea>
+
+        <div class="input-row">
+          <label class="checkbox">
+            <input type="checkbox" id="needsMocks" name="needsMocks">
+            <span>Use mock data</span>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="shareStatus" name="shareStatus" checked>
+            <span>Share with teammates in Gun</span>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="traceSteps" name="traceSteps" checked>
+            <span>Track steps for replays</span>
+          </label>
+        </div>
+
+        <div class="input-row">
+          <button type="submit" class="primary">Save to lab</button>
+          <button type="button" id="resetForm" class="ghost">Reset</button>
+        </div>
+        <p class="status" id="formStatus" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card" aria-label="Checklist and shortcuts">
+      <header>
+        <p class="eyebrow">Flow</p>
+        <h2>Checklist</h2>
+        <p class="meta">Stay oriented and jump where you need to.</p>
+      </header>
+      <ul class="checklist">
+        <li>
+          <span class="dot" aria-hidden="true"></span>
+          Open the <a href="../openai-app/">Workbench</a> with your saved API key.
+        </li>
+        <li>
+          <span class="dot" aria-hidden="true"></span>
+          If you need a page, hop to the <a href="../workbench-site-builder/">Site Builder</a> and reuse the same key.
+        </li>
+        <li>
+          <span class="dot" aria-hidden="true"></span>
+          Paste generated HTML back here to compare runs or hand off to teammates.
+        </li>
+        <li>
+          <span class="dot" aria-hidden="true"></span>
+          Mark mock data and replay traces so QA knows what to expect.
+        </li>
+      </ul>
+    </section>
+
+    <section class="card" aria-label="Recent lab runs">
+      <header>
+        <p class="eyebrow">History</p>
+        <h2>Recent runs</h2>
+        <p class="meta">Shared to Gun at <code>3dvr-portal/workbench-dev-lab</code>. Newest first.</p>
+      </header>
+      <ul id="runList" class="history"></ul>
+      <p class="meta" id="historyStatus" aria-live="polite">No runs saved yet.</p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

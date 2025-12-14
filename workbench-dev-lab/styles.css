@@ -1,0 +1,194 @@
+body.lab-shell {
+  background: radial-gradient(circle at 10% 20%, rgba(87, 122, 255, 0.1), transparent 20%),
+    radial-gradient(circle at 90% 10%, rgba(124, 255, 216, 0.08), transparent 25%),
+    #05070d;
+  color: #e8ecf8;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.top-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.top-buttons a {
+  color: #e8ecf8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.top-buttons a:hover,
+.top-buttons a:focus {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.lab-header {
+  max-width: 960px;
+  margin: 0 auto 20px;
+  text-align: center;
+}
+
+.lab-header h1 {
+  margin: 8px 0 12px;
+}
+
+.status-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #bcd3ff;
+}
+
+.status-row[data-state="ready"] {
+  color: #d6fff2;
+  background: rgba(108, 243, 232, 0.1);
+}
+
+.status-row[data-state="missing"] {
+  color: #ffd6d6;
+  background: rgba(255, 120, 120, 0.08);
+}
+
+.lab-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.card {
+  background: rgba(15, 21, 34, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.card header {
+  margin-bottom: 12px;
+}
+
+.card .meta {
+  color: #9fb4d9;
+}
+
+.form-grid {
+  display: grid;
+  gap: 10px;
+}
+
+textarea,
+input[type="text"] {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e8ecf8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #dfe7ff;
+}
+
+.primary {
+  background: linear-gradient(135deg, #5f8bff, #6cf3e8);
+  color: #05070d;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ghost {
+  background: transparent;
+  color: #e8ecf8;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.status {
+  margin-top: 4px;
+  color: #bcd3ff;
+}
+
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.checklist li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.checklist a {
+  color: #c2e4ff;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background: #6cf3e8;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #6cf3e8;
+}
+
+.history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.history li {
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.history strong {
+  display: block;
+  color: #e8ecf8;
+}
+
+.history .meta {
+  color: #9fb4d9;
+}
+
+@media (min-width: 900px) {
+  .lab-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
