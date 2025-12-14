@@ -56,11 +56,14 @@ export function createSiteGeneratorHandler(options = {}) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    if (!apiKey) {
+    const { prompt, apiKey: requestApiKey } = req.body || {};
+    const effectiveApiKey = typeof requestApiKey === 'string' && requestApiKey.trim()
+      ? requestApiKey.trim()
+      : apiKey;
+
+    if (!effectiveApiKey) {
       return res.status(500).json({ error: 'OpenAI API key is not configured.' });
     }
-
-    const { prompt } = req.body || {};
 
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'A prompt string is required.' });
@@ -71,7 +74,7 @@ export function createSiteGeneratorHandler(options = {}) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${effectiveApiKey}`,
         },
         body: JSON.stringify({
           model,
