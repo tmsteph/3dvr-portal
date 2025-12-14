@@ -165,7 +165,7 @@ async function handleGenerate() {
   outputBox.textContent = 'Request in flight...';
 
   try {
-    const response = await fetch('/api/workbench-site-builder', {
+    const response = await fetch('/api/openai-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, apiKey })
