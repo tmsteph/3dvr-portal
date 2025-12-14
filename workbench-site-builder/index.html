@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workbench Site Builder</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+</head>
+<body>
+  <div class="top-buttons">
+    <a href="../index.html">🏠 Portal</a>
+    <a href="../openai-app/">🛠️ OpenAI Workbench</a>
+    <a href="../notes/">📝 Shared Notes</a>
+    <a href="../tasks.html">✅ Task Board</a>
+    <a href="../games.html">🎮 Mini Games</a>
+  </div>
+
+  <header>
+    <p class="eyebrow">AI co-pilot</p>
+    <h1>Workbench Site Builder</h1>
+    <p class="lede">Spin up new landing pages with the same flow as the OpenAI Workbench. Keys saved in the Workbench are reused automatically so you never retype secrets.</p>
+  </header>
+
+  <div class="grid two">
+    <section class="card" aria-label="API key reuse" id="key-card">
+      <header>
+        <p class="eyebrow">Key sharing</p>
+        <h2>Reuse your Workbench key</h2>
+        <p class="meta">We look for <code>openai-api-key</code> in local or session storage (set by the Workbench). Update it here without touching the original app.</p>
+      </header>
+
+      <label for="api-key">OpenAI API key</label>
+      <div class="input-row">
+        <input id="api-key" type="password" class="grow" placeholder="sk-..." aria-describedby="key-help">
+        <button id="save-key" class="primary">Save</button>
+        <button id="clear-key" class="ghost">Clear</button>
+      </div>
+      <p class="meta" id="key-help">Stored in the same browser slot the Workbench uses so generations can run without retyping.</p>
+      <p class="status" id="key-status" aria-live="polite">Looking for an existing Workbench key...</p>
+    </section>
+
+    <section class="card" aria-label="Live preview">
+      <header>
+        <p class="eyebrow">Preview</p>
+        <h2>Instant sandbox</h2>
+        <p class="meta">Render the generated HTML in an isolated frame. Reload past runs from history to iterate quickly.</p>
+      </header>
+      <iframe title="Generated site preview" id="preview" class="preview" sandbox="allow-same-origin"></iframe>
+      <p class="meta" id="preview-title"></p>
+    </section>
+  </div>
+
+  <section class="card" aria-label="Site brief">
+    <header>
+      <p class="eyebrow">Compose</p>
+      <h2>Describe the site</h2>
+      <p class="meta">Blend brand notes, calls to action, and audience cues. We'll feed it directly into the builder prompt.</p>
+    </header>
+
+    <label for="site-title">Project name</label>
+    <input id="site-title" type="text" placeholder="Calm productivity landing page">
+
+    <label for="site-brief">What should we build?</label>
+    <textarea id="site-brief" placeholder="Include key sections, offers, or integrations you want."></textarea>
+
+    <div class="input-row">
+      <div class="grow">
+        <label for="tone">Tone</label>
+        <select id="tone">
+          <option value="calm">Calm and clear</option>
+          <option value="bold">Bold and energetic</option>
+          <option value="minimal">Minimal and airy</option>
+          <option value="playful">Playful and friendly</option>
+        </select>
+      </div>
+      <div class="grow">
+        <label for="palette">Palette</label>
+        <input id="palette" type="text" placeholder="e.g., teal and midnight blue">
+      </div>
+      <div class="grow">
+        <label for="cta">Primary call-to-action</label>
+        <input id="cta" type="text" placeholder="Start free trial">
+      </div>
+    </div>
+
+    <div class="input-row">
+      <div class="grow">
+        <label for="audience">Audience</label>
+        <input id="audience" type="text" placeholder="Remote founders, community managers, designers...">
+      </div>
+      <div class="grow">
+        <label for="extras">Extras</label>
+        <input id="extras" type="text" placeholder="Testimonials, pricing grid, FAQ accordion, ...">
+      </div>
+    </div>
+
+    <div class="input-row" style="margin-top: 12px;">
+      <button id="generate" class="primary">Generate site</button>
+      <button id="clear-brief" class="ghost">Clear brief</button>
+    </div>
+    <p class="status" id="generate-status" aria-live="polite"></p>
+  </section>
+
+  <section class="grid two">
+    <section class="card" aria-label="Raw output">
+      <header>
+        <p class="eyebrow">Output</p>
+        <h2>Response</h2>
+        <p class="meta">We expect JSON with <code>title</code>, <code>summary</code>, and <code>html</code>. Errors are surfaced here.</p>
+      </header>
+      <pre id="output" class="output" aria-live="polite">Waiting for a request...</pre>
+    </section>
+
+    <section class="card" aria-label="History" id="history-card">
+      <header>
+        <p class="eyebrow">Reuse</p>
+        <h2>Recent runs <span class="badge" id="session-label"></span></h2>
+        <p class="meta">Saved to Gun at <code>3dvr-portal/workbench-site-builder/&lt;session&gt;</code>. Load any run to preview or rebuild.</p>
+      </header>
+      <ul id="history" class="history-list"></ul>
+    </section>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
