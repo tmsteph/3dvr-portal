@@ -108,6 +108,8 @@ const vaultAutoAliasKey = 'vault-auto-alias';
 const vaultAutoPassphraseKey = 'vault-auto-passphrase';
 const vaultUseAccountAliasKey = 'vault-use-account-alias';
 const vaultAutoLoadKey = 'vault-auto-load';
+const lastStateStorageKey = 'openai-workbench-last-state';
+const formStateStorageKey = 'openai-workbench-form-state';
 const storedSession = storage.getItem(sessionKey);
 let sessionId = storedSession || Gun.text.random();
 storage.setItem(sessionKey, sessionId);
@@ -189,6 +191,65 @@ const developerPrompt = [
 let currentDefaultConfig = {};
 let subscriptionVersion = 0;
 let accountAlias = '';
+const demoState = {
+  prompt: 'Create a simple landing page for a VR coworking lounge with a hero, feature list, and contact button.',
+  response: [
+    '<!DOCTYPE html>',
+    '<html lang="en">',
+    '<head>',
+    "  <meta charset=\"UTF-8\">",
+    "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+    '  <title>VR Lounge</title>',
+    '  <style>',
+    "    body{font-family:'Inter',sans-serif;background:#0b1224;color:#f4f6fb;margin:0;padding:32px;}",
+    '    .shell{max-width:960px;margin:0 auto;}',
+    '    .hero{display:grid;gap:16px;align-items:center;grid-template-columns:1fr;}',
+    '    @media (min-width: 720px){.hero{grid-template-columns:1.2fr 0.8fr;}}',
+    '    h1{font-size:2.5rem;margin:0 0 8px;}',
+    '    p{margin:0 0 12px;line-height:1.6;}',
+    '    .card{background:#0f1830;border:1px solid #1e2a4a;border-radius:16px;padding:20px;}',
+    '    .pill{display:inline-block;padding:8px 12px;background:#182544;border-radius:999px;font-size:0.85rem;}',
+    '    .btn{display:inline-flex;align-items:center;gap:8px;',
+    '      padding:12px 18px;border-radius:10px;border:none;}',
+    '    .btn{background:linear-gradient(120deg,#5ca0d3,#7a5bd2);color:white;font-weight:600;cursor:pointer;}',
+    '    ul{list-style:none;padding:0;margin:0;display:grid;gap:10px;}',
+    '    li{display:flex;align-items:flex-start;gap:10px;}',
+    '    .dot{width:10px;height:10px;border-radius:50%;background:#7a5bd2;margin-top:8px;}',
+    '  </style>',
+    '</head>',
+    '<body>',
+    '  <div class="shell">',
+    '    <div class="pill">Live demo defaults</div>',
+    '    <section class="hero">',
+    '      <div>',
+    '        <h1>Build and ship VR-ready sites faster</h1>',
+    '        <p>Use the workbench to tweak copy, preview layouts, and deploy with a single click.</p>',
+    '        <button class="btn">Launch workspace</button>',
+    '      </div>',
+    '      <div class="card">',
+    '        <h3>What you get</h3>',
+    '        <ul>',
+    '          <li><span class="dot"></span><div>Live preview updates as you chat with the model.</div></li>',
+    '          <li><span class="dot"></span><div>Deploy to your own Vercel project once you add a token.</div></li>',
+    '          <li><span class="dot"></span><div>Commit HTML changes directly to GitHub.</div></li>',
+    '        </ul>',
+    '      </div>',
+    '    </section>',
+    '  </div>',
+    '</body>',
+    '</html>'
+  ].join(''),
+  model: 'gpt-4o'
+};
+
+const defaultFormState = {
+  vercelProject: 'vr-lounge-demo',
+  deployNote: 'Initial live demo from defaults',
+  githubRepo: 'demo/vr-workbench-sample',
+  githubBranch: 'main',
+  githubPath: 'index.html',
+  githubMessage: 'feat: add demo landing page'
+};
 
 function sanitizeResponseContent(content) {
   if (!content) return '';
@@ -206,6 +267,98 @@ function sanitizeResponseContent(content) {
   }
 
   return cleaned.trim();
+}
+
+function parseStoredJson(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+}
+
+function persistLastState({ prompt, response, model }) {
+  const payload = {
+    prompt: prompt || '',
+    response: response || '',
+    model: model || 'gpt-4o',
+    updatedAt: Date.now()
+  };
+  storage.setItem(lastStateStorageKey, JSON.stringify(payload));
+}
+
+function applyDemoState() {
+  if (modelSelect) {
+    modelSelect.value = demoState.model;
+  }
+  if (messageInput) {
+    messageInput.value = demoState.prompt;
+  }
+  if (outputBox) {
+    outputBox.textContent = sanitizeResponseContent(demoState.response);
+  }
+  applyPreview(demoState.response);
+  persistLastState(demoState);
+}
+
+function hydrateLastState() {
+  const stored = parseStoredJson(storage.getItem(lastStateStorageKey));
+  if (stored?.prompt || stored?.response) {
+    if (modelSelect && stored.model) {
+      modelSelect.value = stored.model;
+    }
+    if (messageInput && stored.prompt) {
+      messageInput.value = stored.prompt;
+    }
+    if (outputBox && stored.response) {
+      outputBox.textContent = sanitizeResponseContent(stored.response);
+      applyPreview(stored.response);
+    }
+    return;
+  }
+
+  applyDemoState();
+}
+
+function persistFormState() {
+  const payload = {
+    vercelProject: projectInput?.value?.trim() || '',
+    deployNote: deployNoteInput?.value?.trim() || '',
+    githubRepo: githubRepoInput?.value?.trim() || '',
+    githubBranch: githubBranchInput?.value?.trim() || '',
+    githubPath: githubPathInput?.value?.trim() || '',
+    githubMessage: githubMessageInput?.value?.trim() || ''
+  };
+  storage.setItem(formStateStorageKey, JSON.stringify(payload));
+}
+
+function hydrateFormState() {
+  const stored = parseStoredJson(storage.getItem(formStateStorageKey));
+  const state = stored || defaultFormState;
+
+  if (projectInput && state.vercelProject) {
+    projectInput.value = state.vercelProject;
+  }
+  if (deployNoteInput && state.deployNote) {
+    deployNoteInput.value = state.deployNote;
+  }
+  if (githubRepoInput && state.githubRepo) {
+    githubRepoInput.value = state.githubRepo;
+  }
+  if (githubBranchInput && state.githubBranch) {
+    githubBranchInput.value = state.githubBranch;
+  }
+  if (githubPathInput && state.githubPath) {
+    githubPathInput.value = state.githubPath;
+  }
+  if (githubMessageInput && state.githubMessage) {
+    githubMessageInput.value = state.githubMessage;
+  }
+
+  if (!stored) {
+    persistFormState();
+  }
 }
 const vaultTargets = {
   openai: {
@@ -1038,6 +1191,7 @@ async function sendToOpenAI() {
     const cleanedReply = sanitizeResponseContent(reply);
     outputBox.textContent = cleanedReply;
     applyPreview(cleanedReply);
+    persistLastState({ prompt, response: cleanedReply, model });
     transcriptNode.set({ prompt, response: cleanedReply, createdAt: Date.now() });
   } catch (error) {
     outputBox.textContent = `Error: ${error.message}`;
@@ -1329,6 +1483,12 @@ clearKeyBtn.addEventListener('click', () => {
 
 submitBtn.addEventListener('click', sendToOpenAI);
 applyPreviewBtn.addEventListener('click', applyPreview);
+projectInput?.addEventListener('input', persistFormState);
+deployNoteInput?.addEventListener('input', persistFormState);
+githubRepoInput?.addEventListener('input', persistFormState);
+githubBranchInput?.addEventListener('input', persistFormState);
+githubPathInput?.addEventListener('input', persistFormState);
+githubMessageInput?.addEventListener('input', persistFormState);
 saveVercelBtn.addEventListener('click', () => {
   const token = vercelTokenInput.value.trim();
   if (!token) {
@@ -1414,6 +1574,8 @@ updateStorageModeNotice();
 loadStoredKey();
 loadStoredVercelToken();
 loadStoredGithubToken();
+hydrateFormState();
+hydrateLastState();
 maybeAutoLoadVaultSecret();
 startHistorySubscription();
 startDeploymentSubscription();
