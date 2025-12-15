@@ -96,6 +96,31 @@ label {
   background: var(--accent-strong);
 }
 
+.guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.guide-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ghost);
+  color: var(--accent);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.guide-link:hover {
+  background: var(--ghost-strong);
+  color: #ffffff;
+}
+
 .input-row {
   display: flex;
   align-items: center;
