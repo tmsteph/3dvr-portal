@@ -140,6 +140,136 @@
   font-size: 13px;
 }
 
+.guide-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  font-weight: 600;
+  color: #f4f7ff;
+}
+
+.field-note {
+  margin: 0;
+  color: #c9d3e3;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.control {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f4f7ff;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 15px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.control:focus {
+  outline: none;
+  border-color: #79c7ff;
+  box-shadow: 0 0 0 3px rgba(121, 199, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.option-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.option-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.option-pill input[type="radio"],
+.option-pill input[type="checkbox"] {
+  accent-color: #79c7ff;
+}
+
+.actions-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #6ec1ff, #9d91ff);
+  border: none;
+  color: #0b0d12;
+  font-weight: 700;
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-button:hover,
+.primary-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(110, 193, 255, 0.25);
+  outline: none;
+}
+
+.muted-button {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e6e9f0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.status-block {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cfd6e3;
+  line-height: 1.6;
+}
+
+.status-block strong {
+  color: #f4f7ff;
+}
+
+.status-block.success {
+  border-color: rgba(110, 193, 255, 0.6);
+  background: rgba(110, 193, 255, 0.08);
+  color: #eaf6ff;
+}
+
+.status-block.error {
+  border-color: rgba(255, 131, 131, 0.7);
+  background: rgba(255, 131, 131, 0.08);
+  color: #ffe0e0;
+}
+
+.status-block pre {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  color: inherit;
+}
+
 @media (max-width: 600px) {
   .guide-shell {
     padding: 28px 16px 40px;

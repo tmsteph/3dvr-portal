@@ -192,6 +192,20 @@ button.ghost:hover {
   color: var(--text);
 }
 
+.status.success {
+  border-color: #2ecc71;
+}
+
+.status.error {
+  border-color: #e76f51;
+}
+
+.status-note {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 #history {
   list-style: none;
   margin: 0;
@@ -222,6 +236,48 @@ button.ghost:hover {
 
 .compact-grid {
   grid-template-columns: 1fr;
+}
+
+.github-create {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--ghost);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.github-create-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--ghost);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.pill input {
+  margin: 0;
 }
 
 iframe {

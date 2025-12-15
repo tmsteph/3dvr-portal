@@ -147,6 +147,15 @@ const githubMessageInput = document.getElementById('github-message');
 const githubBtn = document.getElementById('github-btn');
 const githubStatus = document.getElementById('github-status');
 const githubHistoryList = document.getElementById('github-history');
+const createRepoBtn = document.getElementById('create-repo');
+const repoStatus = document.getElementById('repo-create-status');
+const repoOwnerRadios = document.querySelectorAll('input[name="repo-owner"]');
+const repoOrgInput = document.getElementById('repo-org');
+const repoNameInput = document.getElementById('repo-name');
+const repoVisibilitySelect = document.getElementById('repo-visibility');
+const repoDescriptionInput = document.getElementById('repo-description');
+const repoReadmeCheckbox = document.getElementById('repo-readme');
+const repoBranchCleanupCheckbox = document.getElementById('repo-branch-cleanup');
 const storageModeNotice = document.getElementById('storage-mode');
 const accountStatus = document.getElementById('account-status');
 const vaultAliasInput = document.getElementById('vault-alias');
@@ -917,6 +926,37 @@ function setGithubStatus(message) {
   githubStatus.textContent = message;
 }
 
+function setRepoStatus(message, tone = 'neutral') {
+  repoStatus.textContent = message;
+  repoStatus.classList.remove('success', 'error');
+  if (tone === 'success') {
+    repoStatus.classList.add('success');
+  }
+  if (tone === 'error') {
+    repoStatus.classList.add('error');
+  }
+}
+
+function toggleRepoOrgField() {
+  const owner = document.querySelector('input[name="repo-owner"]:checked')?.value;
+  const isOrg = owner === 'org';
+  repoOrgInput.disabled = !isOrg;
+  repoOrgInput.required = isOrg;
+  if (!isOrg) {
+    repoOrgInput.value = '';
+  }
+}
+
+repoOwnerRadios.forEach((radio) => radio.addEventListener('change', toggleRepoOrgField));
+toggleRepoOrgField();
+
+function buildRepoEndpoint(ownerType, orgName) {
+  if (ownerType === 'org') {
+    return `https://api.github.com/orgs/${encodeURIComponent(orgName)}/repos`;
+  }
+  return 'https://api.github.com/user/repos';
+}
+
 function persistDeployment(entry) {
   const id = entry.id || Gun.text.random();
   const record = {
@@ -1066,6 +1106,97 @@ async function deployCurrentResponse() {
     setVercelStatus(`Error: ${error.message}`);
   } finally {
     deployBtn.disabled = false;
+  }
+}
+
+async function createGithubRepo(event) {
+  event.preventDefault();
+  const token = githubTokenInput.value.trim();
+  const ownerType = document.querySelector('input[name="repo-owner"]:checked')?.value;
+  const orgName = repoOrgInput.value.trim();
+  const repoName = repoNameInput.value.trim();
+  const visibility = repoVisibilitySelect.value;
+  const description = repoDescriptionInput.value.trim();
+  const autoInit = repoReadmeCheckbox.checked;
+  const deleteBranchOnMerge = repoBranchCleanupCheckbox.checked;
+
+  if (!token) {
+    setRepoStatus('Add a GitHub token first.', 'error');
+    return;
+  }
+
+  if (!repoName) {
+    setRepoStatus('Name your repository to continue.', 'error');
+    return;
+  }
+
+  if (ownerType === 'org' && !orgName) {
+    setRepoStatus('Enter the organization handle.', 'error');
+    return;
+  }
+
+  setRepoStatus('Creating repository…');
+  createRepoBtn.disabled = true;
+
+  const payload = {
+    name: repoName,
+    description: description || undefined,
+    private: visibility === 'private',
+    auto_init: autoInit,
+    has_issues: true,
+    has_wiki: false,
+    has_projects: false,
+    delete_branch_on_merge: deleteBranchOnMerge,
+    allow_squash_merge: true,
+    allow_merge_commit: true,
+    allow_rebase_merge: true
+  };
+
+  try {
+    const response = await fetch(buildRepoEndpoint(ownerType, orgName), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const message = data?.message || 'GitHub returned an error. Check scopes and owner settings.';
+      setRepoStatus(message, 'error');
+      return;
+    }
+
+    const details = data?.full_name || repoName;
+    const cloneUrl = data?.clone_url;
+    const htmlUrl = data?.html_url;
+    const defaultBranch = data?.default_branch;
+
+    setRepoStatus(`Created ${details}. ${defaultBranch ? `Default branch: ${defaultBranch}.` : ''}`, 'success');
+
+    if (htmlUrl) {
+      const link = document.createElement('a');
+      link.href = htmlUrl;
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      link.textContent = htmlUrl;
+      repoStatus.append(document.createElement('br'), link);
+    }
+
+    if (cloneUrl) {
+      const cloneDetails = document.createElement('div');
+      cloneDetails.className = 'status-note';
+      cloneDetails.textContent = `Clone: git clone ${cloneUrl}`;
+      repoStatus.appendChild(cloneDetails);
+    }
+  } catch (error) {
+    setRepoStatus('Network issue while talking to GitHub.', 'error');
+  } finally {
+    createRepoBtn.disabled = false;
   }
 }
 
@@ -1247,6 +1378,7 @@ clearGithubBtn.addEventListener('click', () => {
 
 loadDefaultBtn?.addEventListener('click', loadDefaultKey);
 
+createRepoBtn.addEventListener('click', createGithubRepo);
 githubBtn.addEventListener('click', publishToGithub);
 vaultSaveBtn?.addEventListener('click', saveKeyToVault);
 vaultLoadBtn?.addEventListener('click', loadKeyFromVault);
