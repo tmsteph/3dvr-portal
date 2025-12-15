@@ -44,6 +44,10 @@
         <h2>Account-linked keys</h2>
         <p class="meta">Keys follow your Gun account when signed in and fall back to secure, device-local storage.</p>
       </div>
+      <div class="guide-links">
+        <a class="guide-link" href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Guide: setup checklist</a>
+        <a class="guide-link" href="../deployment-guides/secrets-and-workflow.html" target="_blank" rel="noreferrer">Guide: add secrets to CI</a>
+      </div>
       <label for="api-key">OpenAI API key</label>
       <div class="input-row">
         <input type="password" id="api-key" placeholder="sk-..." aria-describedby="api-key-help">
@@ -76,6 +80,9 @@
             </select>
           </label>
         </div>
+        <div class="guide-links">
+          <a class="guide-link" href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Guide: Workbench flow</a>
+        </div>
 
         <label for="message">Your prompt</label>
         <textarea id="message" placeholder="Ask for code, content, or portal edits..." rows="4"></textarea>
@@ -94,6 +101,9 @@
           </div>
           <button id="apply-preview" class="ghost">Apply response</button>
         </div>
+        <div class="guide-links">
+          <a class="guide-link" href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Guide: Preview tips</a>
+        </div>
         <iframe id="response-preview" title="AI response preview" sandbox="">
           Your browser does not support iframes.
         </iframe>
@@ -108,6 +118,10 @@
             <h2>Deploy to Vercel</h2>
             <p class="meta">Turn the current response into a live site by deploying a static <code>index.html</code>.</p>
           </div>
+        </div>
+        <div class="guide-links">
+          <a class="guide-link" href="../deployment-guides/vercel-token.html" target="_blank" rel="noreferrer">Guide: Vercel token</a>
+          <a class="guide-link" href="../deployment-guides/dev-alias.html" target="_blank" rel="noreferrer">Guide: Dev alias</a>
         </div>
 
         <label for="vercel-token">Vercel token</label>
@@ -142,6 +156,9 @@
             <p class="meta">Saved to <code>ai/vercel/&lt;sessionId&gt;</code> in Gun so the team can reuse URLs.</p>
           </div>
         </div>
+        <div class="guide-links">
+          <a class="guide-link" href="../deployment-guides/secrets-and-workflow.html" target="_blank" rel="noreferrer">Guide: Wire CI and previews</a>
+        </div>
         <ul id="deployments"></ul>
       </section>
     </section>
@@ -154,6 +171,10 @@
             <h2>Publish to GitHub</h2>
             <p class="meta">Save the generated HTML into a repository so teammates can track changes.</p>
           </div>
+        </div>
+        <div class="guide-links">
+          <a class="guide-link" href="../deployment-guides/github-token.html" target="_blank" rel="noreferrer">Guide: GitHub token</a>
+          <a class="guide-link" href="../deployment-guides/create-repo.html" target="_blank" rel="noreferrer">Guide: Create repo</a>
         </div>
 
         <label for="github-token">GitHub token</label>
@@ -265,6 +286,9 @@
             <p class="meta">Saved to <code>ai/github/&lt;sessionId&gt;</code> in Gun to track publish events.</p>
           </div>
         </div>
+        <div class="guide-links">
+          <a class="guide-link" href="../deployment-guides/secrets-and-workflow.html" target="_blank" rel="noreferrer">Guide: CI secrets & workflow</a>
+        </div>
         <ul id="github-history"></ul>
       </section>
     </section>
@@ -277,6 +301,9 @@
           <p class="meta">Entries are stored at <code>ai/workbench/&lt;sessionId&gt;</code> in Gun so teammates can find successful prompts.</p>
         </div>
       </div>
+      <div class="guide-links">
+        <a class="guide-link" href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Guide: Share with the team</a>
+      </div>
       <ul id="history"></ul>
     </section>
 
@@ -287,6 +314,9 @@
           <h2>Gun secret vault</h2>
           <p class="meta">Optional encrypted vault for when you need a passphrase-based backup beyond your account.</p>
         </div>
+      </div>
+      <div class="guide-links">
+        <a class="guide-link" href="../deployment-guides/secrets-and-workflow.html" target="_blank" rel="noreferrer">Guide: Backup and sync secrets</a>
       </div>
 
       <div class="grid compact-grid">
