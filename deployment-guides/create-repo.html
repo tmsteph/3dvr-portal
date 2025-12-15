@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create a GitHub Repository | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">Deployment</div>
+      <h1 class="guide-title">Create a GitHub repository without leaving the Portal</h1>
+      <p class="guide-description">
+        Paste a GitHub token, choose the owner, and spin up a new repository directly from this page. All API calls
+        stay in your browser — nothing is stored by the portal.
+      </p>
+    </div>
+
+    <div class="guide-section">
+      <h2>Before you start</h2>
+      <ul class="guide-list">
+        <li>Generate a personal access token in GitHub &rarr; Settings &rarr; Developer settings.</li>
+        <li>For personal repos, use a classic token with <span class="inline-code">repo</span> (or
+          <span class="inline-code">public_repo</span> for public only) scope, or a fine-grained token that allows
+          repository creation.</li>
+        <li>For organization repos, grant the token access to the org and enable <strong>Repository creation</strong>
+          permissions.</li>
+        <li>Keep the token handy — we only use it in this tab and never persist or log it.</li>
+      </ul>
+    </div>
+
+    <div class="guide-section" aria-label="Repository creation form">
+      <h2>Create the repository</h2>
+      <form id="repo-form" class="guide-form">
+        <div class="field">
+          <label for="token">GitHub token</label>
+          <input id="token" name="token" type="password" class="control" required autocomplete="off"
+            placeholder="ghp_... or github_pat_...">
+          <p class="field-note">Only sent to api.github.com from this page. Not stored anywhere.</p>
+        </div>
+
+        <div class="field">
+          <label>Repository owner</label>
+          <div class="option-row" role="radiogroup" aria-label="Repository owner">
+            <label class="option-pill">
+              <input type="radio" name="ownerType" value="user" checked> Personal account
+            </label>
+            <label class="option-pill">
+              <input type="radio" name="ownerType" value="org"> Organization
+            </label>
+            <input id="org-name" name="orgName" class="control" type="text" placeholder="org-name"
+              aria-label="Organization login" disabled>
+          </div>
+          <p class="field-note">If you select Organization, enter the org login (e.g. <span class="inline-code">3dvr</span>).</p>
+        </div>
+
+        <div class="field">
+          <label for="repo-name">Repository name</label>
+          <input id="repo-name" name="repoName" type="text" class="control" required placeholder="my-new-repo">
+        </div>
+
+        <div class="field">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="3" class="control"
+            placeholder="Short description for collaborators"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="visibility">Visibility</label>
+          <select id="visibility" name="visibility" class="control">
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Initialize options</label>
+          <div class="option-row">
+            <label class="option-pill">
+              <input type="checkbox" id="auto-init" name="autoInit" checked> Add a README
+            </label>
+            <label class="option-pill">
+              <input type="checkbox" id="delete-branch" name="deleteBranch" checked> Enable branch cleanup on merge
+            </label>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button type="submit" class="primary-button">Create repository</button>
+          <button type="reset" class="muted-button">Reset form</button>
+        </div>
+      </form>
+
+      <div id="status" class="status-block" aria-live="polite">Paste a token to get started.</div>
+      <div id="result" class="status-block" aria-live="polite" style="display: none;"></div>
+    </div>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="/deployment-guides/">⬅ Back to Deployment Guides</a>
+      <a href="https://github.com/new" target="_blank" rel="noopener">Open GitHub in a new tab</a>
+      <a href="/index.html">Return to Portal</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('repo-form');
+    const statusBlock = document.getElementById('status');
+    const resultBlock = document.getElementById('result');
+    const orgInput = document.getElementById('org-name');
+    const ownerRadios = document.querySelectorAll('input[name="ownerType"]');
+
+    function setStatus(message, tone = 'neutral') {
+      statusBlock.textContent = message;
+      statusBlock.classList.remove('success', 'error');
+      if (tone === 'success') {
+        statusBlock.classList.add('success');
+      } else if (tone === 'error') {
+        statusBlock.classList.add('error');
+      }
+    }
+
+    function clearResult() {
+      resultBlock.style.display = 'none';
+      resultBlock.textContent = '';
+      resultBlock.classList.remove('success', 'error');
+    }
+
+    function toggleOrgField() {
+      const ownerType = document.querySelector('input[name="ownerType"]:checked')?.value;
+      const isOrg = ownerType === 'org';
+      orgInput.disabled = !isOrg;
+      orgInput.required = isOrg;
+      if (!isOrg) {
+        orgInput.value = '';
+      }
+    }
+
+    ownerRadios.forEach((radio) => {
+      radio.addEventListener('change', toggleOrgField);
+    });
+
+    toggleOrgField();
+
+    function buildEndpoint(ownerType, orgName) {
+      if (ownerType === 'org') {
+        return `https://api.github.com/orgs/${encodeURIComponent(orgName)}/repos`;
+      }
+      return 'https://api.github.com/user/repos';
+    }
+
+    async function createRepository(event) {
+      event.preventDefault();
+      clearResult();
+      setStatus('Creating repository…');
+
+      const formData = new FormData(form);
+      const token = formData.get('token')?.trim();
+      const ownerType = formData.get('ownerType');
+      const orgName = formData.get('orgName')?.trim();
+      const repoName = formData.get('repoName')?.trim();
+      const description = formData.get('description')?.trim();
+      const visibility = formData.get('visibility');
+      const autoInit = formData.get('autoInit') === 'on';
+      const deleteBranch = formData.get('deleteBranch') === 'on';
+
+      if (!token) {
+        setStatus('Please paste a GitHub token.', 'error');
+        return;
+      }
+
+      if (!repoName) {
+        setStatus('Repository name is required.', 'error');
+        return;
+      }
+
+      if (ownerType === 'org' && !orgName) {
+        setStatus('Enter the organization login to continue.', 'error');
+        return;
+      }
+
+      const endpoint = buildEndpoint(ownerType, orgName);
+      const payload = {
+        name: repoName,
+        description: description || undefined,
+        private: visibility === 'private',
+        auto_init: autoInit,
+        has_issues: true,
+        has_wiki: false,
+        has_projects: false,
+        delete_branch_on_merge: deleteBranch,
+        allow_squash_merge: true,
+        allow_merge_commit: true,
+        allow_rebase_merge: true
+      };
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const message = data?.message || 'GitHub returned an error. Double-check the token scopes and owner.';
+          setStatus(message, 'error');
+          if (data?.errors) {
+            resultBlock.style.display = 'block';
+            resultBlock.classList.add('error');
+            resultBlock.textContent = JSON.stringify(data.errors, null, 2);
+          }
+          return;
+        }
+
+        setStatus(`Created ${data.full_name}.`, 'success');
+
+        const link = document.createElement('a');
+        link.href = data.html_url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = data.html_url;
+
+        const summary = document.createElement('div');
+        summary.innerHTML = `<strong>Repository URL:</strong> `;
+        summary.appendChild(link);
+
+        const cloneBlock = document.createElement('pre');
+        cloneBlock.textContent = `git clone ${data.clone_url}\ncd ${repoName}\ngit remote add origin ${data.clone_url}`;
+
+        const branchHint = document.createElement('p');
+        branchHint.className = 'field-note';
+        branchHint.textContent = `Default branch: ${data.default_branch}. Branch cleanup on merge is ${deleteBranch ? 'enabled' : 'disabled'}.`;
+
+        resultBlock.style.display = 'block';
+        resultBlock.classList.add('success');
+        resultBlock.textContent = '';
+        resultBlock.append(summary, cloneBlock, branchHint);
+      } catch (error) {
+        setStatus('Network issue while talking to GitHub. Try again in a moment.', 'error');
+      }
+    }
+
+    form.addEventListener('submit', createRepository);
+  </script>
+</body>
+</html>
