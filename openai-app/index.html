@@ -175,6 +175,69 @@
         </div>
         <p id="github-help" class="meta">Token stays in localStorage; commits use the GitHub contents API. <a href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Open the guide</a> for PAT scopes.</p>
 
+        <div class="github-create">
+          <div class="github-create-header">
+            <div>
+              <p class="eyebrow">New repo</p>
+              <h3>Create directly from the Workbench</h3>
+              <p class="meta">Use the same token to spin up a GitHub repository without leaving this page.</p>
+            </div>
+            <div class="pill-row" role="radiogroup" aria-label="Repository owner">
+              <label class="pill">
+                <input type="radio" name="repo-owner" value="user" checked>
+                Personal
+              </label>
+              <label class="pill">
+                <input type="radio" name="repo-owner" value="org">
+                Organization
+              </label>
+            </div>
+          </div>
+
+          <div class="grid compact-grid">
+            <div>
+              <label for="repo-name">Repository name</label>
+              <input id="repo-name" type="text" placeholder="my-new-repo" aria-describedby="repo-name-help">
+              <p id="repo-name-help" class="meta">Letters, numbers, and dashes. Owner comes from the radio buttons above.</p>
+            </div>
+            <div>
+              <label for="repo-org">Organization (if selected)</label>
+              <input id="repo-org" type="text" placeholder="team-handle" aria-describedby="repo-org-help" disabled>
+              <p id="repo-org-help" class="meta">Required only when creating inside an organization.</p>
+            </div>
+          </div>
+
+          <div class="grid compact-grid">
+            <div>
+              <label for="repo-visibility">Visibility</label>
+              <select id="repo-visibility">
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+            </div>
+            <div>
+              <label for="repo-description">Description</label>
+              <input id="repo-description" type="text" placeholder="Short summary for collaborators">
+            </div>
+          </div>
+
+          <div class="pill-row">
+            <label class="pill">
+              <input type="checkbox" id="repo-readme" checked>
+              Add a README
+            </label>
+            <label class="pill">
+              <input type="checkbox" id="repo-branch-cleanup" checked>
+              Enable branch cleanup on merge
+            </label>
+          </div>
+
+          <div class="input-row">
+            <button id="create-repo" class="ghost">Create repository</button>
+            <div id="repo-create-status" class="status" aria-live="polite">Paste a token above to start.</div>
+          </div>
+        </div>
+
         <div class="grid compact-grid">
           <div>
             <label for="github-repo">Repository (owner/name)</label>
