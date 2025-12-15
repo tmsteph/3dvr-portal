@@ -42,6 +42,26 @@
     </section>
 
     <section class="guide-section">
+      <h2>Troubleshooting “Resource not accessible by personal access token”</h2>
+      <p class="guide-description">
+        GitHub shows this when the token cannot reach the repository. Fix it with the checklist below:
+      </p>
+      <ul class="guide-list">
+        <li>Use a token that targets the correct owner: fine-grained for the org/repo, or classic with the
+          <span class="inline-code">repo</span> scope (and <span class="inline-code">workflow</span> if Actions are used).</li>
+        <li>For fine-grained tokens, set the resource owner to the organization and grant
+          <strong>Contents: Read and write</strong> plus <strong>Metadata: Read-only</strong>. Add explicit repo access if not using
+          “All repositories.”</li>
+        <li>If the org enforces SSO, authorize the token under <strong>Organization → Settings → Personal access tokens</strong>
+          after creating it.</li>
+        <li>Ensure the user account has permission to read/write the repo (or create it) and that stored tokens in CI or the
+          Workbench have been refreshed.</li>
+      </ul>
+      <p class="guide-description">Once updated, retry the API call or publish step — the error should clear when scopes and
+        org access match the repository.</p>
+    </section>
+
+    <section class="guide-section">
       <h2>Use it in OpenAI Workbench</h2>
       <p class="guide-description">
         Jump to the <a href="/openai-app/index.html" target="_blank" rel="noopener">OpenAI Workbench</a> to paste

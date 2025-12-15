@@ -1251,7 +1251,14 @@ async function publishToGithub() {
 
     setGithubStatus(data.htmlUrl ? `Committed to ${data.htmlUrl}` : 'Commit created.');
   } catch (error) {
-    setGithubStatus(`Error: ${error.message}`);
+    const details = error?.message || 'GitHub request failed.';
+    const lowerDetails = details.toLowerCase();
+    if (lowerDetails.includes('resource not accessible by personal access token')) {
+      setGithubStatus('Error: Resource not accessible by personal access token. Confirm repo access, contents scope, '
+        + 'and SSO authorization.');
+      return;
+    }
+    setGithubStatus(`Error: ${details}`);
   } finally {
     githubBtn.disabled = false;
   }
