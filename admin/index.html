@@ -374,6 +374,17 @@
           <input id="default-github-token" type="password" placeholder="GitHub personal access token" />
         </div>
         <div class="form-group">
+          <label for="import-workbench-secrets">Load from your workbench vault</label>
+          <p class="text-muted">
+            Pull secrets saved in the OpenAI workbench. Only your account can decrypt them, and they
+            will prefill the fields above so you can re-encrypt them for the team.
+          </p>
+          <div class="actions" style="margin-top: 8px;">
+            <button id="import-workbench-secrets" class="btn-outline" type="button">Load my saved keys</button>
+            <span id="workbench-import-status" class="text-muted" style="margin-left: 8px;"></span>
+          </div>
+        </div>
+        <div class="form-group">
           <label for="default-api-passphrase">Encryption passphrase</label>
           <input id="default-api-passphrase" type="password" placeholder="Required to encrypt and decrypt" />
           <p class="text-muted">Passphrase is never stored; share it privately with the team so they can unlock the defaults without exposing the raw tokens publicly.</p>
@@ -503,12 +514,15 @@
   });
   const user = gun.user();
   const portalRoot = gun.get('3dvr-portal');
+  const workbenchRoot = portalRoot.get('ai-workbench');
+  // Gun graph: 3dvr-portal/ai-workbench/<identityPub>/secrets/<field> -> { cipher, updatedAt }
   const portalAdmins = portalRoot.get('admins');
   const adminRequests = portalRoot.get('adminRequests');
   const userIndex = portalRoot.get('userIndex');
   const userStats = portalRoot.get('userStats');
   const userDeletionLog = portalRoot.get('userDeletions');
-  const workbenchDefaults = portalRoot.get('ai-workbench').get('defaults');
+  const workbenchDefaults = workbenchRoot.get('defaults');
+  let workbenchSecrets = null;
   // Stripe subscriber summaries live under finance/stripeCustomers to keep shared totals in GunJS.
   const stripeCustomersNode = portalRoot.get('finance').get('stripeCustomers');
   const accountRecoveryLog = portalRoot.get('accountRecovery');
@@ -557,6 +571,8 @@
   const defaultStatusEl = document.getElementById('default-status');
   const saveDefaultKeyBtn = document.getElementById('save-default-key');
   const clearDefaultKeyBtn = document.getElementById('clear-default-key');
+  const importWorkbenchBtn = document.getElementById('import-workbench-secrets');
+  const workbenchImportStatus = document.getElementById('workbench-import-status');
   const recoveryCard = document.getElementById('recovery-card');
   const recoveryCurrentInput = document.getElementById('recovery-current');
   const recoveryUsernameInput = document.getElementById('recovery-username');
@@ -582,6 +598,9 @@
         setStatus('Authentication failed. Please sign in again.');
         localStorage.removeItem('signedIn');
         return;
+      }
+      if (user?.is?.pub) {
+        workbenchSecrets = workbenchRoot.get(user.is.pub).get('secrets');
       }
       checkAdminStatus();
     });
@@ -718,6 +737,90 @@
         renderDefaults();
       });
     }
+  }
+
+  function setWorkbenchImportStatus(message, tone = 'muted') {
+    if (!workbenchImportStatus) return;
+    workbenchImportStatus.innerText = message;
+    if (tone === 'error') {
+      workbenchImportStatus.style.color = 'var(--danger)';
+    } else if (tone === 'success') {
+      workbenchImportStatus.style.color = 'var(--success)';
+    } else {
+      workbenchImportStatus.style.color = 'var(--text-secondary)';
+    }
+  }
+
+  function fetchWorkbenchSecret(field) {
+    return new Promise(resolve => {
+      if (!workbenchSecrets || !user?._?.sea) {
+        resolve(null);
+        return;
+      }
+
+      workbenchSecrets.get(field).once(async data => {
+        if (!data?.cipher) {
+          resolve(null);
+          return;
+        }
+
+        try {
+          const decrypted = await Gun.SEA.decrypt(data.cipher, user._.sea);
+          resolve(typeof decrypted === 'string' ? decrypted : null);
+        } catch (error) {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  async function importWorkbenchDefaults() {
+    if (!isAdmin) {
+      updateDefaultStatus('Only admins can change shared defaults.');
+      setWorkbenchImportStatus('Admins only.', 'error');
+      return;
+    }
+
+    if (!workbenchSecrets) {
+      setWorkbenchImportStatus('Sign in again to access your workbench vault.', 'error');
+      return;
+    }
+
+    setWorkbenchImportStatus('Loading your workbench vault...');
+
+    const [apiKey, vercelToken, githubToken] = await Promise.all([
+      fetchWorkbenchSecret('openaiApiKey'),
+      fetchWorkbenchSecret('vercelToken'),
+      fetchWorkbenchSecret('githubToken')
+    ]);
+
+    const applied = [];
+
+    if (apiKey) {
+      defaultKeyInput.value = apiKey;
+      applied.push('OpenAI');
+    }
+
+    if (vercelToken) {
+      defaultVercelInput.value = vercelToken;
+      applied.push('Vercel');
+    }
+
+    if (githubToken) {
+      defaultGithubInput.value = githubToken;
+      applied.push('GitHub');
+    }
+
+    if (!applied.length) {
+      setWorkbenchImportStatus('No stored secrets found in your workbench vault.', 'error');
+      return;
+    }
+
+    setWorkbenchImportStatus(
+      `Loaded ${applied.join(', ')} from your workbench vault. Add a passphrase and save to share.`,
+      'success'
+    );
+    updateDefaultStatus('Workbench secrets loaded. Encrypt with a passphrase to publish new defaults.');
   }
 
   function renderUsers() {
@@ -1443,6 +1546,9 @@
   }
   saveDefaultKeyBtn.addEventListener('click', saveDefaultKey);
   clearDefaultKeyBtn.addEventListener('click', clearDefaultKey);
+  if (importWorkbenchBtn) {
+    importWorkbenchBtn.addEventListener('click', importWorkbenchDefaults);
+  }
   stripeRefreshBtn.addEventListener('click', refreshStripeCustomers);
 
   window.addEventListener('load', init);
