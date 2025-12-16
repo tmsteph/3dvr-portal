@@ -123,7 +123,7 @@ let transcriptNode = workbenchRoot.get(identityKey).get('transcripts');
 let deploymentNode = workbenchRoot.get(identityKey).get('vercel');
 let githubNode = workbenchRoot.get(identityKey).get('github');
 let secretsNode = workbenchRoot.get(identityKey).get('secrets');
-// Gun graph: ai/key-vault/<alias> -> { cipher, updatedAt, alias }
+// Gun graph: ai/key-vault/<alias> -> { alias, updatedAt, targets: { <targetKey>: { cipher, updatedAt, target } } }
 const keyVaultNode = gun.get('ai').get('key-vault');
 
 const apiKeyInput = document.getElementById('api-key');
@@ -170,6 +170,8 @@ const vaultPassphraseInput = document.getElementById('vault-passphrase');
 const vaultTargetSelect = document.getElementById('vault-target');
 const vaultSaveBtn = document.getElementById('vault-save');
 const vaultLoadBtn = document.getElementById('vault-load');
+const vaultSaveAllBtn = document.getElementById('vault-save-all');
+const vaultLoadAllBtn = document.getElementById('vault-load-all');
 const vaultStatus = document.getElementById('vault-status');
 const vaultAutoSyncToggle = document.getElementById('vault-auto-sync');
 const vaultRememberPassphraseToggle = document.getElementById('vault-remember-passphrase');
@@ -1028,13 +1030,69 @@ function loadStoredKey() {
   }
 }
 
-async function putVaultRecord(alias, passphrase, targetKey, secretValue) {
+function getVaultableSecrets() {
+  const secrets = {};
+  Object.entries(vaultTargets).forEach(([targetKey, details]) => {
+    const value = details.input?.value?.trim();
+    if (value) {
+      secrets[targetKey] = value;
+    }
+  });
+  return secrets;
+}
+
+// Keep vault records target-scoped so saving one secret never wipes another.
+function buildVaultTargetMap(record) {
+  const targets = {};
+  const storedTargets = record?.targets && typeof record.targets === 'object' ? record.targets : {};
+
+  Object.entries(storedTargets).forEach(([targetKey, entry]) => {
+    if (entry?.cipher) {
+      targets[targetKey] = {
+        cipher: entry.cipher,
+        updatedAt: entry.updatedAt || record?.updatedAt,
+        target: entry.target || targetKey,
+      };
+    }
+  });
+
+  if (!Object.keys(targets).length && record?.cipher) {
+    const targetKey = record.target || 'openai';
+    targets[targetKey] = {
+      cipher: record.cipher,
+      updatedAt: record.updatedAt,
+      target: targetKey,
+    };
+  }
+
+  return targets;
+}
+
+async function putVaultEntries(alias, passphrase, secretsByTarget) {
   if (!Gun.SEA || typeof Gun.SEA.encrypt !== 'function') {
     throw new Error('Gun SEA not available. Refresh and try again.');
   }
 
-  const cipher = await Gun.SEA.encrypt(secretValue, passphrase);
-  const record = { alias, cipher, updatedAt: Date.now(), target: targetKey };
+  const secrets = Object.entries(secretsByTarget || {}).filter(([, value]) => !!value);
+  if (!secrets.length) {
+    throw new Error('No secrets to store.');
+  }
+
+  const now = Date.now();
+  // Merge with any prior targets so vault saves never overwrite sibling secrets.
+  const existing = await fetchVaultRecord(alias);
+  const targets = buildVaultTargetMap(existing);
+
+  const encryptedEntries = await Promise.all(secrets.map(async ([targetKey, secretValue]) => {
+    const cipher = await Gun.SEA.encrypt(secretValue, passphrase);
+    return [targetKey, { cipher, updatedAt: now, target: targetKey }];
+  }));
+
+  encryptedEntries.forEach(([targetKey, payload]) => {
+    targets[targetKey] = payload;
+  });
+
+  const record = { alias, targets, updatedAt: now };
 
   return new Promise((resolve, reject) => {
     keyVaultNode.get(alias).put(record, ack => {
@@ -1045,6 +1103,34 @@ async function putVaultRecord(alias, passphrase, targetKey, secretValue) {
       resolve(record);
     });
   });
+}
+
+async function putVaultRecord(alias, passphrase, targetKey, secretValue) {
+  return putVaultEntries(alias, passphrase, { [targetKey]: secretValue });
+}
+
+function applyVaultTargetValue(targetKey, secretValue, { silent = false, skipSelect = false } = {}) {
+  const vaultTarget = getVaultTargetConfig(targetKey);
+
+  if (!skipSelect && vaultTargetSelect) {
+    vaultTargetSelect.value = vaultTarget.key;
+  }
+
+  if (vaultTarget.input) {
+    vaultTarget.input.value = secretValue;
+  }
+
+  if (vaultTarget.storageKey) {
+    storage.setItem(vaultTarget.storageKey, secretValue);
+  }
+
+  if (vaultTarget.accountField) {
+    saveSecretToAccount(vaultTarget.accountField, secretValue);
+  }
+
+  if (!silent) {
+    refreshSharedKeyUsage(vaultTarget.key, secretValue);
+  }
 }
 
 async function saveKeyToVault() {
@@ -1070,7 +1156,36 @@ async function saveKeyToVault() {
 
   try {
     await putVaultRecord(alias, passphrase, target.key, secretValue);
-    setVaultStatus(`${target.label} encrypted and stored in Gun. Use the same alias and passphrase on any device.`);
+    setVaultStatus(`${target.label} encrypted and stored in Gun. Save all to keep every token under one vault.`);
+  } catch (error) {
+    setVaultStatus(`Error encrypting or saving: ${error.message}`);
+  }
+}
+
+async function saveAllKeysToVault() {
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const passphrase = vaultPassphraseInput?.value || '';
+  const secrets = getVaultableSecrets();
+  const secretLabels = Object.keys(secrets).map((key) => getVaultTargetConfig(key).label);
+
+  if (!alias) {
+    setVaultStatus('Add a vault label using letters, numbers, or dashes.');
+    return;
+  }
+
+  if (!passphrase || passphrase.length < 6) {
+    setVaultStatus('Add a passphrase (6+ characters) to encrypt your secrets.');
+    return;
+  }
+
+  if (!secretLabels.length) {
+    setVaultStatus('Add at least one secret before saving them all to Gun.');
+    return;
+  }
+
+  try {
+    await putVaultEntries(alias, passphrase, secrets);
+    setVaultStatus(`Saved ${secretLabels.join(', ')} to Gun with one passphrase. Use Load all to restore quickly.`);
   } catch (error) {
     setVaultStatus(`Error encrypting or saving: ${error.message}`);
   }
@@ -1082,7 +1197,7 @@ function fetchVaultRecord(alias) {
   });
 }
 
-async function loadVaultSecret({ alias, passphrase, targetKey, silent = false }) {
+async function loadVaultSecret({ alias, passphrase, targetKey, silent = false, loadAll = false } = {}) {
   if (!alias) {
     if (!silent) {
       setVaultStatus('Enter the vault label you used when saving your secret.');
@@ -1105,47 +1220,78 @@ async function loadVaultSecret({ alias, passphrase, targetKey, silent = false })
   }
 
   if (!silent) {
-    setVaultStatus('Fetching and decrypting secret from Gun...');
+    setVaultStatus('Fetching and decrypting secrets from Gun...');
   }
 
   try {
     const record = await fetchVaultRecord(alias);
-    if (!record || !record.cipher) {
+    const targetMap = buildVaultTargetMap(record);
+    const availableTargets = Object.keys(targetMap);
+
+    if (!availableTargets.length) {
       if (!silent) {
         setVaultStatus('No encrypted secret found for that alias.');
       }
       return false;
     }
 
-    const vaultTarget = getVaultTargetConfig(record.target || targetKey || 'openai');
+    const hasRequestedTarget = targetKey && targetMap[targetKey];
+    const targetsToLoad = loadAll
+      ? availableTargets
+      : [hasRequestedTarget ? targetKey : availableTargets[0]];
+    const missingRequested = targetKey && !hasRequestedTarget;
+    const appliedLabels = new Set();
+    const loadedTargets = new Set();
 
-    if (vaultTargetSelect) {
-      vaultTargetSelect.value = vaultTarget.key;
+    for (const key of targetsToLoad) {
+      const entry = targetMap[key];
+      if (!entry?.cipher) continue;
+
+      const decrypted = await Gun.SEA.decrypt(entry.cipher, passphrase);
+      if (!decrypted) continue;
+
+      if (typeof decrypted === 'object' && decrypted !== null) {
+        Object.entries(decrypted).forEach(([innerKey, innerValue]) => {
+          if (!vaultTargets[innerKey] || typeof innerValue !== 'string' || !innerValue) return;
+          applyVaultTargetValue(innerKey, innerValue, { silent, skipSelect: loadAll });
+          appliedLabels.add(getVaultTargetConfig(innerKey).label);
+          loadedTargets.add(innerKey);
+        });
+        continue;
+      }
+
+      if (typeof decrypted !== 'string') continue;
+
+      applyVaultTargetValue(key, decrypted, { silent, skipSelect: loadAll });
+      appliedLabels.add(getVaultTargetConfig(key).label);
+      loadedTargets.add(key);
     }
 
-    const decrypted = await Gun.SEA.decrypt(record.cipher, passphrase);
-    if (!decrypted) {
+    const appliedList = Array.from(appliedLabels);
+
+    if (!appliedList.length) {
       if (!silent) {
         setVaultStatus('Decryption failed. Check your passphrase and try again.');
       }
       return false;
     }
 
-    if (vaultTarget.input) {
-      vaultTarget.input.value = decrypted;
-    }
-
-    if (vaultTarget.storageKey) {
-      storage.setItem(vaultTarget.storageKey, decrypted);
-    }
-
-    if (vaultTarget.accountField) {
-      saveSecretToAccount(vaultTarget.accountField, decrypted);
-    }
-
     if (!silent) {
-      updateStorageModeNotice(`${vaultTarget.label} loaded from Gun and stored locally for this device.`);
-      setVaultStatus(`${vaultTarget.label} loaded from Gun and applied to this session.`);
+      if (loadAll) {
+        const missingLabels = Object.keys(vaultTargets)
+          .filter((key) => !loadedTargets.has(key))
+          .map((key) => getVaultTargetConfig(key).label);
+        const missingText = missingLabels.length ? ` Missing: ${missingLabels.join(', ')}.` : '';
+        updateStorageModeNotice('Vault secrets loaded from Gun and cached for this device.');
+        setVaultStatus(`Loaded ${appliedList.join(', ')} from Gun.${missingText}`);
+      } else {
+        const loadedLabel = appliedList[0];
+        const prefix = missingRequested
+          ? `${getVaultTargetConfig(targetKey).label} not stored yet. `
+          : '';
+        updateStorageModeNotice(`${loadedLabel} loaded from Gun and stored locally for this device.`);
+        setVaultStatus(`${prefix}${loadedLabel} applied to this session.`);
+      }
     }
 
     return true;
@@ -1163,6 +1309,13 @@ async function loadKeyFromVault() {
   const selectedTarget = getSelectedVaultTarget();
 
   await loadVaultSecret({ alias, passphrase, targetKey: selectedTarget.key });
+}
+
+async function loadAllVaultSecrets() {
+  const alias = sanitizeVaultAlias(vaultAliasInput?.value?.trim());
+  const passphrase = vaultPassphraseInput?.value || '';
+
+  await loadVaultSecret({ alias, passphrase, loadAll: true });
 }
 
 async function autoSyncSecret(targetKey, secretValue) {
@@ -1861,6 +2014,8 @@ createRepoBtn.addEventListener('click', createGithubRepo);
 githubBtn.addEventListener('click', publishToGithub);
 vaultSaveBtn?.addEventListener('click', saveKeyToVault);
 vaultLoadBtn?.addEventListener('click', loadKeyFromVault);
+vaultSaveAllBtn?.addEventListener('click', saveAllKeysToVault);
+vaultLoadAllBtn?.addEventListener('click', loadAllVaultSecrets);
 
 restoreAutoVaultPreferences();
 
