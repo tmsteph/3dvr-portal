@@ -522,6 +522,7 @@
   const userStats = portalRoot.get('userStats');
   const userDeletionLog = portalRoot.get('userDeletions');
   const workbenchDefaults = workbenchRoot.get('defaults');
+  const keyVaultNode = gun.get('ai').get('key-vault');
   let workbenchSecrets = null;
   // Stripe subscriber summaries live under finance/stripeCustomers to keep shared totals in GunJS.
   const stripeCustomersNode = portalRoot.get('finance').get('stripeCustomers');
@@ -751,6 +752,78 @@
     }
   }
 
+  function sanitizeVaultAlias(input) {
+    return (input || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 64);
+  }
+
+  function normalizeVaultTarget(targetKey) {
+    if (!targetKey) return null;
+    const key = targetKey.toLowerCase();
+    if (['openai', 'openaiapikey', 'openai_api_key', 'apikey'].includes(key)) return 'openai';
+    if (['vercel', 'verceltoken'].includes(key)) return 'vercel';
+    if (['github', 'githubtoken'].includes(key)) return 'github';
+    return null;
+  }
+
+  function buildVaultTargetMap(record) {
+    const targets = {};
+    const storedTargets = record?.targets && typeof record.targets === 'object' ? record.targets : {};
+
+    Object.entries(storedTargets).forEach(([targetKey, entry]) => {
+      const normalizedTarget = normalizeVaultTarget(targetKey);
+      if (entry?.cipher && normalizedTarget) {
+        targets[normalizedTarget] = entry;
+      }
+    });
+
+    if (!Object.keys(targets).length && record?.cipher) {
+      const normalizedTarget = normalizeVaultTarget(record?.target);
+      if (normalizedTarget) {
+        targets[normalizedTarget] = { cipher: record.cipher };
+      }
+    }
+
+    return targets;
+  }
+
+  function fetchVaultRecord(alias) {
+    return new Promise(resolve => {
+      keyVaultNode.get(alias).once(data => resolve(data));
+    });
+  }
+
+  async function fetchVaultSecrets(alias, passphrase) {
+    if (!alias || !passphrase) return {};
+    if (!Gun.SEA || typeof Gun.SEA.decrypt !== 'function') return {};
+
+    const record = await fetchVaultRecord(alias);
+    const targetMap = buildVaultTargetMap(record);
+    const results = {};
+
+    const entries = Object.entries(targetMap);
+    await Promise.all(entries.map(async ([targetKey, entry]) => {
+      if (!entry?.cipher) return;
+
+      try {
+        const decrypted = await Gun.SEA.decrypt(entry.cipher, passphrase);
+        if (typeof decrypted === 'string') {
+          results[targetKey] = decrypted;
+        } else if (decrypted && typeof decrypted === 'object') {
+          Object.entries(decrypted).forEach(([innerKey, innerValue]) => {
+            const normalized = normalizeVaultTarget(innerKey);
+            if (normalized && typeof innerValue === 'string' && innerValue.trim()) {
+              results[normalized] = innerValue;
+            }
+          });
+        }
+      } catch (error) {
+        // ignore decrypt errors and try other targets
+      }
+    }));
+
+    return results;
+  }
+
   function fetchWorkbenchSecret(field) {
     return new Promise(resolve => {
       if (!workbenchSecrets || !user?._?.sea) {
@@ -786,38 +859,82 @@
       return;
     }
 
-    setWorkbenchImportStatus('Loading your workbench vault...');
+    setWorkbenchImportStatus('Loading your saved workbench secrets...');
 
-    const [apiKey, vercelToken, githubToken] = await Promise.all([
+    const [accountApiKey, accountVercelToken, accountGithubToken] = await Promise.all([
       fetchWorkbenchSecret('openaiApiKey'),
       fetchWorkbenchSecret('vercelToken'),
       fetchWorkbenchSecret('githubToken')
     ]);
 
-    const applied = [];
+    const values = {
+      openai: accountApiKey,
+      vercel: accountVercelToken,
+      github: accountGithubToken
+    };
+    const sources = {
+      openai: accountApiKey ? 'account' : '',
+      vercel: accountVercelToken ? 'account' : '',
+      github: accountGithubToken ? 'account' : ''
+    };
 
-    if (apiKey) {
-      defaultKeyInput.value = apiKey;
-      applied.push('OpenAI');
+    const needsVault = !values.openai || !values.vercel || !values.github;
+    if (needsVault) {
+      const aliasForVault = sanitizeVaultAlias(username || alias);
+      const passphrase = (defaultPassphraseInput?.value || '').trim();
+
+      if (aliasForVault && passphrase) {
+        const vaultSecrets = await fetchVaultSecrets(aliasForVault, passphrase);
+        Object.entries(vaultSecrets).forEach(([targetKey, secretValue]) => {
+          if (!values[targetKey] && secretValue) {
+            values[targetKey] = secretValue;
+            sources[targetKey] = 'vault';
+          }
+        });
+      } else if (!values.openai && !values.vercel && !values.github) {
+        setWorkbenchImportStatus('Add your vault passphrase to pull keys saved with "Save all secrets".', 'error');
+        return;
+      }
     }
 
-    if (vercelToken) {
-      defaultVercelInput.value = vercelToken;
-      applied.push('Vercel');
+    const appliedLabels = [];
+    const accountLabels = [];
+    const vaultLabels = [];
+
+    if (values.openai) {
+      defaultKeyInput.value = values.openai;
+      appliedLabels.push('OpenAI');
+      (sources.openai === 'vault' ? vaultLabels : accountLabels).push('OpenAI');
     }
 
-    if (githubToken) {
-      defaultGithubInput.value = githubToken;
-      applied.push('GitHub');
+    if (values.vercel) {
+      defaultVercelInput.value = values.vercel;
+      appliedLabels.push('Vercel');
+      (sources.vercel === 'vault' ? vaultLabels : accountLabels).push('Vercel');
     }
 
-    if (!applied.length) {
+    if (values.github) {
+      defaultGithubInput.value = values.github;
+      appliedLabels.push('GitHub');
+      (sources.github === 'vault' ? vaultLabels : accountLabels).push('GitHub');
+    }
+
+    if (!appliedLabels.length) {
       setWorkbenchImportStatus('No stored secrets found in your workbench vault.', 'error');
       return;
     }
 
+    const sourceParts = [];
+    if (accountLabels.length) {
+      sourceParts.push(`account (${accountLabels.join(', ')})`);
+    }
+    if (vaultLabels.length) {
+      sourceParts.push(`vault (${vaultLabels.join(', ')})`);
+    }
+
+    const sourceText = sourceParts.length ? `from your workbench ${sourceParts.join(' and ')}` : 'from your workbench vault';
     setWorkbenchImportStatus(
-      `Loaded ${applied.join(', ')} from your workbench vault. Add a passphrase and save to share.`,
+      `Loaded ${appliedLabels.join(', ')} ${sourceText}. Add a passphrase and save to share.`,
       'success'
     );
     updateDefaultStatus('Workbench secrets loaded. Encrypt with a passphrase to publish new defaults.');
