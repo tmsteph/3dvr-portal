@@ -26,6 +26,8 @@
         <li>For personal repos, use a classic token with <span class="inline-code">repo</span> (or
           <span class="inline-code">public_repo</span> for public only) scope, or a fine-grained token that allows
           repository creation.</li>
+        <li>When using a fine-grained token, enable <strong>Administration: Read and write</strong> so the Workbench can
+          create repositories through the GitHub API.</li>
         <li>For organization repos, grant the token access to the org and enable <strong>Repository creation</strong>
           permissions.</li>
         <li>Keep the token handy — we only use it in this tab and never persist or log it.</li>
