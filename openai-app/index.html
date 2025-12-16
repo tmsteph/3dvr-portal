@@ -147,20 +147,6 @@
         <button id="deploy-btn" class="primary">Deploy current response</button>
         <div id="vercel-status" class="output" aria-live="polite">Paste your token and project name to start.</div>
       </section>
-
-      <section class="card" id="deploy-history" aria-label="Deployment history">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Audit</p>
-            <h2>Recent deployments</h2>
-            <p class="meta">Saved to <code>ai/vercel/&lt;sessionId&gt;</code> in Gun so the team can reuse URLs.</p>
-          </div>
-        </div>
-        <div class="guide-links">
-          <a class="guide-link" href="../deployment-guides/secrets-and-workflow.html" target="_blank" rel="noreferrer">Guide: Wire CI and previews</a>
-        </div>
-        <ul id="deployments"></ul>
-      </section>
     </section>
 
     <section class="grid">
@@ -305,6 +291,20 @@
         <a class="guide-link" href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Guide: Share with the team</a>
       </div>
       <ul id="history"></ul>
+    </section>
+
+    <section class="card" id="deploy-history" aria-label="Deployment history">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Audit</p>
+          <h2>Recent deployments</h2>
+          <p class="meta">Saved to <code>ai/vercel/&lt;sessionId&gt;</code> in Gun so the team can reuse URLs.</p>
+        </div>
+      </div>
+      <div class="guide-links">
+        <a class="guide-link" href="../deployment-guides/secrets-and-workflow.html" target="_blank" rel="noreferrer">Guide: Wire CI and previews</a>
+      </div>
+      <ul id="deployments"></ul>
     </section>
 
     <section class="card" id="vault-panel" aria-label="Gun key vault">
