@@ -766,6 +766,43 @@ async function hydrateAccountSecrets() {
   }
 }
 
+async function syncCachedSecretsToAccount() {
+  if (!user?.is || !user?._?.sea) return;
+
+  const cachedApiKey = (storage.getItem(apiKeyStorageKey) || '').trim();
+  const cachedVercel = (storage.getItem(vercelTokenStorageKey) || '').trim();
+  const cachedGithub = (storage.getItem(githubTokenStorageKey) || '').trim();
+
+  if (!cachedApiKey && !cachedVercel && !cachedGithub) return;
+
+  const [accountApiKey, accountVercel, accountGithub] = await Promise.all([
+    fetchAccountSecret('openaiApiKey'),
+    fetchAccountSecret('vercelToken'),
+    fetchAccountSecret('githubToken')
+  ]);
+
+  const synced = [];
+
+  if (!accountApiKey && cachedApiKey) {
+    const saved = await saveSecretToAccount('openaiApiKey', cachedApiKey);
+    if (saved) synced.push('OpenAI');
+  }
+
+  if (!accountVercel && cachedVercel) {
+    const saved = await saveSecretToAccount('vercelToken', cachedVercel);
+    if (saved) synced.push('Vercel');
+  }
+
+  if (!accountGithub && cachedGithub) {
+    const saved = await saveSecretToAccount('githubToken', cachedGithub);
+    if (saved) synced.push('GitHub');
+  }
+
+  if (synced.length) {
+    updateAccountStatus(`${synced.join(', ')} synced to your Gun account from this device.`);
+  }
+}
+
 function subscribeToDefaults() {
   defaultsNode.on(data => {
     currentDefaultConfig = data || {};
@@ -2022,7 +2059,7 @@ restoreAutoVaultPreferences();
 recallUserSession();
 subscribeToDefaults();
 resetUsageTracking();
-user.on('auth', () => {
+user.on('auth', async () => {
   const pub = user?.is?.pub;
   if (pub) {
     setIdentityScope(pub);
@@ -2034,6 +2071,7 @@ user.on('auth', () => {
       autoLoadVaultForAccount({ silent: true });
     }
   });
+  await syncCachedSecretsToAccount();
   hydrateAccountSecrets();
 });
 attemptStoredAuth();
