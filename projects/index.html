@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projects · 3DVR Portal</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="./projects.css">
+</head>
+<body class="projects theme-dark">
+  <a class="skip-link" href="#projectsMain">Skip to project directory</a>
+  <div class="projects-shell">
+    <header class="projects-hero" aria-labelledby="projectsTitle">
+      <div>
+        <p class="projects-hero__eyebrow">Project directory</p>
+        <h1 id="projectsTitle" class="projects-hero__title">Keep explorations visible and ready to ship</h1>
+        <p class="projects-hero__lede">
+          Capture active concepts, link them to notes and tasks, and spell out what success looks like before we build.
+          Everything here stays portable across VR, desktop, and mobile flows.
+        </p>
+        <div class="projects-hero__actions">
+          <a class="cta primary" href="../index.html">⬅️ Back to portal</a>
+          <a class="cta ghost" href="../notes/">📝 Open shared notes</a>
+          <a class="cta ghost" href="../tasks.html">✅ Plan next tasks</a>
+        </div>
+      </div>
+      <div class="projects-meta" aria-label="Project data guidance">
+        <p class="projects-meta__label">Shared data paths</p>
+        <ul>
+          <li><code>gun.get('projects').get('ideas')</code> for concepts and owners.</li>
+          <li><code>gun.get('projects').get('artifacts')</code> for sketches, diagrams, and attachments.</li>
+          <li><code>gun.get('projects').get('handoff')</code> for build-ready checklists.</li>
+        </ul>
+      </div>
+    </header>
+
+    <main id="projectsMain" class="projects-main" aria-label="3DVR project directory">
+      <section class="projects-section" aria-labelledby="wearableTitle">
+        <div class="section-header">
+          <p class="section-eyebrow">Active exploration</p>
+          <h2 id="wearableTitle">Wearable input kit for travel and AR</h2>
+          <p class="section-lede">
+            A portable keyboard and pointing system that clips to your legs for standing or seated
+            work, keeps phones usable while pocketed, and mirrors desktop control inside VR or AR
+            glasses.
+          </p>
+        </div>
+        <div class="project-grid" role="list">
+          <article class="project-card" role="listitem" aria-labelledby="cardDesignTitle">
+            <div class="project-card__icon" aria-hidden="true">⌨️</div>
+            <div class="project-card__body">
+              <div class="project-card__header">
+                <h3 id="cardDesignTitle">Form factor</h3>
+                <span class="status-pill">Status: Designing</span>
+              </div>
+              <p>
+                Split keyboard halves strap to each thigh so posture stays comfortable when walking,
+                standing at a counter, or seated on a flight. A low-profile fold keeps the kit in a
+                backpack and deploys in seconds.
+              </p>
+              <ul>
+                <li>Leg-mounted plates keep wrists aligned and elbows relaxed.</li>
+                <li>Compact columns mirror standard layouts for fast onboarding.</li>
+                <li>Detachable straps support both casual and athletic wear.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="project-card" role="listitem" aria-labelledby="cardControlTitle">
+            <div class="project-card__icon" aria-hidden="true">🖱️</div>
+            <div class="project-card__body">
+              <div class="project-card__header">
+                <h3 id="cardControlTitle">Input + pointing</h3>
+                <span class="status-pill status-pill--focus">Focus: Ergonomics</span>
+              </div>
+              <p>
+                Capacitive trackpads on both sides keep mousing symmetrical and shoulder-friendly. Thumb clusters handle
+                modifiers, quick toggles, and media so typing stays uninterrupted.
+              </p>
+              <ul>
+                <li>Dual trackpads that map to desktop, mobile, and VR cursors.</li>
+                <li>Haptics confirm gestures without needing to look down.</li>
+                <li>Low-latency Bluetooth first, with a wired fallback for labs.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="project-card" role="listitem" aria-labelledby="cardXRTitle">
+            <div class="project-card__icon" aria-hidden="true">🕶️</div>
+            <div class="project-card__body">
+              <div class="project-card__header">
+                <h3 id="cardXRTitle">AR + phone pairing</h3>
+                <span class="status-pill status-pill--planning">Planning: Prototyping</span>
+              </div>
+              <p>
+                The kit mirrors phone UI inside AR glasses so you can keep the phone in your pocket, navigate apps, and
+                respond quickly while staying heads-up. Inputs also pass through to desktop and VR sessions.
+              </p>
+              <ul>
+                <li>Overlay notifications and text fields in-headset for glanceable control.</li>
+                <li>Bridge sessions through <code>gun.get('projects').get('io-link')</code> for shared state.</li>
+                <li>USB-C passthrough keeps phones powered during long days.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="projects-section" aria-labelledby="nextStepsTitle">
+        <div class="section-header">
+          <p class="section-eyebrow">Next steps</p>
+          <h2 id="nextStepsTitle">Make the concept testable</h2>
+          <p class="section-lede">
+            Pair the exploration with concrete experiments so we can validate comfort, latency, and
+            cross-device routing.
+          </p>
+        </div>
+        <div class="step-list" role="list">
+          <div class="step" role="listitem">
+            <div class="step__icon" aria-hidden="true">🧩</div>
+            <div>
+              <h3>Prototype layout and straps</h3>
+              <p>
+                Rough-print keyboard plates, map keys to travel-friendly columns, and record fit
+                notes in shared notes.
+              </p>
+            </div>
+          </div>
+          <div class="step" role="listitem">
+            <div class="step__icon" aria-hidden="true">🔗</div>
+            <div>
+              <h3>Sync controls across devices</h3>
+              <p>
+                Route inputs through <code>gun.get('projects').get('io-link')</code> to keep phone,
+                desktop, and VR views aligned.
+              </p>
+            </div>
+          </div>
+          <div class="step" role="listitem">
+            <div class="step__icon" aria-hidden="true">🧪</div>
+            <div>
+              <h3>Test in travel and standing scenarios</h3>
+              <p>
+                Measure comfort while walking, at a standing desk, and on flights. Capture clips and
+                feedback before the next iteration.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
