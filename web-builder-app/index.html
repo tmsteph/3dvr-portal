@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Web Builder (Default Keys)</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+</head>
+<body>
+  <div class="top-buttons">
+    <a href="../index.html">🏠 Portal</a>
+    <a href="../notes/">📝 Shared Notes</a>
+    <a href="../tasks.html">✅ Task Board</a>
+    <a href="../games.html">🎮 Mini Games</a>
+    <a href="https://3dvr.tech/#subscribe" target="_blank">⭐ Subscribe</a>
+    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
+  </div>
+
+  <main class="page">
+    <header class="hero">
+      <div class="eyebrow">Shared defaults</div>
+      <h1>Web Builder</h1>
+      <p class="lede">Use the admin defaults for OpenAI, Vercel, and GitHub with daily limits so guests can publish safely.</p>
+      <div class="pill-row">
+        <div class="pill">Guest 2/day</div>
+        <div class="pill">Free 5/day</div>
+        <div class="pill">$5 supporter 20/day</div>
+        <div class="pill">$20 pro 100/day</div>
+      </div>
+      <p class="meta" id="identity-label" aria-live="polite"></p>
+    </header>
+
+    <section class="grid">
+      <section class="card" id="defaults-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Admin bundle</p>
+            <h2>Load shared defaults</h2>
+            <p class="meta">Unlock the preloaded OpenAI, Vercel, and GitHub keys. Shared usage is rate limited by plan.</p>
+          </div>
+        </div>
+        <label for="default-passphrase">Default passphrase</label>
+        <div class="input-row">
+          <input type="password" id="default-passphrase" placeholder="Passphrase from admin" aria-describedby="default-hint">
+          <button id="load-defaults" class="primary">Use defaults</button>
+        </div>
+        <p class="meta" id="default-hint">Ask an admin for the passphrase to unlock shared keys.</p>
+        <p class="status" id="default-status" aria-live="polite">Defaults not loaded yet.</p>
+        <p class="status" id="shared-usage" aria-live="polite">Shared limits idle.</p>
+      </section>
+
+      <section class="card" id="key-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Bring your own</p>
+            <h2>Personal tokens</h2>
+            <p class="meta">Paste personal keys to skip shared limits. They stay on this device.</p>
+          </div>
+        </div>
+        <div class="input-grid">
+          <label>OpenAI key
+            <input type="password" id="openai-key" placeholder="sk-...">
+          </label>
+          <label>Vercel token
+            <input type="password" id="vercel-token" placeholder="vercel_...">
+          </label>
+          <label>GitHub token
+            <input type="password" id="github-token" placeholder="ghp_...">
+          </label>
+        </div>
+        <div class="input-row">
+          <button id="save-keys" class="secondary">Save locally</button>
+          <button id="clear-keys" class="ghost">Clear</button>
+        </div>
+        <p class="meta" id="key-status" aria-live="polite">Keys are stored locally and never leave the browser.</p>
+      </section>
+    </section>
+
+    <section class="card" id="brief-card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Brief</p>
+          <h2>Describe your site</h2>
+          <p class="meta">Generate HTML with inline CSS, then deploy to Vercel or publish to GitHub.</p>
+        </div>
+      </div>
+      <div class="input-grid">
+        <label>Site title
+          <input id="site-title" type="text" placeholder="Starter landing page">
+        </label>
+        <label>Goal or CTA
+          <input id="site-goal" type="text" placeholder="Capture signups for the beta">
+        </label>
+        <label>Audience
+          <input id="site-audience" type="text" placeholder="Creators and indie hackers">
+        </label>
+        <label>Style
+          <select id="site-style">
+            <option value="clean">Clean and calming</option>
+            <option value="bold">Bold and high contrast</option>
+            <option value="futuristic">Futuristic</option>
+            <option value="playful">Playful</option>
+          </select>
+        </label>
+      </div>
+      <label for="site-extras">Extras</label>
+      <textarea id="site-extras" rows="3" placeholder="Add testimonials, FAQs, or a pricing grid."></textarea>
+      <div class="input-grid">
+        <label>Vercel project
+          <input id="vercel-project" type="text" placeholder="web-builder-demo">
+        </label>
+        <label>GitHub repo (owner/name)
+          <input id="github-repo" type="text" placeholder="yourname/web-builder">
+        </label>
+        <label>GitHub branch
+          <input id="github-branch" type="text" value="main">
+        </label>
+        <label>GitHub path
+          <input id="github-path" type="text" value="index.html">
+        </label>
+      </div>
+      <label for="github-message">Commit message</label>
+      <input id="github-message" type="text" placeholder="chore: add generated site">
+      <div class="button-row">
+        <button id="generate" class="primary">Generate with OpenAI</button>
+        <button id="deploy" class="secondary">Deploy to Vercel</button>
+        <button id="publish" class="secondary">Publish to GitHub</button>
+      </div>
+      <p class="status" id="generate-status" aria-live="polite">Waiting to generate.</p>
+    </section>
+
+    <section class="grid">
+      <section class="card" id="preview-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Preview</p>
+            <h2>Live iframe</h2>
+          </div>
+        </div>
+        <iframe id="preview" title="Generated site preview"></iframe>
+      </section>
+      <section class="card" id="log-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Activity</p>
+            <h2>Log</h2>
+          </div>
+        </div>
+        <div id="output" class="output" aria-live="polite">No activity yet.</div>
+      </section>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
