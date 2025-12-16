@@ -5,6 +5,11 @@ const portalRoot = gun.get('3dvr-portal');
 const workbenchRoot = portalRoot.get('ai-workbench');
 // Gun graph: 3dvr-portal/ai-workbench/defaults -> { apiKeyCipher, hint, updatedAt, updatedBy }
 const defaultsNode = workbenchRoot.get('defaults');
+// Gun graph: 3dvr-portal/ai-workbench/rate-limits/<YYYY-MM-DD>/<identityKey> ->
+// { total, openai, vercel, github, updatedAt, tier }
+const rateLimitsNode = workbenchRoot.get('rate-limits');
+// Gun graph: 3dvr-portal/billing/usageTier/<identityKey> -> { tier, updatedAt, source }
+const billingTierNode = portalRoot.get('billing').get('usageTier');
 
 const storage = (() => {
   const memoryStore = {};
@@ -174,6 +179,7 @@ const vaultAutoStatus = document.getElementById('vault-auto-status');
 const defaultPassphraseInput = document.getElementById('default-passphrase');
 const loadDefaultBtn = document.getElementById('load-default');
 const defaultKeyStatus = document.getElementById('default-key-status');
+const sharedUsageStatus = document.getElementById('shared-usage-status');
 
 const systemPrompt = [
   'You are the 3dvr portal co-pilot.',
@@ -242,6 +248,43 @@ const demoState = {
   model: 'gpt-4o'
 };
 
+const SHARED_USAGE_LIMITS = {
+  guest: 2,
+  account: 5,
+  supporter: 20,
+  pro: 100
+};
+
+const TIER_LABELS = {
+  guest: 'guest',
+  account: 'account',
+  supporter: '$5 supporter',
+  pro: '$20 pro'
+};
+
+const defaultSecrets = {
+  openai: '',
+  vercel: '',
+  github: ''
+};
+
+const sharedKeyUsage = {
+  openai: false,
+  vercel: false,
+  github: false
+};
+
+let currentUsageTier = '';
+let sharedUsageCounts = {
+  total: 0,
+  openai: 0,
+  vercel: 0,
+  github: 0
+};
+let usageDateKey = '';
+let usageSubscription = null;
+let tierSubscription = null;
+
 const defaultFormState = {
   vercelProject: 'vr-lounge-demo',
   deployNote: 'Initial live demo from defaults',
@@ -276,6 +319,182 @@ function parseStoredJson(raw) {
   } catch (error) {
     return null;
   }
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function normalizeTier(value) {
+  const normalized = (value || '').toString().trim().toLowerCase();
+  if (['guest', 'account', 'supporter', 'pro'].includes(normalized)) {
+    return normalized;
+  }
+  if (normalized === 'supporter5' || normalized === 'supporter-5') {
+    return 'supporter';
+  }
+  if (normalized === 'pro20' || normalized === 'pro-20') {
+    return 'pro';
+  }
+  return '';
+}
+
+function resolveUsageTier() {
+  const stored = normalizeTier(storage.getItem('openai-workbench-tier'));
+  if (stored) return stored;
+  const normalized = normalizeTier(currentUsageTier);
+  if (normalized) return normalized;
+  return user?.is ? 'account' : 'guest';
+}
+
+function normalizeUsageRecord(record) {
+  if (!record) {
+    return {
+      total: 0,
+      openai: 0,
+      vercel: 0,
+      github: 0
+    };
+  }
+  return {
+    total: Number(record.total) || 0,
+    openai: Number(record.openai) || 0,
+    vercel: Number(record.vercel) || 0,
+    github: Number(record.github) || 0,
+    updatedAt: record.updatedAt || Date.now(),
+    tier: normalizeTier(record.tier) || resolveUsageTier()
+  };
+}
+
+function usingAnySharedKey() {
+  return sharedKeyUsage.openai || sharedKeyUsage.vercel || sharedKeyUsage.github;
+}
+
+function updateSharedUsageStatus(message) {
+  if (!sharedUsageStatus) return;
+
+  if (message) {
+    sharedUsageStatus.textContent = message;
+    return;
+  }
+
+  if (!usingAnySharedKey()) {
+    sharedUsageStatus.textContent = 'Using personal tokens; shared limits are idle.';
+    return;
+  }
+
+  const tier = resolveUsageTier();
+  const limit = SHARED_USAGE_LIMITS[tier] || SHARED_USAGE_LIMITS.account;
+  const used = sharedUsageCounts.total || 0;
+  const label = TIER_LABELS[tier] || tier;
+
+  sharedUsageStatus.textContent = `Shared key usage: ${used}/${limit} today (${label}). Resets daily.`;
+}
+
+function refreshSharedKeyUsage(targetKey, value) {
+  if (!targetKey || !(targetKey in sharedKeyUsage)) return;
+  const trimmed = (value || '').trim();
+  sharedKeyUsage[targetKey] = Boolean(trimmed && trimmed === defaultSecrets[targetKey]);
+  updateSharedUsageStatus();
+}
+
+function detachUsageSubscription() {
+  try {
+    usageSubscription?.off?.();
+  } catch (error) {
+    console.warn('Failed to detach usage listener', error);
+  }
+  usageSubscription = null;
+}
+
+function subscribeToUsageCounters() {
+  detachUsageSubscription();
+  usageDateKey = getTodayKey();
+  usageSubscription = rateLimitsNode.get(usageDateKey).get(identityKey);
+  usageSubscription.on(data => {
+    sharedUsageCounts = normalizeUsageRecord(data);
+    updateSharedUsageStatus();
+  });
+}
+
+function ensureUsageSubscription() {
+  const todayKey = getTodayKey();
+  if (usageDateKey !== todayKey || !usageSubscription) {
+    subscribeToUsageCounters();
+  }
+}
+
+function detachTierSubscription() {
+  try {
+    tierSubscription?.off?.();
+  } catch (error) {
+    console.warn('Failed to detach tier listener', error);
+  }
+  tierSubscription = null;
+}
+
+function subscribeToBillingTier() {
+  detachTierSubscription();
+  currentUsageTier = normalizeTier(storage.getItem('openai-workbench-tier'));
+  tierSubscription = billingTierNode.get(identityKey);
+  tierSubscription.on(data => {
+    const nextTier = normalizeTier(data?.tier || data?.plan || data);
+    if (nextTier) {
+      currentUsageTier = nextTier;
+    }
+    updateSharedUsageStatus();
+  });
+}
+
+function resetUsageTracking() {
+  sharedUsageCounts = {
+    total: 0,
+    openai: 0,
+    vercel: 0,
+    github: 0
+  };
+  updateSharedUsageStatus();
+  subscribeToUsageCounters();
+  subscribeToBillingTier();
+}
+
+function getSharedLimit() {
+  const tier = resolveUsageTier();
+  return SHARED_USAGE_LIMITS[tier] || SHARED_USAGE_LIMITS.account;
+}
+
+function sharedLimitMessage() {
+  const tier = resolveUsageTier();
+  const used = sharedUsageCounts.total || 0;
+  const limit = getSharedLimit();
+  const label = TIER_LABELS[tier] || tier;
+  return `Shared key limit reached: ${used}/${limit} used today for the ${label} tier.`;
+}
+
+function canUseSharedKey(action) {
+  if (!sharedKeyUsage[action]) return true;
+
+  ensureUsageSubscription();
+  const limit = getSharedLimit();
+  const used = sharedUsageCounts.total || 0;
+
+  if (used >= limit) {
+    updateSharedUsageStatus();
+    return false;
+  }
+
+  const nextCounts = {
+    ...sharedUsageCounts,
+    total: used + 1,
+    updatedAt: Date.now(),
+    tier: resolveUsageTier()
+  };
+  nextCounts[action] = (nextCounts[action] || 0) + 1;
+
+  sharedUsageCounts = nextCounts;
+  rateLimitsNode.get(usageDateKey).get(identityKey).put(nextCounts);
+  updateSharedUsageStatus();
+  return true;
 }
 
 function persistLastState({ prompt, response, model }) {
@@ -402,6 +621,7 @@ function setIdentityScope(key) {
   startHistorySubscription();
   startDeploymentSubscription();
   startGithubSubscription();
+  resetUsageTracking();
   hydrateAccountSecrets();
 }
 
@@ -524,16 +744,19 @@ async function hydrateAccountSecrets() {
     apiKeyInput.value = apiKey;
     storage.setItem(apiKeyStorageKey, apiKey);
     updateStorageModeNotice('OpenAI key loaded from your Gun account.');
+    refreshSharedKeyUsage('openai', apiKey);
   }
 
   if (vercelToken) {
     vercelTokenInput.value = vercelToken;
     storage.setItem(vercelTokenStorageKey, vercelToken);
+    refreshSharedKeyUsage('vercel', vercelToken);
   }
 
   if (githubToken) {
     githubTokenInput.value = githubToken;
     storage.setItem(githubTokenStorageKey, githubToken);
+    refreshSharedKeyUsage('github', githubToken);
   }
 
   if (apiKey || vercelToken || githubToken) {
@@ -544,16 +767,39 @@ async function hydrateAccountSecrets() {
 function subscribeToDefaults() {
   defaultsNode.on(data => {
     currentDefaultConfig = data || {};
-    if (currentDefaultConfig.apiKeyCipher) {
-      setDefaultKeyStatus(currentDefaultConfig.hint || 'Admin provided a default key. Add the passphrase to apply it.');
-    } else {
-      setDefaultKeyStatus('No admin default key configured yet.');
+    const available = [];
+    if (currentDefaultConfig.apiKeyCipher) available.push('OpenAI');
+    if (currentDefaultConfig.vercelTokenCipher) available.push('Vercel');
+    if (currentDefaultConfig.githubTokenCipher) available.push('GitHub');
+    if (!currentDefaultConfig.apiKeyCipher) {
+      defaultSecrets.openai = '';
+      refreshSharedKeyUsage('openai', apiKeyInput?.value);
     }
+    if (!currentDefaultConfig.vercelTokenCipher) {
+      defaultSecrets.vercel = '';
+      refreshSharedKeyUsage('vercel', vercelTokenInput?.value);
+    }
+    if (!currentDefaultConfig.githubTokenCipher) {
+      defaultSecrets.github = '';
+      refreshSharedKeyUsage('github', githubTokenInput?.value);
+    }
+    if (!available.length) {
+      setDefaultKeyStatus('No admin defaults configured yet.');
+      return;
+    }
+    const hint = currentDefaultConfig.hint
+      ? `Hint: ${currentDefaultConfig.hint}`
+      : 'Ask an admin for the passphrase to unlock shared keys.';
+    setDefaultKeyStatus(`${available.join(', ')} defaults ready. ${hint}`);
   });
 }
 
 async function loadDefaultKey() {
-  if (!currentDefaultConfig.apiKeyCipher) {
+  const hasAnyDefault = currentDefaultConfig.apiKeyCipher
+    || currentDefaultConfig.vercelTokenCipher
+    || currentDefaultConfig.githubTokenCipher;
+
+  if (!hasAnyDefault) {
     setDefaultKeyStatus('No default key available yet.');
     return;
   }
@@ -565,16 +811,55 @@ async function loadDefaultKey() {
   }
 
   try {
-    const decrypted = await Gun.SEA.decrypt(currentDefaultConfig.apiKeyCipher, passphrase);
-    if (!decrypted) {
+    const applied = [];
+
+    if (currentDefaultConfig.apiKeyCipher) {
+      const decrypted = await Gun.SEA.decrypt(currentDefaultConfig.apiKeyCipher, passphrase);
+      if (decrypted) {
+        apiKeyInput.value = decrypted;
+        storage.setItem(apiKeyStorageKey, decrypted);
+        defaultSecrets.openai = decrypted;
+        refreshSharedKeyUsage('openai', decrypted);
+        await saveSecretToAccount('openaiApiKey', decrypted);
+        autoSyncSecret('openai', decrypted);
+        applied.push('OpenAI');
+      }
+    }
+
+    if (currentDefaultConfig.vercelTokenCipher) {
+      const decrypted = await Gun.SEA.decrypt(currentDefaultConfig.vercelTokenCipher, passphrase);
+      if (decrypted) {
+        vercelTokenInput.value = decrypted;
+        storage.setItem(vercelTokenStorageKey, decrypted);
+        defaultSecrets.vercel = decrypted;
+        refreshSharedKeyUsage('vercel', decrypted);
+        await saveSecretToAccount('vercelToken', decrypted);
+        autoSyncSecret('vercel', decrypted);
+        applied.push('Vercel');
+      }
+    }
+
+    if (currentDefaultConfig.githubTokenCipher) {
+      const decrypted = await Gun.SEA.decrypt(currentDefaultConfig.githubTokenCipher, passphrase);
+      if (decrypted) {
+        githubTokenInput.value = decrypted;
+        storage.setItem(githubTokenStorageKey, decrypted);
+        defaultSecrets.github = decrypted;
+        refreshSharedKeyUsage('github', decrypted);
+        await saveSecretToAccount('githubToken', decrypted);
+        autoSyncSecret('github', decrypted);
+        applied.push('GitHub');
+      }
+    }
+
+    if (!applied.length) {
       setDefaultKeyStatus('Passphrase incorrect. Try again.');
       return;
     }
-    apiKeyInput.value = decrypted;
-    storage.setItem(apiKeyStorageKey, decrypted);
-    await saveSecretToAccount('openaiApiKey', decrypted);
-    updateStorageModeNotice('Loaded admin default key.');
-    setDefaultKeyStatus('Default key applied to this session.');
+
+    updateStorageModeNotice('Loaded admin defaults.');
+    setDefaultKeyStatus(`Defaults applied: ${applied.join(', ')}. Shared rate limits are active when using these keys.`);
+    updateSharedUsageStatus();
   } catch (error) {
     setDefaultKeyStatus('Unable to decrypt the default key.');
   }
@@ -739,6 +1024,7 @@ function loadStoredKey() {
   const stored = storage.getItem(apiKeyStorageKey);
   if (stored) {
     apiKeyInput.value = stored;
+    refreshSharedKeyUsage('openai', stored);
   }
 }
 
@@ -929,6 +1215,7 @@ function loadStoredVercelToken() {
   const stored = storage.getItem(vercelTokenStorageKey);
   if (stored) {
     vercelTokenInput.value = stored;
+    refreshSharedKeyUsage('vercel', stored);
   }
 }
 
@@ -936,6 +1223,7 @@ function loadStoredGithubToken() {
   const stored = storage.getItem(githubTokenStorageKey);
   if (stored) {
     githubTokenInput.value = stored;
+    refreshSharedKeyUsage('github', stored);
   }
 }
 
@@ -1150,6 +1438,11 @@ async function sendToOpenAI() {
     return;
   }
 
+  if (!canUseSharedKey('openai')) {
+    outputBox.textContent = sharedLimitMessage();
+    return;
+  }
+
   submitBtn.disabled = true;
   outputBox.textContent = 'Sending to OpenAI...';
 
@@ -1227,6 +1520,11 @@ async function deployCurrentResponse() {
 
   if (!html || html.length < 20 || !html.toLowerCase().includes('<html')) {
     setVercelStatus('Generate HTML in the response before deploying to Vercel.');
+    return;
+  }
+
+  if (!canUseSharedKey('vercel')) {
+    setVercelStatus(sharedLimitMessage());
     return;
   }
 
@@ -1377,6 +1675,11 @@ async function publishToGithub() {
     return;
   }
 
+  if (!canUseSharedKey('github')) {
+    setGithubStatus(sharedLimitMessage());
+    return;
+  }
+
   githubBtn.disabled = true;
   setGithubStatus('Publishing to GitHub...');
 
@@ -1434,6 +1737,7 @@ saveKeyBtn.addEventListener('click', () => {
   outputBox.textContent = savedMessage;
   saveSecretToAccount('openaiApiKey', key);
   autoSyncSecret('openai', key);
+  refreshSharedKeyUsage('openai', key);
 });
 
 vaultAliasInput?.addEventListener('input', () => {
@@ -1479,6 +1783,7 @@ clearKeyBtn.addEventListener('click', () => {
   apiKeyInput.value = '';
   outputBox.textContent = 'API key cleared from this browser.';
   removeAccountSecret('openaiApiKey');
+  refreshSharedKeyUsage('openai', '');
 });
 
 submitBtn.addEventListener('click', sendToOpenAI);
@@ -1489,6 +1794,9 @@ githubRepoInput?.addEventListener('input', persistFormState);
 githubBranchInput?.addEventListener('input', persistFormState);
 githubPathInput?.addEventListener('input', persistFormState);
 githubMessageInput?.addEventListener('input', persistFormState);
+apiKeyInput?.addEventListener('input', () => refreshSharedKeyUsage('openai', apiKeyInput.value));
+vercelTokenInput?.addEventListener('input', () => refreshSharedKeyUsage('vercel', vercelTokenInput.value));
+githubTokenInput?.addEventListener('input', () => refreshSharedKeyUsage('github', githubTokenInput.value));
 saveVercelBtn.addEventListener('click', () => {
   const token = vercelTokenInput.value.trim();
   if (!token) {
@@ -1506,6 +1814,7 @@ saveVercelBtn.addEventListener('click', () => {
   setVercelStatus(status);
   saveSecretToAccount('vercelToken', token);
   autoSyncSecret('vercel', token);
+  refreshSharedKeyUsage('vercel', token);
 });
 
 clearVercelBtn.addEventListener('click', () => {
@@ -1513,6 +1822,7 @@ clearVercelBtn.addEventListener('click', () => {
   vercelTokenInput.value = '';
   setVercelStatus('Vercel token cleared from this browser.');
   removeAccountSecret('vercelToken');
+  refreshSharedKeyUsage('vercel', '');
 });
 
 deployBtn.addEventListener('click', deployCurrentResponse);
@@ -1534,6 +1844,7 @@ saveGithubBtn.addEventListener('click', () => {
   setGithubStatus(githubMessage);
   saveSecretToAccount('githubToken', token);
   autoSyncSecret('github', token);
+  refreshSharedKeyUsage('github', token);
 });
 
 clearGithubBtn.addEventListener('click', () => {
@@ -1541,6 +1852,7 @@ clearGithubBtn.addEventListener('click', () => {
   githubTokenInput.value = '';
   setGithubStatus('GitHub token cleared from this browser.');
   removeAccountSecret('githubToken');
+  refreshSharedKeyUsage('github', '');
 });
 
 loadDefaultBtn?.addEventListener('click', loadDefaultKey);
@@ -1554,6 +1866,7 @@ restoreAutoVaultPreferences();
 
 recallUserSession();
 subscribeToDefaults();
+resetUsageTracking();
 user.on('auth', () => {
   const pub = user?.is?.pub;
   if (pub) {
