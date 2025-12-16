@@ -270,6 +270,12 @@ const defaultSecrets = {
   github: ''
 };
 
+const DEFAULT_CIPHERS = {
+  openai: ['apiKeyCipher', 'openaiCipher'],
+  vercel: ['vercelTokenCipher'],
+  github: ['githubTokenCipher']
+};
+
 const sharedKeyUsage = {
   openai: false,
   vercel: false,
@@ -398,6 +404,14 @@ function refreshSharedKeyUsage(targetKey, value) {
   const trimmed = (value || '').trim();
   sharedKeyUsage[targetKey] = Boolean(trimmed && trimmed === defaultSecrets[targetKey]);
   updateSharedUsageStatus();
+}
+
+function resolveDefaultCipher(targetKey) {
+  const fields = DEFAULT_CIPHERS[targetKey] || [];
+  for (const field of fields) {
+    if (currentDefaultConfig[field]) return currentDefaultConfig[field];
+  }
+  return null;
 }
 
 function detachUsageSubscription() {
@@ -807,18 +821,18 @@ function subscribeToDefaults() {
   defaultsNode.on(data => {
     currentDefaultConfig = data || {};
     const available = [];
-    if (currentDefaultConfig.apiKeyCipher) available.push('OpenAI');
-    if (currentDefaultConfig.vercelTokenCipher) available.push('Vercel');
-    if (currentDefaultConfig.githubTokenCipher) available.push('GitHub');
-    if (!currentDefaultConfig.apiKeyCipher) {
+    if (resolveDefaultCipher('openai')) available.push('OpenAI');
+    if (resolveDefaultCipher('vercel')) available.push('Vercel');
+    if (resolveDefaultCipher('github')) available.push('GitHub');
+    if (!resolveDefaultCipher('openai')) {
       defaultSecrets.openai = '';
       refreshSharedKeyUsage('openai', apiKeyInput?.value);
     }
-    if (!currentDefaultConfig.vercelTokenCipher) {
+    if (!resolveDefaultCipher('vercel')) {
       defaultSecrets.vercel = '';
       refreshSharedKeyUsage('vercel', vercelTokenInput?.value);
     }
-    if (!currentDefaultConfig.githubTokenCipher) {
+    if (!resolveDefaultCipher('github')) {
       defaultSecrets.github = '';
       refreshSharedKeyUsage('github', githubTokenInput?.value);
     }
@@ -834,9 +848,9 @@ function subscribeToDefaults() {
 }
 
 async function loadDefaultKey() {
-  const hasAnyDefault = currentDefaultConfig.apiKeyCipher
-    || currentDefaultConfig.vercelTokenCipher
-    || currentDefaultConfig.githubTokenCipher;
+  const hasAnyDefault = resolveDefaultCipher('openai')
+    || resolveDefaultCipher('vercel')
+    || resolveDefaultCipher('github');
 
   if (!hasAnyDefault) {
     setDefaultKeyStatus('No default key available yet.');
@@ -852,8 +866,9 @@ async function loadDefaultKey() {
   try {
     const applied = [];
 
-    if (currentDefaultConfig.apiKeyCipher) {
-      const decrypted = await Gun.SEA.decrypt(currentDefaultConfig.apiKeyCipher, passphrase);
+    const apiKeyCipher = resolveDefaultCipher('openai');
+    if (apiKeyCipher) {
+      const decrypted = await Gun.SEA.decrypt(apiKeyCipher, passphrase);
       if (decrypted) {
         apiKeyInput.value = decrypted;
         storage.setItem(apiKeyStorageKey, decrypted);
@@ -865,8 +880,9 @@ async function loadDefaultKey() {
       }
     }
 
-    if (currentDefaultConfig.vercelTokenCipher) {
-      const decrypted = await Gun.SEA.decrypt(currentDefaultConfig.vercelTokenCipher, passphrase);
+    const vercelCipher = resolveDefaultCipher('vercel');
+    if (vercelCipher) {
+      const decrypted = await Gun.SEA.decrypt(vercelCipher, passphrase);
       if (decrypted) {
         vercelTokenInput.value = decrypted;
         storage.setItem(vercelTokenStorageKey, decrypted);
@@ -878,8 +894,9 @@ async function loadDefaultKey() {
       }
     }
 
-    if (currentDefaultConfig.githubTokenCipher) {
-      const decrypted = await Gun.SEA.decrypt(currentDefaultConfig.githubTokenCipher, passphrase);
+    const githubCipher = resolveDefaultCipher('github');
+    if (githubCipher) {
+      const decrypted = await Gun.SEA.decrypt(githubCipher, passphrase);
       if (decrypted) {
         githubTokenInput.value = decrypted;
         storage.setItem(githubTokenStorageKey, decrypted);
@@ -1078,23 +1095,32 @@ function getVaultableSecrets() {
   return secrets;
 }
 
+function normalizeVaultTarget(targetKey) {
+  if (!targetKey) return null;
+  const key = targetKey.toLowerCase();
+  if (vaultTargets[key]) return key;
+  if (['apikey', 'openaiapikey', 'openai_api_key'].includes(key)) return 'openai';
+  return null;
+}
+
 // Keep vault records target-scoped so saving one secret never wipes another.
 function buildVaultTargetMap(record) {
   const targets = {};
   const storedTargets = record?.targets && typeof record.targets === 'object' ? record.targets : {};
 
   Object.entries(storedTargets).forEach(([targetKey, entry]) => {
-    if (entry?.cipher) {
-      targets[targetKey] = {
+    const normalizedTarget = normalizeVaultTarget(targetKey);
+    if (entry?.cipher && normalizedTarget) {
+      targets[normalizedTarget] = {
         cipher: entry.cipher,
         updatedAt: entry.updatedAt || record?.updatedAt,
-        target: entry.target || targetKey,
+        target: entry.target || normalizedTarget,
       };
     }
   });
 
   if (!Object.keys(targets).length && record?.cipher) {
-    const targetKey = record.target || 'openai';
+    const targetKey = normalizeVaultTarget(record.target) || 'openai';
     targets[targetKey] = {
       cipher: record.cipher,
       updatedAt: record.updatedAt,
