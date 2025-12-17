@@ -333,6 +333,7 @@
     const defaultEmptyMessage = emptyStateEl.innerHTML;
     const MOBILE_BREAKPOINT = 900;
     const DEFAULT_FOLDER_NAME = 'Quick Notes';
+    const DEFAULT_FOLDER_ID = 'default-quick-notes';
 
     let currentFolder = null;
     let currentNoteId = null;
@@ -346,6 +347,7 @@
     let defaultFolderSeeded = false;
 
     const folderElements = new Map();
+    const folderCache = new Map();
     const noteElements = new Map();
     const noteCache = new Map();
 
@@ -457,6 +459,19 @@
       }
     });
 
+    function normalizeFolderName(name) {
+      return (name || '').trim().toLowerCase();
+    }
+
+    function findFolderByNormalizedName(normalizedName) {
+      for (const [id, folder] of folderCache.entries()) {
+        if (folder.normalizedName === normalizedName) {
+          return id;
+        }
+      }
+      return null;
+    }
+
     function mirrorFolderToPrimary(id, folder) {
       if (isStubSource(primaryFolderSource)) {
         return;
@@ -484,6 +499,7 @@
             li.remove();
             folderElements.delete(id);
           }
+          folderCache.delete(id);
           folderSourceRefs.delete(id);
           if (currentFolder === id) {
             currentFolder = null;
@@ -496,7 +512,16 @@
 
       if (folder._) delete folder._;
       const name = folder.name?.trim() || 'Untitled Space';
-      defaultFolderSeeded = true;
+      const normalizedName = normalizeFolderName(name);
+      if (normalizedName === normalizeFolderName(DEFAULT_FOLDER_NAME)) {
+        defaultFolderSeeded = true;
+      }
+      folderCache.set(id, {
+        ...folder,
+        id,
+        name,
+        normalizedName
+      });
       const existingSource = folderSourceRefs.get(id);
       const shouldOverwriteSource = !existingSource || source === primaryFolderSource || existingSource === source;
       if (shouldOverwriteSource) {
@@ -557,7 +582,21 @@
         defaultFolderSeeded = true;
         return;
       }
-      seedDefaultFolder();
+      const normalizedDefaultName = normalizeFolderName(DEFAULT_FOLDER_NAME);
+      const existingDefaultId = findFolderByNormalizedName(normalizedDefaultName);
+      if (existingDefaultId) {
+        defaultFolderSeeded = true;
+        if (!currentFolder) {
+          selectFolder(existingDefaultId);
+        }
+        return;
+      }
+      setTimeout(() => {
+        // Allow time for peers to sync existing folders so we do not double-create the default space.
+        if (!defaultFolderSeeded && !findFolderByNormalizedName(normalizedDefaultName)) {
+          seedDefaultFolder();
+        }
+      }, 750);
     }
 
     folderSources.forEach(registerFolderSnapshot);
@@ -569,20 +608,27 @@
       if (defaultFolderSeeded) {
         return;
       }
+      const normalizedDefaultName = normalizeFolderName(DEFAULT_FOLDER_NAME);
+      const existingDefaultId = findFolderByNormalizedName(normalizedDefaultName);
+      if (existingDefaultId) {
+        defaultFolderSeeded = true;
+        selectFolder(existingDefaultId);
+        return;
+      }
       defaultFolderSeeded = true;
-      const id = createFolder(DEFAULT_FOLDER_NAME);
+      const id = createFolder(DEFAULT_FOLDER_NAME, DEFAULT_FOLDER_ID);
       selectFolder(id);
     }
 
-    function createFolder(name) {
+    function createFolder(name, id = generateId()) {
       defaultFolderSeeded = true;
-      const id = generateId();
       const now = Date.now();
       const payload = {
         name: name || 'Untitled Space',
         createdAt: now,
         updatedAt: now
       };
+      const normalizedName = normalizeFolderName(payload.name);
       putToSources(folderSources, id, payload, {
         onPrimaryAck: (ack) => {
           if (ack && ack.err) {
@@ -592,6 +638,11 @@
         }
       });
       folderSourceRefs.set(id, primaryFolderSource);
+      folderCache.set(id, {
+        ...payload,
+        id,
+        normalizedName
+      });
       return id;
     }
 
@@ -682,7 +733,7 @@
         selectFolder(first.value);
         return first.value;
       }
-      const id = createFolder(DEFAULT_FOLDER_NAME);
+      const id = createFolder(DEFAULT_FOLDER_NAME, DEFAULT_FOLDER_ID);
       selectFolder(id);
       return id;
     }
