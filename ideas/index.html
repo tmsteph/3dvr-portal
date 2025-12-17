@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ideas Lab | Dashboard</title>
+  <link rel="stylesheet" href="ideas.css">
+</head>
+<body data-dashboard="true">
+  <nav class="nav" aria-label="Ideas Lab navigation">
+    <a href="/home">← Portal Home</a>
+    <a href="/ideas/">Ideas Dashboard</a>
+  </nav>
+  <main class="page">
+    <h1>Ideas Lab</h1>
+    <p class="lead">Three quick landing experiments with simple, browser-local stats.</p>
+    <div class="cards">
+      <div class="card" data-idea-card data-idea-path="/ideas/websites.html">
+        <h2>Websites, Fast</h2>
+        <p>I help you get a clean website online quickly — without the usual stress.</p>
+        <div class="stats">
+          <div class="stat">
+            <span class="label">Page views</span>
+            <span class="value" data-idea-views>0</span>
+          </div>
+          <div class="stat">
+            <span class="label">CTA clicks</span>
+            <span class="value" data-idea-cta-count>0</span>
+          </div>
+          <div class="stat">
+            <span class="label">Last seen</span>
+            <span class="value" data-idea-last>Never</span>
+          </div>
+        </div>
+        <a class="cta" href="/ideas/websites.html">Open idea</a>
+      </div>
+      <div class="card" data-idea-card data-idea-path="/ideas/systems.html">
+        <h2>Organize Your Ideas</h2>
+        <p>I help you turn scattered notes into a clear system you can actually use.</p>
+        <div class="stats">
+          <div class="stat">
+            <span class="label">Page views</span>
+            <span class="value" data-idea-views>0</span>
+          </div>
+          <div class="stat">
+            <span class="label">CTA clicks</span>
+            <span class="value" data-idea-cta-count>0</span>
+          </div>
+          <div class="stat">
+            <span class="label">Last seen</span>
+            <span class="value" data-idea-last>Never</span>
+          </div>
+        </div>
+        <a class="cta" href="/ideas/systems.html">Open idea</a>
+      </div>
+      <div class="card" data-idea-card data-idea-path="/ideas/support.html">
+        <h2>Tech Support That Doesn’t Suck</h2>
+        <p>I help you fix issues, choose tools, and stop wasting time fighting tech.</p>
+        <div class="stats">
+          <div class="stat">
+            <span class="label">Page views</span>
+            <span class="value" data-idea-views>0</span>
+          </div>
+          <div class="stat">
+            <span class="label">CTA clicks</span>
+            <span class="value" data-idea-cta-count>0</span>
+          </div>
+          <div class="stat">
+            <span class="label">Last seen</span>
+            <span class="value" data-idea-last>Never</span>
+          </div>
+        </div>
+        <a class="cta" href="/ideas/support.html">Open idea</a>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="ghost" data-reset-stats>Reset stats</button>
+    </div>
+    <p class="meta">Stats are stored in your browser via localStorage and scoped per page.</p>
+  </main>
+  <footer class="footer">3DVR.Tech – Ideas Lab (experimental)</footer>
+  <script src="ideas.js"></script>
+</body>
+</html>
