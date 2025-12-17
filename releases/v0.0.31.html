@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.31 (Week of December 22, 2025)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.30.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.31</h1>
+  <div class="tag">Week of December 22, 2025</div>
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      The new <a href="../ideas/index.html">Ideas Lab</a> launches with trackable experiments, the portal gains a
+      <a href="../projects/index.html">project directory</a> for active explorations, and shared defaults across the
+      <a href="../openai-app/index.html">AI builders</a> pick up clearer vault imports plus rate limits for
+      default keys.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Portal quick links</h2>
+    <ul>
+      <li><a href="../index.html">Portal home</a> – hop across workspaces, labs, and the release hub.</li>
+      <li><a href="../releases/index.html">Release hub</a> – browse weekly milestones and product checkpoints.</li>
+      <li><a href="../projects/index.html">Projects directory</a> – see active explorations and next steps to ship.</li>
+      <li><a href="../ideas/index.html">Ideas Lab</a> – test landing experiments with local view and CTA stats.</li>
+      <li><a href="../openai-app/index.html">OpenAI Workbench</a> – code, preview, and deploy with shared defaults.</li>
+      <li><a href="../web-builder-app/index.html">Web Builder</a> – generate and publish sites with guarded default keys.</li>
+      <li><a href="../admin/index.html">Admin</a> – manage shared defaults, score rewards, and payouts.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Ideas Lab experiments</h2>
+    <ul>
+      <li>Launch an <a href="../ideas/index.html">Ideas Lab dashboard</a> with per-card stats for page views, CTA
+      clicks, last-seen timestamps, and a manual reset that stores data in localStorage per landing page.</li>
+      <li>Add three idea landers—<a href="../ideas/websites.html">Websites</a>,
+      <a href="../ideas/systems.html">Systems</a>, and <a href="../ideas/support.html">Tech Support</a>—with
+      prefilled mailto CTAs that include the idea name and URL while logging CTA clicks per visitor.</li>
+      <li>Keep portal navigation close at hand so visitors can hop back to <a href="../index.html">home</a> or review
+      other experiments without losing their local stats.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Project directory &amp; navigation</h2>
+    <ul>
+      <li>Introduce a <a href="../projects/index.html">Projects directory</a> that highlights the wearable input kit
+      exploration, spells out the GunJS data paths for concepts and handoff artifacts, and links to shared notes and
+      tasks.</li>
+      <li>Surface new Projects and Ideas Lab entry points on the <a href="../index.html">portal home</a> so
+      contributors can find experiments and explorations alongside existing tools.</li>
+      <li>Retain dark-theme readability with mobile-friendly grids and skip links that jump directly to project
+      content.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Workbench builders &amp; shared defaults</h2>
+    <ul>
+      <li>Guard the rate-limited Web Builder by tracking shared default usage per billing tier and identity before
+      generating or publishing sites, with Gun-backed counters that reset daily.</li>
+      <li>Harden OpenAI Workbench defaults by aligning cipher fields for OpenAI, Vercel, and GitHub tokens so shared
+      keys unlock reliably across vault imports and passphrase hints.</li>
+      <li>Let <a href="../admin/index.html">admins</a> import their saved workbench secrets—or vault backups when
+      needed—directly into the shared defaults form before re-encrypting them for the team.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2025 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
