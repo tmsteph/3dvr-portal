@@ -86,7 +86,7 @@ const apps = {
       <div class="command-grid">
         <button class="button command" data-open-url="/tasks/">Open Tasks</button>
         <button class="button command" data-open-url="/calendar">View Calendar</button>
-        <button class="button command" data-open-url="/chat.html">Join Chat</button>
+        <button class="button command" data-open-url="/chat/">Join Chat</button>
         <button class="button command" data-open-url="/crm">CRM Tools</button>
       </div>
       <p class="muted">Command palette coming soon with GunDB integration.</p>
