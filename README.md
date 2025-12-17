@@ -64,7 +64,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 
 - [Tasks](https://3dvr-portal.vercel.app/tasks.html)
 - [Notes](https://3dvr-portal.vercel.app/notes/)
-- [Chat](https://3dvr-portal.vercel.app/chat.html)
+- [Chat](https://3dvr-portal.vercel.app/chat/)
 - [Calendar Hub](https://3dvr-portal.vercel.app/calendar/)
 - [Contacts](https://3dvr-portal.vercel.app/contacts/)
 
