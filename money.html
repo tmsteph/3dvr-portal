@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Money Re-Permissioning | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="Money Re-Permissioning exercise to welcome money with integrity, alignment, and clear boundaries."
+  >
+  <link rel="stylesheet" href="styles/global.css">
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    body.money-page {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: radial-gradient(140% 140% at 14% 10%, rgba(56, 189, 248, 0.12), transparent 60%),
+        radial-gradient(140% 140% at 86% 12%, rgba(94, 234, 212, 0.1), transparent 60%),
+        #05070c;
+      color: #e5e7eb;
+      line-height: 1.7;
+    }
+
+    .page-shell {
+      width: min(1024px, 94vw);
+      margin: 0 auto;
+      padding: 28px 0 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-header {
+      display: grid;
+      gap: 14px;
+      text-align: center;
+      padding: 12px 0 6px;
+    }
+
+    .eyebrow {
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.65);
+      font-size: 0.85rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.1rem, 5vw, 2.8rem);
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 0 auto;
+      max-width: 720px;
+      color: rgba(226, 232, 240, 0.82);
+      font-size: 1.05rem;
+    }
+
+    .header-actions {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: rgba(15, 23, 42, 0.7);
+      color: #e5e7eb;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: rgba(56, 189, 248, 0.5);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .button.secondary {
+      background: rgba(34, 211, 238, 0.12);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: #f0f9ff;
+    }
+
+    .button.ghost {
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .anchor-nav {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 8px 0 12px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .anchor-nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.65);
+      color: #e5e7eb;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .anchor-nav a:hover,
+    .anchor-nav a:focus-visible {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: rgba(56, 189, 248, 0.45);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .content-area {
+      display: grid;
+      gap: 16px;
+    }
+
+    .section-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 20px;
+      padding: 18px 18px 20px;
+      box-shadow: 0 22px 48px rgba(0, 0, 0, 0.35);
+    }
+
+    .section-card h2 {
+      margin: 0 0 10px;
+      font-size: 1.2rem;
+      letter-spacing: -0.01em;
+    }
+
+    .section-card p {
+      margin: 0 0 10px;
+      color: rgba(229, 231, 235, 0.88);
+    }
+
+    .section-card ul,
+    .section-card ol {
+      margin: 0 0 10px 18px;
+      padding: 0;
+      color: rgba(229, 231, 235, 0.88);
+    }
+
+    .hint {
+      color: rgba(229, 231, 235, 0.7);
+      font-size: 0.95rem;
+      margin-top: 4px;
+    }
+
+    .script-block {
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(12, 18, 33, 0.7);
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .script-line {
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #f8fafc;
+    }
+
+    .copy-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .copy-feedback {
+      color: #a5f3fc;
+      font-size: 0.95rem;
+      min-height: 1.2em;
+    }
+
+    .notes-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 18px;
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .notes-card label {
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .notes-card textarea {
+      width: 100%;
+      min-height: 140px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(8, 13, 22, 0.8);
+      color: #e5e7eb;
+      padding: 12px;
+      font-family: inherit;
+      font-size: 1rem;
+      resize: vertical;
+    }
+
+    .footer-note {
+      text-align: center;
+      color: rgba(226, 232, 240, 0.75);
+      margin-top: 6px;
+      font-size: 0.98rem;
+    }
+
+    .privacy-note {
+      color: rgba(226, 232, 240, 0.78);
+      margin: 0;
+      font-size: 0.98rem;
+    }
+
+    @media (max-width: 640px) {
+      .page-shell {
+        gap: 18px;
+        padding: 20px 0 48px;
+      }
+
+      .section-card {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body class="theme-dark money-page">
+  <a class="skip-link" href="#moneyContent">Skip to Money Re-Permissioning</a>
+  <div class="page-shell">
+    <div class="top-buttons" aria-label="Portal navigation">
+      <a href="index.html">🏠 Portal</a>
+      <a href="meditation/">🧘 Mind</a>
+      <a href="wellness.html">💙 Wellness</a>
+      <a href="money.html" aria-current="page">💠 Money</a>
+      <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
+    </div>
+
+    <header class="page-header">
+      <p class="eyebrow">Mind · Money</p>
+      <h1>Money Re-Permissioning</h1>
+      <p class="subtitle">
+        A grounded exercise for receiving, holding, and circulating money without violating your values.
+      </p>
+      <div class="header-actions">
+        <button class="button secondary" type="button" id="printButton">🖨️ Print / Save</button>
+        <a class="button ghost" href="#part3">Core script</a>
+        <a class="button ghost" href="#part6">Collective script</a>
+      </div>
+      <p class="privacy-note">Private reflection: you can keep everything you write here to yourself.</p>
+      <ul class="anchor-nav" aria-label="Exercise parts">
+        <li><a href="#part1">Part 1 — Name the Old Contract</a></li>
+        <li><a href="#part2">Part 2 — Identify the Protection</a></li>
+        <li><a href="#part3">Part 3 — Conscious Re-Permission</a></li>
+        <li><a href="#part4">Part 4 — Bounded Permission</a></li>
+        <li><a href="#part5">Part 5 — Embodiment Check</a></li>
+        <li><a href="#part6">Part 6 — Collective Version</a></li>
+        <li><a href="#part7">Part 7 — Integration</a></li>
+      </ul>
+    </header>
+
+    <main id="moneyContent" class="content-area" aria-label="Money Re-Permissioning content">
+      <section class="section-card" aria-labelledby="intro-title">
+        <h2 id="intro-title">Intro</h2>
+        <p>
+          Purpose: To consciously re-grant permission to receive, hold, and circulate money without violating personal ethics,
+          spirituality, or identity.
+        </p>
+        <p>This is not about “abundance.” It’s about alignment and consent.</p>
+      </section>
+
+      <section class="section-card" id="part1" aria-labelledby="part1-title">
+        <h2 id="part1-title">PART 1 — Name the Old Contract (2–3 minutes)</h2>
+        <p>Everyone silently completes these sentences (no sharing required):</p>
+        <ul>
+          <li>“I was taught (directly or indirectly) that money…”</li>
+          <li>“Because of this, I learned to…”</li>
+        </ul>
+        <p>This step removes shame. You didn’t choose this contract — you inherited it.</p>
+      </section>
+
+      <section class="section-card" id="part2" aria-labelledby="part2-title">
+        <h2 id="part2-title">PART 2 — Identify the Protection (Key Insight)</h2>
+        <p>Complete:</p>
+        <ul>
+          <li>“This money behavior has been protecting me from…”</li>
+        </ul>
+        <p>Important: The blockage is not the enemy — it’s a guardian. We thank it, not fight it.</p>
+      </section>
+
+      <section class="section-card" id="part3" aria-labelledby="part3-title">
+        <div class="copy-row" aria-live="polite">
+          <h2 id="part3-title" style="margin: 0;">PART 3 — Conscious Re-Permission (The Core Moment)</h2>
+          <button
+            class="button secondary"
+            type="button"
+            data-copy-target="part3Script"
+            data-feedback-id="copyFeedbackPart3"
+          >Copy section</button>
+          <span class="copy-feedback" id="copyFeedbackPart3" role="status" aria-live="polite"></span>
+        </div>
+        <p>Read slowly. Pause between lines.</p>
+        <div class="script-block" id="part3Script">
+          <p class="script-line">“I acknowledge that my relationship with money was formed under different conditions.”</p>
+          <p class="script-line">“I am no longer a child, a student, or surviving without choice.”</p>
+          <p class="script-line">
+            “I now give myself permission to receive money in ways that do not harm my values, my health, or my
+            relationships.”
+          </p>
+          <p class="script-line">“I do not need to become someone else to be supported.”</p>
+          <p class="script-line">“Money is allowed to support me while I build what matters.”</p>
+        </div>
+      </section>
+
+      <section class="section-card" id="part4" aria-labelledby="part4-title">
+        <h2 id="part4-title">PART 4 — Define Bounded Permission (Very Important)</h2>
+        <p>Complete:</p>
+        <ul>
+          <li>“I am willing to receive money as long as…”</li>
+        </ul>
+        <p>Examples:</p>
+        <ul>
+          <li>it aligns with my ethics</li>
+          <li>it helps others</li>
+          <li>it supports my family</li>
+          <li>it’s transparent</li>
+          <li>it doesn’t require lying</li>
+          <li>it doesn’t destroy my body</li>
+        </ul>
+        <p>Note: Unlimited permission can feel threatening. Bounded permission feels trustworthy.</p>
+      </section>
+
+      <section class="section-card" id="part5" aria-labelledby="part5-title">
+        <h2 id="part5-title">PART 5 — Embodiment Check (30 seconds)</h2>
+        <p>Ask the body, not the mind:</p>
+        <ul>
+          <li>“What amount of money currently feels safe to receive per month?”</li>
+        </ul>
+        <p>
+          That number is your current nervous-system ceiling. Growth happens by gradually expanding the ceiling, not smashing it.
+        </p>
+      </section>
+
+      <section class="section-card" id="part6" aria-labelledby="part6-title">
+        <div class="copy-row" aria-live="polite">
+          <h2 id="part6-title" style="margin: 0;">PART 6 — Collective Version (for groups / 3DVR)</h2>
+          <button class="button secondary" type="button" data-copy-target="part6Script" data-feedback-id="copyFeedbackPart6">Copy section</button>
+          <span class="copy-feedback" id="copyFeedbackPart6" role="status" aria-live="polite"></span>
+        </div>
+        <p>Read aloud together:</p>
+        <div class="script-block" id="part6Script">
+          <p class="script-line">“We reject the belief that money and integrity are opposites.”</p>
+          <p class="script-line">“We allow money to circulate as a tool for coordination, care, and creation.”</p>
+          <p class="script-line">“We choose transparency over extraction.”</p>
+          <p class="script-line">“We choose sustainability over burnout.”</p>
+          <p class="script-line">“We choose slow, aligned growth over false urgency.”</p>
+        </div>
+      </section>
+
+      <section class="section-card" id="part7" aria-labelledby="part7-title">
+        <h2 id="part7-title">PART 7 — Integration (The Only Action Step)</h2>
+        <p>Answer:</p>
+        <ul>
+          <li>“One small, ethical, non-dramatic way I can allow money to support me this month is…”</li>
+        </ul>
+        <p>Examples:</p>
+        <ul>
+          <li>raising a price slightly</li>
+          <li>keeping a subscription open</li>
+          <li>asking once instead of hinting</li>
+          <li>receiving help without apologizing</li>
+          <li>not immediately giving money away</li>
+          <li>charging for something I already do</li>
+        </ul>
+      </section>
+
+      <section class="notes-card" aria-labelledby="notes-title">
+        <div class="copy-row" style="margin-top: 0;">
+          <div>
+            <p id="notes-title" style="margin: 0; font-size: 1.05rem; font-weight: 700;">Notes (private to you)</p>
+            <p class="hint" style="margin: 2px 0 0;">Saved locally in this browser. Clearing removes only this note.</p>
+          </div>
+          <button class="button ghost" type="button" id="clearNotes">Clear Notes</button>
+        </div>
+        <label for="moneyNotes">Jot anything you want to revisit.</label>
+        <textarea id="moneyNotes" name="moneyNotes" aria-label="Notes for Money Re-Permissioning"></textarea>
+      </section>
+
+      <p class="footer-note">This is a practice, not a test. Go gently. Repeat weekly.</p>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const printButton = document.getElementById('printButton');
+      if (printButton) {
+        printButton.addEventListener('click', () => window.print());
+      }
+
+      const showFeedback = (id, message) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = message;
+        window.setTimeout(() => {
+          el.textContent = '';
+        }, 2600);
+      };
+
+      const copyButtons = document.querySelectorAll('[data-copy-target]');
+      copyButtons.forEach((button) => {
+        const targetId = button.getAttribute('data-copy-target');
+        const feedbackId = button.getAttribute('data-feedback-id');
+        const target = document.getElementById(targetId);
+        if (!target) return;
+
+        const fallbackCopy = () => {
+          const range = document.createRange();
+          range.selectNodeContents(target);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          document.execCommand('copy');
+          selection.removeAllRanges();
+          showFeedback(feedbackId, 'Copied to clipboard');
+        };
+
+        button.addEventListener('click', async () => {
+          const text = target.innerText.trim();
+          if (!text) return;
+          try {
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(text);
+              showFeedback(feedbackId, 'Copied to clipboard');
+            } else {
+              fallbackCopy();
+            }
+          } catch (err) {
+            fallbackCopy();
+          }
+        });
+      });
+
+      const notesKey = '3dvr.money.notes';
+      const notesField = document.getElementById('moneyNotes');
+      const clearNotes = document.getElementById('clearNotes');
+
+      if (notesField) {
+        try {
+          const saved = localStorage.getItem(notesKey);
+          if (saved) {
+            notesField.value = saved;
+          }
+        } catch (err) {
+          // Local storage might be blocked; continue without persistence.
+        }
+
+        notesField.addEventListener('input', () => {
+          try {
+            localStorage.setItem(notesKey, notesField.value);
+          } catch (err) {
+            // Ignore storage errors to keep the exercise smooth.
+          }
+        });
+      }
+
+      if (clearNotes && notesField) {
+        clearNotes.addEventListener('click', () => {
+          notesField.value = '';
+          try {
+            localStorage.removeItem(notesKey);
+          } catch (err) {
+            // Ignore storage errors.
+          }
+          notesField.focus();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
