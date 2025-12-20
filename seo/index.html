@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SEO / Visibility Plan | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/seo/seo.css">
+</head>
+<body class="seo-page">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <nav class="nav" aria-label="SEO plan navigation">
+    <a href="/index.html">← Portal Home</a>
+    <a href="/seo/">SEO / Visibility Plan</a>
+  </nav>
+
+  <main id="mainContent" class="page">
+    <header class="page-header">
+      <p class="eyebrow">Public Workspace</p>
+      <h1>SEO / Visibility Plan</h1>
+      <p class="lead">
+        Track how the portal will support public discovery while keeping unlisted and private content protected. This page
+        is safe to publish and acts as the shared plan + tracker hub.
+      </p>
+    </header>
+
+    <section class="section" aria-labelledby="status-title">
+      <div class="section-header">
+        <h2 id="status-title">Implementation checklist</h2>
+        <p class="section-subtitle">Status labels align with Not started, In progress, and Done.</p>
+      </div>
+      <div class="table-wrap" role="region" aria-live="polite" aria-label="SEO plan status table">
+        <table class="status-table">
+          <thead>
+            <tr>
+              <th scope="col">Task</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody data-task-table></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="visibility-title">
+      <h2 id="visibility-title">A) Visibility system</h2>
+      <p class="section-intro">
+        Portal content uses a clear visibility flag so the UI, search engines, and snapshotting logic can agree on what
+        is safe to show.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <h3>Definitions</h3>
+          <ul>
+            <li><strong>Public</strong>: discoverable, listed, and indexable.</li>
+            <li><strong>Unlisted</strong>: accessible by direct link, but hidden from listings and search.</li>
+            <li><strong>Private</strong>: requires auth or membership checks before any content is rendered.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Policy engine outputs</h3>
+          <ul>
+            <li><code>canView</code>: viewer has read access.</li>
+            <li><code>canEdit</code>: viewer can edit or moderate.</li>
+            <li><code>canList</code>: show in portal listings or feeds.</li>
+            <li><code>shouldIndex</code>: allow search engine indexing.</li>
+            <li><code>shouldSnapshot</code>: generate HTML snapshot for bots.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Default rules by content type</h3>
+        <div class="table-wrap" role="region" aria-label="Default visibility rules">
+          <table class="status-table">
+            <thead>
+              <tr>
+                <th scope="col">Content type</th>
+                <th scope="col">Default visibility</th>
+                <th scope="col">Listing behavior</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Notes</td>
+                <td>Private</td>
+                <td>Visible to the author and invited teammates only.</td>
+              </tr>
+              <tr>
+                <td>Discussions</td>
+                <td>Public</td>
+                <td>Public discussions appear in the public index; unlisted threads stay hidden.</td>
+              </tr>
+              <tr>
+                <td>Dashboards</td>
+                <td>Unlisted</td>
+                <td>Direct-link access for shared dashboards, no global listings.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="indexing-title">
+      <h2 id="indexing-title">B) Indexing strategy</h2>
+      <p class="section-intro">Indexing treats public pages like documents, not databases.</p>
+      <div class="grid">
+        <div class="card">
+          <h3>Documents, not databases</h3>
+          <p>
+            Public pages ship as stable HTML snapshots so crawlers see a cohesive document. GunJS then hydrates the live
+            session for humans.
+          </p>
+        </div>
+        <div class="card">
+          <h3>HTML-first + hydration</h3>
+          <ul>
+            <li>Generate HTML snapshots for public routes.</li>
+            <li>Serve snapshots to bots and to first-time visitors.</li>
+            <li>Hydrate with GunJS data after load to keep the UI live.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Snapshot storage options</h3>
+          <ul>
+            <li>Vercel Blob for immutable HTML snapshots.</li>
+            <li>Vercel KV / Redis for cached HTML strings.</li>
+            <li>Static object storage (S3-compatible) for backup snapshots.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="seo-controls-title">
+      <h2 id="seo-controls-title">C) SEO controls</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Meta robots rules</h3>
+          <ul>
+            <li><strong>Public</strong>: <code>index,follow</code></li>
+            <li><strong>Unlisted</strong>: <code>noindex,nofollow</code></li>
+            <li><strong>Private</strong>: <code>noindex,nofollow</code> + auth gate</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Sitemap rules</h3>
+          <p>Only public routes appear in <code>sitemap.xml</code>. Unlisted and private content never appears.</p>
+        </div>
+        <div class="card">
+          <h3>robots.txt rules</h3>
+          <p>Disallow private and unlisted sections to keep crawlers away from gated paths.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="implementation-title">
+      <h2 id="implementation-title">D) Implementation plan</h2>
+      <div class="timeline">
+        <div class="timeline-step">
+          <h3>Phase 1: Visibility flags + noindex</h3>
+          <p>Introduce the visibility field, policy helper, and meta robots rules.</p>
+        </div>
+        <div class="timeline-step">
+          <h3>Phase 2: Snapshots</h3>
+          <p>Generate HTML snapshots for public pages and hydrate with GunJS on load.</p>
+        </div>
+        <div class="timeline-step">
+          <h3>Phase 3: Sitemap + robots</h3>
+          <p>Publish <code>sitemap.xml</code> and <code>robots.txt</code> for public-only content.</p>
+        </div>
+        <div class="timeline-step">
+          <h3>Phase 4: Analytics</h3>
+          <p>Track public discovery without adding external analytics scripts.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Definition of done</h3>
+        <ul>
+          <li>Visibility flags exist on every content type.</li>
+          <li>Policy helper drives UI gating and indexability decisions.</li>
+          <li>Public routes ship HTML snapshots and hydrate with GunJS.</li>
+          <li>Sitemaps include public routes only.</li>
+          <li>Private/unlisted routes are blocked from indexing.</li>
+          <li>Public pages include canonical URLs and OpenGraph tags.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="progress-title">
+      <div class="section-header">
+        <h2 id="progress-title">Progress tracker</h2>
+        <p class="section-subtitle">Checklist progress is stored in your browser only.</p>
+      </div>
+      <div class="progress-meta">
+        <div class="progress-summary" aria-live="polite">
+          <span data-progress-count>0</span> of <span data-progress-total>0</span> tasks completed
+        </div>
+        <div class="progress-actions">
+          <button type="button" class="ghost" data-export-progress>Export JSON</button>
+          <label class="ghost file-label" for="progressImport">Import JSON</label>
+          <input type="file" id="progressImport" accept="application/json" class="file-input" data-import-progress>
+        </div>
+      </div>
+      <ul class="checklist" data-progress-list></ul>
+      <p class="meta">Storage key: <code>portal_seo_plan_progress_v1</code></p>
+    </section>
+  </main>
+
+  <footer class="footer">3DVR.Tech – SEO / Visibility Plan</footer>
+  <script src="/seo/seo.js"></script>
+</body>
+</html>
