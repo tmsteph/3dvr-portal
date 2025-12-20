@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Self-Hosted Git + Deploy Stack | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">Deployment</div>
+      <h1 class="guide-title">Self-hosted GitHub + Vercel, the easy way</h1>
+      <p class="guide-description">
+        If the number-one constraint is “easy,” this combo mirrors the GitHub + Vercel workflow while staying fully
+        self-hosted.
+      </p>
+    </div>
+
+    <div class="guide-section">
+      <h2>Core combo</h2>
+      <ul class="guide-list">
+        <li>
+          <strong>Forgejo</strong> as your “GitHub” for repos, issues, PRs, and accounts. Host it at a URL like
+          <span class="inline-code">git.3dvr.tech</span>.
+        </li>
+        <li>
+          <strong>Coolify</strong> (or <strong>/dev/push</strong>) as your “Vercel” for click-to-deploy from Git.
+          Coolify is dashboard-first; /dev/push feels more Vercel-ish.
+        </li>
+      </ul>
+    </div>
+
+    <div class="guide-section">
+      <h2>What you get</h2>
+      <ul class="guide-list">
+        <li>Push code → auto deploy.</li>
+        <li>Any language (Docker or buildpacks).</li>
+        <li>No hosted limits.</li>
+        <li>Runs on a cheap VPS, EC2, or local hardware.</li>
+      </ul>
+    </div>
+
+    <div class="guide-section">
+      <h2>Minimum-effort setup for 3dvr.tech</h2>
+      <ol class="guide-list">
+        <li>Buy one $6–$12/month VPS.</li>
+        <li>Install Coolify on it.</li>
+        <li>Add Forgejo as another app in Coolify (or run Forgejo separately).</li>
+        <li>Point DNS as shown below.</li>
+      </ol>
+    </div>
+
+    <div class="guide-section">
+      <h2>DNS layout</h2>
+      <ul class="guide-list">
+        <li><span class="inline-code">git.3dvr.tech</span> → Forgejo</li>
+        <li><span class="inline-code">deploy.3dvr.tech</span> → Coolify dashboard</li>
+        <li><span class="inline-code">*.apps.3dvr.tech</span> → Coolify deployments (wildcard)</li>
+      </ul>
+    </div>
+
+    <div class="guide-section">
+      <h2>Decentralization later (optional)</h2>
+      <p class="guide-description">
+        When you are stable, you can add Radicle or federation for “real” decentralization. Keep it out of the first
+        iteration so the workflow stays frictionless.
+      </p>
+    </div>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="/deployment-guides/">⬅ Back to Deployment Guides</a>
+      <a href="/index.html">Return to Portal</a>
+    </div>
+  </div>
+</body>
+</html>
