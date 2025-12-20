@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Models on Phones | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/index-style.css">
+</head>
+<body class="landing theme-dark">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <div class="landing-shell">
+    <main id="mainContent" class="landing-content">
+      <section class="hero" aria-labelledby="local-models-title">
+        <span class="hero-eyebrow">Mobile AI Field Notes</span>
+        <h1 id="local-models-title">Local models on phones</h1>
+        <p class="hero-tagline">
+          Guidance for running on-device and in-browser models, with practical sizing and rollout considerations.
+        </p>
+        <div class="hero-actions">
+          <a class="cta primary" href="/index.html">Back to portal</a>
+          <a class="cta ghost" href="#nextSteps">Jump to next steps</a>
+        </div>
+      </section>
+
+      <section class="app-hub" aria-labelledby="highlights-title">
+        <div class="app-hub__header">
+          <div class="app-hub__intro">
+            <span class="eyebrow">Highlights</span>
+            <h2 id="highlights-title">What works well on phones</h2>
+            <p>Smaller models are the most practical path for real-world mobile performance.</p>
+          </div>
+        </div>
+        <div class="app-grid">
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">💬</span>
+            <span class="app-card__title">Small LLMs</span>
+            <span class="app-card__meta">~0.5B–3B params (7B with heavy quantization) for chat and summaries.</span>
+          </article>
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">👁️</span>
+            <span class="app-card__title">On-device vision</span>
+            <span class="app-card__meta">Great for labeling, OCR-style tasks, and embeddings.</span>
+          </article>
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">⚠️</span>
+            <span class="app-card__title">Hard constraints</span>
+            <span class="app-card__meta">Large chat-class models and long contexts are memory-heavy.</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="app-hub" aria-labelledby="browser-title">
+        <div class="app-hub__header">
+          <div class="app-hub__intro">
+            <span class="eyebrow">Browser options</span>
+            <h2 id="browser-title">Local inference in the browser</h2>
+            <p>WebGPU leads for performance, with WASM as a compatibility fallback.</p>
+          </div>
+        </div>
+        <div class="app-grid">
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🚀</span>
+            <span class="app-card__title">WebGPU</span>
+            <span class="app-card__meta">Fast GPU-backed inference when supported by the device and browser.</span>
+          </article>
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🧩</span>
+            <span class="app-card__title">WASM fallback</span>
+            <span class="app-card__meta">Works more broadly, but slower than GPU paths.</span>
+          </article>
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🧪</span>
+            <span class="app-card__title">Capability checks</span>
+            <span class="app-card__meta">Detect WebGPU, RAM, and iOS support before choosing a model.</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="app-hub" aria-labelledby="native-title">
+        <div class="app-hub__header">
+          <div class="app-hub__intro">
+            <span class="eyebrow">Native options</span>
+            <h2 id="native-title">Android, iOS, and Flutter paths</h2>
+            <p>Native runtimes unlock the best on-device performance and stability.</p>
+          </div>
+        </div>
+        <div class="app-grid">
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🤖</span>
+            <span class="app-card__title">Android</span>
+            <span class="app-card__meta">Quantized model + NNAPI/GPU delegate runtime for offline assistants.</span>
+          </article>
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🍎</span>
+            <span class="app-card__title">iOS</span>
+            <span class="app-card__meta">Core ML or Metal-backed inference with tight memory budgets.</span>
+          </article>
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🧵</span>
+            <span class="app-card__title">Flutter</span>
+            <span class="app-card__meta">FFI or platform channels to bridge into native runtimes.</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="app-hub" aria-labelledby="architecture-title">
+        <div class="app-hub__header">
+          <div class="app-hub__intro">
+            <span class="eyebrow">Portal architecture</span>
+            <h2 id="architecture-title">Suggested rollout plan</h2>
+            <p>A mobile-first blend of on-device privacy and optional cloud power.</p>
+          </div>
+        </div>
+        <div class="app-grid">
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🔍</span>
+            <span class="app-card__title">Local embeddings</span>
+            <span class="app-card__meta">Private semantic search that stays fast and offline-friendly.</span>
+          </article>
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🧠</span>
+            <span class="app-card__title">On-device chat</span>
+            <span class="app-card__meta">Small helper model for quick answers and summaries.</span>
+          </article>
+          <article class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🌐</span>
+            <span class="app-card__title">Cloud escalation</span>
+            <span class="app-card__meta">Opt-in upgrade for harder prompts with clear privacy controls.</span>
+          </article>
+        </div>
+      </section>
+
+      <section id="nextSteps" class="info-panels" aria-label="Next steps">
+        <article class="info-card">
+          <h3>Define the target devices</h3>
+          <p>Confirm the Android/iOS split and how much of the experience must work fully offline.</p>
+        </article>
+        <article class="info-card">
+          <h3>Pick model sizes + runtimes</h3>
+          <p>Shortlist quantized model sizes for pilot devices and decide on WebGPU vs. native paths.</p>
+        </article>
+        <article class="info-card">
+          <h3>Prototype and measure</h3>
+          <p>Benchmark latency, heat, and battery impact across a few representative phones.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
