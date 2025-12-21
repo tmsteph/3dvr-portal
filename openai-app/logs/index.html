@@ -3,59 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>3DVR Portal · Logs</title>
+  <title>OpenAI Workbench · Logs</title>
   <link rel="stylesheet" href="/styles/global.css">
   <link rel="stylesheet" href="/styles/section-hub.css">
 </head>
 <body class="theme-dark">
   <a class="skip-link" href="#logsMain">Skip to log resources</a>
 
-  <nav class="top-buttons" aria-label="3DVR quick links">
-    <a href="/index.html">🏠 Portal Home</a>
-    <a href="/preview/">👀 Preview</a>
-    <a href="/setup/">🧭 Setup</a>
-    <a href="/chat/">💬 Chat</a>
+  <nav class="top-buttons" aria-label="Workbench quick links">
+    <a href="/openai-app/">🤖 Workbench</a>
+    <a href="/openai-app/setup/">🧭 Setup</a>
+    <a href="/openai-app/preview/">👀 Preview</a>
+    <a href="/deployment-guides/">🛠️ Deploy Guides</a>
   </nav>
 
   <main id="logsMain" class="section-shell">
     <header class="section-hero">
       <span class="section-hero__eyebrow">Logs</span>
-      <h1>Track deploy, app, and relay activity</h1>
+      <h1>Track Workbench publish activity</h1>
       <p>
-        Keep this dashboard handy when releases go live. It points you to the places that surface warnings and
-        performance notes.
+        Keep tabs on deploy output, GitHub publishing, and Gun relay sync while you ship changes.
       </p>
       <div class="section-actions">
         <a href="https://vercel.com/dashboard" target="_blank" rel="noopener">Open Vercel logs</a>
         <a href="https://github.com/tmsteph/3dvr-portal/actions" target="_blank" rel="noopener">GitHub actions</a>
-        <a href="/gun-explorer/">Gun explorer</a>
+        <a href="/openai-app/preview/">Return to preview</a>
       </div>
     </header>
 
     <section class="section-grid" aria-label="Log destinations">
       <article class="section-card">
         <h2>Deployment events</h2>
-        <p>Review build timings, asset warnings, and environment variable usage after each push.</p>
+        <p>Review build timings, asset warnings, and environment notes after each push.</p>
         <a href="/deployment-guides/">Deployment checklist</a>
       </article>
       <article class="section-card">
         <h2>Gun relay health</h2>
-        <p>Watch relay traffic to ensure data sync stays stable for all users.</p>
+        <p>Verify transcripts and deploy notes sync across devices after each session.</p>
         <a href="/gun-demo.html">Open relay monitor</a>
       </article>
       <article class="section-card">
-        <h2>User feedback stream</h2>
-        <p>Capture issues or UX notes directly from the community and route them to fixes.</p>
-        <a href="/notes.html">Write portal notes</a>
+        <h2>Workbench outputs</h2>
+        <p>Capture issues and follow-ups from recent preview runs or publish attempts.</p>
+        <a href="/notes.html">Open portal notes</a>
       </article>
     </section>
 
     <section class="section-panel" aria-label="Log review tips">
       <h2>Log review tips</h2>
       <ul>
-        <li>Check preview deploy logs first when something breaks in staging.</li>
-        <li>Look for missing static assets or manifest warnings in production builds.</li>
-        <li>Confirm Gun writes show up in multiple tabs or devices.</li>
+        <li>Check preview deploy logs first if the published page looks off.</li>
+        <li>Track missing assets or manifest warnings before shipping.</li>
+        <li>Confirm Gun writes appear in multiple tabs or devices.</li>
       </ul>
     </section>
 
