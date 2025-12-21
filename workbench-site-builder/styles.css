@@ -164,6 +164,26 @@ button.ghost {
   flex: 1 1 240px;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.continue-edit {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: #f4f9ff;
+}
+
+.continue-edit textarea {
+  min-height: 90px;
+}
+
 .output {
   background: #0b1629;
   color: #e6f2ff;
