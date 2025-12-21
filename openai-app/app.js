@@ -299,7 +299,14 @@ const defaultFormState = {
   githubRepo: 'demo/vr-workbench-sample',
   githubBranch: 'main',
   githubPath: 'index.html',
-  githubMessage: 'feat: add demo landing page'
+  githubMessage: 'feat: add demo landing page',
+  repoOwner: 'user',
+  repoOrg: '',
+  repoName: '',
+  repoVisibility: 'public',
+  repoDescription: '',
+  repoReadme: true,
+  repoBranchCleanup: true
 };
 
 function sanitizeResponseContent(content) {
@@ -557,13 +564,21 @@ function hydrateLastState() {
 }
 
 function persistFormState() {
+  const repoOwner = document.querySelector('input[name="repo-owner"]:checked')?.value || 'user';
   const payload = {
     vercelProject: projectInput?.value?.trim() || '',
     deployNote: deployNoteInput?.value?.trim() || '',
     githubRepo: githubRepoInput?.value?.trim() || '',
     githubBranch: githubBranchInput?.value?.trim() || '',
     githubPath: githubPathInput?.value?.trim() || '',
-    githubMessage: githubMessageInput?.value?.trim() || ''
+    githubMessage: githubMessageInput?.value?.trim() || '',
+    repoOwner,
+    repoOrg: repoOrgInput?.value?.trim() || '',
+    repoName: repoNameInput?.value?.trim() || '',
+    repoVisibility: repoVisibilitySelect?.value || 'public',
+    repoDescription: repoDescriptionInput?.value?.trim() || '',
+    repoReadme: repoReadmeCheckbox?.checked ?? true,
+    repoBranchCleanup: repoBranchCleanupCheckbox?.checked ?? true
   };
   storage.setItem(formStateStorageKey, JSON.stringify(payload));
 }
@@ -590,6 +605,30 @@ function hydrateFormState() {
   if (githubMessageInput && state.githubMessage) {
     githubMessageInput.value = state.githubMessage;
   }
+  if (repoNameInput && state.repoName) {
+    repoNameInput.value = state.repoName;
+  }
+  if (repoOrgInput && state.repoOrg) {
+    repoOrgInput.value = state.repoOrg;
+  }
+  if (repoVisibilitySelect && state.repoVisibility) {
+    repoVisibilitySelect.value = state.repoVisibility;
+  }
+  if (repoDescriptionInput && state.repoDescription) {
+    repoDescriptionInput.value = state.repoDescription;
+  }
+  if (repoReadmeCheckbox) {
+    repoReadmeCheckbox.checked = state.repoReadme ?? true;
+  }
+  if (repoBranchCleanupCheckbox) {
+    repoBranchCleanupCheckbox.checked = state.repoBranchCleanup ?? true;
+  }
+  if (repoOwnerRadios?.length && state.repoOwner) {
+    repoOwnerRadios.forEach((radio) => {
+      radio.checked = radio.value === state.repoOwner;
+    });
+  }
+  toggleRepoOrgField();
 
   if (!stored) {
     persistFormState();
@@ -1604,7 +1643,6 @@ function toggleRepoOrgField() {
   }
 }
 
-repoOwnerRadios.forEach((radio) => radio.addEventListener('change', toggleRepoOrgField));
 toggleRepoOrgField();
 
 function buildRepoEndpoint(ownerType, orgName) {
@@ -1612,6 +1650,37 @@ function buildRepoEndpoint(ownerType, orgName) {
     return `https://api.github.com/orgs/${encodeURIComponent(orgName)}/repos`;
   }
   return 'https://api.github.com/user/repos';
+}
+
+function slugifyRepoName(value) {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+function buildRepoNameSeed() {
+  const prompt = messageInput?.value?.trim();
+  const note = deployNoteInput?.value?.trim();
+  if (prompt) return prompt;
+  if (note) return note;
+  return 'workbench';
+}
+
+function suggestRepoName({ force = false } = {}) {
+  if (!repoNameInput) return '';
+  const current = repoNameInput.value.trim();
+  if (current && !force) return current;
+
+  const slug = slugifyRepoName(buildRepoNameSeed());
+  const fallback = `${getTodayKey()}-${Gun.text.random(4)}`.toLowerCase();
+  const base = slug || fallback;
+  const name = base.startsWith('workbench') ? base : `workbench-${base}`;
+
+  repoNameInput.value = name;
+  persistFormState();
+  return name;
 }
 
 function persistDeployment(entry) {
@@ -1777,12 +1846,10 @@ async function deployCurrentResponse() {
   }
 }
 
-async function createGithubRepo(event) {
-  event.preventDefault();
+async function createGithubRepoRequest({ autoName = false } = {}) {
   const token = githubTokenInput.value.trim();
   const ownerType = document.querySelector('input[name="repo-owner"]:checked')?.value;
   const orgName = repoOrgInput.value.trim();
-  const repoName = repoNameInput.value.trim();
   const visibility = repoVisibilitySelect.value;
   const description = repoDescriptionInput.value.trim();
   const autoInit = repoReadmeCheckbox.checked;
@@ -1790,87 +1857,128 @@ async function createGithubRepo(event) {
 
   if (!token) {
     setRepoStatus('Add a GitHub token first.', 'error');
-    return;
-  }
-
-  if (!repoName) {
-    setRepoStatus('Name your repository to continue.', 'error');
-    return;
+    return null;
   }
 
   if (ownerType === 'org' && !orgName) {
     setRepoStatus('Enter the organization handle.', 'error');
-    return;
+    return null;
   }
 
-  setRepoStatus('Creating repository…');
+  let repoName = repoNameInput.value.trim();
+  if (!repoName && autoName) {
+    repoName = suggestRepoName({ force: true });
+  }
+
+  if (!repoName) {
+    setRepoStatus('Name your repository to continue.', 'error');
+    return null;
+  }
+
+  setRepoStatus(autoName ? 'Naming and creating repository…' : 'Creating repository…');
   createRepoBtn.disabled = true;
 
-  const payload = {
-    name: repoName,
-    description: description || undefined,
-    private: visibility === 'private',
-    auto_init: autoInit,
-    has_issues: true,
-    has_wiki: false,
-    has_projects: false,
-    delete_branch_on_merge: deleteBranchOnMerge,
-    allow_squash_merge: true,
-    allow_merge_commit: true,
-    allow_rebase_merge: true
-  };
+  const attemptNames = [repoName];
+  if (autoName) {
+    attemptNames.push(`${repoName}-${Gun.text.random(4)}`.toLowerCase());
+  }
 
   try {
-    const response = await fetch(buildRepoEndpoint(ownerType, orgName), {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
-      },
-      body: JSON.stringify(payload)
-    });
+    for (const candidate of attemptNames) {
+      repoNameInput.value = candidate;
+      persistFormState();
+      const payload = {
+        name: candidate,
+        description: description || undefined,
+        private: visibility === 'private',
+        auto_init: autoInit,
+        has_issues: true,
+        has_wiki: false,
+        has_projects: false,
+        delete_branch_on_merge: deleteBranchOnMerge,
+        allow_squash_merge: true,
+        allow_merge_commit: true,
+        allow_rebase_merge: true
+      };
 
-    const data = await response.json().catch(() => ({}));
+      const response = await fetch(buildRepoEndpoint(ownerType, orgName), {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28'
+        },
+        body: JSON.stringify(payload)
+      });
 
-    if (!response.ok) {
-      const message = data?.message || 'GitHub returned an error. Check scopes and owner settings.';
-      setRepoStatus(message, 'error');
-      return;
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (autoName && response.status === 422) {
+          continue;
+        }
+        const message = data?.message || 'GitHub returned an error. Check scopes and owner settings.';
+        setRepoStatus(message, 'error');
+        return null;
+      }
+
+      const details = data?.full_name || candidate;
+      const cloneUrl = data?.clone_url;
+      const htmlUrl = data?.html_url;
+      const defaultBranch = data?.default_branch;
+
+      setRepoStatus(`Created ${details}. ${defaultBranch ? `Default branch: ${defaultBranch}.` : ''}`, 'success');
+
+      if (htmlUrl) {
+        const link = document.createElement('a');
+        link.href = htmlUrl;
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.textContent = htmlUrl;
+        repoStatus.append(document.createElement('br'), link);
+      }
+
+      if (cloneUrl) {
+        const cloneDetails = document.createElement('div');
+        cloneDetails.className = 'status-note';
+        cloneDetails.textContent = `Clone: git clone ${cloneUrl}`;
+        repoStatus.appendChild(cloneDetails);
+      }
+
+      if (data?.full_name) {
+        githubRepoInput.value = data.full_name;
+      }
+      if (defaultBranch) {
+        githubBranchInput.value = defaultBranch;
+      }
+      persistFormState();
+
+      return {
+        fullName: data?.full_name || details,
+        defaultBranch: defaultBranch || '',
+        htmlUrl,
+        cloneUrl
+      };
     }
 
-    const details = data?.full_name || repoName;
-    const cloneUrl = data?.clone_url;
-    const htmlUrl = data?.html_url;
-    const defaultBranch = data?.default_branch;
-
-    setRepoStatus(`Created ${details}. ${defaultBranch ? `Default branch: ${defaultBranch}.` : ''}`, 'success');
-
-    if (htmlUrl) {
-      const link = document.createElement('a');
-      link.href = htmlUrl;
-      link.target = '_blank';
-      link.rel = 'noreferrer';
-      link.textContent = htmlUrl;
-      repoStatus.append(document.createElement('br'), link);
-    }
-
-    if (cloneUrl) {
-      const cloneDetails = document.createElement('div');
-      cloneDetails.className = 'status-note';
-      cloneDetails.textContent = `Clone: git clone ${cloneUrl}`;
-      repoStatus.appendChild(cloneDetails);
-    }
+    setRepoStatus('Repo name already exists. Try a different name.', 'error');
+    return null;
   } catch (error) {
     setRepoStatus('Network issue while talking to GitHub.', 'error');
+    return null;
   } finally {
     createRepoBtn.disabled = false;
   }
 }
 
+async function createGithubRepo(event) {
+  event.preventDefault();
+  await createGithubRepoRequest({ autoName: true });
+}
+
 async function publishToGithub() {
   const token = githubTokenInput.value.trim();
-  const repo = githubRepoInput.value.trim();
+  let repo = githubRepoInput.value.trim();
   const branch = githubBranchInput.value.trim() || 'main';
   const path = githubPathInput.value.trim() || 'index.html';
   const message = githubMessageInput.value.trim();
@@ -1882,8 +1990,14 @@ async function publishToGithub() {
   }
 
   if (!repo || !repo.includes('/')) {
-    setGithubStatus('Provide the repo in the form owner/name.');
-    return;
+    setGithubStatus('No repo provided. Creating one automatically...');
+    const created = await createGithubRepoRequest({ autoName: true });
+    repo = created?.fullName || githubRepoInput.value.trim();
+    if (!repo || !repo.includes('/')) {
+      setGithubStatus('Provide the repo in the form owner/name.');
+      return;
+    }
+    setGithubStatus('Repository created. Publishing to GitHub...');
   }
 
   if (!html || html.length < 20 || !html.toLowerCase().includes('<html')) {
@@ -2004,12 +2118,34 @@ clearKeyBtn.addEventListener('click', () => {
 
 submitBtn.addEventListener('click', sendToOpenAI);
 applyPreviewBtn.addEventListener('click', applyPreview);
+messageInput?.addEventListener('input', () => {
+  if (!repoNameInput?.value?.trim()) {
+    suggestRepoName();
+  }
+});
 projectInput?.addEventListener('input', persistFormState);
-deployNoteInput?.addEventListener('input', persistFormState);
+deployNoteInput?.addEventListener('input', () => {
+  persistFormState();
+  if (!repoNameInput?.value?.trim()) {
+    suggestRepoName();
+  }
+});
 githubRepoInput?.addEventListener('input', persistFormState);
 githubBranchInput?.addEventListener('input', persistFormState);
 githubPathInput?.addEventListener('input', persistFormState);
 githubMessageInput?.addEventListener('input', persistFormState);
+repoNameInput?.addEventListener('input', persistFormState);
+repoOrgInput?.addEventListener('input', persistFormState);
+repoVisibilitySelect?.addEventListener('change', persistFormState);
+repoDescriptionInput?.addEventListener('input', persistFormState);
+repoReadmeCheckbox?.addEventListener('change', persistFormState);
+repoBranchCleanupCheckbox?.addEventListener('change', persistFormState);
+repoOwnerRadios?.forEach((radio) => {
+  radio.addEventListener('change', () => {
+    toggleRepoOrgField();
+    persistFormState();
+  });
+});
 apiKeyInput?.addEventListener('input', () => refreshSharedKeyUsage('openai', apiKeyInput.value));
 vercelTokenInput?.addEventListener('input', () => refreshSharedKeyUsage('vercel', vercelTokenInput.value));
 githubTokenInput?.addEventListener('input', () => refreshSharedKeyUsage('github', githubTokenInput.value));
@@ -2108,6 +2244,9 @@ loadStoredVercelToken();
 loadStoredGithubToken();
 hydrateFormState();
 hydrateLastState();
+if (!repoNameInput?.value?.trim()) {
+  suggestRepoName();
+}
 maybeAutoLoadVaultSecret();
 startHistorySubscription();
 startDeploymentSubscription();
