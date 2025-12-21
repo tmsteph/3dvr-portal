@@ -97,6 +97,17 @@
       </div>
     </div>
 
+    <div class="continue-edit">
+      <p class="meta">Continue editing a saved run by loading it from history and adding notes below.</p>
+      <label class="checkbox-row" for="use-existing-html">
+        <input id="use-existing-html" type="checkbox">
+        Use the loaded preview HTML as the base
+      </label>
+      <p class="meta" id="editing-source">No run loaded yet.</p>
+      <label for="edit-notes">Editing notes</label>
+      <textarea id="edit-notes" placeholder="What should we change from the last version?"></textarea>
+    </div>
+
     <div class="input-row" style="margin-top: 12px;">
       <button id="generate" class="primary">Generate site</button>
       <button id="clear-brief" class="ghost">Clear brief</button>
