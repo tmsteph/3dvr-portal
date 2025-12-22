@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XR Motion Lab | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/index-style.css">
+  <style>
+    .xr-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .xr-panel {
+      background: rgba(9, 14, 24, 0.7);
+      border-radius: 24px;
+      padding: 1.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 20px 40px rgba(8, 12, 20, 0.4);
+    }
+
+    .xr-controls {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      align-items: start;
+    }
+
+    .xr-card {
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 16px;
+      padding: 1rem 1.25rem;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .xr-card h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: #f8fafc;
+    }
+
+    .xr-card p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.8);
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .xr-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .xr-buttons button {
+      background: rgba(59, 130, 246, 0.2);
+      color: #e2e8f0;
+      border: 1px solid rgba(59, 130, 246, 0.5);
+      border-radius: 999px;
+      padding: 0.5rem 1.25rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .xr-buttons button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .xr-buttons button:hover:not(:disabled) {
+      background: rgba(59, 130, 246, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .xr-readout {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .xr-readout dt {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(148, 163, 184, 0.9);
+      margin-bottom: 0.25rem;
+    }
+
+    .xr-readout dd {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #f8fafc;
+    }
+
+    .xr-meter {
+      height: 8px;
+      background: rgba(148, 163, 184, 0.2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .xr-meter span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.9), rgba(16, 185, 129, 0.9));
+      width: 0;
+      transition: width 0.2s ease;
+    }
+
+    .xr-viewer {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background: radial-gradient(circle at top, rgba(30, 41, 59, 0.9), rgba(7, 12, 20, 0.95));
+      min-height: 280px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 1rem;
+    }
+
+    .xr-viewer.is-vr {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .xr-view {
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      min-height: 260px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .xr-view video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.75;
+    }
+
+    .xr-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(226, 232, 240, 0.9);
+      font-weight: 600;
+      text-shadow: 0 0 12px rgba(15, 23, 42, 0.9);
+      pointer-events: none;
+    }
+
+    .xr-grid {
+      position: absolute;
+      inset: 15% 10%;
+      border: 1px solid rgba(94, 234, 212, 0.5);
+      border-radius: 18px;
+    }
+
+    .xr-grid::before,
+    .xr-grid::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      background: rgba(94, 234, 212, 0.4);
+    }
+
+    .xr-grid::after {
+      left: 0;
+      top: 50%;
+      width: 100%;
+      height: 1px;
+    }
+
+    .xr-reticle {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(56, 189, 248, 0.9);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+    }
+
+    .xr-overlay .xr-horizon {
+      position: absolute;
+      width: 140%;
+      height: 2px;
+      background: rgba(248, 250, 252, 0.8);
+      box-shadow: 0 0 12px rgba(248, 250, 252, 0.6);
+    }
+
+    .xr-overlay .xr-status {
+      position: absolute;
+      bottom: 1rem;
+      left: 1rem;
+      right: 1rem;
+      background: rgba(15, 23, 42, 0.75);
+      padding: 0.5rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      color: rgba(226, 232, 240, 0.85);
+    }
+
+    .xr-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .xr-toggle input {
+      accent-color: #38bdf8;
+    }
+
+    @media (max-width: 720px) {
+      .xr-viewer {
+        grid-template-columns: 1fr;
+      }
+
+      .xr-viewer.is-vr {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="landing theme-dark">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <div class="landing-shell">
+    <main id="mainContent" class="landing-content xr-shell">
+      <section class="hero" aria-labelledby="xr-motion-title">
+        <span class="hero-eyebrow">XR Prototype</span>
+        <h1 id="xr-motion-title">XR Motion Lab</h1>
+        <p class="hero-tagline">
+          Use accelerometer and device orientation data to power a lightweight AR/VR viewer with optional camera
+          passthrough.
+        </p>
+        <div class="hero-actions">
+          <a class="cta primary" href="/index.html">Back to portal</a>
+          <a class="cta ghost" href="#xrControls">Jump to controls</a>
+        </div>
+      </section>
+
+      <section id="xrControls" class="xr-panel" aria-labelledby="xr-controls-title">
+        <h2 id="xr-controls-title">Sensor controls</h2>
+        <div class="xr-controls">
+          <div class="xr-card">
+            <h3>Motion + orientation</h3>
+            <p>Request permission, then stream accelerometer and compass values into the overlay.</p>
+            <div class="xr-buttons">
+              <button type="button" id="requestMotion">Enable motion</button>
+              <button type="button" id="stopMotion" disabled>Stop motion</button>
+            </div>
+            <p id="motionStatus" aria-live="polite">Motion: idle</p>
+          </div>
+          <div class="xr-card">
+            <h3>Camera passthrough</h3>
+            <p>Use the rear camera to create a quick AR backdrop while you move.</p>
+            <div class="xr-buttons">
+              <button type="button" id="startCamera">Start camera</button>
+              <button type="button" id="stopCamera" disabled>Stop camera</button>
+            </div>
+            <p id="cameraStatus" aria-live="polite">Camera: idle</p>
+          </div>
+          <div class="xr-card">
+            <h3>Viewer settings</h3>
+            <p>Enable stereo preview for a quick VR-style split view.</p>
+            <label class="xr-toggle" for="vrToggle">
+              <input type="checkbox" id="vrToggle">
+              Stereo preview
+            </label>
+            <p id="viewerStatus" aria-live="polite">Viewer: mono</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="xr-panel" aria-labelledby="xr-viewer-title">
+        <h2 id="xr-viewer-title">XR viewer</h2>
+        <div class="xr-viewer" id="xrViewer" data-mode="mono">
+          <div class="xr-view" data-eye="left">
+            <video playsinline muted></video>
+            <div class="xr-overlay" data-overlay>
+              <div class="xr-grid"></div>
+              <div class="xr-reticle"></div>
+              <div class="xr-horizon"></div>
+              <div class="xr-status">
+                <span id="overlayStatus">Waiting for motion data…</span>
+                <span id="overlayAngles">α 0° · β 0° · γ 0°</span>
+              </div>
+            </div>
+          </div>
+          <div class="xr-view" data-eye="right" aria-hidden="true">
+            <video playsinline muted></video>
+            <div class="xr-overlay" data-overlay>
+              <div class="xr-grid"></div>
+              <div class="xr-reticle"></div>
+              <div class="xr-horizon"></div>
+              <div class="xr-status">
+                <span>Stereo mirror</span>
+                <span id="overlayAnglesMirror">α 0° · β 0° · γ 0°</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="xr-panel" aria-labelledby="xr-readout-title">
+        <h2 id="xr-readout-title">Live sensor readouts</h2>
+        <dl class="xr-readout">
+          <div>
+            <dt>Orientation (alpha, beta, gamma)</dt>
+            <dd id="orientationReadout">Waiting for data…</dd>
+          </div>
+          <div>
+            <dt>Acceleration (x, y, z)</dt>
+            <dd id="accelerationReadout">Waiting for data…</dd>
+          </div>
+          <div>
+            <dt>Acceleration strength</dt>
+            <dd>
+              <div class="xr-meter"><span id="accelMeter"></span></div>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="info-panels" aria-label="XR notes">
+        <article class="info-card">
+          <h3>Best on mobile</h3>
+          <p>iOS requires an explicit tap to request motion permissions. Android browsers typically allow it inline.</p>
+        </article>
+        <article class="info-card">
+          <h3>Privacy first</h3>
+          <p>Camera and motion data stay on this page. Nothing is stored or shared unless you decide to export it.</p>
+        </article>
+        <article class="info-card">
+          <h3>Next steps</h3>
+          <p>Hook this overlay into your VR scene graph or stream the readings into a headset renderer.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const motionButton = document.getElementById('requestMotion');
+    const stopMotionButton = document.getElementById('stopMotion');
+    const motionStatus = document.getElementById('motionStatus');
+    const cameraStatus = document.getElementById('cameraStatus');
+    const startCameraButton = document.getElementById('startCamera');
+    const stopCameraButton = document.getElementById('stopCamera');
+    const vrToggle = document.getElementById('vrToggle');
+    const viewerStatus = document.getElementById('viewerStatus');
+    const xrViewer = document.getElementById('xrViewer');
+    const overlayStatus = document.getElementById('overlayStatus');
+    const overlayAngles = document.getElementById('overlayAngles');
+    const overlayAnglesMirror = document.getElementById('overlayAnglesMirror');
+    const orientationReadout = document.getElementById('orientationReadout');
+    const accelerationReadout = document.getElementById('accelerationReadout');
+    const accelMeter = document.getElementById('accelMeter');
+    const overlayNodes = document.querySelectorAll('[data-overlay]');
+    const viewVideos = document.querySelectorAll('.xr-view video');
+
+    let motionActive = false;
+    let cameraStream = null;
+
+    const formatValue = (value) => {
+      if (value === null || value === undefined || Number.isNaN(value)) {
+        return '–';
+      }
+      return value.toFixed(1);
+    };
+
+    const updateOverlay = ({ alpha, beta, gamma }) => {
+      const formattedAlpha = formatValue(alpha);
+      const formattedBeta = formatValue(beta);
+      const formattedGamma = formatValue(gamma);
+      const text = `α ${formattedAlpha}° · β ${formattedBeta}° · γ ${formattedGamma}°`;
+      overlayAngles.textContent = text;
+      overlayAnglesMirror.textContent = text;
+      overlayStatus.textContent = motionActive ? 'Tracking motion' : 'Waiting for motion data…';
+
+      overlayNodes.forEach((node) => {
+        const tiltX = Number.isFinite(beta) ? beta : 0;
+        const tiltY = Number.isFinite(gamma) ? gamma : 0;
+        node.style.transform = `rotateZ(${(-tiltY).toFixed(1)}deg) translateY(${(tiltX * 0.4).toFixed(1)}px)`;
+      });
+    };
+
+    const updateReadouts = ({ alpha, beta, gamma }, acceleration) => {
+      orientationReadout.textContent = `α ${formatValue(alpha)}° · β ${formatValue(beta)}° · γ ${
+        formatValue(gamma)
+      }°`;
+
+      if (acceleration) {
+        const { x, y, z } = acceleration;
+        accelerationReadout.textContent = `x ${formatValue(x)} · y ${formatValue(y)} · z ${formatValue(z)}`;
+        const strength = Math.min(100, Math.max(0, Math.abs(x || 0) + Math.abs(y || 0) + Math.abs(z || 0)) * 10);
+        accelMeter.style.width = `${strength}%`;
+      }
+    };
+
+    const handleOrientation = (event) => {
+      const { alpha, beta, gamma } = event;
+      updateOverlay({ alpha, beta, gamma });
+      updateReadouts({ alpha, beta, gamma }, null);
+    };
+
+    const handleMotion = (event) => {
+      const { accelerationIncludingGravity } = event;
+      updateReadouts(lastOrientation, accelerationIncludingGravity);
+    };
+
+    let lastOrientation = { alpha: 0, beta: 0, gamma: 0 };
+
+    const orientationHandler = (event) => {
+      lastOrientation = {
+        alpha: event.alpha,
+        beta: event.beta,
+        gamma: event.gamma,
+      };
+      handleOrientation(event);
+    };
+
+    const enableMotion = async () => {
+      if (!window.DeviceOrientationEvent) {
+        motionStatus.textContent = 'Motion: not supported on this device.';
+        return;
+      }
+
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission !== 'granted') {
+            motionStatus.textContent = 'Motion: permission denied.';
+            return;
+          }
+        } catch (error) {
+          motionStatus.textContent = 'Motion: permission failed.';
+          return;
+        }
+      }
+
+      window.addEventListener('deviceorientation', orientationHandler);
+      window.addEventListener('devicemotion', handleMotion);
+      motionActive = true;
+      motionStatus.textContent = 'Motion: streaming data.';
+      stopMotionButton.disabled = false;
+      motionButton.disabled = true;
+    };
+
+    const disableMotion = () => {
+      window.removeEventListener('deviceorientation', orientationHandler);
+      window.removeEventListener('devicemotion', handleMotion);
+      motionActive = false;
+      motionStatus.textContent = 'Motion: stopped.';
+      stopMotionButton.disabled = true;
+      motionButton.disabled = false;
+      overlayStatus.textContent = 'Waiting for motion data…';
+    };
+
+    const startCamera = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        cameraStatus.textContent = 'Camera: not supported on this device.';
+        return;
+      }
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+        viewVideos.forEach((video) => {
+          video.srcObject = cameraStream;
+          video.play();
+        });
+        cameraStatus.textContent = 'Camera: live.';
+        startCameraButton.disabled = true;
+        stopCameraButton.disabled = false;
+      } catch (error) {
+        cameraStatus.textContent = 'Camera: permission denied.';
+      }
+    };
+
+    const stopCamera = () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+        cameraStream = null;
+      }
+      viewVideos.forEach((video) => {
+        video.pause();
+        video.srcObject = null;
+      });
+      cameraStatus.textContent = 'Camera: stopped.';
+      startCameraButton.disabled = false;
+      stopCameraButton.disabled = true;
+    };
+
+    motionButton.addEventListener('click', enableMotion);
+    stopMotionButton.addEventListener('click', disableMotion);
+    startCameraButton.addEventListener('click', startCamera);
+    stopCameraButton.addEventListener('click', stopCamera);
+
+    vrToggle.addEventListener('change', (event) => {
+      const isStereo = event.target.checked;
+      xrViewer.classList.toggle('is-vr', isStereo);
+      xrViewer.dataset.mode = isStereo ? 'stereo' : 'mono';
+      const rightView = xrViewer.querySelector('[data-eye="right"]');
+      rightView.setAttribute('aria-hidden', String(!isStereo));
+      viewerStatus.textContent = `Viewer: ${isStereo ? 'stereo' : 'mono'}`;
+    });
+  </script>
+</body>
+</html>
