@@ -59,8 +59,34 @@
 
     <section class="card" id="api-key-panel" aria-label="API key configuration">
       <div class="card-header">
-        <h2>Account-linked keys</h2>
-        <p class="meta">Keys follow your Gun account when signed in and fall back to secure, device-local storage.</p>
+        <div>
+          <h2>Shared defaults + account keys</h2>
+          <p class="meta">Load team defaults fast, then swap in personal tokens when you are ready.</p>
+        </div>
+      </div>
+      <div class="defaults-panel" aria-label="Shared defaults">
+        <div>
+          <p class="eyebrow">Quick start</p>
+          <h3>Use shared defaults</h3>
+          <p class="meta">Admins can publish shared OpenAI, Vercel, and GitHub keys. Apply them here to start building fast.</p>
+          <ul class="defaults-status" id="defaults-status" aria-live="polite"></ul>
+        </div>
+        <div class="defaults-actions">
+          <label for="default-passphrase">Shared passphrase</label>
+          <input id="default-passphrase" type="password" placeholder="Passphrase from admin">
+          <div class="input-row">
+            <button id="load-default" class="primary">Use shared defaults</button>
+          </div>
+          <label class="checkbox-row" for="default-remember-passphrase">
+            <input id="default-remember-passphrase" type="checkbox">
+            <span>Remember passphrase for this session</span>
+          </label>
+          <label class="checkbox-row" for="default-auto-load">
+            <input id="default-auto-load" type="checkbox">
+            <span>Auto-apply defaults when no keys are set</span>
+          </label>
+          <p id="default-key-status" class="meta" aria-live="polite"></p>
+        </div>
       </div>
       <div class="guide-links">
         <a class="guide-link" href="../deployment-guides/index.html" target="_blank" rel="noreferrer">Guide: setup checklist</a>
@@ -75,11 +101,6 @@
       <p id="api-key-help" class="meta">Saved to your Gun account first when available; otherwise stored on this device.</p>
       <p id="storage-mode" class="meta" aria-live="polite"></p>
       <p id="account-status" class="status" aria-live="polite">Sign in so keys attach to your account instead of this device.</p>
-      <div class="input-row">
-        <input type="password" id="default-passphrase" placeholder="Passphrase for admin default key">
-        <button id="load-default" class="ghost">Use defaults</button>
-      </div>
-      <p id="default-key-status" class="meta" aria-live="polite"></p>
       <p id="shared-usage-status" class="meta" aria-live="polite">Shared keys are rate limited: guests 2/day, accounts 5/day, supporters 20/day, pro members 100/day.</p>
     </section>
 

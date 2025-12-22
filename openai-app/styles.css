@@ -128,6 +128,72 @@ label {
   flex-wrap: wrap;
 }
 
+.defaults-panel {
+  display: grid;
+  gap: 16px;
+  margin: 12px 0 8px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--ghost);
+}
+
+.defaults-panel h3 {
+  margin: 6px 0;
+}
+
+.defaults-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.defaults-status {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.defaults-status li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.status-badge.ready {
+  background: rgba(122, 91, 210, 0.18);
+  color: var(--accent);
+  border: 1px solid rgba(122, 91, 210, 0.3);
+}
+
+.status-badge.applied {
+  background: rgba(46, 204, 113, 0.16);
+  color: #b9f5ce;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.status-badge.missing {
+  background: rgba(231, 111, 81, 0.12);
+  color: #ffb8a7;
+  border: 1px solid rgba(231, 111, 81, 0.3);
+}
+
 .auto-sync-row {
   display: flex;
   flex-direction: column;
@@ -359,6 +425,11 @@ iframe {
 
   .compact-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .defaults-panel {
+    grid-template-columns: 1.1fr 1fr;
+    align-items: start;
   }
 }
 
