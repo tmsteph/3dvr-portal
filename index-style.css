@@ -203,104 +203,26 @@ body.landing {
   font-size: 1.02rem;
 }
 
-.flow-invite {
-  position: relative;
-  display: grid;
-  gap: 2.25rem;
-  padding: 2.6rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(56, 189, 248, 0.32);
-  background: linear-gradient(160deg, rgba(15, 118, 110, 0.45) 0%, rgba(37, 99, 235, 0.18) 55%, rgba(56, 189, 248, 0.28) 100%);
-  box-shadow: 0 36px 90px rgba(5, 10, 25, 0.65);
-  overflow: hidden;
-  isolation: isolate;
+.hero-wellness-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.35rem;
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.16);
+  color: rgba(186, 230, 253, 0.95);
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform var(--transition-base),
+    background var(--transition-base),
+    color var(--transition-base);
 }
 
-.flow-invite__visual {
-  position: relative;
-  min-height: 220px;
-}
-
-.flow-invite__orb {
-  --breath-base-transform: translate(-50%, -50%);
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: clamp(220px, 38vw, 360px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(45, 212, 191, 0.45), rgba(56, 189, 248, 0.16) 62%, transparent 85%);
-  filter: blur(0px);
-  opacity: 0.9;
-  mix-blend-mode: screen;
-  transform: var(--breath-base-transform) scale(1);
-  animation: breath 9s ease-in-out infinite;
-}
-
-.flow-invite__orb--two {
-  width: clamp(180px, 32vw, 300px);
-  background: radial-gradient(circle, rgba(165, 180, 252, 0.5), rgba(56, 189, 248, 0.18) 60%, transparent 85%);
-  animation-duration: 7.5s;
-  animation-delay: -3s;
-}
-
-.flow-invite__orb--three {
-  width: clamp(150px, 28vw, 260px);
-  background: radial-gradient(circle, rgba(251, 191, 36, 0.4), rgba(56, 189, 248, 0.16) 58%, transparent 90%);
-  animation-duration: 6.2s;
-  animation-delay: -1.8s;
-}
-
-.flow-invite__content {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 1.2rem;
-  max-width: 620px;
-}
-
-.flow-invite__content p {
-  margin: 0;
-  color: rgba(226, 232, 240, 0.92);
-  font-size: 1.05rem;
-}
-
-.flow-invite__list {
-  margin: 0;
-  padding-left: 1.2rem;
-  display: grid;
-  gap: 0.6rem;
-  color: rgba(226, 232, 240, 0.9);
-  font-size: 0.98rem;
-}
-
-.flow-invite__list li::marker {
-  color: rgba(165, 243, 252, 0.85);
-}
-
-.flow-invite__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.flow-invite .cta.ghost {
-  background: rgba(148, 163, 184, 0.12);
-  color: rgba(226, 232, 240, 0.95);
-}
-
-.flow-invite .cta.ghost:hover {
+.hero-wellness-link:hover {
+  transform: translateY(-1px);
+  background: rgba(56, 189, 248, 0.26);
   color: var(--accent-strong);
-}
-
-@media (min-width: 900px) {
-  .flow-invite {
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-    align-items: center;
-  }
-
-  .flow-invite__visual {
-    min-height: 320px;
-  }
 }
 
 @keyframes breath {
@@ -316,8 +238,7 @@ body.landing {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-breath__orb,
-  .flow-invite__orb {
+  .hero-breath__orb {
     animation: none;
     transform: var(--breath-base-transform) scale(1);
     opacity: 0.7;
