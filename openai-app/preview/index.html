@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenAI Workbench · Preview</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/section-hub.css">
+</head>
+<body class="theme-dark">
+  <a class="skip-link" href="#previewMain">Skip to preview steps</a>
+
+  <nav class="top-buttons" aria-label="Workbench quick links">
+    <a href="/openai-app/">🤖 Workbench</a>
+    <a href="/openai-app/setup/">🧭 Setup</a>
+    <a href="/openai-app/logs/">🧾 Logs</a>
+    <a href="/deployment-guides/">🛠️ Deploy Guides</a>
+  </nav>
+
+  <main id="previewMain" class="section-shell">
+    <header class="section-hero">
+      <span class="section-hero__eyebrow">Preview</span>
+      <h1>Review outputs before they ship</h1>
+      <p>
+        Validate Workbench responses, previews, and deployments so the final merge is fast and confident.
+      </p>
+      <div class="section-actions">
+        <a href="/openai-app/#preview-panel">Open the preview pane</a>
+        <a href="https://github.com/tmsteph/3dvr-portal/pulls" target="_blank" rel="noopener">Open PRs</a>
+        <a href="/openai-app/logs/">Scan deploy logs</a>
+      </div>
+    </header>
+
+    <section class="section-grid" aria-label="Preview actions">
+      <article class="section-card">
+        <h2>Live preview pass</h2>
+        <p>Apply the latest response and sanity-check layout, buttons, and copy.</p>
+        <a href="/openai-app/#preview-panel">Use preview</a>
+      </article>
+      <article class="section-card">
+        <h2>Token + publish test</h2>
+        <p>Run a small deploy or GitHub publish to verify tokens still work.</p>
+        <a href="/openai-app/#vercel-panel">Open deploy panel</a>
+      </article>
+      <article class="section-card">
+        <h2>Gun sync check</h2>
+        <p>Confirm saved transcripts and deploy notes show up in Gun for teammates.</p>
+        <a href="/gun-demo.html">Open Gun sync lab</a>
+      </article>
+    </section>
+
+    <section class="section-panel" aria-label="Preview checklist">
+      <h2>Preview checklist</h2>
+      <ul>
+        <li>Confirm previews load on mobile and wide desktop layouts.</li>
+        <li>Check the PR notes and generated HTML for any missing assets.</li>
+        <li>Log anything that needs follow-up before merging.</li>
+      </ul>
+    </section>
+
+    <footer class="section-footer">
+      Need a second set of eyes? Share the preview in <a href="/chat/">community chat</a>.
+    </footer>
+  </main>
+</body>
+</html>
