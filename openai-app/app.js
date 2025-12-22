@@ -103,6 +103,64 @@ const storage = (() => {
   return { setItem, getItem, removeItem, mode };
 })();
 
+const transientStorage = (() => {
+  const memoryStore = {};
+
+  function isUsable(store) {
+    try {
+      const testKey = '__transient-storage-test__';
+      store.setItem(testKey, 'ok');
+      const ok = store.getItem(testKey) === 'ok';
+      store.removeItem(testKey);
+      return ok;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  const primary = isUsable(sessionStorage) ? sessionStorage : null;
+
+  function setItem(key, value) {
+    if (primary) {
+      try {
+        primary.setItem(key, value);
+        return;
+      } catch (error) {
+        // fall through to memory store
+      }
+    }
+
+    memoryStore[key] = value;
+  }
+
+  function getItem(key) {
+    if (primary) {
+      try {
+        const value = primary.getItem(key);
+        if (value !== null) return value;
+      } catch (error) {
+        // fall through to memory store
+      }
+    }
+
+    return memoryStore[key] || null;
+  }
+
+  function removeItem(key) {
+    if (primary) {
+      try {
+        primary.removeItem(key);
+      } catch (error) {
+        // ignore
+      }
+    }
+
+    delete memoryStore[key];
+  }
+
+  return { setItem, getItem, removeItem };
+})();
+
 const apiKeyStorageKey = 'openai-api-key';
 const vercelTokenStorageKey = 'vercel-token';
 const githubTokenStorageKey = 'github-token';
@@ -115,6 +173,9 @@ const vaultUseAccountAliasKey = 'vault-use-account-alias';
 const vaultAutoLoadKey = 'vault-auto-load';
 const lastStateStorageKey = 'openai-workbench-last-state';
 const formStateStorageKey = 'openai-workbench-form-state';
+const defaultPassphraseStorageKey = 'openai-workbench-default-passphrase';
+const defaultRememberPassphraseKey = 'openai-workbench-default-remember';
+const defaultAutoLoadKey = 'openai-workbench-default-auto-load';
 const storedSession = storage.getItem(sessionKey);
 let sessionId = storedSession || Gun.text.random();
 storage.setItem(sessionKey, sessionId);
@@ -181,6 +242,9 @@ const vaultAutoStatus = document.getElementById('vault-auto-status');
 const defaultPassphraseInput = document.getElementById('default-passphrase');
 const loadDefaultBtn = document.getElementById('load-default');
 const defaultKeyStatus = document.getElementById('default-key-status');
+const defaultRememberPassphraseToggle = document.getElementById('default-remember-passphrase');
+const defaultAutoLoadToggle = document.getElementById('default-auto-load');
+const defaultsStatusList = document.getElementById('defaults-status');
 const sharedUsageStatus = document.getElementById('shared-usage-status');
 
 const systemPrompt = [
@@ -411,6 +475,7 @@ function refreshSharedKeyUsage(targetKey, value) {
   const trimmed = (value || '').trim();
   sharedKeyUsage[targetKey] = Boolean(trimmed && trimmed === defaultSecrets[targetKey]);
   updateSharedUsageStatus();
+  updateDefaultsStatusList();
 }
 
 function resolveDefaultCipher(targetKey) {
@@ -731,6 +796,103 @@ function setDefaultKeyStatus(message) {
   }
 }
 
+function updateDefaultsStatusList() {
+  if (!defaultsStatusList) return;
+
+  const entries = [
+    {
+      key: 'openai',
+      label: 'OpenAI',
+      input: apiKeyInput,
+      available: !!resolveDefaultCipher('openai')
+    },
+    {
+      key: 'vercel',
+      label: 'Vercel',
+      input: vercelTokenInput,
+      available: !!resolveDefaultCipher('vercel')
+    },
+    {
+      key: 'github',
+      label: 'GitHub',
+      input: githubTokenInput,
+      available: !!resolveDefaultCipher('github')
+    }
+  ];
+
+  defaultsStatusList.innerHTML = '';
+
+  entries.forEach((entry) => {
+    const currentValue = entry.input?.value?.trim() || '';
+    const isApplied = entry.available && defaultSecrets[entry.key]
+      && currentValue
+      && currentValue === defaultSecrets[entry.key];
+    const status = entry.available ? (isApplied ? 'Applied' : 'Ready') : 'Missing';
+    const tone = entry.available ? (isApplied ? 'applied' : 'ready') : 'missing';
+
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = entry.label;
+    const badge = document.createElement('span');
+    badge.className = `status-badge ${tone}`;
+    badge.textContent = status;
+    item.append(label, badge);
+    defaultsStatusList.appendChild(item);
+  });
+}
+
+function hasAnyStoredSecret() {
+  return [apiKeyInput, vercelTokenInput, githubTokenInput]
+    .some((input) => Boolean(input?.value?.trim()));
+}
+
+function saveDefaultPreferences() {
+  const remember = !!defaultRememberPassphraseToggle?.checked;
+  const autoLoad = !!defaultAutoLoadToggle?.checked;
+  const passphrase = defaultPassphraseInput?.value?.trim() || '';
+
+  storage.setItem(defaultRememberPassphraseKey, remember ? 'true' : 'false');
+  storage.setItem(defaultAutoLoadKey, autoLoad ? 'true' : 'false');
+
+  if (remember && passphrase) {
+    transientStorage.setItem(defaultPassphraseStorageKey, passphrase);
+  } else {
+    transientStorage.removeItem(defaultPassphraseStorageKey);
+  }
+}
+
+function restoreDefaultPreferences() {
+  const remember = storage.getItem(defaultRememberPassphraseKey) === 'true';
+  const autoLoad = storage.getItem(defaultAutoLoadKey) === 'true';
+  const storedPassphrase = remember ? transientStorage.getItem(defaultPassphraseStorageKey) || '' : '';
+
+  if (defaultRememberPassphraseToggle) {
+    defaultRememberPassphraseToggle.checked = remember;
+  }
+
+  if (defaultAutoLoadToggle) {
+    defaultAutoLoadToggle.checked = autoLoad;
+  }
+
+  if (defaultPassphraseInput && storedPassphrase) {
+    defaultPassphraseInput.value = storedPassphrase;
+  }
+}
+
+async function maybeAutoLoadDefaults() {
+  if (defaultAutoLoadToggle?.checked !== true) return;
+  if (hasAnyStoredSecret()) return;
+  const passphrase = defaultPassphraseInput?.value?.trim();
+  if (!passphrase) return;
+
+  const hasAnyDefault = resolveDefaultCipher('openai')
+    || resolveDefaultCipher('vercel')
+    || resolveDefaultCipher('github');
+  if (!hasAnyDefault) return;
+
+  await loadDefaultKey();
+}
+
 async function saveSecretToAccount(field, value) {
   if (!user?.is || !user?._?.sea) {
     updateAccountStatus('Sign in to sync secrets with your Gun account.');
@@ -877,12 +1039,15 @@ function subscribeToDefaults() {
     }
     if (!available.length) {
       setDefaultKeyStatus('No admin defaults configured yet.');
+      updateDefaultsStatusList();
       return;
     }
     const hint = currentDefaultConfig.hint
       ? `Hint: ${currentDefaultConfig.hint}`
       : 'Ask an admin for the passphrase to unlock shared keys.';
     setDefaultKeyStatus(`${available.join(', ')} defaults ready. ${hint}`);
+    updateDefaultsStatusList();
+    maybeAutoLoadDefaults();
   });
 }
 
@@ -901,6 +1066,8 @@ async function loadDefaultKey() {
     setDefaultKeyStatus('Enter the passphrase to unlock the admin default key.');
     return;
   }
+
+  saveDefaultPreferences();
 
   try {
     const applied = [];
@@ -955,6 +1122,7 @@ async function loadDefaultKey() {
     updateStorageModeNotice('Loaded admin defaults.');
     setDefaultKeyStatus(`Defaults applied: ${applied.join(', ')}. Shared rate limits are active when using these keys.`);
     updateSharedUsageStatus();
+    updateDefaultsStatusList();
   } catch (error) {
     setDefaultKeyStatus('Unable to decrypt the default key.');
   }
@@ -2208,6 +2376,14 @@ clearGithubBtn.addEventListener('click', () => {
 });
 
 loadDefaultBtn?.addEventListener('click', loadDefaultKey);
+defaultPassphraseInput?.addEventListener('input', saveDefaultPreferences);
+defaultRememberPassphraseToggle?.addEventListener('change', () => {
+  saveDefaultPreferences();
+});
+defaultAutoLoadToggle?.addEventListener('change', () => {
+  saveDefaultPreferences();
+  maybeAutoLoadDefaults();
+});
 
 createRepoBtn.addEventListener('click', createGithubRepo);
 githubBtn.addEventListener('click', publishToGithub);
@@ -2217,6 +2393,7 @@ vaultSaveAllBtn?.addEventListener('click', saveAllKeysToVault);
 vaultLoadAllBtn?.addEventListener('click', loadAllVaultSecrets);
 
 restoreAutoVaultPreferences();
+restoreDefaultPreferences();
 
 recallUserSession();
 subscribeToDefaults();
@@ -2242,6 +2419,7 @@ updateStorageModeNotice();
 loadStoredKey();
 loadStoredVercelToken();
 loadStoredGithubToken();
+updateDefaultsStatusList();
 hydrateFormState();
 hydrateLastState();
 if (!repoNameInput?.value?.trim()) {
