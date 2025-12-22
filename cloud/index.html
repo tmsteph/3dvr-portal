@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3DVR Decentralized Cloud</title>
+  <meta name="description" content="A local-first, federated cloud: deploy, code, storage, and AI without centralized lock-in." />
+  <link rel="icon" href="/favicon.ico" />
+
+  <style>
+    :root{
+      --bg:#070a14;
+      --panel:#0f1630;
+      --panel2:#0c1228;
+      --fg:#e9eeff;
+      --muted:#a6b0ff;
+      --accent:#00ffc8;
+      --danger:#ff4d7d;
+      --ok:#7CFF6B;
+      --ring: rgba(0,255,200,.25);
+      --shadow: 0 18px 55px rgba(0,0,0,.45);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 700px at 20% -10%, rgba(0,255,200,.14), transparent 55%),
+        radial-gradient(900px 600px at 90% 10%, rgba(120,130,255,.16), transparent 55%),
+        radial-gradient(900px 600px at 30% 110%, rgba(255,77,125,.08), transparent 60%),
+        var(--bg);
+      color:var(--fg);
+      line-height:1.6;
+    }
+    a{color:inherit;text-decoration:none}
+    header{
+      padding: 3.5rem 1.25rem 1.25rem;
+      text-align:center;
+    }
+    .brand{
+      display:inline-flex;
+      gap:.6rem;
+      align-items:center;
+      padding:.5rem .85rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: 0 10px 35px rgba(0,0,0,.25);
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 6px var(--ring);
+    }
+    h1{
+      margin: 1rem auto .5rem;
+      font-size: clamp(2.1rem, 5vw, 3.2rem);
+      letter-spacing:.04em;
+    }
+    .sub{
+      margin: 0 auto;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .wrap{
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 1.25rem 1.25rem 3rem;
+    }
+    .heroGrid{
+      display:grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap: 1.1rem;
+      align-items: stretch;
+      margin-top: 1.25rem;
+    }
+    @media (max-width: 900px){
+      .heroGrid{grid-template-columns:1fr}
+    }
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel .inner{ padding: 1.2rem 1.2rem 1.1rem; }
+    .kicker{ color: var(--accent); font-weight: 650; letter-spacing:.06em; font-size:.85rem; }
+    .big{
+      font-size: 1.25rem;
+      margin:.35rem 0 .75rem;
+    }
+    .bullets{
+      margin:0; padding-left: 1.1rem; color: var(--muted);
+    }
+    .bullets li{ margin:.25rem 0; }
+    .ctaRow{
+      display:flex; gap:.75rem; flex-wrap:wrap; margin-top: 1rem;
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.5rem;
+      padding: .7rem 1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      cursor:pointer;
+      font-weight:650;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.06); border-color: rgba(0,255,200,.35); }
+    .btn.primary{
+      background: rgba(0,255,200,.12);
+      border-color: rgba(0,255,200,.35);
+    }
+    .btn.primary:hover{ background: rgba(0,255,200,.16); }
+    .mini{
+      font-size:.9rem;
+      color: var(--muted);
+      margin: .7rem 0 0;
+    }
+
+    .statusGrid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: .8rem;
+    }
+    .pill{
+      display:flex;
+      justify-content:space-between;
+      gap:.75rem;
+      padding:.75rem .85rem;
+      border-radius: 14px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .pill strong{ font-weight:700; }
+    .tag{
+      font-size:.82rem;
+      padding:.15rem .5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .tag.ok{ border-color: rgba(124,255,107,.35); color: rgba(124,255,107,.95); }
+    .tag.warn{ border-color: rgba(255,200,0,.35); color: rgba(255,200,0,.95); }
+    .tag.off{ border-color: rgba(255,77,125,.35); color: rgba(255,77,125,.95); }
+
+    section{ margin-top: 2.25rem; }
+    h2{ margin:0 0 .8rem; font-size: 1.55rem; color: var(--accent); }
+    .cardGrid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .card{
+      background: rgba(255,255,255,.035);
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius);
+      padding: 1.05rem 1.05rem .95rem;
+      box-shadow: 0 14px 42px rgba(0,0,0,.35);
+      transition: transform .15s ease, border-color .15s ease;
+    }
+    .card:hover{ transform: translateY(-2px); border-color: rgba(0,255,200,.28); }
+    .card h3{ margin:.15rem 0 .35rem; font-size: 1.15rem; }
+    .card p{ margin:0; color: var(--muted); font-size: .95rem; }
+    .card .meta{ margin-top:.65rem; display:flex; gap:.5rem; flex-wrap:wrap; }
+    .meta .chip{
+      font-size:.8rem;
+      padding:.15rem .5rem;
+      border-radius: 999px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--muted);
+    }
+
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    .code{
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 14px;
+      padding: .9rem;
+      overflow:auto;
+      color: #dbe3ff;
+      box-shadow: var(--shadow);
+    }
+
+    footer{
+      padding: 2.5rem 1.25rem 3rem;
+      text-align:center;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot"></span>
+    <span class="mono">3DVR / CLOUD</span>
+  </div>
+  <h1>Decentralized Cloud</h1>
+  <p class="sub">
+    A local-first, federated alternative to Vercel, GitHub, and closed AI APIs —
+    built from open protocols, runnable on your phone, laptop, VPS, or a friend’s machine.
+  </p>
+</header>
+
+<div class="wrap">
+
+  <div class="heroGrid">
+    <div class="panel">
+      <div class="inner">
+        <div class="kicker">THE PROMISE</div>
+        <div class="big">
+          Make centralized platforms optional — without losing the convenience.
+        </div>
+        <ul class="bullets">
+          <li><strong>Deploy</strong> from Git, instantly, with previews & SSL.</li>
+          <li><strong>Store</strong> code, notes, and assets — sync by default.</li>
+          <li><strong>Compute</strong> locally first; pool community resources when needed.</li>
+          <li><strong>AI</strong> runs on-device or on trusted relays — not a black box.</li>
+          <li><strong>Federate</strong> so your stuff survives outages and censorship.</li>
+        </ul>
+
+        <div class="ctaRow">
+          <a class="btn primary" href="/cloud/stack">Open Stack</a>
+          <a class="btn" href="/cloud/roadmap">Roadmap</a>
+          <a class="btn" href="/cloud/node">Run a Node</a>
+          <a class="btn" href="/cloud/manifesto">Manifesto</a>
+        </div>
+
+        <p class="mini">
+          This page is a hub. Each link can start as a simple HTML directory today,
+          and evolve into Gun.js apps, relays, and real infra over time.
+        </p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="inner">
+        <div class="kicker">SYSTEM STATUS (PLACEHOLDERS)</div>
+        <div class="statusGrid">
+          <div class="pill">
+            <div><strong>Deploy</strong><div class="mini">preview URLs, SSL, build cache</div></div>
+            <span class="tag warn">in design</span>
+          </div>
+          <div class="pill">
+            <div><strong>Forge</strong><div class="mini">repos, issues, identity</div></div>
+            <span class="tag warn">in design</span>
+          </div>
+          <div class="pill">
+            <div><strong>Storage</strong><div class="mini">assets, backups, sync</div></div>
+            <span class="tag warn">in design</span>
+          </div>
+          <div class="pill">
+            <div><strong>AI</strong><div class="mini">local models + relays</div></div>
+            <span class="tag warn">in design</span>
+          </div>
+          <div class="pill">
+            <div><strong>Federation</strong><div class="mini">fallback nodes & routing</div></div>
+            <span class="tag off">not built</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <h2>Modules</h2>
+    <div class="cardGrid">
+      <a class="card" href="/cloud/deploy">
+        <div class="kicker">REPLACE VERCEL</div>
+        <h3>Deploy</h3>
+        <p>Git-based deploys, previews, domains, SSL, logs, rollback — portable everywhere.</p>
+        <div class="meta">
+          <span class="chip">caddy/nginx</span><span class="chip">build cache</span><span class="chip">previews</span>
+        </div>
+      </a>
+
+      <a class="card" href="/cloud/forge">
+        <div class="kicker">REPLACE GITHUB</div>
+        <h3>Forge</h3>
+        <p>Repos + issues + discussions — with real ownership and optional decentralization.</p>
+        <div class="meta">
+          <span class="chip">forgejo</span><span class="chip">radicle</span><span class="chip">keys</span>
+        </div>
+      </a>
+
+      <a class="card" href="/cloud/storage">
+        <div class="kicker">YOUR DATA</div>
+        <h3>Storage</h3>
+        <p>Local-first files and artifacts that sync to trusted peers and relays.</p>
+        <div class="meta">
+          <span class="chip">gun.js</span><span class="chip">ipfs?</span><span class="chip">snapshots</span>
+        </div>
+      </a>
+
+      <a class="card" href="/cloud/compute">
+        <div class="kicker">COMMUNITY POWER</div>
+        <h3>Compute</h3>
+        <p>Run tasks locally, or distribute work across nodes you trust.</p>
+        <div class="meta">
+          <span class="chip">containers</span><span class="chip">queues</span><span class="chip">relays</span>
+        </div>
+      </a>
+
+      <a class="card" href="/cloud/ai">
+        <div class="kicker">REPLACE CLOSED APIS</div>
+        <h3>AI</h3>
+        <p>Local models, optional gateways, and privacy-preserving inference paths.</p>
+        <div class="meta">
+          <span class="chip">ollama</span><span class="chip">llama.cpp</span><span class="chip">webgpu</span>
+        </div>
+      </a>
+
+      <a class="card" href="/cloud/federation">
+        <div class="kicker">SURVIVABILITY</div>
+        <h3>Federation</h3>
+        <p>Fallback hosting, replicated state, and routing that keeps services alive.</p>
+        <div class="meta">
+          <span class="chip">multi-relay</span><span class="chip">mirrors</span><span class="chip">dns strategy</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>How it boots</h2>
+    <div class="code mono" aria-label="boot pseudo-config">
+      <div># 3DVR Cloud Node (concept)</div>
+      <div>node_id: &lt;keypair&gt;</div>
+      <div>roles: [deploy, storage, ai]</div>
+      <div>peers: [friendA, friendB]</div>
+      <div>domain: cloud.3dvr.tech</div>
+      <div>fallback: enabled</div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div>3DVR.tech · Decentralized Cloud · local-first by default</div>
+</footer>
+
+</body>
+</html>
