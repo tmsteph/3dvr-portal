@@ -1,0 +1,107 @@
+:root {
+  --directory-bg: #0b1020;
+  --directory-fg: #e8ecff;
+  --directory-muted: #9aa4ff;
+  --directory-accent: #00ffc8;
+  --directory-card: #141a33;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: radial-gradient(circle at top, #141a33, var(--directory-bg));
+  color: var(--directory-fg);
+  line-height: 1.6;
+}
+
+header {
+  padding: 4rem 1.5rem 3rem;
+  text-align: center;
+}
+
+header h1 {
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
+}
+
+header p {
+  color: var(--directory-muted);
+  max-width: 720px;
+  margin: 0.5rem auto 0;
+  font-size: 1.05rem;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+section {
+  margin-bottom: 3.5rem;
+}
+
+section h2 {
+  font-size: 1.6rem;
+  margin-bottom: 1rem;
+  color: var(--directory-accent);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.2rem;
+}
+
+.card {
+  background: var(--directory-card);
+  border-radius: 14px;
+  padding: 1.2rem 1.3rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover,
+.card:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+
+.card h3 {
+  margin-top: 0;
+  margin-bottom: 0.4rem;
+  font-size: 1.15rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--directory-muted);
+  font-size: 0.95rem;
+}
+
+.directory-note {
+  max-width: 760px;
+  color: var(--directory-muted);
+}
+
+footer {
+  text-align: center;
+  padding: 2.5rem 1.5rem 3rem;
+  color: var(--directory-muted);
+  font-size: 0.9rem;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--directory-accent);
+  outline-offset: 4px;
+}
