@@ -1039,6 +1039,12 @@ function initializeSignedInProfile() {
   latestProfileName = '';
   portalStoredName = (localStorage.getItem('username') || '').trim();
   aliasName = aliasToDisplay(localStorage.getItem('alias'));
+  if (!aliasName && user && user.is && user.is.alias) {
+    aliasName = aliasToDisplay(user.is.alias);
+  }
+  if (portalStoredName.toLowerCase() === 'guest' && aliasName) {
+    portalStoredName = '';
+  }
   localStorage.removeItem('guest');
   localStorage.removeItem('guestId');
   localStorage.removeItem('guestDisplayName');
