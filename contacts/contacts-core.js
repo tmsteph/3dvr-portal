@@ -73,6 +73,10 @@ export function deriveFloatingIdentityDisplay({
   alias = '',
   guestDisplayName = '',
 } = {}) {
+  const isGuestLabel = value => {
+    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    return normalized === 'guest' || normalized === 'guest user';
+  };
   const normalizedHint = typeof latestDisplayName === 'string' ? latestDisplayName.trim() : '';
   if (normalizedHint) {
     return normalizedHint;
@@ -81,8 +85,14 @@ export function deriveFloatingIdentityDisplay({
   const aliasDisplay = aliasToDisplay(alias);
 
   if (signedIn) {
-    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
-    const normalizedStored = typeof storedUsername === 'string' ? storedUsername.trim() : '';
+    let normalizedUsername = typeof username === 'string' ? username.trim() : '';
+    let normalizedStored = typeof storedUsername === 'string' ? storedUsername.trim() : '';
+    if (isGuestLabel(normalizedUsername) && aliasDisplay) {
+      normalizedUsername = '';
+    }
+    if (isGuestLabel(normalizedStored) && aliasDisplay) {
+      normalizedStored = '';
+    }
     return normalizedUsername || normalizedStored || aliasDisplay || 'User';
   }
 

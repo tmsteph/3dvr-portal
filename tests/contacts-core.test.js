@@ -101,6 +101,17 @@ describe('contacts core helpers', () => {
       assert.equal(display, 'Agent Smith');
     });
 
+    it('returns the signed-in username exactly when provided', () => {
+      const display = deriveFloatingIdentityDisplay({
+        signedIn: true,
+        username: 'Ada Lovelace',
+        storedUsername: 'Guest',
+        alias: 'ada@3dvr.tech',
+      });
+
+      assert.equal(display, 'Ada Lovelace');
+    });
+
     it('falls back to a generic user label when signed in data is missing', () => {
       const display = deriveFloatingIdentityDisplay({ signedIn: true });
 
