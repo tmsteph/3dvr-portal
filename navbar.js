@@ -102,19 +102,14 @@ function createNavbar() {
       usernameSpan.innerText = `👤 ${latestDisplayName}`;
       return;
     }
-    if (isSignedIn) {
-      const stored = (localStorage.getItem('username') || '').trim();
-      const fallback = stored || aliasDisplay || 'Guest';
-      usernameSpan.innerText = `👤 ${fallback}`;
-      return;
-    }
-    if (isGuest) {
-      const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
-      const fallbackName = guestStored || aliasDisplay || 'Guest';
-      usernameSpan.innerText = `👤 ${fallbackName}`;
-      return;
-    }
-    usernameSpan.innerText = '👤 Guest';
+    const resolvedName = window.ScoreSystem && typeof window.ScoreSystem.resolveDisplayName === 'function'
+      ? window.ScoreSystem.resolveDisplayName({
+        user,
+        authState: { mode: isSignedIn ? 'user' : (isGuest ? 'guest' : 'anon') }
+      })
+      : '';
+    const fallback = resolvedName || aliasDisplay || (isSignedIn ? 'Account' : 'Guest');
+    usernameSpan.innerText = `👤 ${fallback}`;
   }
 
   function normalizeScore(value) {

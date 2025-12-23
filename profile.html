@@ -742,18 +742,19 @@ function ensureKnownUser(alias, username, metadata = {}) {
 
 function computeDisplayName() {
   if (latestProfileName) return latestProfileName;
-  if (isSignedIn) {
-    if (portalStoredName) return portalStoredName;
-    if (aliasName) return aliasName;
-    const storedAlias = aliasToDisplay(localStorage.getItem('alias'));
-    if (storedAlias) return storedAlias;
-    return 'Guest';
+  if (window.ScoreSystem && typeof window.ScoreSystem.resolveDisplayName === 'function') {
+    const resolved = window.ScoreSystem.resolveDisplayName({
+      user,
+      authState: {
+        mode: isSignedIn ? 'user' : (isGuest ? 'guest' : 'anon'),
+        alias: aliasName,
+        username: portalStoredName,
+        guestDisplayName: guestStoredName
+      }
+    });
+    if (resolved) return resolved;
   }
-  if (isGuest) {
-    if (guestStoredName) return guestStoredName;
-    return aliasName || 'Guest';
-  }
-  return aliasName || 'Guest';
+  return isSignedIn ? 'Account' : 'Guest';
 }
 
 function applyDisplayName() {
@@ -1002,16 +1003,22 @@ function watchUsername(node) {
       handleProfileName(normalized);
       return;
     }
-    const signedInAlias = isSignedIn
-      ? (aliasName || aliasToDisplay(localStorage.getItem('alias')))
+    const fallback = window.ScoreSystem && typeof window.ScoreSystem.resolveDisplayName === 'function'
+      ? window.ScoreSystem.resolveDisplayName({
+        user,
+        authState: {
+          mode: isSignedIn ? 'user' : 'guest',
+          alias: aliasName,
+          username: portalStoredName,
+          guestDisplayName: guestStoredName
+        },
+        signedInFallback: '',
+        guestFallback: 'Guest'
+      })
       : '';
-    const fallback = isSignedIn
-      ? (portalStoredName || signedInAlias)
-      : (guestStoredName || 'Guest');
-    if (fallback) {
-      node.get('username').put(fallback);
-      handleProfileName(fallback);
-    }
+    if (!fallback) return;
+    node.get('username').put(fallback);
+    handleProfileName(fallback);
   });
 }
 

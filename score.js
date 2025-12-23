@@ -369,6 +369,53 @@
     return normalized.includes('@') ? normalized.split('@')[0] : normalized;
   }
 
+  function getSafeStorage(storage) {
+    if (storage && typeof storage.getItem === 'function') {
+      return storage;
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        return localStorage;
+      }
+    } catch (err) {
+      console.warn('Failed to access localStorage', err);
+    }
+    return {
+      getItem() {
+        return '';
+      }
+    };
+  }
+
+  function resolveDisplayName({
+    user,
+    authState,
+    storage,
+    signedInFallback = 'Account',
+    guestFallback = 'Guest'
+  } = {}) {
+    const safeStorage = getSafeStorage(storage);
+    const mode = authState && authState.mode ? authState.mode : '';
+    const signedIn = mode === 'user' || safeStorage.getItem('signedIn') === 'true';
+    const alias = (authState && authState.alias)
+      || safeStorage.getItem('alias')
+      || (user && user.is && user.is.alias)
+      || '';
+    const username = (authState && authState.username)
+      || safeStorage.getItem('username')
+      || '';
+    const guestDisplayName = (authState && authState.guestDisplayName)
+      || safeStorage.getItem('guestDisplayName')
+      || '';
+    const aliasDisplay = displayNameFromAlias(alias);
+    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
+    const normalizedGuest = typeof guestDisplayName === 'string' ? guestDisplayName.trim() : '';
+    if (signedIn) {
+      return normalizedUsername || aliasDisplay || signedInFallback;
+    }
+    return normalizedGuest || aliasDisplay || guestFallback;
+  }
+
   class ScoreManager {
     constructor({ gun, user, portalRoot } = {}) {
       this.gun = gun || null;
@@ -1161,6 +1208,7 @@
     ensureGun,
     createGunUserStub,
     createGunNodeStub,
+    resolveDisplayName,
     getManager(context = {}) {
       if (!this._manager) {
         this._manager = new ScoreManager(context);
@@ -1185,4 +1233,4 @@
   };
 
   global.ScoreSystem = ScoreSystem;
-})(window);
+})(typeof window !== 'undefined' ? window : globalThis);
