@@ -207,17 +207,17 @@
       line-height: 1.5;
     }
 
-    .name-form {
-      display: grid;
-      gap: 0.55rem;
-      margin-top: 0.5rem;
-    }
-
     .input-row {
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 0.5rem;
       align-items: center;
+    }
+
+    .identity-note {
+      margin: 0.75rem 0 0;
+      color: var(--color-text-muted);
+      line-height: 1.55;
     }
 
     input {
@@ -513,13 +513,9 @@
         📚 Education unlocks at 500 • 🛠️ Creator tools at 1500 • 🚀 Builder status at 3000
       </div>
 
-      <form class="name-form" onsubmit="event.preventDefault(); saveUsername();">
-        <label class="label" for="name-input">Update display name</label>
-        <div class="input-row">
-          <input type="text" id="name-input" placeholder="Enter new username...">
-          <button type="submit">Save Username</button>
-        </div>
-      </form>
+      <p class="identity-note">
+        Your display name syncs from your signed-in account. Guests will keep a temporary name until they sign in.
+      </p>
 
       <div class="actions">
         <button type="button" class="ghost" onclick="resetScore()">Reset Score</button>
@@ -1025,6 +1021,7 @@ function subscribeToScore() {
 function initializeSignedInProfile() {
   isSignedIn = true;
   isGuest = false;
+  latestProfileName = '';
   localStorage.removeItem('guest');
   localStorage.removeItem('guestId');
   localStorage.removeItem('guestDisplayName');
@@ -1059,6 +1056,7 @@ function initializeSignedInProfile() {
 function initializeGuestProfile() {
   isSignedIn = false;
   isGuest = true;
+  latestProfileName = '';
   aliasName = '';
   selectedUserAlias = '';
   activeProfile = ensureGuestProfileNode();
@@ -1092,25 +1090,6 @@ if (isSignedIn && signedInAlias && signedInPassword) {
   }
 } else {
   initializeGuestProfile();
-}
-
-function saveUsername() {
-  const nameInput = document.getElementById('name-input');
-  const name = nameInput.value.trim();
-  if (!name || !activeProfile) return;
-
-  latestProfileName = name;
-  if (isSignedIn) {
-    portalStoredName = name;
-    localStorage.setItem('username', portalStoredName);
-  } else if (isGuest) {
-    guestStoredName = name;
-    localStorage.setItem('guestDisplayName', guestStoredName);
-  }
-
-  applyDisplayName();
-  activeProfile.get('username').put(name);
-  nameInput.value = '';
 }
 
 function awardAdminScore() {
