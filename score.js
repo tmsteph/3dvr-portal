@@ -410,8 +410,15 @@
     const aliasDisplay = displayNameFromAlias(alias);
     const normalizedUsername = typeof username === 'string' ? username.trim() : '';
     const normalizedGuest = typeof guestDisplayName === 'string' ? guestDisplayName.trim() : '';
+    const isGuestLabel = value => {
+      const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+      return normalized === 'guest' || normalized === 'guest user';
+    };
     if (signedIn) {
-      return normalizedUsername || aliasDisplay || signedInFallback;
+      const safeUsername = isGuestLabel(normalizedUsername) && aliasDisplay
+        ? ''
+        : normalizedUsername;
+      return safeUsername || aliasDisplay || signedInFallback;
     }
     return normalizedGuest || aliasDisplay || guestFallback;
   }

@@ -76,3 +76,15 @@ test('resolveDisplayName avoids Guest for signed-in sessions', () => {
   });
   assert.equal(name, 'Account');
 });
+
+test('resolveDisplayName ignores stored Guest when alias exists', () => {
+  const storage = createStorage();
+  storage.setItem('signedIn', 'true');
+  storage.setItem('alias', 'tmsteph@3dvr.tech');
+  storage.setItem('username', 'Guest');
+  const name = ScoreSystem.resolveDisplayName({
+    authState: { mode: 'user' },
+    storage
+  });
+  assert.equal(name, 'tmsteph');
+});
