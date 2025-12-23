@@ -610,7 +610,8 @@ if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'funct
   }
 }
 
-let isSignedIn = localStorage.getItem('signedIn') === 'true';
+const storedSignedIn = localStorage.getItem('signedIn') === 'true';
+let isSignedIn = storedSignedIn;
 if (!isSignedIn && window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
   window.ScoreSystem.ensureGuestIdentity();
 }
@@ -627,8 +628,8 @@ let authState = scoreManager
     ? window.ScoreSystem.computeAuthState()
     : { mode: 'anon' });
 
-isSignedIn = authState.mode === 'user';
-let isGuest = authState.mode === 'guest';
+isSignedIn = authState.mode === 'user' || storedSignedIn;
+let isGuest = authState.mode === 'guest' && !isSignedIn;
 let isAdmin = false;
 
 let activeProfile = scoreManager ? scoreManager.getNode() : null;
@@ -1086,11 +1087,11 @@ function initializeGuestProfile() {
 const signedInAlias = (localStorage.getItem('alias') || '').trim();
 const signedInPassword = localStorage.getItem('password');
 
-if (isSignedIn && signedInAlias && signedInPassword) {
+if (isSignedIn) {
   aliasName = aliasToDisplay(signedInAlias);
   if (user.is) {
     initializeSignedInProfile();
-  } else {
+  } else if (signedInAlias && signedInPassword) {
     user.auth(signedInAlias, signedInPassword, ack => {
       if (ack && ack.err) {
         alert('Session expired. Please sign in again.');
@@ -1103,6 +1104,8 @@ if (isSignedIn && signedInAlias && signedInPassword) {
         initializeSignedInProfile();
       }
     });
+  } else {
+    initializeSignedInProfile();
   }
 } else {
   initializeGuestProfile();
