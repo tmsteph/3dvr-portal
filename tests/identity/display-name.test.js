@@ -35,6 +35,17 @@ test('resolveDisplayName prefers signed-in username', () => {
   assert.equal(name, 'PortalUser');
 });
 
+test('resolveDisplayName matches the stored username exactly when signed in', () => {
+  const storage = createStorage();
+  storage.setItem('signedIn', 'true');
+  storage.setItem('username', 'Ada Lovelace');
+  const name = ScoreSystem.resolveDisplayName({
+    authState: { mode: 'user' },
+    storage
+  });
+  assert.equal(name, 'Ada Lovelace');
+});
+
 test('resolveDisplayName uses alias when signed in and username missing', () => {
   const storage = createStorage();
   storage.setItem('signedIn', 'true');
