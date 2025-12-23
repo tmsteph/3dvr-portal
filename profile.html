@@ -276,6 +276,25 @@
       margin-top: 0.25rem;
     }
 
+    .actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.65rem 1rem;
+      border-radius: var(--radius-md);
+      background: rgba(15, 23, 42, 0.04);
+      color: var(--color-text);
+      font-weight: 700;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      transition: transform var(--transition-base), box-shadow var(--transition-base);
+    }
+
+    .actions a:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+    }
+
     .admin-card {
       padding: 1.6rem;
       text-align: left;
@@ -504,6 +523,7 @@
 
       <div class="actions">
         <button type="button" class="ghost" onclick="resetScore()">Reset Score</button>
+        <a href="sign-in.html">Sign in / Sign up</a>
       </div>
     </article>
 
