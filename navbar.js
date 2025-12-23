@@ -85,6 +85,11 @@ function createNavbar() {
   }
 
   const isSignedIn = localStorage.getItem('signedIn') === 'true';
+  if (!isSignedIn) {
+    if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+      window.ScoreSystem.ensureGuestIdentity();
+    }
+  }
   const isGuest = !isSignedIn && localStorage.getItem('guest') === 'true';
   let latestDisplayName = '';
   let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));

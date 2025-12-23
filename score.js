@@ -107,6 +107,8 @@
   const SCORE_CACHE_PREFIX = '3dvr:score:';
   const GUEST_ROOT = '3dvr-guests';
   const PORTAL_ROOT_KEY = '3dvr-portal';
+  const BROWSER_ID_STORAGE_KEY = 'browserId';
+  const BROWSER_PROFILE_ROOT = 'browserProfiles';
   const PENDING_SUFFIX = ':pending';
   const PORTAL_PENDING_SUFFIX = ':portalPending';
   const PORTAL_PUB_STATS_KEY = 'userStatsByPub';
@@ -178,6 +180,20 @@
     }
   }
 
+  function ensureBrowserIdentity() {
+    try {
+      let browserId = localStorage.getItem(BROWSER_ID_STORAGE_KEY);
+      if (!browserId) {
+        browserId = `browser_${Math.random().toString(36).slice(2, 11)}`;
+        localStorage.setItem(BROWSER_ID_STORAGE_KEY, browserId);
+      }
+      return browserId;
+    } catch (err) {
+      console.warn('Failed to ensure browser identity', err);
+      return '';
+    }
+  }
+
   function ensureGuestIdentity() {
     try {
       const legacyId = localStorage.getItem('userId');
@@ -216,19 +232,12 @@
       };
     }
 
-    const isGuest = localStorage.getItem('guest') === 'true';
-    if (isGuest) {
-      const guestId = ensureGuestIdentity();
-      const guestDisplayName = (localStorage.getItem('guestDisplayName') || '').trim();
-      return {
-        mode: 'guest',
-        guestId,
-        guestDisplayName
-      };
-    }
-
+    const guestId = ensureGuestIdentity();
+    const guestDisplayName = (localStorage.getItem('guestDisplayName') || '').trim();
     return {
-      mode: 'anon'
+      mode: 'guest',
+      guestId,
+      guestDisplayName
     };
   }
 
@@ -367,6 +376,7 @@
       this.portalRoot = portalRoot || (this.gun ? this.gun.get(PORTAL_ROOT_KEY) : null);
       this.state = computeAuthState();
       this.node = this.resolveNode();
+      this.browserId = ensureBrowserIdentity();
       this.listeners = new Set();
       this.current = readCachedScore(this.state);
       this.pending = readPendingScore(this.state);
@@ -381,6 +391,8 @@
       this._handleStorage = null;
       this._portalAliasChain = null;
       this._portalPubChain = null;
+
+      this._syncBrowserIdentity();
 
       if (!Number.isFinite(this.current)) {
         this.current = 0;
@@ -417,6 +429,9 @@
         .then(() => this._refreshIdentity())
         .catch(err => {
           console.warn('Failed to refresh user identity for score manager', err);
+        })
+        .then(() => {
+          this._syncBrowserIdentity();
         })
         .finally(() => {
           this.bootstrap();
@@ -775,18 +790,78 @@
         if (key === 'alias') {
           this.state.alias = (newValue || '').trim();
           this._attachPortalRealtime();
+          this._syncBrowserIdentity();
         }
         if (key === USER_PUB_STORAGE_KEY) {
           const trimmed = typeof newValue === 'string' ? newValue.trim() : '';
           if (trimmed && trimmed !== this.pubKey) {
             this.pubKey = trimmed;
             this._attachPortalRealtime();
+            this._syncBrowserIdentity();
           }
           if (!trimmed && this.pubKey) {
             this.pubKey = '';
             this._attachPortalRealtime();
+            this._syncBrowserIdentity();
           }
         }
+      }
+    }
+
+    _syncBrowserIdentity() {
+      if (!this.portalRoot) return;
+      if (!this.browserId) return;
+
+      const browserNode = this.portalRoot.get(BROWSER_PROFILE_ROOT).get(this.browserId);
+      const alias = (this.state.mode === 'user' ? this.state.alias : '')
+        || (localStorage.getItem('alias') || '').trim();
+      const pub = this.state.mode === 'user' ? this._getPubKey() : '';
+      let guestId = this.state.mode === 'guest' ? this.state.guestId : '';
+
+      if (!guestId) {
+        try {
+          guestId = (localStorage.getItem('guestId') || '').trim();
+        } catch (err) {
+          console.warn('Failed to read guest id for browser tracking', err);
+        }
+      }
+
+      const now = Date.now();
+      const payload = {
+        browserId: this.browserId,
+        lastSeen: now,
+        lastPath: typeof location !== 'undefined' ? location.pathname : ''
+      };
+
+      if (guestId) {
+        payload.guestId = guestId;
+      }
+
+      if (alias) {
+        payload.alias = alias;
+      }
+
+      if (pub) {
+        payload.pub = pub;
+      }
+
+      // browserProfiles/<browserId> stores { browserId, firstSeen, lastSeen, lastPath, guestId?, alias?, pub? } plus
+      // aliases/guests/pubs sets so we can link browsers to accounts without forcing a login on first visit.
+      browserNode.once(data => {
+        const firstSeen = data && data.firstSeen ? data.firstSeen : now;
+        browserNode.put({ ...payload, firstSeen });
+      });
+
+      if (guestId) {
+        browserNode.get('guests').set({ guestId, linkedAt: now });
+      }
+
+      if (alias) {
+        browserNode.get('aliases').set({ alias, linkedAt: now });
+      }
+
+      if (pub) {
+        browserNode.get('pubs').set({ pub, linkedAt: now });
       }
     }
 
