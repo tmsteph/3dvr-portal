@@ -745,6 +745,8 @@ function computeDisplayName() {
   if (isSignedIn) {
     if (portalStoredName) return portalStoredName;
     if (aliasName) return aliasName;
+    const storedAlias = aliasToDisplay(localStorage.getItem('alias'));
+    if (storedAlias) return storedAlias;
     return 'Guest';
   }
   if (isGuest) {
@@ -1022,6 +1024,8 @@ function initializeSignedInProfile() {
   isSignedIn = true;
   isGuest = false;
   latestProfileName = '';
+  portalStoredName = (localStorage.getItem('username') || '').trim();
+  aliasName = aliasToDisplay(localStorage.getItem('alias'));
   localStorage.removeItem('guest');
   localStorage.removeItem('guestId');
   localStorage.removeItem('guestDisplayName');
