@@ -19,7 +19,7 @@ function createStorage() {
 globalThis.localStorage = createStorage();
 globalThis.window = globalThis;
 
-await import('../score.js');
+await import('../../score.js');
 
 const { ScoreSystem } = globalThis;
 

@@ -73,6 +73,19 @@ describe('contacts core helpers', () => {
       assert.equal(state.username, 'alias');
       assert.equal(state.displayName, 'alias');
     });
+
+    it('ignores stored Guest labels when signed in and alias is available', () => {
+      const state = deriveIdentityState({
+        authState: { mode: 'user' },
+        storedAlias: 'agent@3dvr.tech',
+        storedUsername: 'Guest',
+      });
+
+      assert.equal(state.signedIn, true);
+      assert.equal(state.guest, false);
+      assert.equal(state.username, 'agent');
+      assert.equal(state.displayName, 'agent');
+    });
   });
 
   describe('deriveFloatingIdentityDisplay', () => {

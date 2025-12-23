@@ -662,7 +662,11 @@ let focusScrollDone = false;
 function refreshSignedInDisplay() {
   if (!userDisplay) return;
   const aliasTrimmed = (alias || '').trim();
-  const usernameTrimmed = (username || '').trim() || aliasToDisplay(aliasTrimmed) || 'User';
+  const normalizedUsername = (username || '').trim();
+  const aliasDisplay = aliasToDisplay(aliasTrimmed);
+  const usernameTrimmed = normalizedUsername.toLowerCase() === 'guest'
+    ? (aliasDisplay || 'User')
+    : (normalizedUsername || aliasDisplay || 'User');
   const aliasSegment = aliasTrimmed ? ` (${aliasTrimmed})` : '';
   userDisplay.textContent = `Signed in as ${usernameTrimmed}${aliasSegment}`;
 }
