@@ -93,6 +93,9 @@ function createNavbar() {
   const isGuest = !isSignedIn && localStorage.getItem('guest') === 'true';
   let latestDisplayName = '';
   let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
+  if (isSignedIn && !aliasDisplay && user?.is?.alias) {
+    aliasDisplay = aliasToDisplay(user.is.alias);
+  }
 
   function updateNameDisplay() {
     if (latestDisplayName) {

@@ -1002,11 +1002,16 @@ function watchUsername(node) {
       handleProfileName(normalized);
       return;
     }
+    const signedInAlias = isSignedIn
+      ? (aliasName || aliasToDisplay(localStorage.getItem('alias')))
+      : '';
     const fallback = isSignedIn
-      ? (portalStoredName || aliasName || 'Guest')
+      ? (portalStoredName || signedInAlias)
       : (guestStoredName || 'Guest');
-    node.get('username').put(fallback);
-    handleProfileName(fallback);
+    if (fallback) {
+      node.get('username').put(fallback);
+      handleProfileName(fallback);
+    }
   });
 }
 
