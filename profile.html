@@ -610,7 +610,16 @@ if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'funct
   }
 }
 
-const storedSignedIn = localStorage.getItem('signedIn') === 'true';
+let storedSignedIn = localStorage.getItem('signedIn') === 'true';
+if (!storedSignedIn && user && user.is && user.is.alias) {
+  storedSignedIn = true;
+  try {
+    localStorage.setItem('signedIn', 'true');
+    localStorage.setItem('alias', user.is.alias);
+  } catch (err) {
+    console.warn('Failed to persist signed-in state from session', err);
+  }
+}
 let isSignedIn = storedSignedIn;
 if (!isSignedIn && window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
   window.ScoreSystem.ensureGuestIdentity();

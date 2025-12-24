@@ -84,7 +84,16 @@ function createNavbar() {
     document.body.appendChild(nav);
   }
 
-  const isSignedIn = localStorage.getItem('signedIn') === 'true';
+  let isSignedIn = localStorage.getItem('signedIn') === 'true';
+  if (!isSignedIn && user && user.is && user.is.alias) {
+    isSignedIn = true;
+    try {
+      localStorage.setItem('signedIn', 'true');
+      localStorage.setItem('alias', user.is.alias);
+    } catch (err) {
+      console.warn('Failed to persist signed-in state from session', err);
+    }
+  }
   if (!isSignedIn) {
     if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
       window.ScoreSystem.ensureGuestIdentity();
