@@ -207,17 +207,17 @@
       line-height: 1.5;
     }
 
+    .name-form {
+      display: grid;
+      gap: 0.55rem;
+      margin-top: 0.5rem;
+    }
+
     .input-row {
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 0.5rem;
       align-items: center;
-    }
-
-    .identity-note {
-      margin: 0.75rem 0 0;
-      color: var(--color-text-muted);
-      line-height: 1.55;
     }
 
     input {
@@ -274,25 +274,6 @@
       flex-wrap: wrap;
       gap: 0.65rem;
       margin-top: 0.25rem;
-    }
-
-    .actions a {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.4rem;
-      padding: 0.65rem 1rem;
-      border-radius: var(--radius-md);
-      background: rgba(15, 23, 42, 0.04);
-      color: var(--color-text);
-      font-weight: 700;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      transition: transform var(--transition-base), box-shadow var(--transition-base);
-    }
-
-    .actions a:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
     }
 
     .admin-card {
@@ -513,13 +494,16 @@
         📚 Education unlocks at 500 • 🛠️ Creator tools at 1500 • 🚀 Builder status at 3000
       </div>
 
-      <p class="identity-note">
-        Your display name syncs from your signed-in account. Guests will keep a temporary name until they sign in.
-      </p>
+      <form class="name-form" onsubmit="event.preventDefault(); saveUsername();">
+        <label class="label" for="name-input">Update display name</label>
+        <div class="input-row">
+          <input type="text" id="name-input" placeholder="Enter new username...">
+          <button type="submit">Save Username</button>
+        </div>
+      </form>
 
       <div class="actions">
         <button type="button" class="ghost" onclick="resetScore()">Reset Score</button>
-        <a href="sign-in.html">Sign in / Sign up</a>
       </div>
     </article>
 
@@ -610,17 +594,7 @@ if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'funct
   }
 }
 
-let storedSignedIn = localStorage.getItem('signedIn') === 'true';
-if (!storedSignedIn && user && user.is && user.is.alias) {
-  storedSignedIn = true;
-  try {
-    localStorage.setItem('signedIn', 'true');
-    localStorage.setItem('alias', user.is.alias);
-  } catch (err) {
-    console.warn('Failed to persist signed-in state from session', err);
-  }
-}
-let isSignedIn = storedSignedIn;
+let isSignedIn = localStorage.getItem('signedIn') === 'true';
 if (!isSignedIn && window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
   window.ScoreSystem.ensureGuestIdentity();
 }
@@ -637,8 +611,8 @@ let authState = scoreManager
     ? window.ScoreSystem.computeAuthState()
     : { mode: 'anon' });
 
-isSignedIn = authState.mode === 'user' || storedSignedIn;
-let isGuest = authState.mode === 'guest' && !isSignedIn;
+isSignedIn = authState.mode === 'user';
+let isGuest = authState.mode === 'guest';
 let isAdmin = false;
 
 let activeProfile = scoreManager ? scoreManager.getNode() : null;
@@ -689,11 +663,6 @@ function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
   if (!normalized) return '';
   return normalized.includes('@') ? normalized.split('@')[0] : normalized;
-}
-
-function isGuestLabel(value) {
-  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
-  return normalized === 'guest' || normalized === 'guest user';
 }
 
 function normalizeAliasInput(raw) {
@@ -757,19 +726,16 @@ function ensureKnownUser(alias, username, metadata = {}) {
 
 function computeDisplayName() {
   if (latestProfileName) return latestProfileName;
-  if (window.ScoreSystem && typeof window.ScoreSystem.resolveDisplayName === 'function') {
-    const resolved = window.ScoreSystem.resolveDisplayName({
-      user,
-      authState: {
-        mode: isSignedIn ? 'user' : (isGuest ? 'guest' : 'anon'),
-        alias: aliasName,
-        username: portalStoredName,
-        guestDisplayName: guestStoredName
-      }
-    });
-    if (resolved) return resolved;
+  if (isSignedIn) {
+    if (portalStoredName) return portalStoredName;
+    if (aliasName) return aliasName;
+    return 'Guest';
   }
-  return isSignedIn ? 'Account' : 'Guest';
+  if (isGuest) {
+    if (guestStoredName) return guestStoredName;
+    return aliasName || 'Guest';
+  }
+  return aliasName || 'Guest';
 }
 
 function applyDisplayName() {
@@ -965,9 +931,6 @@ async function createCoworkerAccount() {
 
 function handleProfileName(name) {
   const normalized = typeof name === 'string' ? name.trim() : '';
-  if (isSignedIn && isGuestLabel(normalized) && aliasName) {
-    return;
-  }
   latestProfileName = normalized;
   if (normalized) {
     if (isSignedIn) {
@@ -1021,20 +984,9 @@ function watchUsername(node) {
       handleProfileName(normalized);
       return;
     }
-    const fallback = window.ScoreSystem && typeof window.ScoreSystem.resolveDisplayName === 'function'
-      ? window.ScoreSystem.resolveDisplayName({
-        user,
-        authState: {
-          mode: isSignedIn ? 'user' : 'guest',
-          alias: aliasName,
-          username: portalStoredName,
-          guestDisplayName: guestStoredName
-        },
-        signedInFallback: '',
-        guestFallback: 'Guest'
-      })
-      : '';
-    if (!fallback) return;
+    const fallback = isSignedIn
+      ? (portalStoredName || aliasName || 'Guest')
+      : (guestStoredName || 'Guest');
     node.get('username').put(fallback);
     handleProfileName(fallback);
   });
@@ -1053,15 +1005,6 @@ function subscribeToScore() {
 function initializeSignedInProfile() {
   isSignedIn = true;
   isGuest = false;
-  latestProfileName = '';
-  portalStoredName = (localStorage.getItem('username') || '').trim();
-  aliasName = aliasToDisplay(localStorage.getItem('alias'));
-  if (!aliasName && user && user.is && user.is.alias) {
-    aliasName = aliasToDisplay(user.is.alias);
-  }
-  if (portalStoredName.toLowerCase() === 'guest' && aliasName) {
-    portalStoredName = '';
-  }
   localStorage.removeItem('guest');
   localStorage.removeItem('guestId');
   localStorage.removeItem('guestDisplayName');
@@ -1096,7 +1039,6 @@ function initializeSignedInProfile() {
 function initializeGuestProfile() {
   isSignedIn = false;
   isGuest = true;
-  latestProfileName = '';
   aliasName = '';
   selectedUserAlias = '';
   activeProfile = ensureGuestProfileNode();
@@ -1110,11 +1052,11 @@ function initializeGuestProfile() {
 const signedInAlias = (localStorage.getItem('alias') || '').trim();
 const signedInPassword = localStorage.getItem('password');
 
-if (isSignedIn) {
+if (isSignedIn && signedInAlias && signedInPassword) {
   aliasName = aliasToDisplay(signedInAlias);
   if (user.is) {
     initializeSignedInProfile();
-  } else if (signedInAlias && signedInPassword) {
+  } else {
     user.auth(signedInAlias, signedInPassword, ack => {
       if (ack && ack.err) {
         alert('Session expired. Please sign in again.');
@@ -1127,29 +1069,28 @@ if (isSignedIn) {
         initializeSignedInProfile();
       }
     });
-  } else {
-    initializeSignedInProfile();
   }
 } else {
   initializeGuestProfile();
 }
 
-if (!isSignedIn && typeof user?.on === 'function') {
-  user.on('auth', () => {
-    if (isSignedIn) return;
-    storedSignedIn = true;
-    isSignedIn = true;
-    isGuest = false;
-    try {
-      localStorage.setItem('signedIn', 'true');
-      if (user?.is?.alias) {
-        localStorage.setItem('alias', user.is.alias);
-      }
-    } catch (err) {
-      console.warn('Failed to persist signed-in state from auth event', err);
-    }
-    initializeSignedInProfile();
-  });
+function saveUsername() {
+  const nameInput = document.getElementById('name-input');
+  const name = nameInput.value.trim();
+  if (!name || !activeProfile) return;
+
+  latestProfileName = name;
+  if (isSignedIn) {
+    portalStoredName = name;
+    localStorage.setItem('username', portalStoredName);
+  } else if (isGuest) {
+    guestStoredName = name;
+    localStorage.setItem('guestDisplayName', guestStoredName);
+  }
+
+  applyDisplayName();
+  activeProfile.get('username').put(name);
+  nameInput.value = '';
 }
 
 function awardAdminScore() {

@@ -6,7 +6,6 @@
   <title>3DVR Portal – Sign In or Sign Up</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="gun-init.js"></script>
-  <script src="score.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <style>
     :root {
@@ -198,6 +197,19 @@
       text-align: center;
     }
 
+    .guest-note button {
+      border: none;
+      background: none;
+      color: var(--accent-strong);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0 6px;
+    }
+
+    .guest-note button:hover {
+      text-decoration: underline;
+    }
+
     .disclaimer {
       font-size: 0.75rem;
       color: rgba(248, 251, 255, 0.45);
@@ -327,7 +339,8 @@
           </div>
           <p class="disclaimer">We use decentralized GUN.js storage. Your credentials are encrypted before leaving your device.</p>
           <p class="guest-note">
-            You are already browsing as a guest on this browser. Sign in when you want to sync across devices.
+            Prefer to browse without an account?
+            <button type="button" onclick="continueAsGuest()">Continue as guest</button>
           </p>
         </form>
       </section>
@@ -660,20 +673,12 @@
       });
     }
 
-    function ensureGuestSession() {
-      const signedIn = localStorage.getItem('signedIn') === 'true';
-      if (signedIn) {
-        return;
-      }
-      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-        window.ScoreSystem.ensureGuestIdentity();
-      } else {
-        localStorage.setItem('guest', 'true');
-      }
+    function continueAsGuest() {
+      localStorage.setItem('guest', 'true');
+      window.location.href = 'index.html';
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      ensureGuestSession();
       const usernameInput = document.getElementById('username');
       if (usernameInput) {
         try {

@@ -242,8 +242,7 @@
         console.warn('Unable to preload identity display', err);
       }
       const aliasDisplay = alias.includes('@') ? alias.split('@')[0] : alias;
-      const normalizedUsername = username.toLowerCase() === 'guest' ? '' : username;
-      const resolvedUser = normalizedUsername || aliasDisplay || 'User';
+      const resolvedUser = username || aliasDisplay || 'User';
       const resolvedGuest = guestName || aliasDisplay || 'Guest';
       const identityEl = document.getElementById('floatingIdentityName');
       if (identityEl) {
@@ -663,11 +662,7 @@ let focusScrollDone = false;
 function refreshSignedInDisplay() {
   if (!userDisplay) return;
   const aliasTrimmed = (alias || '').trim();
-  const normalizedUsername = (username || '').trim();
-  const aliasDisplay = aliasToDisplay(aliasTrimmed);
-  const usernameTrimmed = normalizedUsername.toLowerCase() === 'guest'
-    ? (aliasDisplay || 'User')
-    : (normalizedUsername || aliasDisplay || 'User');
+  const usernameTrimmed = (username || '').trim() || aliasToDisplay(aliasTrimmed) || 'User';
   const aliasSegment = aliasTrimmed ? ` (${aliasTrimmed})` : '';
   userDisplay.textContent = `Signed in as ${usernameTrimmed}${aliasSegment}`;
 }
@@ -1408,11 +1403,9 @@ if (floatingIdentity && floatingIdentityName && floatingIdentityScore) {
       alias = aliasHint.trim();
     }
     if (typeof usernameHint === 'string' && usernameHint.trim()) {
-      const normalizedHint = usernameHint.trim();
-      latestDisplayName = normalizedHint.toLowerCase() === 'guest' ? '' : normalizedHint;
+      latestDisplayName = usernameHint.trim();
     } else if ((username || '').trim()) {
-      const normalizedName = (username || '').trim();
-      latestDisplayName = normalizedName.toLowerCase() === 'guest' ? '' : normalizedName;
+      latestDisplayName = (username || '').trim();
     }
     identitySignedIn = true;
     identityGuest = false;
@@ -1506,8 +1499,7 @@ function handleIdentityStorageEvent(event) {
   }
 
   if (key === 'username' && signedIn) {
-    const normalized = (newValue || '').trim();
-    username = normalized.toLowerCase() === 'guest' ? '' : normalized;
+    username = (newValue || '').trim();
     refreshSignedInDisplay();
     if (typeof updateIdentityForSignedIn === 'function') {
       updateIdentityForSignedIn({ usernameHint: username });

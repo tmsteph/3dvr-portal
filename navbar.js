@@ -84,41 +84,29 @@ function createNavbar() {
     document.body.appendChild(nav);
   }
 
-  let isSignedIn = localStorage.getItem('signedIn') === 'true';
-  if (!isSignedIn && user && user.is && user.is.alias) {
-    isSignedIn = true;
-    try {
-      localStorage.setItem('signedIn', 'true');
-      localStorage.setItem('alias', user.is.alias);
-    } catch (err) {
-      console.warn('Failed to persist signed-in state from session', err);
-    }
-  }
-  if (!isSignedIn) {
-    if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-      window.ScoreSystem.ensureGuestIdentity();
-    }
-  }
+  const isSignedIn = localStorage.getItem('signedIn') === 'true';
   const isGuest = !isSignedIn && localStorage.getItem('guest') === 'true';
   let latestDisplayName = '';
   let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
-  if (isSignedIn && !aliasDisplay && user?.is?.alias) {
-    aliasDisplay = aliasToDisplay(user.is.alias);
-  }
 
   function updateNameDisplay() {
     if (latestDisplayName) {
       usernameSpan.innerText = `👤 ${latestDisplayName}`;
       return;
     }
-    const resolvedName = window.ScoreSystem && typeof window.ScoreSystem.resolveDisplayName === 'function'
-      ? window.ScoreSystem.resolveDisplayName({
-        user,
-        authState: { mode: isSignedIn ? 'user' : (isGuest ? 'guest' : 'anon') }
-      })
-      : '';
-    const fallback = resolvedName || aliasDisplay || (isSignedIn ? 'Account' : 'Guest');
-    usernameSpan.innerText = `👤 ${fallback}`;
+    if (isSignedIn) {
+      const stored = (localStorage.getItem('username') || '').trim();
+      const fallback = stored || aliasDisplay || 'Guest';
+      usernameSpan.innerText = `👤 ${fallback}`;
+      return;
+    }
+    if (isGuest) {
+      const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
+      const fallbackName = guestStored || aliasDisplay || 'Guest';
+      usernameSpan.innerText = `👤 ${fallbackName}`;
+      return;
+    }
+    usernameSpan.innerText = '👤 Guest';
   }
 
   function normalizeScore(value) {
@@ -192,24 +180,6 @@ function createNavbar() {
   } else {
     usernameSpan.innerText = '👤 Guest';
     scoreSpan.innerText = '⭐ 0';
-  }
-
-  if (typeof user?.on === 'function') {
-    user.on('auth', () => {
-      if (!isSignedIn) {
-        isSignedIn = true;
-        try {
-          localStorage.setItem('signedIn', 'true');
-          if (user?.is?.alias) {
-            localStorage.setItem('alias', user.is.alias);
-            aliasDisplay = aliasToDisplay(user.is.alias);
-          }
-        } catch (err) {
-          console.warn('Failed to persist signed-in state from auth event', err);
-        }
-      }
-      updateNameDisplay();
-    });
   }
 }
 
