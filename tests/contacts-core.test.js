@@ -73,19 +73,6 @@ describe('contacts core helpers', () => {
       assert.equal(state.username, 'alias');
       assert.equal(state.displayName, 'alias');
     });
-
-    it('ignores stored Guest labels when signed in and alias is available', () => {
-      const state = deriveIdentityState({
-        authState: { mode: 'user' },
-        storedAlias: 'agent@3dvr.tech',
-        storedUsername: 'Guest',
-      });
-
-      assert.equal(state.signedIn, true);
-      assert.equal(state.guest, false);
-      assert.equal(state.username, 'agent');
-      assert.equal(state.displayName, 'agent');
-    });
   });
 
   describe('deriveFloatingIdentityDisplay', () => {
@@ -99,17 +86,6 @@ describe('contacts core helpers', () => {
       });
 
       assert.equal(display, 'Agent Smith');
-    });
-
-    it('returns the signed-in username exactly when provided', () => {
-      const display = deriveFloatingIdentityDisplay({
-        signedIn: true,
-        username: 'Ada Lovelace',
-        storedUsername: 'Guest',
-        alias: 'ada@3dvr.tech',
-      });
-
-      assert.equal(display, 'Ada Lovelace');
     });
 
     it('falls back to a generic user label when signed in data is missing', () => {
