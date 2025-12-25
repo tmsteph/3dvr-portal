@@ -15,11 +15,15 @@ export function deriveIdentityState({
   usernameFromSession = '',
 } = {}) {
   const normalize = value => (typeof value === 'string' ? value.trim() : '');
+  const isGuestLabel = value => {
+    const normalized = normalize(value).toLowerCase();
+    return normalized === 'guest' || normalized === 'guest user';
+  };
   const mode = authState?.mode || 'anon';
   const sessionAlias = normalize(aliasFromSession);
-  const sessionUsername = normalize(usernameFromSession);
+  let sessionUsername = normalize(usernameFromSession);
   const storedAliasNormalized = normalize(storedAlias);
-  const storedUsernameNormalized = normalize(storedUsername);
+  let storedUsernameNormalized = normalize(storedUsername);
 
   let signedIn = mode === 'user';
   let guest = mode === 'guest';
@@ -33,6 +37,12 @@ export function deriveIdentityState({
 
   if (signedIn) {
     alias = normalize(authState?.alias) || sessionAlias || storedAliasNormalized;
+    if (isGuestLabel(sessionUsername) && alias) {
+      sessionUsername = '';
+    }
+    if (isGuestLabel(storedUsernameNormalized) && alias) {
+      storedUsernameNormalized = '';
+    }
     username = normalize(authState?.username) || sessionUsername || storedUsernameNormalized;
     if (!username) {
       username = aliasToDisplay(alias) || 'User';
@@ -63,6 +73,10 @@ export function deriveFloatingIdentityDisplay({
   alias = '',
   guestDisplayName = '',
 } = {}) {
+  const isGuestLabel = value => {
+    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    return normalized === 'guest' || normalized === 'guest user';
+  };
   const normalizedHint = typeof latestDisplayName === 'string' ? latestDisplayName.trim() : '';
   if (normalizedHint) {
     return normalizedHint;
@@ -71,8 +85,14 @@ export function deriveFloatingIdentityDisplay({
   const aliasDisplay = aliasToDisplay(alias);
 
   if (signedIn) {
-    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
-    const normalizedStored = typeof storedUsername === 'string' ? storedUsername.trim() : '';
+    let normalizedUsername = typeof username === 'string' ? username.trim() : '';
+    let normalizedStored = typeof storedUsername === 'string' ? storedUsername.trim() : '';
+    if (isGuestLabel(normalizedUsername) && aliasDisplay) {
+      normalizedUsername = '';
+    }
+    if (isGuestLabel(normalizedStored) && aliasDisplay) {
+      normalizedStored = '';
+    }
     return normalizedUsername || normalizedStored || aliasDisplay || 'User';
   }
 

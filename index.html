@@ -379,17 +379,6 @@
     </footer>
   </div>
 
-  <div id="auth-modal" class="auth-modal" aria-hidden="true">
-    <div class="auth-modal__panel" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-      <h2 id="auth-modal-title">Sign in to save your progress</h2>
-      <p>Create an account to sync your points across all your devices.</p>
-      <div class="auth-modal__actions">
-        <button type="button" class="cta primary" onclick="window.location.href='sign-in.html'">Sign in / Create account</button>
-        <button type="button" class="cta ghost" onclick="continueAsGuest()">Continue as guest</button>
-      </div>
-    </div>
-  </div>
-
   <div id="installPrompt" class="install-banner" hidden>
     <div class="install-banner__content">
       <span class="install-banner__text">Install 3DVR Portal for quick access.</span>
@@ -422,25 +411,6 @@
       }
     }
 
-    function ensureGuestId() {
-      const legacyId = localStorage.getItem('userId');
-      if (legacyId && !localStorage.getItem('guestId')) {
-        localStorage.setItem('guestId', legacyId);
-      }
-      if (legacyId) {
-        localStorage.removeItem('userId');
-      }
-      let guestId = localStorage.getItem('guestId');
-      if (!guestId) {
-        guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('guestId', guestId);
-      }
-      if (!localStorage.getItem('guestDisplayName')) {
-        localStorage.setItem('guestDisplayName', 'Guest');
-      }
-      return guestId;
-    }
-
     function restoreAuthIfPossible() {
       const signedIn = localStorage.getItem('signedIn') === 'true';
       const alias = localStorage.getItem('alias');
@@ -468,36 +438,19 @@
 
     restoreAuthIfPossible();
 
-    if (localStorage.getItem('guest') === 'true') {
-      ensureGuestId();
-    }
-
-    window.addEventListener('load', () => {
+    function ensureGuestSession() {
       const signedIn = localStorage.getItem('signedIn') === 'true';
-      const guest = localStorage.getItem('guest') === 'true';
-      const authModal = document.getElementById('auth-modal');
-
-      if (!signedIn && !guest) {
-        authModal.style.display = 'flex';
-        authModal.setAttribute('aria-hidden', 'false');
+      if (signedIn) {
+        return;
+      }
+      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+        window.ScoreSystem.ensureGuestIdentity();
       } else {
-        authModal.style.display = 'none';
-        authModal.setAttribute('aria-hidden', 'true');
+        localStorage.setItem('guest', 'true');
       }
-
-      if (guest) {
-        ensureGuestId();
-      }
-    });
-
-    function continueAsGuest() {
-      const authModal = document.getElementById('auth-modal');
-      ensureGuestId();
-      localStorage.setItem('guest', 'true');
-      authModal.style.display = 'none';
-      authModal.setAttribute('aria-hidden', 'true');
-      window.dispatchEvent(new Event('auth-modal:closed'));
     }
+
+    ensureGuestSession();
   </script>
 
   <script>
