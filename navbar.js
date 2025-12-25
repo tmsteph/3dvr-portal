@@ -193,6 +193,24 @@ function createNavbar() {
     usernameSpan.innerText = '👤 Guest';
     scoreSpan.innerText = '⭐ 0';
   }
+
+  if (typeof user?.on === 'function') {
+    user.on('auth', () => {
+      if (!isSignedIn) {
+        isSignedIn = true;
+        try {
+          localStorage.setItem('signedIn', 'true');
+          if (user?.is?.alias) {
+            localStorage.setItem('alias', user.is.alias);
+            aliasDisplay = aliasToDisplay(user.is.alias);
+          }
+        } catch (err) {
+          console.warn('Failed to persist signed-in state from auth event', err);
+        }
+      }
+      updateNameDisplay();
+    });
+  }
 }
 
 window.addEventListener('load', createNavbar);
