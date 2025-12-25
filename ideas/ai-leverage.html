@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Leverage · Ideas Lab</title>
+  <meta name="description" content="AI can reduce the grind for solopreneurs by handling admin, planning, and follow-ups.">
+  <link rel="icon" href="https://fav.farm/⚡">
+  <link rel="stylesheet" href="audience-leads.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="audience-leads.js" defer></script>
+</head>
+<body>
+  <div class="page">
+    <nav class="top-nav" aria-label="Ideas Lab navigation">
+      <a href="/ideas/">← Ideas Lab</a>
+      <a href="/index.html">Portal Home</a>
+    </nav>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="headline">
+        <p class="kicker">Audience test · v1</p>
+        <h1 id="headline">You’re doing five jobs. AI can do four of them.</h1>
+        <p class="subhead">Stop drowning in admin, marketing, planning, and follow-ups. Use AI to create leverage
+          instead of grinding harder.</p>
+
+        <div class="body-text">
+          <p>Most solopreneurs don’t need motivation. They need <strong>systems</strong>.</p>
+          <p>AI can:</p>
+          <ul>
+            <li>handle repetitive thinking</li>
+            <li>draft, organize, and follow up</li>
+            <li>help you package your skills into cleaner offers</li>
+            <li>reduce context switching and burnout</li>
+          </ul>
+          <p>We’re testing a more humane way to work: less chaos, more clarity, more breathing room.</p>
+        </div>
+
+        <h2 class="section-title">What You’ll Get (later)</h2>
+        <div class="body-text">
+          <ul>
+            <li>real AI workflows for solo operators</li>
+            <li>templates you can reuse</li>
+            <li>simple systems instead of tool overload</li>
+            <li>help turning effort into repeatable income</li>
+          </ul>
+        </div>
+      </section>
+
+      <aside class="panel form-panel" aria-label="Stay in the loop">
+        <h2>I want leverage, not burnout. Keep me posted.</h2>
+        <p>Share your name and email so we can deliver the next steps and workflow experiments.</p>
+        <form
+          class="form-grid"
+          data-audience-form
+          data-audience-key="ai-leverage"
+          data-audience-label="Solopreneurs and freelancers"
+          data-source-label="Ideas Lab · AI leverage"
+          data-question-label="What eats most of your time right now?"
+        >
+          <label>
+            <span>Name</span>
+            <input name="name" type="text" autocomplete="name" required placeholder="Morgan Chen">
+          </label>
+          <label>
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+          </label>
+          <label>
+            <span>Optional: What eats most of your time right now?</span>
+            <textarea name="prompt" placeholder="Admin, outreach, planning, follow-ups, etc."></textarea>
+          </label>
+          <button type="submit">I want leverage</button>
+          <p class="status" data-form-status role="status" aria-live="polite"></p>
+        </form>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      Submissions sync to the 3DVR Gun relay so we can share experiments with the right audience.
+    </footer>
+  </div>
+</body>
+</html>
