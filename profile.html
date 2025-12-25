@@ -691,6 +691,11 @@ function aliasToDisplay(alias) {
   return normalized.includes('@') ? normalized.split('@')[0] : normalized;
 }
 
+function isGuestLabel(value) {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return normalized === 'guest' || normalized === 'guest user';
+}
+
 function normalizeAliasInput(raw) {
   const trimmed = (raw || '').trim().toLowerCase();
   if (!trimmed) return '';
@@ -960,6 +965,9 @@ async function createCoworkerAccount() {
 
 function handleProfileName(name) {
   const normalized = typeof name === 'string' ? name.trim() : '';
+  if (isSignedIn && isGuestLabel(normalized) && aliasName) {
+    return;
+  }
   latestProfileName = normalized;
   if (normalized) {
     if (isSignedIn) {
