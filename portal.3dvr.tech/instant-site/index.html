@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Instant Website Starter · 3DVR</title>
+  <meta name="description" content="Get a clean, simple website written by AI. Submit your details to generate a one-page starter site." />
+  <link rel="icon" href="https://fav.farm/⚡" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f6f7fb;
+      color: #101426;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      margin: 0 0 12px;
+    }
+
+    p {
+      margin: 0 0 16px;
+      line-height: 1.5;
+    }
+
+    ul {
+      margin: 0 0 16px 20px;
+      padding: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    a {
+      color: #1a4bd8;
+    }
+
+    .hero {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 18px 45px rgba(16, 20, 38, 0.08);
+    }
+
+    .hero a {
+      display: inline-flex;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+
+    .form-card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 18px 45px rgba(16, 20, 38, 0.08);
+    }
+
+    form {
+      display: grid;
+      gap: 18px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    input,
+    textarea {
+      border-radius: 12px;
+      border: 1px solid #d8dbe8;
+      padding: 12px 14px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      background: #1a4bd8;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .status {
+      font-size: 0.95rem;
+    }
+
+    .status.error {
+      color: #b42318;
+    }
+
+    .status.success {
+      color: #0b7a3d;
+    }
+
+    .prompt-card {
+      background: #0f172a;
+      color: #f8fafc;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.3);
+    }
+
+    pre {
+      white-space: pre-wrap;
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    @media (min-width: 768px) {
+      main {
+        padding: 48px 24px 80px;
+      }
+
+      .hero,
+      .form-card,
+      .prompt-card {
+        padding: 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero" aria-labelledby="instant-title">
+      <h1 id="instant-title">Instant Website Starter</h1>
+      <p>
+        Get a clean, simple website written by AI.
+        Perfect for small businesses, freelancers, and creators.
+      </p>
+      <ul>
+        <li>No meetings</li>
+        <li>No design work</li>
+        <li>Ready fast</li>
+      </ul>
+      <p>
+        <strong>Testing offer:</strong> $5 for a full 1-page site
+      </p>
+      <a href="#form">Get Started</a>
+    </section>
+
+    <section class="form-card" id="form" aria-labelledby="form-title">
+      <h2 id="form-title">Tell us about your business</h2>
+      <form id="instantForm">
+        <label>
+          Business name
+          <input name="businessName" type="text" autocomplete="organization" required />
+        </label>
+        <label>
+          What do you do?
+          <textarea name="description" required></textarea>
+        </label>
+        <label>
+          Who is this for?
+          <textarea name="audience" required></textarea>
+        </label>
+        <label>
+          Email address
+          <input name="email" type="email" autocomplete="email" required />
+        </label>
+        <button type="submit" id="submitButton">Generate My Website</button>
+        <p class="status" id="formStatus" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="prompt-card" aria-labelledby="prompt-title">
+      <h2 id="prompt-title">Master prompt</h2>
+      <pre>You are a professional website copywriter and UX strategist.
+
+Create a clean, modern, 1-page website using the information below.
+
+Goals:
+- Clear headline
+- Simple explanation of the business
+- 3–5 service bullets
+- Friendly, confident tone
+- Clear call to action
+
+Audience: non-technical users
+Style: simple, human, trustworthy
+
+Business Name:
+{{BUSINESS_NAME}}
+
+Description:
+{{WHAT_THEY_DO}}
+
+Target Audience:
+{{WHO_ITS_FOR}}
+
+Output format:
+- Headline
+- Subheadline
+- About section
+- Services (bullets)
+- Call to Action</pre>
+    </section>
+  </main>
+
+  <script>
+    const gun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
+
+    // Node shape: gun.get('3dvr-portal').get('instant-site').get('submissions').get(id)
+    // => { id, businessName, description, audience, email, createdAt, source }
+    const submissionsNode = gun.get('3dvr-portal').get('instant-site').get('submissions');
+
+    const form = document.getElementById('instantForm');
+    const status = document.getElementById('formStatus');
+    const submitButton = document.getElementById('submitButton');
+
+    function trimValue(value) {
+      return (value || '').trim();
+    }
+
+    function buildSubmission(formData) {
+      const businessName = trimValue(formData.get('businessName'));
+      const description = trimValue(formData.get('description'));
+      const audience = trimValue(formData.get('audience'));
+      const email = trimValue(formData.get('email'));
+
+      if (!businessName || !description || !audience || !email) {
+        return { error: 'Please fill out every field so we can start your draft.' };
+      }
+
+      return {
+        id: crypto.randomUUID ? crypto.randomUUID() : `instant-${Date.now()}`,
+        businessName,
+        description,
+        audience,
+        email,
+        createdAt: new Date().toISOString(),
+        source: 'portal.3dvr.tech/instant-site'
+      };
+    }
+
+    function putAsync(node, data) {
+      return new Promise((resolve, reject) => {
+        node.put(data, ack => {
+          if (ack && ack.err) {
+            reject(new Error(ack.err));
+          } else {
+            resolve(ack);
+          }
+        });
+      });
+    }
+
+    function setStatus(message, state) {
+      status.textContent = message;
+      status.classList.remove('error', 'success');
+      if (state) {
+        status.classList.add(state);
+      }
+    }
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      setStatus('Sending your request...', null);
+      submitButton.disabled = true;
+
+      const submission = buildSubmission(new FormData(form));
+      if (submission.error) {
+        setStatus(submission.error, 'error');
+        submitButton.disabled = false;
+        return;
+      }
+
+      try {
+        await putAsync(submissionsNode.get(submission.id), submission);
+        setStatus('Got it! We will reply with your AI starter site shortly.', 'success');
+        form.reset();
+      } catch (error) {
+        console.error('Instant site submission failed', error);
+        setStatus('Something went wrong. Please try again in a moment.', 'error');
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
