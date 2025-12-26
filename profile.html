@@ -1062,7 +1062,11 @@ if (isSignedIn && signedInAlias && signedInPassword) {
         const shouldPreserve = window.ScoreSystem
           && typeof window.ScoreSystem.shouldPreserveSessionOnAuthError === 'function'
           && window.ScoreSystem.shouldPreserveSessionOnAuthError(ack.err);
-        if (shouldPreserve) {
+        const shouldClear = window.ScoreSystem
+          && typeof window.ScoreSystem.shouldClearSessionOnAuthError === 'function'
+          ? window.ScoreSystem.shouldClearSessionOnAuthError(ack.err)
+          : true;
+        if (shouldPreserve || !shouldClear) {
           console.warn(
             'Session restore deferred; showing cached identity until network recovers.',
             ack.err

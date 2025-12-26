@@ -85,4 +85,23 @@ describe('score manager adjustments', () => {
     manager.decrement(10, { floor: 60 });
     assert.equal(manager.getCurrent(), 40);
   });
+
+  it('classifies auth errors for session clearing', () => {
+    assert.equal(
+      ScoreSystem.shouldPreserveSessionOnAuthError('Network timeout while connecting'),
+      true
+    );
+    assert.equal(
+      ScoreSystem.shouldClearSessionOnAuthError('Wrong user or password.'),
+      true
+    );
+    assert.equal(
+      ScoreSystem.shouldClearSessionOnAuthError('Invalid user.'),
+      true
+    );
+    assert.equal(
+      ScoreSystem.shouldClearSessionOnAuthError('Gun relay unavailable'),
+      false
+    );
+  });
 });

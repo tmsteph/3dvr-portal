@@ -136,6 +136,24 @@
     return transientSignals.some(signal => normalized.includes(signal));
   }
 
+  function shouldClearSessionOnAuthError(error) {
+    const message = typeof error === 'string'
+      ? error
+      : (error && typeof error.err === 'string' ? error.err : '');
+    const normalized = message.toLowerCase().trim();
+    if (!normalized) return false;
+    const fatalSignals = [
+      'wrong user',
+      'invalid user',
+      'invalid password',
+      'user not found',
+      'no user',
+      'auth failed',
+      'authentication failed'
+    ];
+    return fatalSignals.some(signal => normalized.includes(signal));
+  }
+
   function recallUserSession(targetUser, { useLocal = true, useSession = true } = {}) {
     const user = targetUser;
     if (!user || typeof user.recall !== 'function') {
@@ -1099,6 +1117,7 @@
   const ScoreSystem = {
     sanitizeScore,
     shouldPreserveSessionOnAuthError,
+    shouldClearSessionOnAuthError,
     ensureGuestIdentity,
     computeAuthState,
     recallUserSession,
