@@ -118,6 +118,24 @@
     return Math.max(0, Math.round(numeric));
   }
 
+  function shouldPreserveSessionOnAuthError(error) {
+    const message = typeof error === 'string'
+      ? error
+      : (error && typeof error.err === 'string' ? error.err : '');
+    const normalized = message.toLowerCase().trim();
+    if (!normalized) return false;
+    const transientSignals = [
+      'offline',
+      'unavailable',
+      'network',
+      'timeout',
+      'timed out',
+      'disconnected',
+      'gun'
+    ];
+    return transientSignals.some(signal => normalized.includes(signal));
+  }
+
   function recallUserSession(targetUser, { useLocal = true, useSession = true } = {}) {
     const user = targetUser;
     if (!user || typeof user.recall !== 'function') {
@@ -1080,6 +1098,7 @@
   // Brave shield popup suppression removed; rely on default browser behavior.
   const ScoreSystem = {
     sanitizeScore,
+    shouldPreserveSessionOnAuthError,
     ensureGuestIdentity,
     computeAuthState,
     recallUserSession,

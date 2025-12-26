@@ -456,6 +456,16 @@
         if (!user.is) {
           user.auth(alias, password, ack => {
             if (ack && ack.err) {
+              const shouldPreserve = window.ScoreSystem
+                && typeof window.ScoreSystem.shouldPreserveSessionOnAuthError === 'function'
+                && window.ScoreSystem.shouldPreserveSessionOnAuthError(ack.err);
+              if (shouldPreserve) {
+                console.warn(
+                  'Session restore deferred; keeping local identity until network recovers.',
+                  ack.err
+                );
+                return;
+              }
               console.warn('Session restore failed', ack.err);
               localStorage.removeItem('signedIn');
               localStorage.removeItem('alias');
