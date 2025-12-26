@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Field Simulation</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0e1116;
+      color: #f5f7fb;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+    }
+
+    main {
+      width: min(94vw, 640px);
+      text-align: center;
+      display: grid;
+      gap: 16px;
+      justify-items: center;
+    }
+
+    canvas {
+      width: min(92vw, 520px);
+      height: min(92vw, 520px);
+      border-radius: 16px;
+      background: #0a0d12;
+      box-shadow: 0 16px 40px rgba(5, 10, 20, 0.45);
+    }
+
+    a {
+      color: inherit;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Field Simulation</h1>
+    <p>Watch a smoothing field evolve as nearby values diffuse across the grid.</p>
+    <canvas id="field" width="400" height="400" aria-label="Grayscale field simulation"></canvas>
+    <a href="../index.html">← Back to the portal</a>
+  </main>
+  <script>
+    const canvas = document.getElementById('field');
+    const ctx = canvas.getContext('2d');
+    const W = 100;
+    const H = 100;
+    let grid = Array.from({ length: H }, () =>
+      Array.from({ length: W }, () => Math.random())
+    );
+
+    function step() {
+      const next = grid.map(row => row.slice());
+      for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+          const avg =
+            grid[y][x] * 0.4 +
+            grid[y - 1][x] * 0.15 +
+            grid[y + 1][x] * 0.15 +
+            grid[y][x - 1] * 0.15 +
+            grid[y][x + 1] * 0.15;
+          next[y][x] = avg;
+        }
+      }
+      grid = next;
+    }
+
+    function draw() {
+      const img = ctx.createImageData(W, H);
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const v = Math.floor(grid[y][x] * 255);
+          const i = (y * W + x) * 4;
+          img.data[i] = v;
+          img.data[i + 1] = v;
+          img.data[i + 2] = v;
+          img.data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+
+    function loop() {
+      step();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
