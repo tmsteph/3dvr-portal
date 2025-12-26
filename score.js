@@ -143,13 +143,9 @@
     const normalized = message.toLowerCase().trim();
     if (!normalized) return false;
     const fatalSignals = [
-      'wrong user',
       'invalid user',
-      'invalid password',
       'user not found',
-      'no user',
-      'auth failed',
-      'authentication failed'
+      'no user'
     ];
     return fatalSignals.some(signal => normalized.includes(signal));
   }

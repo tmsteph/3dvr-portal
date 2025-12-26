@@ -93,7 +93,7 @@ describe('score manager adjustments', () => {
     );
     assert.equal(
       ScoreSystem.shouldClearSessionOnAuthError('Wrong user or password.'),
-      true
+      false
     );
     assert.equal(
       ScoreSystem.shouldClearSessionOnAuthError('Invalid user.'),
