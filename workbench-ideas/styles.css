@@ -1,0 +1,256 @@
+.workbench-ideas {
+  background: radial-gradient(circle at top, #111827 0%, #0b0f1a 55%, #070b13 100%);
+  color: #f8fafc;
+  min-height: 100vh;
+}
+
+.page-header {
+  padding: 48px 20px 24px;
+}
+
+.page-header__content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 0 auto;
+  max-width: 1100px;
+}
+
+.page-header__eyebrow {
+  color: #93c5fd;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-header h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin: 8px 0 12px;
+}
+
+.page-header__summary {
+  color: #cbd5f5;
+  max-width: 720px;
+}
+
+.page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin: 0 auto 56px;
+  max-width: 1100px;
+  padding: 0 20px 40px;
+}
+
+.panel {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.35);
+}
+
+.panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  color: #7dd3fc;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.flow-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.flow-card {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.flow-card h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #fef3c7;
+}
+
+.idea-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.field-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+.field__label {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.field input,
+.field textarea {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  padding: 12px 14px;
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3);
+  outline: none;
+}
+
+.option-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.option-block {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+  padding: 16px;
+  background: rgba(10, 15, 28, 0.5);
+}
+
+.option-block h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.option-list {
+  display: grid;
+  gap: 10px;
+}
+
+.option-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.option-item input {
+  margin-top: 4px;
+}
+
+.form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.form-status {
+  color: #93c5fd;
+}
+
+.idea-board {
+  display: grid;
+  gap: 18px;
+}
+
+.idea-card {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.idea-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.idea-card__header h3 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.idea-card__meta {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.idea-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.badge {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 999px;
+  color: #bfdbfe;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+}
+
+.idea-card__section {
+  margin-top: 12px;
+}
+
+.idea-card__section h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #fef3c7;
+}
+
+.promo-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.promo-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.promo-item label {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+
+@media (min-width: 900px) {
+  .page-header__content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}

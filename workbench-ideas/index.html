@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workbench Idea Automations</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body class="theme-dark workbench-ideas">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <header class="page-header">
+    <div class="page-header__content">
+      <div>
+        <p class="page-header__eyebrow">OpenAI Workbench</p>
+        <h1>Idea page automation + promotion hub</h1>
+        <p class="page-header__summary">
+          Coordinate the Workbench tools, publish idea pages, and track promotion steps with GunJS as the shared
+          source of truth.
+        </p>
+      </div>
+      <div class="page-header__actions">
+        <a class="button ghost" href="/index.html">Back to portal</a>
+        <a class="button" href="/ideas/index.html">Ideas Lab</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="mainContent" class="page-content">
+    <section class="panel" aria-labelledby="automation-title">
+      <div class="panel__header">
+        <div>
+          <p class="eyebrow">Automation flow</p>
+          <h2 id="automation-title">Use Workbench tools to ship idea pages fast</h2>
+        </div>
+      </div>
+      <div class="flow-grid">
+        <article class="flow-card">
+          <h3>1. Shape the idea</h3>
+          <p>Draft the problem, audience, and success metric with Workbench prompts so every page has a crisp story.</p>
+        </article>
+        <article class="flow-card">
+          <h3>2. Generate the page</h3>
+          <p>Use tool templates to translate the brief into an idea page and save the URL for promotion.</p>
+        </article>
+        <article class="flow-card">
+          <h3>3. Promote everywhere</h3>
+          <p>Pick promotion channels, assign owners, and track progress in the shared GunJS checklist below.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="create-title">
+      <div class="panel__header">
+        <div>
+          <p class="eyebrow">Idea intake</p>
+          <h2 id="create-title">Create a Workbench-backed idea page</h2>
+          <p>Store each idea in Gun so the team can coordinate promotion from any device.</p>
+        </div>
+      </div>
+      <form class="idea-form" data-idea-form>
+        <div class="field-grid">
+          <label class="field">
+            <span class="field__label">Idea title</span>
+            <input type="text" name="ideaTitle" required placeholder="AI onboarding concierge" />
+          </label>
+          <label class="field">
+            <span class="field__label">Target audience</span>
+            <input type="text" name="ideaAudience" placeholder="New portal members, startup founders" />
+          </label>
+          <label class="field field--full">
+            <span class="field__label">Problem statement</span>
+            <textarea name="ideaProblem" rows="3" required placeholder="Describe the core problem and why it matters."></textarea>
+          </label>
+          <label class="field field--full">
+            <span class="field__label">Success metric</span>
+            <input type="text" name="ideaSuccess" placeholder="15 qualified signups in week one" />
+          </label>
+          <label class="field field--full">
+            <span class="field__label">Idea page URL</span>
+            <input type="url" name="ideaUrl" placeholder="https://3dvr.tech/ideas/your-idea" />
+          </label>
+        </div>
+
+        <div class="option-grid">
+          <div class="option-block" data-tool-options>
+            <h3>Workbench tools</h3>
+          </div>
+          <div class="option-block" data-channel-options>
+            <h3>Promotion channels</h3>
+          </div>
+        </div>
+
+        <div class="form-footer">
+          <button class="button" type="submit">Save idea</button>
+          <p class="form-status" data-form-status role="status" aria-live="polite"></p>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="board-title">
+      <div class="panel__header">
+        <div>
+          <p class="eyebrow">Promotion board</p>
+          <h2 id="board-title">Track idea pages and promotion progress</h2>
+          <p>Every checklist update syncs through the shared Gun node for the Workbench automation stream.</p>
+        </div>
+      </div>
+      <div class="idea-board" data-idea-list></div>
+    </section>
+  </main>
+</body>
+</html>
