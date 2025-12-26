@@ -1059,6 +1059,21 @@ if (isSignedIn && signedInAlias && signedInPassword) {
   } else {
     user.auth(signedInAlias, signedInPassword, ack => {
       if (ack && ack.err) {
+        const shouldPreserve = window.ScoreSystem
+          && typeof window.ScoreSystem.shouldPreserveSessionOnAuthError === 'function'
+          && window.ScoreSystem.shouldPreserveSessionOnAuthError(ack.err);
+        const shouldClear = window.ScoreSystem
+          && typeof window.ScoreSystem.shouldClearSessionOnAuthError === 'function'
+          ? window.ScoreSystem.shouldClearSessionOnAuthError(ack.err)
+          : true;
+        if (shouldPreserve || !shouldClear) {
+          console.warn(
+            'Session restore deferred; showing cached identity until network recovers.',
+            ack.err
+          );
+          initializeSignedInProfile();
+          return;
+        }
         alert('Session expired. Please sign in again.');
         localStorage.removeItem('signedIn');
         localStorage.removeItem('alias');
