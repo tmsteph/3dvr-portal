@@ -318,7 +318,7 @@
 
   <script>
     const gun = window.gun;
-    // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, createdAt}
+    // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, createdAt, updatedAt}
     const meetingsNode = gun.get('meeting-notes').get('meetings');
 
     const meetingForm = document.getElementById('meetingForm');
@@ -436,8 +436,23 @@
             renderMeetingList();
           });
 
+          const editButton = document.createElement('button');
+          editButton.className = 'button button-secondary';
+          editButton.type = 'button';
+          editButton.textContent = 'Edit title';
+          editButton.addEventListener('click', () => {
+            const nextTitle = window.prompt('Update meeting title', data?.title || '');
+            if (nextTitle === null) return;
+            const trimmedTitle = nextTitle.trim();
+            meetingsNode.get(id).put({
+              title: trimmedTitle || 'Untitled meeting',
+              updatedAt: new Date().toISOString(),
+            });
+          });
+
           actions.appendChild(openLink);
           actions.appendChild(copyButton);
+          actions.appendChild(editButton);
           actions.appendChild(deleteButton);
 
           card.appendChild(dateTag);
