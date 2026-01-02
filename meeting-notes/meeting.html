@@ -177,6 +177,7 @@
     const gun = window.gun;
     const meetingId = new URL(window.location.href).searchParams.get('meeting');
     // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, createdAt, updatedAt}
+    // Gun graph: meeting-notes -> meetings -> {meetingId} -> notes -> {content, updatedAt}
     // Gun graph: meeting-notes -> meetings -> {meetingId} -> attendees -> {attendeeId} -> {name, status, updatedAt}
     const meetingNode = meetingId ? gun.get('meeting-notes').get('meetings').get(meetingId) : null;
 
@@ -193,6 +194,7 @@
     const copyLinkButton = document.getElementById('copyLink');
 
     let notesUpdateTimer = null;
+    let lastNotesWriteAt = 0;
 
     const formatDate = (value) => {
       if (!value) return 'Date not set';
@@ -328,12 +330,17 @@
       });
 
       meetingNode.get('notes').once((note) => {
-        const content = note?.content || '';
+        const content = typeof note === 'string' ? note : note?.content || '';
         notesField.value = content;
       });
 
       meetingNode.get('notes').on((note) => {
-        const content = note?.content || '';
+        const content = typeof note === 'string' ? note : note?.content || '';
+        const updatedAt = typeof note === 'object' && note?.updatedAt ? Date.parse(note.updatedAt) : 0;
+        const isEditing = document.activeElement === notesField;
+        if (isEditing && updatedAt && updatedAt < lastNotesWriteAt) {
+          return;
+        }
         if (notesField.value !== content) {
           notesField.value = content;
         }
@@ -357,8 +364,12 @@
       if (!meetingNode) return;
       if (notesUpdateTimer) window.clearTimeout(notesUpdateTimer);
       const content = notesField.value;
+      lastNotesWriteAt = Date.now();
       notesUpdateTimer = window.setTimeout(() => {
-        meetingNode.get('notes').put({ content });
+        meetingNode.get('notes').put({
+          content,
+          updatedAt: new Date(lastNotesWriteAt).toISOString(),
+        });
       }, 300);
     });
 
