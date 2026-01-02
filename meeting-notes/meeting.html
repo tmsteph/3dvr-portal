@@ -69,6 +69,12 @@
 
     .button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
+    .button-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
     .tag {
       display: inline-flex;
       align-items: center;
@@ -90,10 +96,16 @@
     .field { display: grid; gap: 6px; }
     .input, .select { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04); color: var(--text); font: inherit; }
 
+    .meeting-title-edit { margin-top: 12px; display: grid; gap: 8px; }
+    .meeting-title-edit__controls { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; }
+
     .attendance-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
     .attendance-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); }
+    .attendance-row__details { display: grid; gap: 6px; }
     .attendance-row__meta { margin: 0; color: var(--muted); font-size: 0.9rem; }
     .attendance-row__name { margin: 0; font-weight: 700; }
+    .attendance-row__edit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .attendance-row__edit .input { min-width: 180px; }
     .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-weight: 700; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04); }
     .status-present { color: var(--success); border-color: rgba(110, 231, 183, 0.25); }
     .status-late { color: var(--warning); border-color: rgba(252, 211, 77, 0.3); }
@@ -112,6 +124,13 @@
       <div class="tag" id="meetingTag">Loading meeting...</div>
       <h1 id="meetingTitle">Meeting</h1>
       <p class="meta" id="meetingMeta">Fetching details...</p>
+      <div class="meeting-title-edit">
+        <label for="meetingTitleInput">Edit meeting title</label>
+        <div class="meeting-title-edit__controls">
+          <input class="input" id="meetingTitleInput" type="text" placeholder="Untitled meeting" disabled>
+          <button class="button button-secondary" type="button" id="saveTitle" disabled>Save title</button>
+        </div>
+      </div>
     </div>
     <div class="page-actions">
       <a class="button" href="/meeting-notes/">Back to meetings</a>
@@ -157,11 +176,15 @@
 
     const gun = window.gun;
     const meetingId = new URL(window.location.href).searchParams.get('meeting');
+    // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, createdAt, updatedAt}
+    // Gun graph: meeting-notes -> meetings -> {meetingId} -> attendees -> {attendeeId} -> {name, status, updatedAt}
     const meetingNode = meetingId ? gun.get('meeting-notes').get('meetings').get(meetingId) : null;
 
     const meetingTag = document.getElementById('meetingTag');
     const meetingTitle = document.getElementById('meetingTitle');
     const meetingMeta = document.getElementById('meetingMeta');
+    const meetingTitleInput = document.getElementById('meetingTitleInput');
+    const saveTitleButton = document.getElementById('saveTitle');
     const notesField = document.getElementById('notesField');
     const attendeeForm = document.getElementById('attendeeForm');
     const attendeeSubmit = document.getElementById('attendeeSubmit');
@@ -176,6 +199,11 @@
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return value;
       return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    };
+
+    const syncMeetingTitleInput = (title) => {
+      if (document.activeElement === meetingTitleInput) return;
+      meetingTitleInput.value = title || '';
     };
 
     const updateEmptyStates = () => {
@@ -195,9 +223,16 @@
         : data?.status === 'late' ? 'status-late' : 'status-absent';
 
       row.innerHTML = `
-        <div>
+        <div class="attendance-row__details">
           <p class="attendance-row__name">${data?.name || 'Unnamed attendee'}</p>
           <p class="attendance-row__meta">Updated ${formatDate(data?.updatedAt)}</p>
+          <div class="attendance-row__edit">
+            <label class="field">
+              <span>Edit name</span>
+              <input class="input" type="text" data-role="attendee-name" placeholder="Attendee name">
+            </label>
+            <button class="button button-secondary" type="button" data-role="attendee-save">Save name</button>
+          </div>
         </div>
         <div class="status-actions">
           <span class="status-badge ${badgeClass}">${(data?.status || 'present').toUpperCase()}</span>
@@ -207,8 +242,16 @@
         </div>
       `;
 
+      const nameInput = row.querySelector('[data-role="attendee-name"]');
+      nameInput.value = data?.name || '';
+
+      const saveButton = row.querySelector('[data-role="attendee-save"]');
+      saveButton.addEventListener('click', () => {
+        updateAttendeeName(attendeeId, nameInput.value, data?.status);
+      });
+
       row.querySelectorAll('.status-button').forEach((button) => {
-        button.addEventListener('click', () => updateAttendeeStatus(attendeeId, data?.name, button.dataset.status));
+        button.addEventListener('click', () => updateAttendeeStatus(attendeeId, nameInput.value, button.dataset.status));
       });
 
       updateEmptyStates();
@@ -229,12 +272,23 @@
       });
     };
 
+    const updateAttendeeName = (attendeeId, name, status) => {
+      if (!meetingNode) return;
+      meetingNode.get('attendees').get(attendeeId).put({
+        name: name || 'Unnamed attendee',
+        status: status || 'present',
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
     if (!meetingNode) {
       meetingTag.textContent = 'No meeting id provided';
       meetingTitle.textContent = 'Missing meeting';
       meetingMeta.textContent = 'Pass a meeting id in the URL to load its notes.';
       attendeeSubmit.disabled = true;
       notesField.disabled = true;
+      meetingTitleInput.disabled = true;
+      saveTitleButton.disabled = true;
     } else {
       copyLinkButton.disabled = false;
       copyLinkButton.addEventListener('click', async () => {
@@ -250,19 +304,27 @@
       meetingNode.once((data) => {
         if (!data) return;
         meetingTag.textContent = 'Meeting';
-        meetingTitle.textContent = data.title || 'Untitled meeting';
+        const displayTitle = data.title || 'Untitled meeting';
+        meetingTitle.textContent = displayTitle;
         meetingMeta.textContent = `Scheduled for ${formatDate(data.datetime)} (created ${formatDate(data.createdAt)})`;
+        syncMeetingTitleInput(data.title);
         notesField.disabled = false;
         attendeeSubmit.disabled = false;
+        meetingTitleInput.disabled = false;
+        saveTitleButton.disabled = false;
       });
 
       meetingNode.on((data) => {
         if (!data) return;
         meetingTag.textContent = 'Meeting';
-        meetingTitle.textContent = data.title || 'Untitled meeting';
+        const displayTitle = data.title || 'Untitled meeting';
+        meetingTitle.textContent = displayTitle;
         meetingMeta.textContent = `Scheduled for ${formatDate(data.datetime)} (created ${formatDate(data.createdAt)})`;
+        syncMeetingTitleInput(data.title);
         notesField.disabled = false;
         attendeeSubmit.disabled = false;
+        meetingTitleInput.disabled = false;
+        saveTitleButton.disabled = false;
       });
 
       meetingNode.get('notes').once((note) => {
@@ -298,6 +360,15 @@
       notesUpdateTimer = window.setTimeout(() => {
         meetingNode.get('notes').put({ content });
       }, 300);
+    });
+
+    saveTitleButton.addEventListener('click', () => {
+      if (!meetingNode) return;
+      const title = meetingTitleInput.value.trim();
+      meetingNode.put({
+        title: title || 'Untitled meeting',
+        updatedAt: new Date().toISOString(),
+      });
     });
 
     attendeeForm.addEventListener('submit', (event) => {
