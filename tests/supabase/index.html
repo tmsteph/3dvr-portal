@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supabase Test Lab</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <style>
+    body {
+      background: #0e1116;
+      color: #f5f7ff;
+      font-family: "Inter", "Segoe UI", sans-serif;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    .page-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      margin: 0 auto;
+      max-width: 900px;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+
+    .page-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .page-header a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page-header a:focus,
+    .page-header a:hover {
+      text-decoration: underline;
+    }
+
+    .status-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .status-card {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 1.25rem;
+    }
+
+    .status-card h2 {
+      font-size: 1.05rem;
+      margin: 0 0 0.5rem;
+    }
+
+    .status-card p {
+      color: rgba(245, 247, 255, 0.8);
+      margin: 0;
+    }
+
+    .next-steps {
+      background: rgba(15, 92, 255, 0.12);
+      border: 1px solid rgba(15, 92, 255, 0.3);
+      border-radius: 16px;
+      padding: 1.5rem;
+    }
+
+    .next-steps ol {
+      margin: 0.75rem 0 0;
+      padding-left: 1.2rem;
+    }
+
+    .pill {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      display: inline-flex;
+      font-size: 0.85rem;
+      padding: 0.25rem 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="page-header">
+      <a href="/index.html">← Back to portal</a>
+      <span class="pill">Supabase Test Lab</span>
+      <h1>Supabase Test App</h1>
+      <p>
+        Use this space to validate Supabase workflows before migrating larger apps. The goal is to keep
+        experiments isolated from GunJS while keeping notes and next steps in one place.
+      </p>
+    </header>
+
+    <section class="status-grid" aria-label="Supabase test status">
+      <article class="status-card">
+        <h2>Connection</h2>
+        <p>Waiting on credentials and project setup.</p>
+      </article>
+      <article class="status-card">
+        <h2>Data Model</h2>
+        <p>Define tables and policies before wiring UI flows.</p>
+      </article>
+      <article class="status-card">
+        <h2>Auth</h2>
+        <p>Plan sign-in routes (magic link, OAuth, or email + password).</p>
+      </article>
+    </section>
+
+    <section class="next-steps" aria-label="Next steps">
+      <h2>Suggested next steps</h2>
+      <ol>
+        <li>Create the Supabase project and enable Row Level Security.</li>
+        <li>Decide which app feature to migrate first and sketch the schema.</li>
+        <li>Add Supabase client logic and small UI panels here before wiring into the portal.</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>
