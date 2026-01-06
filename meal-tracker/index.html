@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meal Tracker | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --surface: #0b1220;
+      --surface-strong: #111a2b;
+      --accent: #6ee7ff;
+      --accent-soft: rgba(110, 231, 255, 0.2);
+      --text: #f5f7ff;
+      --muted: rgba(245, 247, 255, 0.68);
+      --border: rgba(148, 163, 184, 0.25);
+      --today: rgba(45, 212, 191, 0.22);
+      --today-border: rgba(45, 212, 191, 0.6);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, rgba(34, 211, 238, 0.18), transparent 55%),
+        linear-gradient(160deg, #07101c 0%, #05070c 60%, #05060a 100%);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 40px 20px 24px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 12px 0 10px;
+      font-size: clamp(2rem, 4vw, 2.75rem);
+    }
+
+    header p {
+      margin: 0 auto;
+      max-width: 640px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px 60px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .tracker-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      display: grid;
+      gap: 20px;
+      box-shadow: 0 24px 60px rgba(4, 8, 20, 0.6);
+    }
+
+    .tracker-header {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .tracker-header h2 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    .tracker-header p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .day-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .day-card {
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      position: relative;
+      min-height: 180px;
+    }
+
+    .day-card.today {
+      border-color: var(--today-border);
+      background: linear-gradient(180deg, rgba(45, 212, 191, 0.08), transparent 70%), var(--surface-strong);
+      box-shadow: 0 16px 40px rgba(45, 212, 191, 0.18);
+    }
+
+    .day-card.today::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      border: 1px solid var(--today-border);
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .day-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .day-title h3 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .today-badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--today);
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .meal-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .meal-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .meal-list span {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    @media (max-width: 600px) {
+      header {
+        padding-top: 32px;
+      }
+
+      .tracker-card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow" style="text-transform: uppercase; letter-spacing: 0.2em; color: rgba(245, 247, 255, 0.6);">
+      Meal tracker
+    </p>
+    <h1>Plan your week with steady, nourishing meals</h1>
+    <p>Capture meals, hydration, and prep notes. Today is highlighted so you can stay focused on what matters now.</p>
+  </header>
+
+  <main>
+    <section class="tracker-card" aria-labelledby="weekly-title">
+      <div class="tracker-header">
+        <h2 id="weekly-title">Weekly overview</h2>
+        <p>Tap into the day that needs attention and keep meal prep aligned with your energy needs.</p>
+      </div>
+      <div class="day-grid" id="dayGrid">
+        <article class="day-card" data-day="Sunday">
+          <div class="day-title">
+            <h3>Sunday</h3>
+          </div>
+          <ul class="meal-list">
+            <li><span>Breakfast:</span> Overnight oats + berries</li>
+            <li><span>Lunch:</span> Veggie grain bowl</li>
+            <li><span>Dinner:</span> Salmon + greens</li>
+          </ul>
+        </article>
+        <article class="day-card" data-day="Monday">
+          <div class="day-title">
+            <h3>Monday</h3>
+          </div>
+          <ul class="meal-list">
+            <li><span>Breakfast:</span> Greek yogurt + granola</li>
+            <li><span>Lunch:</span> Turkey wrap + salad</li>
+            <li><span>Dinner:</span> Stir-fry tofu + rice</li>
+          </ul>
+        </article>
+        <article class="day-card" data-day="Tuesday">
+          <div class="day-title">
+            <h3>Tuesday</h3>
+          </div>
+          <ul class="meal-list">
+            <li><span>Breakfast:</span> Smoothie + greens</li>
+            <li><span>Lunch:</span> Lentil soup</li>
+            <li><span>Dinner:</span> Chicken + roasted veggies</li>
+          </ul>
+        </article>
+        <article class="day-card" data-day="Wednesday">
+          <div class="day-title">
+            <h3>Wednesday</h3>
+          </div>
+          <ul class="meal-list">
+            <li><span>Breakfast:</span> Avocado toast</li>
+            <li><span>Lunch:</span> Quinoa salad</li>
+            <li><span>Dinner:</span> Shrimp tacos</li>
+          </ul>
+        </article>
+        <article class="day-card" data-day="Thursday">
+          <div class="day-title">
+            <h3>Thursday</h3>
+          </div>
+          <ul class="meal-list">
+            <li><span>Breakfast:</span> Chia pudding</li>
+            <li><span>Lunch:</span> Hummus veggie bowl</li>
+            <li><span>Dinner:</span> Turkey chili</li>
+          </ul>
+        </article>
+        <article class="day-card" data-day="Friday">
+          <div class="day-title">
+            <h3>Friday</h3>
+          </div>
+          <ul class="meal-list">
+            <li><span>Breakfast:</span> Egg muffins</li>
+            <li><span>Lunch:</span> Tuna salad wrap</li>
+            <li><span>Dinner:</span> Veggie pasta</li>
+          </ul>
+        </article>
+        <article class="day-card" data-day="Saturday">
+          <div class="day-title">
+            <h3>Saturday</h3>
+          </div>
+          <ul class="meal-list">
+            <li><span>Breakfast:</span> Pancakes + fruit</li>
+            <li><span>Lunch:</span> Chicken Caesar</li>
+            <li><span>Dinner:</span> Taco night</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const dayGrid = document.getElementById('dayGrid');
+    const dayNames = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday'
+    ];
+    const todayName = dayNames[new Date().getDay()];
+    const todayCard = dayGrid.querySelector(`[data-day="${todayName}"]`);
+
+    if (todayCard) {
+      todayCard.classList.add('today');
+      const badge = document.createElement('span');
+      badge.className = 'today-badge';
+      badge.textContent = 'Today';
+      const titleRow = todayCard.querySelector('.day-title');
+      titleRow.appendChild(badge);
+    }
+  </script>
+</body>
+</html>
