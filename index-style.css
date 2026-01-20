@@ -247,6 +247,21 @@ body.landing {
   font-size: 1rem;
 }
 
+.app-hub__intro p + p {
+  margin-top: 0.65rem;
+}
+
+.app-hub__link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-hub__link:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -379,27 +394,6 @@ body.landing {
   margin-top: 1.6rem;
 }
 
-.app-group {
-  margin-top: 2.4rem;
-  display: grid;
-  gap: 1.4rem;
-}
-
-.app-group__header {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.app-group__header h3 {
-  margin: 0;
-  font-size: clamp(1.4rem, 1.2vw + 1.1rem, 1.85rem);
-}
-
-.app-group__header p {
-  margin: 0;
-  max-width: 540px;
-  color: var(--color-text-muted);
-}
 
 .app-card {
   position: relative;
