@@ -379,6 +379,28 @@ body.landing {
   margin-top: 1.6rem;
 }
 
+.app-group {
+  margin-top: 2.4rem;
+  display: grid;
+  gap: 1.4rem;
+}
+
+.app-group__header {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.app-group__header h3 {
+  margin: 0;
+  font-size: clamp(1.4rem, 1.2vw + 1.1rem, 1.85rem);
+}
+
+.app-group__header p {
+  margin: 0;
+  max-width: 540px;
+  color: var(--color-text-muted);
+}
+
 .app-card {
   position: relative;
   display: grid;
