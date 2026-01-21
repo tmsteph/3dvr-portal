@@ -79,10 +79,6 @@
             <span class="eyebrow">Launchpad</span>
             <h2 id="app-hub-title">Core apps, ready to go</h2>
             <p>Jump into the core tools that keep the community running. Search or scroll to launch an app fast.</p>
-            <p class="app-hub__note">
-              Looking for early builds? Visit the
-              <a class="app-hub__link" href="experimental.html">Experimental Apps page</a>.
-            </p>
           </div>
           <div
             class="app-search"
@@ -104,6 +100,18 @@
             />
             <span id="appSearchHint" class="app-search__hint">Press / or Ctrl + K to jump here · Results update as you type.</span>
           </div>
+        </div>
+        <div class="app-hub__controls" aria-label="App list controls">
+          <label class="app-toggle">
+            <span class="app-toggle__label">Show experimental apps</span>
+            <input
+              type="checkbox"
+              class="app-toggle__input"
+              aria-label="Show experimental apps"
+              data-experimental-toggle
+            />
+            <span class="app-toggle__switch" aria-hidden="true"></span>
+          </label>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
         <div class="app-grid">
@@ -246,6 +254,114 @@
             <span class="app-card__icon" aria-hidden="true">🌿</span>
             <span class="app-card__title">Wellness</span>
             <span class="app-card__meta">Explore mindfulness, nutrition, and lifestyle resources.</span>
+          </a>
+          <a href="debian-browser/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🐧</span>
+            <span class="app-card__title">Debian Browser Lab</span>
+            <span class="app-card__meta">Explore the Debian-in-browser experiment with VM and streaming paths.</span>
+          </a>
+          <a href="personal-debian-server/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🖧</span>
+            <span class="app-card__title">Personal Debian Server</span>
+            <span class="app-card__meta">Learn how a Debian laptop runs local-first hosting and databases.</span>
+          </a>
+          <a href="field-simulation/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🌫️</span>
+            <span class="app-card__title">Field Simulation</span>
+            <span class="app-card__meta">Watch a grayscale field diffuse across the grid.</span>
+          </a>
+          <a href="gun-explorer/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🗺️</span>
+            <span class="app-card__title">Gun Explorer</span>
+            <span class="app-card__meta">Inspect GunJS nodes, peers, and live data snapshots.</span>
+          </a>
+          <a href="gun-demo.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🛰️</span>
+            <span class="app-card__title">Gun Sync Lab</span>
+            <span class="app-card__meta">Monitor relays, run the shared counter, and capture backups.</span>
+          </a>
+          <a href="tests/supabase/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🧪</span>
+            <span class="app-card__title">Supabase Test Lab</span>
+            <span class="app-card__meta">Prototype Supabase workflows before migrating portal apps.</span>
+          </a>
+          <a href="ideas/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">💡</span>
+            <span class="app-card__title">Ideas Lab</span>
+            <span class="app-card__meta">Test lightweight landing pages with local view and CTA stats.</span>
+          </a>
+          <a href="workbench-ideas/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🧰</span>
+            <span class="app-card__title">Workbench Ideas</span>
+            <span class="app-card__meta">Automate Workbench idea briefs and promotion checklists.</span>
+          </a>
+          <a href="local-models-on-phones/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">📱</span>
+            <span class="app-card__title">Local Models</span>
+            <span class="app-card__meta">Plan on-device and in-browser AI runtimes for mobile.</span>
+          </a>
+          <a href="mini-daedalos/" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🪟</span>
+            <span class="app-card__title">Mini DaedalOS</span>
+            <span class="app-card__meta">Try the vanilla Gun.js desktop shell with notes and window memory.</span>
+          </a>
+          <a href="money-ai/" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">💸</span>
+            <span class="app-card__title">Money AI</span>
+            <span class="app-card__meta">Plan income-generating automations with your own AI.</span>
+          </a>
+          <a href="openai-app/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🤖</span>
+            <span class="app-card__title">OpenAI Workbench</span>
+            <span class="app-card__meta">Bring your own key to chat with GPT-4o and share prompts via Gun.</span>
+          </a>
+          <a href="science/" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🧪</span>
+            <span class="app-card__title">Science Lab</span>
+            <span class="app-card__meta">Run experiments, track signals, and publish VR-ready findings.</span>
+          </a>
+          <a href="xr-motion-lab/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🥽</span>
+            <span class="app-card__title">XR Motion Lab</span>
+            <span class="app-card__meta">Use device sensors and camera passthrough for a mobile AR/VR prototype.</span>
+          </a>
+          <a href="website-builder.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🛠️</span>
+            <span class="app-card__title">Sites</span>
+            <span class="app-card__meta">Generate AI-built pages and keep them synced with Gun.</span>
+          </a>
+          <a href="web-builder-app/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🧩</span>
+            <span class="app-card__title">Web Builder</span>
+            <span class="app-card__meta">Use shared defaults to build, preview, and launch new sites fast.</span>
+          </a>
+          <a href="workbench-dev-lab/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🧪</span>
+            <span class="app-card__title">Workbench Dev Lab</span>
+            <span class="app-card__meta">Test prompts and site builder runs side-by-side with shared checklists.</span>
+          </a>
+          <a href="workbench-site-builder/index.html" class="app-card" data-app-tier="experimental">
+            <span class="app-card__badge">Experimental</span>
+            <span class="app-card__icon" aria-hidden="true">🏗️</span>
+            <span class="app-card__title">Workbench Site Builder</span>
+            <span class="app-card__meta">Build new sites with Workbench keys, previews, and saved runs.</span>
           </a>
         </div>
       </section>
@@ -679,6 +795,9 @@
     );
     const searchInput =
       searchContainer?.querySelector('[data-app-search-input]') ?? null;
+    const experimentalToggle = document.querySelector(
+      '[data-experimental-toggle]'
+    );
     const appGrid = document.querySelector('.app-grid');
     let appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
@@ -711,17 +830,24 @@
         : null;
     let hasScrolledToApps = false;
 
+    const isExperimental = (card) =>
+      card.getAttribute('data-app-tier') === 'experimental';
+    const shouldShowExperimental = () => Boolean(experimentalToggle?.checked);
+
     const updateAppFilter = (value = '') => {
       const query = value.trim().toLowerCase();
       let visibleCount = 0;
 
       if (!query) {
         appCards.forEach((card) => {
-          card.hidden = false;
-          if (appGrid) {
-            appGrid.appendChild(card);
+          const hideExperimental = isExperimental(card) && !shouldShowExperimental();
+          card.hidden = hideExperimental;
+          if (!hideExperimental) {
+            if (appGrid) {
+              appGrid.appendChild(card);
+            }
+            visibleCount += 1;
           }
-          visibleCount += 1;
         });
 
         if (appSearchEmpty) {
@@ -743,9 +869,10 @@
         const titleIncludesQuery = titleText.includes(query);
         const metaIncludesQuery = metaText.includes(query);
         const matches = titleIncludesQuery || metaIncludesQuery;
+        const hideExperimental = isExperimental(card) && !shouldShowExperimental();
 
-        card.hidden = !matches;
-        if (matches) {
+        card.hidden = !matches || hideExperimental;
+        if (matches && !hideExperimental) {
           visibleCount += 1;
           if (titleIncludesQuery) {
             nameMatches.push(card);
@@ -937,6 +1064,12 @@
         event.target.select();
       });
       searchInput.addEventListener('keydown', handleSearchKeydown);
+    }
+
+    if (experimentalToggle) {
+      experimentalToggle.addEventListener('change', () => {
+        updateAppFilter(searchInput?.value ?? '');
+      });
     }
 
     searchTriggers.forEach((trigger) => {
