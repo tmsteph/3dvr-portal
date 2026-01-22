@@ -1052,11 +1052,24 @@ function initializeGuestProfile() {
 const signedInAlias = (localStorage.getItem('alias') || '').trim();
 const signedInPassword = localStorage.getItem('password');
 
-if (isSignedIn && signedInAlias && signedInPassword) {
+function recallUserSession() {
+  if (!user) return;
+  if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
+    window.ScoreSystem.recallUserSession(user);
+  } else {
+    try {
+      user.recall({ sessionStorage: true, localStorage: true });
+    } catch (err) {
+      console.warn('Unable to recall user session', err);
+    }
+  }
+}
+
+if (isSignedIn && signedInAlias) {
   aliasName = aliasToDisplay(signedInAlias);
   if (user.is) {
     initializeSignedInProfile();
-  } else {
+  } else if (signedInPassword) {
     user.auth(signedInAlias, signedInPassword, ack => {
       if (ack && ack.err) {
         alert('Session expired. Please sign in again.');
@@ -1069,6 +1082,15 @@ if (isSignedIn && signedInAlias && signedInPassword) {
         initializeSignedInProfile();
       }
     });
+  } else {
+    recallUserSession();
+    setTimeout(() => {
+      if (user.is) {
+        initializeSignedInProfile();
+      } else {
+        initializeGuestProfile();
+      }
+    }, 800);
   }
 } else {
   initializeGuestProfile();

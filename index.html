@@ -496,18 +496,28 @@
       const alias = localStorage.getItem('alias');
       const password = localStorage.getItem('password');
 
-      if (signedIn && alias && password) {
+      if (signedIn && alias) {
         localStorage.removeItem('guest');
-        if (!user.is) {
-          user.auth(alias, password, ack => {
-            if (ack && ack.err) {
-              console.warn('Session restore failed', ack.err);
+        if (password) {
+          if (!user.is) {
+            user.auth(alias, password, ack => {
+              if (ack && ack.err) {
+                console.warn('Session restore failed', ack.err);
+                localStorage.removeItem('signedIn');
+                localStorage.removeItem('alias');
+                localStorage.removeItem('username');
+                localStorage.removeItem('password');
+              }
+            });
+          }
+        } else {
+          setTimeout(() => {
+            if (!user.is) {
               localStorage.removeItem('signedIn');
               localStorage.removeItem('alias');
               localStorage.removeItem('username');
-              localStorage.removeItem('password');
             }
-          });
+          }, 1200);
         }
       } else if (signedIn) {
         localStorage.removeItem('signedIn');
