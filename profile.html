@@ -599,7 +599,7 @@ if (!isSignedIn && window.ScoreSystem && typeof window.ScoreSystem.ensureGuestId
   window.ScoreSystem.ensureGuestIdentity();
 }
 
-const scoreManager = window.ScoreSystem
+let scoreManager = window.ScoreSystem
   ? window.ScoreSystem.getManager({ gun, user, portalRoot })
   : null;
 
@@ -664,6 +664,39 @@ function aliasToDisplay(alias) {
   if (!normalized) return '';
   return normalized.includes('@') ? normalized.split('@')[0] : normalized;
 }
+
+function syncSignedInFromSession() {
+  const storedSignedIn = localStorage.getItem('signedIn') === 'true';
+  const storedAlias = (localStorage.getItem('alias') || '').trim();
+  const sessionAlias = user && user.is && user.is.alias ? user.is.alias : '';
+
+  if (storedSignedIn && storedAlias) return false;
+  if (!sessionAlias) return false;
+
+  localStorage.setItem('signedIn', 'true');
+  localStorage.setItem('alias', sessionAlias);
+  if (!localStorage.getItem('username')) {
+    localStorage.setItem('username', aliasToDisplay(sessionAlias));
+  }
+  localStorage.removeItem('guest');
+  localStorage.removeItem('guestId');
+  localStorage.removeItem('guestDisplayName');
+
+  portalStoredName = (localStorage.getItem('username') || '').trim();
+  isSignedIn = true;
+  isGuest = false;
+
+  if (window.ScoreSystem) {
+    window.ScoreSystem.resetManager();
+    scoreManager = window.ScoreSystem.getManager({ gun, user, portalRoot });
+    authState = scoreManager.getState();
+    activeProfile = scoreManager.getNode();
+  }
+
+  return true;
+}
+
+syncSignedInFromSession();
 
 function normalizeAliasInput(raw) {
   const trimmed = (raw || '').trim().toLowerCase();
@@ -1082,6 +1115,7 @@ if (restorePlan.mode === 'user') {
   if (restorePlan.action === 'ready') {
     initializeSignedInProfile();
   } else if (restorePlan.action === 'auth') {
+    initializeSignedInProfile();
     user.auth(signedInAlias, signedInPassword, ack => {
       if (ack && ack.err) {
         alert('Session expired. Please sign in again.');
@@ -1090,8 +1124,6 @@ if (restorePlan.mode === 'user') {
         localStorage.removeItem('username');
         localStorage.removeItem('password');
         initializeGuestProfile();
-      } else {
-        initializeSignedInProfile();
       }
     });
   } else {
