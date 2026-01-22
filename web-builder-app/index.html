@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
 </head>
 <body>
   <div class="top-buttons">
@@ -39,17 +38,11 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">Admin bundle</p>
-            <h2>Load shared defaults</h2>
-            <p class="meta">Unlock the preloaded OpenAI, Vercel, and GitHub keys. Shared usage is rate limited by plan.</p>
+            <h2>Shared defaults</h2>
+            <p class="meta">Preloaded OpenAI, Vercel, and GitHub keys load automatically. Shared usage is rate limited by plan.</p>
           </div>
         </div>
-        <label for="default-passphrase">Default passphrase</label>
-        <div class="input-row">
-          <input type="password" id="default-passphrase" placeholder="Passphrase from admin" aria-describedby="default-hint">
-          <button id="load-defaults" class="primary">Use defaults</button>
-        </div>
-        <p class="meta" id="default-hint">Ask an admin for the passphrase to unlock shared keys.</p>
-        <p class="status" id="default-status" aria-live="polite">Defaults not loaded yet.</p>
+        <p class="status" id="default-status" aria-live="polite">Defaults load automatically when available.</p>
         <p class="status" id="shared-usage" aria-live="polite">Shared limits idle.</p>
       </section>
 
