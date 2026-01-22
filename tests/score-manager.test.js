@@ -86,9 +86,9 @@ describe('score manager adjustments', () => {
     assert.equal(manager.getCurrent(), 40);
   });
 
-  it('plans session restore when signed in without a password', () => {
+  it('plans session restore when an alias exists without a password', () => {
     const plan = ScoreSystem.determineSignedInRestore({
-      signedIn: true,
+      signedIn: false,
       alias: 'tester@3dvr',
       password: '',
       userIs: false
@@ -98,9 +98,9 @@ describe('score manager adjustments', () => {
     assert.equal(plan.action, 'recall');
   });
 
-  it('falls back to guest when no signed-in alias is present', () => {
+  it('falls back to guest when no alias is present', () => {
     const plan = ScoreSystem.determineSignedInRestore({
-      signedIn: true,
+      signedIn: false,
       alias: '',
       password: '',
       userIs: false

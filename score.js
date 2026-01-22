@@ -208,7 +208,7 @@
     const alias = (localStorage.getItem('alias') || '').trim();
     const username = (localStorage.getItem('username') || '').trim();
 
-    if (signedIn) {
+    if (signedIn || alias) {
       return {
         mode: 'user',
         alias,
@@ -233,12 +233,11 @@
   }
 
   function determineSignedInRestore({ signedIn, alias, password, userIs } = {}) {
-    const resolvedSignedIn = Boolean(signedIn);
     const resolvedAlias = typeof alias === 'string' ? alias.trim() : '';
     const resolvedPassword = typeof password === 'string' ? password.trim() : '';
     const resolvedUserIs = Boolean(userIs);
 
-    if (!resolvedSignedIn || !resolvedAlias) {
+    if (!resolvedAlias) {
       return { mode: 'guest', action: 'guest' };
     }
 
