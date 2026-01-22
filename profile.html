@@ -1065,11 +1065,23 @@ function recallUserSession() {
   }
 }
 
-if (isSignedIn && signedInAlias) {
+const restorePlan = window.ScoreSystem && typeof window.ScoreSystem.determineSignedInRestore === 'function'
+  ? window.ScoreSystem.determineSignedInRestore({
+    signedIn: isSignedIn,
+    alias: signedInAlias,
+    password: signedInPassword,
+    userIs: Boolean(user && user.is)
+  })
+  : {
+    mode: isSignedIn && signedInAlias ? 'user' : 'guest',
+    action: signedInPassword ? 'auth' : 'recall'
+  };
+
+if (restorePlan.mode === 'user') {
   aliasName = aliasToDisplay(signedInAlias);
-  if (user.is) {
+  if (restorePlan.action === 'ready') {
     initializeSignedInProfile();
-  } else if (signedInPassword) {
+  } else if (restorePlan.action === 'auth') {
     user.auth(signedInAlias, signedInPassword, ack => {
       if (ack && ack.err) {
         alert('Session expired. Please sign in again.');
@@ -1084,13 +1096,7 @@ if (isSignedIn && signedInAlias) {
     });
   } else {
     recallUserSession();
-    setTimeout(() => {
-      if (user.is) {
-        initializeSignedInProfile();
-      } else {
-        initializeGuestProfile();
-      }
-    }, 800);
+    initializeSignedInProfile();
   }
 } else {
   initializeGuestProfile();

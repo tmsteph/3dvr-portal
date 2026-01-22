@@ -85,4 +85,28 @@ describe('score manager adjustments', () => {
     manager.decrement(10, { floor: 60 });
     assert.equal(manager.getCurrent(), 40);
   });
+
+  it('plans session restore when signed in without a password', () => {
+    const plan = ScoreSystem.determineSignedInRestore({
+      signedIn: true,
+      alias: 'tester@3dvr',
+      password: '',
+      userIs: false
+    });
+
+    assert.equal(plan.mode, 'user');
+    assert.equal(plan.action, 'recall');
+  });
+
+  it('falls back to guest when no signed-in alias is present', () => {
+    const plan = ScoreSystem.determineSignedInRestore({
+      signedIn: true,
+      alias: '',
+      password: '',
+      userIs: false
+    });
+
+    assert.equal(plan.mode, 'guest');
+    assert.equal(plan.action, 'guest');
+  });
 });

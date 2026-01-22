@@ -495,10 +495,21 @@
       const signedIn = localStorage.getItem('signedIn') === 'true';
       const alias = localStorage.getItem('alias');
       const password = localStorage.getItem('password');
+      const plan = window.ScoreSystem && typeof window.ScoreSystem.determineSignedInRestore === 'function'
+        ? window.ScoreSystem.determineSignedInRestore({
+          signedIn,
+          alias,
+          password,
+          userIs: Boolean(user && user.is)
+        })
+        : {
+          mode: signedIn && alias ? 'user' : 'guest',
+          action: password ? 'auth' : 'recall'
+        };
 
-      if (signedIn && alias) {
+      if (plan.mode === 'user') {
         localStorage.removeItem('guest');
-        if (password) {
+        if (plan.action === 'auth') {
           if (!user.is) {
             user.auth(alias, password, ack => {
               if (ack && ack.err) {
@@ -510,14 +521,16 @@
               }
             });
           }
-        } else {
-          setTimeout(() => {
-            if (!user.is) {
-              localStorage.removeItem('signedIn');
-              localStorage.removeItem('alias');
-              localStorage.removeItem('username');
+        } else if (plan.action === 'recall') {
+          if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
+            window.ScoreSystem.recallUserSession(user);
+          } else {
+            try {
+              user.recall({ sessionStorage: true, localStorage: true });
+            } catch (err) {
+              console.warn('Unable to recall user session', err);
             }
-          }, 1200);
+          }
         }
       } else if (signedIn) {
         localStorage.removeItem('signedIn');

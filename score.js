@@ -232,6 +232,27 @@
     };
   }
 
+  function determineSignedInRestore({ signedIn, alias, password, userIs } = {}) {
+    const resolvedSignedIn = Boolean(signedIn);
+    const resolvedAlias = typeof alias === 'string' ? alias.trim() : '';
+    const resolvedPassword = typeof password === 'string' ? password.trim() : '';
+    const resolvedUserIs = Boolean(userIs);
+
+    if (!resolvedSignedIn || !resolvedAlias) {
+      return { mode: 'guest', action: 'guest' };
+    }
+
+    if (resolvedUserIs) {
+      return { mode: 'user', action: 'ready' };
+    }
+
+    if (resolvedPassword) {
+      return { mode: 'user', action: 'auth' };
+    }
+
+    return { mode: 'user', action: 'recall' };
+  }
+
   function cacheKeyForState(state) {
     if (!state || state.mode === 'anon') {
       return `${SCORE_CACHE_PREFIX}anon`;
@@ -1082,6 +1103,7 @@
     sanitizeScore,
     ensureGuestIdentity,
     computeAuthState,
+    determineSignedInRestore,
     recallUserSession,
     ensureGun,
     createGunUserStub,
