@@ -622,6 +622,10 @@ let portalStoredName = (localStorage.getItem('username') || '').trim();
 let guestStoredName = (localStorage.getItem('guestDisplayName') || '').trim();
 let scoreUnsubscribe = null;
 
+if (portalStoredName.toLowerCase() === 'guest') {
+  portalStoredName = '';
+}
+
 const usernameEl = document.getElementById('username');
 const scoreEl = document.getElementById('score');
 const levelEl = document.getElementById('level');
