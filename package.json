@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
+    "start": "vercel dev",
     "test": "node --test"
   },
   "dependencies": {
