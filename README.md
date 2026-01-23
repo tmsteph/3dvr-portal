@@ -89,6 +89,16 @@ cd 3dvr-portal
 open index.html
 ```
 
+### Run the Vercel-powered dev server
+
+The dev server uses the Vercel CLI, which is installed locally via `devDependencies`,
+so there is no global setup.
+
+```bash
+npm install
+npm run dev
+```
+
 ### Calendar Hub developer preview
 
 The new calendar prototype lives at `calendar/index.html`. To experiment with Google or Outlook:

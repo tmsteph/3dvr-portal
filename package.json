@@ -9,10 +9,11 @@
     "test": "node --test"
   },
   "dependencies": {
-    "stripe": "^12.17.0",
-    "nodemailer": "^6.9.8"
+    "nodemailer": "^6.9.8",
+    "stripe": "^12.17.0"
   },
   "devDependencies": {
-    "playwright": "^1.45.0"
+    "playwright": "^1.45.0",
+    "vercel": "^50.4.10"
   }
 }
