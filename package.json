@@ -4,8 +4,8 @@
   "description": "Main portal for 3dvr.tech with Stripe webhooks and email notifications",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
-    "start": "vercel dev",
+    "dev": "http-server -c-1 -p 3000",
+    "start": "npm run dev",
     "test": "node --test"
   },
   "dependencies": {
@@ -13,7 +13,7 @@
     "stripe": "^12.17.0"
   },
   "devDependencies": {
-    "playwright": "^1.45.0",
-    "vercel": "^50.4.10"
+    "http-server": "^14.1.1",
+    "playwright": "^1.45.0"
   }
 }
