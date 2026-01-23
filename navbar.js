@@ -95,7 +95,10 @@ function createNavbar() {
       return;
     }
     if (isSignedIn) {
-      const stored = (localStorage.getItem('username') || '').trim();
+      let stored = (localStorage.getItem('username') || '').trim();
+      if (stored.toLowerCase() === 'guest') {
+        stored = '';
+      }
       const fallback = stored || aliasDisplay || 'Guest';
       usernameSpan.innerText = `👤 ${fallback}`;
       return;

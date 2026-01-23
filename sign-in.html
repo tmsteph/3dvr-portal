@@ -555,6 +555,10 @@
       localStorage.setItem('username', username);
       localStorage.setItem('alias', alias);
       localStorage.setItem('password', password);
+      if (user && typeof user.get === 'function') {
+        user.get('alias').put(alias);
+        user.get('username').put(username);
+      }
       localStorage.removeItem('guest');
       migrateGuestProgress()
         .catch(err => {

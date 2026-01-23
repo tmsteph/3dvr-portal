@@ -132,8 +132,42 @@
       return false;
     }
 
+    const syncStoredAuthFromUser = () => {
+      // User graph shape: user.get('alias') + user.get('username').
+      if (!user || typeof user.get !== 'function') {
+        return;
+      }
+      let storedName = '';
+      try {
+        storedName = (localStorage.getItem('username') || '').trim();
+      } catch (err) {
+        console.warn('Failed to read stored username', err);
+      }
+      const isGuestLabel = storedName.toLowerCase() === 'guest';
+      if (storedName && !isGuestLabel) {
+        return;
+      }
+      try {
+        user.get('username').once(name => {
+          const normalized = typeof name === 'string' ? name.trim() : '';
+          if (normalized) {
+            localStorage.setItem('username', normalized);
+            return;
+          }
+          const alias = (localStorage.getItem('alias') || '').trim();
+          const fallback = displayNameFromAlias(alias);
+          if (fallback) {
+            localStorage.setItem('username', fallback);
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to sync stored username from user graph', err);
+      }
+    };
+
     try {
       user.recall(recallOptions);
+      syncStoredAuthFromUser();
       return true;
     } catch (err) {
       console.warn('Failed to recall user session with combined storage', err);
@@ -142,6 +176,7 @@
     if (useLocal && useSession) {
       try {
         user.recall({ localStorage: true });
+        syncStoredAuthFromUser();
         return true;
       } catch (fallbackErr) {
         console.warn('Fallback recall from localStorage failed', fallbackErr);
@@ -206,7 +241,10 @@
   function computeAuthState() {
     const signedIn = localStorage.getItem('signedIn') === 'true';
     const alias = (localStorage.getItem('alias') || '').trim();
-    const username = (localStorage.getItem('username') || '').trim();
+    let username = (localStorage.getItem('username') || '').trim();
+    if (username.toLowerCase() === 'guest') {
+      username = '';
+    }
 
     if (signedIn) {
       return {
