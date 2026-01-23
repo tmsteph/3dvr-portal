@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { summarizeDefaults } from '../src/web-builder/defaults.js';
+import { summarizeDefaults } from '../web-builder-app/defaults.js';
 
 test('summarizeDefaults returns empty defaults when no data is present', () => {
   const result = summarizeDefaults();

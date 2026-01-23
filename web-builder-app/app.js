@@ -1,4 +1,4 @@
-import { summarizeDefaults } from '../src/web-builder/defaults.js';
+import { summarizeDefaults } from './defaults.js';
 
 const gun = Gun({ peers: window.__GUN_PEERS__ || undefined });
 const portalRoot = gun.get('3dvr-portal');
