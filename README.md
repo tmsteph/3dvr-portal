@@ -89,6 +89,21 @@ cd 3dvr-portal
 open index.html
 ```
 
+### Run the local dev server
+
+The portal is mostly static HTML/CSS/JS, so the default dev server is a simple static
+server. This keeps local setup lightweight and avoids a global Vercel dependency.
+
+```bash
+npm install
+npm run dev
+```
+
+### When do you need Vercel locally?
+
+Only if you need to emulate Vercel serverless functions under `/api` during development.
+For most UI work, the static dev server above is enough.
+
 ### Calendar Hub developer preview
 
 The new calendar prototype lives at `calendar/index.html`. To experiment with Google or Outlook:
