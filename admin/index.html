@@ -393,6 +393,16 @@
           <label for="default-api-hint">Passphrase hint (optional)</label>
           <input id="default-api-hint" type="text" placeholder="Example: same passphrase as portal admin" />
         </div>
+        <div class="form-group">
+          <label for="publish-public-defaults">
+            <input id="publish-public-defaults" type="checkbox" />
+            Publish public defaults (plaintext)
+          </label>
+          <p class="text-muted">
+            Public defaults load without a passphrase. Only use low-risk, rate-limited keys since the values are
+            stored in plaintext.
+          </p>
+        </div>
         <div class="actions" style="margin-top: 10px;">
           <button id="save-default-key" class="btn-primary" type="button">Save defaults</button>
           <button id="clear-default-key" class="btn-danger" type="button">Clear defaults</button>
@@ -521,7 +531,11 @@
   const userIndex = portalRoot.get('userIndex');
   const userStats = portalRoot.get('userStats');
   const userDeletionLog = portalRoot.get('userDeletions');
+  // Defaults are split by sensitivity:
+  // - defaults: encrypted ciphers + hint that require a passphrase to unlock.
+  // - public-defaults: plaintext, low-scope, rate-limited keys safe for guest usage.
   const workbenchDefaults = workbenchRoot.get('defaults');
+  const workbenchPublicDefaults = workbenchRoot.get('public-defaults');
   const keyVaultNode = gun.get('ai').get('key-vault');
   let workbenchSecrets = null;
   // Stripe subscriber summaries live under finance/stripeCustomers to keep shared totals in GunJS.
@@ -569,6 +583,7 @@
   const defaultGithubInput = document.getElementById('default-github-token');
   const defaultPassphraseInput = document.getElementById('default-api-passphrase');
   const defaultHintInput = document.getElementById('default-api-hint');
+  const publishPublicDefaultsInput = document.getElementById('publish-public-defaults');
   const defaultStatusEl = document.getElementById('default-status');
   const saveDefaultKeyBtn = document.getElementById('save-default-key');
   const clearDefaultKeyBtn = document.getElementById('clear-default-key');
@@ -1217,6 +1232,16 @@
     });
   }
 
+  function writeNodeValue(node, payload) {
+    return new Promise(resolve => {
+      if (!node || typeof node.put !== 'function') {
+        resolve({ err: 'node-unavailable' });
+        return;
+      }
+      node.put(payload, ack => resolve(ack || {}));
+    });
+  }
+
   async function handleAccountRecovery() {
     if (!recoveryButton) return;
     if (!isAdmin) {
@@ -1352,6 +1377,7 @@
     const githubToken = (defaultGithubInput.value || '').trim();
     const passphrase = (defaultPassphraseInput.value || '').trim();
     const hint = (defaultHintInput.value || '').trim();
+    const publishPublicDefaults = Boolean(publishPublicDefaultsInput?.checked);
 
     if (!apiKey && !vercelToken && !githubToken) {
       updateDefaultStatus('Enter at least one API token to save.');
@@ -1374,24 +1400,45 @@
       const cipher = apiKey ? await Gun.SEA.encrypt(apiKey, passphrase) : null;
       const vercelCipher = vercelToken ? await Gun.SEA.encrypt(vercelToken, passphrase) : null;
       const githubCipher = githubToken ? await Gun.SEA.encrypt(githubToken, passphrase) : null;
+      const updatedAt = Date.now();
+      const updatedBy = alias || 'admin';
       const payload = {
         apiKeyCipher: cipher,
         vercelTokenCipher: vercelCipher,
         githubTokenCipher: githubCipher,
         hint,
-        updatedAt: Date.now(),
-        updatedBy: alias || 'admin'
+        updatedAt,
+        updatedBy
       };
-      workbenchDefaults.put(payload, ack => {
-        if (ack?.err) {
-          updateDefaultStatus('Could not save the defaults.');
+      const encryptedAck = await writeNodeValue(workbenchDefaults, payload);
+      if (encryptedAck?.err) {
+        updateDefaultStatus('Could not save the defaults.');
+        return;
+      }
+
+      if (publishPublicDefaults) {
+        const publicPayload = {
+          apiKey: apiKey || null,
+          vercelToken: vercelToken || null,
+          githubToken: githubToken || null,
+          updatedAt,
+          updatedBy
+        };
+        const publicAck = await writeNodeValue(workbenchPublicDefaults, publicPayload);
+        if (publicAck?.err) {
+          updateDefaultStatus('Defaults saved, but public defaults could not be published.');
           return;
         }
-        defaultKeyInput.value = '';
-        defaultVercelInput.value = '';
-        defaultGithubInput.value = '';
-        updateDefaultStatus('Defaults saved. Share the passphrase privately with your team.');
-      });
+      }
+
+      defaultKeyInput.value = '';
+      defaultVercelInput.value = '';
+      defaultGithubInput.value = '';
+      updateDefaultStatus(
+        publishPublicDefaults
+          ? 'Defaults saved. Public defaults are live without a passphrase.'
+          : 'Defaults saved. Share the passphrase privately with your team.'
+      );
     } catch (error) {
       updateDefaultStatus('Failed to encrypt the defaults.');
     }
@@ -1418,6 +1465,13 @@
       defaultGithubInput.value = '';
       defaultPassphraseInput.value = '';
       defaultHintInput.value = '';
+      workbenchPublicDefaults.put({
+        apiKey: null,
+        vercelToken: null,
+        githubToken: null,
+        updatedAt: Date.now(),
+        updatedBy: alias || 'admin'
+      });
       updateDefaultStatus('Defaults cleared.');
     });
   }

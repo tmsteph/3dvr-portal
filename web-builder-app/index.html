@@ -40,7 +40,9 @@
           <div>
             <p class="eyebrow">Admin bundle</p>
             <h2>Load shared defaults</h2>
-            <p class="meta">Unlock the preloaded OpenAI, Vercel, and GitHub keys. Shared usage is rate limited by plan.</p>
+            <p class="meta">
+              Public defaults load automatically when available. Private defaults still require a passphrase.
+            </p>
           </div>
         </div>
         <label for="default-passphrase">Default passphrase</label>
@@ -48,8 +50,10 @@
           <input type="password" id="default-passphrase" placeholder="Passphrase from admin" aria-describedby="default-hint">
           <button id="load-defaults" class="primary">Use defaults</button>
         </div>
-        <p class="meta" id="default-hint">Ask an admin for the passphrase to unlock shared keys.</p>
-        <p class="status" id="default-status" aria-live="polite">Defaults not loaded yet.</p>
+        <p class="meta" id="default-hint">Ask an admin for the passphrase to unlock private defaults.</p>
+        <p class="status" id="default-status" aria-live="polite">
+          Public defaults may load automatically. Private defaults require a passphrase.
+        </p>
         <p class="status" id="shared-usage" aria-live="polite">Shared limits idle.</p>
       </section>
 

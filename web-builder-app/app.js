@@ -2,7 +2,11 @@ const gun = Gun({ peers: window.__GUN_PEERS__ || undefined });
 const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
 const workbenchRoot = portalRoot.get('ai-workbench');
+// Defaults are split into:
+// - defaults: encrypted ciphers + hint that need a passphrase.
+// - public-defaults: plaintext, low-scope, rate-limited keys safe for guest usage.
 const defaultsNode = workbenchRoot.get('defaults');
+const publicDefaultsNode = workbenchRoot.get('public-defaults');
 const rateLimitsNode = workbenchRoot.get('rate-limits');
 const billingTierNode = portalRoot.get('billing').get('usageTier');
 
@@ -26,6 +30,12 @@ const defaultSecrets = {
   github: ''
 };
 
+const publicDefaults = {
+  openai: '',
+  vercel: '',
+  github: ''
+};
+
 const sharedKeyUsage = {
   openai: false,
   vercel: false,
@@ -39,6 +49,8 @@ let usageSubscription = null;
 let tierSubscription = null;
 let currentHtml = '';
 let currentTitle = '';
+let encryptedDefaultsAvailable = [];
+let publicDefaultsAvailable = [];
 
 const identityStorageKey = 'web-builder-identity';
 const openaiStorageKey = 'web-builder-openai';
@@ -77,6 +89,7 @@ const identityKey = resolveIdentity();
 
 hydrateStoredKeys();
 subscribeToDefaults();
+subscribeToPublicDefaults();
 subscribeToBillingTier();
 subscribeToUsageCounters();
 wireEvents();
@@ -153,14 +166,79 @@ function subscribeToDefaults() {
     if (data?.apiKeyCipher) available.push('OpenAI');
     if (data?.vercelTokenCipher) available.push('Vercel');
     if (data?.githubTokenCipher) available.push('GitHub');
-
-    if (!available.length) {
-      defaultStatus.textContent = 'No defaults configured yet.';
-      return;
-    }
-
-    defaultStatus.textContent = `${available.join(', ')} defaults ready. Enter the passphrase to unlock.`;
+    encryptedDefaultsAvailable = available;
+    updateDefaultStatusMessage();
   });
+}
+
+function subscribeToPublicDefaults() {
+  publicDefaultsNode.on(data => {
+    const nextDefaults = {
+      openai: (data?.apiKey || '').trim(),
+      vercel: (data?.vercelToken || '').trim(),
+      github: (data?.githubToken || '').trim()
+    };
+    const nextAvailable = [];
+    if (nextDefaults.openai) nextAvailable.push('OpenAI');
+    if (nextDefaults.vercel) nextAvailable.push('Vercel');
+    if (nextDefaults.github) nextAvailable.push('GitHub');
+    publicDefaultsAvailable = nextAvailable;
+    applyPublicDefaults(nextDefaults);
+    updateDefaultStatusMessage();
+  });
+}
+
+function applyPublicDefaults(nextDefaults) {
+  const previousDefaults = { ...publicDefaults };
+  publicDefaults.openai = nextDefaults.openai;
+  publicDefaults.vercel = nextDefaults.vercel;
+  publicDefaults.github = nextDefaults.github;
+
+  updateDefaultFromPublic('openai', openaiInput, publicDefaults.openai, previousDefaults.openai);
+  updateDefaultFromPublic('vercel', vercelInput, publicDefaults.vercel, previousDefaults.vercel);
+  updateDefaultFromPublic('github', githubInput, publicDefaults.github, previousDefaults.github);
+}
+
+function updateDefaultFromPublic(key, input, nextValue, previousValue) {
+  const currentValue = (input.value || '').trim();
+  const shouldReplace = !currentValue || currentValue === previousValue;
+
+  if (nextValue) {
+    defaultSecrets[key] = nextValue;
+    if (shouldReplace) {
+      input.value = nextValue;
+    }
+    refreshSharedKeyUsage(key, input.value);
+    return;
+  }
+
+  defaultSecrets[key] = '';
+  if (previousValue && currentValue === previousValue) {
+    input.value = '';
+  }
+  refreshSharedKeyUsage(key, input.value);
+}
+
+function updateDefaultStatusMessage() {
+  if (publicDefaultsAvailable.length && encryptedDefaultsAvailable.length) {
+    defaultStatus.textContent = `Public defaults loaded: ${publicDefaultsAvailable.join(', ')}. Private defaults ` +
+      'still require the passphrase.';
+    return;
+  }
+
+  if (publicDefaultsAvailable.length) {
+    defaultStatus.textContent = `Public defaults loaded: ${publicDefaultsAvailable.join(', ')}. Private defaults ` +
+      'require a passphrase.';
+    return;
+  }
+
+  if (encryptedDefaultsAvailable.length) {
+    defaultStatus.textContent = `${encryptedDefaultsAvailable.join(', ')} defaults ready. Enter the passphrase ` +
+      'to unlock private defaults.';
+    return;
+  }
+
+  defaultStatus.textContent = 'No defaults configured yet.';
 }
 
 function normalizeTier(rawTier) {
@@ -305,7 +383,7 @@ function usingAnySharedKey() {
 async function loadDefaults() {
   const passphrase = (defaultPassphraseInput.value || '').trim();
   if (!passphrase) {
-    defaultStatus.textContent = 'Enter the passphrase to unlock defaults.';
+    defaultStatus.textContent = 'Enter the passphrase to unlock private defaults.';
     return;
   }
 
@@ -352,14 +430,14 @@ async function loadDefaults() {
     }
 
     if (!applied.length) {
-      defaultStatus.textContent = 'Passphrase incorrect or defaults missing.';
+      defaultStatus.textContent = 'Passphrase incorrect or private defaults missing.';
       return;
     }
 
-    defaultStatus.textContent = `Defaults applied: ${applied.join(', ')}. Shared limits active.`;
+    defaultStatus.textContent = `Private defaults applied: ${applied.join(', ')}. Shared limits active.`;
     updateSharedUsageStatus();
   } catch (error) {
-    defaultStatus.textContent = 'Unable to decrypt defaults. Check the passphrase and retry.';
+    defaultStatus.textContent = 'Unable to decrypt private defaults. Check the passphrase and retry.';
   }
 }
 
