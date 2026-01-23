@@ -1,8 +1,10 @@
+import { summarizeDefaults } from '../src/web-builder/defaults.js';
+
 const gun = Gun({ peers: window.__GUN_PEERS__ || undefined });
 const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
 const workbenchRoot = portalRoot.get('ai-workbench');
-// Gun graph: 3dvr-portal/ai-workbench/defaults => { apiKey, vercelToken, githubToken } (public defaults)
+// Gun graph: 3dvr-portal/ai-workbench/defaults => { apiKey, vercelToken, githubToken, apiKeyCipher, ... }
 const defaultsNode = workbenchRoot.get('defaults');
 const rateLimitsNode = workbenchRoot.get('rate-limits');
 const billingTierNode = portalRoot.get('billing').get('usageTier');
@@ -148,16 +150,11 @@ function hydrateStoredKeys() {
 
 function subscribeToDefaults() {
   defaultsNode.on(data => {
-    const defaults = {
-      openai: data?.apiKey || '',
-      vercel: data?.vercelToken || '',
-      github: data?.githubToken || ''
-    };
+    const { defaults, hasPublic, hasEncrypted } = summarizeDefaults(data || {});
     const applied = applyDefaults(defaults, { fromSubscription: true });
 
     if (!applied.length) {
-      const hasEncrypted = data?.apiKeyCipher || data?.vercelTokenCipher || data?.githubTokenCipher;
-      defaultStatus.textContent = hasEncrypted
+      defaultStatus.textContent = hasEncrypted && !hasPublic
         ? 'Defaults are encrypted. Ask an admin to publish public defaults.'
         : 'No defaults configured yet.';
       return;
