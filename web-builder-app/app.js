@@ -1,7 +1,6 @@
 import { summarizeDefaults } from '../src/web-builder/defaults.js';
 
 const gun = Gun({ peers: window.__GUN_PEERS__ || undefined });
-const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
 const workbenchRoot = portalRoot.get('ai-workbench');
 // Gun graph: 3dvr-portal/ai-workbench/defaults => { apiKey, vercelToken, githubToken, apiKeyCipher, ... }
