@@ -320,6 +320,19 @@ body.dark .credential-card {
   min-width: 160px;
 }
 
+.card-edit {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(31, 122, 109, 0.06);
+}
+
+.card-edit[hidden] {
+  display: none;
+}
+
 textarea[data-field],
 textarea[data-credential-id] {
   min-height: 90px;
