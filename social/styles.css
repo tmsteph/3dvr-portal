@@ -104,6 +104,13 @@ body.dark .social-hero {
   line-height: 1.6;
 }
 
+.social-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .social-hero__aside {
   padding: clamp(16px, 3vw, 24px);
   border-radius: var(--radius-md);
@@ -220,6 +227,7 @@ select:focus {
   cursor: pointer;
   box-shadow: 0 16px 28px rgba(15, 59, 54, 0.24);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
 }
 
 .primary-action:hover {
@@ -269,7 +277,8 @@ select:focus {
 }
 
 .campaign-card,
-.credential-card {
+.credential-card,
+.post-card {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.9);
@@ -280,7 +289,8 @@ select:focus {
 }
 
 body.dark .campaign-card,
-body.dark .credential-card {
+body.dark .credential-card,
+body.dark .post-card {
   background: rgba(20, 24, 29, 0.85);
 }
 
@@ -334,7 +344,8 @@ body.dark .credential-card {
 }
 
 textarea[data-field],
-textarea[data-credential-id] {
+textarea[data-credential-id],
+textarea[data-post-id] {
   min-height: 90px;
 }
 
@@ -391,6 +402,33 @@ a.card-link {
 
 a.card-link:hover {
   text-decoration: underline;
+}
+
+.post-assets {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(31, 122, 109, 0.08);
+}
+
+.post-assets__title {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.post-assets__list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
 }
 
 @media (max-width: 640px) {
