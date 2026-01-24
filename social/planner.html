@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Social Post Scheduler - 3DVR</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/score.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to post scheduling studio</a>
+  <main id="main" class="social-shell" aria-labelledby="page-title">
+    <header class="social-hero">
+      <div>
+        <p class="social-hero__eyebrow">Content runway</p>
+        <h1 id="page-title" class="social-hero__title">Social Media Planning Studio</h1>
+        <p class="social-hero__lead">
+          Schedule individual posts, keep a month-ahead runway, and flex cadence to match 3+ posts per week.
+        </p>
+        <div class="social-hero__actions">
+          <a class="ghost-action" href="./">Back to command center</a>
+        </div>
+      </div>
+      <aside class="social-hero__aside" aria-label="Planning guidance">
+        <h2>Monthly planning checklist</h2>
+        <ul>
+          <li>Balance product updates, behind-the-scenes, and community stories.</li>
+          <li>Track assets, captions, and approvals for each post.</li>
+          <li>Group posts by cadence slots to keep the week steady.</li>
+        </ul>
+      </aside>
+    </header>
+
+    <section class="social-panel social-panel--posts" aria-labelledby="posts-heading">
+      <header class="panel-header">
+        <div>
+          <h2 id="posts-heading">Social media planning</h2>
+          <p>Schedule individual posts, track assets, and keep copy ready for quick publishing.</p>
+        </div>
+      </header>
+
+      <form id="postForm" class="panel-form" autocomplete="off" novalidate>
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">Post title</span>
+            <input id="postTitle" name="postTitle" required placeholder="Behind the scenes reel">
+          </label>
+          <label class="field">
+            <span class="field__label">Platform</span>
+            <input id="postPlatform" name="postPlatform" required placeholder="Instagram, X, LinkedIn">
+          </label>
+          <label class="field">
+            <span class="field__label">Campaign link</span>
+            <input id="postCampaign" name="postCampaign" placeholder="Spring product drop">
+          </label>
+          <label class="field">
+            <span class="field__label">Status</span>
+            <select id="postStatus" name="postStatus">
+              <option value="planned">Planned</option>
+              <option value="drafting">Drafting</option>
+              <option value="ready">Ready to schedule</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="published">Published</option>
+              <option value="paused">Paused</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Scheduled for</span>
+            <input id="postScheduledAt" name="postScheduledAt" type="datetime-local">
+          </label>
+          <label class="field">
+            <span class="field__label">Format</span>
+            <input id="postFormat" name="postFormat" placeholder="Image carousel, short video, story">
+          </label>
+          <label class="field">
+            <span class="field__label">Cadence slot</span>
+            <input id="postCadence" name="postCadence" placeholder="Week 2 / Post 1">
+          </label>
+          <label class="field">
+            <span class="field__label">Asset folder</span>
+            <input id="postAssetLink" name="postAssetLink" type="url" placeholder="https://drive.google.com/...">
+          </label>
+        </div>
+        <label class="field">
+          <span class="field__label">Image or media URLs</span>
+          <textarea id="postImages" name="postImages" rows="2" placeholder="Paste image or video URLs, one per line"></textarea>
+        </label>
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">Alt text / caption notes</span>
+            <input id="postAltText" name="postAltText" placeholder="Describe visuals for accessibility">
+          </label>
+          <label class="field">
+            <span class="field__label">Hashtags</span>
+            <input id="postHashtags" name="postHashtags" placeholder="#3dvr #xr #launch">
+          </label>
+          <label class="field">
+            <span class="field__label">Primary CTA</span>
+            <input id="postCta" name="postCta" placeholder="Join the waitlist">
+          </label>
+        </div>
+        <label class="field">
+          <span class="field__label">Post copy</span>
+          <textarea id="postCopy" name="postCopy" rows="3" placeholder="Draft the caption or script here"></textarea>
+        </label>
+        <label class="field">
+          <span class="field__label">Notes &amp; approvals</span>
+          <textarea id="postNotes" name="postNotes" rows="2" placeholder="Approvals, legal checks, cross-posting notes"></textarea>
+        </label>
+        <button type="submit" class="primary-action">Add scheduled post</button>
+      </form>
+
+      <div class="panel-list" id="postList" role="list">
+        <p id="postEmpty" class="empty-state">
+          No posts scheduled yet. Draft the next four weeks of content above.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script src="./gun-helpers.js"></script>
+  <script src="./planner.js"></script>
+</body>
+</html>

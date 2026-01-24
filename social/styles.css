@@ -104,6 +104,13 @@ body.dark .social-hero {
   line-height: 1.6;
 }
 
+.social-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .social-hero__aside {
   padding: clamp(16px, 3vw, 24px);
   border-radius: var(--radius-md);
@@ -220,6 +227,7 @@ select:focus {
   cursor: pointer;
   box-shadow: 0 16px 28px rgba(15, 59, 54, 0.24);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
 }
 
 .primary-action:hover {
