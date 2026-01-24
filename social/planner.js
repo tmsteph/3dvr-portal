@@ -123,7 +123,7 @@
       return;
     }
 
-    const imageUrls = parseImageUrls(postForm.postImages.value);
+    const imageUrls = normalizeImageUrls(postForm.postImages.value);
     const record = {
       title,
       platform,
@@ -531,10 +531,7 @@
       inputs.cta.value = record.cta || '';
     }
     if (document.activeElement !== inputs.imageUrls) {
-      const imageUrls = Array.isArray(record.imageUrls)
-        ? record.imageUrls
-        : parseImageUrls(record.imageUrls);
-      inputs.imageUrls.value = imageUrls.join('\n');
+      inputs.imageUrls.value = normalizeImageUrls(record.imageUrls).join('\n');
     }
   }
 
@@ -600,10 +597,30 @@
 
   function parseImageUrls(value) {
     if (!value) return [];
+    if (typeof value !== 'string') return [];
     return value
       .split(/\n|,/)
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  function normalizeImageUrls(value) {
+    if (Array.isArray(value)) {
+      return value
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    if (typeof value === 'string') {
+      return parseImageUrls(value);
+    }
+    if (value && typeof value === 'object') {
+      return Object.values(value)
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [];
   }
 
   function buildAssetLines(record) {
@@ -613,9 +630,7 @@
         `Asset folder: <a class="card-link" href="${record.assetLink}" target="_blank" rel="noopener">${record.assetLink}</a>`
       );
     }
-    const imageUrls = Array.isArray(record.imageUrls)
-      ? record.imageUrls
-      : parseImageUrls(record.imageUrls);
+    const imageUrls = normalizeImageUrls(record.imageUrls);
     if (imageUrls.length) {
       const formatted = imageUrls
         .map((url) => `<a class="card-link" href="${url}" target="_blank" rel="noopener">${url}</a>`)
@@ -671,7 +686,7 @@
       console.warn('Post title and platform are required.');
       return;
     }
-    const imageUrls = parseImageUrls(inputs.imageUrls.value);
+    const imageUrls = normalizeImageUrls(inputs.imageUrls.value);
     postsNode.get(id).put({
       title,
       platform,
