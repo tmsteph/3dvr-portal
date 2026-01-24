@@ -32,6 +32,7 @@ const scheduleStatusSelect = document.getElementById('scheduleStatus');
 const scheduleDateInput = document.getElementById('scheduleDate');
 const scheduleUploadInput = document.getElementById('scheduleMediaUpload');
 const scheduleUploadList = document.getElementById('scheduleUploadList');
+const scheduleUploadPreview = document.getElementById('scheduleUploadPreview');
 const scheduleUploadFeedback = document.getElementById('scheduleUploadFeedback');
 const statusFilterInputs = Array.from(document.querySelectorAll('[data-status-filter]'));
 const scheduleFilterReset = document.getElementById('scheduleFilterReset');
@@ -225,27 +226,74 @@ function todayDate() {
   return now.toISOString().slice(0, 10);
 }
 
-  function handleUploadSelection(event) {
-    const input = event.target;
-    if (!input || !scheduleUploadList) return;
-    const files = input.files ? Array.from(input.files) : [];
-    renderUploadList(files, scheduleUploadList);
-    if (scheduleUploadFeedback) {
-      scheduleUploadFeedback.textContent = files.length
-        ? `${files.length} file${files.length === 1 ? '' : 's'} ready to upload.`
-        : '';
+function handleUploadSelection(event) {
+  const input = event.target;
+  if (!input || !scheduleUploadList) return;
+  const files = input.files ? Array.from(input.files) : [];
+  renderUploadList(files, scheduleUploadList);
+  if (scheduleUploadPreview) {
+    renderUploadPreview(files, scheduleUploadPreview);
+  }
+  if (scheduleUploadFeedback) {
+    scheduleUploadFeedback.textContent = files.length
+      ? `${files.length} file${files.length === 1 ? '' : 's'} ready to upload.`
+      : '';
+  }
+}
+
+function renderUploadList(files, listEl) {
+  listEl.innerHTML = '';
+  if (!files.length) return;
+  files.forEach((file) => {
+    const item = document.createElement('li');
+    item.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    listEl.appendChild(item);
+  });
+}
+
+function renderUploadPreview(files, container) {
+  container.innerHTML = '';
+  if (!files.length) return;
+  files.forEach((file) => {
+    const item = document.createElement('div');
+    item.className = 'media-preview__item';
+    item.appendChild(createPreviewMedia(URL.createObjectURL(file), file.type));
+    container.appendChild(item);
+  });
+}
+
+function renderAssetPreview(assets, container) {
+  container.innerHTML = '';
+  if (!Array.isArray(assets) || !assets.length) return;
+  assets.forEach((asset) => {
+    const item = document.createElement('div');
+    item.className = 'media-preview__item';
+    item.appendChild(createPreviewMedia(asset.dataUrl, asset.type));
+    container.appendChild(item);
+  });
+}
+
+function createPreviewMedia(url, mimeType) {
+  const isVideo = mimeType && mimeType.startsWith('video');
+  const element = isVideo ? document.createElement('video') : document.createElement('img');
+  if (isVideo) {
+    element.muted = true;
+    element.loop = true;
+    element.playsInline = true;
+    element.controls = true;
+  }
+  element.src = url;
+  element.className = 'media-preview__media';
+  if (url && url.startsWith('blob:')) {
+    const revoke = () => URL.revokeObjectURL(url);
+    if (isVideo) {
+      element.onloadeddata = revoke;
+    } else {
+      element.onload = revoke;
     }
   }
-
-  function renderUploadList(files, listEl) {
-    listEl.innerHTML = '';
-    if (!files.length) return;
-    files.forEach((file) => {
-      const item = document.createElement('li');
-      item.textContent = `${file.name} (${formatFileSize(file.size)})`;
-      listEl.appendChild(item);
-    });
-  }
+  return element;
+}
 
   async function resolveUploads(fileList) {
     const files = fileList ? Array.from(fileList) : [];
@@ -332,12 +380,15 @@ function todayDate() {
       if (scheduleDateInput) {
         scheduleDateInput.value = todayDate();
       }
-      if (scheduleUploadList) {
-        scheduleUploadList.innerHTML = '';
-      }
-    if (scheduleUploadFeedback) {
-      scheduleUploadFeedback.textContent = '';
-    }
+  if (scheduleUploadList) {
+    scheduleUploadList.innerHTML = '';
+  }
+  if (scheduleUploadPreview) {
+    scheduleUploadPreview.innerHTML = '';
+  }
+  if (scheduleUploadFeedback) {
+    scheduleUploadFeedback.textContent = '';
+  }
   } catch (err) {
     console.error('Failed to store scheduled post', err);
   }
@@ -529,6 +580,11 @@ function todayDate() {
 
     card.appendChild(summary);
 
+    const preview = document.createElement('div');
+    preview.className = 'media-preview media-preview--compact';
+    preview.dataset.role = 'schedulePreview';
+    card.appendChild(preview);
+
     const editSection = createScheduleEditSection(id);
     card.appendChild(editSection.wrapper);
 
@@ -545,6 +601,7 @@ function todayDate() {
     card.assetsLine = assetsLine;
     card.mediaLinkLine = mediaLinkLine;
     card.notesLine = notesLine;
+    card.preview = preview;
     card.editSection = editSection;
     card.editButton = editButton;
 
@@ -706,8 +763,14 @@ function todayDate() {
     if (Array.isArray(record.assets) && record.assets.length) {
       const assetNames = record.assets.map((asset) => asset.name).join(', ');
       card.assetsLine.textContent = `Uploads: ${assetNames}`;
+      if (card.preview) {
+        renderAssetPreview(record.assets, card.preview);
+      }
     } else {
       card.assetsLine.textContent = 'Uploads: —';
+      if (card.preview) {
+        card.preview.innerHTML = '';
+      }
     }
 
     if (record.mediaUrl) {
