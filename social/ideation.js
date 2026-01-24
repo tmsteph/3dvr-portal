@@ -77,10 +77,12 @@ if (ideationForm) {
 
 if (ideaDraftList) {
   ideaDraftList.addEventListener('click', handleDraftClick);
+  ideaDraftList.addEventListener('submit', handleIdeaEditSubmit);
 }
 
 if (ideaBoard) {
   ideaBoard.addEventListener('click', handleBoardClick);
+  ideaBoard.addEventListener('submit', handleIdeaEditSubmit);
 }
 
 if (goalsNode && typeof goalsNode.map === 'function') {
@@ -257,6 +259,14 @@ function handleDraftClick(event) {
     draftsNode.get(id).put(null);
     handleDraftUpdate(null, id);
   }
+
+  if (action === 'edit-idea') {
+    toggleIdeaEditForm(id, 'draft', true);
+  }
+
+  if (action === 'cancel-edit-idea') {
+    toggleIdeaEditForm(id, 'draft', false);
+  }
 }
 
 function handleBoardClick(event) {
@@ -286,6 +296,62 @@ function handleBoardClick(event) {
     if (!record) return;
     createScheduleFromIdea(record);
   }
+
+  if (action === 'edit-idea') {
+    toggleIdeaEditForm(id, 'board', true);
+  }
+
+  if (action === 'cancel-edit-idea') {
+    toggleIdeaEditForm(id, 'board', false);
+  }
+}
+
+function handleIdeaEditSubmit(event) {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement)) return;
+  const id = form.dataset.ideaId;
+  const type = form.dataset.ideaType;
+  if (!id || !type) return;
+
+  event.preventDefault();
+
+  const textInput = form.querySelector('[data-role="editText"]');
+  if (!(textInput instanceof HTMLTextAreaElement)) return;
+  const text = textInput.value.trim();
+  if (!text) {
+    form.reportValidity();
+    return;
+  }
+
+  const updates = {
+    text,
+    goal: readEditValue(form, 'editGoal'),
+    goalId: readEditValue(form, 'editGoalId'),
+    audience: readEditValue(form, 'editAudience'),
+    platforms: readEditValue(form, 'editPlatforms'),
+    tone: readEditValue(form, 'editTone'),
+    format: readEditValue(form, 'editFormat'),
+    updatedAt: Date.now()
+  };
+
+  const targetNode = type === 'draft' ? draftsNode : boardNode;
+  targetNode.get(id).put(updates);
+
+  if (type === 'draft') {
+    handleDraftUpdate({ ...(draftRecords.get(id) || {}), ...updates }, id);
+  } else {
+    handleBoardUpdate({ ...(ideaRecords.get(id) || {}), ...updates }, id);
+  }
+
+  toggleIdeaEditForm(id, type, false);
+}
+
+function readEditValue(form, role) {
+  const field = form.querySelector(`[data-role="${role}"]`);
+  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+    return field.value.trim();
+  }
+  return '';
 }
 
 function renderDraftCard(card, record, id) {
@@ -295,6 +361,8 @@ function renderDraftCard(card, record, id) {
   card.querySelector('[data-action="delete-draft"]').dataset.ideaId = id;
   card.querySelector('[data-action="send-to-campaign"]').dataset.ideaId = id;
   card.querySelector('[data-action="send-to-schedule"]').dataset.ideaId = id;
+  card.querySelector('[data-action="edit-idea"]').dataset.ideaId = id;
+  populateIdeaEditForm(card, record);
 }
 
 function renderBoardCard(card, record, id) {
@@ -305,6 +373,8 @@ function renderBoardCard(card, record, id) {
   card.querySelector('[data-action="delete-idea"]').dataset.ideaId = id;
   card.querySelector('[data-action="send-to-campaign"]').dataset.ideaId = id;
   card.querySelector('[data-action="send-to-schedule"]').dataset.ideaId = id;
+  card.querySelector('[data-action="edit-idea"]').dataset.ideaId = id;
+  populateIdeaEditForm(card, record);
 }
 
 function ensureCard(list, id, type) {
@@ -313,6 +383,16 @@ function ensureCard(list, id, type) {
   card = document.createElement('div');
   card.className = 'list-card';
   card.dataset[`${type}Id`] = id;
+
+  const createLabeledField = (labelText, inputEl) => {
+    const label = document.createElement('label');
+    label.className = 'field';
+    const span = document.createElement('span');
+    span.className = 'field__label';
+    span.textContent = labelText;
+    label.append(span, inputEl);
+    return label;
+  };
 
   const text = document.createElement('p');
   text.className = 'list-card__title';
@@ -330,6 +410,78 @@ function ensureCard(list, id, type) {
     status.dataset.role = 'idea-status';
     card.appendChild(status);
   }
+
+  const editForm = document.createElement('form');
+  editForm.className = 'card-edit list-card__form';
+  editForm.dataset.ideaId = id;
+  editForm.dataset.ideaType = type;
+  editForm.hidden = true;
+
+  const editText = document.createElement('textarea');
+  editText.required = true;
+  editText.rows = 3;
+  editText.dataset.role = 'editText';
+  editText.placeholder = 'Idea text';
+
+  const editGrid = document.createElement('div');
+  editGrid.className = 'form-grid';
+
+  const editGoal = document.createElement('input');
+  editGoal.dataset.role = 'editGoal';
+  editGoal.placeholder = 'Goal';
+
+  const editGoalId = document.createElement('input');
+  editGoalId.dataset.role = 'editGoalId';
+  editGoalId.placeholder = 'Goal ID';
+
+  const editPlatforms = document.createElement('input');
+  editPlatforms.dataset.role = 'editPlatforms';
+  editPlatforms.placeholder = 'Platforms';
+
+  const editTone = document.createElement('input');
+  editTone.dataset.role = 'editTone';
+  editTone.placeholder = 'Tone';
+
+  const editAudience = document.createElement('input');
+  editAudience.dataset.role = 'editAudience';
+  editAudience.placeholder = 'Audience';
+
+  const editFormat = document.createElement('input');
+  editFormat.dataset.role = 'editFormat';
+  editFormat.placeholder = 'Format';
+
+  editGrid.append(
+    createLabeledField('Goal', editGoal),
+    createLabeledField('Goal ID', editGoalId),
+    createLabeledField('Platforms', editPlatforms),
+    createLabeledField('Tone', editTone),
+    createLabeledField('Audience', editAudience),
+    createLabeledField('Format', editFormat)
+  );
+
+  const editActions = document.createElement('div');
+  editActions.className = 'card-actions';
+
+  const saveButton = document.createElement('button');
+  saveButton.type = 'submit';
+  saveButton.className = 'primary-action';
+  saveButton.textContent = 'Save changes';
+
+  const cancelButton = document.createElement('button');
+  cancelButton.type = 'button';
+  cancelButton.className = 'ghost-action';
+  cancelButton.dataset.action = 'cancel-edit-idea';
+  cancelButton.dataset.ideaId = id;
+  cancelButton.textContent = 'Cancel';
+
+  editActions.append(saveButton, cancelButton);
+  editForm.append(
+    createLabeledField('Idea text', editText),
+    editGrid,
+    editActions
+  );
+
+  card.appendChild(editForm);
 
   const actions = document.createElement('div');
   actions.className = 'card-actions';
@@ -359,7 +511,13 @@ function ensureCard(list, id, type) {
     scheduleButton.dataset.action = 'send-to-schedule';
     scheduleButton.textContent = 'Send to scheduler';
 
-    actions.append(saveButton, campaignButton, scheduleButton, deleteButton);
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'ghost-action';
+    editButton.dataset.action = 'edit-idea';
+    editButton.textContent = 'Edit';
+
+    actions.append(saveButton, campaignButton, scheduleButton, editButton, deleteButton);
   } else {
     const scheduleButton = document.createElement('button');
     scheduleButton.type = 'button';
@@ -385,11 +543,27 @@ function ensureCard(list, id, type) {
     deleteButton.dataset.action = 'delete-idea';
     deleteButton.textContent = 'Delete';
 
-    actions.append(scheduleButton, campaignButton, plannerButton, deleteButton);
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'ghost-action';
+    editButton.dataset.action = 'edit-idea';
+    editButton.textContent = 'Edit';
+
+    actions.append(scheduleButton, campaignButton, plannerButton, editButton, deleteButton);
   }
 
   card.appendChild(actions);
   list.prepend(card);
+
+  card.editForm = editForm;
+  card.editText = editText;
+  card.editGoal = editGoal;
+  card.editGoalId = editGoalId;
+  card.editPlatforms = editPlatforms;
+  card.editTone = editTone;
+  card.editAudience = editAudience;
+  card.editFormat = editFormat;
+
   return card;
 }
 
@@ -409,7 +583,31 @@ function buildMeta(record) {
   if (record.goal) chunks.push(record.goal);
   if (record.platforms) chunks.push(record.platforms);
   if (record.tone) chunks.push(record.tone);
+  if (record.audience) chunks.push(record.audience);
+  if (record.format) chunks.push(record.format);
   return chunks.join(' · ') || 'No metadata';
+}
+
+function populateIdeaEditForm(card, record) {
+  if (!card || !card.editForm) return;
+  if (card.editText) card.editText.value = record.text || '';
+  if (card.editGoal) card.editGoal.value = record.goal || '';
+  if (card.editGoalId) card.editGoalId.value = record.goalId || '';
+  if (card.editPlatforms) card.editPlatforms.value = record.platforms || '';
+  if (card.editTone) card.editTone.value = record.tone || '';
+  if (card.editAudience) card.editAudience.value = record.audience || '';
+  if (card.editFormat) card.editFormat.value = record.format || '';
+}
+
+function toggleIdeaEditForm(id, type, shouldShow) {
+  const list = type === 'draft' ? ideaDraftList : ideaBoard;
+  if (!list) return;
+  const card = list.querySelector(`[data-${type}-id="${id}"]`);
+  if (!card || !card.editForm) return;
+  card.editForm.hidden = !shouldShow;
+  if (shouldShow && card.editText) {
+    card.editText.focus();
+  }
 }
 
 function sanitizeRecord(raw) {
