@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post Scheduler - 3DVR</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/score.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to post scheduler</a>
+  <nav class="social-nav" aria-label="Social workspace">
+    <a class="ghost-action" href="./index.html">Back to social studio</a>
+    <a class="ghost-action" href="./command-center.html">Command center</a>
+  </nav>
+  <main id="main" class="social-shell" aria-labelledby="page-title">
+    <header class="social-hero social-hero--scheduler">
+      <div>
+        <p class="social-hero__eyebrow">Scheduling focus</p>
+        <h1 id="page-title" class="social-hero__title">Post Scheduling Studio</h1>
+        <p class="social-hero__lead">
+          Plan posts 30 days out with photo, video, and text details so every channel stays on script.
+        </p>
+      </div>
+      <aside class="social-hero__aside" aria-label="Scheduler highlights">
+        <h2>Monthly planning checklist</h2>
+        <ul>
+          <li>Capture captions, hashtags, and CTA variations.</li>
+          <li>Link assets for photos, video, and graphics.</li>
+          <li>Track status changes from draft to published.</li>
+        </ul>
+      </aside>
+    </header>
+
+    <section class="social-grid social-grid--single" aria-labelledby="schedule-heading">
+      <article class="social-panel" aria-labelledby="schedule-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="schedule-heading">Schedule a post</h2>
+            <p>Plan upcoming posts with the platform, assets, timing, and approvals needed for launch day.</p>
+          </div>
+        </header>
+
+        <form id="scheduleForm" class="panel-form" autocomplete="off" novalidate>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Post title</span>
+              <input id="scheduleTitle" name="scheduleTitle" required placeholder="Feature launch teaser">
+            </label>
+            <label class="field">
+              <span class="field__label">Platforms</span>
+              <input id="schedulePlatforms" name="schedulePlatforms" required placeholder="Instagram, LinkedIn, TikTok">
+            </label>
+            <label class="field">
+              <span class="field__label">Scheduled date</span>
+              <input id="scheduleDate" name="scheduleDate" type="date" required>
+            </label>
+            <label class="field">
+              <span class="field__label">Scheduled time</span>
+              <input id="scheduleTime" name="scheduleTime" type="time">
+            </label>
+            <label class="field">
+              <span class="field__label">Time zone</span>
+              <input id="scheduleTimezone" name="scheduleTimezone" placeholder="ET, PT, UTC">
+            </label>
+            <label class="field">
+              <span class="field__label">Status</span>
+              <select id="scheduleStatus" name="scheduleStatus">
+                <option value="idea">Idea</option>
+                <option value="drafting">Drafting</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="queued">Queued</option>
+                <option value="published">Published</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Content type</span>
+              <select id="scheduleMediaType" name="scheduleMediaType">
+                <option value="photo">Photo</option>
+                <option value="video">Video</option>
+                <option value="text">Text</option>
+                <option value="carousel">Carousel</option>
+                <option value="link">Link</option>
+                <option value="story">Story</option>
+                <option value="live">Live</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Primary asset URL</span>
+              <input id="scheduleMediaUrl" name="scheduleMediaUrl" type="url" placeholder="https://drive.google.com/...">
+            </label>
+            <label class="field">
+              <span class="field__label">Alt text</span>
+              <input id="scheduleAltText" name="scheduleAltText" placeholder="Describe key visuals">
+            </label>
+            <label class="field">
+              <span class="field__label">Approval owner</span>
+              <input id="scheduleOwner" name="scheduleOwner" placeholder="Team lead or approver">
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">Caption draft</span>
+            <textarea id="scheduleCaption" name="scheduleCaption" rows="3" placeholder="Draft the caption, hook, and CTA"></textarea>
+          </label>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Hashtags / keywords</span>
+              <input id="scheduleHashtags" name="scheduleHashtags" placeholder="#3dvr #futureofwork">
+            </label>
+            <label class="field">
+              <span class="field__label">Call to action</span>
+              <input id="scheduleCta" name="scheduleCta" placeholder="Try the demo, join the waitlist">
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">Extra notes</span>
+            <textarea id="scheduleNotes" name="scheduleNotes" rows="3" placeholder="Legal review, cross-post order, tracking links"></textarea>
+          </label>
+          <button type="submit" class="primary-action">Add to schedule</button>
+        </form>
+      </article>
+
+      <article class="social-panel" aria-labelledby="upcoming-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="upcoming-heading">Upcoming schedule</h2>
+            <p>Monitor scheduled posts, update status, and keep the next month visible for the team.</p>
+          </div>
+        </header>
+
+        <div class="panel-list" id="scheduleList" role="list">
+          <p id="scheduleEmpty" class="empty-state">No posts scheduled yet. Add the next month of content.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="./gun-helpers.js"></script>
+  <script src="./scheduler.js"></script>
+</body>
+</html>

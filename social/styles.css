@@ -66,6 +66,22 @@ body.dark {
   gap: clamp(24px, 5vw, 40px);
 }
 
+.social-shell--wide {
+  max-width: 1280px;
+}
+
+.social-nav {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 auto 20px;
+  max-width: 1240px;
+}
+
+.social-nav .ghost-action {
+  text-decoration: none;
+}
+
 .social-hero {
   display: grid;
   gap: 24px;
@@ -79,6 +95,22 @@ body.dark {
 body.dark .social-hero {
   background: var(--bg-card-dark);
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+.social-hero--hub {
+  position: relative;
+  overflow: hidden;
+}
+
+.social-hero--hub::after {
+  content: '';
+  position: absolute;
+  right: -80px;
+  top: -60px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(31, 122, 109, 0.35) 0%, rgba(31, 122, 109, 0) 70%);
+  opacity: 0.7;
 }
 
 .social-hero__eyebrow {
@@ -131,10 +163,18 @@ body.dark .social-hero {
   gap: clamp(24px, 4vw, 36px);
 }
 
+.social-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @media (min-width: 980px) {
   .social-grid {
     grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
     align-items: start;
+  }
+
+  .social-grid--single {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -168,6 +208,74 @@ body.dark .social-panel {
 .panel-form {
   display: grid;
   gap: 18px;
+}
+
+.hub-grid {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 900px) {
+  .hub-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tool-card {
+  border-radius: var(--radius-lg);
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-card);
+  display: grid;
+  gap: 16px;
+}
+
+body.dark .tool-card {
+  background: rgba(20, 24, 29, 0.85);
+}
+
+.tool-card--primary {
+  border-color: rgba(31, 122, 109, 0.35);
+  background: linear-gradient(145deg, rgba(31, 122, 109, 0.12), rgba(255, 255, 255, 0.92));
+}
+
+.tool-card__list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.tool-card__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hub-guidance {
+  border-radius: var(--radius-lg);
+  padding: clamp(20px, 3vw, 32px);
+  background: rgba(31, 122, 109, 0.08);
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 18px;
+}
+
+.hub-guidance h2 {
+  margin: 0;
+}
+
+.hub-guidance__grid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .hub-guidance__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .form-grid {
@@ -269,7 +377,8 @@ select:focus {
 }
 
 .campaign-card,
-.credential-card {
+.credential-card,
+.schedule-card {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.9);
@@ -280,7 +389,8 @@ select:focus {
 }
 
 body.dark .campaign-card,
-body.dark .credential-card {
+body.dark .credential-card,
+body.dark .schedule-card {
   background: rgba(20, 24, 29, 0.85);
 }
 
@@ -338,6 +448,10 @@ textarea[data-credential-id] {
   min-height: 90px;
 }
 
+textarea[data-schedule-edit-field] {
+  min-height: 96px;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -363,6 +477,23 @@ textarea[data-credential-id] {
 .secret-wrapper {
   display: grid;
   gap: 10px;
+}
+
+.schedule-summary {
+  display: grid;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.schedule-summary p {
+  margin: 0;
+}
+
+.card-feedback {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--accent-strong);
 }
 
 .secret-details {
@@ -409,5 +540,9 @@ a.card-link:hover {
 
   .card-actions select {
     width: 100%;
+  }
+
+  .social-nav {
+    margin-bottom: 16px;
   }
 }

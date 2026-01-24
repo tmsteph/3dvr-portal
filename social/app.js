@@ -1,95 +1,22 @@
 (function() {
   'use strict';
 
-  const GUN_FALLBACK_ERROR = { err: 'gun-unavailable' };
+  const socialGun = window.SocialGun || {};
   const KEY_STORAGE_KEY = 'social-media:workspace-key';
   const scoreSystem = window.ScoreSystem || {};
 
-  function createLocalGunSubscriptionStub() {
-    return { off() {} };
-  }
-
-  function createLocalGunNodeStub() {
-    const node = {
-      __isGunStub: true,
-      get() {
-        return createLocalGunNodeStub();
-      },
-      put(_value, callback) {
-        if (typeof callback === 'function') {
-          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
-        }
-        return node;
-      },
-      once(callback) {
-        if (typeof callback === 'function') {
-          setTimeout(() => callback(undefined), 0);
-        }
-        return node;
-      },
-      on() {
-        return createLocalGunSubscriptionStub();
-      },
-      map() {
-        return {
-          __isGunStub: true,
-          on() {
-            return createLocalGunSubscriptionStub();
-          }
-        };
-      },
-      set() {
-        return node;
-      },
-      off() {}
-    };
-    return node;
-  }
-
-  function createLocalGunUserStub(baseNode) {
-    const node = baseNode && typeof baseNode.get === 'function'
-      ? baseNode
-      : createLocalGunNodeStub();
-    return {
-      ...node,
-      is: null,
-      _: {},
-      recall() {},
-      auth(_alias, _password, callback) {
-        if (typeof callback === 'function') {
-          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
-        }
-      },
-      leave() {},
-      create(_alias, _password, callback) {
-        if (typeof callback === 'function') {
-          setTimeout(() => callback(GUN_FALLBACK_ERROR), 0);
-        }
-      }
-    };
-  }
-
-  function resolveGunNodeStub() {
-    if (typeof scoreSystem.createGunNodeStub === 'function') {
-      try {
-        return scoreSystem.createGunNodeStub();
-      } catch (err) {
-        console.warn('Failed to reuse ScoreSystem node stub', err);
-      }
-    }
-    return createLocalGunNodeStub();
-  }
-
-  function resolveGunUserStub(node) {
-    if (typeof scoreSystem.createGunUserStub === 'function') {
-      try {
-        return scoreSystem.createGunUserStub(node);
-      } catch (err) {
-        console.warn('Failed to reuse ScoreSystem user stub', err);
-      }
-    }
-    return createLocalGunUserStub(node);
-  }
+  const resolveGunNodeStub = typeof socialGun.resolveGunNodeStub === 'function'
+    ? socialGun.resolveGunNodeStub
+    : createBasicGunNodeStub;
+  const resolveGunUserStub = typeof socialGun.resolveGunUserStub === 'function'
+    ? socialGun.resolveGunUserStub
+    : createBasicGunUserStub;
+  const ensureGunContext = typeof socialGun.ensureGunContext === 'function'
+    ? socialGun.ensureGunContext
+    : createBasicGunContext;
+  const recallUserSessionIfAvailable = typeof socialGun.recallUserSessionIfAvailable === 'function'
+    ? socialGun.recallUserSessionIfAvailable
+    : function() {};
 
   const campaignForm = document.getElementById('campaignForm');
   const campaignList = document.getElementById('campaignList');
@@ -138,9 +65,9 @@
 
   recallUserSessionIfAvailable(user);
 
-  if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+  if (scoreSystem && typeof scoreSystem.ensureGuestIdentity === 'function') {
     try {
-      window.ScoreSystem.ensureGuestIdentity();
+      scoreSystem.ensureGuestIdentity();
     } catch (err) {
       console.warn('Failed to ensure guest identity for social planner', err);
     }
@@ -196,14 +123,41 @@
     }, { change: true });
   }
 
-  function ensureGunContext(factory) {
-    const ensureGun = typeof scoreSystem.ensureGun === 'function'
-      ? scoreSystem.ensureGun.bind(scoreSystem)
-      : null;
-    if (ensureGun) {
-      return ensureGun(factory, { label: 'social-media' });
-    }
+  function createBasicGunNodeStub() {
+    const node = {
+      __isGunStub: true,
+      get() {
+        return createBasicGunNodeStub();
+      },
+      put() {
+        return node;
+      },
+      once(callback) {
+        if (typeof callback === 'function') {
+          setTimeout(() => callback(undefined), 0);
+        }
+        return node;
+      },
+      map() {
+        return {
+          on() {
+            return { off() {} };
+          }
+        };
+      },
+      set() {
+        return node;
+      },
+      off() {}
+    };
+    return node;
+  }
 
+  function createBasicGunUserStub(node) {
+    return node || createBasicGunNodeStub();
+  }
+
+  function createBasicGunContext(factory) {
     let instance = null;
     if (typeof factory === 'function') {
       try {
@@ -239,29 +193,6 @@
       user: stubGun.user(),
       isStub: true
     };
-  }
-
-  function recallUserSessionIfAvailable(targetUser) {
-    if (!targetUser || typeof targetUser.recall !== 'function') {
-      return;
-    }
-
-    if (typeof scoreSystem.recallUserSession === 'function') {
-      try {
-        const reused = scoreSystem.recallUserSession(targetUser);
-        if (reused) {
-          return;
-        }
-      } catch (err) {
-        console.warn('Failed to recall session via ScoreSystem', err);
-      }
-    }
-
-    try {
-      targetUser.recall({ sessionStorage: true, localStorage: true });
-    } catch (err) {
-      console.warn('Unable to recall user session for social planner', err);
-    }
   }
 
   function registerWorkspacePresence() {
