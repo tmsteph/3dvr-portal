@@ -210,6 +210,126 @@ body.dark .social-panel {
   gap: 18px;
 }
 
+.upload-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed var(--border-strong);
+  background: rgba(31, 122, 109, 0.05);
+}
+
+.upload-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-pill {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: rgba(31, 122, 109, 0.08);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.filter-pill input {
+  accent-color: var(--accent);
+}
+
+.calendar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.calendar-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.calendar-month__label {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  color: var(--accent-strong);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.calendar-cell {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 10px;
+  min-height: 110px;
+  background: rgba(255, 255, 255, 0.7);
+  display: grid;
+  gap: 6px;
+}
+
+body.dark .calendar-cell {
+  background: rgba(20, 24, 29, 0.75);
+}
+
+.calendar-cell--header {
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-height: auto;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.calendar-cell__date {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.calendar-event {
+  display: grid;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(31, 122, 109, 0.12);
+  font-size: 0.78rem;
+}
+
+.calendar-event__status {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.65rem;
+  color: var(--accent-strong);
+}
+
+.calendar-event__title {
+  font-weight: 600;
+}
+
+.calendar-event__meta {
+  color: var(--text-muted);
+}
+
 .hub-grid {
   display: grid;
   gap: 24px;
@@ -295,6 +415,11 @@ body.dark .tool-card {
   text-transform: uppercase;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+.field__hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 input,
@@ -544,5 +669,14 @@ a.card-link:hover {
 
   .social-nav {
     margin-bottom: 16px;
+  }
+
+  .calendar-grid {
+    gap: 6px;
+  }
+
+  .calendar-cell {
+    min-height: 90px;
+    padding: 8px;
   }
 }

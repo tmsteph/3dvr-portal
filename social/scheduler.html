@@ -97,6 +97,10 @@
               <input id="scheduleMediaUrl" name="scheduleMediaUrl" type="url" placeholder="https://drive.google.com/...">
             </label>
             <label class="field">
+              <span class="field__label">Upload media</span>
+              <input id="scheduleMediaUpload" name="scheduleMediaUpload" type="file" accept="image/*,video/*" multiple>
+            </label>
+            <label class="field">
               <span class="field__label">Alt text</span>
               <input id="scheduleAltText" name="scheduleAltText" placeholder="Describe key visuals">
             </label>
@@ -123,6 +127,11 @@
             <span class="field__label">Extra notes</span>
             <textarea id="scheduleNotes" name="scheduleNotes" rows="3" placeholder="Legal review, cross-post order, tracking links"></textarea>
           </label>
+          <div class="upload-panel">
+            <p class="field__label">Selected uploads</p>
+            <ul id="scheduleUploadList" class="upload-list" aria-live="polite"></ul>
+            <p id="scheduleUploadFeedback" class="key-feedback" role="status" aria-live="polite"></p>
+          </div>
           <button type="submit" class="primary-action">Add to schedule</button>
         </form>
       </article>
@@ -135,14 +144,56 @@
           </div>
         </header>
 
+        <div class="filter-bar" role="group" aria-label="Filter scheduled posts by status">
+          <label class="filter-pill">
+            <input type="checkbox" value="idea" data-status-filter checked>
+            Idea
+          </label>
+          <label class="filter-pill">
+            <input type="checkbox" value="drafting" data-status-filter checked>
+            Drafting
+          </label>
+          <label class="filter-pill">
+            <input type="checkbox" value="scheduled" data-status-filter checked>
+            Scheduled
+          </label>
+          <label class="filter-pill">
+            <input type="checkbox" value="queued" data-status-filter checked>
+            Queued
+          </label>
+          <label class="filter-pill">
+            <input type="checkbox" value="published" data-status-filter checked>
+            Published
+          </label>
+          <button id="scheduleFilterReset" type="button" class="ghost-action">Show all</button>
+        </div>
+
         <div class="panel-list" id="scheduleList" role="list">
           <p id="scheduleEmpty" class="empty-state">No posts scheduled yet. Add the next month of content.</p>
+          <p id="scheduleFilterEmpty" class="empty-state" hidden>No posts match the current filters.</p>
         </div>
+      </article>
+
+      <article class="social-panel" aria-labelledby="calendar-heading">
+        <header class="panel-header calendar-header">
+          <div>
+            <h2 id="calendar-heading">Calendar view</h2>
+            <p>Scan the month ahead and confirm every post has assets and status updates.</p>
+          </div>
+          <div class="calendar-controls">
+            <button id="calendarPrev" type="button" class="ghost-action">Previous</button>
+            <button id="calendarNext" type="button" class="ghost-action">Next</button>
+          </div>
+        </header>
+        <div class="calendar-month">
+          <h3 id="calendarMonthLabel" class="calendar-month__label">Month</h3>
+        </div>
+        <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Post schedule calendar"></div>
       </article>
     </section>
   </main>
 
   <script src="./gun-helpers.js"></script>
-  <script src="./scheduler.js"></script>
+  <script type="module" src="./scheduler.js"></script>
 </body>
 </html>

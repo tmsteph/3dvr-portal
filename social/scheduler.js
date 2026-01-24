@@ -1,185 +1,294 @@
-(function() {
-  'use strict';
+import {
+  createScheduleId,
+  formatFileSize,
+  formatRelativeTime,
+  formatScheduleWindow,
+  labelForStatus,
+  sanitizeRecord,
+  scheduleSortKey
+} from './scheduler-utils.js';
 
-  const socialGun = window.SocialGun || {};
-  const scoreSystem = window.ScoreSystem || {};
+const socialGun = window.SocialGun || {};
+const scoreSystem = window.ScoreSystem || {};
 
-  const resolveGunNodeStub = typeof socialGun.resolveGunNodeStub === 'function'
-    ? socialGun.resolveGunNodeStub
-    : createBasicGunNodeStub;
-  const resolveGunUserStub = typeof socialGun.resolveGunUserStub === 'function'
-    ? socialGun.resolveGunUserStub
-    : createBasicGunUserStub;
-  const ensureGunContext = typeof socialGun.ensureGunContext === 'function'
-    ? socialGun.ensureGunContext
-    : createBasicGunContext;
-  const recallUserSessionIfAvailable = typeof socialGun.recallUserSessionIfAvailable === 'function'
-    ? socialGun.recallUserSessionIfAvailable
-    : function() {};
+const resolveGunNodeStub = typeof socialGun.resolveGunNodeStub === 'function'
+  ? socialGun.resolveGunNodeStub
+  : createBasicGunNodeStub;
+const resolveGunUserStub = typeof socialGun.resolveGunUserStub === 'function'
+  ? socialGun.resolveGunUserStub
+  : createBasicGunUserStub;
+const ensureGunContext = typeof socialGun.ensureGunContext === 'function'
+  ? socialGun.ensureGunContext
+  : createBasicGunContext;
+const recallUserSessionIfAvailable = typeof socialGun.recallUserSessionIfAvailable === 'function'
+  ? socialGun.recallUserSessionIfAvailable
+  : function() {};
 
-  const scheduleForm = document.getElementById('scheduleForm');
-  const scheduleList = document.getElementById('scheduleList');
-  const scheduleEmpty = document.getElementById('scheduleEmpty');
-  const scheduleStatusSelect = document.getElementById('scheduleStatus');
-  const scheduleDateInput = document.getElementById('scheduleDate');
+const scheduleForm = document.getElementById('scheduleForm');
+const scheduleList = document.getElementById('scheduleList');
+const scheduleEmpty = document.getElementById('scheduleEmpty');
+const scheduleFilterEmpty = document.getElementById('scheduleFilterEmpty');
+const scheduleStatusSelect = document.getElementById('scheduleStatus');
+const scheduleDateInput = document.getElementById('scheduleDate');
+const scheduleUploadInput = document.getElementById('scheduleMediaUpload');
+const scheduleUploadList = document.getElementById('scheduleUploadList');
+const scheduleUploadFeedback = document.getElementById('scheduleUploadFeedback');
+const statusFilterInputs = Array.from(document.querySelectorAll('[data-status-filter]'));
+const scheduleFilterReset = document.getElementById('scheduleFilterReset');
+const calendarGrid = document.getElementById('calendarGrid');
+const calendarMonthLabel = document.getElementById('calendarMonthLabel');
+const calendarPrev = document.getElementById('calendarPrev');
+const calendarNext = document.getElementById('calendarNext');
 
-  const scheduleRecords = new Map();
+const scheduleRecords = new Map();
+const scheduleAssetOverrides = new Map();
+const activeStatuses = new Set();
+let activeMonth = new Date();
 
-  const gunContext = ensureGunContext(() => (typeof Gun === 'function'
-    ? Gun(window.__GUN_PEERS__ || [
-        'wss://relay.3dvr.tech/gun',
-        'wss://gun-relay-3dvr.fly.dev/gun'
-      ])
-    : null), { label: 'social-scheduler' });
+const MAX_ASSET_BYTES = 10 * 1024 * 1024;
 
-  const gun = gunContext.gun;
-  const user = gunContext.user;
-  const socialRoot = gun && typeof gun.get === 'function'
-    ? gun.get('social-media')
-    : resolveGunNodeStub();
-  // Node shape: social-media/post-schedule/<id> -> { title, platforms, status, scheduledDate, scheduledTime, mediaType, ... }
-  const scheduleNode = socialRoot && typeof socialRoot.get === 'function'
-    ? socialRoot.get('post-schedule')
-    : resolveGunNodeStub();
-  const portalRoot = gun && typeof gun.get === 'function'
-    ? gun.get('3dvr-portal')
-    : resolveGunNodeStub();
-  // Workspace metadata lives under 3dvr-portal/workspaces/social-scheduler.
-  const workspaceRegistry = portalRoot && typeof portalRoot.get === 'function'
-    ? portalRoot.get('workspaces').get('social-scheduler')
-    : resolveGunNodeStub();
+const gunContext = ensureGunContext(() => (typeof Gun === 'function'
+  ? Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ])
+  : null), { label: 'social-scheduler' });
 
-  recallUserSessionIfAvailable(user);
+const gun = gunContext.gun;
+const user = gunContext.user;
+const socialRoot = gun && typeof gun.get === 'function'
+  ? gun.get('social-media')
+  : resolveGunNodeStub();
+// Node shape: social-media/post-schedule/<id> -> {
+//   title, platforms, status, scheduledDate, assets: [{ name, type, size, dataUrl }], ...
+// }
+const scheduleNode = socialRoot && typeof socialRoot.get === 'function'
+  ? socialRoot.get('post-schedule')
+  : resolveGunNodeStub();
+const portalRoot = gun && typeof gun.get === 'function'
+  ? gun.get('3dvr-portal')
+  : resolveGunNodeStub();
+// Workspace metadata lives under 3dvr-portal/workspaces/social-scheduler.
+const workspaceRegistry = portalRoot && typeof portalRoot.get === 'function'
+  ? portalRoot.get('workspaces').get('social-scheduler')
+  : resolveGunNodeStub();
 
-  if (scoreSystem && typeof scoreSystem.ensureGuestIdentity === 'function') {
-    try {
-      scoreSystem.ensureGuestIdentity();
-    } catch (err) {
-      console.warn('Failed to ensure guest identity for post scheduler', err);
-    }
+recallUserSessionIfAvailable(user);
+
+if (scoreSystem && typeof scoreSystem.ensureGuestIdentity === 'function') {
+  try {
+    scoreSystem.ensureGuestIdentity();
+  } catch (err) {
+    console.warn('Failed to ensure guest identity for post scheduler', err);
   }
+}
 
-  if (scheduleStatusSelect) {
-    scheduleStatusSelect.value = 'scheduled';
-  }
+if (scheduleStatusSelect) {
+  scheduleStatusSelect.value = 'scheduled';
+}
 
-  if (scheduleDateInput) {
-    scheduleDateInput.value = todayDate();
-  }
+if (scheduleDateInput) {
+  scheduleDateInput.value = todayDate();
+}
 
-  if (scheduleForm) {
-    scheduleForm.addEventListener('submit', handleScheduleSubmit);
-  }
+if (scheduleUploadInput) {
+  scheduleUploadInput.addEventListener('change', handleUploadSelection);
+}
 
-  if (scheduleList) {
-    scheduleList.addEventListener('change', handleScheduleListChange);
-    scheduleList.addEventListener('click', handleScheduleListClick);
-  }
+if (statusFilterInputs.length) {
+  statusFilterInputs.forEach((input) => {
+    activeStatuses.add(input.value);
+    input.addEventListener('change', handleFilterChange);
+  });
+}
 
-  registerWorkspacePresence();
+if (scheduleFilterReset) {
+  scheduleFilterReset.addEventListener('click', resetStatusFilters);
+}
 
-  if (scheduleNode && typeof scheduleNode.map === 'function') {
-    scheduleNode.map().on((data, id) => {
-      handleScheduleUpdate(data, id);
-    }, { change: true });
-  }
+if (calendarPrev) {
+  calendarPrev.addEventListener('click', () => shiftCalendarMonth(-1));
+}
 
-  function createBasicGunNodeStub() {
-    const node = {
-      __isGunStub: true,
-      get() {
-        return createBasicGunNodeStub();
-      },
-      put() {
-        return node;
-      },
-      map() {
-        return {
-          on() {
-            return { off() {} };
-          }
-        };
-      },
-      set() {
-        return node;
-      }
-    };
-    return node;
-  }
+if (calendarNext) {
+  calendarNext.addEventListener('click', () => shiftCalendarMonth(1));
+}
 
-  function createBasicGunUserStub(node) {
-    return node || createBasicGunNodeStub();
-  }
+if (scheduleForm) {
+  scheduleForm.addEventListener('submit', handleScheduleSubmit);
+}
 
-  function createBasicGunContext(factory) {
-    let instance = null;
-    if (typeof factory === 'function') {
-      try {
-        instance = factory();
-      } catch (err) {
-        console.warn('Failed to initialize Gun for scheduler', err);
-      }
-    }
+if (scheduleList) {
+  scheduleList.addEventListener('change', handleScheduleListChange);
+  scheduleList.addEventListener('click', handleScheduleListClick);
+}
 
-    if (instance) {
-      const resolvedUser = typeof instance.user === 'function'
-        ? instance.user()
-        : resolveGunUserStub(instance);
+registerWorkspacePresence();
+renderCalendar();
+
+if (scheduleNode && typeof scheduleNode.map === 'function') {
+  scheduleNode.map().on((data, id) => {
+    handleScheduleUpdate(data, id);
+  }, { change: true });
+}
+
+function createBasicGunNodeStub() {
+  const node = {
+    __isGunStub: true,
+    get() {
+      return createBasicGunNodeStub();
+    },
+    put() {
+      return node;
+    },
+    map() {
       return {
-        gun: instance,
-        user: resolvedUser,
-        isStub: !!instance.__isGunStub
+        on() {
+          return { off() {} };
+        }
       };
+    },
+    set() {
+      return node;
     }
+  };
+  return node;
+}
 
-    const stubGun = {
-      __isGunStub: true,
-      get() {
-        return resolveGunNodeStub();
-      },
-      user() {
-        return resolveGunUserStub();
-      }
-    };
-    return { gun: stubGun, user: stubGun.user(), isStub: true };
-  }
+function createBasicGunUserStub(node) {
+  return node || createBasicGunNodeStub();
+}
 
-  function registerWorkspacePresence() {
-    if (!workspaceRegistry || typeof workspaceRegistry.put !== 'function') {
-      return;
-    }
-    const payload = {
-      name: 'Post Scheduling Studio',
-      description: 'Plan social posts with timing, assets, and approvals.',
-      lastOpenedAt: Date.now()
-    };
+function createBasicGunContext(factory) {
+  let instance = null;
+  if (typeof factory === 'function') {
     try {
-      workspaceRegistry.put(payload);
+      instance = factory();
     } catch (err) {
-      console.warn('Failed to register scheduler workspace metadata', err);
+      console.warn('Failed to initialize Gun for scheduler', err);
     }
   }
 
-  function markWorkspaceActivity(field) {
-    if (!workspaceRegistry || typeof workspaceRegistry.put !== 'function') {
-      return;
+  if (instance) {
+    const resolvedUser = typeof instance.user === 'function'
+      ? instance.user()
+      : resolveGunUserStub(instance);
+    return {
+      gun: instance,
+      user: resolvedUser,
+      isStub: !!instance.__isGunStub
+    };
+  }
+
+  const stubGun = {
+    __isGunStub: true,
+    get() {
+      return resolveGunNodeStub();
+    },
+    user() {
+      return resolveGunUserStub();
     }
-    if (!field) return;
-    try {
-      workspaceRegistry.put({ [field]: Date.now() });
-    } catch (err) {
-      console.warn(`Failed to update scheduler workspace field ${field}`, err);
+  };
+  return { gun: stubGun, user: stubGun.user(), isStub: true };
+}
+
+function registerWorkspacePresence() {
+  if (!workspaceRegistry || typeof workspaceRegistry.put !== 'function') {
+    return;
+  }
+  const payload = {
+    name: 'Post Scheduling Studio',
+    description: 'Plan social posts with timing, assets, and approvals.',
+    lastOpenedAt: Date.now()
+  };
+  try {
+    workspaceRegistry.put(payload);
+  } catch (err) {
+    console.warn('Failed to register scheduler workspace metadata', err);
+  }
+}
+
+function markWorkspaceActivity(field) {
+  if (!workspaceRegistry || typeof workspaceRegistry.put !== 'function') {
+    return;
+  }
+  if (!field) return;
+  try {
+    workspaceRegistry.put({ [field]: Date.now() });
+  } catch (err) {
+    console.warn(`Failed to update scheduler workspace field ${field}`, err);
+  }
+}
+
+function todayDate() {
+  const now = new Date();
+  return now.toISOString().slice(0, 10);
+}
+
+  function handleUploadSelection(event) {
+    const input = event.target;
+    if (!input || !scheduleUploadList) return;
+    const files = input.files ? Array.from(input.files) : [];
+    renderUploadList(files, scheduleUploadList);
+    if (scheduleUploadFeedback) {
+      scheduleUploadFeedback.textContent = files.length
+        ? `${files.length} file${files.length === 1 ? '' : 's'} ready to upload.`
+        : '';
     }
   }
 
-  function todayDate() {
-    const now = new Date();
-    return now.toISOString().slice(0, 10);
+  function renderUploadList(files, listEl) {
+    listEl.innerHTML = '';
+    if (!files.length) return;
+    files.forEach((file) => {
+      const item = document.createElement('li');
+      item.textContent = `${file.name} (${formatFileSize(file.size)})`;
+      listEl.appendChild(item);
+    });
   }
 
-  function handleScheduleSubmit(event) {
-    event.preventDefault();
-    if (!scheduleForm) return;
+  async function resolveUploads(fileList) {
+    const files = fileList ? Array.from(fileList) : [];
+    if (!files.length) return [];
+    const oversized = files.filter((file) => file.size > MAX_ASSET_BYTES);
+    if (oversized.length && scheduleUploadFeedback) {
+      scheduleUploadFeedback.textContent = 'Some files exceed 10MB and were skipped.';
+    }
+    const validFiles = files.filter((file) => file.size <= MAX_ASSET_BYTES);
+    if (!validFiles.length) return [];
+    return readFilesAsDataUrls(validFiles);
+  }
+
+  function readFilesAsDataUrls(files) {
+    return Promise.all(files.map((file) => readFileAsDataUrl(file)));
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          dataUrl: reader.result
+        });
+      };
+      reader.onerror = () => {
+        resolve({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          dataUrl: ''
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleScheduleSubmit(event) {
+  event.preventDefault();
+  if (!scheduleForm) return;
 
     const title = scheduleForm.scheduleTitle.value.trim();
     const platforms = scheduleForm.schedulePlatforms.value.trim();
@@ -190,11 +299,12 @@
       return;
     }
 
-    const record = {
-      title,
-      platforms,
-      status: scheduleForm.scheduleStatus.value || 'scheduled',
-      scheduledDate,
+  const assets = await resolveUploads(scheduleUploadInput ? scheduleUploadInput.files : null);
+  const record = {
+    title,
+    platforms,
+    status: scheduleForm.scheduleStatus.value || 'scheduled',
+    scheduledDate,
       scheduledTime: scheduleForm.scheduleTime.value,
       timezone: scheduleForm.scheduleTimezone.value.trim(),
       mediaType: scheduleForm.scheduleMediaType.value,
@@ -205,32 +315,44 @@
       hashtags: scheduleForm.scheduleHashtags.value.trim(),
       cta: scheduleForm.scheduleCta.value.trim(),
       notes: scheduleForm.scheduleNotes.value.trim(),
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
+      assets,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
 
-    try {
-      scheduleNode.set(record);
-      markWorkspaceActivity('lastScheduleChangeAt');
-      scheduleForm.reset();
-      if (scheduleStatusSelect) {
+  try {
+    const recordId = createScheduleId();
+    scheduleNode.get(recordId).put(record);
+    handleScheduleUpdate(record, recordId);
+    markWorkspaceActivity('lastScheduleChangeAt');
+    scheduleForm.reset();
+    if (scheduleStatusSelect) {
         scheduleStatusSelect.value = 'scheduled';
       }
       if (scheduleDateInput) {
         scheduleDateInput.value = todayDate();
       }
-    } catch (err) {
-      console.error('Failed to store scheduled post', err);
+      if (scheduleUploadList) {
+        scheduleUploadList.innerHTML = '';
+      }
+    if (scheduleUploadFeedback) {
+      scheduleUploadFeedback.textContent = '';
     }
+  } catch (err) {
+    console.error('Failed to store scheduled post', err);
   }
+}
 
   function handleScheduleUpdate(data, id) {
     markWorkspaceActivity('lastScheduleSyncAt');
     const record = sanitizeRecord(data);
     if (!record) {
       scheduleRecords.delete(id);
+      scheduleAssetOverrides.delete(id);
       removeScheduleCard(id);
       updateScheduleEmptyState();
+      updateScheduleFilterEmptyState();
+      renderCalendar();
       return;
     }
 
@@ -239,6 +361,9 @@
     renderScheduleCard(card, record);
     updateScheduleOrdering();
     updateScheduleEmptyState();
+    updateScheduleVisibility();
+    updateScheduleFilterEmptyState();
+    renderCalendar();
   }
 
   function handleScheduleListChange(event) {
@@ -247,6 +372,10 @@
       const id = target.dataset.scheduleId;
       scheduleNode.get(id).put({ status: target.value, updatedAt: Date.now() });
       markWorkspaceActivity('lastScheduleChangeAt');
+    } else if (target instanceof HTMLInputElement && target.dataset.scheduleAssets && target.files) {
+      const id = target.dataset.scheduleAssets;
+      scheduleAssetOverrides.set(id, target.files);
+      showInlineFeedback(target.closest('.schedule-card'), 'New uploads selected. Save to apply.');
     }
   }
 
@@ -257,11 +386,18 @@
     const id = target.dataset.scheduleId;
     if (!id) return;
 
-    if (action === 'delete-schedule') {
-      scheduleNode.get(id).put(null);
-      markWorkspaceActivity('lastScheduleChangeAt');
-      return;
-    }
+  if (action === 'delete-schedule') {
+    scheduleNode.get(id).put(null);
+    markWorkspaceActivity('lastScheduleChangeAt');
+    scheduleRecords.delete(id);
+    scheduleAssetOverrides.delete(id);
+    removeScheduleCard(id);
+    updateScheduleEmptyState();
+    updateScheduleVisibility();
+    updateScheduleFilterEmptyState();
+    renderCalendar();
+    return;
+  }
 
     if (action === 'edit-schedule') {
       toggleScheduleEdit(id);
@@ -269,7 +405,9 @@
     }
 
     if (action === 'save-schedule') {
-      saveScheduleEdits(id);
+      saveScheduleEdits(id).catch((err) => {
+        console.error('Failed to save schedule edits', err);
+      });
       return;
     }
 
@@ -369,9 +507,17 @@
     captionLine.dataset.role = 'scheduleCaption';
     summary.appendChild(captionLine);
 
+    const ctaLine = document.createElement('p');
+    ctaLine.dataset.role = 'scheduleCta';
+    summary.appendChild(ctaLine);
+
     const hashtagsLine = document.createElement('p');
     hashtagsLine.dataset.role = 'scheduleHashtags';
     summary.appendChild(hashtagsLine);
+
+    const assetsLine = document.createElement('p');
+    assetsLine.dataset.role = 'scheduleAssets';
+    summary.appendChild(assetsLine);
 
     const mediaLinkLine = document.createElement('p');
     mediaLinkLine.dataset.role = 'scheduleMediaLink';
@@ -394,7 +540,9 @@
     card.ownerLine = ownerLine;
     card.statusSelect = statusSelect;
     card.captionLine = captionLine;
+    card.ctaLine = ctaLine;
     card.hashtagsLine = hashtagsLine;
+    card.assetsLine = assetsLine;
     card.mediaLinkLine = mediaLinkLine;
     card.notesLine = notesLine;
     card.editSection = editSection;
@@ -419,6 +567,7 @@
     const timezoneField = createEditField('Time zone', 'timezone', id);
     const mediaTypeField = createEditField('Content type', 'mediaType', id);
     const mediaUrlField = createEditField('Primary asset URL', 'mediaUrl', id, 'url');
+    const uploadField = createUploadField(id);
     const ownerField = createEditField('Approval owner', 'owner', id);
 
     fields.append(
@@ -429,6 +578,7 @@
       timezoneField.wrapper,
       mediaTypeField.wrapper,
       mediaUrlField.wrapper,
+      uploadField.wrapper,
       ownerField.wrapper
     );
     wrapper.appendChild(fields);
@@ -478,6 +628,7 @@
         timezone: timezoneField.input,
         mediaType: mediaTypeField.input,
         mediaUrl: mediaUrlField.input,
+        uploads: uploadField.input,
         owner: ownerField.input,
         caption: captionField.input,
         hashtags: hashtagsField.input,
@@ -515,6 +666,24 @@
     return { wrapper, input };
   }
 
+  function createUploadField(id) {
+    const wrapper = document.createElement('label');
+    wrapper.className = 'field';
+    const label = document.createElement('span');
+    label.className = 'field__label';
+    label.textContent = 'Upload media';
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'image/*,video/*';
+    input.dataset.scheduleAssets = id;
+    const hint = document.createElement('span');
+    hint.className = 'field__hint';
+    hint.textContent = 'Selecting files replaces existing uploads for this post.';
+    wrapper.append(label, input, hint);
+    return { wrapper, input };
+  }
+
   function renderScheduleCard(card, record) {
     if (!card) return;
     const sortKey = scheduleSortKey(record);
@@ -530,11 +699,23 @@
     card.ownerLine.textContent = record.owner ? `Approval: ${record.owner}` : 'Approval: —';
 
     card.captionLine.textContent = record.caption ? `Caption: ${record.caption}` : 'Caption: —';
+    card.ctaLine.textContent = record.cta ? `CTA: ${record.cta}` : 'CTA: —';
     card.hashtagsLine.textContent = record.hashtags ? `Hashtags: ${record.hashtags}` : 'Hashtags: —';
     card.notesLine.textContent = record.notes ? `Notes: ${record.notes}` : 'Notes: —';
 
+    if (Array.isArray(record.assets) && record.assets.length) {
+      const assetNames = record.assets.map((asset) => asset.name).join(', ');
+      card.assetsLine.textContent = `Uploads: ${assetNames}`;
+    } else {
+      card.assetsLine.textContent = 'Uploads: —';
+    }
+
     if (record.mediaUrl) {
-      card.mediaLinkLine.innerHTML = `Asset: <a class="card-link" href="${record.mediaUrl}" target="_blank" rel="noopener">${record.mediaUrl}</a>`;
+      card.mediaLinkLine.innerHTML = [
+        'Asset: ',
+        `<a class="card-link" href="${record.mediaUrl}" target="_blank" rel="noopener">`,
+        `${record.mediaUrl}</a>`
+      ].join('');
     } else {
       card.mediaLinkLine.textContent = 'Asset: —';
     }
@@ -586,6 +767,58 @@
     scheduleEmpty.hidden = !!hasItems;
   }
 
+  function updateScheduleVisibility() {
+    const statuses = getActiveStatuses();
+    const cards = scheduleList ? scheduleList.querySelectorAll('.schedule-card') : [];
+    cards.forEach((card) => {
+      const id = card.dataset.scheduleId;
+      const record = id ? scheduleRecords.get(id) : null;
+      if (!record) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = !statuses.has(record.status || 'scheduled');
+    });
+  }
+
+  function updateScheduleFilterEmptyState() {
+    if (!scheduleFilterEmpty) return;
+    const visibleCard = scheduleList && scheduleList.querySelector('.schedule-card:not([hidden])');
+    const hasAny = scheduleList && scheduleList.querySelector('.schedule-card');
+    scheduleFilterEmpty.hidden = !hasAny || !!visibleCard;
+  }
+
+  function handleFilterChange(event) {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    if (input.checked) {
+      activeStatuses.add(input.value);
+    } else {
+      activeStatuses.delete(input.value);
+    }
+    updateScheduleVisibility();
+    updateScheduleFilterEmptyState();
+    renderCalendar();
+  }
+
+  function resetStatusFilters() {
+    activeStatuses.clear();
+    statusFilterInputs.forEach((input) => {
+      input.checked = true;
+      activeStatuses.add(input.value);
+    });
+    updateScheduleVisibility();
+    updateScheduleFilterEmptyState();
+    renderCalendar();
+  }
+
+  function getActiveStatuses() {
+    if (activeStatuses.size) {
+      return activeStatuses;
+    }
+    return new Set(['idea', 'drafting', 'scheduled', 'queued', 'published']);
+  }
+
   function toggleScheduleEdit(id) {
     const record = scheduleRecords.get(id);
     const card = scheduleList.querySelector(`[data-schedule-id="${id}"]`);
@@ -600,7 +833,7 @@
     }
   }
 
-  function saveScheduleEdits(id) {
+  async function saveScheduleEdits(id) {
     const record = scheduleRecords.get(id);
     const card = scheduleList.querySelector(`[data-schedule-id="${id}"]`);
     if (!record || !card || !card.editSection) return;
@@ -614,26 +847,39 @@
       return;
     }
 
-    scheduleNode.get(id).put({
-      title,
-      platforms,
-      scheduledDate,
-      scheduledTime: inputs.scheduledTime.value,
+    const overrideFiles = scheduleAssetOverrides.get(id);
+    const assets = overrideFiles
+      ? await resolveUploads(overrideFiles)
+      : record.assets || [];
+
+  const nextRecord = {
+    ...record,
+    title,
+    platforms,
+    scheduledDate,
+    scheduledTime: inputs.scheduledTime.value,
       timezone: inputs.timezone.value.trim(),
       mediaType: inputs.mediaType.value.trim(),
       mediaUrl: inputs.mediaUrl.value.trim(),
       owner: inputs.owner.value.trim(),
       caption: inputs.caption.value.trim(),
       hashtags: inputs.hashtags.value.trim(),
-      cta: inputs.cta.value.trim(),
-      altText: inputs.altText.value.trim(),
-      notes: inputs.notes.value.trim(),
-      updatedAt: Date.now()
-    });
-    markWorkspaceActivity('lastScheduleChangeAt');
+    cta: inputs.cta.value.trim(),
+    altText: inputs.altText.value.trim(),
+    notes: inputs.notes.value.trim(),
+    assets,
+    updatedAt: Date.now()
+  };
+  scheduleNode.get(id).put(nextRecord);
+  handleScheduleUpdate(nextRecord, id);
+  markWorkspaceActivity('lastScheduleChangeAt');
     card.editSection.wrapper.hidden = true;
     card.editButton.textContent = 'Edit';
     showInlineFeedback(card, 'Schedule updated.');
+    scheduleAssetOverrides.delete(id);
+    if (inputs.uploads) {
+      inputs.uploads.value = '';
+    }
   }
 
   function cancelScheduleEdits(id) {
@@ -643,6 +889,10 @@
     updateScheduleEditInputs(card, record);
     card.editSection.wrapper.hidden = true;
     card.editButton.textContent = 'Edit';
+    scheduleAssetOverrides.delete(id);
+    if (card.editSection.inputs && card.editSection.inputs.uploads) {
+      card.editSection.inputs.uploads.value = '';
+    }
   }
 
   function showInlineFeedback(card, message) {
@@ -657,67 +907,82 @@
     feedback.textContent = message;
   }
 
-  function scheduleSortKey(record) {
-    if (!record) return Number.MAX_SAFE_INTEGER;
-    const date = record.scheduledDate || '';
-    if (!date) return Number.MAX_SAFE_INTEGER;
-    const time = record.scheduledTime || '00:00';
-    const iso = `${date}T${time}`;
-    const parsed = Date.parse(iso);
-    return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
+  function shiftCalendarMonth(direction) {
+    const year = activeMonth.getFullYear();
+    const month = activeMonth.getMonth() + direction;
+    activeMonth = new Date(year, month, 1);
+    renderCalendar();
   }
 
-  function formatScheduleWindow(date, time, timezone) {
-    if (!date) return 'Schedule: TBD';
-    const timeLabel = time ? ` at ${time}` : '';
-    const tzLabel = timezone ? ` ${timezone}` : '';
-    return `Schedule: ${date}${timeLabel}${tzLabel}`;
-  }
+  function renderCalendar() {
+    if (!calendarGrid || !calendarMonthLabel) return;
+    calendarGrid.innerHTML = '';
 
-  function labelForStatus(value) {
-    switch (value) {
-      case 'idea':
-        return 'Idea';
-      case 'drafting':
-        return 'Drafting';
-      case 'queued':
-        return 'Queued';
-      case 'published':
-        return 'Published';
-      case 'scheduled':
-      default:
-        return 'Scheduled';
+    const year = activeMonth.getFullYear();
+    const month = activeMonth.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const startDay = monthStart.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    calendarMonthLabel.textContent = monthStart.toLocaleString('en-US', {
+      month: 'long',
+      year: 'numeric'
+    });
+
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((label) => {
+      const header = document.createElement('div');
+      header.className = 'calendar-cell calendar-cell--header';
+      header.textContent = label;
+      calendarGrid.appendChild(header);
+    });
+
+    const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
+    const statusFilter = getActiveStatuses();
+    const records = Array.from(scheduleRecords.values());
+
+    for (let cellIndex = 0; cellIndex < totalCells; cellIndex += 1) {
+      const dayNumber = cellIndex - startDay + 1;
+      const cell = document.createElement('div');
+      cell.className = 'calendar-cell';
+
+      if (dayNumber < 1 || dayNumber > daysInMonth) {
+        cell.dataset.empty = 'true';
+        calendarGrid.appendChild(cell);
+        continue;
+      }
+
+      const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
+      const dateLabel = document.createElement('div');
+      dateLabel.className = 'calendar-cell__date';
+      dateLabel.textContent = String(dayNumber);
+      cell.appendChild(dateLabel);
+
+      const dayRecords = records.filter((record) => record.scheduledDate === dateKey
+        && statusFilter.has(record.status || 'scheduled'));
+
+      dayRecords.sort((a, b) => scheduleSortKey(a) - scheduleSortKey(b));
+      dayRecords.forEach((record) => {
+        const event = document.createElement('div');
+        event.className = 'calendar-event';
+
+        const status = document.createElement('div');
+        status.className = 'calendar-event__status';
+        status.textContent = labelForStatus(record.status);
+        event.appendChild(status);
+
+        const title = document.createElement('div');
+        title.className = 'calendar-event__title';
+        title.textContent = record.title || 'Untitled';
+        event.appendChild(title);
+
+        const meta = document.createElement('div');
+        meta.className = 'calendar-event__meta';
+        meta.textContent = record.platforms ? record.platforms : 'Platforms TBD';
+        event.appendChild(meta);
+
+        cell.appendChild(event);
+      });
+
+      calendarGrid.appendChild(cell);
     }
   }
-
-  function formatRelativeTime(timestamp) {
-    if (!timestamp) return 'just now';
-    const now = Date.now();
-    const diff = Math.max(0, now - Number(timestamp));
-    const minutes = Math.round(diff / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes === 1) return '1 minute ago';
-    if (minutes < 60) return `${minutes} minutes ago`;
-    const hours = Math.round(minutes / 60);
-    if (hours === 1) return '1 hour ago';
-    if (hours < 24) return `${hours} hours ago`;
-    const days = Math.round(hours / 24);
-    if (days === 1) return '1 day ago';
-    if (days < 7) return `${days} days ago`;
-    const weeks = Math.round(days / 7);
-    if (weeks === 1) return '1 week ago';
-    return `${weeks} weeks ago`;
-  }
-
-  function sanitizeRecord(raw) {
-    if (!raw || typeof raw !== 'object') {
-      return null;
-    }
-    const result = {};
-    for (const [key, value] of Object.entries(raw)) {
-      if (key === '_' || typeof value === 'function') continue;
-      result[key] = value;
-    }
-    return result;
-  }
-})();
