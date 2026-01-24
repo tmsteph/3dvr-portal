@@ -143,9 +143,10 @@
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
+    const postId = `post-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     try {
-      postsNode.set(record);
+      postsNode.get(postId).put({ ...record, id: postId });
       markWorkspaceActivity('lastPostChangeAt');
       postForm.reset();
       if (postStatusSelect) {
