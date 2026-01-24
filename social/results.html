@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Results Tracker - 3DVR</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/score.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to results</a>
+  <nav class="social-nav" aria-label="Social workspace">
+    <a class="ghost-action" href="./index.html">Back to social studio</a>
+    <a class="ghost-action" href="./ideation.html">Ideation</a>
+    <a class="ghost-action" href="./goals.html">Goals</a>
+    <a class="ghost-action" href="./command-center.html">Campaigns</a>
+    <a class="ghost-action" href="./scheduler.html">Scheduler</a>
+  </nav>
+  <main id="main" class="social-shell" aria-labelledby="page-title">
+    <header class="social-hero">
+      <div>
+        <p class="social-hero__eyebrow">Results tracking</p>
+        <h1 id="page-title" class="social-hero__title">Results Tracker</h1>
+        <p class="social-hero__lead">
+          Capture the outcomes and metrics for each goal or campaign.
+        </p>
+      </div>
+      <aside class="social-hero__aside" aria-label="Results focus">
+        <h2>Measure what matters</h2>
+        <ul>
+          <li>Log results per goal or post.</li>
+          <li>Track impressions, clicks, CTR, and conversions.</li>
+          <li>Keep a running record for retrospectives.</li>
+        </ul>
+      </aside>
+    </header>
+
+    <section class="social-grid social-grid--single" aria-labelledby="results-heading">
+      <article class="social-panel" aria-labelledby="results-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="results-heading">Log results</h2>
+            <p>Attach results to a goal and capture the metric snapshot.</p>
+          </div>
+        </header>
+        <form id="resultsForm" class="panel-form" autocomplete="off" novalidate>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Linked goal</span>
+              <select id="resultGoal" name="resultGoal">
+                <option value="">No linked goal</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Campaign / post label</span>
+              <input id="resultLabel" name="resultLabel" placeholder="March launch teaser">
+            </label>
+            <label class="field">
+              <span class="field__label">Impressions</span>
+              <input id="resultImpressions" name="resultImpressions" type="number" min="0" placeholder="0">
+            </label>
+            <label class="field">
+              <span class="field__label">Clicks</span>
+              <input id="resultClicks" name="resultClicks" type="number" min="0" placeholder="0">
+            </label>
+            <label class="field">
+              <span class="field__label">CTR (%)</span>
+              <input id="resultCtr" name="resultCtr" type="number" min="0" step="0.01" placeholder="0">
+            </label>
+            <label class="field">
+              <span class="field__label">Conversions</span>
+              <input id="resultConversions" name="resultConversions" type="number" min="0" placeholder="0">
+            </label>
+            <label class="field">
+              <span class="field__label">Sign-ups</span>
+              <input id="resultSignups" name="resultSignups" type="number" min="0" placeholder="0">
+            </label>
+            <label class="field">
+              <span class="field__label">Status</span>
+              <select id="resultStatus" name="resultStatus">
+                <option value="in-progress">In progress</option>
+                <option value="final">Final</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">Notes</span>
+            <textarea id="resultNotes" name="resultNotes" rows="3"
+              placeholder="Highlights, anomalies, next steps"></textarea>
+          </label>
+          <button type="submit" class="primary-action">Save result</button>
+        </form>
+      </article>
+
+      <article class="social-panel" aria-labelledby="results-list-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="results-list-heading">Results log</h2>
+            <p>Review recent snapshots and keep them connected to goals.</p>
+          </div>
+        </header>
+        <div class="panel-list" id="resultsList" role="list">
+          <p id="resultsEmpty" class="empty-state">No results yet.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="./gun-helpers.js"></script>
+  <script type="module" src="./results.js"></script>
+</body>
+</html>

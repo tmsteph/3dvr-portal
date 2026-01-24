@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Goals Tracker - 3DVR</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/score.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to goals</a>
+  <nav class="social-nav" aria-label="Social workspace">
+    <a class="ghost-action" href="./index.html">Back to social studio</a>
+    <a class="ghost-action" href="./ideation.html">Ideation</a>
+    <a class="ghost-action" href="./command-center.html">Campaigns</a>
+    <a class="ghost-action" href="./scheduler.html">Scheduler</a>
+    <a class="ghost-action" href="./results.html">Results</a>
+  </nav>
+  <main id="main" class="social-shell" aria-labelledby="page-title">
+    <header class="social-hero">
+      <div>
+        <p class="social-hero__eyebrow">Goal tracking</p>
+        <h1 id="page-title" class="social-hero__title">Goals Tracker</h1>
+        <p class="social-hero__lead">
+          Capture the outcomes you want before planning posts.
+        </p>
+      </div>
+      <aside class="social-hero__aside" aria-label="Goal focus">
+        <h2>Keep it simple</h2>
+        <ul>
+          <li>Define the result you want to measure.</li>
+          <li>Track success metrics you care about.</li>
+          <li>Link ideas and results to the same goal.</li>
+        </ul>
+      </aside>
+    </header>
+
+    <section class="social-grid social-grid--single" aria-labelledby="goals-heading">
+      <article class="social-panel" aria-labelledby="goals-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="goals-heading">Create a goal</h2>
+            <p>Keep goals focused and measurable.</p>
+          </div>
+        </header>
+        <form id="goalForm" class="panel-form" autocomplete="off" novalidate>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Goal title</span>
+              <input id="goalTitle" name="goalTitle" required placeholder="Increase beta sign-ups">
+            </label>
+            <label class="field">
+              <span class="field__label">Owner</span>
+              <input id="goalOwner" name="goalOwner" placeholder="Marketing lead">
+            </label>
+            <label class="field">
+              <span class="field__label">Target date</span>
+              <input id="goalTargetDate" name="goalTargetDate" type="date">
+            </label>
+            <label class="field">
+              <span class="field__label">Status</span>
+              <select id="goalStatus" name="goalStatus">
+                <option value="active">Active</option>
+                <option value="in-review">In review</option>
+                <option value="complete">Complete</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">Goal description</span>
+            <textarea id="goalDescription" name="goalDescription" rows="3"
+              placeholder="Describe the outcome and why it matters"></textarea>
+          </label>
+          <label class="field">
+            <span class="field__label">Success metrics</span>
+            <input id="goalMetrics" name="goalMetrics" placeholder="Sign-ups, CTR, demo requests">
+          </label>
+          <button type="submit" class="primary-action">Add goal</button>
+        </form>
+      </article>
+
+      <article class="social-panel" aria-labelledby="goals-list-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="goals-list-heading">Goal list</h2>
+            <p>Update status as you move from ideation to results.</p>
+          </div>
+        </header>
+        <div class="panel-list" id="goalList" role="list">
+          <p id="goalEmpty" class="empty-state">No goals yet.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="./gun-helpers.js"></script>
+  <script type="module" src="./goals.js"></script>
+</body>
+</html>

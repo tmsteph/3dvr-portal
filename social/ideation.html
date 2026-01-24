@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ideation Studio - 3DVR</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/score.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to ideation</a>
+  <nav class="social-nav" aria-label="Social workspace">
+    <a class="ghost-action" href="./index.html">Back to social studio</a>
+    <a class="ghost-action" href="./goals.html">Goals</a>
+    <a class="ghost-action" href="./command-center.html">Campaigns</a>
+    <a class="ghost-action" href="./scheduler.html">Scheduler</a>
+    <a class="ghost-action" href="./results.html">Results</a>
+  </nav>
+  <main id="main" class="social-shell" aria-labelledby="page-title">
+    <header class="social-hero">
+      <div>
+        <p class="social-hero__eyebrow">Ideation flow</p>
+        <h1 id="page-title" class="social-hero__title">Ideation Studio</h1>
+        <p class="social-hero__lead">
+          Start with goals, generate post ideas, and save the best ones for scheduling.
+        </p>
+      </div>
+      <aside class="social-hero__aside" aria-label="Ideation focus">
+        <h2>Quick flow</h2>
+        <ul>
+          <li>Describe the goal, audience, and tone.</li>
+          <li>Generate ideas with OpenAI or craft them manually.</li>
+          <li>Save ideas to the shared board for scheduling.</li>
+        </ul>
+      </aside>
+    </header>
+
+    <section class="social-grid social-grid--single" aria-labelledby="ideation-heading">
+      <article class="social-panel" aria-labelledby="ideation-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="ideation-heading">Generate ideas</h2>
+            <p>Keep the prompt short and specific. Save the ideas you want to schedule.</p>
+          </div>
+        </header>
+
+        <form id="ideationForm" class="panel-form" autocomplete="off" novalidate>
+          <label class="field">
+            <span class="field__label">Idea draft</span>
+            <textarea id="ideaText" name="ideaText" rows="3" required
+              placeholder="Write a short post idea, hook, and CTA"></textarea>
+          </label>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Goal</span>
+              <input id="ideaGoal" name="ideaGoal" placeholder="Drive sign-ups for the beta">
+            </label>
+            <label class="field">
+              <span class="field__label">Audience</span>
+              <input id="ideaAudience" name="ideaAudience" placeholder="Founders, early adopters">
+            </label>
+            <label class="field">
+              <span class="field__label">Platforms</span>
+              <input id="ideaPlatforms" name="ideaPlatforms" placeholder="Instagram, LinkedIn">
+            </label>
+            <label class="field">
+              <span class="field__label">Tone</span>
+              <input id="ideaTone" name="ideaTone" placeholder="Confident, warm, concise">
+            </label>
+            <label class="field">
+              <span class="field__label">Format</span>
+              <input id="ideaFormat" name="ideaFormat" placeholder="Short video, carousel, text-only">
+            </label>
+            <label class="field">
+              <span class="field__label">Link to goal</span>
+              <select id="ideaGoalSelect" name="ideaGoalSelect">
+                <option value="">No linked goal</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">Extra context</span>
+            <textarea id="ideaContext" name="ideaContext" rows="3"
+              placeholder="Product details, deadline, key CTA"></textarea>
+          </label>
+          <div class="key-actions">
+            <button id="addIdea" type="submit" class="primary-action">Add idea</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="social-panel" aria-labelledby="idea-list-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="idea-list-heading">Idea drafts</h2>
+            <p>Save the ideas you want to move into the scheduler.</p>
+          </div>
+        </header>
+        <div class="panel-list" id="ideaDraftList" role="list">
+          <p id="ideaDraftEmpty" class="empty-state">No ideas yet. Generate or add one to start.</p>
+        </div>
+      </article>
+
+      <article class="social-panel" aria-labelledby="idea-board-heading">
+        <header class="panel-header">
+          <div>
+            <h2 id="idea-board-heading">Saved ideas board</h2>
+            <p>These are the ideas ready for scheduling or review.</p>
+          </div>
+        </header>
+        <div class="panel-list" id="ideaBoard" role="list">
+          <p id="ideaBoardEmpty" class="empty-state">No saved ideas yet.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="./gun-helpers.js"></script>
+  <script type="module" src="./ideation.js"></script>
+</body>
+</html>

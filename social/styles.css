@@ -370,6 +370,12 @@ body.dark .calendar-cell {
   }
 }
 
+@media (min-width: 1200px) {
+  .hub-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .tool-card {
   border-radius: var(--radius-lg);
   padding: clamp(20px, 3vw, 32px);
@@ -648,6 +654,31 @@ textarea[data-schedule-edit-field] {
   margin: 0;
   font-size: 0.85rem;
   color: var(--accent-strong);
+}
+
+.list-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+  box-shadow: 0 12px 24px rgba(15, 59, 54, 0.12);
+}
+
+body.dark .list-card {
+  background: rgba(20, 24, 29, 0.85);
+}
+
+.list-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.list-card__meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
 }
 
 .secret-details {
