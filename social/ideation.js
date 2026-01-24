@@ -245,13 +245,21 @@ function handleDraftClick(event) {
     const record = draftRecords.get(id);
     if (!record) return;
     createCampaignFromIdea(record);
+    setIdeaFeedback(ideaDraftList, id, 'draft', 'Campaign created.');
     return;
   }
 
   if (action === 'send-to-schedule') {
     const record = draftRecords.get(id);
     if (!record) return;
-    createScheduleFromIdea(record);
+    if (record.scheduleId) {
+      window.location.href = './scheduler.html';
+      return;
+    }
+    const scheduleId = createScheduleFromIdea(record);
+    draftsNode.get(id).put({ scheduleId, updatedAt: Date.now() });
+    handleDraftUpdate({ ...record, scheduleId }, id);
+    setIdeaFeedback(ideaDraftList, id, 'draft', 'Sent to scheduler.');
     return;
   }
 
@@ -289,12 +297,20 @@ function handleBoardClick(event) {
     const record = ideaRecords.get(id);
     if (!record) return;
     createCampaignFromIdea(record);
+    setIdeaFeedback(ideaBoard, id, 'board', 'Campaign created.');
   }
 
   if (action === 'send-to-schedule') {
     const record = ideaRecords.get(id);
     if (!record) return;
-    createScheduleFromIdea(record);
+    if (record.scheduleId) {
+      window.location.href = './scheduler.html';
+      return;
+    }
+    const scheduleId = createScheduleFromIdea(record);
+    boardNode.get(id).put({ scheduleId, updatedAt: Date.now() });
+    handleBoardUpdate({ ...record, scheduleId }, id);
+    setIdeaFeedback(ideaBoard, id, 'board', 'Sent to scheduler.');
   }
 
   if (action === 'edit-idea') {
@@ -362,6 +378,9 @@ function renderDraftCard(card, record, id) {
   card.querySelector('[data-action="send-to-campaign"]').dataset.ideaId = id;
   card.querySelector('[data-action="send-to-schedule"]').dataset.ideaId = id;
   card.querySelector('[data-action="edit-idea"]').dataset.ideaId = id;
+  if (card.scheduleButton) {
+    card.scheduleButton.textContent = record.scheduleId ? 'View in scheduler' : 'Send to scheduler';
+  }
   populateIdeaEditForm(card, record);
 }
 
@@ -374,6 +393,9 @@ function renderBoardCard(card, record, id) {
   card.querySelector('[data-action="send-to-campaign"]').dataset.ideaId = id;
   card.querySelector('[data-action="send-to-schedule"]').dataset.ideaId = id;
   card.querySelector('[data-action="edit-idea"]').dataset.ideaId = id;
+  if (card.scheduleButton) {
+    card.scheduleButton.textContent = record.scheduleId ? 'View in Scheduler' : 'Send to scheduler';
+  }
   populateIdeaEditForm(card, record);
 }
 
@@ -509,6 +531,7 @@ function ensureCard(list, id, type) {
     scheduleButton.type = 'button';
     scheduleButton.className = 'ghost-action';
     scheduleButton.dataset.action = 'send-to-schedule';
+    scheduleButton.dataset.role = 'scheduleButton';
     scheduleButton.textContent = 'Send to scheduler';
 
     const editButton = document.createElement('button');
@@ -535,6 +558,7 @@ function ensureCard(list, id, type) {
     plannerButton.type = 'button';
     plannerButton.className = 'ghost-action';
     plannerButton.dataset.action = 'send-to-schedule';
+    plannerButton.dataset.role = 'scheduleButton';
     plannerButton.textContent = 'Send to scheduler';
 
     const deleteButton = document.createElement('button');
@@ -552,6 +576,11 @@ function ensureCard(list, id, type) {
     actions.append(scheduleButton, campaignButton, plannerButton, editButton, deleteButton);
   }
 
+  const feedback = document.createElement('p');
+  feedback.className = 'card-feedback';
+  feedback.hidden = true;
+  card.appendChild(feedback);
+
   card.appendChild(actions);
   list.prepend(card);
 
@@ -563,6 +592,8 @@ function ensureCard(list, id, type) {
   card.editTone = editTone;
   card.editAudience = editAudience;
   card.editFormat = editFormat;
+  card.scheduleButton = card.querySelector('[data-role="scheduleButton"]');
+  card.feedbackEl = feedback;
 
   return card;
 }
@@ -658,8 +689,7 @@ function createCampaignFromIdea(record) {
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  const id = `campaign-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-  campaignsNode.get(id).put(payload);
+  campaignsNode.set(payload);
 }
 
 function createScheduleFromIdea(record) {
@@ -684,6 +714,21 @@ function createScheduleFromIdea(record) {
   };
   const id = `schedule-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   scheduleNode.get(id).put(payload);
+  return id;
+}
+
+function setIdeaFeedback(list, id, type, message) {
+  if (!list) return;
+  const card = list.querySelector(`[data-${type}-id="${id}"]`);
+  if (!card || !card.feedbackEl) return;
+  card.feedbackEl.textContent = message;
+  card.feedbackEl.hidden = false;
+  if (card.feedbackTimeout) {
+    clearTimeout(card.feedbackTimeout);
+  }
+  card.feedbackTimeout = setTimeout(() => {
+    card.feedbackEl.hidden = true;
+  }, 2400);
 }
 
 function truncate(value, max) {
