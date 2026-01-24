@@ -62,6 +62,7 @@ if (goalForm) {
 if (goalList) {
   goalList.addEventListener('change', handleGoalListChange);
   goalList.addEventListener('click', handleGoalListClick);
+  goalList.addEventListener('submit', handleGoalEditSubmit);
 }
 
 if (goalsNode && typeof goalsNode.map === 'function') {
@@ -193,6 +194,49 @@ function handleGoalListClick(event) {
     goalsNode.get(id).put(null);
     handleGoalUpdate(null, id);
   }
+
+  if (action === 'edit-goal') {
+    toggleGoalEditForm(id, true);
+  }
+
+  if (action === 'cancel-edit-goal') {
+    toggleGoalEditForm(id, false);
+  }
+}
+
+function handleGoalEditSubmit(event) {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement)) return;
+  const id = form.dataset.goalId;
+  if (!id) return;
+
+  event.preventDefault();
+
+  const titleInput = form.querySelector('[data-role="editTitle"]');
+  if (!(titleInput instanceof HTMLInputElement)) return;
+  const title = titleInput.value.trim();
+  if (!title) {
+    form.reportValidity();
+    return;
+  }
+
+  const ownerInput = form.querySelector('[data-role="editOwner"]');
+  const targetDateInput = form.querySelector('[data-role="editTargetDate"]');
+  const descriptionInput = form.querySelector('[data-role="editDescription"]');
+  const metricsInput = form.querySelector('[data-role="editMetrics"]');
+
+  const updates = {
+    title,
+    owner: ownerInput instanceof HTMLInputElement ? ownerInput.value.trim() : '',
+    targetDate: targetDateInput instanceof HTMLInputElement ? targetDateInput.value : '',
+    description: descriptionInput instanceof HTMLTextAreaElement ? descriptionInput.value.trim() : '',
+    metrics: metricsInput instanceof HTMLInputElement ? metricsInput.value.trim() : '',
+    updatedAt: Date.now()
+  };
+
+  goalsNode.get(id).put(updates);
+  handleGoalUpdate({ ...(goalRecords.get(id) || {}), ...updates }, id);
+  toggleGoalEditForm(id, false);
 }
 
 function ensureGoalCard(id) {
@@ -207,6 +251,16 @@ function createGoalCard(id) {
   const card = document.createElement('div');
   card.className = 'list-card';
   card.dataset.goalId = id;
+
+  const createLabeledField = (labelText, inputEl) => {
+    const label = document.createElement('label');
+    label.className = 'field';
+    const span = document.createElement('span');
+    span.className = 'field__label';
+    span.textContent = labelText;
+    label.append(span, inputEl);
+    return label;
+  };
 
   const title = document.createElement('h3');
   title.className = 'list-card__title';
@@ -239,6 +293,67 @@ function createGoalCard(id) {
   statusField.append(statusLabel, statusSelect);
   card.appendChild(statusField);
 
+  const editForm = document.createElement('form');
+  editForm.className = 'card-edit list-card__form';
+  editForm.dataset.goalId = id;
+  editForm.hidden = true;
+
+  const editGrid = document.createElement('div');
+  editGrid.className = 'form-grid';
+
+  const editTitleInput = document.createElement('input');
+  editTitleInput.required = true;
+  editTitleInput.dataset.role = 'editTitle';
+  editTitleInput.placeholder = 'Goal title';
+
+  const editOwnerInput = document.createElement('input');
+  editOwnerInput.dataset.role = 'editOwner';
+  editOwnerInput.placeholder = 'Owner';
+
+  const editTargetDateInput = document.createElement('input');
+  editTargetDateInput.type = 'date';
+  editTargetDateInput.dataset.role = 'editTargetDate';
+
+  editGrid.append(
+    createLabeledField('Goal title', editTitleInput),
+    createLabeledField('Owner', editOwnerInput),
+    createLabeledField('Target date', editTargetDateInput)
+  );
+
+  const editDescriptionInput = document.createElement('textarea');
+  editDescriptionInput.rows = 3;
+  editDescriptionInput.dataset.role = 'editDescription';
+  editDescriptionInput.placeholder = 'Describe the outcome and why it matters';
+
+  const editMetricsInput = document.createElement('input');
+  editMetricsInput.dataset.role = 'editMetrics';
+  editMetricsInput.placeholder = 'Success metrics';
+
+  const editActions = document.createElement('div');
+  editActions.className = 'card-actions';
+
+  const saveButton = document.createElement('button');
+  saveButton.type = 'submit';
+  saveButton.className = 'primary-action';
+  saveButton.textContent = 'Save changes';
+
+  const cancelButton = document.createElement('button');
+  cancelButton.type = 'button';
+  cancelButton.className = 'ghost-action';
+  cancelButton.dataset.action = 'cancel-edit-goal';
+  cancelButton.dataset.goalId = id;
+  cancelButton.textContent = 'Cancel';
+
+  editActions.append(saveButton, cancelButton);
+  editForm.append(
+    editGrid,
+    createLabeledField('Goal description', editDescriptionInput),
+    createLabeledField('Success metrics', editMetricsInput),
+    editActions
+  );
+
+  card.appendChild(editForm);
+
   const actions = document.createElement('div');
   actions.className = 'card-actions';
   const ideationLink = document.createElement('a');
@@ -251,13 +366,20 @@ function createGoalCard(id) {
   resultsLink.dataset.action = 'open-results';
   resultsLink.textContent = 'Log results';
 
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'ghost-action';
+  editButton.dataset.action = 'edit-goal';
+  editButton.dataset.goalId = id;
+  editButton.textContent = 'Edit';
+
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';
   deleteButton.className = 'delete-button';
   deleteButton.dataset.action = 'delete-goal';
   deleteButton.dataset.goalId = id;
   deleteButton.textContent = 'Delete';
-  actions.append(ideationLink, resultsLink, deleteButton);
+  actions.append(ideationLink, resultsLink, editButton, deleteButton);
   card.appendChild(actions);
 
   card.titleEl = title;
@@ -266,6 +388,12 @@ function createGoalCard(id) {
   card.statusSelect = statusSelect;
   card.ideationLink = ideationLink;
   card.resultsLink = resultsLink;
+  card.editForm = editForm;
+  card.editTitleInput = editTitleInput;
+  card.editOwnerInput = editOwnerInput;
+  card.editTargetDateInput = editTargetDateInput;
+  card.editDescriptionInput = editDescriptionInput;
+  card.editMetricsInput = editMetricsInput;
 
   return card;
 }
@@ -275,6 +403,7 @@ function renderGoalCard(card, record) {
   card.metaEl.textContent = buildGoalMeta(record);
   card.descriptionEl.textContent = record.description || 'No description yet.';
   card.statusSelect.value = record.status || 'active';
+  populateGoalEditForm(card, record);
   if (card.ideationLink) {
     card.ideationLink.href = `./ideation.html?goalId=${encodeURIComponent(card.dataset.goalId)}`;
   }
@@ -285,10 +414,29 @@ function renderGoalCard(card, record) {
 
 function buildGoalMeta(record) {
   const parts = [];
+  if (record.status) parts.push(`Status: ${record.status.replace('-', ' ')}`);
   if (record.owner) parts.push(record.owner);
   if (record.targetDate) parts.push(`Target: ${record.targetDate}`);
   if (record.metrics) parts.push(`Metrics: ${record.metrics}`);
   return parts.join(' · ') || 'No metadata';
+}
+
+function populateGoalEditForm(card, record) {
+  if (!card || !card.editForm) return;
+  if (card.editTitleInput) card.editTitleInput.value = record.title || '';
+  if (card.editOwnerInput) card.editOwnerInput.value = record.owner || '';
+  if (card.editTargetDateInput) card.editTargetDateInput.value = record.targetDate || '';
+  if (card.editDescriptionInput) card.editDescriptionInput.value = record.description || '';
+  if (card.editMetricsInput) card.editMetricsInput.value = record.metrics || '';
+}
+
+function toggleGoalEditForm(id, shouldShow) {
+  const card = goalList.querySelector(`[data-goal-id="${id}"]`);
+  if (!card || !card.editForm) return;
+  card.editForm.hidden = !shouldShow;
+  if (shouldShow && card.editTitleInput) {
+    card.editTitleInput.focus();
+  }
 }
 
 function removeGoalCard(id) {

@@ -681,6 +681,10 @@ body.dark .list-card {
   font-size: 0.92rem;
 }
 
+.list-card__form {
+  margin-top: 6px;
+}
+
 .secret-details {
   display: grid;
   gap: 6px;
