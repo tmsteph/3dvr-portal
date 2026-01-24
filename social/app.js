@@ -441,10 +441,27 @@
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     const action = target.dataset.action;
-    if (action === 'delete-campaign' && target.dataset.campaignId) {
-      const id = target.dataset.campaignId;
+    const id = target.dataset.campaignId;
+    if (!id) return;
+
+    if (action === 'delete-campaign') {
       campaignsNode.get(id).put(null);
       markWorkspaceActivity('lastCampaignChangeAt');
+      return;
+    }
+
+    if (action === 'edit-campaign') {
+      toggleCampaignEdit(id);
+      return;
+    }
+
+    if (action === 'save-campaign') {
+      saveCampaignEdits(id);
+      return;
+    }
+
+    if (action === 'cancel-campaign') {
+      cancelCampaignEdits(id);
     }
   }
 
@@ -498,6 +515,20 @@
           showKeyFeedback('Could not encrypt credentials with the current key.', true);
         });
     }
+
+    if (action === 'edit-credential') {
+      toggleCredentialEdit(id);
+      return;
+    }
+
+    if (action === 'save-credential') {
+      saveCredentialEdits(id);
+      return;
+    }
+
+    if (action === 'cancel-credential') {
+      cancelCredentialEdits(id);
+    }
   }
 
   function ensureCampaignCard(id) {
@@ -535,6 +566,14 @@
     deleteButton.dataset.campaignId = id;
     deleteButton.textContent = 'Delete';
     actions.appendChild(deleteButton);
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'ghost-action';
+    editButton.dataset.action = 'edit-campaign';
+    editButton.dataset.campaignId = id;
+    editButton.textContent = 'Edit';
+    actions.appendChild(editButton);
 
     header.appendChild(actions);
     card.appendChild(header);
@@ -582,6 +621,9 @@
     notesField.append(notesLabel, notesArea);
     card.appendChild(notesField);
 
+    const editSection = createCampaignEditSection(id);
+    card.appendChild(editSection.wrapper);
+
     card.titleEl = title;
     card.statusBadge = badge;
     card.platformLine = platformLine;
@@ -589,8 +631,74 @@
     card.windowLine = windowLine;
     card.statusSelect = statusSelect;
     card.notesArea = notesArea;
+    card.editSection = editSection;
+    card.editButton = editButton;
 
     return card;
+  }
+
+  function createCampaignEditSection(id) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'card-edit';
+    wrapper.hidden = true;
+    wrapper.dataset.editSection = 'campaign';
+
+    const fields = document.createElement('div');
+    fields.className = 'form-grid';
+
+    const nameField = createEditField('Campaign name', 'name', id);
+    const platformField = createEditField('Primary platform', 'platform', id);
+    const objectiveField = createEditField('Objective', 'objective', id);
+    const startField = createEditField('Start date', 'startDate', id, 'date');
+    const endField = createEditField('End date', 'endDate', id, 'date');
+
+    fields.append(nameField.wrapper, platformField.wrapper, objectiveField.wrapper, startField.wrapper, endField.wrapper);
+    wrapper.appendChild(fields);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+
+    const saveButton = document.createElement('button');
+    saveButton.type = 'button';
+    saveButton.className = 'primary-action';
+    saveButton.dataset.action = 'save-campaign';
+    saveButton.dataset.campaignId = id;
+    saveButton.textContent = 'Save changes';
+
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'ghost-action';
+    cancelButton.dataset.action = 'cancel-campaign';
+    cancelButton.dataset.campaignId = id;
+    cancelButton.textContent = 'Cancel';
+
+    actions.append(saveButton, cancelButton);
+    wrapper.appendChild(actions);
+
+    return {
+      wrapper,
+      inputs: {
+        name: nameField.input,
+        platform: platformField.input,
+        objective: objectiveField.input,
+        startDate: startField.input,
+        endDate: endField.input
+      }
+    };
+  }
+
+  function createEditField(labelText, field, id, type) {
+    const wrapper = document.createElement('label');
+    wrapper.className = 'field';
+    const label = document.createElement('span');
+    label.className = 'field__label';
+    label.textContent = labelText;
+    const input = document.createElement('input');
+    input.type = type || 'text';
+    input.dataset.campaignEditField = field;
+    input.dataset.campaignId = id;
+    wrapper.append(label, input);
+    return { wrapper, input };
   }
 
   function renderCampaignCard(card, record) {
@@ -605,6 +713,30 @@
 
     if (document.activeElement !== card.notesArea) {
       card.notesArea.value = record.notes || '';
+    }
+
+    if (card.editSection && card.editSection.wrapper.hidden) {
+      updateCampaignEditInputs(card, record);
+    }
+  }
+
+  function updateCampaignEditInputs(card, record) {
+    const inputs = card.editSection ? card.editSection.inputs : null;
+    if (!inputs) return;
+    if (document.activeElement !== inputs.name) {
+      inputs.name.value = record.name || '';
+    }
+    if (document.activeElement !== inputs.platform) {
+      inputs.platform.value = record.platform || '';
+    }
+    if (document.activeElement !== inputs.objective) {
+      inputs.objective.value = record.objective || '';
+    }
+    if (document.activeElement !== inputs.startDate) {
+      inputs.startDate.value = record.startDate || '';
+    }
+    if (document.activeElement !== inputs.endDate) {
+      inputs.endDate.value = record.endDate || '';
     }
   }
 
@@ -656,6 +788,14 @@
     deleteButton.dataset.credentialId = id;
     deleteButton.textContent = 'Delete';
     actions.appendChild(deleteButton);
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'ghost-action';
+    editButton.dataset.action = 'edit-credential';
+    editButton.dataset.credentialId = id;
+    editButton.textContent = 'Edit';
+    actions.appendChild(editButton);
 
     header.appendChild(actions);
     card.appendChild(header);
@@ -728,6 +868,9 @@
     secretWrapper.appendChild(secretDetails);
     card.appendChild(secretWrapper);
 
+    const editSection = createCredentialEditSection(id);
+    card.appendChild(editSection.wrapper);
+
     card.titleEl = title;
     card.badgeEl = badge;
     card.accountLine = accountLine;
@@ -742,8 +885,70 @@
       password: passwordField.input,
       twoFactor: twoFactorField.input
     };
+    card.editSection = editSection;
+    card.editButton = editButton;
 
     return card;
+  }
+
+  function createCredentialEditSection(id) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'card-edit';
+    wrapper.hidden = true;
+    wrapper.dataset.editSection = 'credential';
+
+    const fields = document.createElement('div');
+    fields.className = 'form-grid';
+
+    const platformField = createCredentialEditField('Platform', 'platform', id);
+    const accountField = createCredentialEditField('Account label', 'accountLabel', id);
+    const loginField = createCredentialEditField('Login URL', 'loginUrl', id, 'url');
+
+    fields.append(platformField.wrapper, accountField.wrapper, loginField.wrapper);
+    wrapper.appendChild(fields);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+
+    const saveButton = document.createElement('button');
+    saveButton.type = 'button';
+    saveButton.className = 'primary-action';
+    saveButton.dataset.action = 'save-credential';
+    saveButton.dataset.credentialId = id;
+    saveButton.textContent = 'Save changes';
+
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'ghost-action';
+    cancelButton.dataset.action = 'cancel-credential';
+    cancelButton.dataset.credentialId = id;
+    cancelButton.textContent = 'Cancel';
+
+    actions.append(saveButton, cancelButton);
+    wrapper.appendChild(actions);
+
+    return {
+      wrapper,
+      inputs: {
+        platform: platformField.input,
+        accountLabel: accountField.input,
+        loginUrl: loginField.input
+      }
+    };
+  }
+
+  function createCredentialEditField(labelText, field, id, type) {
+    const wrapper = document.createElement('label');
+    wrapper.className = 'field';
+    const label = document.createElement('span');
+    label.className = 'field__label';
+    label.textContent = labelText;
+    const input = document.createElement('input');
+    input.type = type || 'text';
+    input.dataset.credentialEditField = field;
+    input.dataset.credentialId = id;
+    wrapper.append(label, input);
+    return { wrapper, input };
   }
 
   function createSecretField(labelText, field, multiline) {
@@ -780,6 +985,10 @@
       card.instructionsArea.value = record.instructions || '';
     }
 
+    if (card.editSection && card.editSection.wrapper.hidden) {
+      updateCredentialEditInputs(card, record);
+    }
+
     const secretData = await resolveSecretData(record);
     state.secretData = secretData;
 
@@ -806,6 +1015,20 @@
     }
 
     card.toggleButton.textContent = card.secretContainer.hidden ? 'Show credentials' : 'Hide credentials';
+  }
+
+  function updateCredentialEditInputs(card, record) {
+    const inputs = card.editSection ? card.editSection.inputs : null;
+    if (!inputs) return;
+    if (document.activeElement !== inputs.platform) {
+      inputs.platform.value = record.platform || '';
+    }
+    if (document.activeElement !== inputs.accountLabel) {
+      inputs.accountLabel.value = record.accountLabel || '';
+    }
+    if (document.activeElement !== inputs.loginUrl) {
+      inputs.loginUrl.value = record.loginUrl || '';
+    }
   }
 
   function removeCredentialCard(id) {
@@ -892,6 +1115,99 @@
     }
     card.secretContainer.hidden = !card.secretContainer.hidden;
     card.toggleButton.textContent = card.secretContainer.hidden ? 'Show credentials' : 'Hide credentials';
+  }
+
+  function toggleCampaignEdit(id) {
+    const record = campaignRecords.get(id);
+    const card = campaignList.querySelector(`[data-campaign-id="${id}"]`);
+    if (!record || !card || !card.editSection) return;
+    const { wrapper } = card.editSection;
+    wrapper.hidden = !wrapper.hidden;
+    if (!wrapper.hidden) {
+      updateCampaignEditInputs(card, record);
+      card.editButton.textContent = 'Close';
+    } else {
+      card.editButton.textContent = 'Edit';
+    }
+  }
+
+  function saveCampaignEdits(id) {
+    const record = campaignRecords.get(id);
+    const card = campaignList.querySelector(`[data-campaign-id="${id}"]`);
+    if (!record || !card || !card.editSection) return;
+    const { inputs } = card.editSection;
+    const name = inputs.name.value.trim();
+    const platform = inputs.platform.value.trim();
+    if (!name || !platform) {
+      showKeyFeedback('Campaign name and platform are required.', true);
+      return;
+    }
+    // Partial updates keep Gun node shape stable while preserving existing notes/status data.
+    campaignsNode.get(id).put({
+      name,
+      platform,
+      objective: inputs.objective.value.trim(),
+      startDate: inputs.startDate.value,
+      endDate: inputs.endDate.value,
+      updatedAt: Date.now()
+    });
+    markWorkspaceActivity('lastCampaignChangeAt');
+    card.editSection.wrapper.hidden = true;
+    card.editButton.textContent = 'Edit';
+    showKeyFeedback('Campaign updated.', false);
+  }
+
+  function cancelCampaignEdits(id) {
+    const record = campaignRecords.get(id);
+    const card = campaignList.querySelector(`[data-campaign-id="${id}"]`);
+    if (!record || !card || !card.editSection) return;
+    updateCampaignEditInputs(card, record);
+    card.editSection.wrapper.hidden = true;
+    card.editButton.textContent = 'Edit';
+  }
+
+  function toggleCredentialEdit(id) {
+    const state = credentialRecords.get(id);
+    if (!state || !state.card || !state.card.editSection) return;
+    const { wrapper } = state.card.editSection;
+    wrapper.hidden = !wrapper.hidden;
+    if (!wrapper.hidden) {
+      updateCredentialEditInputs(state.card, state.record);
+      state.card.editButton.textContent = 'Close';
+    } else {
+      state.card.editButton.textContent = 'Edit';
+    }
+  }
+
+  function saveCredentialEdits(id) {
+    const state = credentialRecords.get(id);
+    if (!state || !state.card || !state.card.editSection) return;
+    const { inputs } = state.card.editSection;
+    const platform = inputs.platform.value.trim();
+    const accountLabel = inputs.accountLabel.value.trim();
+    if (!platform || !accountLabel) {
+      showKeyFeedback('Platform and account label are required.', true);
+      return;
+    }
+    // Keep secrets intact while updating visible metadata stored in the credential node.
+    credentialsNode.get(id).put({
+      platform,
+      accountLabel,
+      loginUrl: inputs.loginUrl.value.trim(),
+      updatedAt: Date.now()
+    });
+    markWorkspaceActivity('lastCredentialChangeAt');
+    state.card.editSection.wrapper.hidden = true;
+    state.card.editButton.textContent = 'Edit';
+    showKeyFeedback('Credential details updated.', false);
+  }
+
+  function cancelCredentialEdits(id) {
+    const state = credentialRecords.get(id);
+    if (!state || !state.card || !state.card.editSection) return;
+    updateCredentialEditInputs(state.card, state.record);
+    state.card.editSection.wrapper.hidden = true;
+    state.card.editButton.textContent = 'Edit';
   }
 
   function readSecretInputs(container) {
