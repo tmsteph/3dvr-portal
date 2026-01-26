@@ -246,7 +246,7 @@
       username = '';
     }
 
-    if (signedIn) {
+    if (signedIn || alias) {
       return {
         mode: 'user',
         alias,
@@ -268,6 +268,26 @@
     return {
       mode: 'anon'
     };
+  }
+
+  function determineSignedInRestore({ signedIn, alias, password, userIs } = {}) {
+    const resolvedAlias = typeof alias === 'string' ? alias.trim() : '';
+    const resolvedPassword = typeof password === 'string' ? password.trim() : '';
+    const resolvedUserIs = Boolean(userIs);
+
+    if (!resolvedAlias) {
+      return { mode: 'guest', action: 'guest' };
+    }
+
+    if (resolvedUserIs) {
+      return { mode: 'user', action: 'ready' };
+    }
+
+    if (resolvedPassword) {
+      return { mode: 'user', action: 'auth' };
+    }
+
+    return { mode: 'user', action: 'recall' };
   }
 
   function cacheKeyForState(state) {
@@ -1120,6 +1140,7 @@
     sanitizeScore,
     ensureGuestIdentity,
     computeAuthState,
+    determineSignedInRestore,
     recallUserSession,
     ensureGun,
     createGunUserStub,
