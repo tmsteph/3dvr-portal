@@ -3,6 +3,8 @@
 
   const socialGun = window.SocialGun || {};
   const KEY_STORAGE_KEY = 'social-media:workspace-key';
+  const CAMPAIGN_CACHE_KEY = 'social-media:campaigns-cache';
+  const CREDENTIAL_CACHE_KEY = 'social-media:credentials-cache';
   const scoreSystem = window.ScoreSystem || {};
 
   const resolveGunNodeStub = typeof socialGun.resolveGunNodeStub === 'function'
@@ -36,6 +38,8 @@
   let workspaceKey = '';
   const campaignRecords = new Map();
   const credentialRecords = new Map();
+  const campaignCache = readLocalCache(CAMPAIGN_CACHE_KEY);
+  const credentialCache = readLocalCache(CREDENTIAL_CACHE_KEY);
 
   const gunContext = ensureGunContext(() => (typeof Gun === 'function'
     ? Gun(window.__GUN_PEERS__ || [
@@ -110,6 +114,8 @@
   }
 
   registerWorkspacePresence();
+  applyCachedCampaigns();
+  applyCachedCredentials();
 
   if (campaignsNode && typeof campaignsNode.map === 'function') {
     campaignsNode.map().on((data, id) => {
@@ -241,7 +247,9 @@
       return;
     }
 
+    const id = createRecordId('campaign');
     const record = {
+      id,
       name,
       platform,
       objective: campaignForm.campaignObjective.value.trim(),
@@ -254,7 +262,12 @@
     };
 
     try {
-      campaignsNode.set(record);
+      campaignsNode.get(id).put(record, ack => {
+        if (ack && ack.err) {
+          showKeyFeedback('Campaign saved locally. Gun sync failed.', true);
+        }
+      });
+      handleCampaignUpdate(record, id, { source: 'local' });
       markWorkspaceActivity('lastCampaignChangeAt');
       campaignForm.reset();
       if (campaignStatusSelect) {
@@ -286,7 +299,9 @@
     const twoFactor = credentialForm.credential2fa.value.trim();
     const instructions = credentialForm.credentialInstructions.value.trim();
 
+    const id = createRecordId('credential');
     const baseRecord = {
+      id,
       platform,
       accountLabel,
       loginUrl,
@@ -299,7 +314,12 @@
     persistCredentialSecret(baseRecord, { username, password, twoFactor, loginUrl })
       .then((payload) => {
         try {
-          credentialsNode.set(payload);
+          credentialsNode.get(id).put(payload, ack => {
+            if (ack && ack.err) {
+              showKeyFeedback('Credential saved locally. Gun sync failed.', true);
+            }
+          });
+          handleCredentialUpdate(payload, id, { source: 'local' });
           markWorkspaceActivity('lastCredentialChangeAt');
           credentialForm.reset();
         } catch (err) {
@@ -312,10 +332,13 @@
       });
   }
 
-  function handleCampaignUpdate(data, id) {
-    markWorkspaceActivity('lastCampaignSyncAt');
+  function handleCampaignUpdate(data, id, { source = 'gun' } = {}) {
+    if (source === 'gun') {
+      markWorkspaceActivity('lastCampaignSyncAt');
+    }
     const record = sanitizeRecord(data);
     if (!record) {
+      updateCampaignCache(id, null);
       campaignRecords.delete(id);
       removeCampaignCard(id);
       updateCampaignEmptyState();
@@ -323,15 +346,19 @@
     }
 
     campaignRecords.set(id, record);
+    updateCampaignCache(id, record);
     const card = ensureCampaignCard(id);
     renderCampaignCard(card, record);
     updateCampaignEmptyState();
   }
 
-  function handleCredentialUpdate(data, id) {
-    markWorkspaceActivity('lastCredentialSyncAt');
+  function handleCredentialUpdate(data, id, { source = 'gun' } = {}) {
+    if (source === 'gun') {
+      markWorkspaceActivity('lastCredentialSyncAt');
+    }
     const record = sanitizeRecord(data);
     if (!record) {
+      updateCredentialCache(id, null);
       credentialRecords.delete(id);
       removeCredentialCard(id);
       updateCredentialEmptyState();
@@ -345,6 +372,7 @@
       credentialRecords.set(id, state);
     }
     state.record = record;
+    updateCredentialCache(id, record);
     renderCredentialCard(state.card, record, state)
       .then(() => {
         updateCredentialEmptyState();
@@ -359,11 +387,25 @@
     if (target instanceof HTMLSelectElement && target.dataset.campaignId) {
       const id = target.dataset.campaignId;
       const status = target.value;
-      campaignsNode.get(id).put({ status, updatedAt: Date.now() });
+      const updatedAt = Date.now();
+      campaignsNode.get(id).put({ status, updatedAt });
+      const record = campaignRecords.get(id);
+      if (record) {
+        record.status = status;
+        record.updatedAt = updatedAt;
+        handleCampaignUpdate(record, id, { source: 'local' });
+      }
       markWorkspaceActivity('lastCampaignChangeAt');
     } else if (target instanceof HTMLTextAreaElement && target.dataset.campaignId) {
       const id = target.dataset.campaignId;
-      campaignsNode.get(id).put({ notes: target.value, updatedAt: Date.now() });
+      const updatedAt = Date.now();
+      campaignsNode.get(id).put({ notes: target.value, updatedAt });
+      const record = campaignRecords.get(id);
+      if (record) {
+        record.notes = target.value;
+        record.updatedAt = updatedAt;
+        handleCampaignUpdate(record, id, { source: 'local' });
+      }
       markWorkspaceActivity('lastCampaignChangeAt');
     }
   }
@@ -377,6 +419,7 @@
 
     if (action === 'delete-campaign') {
       campaignsNode.get(id).put(null);
+      handleCampaignUpdate(null, id, { source: 'local' });
       markWorkspaceActivity('lastCampaignChangeAt');
       return;
     }
@@ -400,7 +443,14 @@
     const target = event.target;
     if (target instanceof HTMLTextAreaElement && target.dataset.credentialId && target.dataset.field === 'instructions') {
       const id = target.dataset.credentialId;
-      credentialsNode.get(id).put({ instructions: target.value, updatedAt: Date.now() });
+      const updatedAt = Date.now();
+      credentialsNode.get(id).put({ instructions: target.value, updatedAt });
+      const state = credentialRecords.get(id);
+      if (state && state.record) {
+        state.record.instructions = target.value;
+        state.record.updatedAt = updatedAt;
+        handleCredentialUpdate(state.record, id, { source: 'local' });
+      }
       markWorkspaceActivity('lastCredentialChangeAt');
     } else if (target instanceof HTMLInputElement && target.dataset.secretField && target.closest('[data-secret-container]')) {
       const container = target.closest('[data-secret-container]');
@@ -419,6 +469,7 @@
 
     if (action === 'delete-credential') {
       credentialsNode.get(id).put(null);
+      handleCredentialUpdate(null, id, { source: 'local' });
       markWorkspaceActivity('lastCredentialChangeAt');
       return;
     }
@@ -437,6 +488,7 @@
       persistCredentialSecret({ ...cardState.record, updatedAt: Date.now() }, values)
         .then((payload) => {
           credentialsNode.get(id).put(payload);
+          handleCredentialUpdate(payload, id, { source: 'local' });
           markWorkspaceActivity('lastCredentialChangeAt');
           container.dataset.dirty = 'false';
           showKeyFeedback('Credentials updated.', false);
@@ -1019,6 +1071,67 @@
     return `${weeks} weeks ago`;
   }
 
+  function createRecordId(prefix) {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `${prefix}-${crypto.randomUUID()}`;
+    }
+    const rand = Math.random().toString(36).slice(2, 10);
+    return `${prefix}-${Date.now().toString(36)}-${rand}`;
+  }
+
+  function readLocalCache(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function writeLocalCache(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (err) {
+      console.warn(`Failed to persist ${key} cache`, err);
+    }
+  }
+
+  function updateCampaignCache(id, record) {
+    if (!id) return;
+    if (!record) {
+      delete campaignCache[id];
+    } else {
+      campaignCache[id] = record;
+    }
+    writeLocalCache(CAMPAIGN_CACHE_KEY, campaignCache);
+  }
+
+  function updateCredentialCache(id, record) {
+    if (!id) return;
+    if (!record) {
+      delete credentialCache[id];
+    } else {
+      credentialCache[id] = record;
+    }
+    writeLocalCache(CREDENTIAL_CACHE_KEY, credentialCache);
+  }
+
+  function applyCachedCampaigns() {
+    const entries = Object.entries(campaignCache || {});
+    if (!entries.length) return;
+    entries.forEach(([id, record]) => {
+      handleCampaignUpdate(record, id, { source: 'cache' });
+    });
+  }
+
+  function applyCachedCredentials() {
+    const entries = Object.entries(credentialCache || {});
+    if (!entries.length) return;
+    entries.forEach(([id, record]) => {
+      handleCredentialUpdate(record, id, { source: 'cache' });
+    });
+  }
+
   function sanitizeRecord(raw) {
     if (!raw || typeof raw !== 'object') {
       return null;
@@ -1074,14 +1187,22 @@
       return;
     }
     // Partial updates keep Gun node shape stable while preserving existing notes/status data.
+    const updatedAt = Date.now();
     campaignsNode.get(id).put({
       name,
       platform,
       objective: inputs.objective.value.trim(),
       startDate: inputs.startDate.value,
       endDate: inputs.endDate.value,
-      updatedAt: Date.now()
+      updatedAt
     });
+    record.name = name;
+    record.platform = platform;
+    record.objective = inputs.objective.value.trim();
+    record.startDate = inputs.startDate.value;
+    record.endDate = inputs.endDate.value;
+    record.updatedAt = updatedAt;
+    handleCampaignUpdate(record, id, { source: 'local' });
     markWorkspaceActivity('lastCampaignChangeAt');
     card.editSection.wrapper.hidden = true;
     card.editButton.textContent = 'Edit';
@@ -1121,12 +1242,18 @@
       return;
     }
     // Keep secrets intact while updating visible metadata stored in the credential node.
+    const updatedAt = Date.now();
     credentialsNode.get(id).put({
       platform,
       accountLabel,
       loginUrl: inputs.loginUrl.value.trim(),
-      updatedAt: Date.now()
+      updatedAt
     });
+    state.record.platform = platform;
+    state.record.accountLabel = accountLabel;
+    state.record.loginUrl = inputs.loginUrl.value.trim();
+    state.record.updatedAt = updatedAt;
+    handleCredentialUpdate(state.record, id, { source: 'local' });
     markWorkspaceActivity('lastCredentialChangeAt');
     state.card.editSection.wrapper.hidden = true;
     state.card.editButton.textContent = 'Edit';

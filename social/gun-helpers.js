@@ -3,6 +3,39 @@
 
   const GUN_FALLBACK_ERROR = { err: 'gun-unavailable' };
   const scoreSystem = window.ScoreSystem || {};
+  const gunStatus = window.__GUN_STATUS__ || {};
+
+  window.__GUN_STATUS__ = gunStatus;
+
+  function updateGunStatus(label, updates) {
+    const current = gunStatus[label] || { label };
+    gunStatus[label] = { ...current, ...updates };
+  }
+
+  function trackGunConnection(instance, label, isStub) {
+    if (!label) return;
+    if (gunStatus[label] && gunStatus[label].tracked) return;
+    updateGunStatus(label, { tracked: true, stub: !!isStub, connected: false });
+    if (!instance || typeof instance.on !== 'function') {
+      return;
+    }
+    instance.on('hi', peer => {
+      updateGunStatus(label, {
+        connected: true,
+        lastEvent: 'hi',
+        lastEventAt: Date.now(),
+        lastPeer: (peer && peer.url) ? peer.url : peer
+      });
+    });
+    instance.on('bye', peer => {
+      updateGunStatus(label, {
+        connected: false,
+        lastEvent: 'bye',
+        lastEventAt: Date.now(),
+        lastPeer: (peer && peer.url) ? peer.url : peer
+      });
+    });
+  }
 
   function createLocalGunSubscriptionStub() {
     return { off() {} };
@@ -97,7 +130,11 @@
     const label = options && options.label ? options.label : 'social-media';
 
     if (ensureGun) {
-      return ensureGun(factory, { label });
+      const context = ensureGun(factory, { label });
+      if (context) {
+        trackGunConnection(context.gun, label, context.isStub);
+      }
+      return context;
     }
 
     let instance = null;
@@ -113,6 +150,7 @@
       const resolvedUser = typeof instance.user === 'function'
         ? instance.user()
         : resolveGunUserStub(instance);
+      trackGunConnection(instance, label, instance.__isGunStub);
       return {
         gun: instance,
         user: resolvedUser,
@@ -130,6 +168,7 @@
         return resolveGunUserStub();
       }
     };
+    updateGunStatus(label, { connected: false, stub: true });
     return {
       gun: stubGun,
       user: stubGun.user(),
