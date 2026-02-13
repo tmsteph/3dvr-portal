@@ -68,12 +68,63 @@
     cursor: pointer;
   }
 
+  #menu-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 60;
+    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
   .top-buttons {
     position: fixed;
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin: 0;
+    padding: 6px;
+    max-width: calc(100vw - 96px);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: none;
+    backdrop-filter: blur(8px);
     z-index: 50;
+  }
+
+  .top-buttons a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.45);
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.1;
+    box-shadow: none;
+  }
+
+  .top-buttons a:hover {
+    transform: none;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    box-shadow: none;
   }
 
   #dpad {
@@ -112,21 +163,53 @@
     z-index: 20;
   }
 
-  @media (max-width: 720px) {
-    #hud {
-      top: 112px;
+  @media (max-width: 900px) {
+    #menu-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .top-buttons {
-      width: calc(100vw - 24px);
-      max-width: 560px;
       top: 8px;
+      left: 8px;
+      right: 8px;
+      transform: translateY(-16px);
+      opacity: 0;
+      pointer-events: none;
+      max-width: none;
+      justify-content: flex-start;
+      overflow-x: auto;
+      scrollbar-width: none;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .top-buttons::-webkit-scrollbar {
+      display: none;
+    }
+
+    body.nav-open .top-buttons {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    body.nav-open #hud {
+      top: 86px;
+    }
+  }
+
+  @media (max-width: 720px) {
+    #hud {
+      top: 112px;
     }
   }
   </style>
 </head>
 <body>
-  <div class="top-buttons">
+  <button id="menu-toggle" type="button" aria-controls="game-nav" aria-expanded="false">Menu</button>
+
+  <div id="game-nav" class="top-buttons">
     <a href="index.html">🏠 Portal</a>
     <a href="games.html">🎮 Game Hub</a>
     <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
@@ -207,6 +290,7 @@
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', clearInputState);
     document.getElementById('restart-btn').addEventListener('click', resetGame);
+    initMenuToggle();
     initMobileControls();
 
     animate();
@@ -239,6 +323,43 @@
     button.addEventListener('pointerup', deactivate);
     button.addEventListener('pointerleave', deactivate);
     button.addEventListener('pointercancel', deactivate);
+  }
+
+  function initMenuToggle() {
+    const menuToggle = document.getElementById('menu-toggle');
+    const gameNav = document.getElementById('game-nav');
+    if (!menuToggle || !gameNav) return;
+
+    const mobileQuery = window.matchMedia('(max-width: 900px)');
+
+    const closeMenu = () => {
+      document.body.classList.remove('nav-open');
+      menuToggle.setAttribute('aria-expanded', 'false');
+    };
+
+    menuToggle.addEventListener('click', () => {
+      const isOpen = document.body.classList.toggle('nav-open');
+      menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    gameNav.addEventListener('click', event => {
+      if (mobileQuery.matches && event.target && event.target.tagName === 'A') {
+        closeMenu();
+      }
+    });
+
+    const syncMenuForViewport = () => {
+      if (!mobileQuery.matches) {
+        closeMenu();
+      }
+    };
+
+    if (typeof mobileQuery.addEventListener === 'function') {
+      mobileQuery.addEventListener('change', syncMenuForViewport);
+    } else if (typeof mobileQuery.addListener === 'function') {
+      mobileQuery.addListener(syncMenuForViewport);
+    }
+    syncMenuForViewport();
   }
 
   function onKeyDown(event) {
