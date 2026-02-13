@@ -7,6 +7,7 @@
     "dev": "http-server -c-1 -p 3000",
     "start": "npm run dev",
     "test": "node --test",
+    "money:loop": "node scripts/money/run-loop.mjs",
     "playwright:install": "npx playwright install firefox",
     "playwright:smoke:linux": "npm run playwright:install && node scripts/playwright/smoke.mjs",
     "playwright:smoke": "sh scripts/playwright/run-smoke.sh"
