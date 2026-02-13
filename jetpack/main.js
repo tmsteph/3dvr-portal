@@ -1012,7 +1012,7 @@ class JetpackGame {
       1
     );
     if (Math.abs(turnIntent) > 0.001) {
-      this.player.rotation.y += turnIntent * MOVEMENT.rotationSpeed * deltaSeconds;
+      this.player.rotation.y -= turnIntent * MOVEMENT.rotationSpeed * deltaSeconds;
     }
 
     const forward = new THREE.Vector3(0, 0, 1);
