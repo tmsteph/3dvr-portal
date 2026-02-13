@@ -50,7 +50,7 @@ const TRACK = {
 
 const MOVEMENT = {
   rotationSpeed: 2.4,
-  cruiseSpeed: 1.2,
+  cruiseSpeed: 0,
   baseMoveSpeed: 15,
   maxMoveSpeedBonus: 9,
   strafeSpeed: 11.5,
@@ -1005,7 +1005,7 @@ class JetpackGame {
 
     const previousPosition = this.player.position.clone();
 
-    const keyboardTurnInput = (this.input.state.right ? 1 : 0) - (this.input.state.left ? 1 : 0);
+    const keyboardTurnInput = (this.input.state.left ? 1 : 0) - (this.input.state.right ? 1 : 0);
     const turnIntent = clamp(
       keyboardTurnInput + this.input.state.moveX * MOVEMENT.joystickTurnMix,
       -1,
