@@ -2,165 +2,228 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>3DVR - Jetpack Corridor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3dvr.tech Jetpack Game - Arrow Keys Only</title>
   <link rel="stylesheet" href="styles/global.css">
   <style>
   body {
     margin: 0;
     overflow: hidden;
-    background: radial-gradient(circle at top, #0a2540, #050f1f 65%, #02060c 100%);
+    background: #000;
+  }
+
+  #loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
     color: #fff;
-    font-family: 'Poppins', sans-serif;
-  }
-
-  canvas {
-    position: fixed;
-    inset: 0;
-    display: block;
-  }
-
-  .top-buttons {
-    position: fixed;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 50;
-    background: rgba(15, 23, 42, 0.72);
-    border: 1px solid rgba(94, 234, 212, 0.35);
-    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: sans-serif;
+    font-size: 24px;
+    z-index: 100;
   }
 
   #hud {
     position: fixed;
-    top: 100px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(10, 25, 50, 0.7);
-    color: #e2f1ff;
-    padding: 8px 16px;
-    border-radius: 999px;
-    font-size: 1rem;
-    letter-spacing: 0.05em;
-    z-index: 40;
+    top: 70px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: sans-serif;
+    font-size: 16px;
+    z-index: 30;
   }
 
-  #loading,
   #winMessage {
     position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    font-weight: 600;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: rgba(0, 0, 0, 0.8);
     color: #fff;
-    z-index: 60;
-  }
-
-  #winMessage {
+    padding: 20px 28px;
+    font-family: sans-serif;
+    font-size: 36px;
+    border-radius: 10px;
+    z-index: 40;
     display: none;
-    font-size: clamp(2rem, 3vw, 3.5rem);
     text-align: center;
   }
 
   #winMessage button {
-    margin-top: 1.5rem;
-    padding: 0.65rem 1.4rem;
-    border-radius: 999px;
+    margin-top: 14px;
     border: none;
-    background: rgba(56, 189, 248, 0.25);
-    color: #f8fafc;
-    font-weight: 600;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #111111;
+    font-size: 16px;
+    padding: 8px 14px;
     cursor: pointer;
-    transition: transform 0.2s ease, background 0.2s ease;
   }
 
-  #winMessage button:hover {
-    transform: translateY(-2px);
-    background: rgba(56, 189, 248, 0.35);
+  #menu-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 60;
+    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
+  .top-buttons {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin: 0;
+    padding: 6px;
+    max-width: calc(100vw - 96px);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: none;
+    backdrop-filter: blur(8px);
+    z-index: 50;
+  }
+
+  .top-buttons a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.45);
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.1;
+    box-shadow: none;
+  }
+
+  .top-buttons a:hover {
+    transform: none;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    box-shadow: none;
   }
 
   #dpad {
     position: fixed;
-    bottom: 2.5rem;
-    left: 2.5rem;
+    bottom: 20px;
+    left: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.35rem;
-    z-index: 45;
+    z-index: 20;
   }
 
   #dpad > div {
     display: flex;
-    gap: 0.35rem;
+    justify-content: center;
   }
 
   #dpad button,
   #fly-btn {
     width: 60px;
     height: 60px;
-    font-size: 1.6rem;
-    border-radius: 18px;
-    border: 1px solid rgba(148, 163, 184, 0.5);
-    background: rgba(15, 23, 42, 0.55);
-    color: #f8fafc;
-    cursor: pointer;
-    opacity: 0.85;
-    transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    font-size: 24px;
+    margin: 5px;
+    opacity: 0.8;
+    border: none;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
     touch-action: none;
-  }
-
-  #dpad button:active,
-  #fly-btn:active {
-    transform: scale(0.96);
-    background: rgba(56, 189, 248, 0.3);
-    opacity: 1;
   }
 
   #fly-btn {
     position: fixed;
-    bottom: 2.5rem;
-    right: 2.5rem;
-    width: 80px;
-    height: 80px;
-    font-size: 1.3rem;
-    border-radius: 999px;
-    z-index: 45;
+    bottom: 20px;
+    right: 20px;
+    z-index: 20;
+  }
+
+  @media (max-width: 900px) {
+    #menu-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .top-buttons {
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      transform: translateY(-16px);
+      opacity: 0;
+      pointer-events: none;
+      max-width: none;
+      justify-content: flex-start;
+      overflow-x: auto;
+      scrollbar-width: none;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .top-buttons::-webkit-scrollbar {
+      display: none;
+    }
+
+    body.nav-open .top-buttons {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    body.nav-open #hud {
+      top: 86px;
+    }
   }
 
   @media (max-width: 720px) {
     #hud {
-      top: 5.5rem;
-      font-size: 0.9rem;
-    }
-
-    .top-buttons {
-      top: 0.75rem;
-      transform: translate(-50%, 0);
+      top: 112px;
     }
   }
   </style>
 </head>
-<body class="theme-dark">
-  <div class="top-buttons">
+<body>
+  <button id="menu-toggle" type="button" aria-controls="game-nav" aria-expanded="false">Menu</button>
+
+  <div id="game-nav" class="top-buttons">
     <a href="index.html">🏠 Portal</a>
     <a href="games.html">🎮 Game Hub</a>
     <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
     <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
   </div>
 
-  <div id="loading">Loading jetpack pilot...</div>
+  <div id="loading">Loading...</div>
   <div id="hud">Score: 0</div>
   <div id="winMessage">
-    <div>Mission Complete!<br>Corridor secured.</div>
-    <button id="restart-btn" type="button">Fly Again</button>
+    <div>You Win!</div>
+    <button id="restart-btn" type="button">Play Again</button>
   </div>
 
-  <div id="dpad" aria-hidden="true">
+  <div id="dpad">
     <button id="up-btn" aria-label="Move forward">↑</button>
     <div>
       <button id="left-btn" aria-label="Turn left">←</button>
@@ -178,7 +241,6 @@
   let renderer;
   let clock;
   let player;
-  let defaultCameraTarget;
   const playerVelocity = new THREE.Vector3();
   const keys = {};
   let score = 0;
@@ -195,30 +257,30 @@
 
   function init() {
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x06142a);
+    scene.background = new THREE.Color(0x87ceeb);
+
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 5, 15);
-    defaultCameraTarget = new THREE.Vector3(0, 2, 100);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(window.devicePixelRatio || 1);
     document.body.appendChild(renderer.domElement);
 
     clock = new THREE.Clock();
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
+
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(12, 18, 8);
+    directionalLight.position.set(10, 20, 10);
     scene.add(directionalLight);
 
     const groundGeo = new THREE.PlaneGeometry(500, 500);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x102e44 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x228b22 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = 0;
-    ground.receiveShadow = true;
     scene.add(ground);
 
     createPath();
@@ -226,57 +288,119 @@
     window.addEventListener('resize', onWindowResize);
     window.addEventListener('keydown', onKeyDown, { passive: false });
     window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', clearInputState);
+    document.getElementById('restart-btn').addEventListener('click', resetGame);
+    initMenuToggle();
+    initMobileControls();
 
-    initControls();
     animate();
     loadPlayer();
   }
 
-  function initControls() {
-    const mapping = [
-      ['left-btn', 'ArrowLeft'],
-      ['right-btn', 'ArrowRight'],
-      ['up-btn', 'ArrowUp'],
-      ['down-btn', 'ArrowDown'],
-      ['fly-btn', ' ']
-    ];
+  function initMobileControls() {
+    bindControl('left-btn', 'ArrowLeft');
+    bindControl('right-btn', 'ArrowRight');
+    bindControl('up-btn', 'ArrowUp');
+    bindControl('down-btn', 'ArrowDown');
+    bindControl('fly-btn', ' ');
+  }
 
-    mapping.forEach(([id, key]) => {
-      const button = document.getElementById(id);
-      if (!button) return;
+  function bindControl(buttonId, key) {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
 
-      const activate = event => {
-        event.preventDefault();
-        keys[key] = true;
-      };
+    const activate = event => {
+      event.preventDefault();
+      keys[key] = true;
+    };
 
-      const deactivate = event => {
-        event.preventDefault();
-        keys[key] = false;
-      };
+    const deactivate = event => {
+      event.preventDefault();
+      keys[key] = false;
+    };
 
-      button.addEventListener('pointerdown', activate);
-      button.addEventListener('pointerup', deactivate);
-      button.addEventListener('pointerleave', deactivate);
-      button.addEventListener('pointercancel', deactivate);
+    button.addEventListener('pointerdown', activate);
+    button.addEventListener('pointerup', deactivate);
+    button.addEventListener('pointerleave', deactivate);
+    button.addEventListener('pointercancel', deactivate);
+  }
+
+  function initMenuToggle() {
+    const menuToggle = document.getElementById('menu-toggle');
+    const gameNav = document.getElementById('game-nav');
+    if (!menuToggle || !gameNav) return;
+
+    const mobileQuery = window.matchMedia('(max-width: 900px)');
+
+    const closeMenu = () => {
+      document.body.classList.remove('nav-open');
+      menuToggle.setAttribute('aria-expanded', 'false');
+    };
+
+    menuToggle.addEventListener('click', () => {
+      const isOpen = document.body.classList.toggle('nav-open');
+      menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
 
-    document.getElementById('restart-btn').addEventListener('click', resetGame);
+    gameNav.addEventListener('click', event => {
+      if (mobileQuery.matches && event.target && event.target.tagName === 'A') {
+        closeMenu();
+      }
+    });
+
+    const syncMenuForViewport = () => {
+      if (!mobileQuery.matches) {
+        closeMenu();
+      }
+    };
+
+    if (typeof mobileQuery.addEventListener === 'function') {
+      mobileQuery.addEventListener('change', syncMenuForViewport);
+    } else if (typeof mobileQuery.addListener === 'function') {
+      mobileQuery.addListener(syncMenuForViewport);
+    }
+    syncMenuForViewport();
   }
 
   function onKeyDown(event) {
-    const key = event.key;
-    if (key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight' || key === ' ' || key === 'Spacebar') {
+    if (event.key === 'ArrowUp') {
       event.preventDefault();
-      keys[key === 'Spacebar' ? ' ' : key] = true;
+      keys.ArrowUp = true;
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      keys.ArrowDown = true;
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      keys.ArrowLeft = true;
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      keys.ArrowRight = true;
+    } else if (event.key === ' ' || event.key === 'Spacebar') {
+      event.preventDefault();
+      keys[' '] = true;
     }
   }
 
   function onKeyUp(event) {
-    const key = event.key;
-    if (key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight' || key === ' ' || key === 'Spacebar') {
-      keys[key === 'Spacebar' ? ' ' : key] = false;
+    if (event.key === 'ArrowUp') {
+      keys.ArrowUp = false;
+    } else if (event.key === 'ArrowDown') {
+      keys.ArrowDown = false;
+    } else if (event.key === 'ArrowLeft') {
+      keys.ArrowLeft = false;
+    } else if (event.key === 'ArrowRight') {
+      keys.ArrowRight = false;
+    } else if (event.key === ' ' || event.key === 'Spacebar') {
+      keys[' '] = false;
     }
+  }
+
+  function clearInputState() {
+    keys.ArrowUp = false;
+    keys.ArrowDown = false;
+    keys.ArrowLeft = false;
+    keys.ArrowRight = false;
+    keys[' '] = false;
   }
 
   function loadPlayer() {
@@ -288,29 +412,34 @@
         player.scale.set(0.5, 0.5, 0.5);
         player.position.set(0, groundLevel, 0);
         player.rotation.y = 0;
-        attachJetpack(player);
-        addPlayerBranding();
+        addJetpackFlame(player);
+        addPlayerBranding(player);
         scene.add(player);
-        hideLoading();
+        hideLoadingOverlay();
       },
       undefined,
-      () => {
-        const fallback = new THREE.Object3D();
-        const bodyGeo = new THREE.SphereGeometry(0.5, 16, 16);
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff3366 });
-        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-        fallback.add(bodyMesh);
-        attachJetpack(fallback);
-        addPlayerBranding(fallback);
-        fallback.position.set(0, groundLevel, 0);
-        player = fallback;
+      error => {
+        console.error('Error loading model', error);
+        player = createFallbackPlayer();
         scene.add(player);
-        hideLoading();
+        hideLoadingOverlay();
       }
     );
   }
 
-  function attachJetpack(object3d) {
+  function createFallbackPlayer() {
+    const fallback = new THREE.Object3D();
+    const bodyGeo = new THREE.SphereGeometry(0.5, 16, 16);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+    fallback.add(bodyMesh);
+    addJetpackFlame(fallback);
+    addPlayerBranding(fallback);
+    fallback.position.set(0, groundLevel, 0);
+    return fallback;
+  }
+
+  function addJetpackFlame(target) {
     const flameGeo = new THREE.ConeGeometry(0.2, 0.5, 8);
     const flameMat = new THREE.MeshBasicMaterial({ color: 0xffa500 });
     const flameMesh = new THREE.Mesh(flameGeo, flameMat);
@@ -318,11 +447,10 @@
     flameMesh.rotation.x = Math.PI;
     flameMesh.visible = false;
     flameMesh.name = 'flame';
-    object3d.add(flameMesh);
+    target.add(flameMesh);
   }
 
-  function addPlayerBranding(target = player) {
-    if (!target) return;
+  function addPlayerBranding(target) {
     const branding = createBillboard('3dvr.tech');
     branding.scale.set(0.5, 0.5, 0.5);
     branding.position.set(0, 2, 0);
@@ -349,17 +477,22 @@
     ctx.lineWidth = 4;
     ctx.strokeStyle = '#000000';
     ctx.strokeText(text, size / 2, size / 2);
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
-    const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+      transparent: true
+    });
     const geometry = new THREE.PlaneGeometry(5, 5);
     return new THREE.Mesh(geometry, material);
   }
 
   function createPath() {
     const numBoards = 30;
-    for (let i = 0; i < numBoards; i += 1) {
-      const t = i / (numBoards - 1);
+    for (let index = 0; index < numBoards; index += 1) {
+      const t = index / (numBoards - 1);
       const z = 20 + t * 180;
       const x = 5 * Math.sin(2 * Math.PI * t);
       const y = 2;
@@ -379,6 +512,7 @@
       opacity: 1,
       blending: THREE.AdditiveBlending
     });
+
     const ring = new THREE.Mesh(ringGeom, ringMat);
     ring.position.copy(position);
     ring.rotation.x = Math.PI / 2;
@@ -390,29 +524,24 @@
 
   function checkCollisions() {
     if (!player) return;
-    const playerPos = player.position;
-    for (let i = pathBillboards.length - 1; i >= 0; i -= 1) {
-      const billboard = pathBillboards[i];
-      const distance = playerPos.distanceTo(billboard.position);
+    for (let index = pathBillboards.length - 1; index >= 0; index -= 1) {
+      const billboard = pathBillboards[index];
+      const distance = player.position.distanceTo(billboard.position);
       if (distance < COLLISION_THRESHOLD) {
         createHitEffect(billboard.position);
         scene.remove(billboard);
-        pathBillboards.splice(i, 1);
+        pathBillboards.splice(index, 1);
         score += 10;
         updateHUD();
       }
     }
   }
 
-  function checkWin() {
+  function checkWinCondition() {
     if (player && player.position.z >= winZ && gameActive) {
-      winLevel();
+      gameActive = false;
+      document.getElementById('winMessage').style.display = 'block';
     }
-  }
-
-  function winLevel() {
-    gameActive = false;
-    document.getElementById('winMessage').style.display = 'flex';
   }
 
   function updateHUD() {
@@ -427,8 +556,8 @@
 
   function updatePlayer(delta) {
     if (!player) {
-      camera.position.lerp(new THREE.Vector3(0, 5, 15), 0.08);
-      camera.lookAt(defaultCameraTarget);
+      camera.position.lerp(new THREE.Vector3(0, 5, 15), 0.1);
+      camera.lookAt(new THREE.Vector3(0, 2, 100));
       return;
     }
 
@@ -439,7 +568,8 @@
       player.rotation.y -= rotationSpeed * delta;
     }
 
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
+    const forward = new THREE.Vector3(0, 0, -1);
+    forward.applyQuaternion(player.quaternion);
     forward.y = 0;
     forward.normalize();
 
@@ -460,51 +590,56 @@
     }
 
     player.position.y += playerVelocity.y * delta;
-
     if (player.position.y < groundLevel) {
       player.position.y = groundLevel;
       playerVelocity.y = 0;
     }
 
     const desiredCameraPos = new THREE.Vector3().copy(player.position);
-    const backward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.quaternion);
+    const backward = new THREE.Vector3(0, 0, 1);
+    backward.applyQuaternion(player.quaternion);
     backward.y = 0;
     backward.normalize();
     desiredCameraPos.addScaledVector(backward, 10);
     desiredCameraPos.y += 5;
     camera.position.lerp(desiredCameraPos, 0.1);
-    camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 2, 0)));
+    camera.lookAt(player.position);
+  }
+
+  function updateHitEffects() {
+    for (let index = hitEffects.length - 1; index >= 0; index -= 1) {
+      const effect = hitEffects[index];
+      const elapsed = clock.getElapsedTime() - effect.userData.startTime;
+      const progress = elapsed / effect.userData.duration;
+      if (progress >= 1) {
+        scene.remove(effect);
+        hitEffects.splice(index, 1);
+      } else {
+        effect.scale.setScalar(1 + progress * 2);
+        effect.material.opacity = 1 - progress;
+      }
+    }
   }
 
   function animate() {
     requestAnimationFrame(animate);
-    const delta = clock.getDelta();
     if (gameActive) {
+      const delta = clock.getDelta();
       updatePlayer(delta);
       checkCollisions();
-      checkWin();
+      checkWinCondition();
     }
 
-    for (let i = hitEffects.length - 1; i >= 0; i -= 1) {
-      const effect = hitEffects[i];
-      const elapsed = clock.getElapsedTime() - effect.userData.startTime;
-      const t = elapsed / effect.userData.duration;
-      if (t >= 1) {
-        scene.remove(effect);
-        hitEffects.splice(i, 1);
-      } else {
-        effect.scale.setScalar(1 + t * 2);
-        effect.material.opacity = 1 - t;
-      }
-    }
-
+    updateHitEffects();
     pathBillboards.forEach(billboard => billboard.lookAt(camera.position));
     renderer.render(scene, camera);
   }
 
-  function hideLoading() {
-    const loader = document.getElementById('loading');
-    if (loader) loader.style.display = 'none';
+  function hideLoadingOverlay() {
+    const loading = document.getElementById('loading');
+    if (loading) {
+      loading.style.display = 'none';
+    }
   }
 
   function resetGame() {
@@ -512,18 +647,25 @@
     updateHUD();
     gameActive = true;
     playerVelocity.set(0, 0, 0);
-    Object.keys(keys).forEach(key => {
-      keys[key] = false;
-    });
+    clearInputState();
+
     document.getElementById('winMessage').style.display = 'none';
+
     if (player) {
       player.position.set(0, groundLevel, 0);
       player.rotation.y = 0;
       const flame = player.getObjectByName('flame');
       if (flame) flame.visible = false;
     }
-    pathBillboards.splice(0, pathBillboards.length).forEach(billboard => scene.remove(billboard));
+
+    while (pathBillboards.length > 0) {
+      scene.remove(pathBillboards.pop());
+    }
     createPath();
+
+    while (hitEffects.length > 0) {
+      scene.remove(hitEffects.pop());
+    }
   }
 
   init();
