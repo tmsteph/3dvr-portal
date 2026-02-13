@@ -137,7 +137,7 @@ Use this checklist after UX or sync changes:
 
 ### Run the money autopilot cycle
 
-Autopilot runs the loop with default inputs from env vars, builds an offer page, and can publish automatically to GitHub.
+Autopilot can discover markets on its own, run demand research, build an offer page, publish, and dispatch promotion tasks.
 
 ```bash
 npm run money:autopilot -- --out artifacts/money-autopilot/latest.json
@@ -157,6 +157,8 @@ Environment controls:
 - `MONEY_AUTOPILOT_WEEKLY_BUDGET`
 - `MONEY_AUTOPILOT_MAX_BUDGET`
 - `MONEY_AUTOPILOT_SIGNAL_LIMIT`
+- `MONEY_AUTOPILOT_AUTO_DISCOVERY` (`true`/`false`)
+- `MONEY_AUTOPILOT_DISCOVERY_SEEDS` (comma separated)
 - `MONEY_AUTOPILOT_PUBLISH` (`true`/`false`)
 - `MONEY_AUTOPILOT_DRY_RUN` (`true`/`false`)
 - `MONEY_AUTOPILOT_GH_TOKEN` (or `GH_PAT`)
@@ -164,8 +166,25 @@ Environment controls:
 - `MONEY_AUTOPILOT_GH_BRANCH`
 - `MONEY_AUTOPILOT_PUBLISH_PATH_PREFIX`
 - `MONEY_AUTOPILOT_COMMIT_PREFIX`
+- `MONEY_AUTOPILOT_VERCEL_DEPLOY` (`true`/`false`)
+- `MONEY_AUTOPILOT_VERCEL_TOKEN`
+- `MONEY_AUTOPILOT_VERCEL_PROJECT_NAME`
+- `MONEY_AUTOPILOT_VERCEL_TARGET` (`production` or `preview`)
+- `MONEY_AUTOPILOT_PROMOTION` (`true`/`false`)
+- `MONEY_AUTOPILOT_PROMO_WEBHOOK_URL` (n8n/Zapier/custom worker endpoint)
+- `MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL`
+- `MONEY_AUTOPILOT_GA_PROPERTY_ID`
+- `MONEY_AUTOPILOT_GA_ACCESS_TOKEN`
+
+Security for UI-triggered autopilot:
+
+- `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.
+- Provide it in the `X-Autopilot-Token` header (the Money AI page has a token field).
 
 Scheduled background execution is provided via `.github/workflows/money-autopilot.yml` (every 6 hours plus manual dispatch).
+
+Important: promotion dispatch only sends campaign tasks to your webhook. Paid ad spend happens only if your webhook
+worker actually creates campaigns in Google Ads/social APIs.
 
 ### Run the Playwright smoke check
 

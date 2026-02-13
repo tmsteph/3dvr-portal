@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildOfferHtml,
+  deployOfferToVercel,
   publishOfferToGitHub,
   resolveAutopilotConfig,
   runAutopilotCycle
@@ -52,6 +53,34 @@ function createGithubFetchMock() {
   return { fetchImpl, calls };
 }
 
+function createVercelFetchMock() {
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+
+    if (String(url).includes('api.vercel.com/v13/deployments')) {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return '';
+        },
+        async json() {
+          return {
+            id: 'dpl_123',
+            url: 'autopilot.example.vercel.app',
+            inspectUrl: 'https://vercel.com/example/deployments/dpl_123'
+          };
+        }
+      };
+    }
+
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+
+  return { fetchImpl, calls };
+}
+
 test('resolveAutopilotConfig applies budget cap and defaults', () => {
   const config = resolveAutopilotConfig({
     env: {
@@ -67,6 +96,7 @@ test('resolveAutopilotConfig applies budget cap and defaults', () => {
   assert.deepEqual(config.keywords, ['a', 'b', 'c']);
   assert.deepEqual(config.channels, ['reddit', 'linkedin']);
   assert.equal(config.budget, 250);
+  assert.equal(config.autoDiscover, true);
 });
 
 test('buildOfferHtml renders top opportunity details', () => {
@@ -80,12 +110,14 @@ test('buildOfferHtml renders top opportunity details', () => {
       problem: 'Leads are dropped during manual follow-up.',
       solution: 'Automate reminder and outreach templates.',
       suggestedPrice: '$49/mo'
-    }
+    },
+    market: 'freelancers and small agencies'
   });
 
   assert.match(html, /Lead Follow Up Automator/);
   assert.match(html, /Leads are dropped during manual follow-up/);
   assert.match(html, /\$49\/mo/);
+  assert.match(html, /freelancers and small agencies/);
   assert.match(html, /Step one/);
 });
 
@@ -112,7 +144,28 @@ test('publishOfferToGitHub creates or updates content via GitHub API', async () 
   assert.equal(body.branch, 'main');
 });
 
-test('runAutopilotCycle executes loop with defaults and skips publish when disabled', async () => {
+test('deployOfferToVercel sends deployment payload', async () => {
+  const { fetchImpl, calls } = createVercelFetchMock();
+
+  const result = await deployOfferToVercel({
+    token: 'vercel-token',
+    projectName: 'autopilot-demo',
+    html: '<html>ok</html>',
+    target: 'production',
+    fetchImpl
+  });
+
+  assert.equal(result.id, 'dpl_123');
+  assert.equal(result.url, 'https://autopilot.example.vercel.app');
+
+  const call = calls[0];
+  assert.ok(call);
+  const payload = JSON.parse(call.options.body);
+  assert.equal(payload.target, 'production');
+  assert.equal(payload.name, 'autopilot-demo');
+});
+
+test('runAutopilotCycle executes loop and returns publish/promotion summaries', async () => {
   let receivedPayload = null;
 
   const result = await runAutopilotCycle({
@@ -121,8 +174,10 @@ test('runAutopilotCycle executes loop with defaults and skips publish when disab
       MONEY_AUTOPILOT_KEYWORDS: 'newsletter,follow-up',
       MONEY_AUTOPILOT_CHANNELS: 'reddit,x',
       MONEY_AUTOPILOT_WEEKLY_BUDGET: '120',
-      MONEY_AUTOPILOT_PUBLISH: 'false'
+      MONEY_AUTOPILOT_PUBLISH: 'false',
+      MONEY_AUTOPILOT_PROMOTION: 'false'
     },
+    autoDiscover: false,
     runLoopImpl: async payload => {
       receivedPayload = payload;
       return {
@@ -151,7 +206,10 @@ test('runAutopilotCycle executes loop with defaults and skips publish when disab
   assert.equal(receivedPayload.budget, 120);
 
   assert.equal(result.runId, 'money-run-1');
-  assert.equal(result.publish.published, false);
-  assert.equal(result.publish.reason, 'publish disabled');
+  assert.equal(result.publish.github.published, false);
+  assert.equal(result.publish.github.reason, 'github publish disabled');
+  assert.equal(result.publish.vercel.reason, 'vercel deploy disabled');
+  assert.equal(result.promotion.reason, 'promotion dispatch disabled');
+  assert.equal(result.marketSelection.mode, 'configured');
   assert.match(result.artifacts.offerHtml, /Newsletter follow-up assistant/);
 });

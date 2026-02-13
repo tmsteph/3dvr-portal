@@ -135,13 +135,22 @@ test('money loop handler runs autopilot with valid token', async () => {
       topOpportunity: null,
       warnings: [],
       signalsAnalyzed: 0,
-      receivedDryRun: payload.dryRun
+      receivedDryRun: payload.dryRun,
+      receivedAutoDiscover: payload.autoDiscover,
+      receivedPublish: payload.publishEnabled,
+      receivedChannels: payload.channels
     })
   });
 
   const req = {
     method: 'GET',
-    query: { mode: 'autopilot', dryRun: 'true' },
+    query: {
+      mode: 'autopilot',
+      dryRun: 'true',
+      autoDiscover: 'false',
+      publish: 'true',
+      channels: 'reddit,x'
+    },
     headers: { 'x-autopilot-token': 'secret-token' }
   };
   const res = createMockRes();
@@ -152,6 +161,9 @@ test('money loop handler runs autopilot with valid token', async () => {
   assert.equal(res.body.mode, 'autopilot');
   assert.equal(res.body.runId, 'auto-1');
   assert.equal(res.body.receivedDryRun, true);
+  assert.equal(res.body.receivedAutoDiscover, false);
+  assert.equal(res.body.receivedPublish, true);
+  assert.deepEqual(res.body.receivedChannels, ['reddit', 'x']);
 
   if (previous === undefined) {
     delete process.env.MONEY_AUTOPILOT_TOKEN;

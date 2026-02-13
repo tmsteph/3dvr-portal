@@ -4,7 +4,7 @@ import { runAutopilotCycle } from '../../src/money/autopilot.js';
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Autopilot-Token, Authorization');
 }
 
 function normalizeRequestBody(body = {}) {
@@ -28,6 +28,13 @@ function parseBooleanQuery(value) {
   if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
   if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
   return undefined;
+}
+
+function parseCsvQuery(value) {
+  return String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
 }
 
 function getAutopilotToken(req) {
@@ -81,7 +88,15 @@ export function createMoneyLoopHandler(options = {}) {
       try {
         const result = await runAutopilotImpl({
           fetchImpl,
-          dryRun: parseBooleanQuery(req?.query?.dryRun)
+          dryRun: parseBooleanQuery(req?.query?.dryRun),
+          autoDiscover: parseBooleanQuery(req?.query?.autoDiscover),
+          publishEnabled: parseBooleanQuery(req?.query?.publish),
+          vercelDeploy: parseBooleanQuery(req?.query?.vercelDeploy),
+          promotionEnabled: parseBooleanQuery(req?.query?.promotion),
+          market: req?.query?.market ? String(req.query.market) : undefined,
+          keywords: req?.query?.keywords ? parseCsvQuery(req.query.keywords) : undefined,
+          channels: req?.query?.channels ? parseCsvQuery(req.query.channels) : undefined,
+          budget: req?.query?.budget
         });
 
         return res.status(200).json({
