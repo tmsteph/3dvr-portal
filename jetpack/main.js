@@ -1005,14 +1005,14 @@ class JetpackGame {
 
     const previousPosition = this.player.position.clone();
 
-    const keyboardTurnInput = (this.input.state.left ? 1 : 0) - (this.input.state.right ? 1 : 0);
+    const keyboardTurnInput = (this.input.state.right ? 1 : 0) - (this.input.state.left ? 1 : 0);
     const turnIntent = clamp(
       keyboardTurnInput + this.input.state.moveX * MOVEMENT.joystickTurnMix,
       -1,
       1
     );
     if (Math.abs(turnIntent) > 0.001) {
-      this.player.rotation.y -= turnIntent * MOVEMENT.rotationSpeed * deltaSeconds;
+      this.player.rotation.y += turnIntent * MOVEMENT.rotationSpeed * deltaSeconds;
     }
 
     const forward = new THREE.Vector3(0, 0, 1);
