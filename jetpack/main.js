@@ -15,7 +15,6 @@ const THREE = globalThis.THREE;
 
 const GAME_PHASES = {
   LOADING: 'loading',
-  READY: 'ready',
   PLAYING: 'playing',
   PAUSED: 'paused',
   WON: 'won',
@@ -25,16 +24,33 @@ const GAME_PHASES = {
 const LEVEL = {
   groundLevel: 1,
   winDistance: 340,
-  maxAltitude: 36,
-  trackCollectibles: 44,
-  hazardCount: 26,
-  fuelCount: 16,
-  boostCount: 10,
+  maxAltitude: 38,
+  safeZoneEnd: 60,
+  trackCollectibles: 48,
+  hazardCount: 28,
+  fuelCount: 10,
+  boostCount: 12,
+  finalRewardBonus: 120,
+};
+
+const TRACK = {
+  startZ: 10,
+  length: LEVEL.winDistance - 8,
+  amplitude: 9.5,
+  waves: 5,
+  baseY: 2.2,
+  ySwing: 1.5,
+  climb: 20,
+  platformCount: 24,
+  platformWidth: 10,
+  platformDepth: 18,
+  platformThickness: 1.35,
+  wallOffsetX: 15.5,
 };
 
 const MOVEMENT = {
   rotationSpeed: 2.4,
-  cruiseSpeed: 4,
+  cruiseSpeed: 1.2,
   baseMoveSpeed: 15,
   maxMoveSpeedBonus: 9,
   backwardSpeedFactor: 0.58,
@@ -51,8 +67,8 @@ const MOVEMENT = {
 const RESOURCE = {
   maxFuel: 100,
   maxShield: 100,
-  idleFuelDrain: 1.1,
-  thrustFuelDrain: 16.5,
+  idleFuelDrain: 0,
+  thrustFuelDrain: 0,
   fuelPickupAmount: 28,
   boostDurationSeconds: 4.5,
   boostMultiplier: 1.45,
@@ -69,6 +85,10 @@ const COLLISION = {
   hazard: 3.6,
   fuel: 3.8,
   boost: 4.2,
+  playerRadiusX: 0.75,
+  playerRadiusZ: 0.75,
+  playerHeight: 2.1,
+  landingGrace: 0.35,
 };
 
 const textureCache = new Map();
@@ -145,19 +165,96 @@ function createCollectible() {
   });
   orb.scale.set(4.1, 4.1, 1);
   orb.userData.kind = 'collectible';
+  orb.userData.baseScale = 4.1;
+  orb.userData.scalePulse = 0.12;
+  orb.userData.scoreValue = RESOURCE.pickupScore;
+  orb.userData.pickupRadius = COLLISION.collectible;
   return orb;
 }
 
-function createHazard() {
-  const geometry = new THREE.DodecahedronGeometry(1.35, 0);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xc24138,
-    emissive: 0x7d1f14,
-    roughness: 0.34,
-    metalness: 0.22,
+function createFinalCollectible() {
+  const reward = createLabelSprite('MEGA', {
+    startColor: '#fff2a3',
+    endColor: '#ff923f',
+    strokeColor: '#4d2e14',
+    font: 'bold 66px Trebuchet MS',
   });
-  const hazard = new THREE.Mesh(geometry, material);
+  reward.scale.set(6.8, 6.8, 1);
+  reward.userData.kind = 'collectible';
+  reward.userData.baseScale = 6.8;
+  reward.userData.scalePulse = 0.34;
+  reward.userData.scoreValue = LEVEL.finalRewardBonus;
+  reward.userData.isFinalReward = true;
+  reward.userData.pickupRadius = COLLISION.collectible + 1.3;
+  return reward;
+}
+
+function createHazard() {
+  const hazard = new THREE.Group();
+
+  const core = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.1, 0),
+    new THREE.MeshStandardMaterial({
+      color: 0x4a0606,
+      emissive: 0xab120f,
+      roughness: 0.24,
+      metalness: 0.4,
+    })
+  );
+  hazard.add(core);
+
+  const spikeGeometry = new THREE.ConeGeometry(0.22, 1.15, 8);
+  const spikeMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff3f2f,
+    emissive: 0x7a0800,
+    roughness: 0.16,
+    metalness: 0.58,
+  });
+  const spikeDirections = [
+    new THREE.Vector3(1, 0.3, 0),
+    new THREE.Vector3(-1, 0.2, 0),
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, -1, 0),
+    new THREE.Vector3(0, 0.25, 1),
+    new THREE.Vector3(0, -0.15, -1),
+    new THREE.Vector3(0.7, 0.45, 0.7),
+    new THREE.Vector3(-0.7, 0.4, 0.7),
+    new THREE.Vector3(0.7, -0.35, -0.7),
+    new THREE.Vector3(-0.7, -0.3, -0.7),
+  ];
+  const up = new THREE.Vector3(0, 1, 0);
+
+  spikeDirections.forEach(direction => {
+    const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
+    const normal = direction.clone().normalize();
+    spike.position.copy(normal.clone().multiplyScalar(1.05));
+    spike.quaternion.setFromUnitVectors(up, normal);
+    hazard.add(spike);
+  });
+
+  const aura = new THREE.Mesh(
+    new THREE.SphereGeometry(1.9, 14, 14),
+    new THREE.MeshBasicMaterial({
+      color: 0xff412d,
+      transparent: true,
+      opacity: 0.18,
+      blending: THREE.AdditiveBlending,
+    })
+  );
+  hazard.add(aura);
+
+  const warning = createLabelSprite('DMG', {
+    startColor: '#ff9f4e',
+    endColor: '#f33a2a',
+    strokeColor: '#290605',
+    font: 'bold 40px Trebuchet MS',
+  });
+  warning.scale.set(2.1, 2.1, 1);
+  warning.position.y = 2.2;
+  hazard.add(warning);
+
   hazard.userData.kind = 'hazard';
+  hazard.userData.aura = aura;
   return hazard;
 }
 
@@ -331,6 +428,19 @@ function createPulseEffect(position, color = 0xffffff) {
   return effect;
 }
 
+function createRoutePoint(index, totalPoints, options = {}) {
+  return createTrackPoint(index, totalPoints, {
+    startZ: TRACK.startZ,
+    length: TRACK.length,
+    amplitude: TRACK.amplitude,
+    waves: TRACK.waves,
+    baseY: TRACK.baseY,
+    ySwing: TRACK.ySwing,
+    climb: TRACK.climb,
+    ...options,
+  });
+}
+
 class JetpackGame {
   constructor() {
     this.scene = new THREE.Scene();
@@ -347,6 +457,8 @@ class JetpackGame {
     this.fuelCells = [];
     this.boostRings = [];
     this.hitEffects = [];
+    this.solidMeshes = [];
+    this.solidColliders = [];
 
     this.elapsedSeconds = 0;
     this.lastDamageAt = -Infinity;
@@ -371,8 +483,8 @@ class JetpackGame {
     this.setupScene();
     this.createGround();
     this.createEnvironment();
+    this.createTrackStructures();
     this.createFinishGate();
-    this.rebuildRunObjects();
 
     this.input.attach();
     this.ui.initMenuToggle();
@@ -384,7 +496,8 @@ class JetpackGame {
 
     await this.loadPlayer();
     this.ui.hideLoading();
-    this.showReadyState();
+    this.resetRunState();
+    this.startRun();
 
     this.clock.getDelta();
     this.animate();
@@ -459,6 +572,140 @@ class JetpackGame {
     });
 
     this.scene.add(skylineGroup);
+  }
+
+  addSolidBox(options = {}) {
+    const {
+      width = 4,
+      height = 4,
+      depth = 4,
+      x = 0,
+      y = height / 2,
+      z = 0,
+      color = 0x2f4f6e,
+      emissive = 0x122030,
+      roughness = 0.66,
+      metalness = 0.18,
+    } = options;
+
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(width, height, depth),
+      new THREE.MeshStandardMaterial({
+        color,
+        emissive,
+        roughness,
+        metalness,
+      })
+    );
+    mesh.position.set(x, y, z);
+    this.scene.add(mesh);
+    this.solidMeshes.push(mesh);
+
+    this.solidColliders.push({
+      minX: x - width / 2,
+      maxX: x + width / 2,
+      minY: y - height / 2,
+      maxY: y + height / 2,
+      minZ: z - depth / 2,
+      maxZ: z + depth / 2,
+    });
+
+    return mesh;
+  }
+
+  createTrackStructures() {
+    this.solidMeshes.forEach(mesh => this.scene.remove(mesh));
+    this.solidMeshes.length = 0;
+    this.solidColliders.length = 0;
+
+    const sideWallDepth = LEVEL.winDistance + 34;
+    const sideWallCenterZ = TRACK.startZ + sideWallDepth / 2 - 8;
+    this.addSolidBox({
+      width: 1.8,
+      height: 18,
+      depth: sideWallDepth,
+      x: -TRACK.wallOffsetX,
+      y: 9,
+      z: sideWallCenterZ,
+      color: 0x355670,
+      emissive: 0x102236,
+    });
+    this.addSolidBox({
+      width: 1.8,
+      height: 18,
+      depth: sideWallDepth,
+      x: TRACK.wallOffsetX,
+      y: 9,
+      z: sideWallCenterZ,
+      color: 0x355670,
+      emissive: 0x102236,
+    });
+
+    const launchPadDepth = 34;
+    this.addSolidBox({
+      width: 12.2,
+      height: 1.2,
+      depth: launchPadDepth,
+      x: 0,
+      y: LEVEL.groundLevel - 0.6,
+      z: TRACK.startZ - 6 + launchPadDepth / 2,
+      color: 0x476f8f,
+      emissive: 0x173247,
+      roughness: 0.58,
+      metalness: 0.24,
+    });
+
+    for (let index = 0; index < TRACK.platformCount; index += 1) {
+      const point = createRoutePoint(index, TRACK.platformCount);
+      const platformTopY = Math.max(LEVEL.groundLevel + 0.1, point.y - 1.1);
+      const platformCenterY = platformTopY - TRACK.platformThickness / 2;
+
+      this.addSolidBox({
+        width: TRACK.platformWidth,
+        height: TRACK.platformThickness,
+        depth: TRACK.platformDepth,
+        x: point.x,
+        y: platformCenterY,
+        z: point.z,
+        color: index % 2 === 0 ? 0x54839d : 0x4a7793,
+        emissive: 0x1a3547,
+        roughness: 0.54,
+        metalness: 0.26,
+      });
+
+      if (index % 3 === 1) {
+        const sideSign = index % 2 === 0 ? 1 : -1;
+        const perchX = point.x + sideSign * (TRACK.platformWidth * 0.58);
+        const perchZ = point.z + 2;
+        const perchTop = Math.min(LEVEL.maxAltitude - 2.4, platformTopY + 4.4 + (index % 4) * 0.7);
+
+        this.addSolidBox({
+          width: 2.6,
+          height: perchTop,
+          depth: 2.6,
+          x: perchX,
+          y: perchTop / 2,
+          z: perchZ,
+          color: 0x315168,
+          emissive: 0x121f2d,
+          roughness: 0.62,
+          metalness: 0.22,
+        });
+
+        this.addSolidBox({
+          width: 4,
+          height: 1,
+          depth: 4,
+          x: perchX,
+          y: perchTop + 0.5,
+          z: perchZ,
+          color: 0x5a86a1,
+          emissive: 0x203746,
+          roughness: 0.52,
+          metalness: 0.26,
+        });
+      }
+    }
   }
 
   createFinishGate() {
@@ -565,91 +812,100 @@ class JetpackGame {
 
   createCollectibles() {
     for (let index = 0; index < LEVEL.trackCollectibles; index += 1) {
-      const point = createTrackPoint(index, LEVEL.trackCollectibles, {
-        startZ: 16,
-        length: LEVEL.winDistance - 20,
-        amplitude: 9,
-        waves: 4,
-        baseY: 2.5,
-        ySwing: 0.9,
-      });
+      const point = createRoutePoint(index, LEVEL.trackCollectibles);
 
       const collectible = createCollectible();
-      collectible.position.set(point.x, point.y, point.z);
+      collectible.position.set(point.x, point.y + 1.05, point.z);
       collectible.userData.phase = index * 0.31;
       this.scene.add(collectible);
       this.collectibles.push(collectible);
     }
+
+    const rewardPoint = createRoutePoint(LEVEL.trackCollectibles - 1, LEVEL.trackCollectibles, {
+      startZ: TRACK.startZ + 8,
+      length: TRACK.length - 16,
+    });
+    const finalCollectible = createFinalCollectible();
+    finalCollectible.position.set(
+      rewardPoint.x,
+      Math.min(LEVEL.maxAltitude - 1.7, rewardPoint.y + 3.9),
+      LEVEL.winDistance - 6
+    );
+    finalCollectible.userData.phase = 1.2;
+    this.scene.add(finalCollectible);
+    this.collectibles.push(finalCollectible);
   }
 
   createHazards() {
     const points = generateSpawnPoints({
       count: LEVEL.hazardCount,
-      startZ: 26,
-      spacing: 12,
-      seed: 312,
-      xSpread: 13,
-      baseY: 1.5,
-      yJitter: 0.45,
-      zJitter: 2.2,
+      startZ: LEVEL.safeZoneEnd + 8,
+      spacing: 10.2,
+      seed: 5312,
+      xSpread: 6,
+      baseY: 0,
+      yJitter: 0,
+      zJitter: 1.8,
     });
 
     points.forEach((point, index) => {
+      const routePoint = createRoutePoint(index, LEVEL.hazardCount, {
+        startZ: LEVEL.safeZoneEnd + 8,
+        length: LEVEL.winDistance - LEVEL.safeZoneEnd - 22,
+        climb: TRACK.climb - 8,
+      });
       const hazard = createHazard();
-      hazard.position.set(point.x, point.y, point.z);
+      const laneOffset = point.x + Math.sin(index * 1.1) * 2.6;
+      const hazardX = clamp(routePoint.x + laneOffset, -TRACK.wallOffsetX + 2.3, TRACK.wallOffsetX - 2.3);
+      const hazardY = Math.max(LEVEL.groundLevel + 0.6, routePoint.y + Math.cos(index * 0.9) * 1.15);
+      const hazardZ = routePoint.z + point.z - (LEVEL.safeZoneEnd + 8) - index * 10.2;
+      hazard.position.set(hazardX, hazardY, hazardZ);
       hazard.scale.setScalar(point.scale);
       hazard.userData.spin = 0.65 + index * 0.016;
       hazard.userData.wobble = 0.65 + (index % 4) * 0.11;
-      hazard.userData.baseY = point.y;
+      hazard.userData.baseY = hazardY;
       this.scene.add(hazard);
       this.hazards.push(hazard);
     });
   }
 
   createFuelCells() {
-    const points = generateSpawnPoints({
-      count: LEVEL.fuelCount,
-      startZ: 24,
-      spacing: 21,
-      seed: 741,
-      xSpread: 11,
-      baseY: 2.8,
-      yJitter: 1.1,
-      zJitter: 3.5,
-    });
-
-    points.forEach((point, index) => {
+    for (let index = 0; index < LEVEL.fuelCount; index += 1) {
+      const point = createRoutePoint(index, LEVEL.fuelCount, {
+        startZ: LEVEL.safeZoneEnd + 14,
+        length: LEVEL.winDistance - LEVEL.safeZoneEnd - 36,
+        climb: TRACK.climb - 6,
+      });
       const fuelCell = createFuelCell();
-      fuelCell.position.set(point.x, point.y, point.z);
-      fuelCell.scale.setScalar(point.scale);
-      fuelCell.userData.baseY = point.y;
+      const laneSide = index % 2 === 0 ? -1 : 1;
+      fuelCell.position.set(
+        clamp(point.x + laneSide * 3.8, -TRACK.wallOffsetX + 2.8, TRACK.wallOffsetX - 2.8),
+        point.y + 1.1,
+        point.z + (index % 3) * 2.2
+      );
+      fuelCell.scale.setScalar(1.02 + (index % 3) * 0.12);
+      fuelCell.userData.baseY = point.y + 1.1;
       fuelCell.userData.phase = index * 0.38;
       this.scene.add(fuelCell);
       this.fuelCells.push(fuelCell);
-    });
+    }
   }
 
   createBoostRings() {
-    const points = generateSpawnPoints({
-      count: LEVEL.boostCount,
-      startZ: 34,
-      spacing: 29,
-      seed: 2026,
-      xSpread: 10,
-      baseY: 3.7,
-      yJitter: 1.8,
-      zJitter: 5,
-    });
-
-    points.forEach((point, index) => {
+    for (let index = 0; index < LEVEL.boostCount; index += 1) {
+      const point = createRoutePoint(index, LEVEL.boostCount, {
+        startZ: LEVEL.safeZoneEnd + 18,
+        length: LEVEL.winDistance - LEVEL.safeZoneEnd - 28,
+        climb: TRACK.climb - 3,
+      });
       const ring = createBoostRing();
-      ring.position.set(point.x, point.y, point.z);
-      ring.scale.setScalar(0.95 + point.scale * 0.18);
-      ring.userData.baseY = point.y;
+      ring.position.set(point.x, point.y + 2.2, point.z + Math.sin(index * 0.7) * 2.8);
+      ring.scale.setScalar(1.03 + (index % 3) * 0.07);
+      ring.userData.baseY = point.y + 2.2;
       ring.userData.phase = index * 0.47;
       this.scene.add(ring);
       this.boostRings.push(ring);
-    });
+    }
   }
 
   resetRunState() {
@@ -677,17 +933,6 @@ class JetpackGame {
     this.input.clear();
     this.rebuildRunObjects();
     this.ui.updateHUD(this.getHudSnapshot());
-  }
-
-  showReadyState() {
-    this.phase = GAME_PHASES.READY;
-    this.ui.setPauseButtonLabel(false);
-    this.ui.showOverlay({
-      title: 'Jetpack Corridor',
-      message:
-        'Arrow keys or WASD to steer, hold Space/Fly to lift. Collect badges, grab fuel cells, avoid hazards.',
-      buttonLabel: 'Launch Run',
-    });
   }
 
   startRun() {
@@ -719,12 +964,6 @@ class JetpackGame {
   }
 
   onOverlayAction() {
-    if (this.phase === GAME_PHASES.READY) {
-      this.resetRunState();
-      this.startRun();
-      return;
-    }
-
     if (this.phase === GAME_PHASES.PAUSED) {
       this.togglePause();
       return;
@@ -761,6 +1000,8 @@ class JetpackGame {
       return;
     }
 
+    const previousPosition = this.player.position.clone();
+
     if (this.input.state.left) {
       this.player.rotation.y += MOVEMENT.rotationSpeed * deltaSeconds;
     }
@@ -786,9 +1027,6 @@ class JetpackGame {
       MOVEMENT.cruiseSpeed * deltaSeconds + signedMovementInput * scaledForwardSpeed * deltaSeconds;
     this.player.position.addScaledVector(forward, moveAmount);
 
-    this.player.position.x = clamp(this.player.position.x, -MOVEMENT.playBoundsX, MOVEMENT.playBoundsX);
-    this.player.position.z = Math.max(0, this.player.position.z);
-
     const canThrust = this.fuel > 0.05;
     const thrusting = this.input.state.thrust && canThrust;
 
@@ -807,6 +1045,10 @@ class JetpackGame {
     this.playerVelocity.y = clamp(this.playerVelocity.y, -MOVEMENT.maxFallSpeed, MOVEMENT.maxRiseSpeed);
 
     this.player.position.y += this.playerVelocity.y * deltaSeconds;
+    this.resolveSolidCollisions(previousPosition);
+
+    this.player.position.x = clamp(this.player.position.x, -MOVEMENT.playBoundsX, MOVEMENT.playBoundsX);
+    this.player.position.z = Math.max(0, this.player.position.z);
 
     if (this.player.position.y < LEVEL.groundLevel) {
       this.player.position.y = LEVEL.groundLevel;
@@ -846,17 +1088,78 @@ class JetpackGame {
     this.camera.lookAt(this.cameraLookTarget);
   }
 
+  resolveSolidCollisions(previousPosition) {
+    if (!this.player || this.solidColliders.length === 0) {
+      return;
+    }
+
+    const position = this.player.position;
+    const radiusX = COLLISION.playerRadiusX;
+    const radiusZ = COLLISION.playerRadiusZ;
+
+    this.solidColliders.forEach(collider => {
+      const intersectsX = position.x + radiusX > collider.minX && position.x - radiusX < collider.maxX;
+      const intersectsZ = position.z + radiusZ > collider.minZ && position.z - radiusZ < collider.maxZ;
+      const intersectsY =
+        position.y + COLLISION.playerHeight > collider.minY && position.y < collider.maxY;
+      if (!intersectsX || !intersectsZ || !intersectsY) {
+        return;
+      }
+
+      const wasAboveTop = previousPosition.y >= collider.maxY - COLLISION.landingGrace;
+      const wasOverPlatform =
+        previousPosition.x + radiusX > collider.minX &&
+        previousPosition.x - radiusX < collider.maxX &&
+        previousPosition.z + radiusZ > collider.minZ &&
+        previousPosition.z - radiusZ < collider.maxZ;
+      if (this.playerVelocity.y <= 0 && wasAboveTop && wasOverPlatform) {
+        position.y = collider.maxY;
+        this.playerVelocity.y = 0;
+        return;
+      }
+
+      const cameFromBelow =
+        previousPosition.y + COLLISION.playerHeight <= collider.minY && this.playerVelocity.y > 0;
+      if (cameFromBelow) {
+        position.y = collider.minY - COLLISION.playerHeight - 0.01;
+        this.playerVelocity.y = 0;
+        return;
+      }
+
+      const pushLeft = Math.abs(collider.minX - (position.x + radiusX));
+      const pushRight = Math.abs(collider.maxX - (position.x - radiusX));
+      const pushFront = Math.abs(collider.minZ - (position.z + radiusZ));
+      const pushBack = Math.abs(collider.maxZ - (position.z - radiusZ));
+      const minPush = Math.min(pushLeft, pushRight, pushFront, pushBack);
+
+      if (minPush === pushLeft) {
+        position.x = collider.minX - radiusX;
+      } else if (minPush === pushRight) {
+        position.x = collider.maxX + radiusX;
+      } else if (minPush === pushFront) {
+        position.z = collider.minZ - radiusZ;
+      } else {
+        position.z = collider.maxZ + radiusZ;
+      }
+    });
+  }
+
   updateWorld(deltaSeconds) {
     this.collectibles.forEach((collectible, index) => {
       collectible.position.y += Math.sin(this.elapsedSeconds * 2.6 + collectible.userData.phase) * 0.002;
       collectible.material.rotation += deltaSeconds * 0.45;
-      collectible.scale.setScalar(3.9 + Math.sin(this.elapsedSeconds * 5 + index) * 0.12);
+      const baseScale = collectible.userData.baseScale ?? 3.9;
+      const scalePulse = collectible.userData.scalePulse ?? 0.12;
+      collectible.scale.setScalar(baseScale + Math.sin(this.elapsedSeconds * 5 + index) * scalePulse);
     });
 
     this.hazards.forEach(hazard => {
       hazard.rotation.x += deltaSeconds * hazard.userData.spin;
       hazard.rotation.y += deltaSeconds * (hazard.userData.spin * 1.3);
       hazard.position.y = hazard.userData.baseY + Math.sin(this.elapsedSeconds * hazard.userData.wobble) * 0.15;
+      if (hazard.userData.aura) {
+        hazard.userData.aura.material.opacity = 0.12 + Math.sin(this.elapsedSeconds * 8) * 0.06;
+      }
     });
 
     this.fuelCells.forEach(cell => {
@@ -901,7 +1204,8 @@ class JetpackGame {
 
     for (let index = objects.length - 1; index >= 0; index -= 1) {
       const object = objects[index];
-      if (this.player.position.distanceTo(object.position) <= threshold) {
+      const objectThreshold = object.userData.pickupRadius ?? threshold;
+      if (this.player.position.distanceTo(object.position) <= objectThreshold) {
         onCollect(object, index);
       }
     }
@@ -909,10 +1213,11 @@ class JetpackGame {
 
   checkCollisions() {
     this.collectIfNear(this.collectibles, COLLISION.collectible, (collectible, index) => {
-      this.createHitPulse(collectible.position, 0xfff2c6);
+      const pulseColor = collectible.userData.isFinalReward ? 0xffd35b : 0xfff2c6;
+      this.createHitPulse(collectible.position, pulseColor);
       this.scene.remove(collectible);
       this.collectibles.splice(index, 1);
-      this.score += RESOURCE.pickupScore;
+      this.score += collectible.userData.scoreValue ?? RESOURCE.pickupScore;
     });
 
     this.collectIfNear(this.fuelCells, COLLISION.fuel, (fuelCell, index) => {
@@ -969,8 +1274,8 @@ class JetpackGame {
       this.input.clear();
       this.ui.setPauseButtonLabel(false);
       this.ui.showOverlay({
-        title: 'Corridor Cleared',
-        message: `Final score ${Math.round(this.score)} (includes ${completionBonus} bonus).`,
+        title: 'Skyline Route Cleared',
+        message: `Final score ${Math.round(this.score)} with ${completionBonus} finish bonus. Keep climbing.`,
         buttonLabel: 'Run Again',
       });
     }

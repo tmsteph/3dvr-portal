@@ -60,6 +60,11 @@ describe('jetpack game-state helpers', () => {
     const first = createTrackPoint(0, 5);
     const middle = createTrackPoint(2, 5);
     const last = createTrackPoint(4, 5);
+    const climbedLast = createTrackPoint(4, 5, {
+      climb: 10,
+      ySwing: 0,
+      baseY: 1,
+    });
 
     assert.equal(first.z, 18);
     assert.equal(last.z, 338);
@@ -67,6 +72,7 @@ describe('jetpack game-state helpers', () => {
     assert.ok(last.z > middle.z);
     assertNear(first.x, 0);
     assertNear(last.x, 0, 1e-8);
+    assert.equal(climbedLast.y, 11);
   });
 
   it('creates deterministic sorted spawn points for a given seed', () => {

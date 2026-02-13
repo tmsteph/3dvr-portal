@@ -55,10 +55,11 @@ export function createTrackPoint(index, totalPoints, options = {}) {
     waves = 4,
     baseY = 2.2,
     ySwing = 0.75,
+    climb = 0,
   } = options;
   return {
     x: Math.sin(t * Math.PI * waves) * amplitude,
-    y: baseY + Math.cos(t * Math.PI * (waves + 1)) * ySwing,
+    y: baseY + Math.cos(t * Math.PI * (waves + 1)) * ySwing + t * climb,
     z: startZ + t * length,
   };
 }
