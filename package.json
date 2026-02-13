@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "http-server -c-1 -p 3000",
     "start": "npm run dev",
-    "test": "node --test"
+    "test": "node --test",
+    "playwright:install": "npx playwright install firefox",
+    "playwright:smoke:linux": "npm run playwright:install && node scripts/playwright/smoke.mjs",
+    "playwright:smoke": "sh scripts/playwright/run-smoke.sh"
   },
   "dependencies": {
     "nodemailer": "^6.9.8",

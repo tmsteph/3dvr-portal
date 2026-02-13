@@ -99,6 +99,22 @@ npm install
 npm run dev
 ```
 
+### Run the Playwright smoke check
+
+Use one command to verify browser automation end-to-end:
+
+```bash
+npm run playwright:smoke
+```
+
+What this does:
+
+1. Installs the Playwright Firefox browser runtime if needed.
+2. Starts a local static server for the portal.
+3. Opens the portal in headless Playwright and validates the landing page title and heading.
+
+On Android/Termux, the command automatically runs inside a local Debian `proot-distro` if available.
+
 ### When do you need Vercel locally?
 
 Only if you need to emulate Vercel serverless functions under `/api` during development.

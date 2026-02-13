@@ -4,7 +4,6 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '..');
@@ -22,6 +21,26 @@ const MIME_TYPES = {
 
 let server;
 let baseUrl;
+let cachedChromium = null;
+
+async function resolveChromium(t) {
+  if (cachedChromium) {
+    return cachedChromium;
+  }
+
+  try {
+    const playwright = await import('playwright');
+    cachedChromium = playwright.chromium;
+    return cachedChromium;
+  } catch (error) {
+    const message = error && typeof error.message === 'string' ? error.message : String(error);
+    if (message.includes('Unsupported platform')) {
+      t.skip('Playwright Chromium is not supported on this platform.');
+      return null;
+    }
+    throw error;
+  }
+}
 
 describe('contacts identity flows', () => {
   before(async () => {
@@ -54,11 +73,20 @@ describe('contacts identity flows', () => {
   });
 
   async function launchChromium(t) {
+    const chromium = await resolveChromium(t);
+    if (!chromium) {
+      return null;
+    }
+
     try {
       return await chromium.launch();
     } catch (error) {
       const message = error && typeof error.message === 'string' ? error.message : String(error);
-      if (message.includes('dependencies to run browsers')) {
+      if (
+        message.includes('dependencies to run browsers') ||
+        message.includes('Executable doesn\'t exist') ||
+        message.includes('Unsupported platform')
+      ) {
         t.skip('Playwright browser dependencies are not installed in this environment.');
         return null;
       }

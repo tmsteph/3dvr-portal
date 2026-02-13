@@ -38,9 +38,11 @@ export function labelForStatus(value) {
 }
 
 export function formatRelativeTime(timestamp) {
-  if (!timestamp) return 'just now';
+  if (timestamp === null || timestamp === undefined || timestamp === '') return 'just now';
+  const numericTimestamp = Number(timestamp);
+  if (!Number.isFinite(numericTimestamp)) return 'just now';
   const now = Date.now();
-  const diff = Math.max(0, now - Number(timestamp));
+  const diff = Math.max(0, now - numericTimestamp);
   const minutes = Math.round(diff / 60000);
   if (minutes < 1) return 'just now';
   if (minutes === 1) return '1 minute ago';
@@ -57,15 +59,39 @@ export function formatRelativeTime(timestamp) {
 }
 
 export function sanitizeRecord(raw) {
-  if (!raw || typeof raw !== 'object') {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return null;
   }
-  const result = {};
-  for (const [key, value] of Object.entries(raw)) {
-    if (key === '_' || typeof value === 'function') continue;
-    result[key] = value;
+
+  function sanitizeValue(value) {
+    if (typeof value === 'function') {
+      return undefined;
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map(sanitizeValue)
+        .filter(entry => entry !== undefined);
+    }
+
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const objectValue = {};
+    for (const [key, nested] of Object.entries(value)) {
+      if (key === '_') {
+        continue;
+      }
+      const cleaned = sanitizeValue(nested);
+      if (cleaned !== undefined) {
+        objectValue[key] = cleaned;
+      }
+    }
+    return objectValue;
   }
-  return result;
+
+  return sanitizeValue(raw);
 }
 
 export function formatFileSize(bytes) {
