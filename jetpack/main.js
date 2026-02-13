@@ -24,7 +24,7 @@ const GAME_PHASES = {
 const LEVEL = {
   groundLevel: 1,
   winDistance: 340,
-  maxAltitude: 38,
+  maxAltitude: 54,
   safeZoneEnd: 60,
   trackCollectibles: 48,
   hazardCount: 28,
@@ -36,14 +36,14 @@ const LEVEL = {
 const TRACK = {
   startZ: 10,
   length: LEVEL.winDistance - 8,
-  amplitude: 9.5,
-  waves: 5,
-  baseY: 2.2,
-  ySwing: 1.5,
-  climb: 20,
-  platformCount: 24,
+  amplitude: 10.5,
+  waves: 6,
+  baseY: 2.4,
+  ySwing: 2.3,
+  climb: 34,
+  platformCount: 30,
   platformWidth: 10,
-  platformDepth: 18,
+  platformDepth: 16,
   platformThickness: 1.35,
   wallOffsetX: 15.5,
 };
@@ -53,10 +53,11 @@ const MOVEMENT = {
   cruiseSpeed: 1.2,
   baseMoveSpeed: 15,
   maxMoveSpeedBonus: 9,
+  strafeSpeed: 11.5,
   backwardSpeedFactor: 0.58,
-  jetpackAcceleration: 42,
-  gravity: -34,
-  maxRiseSpeed: 20,
+  jetpackAcceleration: 48,
+  gravity: -31,
+  maxRiseSpeed: 24,
   maxFallSpeed: 28,
   cameraLerp: 0.12,
   cameraHeightOffset: 5.4,
@@ -1002,11 +1003,9 @@ class JetpackGame {
 
     const previousPosition = this.player.position.clone();
 
-    if (this.input.state.left) {
-      this.player.rotation.y += MOVEMENT.rotationSpeed * deltaSeconds;
-    }
-    if (this.input.state.right) {
-      this.player.rotation.y -= MOVEMENT.rotationSpeed * deltaSeconds;
+    const turnIntent = (this.input.state.left ? 1 : 0) - (this.input.state.right ? 1 : 0);
+    if (turnIntent !== 0) {
+      this.player.rotation.y += turnIntent * MOVEMENT.rotationSpeed * deltaSeconds;
     }
 
     const forward = new THREE.Vector3(0, 0, 1);
@@ -1014,18 +1013,29 @@ class JetpackGame {
     forward.y = 0;
     forward.normalize();
 
+    const right = new THREE.Vector3(1, 0, 0);
+    right.applyQuaternion(this.player.quaternion);
+    right.y = 0;
+    right.normalize();
+
     const progress = computeProgress(this.player.position.z, LEVEL.winDistance);
     const scaledForwardSpeed =
       computeForwardSpeed(MOVEMENT.baseMoveSpeed, MOVEMENT.maxMoveSpeedBonus, progress) *
       this.getBoostMultiplier();
 
-    // A light cruise speed keeps momentum even without input while still allowing reverse control.
-    const signedMovementInput =
-      (this.input.state.forward ? 1 : 0) - (this.input.state.backward ? MOVEMENT.backwardSpeedFactor : 0);
-
-    const moveAmount =
-      MOVEMENT.cruiseSpeed * deltaSeconds + signedMovementInput * scaledForwardSpeed * deltaSeconds;
+    const keyboardForwardInput = (this.input.state.forward ? 1 : 0) - (this.input.state.backward ? 1 : 0);
+    const forwardInput = clamp(keyboardForwardInput + this.input.state.moveY, -1, 1);
+    const forwardSpeedContribution =
+      forwardInput >= 0
+        ? forwardInput * scaledForwardSpeed
+        : forwardInput * scaledForwardSpeed * MOVEMENT.backwardSpeedFactor;
+    const moveAmount = MOVEMENT.cruiseSpeed * deltaSeconds + forwardSpeedContribution * deltaSeconds;
     this.player.position.addScaledVector(forward, moveAmount);
+
+    const keyboardStrafeInput = (this.input.state.strafeRight ? 1 : 0) - (this.input.state.strafeLeft ? 1 : 0);
+    const strafeInput = clamp(keyboardStrafeInput + this.input.state.moveX, -1, 1);
+    const strafeAmount = strafeInput * MOVEMENT.strafeSpeed * this.getBoostMultiplier() * deltaSeconds;
+    this.player.position.addScaledVector(right, strafeAmount);
 
     const canThrust = this.fuel > 0.05;
     const thrusting = this.input.state.thrust && canThrust;

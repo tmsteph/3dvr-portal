@@ -272,46 +272,83 @@ canvas {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 10px;
   pointer-events: none;
 }
 
-#dpad {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+#joystick-zone {
   pointer-events: auto;
+  touch-action: none;
+  user-select: none;
 }
 
-#dpad-row {
+#joystick-base {
+  width: min(36vw, 150px);
+  height: min(36vw, 150px);
+  min-width: 112px;
+  min-height: 112px;
+  border-radius: 999px;
+  border: 1px solid rgba(188, 226, 255, 0.34);
+  background:
+    radial-gradient(circle at 34% 28%, rgba(141, 212, 255, 0.28), rgba(10, 19, 34, 0.72) 64%),
+    rgba(6, 14, 26, 0.68);
+  box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.24);
   display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(3, minmax(56px, 72px));
+  place-items: center;
+}
+
+#joystick-knob {
+  width: 44%;
+  height: 44%;
+  min-width: 46px;
+  min-height: 46px;
+  border-radius: 999px;
+  border: 1px solid rgba(188, 226, 255, 0.46);
+  background:
+    radial-gradient(circle at 36% 30%, rgba(203, 240, 255, 0.7), rgba(88, 179, 231, 0.34) 54%),
+    rgba(20, 45, 73, 0.84);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.32);
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.05s linear;
+}
+
+#joystick-zone.active #joystick-base {
+  border-color: rgba(143, 226, 255, 0.56);
+  box-shadow: inset 0 0 28px rgba(93, 215, 255, 0.18);
 }
 
 #action-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(58px, 84px));
   gap: 8px;
   pointer-events: auto;
 }
 
 .control-btn {
   min-width: 60px;
-  min-height: 60px;
+  min-height: 54px;
   border-radius: 12px;
   border: 1px solid rgba(188, 226, 255, 0.3);
   background: rgba(5, 13, 25, 0.66);
   color: var(--ink);
-  font-size: 21px;
+  font-size: 16px;
   font-weight: 700;
+  letter-spacing: 0.04em;
   touch-action: none;
   user-select: none;
   cursor: pointer;
 }
 
+.control-btn.fly {
+  font-size: 18px;
+  color: #10243d;
+  border-color: rgba(255, 215, 160, 0.62);
+  background: linear-gradient(140deg, rgba(130, 233, 255, 0.92), rgba(255, 201, 130, 0.9));
+}
+
 .control-btn.small {
-  font-size: 14px;
-  min-width: 70px;
+  font-size: 13px;
+  min-width: 62px;
 }
 
 .control-btn:active,
@@ -365,6 +402,10 @@ canvas {
     top: 104px;
   }
 
+  #hud {
+    width: min(244px, calc(100vw - 24px));
+  }
+
   #instruction-chip {
     top: auto;
     bottom: 150px;
@@ -376,15 +417,95 @@ canvas {
 
 @media (max-width: 720px) {
   #hud {
-    top: 116px;
+    top: 78px;
+    width: min(212px, calc(100vw - 18px));
+    padding: 8px;
+    border-radius: 10px;
+  }
+
+  .hud-header {
+    margin-bottom: 6px;
+  }
+
+  .hud-title {
+    font-size: 10px;
+    letter-spacing: 0.09em;
+  }
+
+  .hud-value {
+    font-size: 18px;
+  }
+
+  .hud-grid {
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+
+  .hud-item {
+    padding: 6px;
+    border-radius: 8px;
+  }
+
+  .hud-item-label {
+    font-size: 9px;
+  }
+
+  .hud-item-value {
+    font-size: 13px;
+  }
+
+  .hud-meter {
+    margin-bottom: 6px;
+  }
+
+  .hud-meter-label {
+    font-size: 10px;
+    margin-bottom: 3px;
+  }
+
+  .meter-track {
+    height: 6px;
+  }
+
+  #hud .hud-meter:last-child {
+    display: none;
   }
 
   #controls {
     gap: 8px;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+  }
+
+  #joystick-base {
+    width: 108px;
+    height: 108px;
+    min-width: 108px;
+    min-height: 108px;
+  }
+
+  #joystick-knob {
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  #action-buttons {
+    grid-template-columns: repeat(2, minmax(52px, 72px));
+    gap: 6px;
   }
 
   .control-btn {
-    min-width: 54px;
-    min-height: 54px;
+    min-width: 52px;
+    min-height: 48px;
+    font-size: 13px;
+  }
+
+  .control-btn.fly {
+    font-size: 15px;
+  }
+
+  .control-btn.small {
+    font-size: 12px;
   }
 }
