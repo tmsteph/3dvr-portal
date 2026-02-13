@@ -79,6 +79,26 @@ describe('trial handler', () => {
     assert.equal(mailTransport.sendMail.mock.calls.length, 0);
   });
 
+  it('returns configuration diagnostics on GET without creating subscriptions', async () => {
+    const stripe = createMockStripe();
+    const mailTransport = createMailTransport();
+    const handler = createTrialHandler({ stripeClient: stripe, mailTransport, config: baseConfig });
+
+    const req = { method: 'GET', body: {} };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, {
+      stripeConfigured: true,
+      priceConfigured: true,
+      mailConfigured: true,
+    });
+    assert.equal(stripe.customers.list.mock.calls.length, 0);
+    assert.equal(stripe.subscriptions.create.mock.calls.length, 0);
+  });
+
   it('rejects invalid email payloads', async () => {
     const handler = createTrialHandler({
       stripeClient: createMockStripe(),

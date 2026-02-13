@@ -99,6 +99,42 @@ npm install
 npm run dev
 ```
 
+### Run the money automation loop
+
+Use the new loop runner to research demand, rank opportunities, and draft ad copy from one command:
+
+```bash
+npm run money:loop -- \
+  --market "freelancers managing outreach and follow-up" \
+  --keywords "lead follow-up,proposal workflow,client onboarding" \
+  --channels "reddit,x,linkedin,email" \
+  --budget 150
+```
+
+Optional output file:
+
+```bash
+npm run money:loop -- --market "local service businesses" --out artifacts/money-loop/latest.json
+```
+
+Automation data sync is available in the UI at `/money-ai/`, which writes each run to:
+
+- `gun.get('3dvr-portal').get('money-ai').get('runs')`
+- `gun.get('3dvr-portal').get('money-ai').get('opportunities')`
+- `gun.get('3dvr-portal').get('money-ai').get('ads')`
+
+Legacy mirror writes also continue to `gun.get('money-ai')` for older clients.
+
+#### Money loop manual walkthrough
+
+Use this checklist after UX or sync changes:
+
+1. Open `/money-ai/` in one browser tab, run the loop once, and verify opportunities/ads render in the results panel.
+2. Hard refresh and clear site data for the local host, then rerun and confirm the app still initializes and submits.
+3. Open a second browser (or profile) and check the same run in Gun Explorer at `3dvr-portal/money-ai/runs/<runId>`.
+4. Toggle network off/on to confirm the UI reports offline sync state, then reconnect and run again.
+5. Validate one mobile browser and one desktop browser to confirm controls, focus states, and status text are readable.
+
 ### Run the Playwright smoke check
 
 Use one command to verify browser automation end-to-end:
