@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -91,6 +91,14 @@ export function createTrialHandler(options = {}) {
 
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
+    }
+
+    if (req.method === 'GET') {
+      return res.status(200).json({
+        stripeConfigured: Boolean(config.STRIPE_SECRET_KEY),
+        priceConfigured: Boolean(config.STRIPE_PRICE_ID),
+        mailConfigured: Boolean(config.GMAIL_USER && config.GMAIL_APP_PASSWORD),
+      });
     }
 
     if (req.method !== 'POST') {
