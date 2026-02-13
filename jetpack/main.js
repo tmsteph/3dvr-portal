@@ -1005,9 +1005,12 @@ class JetpackGame {
 
     const previousPosition = this.player.position.clone();
 
-    const keyboardTurnInput = (this.input.state.right ? 1 : 0) - (this.input.state.left ? 1 : 0);
+    // Camera trails while looking down +Z, so screen-left/right maps to inverted world X.
+    // Invert joystick/strafe signs to keep touch controls feeling screen-relative.
+    const keyboardTurnInput = (this.input.state.left ? 1 : 0) - (this.input.state.right ? 1 : 0);
+    const joystickTurnInput = -this.input.state.moveX * MOVEMENT.joystickTurnMix;
     const turnIntent = clamp(
-      keyboardTurnInput + this.input.state.moveX * MOVEMENT.joystickTurnMix,
+      keyboardTurnInput + joystickTurnInput,
       -1,
       1
     );
@@ -1039,9 +1042,10 @@ class JetpackGame {
     const moveAmount = MOVEMENT.cruiseSpeed * deltaSeconds + forwardSpeedContribution * deltaSeconds;
     this.player.position.addScaledVector(forward, moveAmount);
 
-    const keyboardStrafeInput = (this.input.state.strafeRight ? 1 : 0) - (this.input.state.strafeLeft ? 1 : 0);
+    const keyboardStrafeInput = (this.input.state.strafeLeft ? 1 : 0) - (this.input.state.strafeRight ? 1 : 0);
+    const joystickStrafeInput = -this.input.state.moveX * MOVEMENT.joystickStrafeMix;
     const strafeInput = clamp(
-      keyboardStrafeInput + this.input.state.moveX * MOVEMENT.joystickStrafeMix,
+      keyboardStrafeInput + joystickStrafeInput,
       -1,
       1
     );
