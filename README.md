@@ -135,6 +135,38 @@ Use this checklist after UX or sync changes:
 4. Toggle network off/on to confirm the UI reports offline sync state, then reconnect and run again.
 5. Validate one mobile browser and one desktop browser to confirm controls, focus states, and status text are readable.
 
+### Run the money autopilot cycle
+
+Autopilot runs the loop with default inputs from env vars, builds an offer page, and can publish automatically to GitHub.
+
+```bash
+npm run money:autopilot -- --out artifacts/money-autopilot/latest.json
+```
+
+Optional dry-run (skip publish even when enabled):
+
+```bash
+npm run money:autopilot -- --dryRun true --out artifacts/money-autopilot/latest.json
+```
+
+Environment controls:
+
+- `MONEY_AUTOPILOT_MARKET`
+- `MONEY_AUTOPILOT_KEYWORDS` (comma separated)
+- `MONEY_AUTOPILOT_CHANNELS` (comma separated)
+- `MONEY_AUTOPILOT_WEEKLY_BUDGET`
+- `MONEY_AUTOPILOT_MAX_BUDGET`
+- `MONEY_AUTOPILOT_SIGNAL_LIMIT`
+- `MONEY_AUTOPILOT_PUBLISH` (`true`/`false`)
+- `MONEY_AUTOPILOT_DRY_RUN` (`true`/`false`)
+- `MONEY_AUTOPILOT_GH_TOKEN` (or `GH_PAT`)
+- `MONEY_AUTOPILOT_GH_REPO` (for example `tmsteph/3dvr-portal`)
+- `MONEY_AUTOPILOT_GH_BRANCH`
+- `MONEY_AUTOPILOT_PUBLISH_PATH_PREFIX`
+- `MONEY_AUTOPILOT_COMMIT_PREFIX`
+
+Scheduled background execution is provided via `.github/workflows/money-autopilot.yml` (every 6 hours plus manual dispatch).
+
 ### Run the Playwright smoke check
 
 Use one command to verify browser automation end-to-end:

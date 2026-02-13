@@ -85,3 +85,77 @@ test('money loop handler returns run payload', async () => {
   assert.equal(res.body.runId, 'money-123');
   assert.equal(typeof res.body.createdAt, 'number');
 });
+
+test('money loop handler GET without autopilot mode returns endpoint metadata', async () => {
+  const handler = createMoneyLoopHandler({ runLoopImpl: async () => ({}) });
+  const req = { method: 'GET', query: {}, headers: {} };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    ok: true,
+    endpoint: 'money-loop',
+    methods: ['POST', 'GET?mode=autopilot']
+  });
+});
+
+test('money loop handler blocks autopilot trigger without token config', async () => {
+  const previous = process.env.MONEY_AUTOPILOT_TOKEN;
+  delete process.env.MONEY_AUTOPILOT_TOKEN;
+
+  const handler = createMoneyLoopHandler({
+    runAutopilotImpl: async () => ({ runId: 'auto-1' })
+  });
+  const req = { method: 'GET', query: { mode: 'autopilot' }, headers: {} };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.body, { error: 'MONEY_AUTOPILOT_TOKEN is not configured.' });
+
+  if (previous === undefined) {
+    delete process.env.MONEY_AUTOPILOT_TOKEN;
+  } else {
+    process.env.MONEY_AUTOPILOT_TOKEN = previous;
+  }
+});
+
+test('money loop handler runs autopilot with valid token', async () => {
+  const previous = process.env.MONEY_AUTOPILOT_TOKEN;
+  process.env.MONEY_AUTOPILOT_TOKEN = 'secret-token';
+
+  const handler = createMoneyLoopHandler({
+    runAutopilotImpl: async payload => ({
+      runId: 'auto-1',
+      generatedAt: '2026-02-13T00:00:00.000Z',
+      publish: { attempted: false, published: false, reason: 'publish disabled' },
+      topOpportunity: null,
+      warnings: [],
+      signalsAnalyzed: 0,
+      receivedDryRun: payload.dryRun
+    })
+  });
+
+  const req = {
+    method: 'GET',
+    query: { mode: 'autopilot', dryRun: 'true' },
+    headers: { 'x-autopilot-token': 'secret-token' }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.mode, 'autopilot');
+  assert.equal(res.body.runId, 'auto-1');
+  assert.equal(res.body.receivedDryRun, true);
+
+  if (previous === undefined) {
+    delete process.env.MONEY_AUTOPILOT_TOKEN;
+  } else {
+    process.env.MONEY_AUTOPILOT_TOKEN = previous;
+  }
+});

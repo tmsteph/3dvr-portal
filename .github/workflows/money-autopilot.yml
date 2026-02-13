@@ -1,0 +1,60 @@
+name: Money Autopilot
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip GitHub publish even when publish is enabled'
+        required: false
+        default: 'false'
+
+jobs:
+  autopilot:
+    name: Run money autopilot cycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      MONEY_AUTOPILOT_MARKET: ${{ vars.MONEY_AUTOPILOT_MARKET }}
+      MONEY_AUTOPILOT_KEYWORDS: ${{ vars.MONEY_AUTOPILOT_KEYWORDS }}
+      MONEY_AUTOPILOT_CHANNELS: ${{ vars.MONEY_AUTOPILOT_CHANNELS }}
+      MONEY_AUTOPILOT_WEEKLY_BUDGET: ${{ vars.MONEY_AUTOPILOT_WEEKLY_BUDGET }}
+      MONEY_AUTOPILOT_MAX_BUDGET: ${{ vars.MONEY_AUTOPILOT_MAX_BUDGET }}
+      MONEY_AUTOPILOT_SIGNAL_LIMIT: ${{ vars.MONEY_AUTOPILOT_SIGNAL_LIMIT }}
+      MONEY_AUTOPILOT_PUBLISH: ${{ vars.MONEY_AUTOPILOT_PUBLISH }}
+      MONEY_AUTOPILOT_DRY_RUN: ${{ vars.MONEY_AUTOPILOT_DRY_RUN }}
+      MONEY_AUTOPILOT_GH_TOKEN: ${{ secrets.GH_PAT }}
+      MONEY_AUTOPILOT_GH_REPO: ${{ vars.MONEY_AUTOPILOT_GH_REPO }}
+      MONEY_AUTOPILOT_GH_BRANCH: ${{ vars.MONEY_AUTOPILOT_GH_BRANCH }}
+      MONEY_AUTOPILOT_PUBLISH_PATH_PREFIX: ${{ vars.MONEY_AUTOPILOT_PUBLISH_PATH_PREFIX }}
+      MONEY_AUTOPILOT_COMMIT_PREFIX: ${{ vars.MONEY_AUTOPILOT_COMMIT_PREFIX }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run autopilot cycle
+        run: |
+          mkdir -p artifacts/money-autopilot
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            npm run money:autopilot -- --dryRun true --out artifacts/money-autopilot/latest.json
+          else
+            npm run money:autopilot -- --out artifacts/money-autopilot/latest.json
+          fi
+
+      - name: Upload autopilot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: money-autopilot-${{ github.run_id }}
+          path: artifacts/money-autopilot/latest.json
