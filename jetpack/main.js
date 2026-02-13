@@ -1,5 +1,3 @@
-import * as THREE from 'https://unpkg.com/three@0.128.0/build/three.module.js';
-import { GLTFLoader } from 'https://unpkg.com/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { createInputController } from './input.js';
 import { createUI } from './ui.js';
 import {
@@ -12,6 +10,8 @@ import {
   createTrackPoint,
   generateSpawnPoints,
 } from './game-state.js';
+
+const THREE = globalThis.THREE;
 
 const GAME_PHASES = {
   LOADING: 'loading',
@@ -276,7 +276,7 @@ function createFallbackPlayer() {
   const group = new THREE.Group();
 
   const body = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.55, 1.4, 6, 10),
+    new THREE.CylinderGeometry(0.55, 0.55, 1.6, 16),
     new THREE.MeshStandardMaterial({
       color: 0xff7f59,
       emissive: 0x45180b,
@@ -285,6 +285,18 @@ function createFallbackPlayer() {
     })
   );
   group.add(body);
+
+  const helmet = new THREE.Mesh(
+    new THREE.SphereGeometry(0.58, 16, 16),
+    new THREE.MeshStandardMaterial({
+      color: 0xff9c76,
+      emissive: 0x5f2412,
+      roughness: 0.45,
+      metalness: 0.12,
+    })
+  );
+  helmet.position.set(0, 0.95, 0);
+  group.add(helmet);
 
   const visor = new THREE.Mesh(
     new THREE.SphereGeometry(0.38, 16, 16),
@@ -485,7 +497,17 @@ class JetpackGame {
   }
 
   async loadPlayer() {
-    const loader = new GLTFLoader();
+    if (!THREE || typeof THREE.GLTFLoader !== 'function') {
+      this.player = createFallbackPlayer();
+      this.player.scale.set(0.9, 0.9, 0.9);
+      this.player.position.set(0, LEVEL.groundLevel, 0);
+      addJetpackFlame(this.player);
+      addPlayerBranding(this.player);
+      this.scene.add(this.player);
+      return;
+    }
+
+    const loader = new THREE.GLTFLoader();
 
     await new Promise(resolve => {
       loader.load(
@@ -979,5 +1001,41 @@ class JetpackGame {
   }
 }
 
-const game = new JetpackGame();
-game.init();
+async function bootstrap() {
+  if (!THREE) {
+    throw new Error('Three.js failed to load.');
+  }
+
+  const game = new JetpackGame();
+  await game.init();
+}
+
+bootstrap().catch(error => {
+  console.error('Jetpack boot failed:', error);
+
+  const loading = document.getElementById('loading');
+  if (loading) {
+    loading.textContent = 'Unable to load Jetpack Corridor. Refresh to retry.';
+  }
+
+  const overlay = document.getElementById('overlay');
+  const title = document.getElementById('overlay-title');
+  const message = document.getElementById('overlay-message');
+  const action = document.getElementById('overlay-action');
+
+  if (title) {
+    title.textContent = 'Load Error';
+  }
+  if (message) {
+    message.textContent = 'Three.js assets could not be initialized. Check network and reload.';
+  }
+  if (action) {
+    action.textContent = 'Reload';
+    action.style.display = 'inline-flex';
+    action.addEventListener('click', () => window.location.reload(), { once: true });
+  }
+  if (overlay) {
+    overlay.hidden = false;
+    overlay.setAttribute('aria-hidden', 'false');
+  }
+});
