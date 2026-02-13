@@ -3,672 +3,98 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3dvr.tech Jetpack Game - Arrow Keys Only</title>
+  <title>3dvr.tech Jetpack Corridor</title>
   <link rel="stylesheet" href="styles/global.css">
-  <style>
-  body {
-    margin: 0;
-    overflow: hidden;
-    background: #000;
-  }
-
-  #loading {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: #000;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: sans-serif;
-    font-size: 24px;
-    z-index: 100;
-  }
-
-  #hud {
-    position: fixed;
-    top: 70px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-family: sans-serif;
-    font-size: 16px;
-    z-index: 30;
-  }
-
-  #winMessage {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 20px 28px;
-    font-family: sans-serif;
-    font-size: 36px;
-    border-radius: 10px;
-    z-index: 40;
-    display: none;
-    text-align: center;
-  }
-
-  #winMessage button {
-    margin-top: 14px;
-    border: none;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #111111;
-    font-size: 16px;
-    padding: 8px 14px;
-    cursor: pointer;
-  }
-
-  #menu-toggle {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 60;
-    display: none;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.6);
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 600;
-    padding: 8px 12px;
-    cursor: pointer;
-  }
-
-  .top-buttons {
-    position: fixed;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: nowrap;
-    gap: 6px;
-    margin: 0;
-    padding: 6px;
-    max-width: calc(100vw - 96px);
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: none;
-    backdrop-filter: blur(8px);
-    z-index: 50;
-  }
-
-  .top-buttons a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
-    padding: 6px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(0, 0, 0, 0.45);
-    color: #ffffff;
-    font-size: 14px;
-    line-height: 1.1;
-    box-shadow: none;
-  }
-
-  .top-buttons a:hover {
-    transform: none;
-    background: rgba(255, 255, 255, 0.14);
-    color: #ffffff;
-    box-shadow: none;
-  }
-
-  #dpad {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 20;
-  }
-
-  #dpad > div {
-    display: flex;
-    justify-content: center;
-  }
-
-  #dpad button,
-  #fly-btn {
-    width: 60px;
-    height: 60px;
-    font-size: 24px;
-    margin: 5px;
-    opacity: 0.8;
-    border: none;
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.5);
-    color: #fff;
-    touch-action: none;
-  }
-
-  #fly-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 20;
-  }
-
-  @media (max-width: 900px) {
-    #menu-toggle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .top-buttons {
-      top: 8px;
-      left: 8px;
-      right: 8px;
-      transform: translateY(-16px);
-      opacity: 0;
-      pointer-events: none;
-      max-width: none;
-      justify-content: flex-start;
-      overflow-x: auto;
-      scrollbar-width: none;
-      transition: transform 0.2s ease, opacity 0.2s ease;
-    }
-
-    .top-buttons::-webkit-scrollbar {
-      display: none;
-    }
-
-    body.nav-open .top-buttons {
-      transform: translateY(0);
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    body.nav-open #hud {
-      top: 86px;
-    }
-  }
-
-  @media (max-width: 720px) {
-    #hud {
-      top: 112px;
-    }
-  }
-  </style>
+  <link rel="stylesheet" href="jetpack/style.css">
 </head>
 <body>
   <button id="menu-toggle" type="button" aria-controls="game-nav" aria-expanded="false">Menu</button>
 
-  <div id="game-nav" class="top-buttons">
-    <a href="index.html">🏠 Portal</a>
-    <a href="games.html">🎮 Game Hub</a>
-    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
-    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
-  </div>
+  <nav id="game-nav" class="top-buttons" aria-label="Game links">
+    <a href="index.html">Portal</a>
+    <a href="games.html">Game Hub</a>
+    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">Subscribe</a>
+    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">GitHub</a>
+  </nav>
 
-  <div id="loading">Loading...</div>
-  <div id="hud">Score: 0</div>
-  <div id="winMessage">
-    <div>You Win!</div>
-    <button id="restart-btn" type="button">Play Again</button>
-  </div>
+  <div id="loading" role="status" aria-live="polite">Loading Corridor...</div>
 
-  <div id="dpad">
-    <button id="up-btn" aria-label="Move forward">↑</button>
-    <div>
-      <button id="left-btn" aria-label="Turn left">←</button>
-      <button id="down-btn" aria-label="Move backward">↓</button>
-      <button id="right-btn" aria-label="Turn right">→</button>
+  <aside id="hud" aria-live="polite">
+    <div class="hud-header">
+      <span class="hud-title">Run Score</span>
+      <strong id="hud-score" class="hud-value">0</strong>
+    </div>
+
+    <div class="hud-grid">
+      <div class="hud-item">
+        <span class="hud-item-label">Shield</span>
+        <strong id="hud-shield" class="hud-item-value">100%</strong>
+      </div>
+      <div class="hud-item">
+        <span class="hud-item-label">Boost</span>
+        <strong id="hud-boost" class="hud-item-value">Ready</strong>
+      </div>
+    </div>
+
+    <div class="hud-meter">
+      <div class="hud-meter-label">
+        <span>Fuel</span>
+        <span id="hud-fuel">100%</span>
+      </div>
+      <div class="meter-track">
+        <div id="fuel-meter-fill" class="meter-fill fuel"></div>
+      </div>
+    </div>
+
+    <div class="hud-meter">
+      <div class="hud-meter-label">
+        <span>Distance</span>
+        <span id="hud-distance">0%</span>
+      </div>
+      <div class="meter-track">
+        <div id="distance-meter-fill" class="meter-fill distance"></div>
+      </div>
+    </div>
+
+    <div class="hud-meter">
+      <div class="hud-meter-label">
+        <span>Shield Integrity</span>
+        <span aria-hidden="true">Tracked</span>
+      </div>
+      <div class="meter-track">
+        <div id="shield-meter-fill" class="meter-fill shield"></div>
+      </div>
+    </div>
+  </aside>
+
+  <section id="overlay" hidden aria-hidden="true">
+    <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+      <h2 id="overlay-title">Jetpack Corridor</h2>
+      <p id="overlay-message">Prepare to launch.</p>
+      <button id="overlay-action" type="button">Launch</button>
+    </div>
+  </section>
+
+  <p id="instruction-chip">
+    Move with arrows or WASD. Hold Space or Fly for lift. Tap Pause or press P.
+  </p>
+
+  <div id="controls" aria-label="Touch controls">
+    <div id="dpad">
+      <button id="up-btn" class="control-btn" type="button" aria-label="Move forward">↑</button>
+      <div id="dpad-row">
+        <button id="left-btn" class="control-btn" type="button" aria-label="Turn left">←</button>
+        <button id="down-btn" class="control-btn" type="button" aria-label="Move backward">↓</button>
+        <button id="right-btn" class="control-btn" type="button" aria-label="Turn right">→</button>
+      </div>
+    </div>
+
+    <div id="action-buttons">
+      <button id="fly-btn" class="control-btn" type="button" aria-label="Use jetpack">Fly</button>
+      <button id="pause-btn" class="control-btn small" type="button" aria-label="Pause run">Pause</button>
     </div>
   </div>
-  <button id="fly-btn" aria-label="Use jetpack">Fly</button>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-  <script>
-  let scene;
-  let camera;
-  let renderer;
-  let clock;
-  let player;
-  const playerVelocity = new THREE.Vector3();
-  const keys = {};
-  let score = 0;
-  let gameActive = true;
-  const pathBillboards = [];
-  const hitEffects = [];
-  const winZ = 200;
-  const COLLISION_THRESHOLD = 4;
-  const rotationSpeed = 2;
-  const moveSpeed = 5;
-  const jetpackSpeed = 10;
-  const gravity = -9.8;
-  const groundLevel = 1;
-
-  function init() {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb);
-
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 5, 15);
-
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio || 1);
-    document.body.appendChild(renderer.domElement);
-
-    clock = new THREE.Clock();
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10, 20, 10);
-    scene.add(directionalLight);
-
-    const groundGeo = new THREE.PlaneGeometry(500, 500);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x228b22 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
-    scene.add(ground);
-
-    createPath();
-
-    window.addEventListener('resize', onWindowResize);
-    window.addEventListener('keydown', onKeyDown, { passive: false });
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', clearInputState);
-    document.getElementById('restart-btn').addEventListener('click', resetGame);
-    initMenuToggle();
-    initMobileControls();
-
-    animate();
-    loadPlayer();
-  }
-
-  function initMobileControls() {
-    bindControl('left-btn', 'ArrowLeft');
-    bindControl('right-btn', 'ArrowRight');
-    bindControl('up-btn', 'ArrowUp');
-    bindControl('down-btn', 'ArrowDown');
-    bindControl('fly-btn', ' ');
-  }
-
-  function bindControl(buttonId, key) {
-    const button = document.getElementById(buttonId);
-    if (!button) return;
-
-    const activate = event => {
-      event.preventDefault();
-      keys[key] = true;
-    };
-
-    const deactivate = event => {
-      event.preventDefault();
-      keys[key] = false;
-    };
-
-    button.addEventListener('pointerdown', activate);
-    button.addEventListener('pointerup', deactivate);
-    button.addEventListener('pointerleave', deactivate);
-    button.addEventListener('pointercancel', deactivate);
-  }
-
-  function initMenuToggle() {
-    const menuToggle = document.getElementById('menu-toggle');
-    const gameNav = document.getElementById('game-nav');
-    if (!menuToggle || !gameNav) return;
-
-    const mobileQuery = window.matchMedia('(max-width: 900px)');
-
-    const closeMenu = () => {
-      document.body.classList.remove('nav-open');
-      menuToggle.setAttribute('aria-expanded', 'false');
-    };
-
-    menuToggle.addEventListener('click', () => {
-      const isOpen = document.body.classList.toggle('nav-open');
-      menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    });
-
-    gameNav.addEventListener('click', event => {
-      if (mobileQuery.matches && event.target && event.target.tagName === 'A') {
-        closeMenu();
-      }
-    });
-
-    const syncMenuForViewport = () => {
-      if (!mobileQuery.matches) {
-        closeMenu();
-      }
-    };
-
-    if (typeof mobileQuery.addEventListener === 'function') {
-      mobileQuery.addEventListener('change', syncMenuForViewport);
-    } else if (typeof mobileQuery.addListener === 'function') {
-      mobileQuery.addListener(syncMenuForViewport);
-    }
-    syncMenuForViewport();
-  }
-
-  function onKeyDown(event) {
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      keys.ArrowUp = true;
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      keys.ArrowDown = true;
-    } else if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      keys.ArrowLeft = true;
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      keys.ArrowRight = true;
-    } else if (event.key === ' ' || event.key === 'Spacebar') {
-      event.preventDefault();
-      keys[' '] = true;
-    }
-  }
-
-  function onKeyUp(event) {
-    if (event.key === 'ArrowUp') {
-      keys.ArrowUp = false;
-    } else if (event.key === 'ArrowDown') {
-      keys.ArrowDown = false;
-    } else if (event.key === 'ArrowLeft') {
-      keys.ArrowLeft = false;
-    } else if (event.key === 'ArrowRight') {
-      keys.ArrowRight = false;
-    } else if (event.key === ' ' || event.key === 'Spacebar') {
-      keys[' '] = false;
-    }
-  }
-
-  function clearInputState() {
-    keys.ArrowUp = false;
-    keys.ArrowDown = false;
-    keys.ArrowLeft = false;
-    keys.ArrowRight = false;
-    keys[' '] = false;
-  }
-
-  function loadPlayer() {
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
-      gltf => {
-        player = gltf.scene;
-        player.scale.set(0.5, 0.5, 0.5);
-        player.position.set(0, groundLevel, 0);
-        player.rotation.y = 0;
-        addJetpackFlame(player);
-        addPlayerBranding(player);
-        scene.add(player);
-        hideLoadingOverlay();
-      },
-      undefined,
-      error => {
-        console.error('Error loading model', error);
-        player = createFallbackPlayer();
-        scene.add(player);
-        hideLoadingOverlay();
-      }
-    );
-  }
-
-  function createFallbackPlayer() {
-    const fallback = new THREE.Object3D();
-    const bodyGeo = new THREE.SphereGeometry(0.5, 16, 16);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-    fallback.add(bodyMesh);
-    addJetpackFlame(fallback);
-    addPlayerBranding(fallback);
-    fallback.position.set(0, groundLevel, 0);
-    return fallback;
-  }
-
-  function addJetpackFlame(target) {
-    const flameGeo = new THREE.ConeGeometry(0.2, 0.5, 8);
-    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffa500 });
-    const flameMesh = new THREE.Mesh(flameGeo, flameMat);
-    flameMesh.position.set(0, -0.8, 0);
-    flameMesh.rotation.x = Math.PI;
-    flameMesh.visible = false;
-    flameMesh.name = 'flame';
-    target.add(flameMesh);
-  }
-
-  function addPlayerBranding(target) {
-    const branding = createBillboard('3dvr.tech');
-    branding.scale.set(0.5, 0.5, 0.5);
-    branding.position.set(0, 2, 0);
-    branding.name = 'branding';
-    target.add(branding);
-  }
-
-  function createBillboard(text) {
-    const size = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const gradient = ctx.createRadialGradient(size / 2, size / 2, size / 8, size / 2, size / 2, size / 2);
-    gradient.addColorStop(0, '#ffcc00');
-    gradient.addColorStop(1, '#ff6600');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-    ctx.font = 'bold 50px Arial';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, size / 2, size / 2);
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#000000';
-    ctx.strokeText(text, size / 2, size / 2);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    const material = new THREE.MeshBasicMaterial({
-      map: texture,
-      side: THREE.DoubleSide,
-      transparent: true
-    });
-    const geometry = new THREE.PlaneGeometry(5, 5);
-    return new THREE.Mesh(geometry, material);
-  }
-
-  function createPath() {
-    const numBoards = 30;
-    for (let index = 0; index < numBoards; index += 1) {
-      const t = index / (numBoards - 1);
-      const z = 20 + t * 180;
-      const x = 5 * Math.sin(2 * Math.PI * t);
-      const y = 2;
-      const billboard = createBillboard('3dvr.tech');
-      billboard.position.set(x, y, z);
-      scene.add(billboard);
-      pathBillboards.push(billboard);
-    }
-  }
-
-  function createHitEffect(position) {
-    const ringGeom = new THREE.RingGeometry(0.5, 0.6, 32);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 1,
-      blending: THREE.AdditiveBlending
-    });
-
-    const ring = new THREE.Mesh(ringGeom, ringMat);
-    ring.position.copy(position);
-    ring.rotation.x = Math.PI / 2;
-    ring.userData.startTime = clock.getElapsedTime();
-    ring.userData.duration = 0.5;
-    scene.add(ring);
-    hitEffects.push(ring);
-  }
-
-  function checkCollisions() {
-    if (!player) return;
-    for (let index = pathBillboards.length - 1; index >= 0; index -= 1) {
-      const billboard = pathBillboards[index];
-      const distance = player.position.distanceTo(billboard.position);
-      if (distance < COLLISION_THRESHOLD) {
-        createHitEffect(billboard.position);
-        scene.remove(billboard);
-        pathBillboards.splice(index, 1);
-        score += 10;
-        updateHUD();
-      }
-    }
-  }
-
-  function checkWinCondition() {
-    if (player && player.position.z >= winZ && gameActive) {
-      gameActive = false;
-      document.getElementById('winMessage').style.display = 'block';
-    }
-  }
-
-  function updateHUD() {
-    document.getElementById('hud').textContent = `Score: ${score}`;
-  }
-
-  function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  function updatePlayer(delta) {
-    if (!player) {
-      camera.position.lerp(new THREE.Vector3(0, 5, 15), 0.1);
-      camera.lookAt(new THREE.Vector3(0, 2, 100));
-      return;
-    }
-
-    if (keys.ArrowLeft) {
-      player.rotation.y += rotationSpeed * delta;
-    }
-    if (keys.ArrowRight) {
-      player.rotation.y -= rotationSpeed * delta;
-    }
-
-    const forward = new THREE.Vector3(0, 0, -1);
-    forward.applyQuaternion(player.quaternion);
-    forward.y = 0;
-    forward.normalize();
-
-    if (keys.ArrowUp) {
-      player.position.addScaledVector(forward, moveSpeed * delta);
-    }
-    if (keys.ArrowDown) {
-      player.position.addScaledVector(forward, -moveSpeed * delta);
-    }
-
-    const flame = player.getObjectByName('flame');
-    if (keys[' ']) {
-      playerVelocity.y = jetpackSpeed;
-      if (flame) flame.visible = true;
-    } else {
-      playerVelocity.y += gravity * delta;
-      if (flame) flame.visible = false;
-    }
-
-    player.position.y += playerVelocity.y * delta;
-    if (player.position.y < groundLevel) {
-      player.position.y = groundLevel;
-      playerVelocity.y = 0;
-    }
-
-    const desiredCameraPos = new THREE.Vector3().copy(player.position);
-    const backward = new THREE.Vector3(0, 0, 1);
-    backward.applyQuaternion(player.quaternion);
-    backward.y = 0;
-    backward.normalize();
-    desiredCameraPos.addScaledVector(backward, 10);
-    desiredCameraPos.y += 5;
-    camera.position.lerp(desiredCameraPos, 0.1);
-    camera.lookAt(player.position);
-  }
-
-  function updateHitEffects() {
-    for (let index = hitEffects.length - 1; index >= 0; index -= 1) {
-      const effect = hitEffects[index];
-      const elapsed = clock.getElapsedTime() - effect.userData.startTime;
-      const progress = elapsed / effect.userData.duration;
-      if (progress >= 1) {
-        scene.remove(effect);
-        hitEffects.splice(index, 1);
-      } else {
-        effect.scale.setScalar(1 + progress * 2);
-        effect.material.opacity = 1 - progress;
-      }
-    }
-  }
-
-  function animate() {
-    requestAnimationFrame(animate);
-    if (gameActive) {
-      const delta = clock.getDelta();
-      updatePlayer(delta);
-      checkCollisions();
-      checkWinCondition();
-    }
-
-    updateHitEffects();
-    pathBillboards.forEach(billboard => billboard.lookAt(camera.position));
-    renderer.render(scene, camera);
-  }
-
-  function hideLoadingOverlay() {
-    const loading = document.getElementById('loading');
-    if (loading) {
-      loading.style.display = 'none';
-    }
-  }
-
-  function resetGame() {
-    score = 0;
-    updateHUD();
-    gameActive = true;
-    playerVelocity.set(0, 0, 0);
-    clearInputState();
-
-    document.getElementById('winMessage').style.display = 'none';
-
-    if (player) {
-      player.position.set(0, groundLevel, 0);
-      player.rotation.y = 0;
-      const flame = player.getObjectByName('flame');
-      if (flame) flame.visible = false;
-    }
-
-    while (pathBillboards.length > 0) {
-      scene.remove(pathBillboards.pop());
-    }
-    createPath();
-
-    while (hitEffects.length > 0) {
-      scene.remove(hitEffects.pop());
-    }
-  }
-
-  init();
-  </script>
+  <script type="module" src="jetpack/main.js"></script>
 </body>
 </html>
