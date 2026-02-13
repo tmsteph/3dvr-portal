@@ -21,7 +21,10 @@ describe('finance ledger hub', () => {
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /3dvr Finance/);
-    assert.match(html, /<form[^>]+id="expenditure-form"/);
+    assert.match(html, /id="finance-summary"/);
+    assert.match(html, /id="finance-ledger"/);
+    assert.match(html, /href="\.\/incoming\.html"/);
+    assert.match(html, /href="\.\/outgoing\.html"/);
     assert.match(html, /<link[^>]+href="\.\/styles.css"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/sea\.js"/);
@@ -40,14 +43,18 @@ describe('finance ledger hub', () => {
     assert.match(css, /\.finance-card/);
   });
 
-  it('persists entries to the finance\/expenditures Gun graph with documented structure', async () => {
+  it('persists entries to portal and legacy finance Gun graphs with documented structure', async () => {
     const scriptUrl = new URL('app.js', baseDir);
     assert.equal(await fileExists(scriptUrl), true, 'app.js should exist');
 
     const js = await readFile(scriptUrl, 'utf8');
-    assert.match(js, /Gun\(window\.__GUN_PEERS__ \|\| \[/);
-    assert.ok(js.includes("gun.get('finance').get('expenditures')"));
-    assert.match(js, /financeLedger\.get\(/);
+    assert.match(js, /const peers = window\.__GUN_PEERS__ \|\| \[/);
+    assert.ok(js.includes("gun.get('3dvr-portal')"));
+    assert.ok(js.includes("portalRoot.get('finance')"));
+    assert.ok(js.includes("gun.get('finance')"));
+    assert.match(js, /financeRoot\.get\('expenditures'\)/);
+    assert.match(js, /legacyFinanceRoot\.get\('expenditures'\)/);
+    assert.match(js, /writeRecordToSources\(/);
     assert.match(js, /form\.addEventListener\('submit'/);
     assert.match(js, /Gun\.text\.random/);
   });
