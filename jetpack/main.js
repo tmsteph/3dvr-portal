@@ -54,6 +54,8 @@ const MOVEMENT = {
   baseMoveSpeed: 15,
   maxMoveSpeedBonus: 9,
   strafeSpeed: 11.5,
+  joystickTurnMix: 0.85,
+  joystickStrafeMix: 1,
   backwardSpeedFactor: 0.58,
   jetpackAcceleration: 48,
   gravity: -31,
@@ -1003,8 +1005,13 @@ class JetpackGame {
 
     const previousPosition = this.player.position.clone();
 
-    const turnIntent = (this.input.state.left ? 1 : 0) - (this.input.state.right ? 1 : 0);
-    if (turnIntent !== 0) {
+    const keyboardTurnInput = (this.input.state.right ? 1 : 0) - (this.input.state.left ? 1 : 0);
+    const turnIntent = clamp(
+      keyboardTurnInput + this.input.state.moveX * MOVEMENT.joystickTurnMix,
+      -1,
+      1
+    );
+    if (Math.abs(turnIntent) > 0.001) {
       this.player.rotation.y += turnIntent * MOVEMENT.rotationSpeed * deltaSeconds;
     }
 
@@ -1033,7 +1040,11 @@ class JetpackGame {
     this.player.position.addScaledVector(forward, moveAmount);
 
     const keyboardStrafeInput = (this.input.state.strafeRight ? 1 : 0) - (this.input.state.strafeLeft ? 1 : 0);
-    const strafeInput = clamp(keyboardStrafeInput + this.input.state.moveX, -1, 1);
+    const strafeInput = clamp(
+      keyboardStrafeInput + this.input.state.moveX * MOVEMENT.joystickStrafeMix,
+      -1,
+      1
+    );
     const strafeAmount = strafeInput * MOVEMENT.strafeSpeed * this.getBoostMultiplier() * deltaSeconds;
     this.player.position.addScaledVector(right, strafeAmount);
 

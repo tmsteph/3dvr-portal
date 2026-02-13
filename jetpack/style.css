@@ -318,8 +318,9 @@ canvas {
 }
 
 #action-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(58px, 84px));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   pointer-events: auto;
 }
@@ -348,7 +349,7 @@ canvas {
 
 .control-btn.small {
   font-size: 13px;
-  min-width: 62px;
+  min-width: 68px;
 }
 
 .control-btn:active,
@@ -399,11 +400,17 @@ canvas {
   }
 
   body.nav-open #hud {
-    top: 104px;
+    top: 8px;
+    left: 8px;
   }
 
   #hud {
-    width: min(244px, calc(100vw - 24px));
+    top: 8px;
+    left: 8px;
+    width: min(198px, calc(100vw - 16px));
+    padding: 7px;
+    border-radius: 9px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
   }
 
   #instruction-chip {
@@ -417,54 +424,61 @@ canvas {
 
 @media (max-width: 720px) {
   #hud {
-    top: 78px;
-    width: min(212px, calc(100vw - 18px));
-    padding: 8px;
-    border-radius: 10px;
+    top: 6px;
+    left: 6px;
+    width: min(168px, calc(100vw - 12px));
+    padding: 5px;
+    border-radius: 8px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
   }
 
   .hud-header {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .hud-title {
-    font-size: 10px;
-    letter-spacing: 0.09em;
+    font-size: 8px;
+    letter-spacing: 0.07em;
   }
 
   .hud-value {
-    font-size: 18px;
+    font-size: 12px;
   }
 
   .hud-grid {
-    gap: 5px;
-    margin-bottom: 6px;
+    gap: 4px;
+    grid-template-columns: 1fr;
+    margin-bottom: 4px;
+  }
+
+  #hud .hud-grid .hud-item:last-child {
+    display: none;
   }
 
   .hud-item {
-    padding: 6px;
-    border-radius: 8px;
+    padding: 4px;
+    border-radius: 6px;
   }
 
   .hud-item-label {
-    font-size: 9px;
+    font-size: 8px;
   }
 
   .hud-item-value {
-    font-size: 13px;
+    font-size: 11px;
   }
 
   .hud-meter {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .hud-meter-label {
-    font-size: 10px;
-    margin-bottom: 3px;
+    font-size: 8px;
+    margin-bottom: 2px;
   }
 
   .meter-track {
-    height: 6px;
+    height: 4px;
   }
 
   #hud .hud-meter:last-child {
@@ -491,21 +505,22 @@ canvas {
   }
 
   #action-buttons {
-    grid-template-columns: repeat(2, minmax(52px, 72px));
+    min-width: 66px;
     gap: 6px;
   }
 
   .control-btn {
-    min-width: 52px;
-    min-height: 48px;
-    font-size: 13px;
+    min-width: 56px;
+    min-height: 44px;
+    font-size: 12px;
   }
 
   .control-btn.fly {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .control-btn.small {
-    font-size: 12px;
+    font-size: 11px;
+    min-width: 56px;
   }
 }

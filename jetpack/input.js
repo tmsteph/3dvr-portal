@@ -252,8 +252,6 @@ export function createInputController(options = {}) {
 
   function bindTouchControls() {
     bindJoystick();
-    bindButton('strafe-left-btn', 'strafeLeft');
-    bindButton('strafe-right-btn', 'strafeRight');
     bindButton('fly-btn', 'thrust');
 
     const pauseButton = document.getElementById('pause-btn');
