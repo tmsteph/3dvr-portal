@@ -103,6 +103,40 @@ function buildSourceList(primary, legacy) {
   return sources;
 }
 
+function normalizeEmailHint(value = '') {
+  return String(value || '').trim().toLowerCase();
+}
+
+function resolveAlias(aliasOverride = '') {
+  const explicit = String(aliasOverride || '').trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  try {
+    return String(localStorage.getItem('alias') || '').trim();
+  } catch (error) {
+    return '';
+  }
+}
+
+function buildBillingHintSources(gun) {
+  const root = gun && typeof gun.get === 'function' ? gun : createGunStub();
+  const portalRoot = root.get('3dvr-portal').get('money-ai').get('billing');
+  const legacyRoot = root.get('money-ai').get('billing');
+  return buildSourceList(portalRoot, legacyRoot);
+}
+
+function onceAsync(node) {
+  if (!node || typeof node.once !== 'function') {
+    return Promise.resolve(undefined);
+  }
+
+  return new Promise(resolve => {
+    node.once(data => resolve(data));
+  });
+}
+
 // Shared node shape:
 // - gun.get('3dvr-portal').get('money-ai').get('runs').get(<runId>)
 // - gun.get('3dvr-portal').get('money-ai').get('opportunities').get(<opportunityId>)
@@ -120,6 +154,64 @@ export function buildMoneyAutomationSources(gun) {
     opportunitySources: buildSourceList(moneyRoot.get('opportunities'), legacyRoot.get('opportunities')),
     adSources: buildSourceList(moneyRoot.get('ads'), legacyRoot.get('ads')),
     statusSources: buildSourceList(moneyRoot.get('status'), legacyRoot.get('status'))
+  };
+}
+
+// Billing hint node shape:
+// - gun.get('3dvr-portal').get('money-ai').get('billing').get(<alias>)
+// - gun.get('money-ai').get('billing').get(<alias>) (legacy mirror)
+// This is only a convenience hint for UI autofill, not a source of entitlement truth.
+export async function readBillingEmailHint(gun, aliasOverride = '') {
+  const alias = resolveAlias(aliasOverride);
+  if (!alias) {
+    return '';
+  }
+
+  const sources = buildBillingHintSources(gun);
+  for (const source of sources) {
+    const snapshot = await onceAsync(source.get(alias));
+    const candidate = typeof snapshot === 'string'
+      ? snapshot
+      : snapshot && typeof snapshot.email === 'string'
+        ? snapshot.email
+        : '';
+    const normalized = normalizeEmailHint(candidate);
+    if (normalized.includes('@')) {
+      return normalized;
+    }
+  }
+
+  return '';
+}
+
+export async function persistBillingEmailHint(gun, email, aliasOverride = '') {
+  const alias = resolveAlias(aliasOverride);
+  const normalizedEmail = normalizeEmailHint(email);
+  if (!alias || !normalizedEmail.includes('@')) {
+    return {
+      saved: false,
+      alias,
+      email: normalizedEmail
+    };
+  }
+
+  const record = {
+    alias,
+    email: normalizedEmail,
+    updatedAt: Date.now()
+  };
+
+  const sources = buildBillingHintSources(gun);
+  const writes = sources.map(source => new Promise(resolve => {
+    source.get(alias).put(record, ack => resolve(ack || { ok: true }));
+  }));
+
+  await Promise.all(writes);
+
+  return {
+    saved: true,
+    alias,
+    email: normalizedEmail
   };
 }
 

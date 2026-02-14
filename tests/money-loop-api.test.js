@@ -93,7 +93,65 @@ test('money loop handler can issue user token from entitlement check', async () 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.ok, true);
   assert.equal(res.body.plan, 'pro');
+  assert.equal(res.body.emailSource, 'input');
   assert.equal(typeof res.body.token, 'string');
+});
+
+test('money loop handler issues user token using admin-token secret fallback', async () => {
+  const handler = createMoneyLoopHandler({
+    config: createConfig({
+      MONEY_AUTOPILOT_USER_TOKEN_SECRET: ''
+    }),
+    resolveEntitlementImpl: async ({ email }) => ({
+      ok: true,
+      plan: 'starter',
+      email,
+      source: 'stripe'
+    })
+  });
+
+  const req = {
+    method: 'POST',
+    body: { mode: 'token', email: 'fallback@example.com' },
+    headers: {}
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.email, 'fallback@example.com');
+});
+
+test('money loop handler refreshes token without email when bearer token is present', async () => {
+  const existingToken = createUserBearer({ email: 'refresh@example.com', plan: 'starter' });
+  const handler = createMoneyLoopHandler({
+    config: createConfig(),
+    resolveEntitlementImpl: async ({ email }) => ({
+      ok: true,
+      plan: 'pro',
+      email,
+      source: 'stripe',
+      customerId: 'cus_refresh',
+      subscriptionId: 'sub_refresh'
+    })
+  });
+
+  const req = {
+    method: 'POST',
+    body: { mode: 'token' },
+    headers: { Authorization: `Bearer ${existingToken}` }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.plan, 'pro');
+  assert.equal(res.body.email, 'refresh@example.com');
+  assert.equal(res.body.emailSource, 'token');
 });
 
 test('money loop handler rejects invalid market payload', async () => {

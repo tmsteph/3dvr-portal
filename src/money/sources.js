@@ -14,6 +14,75 @@ function uniqueKeywords(input = []) {
   return result;
 }
 
+const RELEVANCE_IGNORED_TERMS = new Set([
+  'and',
+  'the',
+  'for',
+  'with',
+  'from',
+  'that',
+  'this',
+  'your',
+  'into',
+  'over',
+  'under',
+  'just',
+  'then',
+  'have',
+  'been',
+  'were',
+  'where',
+  'when',
+  'why',
+  'what',
+  'how',
+  'using',
+  'used',
+  'than',
+  'more',
+  'less',
+  'will',
+  'could',
+  'should',
+  'would',
+  'many',
+  'some',
+  'much',
+  'their',
+  'they',
+  'them',
+  'about'
+]);
+
+function normalizeText(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s/-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenizeForRelevance(value = '') {
+  return normalizeText(value)
+    .split(/\s+/)
+    .map(item => item.trim())
+    .filter(item => {
+      if (!item || item.length < 3) {
+        return false;
+      }
+      if (RELEVANCE_IGNORED_TERMS.has(item)) {
+        return false;
+      }
+      if (/^x\d+$/i.test(item)) {
+        return false;
+      }
+      if (/^\d+$/.test(item)) {
+        return false;
+      }
+      return true;
+    });
+}
+
 export function buildKeywordList({ market = '', keywords = [] } = {}) {
   const fromMarket = String(market || '')
     .split(/[,+]/)
@@ -21,7 +90,29 @@ export function buildKeywordList({ market = '', keywords = [] } = {}) {
     .filter(Boolean)
     .slice(0, 4);
 
-  return uniqueKeywords([...keywords, ...fromMarket]).slice(0, 6);
+  const combined = uniqueKeywords([...keywords, ...fromMarket]);
+  const phraseTerms = new Set();
+
+  combined.forEach(keyword => {
+    const terms = tokenizeForRelevance(keyword);
+    if (terms.length < 2) {
+      return;
+    }
+    terms.forEach(term => phraseTerms.add(term));
+  });
+
+  const filtered = combined.filter(keyword => {
+    const terms = tokenizeForRelevance(keyword);
+    if (terms.length !== 1) {
+      return true;
+    }
+    if (!phraseTerms.size) {
+      return true;
+    }
+    return !phraseTerms.has(terms[0]);
+  });
+
+  return filtered.slice(0, 6);
 }
 
 function normalizeSignal(source, payload = {}, keyword) {
@@ -51,19 +142,32 @@ function normalizeFreshness(createdAt) {
 }
 
 function keywordRelevance(signal) {
-  const haystack = `${signal.title || ''} ${signal.summary || ''}`.toLowerCase();
-  const terms = String(signal.keyword || '')
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .map(item => item.trim())
-    .filter(item => item.length >= 3);
-
-  if (!terms.length || !haystack) {
+  const keywordText = normalizeText(signal.keyword || '');
+  const keywordTerms = tokenizeForRelevance(keywordText);
+  if (!keywordTerms.length) {
     return 0;
   }
 
-  const hits = terms.filter(term => haystack.includes(term)).length;
-  return Math.round((hits / terms.length) * 100);
+  const haystackText = normalizeText(`${signal.title || ''} ${signal.summary || ''}`);
+  if (!haystackText) {
+    return 0;
+  }
+
+  const haystackTerms = new Set(tokenizeForRelevance(haystackText));
+  if (!haystackTerms.size) {
+    return 0;
+  }
+
+  const hits = keywordTerms.filter(term => haystackTerms.has(term)).length;
+  const phraseMatched = keywordText.length >= 5 && haystackText.includes(keywordText);
+
+  // Multi-word inputs must align beyond a single generic token hit.
+  if (keywordTerms.length >= 2 && hits < 2 && !phraseMatched) {
+    return 0;
+  }
+
+  const coverage = (hits / keywordTerms.length) * 100;
+  return Math.min(100, Math.round(coverage + (phraseMatched ? 15 : 0)));
 }
 
 function scoreSignal(signal) {
@@ -75,19 +179,33 @@ function scoreSignal(signal) {
 }
 
 function dedupeSignals(signals = []) {
-  const seen = new Set();
-  const unique = [];
+  const selectedByKey = new Map();
 
   signals.forEach(signal => {
     const key = (signal.url || signal.title || '').toLowerCase().trim();
-    if (!key || seen.has(key)) {
+    if (!key) {
       return;
     }
-    seen.add(key);
-    unique.push(signal);
+
+    const current = selectedByKey.get(key);
+    if (!current) {
+      selectedByKey.set(key, signal);
+      return;
+    }
+
+    const currentRelevance = keywordRelevance(current);
+    const candidateRelevance = keywordRelevance(signal);
+    if (candidateRelevance > currentRelevance) {
+      selectedByKey.set(key, signal);
+      return;
+    }
+
+    if (candidateRelevance === currentRelevance && scoreSignal(signal) > scoreSignal(current)) {
+      selectedByKey.set(key, signal);
+    }
   });
 
-  return unique;
+  return Array.from(selectedByKey.values());
 }
 
 function takeTopSignals(signals = [], limit = 24) {
