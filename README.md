@@ -181,7 +181,8 @@ Security for UI-triggered autopilot:
 - `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.
 - Provide it in the `X-Autopilot-Token` header (the Money AI page has a token field).
 - `MONEY_AUTOPILOT_USER_TOKEN_SECRET` signs per-user bearer tokens.
-  If omitted, the API derives a stable fallback secret from `MONEY_AUTOPILOT_TOKEN`.
+  If omitted, the API derives a stable fallback secret from `MONEY_AUTOPILOT_TOKEN`,
+  `STRIPE_SECRET_KEY`, or `OPENAI_API_KEY` (first available).
 - `MONEY_AUTOPILOT_REQUIRE_USER_TOKEN=true` enforces bearer tokens for regular loop runs.
 - `MONEY_AUTOPILOT_ALLOW_FREE_PLAN=true` allows token issuance without an active Stripe subscription.
 - `MONEY_AUTOPILOT_ALLOWED_SUB_STATUSES` overrides accepted Stripe statuses (default: `active,trialing`).

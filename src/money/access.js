@@ -280,14 +280,19 @@ export function resolveUserTokenSecret(config = process.env) {
     return explicit;
   }
 
-  const adminToken = String(config?.MONEY_AUTOPILOT_TOKEN || '').trim();
-  if (!adminToken) {
+  const fallbackSeed = [
+    String(config?.MONEY_AUTOPILOT_TOKEN || '').trim(),
+    String(config?.STRIPE_SECRET_KEY || '').trim(),
+    String(config?.OPENAI_API_KEY || '').trim()
+  ].find(Boolean);
+
+  if (!fallbackSeed) {
     return '';
   }
 
   return crypto
     .createHash('sha256')
-    .update(`money-user-token:${adminToken}`)
+    .update(`money-user-token:${fallbackSeed}`)
     .digest('hex');
 }
 

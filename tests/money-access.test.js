@@ -131,23 +131,33 @@ test('parse helpers return sane fallbacks', () => {
   assert.equal(parsedMap.price_abc, 'pro');
 });
 
-test('resolveUserTokenSecret uses explicit secret then admin-token fallback', () => {
+test('resolveUserTokenSecret uses explicit secret then configured secret fallbacks', () => {
   const explicit = resolveUserTokenSecret({
     MONEY_AUTOPILOT_USER_TOKEN_SECRET: 'explicit-secret',
     MONEY_AUTOPILOT_TOKEN: 'admin-token'
   });
   assert.equal(explicit, 'explicit-secret');
 
-  const fallback = resolveUserTokenSecret({
+  const adminFallback = resolveUserTokenSecret({
     MONEY_AUTOPILOT_USER_TOKEN_SECRET: '',
     MONEY_AUTOPILOT_TOKEN: 'admin-token'
   });
-  assert.equal(typeof fallback, 'string');
-  assert.ok(fallback.length > 10);
+  assert.equal(typeof adminFallback, 'string');
+  assert.ok(adminFallback.length > 10);
+
+  const stripeFallback = resolveUserTokenSecret({
+    MONEY_AUTOPILOT_USER_TOKEN_SECRET: '',
+    MONEY_AUTOPILOT_TOKEN: '',
+    STRIPE_SECRET_KEY: 'sk_test_123'
+  });
+  assert.equal(typeof stripeFallback, 'string');
+  assert.ok(stripeFallback.length > 10);
 
   const missing = resolveUserTokenSecret({
     MONEY_AUTOPILOT_USER_TOKEN_SECRET: '',
-    MONEY_AUTOPILOT_TOKEN: ''
+    MONEY_AUTOPILOT_TOKEN: '',
+    STRIPE_SECRET_KEY: '',
+    OPENAI_API_KEY: ''
   });
   assert.equal(missing, '');
 });
