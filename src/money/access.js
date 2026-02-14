@@ -274,4 +274,21 @@ export function parsePricePlanMap(value) {
   return {};
 }
 
+export function resolveUserTokenSecret(config = process.env) {
+  const explicit = String(config?.MONEY_AUTOPILOT_USER_TOKEN_SECRET || '').trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  const adminToken = String(config?.MONEY_AUTOPILOT_TOKEN || '').trim();
+  if (!adminToken) {
+    return '';
+  }
+
+  return crypto
+    .createHash('sha256')
+    .update(`money-user-token:${adminToken}`)
+    .digest('hex');
+}
+
 export const DEFAULT_RATE_LIMITS = DEFAULT_PLAN_LIMITS;

@@ -7,6 +7,7 @@ import {
   parsePlanLimits,
   parsePricePlanMap,
   resolvePlanFromSubscription,
+  resolveUserTokenSecret,
   verifyUserToken
 } from '../src/money/access.js';
 
@@ -50,20 +51,45 @@ test('createInMemoryRateLimiter enforces minute and day caps', () => {
     starter: { minute: 2, day: 3 }
   };
 
-  const first = limiter.consume({ subject: 'user-1', plan: 'starter', limits, now: Date.UTC(2026, 1, 13, 10, 0, 1) });
+  const first = limiter.consume({
+    subject: 'user-1',
+    plan: 'starter',
+    limits,
+    now: Date.UTC(2026, 1, 13, 10, 0, 1)
+  });
   assert.equal(first.allowed, true);
 
-  const second = limiter.consume({ subject: 'user-1', plan: 'starter', limits, now: Date.UTC(2026, 1, 13, 10, 0, 2) });
+  const second = limiter.consume({
+    subject: 'user-1',
+    plan: 'starter',
+    limits,
+    now: Date.UTC(2026, 1, 13, 10, 0, 2)
+  });
   assert.equal(second.allowed, true);
 
-  const thirdMinute = limiter.consume({ subject: 'user-1', plan: 'starter', limits, now: Date.UTC(2026, 1, 13, 10, 0, 3) });
+  const thirdMinute = limiter.consume({
+    subject: 'user-1',
+    plan: 'starter',
+    limits,
+    now: Date.UTC(2026, 1, 13, 10, 0, 3)
+  });
   assert.equal(thirdMinute.allowed, false);
   assert.equal(thirdMinute.scope, 'minute');
 
-  const afterMinuteReset = limiter.consume({ subject: 'user-1', plan: 'starter', limits, now: Date.UTC(2026, 1, 13, 10, 1, 1) });
+  const afterMinuteReset = limiter.consume({
+    subject: 'user-1',
+    plan: 'starter',
+    limits,
+    now: Date.UTC(2026, 1, 13, 10, 1, 1)
+  });
   assert.equal(afterMinuteReset.allowed, true);
 
-  const dayExceeded = limiter.consume({ subject: 'user-1', plan: 'starter', limits, now: Date.UTC(2026, 1, 13, 10, 2, 1) });
+  const dayExceeded = limiter.consume({
+    subject: 'user-1',
+    plan: 'starter',
+    limits,
+    now: Date.UTC(2026, 1, 13, 10, 2, 1)
+  });
   assert.equal(dayExceeded.allowed, false);
   assert.equal(dayExceeded.scope, 'day');
 });
@@ -103,4 +129,25 @@ test('parse helpers return sane fallbacks', () => {
 
   const parsedMap = parsePricePlanMap('{"price_abc":"pro"}');
   assert.equal(parsedMap.price_abc, 'pro');
+});
+
+test('resolveUserTokenSecret uses explicit secret then admin-token fallback', () => {
+  const explicit = resolveUserTokenSecret({
+    MONEY_AUTOPILOT_USER_TOKEN_SECRET: 'explicit-secret',
+    MONEY_AUTOPILOT_TOKEN: 'admin-token'
+  });
+  assert.equal(explicit, 'explicit-secret');
+
+  const fallback = resolveUserTokenSecret({
+    MONEY_AUTOPILOT_USER_TOKEN_SECRET: '',
+    MONEY_AUTOPILOT_TOKEN: 'admin-token'
+  });
+  assert.equal(typeof fallback, 'string');
+  assert.ok(fallback.length > 10);
+
+  const missing = resolveUserTokenSecret({
+    MONEY_AUTOPILOT_USER_TOKEN_SECRET: '',
+    MONEY_AUTOPILOT_TOKEN: ''
+  });
+  assert.equal(missing, '');
 });

@@ -8,6 +8,7 @@ import {
   normalizeEmail,
   parsePlanLimits,
   parsePricePlanMap,
+  resolveUserTokenSecret,
   resolvePlanFromSubscription,
   verifyUserToken
 } from '../../src/money/access.js';
@@ -150,7 +151,9 @@ async function resolveUserEntitlement({ email, stripeClient, config = process.en
   });
 
   const allowedStatuses = parseSubscriptionStatuses(config.MONEY_AUTOPILOT_ALLOWED_SUB_STATUSES);
-  const activeSubscription = (subscriptions?.data || []).find(item => allowedStatuses.includes(String(item.status || '').toLowerCase()));
+  const activeSubscription = (subscriptions?.data || []).find(item => {
+    return allowedStatuses.includes(String(item.status || '').toLowerCase());
+  });
 
   if (!activeSubscription) {
     if (allowFree) {
@@ -215,11 +218,11 @@ function parseUserTokenFromRequest(req, config = process.env) {
     };
   }
 
-  const secret = String(config.MONEY_AUTOPILOT_USER_TOKEN_SECRET || '').trim();
+  const secret = resolveUserTokenSecret(config);
   if (!secret) {
     return {
       ok: false,
-      reason: 'MONEY_AUTOPILOT_USER_TOKEN_SECRET is not configured.'
+      reason: 'Configure MONEY_AUTOPILOT_USER_TOKEN_SECRET or MONEY_AUTOPILOT_TOKEN.'
     };
   }
 
@@ -257,7 +260,8 @@ export function createMoneyLoopHandler(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const stripeClient = options.stripeClient || makeStripeClient(options.config || process.env);
   const config = options.config || process.env;
-  const resolveEntitlementImpl = options.resolveEntitlementImpl || (params => resolveUserEntitlement({ ...params, config }));
+  const resolveEntitlementImpl = options.resolveEntitlementImpl
+    || (params => resolveUserEntitlement({ ...params, config }));
 
   return async function handler(req, res) {
     setCorsHeaders(res);
@@ -278,7 +282,11 @@ export function createMoneyLoopHandler(options = {}) {
 
       const expectedAdminToken = String(config.MONEY_AUTOPILOT_TOKEN || '').trim();
       const providedAutopilotToken = getAutopilotToken(req);
-      const adminAuthorized = Boolean(expectedAdminToken && providedAutopilotToken && providedAutopilotToken === expectedAdminToken);
+      const adminAuthorized = Boolean(
+        expectedAdminToken
+        && providedAutopilotToken
+        && providedAutopilotToken === expectedAdminToken
+      );
 
       let actor = { kind: 'admin', sub: 'admin', plan: 'admin', email: '' };
 
@@ -338,8 +346,21 @@ export function createMoneyLoopHandler(options = {}) {
 
     if (String(payload.mode || '').trim().toLowerCase() === 'token') {
       try {
+        let tokenEmail = normalizeEmail(payload.email);
+        let emailSource = 'input';
+        if (!tokenEmail) {
+          const existingToken = parseUserTokenFromRequest(req, config);
+          if (!existingToken.ok) {
+            return res.status(400).json({
+              error: 'Provide subscriber email or a valid bearer token to refresh access.'
+            });
+          }
+          tokenEmail = existingToken.actor.email;
+          emailSource = 'token';
+        }
+
         const entitlement = await resolveEntitlementImpl({
-          email: payload.email,
+          email: tokenEmail,
           stripeClient,
           config
         });
@@ -348,9 +369,11 @@ export function createMoneyLoopHandler(options = {}) {
           return res.status(403).json({ error: entitlement.reason || 'Unable to issue token.' });
         }
 
-        const secret = String(config.MONEY_AUTOPILOT_USER_TOKEN_SECRET || '').trim();
+        const secret = resolveUserTokenSecret(config);
         if (!secret) {
-          return res.status(500).json({ error: 'MONEY_AUTOPILOT_USER_TOKEN_SECRET is not configured.' });
+          return res.status(500).json({
+            error: 'Configure MONEY_AUTOPILOT_USER_TOKEN_SECRET or MONEY_AUTOPILOT_TOKEN.'
+          });
         }
 
         const ttlSeconds = Number(config.MONEY_AUTOPILOT_USER_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 7;
@@ -367,6 +390,7 @@ export function createMoneyLoopHandler(options = {}) {
           plan: issued.payload.plan,
           email: issued.payload.email,
           expiresAt: new Date(issued.payload.exp * 1000).toISOString(),
+          emailSource,
           entitlement: {
             source: entitlement.source,
             customerId: entitlement.customerId || '',

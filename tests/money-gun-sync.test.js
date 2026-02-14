@@ -3,14 +3,18 @@ import test from 'node:test';
 import {
   buildMoneyAutomationSources,
   ensureActorIdentity,
+  persistBillingEmailHint,
   persistMoneyLoopRun,
+  readBillingEmailHint,
   sanitizeForGun
 } from '../money-ai/gun-sync.js';
 
 function createTrackingGun() {
   const writes = [];
+  const store = new Map();
 
   function node(path = []) {
+    const key = path.join('/');
     return {
       path,
       get(next) {
@@ -18,7 +22,12 @@ function createTrackingGun() {
       },
       put(value, callback) {
         writes.push({ path: [...path], value });
+        store.set(key, value);
         callback?.({ ok: true });
+        return this;
+      },
+      once(callback) {
+        callback?.(store.get(key));
         return this;
       }
     };
@@ -30,7 +39,8 @@ function createTrackingGun() {
         return node([String(next)]);
       }
     },
-    writes
+    writes,
+    store
   };
 }
 
@@ -135,4 +145,52 @@ test('ensureActorIdentity uses guest fallback when storage is unavailable', () =
     configurable: true,
     value: originalStorage
   });
+});
+
+test('persistBillingEmailHint mirrors alias email under portal and legacy money-ai nodes', async () => {
+  const tracker = createTrackingGun();
+  const previousStorage = globalThis.localStorage;
+  const map = new Map([['alias', 'agent@3dvr']]);
+  const localStorageMock = {
+    getItem(key) {
+      return map.get(key) || null;
+    },
+    setItem(key, value) {
+      map.set(key, String(value));
+    },
+    removeItem(key) {
+      map.delete(key);
+    }
+  };
+
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: localStorageMock
+  });
+
+  try {
+    const result = await persistBillingEmailHint(tracker.gun, 'Paid@Example.com');
+    assert.equal(result.saved, true);
+    assert.equal(result.email, 'paid@example.com');
+
+    const paths = tracker.writes.map(entry => entry.path.join('/'));
+    assert.ok(paths.includes('3dvr-portal/money-ai/billing/agent@3dvr'));
+    assert.ok(paths.includes('money-ai/billing/agent@3dvr'));
+  } finally {
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: previousStorage
+    });
+  }
+});
+
+test('readBillingEmailHint returns normalized email from billing hint nodes', async () => {
+  const tracker = createTrackingGun();
+  tracker.store.set(
+    '3dvr-portal/money-ai/billing/agent@3dvr',
+    { email: 'Agent@Example.com' }
+  );
+
+  const email = await readBillingEmailHint(tracker.gun, 'agent@3dvr');
+  assert.equal(email, 'agent@example.com');
 });
