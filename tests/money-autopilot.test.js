@@ -225,3 +225,74 @@ test('runAutopilotCycle executes loop and returns publish/promotion summaries', 
   assert.equal(result.marketSelection.mode, 'configured');
   assert.match(result.artifacts.offerHtml, /Newsletter follow-up assistant/);
 });
+
+test('runAutopilotCycle sanitizes discovered keywords before running loop', async () => {
+  let receivedPayload = null;
+
+  await runAutopilotCycle({
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { rows: [] };
+      },
+      async text() {
+        return '';
+      }
+    }),
+    env: {
+      MONEY_AUTOPILOT_PUBLISH: 'false',
+      MONEY_AUTOPILOT_PROMOTION: 'false'
+    },
+    autoDiscover: true,
+    collectSignalsImpl: async () => ({
+      warnings: [],
+      signals: [
+        {
+          id: 'sig-1',
+          source: 'hackernews',
+          keyword: 'client onboarding',
+          title: 'Client onboarding workflow for freelance teams',
+          summary: 'Template and automation playbook for onboarding.',
+          popularity: 120,
+          comments: 40
+        },
+        {
+          id: 'sig-2',
+          source: 'hackernews',
+          keyword: 'lead follow up',
+          title: 'I&#x27;m testing agency follow-up templates',
+          summary: 'Freelance teams share what closes more retainers.',
+          popularity: 80,
+          comments: 20
+        }
+      ]
+    }),
+    runLoopImpl: async payload => {
+      receivedPayload = payload;
+      return {
+        runId: 'money-run-sanitized',
+        generatedAt: '2026-02-13T00:00:00.000Z',
+        input: payload,
+        topOpportunity: {
+          id: 'op-1',
+          title: 'Sanitized keyword opportunity',
+          problem: 'Manual follow-up is slow.',
+          solution: 'Automate the flow.',
+          suggestedPrice: '$39/mo'
+        },
+        warnings: [],
+        signals: [{ id: 's1' }],
+        opportunities: [],
+        adDrafts: [],
+        executionChecklist: []
+      };
+    }
+  });
+
+  assert.ok(receivedPayload);
+  assert.equal(receivedPayload.keywords.includes('x27'), false);
+  assert.equal(receivedPayload.keywords.includes('client'), false);
+  assert.equal(receivedPayload.keywords.includes('agency'), false);
+  assert.ok(receivedPayload.keywords.includes('client onboarding'));
+});
