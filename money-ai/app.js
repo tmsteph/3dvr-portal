@@ -181,8 +181,20 @@ function summarizePromotion(result = {}) {
   return 'Promotion status unavailable.';
 }
 
+function summarizeRateLimit(result = {}) {
+  const limit = result.rateLimit;
+  if (!limit || !limit.limits) {
+    return 'Rate limit status unavailable.';
+  }
+
+  const plan = result.actor?.plan || 'unknown';
+  const minuteRemaining = Number.isFinite(limit.minute?.remaining) ? limit.minute.remaining : 'n/a';
+  const dayRemaining = Number.isFinite(limit.day?.remaining) ? limit.day.remaining : 'n/a';
+  return `Plan ${plan} • remaining ${minuteRemaining}/${limit.limits.minute} this minute • ${dayRemaining}/${limit.limits.day} today`;
+}
+
 function toPersistencePayload(result, fallbackChannels = []) {
-  const signalCount = Number(result.signalsAnalyzed) || 0;
+  const signalCount = Number(result.signalsAnalyzed) || Number(result.signals?.length) || 0;
   return {
     runId: result.runId,
     generatedAt: result.generatedAt,
@@ -199,11 +211,30 @@ function toPersistencePayload(result, fallbackChannels = []) {
   };
 }
 
+function getAuthToken() {
+  const tokenInput = document.getElementById('autopilot-token');
+  return String(tokenInput?.value || '').trim();
+}
+
+function authHeaders(baseHeaders = {}) {
+  const token = getAuthToken();
+  if (!token) {
+    return baseHeaders;
+  }
+  return {
+    ...baseHeaders,
+    Authorization: `Bearer ${token}`
+  };
+}
+
 const form = document.getElementById('money-loop-form');
 const formStatus = document.getElementById('money-loop-status');
 const autopilotRunButton = document.getElementById('autopilot-run');
 const autopilotStatus = document.getElementById('autopilot-status');
 const autopilotTokenInput = document.getElementById('autopilot-token');
+const autopilotEmailInput = document.getElementById('autopilot-email');
+const autopilotTokenRequestButton = document.getElementById('autopilot-token-request');
+const autopilotTokenStatus = document.getElementById('autopilot-token-status');
 
 const topOpportunity = document.getElementById('top-opportunity');
 const topOpportunityMeta = document.getElementById('top-opportunity-meta');
@@ -211,6 +242,7 @@ const opportunityList = document.getElementById('opportunity-list');
 const adList = document.getElementById('ad-list');
 const checklistList = document.getElementById('checklist-list');
 const warningsList = document.getElementById('warnings-list');
+const rateLimitSummary = document.getElementById('rate-limit-summary');
 const marketSummary = document.getElementById('autopilot-market-summary');
 const publishSummary = document.getElementById('publish-summary');
 const promotionSummary = document.getElementById('promotion-summary');
@@ -249,9 +281,49 @@ function renderRunResult(result) {
   renderChecklist(checklistList, result.executionChecklist || []);
   renderWarnings(warningsList, result.warnings || []);
 
+  setStatus(rateLimitSummary, summarizeRateLimit(result), 'neutral');
   setStatus(marketSummary, summarizeMarketSelection(result), 'neutral');
   setStatus(publishSummary, summarizePublish(result), 'neutral');
   setStatus(promotionSummary, summarizePromotion(result), 'neutral');
+}
+
+if (autopilotTokenRequestButton) {
+  autopilotTokenRequestButton.addEventListener('click', async () => {
+    const email = String(autopilotEmailInput?.value || '').trim();
+    if (!email) {
+      setStatus(autopilotTokenStatus, 'Enter subscriber email first.', 'warn');
+      return;
+    }
+
+    setStatus(autopilotTokenStatus, 'Checking subscription and issuing token...', 'pending');
+
+    try {
+      const response = await fetch('/api/money/loop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ mode: 'token', email })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || `Token request failed (${response.status})`);
+      }
+
+      if (autopilotTokenInput) {
+        autopilotTokenInput.value = payload.token || '';
+      }
+
+      setStatus(
+        autopilotTokenStatus,
+        `Token issued for ${payload.plan} plan. Expires ${payload.expiresAt || 'soon'}.`,
+        'ok'
+      );
+    } catch (error) {
+      setStatus(autopilotTokenStatus, error?.message || 'Token request failed.', 'error');
+    }
+  });
 }
 
 if (form) {
@@ -277,17 +349,17 @@ if (form) {
     try {
       const response = await fetch('/api/money/loop', {
         method: 'POST',
-        headers: {
+        headers: authHeaders({
           'Content-Type': 'application/json'
-        },
+        }),
         body: JSON.stringify(payload)
       });
 
+      const report = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(`Money loop API responded with ${response.status}`);
+        throw new Error(report?.error || `Money loop API responded with ${response.status}`);
       }
 
-      const report = await response.json();
       renderRunResult(report);
 
       const syncSummary = await persistRun(report, channels);
@@ -297,7 +369,8 @@ if (form) {
         'ok'
       );
 
-      setStatus(formStatus, `Run complete: ${report.signals.length} signals analyzed.`, 'ok');
+      const analyzed = Number(report.signalsAnalyzed ?? report.signals?.length ?? 0);
+      setStatus(formStatus, `Run complete: ${analyzed} signals analyzed.`, 'ok');
     } catch (error) {
       setStatus(formStatus, error?.message || 'Money loop failed.', 'error');
       setStatus(syncStatus, 'Sync skipped because the run failed.', 'warn');
@@ -309,7 +382,7 @@ if (autopilotRunButton) {
   autopilotRunButton.addEventListener('click', async () => {
     const token = String(autopilotTokenInput?.value || '').trim();
     if (!token) {
-      setStatus(autopilotStatus, 'Enter the autopilot token to run secure background mode.', 'warn');
+      setStatus(autopilotStatus, 'Enter a user token or admin autopilot token first.', 'warn');
       return;
     }
 
@@ -337,6 +410,7 @@ if (autopilotRunButton) {
       const response = await fetch(`/api/money/loop?${params.toString()}`, {
         method: 'GET',
         headers: {
+          Authorization: `Bearer ${token}`,
           'X-Autopilot-Token': token
         }
       });

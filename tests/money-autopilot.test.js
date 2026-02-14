@@ -169,13 +169,25 @@ test('runAutopilotCycle executes loop and returns publish/promotion summaries', 
   let receivedPayload = null;
 
   const result = await runAutopilotCycle({
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { rows: [] };
+      },
+      async text() {
+        return '';
+      }
+    }),
     env: {
       MONEY_AUTOPILOT_MARKET: 'creator businesses',
       MONEY_AUTOPILOT_KEYWORDS: 'newsletter,follow-up',
       MONEY_AUTOPILOT_CHANNELS: 'reddit,x',
       MONEY_AUTOPILOT_WEEKLY_BUDGET: '120',
       MONEY_AUTOPILOT_PUBLISH: 'false',
-      MONEY_AUTOPILOT_PROMOTION: 'false'
+      MONEY_AUTOPILOT_PROMOTION: 'false',
+      MONEY_AUTOPILOT_GA_PROPERTY_ID: 'prop-123',
+      MONEY_AUTOPILOT_GA_ACCESS_TOKEN: 'token'
     },
     autoDiscover: false,
     runLoopImpl: async payload => {

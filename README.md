@@ -180,6 +180,21 @@ Security for UI-triggered autopilot:
 
 - `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.
 - Provide it in the `X-Autopilot-Token` header (the Money AI page has a token field).
+- `MONEY_AUTOPILOT_USER_TOKEN_SECRET` signs per-user bearer tokens.
+- `MONEY_AUTOPILOT_REQUIRE_USER_TOKEN=true` enforces bearer tokens for regular loop runs.
+- `MONEY_AUTOPILOT_ALLOW_FREE_PLAN=true` allows token issuance without an active Stripe subscription.
+- `MONEY_AUTOPILOT_ALLOWED_SUB_STATUSES` overrides accepted Stripe statuses (default: `active,trialing`).
+- `MONEY_AUTOPILOT_PRICE_PLAN_MAP` maps Stripe price IDs to plans, example:
+  `{"price_starter":"starter","price_pro":"pro"}`.
+- `MONEY_AUTOPILOT_RATE_LIMITS` sets per-plan quotas, example:
+  `{"free":{"minute":1,"day":1},"starter":{"minute":2,"day":10},"pro":{"minute":6,"day":80}}`.
+
+Issue a user token from the page:
+
+1. Enter subscriber email in **Subscriber email (for user token)**.
+2. Click **Get User Token**.
+3. The token is verified against Stripe entitlement and then used as `Authorization: Bearer <token>`.
+4. Run buttons now include plan-based rate-limit status in the results pane.
 
 Scheduled background execution is provided via `.github/workflows/money-autopilot.yml` (every 6 hours plus manual dispatch).
 

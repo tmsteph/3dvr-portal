@@ -386,6 +386,20 @@
             </p>
 
             <div>
+              <label for="autopilot-email">Subscriber email (for user token)</label>
+              <input id="autopilot-email" type="email" autocomplete="email" />
+            </div>
+
+            <div class="button-row">
+              <button class="button-primary" id="autopilot-token-request" type="button">
+                Get User Token
+              </button>
+              <p id="autopilot-token-status" class="status" role="status" aria-live="polite">
+                Request a user token to apply subscription rate limits.
+              </p>
+            </div>
+
+            <div>
               <label for="autopilot-token">Autopilot token</label>
               <input id="autopilot-token" type="password" autocomplete="off" />
             </div>
@@ -446,6 +460,7 @@
         <ul class="warnings" id="warnings-list"></ul>
 
         <div class="status-stack">
+          <p id="rate-limit-summary" class="status">Rate limit status unavailable.</p>
           <p id="autopilot-market-summary" class="status">Market discovery has not run yet.</p>
           <p id="publish-summary" class="status">Publish status has not run yet.</p>
           <p id="promotion-summary" class="status">Promotion status has not run yet.</p>
