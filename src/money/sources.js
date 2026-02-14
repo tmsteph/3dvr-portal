@@ -98,10 +98,21 @@ function takeTopSignals(signals = [], limit = 24) {
     .slice(0, limit);
 }
 
-async function readJson(response) {
+function sanitizeErrorBody(raw = '') {
+  const withoutTags = String(raw)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return withoutTags.slice(0, 120);
+}
+
+async function readJson(response, sourceLabel = 'Demand source') {
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`HTTP ${response.status}: ${errorBody.slice(0, 160)}`);
+    const safeBody = sanitizeErrorBody(errorBody);
+    const looksLikeHtml = /<html|<body|theme-light|:root\{|\{--/i.test(String(errorBody || ''));
+    const detail = safeBody && !looksLikeHtml ? `: ${safeBody}` : '';
+    throw new Error(`${sourceLabel} unavailable (HTTP ${response.status})${detail}`);
   }
   return response.json();
 }
@@ -118,7 +129,7 @@ export async function fetchHackerNewsSignals({ keywords = [], limit = 24, fetchI
     });
     const url = `https://hn.algolia.com/api/v1/search?${params.toString()}`;
     const response = await fetchImpl(url);
-    const payload = await readJson(response);
+    const payload = await readJson(response, 'Hacker News');
     const hits = Array.isArray(payload.hits) ? payload.hits : [];
 
     hits.forEach(hit => {
@@ -160,7 +171,7 @@ export async function fetchRedditSignals({ keywords = [], limit = 24, fetchImpl 
         }
       });
 
-      const payload = await readJson(response);
+      const payload = await readJson(response, `Reddit r/${subreddit}`);
       const children = Array.isArray(payload?.data?.children) ? payload.data.children : [];
 
       children.forEach(item => {

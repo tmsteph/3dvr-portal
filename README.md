@@ -135,6 +135,72 @@ Use this checklist after UX or sync changes:
 4. Toggle network off/on to confirm the UI reports offline sync state, then reconnect and run again.
 5. Validate one mobile browser and one desktop browser to confirm controls, focus states, and status text are readable.
 
+### Run the money autopilot cycle
+
+Autopilot can discover markets on its own, run demand research, build an offer page, publish, and dispatch promotion tasks.
+
+```bash
+npm run money:autopilot -- --out artifacts/money-autopilot/latest.json
+```
+
+Optional dry-run (skip publish even when enabled):
+
+```bash
+npm run money:autopilot -- --dryRun true --out artifacts/money-autopilot/latest.json
+```
+
+Environment controls:
+
+- `MONEY_AUTOPILOT_MARKET`
+- `MONEY_AUTOPILOT_KEYWORDS` (comma separated)
+- `MONEY_AUTOPILOT_CHANNELS` (comma separated)
+- `MONEY_AUTOPILOT_WEEKLY_BUDGET`
+- `MONEY_AUTOPILOT_MAX_BUDGET`
+- `MONEY_AUTOPILOT_SIGNAL_LIMIT`
+- `MONEY_AUTOPILOT_AUTO_DISCOVERY` (`true`/`false`)
+- `MONEY_AUTOPILOT_DISCOVERY_SEEDS` (comma separated)
+- `MONEY_AUTOPILOT_PUBLISH` (`true`/`false`)
+- `MONEY_AUTOPILOT_DRY_RUN` (`true`/`false`)
+- `MONEY_AUTOPILOT_GH_TOKEN` (or `GH_PAT`)
+- `MONEY_AUTOPILOT_GH_REPO` (for example `tmsteph/3dvr-portal`)
+- `MONEY_AUTOPILOT_GH_BRANCH`
+- `MONEY_AUTOPILOT_PUBLISH_PATH_PREFIX`
+- `MONEY_AUTOPILOT_COMMIT_PREFIX`
+- `MONEY_AUTOPILOT_VERCEL_DEPLOY` (`true`/`false`)
+- `MONEY_AUTOPILOT_VERCEL_TOKEN`
+- `MONEY_AUTOPILOT_VERCEL_PROJECT_NAME`
+- `MONEY_AUTOPILOT_VERCEL_TARGET` (`production` or `preview`)
+- `MONEY_AUTOPILOT_PROMOTION` (`true`/`false`)
+- `MONEY_AUTOPILOT_PROMO_WEBHOOK_URL` (n8n/Zapier/custom worker endpoint)
+- `MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL`
+- `MONEY_AUTOPILOT_GA_PROPERTY_ID`
+- `MONEY_AUTOPILOT_GA_ACCESS_TOKEN`
+
+Security for UI-triggered autopilot:
+
+- `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.
+- Provide it in the `X-Autopilot-Token` header (the Money AI page has a token field).
+- `MONEY_AUTOPILOT_USER_TOKEN_SECRET` signs per-user bearer tokens.
+- `MONEY_AUTOPILOT_REQUIRE_USER_TOKEN=true` enforces bearer tokens for regular loop runs.
+- `MONEY_AUTOPILOT_ALLOW_FREE_PLAN=true` allows token issuance without an active Stripe subscription.
+- `MONEY_AUTOPILOT_ALLOWED_SUB_STATUSES` overrides accepted Stripe statuses (default: `active,trialing`).
+- `MONEY_AUTOPILOT_PRICE_PLAN_MAP` maps Stripe price IDs to plans, example:
+  `{"price_starter":"starter","price_pro":"pro"}`.
+- `MONEY_AUTOPILOT_RATE_LIMITS` sets per-plan quotas, example:
+  `{"free":{"minute":1,"day":1},"starter":{"minute":2,"day":10},"pro":{"minute":6,"day":80}}`.
+
+Issue a user token from the page:
+
+1. Enter subscriber email in **Subscriber email (for user token)**.
+2. Click **Get User Token**.
+3. The token is verified against Stripe entitlement and then used as `Authorization: Bearer <token>`.
+4. Run buttons now include plan-based rate-limit status in the results pane.
+
+Scheduled background execution is provided via `.github/workflows/money-autopilot.yml` (every 6 hours plus manual dispatch).
+
+Important: promotion dispatch only sends campaign tasks to your webhook. Paid ad spend happens only if your webhook
+worker actually creates campaigns in Google Ads/social APIs.
+
 ### Run the Playwright smoke check
 
 Use one command to verify browser automation end-to-end:

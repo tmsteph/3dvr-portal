@@ -275,6 +275,12 @@
       font-size: 0.84rem;
     }
 
+    .status-stack {
+      display: grid;
+      gap: 0.45rem;
+      margin-top: 0.75rem;
+    }
+
     .footer {
       margin-top: 1rem;
       font-size: 0.78rem;
@@ -372,6 +378,64 @@
               Ready to run your first loop.
             </p>
           </div>
+
+          <div class="highlight">
+            <h3 class="panel__title">Autopilot Trigger</h3>
+            <p class="panel__sub">
+              One-click mode: discover markets automatically, publish an offer page, then dispatch promotion tasks.
+            </p>
+
+            <div>
+              <label for="autopilot-email">Subscriber email (for user token)</label>
+              <input id="autopilot-email" type="email" autocomplete="email" />
+            </div>
+
+            <div class="button-row">
+              <button class="button-primary" id="autopilot-token-request" type="button">
+                Get User Token
+              </button>
+              <p id="autopilot-token-status" class="status" role="status" aria-live="polite">
+                Request a user token to apply subscription rate limits.
+              </p>
+            </div>
+
+            <div>
+              <label for="autopilot-token">Autopilot token</label>
+              <input id="autopilot-token" type="password" autocomplete="off" />
+            </div>
+
+            <div class="check-grid">
+              <label class="check" for="autopilot-auto-discover">
+                <input id="autopilot-auto-discover" type="checkbox" checked />
+                Auto-discover market
+              </label>
+              <label class="check" for="autopilot-publish">
+                <input id="autopilot-publish" type="checkbox" checked />
+                Publish to GitHub
+              </label>
+              <label class="check" for="autopilot-vercel">
+                <input id="autopilot-vercel" type="checkbox" />
+                Deploy to Vercel
+              </label>
+              <label class="check" for="autopilot-promotion">
+                <input id="autopilot-promotion" type="checkbox" />
+                Dispatch promotion
+              </label>
+              <label class="check" for="autopilot-dry-run">
+                <input id="autopilot-dry-run" type="checkbox" />
+                Dry run (skip publish/dispatch)
+              </label>
+            </div>
+
+            <div class="button-row">
+              <button class="button-primary" id="autopilot-run" type="button">
+                Run Full Autopilot
+              </button>
+              <p id="autopilot-status" class="status" role="status" aria-live="polite">
+                Autopilot is ready.
+              </p>
+            </div>
+          </div>
         </form>
       </section>
 
@@ -395,7 +459,13 @@
         <h3 class="panel__title" style="margin-top: 0.8rem;">Warnings</h3>
         <ul class="warnings" id="warnings-list"></ul>
 
-        <p id="gun-sync-status" class="status" role="status" aria-live="polite"></p>
+        <div class="status-stack">
+          <p id="rate-limit-summary" class="status">Rate limit status unavailable.</p>
+          <p id="autopilot-market-summary" class="status">Market discovery has not run yet.</p>
+          <p id="publish-summary" class="status">Publish status has not run yet.</p>
+          <p id="promotion-summary" class="status">Promotion status has not run yet.</p>
+          <p id="gun-sync-status" class="status" role="status" aria-live="polite"></p>
+        </div>
       </section>
     </main>
 

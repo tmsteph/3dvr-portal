@@ -8,6 +8,7 @@
     "start": "npm run dev",
     "test": "node --test",
     "money:loop": "node scripts/money/run-loop.mjs",
+    "money:autopilot": "node scripts/money/run-autopilot.mjs",
     "playwright:install": "npx playwright install firefox",
     "playwright:smoke:linux": "npm run playwright:install && node scripts/playwright/smoke.mjs",
     "playwright:smoke": "sh scripts/playwright/run-smoke.sh"

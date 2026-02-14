@@ -22,8 +22,15 @@ describe('money-ai control center', () => {
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Money Loop Control Center/);
     assert.match(html, /id="money-loop-form"/);
+    assert.match(html, /id="autopilot-run"/);
+    assert.match(html, /id="autopilot-token-request"/);
+    assert.match(html, /id="autopilot-email"/);
+    assert.match(html, /id="autopilot-token"/);
     assert.match(html, /id="market-focus"/);
     assert.match(html, /id="opportunity-list"/);
+    assert.match(html, /id="rate-limit-summary"/);
+    assert.match(html, /id="publish-summary"/);
+    assert.match(html, /id="promotion-summary"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="\/score\.js"/);
     assert.match(html, /<script[^>]+src="\.\/app\.js"/);
