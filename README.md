@@ -208,9 +208,11 @@ Issue or refresh a user token from the page:
 Scheduled background execution options:
 
 1. GitHub Actions: `.github/workflows/money-autopilot.yml` runs every 6 hours plus manual dispatch.
-2. Vercel Cron: `vercel.json` schedules `/api/money/autopilot-cron` every 6 hours.
+2. Vercel Cron: `vercel.json` schedules `/api/money/autopilot-cron` once daily
+   (`17 1 * * *`) for Hobby-plan compatibility.
    The route requires `Authorization: Bearer <CRON_SECRET>`
    and only runs when `MONEY_AUTOPILOT_CRON_ENABLED=true`.
+   On Pro/Enterprise you can increase frequency (for example every 6 hours).
 3. Optional query overrides on manual trigger:
    `/api/money/autopilot-cron?dryRun=true&autoDiscover=false&publish=true&vercelDeploy=true&promotion=true`
 
