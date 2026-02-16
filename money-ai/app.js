@@ -2,8 +2,33 @@ import {
   buildMoneyAutomationSources,
   ensureActorIdentity,
   ensureGunContext,
+  persistBillingEmailHint,
+  readBillingEmailHint,
   persistMoneyLoopRun
 } from './gun-sync.js';
+
+const USER_TOKEN_STORAGE_KEY = 'money-ai:user-token';
+const BILLING_EMAIL_STORAGE_KEY = 'money-ai:billing-email';
+
+function readStorageValue(key) {
+  try {
+    return String(localStorage.getItem(key) || '').trim();
+  } catch (error) {
+    return '';
+  }
+}
+
+function writeStorageValue(key, value) {
+  try {
+    if (value) {
+      localStorage.setItem(key, String(value).trim());
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch (error) {
+    console.warn('Money AI storage write failed', error);
+  }
+}
 
 function createMoneyGun() {
   if (typeof window === 'undefined' || typeof window.Gun !== 'function') {
@@ -190,7 +215,11 @@ function summarizeRateLimit(result = {}) {
   const plan = result.actor?.plan || 'unknown';
   const minuteRemaining = Number.isFinite(limit.minute?.remaining) ? limit.minute.remaining : 'n/a';
   const dayRemaining = Number.isFinite(limit.day?.remaining) ? limit.day.remaining : 'n/a';
-  return `Plan ${plan} • remaining ${minuteRemaining}/${limit.limits.minute} this minute • ${dayRemaining}/${limit.limits.day} today`;
+  return [
+    `Plan ${plan}`,
+    `remaining ${minuteRemaining}/${limit.limits.minute} this minute`,
+    `${dayRemaining}/${limit.limits.day} today`
+  ].join(' • ');
 }
 
 function toPersistencePayload(result, fallbackChannels = []) {
@@ -213,7 +242,11 @@ function toPersistencePayload(result, fallbackChannels = []) {
 
 function getAuthToken() {
   const tokenInput = document.getElementById('autopilot-token');
-  return String(tokenInput?.value || '').trim();
+  const fromInput = String(tokenInput?.value || '').trim();
+  if (fromInput) {
+    return fromInput;
+  }
+  return readStorageValue(USER_TOKEN_STORAGE_KEY);
 }
 
 function authHeaders(baseHeaders = {}) {
@@ -258,6 +291,28 @@ if (gunContext.isStub) {
   setStatus(syncStatus, 'Gun relay connected. Runs will sync to 3dvr-portal/money-ai.', 'ok');
 }
 
+async function hydrateTokenAndBillingHints() {
+  if (autopilotTokenInput && !autopilotTokenInput.value) {
+    const storedToken = readStorageValue(USER_TOKEN_STORAGE_KEY);
+    if (storedToken) {
+      autopilotTokenInput.value = storedToken;
+    }
+  }
+
+  if (!autopilotEmailInput || autopilotEmailInput.value) {
+    return;
+  }
+
+  let emailHint = readStorageValue(BILLING_EMAIL_STORAGE_KEY);
+  if (!emailHint) {
+    emailHint = await readBillingEmailHint(gunContext.gun);
+  }
+
+  if (emailHint) {
+    autopilotEmailInput.value = emailHint;
+  }
+}
+
 async function persistRun(result, fallbackChannels = []) {
   const actor = ensureActorIdentity(scoreSystem);
   const payload = toPersistencePayload(result, fallbackChannels);
@@ -290,8 +345,14 @@ function renderRunResult(result) {
 if (autopilotTokenRequestButton) {
   autopilotTokenRequestButton.addEventListener('click', async () => {
     const email = String(autopilotEmailInput?.value || '').trim();
-    if (!email) {
-      setStatus(autopilotTokenStatus, 'Enter subscriber email first.', 'warn');
+    const existingToken = getAuthToken();
+
+    if (!email && !existingToken) {
+      setStatus(
+        autopilotTokenStatus,
+        'Enter billing email once, or keep an active token to refresh automatically.',
+        'warn'
+      );
       return;
     }
 
@@ -300,10 +361,13 @@ if (autopilotTokenRequestButton) {
     try {
       const response = await fetch('/api/money/loop', {
         method: 'POST',
-        headers: {
+        headers: authHeaders({
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ mode: 'token', email })
+        }),
+        body: JSON.stringify({
+          mode: 'token',
+          email: email || undefined
+        })
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -314,10 +378,22 @@ if (autopilotTokenRequestButton) {
       if (autopilotTokenInput) {
         autopilotTokenInput.value = payload.token || '';
       }
+      writeStorageValue(USER_TOKEN_STORAGE_KEY, payload.token || '');
+
+      if (payload.email) {
+        if (autopilotEmailInput) {
+          autopilotEmailInput.value = payload.email;
+        }
+        writeStorageValue(BILLING_EMAIL_STORAGE_KEY, payload.email);
+        persistBillingEmailHint(gunContext.gun, payload.email).catch(error => {
+          console.warn('Failed to persist billing email hint to Gun', error);
+        });
+      }
 
       setStatus(
         autopilotTokenStatus,
-        `Token issued for ${payload.plan} plan. Expires ${payload.expiresAt || 'soon'}.`,
+        `Token issued for ${payload.plan} plan (${payload.emailSource || 'input'}). `
+          + `Expires ${payload.expiresAt || 'soon'}.`,
         'ok'
       );
     } catch (error) {
@@ -380,7 +456,10 @@ if (form) {
 
 if (autopilotRunButton) {
   autopilotRunButton.addEventListener('click', async () => {
-    const token = String(autopilotTokenInput?.value || '').trim();
+    const token = getAuthToken();
+    if (autopilotTokenInput && token && !autopilotTokenInput.value) {
+      autopilotTokenInput.value = token;
+    }
     if (!token) {
       setStatus(autopilotStatus, 'Enter a user token or admin autopilot token first.', 'warn');
       return;
@@ -429,7 +508,8 @@ if (autopilotRunButton) {
       );
       setStatus(
         autopilotStatus,
-        `Autopilot complete: ${payload.signalsAnalyzed} signals analyzed, destination ${payload.publish?.destinationUrl || 'not published'}.`,
+        `Autopilot complete: ${payload.signalsAnalyzed} signals analyzed, `
+          + `destination ${payload.publish?.destinationUrl || 'not published'}.`,
         'ok'
       );
     } catch (error) {
@@ -438,3 +518,7 @@ if (autopilotRunButton) {
     }
   });
 }
+
+hydrateTokenAndBillingHints().catch(error => {
+  console.warn('Failed to hydrate money-ai token/email hints', error);
+});

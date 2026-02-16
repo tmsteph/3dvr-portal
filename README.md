@@ -173,14 +173,22 @@ Environment controls:
 - `MONEY_AUTOPILOT_PROMOTION` (`true`/`false`)
 - `MONEY_AUTOPILOT_PROMO_WEBHOOK_URL` (n8n/Zapier/custom worker endpoint)
 - `MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL`
+- `MONEY_AUTOPILOT_CHECKOUT_URL` (Stripe Checkout link used as CTA/destination fallback)
+- `MONEY_AUTOPILOT_CHECKOUT_CTA_LABEL` (default: `Start Paid Plan`)
 - `MONEY_AUTOPILOT_GA_PROPERTY_ID`
 - `MONEY_AUTOPILOT_GA_ACCESS_TOKEN`
+- `MONEY_AUTOPILOT_CRON_ENABLED` (`true`/`false`, required for `/api/money/autopilot-cron`)
+- `CRON_SECRET` (recommended for Vercel Cron auth header)
+- `MONEY_AUTOPILOT_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
+- `MONEY_AUTOPILOT_CRON_DRY_RUN` (`true`/`false`)
 
 Security for UI-triggered autopilot:
 
 - `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.
 - Provide it in the `X-Autopilot-Token` header (the Money AI page has a token field).
 - `MONEY_AUTOPILOT_USER_TOKEN_SECRET` signs per-user bearer tokens.
+  If omitted, the API derives a stable fallback secret from `MONEY_AUTOPILOT_TOKEN`,
+  `STRIPE_SECRET_KEY`, or `OPENAI_API_KEY` (first available).
 - `MONEY_AUTOPILOT_REQUIRE_USER_TOKEN=true` enforces bearer tokens for regular loop runs.
 - `MONEY_AUTOPILOT_ALLOW_FREE_PLAN=true` allows token issuance without an active Stripe subscription.
 - `MONEY_AUTOPILOT_ALLOWED_SUB_STATUSES` overrides accepted Stripe statuses (default: `active,trialing`).
@@ -189,14 +197,24 @@ Security for UI-triggered autopilot:
 - `MONEY_AUTOPILOT_RATE_LIMITS` sets per-plan quotas, example:
   `{"free":{"minute":1,"day":1},"starter":{"minute":2,"day":10},"pro":{"minute":6,"day":80}}`.
 
-Issue a user token from the page:
+Issue or refresh a user token from the page:
 
-1. Enter subscriber email in **Subscriber email (for user token)**.
+1. Enter billing email in **Billing email (used for subscription lookup)** for first-time linking.
 2. Click **Get User Token**.
 3. The token is verified against Stripe entitlement and then used as `Authorization: Bearer <token>`.
-4. Run buttons now include plan-based rate-limit status in the results pane.
+4. Later refreshes can reuse the existing bearer token without typing email again.
+5. Run buttons include plan-based rate-limit status in the results pane.
 
-Scheduled background execution is provided via `.github/workflows/money-autopilot.yml` (every 6 hours plus manual dispatch).
+Scheduled background execution options:
+
+1. GitHub Actions: `.github/workflows/money-autopilot.yml` runs every 6 hours plus manual dispatch.
+2. Vercel Cron: `vercel.json` schedules `/api/money/autopilot-cron` once daily
+   (`17 1 * * *`) for Hobby-plan compatibility.
+   The route requires `Authorization: Bearer <CRON_SECRET>`
+   and only runs when `MONEY_AUTOPILOT_CRON_ENABLED=true`.
+   On Pro/Enterprise you can increase frequency (for example every 6 hours).
+3. Optional query overrides on manual trigger:
+   `/api/money/autopilot-cron?dryRun=true&autoDiscover=false&publish=true&vercelDeploy=true&promotion=true`
 
 Important: promotion dispatch only sends campaign tasks to your webhook. Paid ad spend happens only if your webhook
 worker actually creates campaigns in Google Ads/social APIs.

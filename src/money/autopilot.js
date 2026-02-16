@@ -10,7 +10,8 @@ const DEFAULT_AUTOPILOT_PROFILE = {
   maxBudget: 300,
   autoDiscover: true,
   discoverySeeds: ['freelance', 'small business', 'automation', 'client onboarding', 'lead follow up'],
-  publishPathPrefix: 'money-ai/offers'
+  publishPathPrefix: 'money-ai/offers',
+  checkoutCtaLabel: 'Start Paid Plan'
 };
 
 const MARKET_PROFILES = [
@@ -86,6 +87,13 @@ const IGNORED_TERMS = new Set([
   'http',
   'index',
   'html'
+]);
+
+const NOISY_DISCOVERY_SINGLE_TERMS = new Set([
+  'agency',
+  'client',
+  'automation',
+  'business'
 ]);
 
 function parseCsvList(value) {
@@ -187,7 +195,21 @@ function tokenizeText(text = '') {
     .replace(/[^a-z0-9\s/-]/g, ' ')
     .split(/\s+/)
     .map(item => item.trim())
-    .filter(item => item && item.length >= 3 && !IGNORED_TERMS.has(item));
+    .filter(item => {
+      if (!item || item.length < 3) {
+        return false;
+      }
+      if (IGNORED_TERMS.has(item)) {
+        return false;
+      }
+      if (/^x\d+$/i.test(item)) {
+        return false;
+      }
+      if (/^\d+$/.test(item)) {
+        return false;
+      }
+      return true;
+    });
 }
 
 function keywordScoreFromSignal(signal = {}) {
@@ -212,6 +234,61 @@ function deriveKeywordPool(signals = []) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 24)
     .map(([token]) => token);
+}
+
+function sanitizeDiscoveredKeywords(keywords = [], options = {}) {
+  const marketTokens = ensureList(options.marketTokens || []);
+  const seedKeywords = ensureList(options.seedKeywords || []);
+  const normalized = uniqueStrings(keywords);
+  if (!normalized.length) {
+    return [];
+  }
+
+  const allowedSingleTerms = new Set();
+  marketTokens.forEach(token => {
+    tokenizeText(token).forEach(term => allowedSingleTerms.add(term));
+  });
+  seedKeywords.forEach(keyword => {
+    const terms = tokenizeText(keyword);
+    if (terms.length === 1) {
+      allowedSingleTerms.add(terms[0]);
+    }
+  });
+
+  const phraseTerms = new Set();
+  normalized.forEach(keyword => {
+    const terms = tokenizeText(keyword);
+    if (terms.length < 2) {
+      return;
+    }
+    terms.forEach(term => phraseTerms.add(term));
+  });
+
+  return normalized.filter(keyword => {
+    const terms = tokenizeText(keyword);
+    if (!terms.length) {
+      return false;
+    }
+
+    if (terms.length !== 1) {
+      return true;
+    }
+
+    const term = terms[0];
+    if (phraseTerms.has(term)) {
+      return false;
+    }
+
+    if (NOISY_DISCOVERY_SINGLE_TERMS.has(term)) {
+      return false;
+    }
+
+    if (allowedSingleTerms.size > 0 && !allowedSingleTerms.has(term)) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 function deriveMarketCandidates(signals = [], seedKeywords = [], analyticsKeywords = []) {
@@ -272,12 +349,15 @@ function deriveMarketCandidates(signals = [], seedKeywords = [], analyticsKeywor
         ...analyticsKeywords,
         ...seedKeywords,
         ...keywordPool
-      ]).slice(0, 8);
+      ]);
 
       return {
         market: candidate.market,
         score: Math.round(score * 10) / 10,
-        keywords,
+        keywords: sanitizeDiscoveredKeywords(keywords, {
+          marketTokens: candidate.tokens,
+          seedKeywords
+        }).slice(0, 8),
         evidence: candidate.evidence.slice(0, 4)
       };
     })
@@ -399,6 +479,17 @@ export function resolveAutopilotConfig(options = {}) {
   );
 
   const budget = Math.min(requestedBudget, maxBudget);
+  const checkoutUrl = String(
+    options.checkoutUrl
+    || env.MONEY_AUTOPILOT_CHECKOUT_URL
+    || env.STRIPE_CHECKOUT_URL
+    || ''
+  ).trim();
+  const checkoutCtaLabel = String(
+    options.checkoutCtaLabel
+    || env.MONEY_AUTOPILOT_CHECKOUT_CTA_LABEL
+    || DEFAULT_AUTOPILOT_PROFILE.checkoutCtaLabel
+  ).trim();
 
   return {
     market: String(
@@ -456,6 +547,10 @@ export function resolveAutopilotConfig(options = {}) {
         || env.MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL
         || ''
       ).trim()
+    },
+    monetization: {
+      checkoutUrl,
+      checkoutCtaLabel: checkoutCtaLabel || DEFAULT_AUTOPILOT_PROFILE.checkoutCtaLabel
     },
     analytics: {
       gaPropertyId: String(options.gaPropertyId || env.MONEY_AUTOPILOT_GA_PROPERTY_ID || '').trim(),
@@ -611,6 +706,10 @@ export function buildOfferHtml({ report, opportunity, market }) {
     ? report.executionChecklist.slice(0, 5)
     : [];
   const generatedAt = report?.generatedAt || new Date().toISOString();
+  const checkoutUrl = String(report?.monetization?.checkoutUrl || '').trim();
+  const checkoutCtaLabel = String(report?.monetization?.checkoutCtaLabel || '').trim();
+  const ctaUrl = checkoutUrl || '/free-trial.html';
+  const ctaLabel = checkoutCtaLabel || (checkoutUrl ? 'Start Paid Plan' : 'Start Free Trial');
 
   const checklistItems = checklist
     .map(item => `      <li>${escapeHtml(item)}</li>`)
@@ -698,7 +797,7 @@ export function buildOfferHtml({ report, opportunity, market }) {
       <h2>Solution</h2>
       <p>${escapeHtml(solution)}</p>
       <p class="price">Starting at ${escapeHtml(price)}</p>
-      <a class="cta" href="/free-trial.html">Start Free Trial</a>
+      <a class="cta" href="${escapeHtml(ctaUrl)}">${escapeHtml(ctaLabel)}</a>
     </section>
 
     <section class="card">
@@ -764,6 +863,7 @@ export async function runAutopilotCycle(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const now = typeof options.now === 'function' ? options.now : () => new Date();
   const runLoopImpl = options.runLoopImpl || runMoneyLoop;
+  const collectSignalsImpl = options.collectSignalsImpl || collectDemandSignals;
 
   const config = resolveAutopilotConfig(options);
   const warnings = [];
@@ -782,7 +882,7 @@ export async function runAutopilotCycle(options = {}) {
   };
 
   if (config.autoDiscover) {
-    const discovery = await collectDemandSignals({
+    const discovery = await collectSignalsImpl({
       market: config.market,
       keywords: config.discoverySeeds,
       limit: Math.max(config.limit, 30),
@@ -828,7 +928,24 @@ export async function runAutopilotCycle(options = {}) {
     openAiModel: config.openAiModel
   });
 
-  const offerHtml = buildOfferHtml({ report, opportunity: report.topOpportunity, market });
+  const reportWithMonetization = {
+    ...report,
+    monetization: {
+      ...(report.monetization || {}),
+      checkoutUrl: config.monetization.checkoutUrl,
+      checkoutCtaLabel: config.monetization.checkoutCtaLabel
+    }
+  };
+
+  if (!config.monetization.checkoutUrl) {
+    warnings.push('Checkout URL not configured. Offer CTA will use /free-trial.html.');
+  }
+
+  const offerHtml = buildOfferHtml({
+    report: reportWithMonetization,
+    opportunity: report.topOpportunity,
+    market
+  });
 
   const publish = {
     destinationUrl: '',
@@ -910,9 +1027,14 @@ export async function runAutopilotCycle(options = {}) {
   publish.destinationUrl = publish.vercel.url
     || publish.github.htmlUrl
     || config.promotion.defaultDestinationUrl
+    || config.monetization.checkoutUrl
     || '';
 
-  const promotionTasks = buildPromotionTasks(report.adDrafts, publish.destinationUrl, report.input?.budget || config.budget);
+  const promotionTasks = buildPromotionTasks(
+    report.adDrafts,
+    publish.destinationUrl,
+    report.input?.budget || config.budget
+  );
   const promotion = {
     enabled: config.promotion.enabled,
     attempted: false,
@@ -972,6 +1094,11 @@ export async function runAutopilotCycle(options = {}) {
     executionChecklist: report.executionChecklist,
     publish,
     promotion,
+    monetization: {
+      checkoutConfigured: Boolean(config.monetization.checkoutUrl),
+      checkoutUrl: config.monetization.checkoutUrl,
+      checkoutCtaLabel: config.monetization.checkoutCtaLabel
+    },
     artifacts: {
       offerHtml
     }

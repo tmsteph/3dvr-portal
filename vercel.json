@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/money/autopilot-cron",
+      "schedule": "17 1 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/service-worker.js",
@@ -15,6 +21,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/vercel-deploy",
+      "destination": "/api/github-publish?provider=vercel"
+    },
     {
       "source": "/video",
       "destination": "/portal.3dvr.tech/video/index.html"

@@ -386,7 +386,7 @@
             </p>
 
             <div>
-              <label for="autopilot-email">Subscriber email (for user token)</label>
+              <label for="autopilot-email">Billing email (used for subscription lookup)</label>
               <input id="autopilot-email" type="email" autocomplete="email" />
             </div>
 
@@ -395,12 +395,12 @@
                 Get User Token
               </button>
               <p id="autopilot-token-status" class="status" role="status" aria-live="polite">
-                Request a user token to apply subscription rate limits.
+                First request uses email; later refreshes can reuse your saved token.
               </p>
             </div>
 
             <div>
-              <label for="autopilot-token">Autopilot token</label>
+              <label for="autopilot-token">Autopilot access token</label>
               <input id="autopilot-token" type="password" autocomplete="off" />
             </div>
 
