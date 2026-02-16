@@ -22,6 +22,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/vercel-deploy",
+      "destination": "/api/github-publish?provider=vercel"
+    },
+    {
       "source": "/video",
       "destination": "/portal.3dvr.tech/video/index.html"
     },
