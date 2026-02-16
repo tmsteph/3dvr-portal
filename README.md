@@ -173,8 +173,14 @@ Environment controls:
 - `MONEY_AUTOPILOT_PROMOTION` (`true`/`false`)
 - `MONEY_AUTOPILOT_PROMO_WEBHOOK_URL` (n8n/Zapier/custom worker endpoint)
 - `MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL`
+- `MONEY_AUTOPILOT_CHECKOUT_URL` (Stripe Checkout link used as CTA/destination fallback)
+- `MONEY_AUTOPILOT_CHECKOUT_CTA_LABEL` (default: `Start Paid Plan`)
 - `MONEY_AUTOPILOT_GA_PROPERTY_ID`
 - `MONEY_AUTOPILOT_GA_ACCESS_TOKEN`
+- `MONEY_AUTOPILOT_CRON_ENABLED` (`true`/`false`, required for `/api/money/autopilot-cron`)
+- `CRON_SECRET` (recommended for Vercel Cron auth header)
+- `MONEY_AUTOPILOT_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
+- `MONEY_AUTOPILOT_CRON_DRY_RUN` (`true`/`false`)
 
 Security for UI-triggered autopilot:
 
@@ -199,7 +205,14 @@ Issue or refresh a user token from the page:
 4. Later refreshes can reuse the existing bearer token without typing email again.
 5. Run buttons include plan-based rate-limit status in the results pane.
 
-Scheduled background execution is provided via `.github/workflows/money-autopilot.yml` (every 6 hours plus manual dispatch).
+Scheduled background execution options:
+
+1. GitHub Actions: `.github/workflows/money-autopilot.yml` runs every 6 hours plus manual dispatch.
+2. Vercel Cron: `vercel.json` schedules `/api/money/autopilot-cron` every 6 hours.
+   The route requires `Authorization: Bearer <CRON_SECRET>`
+   and only runs when `MONEY_AUTOPILOT_CRON_ENABLED=true`.
+3. Optional query overrides on manual trigger:
+   `/api/money/autopilot-cron?dryRun=true&autoDiscover=false&publish=true&vercelDeploy=true&promotion=true`
 
 Important: promotion dispatch only sends campaign tasks to your webhook. Paid ad spend happens only if your webhook
 worker actually creates campaigns in Google Ads/social APIs.

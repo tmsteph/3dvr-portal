@@ -88,7 +88,8 @@ test('resolveAutopilotConfig applies budget cap and defaults', () => {
       MONEY_AUTOPILOT_KEYWORDS: 'a,b,c',
       MONEY_AUTOPILOT_CHANNELS: 'reddit,linkedin',
       MONEY_AUTOPILOT_WEEKLY_BUDGET: '900',
-      MONEY_AUTOPILOT_MAX_BUDGET: '250'
+      MONEY_AUTOPILOT_MAX_BUDGET: '250',
+      MONEY_AUTOPILOT_CHECKOUT_URL: 'https://buy.stripe.com/example123'
     }
   });
 
@@ -97,6 +98,8 @@ test('resolveAutopilotConfig applies budget cap and defaults', () => {
   assert.deepEqual(config.channels, ['reddit', 'linkedin']);
   assert.equal(config.budget, 250);
   assert.equal(config.autoDiscover, true);
+  assert.equal(config.monetization.checkoutUrl, 'https://buy.stripe.com/example123');
+  assert.equal(config.monetization.checkoutCtaLabel, 'Start Paid Plan');
 });
 
 test('buildOfferHtml renders top opportunity details', () => {
@@ -119,6 +122,28 @@ test('buildOfferHtml renders top opportunity details', () => {
   assert.match(html, /\$49\/mo/);
   assert.match(html, /freelancers and small agencies/);
   assert.match(html, /Step one/);
+});
+
+test('buildOfferHtml uses checkout CTA when monetization checkout URL is configured', () => {
+  const html = buildOfferHtml({
+    report: {
+      generatedAt: '2026-02-13T00:00:00.000Z',
+      monetization: {
+        checkoutUrl: 'https://buy.stripe.com/example123',
+        checkoutCtaLabel: 'Start Paid Plan'
+      }
+    },
+    opportunity: {
+      title: 'Inbound Follow-up Copilot',
+      problem: 'Lead replies are too slow.',
+      solution: 'Automate first-touch responses.',
+      suggestedPrice: '$59/mo'
+    },
+    market: 'software startups and saas teams'
+  });
+
+  assert.match(html, /https:\/\/buy\.stripe\.com\/example123/);
+  assert.match(html, /Start Paid Plan/);
 });
 
 test('publishOfferToGitHub creates or updates content via GitHub API', async () => {
@@ -295,4 +320,46 @@ test('runAutopilotCycle sanitizes discovered keywords before running loop', asyn
   assert.equal(receivedPayload.keywords.includes('client'), false);
   assert.equal(receivedPayload.keywords.includes('agency'), false);
   assert.ok(receivedPayload.keywords.includes('client onboarding'));
+});
+
+test('runAutopilotCycle uses checkout URL as destination fallback', async () => {
+  const result = await runAutopilotCycle({
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { rows: [] };
+      },
+      async text() {
+        return '';
+      }
+    }),
+    env: {
+      MONEY_AUTOPILOT_PUBLISH: 'false',
+      MONEY_AUTOPILOT_PROMOTION: 'false',
+      MONEY_AUTOPILOT_CHECKOUT_URL: 'https://buy.stripe.com/example123'
+    },
+    autoDiscover: false,
+    runLoopImpl: async payload => ({
+      runId: 'money-checkout',
+      generatedAt: '2026-02-13T00:00:00.000Z',
+      input: payload,
+      topOpportunity: {
+        id: 'op-1',
+        title: 'Checkout fallback opportunity',
+        problem: 'Manual checkout links are missing.',
+        solution: 'Attach Stripe checkout in generated offer.',
+        suggestedPrice: '$39/mo'
+      },
+      warnings: [],
+      signals: [{ id: 's1' }],
+      opportunities: [],
+      adDrafts: [],
+      executionChecklist: []
+    })
+  });
+
+  assert.equal(result.publish.destinationUrl, 'https://buy.stripe.com/example123');
+  assert.equal(result.monetization.checkoutConfigured, true);
+  assert.equal(result.monetization.checkoutCtaLabel, 'Start Paid Plan');
 });

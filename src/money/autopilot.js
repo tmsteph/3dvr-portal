@@ -10,7 +10,8 @@ const DEFAULT_AUTOPILOT_PROFILE = {
   maxBudget: 300,
   autoDiscover: true,
   discoverySeeds: ['freelance', 'small business', 'automation', 'client onboarding', 'lead follow up'],
-  publishPathPrefix: 'money-ai/offers'
+  publishPathPrefix: 'money-ai/offers',
+  checkoutCtaLabel: 'Start Paid Plan'
 };
 
 const MARKET_PROFILES = [
@@ -478,6 +479,17 @@ export function resolveAutopilotConfig(options = {}) {
   );
 
   const budget = Math.min(requestedBudget, maxBudget);
+  const checkoutUrl = String(
+    options.checkoutUrl
+    || env.MONEY_AUTOPILOT_CHECKOUT_URL
+    || env.STRIPE_CHECKOUT_URL
+    || ''
+  ).trim();
+  const checkoutCtaLabel = String(
+    options.checkoutCtaLabel
+    || env.MONEY_AUTOPILOT_CHECKOUT_CTA_LABEL
+    || DEFAULT_AUTOPILOT_PROFILE.checkoutCtaLabel
+  ).trim();
 
   return {
     market: String(
@@ -535,6 +547,10 @@ export function resolveAutopilotConfig(options = {}) {
         || env.MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL
         || ''
       ).trim()
+    },
+    monetization: {
+      checkoutUrl,
+      checkoutCtaLabel: checkoutCtaLabel || DEFAULT_AUTOPILOT_PROFILE.checkoutCtaLabel
     },
     analytics: {
       gaPropertyId: String(options.gaPropertyId || env.MONEY_AUTOPILOT_GA_PROPERTY_ID || '').trim(),
@@ -690,6 +706,10 @@ export function buildOfferHtml({ report, opportunity, market }) {
     ? report.executionChecklist.slice(0, 5)
     : [];
   const generatedAt = report?.generatedAt || new Date().toISOString();
+  const checkoutUrl = String(report?.monetization?.checkoutUrl || '').trim();
+  const checkoutCtaLabel = String(report?.monetization?.checkoutCtaLabel || '').trim();
+  const ctaUrl = checkoutUrl || '/free-trial.html';
+  const ctaLabel = checkoutCtaLabel || (checkoutUrl ? 'Start Paid Plan' : 'Start Free Trial');
 
   const checklistItems = checklist
     .map(item => `      <li>${escapeHtml(item)}</li>`)
@@ -777,7 +797,7 @@ export function buildOfferHtml({ report, opportunity, market }) {
       <h2>Solution</h2>
       <p>${escapeHtml(solution)}</p>
       <p class="price">Starting at ${escapeHtml(price)}</p>
-      <a class="cta" href="/free-trial.html">Start Free Trial</a>
+      <a class="cta" href="${escapeHtml(ctaUrl)}">${escapeHtml(ctaLabel)}</a>
     </section>
 
     <section class="card">
@@ -908,7 +928,24 @@ export async function runAutopilotCycle(options = {}) {
     openAiModel: config.openAiModel
   });
 
-  const offerHtml = buildOfferHtml({ report, opportunity: report.topOpportunity, market });
+  const reportWithMonetization = {
+    ...report,
+    monetization: {
+      ...(report.monetization || {}),
+      checkoutUrl: config.monetization.checkoutUrl,
+      checkoutCtaLabel: config.monetization.checkoutCtaLabel
+    }
+  };
+
+  if (!config.monetization.checkoutUrl) {
+    warnings.push('Checkout URL not configured. Offer CTA will use /free-trial.html.');
+  }
+
+  const offerHtml = buildOfferHtml({
+    report: reportWithMonetization,
+    opportunity: report.topOpportunity,
+    market
+  });
 
   const publish = {
     destinationUrl: '',
@@ -990,9 +1027,14 @@ export async function runAutopilotCycle(options = {}) {
   publish.destinationUrl = publish.vercel.url
     || publish.github.htmlUrl
     || config.promotion.defaultDestinationUrl
+    || config.monetization.checkoutUrl
     || '';
 
-  const promotionTasks = buildPromotionTasks(report.adDrafts, publish.destinationUrl, report.input?.budget || config.budget);
+  const promotionTasks = buildPromotionTasks(
+    report.adDrafts,
+    publish.destinationUrl,
+    report.input?.budget || config.budget
+  );
   const promotion = {
     enabled: config.promotion.enabled,
     attempted: false,
@@ -1052,6 +1094,11 @@ export async function runAutopilotCycle(options = {}) {
     executionChecklist: report.executionChecklist,
     publish,
     promotion,
+    monetization: {
+      checkoutConfigured: Boolean(config.monetization.checkoutUrl),
+      checkoutUrl: config.monetization.checkoutUrl,
+      checkoutCtaLabel: config.monetization.checkoutCtaLabel
+    },
     artifacts: {
       offerHtml
     }

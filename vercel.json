@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/money/autopilot-cron",
+      "schedule": "17 */6 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/service-worker.js",
