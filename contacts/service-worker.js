@@ -1,21 +1,21 @@
 /* contacts/service-worker.js */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `contacts-static-${CACHE_VERSION}`;
 const HTML_CACHE = `contacts-html-${CACHE_VERSION}`;
+const SCOPE_URL = new URL(self.registration.scope);
+const scopeAsset = (asset = '') => new URL(asset, SCOPE_URL).pathname;
 
 const STATIC_ASSETS = [
-  '/contacts/',
-  '/contacts/index.html',
-  '/contacts/contacts-core.js',
-  '/pwa-install.js',
-  '/styles/install-banner.css',
-  '/score.js',
-  '/gun-init.js',
-  '/app-manifests/contacts.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/maskable-512.png'
+  scopeAsset(''),
+  scopeAsset('index.html'),
+  scopeAsset('contacts-core.js'),
+  scopeAsset('pwa-install.js'),
+  scopeAsset('install-banner.css'),
+  scopeAsset('contacts.webmanifest'),
+  scopeAsset('icons/icon-192.png'),
+  scopeAsset('icons/icon-512.png'),
+  scopeAsset('icons/maskable-512.png')
 ];
 
 const createReloadedRequests = (assets) =>
@@ -96,7 +96,7 @@ self.addEventListener('fetch', (event) => {
   if (isGunRealtime(url.href) || isApiRequest(url.pathname)) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request, HTML_CACHE, '/contacts/index.html'));
+    event.respondWith(networkFirst(request, HTML_CACHE, scopeAsset('index.html')));
     return;
   }
 
