@@ -37,12 +37,23 @@ describe('contacts PWA configuration', () => {
     assert.equal(manifest.display, 'standalone');
   });
 
+  it('ships a portable contacts webmanifest for standalone deployments', async () => {
+    const manifestText = await readProjectFile('contacts/contacts.webmanifest');
+    const manifest = JSON.parse(manifestText);
+
+    assert.equal(manifest.id, './');
+    assert.equal(manifest.scope, './');
+    assert.equal(manifest.start_url, './?source=pwa');
+    assert.equal(manifest.display, 'standalone');
+  });
+
   it('registers the contacts service worker with contacts scope', async () => {
     const html = await readProjectFile('contacts/index.html');
 
-    assert.match(html, /src="\/pwa-install\.js"/);
-    assert.match(html, /data-sw-url="\/contacts\/service-worker\.js"/);
-    assert.match(html, /data-sw-scope="\/contacts\/"/);
+    assert.match(html, /src="\.\/*pwa-install\.js"/);
+    assert.match(html, /data-sw-url="\.\/*service-worker\.js"/);
+    assert.match(html, /data-sw-scope="\.\//);
+    assert.match(html, /href="\.\/*contacts\.webmanifest"/);
   });
 
   it('ships an app-specific contacts service worker', async () => {
@@ -50,7 +61,7 @@ describe('contacts PWA configuration', () => {
 
     assert.match(workerSource, /contacts-static-/);
     assert.match(workerSource, /contacts-html-/);
-    assert.match(workerSource, /\/contacts\/index\.html/);
+    assert.match(workerSource, /scopeAsset\('index\.html'\)/);
     assert.match(workerSource, /self\.addEventListener\('fetch'/);
   });
 
@@ -63,31 +74,47 @@ describe('contacts PWA configuration', () => {
       (rule) => rule.source === '/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|webp|woff2?)'
     );
     const pwaInstallIndex = rules.findIndex((rule) => rule.source === '/pwa-install.js');
+    const contactsPwaInstallIndex = rules.findIndex(
+      (rule) => rule.source === '/contacts/pwa-install.js'
+    );
     const rootWorkerIndex = rules.findIndex((rule) => rule.source === '/service-worker.js');
     const contactsWorkerIndex = rules.findIndex(
       (rule) => rule.source === '/contacts/service-worker.js'
     );
+    const contactsManifestIndex = rules.findIndex(
+      (rule) => rule.source === '/contacts/contacts.webmanifest'
+    );
 
     assert.notEqual(staticAssetsIndex, -1);
     assert.notEqual(pwaInstallIndex, -1);
+    assert.notEqual(contactsPwaInstallIndex, -1);
     assert.notEqual(rootWorkerIndex, -1);
     assert.notEqual(contactsWorkerIndex, -1);
+    assert.notEqual(contactsManifestIndex, -1);
 
     assert.equal(staticAssetsIndex < pwaInstallIndex, true);
+    assert.equal(staticAssetsIndex < contactsPwaInstallIndex, true);
     assert.equal(staticAssetsIndex < rootWorkerIndex, true);
     assert.equal(staticAssetsIndex < contactsWorkerIndex, true);
 
     const pwaInstallRule = rules[pwaInstallIndex];
+    const contactsPwaInstallRule = rules[contactsPwaInstallIndex];
     const rootWorkerRule = rules[rootWorkerIndex];
     const contactsWorkerRule = rules[contactsWorkerIndex];
+    const contactsManifestRule = rules[contactsManifestIndex];
 
     assert.equal(findHeaderValue(pwaInstallRule.headers, 'Cache-Control'), 'no-cache');
+    assert.equal(findHeaderValue(contactsPwaInstallRule.headers, 'Cache-Control'), 'no-cache');
     assert.equal(findHeaderValue(rootWorkerRule.headers, 'Cache-Control'), 'no-cache');
     assert.equal(findHeaderValue(rootWorkerRule.headers, 'Service-Worker-Allowed'), '/');
     assert.equal(findHeaderValue(contactsWorkerRule.headers, 'Cache-Control'), 'no-cache');
     assert.equal(
       findHeaderValue(contactsWorkerRule.headers, 'Service-Worker-Allowed'),
       '/contacts/'
+    );
+    assert.equal(
+      findHeaderValue(contactsManifestRule.headers, 'Cache-Control'),
+      'public, max-age=0, must-revalidate'
     );
   });
 });
