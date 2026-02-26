@@ -7,6 +7,30 @@
   ],
   "headers": [
     {
+      "source": "/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|webp|woff2?)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/app-manifests/(.*)\\.webmanifest",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/pwa-install.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    },
+    {
       "source": "/service-worker.js",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache" },
@@ -18,12 +42,6 @@
       "headers": [
         { "key": "Cache-Control", "value": "no-cache" },
         { "key": "Service-Worker-Allowed", "value": "/contacts/" }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|webp|woff2?)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
   ],
