@@ -11,7 +11,12 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
   <script src="../score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="/pwa-install.js" defer></script>
+  <script
+    src="/pwa-install.js"
+    data-sw-url="/contacts/service-worker.js"
+    data-sw-scope="/contacts/"
+    defer
+  ></script>
   <meta name="color-scheme" content="dark light">
   <link rel="stylesheet" href="/styles/install-banner.css">
   <link rel="manifest" href="/app-manifests/contacts.webmanifest">
