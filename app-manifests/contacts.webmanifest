@@ -1,9 +1,10 @@
 {
+  "id": "/contacts/",
   "name": "3DVR Contacts",
   "short_name": "Contacts",
   "description": "Manage your 3DVR relationships and invite collaborators.",
   "start_url": "/contacts/?source=pwa",
-  "scope": "/",
+  "scope": "/contacts/",
   "display": "standalone",
   "background_color": "#0e1116",
   "theme_color": "#0e1116",
