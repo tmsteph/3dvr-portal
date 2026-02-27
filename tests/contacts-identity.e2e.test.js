@@ -176,6 +176,48 @@ describe('contacts identity flows', () => {
     }
   }, { timeout: 45000 });
 
+  it('allows signing in directly from the contacts app', async t => {
+    const browser = await launchChromium(t);
+    if (!browser) {
+      return;
+    }
+    try {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      const username = `contacts${Date.now()}`;
+      const password = `Test!${Math.random().toString(36).slice(2, 8)}`;
+
+      await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
+      await page.click('#btnLogin');
+      await page.fill('#authUsername', username);
+      await page.fill('#authPassword', password);
+      await page.click('#authForm button[type="submit"]');
+
+      await page.waitForFunction(() => {
+        const modal = document.getElementById('authModal');
+        return modal && modal.classList.contains('hidden');
+      }, null, { timeout: 45000 });
+      await page.waitForSelector('#userDisplay');
+
+      const headerDisplay = (await page.textContent('#userDisplay')).trim();
+      assert.match(headerDisplay, new RegExp(`Signed in as ${username}`, 'i'));
+
+      const storedIdentity = await page.evaluate(() => ({
+        signedIn: localStorage.getItem('signedIn'),
+        alias: localStorage.getItem('alias'),
+        username: localStorage.getItem('username'),
+        password: localStorage.getItem('password'),
+      }));
+
+      assert.equal(storedIdentity.signedIn, 'true');
+      assert.equal(storedIdentity.username, username);
+      assert.equal(storedIdentity.password, password);
+      assert.match(storedIdentity.alias || '', new RegExp(`^${username}@3dvr$`, 'i'));
+    } finally {
+      await browser.close();
+    }
+  }, { timeout: 90000 });
+
   it('allows creating a new account through the sign-in flow', async t => {
     const browser = await launchChromium(t);
     if (!browser) {

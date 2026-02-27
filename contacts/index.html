@@ -34,6 +34,7 @@
       <span id="spaceBadge" class="hidden text-xs px-2 py-1 rounded bg-white/10">personal</span>
       <div class="ms-auto flex items-center gap-2">
         <span id="userDisplay" class="text-sm text-gray-300"></span>
+        <button id="btnLogin" class="bg-teal-600 hover:bg-teal-700 text-white text-sm px-3 py-1.5 rounded">Sign in</button>
         <button id="btnLogout" class="hidden bg-rose-600 hover:bg-rose-700 text-white text-sm px-3 py-1.5 rounded">Log out</button>
       </div>
     </div>
@@ -43,7 +44,7 @@
     id="floatingIdentity"
     href="https://portal.3dvr.tech/profile.html#profile"
     title="View your profile"
-    class="fixed bottom-4 right-4 sm:top-4 sm:bottom-auto sm:right-4 z-30 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-gray-900/90 px-4 py-3 text-sm text-white shadow-xl shadow-black/30 backdrop-blur"
+    class="fixed bottom-4 right-4 z-30 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-gray-900/90 px-4 py-3 text-sm text-white shadow-xl shadow-black/30 backdrop-blur"
   >
     <div class="flex flex-col leading-tight">
       <span id="floatingIdentityName" class="font-semibold">👤 Guest</span>
@@ -63,7 +64,16 @@
   <div id="syncStatus" class="max-w-6xl mx-auto px-4 pt-3 text-sm text-amber-300 hidden">
     Changes pending sync. They'll upload automatically when online.
   </div>
-  <div id="authStatus" class="max-w-6xl mx-auto px-4 pt-2 text-sm text-rose-300 hidden"></div>
+  <div id="authStatus" class="max-w-6xl mx-auto px-4 pt-2 text-sm text-rose-300 hidden">
+    <div class="rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-2 flex flex-wrap items-center gap-2">
+      <span id="authStatusMessage" class="flex-1 min-w-[220px]"></span>
+      <button
+        id="authStatusSignIn"
+        type="button"
+        class="bg-rose-500/80 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded"
+      >Sign in</button>
+    </div>
+  </div>
 
   <main class="max-w-6xl mx-auto p-4 grid gap-6 md:grid-cols-[320px,1fr]">
 
@@ -225,6 +235,58 @@
         <div id="contactDetailLinks" class="text-sm text-gray-300"></div>
         <div id="contactDetailActions" class="flex flex-wrap gap-2"></div>
       </div>
+    </div>
+  </div>
+
+  <div
+    id="authModal"
+    class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="authModalTitle"
+  >
+    <div class="w-full max-w-md mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6">
+      <div class="flex items-start justify-between gap-3">
+        <div class="space-y-1">
+          <p class="text-xs uppercase tracking-[0.28em] text-teal-300">Personal sync</p>
+          <h2 id="authModalTitle" class="text-2xl font-semibold">Sign in to sync contacts</h2>
+          <p class="text-sm text-gray-300">Use your portal account. New usernames are created automatically.</p>
+        </div>
+        <button id="closeAuthModal" type="button" class="text-sm text-gray-300 hover:text-white">Close</button>
+      </div>
+      <form id="authForm" class="mt-5 grid gap-3">
+        <label class="grid gap-1 text-sm text-gray-300" for="authUsername">
+          Username or alias
+          <input
+            id="authUsername"
+            type="text"
+            autocomplete="username"
+            class="p-2 rounded text-black"
+            placeholder="example or example@3dvr"
+            required
+          />
+        </label>
+        <label class="grid gap-1 text-sm text-gray-300" for="authPassword">
+          Password
+          <input
+            id="authPassword"
+            type="password"
+            autocomplete="current-password"
+            class="p-2 rounded text-black"
+            placeholder="Enter your password"
+            required
+          />
+        </label>
+        <p id="authFormStatus" class="hidden text-sm text-rose-300"></p>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <button type="submit" class="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded text-sm font-medium">
+            Sign in / create account
+          </button>
+          <button id="continueGuestAuth" type="button" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm">
+            Continue as guest
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -644,7 +706,7 @@ let signedIn = identitySnapshot.signedIn;
 let guest = identitySnapshot.guest;
 let alias = identitySnapshot.alias;
 let username = identitySnapshot.username;
-const password = storedPassword;
+let password = storedPassword;
 let updateIdentityForSignedIn = null;
 let updateIdentityForGuest = null;
 let updateIdentityForAnon = null;
@@ -697,6 +759,7 @@ if (!signedIn) {
 refreshScoreManager();
 
 const userDisplay = document.getElementById('userDisplay');
+const btnLogin = document.getElementById('btnLogin');
 const btnLogout = document.getElementById('btnLogout');
 const urlParams = new URLSearchParams(window.location.search);
 const requestedSpace = urlParams.get('space');
@@ -704,12 +767,24 @@ const focusContactId = urlParams.get('contact');
 const focusClasses = ['ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-gray-900'];
 let focusScrollDone = false;
 
+refreshAuthButtons();
+
 function refreshSignedInDisplay() {
   if (!userDisplay) return;
   const aliasTrimmed = (alias || '').trim();
   const usernameTrimmed = (username || '').trim() || aliasToDisplay(aliasTrimmed) || 'User';
   const aliasSegment = aliasTrimmed ? ` (${aliasTrimmed})` : '';
   userDisplay.textContent = `Signed in as ${usernameTrimmed}${aliasSegment}`;
+}
+
+function refreshAuthButtons() {
+  const needsSignIn = !signedIn || !hasActiveUserSession();
+  if (btnLogin) {
+    btnLogin.classList.toggle('hidden', !needsSignIn);
+  }
+  if (btnLogout) {
+    btnLogout.classList.toggle('hidden', !signedIn);
+  }
 }
 
 function finalizeSignedInState({ alias: aliasValue, username: usernameValue, statusMessage } = {}) {
@@ -725,6 +800,7 @@ function finalizeSignedInState({ alias: aliasValue, username: usernameValue, sta
     username = aliasToDisplay(resolvedAlias) || 'User';
   }
   signedIn = true;
+  guest = false;
   try {
     ls.setItem('signedIn', 'true');
     if (resolvedAlias) {
@@ -739,6 +815,10 @@ function finalizeSignedInState({ alias: aliasValue, username: usernameValue, sta
   } catch (err) {
     console.warn('Failed to persist signed-in identity state', err);
   }
+  if (resolvedAlias) {
+    persistSharedIdentity(resolvedAlias, username);
+  }
+  refreshAuthButtons();
   refreshScoreManager({ forceReset: true });
   if (typeof updateIdentityForSignedIn === 'function') {
     updateIdentityForSignedIn({ aliasHint: resolvedAlias, usernameHint: username });
@@ -850,7 +930,7 @@ if (signedIn) {
       guest = false;
 
       refreshSignedInDisplay();
-      btnLogout.classList.remove('hidden');
+      refreshAuthButtons();
 
       if (typeof updateIdentityForSignedIn === 'function') {
         updateIdentityForSignedIn({ aliasHint: alias, usernameHint: usernameFallback });
@@ -862,6 +942,8 @@ if (signedIn) {
     }
 
     signedIn = false;
+    userDisplay.textContent = 'Guest';
+    refreshAuthButtons();
     clearPersonalAuthRequirement();
     if (typeof updateIdentityForAnon === 'function') {
       updateIdentityForAnon();
@@ -929,6 +1011,7 @@ btnLogout.addEventListener('click', () => {
   } catch (err) {
     console.warn('Failed to clear shared identity cookie', err);
   }
+  password = '';
   ls.removeItem('signedIn'); ls.removeItem('alias'); ls.removeItem('username'); ls.removeItem('password');
   location.reload();
 });
@@ -942,7 +1025,7 @@ function onSignedIn(nameValue, aliasValue, message) {
   }
   guest = false;
   refreshSignedInDisplay();
-  btnLogout.classList.remove('hidden');
+  refreshAuthButtons();
   if (message) {
     console.info(message);
   }
@@ -969,7 +1052,7 @@ function onGuest() {
   clearPersonalAuthRequirement();
   personalAuthPromise = null;
   userDisplay.textContent = 'Guest';
-  btnLogout.classList.add('hidden');
+  refreshAuthButtons();
   changeSpace('public-demo', { force: true });
   flushQueue('public-demo');
   flushQueue('personal');
@@ -1112,6 +1195,8 @@ function ingestContactFromSource(space, data, id, { isLegacy = false, primaryNod
 const form = document.getElementById('contactForm');
 const syncStatus = document.getElementById('syncStatus');
 const authStatus = document.getElementById('authStatus');
+const authStatusMessage = document.getElementById('authStatusMessage');
+const authStatusSignIn = document.getElementById('authStatusSignIn');
 const listEl = document.getElementById('contactList');
 const btnReset = document.getElementById('btnReset');
 const searchEl = document.getElementById('search');
@@ -1144,6 +1229,13 @@ const contactDetailActions = document.getElementById('contactDetailActions');
 const closeContactDetailBtn = document.getElementById('closeContactDetail');
 const openCreateContactBtn = document.getElementById('openCreateContact');
 const closeCreateContactBtn = document.getElementById('closeCreateContact');
+const authModal = document.getElementById('authModal');
+const authForm = document.getElementById('authForm');
+const authUsernameInput = document.getElementById('authUsername');
+const authPasswordInput = document.getElementById('authPassword');
+const authFormStatus = document.getElementById('authFormStatus');
+const closeAuthModalBtn = document.getElementById('closeAuthModal');
+const continueGuestAuthBtn = document.getElementById('continueGuestAuth');
 
 if (portalHomeLink) {
   portalHomeLink.href = portalHref('/index.html');
@@ -1178,6 +1270,33 @@ openCreateContactBtn?.addEventListener('click', openCreateContact);
 closeCreateContactBtn?.addEventListener('click', closeCreateContact);
 createContactOverlay?.addEventListener('click', evt=>{
   if(evt.target === createContactOverlay) closeCreateContact();
+});
+
+btnLogin?.addEventListener('click', () => {
+  openAuthModal({ preferPasswordFocus: true });
+});
+
+authStatusSignIn?.addEventListener('click', () => {
+  openAuthModal({ preferPasswordFocus: true });
+});
+
+authForm?.addEventListener('submit', handleContactsAuthSubmit);
+
+closeAuthModalBtn?.addEventListener('click', () => {
+  closeAuthModal();
+});
+
+continueGuestAuthBtn?.addEventListener('click', () => {
+  closeAuthModal();
+  if (!signedIn) {
+    onGuest();
+  }
+});
+
+authModal?.addEventListener('click', event => {
+  if (event.target === authModal) {
+    closeAuthModal();
+  }
 });
 
 /* ---------- State ---------- */
@@ -1259,14 +1378,228 @@ function hasActiveUserSession() {
 function showAuthStatus(message) {
   if (!authStatus) return;
   const copy = message || 'Reconnect to sync personal contacts. Sign in again to resume cloud backups.';
-  authStatus.textContent = copy;
+  if (authStatusMessage) {
+    authStatusMessage.textContent = copy;
+  } else {
+    authStatus.textContent = copy;
+  }
   authStatus.classList.remove('hidden');
 }
 
 function hideAuthStatus() {
   if (!authStatus) return;
   authStatus.classList.add('hidden');
-  authStatus.textContent = '';
+  if (authStatusMessage) {
+    authStatusMessage.textContent = '';
+  } else {
+    authStatus.textContent = '';
+  }
+}
+
+function setAuthFormStatus(message = '', { error = true } = {}) {
+  if (!authFormStatus) return;
+  const copy = typeof message === 'string' ? message.trim() : '';
+  if (!copy) {
+    authFormStatus.textContent = '';
+    authFormStatus.classList.add('hidden');
+    authFormStatus.classList.toggle('text-rose-300', true);
+    authFormStatus.classList.toggle('text-emerald-300', false);
+    return;
+  }
+  authFormStatus.textContent = copy;
+  authFormStatus.classList.remove('hidden');
+  authFormStatus.classList.toggle('text-rose-300', !!error);
+  authFormStatus.classList.toggle('text-emerald-300', !error);
+}
+
+function normalizeAliasForAuth(value = '') {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!raw) return '';
+  return raw.includes('@') ? raw : `${raw}@3dvr`;
+}
+
+function deriveUsernameForAuth(inputValue = '', aliasValue = '') {
+  const raw = typeof inputValue === 'string' ? inputValue.trim() : '';
+  if (raw && !raw.includes('@')) {
+    return raw;
+  }
+  return aliasToDisplay(aliasValue) || raw || 'User';
+}
+
+function isAliasFormatValid(aliasValue = '') {
+  return /^[^@\s]+@[^@\s]+$/.test(aliasValue);
+}
+
+function setAuthSubmitting(isSubmitting) {
+  const disabled = !!isSubmitting;
+  if (authUsernameInput) authUsernameInput.disabled = disabled;
+  if (authPasswordInput) authPasswordInput.disabled = disabled;
+  if (closeAuthModalBtn) closeAuthModalBtn.disabled = disabled;
+  if (continueGuestAuthBtn) continueGuestAuthBtn.disabled = disabled;
+  const submitButton = authForm?.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = disabled;
+    submitButton.textContent = disabled ? 'Signing in…' : 'Sign in / create account';
+  }
+}
+
+let lastFocusedBeforeAuth = null;
+
+function openAuthModal({ preferPasswordFocus = false } = {}) {
+  if (!authModal) return;
+  lastFocusedBeforeAuth = document.activeElement;
+  const fallbackAlias = (alias || '').trim() || (ls.getItem('alias') || '').trim();
+  if (authUsernameInput && !authUsernameInput.value.trim() && fallbackAlias) {
+    authUsernameInput.value = fallbackAlias;
+  }
+  if (continueGuestAuthBtn) {
+    continueGuestAuthBtn.classList.toggle('hidden', !!signedIn);
+  }
+  setAuthFormStatus('');
+  authModal.classList.remove('hidden');
+  setTimeout(() => {
+    if (preferPasswordFocus && authPasswordInput && authUsernameInput && authUsernameInput.value.trim()) {
+      authPasswordInput.focus();
+      return;
+    }
+    if (authUsernameInput) {
+      authUsernameInput.focus();
+      authUsernameInput.select();
+    }
+  }, 0);
+}
+
+function closeAuthModal({ restoreFocus = true } = {}) {
+  if (!authModal) return;
+  authModal.classList.add('hidden');
+  setAuthFormStatus('');
+  setAuthSubmitting(false);
+  if (restoreFocus && lastFocusedBeforeAuth && typeof lastFocusedBeforeAuth.focus === 'function') {
+    lastFocusedBeforeAuth.focus();
+  }
+}
+
+function persistSharedIdentity(aliasValue, usernameValue) {
+  try {
+    if (window.AuthIdentity && typeof window.AuthIdentity.writeSharedIdentity === 'function') {
+      window.AuthIdentity.writeSharedIdentity({
+        signedIn: true,
+        alias: aliasValue,
+        username: usernameValue,
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to persist shared identity cookie', err);
+  }
+}
+
+function authUser(aliasValue, passwordValue) {
+  return new Promise(resolve => {
+    try {
+      user.auth(aliasValue, passwordValue, ack => resolve(ack || {}));
+    } catch (err) {
+      resolve({ err: err && err.message ? err.message : String(err) });
+    }
+  });
+}
+
+function createUser(aliasValue, passwordValue) {
+  return new Promise(resolve => {
+    try {
+      user.create(aliasValue, passwordValue, ack => resolve(ack || {}));
+    } catch (err) {
+      resolve({ err: err && err.message ? err.message : String(err) });
+    }
+  });
+}
+
+function isAlreadyCreatedError(message = '') {
+  const normalized = typeof message === 'string' ? message.toLowerCase() : '';
+  return normalized.includes('already created')
+    || normalized.includes('already exists')
+    || normalized.includes('already being created');
+}
+
+async function signInOrCreateAccount(aliasValue, passwordValue) {
+  const loginAck = await authUser(aliasValue, passwordValue);
+  if (!loginAck || !loginAck.err) {
+    return { created: false };
+  }
+
+  const createAck = await createUser(aliasValue, passwordValue);
+  if (createAck && createAck.err && !isAlreadyCreatedError(createAck.err)) {
+    throw new Error(createAck.err);
+  }
+
+  const retryAck = await authUser(aliasValue, passwordValue);
+  if (retryAck && retryAck.err) {
+    throw new Error(retryAck.err);
+  }
+  return { created: !(createAck && createAck.err) };
+}
+
+async function handleContactsAuthSubmit(event) {
+  if (event) {
+    event.preventDefault();
+  }
+  const rawIdentity = authUsernameInput ? authUsernameInput.value : '';
+  const rawPassword = authPasswordInput ? authPasswordInput.value : '';
+  const aliasInput = normalizeAliasForAuth(rawIdentity);
+  const nextPassword = typeof rawPassword === 'string' ? rawPassword.trim() : '';
+
+  if (!aliasInput || !nextPassword) {
+    setAuthFormStatus('Enter both username and password.');
+    return;
+  }
+  if (!isAliasFormatValid(aliasInput)) {
+    setAuthFormStatus('Use a valid username (example or example@3dvr).');
+    return;
+  }
+  if (!user || typeof user.auth !== 'function' || typeof user.create !== 'function') {
+    setAuthFormStatus('Sync is unavailable right now. Check your connection and try again.');
+    return;
+  }
+  setAuthSubmitting(true);
+  setAuthFormStatus('');
+  try {
+    const result = await signInOrCreateAccount(aliasInput, nextPassword);
+    const nextUsername = deriveUsernameForAuth(rawIdentity, aliasInput);
+    password = nextPassword;
+    try {
+      ls.setItem('password', nextPassword);
+    } catch (err) {
+      console.warn('Failed to store password for local session restore', err);
+    }
+    persistSharedIdentity(aliasInput, nextUsername);
+    try {
+      user.get('alias').put(aliasInput);
+      user.get('username').put(nextUsername);
+    } catch (err) {
+      console.warn('Failed to store profile fields after sign-in', err);
+    }
+    closeAuthModal({ restoreFocus: false });
+    const statusMessage = result.created
+      ? 'Account created and signed in.'
+      : 'Signed in on this device.';
+    finalizeSignedInState({
+      alias: aliasInput,
+      username: nextUsername,
+      statusMessage,
+    });
+  } catch (err) {
+    const reason = err && err.message ? err.message : String(err || '');
+    if (reason && isAlreadyCreatedError(reason)) {
+      setAuthFormStatus('Account exists. Check your password and try again.');
+    } else if (reason && reason.toLowerCase().includes('wrong password')) {
+      setAuthFormStatus('Incorrect password. Try again or create a new username.');
+    } else if (reason && reason.toLowerCase().includes('gun-unavailable')) {
+      setAuthFormStatus('Sync peers are unavailable. Try again when connection recovers.');
+    } else {
+      setAuthFormStatus(reason || 'Could not sign in right now.');
+    }
+  } finally {
+    setAuthSubmitting(false);
+  }
 }
 
 function requirePersonalAuth(message) {
@@ -1540,7 +1873,7 @@ function handleIdentityStorageEvent(event) {
         clearPersonalAuthRequirement();
         personalAuthPromise = null;
         userDisplay.textContent = 'Guest';
-        btnLogout.classList.add('hidden');
+        refreshAuthButtons();
         if (typeof updateIdentityForAnon === 'function') {
           updateIdentityForAnon();
         }
@@ -1571,6 +1904,11 @@ function handleIdentityStorageEvent(event) {
     return;
   }
 
+  if (key === 'password') {
+    password = typeof newValue === 'string' ? newValue : '';
+    return;
+  }
+
   if (key === 'guestDisplayName' && guest) {
     if (typeof updateIdentityForGuest === 'function') {
       updateIdentityForGuest();
@@ -1584,7 +1922,7 @@ function handleIdentityStorageEvent(event) {
       onGuest();
     } else if (!newGuest && guest && !signedIn) {
       guest = false;
-      btnLogout.classList.add('hidden');
+      refreshAuthButtons();
       if (typeof updateIdentityForAnon === 'function') {
         updateIdentityForAnon();
       }
@@ -2680,6 +3018,10 @@ contactDetailOverlay.addEventListener('click', evt=>{
 document.addEventListener('keydown', evt=>{
   if(evt.key !== 'Escape') return;
   let handled = false;
+  if(authModal && !authModal.classList.contains('hidden')){
+    closeAuthModal();
+    handled = true;
+  }
   if(createContactOverlay && !createContactOverlay.classList.contains('hidden')){
     closeCreateContact();
     handled = true;
