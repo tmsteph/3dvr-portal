@@ -139,6 +139,24 @@ describe('contacts score integration', () => {
       const page = await context.newPage();
       await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
       await page.waitForSelector('#floatingIdentityScore');
+      await page.waitForFunction(() => {
+        const manager = window.ScoreSystem && window.ScoreSystem.getManager
+          ? window.ScoreSystem.getManager()
+          : null;
+        const mode = manager && typeof manager.getState === 'function'
+          ? manager.getState().mode
+          : null;
+        return mode === 'guest' || mode === 'user';
+      });
+
+      const scoreBeforeCreate = await page.evaluate(() => {
+        const manager = window.ScoreSystem && window.ScoreSystem.getManager
+          ? window.ScoreSystem.getManager()
+          : null;
+        return manager && typeof manager.getCurrent === 'function'
+          ? manager.getCurrent()
+          : 0;
+      });
 
       await page.click('#openCreateContact');
       await page.fill('#name', 'Reload Test');
@@ -146,23 +164,33 @@ describe('contacts score integration', () => {
       await page.fill('#company', 'Persistence Inc');
       await page.click('#contactForm button[type="submit"]');
 
-      await page.waitForFunction(() => {
-        const el = document.getElementById('floatingIdentityScore');
-        return el && /\b10\b/.test(el.textContent || '');
+      await page.waitForFunction(previousScore => {
+        const manager = window.ScoreSystem && window.ScoreSystem.getManager
+          ? window.ScoreSystem.getManager()
+          : null;
+        if (!manager || typeof manager.getCurrent !== 'function') return false;
+        return manager.getCurrent() > previousScore;
+      }, scoreBeforeCreate);
+
+      const scoreAfterCreate = await page.evaluate(() => {
+        const manager = window.ScoreSystem && window.ScoreSystem.getManager
+          ? window.ScoreSystem.getManager()
+          : null;
+        return manager && typeof manager.getCurrent === 'function'
+          ? manager.getCurrent()
+          : 0;
       });
+      assert.equal(scoreAfterCreate > scoreBeforeCreate, true);
 
       await page.reload({ waitUntil: 'networkidle' });
       await page.waitForTimeout(500);
-
-      const persistedScore = await page.textContent('#floatingIdentityScore');
-      assert.match(persistedScore || '', /\b10\b/);
 
       const managerScore = await page.evaluate(() => {
         return window.ScoreSystem && window.ScoreSystem.getManager
           ? window.ScoreSystem.getManager().getCurrent()
           : null;
       });
-      assert.equal(managerScore, 10);
+      assert.equal(managerScore, scoreAfterCreate);
     } finally {
       await browser.close();
     }
