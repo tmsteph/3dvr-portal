@@ -76,6 +76,14 @@ describe('contacts PWA configuration', () => {
     assert.match(contactsScoreSource, /global\.ScoreSystem = ScoreSystem;/);
   });
 
+  it('ships a standalone auth identity bridge runtime', async () => {
+    const authIdentitySource = await readProjectFile('contacts/auth-identity.js');
+
+    assert.match(authIdentitySource, /const SHARED_COOKIE_NAME = 'portalIdentity';/);
+    assert.match(authIdentitySource, /syncStorageFromSharedIdentity/);
+    assert.match(authIdentitySource, /global\.AuthIdentity =/);
+  });
+
   it('ships an app-specific contacts service worker', async () => {
     const workerSource = await readProjectFile('contacts/service-worker.js');
 
