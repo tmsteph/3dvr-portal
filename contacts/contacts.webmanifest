@@ -1,7 +1,7 @@
 {
   "id": "./",
   "name": "3DVR Contacts",
-  "short_name": "Contacts",
+  "short_name": "3DVR Contacts",
   "description": "Manage your 3DVR relationships and invite collaborators.",
   "start_url": "./?source=pwa",
   "scope": "./",
