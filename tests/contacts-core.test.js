@@ -137,16 +137,32 @@ describe('contacts core helpers', () => {
       );
     });
 
-    it('falls back to the canonical portal origin for standalone contacts deployments', () => {
+    it('infers the sibling portal origin for contacts subdomains', () => {
       const origin = resolvePortalOrigin({
         currentOrigin: 'https://contacts.example.com',
+        pathname: '/index.html',
+      });
+
+      assert.equal(origin, 'https://example.com');
+      assert.equal(
+        toPortalHref('/profile.html#profile', {
+          currentOrigin: 'https://contacts.example.com',
+          pathname: '/index.html',
+        }),
+        'https://example.com/profile.html#profile'
+      );
+    });
+
+    it('falls back to the canonical portal origin for non-contacts standalone hosts', () => {
+      const origin = resolvePortalOrigin({
+        currentOrigin: 'https://standalone.example.com',
         pathname: '/index.html',
       });
 
       assert.equal(origin, 'https://3dvr-portal.vercel.app');
       assert.equal(
         toPortalHref('/profile.html#profile', {
-          currentOrigin: 'https://contacts.example.com',
+          currentOrigin: 'https://standalone.example.com',
           pathname: '/index.html',
         }),
         'https://3dvr-portal.vercel.app/profile.html#profile'

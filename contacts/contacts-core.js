@@ -102,21 +102,55 @@ export function normalizeOrigin(value = '') {
   }
 }
 
+function inferSiblingPortalOrigin(currentOrigin = '') {
+  const normalizedCurrent = normalizeOrigin(currentOrigin);
+  if (!normalizedCurrent) return '';
+
+  try {
+    const currentUrl = new URL(normalizedCurrent);
+    const host = (currentUrl.hostname || '').trim();
+    if (!host.toLowerCase().startsWith('contacts.')) {
+      return '';
+    }
+
+    const siblingHost = host.slice('contacts.'.length).trim();
+    if (!siblingHost) {
+      return '';
+    }
+
+    return `${currentUrl.protocol}//${siblingHost}${currentUrl.port ? `:${currentUrl.port}` : ''}`;
+  } catch (_err) {
+    return '';
+  }
+}
+
 export function resolvePortalOrigin({
   configuredOrigin = '',
   currentOrigin = '',
   pathname = '',
   fallbackOrigin = DEFAULT_PORTAL_ORIGIN,
 } = {}) {
+  const normalizedFallback = normalizeOrigin(fallbackOrigin);
   const configured = normalizeOrigin(configuredOrigin);
-  if (configured) return configured;
+  if (configured && (!normalizedFallback || configured !== normalizedFallback)) {
+    return configured;
+  }
 
   const current = normalizeOrigin(currentOrigin);
   if (isContactsSubpath(pathname) && current) {
     return current;
   }
 
-  const fallback = normalizeOrigin(fallbackOrigin);
+  const inferredSiblingPortal = inferSiblingPortalOrigin(current);
+  if (inferredSiblingPortal) {
+    return inferredSiblingPortal;
+  }
+
+  if (configured) {
+    return configured;
+  }
+
+  const fallback = normalizedFallback;
   if (fallback) return fallback;
   if (current) return current;
   return DEFAULT_PORTAL_ORIGIN;
