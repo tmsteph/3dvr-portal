@@ -4,7 +4,11 @@ import {
   aliasToDisplay,
   deriveIdentityState,
   deriveFloatingIdentityDisplay,
+  isContactsSubpath,
+  normalizeOrigin,
+  resolvePortalOrigin,
   resolveSpaceNode,
+  toPortalHref,
 } from '../contacts/contacts-core.js';
 
 describe('contacts core helpers', () => {
@@ -101,6 +105,63 @@ describe('contacts core helpers', () => {
       });
 
       assert.equal(display, 'Visitor 42');
+    });
+  });
+
+  describe('portal link helpers', () => {
+    it('detects contacts subpaths', () => {
+      assert.equal(isContactsSubpath('/contacts'), true);
+      assert.equal(isContactsSubpath('/contacts/index.html'), true);
+      assert.equal(isContactsSubpath('/'), false);
+    });
+
+    it('normalizes valid origins and rejects invalid values', () => {
+      assert.equal(normalizeOrigin('https://contacts.example.com/path?q=1'), 'https://contacts.example.com');
+      assert.equal(normalizeOrigin('not-a-url'), '');
+      assert.equal(normalizeOrigin(''), '');
+    });
+
+    it('prefers same-origin links when running under /contacts', () => {
+      const origin = resolvePortalOrigin({
+        currentOrigin: 'https://preview.3dvr.tech',
+        pathname: '/contacts/index.html',
+      });
+
+      assert.equal(origin, 'https://preview.3dvr.tech');
+      assert.equal(
+        toPortalHref('/crm/index.html', {
+          currentOrigin: 'https://preview.3dvr.tech',
+          pathname: '/contacts/index.html',
+        }),
+        'https://preview.3dvr.tech/crm/index.html'
+      );
+    });
+
+    it('falls back to the canonical portal origin for standalone contacts deployments', () => {
+      const origin = resolvePortalOrigin({
+        currentOrigin: 'https://contacts.example.com',
+        pathname: '/index.html',
+      });
+
+      assert.equal(origin, 'https://3dvr-portal.vercel.app');
+      assert.equal(
+        toPortalHref('/profile.html#profile', {
+          currentOrigin: 'https://contacts.example.com',
+          pathname: '/index.html',
+        }),
+        'https://3dvr-portal.vercel.app/profile.html#profile'
+      );
+    });
+
+    it('honors configured portal origins when provided', () => {
+      assert.equal(
+        resolvePortalOrigin({
+          configuredOrigin: 'https://portal.custom-domain.com/base/path',
+          currentOrigin: 'https://contacts.custom-domain.com',
+          pathname: '/index.html',
+        }),
+        'https://portal.custom-domain.com'
+      );
     });
   });
 
