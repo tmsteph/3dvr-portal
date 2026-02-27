@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-portal-origin="https://3dvr-portal.vercel.app">
+<html lang="en" data-portal-origin="https://portal.3dvr.tech">
 <head>
   <meta charset="UTF-8" />
   <title>3DVR Contacts</title>
@@ -9,6 +9,7 @@
   <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/auth-identity.js"></script>
   <script src="/score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script
@@ -27,8 +28,8 @@
   <!-- Header -->
   <header class="sticky top-0 z-10 backdrop-blur bg-gray-900/90 border-b border-white/10">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-      <a id="portalHomeLink" href="https://3dvr-portal.vercel.app/index.html" class="text-sm text-gray-300 hover:text-white">← Portal</a>
-      <a id="portalCrmLink" href="https://3dvr-portal.vercel.app/crm/index.html" class="text-sm text-gray-300 hover:text-white">CRM</a>
+      <a id="portalHomeLink" href="https://portal.3dvr.tech/index.html" class="text-sm text-gray-300 hover:text-white">← Portal</a>
+      <a id="portalCrmLink" href="https://portal.3dvr.tech/crm/index.html" class="text-sm text-gray-300 hover:text-white">CRM</a>
       <h1 class="text-xl sm:text-2xl font-bold">Contacts <span class="text-teal-400">· 3DVR</span></h1>
       <span id="spaceBadge" class="hidden text-xs px-2 py-1 rounded bg-white/10">personal</span>
       <div class="ms-auto flex items-center gap-2">
@@ -40,7 +41,7 @@
 
   <a
     id="floatingIdentity"
-    href="https://3dvr-portal.vercel.app/profile.html#profile"
+    href="https://portal.3dvr.tech/profile.html#profile"
     title="View your profile"
     class="fixed bottom-4 right-4 sm:top-4 sm:bottom-auto sm:right-4 z-30 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-gray-900/90 px-4 py-3 text-sm text-white shadow-xl shadow-black/30 backdrop-blur"
   >
@@ -598,6 +599,13 @@ function crmContactHref(contactId = '') {
 }
 
 const { storage: ls, native: nativeLocalStorage } = ensureLocalStorage();
+if (window.AuthIdentity && typeof window.AuthIdentity.syncStorageFromSharedIdentity === 'function') {
+  try {
+    window.AuthIdentity.syncStorageFromSharedIdentity(ls);
+  } catch (err) {
+    console.warn('Failed to sync identity from shared cookie', err);
+  }
+}
 // Reuse portal's localStorage flags:
 const legacySignedIn = ls.getItem('signedIn') === 'true';
 const legacyGuest = ls.getItem('guest') === 'true';
@@ -914,6 +922,13 @@ if (signedIn) {
 
 btnLogout.addEventListener('click', () => {
   try { user.leave(); } catch {}
+  try {
+    if (window.AuthIdentity && typeof window.AuthIdentity.clearSharedIdentity === 'function') {
+      window.AuthIdentity.clearSharedIdentity();
+    }
+  } catch (err) {
+    console.warn('Failed to clear shared identity cookie', err);
+  }
   ls.removeItem('signedIn'); ls.removeItem('alias'); ls.removeItem('username'); ls.removeItem('password');
   location.reload();
 });

@@ -11,6 +11,7 @@ const STATIC_ASSETS = [
   scopeAsset('index.html'),
   scopeAsset('contacts-core.js'),
   scopeAsset('gun-init.js'),
+  scopeAsset('auth-identity.js'),
   scopeAsset('score.js'),
   scopeAsset('pwa-install.js'),
   scopeAsset('install-banner.css'),

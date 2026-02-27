@@ -84,7 +84,7 @@ export function deriveFloatingIdentityDisplay({
   return aliasDisplay || 'Guest';
 }
 
-const DEFAULT_PORTAL_ORIGIN = 'https://3dvr-portal.vercel.app';
+const DEFAULT_PORTAL_ORIGIN = 'https://portal.3dvr.tech';
 
 export function isContactsSubpath(pathname = '') {
   const normalizedPath = typeof pathname === 'string' ? pathname.trim() : '';
@@ -102,6 +102,28 @@ export function normalizeOrigin(value = '') {
   }
 }
 
+function inferSiblingPortalOrigin(currentOrigin = '') {
+  const normalizedCurrent = normalizeOrigin(currentOrigin);
+  if (!normalizedCurrent) return '';
+
+  try {
+    const currentUrl = new URL(normalizedCurrent);
+    const host = (currentUrl.hostname || '').trim();
+    if (!host.toLowerCase().startsWith('contacts.')) {
+      return '';
+    }
+
+    const siblingHost = host.slice('contacts.'.length).trim();
+    if (!siblingHost) {
+      return '';
+    }
+
+    return `${currentUrl.protocol}//${siblingHost}${currentUrl.port ? `:${currentUrl.port}` : ''}`;
+  } catch (_err) {
+    return '';
+  }
+}
+
 export function resolvePortalOrigin({
   configuredOrigin = '',
   currentOrigin = '',
@@ -109,11 +131,18 @@ export function resolvePortalOrigin({
   fallbackOrigin = DEFAULT_PORTAL_ORIGIN,
 } = {}) {
   const configured = normalizeOrigin(configuredOrigin);
-  if (configured) return configured;
+  if (configured) {
+    return configured;
+  }
 
   const current = normalizeOrigin(currentOrigin);
   if (isContactsSubpath(pathname) && current) {
     return current;
+  }
+
+  const inferredSiblingPortal = inferSiblingPortalOrigin(current);
+  if (inferredSiblingPortal) {
+    return inferredSiblingPortal;
   }
 
   const fallback = normalizeOrigin(fallbackOrigin);

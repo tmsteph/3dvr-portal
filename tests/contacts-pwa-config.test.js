@@ -62,6 +62,7 @@ describe('contacts PWA configuration', () => {
     const html = await readProjectFile('contacts/index.html');
 
     assert.match(html, /<script src="\/gun-init\.js"><\/script>/);
+    assert.match(html, /<script src="\/auth-identity\.js"><\/script>/);
     assert.match(html, /<script src="\/score\.js"><\/script>/);
   });
 
@@ -75,6 +76,14 @@ describe('contacts PWA configuration', () => {
     assert.match(contactsScoreSource, /global\.ScoreSystem = ScoreSystem;/);
   });
 
+  it('ships a standalone auth identity bridge runtime', async () => {
+    const authIdentitySource = await readProjectFile('contacts/auth-identity.js');
+
+    assert.match(authIdentitySource, /const SHARED_COOKIE_NAME = 'portalIdentity';/);
+    assert.match(authIdentitySource, /syncStorageFromSharedIdentity/);
+    assert.match(authIdentitySource, /global\.AuthIdentity =/);
+  });
+
   it('ships an app-specific contacts service worker', async () => {
     const workerSource = await readProjectFile('contacts/service-worker.js');
 
@@ -82,6 +91,7 @@ describe('contacts PWA configuration', () => {
     assert.match(workerSource, /contacts-html-/);
     assert.match(workerSource, /scopeAsset\('index\.html'\)/);
     assert.match(workerSource, /scopeAsset\('gun-init\.js'\)/);
+    assert.match(workerSource, /scopeAsset\('auth-identity\.js'\)/);
     assert.match(workerSource, /scopeAsset\('score\.js'\)/);
     assert.match(workerSource, /self\.addEventListener\('fetch'/);
   });

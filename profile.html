@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="auth-identity.js"></script>
   <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <style>
@@ -669,6 +670,33 @@ function aliasToDisplay(alias) {
   return normalized.includes('@') ? normalized.split('@')[0] : normalized;
 }
 
+function writeSharedIdentity(aliasHint = '') {
+  if (!window.AuthIdentity || typeof window.AuthIdentity.writeSharedIdentity !== 'function') {
+    return;
+  }
+  const alias = (aliasHint || (localStorage.getItem('alias') || '')).trim();
+  if (!alias) {
+    return;
+  }
+  const username = (portalStoredName || latestProfileName || aliasToDisplay(alias) || 'User').trim();
+  try {
+    window.AuthIdentity.writeSharedIdentity({ signedIn: true, alias, username });
+  } catch (err) {
+    console.warn('Failed to persist shared identity cookie', err);
+  }
+}
+
+function clearSharedIdentity() {
+  if (!window.AuthIdentity || typeof window.AuthIdentity.clearSharedIdentity !== 'function') {
+    return;
+  }
+  try {
+    window.AuthIdentity.clearSharedIdentity();
+  } catch (err) {
+    console.warn('Failed to clear shared identity cookie', err);
+  }
+}
+
 function normalizeAliasInput(raw) {
   const trimmed = (raw || '').trim().toLowerCase();
   if (!trimmed) return '';
@@ -940,6 +968,7 @@ function handleProfileName(name) {
     if (isSignedIn) {
       portalStoredName = normalized;
       localStorage.setItem('username', portalStoredName);
+      writeSharedIdentity();
     } else if (isGuest) {
       guestStoredName = normalized;
       localStorage.setItem('guestDisplayName', guestStoredName);
@@ -1014,6 +1043,7 @@ function initializeSignedInProfile() {
   localStorage.removeItem('guestDisplayName');
   guestStoredName = '';
   activeProfile = user;
+  writeSharedIdentity();
 
   if (!window.ScoreSystem || typeof window.ScoreSystem.recallUserSession !== 'function') {
     try {
@@ -1026,7 +1056,12 @@ function initializeSignedInProfile() {
   }
 
   user.get('alias').on(value => {
-    aliasName = aliasToDisplay(value);
+    const normalizedAlias = typeof value === 'string' ? value.trim() : '';
+    aliasName = aliasToDisplay(normalizedAlias);
+    if (normalizedAlias) {
+      localStorage.setItem('alias', normalizedAlias);
+      writeSharedIdentity(normalizedAlias);
+    }
     applyDisplayName();
   });
 
@@ -1043,6 +1078,7 @@ function initializeSignedInProfile() {
 function initializeGuestProfile() {
   isSignedIn = false;
   isGuest = true;
+  clearSharedIdentity();
   aliasName = '';
   selectedUserAlias = '';
   activeProfile = ensureGuestProfileNode();
@@ -1068,6 +1104,7 @@ if (isSignedIn && signedInAlias && signedInPassword) {
         localStorage.removeItem('alias');
         localStorage.removeItem('username');
         localStorage.removeItem('password');
+        clearSharedIdentity();
         initializeGuestProfile();
       } else {
         initializeSignedInProfile();
@@ -1087,6 +1124,7 @@ function saveUsername() {
   if (isSignedIn) {
     portalStoredName = name;
     localStorage.setItem('username', portalStoredName);
+    writeSharedIdentity();
   } else if (isGuest) {
     guestStoredName = name;
     localStorage.setItem('guestDisplayName', guestStoredName);

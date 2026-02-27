@@ -40,7 +40,8 @@ if [ "$is_android" = "true" ]; then
     exit 1
   fi
 
-  proot-distro login debian -- sh -lc "cd '$ROOT_DIR' && npm run $TARGET_SCRIPT"
+  PLAYWRIGHT_BROWSER_VALUE=${PLAYWRIGHT_BROWSER:-firefox}
+  proot-distro login debian -- sh -lc "cd '$ROOT_DIR' && PLAYWRIGHT_BROWSER='$PLAYWRIGHT_BROWSER_VALUE' npm run $TARGET_SCRIPT"
   exit 0
 fi
 
