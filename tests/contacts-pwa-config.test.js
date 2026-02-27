@@ -32,6 +32,7 @@ describe('contacts PWA configuration', () => {
     const manifest = JSON.parse(manifestText);
 
     assert.equal(manifest.id, '/contacts/');
+    assert.equal(manifest.short_name, '3DVR Contacts');
     assert.equal(manifest.scope, '/contacts/');
     assert.match(manifest.start_url, /^\/contacts\//);
     assert.equal(manifest.display, 'standalone');
@@ -42,6 +43,7 @@ describe('contacts PWA configuration', () => {
     const manifest = JSON.parse(manifestText);
 
     assert.equal(manifest.id, './');
+    assert.equal(manifest.short_name, '3DVR Contacts');
     assert.equal(manifest.scope, './');
     assert.equal(manifest.start_url, './?source=pwa');
     assert.equal(manifest.display, 'standalone');
