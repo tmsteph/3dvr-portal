@@ -62,6 +62,7 @@ describe('contacts PWA configuration', () => {
     const html = await readProjectFile('contacts/index.html');
 
     assert.match(html, /<script src="\/gun-init\.js"><\/script>/);
+    assert.match(html, /<script src="\/auth-identity\.js"><\/script>/);
     assert.match(html, /<script src="\/score\.js"><\/script>/);
   });
 
@@ -82,6 +83,7 @@ describe('contacts PWA configuration', () => {
     assert.match(workerSource, /contacts-html-/);
     assert.match(workerSource, /scopeAsset\('index\.html'\)/);
     assert.match(workerSource, /scopeAsset\('gun-init\.js'\)/);
+    assert.match(workerSource, /scopeAsset\('auth-identity\.js'\)/);
     assert.match(workerSource, /scopeAsset\('score\.js'\)/);
     assert.match(workerSource, /self\.addEventListener\('fetch'/);
   });

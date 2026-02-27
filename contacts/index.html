@@ -9,6 +9,7 @@
   <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/auth-identity.js"></script>
   <script src="/score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script
@@ -598,6 +599,13 @@ function crmContactHref(contactId = '') {
 }
 
 const { storage: ls, native: nativeLocalStorage } = ensureLocalStorage();
+if (window.AuthIdentity && typeof window.AuthIdentity.syncStorageFromSharedIdentity === 'function') {
+  try {
+    window.AuthIdentity.syncStorageFromSharedIdentity(ls);
+  } catch (err) {
+    console.warn('Failed to sync identity from shared cookie', err);
+  }
+}
 // Reuse portal's localStorage flags:
 const legacySignedIn = ls.getItem('signedIn') === 'true';
 const legacyGuest = ls.getItem('guest') === 'true';
@@ -914,6 +922,13 @@ if (signedIn) {
 
 btnLogout.addEventListener('click', () => {
   try { user.leave(); } catch {}
+  try {
+    if (window.AuthIdentity && typeof window.AuthIdentity.clearSharedIdentity === 'function') {
+      window.AuthIdentity.clearSharedIdentity();
+    }
+  } catch (err) {
+    console.warn('Failed to clear shared identity cookie', err);
+  }
   ls.removeItem('signedIn'); ls.removeItem('alias'); ls.removeItem('username'); ls.removeItem('password');
   location.reload();
 });

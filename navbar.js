@@ -11,6 +11,15 @@ function aliasToDisplay(alias) {
   return normalized;
 }
 
+function clearSharedIdentityCookie() {
+  const base = 'portalIdentity=; Path=/; Max-Age=0; SameSite=Lax; Secure';
+  document.cookie = base;
+  const hostname = (window.location && window.location.hostname ? window.location.hostname : '').toLowerCase();
+  if (hostname === '3dvr.tech' || hostname.endsWith('.3dvr.tech')) {
+    document.cookie = `${base}; Domain=.3dvr.tech`;
+  }
+}
+
 function createNavbar() {
   if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
     window.ScoreSystem.recallUserSession(user);
@@ -64,6 +73,7 @@ function createNavbar() {
     localStorage.removeItem('guestDisplayName');
     localStorage.removeItem('userId');
     localStorage.removeItem('userPubKey');
+    clearSharedIdentityCookie();
     window.location.href = 'index.html';
   });
 
