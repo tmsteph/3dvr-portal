@@ -84,7 +84,7 @@ export function deriveFloatingIdentityDisplay({
   return aliasDisplay || 'Guest';
 }
 
-const DEFAULT_PORTAL_ORIGIN = 'https://3dvr-portal.vercel.app';
+const DEFAULT_PORTAL_ORIGIN = 'https://3dvr.tech';
 
 export function isContactsSubpath(pathname = '') {
   const normalizedPath = typeof pathname === 'string' ? pathname.trim() : '';

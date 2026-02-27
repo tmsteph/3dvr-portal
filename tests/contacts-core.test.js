@@ -159,13 +159,13 @@ describe('contacts core helpers', () => {
         pathname: '/index.html',
       });
 
-      assert.equal(origin, 'https://3dvr-portal.vercel.app');
+      assert.equal(origin, 'https://3dvr.tech');
       assert.equal(
         toPortalHref('/profile.html#profile', {
           currentOrigin: 'https://standalone.example.com',
           pathname: '/index.html',
         }),
-        'https://3dvr-portal.vercel.app/profile.html#profile'
+        'https://3dvr.tech/profile.html#profile'
       );
     });
 
