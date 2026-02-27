@@ -84,6 +84,54 @@ export function deriveFloatingIdentityDisplay({
   return aliasDisplay || 'Guest';
 }
 
+const DEFAULT_PORTAL_ORIGIN = 'https://3dvr-portal.vercel.app';
+
+export function isContactsSubpath(pathname = '') {
+  const normalizedPath = typeof pathname === 'string' ? pathname.trim() : '';
+  if (!normalizedPath) return false;
+  return normalizedPath === '/contacts' || normalizedPath.startsWith('/contacts/');
+}
+
+export function normalizeOrigin(value = '') {
+  const normalizedValue = typeof value === 'string' ? value.trim() : '';
+  if (!normalizedValue) return '';
+  try {
+    return new URL(normalizedValue).origin;
+  } catch (_err) {
+    return '';
+  }
+}
+
+export function resolvePortalOrigin({
+  configuredOrigin = '',
+  currentOrigin = '',
+  pathname = '',
+  fallbackOrigin = DEFAULT_PORTAL_ORIGIN,
+} = {}) {
+  const configured = normalizeOrigin(configuredOrigin);
+  if (configured) return configured;
+
+  const current = normalizeOrigin(currentOrigin);
+  if (isContactsSubpath(pathname) && current) {
+    return current;
+  }
+
+  const fallback = normalizeOrigin(fallbackOrigin);
+  if (fallback) return fallback;
+  if (current) return current;
+  return DEFAULT_PORTAL_ORIGIN;
+}
+
+export function toPortalHref(path = '/', originOptions = {}) {
+  const value = typeof path === 'string' ? path.trim() : '';
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  const normalizedPath = value ? (value.startsWith('/') ? value : `/${value}`) : '/';
+  const portalOrigin = resolvePortalOrigin(originOptions);
+  return new URL(normalizedPath, `${portalOrigin}/`).toString();
+}
+
 export function resolveSpaceNode({
   space,
   signedIn,
@@ -187,6 +235,10 @@ if (typeof window !== 'undefined') {
     aliasToDisplay,
     deriveIdentityState,
     deriveFloatingIdentityDisplay,
+    isContactsSubpath,
+    normalizeOrigin,
+    resolvePortalOrigin,
+    toPortalHref,
     resolveSpaceNode,
   };
 }

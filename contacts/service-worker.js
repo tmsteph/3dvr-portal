@@ -10,6 +10,8 @@ const STATIC_ASSETS = [
   scopeAsset(''),
   scopeAsset('index.html'),
   scopeAsset('contacts-core.js'),
+  scopeAsset('gun-init.js'),
+  scopeAsset('score.js'),
   scopeAsset('pwa-install.js'),
   scopeAsset('install-banner.css'),
   scopeAsset('contacts.webmanifest'),

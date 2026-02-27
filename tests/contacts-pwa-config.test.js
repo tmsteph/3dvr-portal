@@ -58,12 +58,21 @@ describe('contacts PWA configuration', () => {
     assert.match(html, /href="\.\/*contacts\.webmanifest"/);
   });
 
+  it('keeps shared runtime scripts root-absolute for portal and standalone roots', async () => {
+    const html = await readProjectFile('contacts/index.html');
+
+    assert.match(html, /<script src="\/gun-init\.js"><\/script>/);
+    assert.match(html, /<script src="\/score\.js"><\/script>/);
+  });
+
   it('ships an app-specific contacts service worker', async () => {
     const workerSource = await readProjectFile('contacts/service-worker.js');
 
     assert.match(workerSource, /contacts-static-/);
     assert.match(workerSource, /contacts-html-/);
     assert.match(workerSource, /scopeAsset\('index\.html'\)/);
+    assert.match(workerSource, /scopeAsset\('gun-init\.js'\)/);
+    assert.match(workerSource, /scopeAsset\('score\.js'\)/);
     assert.match(workerSource, /self\.addEventListener\('fetch'/);
   });
 
@@ -116,6 +125,32 @@ describe('contacts PWA configuration', () => {
     );
     assert.equal(
       findHeaderValue(contactsManifestRule.headers, 'Cache-Control'),
+      'public, max-age=0, must-revalidate'
+    );
+  });
+
+  it('ships standalone Vercel headers inside the contacts directory', async () => {
+    const vercelText = await readProjectFile('contacts/vercel.json');
+    const config = JSON.parse(vercelText);
+    const rules = Array.isArray(config.headers) ? config.headers : [];
+
+    const staticAssetsRule = rules.find(
+      (rule) => rule.source === '/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|webp|woff2?)'
+    );
+    const pwaInstallRule = rules.find((rule) => rule.source === '/pwa-install.js');
+    const workerRule = rules.find((rule) => rule.source === '/service-worker.js');
+    const manifestRule = rules.find((rule) => rule.source === '/contacts.webmanifest');
+
+    assert.ok(staticAssetsRule);
+    assert.ok(pwaInstallRule);
+    assert.ok(workerRule);
+    assert.ok(manifestRule);
+
+    assert.equal(findHeaderValue(pwaInstallRule.headers, 'Cache-Control'), 'no-cache');
+    assert.equal(findHeaderValue(workerRule.headers, 'Cache-Control'), 'no-cache');
+    assert.equal(findHeaderValue(workerRule.headers, 'Service-Worker-Allowed'), '/');
+    assert.equal(
+      findHeaderValue(manifestRule.headers, 'Cache-Control'),
       'public, max-age=0, must-revalidate'
     );
   });

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-portal-origin="https://3dvr-portal.vercel.app">
 <head>
   <meta charset="UTF-8" />
   <title>3DVR Contacts</title>
@@ -9,7 +9,7 @@
   <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
-  <script src="../score.js"></script>
+  <script src="/score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script
     src="./pwa-install.js"
@@ -27,8 +27,8 @@
   <!-- Header -->
   <header class="sticky top-0 z-10 backdrop-blur bg-gray-900/90 border-b border-white/10">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-      <a href="../index.html" class="text-sm text-gray-300 hover:text-white">← Portal</a>
-      <a href="../crm/index.html" class="text-sm text-gray-300 hover:text-white">CRM</a>
+      <a id="portalHomeLink" href="https://3dvr-portal.vercel.app/index.html" class="text-sm text-gray-300 hover:text-white">← Portal</a>
+      <a id="portalCrmLink" href="https://3dvr-portal.vercel.app/crm/index.html" class="text-sm text-gray-300 hover:text-white">CRM</a>
       <h1 class="text-xl sm:text-2xl font-bold">Contacts <span class="text-teal-400">· 3DVR</span></h1>
       <span id="spaceBadge" class="hidden text-xs px-2 py-1 rounded bg-white/10">personal</span>
       <div class="ms-auto flex items-center gap-2">
@@ -40,7 +40,7 @@
 
   <a
     id="floatingIdentity"
-    href="../profile.html#profile"
+    href="https://3dvr-portal.vercel.app/profile.html#profile"
     title="View your profile"
     class="fixed bottom-4 right-4 sm:top-4 sm:bottom-auto sm:right-4 z-30 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-gray-900/90 px-4 py-3 text-sm text-white shadow-xl shadow-black/30 backdrop-blur"
   >
@@ -304,7 +304,9 @@ import {
   aliasToDisplay,
   deriveIdentityState,
   deriveFloatingIdentityDisplay,
+  resolvePortalOrigin,
   resolveSpaceNode,
+  toPortalHref,
 } from './contacts-core.js';
 /* ---------- Gun & session reuse ---------- */
 function createLocalGunSubscriptionStub() {
@@ -563,6 +565,36 @@ function ensureLocalStorage() {
     console.warn('LocalStorage unavailable for contacts; using memory fallback', err);
   }
   return { storage: createMemoryStorage(), native: null };
+}
+
+function readConfiguredPortalOrigin() {
+  // Standalone deploys can point cross-app links back to the main portal origin.
+  const explicit = typeof window.__CONTACTS_PORTAL_ORIGIN__ === 'string'
+    ? window.__CONTACTS_PORTAL_ORIGIN__
+    : '';
+  if (explicit.trim()) {
+    return explicit.trim();
+  }
+  const fromHtml = document.documentElement?.dataset?.portalOrigin || '';
+  return fromHtml.trim();
+}
+
+const resolvedPortalOrigin = resolvePortalOrigin({
+  configuredOrigin: readConfiguredPortalOrigin(),
+  currentOrigin: window.location.origin,
+  pathname: window.location.pathname,
+});
+
+function portalHref(path = '/') {
+  return toPortalHref(path, { configuredOrigin: resolvedPortalOrigin });
+}
+
+function crmContactHref(contactId = '') {
+  const id = typeof contactId === 'string' ? contactId : String(contactId || '');
+  if (!id) {
+    return portalHref('/crm/index.html');
+  }
+  return portalHref(`/crm/index.html?contact=${encodeURIComponent(id)}`);
 }
 
 const { storage: ls, native: nativeLocalStorage } = ensureLocalStorage();
@@ -1076,6 +1108,8 @@ const duplicateSummaryEl = document.getElementById('duplicateSummary');
 const prevPageBtn = document.getElementById('prevPage');
 const nextPageBtn = document.getElementById('nextPage');
 const pageInfo = document.getElementById('pageInfo');
+const portalHomeLink = document.getElementById('portalHomeLink');
+const portalCrmLink = document.getElementById('portalCrmLink');
 const floatingIdentity = document.getElementById('floatingIdentity');
 const floatingIdentityName = document.getElementById('floatingIdentityName');
 const floatingIdentityScore = document.getElementById('floatingIdentityScore');
@@ -1095,6 +1129,16 @@ const contactDetailActions = document.getElementById('contactDetailActions');
 const closeContactDetailBtn = document.getElementById('closeContactDetail');
 const openCreateContactBtn = document.getElementById('openCreateContact');
 const closeCreateContactBtn = document.getElementById('closeCreateContact');
+
+if (portalHomeLink) {
+  portalHomeLink.href = portalHref('/index.html');
+}
+if (portalCrmLink) {
+  portalCrmLink.href = portalHref('/crm/index.html');
+}
+if (floatingIdentity) {
+  floatingIdentity.href = portalHref('/profile.html#profile');
+}
 
 let lastFocusedBeforeCreate = null;
 
@@ -2386,7 +2430,7 @@ function renderCard(c){
   const email = c.email ? `<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(c.email)}">${hx(c.email)}</a>` : '';
   const phone = c.phone ? `<a class="underline hover:no-underline" href="tel:${encodeURIComponent(c.phone)}">${hx(c.phone)}</a>` : '';
   const crmAction = hasCrmLink
-    ? `<a href="../crm/index.html?contact=${encodeURIComponent(c.crmId)}" class="bg-sky-700/60 hover:bg-sky-600 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-sky-100 transition" title="Open this contact in the CRM" target="_blank" rel="noopener">Open CRM</a>`
+    ? `<a href="${crmContactHref(c.crmId)}" class="bg-sky-700/60 hover:bg-sky-600 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-sky-100 transition" title="Open this contact in the CRM" target="_blank" rel="noopener">Open CRM</a>`
     : `<button type="button" id="crm-${c.id}" class="bg-sky-600 hover:bg-sky-500 px-3 py-1.5 rounded text-sm border border-sky-300/40 text-white transition">Add to CRM</button>`;
   const duplicateInfo = duplicateMetaById.get(c.id);
   const duplicateBadge = duplicateInfo
@@ -2565,7 +2609,7 @@ function openContactDetail(id){
         <p class="text-sm font-semibold text-sky-200">Linked CRM record</p>
         <p class="text-xs text-sky-100/80 mt-1">Synced as <code>${hx(contact.crmId)}</code></p>
         <div class="mt-3 flex flex-wrap gap-2">
-          <a href="../crm/index.html?contact=${encodeURIComponent(contact.crmId)}" target="_blank" rel="noopener" class="bg-sky-600 hover:bg-sky-500 text-white text-sm px-3 py-1.5 rounded">Open CRM</a>
+          <a href="${crmContactHref(contact.crmId)}" target="_blank" rel="noopener" class="bg-sky-600 hover:bg-sky-500 text-white text-sm px-3 py-1.5 rounded">Open CRM</a>
         </div>
       </div>
     `;
