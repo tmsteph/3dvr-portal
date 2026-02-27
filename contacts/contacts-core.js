@@ -84,7 +84,7 @@ export function deriveFloatingIdentityDisplay({
   return aliasDisplay || 'Guest';
 }
 
-const DEFAULT_PORTAL_ORIGIN = 'https://3dvr.tech';
+const DEFAULT_PORTAL_ORIGIN = 'https://portal.3dvr.tech';
 
 export function isContactsSubpath(pathname = '') {
   const normalizedPath = typeof pathname === 'string' ? pathname.trim() : '';
@@ -130,9 +130,8 @@ export function resolvePortalOrigin({
   pathname = '',
   fallbackOrigin = DEFAULT_PORTAL_ORIGIN,
 } = {}) {
-  const normalizedFallback = normalizeOrigin(fallbackOrigin);
   const configured = normalizeOrigin(configuredOrigin);
-  if (configured && (!normalizedFallback || configured !== normalizedFallback)) {
+  if (configured) {
     return configured;
   }
 
@@ -146,11 +145,7 @@ export function resolvePortalOrigin({
     return inferredSiblingPortal;
   }
 
-  if (configured) {
-    return configured;
-  }
-
-  const fallback = normalizedFallback;
+  const fallback = normalizeOrigin(fallbackOrigin);
   if (fallback) return fallback;
   if (current) return current;
   return DEFAULT_PORTAL_ORIGIN;

@@ -159,13 +159,13 @@ describe('contacts core helpers', () => {
         pathname: '/index.html',
       });
 
-      assert.equal(origin, 'https://3dvr.tech');
+      assert.equal(origin, 'https://portal.3dvr.tech');
       assert.equal(
         toPortalHref('/profile.html#profile', {
           currentOrigin: 'https://standalone.example.com',
           pathname: '/index.html',
         }),
-        'https://3dvr.tech/profile.html#profile'
+        'https://portal.3dvr.tech/profile.html#profile'
       );
     });
 
