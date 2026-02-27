@@ -7,7 +7,11 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '..');
-let cachedChromium = null;
+const requestedBrowser = (process.env.PLAYWRIGHT_BROWSER || 'chromium').trim().toLowerCase();
+const browserLaunchName = ['chromium', 'firefox', 'webkit'].includes(requestedBrowser)
+  ? requestedBrowser
+  : 'chromium';
+let cachedBrowserType = null;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -24,19 +28,24 @@ describe('contacts score integration', () => {
   let server;
   let baseUrl;
 
-  async function resolveChromium(t) {
-    if (cachedChromium) {
-      return cachedChromium;
+  async function resolveBrowserType(t) {
+    if (cachedBrowserType) {
+      return cachedBrowserType;
     }
 
     try {
       const playwright = await import('playwright');
-      cachedChromium = playwright.chromium;
-      return cachedChromium;
+      const browserType = playwright[browserLaunchName];
+      if (!browserType) {
+        t.skip(`Playwright browser "${browserLaunchName}" is unavailable in this environment.`);
+        return null;
+      }
+      cachedBrowserType = browserType;
+      return cachedBrowserType;
     } catch (error) {
       const message = error && typeof error.message === 'string' ? error.message : String(error);
       if (message.includes('Unsupported platform')) {
-        t.skip('Playwright Chromium is not supported on this platform.');
+        t.skip(`Playwright ${browserLaunchName} is not supported on this platform.`);
         return null;
       }
       throw error;
@@ -73,13 +82,13 @@ describe('contacts score integration', () => {
   });
 
   async function launchChromium(t) {
-    const chromium = await resolveChromium(t);
-    if (!chromium) {
+    const browserType = await resolveBrowserType(t);
+    if (!browserType) {
       return null;
     }
 
     try {
-      return await chromium.launch();
+      return await browserType.launch({ headless: true });
     } catch (error) {
       const message = error && typeof error.message === 'string' ? error.message : String(error);
       if (
