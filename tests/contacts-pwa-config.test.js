@@ -65,6 +65,16 @@ describe('contacts PWA configuration', () => {
     assert.match(html, /<script src="\/score\.js"><\/script>/);
   });
 
+  it('ships a standalone score runtime with portal sync capabilities', async () => {
+    const contactsScoreSource = await readProjectFile('contacts/score.js');
+
+    assert.match(contactsScoreSource, /const PORTAL_ROOT_KEY = '3dvr-portal';/);
+    assert.match(contactsScoreSource, /const PORTAL_PUB_STATS_KEY = 'userStatsByPub';/);
+    assert.match(contactsScoreSource, /function displayNameFromAlias\(alias\)/);
+    assert.match(contactsScoreSource, /user\.get\('username'\)\.once/);
+    assert.match(contactsScoreSource, /global\.ScoreSystem = ScoreSystem;/);
+  });
+
   it('ships an app-specific contacts service worker', async () => {
     const workerSource = await readProjectFile('contacts/service-worker.js');
 
