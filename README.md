@@ -229,11 +229,25 @@ npm run playwright:smoke
 
 What this does:
 
-1. Installs the Playwright Firefox browser runtime if needed.
+1. Installs Playwright browser runtimes (`chromium` and `firefox`) if needed.
 2. Starts a local static server for the portal.
 3. Opens the portal in headless Playwright and validates the landing page title and heading.
 
 On Android/Termux, the command automatically runs inside a local Debian `proot-distro` if available.
+
+### Run the Playwright contacts E2E suite
+
+Use this to run the Chromium-based contacts identity + score browser tests:
+
+```bash
+npm run playwright:e2e
+```
+
+To run both the contacts E2E suite and smoke check in one command:
+
+```bash
+npm run playwright:verify
+```
 
 ### When do you need Vercel locally?
 

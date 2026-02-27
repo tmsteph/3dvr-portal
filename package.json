@@ -9,9 +9,15 @@
     "test": "node --test",
     "money:loop": "node scripts/money/run-loop.mjs",
     "money:autopilot": "node scripts/money/run-autopilot.mjs",
-    "playwright:install": "npx playwright install firefox",
-    "playwright:smoke:linux": "npm run playwright:install && node scripts/playwright/smoke.mjs",
-    "playwright:smoke": "sh scripts/playwright/run-smoke.sh"
+    "playwright:install:linux": "node scripts/playwright/install-runtime.mjs",
+    "playwright:install": "sh scripts/playwright/run-install.sh",
+    "playwright:e2e:tests": "node --test tests/contacts-identity.e2e.test.js tests/contacts-score.e2e.test.js",
+    "playwright:e2e:linux": "npm run playwright:install:linux && npm run playwright:e2e:tests",
+    "playwright:e2e": "sh scripts/playwright/run-e2e.sh",
+    "playwright:smoke:linux": "npm run playwright:install:linux && node scripts/playwright/smoke.mjs",
+    "playwright:smoke": "sh scripts/playwright/run-smoke.sh",
+    "playwright:verify:linux": "npm run playwright:e2e:linux && npm run playwright:smoke:linux",
+    "playwright:verify": "sh scripts/playwright/run-in-linux.sh playwright:verify:linux"
   },
   "dependencies": {
     "nodemailer": "^6.9.8",
