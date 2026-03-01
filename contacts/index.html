@@ -796,6 +796,12 @@ function rectsOverlap(first, second) {
 function syncFloatingIdentityHitTarget() {
   const identityChip = document.getElementById('floatingIdentity');
   if (!identityChip) return;
+  const needsSignIn = !signedIn || !hasActiveUserSession();
+  if (needsSignIn) {
+    // Keep login controls reliable on mobile Chrome by disabling chip hit-testing until auth is restored.
+    identityChip.style.pointerEvents = 'none';
+    return;
+  }
   const activeControl = signedIn ? btnLogout : btnLogin;
   const authControl = activeControl && !activeControl.classList.contains('hidden')
     ? activeControl

@@ -19,6 +19,44 @@
     }
   };
 
+  let waitingActivationRequested = false;
+
+  const bindControllerRefresh = () => {
+    if (waitingActivationRequested) return;
+    waitingActivationRequested = true;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    }, { once: true });
+  };
+
+  const requestWaitingActivation = (registration) => {
+    if (!registration || !registration.waiting) return false;
+    const waitingWorker = registration.waiting;
+    if (typeof waitingWorker.postMessage !== 'function') return false;
+    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    return true;
+  };
+
+  const wireServiceWorkerUpdates = (registration) => {
+    if (!registration) return;
+
+    if (requestWaitingActivation(registration)) {
+      bindControllerRefresh();
+    }
+
+    registration.addEventListener('updatefound', () => {
+      const installingWorker = registration.installing;
+      if (!installingWorker) return;
+
+      installingWorker.addEventListener('statechange', () => {
+        if (installingWorker.state !== 'installed') return;
+        if (!registration.waiting) return;
+        bindControllerRefresh();
+        requestWaitingActivation(registration);
+      });
+    });
+  };
+
   const registerServiceWorker = async () => {
     if (!('serviceWorker' in navigator)) return null;
 
@@ -33,13 +71,16 @@
         registration.update().catch((error) => {
           console.warn('Service worker update skipped', error);
         });
+        wireServiceWorkerUpdates(registration);
         return registration;
       }
 
-      return navigator.serviceWorker.register(
+      const nextRegistration = await navigator.serviceWorker.register(
         `${resolvedWorkerUrl.pathname}${resolvedWorkerUrl.search}`,
         { scope: scopePath }
       );
+      wireServiceWorkerUpdates(nextRegistration);
+      return nextRegistration;
     } catch (error) {
       console.error('Service worker registration failed', error);
       return null;

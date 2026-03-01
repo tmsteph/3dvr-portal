@@ -58,6 +58,15 @@ describe('contacts PWA configuration', () => {
     assert.match(html, /href="\.\/*contacts\.webmanifest"/);
   });
 
+  it('auto-activates waiting contacts worker updates without manual cache clears', async () => {
+    const pwaInstallSource = await readProjectFile('contacts/pwa-install.js');
+
+    assert.match(pwaInstallSource, /registration\.waiting/);
+    assert.match(pwaInstallSource, /postMessage\(\{\s*type:\s*'SKIP_WAITING'\s*\}\)/);
+    assert.match(pwaInstallSource, /controllerchange/);
+    assert.match(pwaInstallSource, /updatefound/);
+  });
+
   it('keeps shared runtime scripts root-absolute for portal and standalone roots', async () => {
     const html = await readProjectFile('contacts/index.html');
 
@@ -87,12 +96,16 @@ describe('contacts PWA configuration', () => {
   it('ships an app-specific contacts service worker', async () => {
     const workerSource = await readProjectFile('contacts/service-worker.js');
 
+    assert.match(workerSource, /const CACHE_VERSION = 'v4';/);
     assert.match(workerSource, /contacts-static-/);
     assert.match(workerSource, /contacts-html-/);
     assert.match(workerSource, /scopeAsset\('index\.html'\)/);
     assert.match(workerSource, /scopeAsset\('gun-init\.js'\)/);
     assert.match(workerSource, /scopeAsset\('auth-identity\.js'\)/);
     assert.match(workerSource, /scopeAsset\('score\.js'\)/);
+    assert.match(workerSource, /\['style', 'script'\]\.includes\(request\.destination\)/);
+    assert.match(workerSource, /networkFirst\(request,\s*STATIC_CACHE,\s*request\)/);
+    assert.match(workerSource, /type === 'SKIP_WAITING'/);
     assert.match(workerSource, /self\.addEventListener\('fetch'/);
   });
 

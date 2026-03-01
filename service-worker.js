@@ -145,6 +145,10 @@ self.addEventListener('message', (event) => {
   if (!data || typeof data !== 'object') return;
 
   const { type, payload } = data;
+  if (type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
   if (type !== 'show-notification') return;
 
   const title = payload?.title;
