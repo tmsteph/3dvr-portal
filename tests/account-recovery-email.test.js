@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAccountRecoveryEmailHandler } from '../api/account-recovery-email.js';
+import { createAccountRecoveryEmailHandler } from '../api/calendar/reminder-email.js';
 
 const baseConfig = {
   GMAIL_USER: 'bot@example.com',
