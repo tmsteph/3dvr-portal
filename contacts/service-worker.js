@@ -27,7 +27,7 @@ const createReloadedRequests = (assets) =>
 const networkFirst = async (request, cacheName, fallbackUrl = null) => {
   try {
     const fresh = await fetch(request, { cache: 'reload' });
-    if (fresh && fresh.ok) {
+    if (fresh && (fresh.ok || fresh.type === 'opaque')) {
       const cache = await caches.open(cacheName);
       cache.put(request, fresh.clone());
     }

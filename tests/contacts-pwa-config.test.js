@@ -105,6 +105,7 @@ describe('contacts PWA configuration', () => {
     assert.match(workerSource, /scopeAsset\('score\.js'\)/);
     assert.match(workerSource, /\['style', 'script'\]\.includes\(request\.destination\)/);
     assert.match(workerSource, /networkFirst\(request,\s*STATIC_CACHE,\s*request\)/);
+    assert.match(workerSource, /fresh && \(fresh\.ok \|\| fresh\.type === 'opaque'\)/);
     assert.match(workerSource, /type === 'SKIP_WAITING'/);
     assert.match(workerSource, /self\.addEventListener\('fetch'/);
   });

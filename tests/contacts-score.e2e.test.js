@@ -168,10 +168,12 @@ describe('contacts score integration', () => {
       });
 
       await page.click('#openCreateContact');
-      await page.fill('#name', 'Reload Test');
-      await page.fill('#email', 'reload@example.com');
-      await page.fill('#company', 'Persistence Inc');
-      await page.click('#contactForm button[type="submit"]');
+      await page.waitForSelector('#createContactOverlay:not(.hidden)');
+      const createContactOverlay = page.locator('#createContactOverlay');
+      await createContactOverlay.locator('#name').fill('Reload Test');
+      await createContactOverlay.locator('#email').fill('reload@example.com');
+      await createContactOverlay.locator('#company').fill('Persistence Inc');
+      await createContactOverlay.locator('#contactForm button[type="submit"]').click();
 
       await page.waitForFunction(previousScore => {
         const manager = window.ScoreSystem && window.ScoreSystem.getManager
