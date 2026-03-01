@@ -362,6 +362,46 @@
     })();
   </script>
 
+  <script>
+    (function bindAuthModalFallbackControls() {
+      const loginBtn = document.getElementById('btnLogin');
+      const statusSignInBtn = document.getElementById('authStatusSignIn');
+      const authModalEl = document.getElementById('authModal');
+      const closeBtn = document.getElementById('closeAuthModal');
+      const usernameInput = document.getElementById('authUsername');
+      const passwordInput = document.getElementById('authPassword');
+      if (!authModalEl) return;
+      if (authModalEl.dataset.fallbackBound === 'true') return;
+      authModalEl.dataset.fallbackBound = 'true';
+
+      const openModal = () => {
+        authModalEl.classList.remove('hidden');
+        setTimeout(() => {
+          if (usernameInput && !usernameInput.value.trim()) {
+            usernameInput.focus();
+            return;
+          }
+          if (passwordInput) {
+            passwordInput.focus();
+          }
+        }, 0);
+      };
+
+      const closeModal = () => {
+        authModalEl.classList.add('hidden');
+      };
+
+      loginBtn?.addEventListener('click', openModal);
+      statusSignInBtn?.addEventListener('click', openModal);
+      closeBtn?.addEventListener('click', closeModal);
+      authModalEl.addEventListener('click', (event) => {
+        if (event.target === authModalEl) {
+          closeModal();
+        }
+      });
+    })();
+  </script>
+
 <script type="module">
 import {
   aliasToDisplay,
