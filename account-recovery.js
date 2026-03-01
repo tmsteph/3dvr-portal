@@ -10,7 +10,7 @@
   }
 
   function sanitizeAliasLocalPart(value = '') {
-    return value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    return value.replace(/\s+/g, '').replace(/[^a-zA-Z0-9._-]/g, '');
   }
 
   function normalizeEmail(value) {
@@ -25,21 +25,22 @@
   }
 
   function normalizeAlias(value) {
-    const raw = normalizeText(value).toLowerCase();
+    const raw = normalizeText(value);
     if (!raw) return '';
 
     if (raw.includes('@')) {
       const parts = raw.split('@');
       const local = sanitizeAliasLocalPart(parts.shift() || '');
       const domain = normalizeText(parts.join('@')).replace(/\s+/g, '');
+      const domainLower = domain.toLowerCase();
       if (!local) return '';
-      if (!domain || domain === '3dvr' || domain === '3dvr.tech') {
+      if (!domain || domainLower === '3dvr' || domainLower === '3dvr.tech') {
         return `${local}@3dvr`;
       }
       return '';
     }
 
-    const local = sanitizeAliasLocalPart(raw.replace(/\s+/g, ''));
+    const local = sanitizeAliasLocalPart(raw);
     return local ? `${local}@3dvr` : '';
   }
 
@@ -113,6 +114,45 @@
     return entries;
   }
 
+  function extractUserIndexRecoveryEntries(snapshot, targetEmail = '') {
+    if (!snapshot || typeof snapshot !== 'object') {
+      return [];
+    }
+
+    const normalizedTargetEmail = normalizeEmail(targetEmail);
+    if (!normalizedTargetEmail) {
+      return [];
+    }
+
+    const entries = [];
+
+    Object.entries(snapshot).forEach(([key, rawValue]) => {
+      if (key === '_' || !rawValue || typeof rawValue !== 'object') {
+        return;
+      }
+
+      const alias = normalizeAlias(rawValue.alias || key);
+      const recoveryEmail = normalizeEmail(rawValue.recoveryEmail);
+      if (!alias || recoveryEmail !== normalizedTargetEmail) {
+        return;
+      }
+
+      const updatedAt = Number(rawValue.lastLogin || rawValue.createdAt || rawValue.recoveredAt || 0);
+      entries.push({
+        alias,
+        email: normalizedTargetEmail,
+        updatedAt: Number.isFinite(updatedAt) ? Math.round(updatedAt) : 0,
+        archived: Boolean(rawValue.archived),
+        recoveredTo: normalizeAlias(rawValue.recoveredTo),
+        source: 'user-index-fallback',
+        updatedBy: normalizeText(rawValue.updatedBy)
+      });
+    });
+
+    entries.sort((a, b) => b.updatedAt - a.updatedAt);
+    return entries;
+  }
+
   async function lookupAliasesByEmail({ portalRoot, email, includeArchived = false } = {}) {
     const normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail) {
@@ -141,18 +181,39 @@
 
     const latestAlias = normalizeAlias(latestRecord && latestRecord.alias);
     const parsedEntries = extractRecoveryEntries(snapshot, normalizedEmail);
-    const entries = includeArchived
+    let entries = includeArchived
       ? parsedEntries
       : parsedEntries.filter(entry => !entry.archived);
 
+    if (!entries.length) {
+      const userIndexSnapshot = await once(root.get('userIndex'));
+      const fallbackEntries = extractUserIndexRecoveryEntries(userIndexSnapshot, normalizedEmail);
+      entries = includeArchived
+        ? fallbackEntries
+        : fallbackEntries.filter(entry => !entry.archived);
+
+      if (entries.length) {
+        // Auto-heal recovery index so future lookups do not need a userIndex scan.
+        await Promise.all(entries.map(entry => syncRecoveryEmailIndex({
+          portalRoot: root,
+          alias: entry.alias,
+          email: normalizedEmail,
+          updatedAt: entry.updatedAt || Date.now(),
+          source: entry.source,
+          updatedBy: entry.updatedBy
+        })));
+      }
+    }
+
     const aliases = entries.map(entry => entry.alias);
-    if (latestAlias && !aliases.includes(latestAlias)) {
-      aliases.unshift(latestAlias);
+    const resolvedLatestAlias = latestAlias || aliases[0] || '';
+    if (resolvedLatestAlias && !aliases.includes(resolvedLatestAlias)) {
+      aliases.unshift(resolvedLatestAlias);
     }
 
     return {
       email: normalizedEmail,
-      latestAlias,
+      latestAlias: resolvedLatestAlias,
       aliases,
       entries
     };
@@ -327,6 +388,7 @@
     once,
     readNodeValue,
     extractRecoveryEntries,
+    extractUserIndexRecoveryEntries,
     lookupAliasesByEmail,
     findAliasByRecoveryInput,
     syncRecoveryEmailIndex,

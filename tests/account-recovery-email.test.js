@@ -114,8 +114,8 @@ describe('account recovery email api', () => {
       body: {
         mode: 'lookup',
         email: 'user@example.com',
-        alias: 'pilot@3dvr',
-        aliases: ['pilot@3dvr', 'pilot.backup@3dvr']
+        alias: 'Pilot@3dvr',
+        aliases: ['Pilot@3dvr', 'pilot.backup@3dvr']
       }
     };
     const res = createMockRes();
@@ -126,6 +126,7 @@ describe('account recovery email api', () => {
     assert.equal(mail.sendMail.mock.calls.length, 1);
     assert.equal(mail.sendMail.mock.calls[0].arguments[0].to, 'user@example.com');
     assert.equal(res.body.mode, 'lookup');
+    assert.equal(res.body.alias, 'Pilot@3dvr');
   });
 
   it('sends admin-reset-request notifications to team and requester', async () => {

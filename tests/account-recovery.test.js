@@ -80,8 +80,8 @@ describe('account recovery helper', () => {
   it('normalizes aliases and recovery emails', () => {
     const api = loadApi();
 
-    assert.equal(api.normalizeAlias('Pilot'), 'pilot@3dvr');
-    assert.equal(api.normalizeAlias('Pilot@3dvr.tech'), 'pilot@3dvr');
+    assert.equal(api.normalizeAlias('Pilot'), 'Pilot@3dvr');
+    assert.equal(api.normalizeAlias('Pilot@3dvr.tech'), 'Pilot@3dvr');
     assert.equal(api.normalizeAlias('pilot@example.com'), '');
     assert.equal(api.normalizeEmail(' Pilot@Example.com '), 'pilot@example.com');
     assert.equal(api.normalizeEmail('invalid-email'), '');
@@ -108,8 +108,8 @@ describe('account recovery helper', () => {
       email: 'pilot@example.com'
     });
 
-    assert.equal(lookup.latestAlias, 'pilot@3dvr');
-    assert.deepEqual(Array.from(lookup.aliases), ['pilot@3dvr']);
+    assert.equal(lookup.latestAlias, 'Pilot@3dvr');
+    assert.deepEqual(Array.from(lookup.aliases), ['Pilot@3dvr']);
 
     const resolved = await api.findAliasByRecoveryInput({
       portalRoot,
@@ -117,13 +117,37 @@ describe('account recovery helper', () => {
     });
 
     assert.equal(resolved.inputType, 'email');
-    assert.equal(resolved.alias, 'pilot@3dvr');
+    assert.equal(resolved.alias, 'Pilot@3dvr');
 
     const indexRecord = tracker.store.get(
-      '3dvr-portal/recoveryEmailIndex/pilot@example.com/pilot@3dvr'
+      '3dvr-portal/recoveryEmailIndex/pilot@example.com/Pilot@3dvr'
     );
     assert.equal(indexRecord.email, 'pilot@example.com');
-    assert.equal(indexRecord.alias, 'pilot@3dvr');
+    assert.equal(indexRecord.alias, 'Pilot@3dvr');
+  });
+
+  it('falls back to userIndex recoveryEmail when email index entries are missing', async () => {
+    const api = loadApi();
+    const tracker = createTrackingGun();
+    const portalRoot = tracker.gun.get('3dvr-portal');
+
+    tracker.store.set('3dvr-portal/userIndex/Pilot@3dvr', {
+      alias: 'Pilot@3dvr',
+      username: 'Pilot',
+      recoveryEmail: 'Pilot@example.com',
+      lastLogin: 444
+    });
+
+    const lookup = await api.lookupAliasesByEmail({
+      portalRoot,
+      email: 'pilot@example.com'
+    });
+
+    assert.equal(lookup.latestAlias, 'Pilot@3dvr');
+    assert.deepEqual(Array.from(lookup.aliases), ['Pilot@3dvr']);
+
+    const healed = tracker.store.get('3dvr-portal/recoveryEmailLatest/pilot@example.com');
+    assert.equal(healed.alias, 'Pilot@3dvr');
   });
 
   it('archives old alias records and points latest alias to replacement', async () => {

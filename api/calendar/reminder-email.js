@@ -17,22 +17,23 @@ function normalizeEmail(value) {
 }
 
 function normalizeAlias(value) {
-  const raw = normalizeText(value).toLowerCase();
+  const raw = normalizeText(value);
   if (!raw) return '';
 
   if (raw.includes('@')) {
     const [localPart, domainPart = ''] = raw.split('@');
-    const local = localPart.replace(/[^a-z0-9._-]/g, '');
+    const local = localPart.replace(/\s+/g, '').replace(/[^a-zA-Z0-9._-]/g, '');
     if (!local) return '';
 
     const domain = domainPart.replace(/\s+/g, '');
-    if (!domain || domain === '3dvr' || domain === '3dvr.tech') {
+    const domainLower = domain.toLowerCase();
+    if (!domain || domainLower === '3dvr' || domainLower === '3dvr.tech') {
       return `${local}@3dvr`;
     }
     return '';
   }
 
-  const local = raw.replace(/\s+/g, '').replace(/[^a-z0-9._-]/g, '');
+  const local = raw.replace(/\s+/g, '').replace(/[^a-zA-Z0-9._-]/g, '');
   return local ? `${local}@3dvr` : '';
 }
 

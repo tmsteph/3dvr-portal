@@ -1253,6 +1253,28 @@
     };
   }
 
+  function findKnownAliasMatch(value) {
+    const normalized = normalizeAlias(value);
+    if (!normalized) return '';
+
+    const knownAliases = Array.from(new Set([
+      ...Object.keys(userRecords),
+      ...Object.keys(pointsRecords)
+    ]));
+
+    if (knownAliases.includes(normalized)) {
+      return normalized;
+    }
+
+    const normalizedLower = normalized.toLowerCase();
+    const caseInsensitiveMatch = knownAliases.find(item => {
+      if (typeof item !== 'string') return false;
+      return item.toLowerCase() === normalizedLower;
+    });
+
+    return caseInsensitiveMatch || normalized;
+  }
+
   async function sendRecoveryNotificationEmail(payload = {}) {
     try {
       const response = await fetch('/api/account-recovery-email', {
@@ -1325,9 +1347,10 @@
     try {
       setRecoveryStatus('Looking up the account and preparing a reset...');
       const targetResolution = await resolveRecoveryTarget(targetInput);
-      const targetAlias = targetResolution && targetResolution.alias
+      const resolvedAlias = targetResolution && targetResolution.alias
         ? targetResolution.alias
         : '';
+      const targetAlias = findKnownAliasMatch(resolvedAlias);
 
       if (!targetAlias) {
         const hint = targetResolution && targetResolution.inputType === 'email'
@@ -1337,7 +1360,7 @@
         return;
       }
 
-      if (targetAlias === nextAlias) {
+      if (targetAlias.toLowerCase() === nextAlias.toLowerCase()) {
         setRecoveryStatus('Choose a new username so a fresh alias can be created.', 'error');
         return;
       }
@@ -1701,7 +1724,7 @@
     }
 
     if (!value) return '';
-    const trimmed = value.trim().toLowerCase();
+    const trimmed = value.trim();
     if (!trimmed) return '';
     return trimmed.includes('@') ? trimmed : trimmed + '@3dvr';
   }
