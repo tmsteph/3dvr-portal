@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3DVR Auth</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071226;
+      --card: rgba(11, 26, 48, 0.92);
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #f5f8ff;
+      --muted: rgba(245, 248, 255, 0.72);
+      --accent: #f0c75e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at top, #12396d 0%, #071226 58%, #040913 100%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+
+    main {
+      width: min(480px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 24px 56px rgba(0, 0, 0, 0.36);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    a {
+      display: inline-block;
+      text-decoration: none;
+      text-align: center;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    a.primary {
+      color: #111a2b;
+      background: linear-gradient(135deg, var(--accent), #ffd989);
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Auth</h1>
+    <p>Use these routes to sign in or recover account access.</p>
+    <div class="actions">
+      <a class="primary" href="/sign-in.html">Sign In</a>
+      <a href="/password-reset.html">Account Recovery</a>
+    </div>
+  </main>
+</body>
+</html>

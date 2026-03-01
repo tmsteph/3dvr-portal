@@ -8,6 +8,7 @@
   <script src="gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="auth-identity.js"></script>
+  <script src="account-recovery.js"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -211,6 +212,17 @@
       text-decoration: underline;
     }
 
+    .guest-note a {
+      color: var(--accent-strong);
+      font-weight: 600;
+      text-decoration: none;
+      padding: 0 4px;
+    }
+
+    .guest-note a:hover {
+      text-decoration: underline;
+    }
+
     .disclaimer {
       font-size: 0.75rem;
       color: rgba(248, 251, 255, 0.45);
@@ -335,10 +347,24 @@
             <label for="password">Password</label>
             <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
           </div>
+          <div>
+            <label for="recovery-email">Recovery email (optional)</label>
+            <input
+              type="email"
+              id="recovery-email"
+              name="recovery-email"
+              placeholder="you@example.com"
+              autocomplete="email"
+            >
+          </div>
           <div class="actions">
             <button type="submit" class="primary-button">Sign in or sign up</button>
           </div>
           <p class="disclaimer">We use decentralized GUN.js storage. Your credentials are encrypted before leaving your device.</p>
+          <p class="guest-note">
+            Lost access?
+            <a href="/auth/recovery.html">Recover account by email</a>
+          </p>
           <p class="guest-note">
             Prefer to browse without an account?
             <button type="button" onclick="continueAsGuest()">Continue as guest</button>
@@ -497,9 +523,20 @@
     function signIn() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
+      const recoveryEmailInput = document.getElementById('recovery-email');
+      const rawRecoveryEmail = recoveryEmailInput ? recoveryEmailInput.value.trim() : '';
+      const normalizeRecoveryEmail = window.AccountRecovery
+        && typeof window.AccountRecovery.normalizeEmail === 'function'
+        ? window.AccountRecovery.normalizeEmail
+        : value => String(value || '').trim().toLowerCase();
+      const recoveryEmail = rawRecoveryEmail ? normalizeRecoveryEmail(rawRecoveryEmail) : '';
 
       if (!username || !password) {
         alert("Please enter both username and password.");
+        return;
+      }
+      if (rawRecoveryEmail && !recoveryEmail) {
+        alert('Enter a valid recovery email or leave the field empty.');
         return;
       }
 
@@ -508,7 +545,7 @@
 
       if (gunIsStub) {
         console.warn('Gun.js unavailable; storing credentials locally.');
-        finishLogin(username, alias, password);
+        finishLogin(username, alias, password, recoveryEmail);
         return;
       }
 
@@ -538,7 +575,7 @@
                   alert("⚠️ Auth failed after creating account. Please try again.");
                 } else {
                   console.log("✅ Authenticated after account creation.");
-                  finishLogin(username, alias, password);
+                  finishLogin(username, alias, password, recoveryEmail);
                 }
               });
             }, 500);
@@ -546,12 +583,12 @@
 
         } else {
           console.log("✅ Logged in existing user.");
-          finishLogin(username, alias, password);
+          finishLogin(username, alias, password, recoveryEmail);
         }
       });
     }
 
-    function finishLogin(username, alias, password) {
+    function finishLogin(username, alias, password, recoveryEmail = '') {
       localStorage.setItem('signedIn', 'true');
       localStorage.setItem('username', username);
       localStorage.setItem('alias', alias);
@@ -576,8 +613,11 @@
         .catch(err => {
           console.error('Failed to sync user totals', err);
         })
+        .then(() => recordUserProfile(username, alias, recoveryEmail))
+        .catch(err => {
+          console.error('Failed to record user profile metadata', err);
+        })
         .then(() => {
-          recordUserProfile(username, alias);
           window.location.href = 'index.html';
         });
     }
@@ -671,16 +711,50 @@
       });
     }
 
-    function recordUserProfile(username, alias) {
-      if (!alias) return;
+    function recordUserProfile(username, alias, recoveryEmail = '') {
+      if (!alias) return Promise.resolve();
+
       const node = portalRoot.get('userIndex').get(alias);
-      node.once(data => {
-        const createdAt = data && data.createdAt ? data.createdAt : Date.now();
-        node.put({
-          username,
-          alias,
-          createdAt,
-          lastLogin: Date.now()
+      return new Promise(resolve => {
+        node.once(async data => {
+          const createdAt = data && data.createdAt ? data.createdAt : Date.now();
+          const fallbackEmail = window.AccountRecovery
+            && typeof window.AccountRecovery.normalizeEmail === 'function'
+            ? window.AccountRecovery.normalizeEmail(data && data.recoveryEmail)
+            : '';
+          const normalizedRecoveryEmail = recoveryEmail || fallbackEmail;
+          const nextRecord = {
+            username,
+            alias,
+            createdAt,
+            lastLogin: Date.now()
+          };
+
+          if (normalizedRecoveryEmail) {
+            nextRecord.recoveryEmail = normalizedRecoveryEmail;
+          }
+
+          node.put(nextRecord);
+
+          if (
+            normalizedRecoveryEmail
+            && window.AccountRecovery
+            && typeof window.AccountRecovery.syncRecoveryEmailIndex === 'function'
+          ) {
+            try {
+              await window.AccountRecovery.syncRecoveryEmailIndex({
+                portalRoot,
+                alias,
+                email: normalizedRecoveryEmail,
+                source: 'sign-in',
+                updatedBy: alias
+              });
+            } catch (err) {
+              console.warn('Unable to sync recovery email index for alias', alias, err);
+            }
+          }
+
+          resolve();
         });
       });
     }

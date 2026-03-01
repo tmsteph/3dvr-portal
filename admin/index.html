@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/account-recovery.js"></script>
   <style>
   :root {
     color-scheme: light;
@@ -466,7 +467,7 @@
         <p class="text-muted">Reset usernames and issue temporary passwords for users who lost access.</p>
         <div class="form-group">
           <label for="recovery-current">Current account</label>
-          <input id="recovery-current" type="text" placeholder="username or alias to recover" />
+          <input id="recovery-current" type="text" placeholder="username, alias, or recovery email" />
         </div>
         <div class="form-group">
           <label for="recovery-username">New username</label>
@@ -475,6 +476,10 @@
         <div class="form-group">
           <label for="recovery-password">Temporary password</label>
           <input id="recovery-password" type="password" placeholder="share with the user so they can sign in" />
+        </div>
+        <div class="form-group">
+          <label for="recovery-email">Recovery email (optional)</label>
+          <input id="recovery-email" type="email" placeholder="used to email the temporary credentials" />
         </div>
         <div class="actions" style="margin-top: 10px;">
           <button id="recovery-button" class="btn-primary" type="button">Reset credentials</button>
@@ -578,6 +583,7 @@
   const recoveryCurrentInput = document.getElementById('recovery-current');
   const recoveryUsernameInput = document.getElementById('recovery-username');
   const recoveryPasswordInput = document.getElementById('recovery-password');
+  const recoveryEmailInput = document.getElementById('recovery-email');
   const recoveryButton = document.getElementById('recovery-button');
   const recoveryStatusEl = document.getElementById('recovery-status');
   const userActionsHeader = document.getElementById('user-actions-header');
@@ -1217,6 +1223,90 @@
     });
   }
 
+  function normalizeRecoveryEmail(value) {
+    if (
+      window.AccountRecovery
+      && typeof window.AccountRecovery.normalizeEmail === 'function'
+    ) {
+      return window.AccountRecovery.normalizeEmail(value);
+    }
+    const normalized = (value || '').trim().toLowerCase();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : '';
+  }
+
+  async function resolveRecoveryTarget(input) {
+    if (
+      window.AccountRecovery
+      && typeof window.AccountRecovery.findAliasByRecoveryInput === 'function'
+    ) {
+      return window.AccountRecovery.findAliasByRecoveryInput({
+        portalRoot,
+        input
+      });
+    }
+
+    return {
+      inputType: 'alias',
+      alias: normalizeAlias(input),
+      email: '',
+      aliases: []
+    };
+  }
+
+  function findKnownAliasMatch(value) {
+    const normalized = normalizeAlias(value);
+    if (!normalized) return '';
+
+    const knownAliases = Array.from(new Set([
+      ...Object.keys(userRecords),
+      ...Object.keys(pointsRecords)
+    ]));
+
+    if (knownAliases.includes(normalized)) {
+      return normalized;
+    }
+
+    const normalizedLower = normalized.toLowerCase();
+    const caseInsensitiveMatch = knownAliases.find(item => {
+      if (typeof item !== 'string') return false;
+      return item.toLowerCase() === normalizedLower;
+    });
+
+    return caseInsensitiveMatch || normalized;
+  }
+
+  async function sendRecoveryNotificationEmail(payload = {}) {
+    try {
+      const response = await fetch('/api/account-recovery-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          mode: 'admin-reset-issued',
+          email: payload.email || '',
+          alias: payload.alias || '',
+          username: payload.username || '',
+          temporaryPassword: payload.temporaryPassword || '',
+          issuedBy: payload.issuedBy || ''
+        })
+      });
+
+      const body = await response.json().catch(() => ({}));
+      return {
+        ok: response.ok,
+        error: body.error || '',
+        body
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error && error.message ? error.message : 'network-failed',
+        body: {}
+      };
+    }
+  }
+
   async function handleAccountRecovery() {
     if (!recoveryButton) return;
     if (!isAdmin) {
@@ -1224,124 +1314,220 @@
       return;
     }
 
-    const targetAlias = normalizeAlias((recoveryCurrentInput.value || '').trim());
+    const targetInput = (recoveryCurrentInput.value || '').trim();
     const nextUsername = (recoveryUsernameInput.value || '').trim();
     const nextAlias = normalizeAlias(nextUsername);
     const tempPassword = (recoveryPasswordInput.value || '').trim();
+    const rawRecoveryEmail = ((recoveryEmailInput && recoveryEmailInput.value) || '').trim();
+    const explicitRecoveryEmail = normalizeRecoveryEmail(rawRecoveryEmail);
 
-    if (!targetAlias) {
-      setRecoveryStatus('Enter the existing username or alias to recover.', 'error');
+    if (!targetInput) {
+      setRecoveryStatus('Enter the existing username, alias, or recovery email to recover.', 'error');
       return;
     }
-    if (!nextUsername) {
-      setRecoveryStatus('Add the new username you want to issue.', 'error');
+    if (!nextUsername || !nextAlias) {
+      setRecoveryStatus('Add a valid new username to issue.', 'error');
       return;
     }
     if (!tempPassword || tempPassword.length < 6) {
       setRecoveryStatus('Use a temporary password with at least 6 characters.', 'error');
       return;
     }
+    if (rawRecoveryEmail && !explicitRecoveryEmail) {
+      setRecoveryStatus('Recovery email must be a valid address if provided.', 'error');
+      return;
+    }
     if (!gun || gun.__isGunStub) {
       setRecoveryStatus('Gun peers are offline. Try again once connected.', 'error');
       return;
     }
-    if (targetAlias === nextAlias) {
-      setRecoveryStatus('Choose a new username so a fresh alias can be created.', 'error');
-      return;
-    }
 
-    setRecoveryStatus('Looking up the account and preparing a reset...');
     recoveryButton.disabled = true;
 
-    const [profile, stats] = await Promise.all([
-      readNodeValue(userIndex, targetAlias),
-      readNodeValue(userStats, targetAlias)
-    ]);
+    try {
+      setRecoveryStatus('Looking up the account and preparing a reset...');
+      const targetResolution = await resolveRecoveryTarget(targetInput);
+      const resolvedAlias = targetResolution && targetResolution.alias
+        ? targetResolution.alias
+        : '';
+      const targetAlias = findKnownAliasMatch(resolvedAlias);
 
-    if (!profile && !stats) {
-      setRecoveryStatus('No account metadata found for that user.', 'error');
-      recoveryButton.disabled = false;
-      return;
-    }
-
-    const issuedAt = Date.now();
-    const currentUsername = profile?.username || stats?.username || targetAlias.replace('@3dvr', '');
-    const points = sanitizePointsValue(stats?.points);
-    const lastUpdated = stats?.lastUpdated || issuedAt;
-    const createdAt = profile?.createdAt || issuedAt;
-    const lastLogin = profile?.lastLogin || 0;
-
-    setRecoveryStatus('Creating the new account and transferring metadata...');
-    const creationUser = typeof gun.user === 'function' ? gun.user() : null;
-    if (!creationUser || typeof creationUser.create !== 'function') {
-      setRecoveryStatus('Gun user instance unavailable. Refresh and try again.', 'error');
-      recoveryButton.disabled = false;
-      return;
-    }
-
-    const creationAck = await new Promise(resolve => {
-      try {
-        creationUser.create(nextAlias, tempPassword, ack => resolve(ack || {}));
-      } catch (error) {
-        resolve({ err: error?.message || 'account-creation-failed' });
+      if (!targetAlias) {
+        const hint = targetResolution && targetResolution.inputType === 'email'
+          ? 'No account is indexed for that recovery email yet.'
+          : 'Enter the existing username, alias, or recovery email to recover.';
+        setRecoveryStatus(hint, 'error');
+        return;
       }
-    });
 
-    if (creationAck && creationAck.err) {
-      const message = String(creationAck.err || '').includes('User already created')
-        ? 'That new username already exists. Pick a different username.'
-        : `Could not create the new account: ${creationAck.err}`;
-      setRecoveryStatus(message, 'error');
+      if (targetAlias.toLowerCase() === nextAlias.toLowerCase()) {
+        setRecoveryStatus('Choose a new username so a fresh alias can be created.', 'error');
+        return;
+      }
+
+      const [profile, stats] = await Promise.all([
+        readNodeValue(userIndex, targetAlias),
+        readNodeValue(userStats, targetAlias)
+      ]);
+
+      if (!profile && !stats) {
+        setRecoveryStatus('No account metadata found for that user.', 'error');
+        return;
+      }
+
+      const issuedAt = Date.now();
+      const currentUsername = profile && profile.username
+        ? profile.username
+        : stats && stats.username
+          ? stats.username
+          : targetAlias.replace('@3dvr', '');
+      const points = sanitizePointsValue(stats && stats.points);
+      const lastUpdated = stats && stats.lastUpdated ? stats.lastUpdated : issuedAt;
+      const createdAt = profile && profile.createdAt ? profile.createdAt : issuedAt;
+      const lastLogin = profile && profile.lastLogin ? profile.lastLogin : 0;
+      const profileRecoveryEmail = normalizeRecoveryEmail(profile && profile.recoveryEmail);
+      const indexedRecoveryEmail = normalizeRecoveryEmail(targetResolution && targetResolution.email);
+      const recoveryEmail = explicitRecoveryEmail || profileRecoveryEmail || indexedRecoveryEmail;
+
+      setRecoveryStatus('Creating the new account and transferring metadata...');
+      const creationUser = typeof gun.user === 'function' ? gun.user() : null;
+      if (!creationUser || typeof creationUser.create !== 'function') {
+        setRecoveryStatus('Gun user instance unavailable. Refresh and try again.', 'error');
+        return;
+      }
+
+      const creationAck = await new Promise(resolve => {
+        try {
+          creationUser.create(nextAlias, tempPassword, ack => resolve(ack || {}));
+        } catch (error) {
+          resolve({ err: error && error.message ? error.message : 'account-creation-failed' });
+        }
+      });
+
+      if (creationAck && creationAck.err) {
+        const message = String(creationAck.err || '').includes('User already created')
+          ? 'That new username already exists. Pick a different username.'
+          : 'Could not create the new account: ' + creationAck.err;
+        setRecoveryStatus(message, 'error');
+        return;
+      }
+
+      const nextProfile = {
+        username: nextUsername,
+        alias: nextAlias,
+        createdAt,
+        lastLogin,
+        recoveredFrom: targetAlias,
+        recoveredAt: issuedAt
+      };
+
+      if (recoveryEmail) {
+        nextProfile.recoveryEmail = recoveryEmail;
+      }
+
+      userIndex.get(nextAlias).put(nextProfile);
+
+      userStats.get(nextAlias).put({
+        username: nextUsername,
+        alias: nextAlias,
+        points,
+        lastUpdated,
+        recoveredFrom: targetAlias,
+        recoveredAt: issuedAt
+      });
+
+      userIndex.get(targetAlias).put({
+        archived: true,
+        recoveredTo: nextAlias,
+        recoveredAt: issuedAt,
+        recoveryEmail: recoveryEmail || profileRecoveryEmail || ''
+      });
+
+      userStats.get(targetAlias).put({
+        archived: true,
+        recoveredTo: nextAlias,
+        recoveredAt: issuedAt
+      });
+
+      if (
+        recoveryEmail
+        && window.AccountRecovery
+        && typeof window.AccountRecovery.syncRecoveryEmailIndex === 'function'
+      ) {
+        await window.AccountRecovery.syncRecoveryEmailIndex({
+          portalRoot,
+          alias: nextAlias,
+          email: recoveryEmail,
+          source: 'admin-recovery',
+          updatedBy: alias || 'admin',
+          updatedAt: issuedAt
+        });
+      }
+
+      if (
+        recoveryEmail
+        && window.AccountRecovery
+        && typeof window.AccountRecovery.archiveRecoveryAlias === 'function'
+      ) {
+        await window.AccountRecovery.archiveRecoveryAlias({
+          portalRoot,
+          alias: targetAlias,
+          email: recoveryEmail,
+          recoveredTo: nextAlias,
+          updatedBy: alias || 'admin',
+          updatedAt: issuedAt
+        });
+      }
+
+      let emailStatus = 'No recovery email on file, so share the temporary password manually.';
+      if (recoveryEmail) {
+        setRecoveryStatus('Account reset complete. Sending temporary credentials via email...');
+        const emailResult = await sendRecoveryNotificationEmail({
+          email: recoveryEmail,
+          alias: nextAlias,
+          username: nextUsername,
+          temporaryPassword: tempPassword,
+          issuedBy: alias || 'admin'
+        });
+
+        if (emailResult.ok) {
+          emailStatus = 'Temporary credentials emailed to ' + recoveryEmail + '.';
+        } else {
+          emailStatus = 'Could not email credentials (' + (emailResult.error || 'unknown error')
+            + '). Share manually.';
+        }
+      }
+
+      accountRecoveryLog.get(targetAlias + '-' + issuedAt).put({
+        targetAlias,
+        targetInput,
+        targetInputType: targetResolution && targetResolution.inputType || 'alias',
+        newAlias: nextAlias,
+        issuedBy: alias,
+        issuedAt,
+        pointsTransferred: points,
+        previousUsername: currentUsername,
+        recoveryEmail: recoveryEmail || ''
+      });
+
+      setRecoveryStatus(
+        'New credentials ready. Username: ' + nextUsername
+          + '. Temporary password: ' + tempPassword + '. ' + emailStatus,
+        'success'
+      );
+      recoveryCurrentInput.value = '';
+      recoveryUsernameInput.value = '';
+      recoveryPasswordInput.value = '';
+      if (recoveryEmailInput) {
+        recoveryEmailInput.value = '';
+      }
+    } finally {
       recoveryButton.disabled = false;
-      return;
     }
-
-    userIndex.get(nextAlias).put({
-      username: nextUsername,
-      alias: nextAlias,
-      createdAt,
-      lastLogin,
-      recoveredFrom: targetAlias,
-      recoveredAt: issuedAt
-    });
-
-    userStats.get(nextAlias).put({
-      username: nextUsername,
-      alias: nextAlias,
-      points,
-      lastUpdated,
-      recoveredFrom: targetAlias,
-      recoveredAt: issuedAt
-    });
-
-    userIndex.get(targetAlias).put({
-      archived: true,
-      recoveredTo: nextAlias,
-      recoveredAt: issuedAt
-    });
-    userStats.get(targetAlias).put({
-      archived: true,
-      recoveredTo: nextAlias,
-      recoveredAt: issuedAt
-    });
-
-    accountRecoveryLog.get(`${targetAlias}-${issuedAt}`).put({
-      targetAlias,
-      newAlias: nextAlias,
-      issuedBy: alias,
-      issuedAt,
-      pointsTransferred: points,
-      previousUsername: currentUsername
-    });
-
-    setRecoveryStatus(`New credentials ready. Username: ${nextUsername}. Temporary password: ${tempPassword}.`, 'success');
-    recoveryButton.disabled = false;
-    recoveryCurrentInput.value = '';
-    recoveryUsernameInput.value = '';
-    recoveryPasswordInput.value = '';
   }
 
   async function saveDefaultKey() {
+
     if (!isAdmin) {
       updateDefaultStatus('Only admins can change shared defaults.');
       return;
@@ -1530,9 +1716,17 @@
   }
 
   function normalizeAlias(value) {
+    if (
+      window.AccountRecovery
+      && typeof window.AccountRecovery.normalizeAlias === 'function'
+    ) {
+      return window.AccountRecovery.normalizeAlias(value);
+    }
+
     if (!value) return '';
     const trimmed = value.trim();
-    return trimmed.includes('@') ? trimmed : `${trimmed}@3dvr`;
+    if (!trimmed) return '';
+    return trimmed.includes('@') ? trimmed : trimmed + '@3dvr';
   }
 
   function normalizeStripeRecord(record = {}) {
