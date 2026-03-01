@@ -1,6 +1,6 @@
 /* contacts/service-worker.js */
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = `contacts-static-${CACHE_VERSION}`;
 const HTML_CACHE = `contacts-html-${CACHE_VERSION}`;
 const SCOPE_URL = new URL(self.registration.scope);
@@ -27,7 +27,7 @@ const createReloadedRequests = (assets) =>
 const networkFirst = async (request, cacheName, fallbackUrl = null) => {
   try {
     const fresh = await fetch(request, { cache: 'reload' });
-    if (fresh && fresh.ok) {
+    if (fresh && (fresh.ok || fresh.type === 'opaque')) {
       const cache = await caches.open(cacheName);
       cache.put(request, fresh.clone());
     }
@@ -103,7 +103,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (['style', 'script', 'image', 'font'].includes(request.destination)) {
+  if (['style', 'script'].includes(request.destination)) {
+    event.respondWith(networkFirst(request, STATIC_CACHE, request));
+    return;
+  }
+
+  if (['image', 'font'].includes(request.destination)) {
     staleWhileRevalidate(event, STATIC_CACHE);
     return;
   }
@@ -111,4 +116,12 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request).catch(() => caches.match(request))
   );
+});
+
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+  if (data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

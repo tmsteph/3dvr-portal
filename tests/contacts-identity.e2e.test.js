@@ -103,13 +103,25 @@ describe('contacts identity flows', () => {
     }
   }
 
+  async function createContext(browser) {
+    try {
+      return await browser.newContext({ serviceWorkers: 'block' });
+    } catch (error) {
+      const message = error && typeof error.message === 'string' ? error.message : String(error);
+      if (message.includes('serviceWorkers')) {
+        return browser.newContext();
+      }
+      throw error;
+    }
+  }
+
   it('shows stored signed-in identity even when the session is missing', async t => {
     const browser = await launchChromium(t);
     if (!browser) {
       return;
     }
     try {
-      const context = await browser.newContext();
+      const context = await createContext(browser);
       await context.addInitScript(({ username, alias }) => {
         localStorage.setItem('signedIn', 'true');
         localStorage.setItem('username', username);
@@ -145,7 +157,7 @@ describe('contacts identity flows', () => {
       return;
     }
     try {
-      const context = await browser.newContext();
+      const context = await createContext(browser);
       const primary = await context.newPage();
       await primary.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
       await primary.waitForSelector('#floatingIdentityName');
@@ -182,7 +194,7 @@ describe('contacts identity flows', () => {
       return;
     }
     try {
-      const context = await browser.newContext();
+      const context = await createContext(browser);
       const page = await context.newPage();
       const username = `contacts${Date.now()}`;
       const password = `Test!${Math.random().toString(36).slice(2, 8)}`;
@@ -224,7 +236,7 @@ describe('contacts identity flows', () => {
       return;
     }
     try {
-      const context = await browser.newContext();
+      const context = await createContext(browser);
       const page = await context.newPage();
       const username = `playwright${Date.now()}`;
       const password = `Test!${Math.random().toString(36).slice(2, 8)}`;

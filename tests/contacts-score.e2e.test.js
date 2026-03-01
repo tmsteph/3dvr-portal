@@ -103,6 +103,18 @@ describe('contacts score integration', () => {
     }
   }
 
+  async function createContext(browser) {
+    try {
+      return await browser.newContext({ serviceWorkers: 'block' });
+    } catch (error) {
+      const message = error && typeof error.message === 'string' ? error.message : String(error);
+      if (message.includes('serviceWorkers')) {
+        return browser.newContext();
+      }
+      throw error;
+    }
+  }
+
   it('updates the floating identity score when the score manager changes', async t => {
     const browser = await launchChromium(t);
     if (!browser) {
@@ -110,7 +122,7 @@ describe('contacts score integration', () => {
     }
 
     try {
-      const context = await browser.newContext();
+      const context = await createContext(browser);
       const page = await context.newPage();
       await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
       await page.waitForSelector('#floatingIdentityScore');
@@ -144,7 +156,7 @@ describe('contacts score integration', () => {
     }
 
     try {
-      const context = await browser.newContext();
+      const context = await createContext(browser);
       const page = await context.newPage();
       await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
       await page.waitForSelector('#floatingIdentityScore');
@@ -168,10 +180,12 @@ describe('contacts score integration', () => {
       });
 
       await page.click('#openCreateContact');
-      await page.fill('#name', 'Reload Test');
-      await page.fill('#email', 'reload@example.com');
-      await page.fill('#company', 'Persistence Inc');
-      await page.click('#contactForm button[type="submit"]');
+      await page.waitForSelector('#createContactOverlay:not(.hidden)');
+      const createContactOverlay = page.locator('#createContactOverlay');
+      await createContactOverlay.locator('#name').fill('Reload Test');
+      await createContactOverlay.locator('#email').fill('reload@example.com');
+      await createContactOverlay.locator('#company').fill('Persistence Inc');
+      await createContactOverlay.locator('#contactForm button[type="submit"]').click();
 
       await page.waitForFunction(previousScore => {
         const manager = window.ScoreSystem && window.ScoreSystem.getManager
