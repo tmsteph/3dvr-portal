@@ -1,6 +1,6 @@
 /* contacts/service-worker.js */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `contacts-static-${CACHE_VERSION}`;
 const HTML_CACHE = `contacts-html-${CACHE_VERSION}`;
 const SCOPE_URL = new URL(self.registration.scope);

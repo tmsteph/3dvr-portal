@@ -26,7 +26,7 @@
 <body class="bg-gray-900 text-white min-h-screen">
 
   <!-- Header -->
-  <header class="sticky top-0 z-10 backdrop-blur bg-gray-900/90 border-b border-white/10">
+  <header class="sticky top-0 z-50 backdrop-blur bg-gray-900/90 border-b border-white/10">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
       <a id="portalHomeLink" href="https://portal.3dvr.tech/index.html" class="text-sm text-gray-300 hover:text-white">← Portal</a>
       <a id="portalCrmLink" href="https://portal.3dvr.tech/crm/index.html" class="text-sm text-gray-300 hover:text-white">CRM</a>
@@ -34,8 +34,8 @@
       <span id="spaceBadge" class="hidden text-xs px-2 py-1 rounded bg-white/10">personal</span>
       <div class="ms-auto flex items-center gap-2">
         <span id="userDisplay" class="text-sm text-gray-300"></span>
-        <button id="btnLogin" class="bg-teal-600 hover:bg-teal-700 text-white text-sm px-3 py-1.5 rounded">Sign in</button>
-        <button id="btnLogout" class="hidden bg-rose-600 hover:bg-rose-700 text-white text-sm px-3 py-1.5 rounded">Log out</button>
+        <button id="btnLogin" class="relative z-50 bg-teal-600 hover:bg-teal-700 text-white text-sm px-3 py-1.5 rounded">Sign in</button>
+        <button id="btnLogout" class="hidden relative z-50 bg-rose-600 hover:bg-rose-700 text-white text-sm px-3 py-1.5 rounded">Log out</button>
       </div>
     </div>
   </header>
@@ -44,7 +44,7 @@
     id="floatingIdentity"
     href="https://portal.3dvr.tech/profile.html#profile"
     title="View your profile"
-    class="fixed bottom-4 right-4 z-30 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-gray-900/90 px-4 py-3 text-sm text-white shadow-xl shadow-black/30 backdrop-blur"
+    class="fixed bottom-4 right-4 z-20 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-gray-900/90 px-4 py-3 text-sm text-white shadow-xl shadow-black/30 backdrop-blur"
   >
     <div class="flex flex-col leading-tight">
       <span id="floatingIdentityName" class="font-semibold">👤 Guest</span>
@@ -761,13 +761,19 @@ refreshScoreManager();
 const userDisplay = document.getElementById('userDisplay');
 const btnLogin = document.getElementById('btnLogin');
 const btnLogout = document.getElementById('btnLogout');
+const authModal = document.getElementById('authModal');
+const authForm = document.getElementById('authForm');
+const authUsernameInput = document.getElementById('authUsername');
+const authPasswordInput = document.getElementById('authPassword');
+const authFormStatus = document.getElementById('authFormStatus');
+const closeAuthModalBtn = document.getElementById('closeAuthModal');
+const continueGuestAuthBtn = document.getElementById('continueGuestAuth');
+const authStatusSignIn = document.getElementById('authStatusSignIn');
 const urlParams = new URLSearchParams(window.location.search);
 const requestedSpace = urlParams.get('space');
 const focusContactId = urlParams.get('contact');
 const focusClasses = ['ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-gray-900'];
 let focusScrollDone = false;
-
-refreshAuthButtons();
 
 function refreshSignedInDisplay() {
   if (!userDisplay) return;
@@ -775,6 +781,52 @@ function refreshSignedInDisplay() {
   const usernameTrimmed = (username || '').trim() || aliasToDisplay(aliasTrimmed) || 'User';
   const aliasSegment = aliasTrimmed ? ` (${aliasTrimmed})` : '';
   userDisplay.textContent = `Signed in as ${usernameTrimmed}${aliasSegment}`;
+}
+
+function rectsOverlap(first, second) {
+  if (!first || !second) return false;
+  return !(
+    first.right <= second.left
+    || first.left >= second.right
+    || first.bottom <= second.top
+    || first.top >= second.bottom
+  );
+}
+
+function syncFloatingIdentityHitTarget() {
+  const identityChip = document.getElementById('floatingIdentity');
+  if (!identityChip) return;
+  const activeControl = signedIn ? btnLogout : btnLogin;
+  const authControl = activeControl && !activeControl.classList.contains('hidden')
+    ? activeControl
+    : userDisplay;
+  if (!authControl || typeof authControl.getBoundingClientRect !== 'function') {
+    identityChip.style.pointerEvents = '';
+    return;
+  }
+  const overlaps = rectsOverlap(
+    authControl.getBoundingClientRect(),
+    identityChip.getBoundingClientRect()
+  );
+  identityChip.style.pointerEvents = overlaps ? 'none' : '';
+}
+
+let floatingIdentitySyncFrame = null;
+function scheduleFloatingIdentityHitTargetSync() {
+  if (floatingIdentitySyncFrame != null) {
+    return;
+  }
+  if (typeof requestAnimationFrame === 'function') {
+    floatingIdentitySyncFrame = requestAnimationFrame(() => {
+      floatingIdentitySyncFrame = null;
+      syncFloatingIdentityHitTarget();
+    });
+    return;
+  }
+  floatingIdentitySyncFrame = setTimeout(() => {
+    floatingIdentitySyncFrame = null;
+    syncFloatingIdentityHitTarget();
+  }, 0);
 }
 
 function refreshAuthButtons() {
@@ -785,7 +837,31 @@ function refreshAuthButtons() {
   if (btnLogout) {
     btnLogout.classList.toggle('hidden', !signedIn);
   }
+  scheduleFloatingIdentityHitTargetSync();
 }
+
+refreshAuthButtons();
+btnLogin?.addEventListener('click', () => {
+  openAuthModal({ preferPasswordFocus: true });
+});
+authStatusSignIn?.addEventListener('click', () => {
+  openAuthModal({ preferPasswordFocus: true });
+});
+authForm?.addEventListener('submit', handleContactsAuthSubmit);
+closeAuthModalBtn?.addEventListener('click', () => {
+  closeAuthModal();
+});
+continueGuestAuthBtn?.addEventListener('click', () => {
+  closeAuthModal();
+  if (!signedIn) {
+    onGuest();
+  }
+});
+authModal?.addEventListener('click', event => {
+  if (event.target === authModal) {
+    closeAuthModal();
+  }
+});
 
 function finalizeSignedInState({ alias: aliasValue, username: usernameValue, statusMessage } = {}) {
   const wasSignedIn = signedIn;
@@ -1196,7 +1272,6 @@ const form = document.getElementById('contactForm');
 const syncStatus = document.getElementById('syncStatus');
 const authStatus = document.getElementById('authStatus');
 const authStatusMessage = document.getElementById('authStatusMessage');
-const authStatusSignIn = document.getElementById('authStatusSignIn');
 const listEl = document.getElementById('contactList');
 const btnReset = document.getElementById('btnReset');
 const searchEl = document.getElementById('search');
@@ -1229,13 +1304,6 @@ const contactDetailActions = document.getElementById('contactDetailActions');
 const closeContactDetailBtn = document.getElementById('closeContactDetail');
 const openCreateContactBtn = document.getElementById('openCreateContact');
 const closeCreateContactBtn = document.getElementById('closeCreateContact');
-const authModal = document.getElementById('authModal');
-const authForm = document.getElementById('authForm');
-const authUsernameInput = document.getElementById('authUsername');
-const authPasswordInput = document.getElementById('authPassword');
-const authFormStatus = document.getElementById('authFormStatus');
-const closeAuthModalBtn = document.getElementById('closeAuthModal');
-const continueGuestAuthBtn = document.getElementById('continueGuestAuth');
 
 if (portalHomeLink) {
   portalHomeLink.href = portalHref('/index.html');
@@ -1270,33 +1338,6 @@ openCreateContactBtn?.addEventListener('click', openCreateContact);
 closeCreateContactBtn?.addEventListener('click', closeCreateContact);
 createContactOverlay?.addEventListener('click', evt=>{
   if(evt.target === createContactOverlay) closeCreateContact();
-});
-
-btnLogin?.addEventListener('click', () => {
-  openAuthModal({ preferPasswordFocus: true });
-});
-
-authStatusSignIn?.addEventListener('click', () => {
-  openAuthModal({ preferPasswordFocus: true });
-});
-
-authForm?.addEventListener('submit', handleContactsAuthSubmit);
-
-closeAuthModalBtn?.addEventListener('click', () => {
-  closeAuthModal();
-});
-
-continueGuestAuthBtn?.addEventListener('click', () => {
-  closeAuthModal();
-  if (!signedIn) {
-    onGuest();
-  }
-});
-
-authModal?.addEventListener('click', event => {
-  if (event.target === authModal) {
-    closeAuthModal();
-  }
 });
 
 /* ---------- State ---------- */
@@ -1840,9 +1881,6 @@ function handleIdentityStorageEvent(event) {
   if (!event) {
     return;
   }
-  if (event.storageArea && nativeLocalStorage && event.storageArea !== nativeLocalStorage) {
-    return;
-  }
   const key = event.key;
   const newValue = typeof event.newValue === 'string' ? event.newValue : null;
 
@@ -1904,6 +1942,19 @@ function handleIdentityStorageEvent(event) {
     return;
   }
 
+  if ((key === 'alias' || key === 'username') && !signedIn) {
+    const storageSignedIn = ls.getItem('signedIn') === 'true';
+    if (storageSignedIn) {
+      finalizeSignedInState({
+        alias: (ls.getItem('alias') || '').trim(),
+        username: (ls.getItem('username') || '').trim(),
+        statusMessage: 'Signed in (restored from another tab).'
+      });
+      maybeRestoreExistingSession({ allowWhenGuest: true });
+    }
+    return;
+  }
+
   if (key === 'password') {
     password = typeof newValue === 'string' ? newValue : '';
     return;
@@ -1930,7 +1981,40 @@ function handleIdentityStorageEvent(event) {
   }
 }
 
+function syncIdentityFromStorage({ statusMessage = 'Signed in (restored from another tab).' } = {}) {
+  const storageSignedIn = ls.getItem('signedIn') === 'true';
+  if (storageSignedIn && !signedIn) {
+    finalizeSignedInState({
+      alias: (ls.getItem('alias') || '').trim(),
+      username: (ls.getItem('username') || '').trim(),
+      statusMessage
+    });
+    maybeRestoreExistingSession({ allowWhenGuest: true });
+    return;
+  }
+
+  if (!storageSignedIn && signedIn && ls.getItem('guest') === 'true') {
+    onGuest();
+  }
+}
+
 window.addEventListener('storage', handleIdentityStorageEvent);
+window.addEventListener('focus', () => syncIdentityFromStorage({
+  statusMessage: 'Signed in (restored after returning to this tab).'
+}));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  syncIdentityFromStorage({
+    statusMessage: 'Signed in (restored after returning to this tab).'
+  });
+});
+window.addEventListener('resize', scheduleFloatingIdentityHitTargetSync);
+window.addEventListener('orientationchange', scheduleFloatingIdentityHitTargetSync);
+window.addEventListener('scroll', scheduleFloatingIdentityHitTargetSync, { passive: true });
+syncIdentityFromStorage({
+  statusMessage: 'Signed in (restored automatically).'
+});
+scheduleFloatingIdentityHitTargetSync();
 function scheduleRender(){
   clearTimeout(renderTimer);
   renderTimer = setTimeout(updateList, 40);
