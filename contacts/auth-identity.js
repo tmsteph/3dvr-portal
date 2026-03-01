@@ -108,16 +108,32 @@
 
     const nextAlias = identity.alias;
     const nextUsername = identity.username || aliasToDisplay(nextAlias) || 'User';
+    const hasStoredPassword = normalizeText(storage.getItem('password')).length > 0;
+    const nextSignedIn = hasStoredPassword;
     const currentSignedIn = storage.getItem('signedIn') === 'true';
     const currentAlias = normalizeText(storage.getItem('alias'));
     const currentUsername = normalizeText(storage.getItem('username'));
-    const needsWrite = !currentSignedIn || currentAlias !== nextAlias || currentUsername !== nextUsername;
+    const hasGuestMarkers = Boolean(
+      storage.getItem('guest')
+      || storage.getItem('guestId')
+      || storage.getItem('guestDisplayName')
+    );
+    const needsWrite = (
+      currentSignedIn !== nextSignedIn
+      || currentAlias !== nextAlias
+      || currentUsername !== nextUsername
+      || hasGuestMarkers
+    );
 
     if (!needsWrite) {
       return false;
     }
 
-    storage.setItem('signedIn', 'true');
+    if (nextSignedIn) {
+      storage.setItem('signedIn', 'true');
+    } else {
+      storage.removeItem('signedIn');
+    }
     storage.setItem('alias', nextAlias);
     storage.setItem('username', nextUsername);
     storage.removeItem('guest');
