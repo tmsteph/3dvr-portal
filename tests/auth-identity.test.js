@@ -92,8 +92,9 @@ describe('auth identity helper', () => {
     assert.equal(Number.isFinite(identity.updatedAt), true);
   });
 
-  it('syncs local storage from shared identity cookies', () => {
+  it('syncs local storage from shared identity cookies and preserves signed-in state when credentials exist', () => {
     const { api, localStorage } = loadAuthIdentity();
+    localStorage.setItem('password', 'secret');
     localStorage.setItem('guest', 'true');
     localStorage.setItem('guestId', 'guest_abc');
     localStorage.setItem('guestDisplayName', 'Guest');
@@ -112,6 +113,23 @@ describe('auth identity helper', () => {
     assert.equal(localStorage.getItem('guest'), null);
     assert.equal(localStorage.getItem('guestId'), null);
     assert.equal(localStorage.getItem('guestDisplayName'), null);
+  });
+
+  it('syncs shared identity hints without forcing signed-in mode when no password is stored', () => {
+    const { api, localStorage } = loadAuthIdentity();
+    localStorage.setItem('signedIn', 'true');
+
+    api.writeSharedIdentity({
+      signedIn: true,
+      alias: 'pilot@3dvr',
+      username: 'Pilot',
+    });
+
+    const changed = api.syncStorageFromSharedIdentity(localStorage);
+    assert.equal(changed, true);
+    assert.equal(localStorage.getItem('signedIn'), null);
+    assert.equal(localStorage.getItem('alias'), 'pilot@3dvr');
+    assert.equal(localStorage.getItem('username'), 'Pilot');
   });
 
   it('clears shared identity cookies', () => {
