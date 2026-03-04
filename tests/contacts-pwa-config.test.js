@@ -67,12 +67,12 @@ describe('contacts PWA configuration', () => {
     assert.match(pwaInstallSource, /updatefound/);
   });
 
-  it('keeps shared runtime scripts root-absolute for portal and standalone roots', async () => {
+  it('keeps standalone runtime scripts local to the contacts app root', async () => {
     const html = await readProjectFile('contacts/index.html');
 
-    assert.match(html, /<script src="\/gun-init\.js"><\/script>/);
-    assert.match(html, /<script src="\/auth-identity\.js"><\/script>/);
-    assert.match(html, /<script src="\/score\.js"><\/script>/);
+    assert.match(html, /<script src="\.\/gun-init\.js"><\/script>/);
+    assert.match(html, /<script src="\.\/auth-identity\.js"><\/script>/);
+    assert.match(html, /<script src="\.\/score\.js"><\/script>/);
   });
 
   it('ships a standalone score runtime with portal sync capabilities', async () => {

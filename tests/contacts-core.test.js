@@ -204,7 +204,11 @@ describe('contacts core helpers', () => {
     };
 
     it('returns the user contacts node when a session is active', () => {
-      const userContacts = { kind: 'user-contacts' };
+      const legacyUserContacts = { kind: 'legacy-user-contacts' };
+      const userContacts = {
+        kind: 'user-contacts',
+        get: mock.fn(() => legacyUserContacts),
+      };
       const user = { get: mock.fn(() => userContacts) };
 
       const result = resolveSpaceNode({
@@ -217,8 +221,11 @@ describe('contacts core helpers', () => {
       assert.equal(result.node, userContacts);
       assert.equal(result.requiresAuth, false);
       assert.equal(result.shouldClearAuth, true);
+      assert.deepEqual(result.legacyNodes, [legacyUserContacts]);
       assert.equal(user.get.mock.calls.length, 1);
       assert.deepEqual(user.get.mock.calls[0].arguments, ['contacts']);
+      assert.equal(userContacts.get.mock.calls.length, 1);
+      assert.deepEqual(userContacts.get.mock.calls[0].arguments, ['contacts']);
     });
 
     it('indicates that personal space requires auth when signed in without a session', () => {
@@ -233,9 +240,14 @@ describe('contacts core helpers', () => {
     });
 
     it('resolves guest storage from the shared guests root', () => {
-      const guestContacts = { kind: 'guest-contacts' };
+      const legacyGuestContacts = { kind: 'legacy-guest-contacts' };
+      const guestContacts = {
+        kind: 'guest-contacts',
+        get: mock.fn(() => legacyGuestContacts),
+      };
+      const guestRoot = { get: mock.fn(() => guestContacts) };
       const guestsRoot = {
-        get: mock.fn(() => ({ get: mock.fn(() => guestContacts) })),
+        get: mock.fn(() => guestRoot),
       };
 
       const result = resolveSpaceNode({
@@ -248,7 +260,10 @@ describe('contacts core helpers', () => {
 
       assert.equal(result.node, guestContacts);
       assert.equal(result.requiresAuth, false);
+      assert.deepEqual(result.legacyNodes, [legacyGuestContacts]);
       assert.equal(guestsRoot.get.mock.calls[0].arguments[0], 'guest_abc');
+      assert.equal(guestRoot.get.mock.calls[0].arguments[0], 'contacts');
+      assert.equal(guestContacts.get.mock.calls[0].arguments[0], 'contacts');
     });
 
     it('uses org and public Gun nodes for shared spaces', () => {

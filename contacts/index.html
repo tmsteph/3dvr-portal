@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="https://fav.farm/🧠" />
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-  <script src="/gun-init.js"></script>
+  <script src="./gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
-  <script src="/auth-identity.js"></script>
-  <script src="/score.js"></script>
+  <script src="./auth-identity.js"></script>
+  <script src="./score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script
     src="./pwa-install.js"
@@ -1509,7 +1509,35 @@ function sanitizeScoreDisplay(value) {
 }
 
 function hasActiveUserSession() {
-  return !!(user && user.is && user.is.pub && user._ && user._.sea);
+  return !!(user && user.is && user.is.pub);
+}
+
+function waitForUserSessionReady({ timeoutMs = 6000, pollMs = 120 } = {}) {
+  if (hasActiveUserSession()) {
+    return Promise.resolve(true);
+  }
+  return new Promise(resolve => {
+    const startedAt = Date.now();
+    let timer = null;
+    const finish = value => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      resolve(!!value);
+    };
+    const check = () => {
+      if (hasActiveUserSession()) {
+        finish(true);
+        return;
+      }
+      if ((Date.now() - startedAt) >= timeoutMs) {
+        finish(false);
+      }
+    };
+    timer = setInterval(check, pollMs);
+    check();
+  });
 }
 
 function showAuthStatus(message) {
@@ -1698,6 +1726,7 @@ async function handleContactsAuthSubmit(event) {
   setAuthFormStatus('');
   try {
     const result = await signInOrCreateAccount(aliasInput, nextPassword);
+    const sessionReady = await waitForUserSessionReady();
     const nextUsername = deriveUsernameForAuth(rawIdentity, aliasInput);
     password = nextPassword;
     try {
@@ -1716,11 +1745,17 @@ async function handleContactsAuthSubmit(event) {
     const statusMessage = result.created
       ? 'Account created and signed in.'
       : 'Signed in on this device.';
+    const resolvedStatusMessage = sessionReady
+      ? statusMessage
+      : `${statusMessage} Sync session is still warming up.`;
     finalizeSignedInState({
       alias: aliasInput,
       username: nextUsername,
-      statusMessage,
+      statusMessage: resolvedStatusMessage,
     });
+    if (!sessionReady) {
+      ensurePersonalAuthRecovery();
+    }
   } catch (err) {
     const reason = err && err.message ? err.message : String(err || '');
     if (reason && isAlreadyCreatedError(reason)) {
@@ -1768,6 +1803,7 @@ function ensurePersonalAuthRecovery() {
   }
   personalAuthPromise = new Promise(resolve => {
     let settled = false;
+    const sessionWaitPromise = waitForUserSessionReady({ timeoutMs: 8000 });
     const finish = success => {
       if (settled) return;
       settled = true;
@@ -1787,10 +1823,6 @@ function ensurePersonalAuthRecovery() {
           console.warn('Personal auth recovery failed', ack.err);
           showAuthStatus('Could not restore your private space automatically. Please sign in again.');
           finish(false);
-          return;
-        }
-        if (hasActiveUserSession()) {
-          finish(true);
         }
       });
     } catch (err) {
@@ -1799,13 +1831,14 @@ function ensurePersonalAuthRecovery() {
       finish(false);
       return;
     }
-    setTimeout(() => {
-      if (hasActiveUserSession()) {
+    sessionWaitPromise.then(sessionReady => {
+      if (sessionReady) {
         finish(true);
-      } else {
+      } else if (!settled) {
+        showAuthStatus('Could not restore your private space automatically. Please sign in again.');
         finish(false);
       }
-    }, 2000);
+    });
   });
   return personalAuthPromise;
 }
@@ -2360,22 +2393,43 @@ function attachSpace(){
     .filter(candidate => candidate && typeof candidate.map === 'function');
 
   if (node && typeof node.map === 'function') {
-    const sub = node.map().on((data, id) => {
-      ingestContactFromSource(currentSpace, data, id);
-    });
-    unsubscribers.push(() => {
-      try {
-        sub.off();
-      } catch (err) {
-        console.warn('Failed to detach contacts subscription', err);
-      }
-    });
+    const primaryMap = node.map();
+    if (primaryMap && typeof primaryMap.once === 'function') {
+      primaryMap.once((data, id) => {
+        ingestContactFromSource(currentSpace, data, id);
+      });
+    }
+    const sub = primaryMap && typeof primaryMap.on === 'function'
+      ? primaryMap.on((data, id) => {
+          ingestContactFromSource(currentSpace, data, id);
+        })
+      : null;
+    if (sub && typeof sub.off === 'function') {
+      unsubscribers.push(() => {
+        try {
+          sub.off();
+        } catch (err) {
+          console.warn('Failed to detach contacts subscription', err);
+        }
+      });
+    }
   }
 
   legacyNodes.forEach(legacyNode => {
-    const legacySub = legacyNode.map().on((data, id) => {
-      ingestContactFromSource(currentSpace, data, id, { isLegacy: true, primaryNode: node });
-    });
+    const legacyMap = legacyNode.map();
+    if (legacyMap && typeof legacyMap.once === 'function') {
+      legacyMap.once((data, id) => {
+        ingestContactFromSource(currentSpace, data, id, { isLegacy: true, primaryNode: node });
+      });
+    }
+    const legacySub = legacyMap && typeof legacyMap.on === 'function'
+      ? legacyMap.on((data, id) => {
+          ingestContactFromSource(currentSpace, data, id, { isLegacy: true, primaryNode: node });
+        })
+      : null;
+    if (!legacySub || typeof legacySub.off !== 'function') {
+      return;
+    }
     unsubscribers.push(() => {
       try {
         legacySub.off();
