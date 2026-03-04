@@ -811,6 +811,10 @@ const authFormStatus = document.getElementById('authFormStatus');
 const closeAuthModalBtn = document.getElementById('closeAuthModal');
 const continueGuestAuthBtn = document.getElementById('continueGuestAuth');
 const authStatusSignIn = document.getElementById('authStatusSignIn');
+let syncStatus = null;
+let authStatus = null;
+let authStatusMessage = null;
+let lastFocusedBeforeAuth = null;
 const urlParams = new URLSearchParams(window.location.search);
 const requestedSpace = urlParams.get('space');
 const focusContactId = urlParams.get('contact');
@@ -1151,18 +1155,23 @@ if (signedIn) {
     }, recallUsed ? 800 : 0);
   }
 } else {
-  const adoptedImmediately = adoptSessionFromActiveUser('Signed in (session restored automatically).');
-  if (adoptedImmediately) {
-    guest = false;
-  } else if (guest) {
-    onGuest();
-    maybeRestoreExistingSession({ allowWhenGuest: true });
-  } else {
+  // Defer guest/session bootstrap so dependent UI refs are initialized first.
+  setTimeout(() => {
+    const adoptedImmediately = adoptSessionFromActiveUser('Signed in (session restored automatically).');
+    if (adoptedImmediately) {
+      guest = false;
+      return;
+    }
+    if (guest) {
+      onGuest();
+      maybeRestoreExistingSession({ allowWhenGuest: true });
+      return;
+    }
     if (typeof updateIdentityForAnon === 'function') {
       updateIdentityForAnon();
     }
     maybeRestoreExistingSession();
-  }
+  }, 0);
 }
 
 btnLogout.addEventListener('click', () => {
@@ -1356,9 +1365,9 @@ function ingestContactFromSource(space, data, id, { isLegacy = false, primaryNod
 
 /* ---------- Form & UI refs ---------- */
 const form = document.getElementById('contactForm');
-const syncStatus = document.getElementById('syncStatus');
-const authStatus = document.getElementById('authStatus');
-const authStatusMessage = document.getElementById('authStatusMessage');
+syncStatus = document.getElementById('syncStatus');
+authStatus = document.getElementById('authStatus');
+authStatusMessage = document.getElementById('authStatusMessage');
 const listEl = document.getElementById('contactList');
 const btnReset = document.getElementById('btnReset');
 const searchEl = document.getElementById('search');
@@ -1570,8 +1579,6 @@ function setAuthSubmitting(isSubmitting) {
     submitButton.textContent = disabled ? 'Signing in…' : 'Sign in / create account';
   }
 }
-
-let lastFocusedBeforeAuth = null;
 
 function openAuthModal({ preferPasswordFocus = false } = {}) {
   if (!authModal) return;
