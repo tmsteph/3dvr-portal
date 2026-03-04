@@ -79,6 +79,9 @@ const generateStatus = document.getElementById('generate-status');
 const previewFrame = document.getElementById('preview');
 const outputBox = document.getElementById('output');
 
+const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
+const LOAD_DEFAULTS_LABEL = 'Load shared defaults';
+
 const identityKey = resolveIdentity();
 
 hydrateStoredKeys();
@@ -135,6 +138,31 @@ function updateKeyStatus(message) {
   keyStatus.textContent = message;
 }
 
+function setStatusMessage(element, message, tone = 'info') {
+  if (!element) return;
+  element.textContent = message;
+  element.classList.remove(...STATUS_TONE_CLASSES);
+  element.classList.add(`status--${tone}`);
+}
+
+function setDefaultStatus(message, tone = 'info') {
+  setStatusMessage(defaultStatus, message, tone);
+}
+
+function setSharedUsageStatus(message, tone = 'info') {
+  setStatusMessage(sharedUsageStatus, message, tone);
+}
+
+function setGenerateStatus(message, tone = 'info') {
+  setStatusMessage(generateStatus, message, tone);
+}
+
+function setLoadDefaultsBusy(isBusy) {
+  if (!loadDefaultsBtn) return;
+  loadDefaultsBtn.disabled = isBusy;
+  loadDefaultsBtn.textContent = isBusy ? 'Loading defaults...' : LOAD_DEFAULTS_LABEL;
+}
+
 function hydrateStoredKeys() {
   const openai = safeRead(localStorage, openaiStorageKey) || safeRead(sessionStorage, openaiStorageKey);
   const vercel = safeRead(localStorage, vercelStorageKey) || safeRead(sessionStorage, vercelStorageKey);
@@ -165,18 +193,23 @@ function subscribeToDefaults() {
     );
 
     if (!plainAvailable.length && !encryptedAvailable.length) {
-      defaultStatus.textContent = 'No shared defaults configured yet.';
+      setDefaultStatus('No shared defaults yet. Ask an admin to publish defaults in /admin.', 'warning');
       return;
     }
 
     if (plainAvailable.length) {
-      defaultStatus.textContent = `${plainAvailable.join(', ')} defaults ready. No password needed.`;
+      setDefaultStatus(
+        `${plainAvailable.join(', ')} defaults are ready. Click "Load shared defaults" to apply them.`,
+        'success'
+      );
       loadDefaults({ force: false, silent: true });
       return;
     }
 
-    defaultStatus.textContent = `${encryptedAvailable.join(', ')} defaults exist but still require a passphrase. `
-      + 'Ask an admin to re-save defaults in password-free mode.';
+    setDefaultStatus(
+      `${encryptedAvailable.join(', ')} defaults are encrypted-only. Admin fix: /admin -> Recover encrypted defaults.`,
+      'warning'
+    );
   });
 }
 
@@ -259,14 +292,14 @@ function detachTierSubscription() {
   tierSubscription = null;
 }
 
-function updateSharedUsageStatus(message) {
+function updateSharedUsageStatus(message, tone = 'info') {
   if (message) {
-    sharedUsageStatus.textContent = message;
+    setSharedUsageStatus(message, tone);
     return;
   }
 
   if (!usingAnySharedKey()) {
-    sharedUsageStatus.textContent = 'Using personal tokens; shared limits are idle.';
+    setSharedUsageStatus('Using personal keys. Shared daily limits are idle.', 'info');
     return;
   }
 
@@ -275,7 +308,7 @@ function updateSharedUsageStatus(message) {
   const limit = SHARED_USAGE_LIMITS[tier] || SHARED_USAGE_LIMITS.account;
   const label = TIER_LABELS[tier] || tier;
 
-  sharedUsageStatus.textContent = `Shared key usage: ${used}/${limit} today (${label}).`;
+  setSharedUsageStatus(`Shared key usage today: ${used}/${limit} (${label}).`, 'success');
 }
 
 function sharedLimitMessage() {
@@ -283,7 +316,7 @@ function sharedLimitMessage() {
   const used = sharedUsageCounts.total || 0;
   const limit = SHARED_USAGE_LIMITS[tier] || SHARED_USAGE_LIMITS.account;
   const label = TIER_LABELS[tier] || tier;
-  return `Shared key limit reached: ${used}/${limit} used today for the ${label} tier.`;
+  return `Daily shared-key limit reached: ${used}/${limit} for ${label}. Add personal keys or try tomorrow.`;
 }
 
 function refreshSharedKeyUsage(targetKey, value) {
@@ -308,7 +341,7 @@ function canUseSharedKey(action) {
   const used = sharedUsageCounts.total || 0;
 
   if (used >= limit) {
-    updateSharedUsageStatus(sharedLimitMessage());
+    updateSharedUsageStatus(sharedLimitMessage(), 'warning');
     return false;
   }
 
@@ -389,7 +422,7 @@ async function loadDefaultsWithOptions(options = {}) {
       if (skipped.length) {
         notes.push(`Kept personal keys for ${skipped.join(', ')}.`);
       }
-      defaultStatus.textContent = `${notes.join(' ')} Shared limits active.`;
+      setDefaultStatus(`${notes.join(' ')} Shared limits are active for those keys.`, 'success');
     }
     updateSharedUsageStatus();
     return;
@@ -402,21 +435,23 @@ async function loadDefaultsWithOptions(options = {}) {
   if (encryptedOnly.length) {
     if (!silent) {
       const labels = describeTargets(encryptedOnly);
-      defaultStatus.textContent = `${labels.join(', ')} defaults are encrypted-only. `
-        + 'Ask an admin to re-save password-free defaults.';
+      setDefaultStatus(
+        `${labels.join(', ')} defaults are encrypted-only. Admin fix: /admin -> Recover encrypted defaults.`,
+        'warning'
+      );
     }
     return;
   }
 
   if (skipped.length) {
     if (!silent) {
-      defaultStatus.textContent = `Shared defaults ready. Kept your personal keys for ${skipped.join(', ')}.`;
+      setDefaultStatus(`Shared defaults are ready. Kept your personal keys for ${skipped.join(', ')}.`, 'info');
     }
     return;
   }
 
   if (!silent) {
-    defaultStatus.textContent = 'No shared defaults configured yet.';
+    setDefaultStatus('No shared defaults are configured yet.', 'warning');
   }
 }
 
@@ -424,7 +459,7 @@ function saveLocalKeys() {
   safeWrite(localStorage, openaiStorageKey, openaiInput.value.trim());
   safeWrite(localStorage, vercelStorageKey, vercelInput.value.trim());
   safeWrite(localStorage, githubStorageKey, githubInput.value.trim());
-  updateKeyStatus('Saved keys locally.');
+  updateKeyStatus('Saved personal keys on this device.');
   refreshSharedKeyUsage('openai', openaiInput.value);
   refreshSharedKeyUsage('vercel', vercelInput.value);
   refreshSharedKeyUsage('github', githubInput.value);
@@ -440,7 +475,7 @@ function clearLocalKeys() {
   openaiInput.value = '';
   vercelInput.value = '';
   githubInput.value = '';
-  updateKeyStatus('Cleared local copies.');
+  updateKeyStatus('Removed personal keys from this device.');
   refreshSharedKeyUsage('openai', '');
   refreshSharedKeyUsage('vercel', '');
   refreshSharedKeyUsage('github', '');
@@ -490,18 +525,18 @@ function getActiveKey(input, defaultValue, targetKey) {
 async function handleGenerate() {
   const apiKey = getActiveKey(openaiInput, defaultSecrets.openai, 'openai');
   if (!apiKey) {
-    generateStatus.textContent = 'Add an OpenAI key first or load defaults.';
+    setGenerateStatus('Add an OpenAI key or click "Load shared defaults" first.', 'warning');
     return;
   }
 
   if (!canUseSharedKey('openai')) {
-    generateStatus.textContent = sharedLimitMessage();
+    setGenerateStatus(sharedLimitMessage(), 'warning');
     return;
   }
 
   const prompt = buildPrompt();
   generateBtn.disabled = true;
-  generateStatus.textContent = 'Sending to OpenAI...';
+  setGenerateStatus('Generating your site with OpenAI...', 'info');
   logMessage('Sending brief to /api/openai-site');
 
   try {
@@ -513,8 +548,9 @@ async function handleGenerate() {
 
     const result = await response.json();
     if (!response.ok) {
-      generateStatus.textContent = result?.error || 'Unexpected OpenAI error.';
-      logMessage(generateStatus.textContent);
+      const message = result?.error || 'Unexpected OpenAI error.';
+      setGenerateStatus(message, 'error');
+      logMessage(message);
       return;
     }
 
@@ -522,10 +558,10 @@ async function handleGenerate() {
     currentTitle = result.title || siteTitleInput.value || 'Generated site';
 
     renderPreview(currentHtml);
-    generateStatus.textContent = result.summary || 'Site generated.';
+    setGenerateStatus(result.summary || 'Site generated. Preview updated.', 'success');
     logMessage('Site generated. Preview updated.');
   } catch (error) {
-    generateStatus.textContent = 'Unable to reach the OpenAI endpoint.';
+    setGenerateStatus('Unable to reach the OpenAI endpoint.', 'error');
     logMessage(error.message || 'Network error');
   } finally {
     generateBtn.disabled = false;
@@ -534,23 +570,23 @@ async function handleGenerate() {
 
 async function handleDeploy() {
   if (!currentHtml) {
-    generateStatus.textContent = 'Generate HTML before deploying to Vercel.';
+    setGenerateStatus('Generate HTML before deploying to Vercel.', 'warning');
     return;
   }
 
   const token = getActiveKey(vercelInput, defaultSecrets.vercel, 'vercel');
   if (!token) {
-    generateStatus.textContent = 'Add a Vercel token or load defaults.';
+    setGenerateStatus('Add a Vercel token or click "Load shared defaults".', 'warning');
     return;
   }
 
   if (!canUseSharedKey('vercel')) {
-    generateStatus.textContent = sharedLimitMessage();
+    setGenerateStatus(sharedLimitMessage(), 'warning');
     return;
   }
 
   const projectName = (vercelProjectInput.value || '').trim() || 'web-builder-demo';
-  generateStatus.textContent = `Deploying ${projectName}...`;
+  setGenerateStatus(`Deploying ${projectName}...`, 'info');
   logMessage(`Deploying to Vercel project ${projectName}`);
 
   try {
@@ -562,39 +598,40 @@ async function handleDeploy() {
 
     const result = await response.json();
     if (!response.ok) {
-      generateStatus.textContent = result?.error || 'Vercel deployment failed.';
-      logMessage(generateStatus.textContent);
+      const message = result?.error || 'Vercel deployment failed.';
+      setGenerateStatus(message, 'error');
+      logMessage(message);
       return;
     }
 
-    generateStatus.textContent = `Deployed: ${result.url || result.inspectUrl}`;
+    setGenerateStatus(`Deployed: ${result.url || result.inspectUrl}`, 'success');
     logMessage(`Deployment ready at ${result.url || 'Vercel inspect panel'}`);
   } catch (error) {
-    generateStatus.textContent = 'Unable to reach the Vercel deploy API.';
+    setGenerateStatus('Unable to reach the Vercel deploy API.', 'error');
     logMessage(error.message || 'Network error');
   }
 }
 
 async function handlePublish() {
   if (!currentHtml) {
-    generateStatus.textContent = 'Generate HTML before publishing to GitHub.';
+    setGenerateStatus('Generate HTML before publishing to GitHub.', 'warning');
     return;
   }
 
   const token = getActiveKey(githubInput, defaultSecrets.github, 'github');
   if (!token) {
-    generateStatus.textContent = 'Add a GitHub token or load defaults.';
+    setGenerateStatus('Add a GitHub token or click "Load shared defaults".', 'warning');
     return;
   }
 
   if (!canUseSharedKey('github')) {
-    generateStatus.textContent = sharedLimitMessage();
+    setGenerateStatus(sharedLimitMessage(), 'warning');
     return;
   }
 
   const repo = (githubRepoInput.value || '').trim();
   if (!repo || !repo.includes('/')) {
-    generateStatus.textContent = 'Enter the repo as owner/name.';
+    setGenerateStatus('Enter the GitHub repo as owner/name.', 'warning');
     return;
   }
 
@@ -603,7 +640,7 @@ async function handlePublish() {
   const path = (githubPathInput.value || '').trim() || 'index.html';
   const message = (githubMessageInput.value || '').trim() || 'chore: add generated site';
 
-  generateStatus.textContent = `Publishing to ${repo}...`;
+  setGenerateStatus(`Publishing to ${repo}...`, 'info');
   logMessage(`Publishing to GitHub repo ${repo}`);
 
   try {
@@ -615,15 +652,16 @@ async function handlePublish() {
 
     const result = await response.json();
     if (!response.ok) {
-      generateStatus.textContent = result?.error || 'GitHub publish failed.';
-      logMessage(generateStatus.textContent);
+      const message = result?.error || 'GitHub publish failed.';
+      setGenerateStatus(message, 'error');
+      logMessage(message);
       return;
     }
 
-    generateStatus.textContent = `Published to ${repo}@${branch}:${path}`;
+    setGenerateStatus(`Published to ${repo}@${branch}:${path}`, 'success');
     logMessage(`GitHub commit ready: ${result.commitSha || 'see repo history'}`);
   } catch (error) {
-    generateStatus.textContent = 'Unable to reach the GitHub publish API.';
+    setGenerateStatus('Unable to reach the GitHub publish API.', 'error');
     logMessage(error.message || 'Network error');
   }
 }
@@ -635,8 +673,13 @@ function keyTargetForInput(input) {
 }
 
 function wireEvents() {
-  loadDefaultsBtn.addEventListener('click', () => {
-    loadDefaultsWithOptions({ force: true });
+  loadDefaultsBtn.addEventListener('click', async () => {
+    setLoadDefaultsBusy(true);
+    try {
+      await loadDefaultsWithOptions({ force: true });
+    } finally {
+      setLoadDefaultsBusy(false);
+    }
   });
   saveKeysBtn.addEventListener('click', saveLocalKeys);
   clearKeysBtn.addEventListener('click', clearLocalKeys);

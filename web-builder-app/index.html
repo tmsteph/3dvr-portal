@@ -24,13 +24,16 @@
     <header class="hero">
       <div class="eyebrow">Shared defaults</div>
       <h1>Web Builder</h1>
-      <p class="lede">Use shared OpenAI, Vercel, and GitHub defaults with daily rate limits and no password prompt.</p>
+      <p class="lede">
+        Build and launch a simple site in minutes. Shared keys are password-free and rate-limited by plan.
+      </p>
       <div class="pill-row">
         <div class="pill">Guest 2/day</div>
         <div class="pill">Free 5/day</div>
         <div class="pill">$5 supporter 20/day</div>
         <div class="pill">$20 pro 100/day</div>
       </div>
+      <p class="meta">Quick start: Load shared defaults, describe your site, then generate and publish.</p>
       <p class="meta" id="identity-label" aria-live="polite"></p>
     </header>
 
@@ -39,16 +42,20 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">Admin bundle</p>
-            <h2>Load shared defaults</h2>
-            <p class="meta">Apply preloaded OpenAI, Vercel, and GitHub keys instantly. Shared usage is rate limited by plan.</p>
+            <h2>Start with shared defaults</h2>
+            <p class="meta">
+              Autofill OpenAI, Vercel, and GitHub keys in one click. Shared usage is still rate limited.
+            </p>
           </div>
         </div>
         <div class="input-row">
-          <button id="load-defaults" class="primary" type="button">Use shared defaults</button>
+          <button id="load-defaults" class="primary" type="button">Load shared defaults</button>
         </div>
-        <p class="meta" id="default-hint">No passphrase required. Shared usage is still rate limited per identity.</p>
-        <p class="status" id="default-status" aria-live="polite">Defaults not loaded yet.</p>
-        <p class="status" id="shared-usage" aria-live="polite">Shared limits idle.</p>
+        <p class="meta" id="default-hint">
+          No passphrase needed. If defaults are encrypted-only, ask an admin to recover them in `/admin`.
+        </p>
+        <p class="status status--info" id="default-status" aria-live="polite">Checking shared defaults...</p>
+        <p class="status status--info" id="shared-usage" aria-live="polite">Shared limits idle.</p>
       </section>
 
       <section class="card" id="key-card">
@@ -128,7 +135,7 @@
         <button id="deploy" class="secondary">Deploy to Vercel</button>
         <button id="publish" class="secondary">Publish to GitHub</button>
       </div>
-      <p class="status" id="generate-status" aria-live="polite">Waiting to generate.</p>
+      <p class="status status--info" id="generate-status" aria-live="polite">Waiting to generate.</p>
     </section>
 
     <section class="grid">
