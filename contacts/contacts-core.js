@@ -175,11 +175,16 @@ export function resolveSpaceNode({
 
   if (normalizedSpace === 'personal') {
     if (userHasSession && user && typeof user.get === 'function') {
+      const personalRoot = user.get('contacts');
+      const legacyPersonalContacts = personalRoot && typeof personalRoot.get === 'function'
+        ? personalRoot.get('contacts')
+        : null;
       return {
-        node: user.get('contacts'),
+        node: personalRoot,
         requiresAuth: false,
         shouldClearAuth: true,
-        legacyNodes: [],
+        // Keep listening to the old child collection until all personal data migrates.
+        legacyNodes: legacyPersonalContacts ? [legacyPersonalContacts] : [],
       };
     }
     if (signedIn) {
@@ -193,11 +198,16 @@ export function resolveSpaceNode({
     if (guestId && guestsRoot && typeof guestsRoot.get === 'function') {
       const guestNode = guestsRoot.get(guestId);
       if (guestNode && typeof guestNode.get === 'function') {
+        const guestContactsRoot = guestNode.get('contacts');
+        const legacyGuestContacts = guestContactsRoot && typeof guestContactsRoot.get === 'function'
+          ? guestContactsRoot.get('contacts')
+          : null;
         return {
-          node: guestNode.get('contacts'),
+          node: guestContactsRoot,
           requiresAuth: false,
           shouldClearAuth: false,
-          legacyNodes: [],
+          // Keep listening to the old child collection until all guest data migrates.
+          legacyNodes: legacyGuestContacts ? [legacyGuestContacts] : [],
         };
       }
     }
