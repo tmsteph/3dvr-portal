@@ -27,13 +27,13 @@
 
   <!-- Header -->
   <header class="sticky top-0 z-50 backdrop-blur bg-gray-900/90 border-b border-white/10">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-      <a id="portalHomeLink" href="https://portal.3dvr.tech/index.html" class="text-sm text-gray-300 hover:text-white">← Portal</a>
-      <a id="portalCrmLink" href="https://portal.3dvr.tech/crm/index.html" class="text-sm text-gray-300 hover:text-white">CRM</a>
-      <h1 class="text-xl sm:text-2xl font-bold">Contacts <span class="text-teal-400">· 3DVR</span></h1>
-      <span id="spaceBadge" class="hidden text-xs px-2 py-1 rounded bg-white/10">personal</span>
-      <div class="ms-auto flex items-center gap-2">
-        <span id="userDisplay" class="text-sm text-gray-300"></span>
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3">
+      <a id="portalHomeLink" href="https://portal.3dvr.tech/index.html" class="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-white">← Portal</a>
+      <a id="portalCrmLink" href="https://portal.3dvr.tech/crm/index.html" class="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-white">CRM</a>
+      <h1 class="min-w-0 flex-1 text-lg sm:text-2xl font-bold truncate">Contacts <span class="text-teal-400">· 3DVR</span></h1>
+      <span id="spaceBadge" class="hidden shrink-0 text-xs px-2 py-1 rounded bg-white/10">personal</span>
+      <div class="w-full sm:w-auto sm:ms-auto min-w-0 flex items-center justify-end gap-2">
+        <span id="userDisplay" class="min-w-0 max-w-[55vw] sm:max-w-[18rem] truncate text-xs sm:text-sm text-right text-gray-300"></span>
         <button id="btnLogin" class="relative z-50 bg-teal-600 hover:bg-teal-700 text-white text-sm px-3 py-1.5 rounded">Sign in</button>
         <button id="btnLogout" class="hidden relative z-50 bg-rose-600 hover:bg-rose-700 text-white text-sm px-3 py-1.5 rounded">Log out</button>
       </div>
@@ -320,7 +320,9 @@
         const headerEl = document.getElementById('userDisplay');
         if (headerEl) {
           const aliasSegment = alias ? ` (${alias})` : '';
-          headerEl.textContent = `Signed in as ${resolvedUser}${aliasSegment}`;
+          const signedInLabel = `Signed in as ${resolvedUser}${aliasSegment}`;
+          headerEl.textContent = signedInLabel;
+          headerEl.title = signedInLabel;
         }
       }
     })();
@@ -780,7 +782,45 @@ function refreshSignedInDisplay() {
   const aliasTrimmed = (alias || '').trim();
   const usernameTrimmed = (username || '').trim() || aliasToDisplay(aliasTrimmed) || 'User';
   const aliasSegment = aliasTrimmed ? ` (${aliasTrimmed})` : '';
-  userDisplay.textContent = `Signed in as ${usernameTrimmed}${aliasSegment}`;
+  const signedInLabel = `Signed in as ${usernameTrimmed}${aliasSegment}`;
+  userDisplay.textContent = signedInLabel;
+  userDisplay.title = signedInLabel;
+}
+
+let pendingSpaceRefreshTimer = null;
+
+function scheduleSpaceRefreshAfterAuth({ attempts = 16, delay = 120 } = {}) {
+  if (pendingSpaceRefreshTimer) {
+    clearTimeout(pendingSpaceRefreshTimer);
+    pendingSpaceRefreshTimer = null;
+  }
+
+  const attemptRefresh = (remainingAttempts) => {
+    if (!signedIn) {
+      return;
+    }
+    if (hasActiveUserSession()) {
+      if (currentSpace === 'personal') {
+        changeSpace('personal', { force: true });
+        flushQueue('personal');
+        clearPersonalAuthRequirement();
+        updateSyncStatus();
+      }
+      return;
+    }
+    if (remainingAttempts <= 0) {
+      return;
+    }
+    pendingSpaceRefreshTimer = setTimeout(() => {
+      pendingSpaceRefreshTimer = null;
+      attemptRefresh(remainingAttempts - 1);
+    }, delay);
+  };
+
+  pendingSpaceRefreshTimer = setTimeout(() => {
+    pendingSpaceRefreshTimer = null;
+    attemptRefresh(attempts);
+  }, 0);
 }
 
 function rectsOverlap(first, second) {
@@ -903,6 +943,7 @@ function finalizeSignedInState({ alias: aliasValue, username: usernameValue, sta
     onSignedIn(username, resolvedAlias, statusMessage);
   } else {
     refreshSignedInDisplay();
+    scheduleSpaceRefreshAfterAuth();
     if (statusMessage) {
       console.info(statusMessage);
     }
