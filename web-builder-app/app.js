@@ -9,6 +9,7 @@ const portalRoot = gun.get('3dvr-portal');
 const workbenchRoot = portalRoot.get('ai-workbench');
 // Gun graph: 3dvr-portal/ai-workbench/defaults -> { apiKey, vercelToken, githubToken, ... }
 const defaultsNode = workbenchRoot.get('defaults');
+// Gun graph: 3dvr-portal/ai-workbench/rate-limits/<YYYY-MM-DD>/<identityKey> -> usage counters
 const rateLimitsNode = workbenchRoot.get('rate-limits');
 const billingTierNode = portalRoot.get('billing').get('usageTier');
 
@@ -52,7 +53,11 @@ const openaiStorageKey = 'web-builder-openai';
 const vercelStorageKey = 'web-builder-vercel';
 const githubStorageKey = 'web-builder-github';
 
+const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
+const LOAD_DEFAULTS_LABEL = 'Reload shared defaults';
+
 const identityLabel = document.getElementById('identity-label');
+const configPanel = document.getElementById('config-panel');
 const loadDefaultsBtn = document.getElementById('load-defaults');
 const defaultStatus = document.getElementById('default-status');
 const sharedUsageStatus = document.getElementById('shared-usage');
@@ -62,6 +67,8 @@ const vercelInput = document.getElementById('vercel-token');
 const githubInput = document.getElementById('github-token');
 const saveKeysBtn = document.getElementById('save-keys');
 const clearKeysBtn = document.getElementById('clear-keys');
+const builderRequestInput = document.getElementById('builder-request');
+const iterationRequestInput = document.getElementById('iteration-request');
 const siteTitleInput = document.getElementById('site-title');
 const siteGoalInput = document.getElementById('site-goal');
 const siteAudienceInput = document.getElementById('site-audience');
@@ -73,14 +80,12 @@ const githubBranchInput = document.getElementById('github-branch');
 const githubPathInput = document.getElementById('github-path');
 const githubMessageInput = document.getElementById('github-message');
 const generateBtn = document.getElementById('generate');
+const iterateBtn = document.getElementById('iterate');
 const deployBtn = document.getElementById('deploy');
 const publishBtn = document.getElementById('publish');
 const generateStatus = document.getElementById('generate-status');
 const previewFrame = document.getElementById('preview');
 const outputBox = document.getElementById('output');
-
-const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
-const LOAD_DEFAULTS_LABEL = 'Load shared defaults';
 
 const identityKey = resolveIdentity();
 
@@ -90,7 +95,8 @@ subscribeToBillingTier();
 subscribeToUsageCounters();
 wireEvents();
 renderIdentity();
-logMessage('Ready to build with shared defaults and daily limits.');
+renderPreview('');
+logMessage('Ready. Describe your site and press Generate Website.');
 
 function resolveIdentity() {
   const stored = safeRead(localStorage, identityStorageKey) || safeRead(sessionStorage, identityStorageKey);
@@ -105,7 +111,7 @@ function resolveIdentity() {
 
 function renderIdentity() {
   const tierLabel = TIER_LABELS[currentUsageTier] || currentUsageTier;
-  identityLabel.textContent = `Usage recorded for ${identityKey} (${tierLabel}).`;
+  identityLabel.textContent = `Usage tracked for ${identityKey} (${tierLabel}).`;
 }
 
 function safeRead(store, key) {
@@ -134,8 +140,10 @@ function safeRemove(store, key) {
   }
 }
 
-function updateKeyStatus(message) {
-  keyStatus.textContent = message;
+function revealConfig() {
+  if (configPanel && !configPanel.open) {
+    configPanel.open = true;
+  }
 }
 
 function setStatusMessage(element, message, tone = 'info') {
@@ -143,6 +151,10 @@ function setStatusMessage(element, message, tone = 'info') {
   element.textContent = message;
   element.classList.remove(...STATUS_TONE_CLASSES);
   element.classList.add(`status--${tone}`);
+}
+
+function updateKeyStatus(message) {
+  keyStatus.textContent = message;
 }
 
 function setDefaultStatus(message, tone = 'info') {
@@ -160,7 +172,12 @@ function setGenerateStatus(message, tone = 'info') {
 function setLoadDefaultsBusy(isBusy) {
   if (!loadDefaultsBtn) return;
   loadDefaultsBtn.disabled = isBusy;
-  loadDefaultsBtn.textContent = isBusy ? 'Loading defaults...' : LOAD_DEFAULTS_LABEL;
+  loadDefaultsBtn.textContent = isBusy ? 'Loading...' : LOAD_DEFAULTS_LABEL;
+}
+
+function setGenerationBusy(isBusy) {
+  if (generateBtn) generateBtn.disabled = isBusy;
+  if (iterateBtn) iterateBtn.disabled = isBusy;
 }
 
 function hydrateStoredKeys() {
@@ -199,15 +216,15 @@ function subscribeToDefaults() {
 
     if (plainAvailable.length) {
       setDefaultStatus(
-        `${plainAvailable.join(', ')} defaults are ready. Click "Load shared defaults" to apply them.`,
+        `${plainAvailable.join(', ')} defaults detected. Auto-applying in background.`,
         'success'
       );
-      loadDefaults({ force: false, silent: true });
+      loadDefaultsWithOptions({ force: false, silent: true });
       return;
     }
 
     setDefaultStatus(
-      `${encryptedAvailable.join(', ')} defaults are encrypted-only. Admin fix: /admin -> Recover encrypted defaults.`,
+      `${encryptedAvailable.join(', ')} defaults are encrypted-only. Ask admin to recover them in /admin.`,
       'warning'
     );
   });
@@ -299,7 +316,7 @@ function updateSharedUsageStatus(message, tone = 'info') {
   }
 
   if (!usingAnySharedKey()) {
-    setSharedUsageStatus('Using personal keys. Shared daily limits are idle.', 'info');
+    setSharedUsageStatus('Using personal keys or no keys. Shared limits are idle.', 'info');
     return;
   }
 
@@ -316,7 +333,7 @@ function sharedLimitMessage() {
   const used = sharedUsageCounts.total || 0;
   const limit = SHARED_USAGE_LIMITS[tier] || SHARED_USAGE_LIMITS.account;
   const label = TIER_LABELS[tier] || tier;
-  return `Daily shared-key limit reached: ${used}/${limit} for ${label}. Add personal keys or try tomorrow.`;
+  return `Daily shared-key limit reached: ${used}/${limit} for ${label}. Use personal keys or try tomorrow.`;
 }
 
 function refreshSharedKeyUsage(targetKey, value) {
@@ -360,10 +377,6 @@ function canUseSharedKey(action) {
 
 function usingAnySharedKey() {
   return sharedKeyUsage.openai || sharedKeyUsage.vercel || sharedKeyUsage.github;
-}
-
-async function loadDefaults(options = {}) {
-  return loadDefaultsWithOptions(options);
 }
 
 async function loadDefaultsWithOptions(options = {}) {
@@ -418,11 +431,11 @@ async function loadDefaultsWithOptions(options = {}) {
 
   if (applied.length) {
     if (!silent) {
-      const notes = [`Defaults applied: ${applied.join(', ')}.`];
+      const notes = [`Loaded shared defaults: ${applied.join(', ')}.`];
       if (skipped.length) {
         notes.push(`Kept personal keys for ${skipped.join(', ')}.`);
       }
-      setDefaultStatus(`${notes.join(' ')} Shared limits are active for those keys.`, 'success');
+      setDefaultStatus(notes.join(' '), 'success');
     }
     updateSharedUsageStatus();
     return;
@@ -436,7 +449,7 @@ async function loadDefaultsWithOptions(options = {}) {
     if (!silent) {
       const labels = describeTargets(encryptedOnly);
       setDefaultStatus(
-        `${labels.join(', ')} defaults are encrypted-only. Admin fix: /admin -> Recover encrypted defaults.`,
+        `${labels.join(', ')} defaults are encrypted-only. Ask admin to recover in /admin.`,
         'warning'
       );
     }
@@ -445,7 +458,7 @@ async function loadDefaultsWithOptions(options = {}) {
 
   if (skipped.length) {
     if (!silent) {
-      setDefaultStatus(`Shared defaults are ready. Kept your personal keys for ${skipped.join(', ')}.`, 'info');
+      setDefaultStatus(`Shared defaults are ready. Kept personal keys for ${skipped.join(', ')}.`, 'info');
     }
     return;
   }
@@ -481,22 +494,51 @@ function clearLocalKeys() {
   refreshSharedKeyUsage('github', '');
 }
 
-function buildPrompt() {
+function buildPromptHints() {
+  const hints = [];
+  const title = (siteTitleInput?.value || '').trim();
+  const goal = (siteGoalInput?.value || '').trim();
+  const audience = (siteAudienceInput?.value || '').trim();
+  const style = (siteStyleSelect?.value || '').trim();
+  const extras = (siteExtrasInput?.value || '').trim();
+
+  if (title) hints.push(`Preferred title: ${title}.`);
+  if (goal) hints.push(`Primary goal/CTA: ${goal}.`);
+  if (audience) hints.push(`Target audience: ${audience}.`);
+  if (style) hints.push(`Design style: ${style}.`);
+  if (extras) hints.push(`Extra notes: ${extras}.`);
+
+  return hints;
+}
+
+function buildInitialPrompt() {
+  const request = (builderRequestInput?.value || '').trim();
+  if (!request) return '';
+
   const parts = [
-    `Create a single-page site titled "${siteTitleInput.value.trim() || 'Untitled site'}".`,
-    `Goal: ${siteGoalInput.value.trim() || 'Explain the offer and capture interest.'}`,
-    `Audience: ${siteAudienceInput.value.trim() || 'general visitors'}.`,
-    `Style: ${siteStyleSelect.value || 'clean'}.`,
-    'Use semantic HTML with inline CSS only. Avoid external assets or scripts.',
+    `Create a single-page website for this request: ${request}.`,
     'Return JSON with title, summary, and html keys.',
-    'Use accessible labels, high contrast, and mobile-first layout.'
+    'Use semantic HTML with inline CSS only and no external assets/scripts.',
+    'Prioritize accessibility, clear hierarchy, and mobile-first layout.'
   ];
 
-  if (siteExtrasInput.value.trim()) {
-    parts.push(`Extras: ${siteExtrasInput.value.trim()}`);
+  const hints = buildPromptHints();
+  if (hints.length) {
+    parts.push(...hints);
   }
 
   return parts.join(' ');
+}
+
+function buildIterationPrompt(iterationRequest) {
+  return [
+    'Revise this existing single-page website using the request below.',
+    `Revision request: ${iterationRequest}`,
+    'Return complete updated HTML (not partial diffs).',
+    'Keep the page accessible and mobile-friendly.',
+    'Current HTML:',
+    currentHtml
+  ].join('\n\n');
 }
 
 function renderPreview(html) {
@@ -522,22 +564,27 @@ function getActiveKey(input, defaultValue, targetKey) {
   return '';
 }
 
-async function handleGenerate() {
+async function requestGeneration(prompt, mode) {
   const apiKey = getActiveKey(openaiInput, defaultSecrets.openai, 'openai');
   if (!apiKey) {
-    setGenerateStatus('Add an OpenAI key or click "Load shared defaults" first.', 'warning');
+    setGenerateStatus('No OpenAI key available. Open Config and load defaults or add a personal key.', 'warning');
+    revealConfig();
     return;
   }
 
   if (!canUseSharedKey('openai')) {
     setGenerateStatus(sharedLimitMessage(), 'warning');
+    revealConfig();
     return;
   }
 
-  const prompt = buildPrompt();
-  generateBtn.disabled = true;
-  setGenerateStatus('Generating your site with OpenAI...', 'info');
-  logMessage('Sending brief to /api/openai-site');
+  setGenerationBusy(true);
+  setGenerateStatus(mode === 'iterate' ? 'Applying revision...' : 'Generating website...', 'info');
+  if (mode === 'iterate') {
+    logMessage('Sending revision request to /api/openai-site');
+  } else {
+    logMessage('Sending build request to /api/openai-site');
+  }
 
   try {
     const response = await fetch('/api/openai-site', {
@@ -555,33 +602,67 @@ async function handleGenerate() {
     }
 
     currentHtml = result.html || '';
-    currentTitle = result.title || siteTitleInput.value || 'Generated site';
+    currentTitle = result.title || currentTitle || (siteTitleInput?.value || '').trim() || 'Generated site';
 
     renderPreview(currentHtml);
-    setGenerateStatus(result.summary || 'Site generated. Preview updated.', 'success');
-    logMessage('Site generated. Preview updated.');
+    setGenerateStatus(result.summary || (mode === 'iterate' ? 'Revision applied.' : 'Website generated.'), 'success');
+    logMessage(mode === 'iterate' ? 'Revision applied. Preview updated.' : 'Website generated. Preview updated.');
+
+    if (mode === 'iterate' && iterationRequestInput) {
+      iterationRequestInput.value = '';
+    }
   } catch (error) {
     setGenerateStatus('Unable to reach the OpenAI endpoint.', 'error');
     logMessage(error.message || 'Network error');
   } finally {
-    generateBtn.disabled = false;
+    setGenerationBusy(false);
   }
+}
+
+async function handleGenerate() {
+  const prompt = buildInitialPrompt();
+  if (!prompt) {
+    setGenerateStatus('Tell me what to build first.', 'warning');
+    builderRequestInput?.focus();
+    return;
+  }
+
+  await requestGeneration(prompt, 'generate');
+}
+
+async function handleIterate() {
+  if (!currentHtml) {
+    setGenerateStatus('Generate a draft first, then ask for a revision.', 'warning');
+    return;
+  }
+
+  const iterationRequest = (iterationRequestInput?.value || '').trim();
+  if (!iterationRequest) {
+    setGenerateStatus('Type a revision request before applying changes.', 'warning');
+    iterationRequestInput?.focus();
+    return;
+  }
+
+  const prompt = buildIterationPrompt(iterationRequest);
+  await requestGeneration(prompt, 'iterate');
 }
 
 async function handleDeploy() {
   if (!currentHtml) {
-    setGenerateStatus('Generate HTML before deploying to Vercel.', 'warning');
+    setGenerateStatus('Generate a site first, then deploy from Config.', 'warning');
     return;
   }
 
   const token = getActiveKey(vercelInput, defaultSecrets.vercel, 'vercel');
   if (!token) {
-    setGenerateStatus('Add a Vercel token or click "Load shared defaults".', 'warning');
+    setGenerateStatus('Add a Vercel token in Config or use shared defaults.', 'warning');
+    revealConfig();
     return;
   }
 
   if (!canUseSharedKey('vercel')) {
     setGenerateStatus(sharedLimitMessage(), 'warning');
+    revealConfig();
     return;
   }
 
@@ -614,31 +695,34 @@ async function handleDeploy() {
 
 async function handlePublish() {
   if (!currentHtml) {
-    setGenerateStatus('Generate HTML before publishing to GitHub.', 'warning');
+    setGenerateStatus('Generate a site first, then publish from Config.', 'warning');
     return;
   }
 
   const token = getActiveKey(githubInput, defaultSecrets.github, 'github');
   if (!token) {
-    setGenerateStatus('Add a GitHub token or click "Load shared defaults".', 'warning');
+    setGenerateStatus('Add a GitHub token in Config or use shared defaults.', 'warning');
+    revealConfig();
     return;
   }
 
   if (!canUseSharedKey('github')) {
     setGenerateStatus(sharedLimitMessage(), 'warning');
+    revealConfig();
     return;
   }
 
   const repo = (githubRepoInput.value || '').trim();
   if (!repo || !repo.includes('/')) {
-    setGenerateStatus('Enter the GitHub repo as owner/name.', 'warning');
+    setGenerateStatus('Enter the GitHub repo as owner/name in Config.', 'warning');
+    revealConfig();
     return;
   }
 
   const [owner, name] = repo.split('/');
   const branch = (githubBranchInput.value || '').trim() || 'main';
   const path = (githubPathInput.value || '').trim() || 'index.html';
-  const message = (githubMessageInput.value || '').trim() || 'chore: add generated site';
+  const message = (githubMessageInput.value || '').trim() || `chore: publish ${currentTitle || 'generated site'}`;
 
   setGenerateStatus(`Publishing to ${repo}...`, 'info');
   logMessage(`Publishing to GitHub repo ${repo}`);
@@ -652,9 +736,9 @@ async function handlePublish() {
 
     const result = await response.json();
     if (!response.ok) {
-      const message = result?.error || 'GitHub publish failed.';
-      setGenerateStatus(message, 'error');
-      logMessage(message);
+      const statusMessage = result?.error || 'GitHub publish failed.';
+      setGenerateStatus(statusMessage, 'error');
+      logMessage(statusMessage);
       return;
     }
 
@@ -681,9 +765,11 @@ function wireEvents() {
       setLoadDefaultsBusy(false);
     }
   });
+
   saveKeysBtn.addEventListener('click', saveLocalKeys);
   clearKeysBtn.addEventListener('click', clearLocalKeys);
   generateBtn.addEventListener('click', handleGenerate);
+  iterateBtn.addEventListener('click', handleIterate);
   deployBtn.addEventListener('click', handleDeploy);
   publishBtn.addEventListener('click', handlePublish);
 
@@ -691,5 +777,19 @@ function wireEvents() {
     input.addEventListener('input', () => {
       refreshSharedKeyUsage(keyTargetForInput(input), input.value);
     });
+  });
+
+  builderRequestInput?.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      handleGenerate();
+    }
+  });
+
+  iterationRequestInput?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleIterate();
+    }
   });
 }
