@@ -1,7 +1,13 @@
+import {
+  hasEncryptedDefault,
+  listAvailableDefaultTargets,
+  readDefaultSecret
+} from './defaults.js';
+
 const gun = Gun({ peers: window.__GUN_PEERS__ || undefined });
-const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
 const workbenchRoot = portalRoot.get('ai-workbench');
+// Gun graph: 3dvr-portal/ai-workbench/defaults -> { apiKey, vercelToken, githubToken, ... }
 const defaultsNode = workbenchRoot.get('defaults');
 const rateLimitsNode = workbenchRoot.get('rate-limits');
 const billingTierNode = portalRoot.get('billing').get('usageTier');
@@ -37,6 +43,7 @@ let sharedUsageCounts = { total: 0, openai: 0, vercel: 0, github: 0 };
 let usageDateKey = '';
 let usageSubscription = null;
 let tierSubscription = null;
+let currentDefaultConfig = {};
 let currentHtml = '';
 let currentTitle = '';
 
@@ -46,7 +53,6 @@ const vercelStorageKey = 'web-builder-vercel';
 const githubStorageKey = 'web-builder-github';
 
 const identityLabel = document.getElementById('identity-label');
-const defaultPassphraseInput = document.getElementById('default-passphrase');
 const loadDefaultsBtn = document.getElementById('load-defaults');
 const defaultStatus = document.getElementById('default-status');
 const sharedUsageStatus = document.getElementById('shared-usage');
@@ -81,7 +87,7 @@ subscribeToBillingTier();
 subscribeToUsageCounters();
 wireEvents();
 renderIdentity();
-logMessage('Ready to build with shared defaults.');
+logMessage('Ready to build with shared defaults and daily limits.');
 
 function resolveIdentity() {
   const stored = safeRead(localStorage, identityStorageKey) || safeRead(sessionStorage, identityStorageKey);
@@ -149,18 +155,39 @@ function hydrateStoredKeys() {
 
 function subscribeToDefaults() {
   defaultsNode.on(data => {
-    const available = [];
-    if (data?.apiKeyCipher) available.push('OpenAI');
-    if (data?.vercelTokenCipher) available.push('Vercel');
-    if (data?.githubTokenCipher) available.push('GitHub');
+    currentDefaultConfig = data || {};
 
-    if (!available.length) {
-      defaultStatus.textContent = 'No defaults configured yet.';
+    const plainAvailable = describeTargets(
+      listAvailableDefaultTargets(currentDefaultConfig, { includePlain: true, includeCipher: false })
+    );
+    const encryptedAvailable = describeTargets(
+      listAvailableDefaultTargets(currentDefaultConfig, { includePlain: false, includeCipher: true })
+    );
+
+    if (!plainAvailable.length && !encryptedAvailable.length) {
+      defaultStatus.textContent = 'No shared defaults configured yet.';
       return;
     }
 
-    defaultStatus.textContent = `${available.join(', ')} defaults ready. Enter the passphrase to unlock.`;
+    if (plainAvailable.length) {
+      defaultStatus.textContent = `${plainAvailable.join(', ')} defaults ready. No password needed.`;
+      loadDefaults({ force: false, silent: true });
+      return;
+    }
+
+    defaultStatus.textContent = `${encryptedAvailable.join(', ')} defaults exist but still require a passphrase. `
+      + 'Ask an admin to re-save defaults in password-free mode.';
   });
+}
+
+function describeTargets(targets) {
+  return targets
+    .map(targetKey => {
+      if (targetKey === 'openai') return 'OpenAI';
+      if (targetKey === 'vercel') return 'Vercel';
+      if (targetKey === 'github') return 'GitHub';
+      return targetKey;
+    });
 }
 
 function normalizeTier(rawTier) {
@@ -302,64 +329,94 @@ function usingAnySharedKey() {
   return sharedKeyUsage.openai || sharedKeyUsage.vercel || sharedKeyUsage.github;
 }
 
-async function loadDefaults() {
-  const passphrase = (defaultPassphraseInput.value || '').trim();
-  if (!passphrase) {
-    defaultStatus.textContent = 'Enter the passphrase to unlock defaults.';
-    return;
-  }
+async function loadDefaults(options = {}) {
+  return loadDefaultsWithOptions(options);
+}
 
-  if (!Gun.SEA) {
-    defaultStatus.textContent = 'Gun SEA unavailable. Refresh and try again.';
-    return;
-  }
+async function loadDefaultsWithOptions(options = {}) {
+  const { force = true, silent = false } = options;
+  const hasCachedConfig = Object.keys(currentDefaultConfig || {}).length > 0;
+  const config = hasCachedConfig ? currentDefaultConfig : await new Promise(resolve => defaultsNode.once(resolve));
+  const targets = [
+    {
+      key: 'openai',
+      label: 'OpenAI',
+      input: openaiInput,
+      storageKey: openaiStorageKey
+    },
+    {
+      key: 'vercel',
+      label: 'Vercel',
+      input: vercelInput,
+      storageKey: vercelStorageKey
+    },
+    {
+      key: 'github',
+      label: 'GitHub',
+      input: githubInput,
+      storageKey: githubStorageKey
+    }
+  ];
 
-  const config = await new Promise(resolve => defaultsNode.once(resolve));
   const applied = [];
+  const skipped = [];
 
-  try {
-    if (config?.apiKeyCipher) {
-      const value = await Gun.SEA.decrypt(config.apiKeyCipher, passphrase);
-      if (value) {
-        openaiInput.value = value;
-        safeWrite(localStorage, openaiStorageKey, value);
-        defaultSecrets.openai = value;
-        refreshSharedKeyUsage('openai', value);
-        applied.push('OpenAI');
-      }
-    }
-
-    if (config?.vercelTokenCipher) {
-      const value = await Gun.SEA.decrypt(config.vercelTokenCipher, passphrase);
-      if (value) {
-        vercelInput.value = value;
-        safeWrite(localStorage, vercelStorageKey, value);
-        defaultSecrets.vercel = value;
-        refreshSharedKeyUsage('vercel', value);
-        applied.push('Vercel');
-      }
-    }
-
-    if (config?.githubTokenCipher) {
-      const value = await Gun.SEA.decrypt(config.githubTokenCipher, passphrase);
-      if (value) {
-        githubInput.value = value;
-        safeWrite(localStorage, githubStorageKey, value);
-        defaultSecrets.github = value;
-        refreshSharedKeyUsage('github', value);
-        applied.push('GitHub');
-      }
-    }
-
-    if (!applied.length) {
-      defaultStatus.textContent = 'Passphrase incorrect or defaults missing.';
+  targets.forEach(target => {
+    const value = readDefaultSecret(config, target.key);
+    if (!value) {
+      defaultSecrets[target.key] = '';
+      refreshSharedKeyUsage(target.key, target.input.value);
       return;
     }
 
-    defaultStatus.textContent = `Defaults applied: ${applied.join(', ')}. Shared limits active.`;
+    const existing = (target.input.value || '').trim();
+    const hasPersonalValue = existing && existing !== defaultSecrets[target.key];
+    if (!force && hasPersonalValue) {
+      skipped.push(target.label);
+      return;
+    }
+
+    target.input.value = value;
+    safeWrite(localStorage, target.storageKey, value);
+    defaultSecrets[target.key] = value;
+    refreshSharedKeyUsage(target.key, value);
+    applied.push(target.label);
+  });
+
+  if (applied.length) {
+    if (!silent) {
+      const notes = [`Defaults applied: ${applied.join(', ')}.`];
+      if (skipped.length) {
+        notes.push(`Kept personal keys for ${skipped.join(', ')}.`);
+      }
+      defaultStatus.textContent = `${notes.join(' ')} Shared limits active.`;
+    }
     updateSharedUsageStatus();
-  } catch (error) {
-    defaultStatus.textContent = 'Unable to decrypt defaults. Check the passphrase and retry.';
+    return;
+  }
+
+  const encryptedOnly = ['openai', 'vercel', 'github'].filter(targetKey => {
+    return !readDefaultSecret(config, targetKey) && hasEncryptedDefault(config, targetKey);
+  });
+
+  if (encryptedOnly.length) {
+    if (!silent) {
+      const labels = describeTargets(encryptedOnly);
+      defaultStatus.textContent = `${labels.join(', ')} defaults are encrypted-only. `
+        + 'Ask an admin to re-save password-free defaults.';
+    }
+    return;
+  }
+
+  if (skipped.length) {
+    if (!silent) {
+      defaultStatus.textContent = `Shared defaults ready. Kept your personal keys for ${skipped.join(', ')}.`;
+    }
+    return;
+  }
+
+  if (!silent) {
+    defaultStatus.textContent = 'No shared defaults configured yet.';
   }
 }
 
@@ -578,7 +635,9 @@ function keyTargetForInput(input) {
 }
 
 function wireEvents() {
-  loadDefaultsBtn.addEventListener('click', loadDefaults);
+  loadDefaultsBtn.addEventListener('click', () => {
+    loadDefaultsWithOptions({ force: true });
+  });
   saveKeysBtn.addEventListener('click', saveLocalKeys);
   clearKeysBtn.addEventListener('click', clearLocalKeys);
   generateBtn.addEventListener('click', handleGenerate);

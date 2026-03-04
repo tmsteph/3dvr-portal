@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Web Builder (Default Keys)</title>
+  <title>Web Builder</title>
   <link rel="stylesheet" href="../styles/global.css">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
@@ -24,7 +24,7 @@
     <header class="hero">
       <div class="eyebrow">Shared defaults</div>
       <h1>Web Builder</h1>
-      <p class="lede">Use the admin defaults for OpenAI, Vercel, and GitHub with daily limits so guests can publish safely.</p>
+      <p class="lede">Use shared OpenAI, Vercel, and GitHub defaults with daily rate limits and no password prompt.</p>
       <div class="pill-row">
         <div class="pill">Guest 2/day</div>
         <div class="pill">Free 5/day</div>
@@ -40,15 +40,13 @@
           <div>
             <p class="eyebrow">Admin bundle</p>
             <h2>Load shared defaults</h2>
-            <p class="meta">Unlock the preloaded OpenAI, Vercel, and GitHub keys. Shared usage is rate limited by plan.</p>
+            <p class="meta">Apply preloaded OpenAI, Vercel, and GitHub keys instantly. Shared usage is rate limited by plan.</p>
           </div>
         </div>
-        <label for="default-passphrase">Default passphrase</label>
         <div class="input-row">
-          <input type="password" id="default-passphrase" placeholder="Passphrase from admin" aria-describedby="default-hint">
-          <button id="load-defaults" class="primary">Use defaults</button>
+          <button id="load-defaults" class="primary" type="button">Use shared defaults</button>
         </div>
-        <p class="meta" id="default-hint">Ask an admin for the passphrase to unlock shared keys.</p>
+        <p class="meta" id="default-hint">No passphrase required. Shared usage is still rate limited per identity.</p>
         <p class="status" id="default-status" aria-live="polite">Defaults not loaded yet.</p>
         <p class="status" id="shared-usage" aria-live="polite">Shared limits idle.</p>
       </section>
@@ -155,6 +153,6 @@
     </section>
   </main>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

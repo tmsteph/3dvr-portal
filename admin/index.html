@@ -360,7 +360,7 @@
 
       <div class="card" id="defaults-card">
         <h2>Workbench Shared Defaults</h2>
-        <p class="text-muted">Encrypt shared defaults for OpenAI, Vercel, and GitHub. Teams can unlock them with a passphrase and stay within the shared rate limits.</p>
+        <p class="text-muted">Save shared defaults for OpenAI, Vercel, and GitHub. Web Builder uses them with no password, and usage still follows shared rate limits.</p>
         <div class="form-group">
           <label for="default-api-key">Default OpenAI API key</label>
           <input id="default-api-key" type="password" placeholder="sk-..." />
@@ -377,7 +377,7 @@
           <label for="import-workbench-secrets">Load from your workbench vault</label>
           <p class="text-muted">
             Pull secrets saved in the OpenAI workbench. Only your account can decrypt them, and they
-            will prefill the fields above so you can re-encrypt them for the team.
+            will prefill the fields above so you can publish shared defaults quickly.
           </p>
           <div class="actions" style="margin-top: 8px;">
             <button id="import-workbench-secrets" class="btn-outline" type="button">Load my saved keys</button>
@@ -385,12 +385,12 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="default-api-passphrase">Encryption passphrase</label>
-          <input id="default-api-passphrase" type="password" placeholder="Required to encrypt and decrypt" />
-          <p class="text-muted">Passphrase is never stored; share it privately with the team so they can unlock the defaults without exposing the raw tokens publicly.</p>
+          <label for="default-api-passphrase">Optional passphrase for encrypted copies</label>
+          <input id="default-api-passphrase" type="password" placeholder="Optional: keep encrypted defaults for passphrase-based tools" />
+          <p class="text-muted">Leave blank for password-free defaults only. If provided, encrypted copies are also saved.</p>
         </div>
         <div class="form-group">
-          <label for="default-api-hint">Passphrase hint (optional)</label>
+          <label for="default-api-hint">Passphrase hint (optional when passphrase is set)</label>
           <input id="default-api-hint" type="text" placeholder="Example: same passphrase as portal admin" />
         </div>
         <div class="actions" style="margin-top: 10px;">
@@ -934,10 +934,10 @@
 
     const sourceText = sourceParts.length ? `from your workbench ${sourceParts.join(' and ')}` : 'from your workbench vault';
     setWorkbenchImportStatus(
-      `Loaded ${appliedLabels.join(', ')} ${sourceText}. Add a passphrase and save to share.`,
+      `Loaded ${appliedLabels.join(', ')} ${sourceText}. Save to publish password-free defaults.`,
       'success'
     );
-    updateDefaultStatus('Workbench secrets loaded. Encrypt with a passphrase to publish new defaults.');
+    updateDefaultStatus('Workbench secrets loaded. Save to publish shared defaults.');
   }
 
   function renderUsers() {
@@ -1162,25 +1162,38 @@
 
   function renderDefaults() {
     if (!defaultStatusEl) return;
-    const available = [];
-    if (defaultRecord.apiKeyCipher) available.push('OpenAI');
-    if (defaultRecord.vercelTokenCipher) available.push('Vercel');
-    if (defaultRecord.githubTokenCipher) available.push('GitHub');
+    const plainAvailable = [];
+    if (typeof defaultRecord.apiKey === 'string' && defaultRecord.apiKey.trim()) plainAvailable.push('OpenAI');
+    if (typeof defaultRecord.vercelToken === 'string' && defaultRecord.vercelToken.trim()) plainAvailable.push('Vercel');
+    if (typeof defaultRecord.githubToken === 'string' && defaultRecord.githubToken.trim()) plainAvailable.push('GitHub');
 
-    if (!available.length) {
+    const encryptedAvailable = [];
+    if (defaultRecord.apiKeyCipher) encryptedAvailable.push('OpenAI');
+    if (defaultRecord.vercelTokenCipher) encryptedAvailable.push('Vercel');
+    if (defaultRecord.githubTokenCipher) encryptedAvailable.push('GitHub');
+
+    if (!plainAvailable.length && !encryptedAvailable.length) {
       defaultStatusEl.innerText = 'No defaults have been saved yet.';
       return;
     }
 
     const updated = formatDate(defaultRecord.updatedAt);
     const updatedBy = escapeHtml(defaultRecord.updatedBy || 'admin');
-    const hint = defaultRecord.hint ? `Hint: ${escapeHtml(defaultRecord.hint)}` : 'No hint set.';
-    defaultStatusEl.innerHTML = [
-      `Encrypted defaults saved by ${updatedBy} on ${updated}.`,
-      `Available: ${available.join(', ')}.`,
-      hint,
-      'Shared keys are rate limited per identity.'
-    ].join(' ');
+    const details = [`Defaults saved by ${updatedBy} on ${updated}.`];
+
+    if (plainAvailable.length) {
+      details.push(`Password-free defaults: ${plainAvailable.join(', ')}.`);
+    }
+
+    if (encryptedAvailable.length) {
+      details.push(`Encrypted copies: ${encryptedAvailable.join(', ')}.`);
+      if (defaultRecord.hint) {
+        details.push(`Hint: ${escapeHtml(defaultRecord.hint)}.`);
+      }
+    }
+
+    details.push('Shared keys are rate limited per identity.');
+    defaultStatusEl.innerHTML = details.join(' ');
   }
 
   function updateDefaultStatus(message) {
@@ -1352,33 +1365,39 @@
     const githubToken = (defaultGithubInput.value || '').trim();
     const passphrase = (defaultPassphraseInput.value || '').trim();
     const hint = (defaultHintInput.value || '').trim();
+    const hasPassphrase = Boolean(passphrase);
 
     if (!apiKey && !vercelToken && !githubToken) {
       updateDefaultStatus('Enter at least one API token to save.');
       return;
     }
 
-    if (!passphrase || passphrase.length < 6) {
-      updateDefaultStatus('Add a passphrase (6+ characters) to encrypt the defaults.');
+    if (hasPassphrase && passphrase.length < 6) {
+      updateDefaultStatus('Use a passphrase with at least 6 characters, or leave it blank.');
       return;
     }
 
-    if (!Gun.SEA || typeof Gun.SEA.encrypt !== 'function') {
+    if (hasPassphrase && (!Gun.SEA || typeof Gun.SEA.encrypt !== 'function')) {
       updateDefaultStatus('Gun SEA not available. Please refresh and try again.');
       return;
     }
 
-    updateDefaultStatus('Encrypting and saving shared defaults...');
+    updateDefaultStatus(hasPassphrase
+      ? 'Saving defaults and refreshing encrypted copies...'
+      : 'Saving password-free shared defaults...');
 
     try {
-      const cipher = apiKey ? await Gun.SEA.encrypt(apiKey, passphrase) : null;
-      const vercelCipher = vercelToken ? await Gun.SEA.encrypt(vercelToken, passphrase) : null;
-      const githubCipher = githubToken ? await Gun.SEA.encrypt(githubToken, passphrase) : null;
+      const cipher = hasPassphrase && apiKey ? await Gun.SEA.encrypt(apiKey, passphrase) : null;
+      const vercelCipher = hasPassphrase && vercelToken ? await Gun.SEA.encrypt(vercelToken, passphrase) : null;
+      const githubCipher = hasPassphrase && githubToken ? await Gun.SEA.encrypt(githubToken, passphrase) : null;
       const payload = {
+        apiKey: apiKey || null,
+        vercelToken: vercelToken || null,
+        githubToken: githubToken || null,
         apiKeyCipher: cipher,
         vercelTokenCipher: vercelCipher,
         githubTokenCipher: githubCipher,
-        hint,
+        hint: hasPassphrase ? hint : '',
         updatedAt: Date.now(),
         updatedBy: alias || 'admin'
       };
@@ -1390,10 +1409,16 @@
         defaultKeyInput.value = '';
         defaultVercelInput.value = '';
         defaultGithubInput.value = '';
-        updateDefaultStatus('Defaults saved. Share the passphrase privately with your team.');
+        defaultPassphraseInput.value = '';
+        defaultHintInput.value = '';
+        updateDefaultStatus(hasPassphrase
+          ? 'Defaults saved. Password-free defaults and encrypted copies are both ready.'
+          : 'Defaults saved. Password-free defaults are ready and encrypted copies were cleared.');
       });
     } catch (error) {
-      updateDefaultStatus('Failed to encrypt the defaults.');
+      updateDefaultStatus(hasPassphrase
+        ? 'Failed to encrypt the defaults.'
+        : 'Failed to save the defaults.');
     }
   }
 
@@ -1401,6 +1426,9 @@
     if (!isAdmin) return;
 
     workbenchDefaults.put({
+      apiKey: null,
+      vercelToken: null,
+      githubToken: null,
       apiKeyCipher: null,
       vercelTokenCipher: null,
       githubTokenCipher: null,
