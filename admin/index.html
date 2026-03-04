@@ -394,6 +394,7 @@
           <input id="default-api-hint" type="text" placeholder="Example: same passphrase as portal admin" />
         </div>
         <div class="actions" style="margin-top: 10px;">
+          <button id="recover-default-key" class="btn-outline" type="button">Recover encrypted defaults</button>
           <button id="save-default-key" class="btn-primary" type="button">Save defaults</button>
           <button id="clear-default-key" class="btn-danger" type="button">Clear defaults</button>
         </div>
@@ -570,6 +571,7 @@
   const defaultPassphraseInput = document.getElementById('default-api-passphrase');
   const defaultHintInput = document.getElementById('default-api-hint');
   const defaultStatusEl = document.getElementById('default-status');
+  const recoverDefaultKeyBtn = document.getElementById('recover-default-key');
   const saveDefaultKeyBtn = document.getElementById('save-default-key');
   const clearDefaultKeyBtn = document.getElementById('clear-default-key');
   const importWorkbenchBtn = document.getElementById('import-workbench-secrets');
@@ -1357,7 +1359,7 @@
   async function saveDefaultKey() {
     if (!isAdmin) {
       updateDefaultStatus('Only admins can change shared defaults.');
-      return;
+      return false;
     }
 
     const apiKey = (defaultKeyInput.value || '').trim();
@@ -1369,17 +1371,17 @@
 
     if (!apiKey && !vercelToken && !githubToken) {
       updateDefaultStatus('Enter at least one API token to save.');
-      return;
+      return false;
     }
 
     if (hasPassphrase && passphrase.length < 6) {
       updateDefaultStatus('Use a passphrase with at least 6 characters, or leave it blank.');
-      return;
+      return false;
     }
 
     if (hasPassphrase && (!Gun.SEA || typeof Gun.SEA.encrypt !== 'function')) {
       updateDefaultStatus('Gun SEA not available. Please refresh and try again.');
-      return;
+      return false;
     }
 
     updateDefaultStatus(hasPassphrase
@@ -1401,25 +1403,128 @@
         updatedAt: Date.now(),
         updatedBy: alias || 'admin'
       };
-      workbenchDefaults.put(payload, ack => {
-        if (ack?.err) {
-          updateDefaultStatus('Could not save the defaults.');
-          return;
-        }
-        defaultKeyInput.value = '';
-        defaultVercelInput.value = '';
-        defaultGithubInput.value = '';
-        defaultPassphraseInput.value = '';
-        defaultHintInput.value = '';
-        updateDefaultStatus(hasPassphrase
-          ? 'Defaults saved. Password-free defaults and encrypted copies are both ready.'
-          : 'Defaults saved. Password-free defaults are ready and encrypted copies were cleared.');
+      const ack = await new Promise(resolve => {
+        workbenchDefaults.put(payload, putAck => resolve(putAck || {}));
       });
+      if (ack?.err) {
+        updateDefaultStatus('Could not save the defaults.');
+        return false;
+      }
+
+      defaultKeyInput.value = '';
+      defaultVercelInput.value = '';
+      defaultGithubInput.value = '';
+      defaultPassphraseInput.value = '';
+      defaultHintInput.value = '';
+      updateDefaultStatus(hasPassphrase
+        ? 'Defaults saved. Password-free defaults and encrypted copies are both ready.'
+        : 'Defaults saved. Password-free defaults are ready and encrypted copies were cleared.');
+      return true;
     } catch (error) {
       updateDefaultStatus(hasPassphrase
         ? 'Failed to encrypt the defaults.'
         : 'Failed to save the defaults.');
+      return false;
     }
+  }
+
+  function getEncryptedDefaultCipher(targetKey) {
+    const cipherFields = {
+      openai: ['apiKeyCipher', 'openaiCipher'],
+      vercel: ['vercelTokenCipher', 'vercelCipher'],
+      github: ['githubTokenCipher', 'githubCipher']
+    };
+    const fields = cipherFields[targetKey] || [];
+
+    for (const field of fields) {
+      const value = defaultRecord?.[field];
+      if (!value) continue;
+      if (typeof value === 'string' && value.trim()) return value;
+      if (typeof value === 'object') return value;
+    }
+    return null;
+  }
+
+  function extractRecoveredSecret(targetKey, decrypted) {
+    if (typeof decrypted === 'string' && decrypted.trim()) {
+      return decrypted.trim();
+    }
+
+    if (!decrypted || typeof decrypted !== 'object') {
+      return '';
+    }
+
+    const valueFields = {
+      openai: ['openai', 'openaiApiKey', 'apiKey'],
+      vercel: ['vercel', 'vercelToken'],
+      github: ['github', 'githubToken']
+    };
+    const fields = valueFields[targetKey] || [];
+
+    for (const field of fields) {
+      const value = decrypted[field];
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return '';
+  }
+
+  async function recoverEncryptedDefaults() {
+    if (!isAdmin) {
+      updateDefaultStatus('Only admins can change shared defaults.');
+      return;
+    }
+
+    const passphrase = (defaultPassphraseInput.value || '').trim();
+    if (!passphrase) {
+      updateDefaultStatus('Enter the previous passphrase so we can recover encrypted defaults.');
+      return;
+    }
+
+    if (!Gun.SEA || typeof Gun.SEA.decrypt !== 'function') {
+      updateDefaultStatus('Gun SEA decrypt is unavailable. Refresh and try again.');
+      return;
+    }
+
+    const encryptedTargets = [
+      { key: 'openai', label: 'OpenAI', input: defaultKeyInput, cipher: getEncryptedDefaultCipher('openai') },
+      { key: 'vercel', label: 'Vercel', input: defaultVercelInput, cipher: getEncryptedDefaultCipher('vercel') },
+      { key: 'github', label: 'GitHub', input: defaultGithubInput, cipher: getEncryptedDefaultCipher('github') }
+    ].filter(target => Boolean(target.cipher));
+
+    if (!encryptedTargets.length) {
+      updateDefaultStatus('No encrypted defaults found to recover.');
+      return;
+    }
+
+    updateDefaultStatus('Decrypting encrypted defaults...');
+    const recoveredLabels = [];
+
+    for (const target of encryptedTargets) {
+      try {
+        const decrypted = await Gun.SEA.decrypt(target.cipher, passphrase);
+        const value = extractRecoveredSecret(target.key, decrypted);
+        if (!value) continue;
+        target.input.value = value;
+        recoveredLabels.push(target.label);
+      } catch (error) {
+        // Continue to try the remaining encrypted targets.
+      }
+    }
+
+    if (!recoveredLabels.length) {
+      updateDefaultStatus('Could not decrypt existing defaults. Check the passphrase and retry.');
+      return;
+    }
+
+    if (!defaultHintInput.value && defaultRecord?.hint) {
+      defaultHintInput.value = defaultRecord.hint;
+    }
+
+    updateDefaultStatus(`Recovered ${recoveredLabels.join(', ')} from encrypted defaults. Saving...`);
+    await saveDefaultKey();
   }
 
   function clearDefaultKey() {
@@ -1688,6 +1793,9 @@
 
   if (recoveryButton) {
     recoveryButton.addEventListener('click', handleAccountRecovery);
+  }
+  if (recoverDefaultKeyBtn) {
+    recoverDefaultKeyBtn.addEventListener('click', recoverEncryptedDefaults);
   }
   saveDefaultKeyBtn.addEventListener('click', saveDefaultKey);
   clearDefaultKeyBtn.addEventListener('click', clearDefaultKey);
