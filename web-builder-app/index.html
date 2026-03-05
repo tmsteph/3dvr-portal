@@ -24,39 +24,149 @@
     <header class="hero">
       <div class="eyebrow">Shared defaults</div>
       <h1>Web Builder</h1>
-      <p class="lede">Use shared OpenAI, Vercel, and GitHub defaults with daily rate limits and no password prompt.</p>
+      <p class="lede">
+        Tell us what you want, press Generate, and refine it like a conversation.
+      </p>
       <div class="pill-row">
         <div class="pill">Guest 2/day</div>
         <div class="pill">Free 5/day</div>
         <div class="pill">$5 supporter 20/day</div>
         <div class="pill">$20 pro 100/day</div>
       </div>
+      <p class="meta">Defaults auto-load in the background. Open advanced panels only if you need them.</p>
       <p class="meta" id="identity-label" aria-live="polite"></p>
     </header>
 
+    <section class="card" id="builder-card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Conversation</p>
+          <h2>What should this website do?</h2>
+          <p class="meta">Use plain language. You can ask for revisions after each draft.</p>
+        </div>
+      </div>
+      <label for="builder-request">Request</label>
+      <textarea id="builder-request" rows="4"
+        placeholder="Example: Build a VR fitness landing page with hero, benefits, pricing, and signup."></textarea>
+      <details class="card config-card inline-panel" id="prompt-panel">
+        <summary>Prompt hints (optional)</summary>
+        <p class="meta">Fine-tune generation with these helper fields. Leave blank for fully conversational mode.</p>
+        <section id="prompt-options">
+          <div class="input-grid">
+            <label>Site title
+              <input id="site-title" type="text" placeholder="Starter landing page">
+            </label>
+            <label>Goal or CTA
+              <input id="site-goal" type="text" placeholder="Capture signups for the beta">
+            </label>
+            <label>Audience
+              <input id="site-audience" type="text" placeholder="Creators and indie hackers">
+            </label>
+            <label>Style
+              <select id="site-style">
+                <option value="clean">Clean and calming</option>
+                <option value="bold">Bold and high contrast</option>
+                <option value="futuristic">Futuristic</option>
+                <option value="playful">Playful</option>
+              </select>
+            </label>
+          </div>
+          <label for="site-extras">Extra notes</label>
+          <textarea id="site-extras" rows="3"
+            placeholder="Add testimonials, FAQs, pricing details, or tone."></textarea>
+        </section>
+      </details>
+
+      <label for="iteration-request">Revision (optional)</label>
+      <input id="iteration-request" type="text"
+        placeholder="Example: Make the hero bolder, add testimonials, and simplify the pricing section.">
+
+      <div class="button-row">
+        <button id="generate" class="primary">Generate Website</button>
+        <button id="iterate" class="secondary">Apply Revision</button>
+      </div>
+      <p class="status status--info" id="generate-status" aria-live="polite">Waiting to generate.</p>
+    </section>
+
     <section class="grid">
-      <section class="card" id="defaults-card">
+      <section class="column-stack" id="preview-column">
+        <details class="card config-card" id="publish-panel">
+          <summary>Publish (advanced)</summary>
+          <p class="meta">Deploy to Vercel or publish to GitHub after generating a draft.</p>
+          <section id="publish-options">
+            <div class="input-grid">
+              <label>Vercel project
+                <input id="vercel-project" type="text" placeholder="web-builder-demo">
+              </label>
+              <label>GitHub repo (owner/name)
+                <input id="github-repo" type="text" placeholder="yourname/web-builder">
+              </label>
+              <label>GitHub branch
+                <input id="github-branch" type="text" value="main">
+              </label>
+              <label>GitHub path
+                <input id="github-path" type="text" value="index.html">
+              </label>
+            </div>
+            <label for="github-message">Commit message</label>
+            <input id="github-message" type="text" placeholder="chore: add generated site">
+            <div class="button-row">
+              <button id="deploy" class="secondary">Deploy to Vercel</button>
+              <button id="publish" class="secondary">Publish to GitHub</button>
+            </div>
+          </section>
+        </details>
+
+        <section class="card" id="preview-card">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Preview</p>
+              <h2>Live iframe</h2>
+            </div>
+          </div>
+          <iframe id="preview" title="Generated site preview"></iframe>
+        </section>
+
+      </section>
+
+      <section class="card" id="log-card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Admin bundle</p>
-            <h2>Load shared defaults</h2>
-            <p class="meta">Apply preloaded OpenAI, Vercel, and GitHub keys instantly. Shared usage is rate limited by plan.</p>
+            <p class="eyebrow">Activity</p>
+            <h2>Log</h2>
+          </div>
+        </div>
+        <div id="output" class="output" aria-live="polite">No activity yet.</div>
+      </section>
+    </section>
+
+    <details class="card config-card" id="config-panel">
+      <summary>Config (keys + defaults)</summary>
+      <p class="meta">Use this when shared defaults need a refresh or you want personal keys.</p>
+
+      <section id="defaults-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Shared defaults</p>
+            <h2>Defaults and limits</h2>
           </div>
         </div>
         <div class="input-row">
-          <button id="load-defaults" class="primary" type="button">Use shared defaults</button>
+          <button id="load-defaults" class="secondary" type="button">Reload shared defaults</button>
         </div>
-        <p class="meta" id="default-hint">No passphrase required. Shared usage is still rate limited per identity.</p>
-        <p class="status" id="default-status" aria-live="polite">Defaults not loaded yet.</p>
-        <p class="status" id="shared-usage" aria-live="polite">Shared limits idle.</p>
+        <p class="meta" id="default-hint">
+          No passphrase needed. If defaults are encrypted-only, ask an admin to recover them in `/admin`.
+        </p>
+        <p class="status status--info" id="default-status" aria-live="polite">Checking shared defaults...</p>
+        <p class="status status--info" id="shared-usage" aria-live="polite">Shared limits idle.</p>
       </section>
 
-      <section class="card" id="key-card">
+      <section id="key-card">
         <div class="card-header">
           <div>
-            <p class="eyebrow">Bring your own</p>
-            <h2>Personal tokens</h2>
-            <p class="meta">Paste personal keys to skip shared limits. They stay on this device.</p>
+            <p class="eyebrow">Personal keys</p>
+            <h2>Override shared defaults</h2>
+            <p class="meta">Optional: paste personal keys to avoid shared limits.</p>
           </div>
         </div>
         <div class="input-grid">
@@ -76,81 +186,7 @@
         </div>
         <p class="meta" id="key-status" aria-live="polite">Keys are stored locally and never leave the browser.</p>
       </section>
-    </section>
-
-    <section class="card" id="brief-card">
-      <div class="card-header">
-        <div>
-          <p class="eyebrow">Brief</p>
-          <h2>Describe your site</h2>
-          <p class="meta">Generate HTML with inline CSS, then deploy to Vercel or publish to GitHub.</p>
-        </div>
-      </div>
-      <div class="input-grid">
-        <label>Site title
-          <input id="site-title" type="text" placeholder="Starter landing page">
-        </label>
-        <label>Goal or CTA
-          <input id="site-goal" type="text" placeholder="Capture signups for the beta">
-        </label>
-        <label>Audience
-          <input id="site-audience" type="text" placeholder="Creators and indie hackers">
-        </label>
-        <label>Style
-          <select id="site-style">
-            <option value="clean">Clean and calming</option>
-            <option value="bold">Bold and high contrast</option>
-            <option value="futuristic">Futuristic</option>
-            <option value="playful">Playful</option>
-          </select>
-        </label>
-      </div>
-      <label for="site-extras">Extras</label>
-      <textarea id="site-extras" rows="3" placeholder="Add testimonials, FAQs, or a pricing grid."></textarea>
-      <div class="input-grid">
-        <label>Vercel project
-          <input id="vercel-project" type="text" placeholder="web-builder-demo">
-        </label>
-        <label>GitHub repo (owner/name)
-          <input id="github-repo" type="text" placeholder="yourname/web-builder">
-        </label>
-        <label>GitHub branch
-          <input id="github-branch" type="text" value="main">
-        </label>
-        <label>GitHub path
-          <input id="github-path" type="text" value="index.html">
-        </label>
-      </div>
-      <label for="github-message">Commit message</label>
-      <input id="github-message" type="text" placeholder="chore: add generated site">
-      <div class="button-row">
-        <button id="generate" class="primary">Generate with OpenAI</button>
-        <button id="deploy" class="secondary">Deploy to Vercel</button>
-        <button id="publish" class="secondary">Publish to GitHub</button>
-      </div>
-      <p class="status" id="generate-status" aria-live="polite">Waiting to generate.</p>
-    </section>
-
-    <section class="grid">
-      <section class="card" id="preview-card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Preview</p>
-            <h2>Live iframe</h2>
-          </div>
-        </div>
-        <iframe id="preview" title="Generated site preview"></iframe>
-      </section>
-      <section class="card" id="log-card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Activity</p>
-            <h2>Log</h2>
-          </div>
-        </div>
-        <div id="output" class="output" aria-live="polite">No activity yet.</div>
-      </section>
-    </section>
+    </details>
   </main>
 
   <script type="module" src="app.js"></script>

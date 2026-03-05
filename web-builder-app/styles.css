@@ -32,6 +32,12 @@ body {
   margin-top: 16px;
 }
 
+.card section + section {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #1f2d45;
+}
+
 .card-header {
   display: flex;
   align-items: flex-start;
@@ -64,6 +70,14 @@ body {
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+#builder-request {
+  min-height: 116px;
+}
+
+#iteration-request {
+  margin-top: 8px;
 }
 
 label {
@@ -99,6 +113,13 @@ textarea {
   cursor: pointer;
 }
 
+.primary:disabled,
+.secondary:disabled,
+.ghost:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
+
 .secondary {
   background: #172842;
   color: #e6eef7;
@@ -127,6 +148,86 @@ a.secondary {
   margin: 4px 0;
   color: #9bb4da;
   font-size: 0.95rem;
+  border-radius: 8px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+}
+
+.status--info {
+  color: #b8d4ff;
+  border-color: rgba(104, 146, 214, 0.45);
+  background: rgba(16, 34, 62, 0.5);
+}
+
+.status--success {
+  color: #8fe5b7;
+  border-color: rgba(55, 168, 117, 0.45);
+  background: rgba(16, 49, 36, 0.5);
+}
+
+.status--warning {
+  color: #ffd79a;
+  border-color: rgba(255, 185, 90, 0.45);
+  background: rgba(53, 39, 14, 0.55);
+}
+
+.status--error {
+  color: #ffb3b3;
+  border-color: rgba(214, 92, 92, 0.5);
+  background: rgba(57, 20, 25, 0.6);
+}
+
+.config-card {
+  margin-top: 20px;
+}
+
+.column-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.column-stack > .config-card {
+  margin-top: 0;
+}
+
+.inline-panel {
+  margin-top: 12px;
+  box-shadow: none;
+  background: #0a1220;
+  border-color: #233554;
+}
+
+.inline-panel section + section {
+  border-top-color: #233554;
+}
+
+
+.config-card summary {
+  list-style: none;
+  cursor: pointer;
+  font-weight: 700;
+  color: #d6e5fb;
+  padding: 4px 0;
+}
+
+.config-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.config-card summary::after {
+  content: 'Show';
+  float: right;
+  color: #8fb5e8;
+  font-weight: 500;
+}
+
+.config-card[open] summary::after {
+  content: 'Hide';
+}
+
+.config-card > .meta {
+  margin-top: 8px;
 }
 
 .output {
@@ -163,5 +264,10 @@ iframe#preview {
 @media (max-width: 720px) {
   .page {
     padding: 16px;
+  }
+
+  .config-card summary::after {
+    float: none;
+    margin-left: 8px;
   }
 }
