@@ -51,6 +51,36 @@
       <label for="iteration-request">Revision (optional)</label>
       <input id="iteration-request" type="text"
         placeholder="Example: Make the hero bolder, add testimonials, and simplify the pricing section.">
+
+      <details class="card config-card inline-panel" id="prompt-panel">
+        <summary>Prompt hints (optional)</summary>
+        <p class="meta">Fine-tune generation with these helper fields. Leave blank for fully conversational mode.</p>
+        <section id="prompt-options">
+          <div class="input-grid">
+            <label>Site title
+              <input id="site-title" type="text" placeholder="Starter landing page">
+            </label>
+            <label>Goal or CTA
+              <input id="site-goal" type="text" placeholder="Capture signups for the beta">
+            </label>
+            <label>Audience
+              <input id="site-audience" type="text" placeholder="Creators and indie hackers">
+            </label>
+            <label>Style
+              <select id="site-style">
+                <option value="clean">Clean and calming</option>
+                <option value="bold">Bold and high contrast</option>
+                <option value="futuristic">Futuristic</option>
+                <option value="playful">Playful</option>
+              </select>
+            </label>
+          </div>
+          <label for="site-extras">Extra notes</label>
+          <textarea id="site-extras" rows="3"
+            placeholder="Add testimonials, FAQs, pricing details, or tone."></textarea>
+        </section>
+      </details>
+
       <div class="button-row">
         <button id="generate" class="primary">Generate Website</button>
         <button id="iterate" class="secondary">Apply Revision</button>
@@ -59,15 +89,45 @@
     </section>
 
     <section class="grid">
-      <section class="card" id="preview-card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Preview</p>
-            <h2>Live iframe</h2>
+      <section class="column-stack" id="preview-column">
+        <section class="card" id="preview-card">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Preview</p>
+              <h2>Live iframe</h2>
+            </div>
           </div>
-        </div>
-        <iframe id="preview" title="Generated site preview"></iframe>
+          <iframe id="preview" title="Generated site preview"></iframe>
+        </section>
+
+        <details class="card config-card" id="publish-panel">
+          <summary>Publish (advanced)</summary>
+          <p class="meta">Deploy to Vercel or publish to GitHub after generating a draft.</p>
+          <section id="publish-options">
+            <div class="input-grid">
+              <label>Vercel project
+                <input id="vercel-project" type="text" placeholder="web-builder-demo">
+              </label>
+              <label>GitHub repo (owner/name)
+                <input id="github-repo" type="text" placeholder="yourname/web-builder">
+              </label>
+              <label>GitHub branch
+                <input id="github-branch" type="text" value="main">
+              </label>
+              <label>GitHub path
+                <input id="github-path" type="text" value="index.html">
+              </label>
+            </div>
+            <label for="github-message">Commit message</label>
+            <input id="github-message" type="text" placeholder="chore: add generated site">
+            <div class="button-row">
+              <button id="deploy" class="secondary">Deploy to Vercel</button>
+              <button id="publish" class="secondary">Publish to GitHub</button>
+            </div>
+          </section>
+        </details>
       </section>
+
       <section class="card" id="log-card">
         <div class="card-header">
           <div>
@@ -124,61 +184,6 @@
           <button id="clear-keys" class="ghost">Clear</button>
         </div>
         <p class="meta" id="key-status" aria-live="polite">Keys are stored locally and never leave the browser.</p>
-      </section>
-    </details>
-
-    <details class="card config-card" id="prompt-panel">
-      <summary>Prompt hints (optional)</summary>
-      <p class="meta">Fine-tune generation with these helper fields. Leave blank for fully conversational mode.</p>
-      <section id="prompt-options">
-        <div class="input-grid">
-          <label>Site title
-            <input id="site-title" type="text" placeholder="Starter landing page">
-          </label>
-          <label>Goal or CTA
-            <input id="site-goal" type="text" placeholder="Capture signups for the beta">
-          </label>
-          <label>Audience
-            <input id="site-audience" type="text" placeholder="Creators and indie hackers">
-          </label>
-          <label>Style
-            <select id="site-style">
-              <option value="clean">Clean and calming</option>
-              <option value="bold">Bold and high contrast</option>
-              <option value="futuristic">Futuristic</option>
-              <option value="playful">Playful</option>
-            </select>
-          </label>
-        </div>
-        <label for="site-extras">Extra notes</label>
-        <textarea id="site-extras" rows="3" placeholder="Add testimonials, FAQs, pricing details, or tone."></textarea>
-      </section>
-    </details>
-
-    <details class="card config-card" id="publish-panel">
-      <summary>Publish (advanced)</summary>
-      <p class="meta">Deploy to Vercel or publish to GitHub after generating a draft.</p>
-      <section id="publish-options">
-        <div class="input-grid">
-          <label>Vercel project
-            <input id="vercel-project" type="text" placeholder="web-builder-demo">
-          </label>
-          <label>GitHub repo (owner/name)
-            <input id="github-repo" type="text" placeholder="yourname/web-builder">
-          </label>
-          <label>GitHub branch
-            <input id="github-branch" type="text" value="main">
-          </label>
-          <label>GitHub path
-            <input id="github-path" type="text" value="index.html">
-          </label>
-        </div>
-        <label for="github-message">Commit message</label>
-        <input id="github-message" type="text" placeholder="chore: add generated site">
-        <div class="button-row">
-          <button id="deploy" class="secondary">Deploy to Vercel</button>
-          <button id="publish" class="secondary">Publish to GitHub</button>
-        </div>
       </section>
     </details>
   </main>

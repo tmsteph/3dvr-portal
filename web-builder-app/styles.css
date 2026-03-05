@@ -181,6 +181,28 @@ a.secondary {
   margin-top: 20px;
 }
 
+.column-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.column-stack > .config-card {
+  margin-top: 0;
+}
+
+.inline-panel {
+  margin-top: 12px;
+  box-shadow: none;
+  background: #0a1220;
+  border-color: #233554;
+}
+
+.inline-panel section + section {
+  border-top-color: #233554;
+}
+
+
 .config-card summary {
   list-style: none;
   cursor: pointer;
