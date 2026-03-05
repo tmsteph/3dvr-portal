@@ -48,10 +48,6 @@
       <label for="builder-request">Request</label>
       <textarea id="builder-request" rows="4"
         placeholder="Example: Build a VR fitness landing page with hero, benefits, pricing, and signup."></textarea>
-      <label for="iteration-request">Revision (optional)</label>
-      <input id="iteration-request" type="text"
-        placeholder="Example: Make the hero bolder, add testimonials, and simplify the pricing section.">
-
       <details class="card config-card inline-panel" id="prompt-panel">
         <summary>Prompt hints (optional)</summary>
         <p class="meta">Fine-tune generation with these helper fields. Leave blank for fully conversational mode.</p>
@@ -81,6 +77,10 @@
         </section>
       </details>
 
+      <label for="iteration-request">Revision (optional)</label>
+      <input id="iteration-request" type="text"
+        placeholder="Example: Make the hero bolder, add testimonials, and simplify the pricing section.">
+
       <div class="button-row">
         <button id="generate" class="primary">Generate Website</button>
         <button id="iterate" class="secondary">Apply Revision</button>
@@ -90,16 +90,6 @@
 
     <section class="grid">
       <section class="column-stack" id="preview-column">
-        <section class="card" id="preview-card">
-          <div class="card-header">
-            <div>
-              <p class="eyebrow">Preview</p>
-              <h2>Live iframe</h2>
-            </div>
-          </div>
-          <iframe id="preview" title="Generated site preview"></iframe>
-        </section>
-
         <details class="card config-card" id="publish-panel">
           <summary>Publish (advanced)</summary>
           <p class="meta">Deploy to Vercel or publish to GitHub after generating a draft.</p>
@@ -126,6 +116,17 @@
             </div>
           </section>
         </details>
+
+        <section class="card" id="preview-card">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Preview</p>
+              <h2>Live iframe</h2>
+            </div>
+          </div>
+          <iframe id="preview" title="Generated site preview"></iframe>
+        </section>
+
       </section>
 
       <section class="card" id="log-card">
