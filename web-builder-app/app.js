@@ -58,6 +58,8 @@ const LOAD_DEFAULTS_LABEL = 'Reload shared defaults';
 
 const identityLabel = document.getElementById('identity-label');
 const configPanel = document.getElementById('config-panel');
+const promptPanel = document.getElementById('prompt-panel');
+const publishPanel = document.getElementById('publish-panel');
 const loadDefaultsBtn = document.getElementById('load-defaults');
 const defaultStatus = document.getElementById('default-status');
 const sharedUsageStatus = document.getElementById('shared-usage');
@@ -140,10 +142,22 @@ function safeRemove(store, key) {
   }
 }
 
-function revealConfig() {
-  if (configPanel && !configPanel.open) {
-    configPanel.open = true;
+function revealPanel(panel) {
+  if (panel && !panel.open) {
+    panel.open = true;
   }
+}
+
+function revealConfig() {
+  revealPanel(configPanel);
+}
+
+function revealPromptPanel() {
+  revealPanel(promptPanel);
+}
+
+function revealPublishPanel() {
+  revealPanel(publishPanel);
 }
 
 function setStatusMessage(element, message, tone = 'info') {
@@ -649,7 +663,7 @@ async function handleIterate() {
 
 async function handleDeploy() {
   if (!currentHtml) {
-    setGenerateStatus('Generate a site first, then deploy from Config.', 'warning');
+    setGenerateStatus('Generate a site first, then deploy from the Publish panel.', 'warning');
     return;
   }
 
@@ -695,7 +709,7 @@ async function handleDeploy() {
 
 async function handlePublish() {
   if (!currentHtml) {
-    setGenerateStatus('Generate a site first, then publish from Config.', 'warning');
+    setGenerateStatus('Generate a site first, then publish from the Publish panel.', 'warning');
     return;
   }
 
@@ -714,8 +728,8 @@ async function handlePublish() {
 
   const repo = (githubRepoInput.value || '').trim();
   if (!repo || !repo.includes('/')) {
-    setGenerateStatus('Enter the GitHub repo as owner/name in Config.', 'warning');
-    revealConfig();
+    setGenerateStatus('Enter the GitHub repo as owner/name in the Publish panel.', 'warning');
+    revealPublishPanel();
     return;
   }
 
