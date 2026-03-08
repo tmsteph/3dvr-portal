@@ -1,9 +1,12 @@
 /* service-worker.js */
 
+importScripts('/chat/notification-routing.js');
+
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
+const chatNotificationRouting = self.ChatNotificationRouting || null;
 
 // What to cache at install (add your CSS/JS/assets here)
 const STATIC_ASSETS = [
@@ -16,6 +19,7 @@ const STATIC_ASSETS = [
   '/navbar.js',
   '/score.js',
   '/pwa-install.js',
+  '/chat/notification-routing.js',
   '/styles/install-banner.css',
   '/manifest.webmanifest',
   '/app-manifests/chat.webmanifest',
@@ -100,6 +104,33 @@ const isHTML = (req) => req.headers.get('accept')?.includes('text/html');
 const isGunRealtime = (url) => url.includes('/gun') || url.startsWith('wss://') || url.startsWith('ws://');
 const isAPI = (url) => url.includes('/api/'); // adjust if you add APIs
 const isStyleRequest = (req) => req.destination === 'style';
+const isChatClientUrl = (clientUrl) => {
+  try {
+    const url = new URL(clientUrl);
+    return url.origin === self.location.origin &&
+      (url.pathname === '/chat/' || url.pathname === '/chat/index.html');
+  } catch (error) {
+    return false;
+  }
+};
+
+function buildChatNotificationTarget(data = {}) {
+  const room = chatNotificationRouting && typeof chatNotificationRouting.normalizeRoomName === 'function'
+    ? chatNotificationRouting.normalizeRoomName(data.room)
+    : (typeof data.room === 'string' ? data.room : 'general');
+  const messageId = chatNotificationRouting && typeof chatNotificationRouting.normalizeMessageId === 'function'
+    ? chatNotificationRouting.normalizeMessageId(data.messageId)
+    : (typeof data.messageId === 'string' ? data.messageId.trim() : '');
+  const url = typeof data.url === 'string' && data.url.trim()
+    ? data.url.trim()
+    : (
+        chatNotificationRouting && typeof chatNotificationRouting.buildChatNotificationUrl === 'function'
+          ? chatNotificationRouting.buildChatNotificationUrl({ room, messageId })
+          : '/chat/'
+      );
+
+  return { room, messageId, url };
+}
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
@@ -162,13 +193,33 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification?.data?.url || '/chat/';
+  const target = buildChatNotificationTarget(event.notification?.data || {});
+  const targetUrl = target.url || '/chat/';
 
   event.waitUntil((async () => {
     const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+
     for (const client of allClients) {
-      if (client.url.includes(targetUrl) && 'focus' in client) {
-        client.postMessage({ type: 'notification-clicked' });
+      if (!isChatClientUrl(client.url)) {
+        continue;
+      }
+
+      if ('navigate' in client) {
+        try {
+          await client.navigate(targetUrl);
+        } catch (error) {
+          console.error('Service worker failed to navigate chat client', error);
+        }
+      }
+
+      if ('postMessage' in client) {
+        client.postMessage({
+          type: 'notification-clicked',
+          payload: target
+        });
+      }
+
+      if ('focus' in client) {
         return client.focus();
       }
     }
