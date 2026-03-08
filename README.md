@@ -70,6 +70,23 @@ Most of the portal experiences now ship with their own installable manifests, so
 
 Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
 
+### Chat web push setup
+
+Realtime chat notifications now support optional Web Push delivery backed by Gun-stored subscriptions.
+To enable server-side push fanout for `/chat/`, configure these environment variables in Vercel or your local serverless environment:
+
+- `WEB_PUSH_VAPID_PUBLIC_KEY`
+- `WEB_PUSH_VAPID_PRIVATE_KEY`
+- `WEB_PUSH_VAPID_SUBJECT` (recommended: `mailto:support@3dvr.tech`)
+
+You can generate VAPID keys with:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Without those variables, the chat app still loads normally but the notifications toggle stays disabled because background push is not configured.
+
 ### Brave browser setup
 
 Brave shields can block realtime sync. Click the 🛡️ icon and either turn Shields off for `portal.3dvr.tech` and `relay.3dvr.tech`, or set **Cross-site cookies** to *Allow* and **Fingerprinting** to *Standard*. Use a regular window (not Tor or private mode) for the most reliable GunJS connection.
