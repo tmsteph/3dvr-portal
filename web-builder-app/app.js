@@ -533,7 +533,9 @@ function buildInitialPrompt() {
     `Create a single-page website for this request: ${request}.`,
     'Return JSON with title, summary, and html keys.',
     'Use semantic HTML with inline CSS only and no external assets/scripts.',
-    'Prioritize accessibility, clear hierarchy, and mobile-first layout.'
+    'The html value must be a complete standalone HTML document with doctype, html, head, and body tags.',
+    'Prioritize accessibility, clear hierarchy, and mobile-first layout.',
+    'Avoid a flat pure-white page background unless the request explicitly asks for it. Use a more intentional visual atmosphere that matches the brief.'
   ];
 
   const hints = buildPromptHints();
@@ -548,15 +550,43 @@ function buildIterationPrompt(iterationRequest) {
   return [
     'Revise this existing single-page website using the request below.',
     `Revision request: ${iterationRequest}`,
-    'Return complete updated HTML (not partial diffs).',
+    'Return a complete updated HTML document (not partial diffs).',
     'Keep the page accessible and mobile-friendly.',
+    'Preserve a deliberate page atmosphere and avoid regressing to a flat pure-white background unless the request explicitly asks for it.',
     'Current HTML:',
     currentHtml
   ].join('\n\n');
 }
 
 function renderPreview(html) {
-  previewFrame.srcdoc = html || '<p>Generate a site to preview.</p>';
+  previewFrame.srcdoc = buildPreviewDocument(html);
+}
+
+function buildPreviewDocument(html) {
+  const markup = (html || '').trim();
+
+  if (!markup) {
+    return [
+      '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">',
+      '<meta name="viewport" content="width=device-width, initial-scale=1">',
+      '<style>',
+      '*{box-sizing:border-box;}',
+      'body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
+      'background:radial-gradient(circle at top, rgba(95,176,255,0.22), transparent 30%),linear-gradient(180deg,#0a121f 0%,#070d16 100%);',
+      'color:#e6eef7;}',
+      '.preview-empty{max-width:560px;padding:28px;border-radius:24px;border:1px solid rgba(77,110,156,0.45);',
+      'background:linear-gradient(180deg, rgba(15,25,43,0.94), rgba(9,16,27,0.96));',
+      'box-shadow:0 24px 50px rgba(0,0,0,0.35);}',
+      '.preview-empty p{margin:0 0 10px;color:#9db7da;letter-spacing:0.08em;text-transform:uppercase;font-size:12px;font-weight:700;}',
+      '.preview-empty h1{margin:0 0 10px;font-size:clamp(1.6rem,4vw,2.4rem);}',
+      '.preview-empty span{display:block;color:#c7d7ee;line-height:1.6;}',
+      '</style></head><body>',
+      '<section class="preview-empty"><p>Preview</p><h1>Generate a site to see it here.</h1><span>Your draft will render inside this frame once the builder returns HTML.</span></section>',
+      '</body></html>'
+    ].join('');
+  }
+
+  return markup;
 }
 
 function logMessage(message) {

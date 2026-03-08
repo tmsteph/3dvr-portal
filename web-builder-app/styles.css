@@ -1,5 +1,8 @@
 body {
-  background: #0b1321;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(91, 176, 255, 0.2), transparent 28%),
+    radial-gradient(circle at 88% 10%, rgba(92, 225, 230, 0.14), transparent 24%),
+    linear-gradient(180deg, #0a121f 0%, #08101b 56%, #05080f 100%);
   color: #e6eef7;
 }
 
@@ -11,6 +14,13 @@ body {
 
 .hero {
   margin-bottom: 24px;
+  padding: 22px 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(76, 110, 157, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(92, 225, 230, 0.12), transparent 30%),
+    linear-gradient(145deg, rgba(16, 27, 46, 0.92), rgba(8, 15, 26, 0.94));
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
 }
 
 .hero .pill-row {
@@ -21,11 +31,11 @@ body {
 }
 
 .card {
-  background: #0f1a2c;
-  border: 1px solid #1f2d45;
-  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(16, 27, 46, 0.94), rgba(10, 18, 31, 0.96));
+  border: 1px solid rgba(36, 56, 85, 0.96);
+  border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
 }
 
 .card + .card {
@@ -232,20 +242,34 @@ a.secondary {
 
 .output {
   min-height: 120px;
-  background: #0a1220;
-  border: 1px solid #1f2d45;
+  background: linear-gradient(180deg, rgba(8, 15, 27, 0.96), rgba(7, 13, 23, 0.98));
+  border: 1px solid rgba(36, 55, 84, 0.95);
   border-radius: 10px;
   padding: 12px;
   white-space: pre-wrap;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
+.preview-stage {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(47, 71, 107, 0.92);
+  background:
+    radial-gradient(circle at top, rgba(79, 165, 255, 0.16), transparent 32%),
+    linear-gradient(160deg, rgba(12, 22, 38, 0.98), rgba(7, 13, 23, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
 iframe#preview {
   width: 100%;
-  min-height: 420px;
-  border: 1px solid #1f2d45;
-  border-radius: 10px;
-  background: #ffffff;
+  min-height: 440px;
+  border: 1px solid rgba(33, 51, 79, 0.96);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top, rgba(95, 176, 255, 0.18), transparent 26%),
+    linear-gradient(180deg, #09111d 0%, #070d16 100%);
+  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.34);
 }
 
 .grid {
@@ -256,12 +280,16 @@ iframe#preview {
 }
 
 .pill-row .pill {
-  background: #1c2a44;
-  border: 1px solid #2a3c5f;
-  color: #9cd6ff;
+  background: rgba(24, 40, 66, 0.85);
+  border: 1px solid rgba(52, 78, 114, 0.88);
+  color: #b6dcff;
 }
 
 @media (max-width: 720px) {
+  .top-buttons {
+    display: none;
+  }
+
   .page {
     padding: 16px;
   }
