@@ -56,6 +56,11 @@ const githubStorageKey = 'web-builder-github';
 const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
 const LOAD_DEFAULTS_LABEL = 'Reload shared defaults';
 
+const menuToggle = document.getElementById('menu-toggle');
+const builderNav = document.getElementById('builder-nav');
+const profileLink = document.getElementById('builder-profile-link');
+const profileNameLabel = document.getElementById('builder-profile-name');
+const profileMetaLabel = document.getElementById('builder-profile-meta');
 const identityLabel = document.getElementById('identity-label');
 const configPanel = document.getElementById('config-panel');
 const promptPanel = document.getElementById('prompt-panel');
@@ -96,6 +101,7 @@ subscribeToDefaults();
 subscribeToBillingTier();
 subscribeToUsageCounters();
 wireEvents();
+initMenuToggle();
 renderIdentity();
 renderPreview('');
 logMessage('Ready. Describe your site and press Generate Website.');
@@ -111,9 +117,118 @@ function resolveIdentity() {
   return generated;
 }
 
+function aliasToDisplay(alias) {
+  const normalized = String(alias || '').trim();
+  if (!normalized) return '';
+  return normalized.includes('@') ? normalized.split('@')[0] : normalized;
+}
+
+function compactIdentity(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return 'guest';
+  if (normalized.length <= 14) return normalized;
+  return `${normalized.slice(0, 6)}...${normalized.slice(-4)}`;
+}
+
+function resolveStoredProfile() {
+  const signedIn = safeRead(localStorage, 'signedIn') === 'true';
+  const guest = !signedIn && safeRead(localStorage, 'guest') === 'true';
+  const alias = String(safeRead(localStorage, 'alias') || '').trim();
+  const username = String(safeRead(localStorage, 'username') || '').trim();
+  const guestName = String(safeRead(localStorage, 'guestDisplayName') || '').trim();
+
+  if (signedIn) {
+    return {
+      alias,
+      name: (username && username.toLowerCase() !== 'guest' ? username : aliasToDisplay(alias)) || 'Member',
+      signedIn: true,
+      guest: false
+    };
+  }
+
+  if (guest) {
+    return {
+      alias,
+      name: guestName || aliasToDisplay(alias) || 'Guest',
+      signedIn: false,
+      guest: true
+    };
+  }
+
+  return {
+    alias,
+    name: aliasToDisplay(alias) || username || 'Guest',
+    signedIn: false,
+    guest: false
+  };
+}
+
+function initMenuToggle() {
+  if (!menuToggle || !builderNav) {
+    return;
+  }
+
+  const mobileQuery = window.matchMedia('(max-width: 720px)');
+
+  function closeMenu() {
+    document.body.classList.remove('nav-open');
+    menuToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  menuToggle.addEventListener('click', () => {
+    const isOpen = document.body.classList.toggle('nav-open');
+    menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+  builderNav.addEventListener('click', (event) => {
+    if (mobileQuery.matches && event.target && event.target.tagName === 'A') {
+      closeMenu();
+    }
+  });
+
+  const syncMenuState = () => {
+    if (!mobileQuery.matches) {
+      closeMenu();
+    }
+  };
+
+  if (typeof mobileQuery.addEventListener === 'function') {
+    mobileQuery.addEventListener('change', syncMenuState);
+  } else if (typeof mobileQuery.addListener === 'function') {
+    mobileQuery.addListener(syncMenuState);
+  }
+
+  syncMenuState();
+}
+
 function renderIdentity() {
   const tierLabel = TIER_LABELS[currentUsageTier] || currentUsageTier;
-  identityLabel.textContent = `Usage tracked for ${identityKey} (${tierLabel}).`;
+  const profile = resolveStoredProfile();
+  const builderId = compactIdentity(identityKey);
+  const identityText = profile.alias ? `${profile.name} (${profile.alias})` : profile.name;
+
+  identityLabel.textContent = `${identityText} - ${tierLabel} tier - builder ${builderId}`;
+
+  if (profileNameLabel) {
+    profileNameLabel.textContent = profile.name;
+  }
+
+  if (profileMetaLabel) {
+    const parts = [];
+    if (profile.alias) {
+      parts.push(profile.alias);
+    } else if (profile.guest) {
+      parts.push('guest profile');
+    } else {
+      parts.push(`builder ${builderId}`);
+    }
+    parts.push(`${tierLabel} tier`);
+    profileMetaLabel.textContent = parts.join(' - ');
+  }
+
+  if (profileLink) {
+    profileLink.title = profile.alias ? `${profile.name} (${profile.alias})` : `${profile.name} profile`;
+  }
 }
 
 function safeRead(store, key) {
@@ -531,7 +646,7 @@ function buildInitialPrompt() {
 
   const parts = [
     `Create a single-page website for this request: ${request}.`,
-    'Return JSON with title, summary, and html keys.',
+    'Return json with title, summary, and html keys.',
     'Use semantic HTML with inline CSS only and no external assets/scripts.',
     'The html value must be a complete standalone HTML document with doctype, html, head, and body tags.',
     'Prioritize accessibility, clear hierarchy, and mobile-first layout.',
@@ -550,7 +665,8 @@ function buildIterationPrompt(iterationRequest) {
   return [
     'Revise this existing single-page website using the request below.',
     `Revision request: ${iterationRequest}`,
-    'Return a complete updated HTML document (not partial diffs).',
+    'Return json with title, summary, and html keys.',
+    'The html value must be a complete updated HTML document, not a fragment or partial diff.',
     'Keep the page accessible and mobile-friendly.',
     'Preserve a deliberate page atmosphere and avoid regressing to a flat pure-white background unless the request explicitly asks for it.',
     'Current HTML:',
@@ -837,3 +953,9 @@ function wireEvents() {
     }
   });
 }
+
+window.addEventListener('storage', (event) => {
+  if (!event || ['signedIn', 'guest', 'alias', 'username', 'guestDisplayName'].includes(event.key)) {
+    renderIdentity();
+  }
+});

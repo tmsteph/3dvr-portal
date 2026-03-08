@@ -11,14 +11,29 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
 </head>
 <body>
-  <div class="top-buttons">
-    <a href="../index.html">🏠 Portal</a>
-    <a href="../notes/">📝 Shared Notes</a>
-    <a href="../tasks.html">✅ Task Board</a>
-    <a href="../games.html">🎮 Mini Games</a>
-    <a href="https://3dvr.tech/#subscribe" target="_blank">⭐ Subscribe</a>
-    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
-  </div>
+  <header class="builder-topbar">
+    <div class="builder-topbar__row">
+      <button id="menu-toggle" type="button" aria-controls="builder-nav" aria-expanded="false">
+        <span aria-hidden="true">☰</span>
+        <span>Menu</span>
+      </button>
+      <a href="../profile.html#profile" class="builder-profile" id="builder-profile-link" aria-label="Open your profile">
+        <span class="builder-profile__eyebrow">Profile</span>
+        <strong class="builder-profile__name" id="builder-profile-name">Guest</strong>
+        <span class="builder-profile__meta" id="builder-profile-meta">Builder tier pending</span>
+      </a>
+    </div>
+
+    <nav id="builder-nav" class="top-buttons" aria-label="Builder quick links">
+      <a href="../index.html">🏠 Portal</a>
+      <a href="../profile.html#profile">👤 Profile</a>
+      <a href="../notes/">📝 Shared Notes</a>
+      <a href="../tasks.html">✅ Task Board</a>
+      <a href="../games.html">🎮 Mini Games</a>
+      <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+      <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
+    </nav>
+  </header>
 
   <main class="page">
     <header class="hero">
