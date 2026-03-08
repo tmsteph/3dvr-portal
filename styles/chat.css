@@ -438,6 +438,16 @@ body.chat-page {
   background: var(--surface-alt);
   border: 1px solid rgba(56, 189, 248, 0.18);
   box-shadow: 0 16px 36px rgba(8, 17, 38, 0.35);
+  transition: transform var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.message--focused {
+  border-color: rgba(94, 234, 212, 0.8);
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.22),
+    0 24px 48px rgba(8, 17, 38, 0.48);
+  transform: translateY(-2px);
 }
 
 .message strong {

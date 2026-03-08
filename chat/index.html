@@ -160,6 +160,7 @@
     3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
   </footer>
 
+<script src="/chat/notification-routing.js"></script>
 <script>
 const gun = Gun(window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
@@ -175,18 +176,7 @@ const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager 
       portalRoot
     })
   : null;
-let currentRoom = 'general';
-let chat = gun.get('3dvr-chat').get(currentRoom);
-
-const activeRoomNameEl = document.getElementById('active-room-name');
-const activeRoomDescriptionEl = document.getElementById('active-room-description');
-const roomDescriptionEl = document.getElementById('room-description');
-const roomSelectEl = document.getElementById('room');
-const chatScoreContainer = document.getElementById('chat-score');
-const chatScoreValueEl = document.getElementById('chat-score-value');
-const chatFloatingMetaEl = document.getElementById('chat-floating-meta');
-const chatFloatingUsernameEl = document.getElementById('chat-floating-username');
-const chatFloatingScoreValueEl = document.getElementById('chat-floating-score-value');
+const chatNotificationRouting = window.ChatNotificationRouting || null;
 const ROOM_DETAILS = {
   general: {
     label: '#general',
@@ -205,6 +195,88 @@ const ROOM_DETAILS = {
     description: 'Celebrate wins, share memes, and connect between sprints.'
   }
 };
+const initialChatTarget = parseChatTarget(window.location.hash);
+let currentRoom = initialChatTarget.room;
+let chat = gun.get('3dvr-chat').get(currentRoom);
+let pendingMessageFocusId = initialChatTarget.messageId;
+let messageFocusTimer = 0;
+
+const activeRoomNameEl = document.getElementById('active-room-name');
+const activeRoomDescriptionEl = document.getElementById('active-room-description');
+const roomDescriptionEl = document.getElementById('room-description');
+const roomSelectEl = document.getElementById('room');
+const chatScoreContainer = document.getElementById('chat-score');
+const chatScoreValueEl = document.getElementById('chat-score-value');
+const chatFloatingMetaEl = document.getElementById('chat-floating-meta');
+const chatFloatingUsernameEl = document.getElementById('chat-floating-username');
+const chatFloatingScoreValueEl = document.getElementById('chat-floating-score-value');
+
+function getAvailableChatRooms() {
+  return Object.keys(ROOM_DETAILS);
+}
+
+function normalizeChatRoom(room, fallbackRoom = 'general') {
+  if (chatNotificationRouting && typeof chatNotificationRouting.normalizeRoomName === 'function') {
+    return chatNotificationRouting.normalizeRoomName(room, getAvailableChatRooms(), fallbackRoom);
+  }
+
+  const normalized = typeof room === 'string' ? room.trim().toLowerCase() : '';
+  return getAvailableChatRooms().includes(normalized) ? normalized : fallbackRoom;
+}
+
+function normalizeMessageId(messageId) {
+  if (chatNotificationRouting && typeof chatNotificationRouting.normalizeMessageId === 'function') {
+    return chatNotificationRouting.normalizeMessageId(messageId);
+  }
+  return typeof messageId === 'string' ? messageId.trim() : '';
+}
+
+function parseChatTarget(hash) {
+  if (chatNotificationRouting && typeof chatNotificationRouting.parseChatLocationHash === 'function') {
+    return chatNotificationRouting.parseChatLocationHash(hash, {
+      allowedRooms: getAvailableChatRooms(),
+      fallbackRoom: 'general'
+    });
+  }
+
+  return {
+    room: normalizeChatRoom(hash ? String(hash).replace(/^#/, '') : ''),
+    messageId: '',
+    hasExplicitRoom: Boolean(hash)
+  };
+}
+
+function buildChatTargetHash(target = {}) {
+  if (chatNotificationRouting && typeof chatNotificationRouting.buildChatNotificationHash === 'function') {
+    return chatNotificationRouting.buildChatNotificationHash(target, {
+      allowedRooms: getAvailableChatRooms(),
+      fallbackRoom: 'general'
+    });
+  }
+
+  return `#room=${encodeURIComponent(normalizeChatRoom(target.room, 'general'))}`;
+}
+
+function buildChatTargetUrl(target = {}) {
+  if (chatNotificationRouting && typeof chatNotificationRouting.buildChatNotificationUrl === 'function') {
+    return chatNotificationRouting.buildChatNotificationUrl(target, {
+      allowedRooms: getAvailableChatRooms(),
+      fallbackRoom: 'general',
+      basePath: '/chat/'
+    });
+  }
+
+  return `/chat/${buildChatTargetHash(target)}`;
+}
+
+function syncChatLocation(target = {}) {
+  const nextHash = buildChatTargetHash({
+    room: target.room || currentRoom,
+    messageId: target.messageId || ''
+  });
+  if (!nextHash || window.location.hash === nextHash) return;
+  history.replaceState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`);
+}
 
 function sanitizeScoreDisplay(value) {
   if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
@@ -588,6 +660,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data && event.data.type === 'notification-clicked') {
       window.focus();
+      handleNotificationNavigation(event.data.payload || {});
     }
   });
 }
@@ -780,6 +853,64 @@ function displayMessages() {
     emptyState.textContent = 'No messages yet. Start the conversation!';
     messagesDiv.appendChild(emptyState);
   }
+
+  focusPendingMessage();
+}
+
+function focusPendingMessage() {
+  const targetId = normalizeMessageId(pendingMessageFocusId);
+  if (!targetId) return false;
+
+  const messageEl = document.getElementById(targetId);
+  if (!messageEl) return false;
+
+  clearTimeout(messageFocusTimer);
+  messageEl.classList.remove('message--focused');
+  void messageEl.offsetWidth;
+  messageEl.classList.add('message--focused');
+  messageEl.setAttribute('tabindex', '-1');
+  messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  messageEl.focus({ preventScroll: true });
+
+  messageFocusTimer = window.setTimeout(() => {
+    messageEl.classList.remove('message--focused');
+    if (messageEl.getAttribute('tabindex') === '-1') {
+      messageEl.removeAttribute('tabindex');
+    }
+  }, 4000);
+
+  pendingMessageFocusId = '';
+  return true;
+}
+
+function queueMessageFocus(messageId) {
+  pendingMessageFocusId = normalizeMessageId(messageId);
+  if (!pendingMessageFocusId) return;
+  focusPendingMessage();
+}
+
+function handleNotificationNavigation(target = {}) {
+  const normalizedTarget = parseChatTarget(target.url ? new URL(target.url, window.location.origin).hash : '');
+  const nextRoom = normalizeChatRoom(target.room || normalizedTarget.room, currentRoom);
+  const nextMessageId = normalizeMessageId(target.messageId || normalizedTarget.messageId);
+  const roomChanged = nextRoom !== currentRoom;
+
+  currentRoom = nextRoom;
+  updateRoomUI(currentRoom);
+
+  if (nextMessageId) {
+    queueMessageFocus(nextMessageId);
+  }
+
+  if (roomChanged) {
+    loadRoom(currentRoom);
+  } else {
+    syncChatLocation({
+      room: currentRoom,
+      messageId: nextMessageId
+    });
+    focusPendingMessage();
+  }
 }
 
 function loadRoom(roomName) {
@@ -788,6 +919,10 @@ function loadRoom(roomName) {
   Object.keys(messages).forEach(key => delete messages[key]);
   resetNotifiedStateForRoom(roomName);
   beginRoomNotificationSync(roomName);
+  syncChatLocation({
+    room: roomName,
+    messageId: pendingMessageFocusId
+  });
 
   if (currentRoomStream && typeof currentRoomStream.off === 'function') {
     currentRoomStream.off();
@@ -829,13 +964,35 @@ function loadRoom(roomName) {
 
 function changeRoom() {
   const select = roomSelectEl || document.getElementById('room');
-  currentRoom = select ? select.value : currentRoom;
+  currentRoom = normalizeChatRoom(select ? select.value : currentRoom, currentRoom);
+  pendingMessageFocusId = '';
   updateRoomUI(currentRoom);
   loadRoom(currentRoom);
 }
 
 updateRoomUI(currentRoom);
 loadRoom(currentRoom);
+syncChatLocation({
+  room: currentRoom,
+  messageId: pendingMessageFocusId
+});
+
+window.addEventListener('hashchange', () => {
+  const target = parseChatTarget(window.location.hash);
+  const nextMessageId = normalizeMessageId(target.messageId);
+
+  if (target.room !== currentRoom) {
+    currentRoom = target.room;
+    pendingMessageFocusId = nextMessageId;
+    updateRoomUI(currentRoom);
+    loadRoom(currentRoom);
+    return;
+  }
+
+  if (nextMessageId) {
+    queueMessageFocus(nextMessageId);
+  }
+});
 
 function initNotifications() {
   if (!notificationToggleButton || !notificationStatusText) return;
@@ -967,8 +1124,11 @@ async function showChatNotification(title, options = {}, config = {}) {
     timestamp: Date.now(),
     data: {
       ...options.data,
-      url: options.data?.url || `/chat/#${currentRoom}`,
-      room: currentRoom
+      room: normalizeChatRoom(options.data?.room || currentRoom, currentRoom),
+      url: options.data?.url || buildChatTargetUrl({
+        room: options.data?.room || currentRoom,
+        messageId: options.data?.messageId
+      })
     }
   };
 
@@ -1010,7 +1170,7 @@ function sendNotificationPreview() {
     {
       body: 'We will let you know when someone posts a new message.',
       tag: 'chat-notification-preview',
-      data: { messageId: 'preview' }
+      data: { room: currentRoom }
     },
     { requireHidden: false }
   );
@@ -1078,7 +1238,12 @@ function maybeNotifyNewMessage(message, id) {
     body: notificationBody || 'New message',
     tag: `${currentRoom}-${id}`,
     data: {
-      messageId: id
+      room: currentRoom,
+      messageId: id,
+      url: buildChatTargetUrl({
+        room: currentRoom,
+        messageId: id
+      })
     }
   };
 
