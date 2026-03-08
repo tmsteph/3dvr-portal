@@ -3,7 +3,7 @@
 importScripts('/chat/notification-routing.js');
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v10';
+const CACHE_VERSION = 'v11';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 const chatNotificationRouting = self.ChatNotificationRouting || null;
@@ -132,6 +132,43 @@ function buildChatNotificationTarget(data = {}) {
   return { room, messageId, url };
 }
 
+function parsePushPayload(data) {
+  if (!data) return null;
+
+  try {
+    const parsed = data.json();
+    if (parsed && typeof parsed === 'object') {
+      return {
+        title: typeof parsed.title === 'string' && parsed.title.trim()
+          ? parsed.title.trim()
+          : '3DVR Chat',
+        options: parsed.options && typeof parsed.options === 'object'
+          ? parsed.options
+          : {}
+      };
+    }
+  } catch (error) {
+    try {
+      const text = data.text();
+      if (text) {
+        return {
+          title: '3DVR Chat',
+          options: { body: text }
+        };
+      }
+    } catch (textError) {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+async function hasVisibleChatClient() {
+  const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+  return allClients.some((client) => isChatClientUrl(client.url) && client.visibilityState === 'visible');
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
@@ -189,6 +226,28 @@ self.addEventListener('message', (event) => {
   self.registration.showNotification(title, options).catch((error) => {
     console.error('Service worker failed to display notification', error);
   });
+});
+
+self.addEventListener('push', (event) => {
+  const payload = parsePushPayload(event.data) || {
+    title: '3DVR Chat',
+    options: {
+      body: 'New message',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: {
+        url: '/chat/'
+      }
+    }
+  };
+
+  event.waitUntil((async () => {
+    if (await hasVisibleChatClient()) {
+      return;
+    }
+
+    await self.registration.showNotification(payload.title, payload.options || {});
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {

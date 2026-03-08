@@ -75,9 +75,15 @@ describe('chat notification routing', () => {
     assert.match(chatHtml, /<script src="\/chat\/notification-routing\.js"><\/script>/);
     assert.match(chatHtml, /function handleNotificationNavigation\(target = \{\}\)/);
     assert.match(chatHtml, /window\.addEventListener\('hashchange'/);
-    assert.match(chatHtml, /buildChatTargetUrl\(\{\s*room: currentRoom,\s*messageId: id\s*\}\)/);
+    assert.match(chatHtml, /const pushConfigEndpoint = '\/api\/chat\/push-config';/);
+    assert.match(chatHtml, /const pushSubscriptionEndpoint = '\/api\/chat\/push-subscriptions';/);
+    assert.match(chatHtml, /const pushNotifyEndpoint = '\/api\/chat\/push-notify';/);
+    assert.match(chatHtml, /async function enablePushNotifications/);
+    assert.match(chatHtml, /notifyMessageDelivery\(currentRoom, messageId\);/);
 
     assert.match(serviceWorker, /importScripts\('\/chat\/notification-routing\.js'\);/);
+    assert.match(serviceWorker, /self\.addEventListener\('push'/);
+    assert.match(serviceWorker, /hasVisibleChatClient/);
     assert.match(serviceWorker, /client\.postMessage\(\{\s*type: 'notification-clicked'/);
     assert.match(serviceWorker, /await client\.navigate\(targetUrl\)/);
   });

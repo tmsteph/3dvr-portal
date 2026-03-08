@@ -313,13 +313,20 @@ if (chatScoreContainer && chatScoreValueEl) {
 
 const notificationToggleButton = document.getElementById('notification-toggle');
 const notificationStatusText = document.getElementById('notification-status');
-const notificationsSupported = 'Notification' in window;
+const notificationsSupported = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
 const notificationsPreferenceKey = 'chatNotificationsEnabled';
 const notificationIconPath = '/icons/icon-192.png';
 const notificationStateStorageKey = 'chatNotificationState';
+const pushSubscriptionIdStorageKey = 'chatPushSubscriptionId';
+const pushConfigEndpoint = '/api/chat/push-config';
+const pushSubscriptionEndpoint = '/api/chat/push-subscriptions';
+const pushNotifyEndpoint = '/api/chat/push-notify';
 const INITIAL_SYNC_GRACE_MS = 1500;
 let notificationsEnabled = false;
 let serviceWorkerRegistration = null;
+let pushServerEnabled = false;
+let pushPublicKey = '';
+let notificationTogglePending = false;
 let currentRoomStream = null;
 const roomInitialSyncTimers = {};
 const notifiedMessageIdsByRoom = {};
@@ -784,22 +791,71 @@ function isGeneratedName(name) {
     lower.startsWith('user_');
 }
 
-function sendMessage() {
+function createMessageId() {
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+    return `msg_${window.crypto.randomUUID()}`;
+  }
+  return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function putChatMessage(roomNode, messageId, payload) {
+  return new Promise((resolve, reject) => {
+    roomNode.get(messageId).put(payload, ack => {
+      if (ack?.err) {
+        reject(new Error(String(ack.err)));
+        return;
+      }
+      resolve(ack || { ok: true });
+    });
+  });
+}
+
+async function notifyMessageDelivery(room, messageId) {
+  try {
+    const response = await fetch(pushNotifyEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        room,
+        messageId
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn('Chat push notify request failed', response.status, errorText);
+    }
+  } catch (error) {
+    console.warn('Chat push notify request failed', error);
+  }
+}
+
+async function sendMessage() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
   if (!text) return;
 
-  chat.set({
+  const messageId = createMessageId();
+  const message = {
     text,
     sender: userId,
     username: cachedUsername,
     createdAt: Date.now()
-  });
+  };
 
-  input.value = '';
+  try {
+    await putChatMessage(chat, messageId, message);
+    input.value = '';
 
-  if (scoreManager) {
-    scoreManager.increment(1);
+    if (scoreManager) {
+      scoreManager.increment(1);
+    }
+
+    notifyMessageDelivery(currentRoom, messageId);
+  } catch (error) {
+    console.error('Failed to send chat message', error);
   }
 }
 
@@ -994,7 +1050,176 @@ window.addEventListener('hashchange', () => {
   }
 });
 
-function initNotifications() {
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const normalized = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const raw = window.atob(normalized);
+  const output = new Uint8Array(raw.length);
+  for (let index = 0; index < raw.length; index += 1) {
+    output[index] = raw.charCodeAt(index);
+  }
+  return output;
+}
+
+async function ensureServiceWorkerRegistration() {
+  if (!('serviceWorker' in navigator)) {
+    return null;
+  }
+
+  if (serviceWorkerRegistration) {
+    return serviceWorkerRegistration;
+  }
+
+  try {
+    serviceWorkerRegistration = await navigator.serviceWorker.ready;
+    return serviceWorkerRegistration;
+  } catch (error) {
+    try {
+      serviceWorkerRegistration = await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
+      return serviceWorkerRegistration;
+    } catch (registrationError) {
+      console.error('Service worker registration failed for chat notifications', registrationError);
+      return null;
+    }
+  }
+}
+
+async function fetchPushConfig() {
+  try {
+    const response = await fetch(pushConfigEndpoint, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Push config request failed with ${response.status}`);
+    }
+    const data = await response.json();
+    pushServerEnabled = Boolean(data?.enabled && data?.publicKey);
+    pushPublicKey = pushServerEnabled ? String(data.publicKey) : '';
+  } catch (error) {
+    pushServerEnabled = false;
+    pushPublicKey = '';
+    console.warn('Unable to load chat push config', error);
+  }
+}
+
+async function persistPushSubscription(subscription) {
+  const payload = typeof subscription?.toJSON === 'function' ? subscription.toJSON() : subscription;
+  const response = await fetch(pushSubscriptionEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      subscription: payload,
+      userId,
+      username: cachedUsername,
+      rooms: getAvailableChatRooms(),
+      scope: '/chat/'
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Unable to save push subscription.');
+  }
+
+  const data = await response.json();
+  if (data?.id) {
+    safeSetStorage(pushSubscriptionIdStorageKey, data.id);
+  }
+
+  return data;
+}
+
+async function removePushSubscriptionRecord(subscription) {
+  const payload = typeof subscription?.toJSON === 'function' ? subscription.toJSON() : subscription;
+  const response = await fetch(pushSubscriptionEndpoint, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      subscription: payload,
+      subscriptionId: safeGetStorage(pushSubscriptionIdStorageKey)
+    })
+  });
+
+  safeRemoveStorage(pushSubscriptionIdStorageKey);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Unable to remove push subscription.');
+  }
+
+  return response.json();
+}
+
+async function getCurrentPushSubscription() {
+  const registration = await ensureServiceWorkerRegistration();
+  if (!registration || !registration.pushManager) {
+    return null;
+  }
+  return registration.pushManager.getSubscription();
+}
+
+async function enablePushNotifications({ sendPreview = true } = {}) {
+  if (!pushServerEnabled || !pushPublicKey) {
+    throw new Error('Push notifications are not configured on the server.');
+  }
+
+  const registration = await ensureServiceWorkerRegistration();
+  if (!registration || !registration.pushManager) {
+    throw new Error('Push notifications are not available in this browser.');
+  }
+
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(pushPublicKey)
+    });
+  }
+
+  await persistPushSubscription(subscription);
+  notificationsEnabled = true;
+  safeSetStorage(notificationsPreferenceKey, 'true');
+
+  if (sendPreview) {
+    sendNotificationPreview();
+  }
+
+  return subscription;
+}
+
+async function disablePushNotifications() {
+  const subscription = await getCurrentPushSubscription();
+
+  if (subscription) {
+    try {
+      await removePushSubscriptionRecord(subscription);
+    } catch (error) {
+      console.warn('Failed to remove push subscription record', error);
+    }
+
+    try {
+      await subscription.unsubscribe();
+    } catch (error) {
+      console.warn('Failed to unsubscribe push subscription', error);
+    }
+  } else {
+    safeRemoveStorage(pushSubscriptionIdStorageKey);
+  }
+
+  notificationsEnabled = false;
+  safeSetStorage(notificationsPreferenceKey, 'false');
+}
+
+async function initNotifications() {
   if (!notificationToggleButton || !notificationStatusText) return;
 
   if (!notificationsSupported) {
@@ -1003,26 +1228,28 @@ function initNotifications() {
     return;
   }
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready
-      .then((registration) => {
-        serviceWorkerRegistration = registration;
-        return registration;
-      })
-      .catch(() => navigator.serviceWorker.register('/service-worker.js', { scope: '/' }))
-      .then((registration) => {
-        if (registration) {
-          serviceWorkerRegistration = registration;
-        }
-      })
-      .catch((error) => {
-        console.error('Service worker registration failed for chat notifications', error);
-      });
+  await ensureServiceWorkerRegistration();
+  await fetchPushConfig();
+
+  const savedPreference = safeGetStorage(notificationsPreferenceKey) === 'true';
+  const existingSubscription = await getCurrentPushSubscription();
+
+  if (existingSubscription && (!savedPreference || Notification.permission !== 'granted' || !pushServerEnabled)) {
+    try {
+      await disablePushNotifications();
+    } catch (error) {
+      console.warn('Unable to clean up stale push subscription', error);
+    }
   }
 
-  const savedPreference = localStorage.getItem(notificationsPreferenceKey) === 'true';
-  if (savedPreference && Notification.permission === 'granted') {
-    notificationsEnabled = true;
+  if (savedPreference && Notification.permission === 'granted' && pushServerEnabled) {
+    try {
+      await enablePushNotifications({ sendPreview: false });
+    } catch (error) {
+      notificationsEnabled = false;
+      safeSetStorage(notificationsPreferenceKey, 'false');
+      console.warn('Unable to restore push subscription', error);
+    }
   }
 
   updateNotificationUI();
@@ -1034,6 +1261,22 @@ function updateNotificationUI() {
   if (!notificationsSupported) {
     notificationToggleButton.style.display = 'none';
     notificationStatusText.textContent = 'Notifications are not supported in this browser.';
+    return;
+  }
+
+  if (notificationTogglePending) {
+    notificationToggleButton.disabled = true;
+    notificationToggleButton.textContent = notificationsEnabled
+      ? 'Disabling Notifications...'
+      : 'Enabling Notifications...';
+    notificationStatusText.textContent = 'Updating notification settings...';
+    return;
+  }
+
+  if (!pushServerEnabled) {
+    notificationToggleButton.disabled = true;
+    notificationToggleButton.textContent = 'Notifications Unavailable';
+    notificationStatusText.textContent = 'Server-side push is not configured yet.';
     return;
   }
 
@@ -1053,38 +1296,48 @@ function updateNotificationUI() {
   }
 }
 
-function toggleNotifications() {
+async function toggleNotifications() {
   if (!notificationsSupported) return;
+  if (notificationTogglePending) return;
 
-  if (notificationsEnabled) {
+  if (!pushServerEnabled) {
+    updateNotificationUI();
+    return;
+  }
+
+  notificationTogglePending = true;
+  updateNotificationUI();
+
+  try {
+    if (notificationsEnabled) {
+      await disablePushNotifications();
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      await enablePushNotifications({ sendPreview: true });
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      notificationsEnabled = false;
+      safeSetStorage(notificationsPreferenceKey, 'false');
+      if (permission === 'denied' && notificationStatusText) {
+        notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
+      }
+      return;
+    }
+
+    await enablePushNotifications({ sendPreview: true });
+  } catch (error) {
     notificationsEnabled = false;
-    localStorage.setItem(notificationsPreferenceKey, 'false');
+    safeSetStorage(notificationsPreferenceKey, 'false');
+    console.error('Failed to update push notifications', error);
+  } finally {
+    notificationTogglePending = false;
     updateNotificationUI();
-    return;
   }
-
-  if (Notification.permission === 'granted') {
-    notificationsEnabled = true;
-    localStorage.setItem(notificationsPreferenceKey, 'true');
-    updateNotificationUI();
-    sendNotificationPreview();
-    return;
-  }
-
-  Notification.requestPermission().then(permission => {
-    notificationsEnabled = permission === 'granted';
-    localStorage.setItem(notificationsPreferenceKey, notificationsEnabled ? 'true' : 'false');
-
-    if (permission === 'denied') {
-      notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
-    }
-
-    updateNotificationUI();
-
-    if (permission === 'granted') {
-      sendNotificationPreview();
-    }
-  });
 }
 
 async function attemptServiceWorkerNotification(registration, title, options) {
@@ -1224,30 +1477,6 @@ function maybeNotifyNewMessage(message, id) {
     }
   }
 
-  const username = (typeof message.username === 'string' ? message.username.trim() : '') ||
-    message.sender ||
-    'Someone';
-
-  const rawPreview = typeof message.text === 'string'
-    ? message.text.trim()
-    : String(message.text || '').trim();
-  const notificationBody = rawPreview.length > 160 ? `${rawPreview.slice(0, 157)}...` : rawPreview;
-
-  const title = `${username} in #${currentRoom}`;
-  const options = {
-    body: notificationBody || 'New message',
-    tag: `${currentRoom}-${id}`,
-    data: {
-      room: currentRoom,
-      messageId: id,
-      url: buildChatTargetUrl({
-        room: currentRoom,
-        messageId: id
-      })
-    }
-  };
-
-  showChatNotification(title, options, { requireHidden: true });
   markMessageNotified(currentRoom, id);
   updateRoomStateWithMessage(roomState, effectiveTimestamp, id);
   persistNotificationState();

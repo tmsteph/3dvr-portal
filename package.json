@@ -20,8 +20,10 @@
     "playwright:verify": "sh scripts/playwright/run-in-linux.sh playwright:verify:linux"
   },
   "dependencies": {
+    "gun": "^0.2020.1241",
     "nodemailer": "^6.9.8",
-    "stripe": "^12.17.0"
+    "stripe": "^12.17.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "http-server": "^14.1.1",
