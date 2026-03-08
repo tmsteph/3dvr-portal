@@ -56,6 +56,11 @@ const githubStorageKey = 'web-builder-github';
 const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
 const LOAD_DEFAULTS_LABEL = 'Reload shared defaults';
 
+const menuToggle = document.getElementById('menu-toggle');
+const builderNav = document.getElementById('builder-nav');
+const profileLink = document.getElementById('builder-profile-link');
+const profileNameLabel = document.getElementById('builder-profile-name');
+const profileMetaLabel = document.getElementById('builder-profile-meta');
 const identityLabel = document.getElementById('identity-label');
 const configPanel = document.getElementById('config-panel');
 const promptPanel = document.getElementById('prompt-panel');
@@ -96,6 +101,7 @@ subscribeToDefaults();
 subscribeToBillingTier();
 subscribeToUsageCounters();
 wireEvents();
+initMenuToggle();
 renderIdentity();
 renderPreview('');
 logMessage('Ready. Describe your site and press Generate Website.');
@@ -111,9 +117,118 @@ function resolveIdentity() {
   return generated;
 }
 
+function aliasToDisplay(alias) {
+  const normalized = String(alias || '').trim();
+  if (!normalized) return '';
+  return normalized.includes('@') ? normalized.split('@')[0] : normalized;
+}
+
+function compactIdentity(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return 'guest';
+  if (normalized.length <= 14) return normalized;
+  return `${normalized.slice(0, 6)}...${normalized.slice(-4)}`;
+}
+
+function resolveStoredProfile() {
+  const signedIn = safeRead(localStorage, 'signedIn') === 'true';
+  const guest = !signedIn && safeRead(localStorage, 'guest') === 'true';
+  const alias = String(safeRead(localStorage, 'alias') || '').trim();
+  const username = String(safeRead(localStorage, 'username') || '').trim();
+  const guestName = String(safeRead(localStorage, 'guestDisplayName') || '').trim();
+
+  if (signedIn) {
+    return {
+      alias,
+      name: (username && username.toLowerCase() !== 'guest' ? username : aliasToDisplay(alias)) || 'Member',
+      signedIn: true,
+      guest: false
+    };
+  }
+
+  if (guest) {
+    return {
+      alias,
+      name: guestName || aliasToDisplay(alias) || 'Guest',
+      signedIn: false,
+      guest: true
+    };
+  }
+
+  return {
+    alias,
+    name: aliasToDisplay(alias) || username || 'Guest',
+    signedIn: false,
+    guest: false
+  };
+}
+
+function initMenuToggle() {
+  if (!menuToggle || !builderNav) {
+    return;
+  }
+
+  const mobileQuery = window.matchMedia('(max-width: 720px)');
+
+  function closeMenu() {
+    document.body.classList.remove('nav-open');
+    menuToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  menuToggle.addEventListener('click', () => {
+    const isOpen = document.body.classList.toggle('nav-open');
+    menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+  builderNav.addEventListener('click', (event) => {
+    if (mobileQuery.matches && event.target && event.target.tagName === 'A') {
+      closeMenu();
+    }
+  });
+
+  const syncMenuState = () => {
+    if (!mobileQuery.matches) {
+      closeMenu();
+    }
+  };
+
+  if (typeof mobileQuery.addEventListener === 'function') {
+    mobileQuery.addEventListener('change', syncMenuState);
+  } else if (typeof mobileQuery.addListener === 'function') {
+    mobileQuery.addListener(syncMenuState);
+  }
+
+  syncMenuState();
+}
+
 function renderIdentity() {
   const tierLabel = TIER_LABELS[currentUsageTier] || currentUsageTier;
-  identityLabel.textContent = `Usage tracked for ${identityKey} (${tierLabel}).`;
+  const profile = resolveStoredProfile();
+  const builderId = compactIdentity(identityKey);
+  const identityText = profile.alias ? `${profile.name} (${profile.alias})` : profile.name;
+
+  identityLabel.textContent = `${identityText} - ${tierLabel} tier - builder ${builderId}`;
+
+  if (profileNameLabel) {
+    profileNameLabel.textContent = profile.name;
+  }
+
+  if (profileMetaLabel) {
+    const parts = [];
+    if (profile.alias) {
+      parts.push(profile.alias);
+    } else if (profile.guest) {
+      parts.push('guest profile');
+    } else {
+      parts.push(`builder ${builderId}`);
+    }
+    parts.push(`${tierLabel} tier`);
+    profileMetaLabel.textContent = parts.join(' - ');
+  }
+
+  if (profileLink) {
+    profileLink.title = profile.alias ? `${profile.name} (${profile.alias})` : `${profile.name} profile`;
+  }
 }
 
 function safeRead(store, key) {
@@ -531,9 +646,11 @@ function buildInitialPrompt() {
 
   const parts = [
     `Create a single-page website for this request: ${request}.`,
-    'Return JSON with title, summary, and html keys.',
+    'Return json with title, summary, and html keys.',
     'Use semantic HTML with inline CSS only and no external assets/scripts.',
-    'Prioritize accessibility, clear hierarchy, and mobile-first layout.'
+    'The html value must be a complete standalone HTML document with doctype, html, head, and body tags.',
+    'Prioritize accessibility, clear hierarchy, and mobile-first layout.',
+    'Avoid a flat pure-white page background unless the request explicitly asks for it. Use a more intentional visual atmosphere that matches the brief.'
   ];
 
   const hints = buildPromptHints();
@@ -548,15 +665,44 @@ function buildIterationPrompt(iterationRequest) {
   return [
     'Revise this existing single-page website using the request below.',
     `Revision request: ${iterationRequest}`,
-    'Return complete updated HTML (not partial diffs).',
+    'Return json with title, summary, and html keys.',
+    'The html value must be a complete updated HTML document, not a fragment or partial diff.',
     'Keep the page accessible and mobile-friendly.',
+    'Preserve a deliberate page atmosphere and avoid regressing to a flat pure-white background unless the request explicitly asks for it.',
     'Current HTML:',
     currentHtml
   ].join('\n\n');
 }
 
 function renderPreview(html) {
-  previewFrame.srcdoc = html || '<p>Generate a site to preview.</p>';
+  previewFrame.srcdoc = buildPreviewDocument(html);
+}
+
+function buildPreviewDocument(html) {
+  const markup = (html || '').trim();
+
+  if (!markup) {
+    return [
+      '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">',
+      '<meta name="viewport" content="width=device-width, initial-scale=1">',
+      '<style>',
+      '*{box-sizing:border-box;}',
+      'body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
+      'background:radial-gradient(circle at top, rgba(95,176,255,0.22), transparent 30%),linear-gradient(180deg,#0a121f 0%,#070d16 100%);',
+      'color:#e6eef7;}',
+      '.preview-empty{max-width:560px;padding:28px;border-radius:24px;border:1px solid rgba(77,110,156,0.45);',
+      'background:linear-gradient(180deg, rgba(15,25,43,0.94), rgba(9,16,27,0.96));',
+      'box-shadow:0 24px 50px rgba(0,0,0,0.35);}',
+      '.preview-empty p{margin:0 0 10px;color:#9db7da;letter-spacing:0.08em;text-transform:uppercase;font-size:12px;font-weight:700;}',
+      '.preview-empty h1{margin:0 0 10px;font-size:clamp(1.6rem,4vw,2.4rem);}',
+      '.preview-empty span{display:block;color:#c7d7ee;line-height:1.6;}',
+      '</style></head><body>',
+      '<section class="preview-empty"><p>Preview</p><h1>Generate a site to see it here.</h1><span>Your draft will render inside this frame once the builder returns HTML.</span></section>',
+      '</body></html>'
+    ].join('');
+  }
+
+  return markup;
 }
 
 function logMessage(message) {
@@ -807,3 +953,9 @@ function wireEvents() {
     }
   });
 }
+
+window.addEventListener('storage', (event) => {
+  if (!event || ['signedIn', 'guest', 'alias', 'username', 'guestDisplayName'].includes(event.key)) {
+    renderIdentity();
+  }
+});
