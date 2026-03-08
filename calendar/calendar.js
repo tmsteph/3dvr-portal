@@ -2,13 +2,13 @@ const PROVIDERS = {
   google: {
     label: 'Google Calendar',
     storageKey: 'calendar.google.connection',
-    endpoint: '/api/calendar/google',
+    endpoint: '/api/calendar/provider?provider=google',
     defaults: { calendarId: 'primary' }
   },
   outlook: {
     label: 'Outlook',
     storageKey: 'calendar.outlook.connection',
-    endpoint: '/api/calendar/outlook',
+    endpoint: '/api/calendar/provider?provider=outlook',
     defaults: { mailbox: '' }
   }
 };

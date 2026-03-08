@@ -75,9 +75,9 @@ describe('chat notification routing', () => {
     assert.match(chatHtml, /<script src="\/chat\/notification-routing\.js"><\/script>/);
     assert.match(chatHtml, /function handleNotificationNavigation\(target = \{\}\)/);
     assert.match(chatHtml, /window\.addEventListener\('hashchange'/);
-    assert.match(chatHtml, /const pushConfigEndpoint = '\/api\/chat\/push-config';/);
-    assert.match(chatHtml, /const pushSubscriptionEndpoint = '\/api\/chat\/push-subscriptions';/);
-    assert.match(chatHtml, /const pushNotifyEndpoint = '\/api\/chat\/push-notify';/);
+    assert.match(chatHtml, /const pushConfigEndpoint = '\/api\/chat\/push';/);
+    assert.match(chatHtml, /const pushSubscriptionEndpoint = '\/api\/chat\/push';/);
+    assert.match(chatHtml, /const pushNotifyEndpoint = '\/api\/chat\/push\?action=notify';/);
     assert.match(chatHtml, /async function enablePushNotifications/);
     assert.match(chatHtml, /notifyMessageDelivery\(currentRoom, messageId\);/);
 

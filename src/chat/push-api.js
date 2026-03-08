@@ -260,3 +260,23 @@ export function createChatPushNotifyHandler({
     }
   };
 }
+
+export function createChatPushHandler(options = {}) {
+  const configHandler = createChatPushConfigHandler(options);
+  const subscriptionHandler = createChatPushSubscriptionHandler(options);
+  const notifyHandler = createChatPushNotifyHandler(options);
+
+  return async function handler(req, res) {
+    const action = typeof req.query?.action === 'string' ? req.query.action.trim().toLowerCase() : '';
+
+    if (req.method === 'GET') {
+      return configHandler(req, res);
+    }
+
+    if (req.method === 'POST' && action === 'notify') {
+      return notifyHandler(req, res);
+    }
+
+    return subscriptionHandler(req, res);
+  };
+}
