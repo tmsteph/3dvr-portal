@@ -84,7 +84,6 @@ const siteGoalInput = document.getElementById('site-goal');
 const siteAudienceInput = document.getElementById('site-audience');
 const siteStyleSelect = document.getElementById('site-style');
 const siteExtrasInput = document.getElementById('site-extras');
-const searchModeNote = document.getElementById('search-mode-note');
 const vercelProjectInput = document.getElementById('vercel-project');
 const githubRepoInput = document.getElementById('github-repo');
 const githubBranchInput = document.getElementById('github-branch');
@@ -110,7 +109,6 @@ wireEvents();
 initMenuToggle();
 renderIdentity();
 renderBuilderContextNote();
-renderSearchModeNote();
 renderSources([]);
 renderPreview('');
 bindPreviewGuards();
@@ -250,28 +248,6 @@ function renderBuilderContextNote() {
   builderContextNote.textContent =
     `Builder context: footer and legal copy default to ${currentYear}. `
     + 'The model can use live web search when a request needs current facts.';
-}
-
-function renderSearchModeNote() {
-  if (!searchModeNote) {
-    return;
-  }
-
-  if (currentSearchUsage === true) {
-    searchModeNote.textContent =
-      `The latest draft used live web search and returned ${currentSources.length} source`
-      + `${currentSources.length === 1 ? '' : 's'}.`;
-    return;
-  }
-
-  if (currentSearchUsage === false) {
-    searchModeNote.textContent =
-      'The latest draft did not need live web search. The builder still used the current year for footer and legal copy.';
-    return;
-  }
-
-  searchModeNote.textContent =
-    'The model will use live web search only when a request needs current facts. If it does, sources appear below.';
 }
 
 function renderSources(sources) {
@@ -1027,7 +1003,6 @@ async function requestGeneration(prompt, mode) {
     currentTitle = result.title || currentTitle || (siteTitleInput?.value || '').trim() || 'Drafted site';
     currentSearchUsage = result.usedWebSearch === true;
     renderSources(result.sources || []);
-    renderSearchModeNote();
 
     renderPreview(currentHtml);
     setGenerateStatus(
