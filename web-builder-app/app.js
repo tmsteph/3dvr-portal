@@ -877,6 +877,62 @@ function getActiveKey(input, defaultValue, targetKey) {
   return '';
 }
 
+async function parseApiError(response) {
+  const errorText = await response.text();
+  let message = 'Unexpected OpenAI error.';
+
+  try {
+    const parsedError = JSON.parse(errorText);
+    message = parsedError?.error || parsedError?.message || message;
+  } catch (error) {
+    if (errorText) {
+      message = errorText;
+    }
+  }
+
+  return message;
+}
+
+function shouldRetryWithoutStreaming(error) {
+  const message = String(error?.message || '').trim();
+  if (!message) {
+    return true;
+  }
+
+  return /network|failed to fetch|load failed|streaming is not available|no generation result was returned|unexpected end|unexpected token/i.test(message);
+}
+
+async function requestGenerationJson(requestBody) {
+  const response = await fetch('/api/openai-site', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
+
+  return response.json();
+}
+
+async function requestGenerationWithStreaming(requestBody, { onStatus } = {}) {
+  const response = await fetch('/api/openai-site', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...requestBody,
+      stream: true
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
+
+  return readGenerationStream(response, { onStatus });
+}
+
 function parseSseBlock(block) {
   const normalized = String(block || '').replace(/\r/g, '');
   if (!normalized.trim()) {
@@ -987,44 +1043,33 @@ async function requestGeneration(prompt, mode) {
   }
 
   try {
-    const response = await fetch('/api/openai-site', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        apiKey,
-        model: builderModelSelect?.value || 'gpt-4.1-mini',
-        stream: true
-      })
-    });
+    const requestBody = {
+      prompt,
+      apiKey,
+      model: builderModelSelect?.value || 'gpt-4.1-mini'
+    };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let message = 'Unexpected OpenAI error.';
-      try {
-        const parsedError = JSON.parse(errorText);
-        message = parsedError?.error || message;
-      } catch (error) {
-        if (errorText) {
-          message = errorText;
+    let result;
+    try {
+      result = await requestGenerationWithStreaming(requestBody, {
+        onStatus(payload) {
+          if (!payload?.message) {
+            return;
+          }
+
+          startGenerateStatusAnimation(payload.message, payload.tone || 'info');
+          logMessage(payload.message);
         }
+      });
+    } catch (error) {
+      if (!shouldRetryWithoutStreaming(error)) {
+        throw error;
       }
-      stopGenerateStatusAnimation();
-      setGenerateStatus(message, 'error');
-      logMessage(message);
-      return;
+
+      logMessage(`Streaming status unavailable. Retrying without live updates. (${error.message || 'network error'})`);
+      startGenerateStatusAnimation('Generating... please wait', 'info');
+      result = await requestGenerationJson(requestBody);
     }
-
-    const result = await readGenerationStream(response, {
-      onStatus(payload) {
-        if (!payload?.message) {
-          return;
-        }
-
-        startGenerateStatusAnimation(payload.message, payload.tone || 'info');
-        logMessage(payload.message);
-      }
-    });
 
     currentHtml = result.html || '';
     currentTitle = result.title || currentTitle || (siteTitleInput?.value || '').trim() || 'Drafted site';
