@@ -162,7 +162,7 @@ test('buildOpenAiRequest lets the model decide whether to use live search', () =
   assert.equal(request.text.format.type, 'json_schema');
   assert.match(request.instructions, /Today is 2026-03-09\./);
   assert.equal(request.tool_choice, 'auto');
-  assert.equal('temperature' in request, false);
+  assert.equal(request.temperature, 0.35);
   assert.deepEqual(request.tools, [{ type: 'web_search' }]);
   assert.deepEqual(request.include, ['web_search_call.action.sources']);
 });

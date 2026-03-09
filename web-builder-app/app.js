@@ -688,7 +688,7 @@ function clearLocalKeys() {
   vercelInput.value = '';
   githubInput.value = '';
   if (builderModelSelect) {
-    builderModelSelect.value = 'gpt-5-mini';
+    builderModelSelect.value = 'gpt-4.1-mini';
   }
   updateKeyStatus('Removed personal keys from this device.');
   refreshSharedKeyUsage('openai', '');
@@ -967,7 +967,7 @@ async function requestGeneration(prompt, mode) {
       body: JSON.stringify({
         prompt,
         apiKey,
-        model: builderModelSelect?.value || 'gpt-5-mini',
+        model: builderModelSelect?.value || 'gpt-4.1-mini',
         stream: true
       })
     });
@@ -1022,8 +1022,9 @@ async function requestGeneration(prompt, mode) {
       iterationRequestInput.value = '';
     }
   } catch (error) {
-    setGenerateStatus('Unable to reach the OpenAI endpoint.', 'error');
-    logMessage(error.message || 'Network error');
+    const message = error?.message || 'Unable to reach the OpenAI endpoint.';
+    setGenerateStatus(message, 'error');
+    logMessage(message);
   } finally {
     setGenerationBusy(false);
   }
