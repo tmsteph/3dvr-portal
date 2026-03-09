@@ -50,6 +50,7 @@ let currentHtml = '';
 let currentTitle = '';
 let currentSources = [];
 let currentSearchUsage = null;
+let generateStatusAnimationTimer = null;
 
 const identityStorageKey = 'web-builder-identity';
 const openaiStorageKey = 'web-builder-openai';
@@ -359,6 +360,31 @@ function setSharedUsageStatus(message, tone = 'info') {
 
 function setGenerateStatus(message, tone = 'info') {
   setStatusMessage(generateStatus, message, tone);
+}
+
+function stopGenerateStatusAnimation() {
+  if (generateStatusAnimationTimer) {
+    clearInterval(generateStatusAnimationTimer);
+    generateStatusAnimationTimer = null;
+  }
+}
+
+function startGenerateStatusAnimation(baseMessage, tone = 'info') {
+  stopGenerateStatusAnimation();
+
+  const normalizedBase = String(baseMessage || '').replace(/\.+$/, '');
+  const frames = ['.', '..', '...'];
+  let frameIndex = 0;
+
+  const render = () => {
+    setStatusMessage(generateStatus, `${normalizedBase}${frames[frameIndex]}`, tone);
+  };
+
+  render();
+  generateStatusAnimationTimer = window.setInterval(() => {
+    frameIndex = (frameIndex + 1) % frames.length;
+    render();
+  }, 420);
 }
 
 function setLoadDefaultsBusy(isBusy) {
@@ -953,7 +979,7 @@ async function requestGeneration(prompt, mode) {
   }
 
   setGenerationBusy(true);
-  setGenerateStatus('Generating... please wait.', 'info');
+  startGenerateStatusAnimation('Generating... please wait', 'info');
   if (mode === 'iterate') {
     logMessage('Sending revision request to /api/openai-site');
   } else {
@@ -983,6 +1009,7 @@ async function requestGeneration(prompt, mode) {
           message = errorText;
         }
       }
+      stopGenerateStatusAnimation();
       setGenerateStatus(message, 'error');
       logMessage(message);
       return;
@@ -994,7 +1021,7 @@ async function requestGeneration(prompt, mode) {
           return;
         }
 
-        setGenerateStatus(payload.message, payload.tone || 'info');
+        startGenerateStatusAnimation(payload.message, payload.tone || 'info');
         logMessage(payload.message);
       }
     });
@@ -1005,6 +1032,7 @@ async function requestGeneration(prompt, mode) {
     renderSources(result.sources || []);
 
     renderPreview(currentHtml);
+    stopGenerateStatusAnimation();
     setGenerateStatus(
       result.summary || (mode === 'iterate' ? 'Revision applied. Review the updated draft.' : 'Draft ready to review.'),
       'success'
@@ -1023,9 +1051,11 @@ async function requestGeneration(prompt, mode) {
     }
   } catch (error) {
     const message = error?.message || 'Unable to reach the OpenAI endpoint.';
+    stopGenerateStatusAnimation();
     setGenerateStatus(message, 'error');
     logMessage(message);
   } finally {
+    stopGenerateStatusAnimation();
     setGenerationBusy(false);
   }
 }
