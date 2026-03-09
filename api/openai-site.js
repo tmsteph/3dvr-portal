@@ -1,4 +1,9 @@
-export const DEFAULT_MODEL = 'gpt-4.1-mini';
+export const DEFAULT_MODEL = 'gpt-5-mini';
+export const SUPPORTED_SITE_MODELS = Object.freeze([
+  'gpt-4o-mini',
+  'gpt-4.1-mini',
+  'gpt-5-mini'
+]);
 
 export const SITE_BUILDER_CAPABILITIES = Object.freeze({
   liveWebSearch: true
@@ -36,6 +41,15 @@ function resolveDate(value) {
 
 function formatIsoDate(value) {
   return resolveDate(value).toISOString().slice(0, 10);
+}
+
+function normalizeRequestedModel(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return DEFAULT_MODEL;
+  }
+
+  return SUPPORTED_SITE_MODELS.includes(normalized) ? normalized : '';
 }
 
 function setCorsHeaders(res) {
@@ -310,7 +324,7 @@ export function buildOpenAiRequest({ model, prompt, now = new Date(), stream = f
 export function createSiteGeneratorHandler(options = {}) {
   const {
     apiKey = process.env.OPENAI_API_KEY,
-    model = String(options.model || process.env.OPENAI_SITE_MODEL || DEFAULT_MODEL).trim() || DEFAULT_MODEL,
+    model = normalizeRequestedModel(options.model || process.env.OPENAI_SITE_MODEL || DEFAULT_MODEL) || DEFAULT_MODEL,
     fetchImpl = globalThis.fetch,
     now = () => new Date()
   } = options;
@@ -326,13 +340,22 @@ export function createSiteGeneratorHandler(options = {}) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { prompt, apiKey: requestApiKey, stream } = req.body || {};
+    const { prompt, apiKey: requestApiKey, stream, model: requestedModel } = req.body || {};
     const effectiveApiKey = typeof requestApiKey === 'string' && requestApiKey.trim()
       ? requestApiKey.trim()
       : apiKey;
+    const effectiveModel = requestedModel === undefined
+      ? model
+      : normalizeRequestedModel(requestedModel);
 
     if (!effectiveApiKey) {
       return res.status(500).json({ error: 'OpenAI API key is not configured.' });
+    }
+
+    if (!effectiveModel) {
+      return res.status(400).json({
+        error: `Unsupported model. Choose one of: ${SUPPORTED_SITE_MODELS.join(', ')}.`
+      });
     }
 
     if (!prompt || typeof prompt !== 'string') {
@@ -343,7 +366,7 @@ export function createSiteGeneratorHandler(options = {}) {
       const currentDate = resolveDate(now());
       const forceWebSearch = shouldForceWebSearch(prompt);
       const requestBody = buildOpenAiRequest({
-        model,
+        model: effectiveModel,
         prompt,
         now: currentDate,
         stream: stream === true,
@@ -383,7 +406,7 @@ export function createSiteGeneratorHandler(options = {}) {
             }
 
             if (event.event === 'response.completed') {
-              finalResult = buildSiteResult(event.data?.response || {}, { model, currentDate });
+              finalResult = buildSiteResult(event.data?.response || {}, { model: effectiveModel, currentDate });
               writeSseEvent(res, 'result', finalResult);
               return;
             }
@@ -416,7 +439,7 @@ export function createSiteGeneratorHandler(options = {}) {
       }
 
       const data = await response.json();
-      return res.status(200).json(buildSiteResult(data, { model, currentDate }));
+      return res.status(200).json(buildSiteResult(data, { model: effectiveModel, currentDate }));
     } catch (err) {
       return res.status(500).json({ error: err.message || 'Unexpected error during site generation.' });
     }

@@ -97,6 +97,13 @@
       <label for="iteration-request">Revision (optional)</label>
       <input id="iteration-request" type="text"
         placeholder="Example: Make the hero bolder, add testimonials, and simplify the pricing section.">
+      <label for="builder-model">Model</label>
+      <select id="builder-model">
+        <option value="gpt-4o-mini">GPT-4o mini - fastest</option>
+        <option value="gpt-4.1-mini">GPT-4.1 mini - balanced</option>
+        <option value="gpt-5-mini" selected>GPT-5 mini - newer</option>
+      </select>
+      <p class="meta">Mini models only. Faster options trade off some quality for lower wait time.</p>
 
       <div class="button-row">
         <button id="generate" class="primary">Draft Website</button>

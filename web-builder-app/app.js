@@ -55,6 +55,7 @@ const identityStorageKey = 'web-builder-identity';
 const openaiStorageKey = 'web-builder-openai';
 const vercelStorageKey = 'web-builder-vercel';
 const githubStorageKey = 'web-builder-github';
+const modelStorageKey = 'web-builder-model';
 
 const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
 const LOAD_DEFAULTS_LABEL = 'Reload shared defaults';
@@ -79,6 +80,7 @@ const saveKeysBtn = document.getElementById('save-keys');
 const clearKeysBtn = document.getElementById('clear-keys');
 const builderRequestInput = document.getElementById('builder-request');
 const iterationRequestInput = document.getElementById('iteration-request');
+const builderModelSelect = document.getElementById('builder-model');
 const siteTitleInput = document.getElementById('site-title');
 const siteGoalInput = document.getElementById('site-goal');
 const siteAudienceInput = document.getElementById('site-audience');
@@ -387,10 +389,14 @@ function hydrateStoredKeys() {
   const openai = safeRead(localStorage, openaiStorageKey) || safeRead(sessionStorage, openaiStorageKey);
   const vercel = safeRead(localStorage, vercelStorageKey) || safeRead(sessionStorage, vercelStorageKey);
   const github = safeRead(localStorage, githubStorageKey) || safeRead(sessionStorage, githubStorageKey);
+  const model = safeRead(localStorage, modelStorageKey) || safeRead(sessionStorage, modelStorageKey);
 
   if (openai) openaiInput.value = openai;
   if (vercel) vercelInput.value = vercel;
   if (github) githubInput.value = github;
+  if (model && builderModelSelect?.querySelector(`option[value="${CSS.escape(model)}"]`)) {
+    builderModelSelect.value = model;
+  }
 
   if (openai || vercel || github) {
     updateKeyStatus('Loaded personal keys from this device.');
@@ -675,6 +681,7 @@ function saveLocalKeys() {
   safeWrite(localStorage, openaiStorageKey, openaiInput.value.trim());
   safeWrite(localStorage, vercelStorageKey, vercelInput.value.trim());
   safeWrite(localStorage, githubStorageKey, githubInput.value.trim());
+  safeWrite(localStorage, modelStorageKey, builderModelSelect?.value || '');
   updateKeyStatus('Saved personal keys on this device.');
   refreshSharedKeyUsage('openai', openaiInput.value);
   refreshSharedKeyUsage('vercel', vercelInput.value);
@@ -685,12 +692,17 @@ function clearLocalKeys() {
   safeRemove(localStorage, openaiStorageKey);
   safeRemove(localStorage, vercelStorageKey);
   safeRemove(localStorage, githubStorageKey);
+  safeRemove(localStorage, modelStorageKey);
   safeRemove(sessionStorage, openaiStorageKey);
   safeRemove(sessionStorage, vercelStorageKey);
   safeRemove(sessionStorage, githubStorageKey);
+  safeRemove(sessionStorage, modelStorageKey);
   openaiInput.value = '';
   vercelInput.value = '';
   githubInput.value = '';
+  if (builderModelSelect) {
+    builderModelSelect.value = 'gpt-5-mini';
+  }
   updateKeyStatus('Removed personal keys from this device.');
   refreshSharedKeyUsage('openai', '');
   refreshSharedKeyUsage('vercel', '');
@@ -968,6 +980,7 @@ async function requestGeneration(prompt, mode) {
       body: JSON.stringify({
         prompt,
         apiKey,
+        model: builderModelSelect?.value || 'gpt-5-mini',
         stream: true
       })
     });
@@ -1187,6 +1200,11 @@ function wireEvents() {
     input.addEventListener('input', () => {
       refreshSharedKeyUsage(keyTargetForInput(input), input.value);
     });
+  });
+
+  builderModelSelect?.addEventListener('change', () => {
+    safeWrite(localStorage, modelStorageKey, builderModelSelect.value);
+    logMessage(`Selected model: ${builderModelSelect.value}`);
   });
 
   builderRequestInput?.addEventListener('keydown', event => {

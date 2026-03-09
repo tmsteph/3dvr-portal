@@ -7,6 +7,7 @@ import {
   DEFAULT_MODEL,
   injectLayoutGuardStyles,
   shouldForceWebSearch,
+  SUPPORTED_SITE_MODELS,
   SITE_BUILDER_CAPABILITIES
 } from '../api/openai-site.js';
 
@@ -165,6 +166,14 @@ test('buildOpenAiRequest lets the model decide whether to use live search', () =
   assert.deepEqual(request.include, ['web_search_call.action.sources']);
 });
 
+test('supported site models include the picker options', () => {
+  assert.deepEqual(SUPPORTED_SITE_MODELS, [
+    'gpt-4o-mini',
+    'gpt-4.1-mini',
+    'gpt-5-mini'
+  ]);
+});
+
 test('buildOpenAiRequest can require web search for time-sensitive prompts', () => {
   const request = buildOpenAiRequest({
     model: DEFAULT_MODEL,
@@ -243,6 +252,72 @@ test('site generator handler uses the current default model and returns sources 
       url: 'https://3dvr.tech/'
     }
   ]);
+});
+
+test('site generator handler accepts a supported model override', async () => {
+  let requestBody = null;
+  const handler = createSiteGeneratorHandler({
+    apiKey: 'sk-test',
+    now: () => new Date('2026-03-09T12:00:00.000Z'),
+    fetchImpl: async (_url, options = {}) => {
+      requestBody = JSON.parse(options.body || '{}');
+      return createOpenAiResponse({
+        output: [
+          {
+            type: 'message',
+            content: [
+              {
+                type: 'output_text',
+                text: JSON.stringify({
+                  title: 'Portal Draft',
+                  summary: 'Drafted a landing page.',
+                  html: '<!DOCTYPE html><html><body>ok</body></html>'
+                })
+              }
+            ]
+          }
+        ]
+      });
+    }
+  });
+
+  const res = createMockRes();
+  await handler(
+    {
+      method: 'POST',
+      headers: {},
+      body: {
+        prompt: 'Build a startup landing page.',
+        model: 'gpt-5-mini'
+      }
+    },
+    res
+  );
+
+  assert.equal(requestBody.model, 'gpt-5-mini');
+  assert.equal(res.body.model, 'gpt-5-mini');
+});
+
+test('site generator handler rejects unsupported model overrides', async () => {
+  const handler = createSiteGeneratorHandler({
+    apiKey: 'sk-test'
+  });
+  const res = createMockRes();
+
+  await handler(
+    {
+      method: 'POST',
+      headers: {},
+      body: {
+        prompt: 'Build a startup landing page.',
+        model: 'gpt-5.4-mini'
+      }
+    },
+    res
+  );
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /Unsupported model/);
 });
 
 test('site generator handler forces web search for current officeholder prompts', async () => {
