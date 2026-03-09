@@ -47,6 +47,7 @@ let tierSubscription = null;
 let currentDefaultConfig = {};
 let currentHtml = '';
 let currentTitle = '';
+let currentSources = [];
 
 const identityStorageKey = 'web-builder-identity';
 const openaiStorageKey = 'web-builder-openai';
@@ -81,6 +82,8 @@ const siteGoalInput = document.getElementById('site-goal');
 const siteAudienceInput = document.getElementById('site-audience');
 const siteStyleSelect = document.getElementById('site-style');
 const siteExtrasInput = document.getElementById('site-extras');
+const useLiveSearchInput = document.getElementById('use-live-search');
+const searchModeNote = document.getElementById('search-mode-note');
 const vercelProjectInput = document.getElementById('vercel-project');
 const githubRepoInput = document.getElementById('github-repo');
 const githubBranchInput = document.getElementById('github-branch');
@@ -91,7 +94,9 @@ const iterateBtn = document.getElementById('iterate');
 const deployBtn = document.getElementById('deploy');
 const publishBtn = document.getElementById('publish');
 const generateStatus = document.getElementById('generate-status');
+const builderContextNote = document.getElementById('builder-context-note');
 const previewFrame = document.getElementById('preview');
+const builderSources = document.getElementById('builder-sources');
 const outputBox = document.getElementById('output');
 
 const identityKey = resolveIdentity();
@@ -103,8 +108,11 @@ subscribeToUsageCounters();
 wireEvents();
 initMenuToggle();
 renderIdentity();
+renderBuilderContextNote();
+renderSearchModeNote();
+renderSources([]);
 renderPreview('');
-logMessage('Ready. Describe your site and press Generate Website.');
+logMessage('Ready. Describe the site, audience, and tone, then draft the first version.');
 
 function resolveIdentity() {
   const stored = safeRead(localStorage, identityStorageKey) || safeRead(sessionStorage, identityStorageKey);
@@ -229,6 +237,79 @@ function renderIdentity() {
   if (profileLink) {
     profileLink.title = profile.alias ? `${profile.name} (${profile.alias})` : `${profile.name} profile`;
   }
+}
+
+function renderBuilderContextNote() {
+  if (!builderContextNote) {
+    return;
+  }
+
+  const currentYear = new Date().getFullYear();
+  builderContextNote.textContent =
+    `Builder context: footer and legal copy default to ${currentYear}. `
+    + 'Live web search is available when you enable it below.';
+}
+
+function renderSearchModeNote() {
+  if (!searchModeNote) {
+    return;
+  }
+
+  if (useLiveSearchInput?.checked) {
+    searchModeNote.textContent =
+      'Live web search is on for the next request. The builder will list consulted sources below the preview.';
+    return;
+  }
+
+  searchModeNote.textContent =
+    'Live web search is off by default. The builder still uses the current year for footer and legal copy.';
+}
+
+function renderSources(sources) {
+  if (!builderSources) {
+    return;
+  }
+
+  if (!Array.isArray(sources) || !sources.length) {
+    currentSources = [];
+    builderSources.innerHTML = useLiveSearchInput?.checked
+      ? 'No live-search sources were returned for the latest draft.'
+      : 'Live web search is off. Enable it above to attach current sources to the next draft.';
+    return;
+  }
+
+  currentSources = sources;
+  builderSources.innerHTML = sources.map(source => {
+    const title = escapeHtml(source?.title || source?.url || 'Source');
+    const url = escapeAttribute(sanitizeSourceUrl(source?.url));
+    return `<a class="source-link" href="${url}" target="_blank" rel="noopener">${title}</a>`;
+  }).join('');
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
+
+function sanitizeSourceUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.href;
+    }
+  } catch (error) {
+    // Ignore invalid URLs and fall back to a safe inert target.
+  }
+
+  return '#';
 }
 
 function safeRead(store, key) {
@@ -647,6 +728,7 @@ function buildInitialPrompt() {
   const parts = [
     `Create a single-page website for this request: ${request}.`,
     'Return json with title, summary, and html keys.',
+    'The summary must briefly explain the page structure, tone, and any date-sensitive footer or legal copy choices.',
     'Use semantic HTML with inline CSS only and no external assets/scripts.',
     'The html value must be a complete standalone HTML document with doctype, html, head, and body tags.',
     'Prioritize accessibility, clear hierarchy, and mobile-first layout.',
@@ -666,6 +748,7 @@ function buildIterationPrompt(iterationRequest) {
     'Revise this existing single-page website using the request below.',
     `Revision request: ${iterationRequest}`,
     'Return json with title, summary, and html keys.',
+    'The summary must briefly explain what changed, including any footer or legal-copy updates.',
     'The html value must be a complete updated HTML document, not a fragment or partial diff.',
     'Keep the page accessible and mobile-friendly.',
     'Preserve a deliberate page atmosphere and avoid regressing to a flat pure-white background unless the request explicitly asks for it.',
@@ -697,7 +780,7 @@ function buildPreviewDocument(html) {
       '.preview-empty h1{margin:0 0 10px;font-size:clamp(1.6rem,4vw,2.4rem);}',
       '.preview-empty span{display:block;color:#c7d7ee;line-height:1.6;}',
       '</style></head><body>',
-      '<section class="preview-empty"><p>Preview</p><h1>Generate a site to see it here.</h1><span>Your draft will render inside this frame once the builder returns HTML.</span></section>',
+      '<section class="preview-empty"><p>Preview</p><h1>Describe a site to start the first draft.</h1><span>Your draft will render here, and you can keep refining it with revision requests.</span></section>',
       '</body></html>'
     ].join('');
   }
@@ -739,18 +822,27 @@ async function requestGeneration(prompt, mode) {
   }
 
   setGenerationBusy(true);
-  setGenerateStatus(mode === 'iterate' ? 'Applying revision...' : 'Generating website...', 'info');
+  setGenerateStatus(
+    mode === 'iterate'
+      ? 'Reworking the draft and updating the preview...'
+      : 'Drafting layout, copy, and styles...',
+    'info'
+  );
   if (mode === 'iterate') {
     logMessage('Sending revision request to /api/openai-site');
   } else {
-    logMessage('Sending build request to /api/openai-site');
+    logMessage('Sending first-draft request to /api/openai-site');
   }
 
   try {
     const response = await fetch('/api/openai-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, apiKey })
+      body: JSON.stringify({
+        prompt,
+        apiKey,
+        useWebSearch: useLiveSearchInput?.checked === true
+      })
     });
 
     const result = await response.json();
@@ -762,11 +854,22 @@ async function requestGeneration(prompt, mode) {
     }
 
     currentHtml = result.html || '';
-    currentTitle = result.title || currentTitle || (siteTitleInput?.value || '').trim() || 'Generated site';
+    currentTitle = result.title || currentTitle || (siteTitleInput?.value || '').trim() || 'Drafted site';
+    renderSources(result.sources || []);
 
     renderPreview(currentHtml);
-    setGenerateStatus(result.summary || (mode === 'iterate' ? 'Revision applied.' : 'Website generated.'), 'success');
-    logMessage(mode === 'iterate' ? 'Revision applied. Preview updated.' : 'Website generated. Preview updated.');
+    setGenerateStatus(
+      result.summary || (mode === 'iterate' ? 'Revision applied. Review the updated draft.' : 'Draft ready to review.'),
+      'success'
+    );
+    logMessage(
+      mode === 'iterate'
+        ? `Revision applied with ${result.model || 'OpenAI'}. Preview updated.`
+        : `Draft ready with ${result.model || 'OpenAI'}. Preview updated.`
+    );
+    if (result.usedWebSearch) {
+      logMessage(`Live search returned ${Array.isArray(result.sources) ? result.sources.length : 0} source(s).`);
+    }
 
     if (mode === 'iterate' && iterationRequestInput) {
       iterationRequestInput.value = '';
@@ -937,6 +1040,11 @@ function wireEvents() {
     input.addEventListener('input', () => {
       refreshSharedKeyUsage(keyTargetForInput(input), input.value);
     });
+  });
+
+  useLiveSearchInput?.addEventListener('change', () => {
+    renderSearchModeNote();
+    renderSources(currentSources);
   });
 
   builderRequestInput?.addEventListener('keydown', event => {

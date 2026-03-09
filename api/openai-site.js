@@ -1,4 +1,32 @@
-const DEFAULT_MODEL = 'gpt-4o-mini';
+export const DEFAULT_MODEL = 'gpt-5.4';
+
+export const SITE_BUILDER_CAPABILITIES = Object.freeze({
+  liveWebSearch: true
+});
+
+const SITE_RESPONSE_SCHEMA = {
+  name: 'site_builder_response',
+  strict: true,
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['title', 'summary', 'html'],
+    properties: {
+      title: { type: 'string' },
+      summary: { type: 'string' },
+      html: { type: 'string' }
+    }
+  }
+};
+
+function resolveDate(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function formatIsoDate(value) {
+  return resolveDate(value).toISOString().slice(0, 10);
+}
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -6,18 +34,67 @@ function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-function buildPrompt() {
+export function buildPrompt(now = new Date()) {
+  const currentDate = resolveDate(now);
+  const currentDateLabel = formatIsoDate(currentDate);
+  const currentYear = currentDate.getUTCFullYear();
+
   return [
-    'You are the 3dvr portal website generator.',
+    'You are the 3dvr portal website builder and design partner.',
+    `Today is ${currentDateLabel}. The current year is ${currentYear}.`,
     'Return concise, production-ready HTML with inline CSS only.',
     'Keep markup semantic, accessible, and mobile-friendly.',
     'Do not reference external assets or scripts.',
-    'Use calming palettes with sufficient contrast unless the prompt asks otherwise.'
+    'Use calming palettes with sufficient contrast unless the prompt asks otherwise.',
+    `If you include copyright, trademark, or footer-year copy, use ${currentYear} or a range ending in ${currentYear} unless the user explicitly asks for a different year.`,
+    'Never default to stale years like 2023 for date-sensitive footer or legal copy.',
+    'Always write a specific summary that explains the page structure, tone, and any notable footer or legal-copy decisions.',
+    'Do not claim live web research or real-time internet access unless tool results are explicitly provided.'
   ].join(' ');
 }
 
-function parseChoice(choice) {
-  const raw = choice?.message?.content;
+function extractResponseText(responseData) {
+  const outputItems = Array.isArray(responseData?.output) ? responseData.output : [];
+
+  for (const item of outputItems) {
+    if (item?.type !== 'message') continue;
+    const contentItems = Array.isArray(item.content) ? item.content : [];
+    for (const content of contentItems) {
+      if (content?.type !== 'output_text') continue;
+      const text = typeof content.text === 'string' ? content.text.trim() : '';
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return '';
+}
+
+function extractWebSources(responseData) {
+  const outputItems = Array.isArray(responseData?.output) ? responseData.output : [];
+  const sources = new Map();
+
+  for (const item of outputItems) {
+    if (item?.type !== 'web_search_call') continue;
+    const sourceList = Array.isArray(item?.action?.sources) ? item.action.sources : [];
+    for (const source of sourceList) {
+      const url = String(source?.url || '').trim();
+      if (!url || sources.has(url)) {
+        continue;
+      }
+      sources.set(url, {
+        title: String(source?.title || source?.site || url).trim(),
+        url
+      });
+    }
+  }
+
+  return Array.from(sources.values());
+}
+
+function parseResponsePayload(responseData) {
+  const raw = extractResponseText(responseData);
   if (!raw) {
     throw new Error('No content returned from OpenAI.');
   }
@@ -38,11 +115,35 @@ function parseChoice(choice) {
   }
 }
 
+export function buildOpenAiRequest({ model, prompt, now = new Date(), useWebSearch = false }) {
+  const requestBody = {
+    model,
+    instructions: buildPrompt(now),
+    input: prompt,
+    store: false,
+    temperature: 0.35,
+    text: {
+      format: {
+        type: 'json_schema',
+        ...SITE_RESPONSE_SCHEMA
+      }
+    }
+  };
+
+  if (useWebSearch) {
+    requestBody.tools = [{ type: 'web_search' }];
+    requestBody.include = ['web_search_call.action.sources'];
+  }
+
+  return requestBody;
+}
+
 export function createSiteGeneratorHandler(options = {}) {
   const {
     apiKey = process.env.OPENAI_API_KEY,
-    model = DEFAULT_MODEL,
+    model = String(options.model || process.env.OPENAI_SITE_MODEL || DEFAULT_MODEL).trim() || DEFAULT_MODEL,
     fetchImpl = globalThis.fetch,
+    now = () => new Date()
   } = options;
 
   return async function handler(req, res) {
@@ -56,7 +157,7 @@ export function createSiteGeneratorHandler(options = {}) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { prompt, apiKey: requestApiKey } = req.body || {};
+    const { prompt, apiKey: requestApiKey, useWebSearch } = req.body || {};
     const effectiveApiKey = typeof requestApiKey === 'string' && requestApiKey.trim()
       ? requestApiKey.trim()
       : apiKey;
@@ -70,21 +171,22 @@ export function createSiteGeneratorHandler(options = {}) {
     }
 
     try {
-      const response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+      const currentDate = resolveDate(now());
+      const shouldUseWebSearch = SITE_BUILDER_CAPABILITIES.liveWebSearch && useWebSearch === true;
+      const requestBody = buildOpenAiRequest({
+        model,
+        prompt,
+        now: currentDate,
+        useWebSearch: shouldUseWebSearch
+      });
+
+      const response = await fetchImpl('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${effectiveApiKey}`,
         },
-        body: JSON.stringify({
-          model,
-          temperature: 0.35,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: buildPrompt() },
-            { role: 'user', content: prompt }
-          ]
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -93,13 +195,17 @@ export function createSiteGeneratorHandler(options = {}) {
       }
 
       const data = await response.json();
-      const choice = data?.choices?.[0];
-      const parsed = parseChoice(choice);
+      const parsed = parseResponsePayload(data);
+      const sources = shouldUseWebSearch ? extractWebSources(data) : [];
 
       return res.status(200).json({
         ...parsed,
         model,
-        createdAt: Date.now()
+        createdAt: currentDate.getTime(),
+        currentYear: currentDate.getUTCFullYear(),
+        liveWebSearch: SITE_BUILDER_CAPABILITIES.liveWebSearch,
+        usedWebSearch: shouldUseWebSearch,
+        sources
       });
     } catch (err) {
       return res.status(500).json({ error: err.message || 'Unexpected error during site generation.' });

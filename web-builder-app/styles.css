@@ -187,6 +187,28 @@ body {
   margin-top: 12px;
 }
 
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(49, 74, 110, 0.92);
+  background: rgba(10, 18, 32, 0.72);
+}
+
+.toggle-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #5ce1e6;
+}
+
+.toggle-row span {
+  display: block;
+}
+
 #builder-request {
   min-height: 116px;
 }
@@ -353,6 +375,32 @@ a.secondary {
   padding: 12px;
   white-space: pre-wrap;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 56px;
+  padding: 4px 0;
+  color: #b9cde6;
+}
+
+.source-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(52, 78, 114, 0.88);
+  background: rgba(11, 20, 35, 0.82);
+  color: #d6e9ff;
+  text-decoration: none;
+}
+
+.source-link:hover,
+.source-link:focus-visible {
+  border-color: rgba(92, 176, 255, 0.55);
+  background: rgba(18, 30, 49, 0.94);
+  outline: none;
 }
 
 .preview-stage {
