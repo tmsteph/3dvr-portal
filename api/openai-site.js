@@ -4,6 +4,14 @@ export const SITE_BUILDER_CAPABILITIES = Object.freeze({
   liveWebSearch: true
 });
 
+const LAYOUT_GUARD_STYLE_ID = 'three-dvr-layout-guard';
+const LAYOUT_GUARD_CSS = [
+  'html{width:100%;max-width:100%;overflow-x:hidden;}',
+  'body{max-width:100%;overflow-x:hidden;}',
+  '*,*::before,*::after{box-sizing:border-box;}',
+  'img,video,canvas,svg,iframe{max-width:100%;}'
+].join('');
+
 const SITE_RESPONSE_SCHEMA = {
   name: 'site_builder_response',
   strict: true,
@@ -50,6 +58,8 @@ export function buildPrompt(now = new Date()) {
     `Today is ${currentDateLabel}. The current year is ${currentYear}.`,
     'Return concise, production-ready HTML with inline CSS only.',
     'Keep markup semantic, accessible, and mobile-friendly.',
+    'Avoid horizontal overflow and right-side scrollbars on mobile and desktop.',
+    'Do not use raw 100vw section widths or off-screen transforms unless you also prevent overflow.',
     'Do not reference external assets or scripts.',
     'Use calming palettes with sufficient contrast unless the prompt asks otherwise.',
     'For navigation and CTA buttons, prefer in-page anchors such as #pricing or #contact when no real destination is provided.',
@@ -120,12 +130,35 @@ function parseResponsePayload(responseData) {
 
     return {
       title: parsed.title || 'Generated Site',
-      html: parsed.html,
+      html: injectLayoutGuardStyles(parsed.html),
       summary: parsed.summary || 'Generated site content ready to publish.',
     };
   } catch (err) {
     throw new Error(`Failed to parse OpenAI response: ${err.message}`);
   }
+}
+
+export function injectLayoutGuardStyles(html) {
+  const markup = String(html || '');
+  if (!markup.trim()) {
+    return markup;
+  }
+
+  if (markup.includes(`id="${LAYOUT_GUARD_STYLE_ID}"`) || markup.includes(`id='${LAYOUT_GUARD_STYLE_ID}'`)) {
+    return markup;
+  }
+
+  const styleTag = `<style id="${LAYOUT_GUARD_STYLE_ID}">${LAYOUT_GUARD_CSS}</style>`;
+
+  if (/<\/head>/i.test(markup)) {
+    return markup.replace(/<\/head>/i, `${styleTag}</head>`);
+  }
+
+  if (/<body[^>]*>/i.test(markup)) {
+    return markup.replace(/<body([^>]*)>/i, `<body$1>${styleTag}`);
+  }
+
+  return `${styleTag}${markup}`;
 }
 
 function createSseParser(onEvent) {

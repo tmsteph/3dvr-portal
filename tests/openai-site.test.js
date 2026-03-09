@@ -5,6 +5,7 @@ import {
   buildPrompt,
   createSiteGeneratorHandler,
   DEFAULT_MODEL,
+  injectLayoutGuardStyles,
   SITE_BUILDER_CAPABILITIES
 } from '../api/openai-site.js';
 
@@ -121,6 +122,24 @@ test('buildPrompt injects the current date and year guidance', () => {
   assert.match(prompt, /Never default to stale years like 2023/i);
   assert.match(prompt, /Do not link buttons or nav items to the local portal/i);
   assert.match(prompt, /Use live web search only when the request needs current facts/i);
+  assert.match(prompt, /Avoid horizontal overflow and right-side scrollbars/i);
+});
+
+test('injectLayoutGuardStyles appends overflow protection into the head', () => {
+  const html = '<!DOCTYPE html><html><head><title>Test</title></head><body><main>ok</main></body></html>';
+  const guarded = injectLayoutGuardStyles(html);
+
+  assert.match(guarded, /three-dvr-layout-guard/);
+  assert.match(guarded, /overflow-x:hidden/);
+  assert.match(guarded, /max-width:100%/);
+  assert.match(guarded, /<\/style><\/head><body>/);
+});
+
+test('injectLayoutGuardStyles does not duplicate an existing guard', () => {
+  const html = '<!DOCTYPE html><html><head><style id="three-dvr-layout-guard">x</style></head><body></body></html>';
+  const guarded = injectLayoutGuardStyles(html);
+
+  assert.equal(guarded, html);
 });
 
 test('buildOpenAiRequest lets the model decide whether to use live search', () => {
@@ -198,6 +217,7 @@ test('site generator handler uses the current default model and returns sources 
   assert.equal(res.body.currentYear, 2026);
   assert.equal(res.body.liveWebSearch, SITE_BUILDER_CAPABILITIES.liveWebSearch);
   assert.equal(res.body.usedWebSearch, true);
+  assert.match(res.body.html, /three-dvr-layout-guard/);
   assert.deepEqual(res.body.sources, [
     {
       title: '3dvr',
@@ -248,6 +268,7 @@ test('site generator handler reports when the model does not use live search', a
   assert.equal(requestBody.tool_choice, 'auto');
   assert.deepEqual(requestBody.tools, [{ type: 'web_search' }]);
   assert.equal(res.body.usedWebSearch, false);
+  assert.match(res.body.html, /three-dvr-layout-guard/);
   assert.deepEqual(res.body.sources, []);
 });
 
