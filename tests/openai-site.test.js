@@ -6,6 +6,7 @@ import {
   createSiteGeneratorHandler,
   DEFAULT_MODEL,
   injectLayoutGuardStyles,
+  shouldForceWebSearch,
   SITE_BUILDER_CAPABILITIES
 } from '../api/openai-site.js';
 
@@ -123,6 +124,7 @@ test('buildPrompt injects the current date and year guidance', () => {
   assert.match(prompt, /Do not link buttons or nav items to the local portal/i);
   assert.match(prompt, /Use live web search only when the request needs current facts/i);
   assert.match(prompt, /Avoid horizontal overflow and right-side scrollbars/i);
+  assert.match(prompt, /If the request asks for a current officeholder/i);
 });
 
 test('injectLayoutGuardStyles appends overflow protection into the head', () => {
@@ -142,6 +144,12 @@ test('injectLayoutGuardStyles does not duplicate an existing guard', () => {
   assert.equal(guarded, html);
 });
 
+test('shouldForceWebSearch detects time-sensitive factual prompts', () => {
+  assert.equal(shouldForceWebSearch('Build a page about the current president of the United States.'), true);
+  assert.equal(shouldForceWebSearch("Show today's weather and local forecast."), true);
+  assert.equal(shouldForceWebSearch('Build a retro portfolio with a bold hero.'), false);
+});
+
 test('buildOpenAiRequest lets the model decide whether to use live search', () => {
   const request = buildOpenAiRequest({
     model: DEFAULT_MODEL,
@@ -155,6 +163,17 @@ test('buildOpenAiRequest lets the model decide whether to use live search', () =
   assert.equal(request.tool_choice, 'auto');
   assert.deepEqual(request.tools, [{ type: 'web_search' }]);
   assert.deepEqual(request.include, ['web_search_call.action.sources']);
+});
+
+test('buildOpenAiRequest can require web search for time-sensitive prompts', () => {
+  const request = buildOpenAiRequest({
+    model: DEFAULT_MODEL,
+    prompt: 'Build a site about the current president of the United States.',
+    now: new Date('2026-03-09T12:00:00.000Z'),
+    forceWebSearch: true
+  });
+
+  assert.equal(request.tool_choice, 'required');
 });
 
 test('site generator handler uses the current default model and returns sources when live search is enabled', async () => {
@@ -224,6 +243,60 @@ test('site generator handler uses the current default model and returns sources 
       url: 'https://3dvr.tech/'
     }
   ]);
+});
+
+test('site generator handler forces web search for current officeholder prompts', async () => {
+  let requestBody = null;
+  const handler = createSiteGeneratorHandler({
+    apiKey: 'sk-test',
+    now: () => new Date('2026-03-09T12:00:00.000Z'),
+    fetchImpl: async (_url, options = {}) => {
+      requestBody = JSON.parse(options.body || '{}');
+      return createOpenAiResponse({
+        output: [
+          {
+            type: 'web_search_call',
+            action: {
+              sources: [
+                {
+                  title: 'The White House',
+                  url: 'https://www.whitehouse.gov/administration/'
+                }
+              ]
+            }
+          },
+          {
+            type: 'message',
+            content: [
+              {
+                type: 'output_text',
+                text: JSON.stringify({
+                  title: 'Current Administration',
+                  summary: 'Drafted a current administration page using official web sources.',
+                  html: '<!DOCTYPE html><html><body>ok</body></html>'
+                })
+              }
+            ]
+          }
+        ]
+      });
+    }
+  });
+
+  const res = createMockRes();
+  await handler(
+    {
+      method: 'POST',
+      headers: {},
+      body: {
+        prompt: 'Build a site about the current president of the United States.'
+      }
+    },
+    res
+  );
+
+  assert.equal(requestBody.tool_choice, 'required');
+  assert.equal(res.body.usedWebSearch, true);
 });
 
 test('site generator handler reports when the model does not use live search', async () => {

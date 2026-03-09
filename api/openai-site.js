@@ -1,4 +1,4 @@
-export const DEFAULT_MODEL = 'gpt-4o-mini';
+export const DEFAULT_MODEL = 'gpt-4.1-mini';
 
 export const SITE_BUILDER_CAPABILITIES = Object.freeze({
   liveWebSearch: true
@@ -11,6 +11,8 @@ const LAYOUT_GUARD_CSS = [
   '*,*::before,*::after{box-sizing:border-box;}',
   'img,video,canvas,svg,iframe{max-width:100%;}'
 ].join('');
+const TEMPORAL_CUE_RE = /\b(current|currently|latest|today|now|right now|as of|up[- ]to[- ]date|recent)\b/i;
+const SENSITIVE_FACT_RE = /\b(president|vice president|governor|mayor|senator|congress|ceo|prime minister|chancellor|king|queen|administration|cabinet|price|stock|weather|forecast|news|headline|score|schedule|standings|election)\b/i;
 
 const SITE_RESPONSE_SCHEMA = {
   name: 'site_builder_response',
@@ -68,6 +70,7 @@ export function buildPrompt(now = new Date()) {
     'Never default to stale years like 2023 for date-sensitive footer or legal copy.',
     'Always write a specific summary that explains the page structure, tone, and any notable footer or legal-copy decisions.',
     'Use live web search only when the request needs current facts, recent references, or externally verifiable details.',
+    'If the request asks for a current officeholder, recent event, current administration detail, live price, score, schedule, weather, or other time-sensitive fact, use live web search before answering.',
     'Do not claim live web research or real-time internet access unless tool results are explicitly provided.'
   ].join(' ');
 }
@@ -159,6 +162,19 @@ export function injectLayoutGuardStyles(html) {
   }
 
   return `${styleTag}${markup}`;
+}
+
+export function shouldForceWebSearch(prompt) {
+  const normalized = String(prompt || '').trim();
+  if (!normalized) {
+    return false;
+  }
+
+  if (/\bpresident of the united states\b/i.test(normalized)) {
+    return true;
+  }
+
+  return TEMPORAL_CUE_RE.test(normalized) && SENSITIVE_FACT_RE.test(normalized);
 }
 
 function createSseParser(onEvent) {
@@ -265,14 +281,14 @@ function buildSiteResult(data, { model, currentDate }) {
   };
 }
 
-export function buildOpenAiRequest({ model, prompt, now = new Date(), stream = false }) {
+export function buildOpenAiRequest({ model, prompt, now = new Date(), stream = false, forceWebSearch = false }) {
   const requestBody = {
     model,
     instructions: buildPrompt(now),
     input: prompt,
     store: false,
     temperature: 0.35,
-    tool_choice: 'auto',
+    tool_choice: forceWebSearch ? 'required' : 'auto',
     tools: [{ type: 'web_search' }],
     include: ['web_search_call.action.sources'],
     text: {
@@ -325,11 +341,13 @@ export function createSiteGeneratorHandler(options = {}) {
 
     try {
       const currentDate = resolveDate(now());
+      const forceWebSearch = shouldForceWebSearch(prompt);
       const requestBody = buildOpenAiRequest({
         model,
         prompt,
         now: currentDate,
-        stream: stream === true
+        stream: stream === true,
+        forceWebSearch
       });
 
       const response = await fetchImpl('https://api.openai.com/v1/responses', {
