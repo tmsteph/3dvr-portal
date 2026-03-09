@@ -40,7 +40,8 @@
       <div class="eyebrow">Shared defaults</div>
       <h1>Web Builder</h1>
       <p class="lede">
-        Tell us what you want, press Generate, and refine it like a conversation.
+        Describe the business, audience, and vibe. The builder drafts a full page, explains what it made,
+        and keeps refining with follow-up requests.
       </p>
       <div class="pill-row">
         <div class="pill">Guest 2/day</div>
@@ -48,7 +49,6 @@
         <div class="pill">$5 supporter 20/day</div>
         <div class="pill">$20 pro 100/day</div>
       </div>
-      <p class="meta">Defaults auto-load in the background. Open advanced panels only if you need them.</p>
       <p class="meta" id="identity-label" aria-live="polite"></p>
     </header>
 
@@ -65,7 +65,7 @@
         placeholder="Example: Build a VR fitness landing page with hero, benefits, pricing, and signup."></textarea>
       <details class="card config-card inline-panel" id="prompt-panel">
         <summary>Prompt hints (optional)</summary>
-        <p class="meta">Fine-tune generation with these helper fields. Leave blank for fully conversational mode.</p>
+        <p class="meta">Fine-tune the first draft with helper fields, or leave them blank for a conversational flow.</p>
         <section id="prompt-options">
           <div class="input-grid">
             <label>Site title
@@ -95,19 +95,25 @@
       <label for="iteration-request">Revision (optional)</label>
       <input id="iteration-request" type="text"
         placeholder="Example: Make the hero bolder, add testimonials, and simplify the pricing section.">
+      <label for="builder-model">Model</label>
+      <select id="builder-model">
+        <option value="gpt-4o-mini">GPT-4o mini - fastest</option>
+        <option value="gpt-4.1-mini" selected>GPT-4.1 mini - balanced</option>
+      </select>
+      <p class="meta">Mini models only. Faster options trade off some quality for lower wait time.</p>
 
       <div class="button-row">
-        <button id="generate" class="primary">Generate Website</button>
+        <button id="generate" class="primary">Draft Website</button>
         <button id="iterate" class="secondary">Apply Revision</button>
       </div>
-      <p class="status status--info" id="generate-status" aria-live="polite">Waiting to generate.</p>
+      <p class="status status--info" id="generate-status" aria-live="polite">Waiting for the first draft.</p>
     </section>
 
     <section class="grid">
       <section class="column-stack" id="preview-column">
         <details class="card config-card" id="publish-panel">
           <summary>Publish (advanced)</summary>
-          <p class="meta">Deploy to Vercel or publish to GitHub after generating a draft.</p>
+          <p class="meta">Deploy to Vercel or publish to GitHub after the builder gives you a draft to review.</p>
           <section id="publish-options">
             <div class="input-grid">
               <label>Vercel project
@@ -141,6 +147,19 @@
           </div>
           <div class="preview-stage">
             <iframe id="preview" title="Generated site preview"></iframe>
+          </div>
+        </section>
+
+        <section class="card" id="sources-card">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Sources</p>
+              <h2>Live search</h2>
+              <p class="meta">Shown when the model uses live web search for a draft or revision.</p>
+            </div>
+          </div>
+          <div id="builder-sources" class="source-list" aria-live="polite">
+            The model will use live web search only when it needs current sources.
           </div>
         </section>
 

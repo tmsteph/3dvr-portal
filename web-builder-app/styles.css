@@ -355,6 +355,40 @@ a.secondary {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 56px;
+  padding: 4px 0;
+  color: #b9cde6;
+}
+
+.source-link {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(52, 78, 114, 0.88);
+  background: rgba(11, 20, 35, 0.82);
+  color: #d6e9ff;
+  line-height: 1.5;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.source-link:hover,
+.source-link:focus-visible {
+  border-color: rgba(92, 176, 255, 0.55);
+  background: rgba(18, 30, 49, 0.94);
+  outline: none;
+}
+
 .preview-stage {
   margin-top: 12px;
   overflow: hidden;
