@@ -167,7 +167,7 @@ test('buildOpenAiRequest lets the model decide whether to use live search', () =
   assert.deepEqual(request.include, ['web_search_call.action.sources']);
 });
 
-test('buildOpenAiRequest keeps temperature for supported non-gpt-5 mini models', () => {
+test('buildOpenAiRequest keeps temperature for supported builder models', () => {
   const request = buildOpenAiRequest({
     model: 'gpt-4o-mini',
     prompt: 'Build a VR portal landing page.',
@@ -180,8 +180,7 @@ test('buildOpenAiRequest keeps temperature for supported non-gpt-5 mini models',
 test('supported site models include the picker options', () => {
   assert.deepEqual(SUPPORTED_SITE_MODELS, [
     'gpt-4o-mini',
-    'gpt-4.1-mini',
-    'gpt-5-mini'
+    'gpt-4.1-mini'
   ]);
 });
 
@@ -299,14 +298,14 @@ test('site generator handler accepts a supported model override', async () => {
       headers: {},
       body: {
         prompt: 'Build a startup landing page.',
-        model: 'gpt-5-mini'
+        model: 'gpt-4o-mini'
       }
     },
     res
   );
 
-  assert.equal(requestBody.model, 'gpt-5-mini');
-  assert.equal(res.body.model, 'gpt-5-mini');
+  assert.equal(requestBody.model, 'gpt-4o-mini');
+  assert.equal(res.body.model, 'gpt-4o-mini');
 });
 
 test('site generator handler rejects unsupported model overrides', async () => {
@@ -321,7 +320,7 @@ test('site generator handler rejects unsupported model overrides', async () => {
       headers: {},
       body: {
         prompt: 'Build a startup landing page.',
-        model: 'gpt-5.4-mini'
+        model: 'gpt-5-mini'
       }
     },
     res
