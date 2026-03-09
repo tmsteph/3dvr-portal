@@ -1,4 +1,4 @@
-export const DEFAULT_MODEL = 'gpt-5.4';
+export const DEFAULT_MODEL = 'gpt-4o-mini';
 
 export const SITE_BUILDER_CAPABILITIES = Object.freeze({
   liveWebSearch: true
@@ -46,6 +46,8 @@ export function buildPrompt(now = new Date()) {
     'Keep markup semantic, accessible, and mobile-friendly.',
     'Do not reference external assets or scripts.',
     'Use calming palettes with sufficient contrast unless the prompt asks otherwise.',
+    'For navigation and CTA buttons, prefer in-page anchors such as #pricing or #contact when no real destination is provided.',
+    'Do not link buttons or nav items to the local portal, the web builder, or relative files unless the user explicitly asks for those routes.',
     `If you include copyright, trademark, or footer-year copy, use ${currentYear} or a range ending in ${currentYear} unless the user explicitly asks for a different year.`,
     'Never default to stale years like 2023 for date-sensitive footer or legal copy.',
     'Always write a specific summary that explains the page structure, tone, and any notable footer or legal-copy decisions.',
@@ -106,7 +108,7 @@ function parseResponsePayload(responseData) {
     }
 
     return {
-      title: parsed.title || 'AI Generated Site',
+      title: parsed.title || 'Generated Site',
       html: parsed.html,
       summary: parsed.summary || 'Generated site content ready to publish.',
     };

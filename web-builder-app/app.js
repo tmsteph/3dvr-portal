@@ -3,6 +3,7 @@ import {
   listAvailableDefaultTargets,
   readDefaultSecret
 } from './defaults.js';
+import { classifyPreviewHref } from './preview-guards.js';
 
 const gun = Gun({ peers: window.__GUN_PEERS__ || undefined });
 const portalRoot = gun.get('3dvr-portal');
@@ -112,6 +113,7 @@ renderBuilderContextNote();
 renderSearchModeNote();
 renderSources([]);
 renderPreview('');
+bindPreviewGuards();
 logMessage('Ready. Describe the site, audience, and tone, then draft the first version.');
 
 function resolveIdentity() {
@@ -761,6 +763,58 @@ function renderPreview(html) {
   previewFrame.srcdoc = buildPreviewDocument(html);
 }
 
+function bindPreviewGuards() {
+  if (!previewFrame) {
+    return;
+  }
+
+  previewFrame.addEventListener('load', () => {
+    const doc = previewFrame.contentDocument;
+    const frameWindow = previewFrame.contentWindow;
+
+    if (!doc || !frameWindow) {
+      return;
+    }
+
+    doc.addEventListener('click', (event) => {
+      const link = event.target?.closest?.('a[href]');
+      if (!link) {
+        return;
+      }
+
+      const href = link.getAttribute('href');
+      const action = classifyPreviewHref(href, window.location.href);
+
+      if (action.action === 'hash') {
+        event.preventDefault();
+        const targetId = decodeURIComponent(String(action.hash || '').replace(/^#/, ''));
+        const target = targetId ? doc.getElementById(targetId) : null;
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        return;
+      }
+
+      if (action.action === 'external') {
+        event.preventDefault();
+        window.open(action.url, '_blank', 'noopener');
+        return;
+      }
+
+      if (action.action === 'block' || action.action === 'stay') {
+        event.preventDefault();
+        frameWindow.scrollTo({ top: 0, behavior: 'smooth' });
+        logMessage('Blocked preview navigation to a local portal route.');
+      }
+    });
+
+    doc.addEventListener('submit', (event) => {
+      event.preventDefault();
+      logMessage('Blocked form submission inside the preview.');
+    });
+  });
+}
+
 function buildPreviewDocument(html) {
   const markup = (html || '').trim();
 
@@ -822,12 +876,7 @@ async function requestGeneration(prompt, mode) {
   }
 
   setGenerationBusy(true);
-  setGenerateStatus(
-    mode === 'iterate'
-      ? 'Reworking the draft and updating the preview...'
-      : 'Drafting layout, copy, and styles...',
-    'info'
-  );
+  setGenerateStatus('Generating... please wait.', 'info');
   if (mode === 'iterate') {
     logMessage('Sending revision request to /api/openai-site');
   } else {

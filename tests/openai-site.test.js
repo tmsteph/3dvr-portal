@@ -52,6 +52,7 @@ test('buildPrompt injects the current date and year guidance', () => {
   assert.match(prompt, /Today is 2026-03-09\./);
   assert.match(prompt, /current year is 2026/i);
   assert.match(prompt, /Never default to stale years like 2023/i);
+  assert.match(prompt, /Do not link buttons or nav items to the local portal/i);
 });
 
 test('buildOpenAiRequest enables live search only when requested', () => {
