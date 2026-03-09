@@ -96,7 +96,6 @@ const iterateBtn = document.getElementById('iterate');
 const deployBtn = document.getElementById('deploy');
 const publishBtn = document.getElementById('publish');
 const generateStatus = document.getElementById('generate-status');
-const builderContextNote = document.getElementById('builder-context-note');
 const previewFrame = document.getElementById('preview');
 const builderSources = document.getElementById('builder-sources');
 const outputBox = document.getElementById('output');
@@ -110,7 +109,6 @@ subscribeToUsageCounters();
 wireEvents();
 initMenuToggle();
 renderIdentity();
-renderBuilderContextNote();
 renderSources([]);
 renderPreview('');
 bindPreviewGuards();
@@ -239,17 +237,6 @@ function renderIdentity() {
   if (profileLink) {
     profileLink.title = profile.alias ? `${profile.name} (${profile.alias})` : `${profile.name} profile`;
   }
-}
-
-function renderBuilderContextNote() {
-  if (!builderContextNote) {
-    return;
-  }
-
-  const currentYear = new Date().getFullYear();
-  builderContextNote.textContent =
-    `Builder context: footer and legal copy default to ${currentYear}. `
-    + 'The model can use live web search when a request needs current facts.';
 }
 
 function renderSources(sources) {
