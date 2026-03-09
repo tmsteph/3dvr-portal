@@ -876,6 +876,93 @@ function getActiveKey(input, defaultValue, targetKey) {
   return '';
 }
 
+function parseSseBlock(block) {
+  const normalized = String(block || '').replace(/\r/g, '');
+  if (!normalized.trim()) {
+    return null;
+  }
+
+  let eventName = 'message';
+  const dataLines = [];
+
+  normalized.split('\n').forEach(line => {
+    if (!line || line.startsWith(':')) {
+      return;
+    }
+
+    if (line.startsWith('event:')) {
+      eventName = line.slice('event:'.length).trim();
+      return;
+    }
+
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice('data:'.length).trimStart());
+    }
+  });
+
+  const rawData = dataLines.join('\n');
+  if (!rawData || rawData === '[DONE]') {
+    return null;
+  }
+
+  return {
+    event: eventName,
+    data: JSON.parse(rawData)
+  };
+}
+
+async function readGenerationStream(response, { onStatus } = {}) {
+  if (!response.body?.getReader) {
+    throw new Error('Streaming is not available for this response.');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalResult = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n').replace(/\r/g, '');
+
+    let separatorIndex = buffer.indexOf('\n\n');
+    while (separatorIndex >= 0) {
+      const block = buffer.slice(0, separatorIndex);
+      buffer = buffer.slice(separatorIndex + 2);
+      const parsed = parseSseBlock(block);
+
+      if (parsed?.event === 'status') {
+        onStatus?.(parsed.data);
+      } else if (parsed?.event === 'result') {
+        finalResult = parsed.data;
+      } else if (parsed?.event === 'error') {
+        throw new Error(parsed.data?.message || 'Streaming generation failed.');
+      }
+
+      separatorIndex = buffer.indexOf('\n\n');
+    }
+  }
+
+  const trailing = parseSseBlock(buffer + decoder.decode());
+  if (trailing?.event === 'status') {
+    onStatus?.(trailing.data);
+  } else if (trailing?.event === 'result') {
+    finalResult = trailing.data;
+  } else if (trailing?.event === 'error') {
+    throw new Error(trailing.data?.message || 'Streaming generation failed.');
+  }
+
+  if (!finalResult) {
+    throw new Error('No generation result was returned.');
+  }
+
+  return finalResult;
+}
+
 async function requestGeneration(prompt, mode) {
   const apiKey = getActiveKey(openaiInput, defaultSecrets.openai, 'openai');
   if (!apiKey) {
@@ -904,17 +991,37 @@ async function requestGeneration(prompt, mode) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
-        apiKey
+        apiKey,
+        stream: true
       })
     });
 
-    const result = await response.json();
     if (!response.ok) {
-      const message = result?.error || 'Unexpected OpenAI error.';
+      const errorText = await response.text();
+      let message = 'Unexpected OpenAI error.';
+      try {
+        const parsedError = JSON.parse(errorText);
+        message = parsedError?.error || message;
+      } catch (error) {
+        if (errorText) {
+          message = errorText;
+        }
+      }
       setGenerateStatus(message, 'error');
       logMessage(message);
       return;
     }
+
+    const result = await readGenerationStream(response, {
+      onStatus(payload) {
+        if (!payload?.message) {
+          return;
+        }
+
+        setGenerateStatus(payload.message, payload.tone || 'info');
+        logMessage(payload.message);
+      }
+    });
 
     currentHtml = result.html || '';
     currentTitle = result.title || currentTitle || (siteTitleInput?.value || '').trim() || 'Drafted site';

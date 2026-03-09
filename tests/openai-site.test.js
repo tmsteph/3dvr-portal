@@ -46,6 +46,73 @@ function createOpenAiResponse(payload, status = 200) {
   };
 }
 
+function createSseResponse(chunks, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    body: new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        chunks.forEach(chunk => controller.enqueue(encoder.encode(chunk)));
+        controller.close();
+      }
+    }),
+    async json() {
+      throw new Error('json() should not be called for SSE responses');
+    },
+    async text() {
+      return chunks.join('');
+    }
+  };
+}
+
+function createStreamingRes() {
+  return {
+    statusCode: 200,
+    headers: {},
+    body: '',
+    ended: false,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      this.body = JSON.stringify(payload);
+      return this;
+    },
+    end(payload) {
+      this.ended = true;
+      if (payload) {
+        this.body += payload;
+      }
+      return this;
+    },
+    write(chunk) {
+      this.body += chunk;
+      return true;
+    },
+    setHeader(key, value) {
+      this.headers[key] = value;
+    }
+  };
+}
+
+function parseSsePayload(text) {
+  return String(text)
+    .trim()
+    .split('\n\n')
+    .filter(Boolean)
+    .map(block => {
+      const lines = block.split('\n');
+      const eventLine = lines.find(line => line.startsWith('event:'));
+      const dataLine = lines.find(line => line.startsWith('data:'));
+      return {
+        event: eventLine ? eventLine.slice('event:'.length).trim() : 'message',
+        data: dataLine ? JSON.parse(dataLine.slice('data:'.length).trim()) : null
+      };
+    });
+}
+
 test('buildPrompt injects the current date and year guidance', () => {
   const prompt = buildPrompt(new Date('2026-03-09T12:00:00.000Z'));
 
@@ -182,4 +249,79 @@ test('site generator handler reports when the model does not use live search', a
   assert.deepEqual(requestBody.tools, [{ type: 'web_search' }]);
   assert.equal(res.body.usedWebSearch, false);
   assert.deepEqual(res.body.sources, []);
+});
+
+test('site generator handler streams search status before the final result', async () => {
+  let requestBody = null;
+  const handler = createSiteGeneratorHandler({
+    apiKey: 'sk-test',
+    now: () => new Date('2026-03-09T12:00:00.000Z'),
+    fetchImpl: async (_url, options = {}) => {
+      requestBody = JSON.parse(options.body || '{}');
+      return createSseResponse([
+        'event: response.created\n',
+        'data: {"type":"response.created"}\n\n',
+        'event: response.web_search_call.searching\n',
+        'data: {"type":"response.web_search_call.searching"}\n\n',
+        `event: response.completed\n`,
+        `data: ${JSON.stringify({
+          type: 'response.completed',
+          response: {
+            output: [
+              {
+                type: 'web_search_call',
+                action: {
+                  sources: [
+                    {
+                      title: 'OpenAI',
+                      url: 'https://openai.com/'
+                    }
+                  ]
+                }
+              },
+              {
+                type: 'message',
+                content: [
+                  {
+                    type: 'output_text',
+                    text: JSON.stringify({
+                      title: 'Portal Draft',
+                      summary: 'Drafted a page after checking the web.',
+                      html: '<!DOCTYPE html><html><body>ok</body></html>'
+                    })
+                  }
+                ]
+              }
+            ]
+          }
+        })}\n\n`
+      ]);
+    }
+  });
+
+  const res = createStreamingRes();
+  await handler(
+    {
+      method: 'POST',
+      headers: {},
+      body: {
+        prompt: 'Build a current-events page.',
+        stream: true
+      }
+    },
+    res
+  );
+
+  const events = parseSsePayload(res.body);
+  assert.equal(requestBody.stream, true);
+  assert.equal(events[0].event, 'status');
+  assert.equal(events[0].data.message, 'Searching the web...');
+  assert.equal(events[1].event, 'result');
+  assert.equal(events[1].data.usedWebSearch, true);
+  assert.deepEqual(events[1].data.sources, [
+    {
+      title: 'OpenAI',
+      url: 'https://openai.com/'
+    }
+  ]);
 });

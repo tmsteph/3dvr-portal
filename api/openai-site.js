@@ -34,6 +34,12 @@ function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+function setSseHeaders(res) {
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+}
+
 export function buildPrompt(now = new Date()) {
   const currentDate = resolveDate(now);
   const currentDateLabel = formatIsoDate(currentDate);
@@ -122,7 +128,111 @@ function parseResponsePayload(responseData) {
   }
 }
 
-export function buildOpenAiRequest({ model, prompt, now = new Date() }) {
+function createSseParser(onEvent) {
+  let buffer = '';
+
+  function flushBlock(block) {
+    const normalized = String(block || '').replace(/\r/g, '');
+    if (!normalized.trim()) {
+      return;
+    }
+
+    let eventName = 'message';
+    const dataLines = [];
+
+    normalized.split('\n').forEach(line => {
+      if (!line || line.startsWith(':')) {
+        return;
+      }
+
+      if (line.startsWith('event:')) {
+        eventName = line.slice('event:'.length).trim();
+        return;
+      }
+
+      if (line.startsWith('data:')) {
+        dataLines.push(line.slice('data:'.length).trimStart());
+      }
+    });
+
+    const rawData = dataLines.join('\n');
+    if (!rawData || rawData === '[DONE]') {
+      return;
+    }
+
+    let data = rawData;
+    try {
+      data = JSON.parse(rawData);
+    } catch (error) {
+      // Leave non-JSON payloads as raw text.
+    }
+
+    onEvent({ event: eventName, data });
+  }
+
+  return {
+    push(chunk) {
+      buffer += String(chunk || '').replace(/\r\n/g, '\n').replace(/\r/g, '');
+
+      let separatorIndex = buffer.indexOf('\n\n');
+      while (separatorIndex >= 0) {
+        const block = buffer.slice(0, separatorIndex);
+        buffer = buffer.slice(separatorIndex + 2);
+        flushBlock(block);
+        separatorIndex = buffer.indexOf('\n\n');
+      }
+    },
+    flush() {
+      flushBlock(buffer);
+      buffer = '';
+    }
+  };
+}
+
+async function consumeSseStream(stream, onEvent) {
+  if (!stream?.getReader) {
+    throw new Error('Streaming response body is not available.');
+  }
+
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  const parser = createSseParser(onEvent);
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    parser.push(decoder.decode(value, { stream: true }));
+  }
+
+  parser.push(decoder.decode());
+  parser.flush();
+}
+
+function writeSseEvent(res, eventName, payload) {
+  res.write(`event: ${eventName}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function buildSiteResult(data, { model, currentDate }) {
+  const parsed = parseResponsePayload(data);
+  const sources = extractWebSources(data);
+  const usedWebSearch = getWebSearchCalls(data).length > 0;
+
+  return {
+    ...parsed,
+    model,
+    createdAt: currentDate.getTime(),
+    currentYear: currentDate.getUTCFullYear(),
+    liveWebSearch: SITE_BUILDER_CAPABILITIES.liveWebSearch,
+    usedWebSearch,
+    sources
+  };
+}
+
+export function buildOpenAiRequest({ model, prompt, now = new Date(), stream = false }) {
   const requestBody = {
     model,
     instructions: buildPrompt(now),
@@ -139,6 +249,11 @@ export function buildOpenAiRequest({ model, prompt, now = new Date() }) {
       }
     }
   };
+
+  if (stream) {
+    requestBody.stream = true;
+    requestBody.stream_options = { include_obfuscation: false };
+  }
 
   return requestBody;
 }
@@ -162,7 +277,7 @@ export function createSiteGeneratorHandler(options = {}) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { prompt, apiKey: requestApiKey } = req.body || {};
+    const { prompt, apiKey: requestApiKey, stream } = req.body || {};
     const effectiveApiKey = typeof requestApiKey === 'string' && requestApiKey.trim()
       ? requestApiKey.trim()
       : apiKey;
@@ -180,7 +295,8 @@ export function createSiteGeneratorHandler(options = {}) {
       const requestBody = buildOpenAiRequest({
         model,
         prompt,
-        now: currentDate
+        now: currentDate,
+        stream: stream === true
       });
 
       const response = await fetchImpl('https://api.openai.com/v1/responses', {
@@ -197,20 +313,59 @@ export function createSiteGeneratorHandler(options = {}) {
         return res.status(response.status).json({ error: errorText || 'OpenAI error' });
       }
 
-      const data = await response.json();
-      const parsed = parseResponsePayload(data);
-      const sources = extractWebSources(data);
-      const usedWebSearch = getWebSearchCalls(data).length > 0;
+      if (stream === true) {
+        setSseHeaders(res);
+        res.flushHeaders?.();
 
-      return res.status(200).json({
-        ...parsed,
-        model,
-        createdAt: currentDate.getTime(),
-        currentYear: currentDate.getUTCFullYear(),
-        liveWebSearch: SITE_BUILDER_CAPABILITIES.liveWebSearch,
-        usedWebSearch,
-        sources
-      });
+        let didReportWebSearch = false;
+        let finalResult = null;
+
+        try {
+          await consumeSseStream(response.body, event => {
+            if (event.event === 'response.web_search_call.searching' && !didReportWebSearch) {
+              didReportWebSearch = true;
+              writeSseEvent(res, 'status', {
+                message: 'Searching the web...',
+                tone: 'info'
+              });
+              return;
+            }
+
+            if (event.event === 'response.completed') {
+              finalResult = buildSiteResult(event.data?.response || {}, { model, currentDate });
+              writeSseEvent(res, 'result', finalResult);
+              return;
+            }
+
+            if (event.event === 'response.failed') {
+              writeSseEvent(res, 'error', {
+                message: event.data?.response?.error?.message || 'The OpenAI response failed.'
+              });
+            }
+
+            if (event.event === 'error') {
+              writeSseEvent(res, 'error', {
+                message: event.data?.error?.message || event.data?.message || 'Unexpected streaming error.'
+              });
+            }
+          });
+        } catch (streamError) {
+          writeSseEvent(res, 'error', {
+            message: streamError.message || 'Unexpected streaming error.'
+          });
+        }
+
+        if (!finalResult) {
+          writeSseEvent(res, 'error', {
+            message: 'No completed response was returned from OpenAI.'
+          });
+        }
+
+        return res.end();
+      }
+
+      const data = await response.json();
+      return res.status(200).json(buildSiteResult(data, { model, currentDate }));
     } catch (err) {
       return res.status(500).json({ error: err.message || 'Unexpected error during site generation.' });
     }
