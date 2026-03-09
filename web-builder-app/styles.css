@@ -187,28 +187,6 @@ body {
   margin-top: 12px;
 }
 
-.toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(49, 74, 110, 0.92);
-  background: rgba(10, 18, 32, 0.72);
-}
-
-.toggle-row input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: #5ce1e6;
-}
-
-.toggle-row span {
-  display: block;
-}
-
 #builder-request {
   min-height: 116px;
 }

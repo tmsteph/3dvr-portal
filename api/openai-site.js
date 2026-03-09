@@ -51,6 +51,7 @@ export function buildPrompt(now = new Date()) {
     `If you include copyright, trademark, or footer-year copy, use ${currentYear} or a range ending in ${currentYear} unless the user explicitly asks for a different year.`,
     'Never default to stale years like 2023 for date-sensitive footer or legal copy.',
     'Always write a specific summary that explains the page structure, tone, and any notable footer or legal-copy decisions.',
+    'Use live web search only when the request needs current facts, recent references, or externally verifiable details.',
     'Do not claim live web research or real-time internet access unless tool results are explicitly provided.'
   ].join(' ');
 }
@@ -73,12 +74,16 @@ function extractResponseText(responseData) {
   return '';
 }
 
-function extractWebSources(responseData) {
+function getWebSearchCalls(responseData) {
   const outputItems = Array.isArray(responseData?.output) ? responseData.output : [];
+  return outputItems.filter(item => item?.type === 'web_search_call');
+}
+
+function extractWebSources(responseData) {
+  const outputItems = getWebSearchCalls(responseData);
   const sources = new Map();
 
   for (const item of outputItems) {
-    if (item?.type !== 'web_search_call') continue;
     const sourceList = Array.isArray(item?.action?.sources) ? item.action.sources : [];
     for (const source of sourceList) {
       const url = String(source?.url || '').trim();
@@ -117,13 +122,16 @@ function parseResponsePayload(responseData) {
   }
 }
 
-export function buildOpenAiRequest({ model, prompt, now = new Date(), useWebSearch = false }) {
+export function buildOpenAiRequest({ model, prompt, now = new Date() }) {
   const requestBody = {
     model,
     instructions: buildPrompt(now),
     input: prompt,
     store: false,
     temperature: 0.35,
+    tool_choice: 'auto',
+    tools: [{ type: 'web_search' }],
+    include: ['web_search_call.action.sources'],
     text: {
       format: {
         type: 'json_schema',
@@ -131,11 +139,6 @@ export function buildOpenAiRequest({ model, prompt, now = new Date(), useWebSear
       }
     }
   };
-
-  if (useWebSearch) {
-    requestBody.tools = [{ type: 'web_search' }];
-    requestBody.include = ['web_search_call.action.sources'];
-  }
 
   return requestBody;
 }
@@ -159,7 +162,7 @@ export function createSiteGeneratorHandler(options = {}) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { prompt, apiKey: requestApiKey, useWebSearch } = req.body || {};
+    const { prompt, apiKey: requestApiKey } = req.body || {};
     const effectiveApiKey = typeof requestApiKey === 'string' && requestApiKey.trim()
       ? requestApiKey.trim()
       : apiKey;
@@ -174,12 +177,10 @@ export function createSiteGeneratorHandler(options = {}) {
 
     try {
       const currentDate = resolveDate(now());
-      const shouldUseWebSearch = SITE_BUILDER_CAPABILITIES.liveWebSearch && useWebSearch === true;
       const requestBody = buildOpenAiRequest({
         model,
         prompt,
-        now: currentDate,
-        useWebSearch: shouldUseWebSearch
+        now: currentDate
       });
 
       const response = await fetchImpl('https://api.openai.com/v1/responses', {
@@ -198,7 +199,8 @@ export function createSiteGeneratorHandler(options = {}) {
 
       const data = await response.json();
       const parsed = parseResponsePayload(data);
-      const sources = shouldUseWebSearch ? extractWebSources(data) : [];
+      const sources = extractWebSources(data);
+      const usedWebSearch = getWebSearchCalls(data).length > 0;
 
       return res.status(200).json({
         ...parsed,
@@ -206,7 +208,7 @@ export function createSiteGeneratorHandler(options = {}) {
         createdAt: currentDate.getTime(),
         currentYear: currentDate.getUTCFullYear(),
         liveWebSearch: SITE_BUILDER_CAPABILITIES.liveWebSearch,
-        usedWebSearch: shouldUseWebSearch,
+        usedWebSearch,
         sources
       });
     } catch (err) {

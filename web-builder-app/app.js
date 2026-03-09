@@ -49,6 +49,7 @@ let currentDefaultConfig = {};
 let currentHtml = '';
 let currentTitle = '';
 let currentSources = [];
+let currentSearchUsage = null;
 
 const identityStorageKey = 'web-builder-identity';
 const openaiStorageKey = 'web-builder-openai';
@@ -83,7 +84,6 @@ const siteGoalInput = document.getElementById('site-goal');
 const siteAudienceInput = document.getElementById('site-audience');
 const siteStyleSelect = document.getElementById('site-style');
 const siteExtrasInput = document.getElementById('site-extras');
-const useLiveSearchInput = document.getElementById('use-live-search');
 const searchModeNote = document.getElementById('search-mode-note');
 const vercelProjectInput = document.getElementById('vercel-project');
 const githubRepoInput = document.getElementById('github-repo');
@@ -249,7 +249,7 @@ function renderBuilderContextNote() {
   const currentYear = new Date().getFullYear();
   builderContextNote.textContent =
     `Builder context: footer and legal copy default to ${currentYear}. `
-    + 'Live web search is available when you enable it below.';
+    + 'The model can use live web search when a request needs current facts.';
 }
 
 function renderSearchModeNote() {
@@ -257,14 +257,21 @@ function renderSearchModeNote() {
     return;
   }
 
-  if (useLiveSearchInput?.checked) {
+  if (currentSearchUsage === true) {
     searchModeNote.textContent =
-      'Live web search is on for the next request. The builder will list consulted sources below the preview.';
+      `The latest draft used live web search and returned ${currentSources.length} source`
+      + `${currentSources.length === 1 ? '' : 's'}.`;
+    return;
+  }
+
+  if (currentSearchUsage === false) {
+    searchModeNote.textContent =
+      'The latest draft did not need live web search. The builder still used the current year for footer and legal copy.';
     return;
   }
 
   searchModeNote.textContent =
-    'Live web search is off by default. The builder still uses the current year for footer and legal copy.';
+    'The model will use live web search only when a request needs current facts. If it does, sources appear below.';
 }
 
 function renderSources(sources) {
@@ -272,16 +279,24 @@ function renderSources(sources) {
     return;
   }
 
-  if (!Array.isArray(sources) || !sources.length) {
-    currentSources = [];
-    builderSources.innerHTML = useLiveSearchInput?.checked
-      ? 'No live-search sources were returned for the latest draft.'
-      : 'Live web search is off. Enable it above to attach current sources to the next draft.';
+  currentSources = Array.isArray(sources) ? sources : [];
+
+  if (!currentSources.length) {
+    if (currentSearchUsage === true) {
+      builderSources.innerHTML = 'Live web search ran for the latest draft, but no source list was returned.';
+      return;
+    }
+
+    if (currentSearchUsage === false) {
+      builderSources.innerHTML = 'The model did not use live web search for the latest draft.';
+      return;
+    }
+
+    builderSources.innerHTML = 'The model will use live web search only when it needs current sources.';
     return;
   }
 
-  currentSources = sources;
-  builderSources.innerHTML = sources.map(source => {
+  builderSources.innerHTML = currentSources.map(source => {
     const title = escapeHtml(source?.title || source?.url || 'Source');
     const url = escapeAttribute(sanitizeSourceUrl(source?.url));
     return `<a class="source-link" href="${url}" target="_blank" rel="noopener">${title}</a>`;
@@ -889,8 +904,7 @@ async function requestGeneration(prompt, mode) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
-        apiKey,
-        useWebSearch: useLiveSearchInput?.checked === true
+        apiKey
       })
     });
 
@@ -904,7 +918,9 @@ async function requestGeneration(prompt, mode) {
 
     currentHtml = result.html || '';
     currentTitle = result.title || currentTitle || (siteTitleInput?.value || '').trim() || 'Drafted site';
+    currentSearchUsage = result.usedWebSearch === true;
     renderSources(result.sources || []);
+    renderSearchModeNote();
 
     renderPreview(currentHtml);
     setGenerateStatus(
@@ -1089,11 +1105,6 @@ function wireEvents() {
     input.addEventListener('input', () => {
       refreshSharedKeyUsage(keyTargetForInput(input), input.value);
     });
-  });
-
-  useLiveSearchInput?.addEventListener('change', () => {
-    renderSearchModeNote();
-    renderSources(currentSources);
   });
 
   builderRequestInput?.addEventListener('keydown', event => {

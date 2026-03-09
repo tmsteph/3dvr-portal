@@ -97,10 +97,6 @@
       <label for="iteration-request">Revision (optional)</label>
       <input id="iteration-request" type="text"
         placeholder="Example: Make the hero bolder, add testimonials, and simplify the pricing section.">
-      <label class="toggle-row" for="use-live-search">
-        <input id="use-live-search" type="checkbox">
-        <span>Enable live web search for current facts and source-backed details</span>
-      </label>
       <p class="meta" id="search-mode-note" aria-live="polite"></p>
 
       <div class="button-row">
@@ -156,11 +152,11 @@
             <div>
               <p class="eyebrow">Sources</p>
               <h2>Live search</h2>
-              <p class="meta">Shown when live web search is enabled for a draft or revision.</p>
+              <p class="meta">Shown when the model uses live web search for a draft or revision.</p>
             </div>
           </div>
           <div id="builder-sources" class="source-list" aria-live="polite">
-            Live web search is off. Enable it above to attach current sources to the next draft.
+            The model will use live web search only when it needs current sources.
           </div>
         </section>
 

@@ -53,19 +53,20 @@ test('buildPrompt injects the current date and year guidance', () => {
   assert.match(prompt, /current year is 2026/i);
   assert.match(prompt, /Never default to stale years like 2023/i);
   assert.match(prompt, /Do not link buttons or nav items to the local portal/i);
+  assert.match(prompt, /Use live web search only when the request needs current facts/i);
 });
 
-test('buildOpenAiRequest enables live search only when requested', () => {
+test('buildOpenAiRequest lets the model decide whether to use live search', () => {
   const request = buildOpenAiRequest({
     model: DEFAULT_MODEL,
     prompt: 'Build a VR portal landing page.',
-    now: new Date('2026-03-09T12:00:00.000Z'),
-    useWebSearch: true
+    now: new Date('2026-03-09T12:00:00.000Z')
   });
 
   assert.equal(request.model, DEFAULT_MODEL);
   assert.equal(request.text.format.type, 'json_schema');
   assert.match(request.instructions, /Today is 2026-03-09\./);
+  assert.equal(request.tool_choice, 'auto');
   assert.deepEqual(request.tools, [{ type: 'web_search' }]);
   assert.deepEqual(request.include, ['web_search_call.action.sources']);
 });
@@ -114,8 +115,7 @@ test('site generator handler uses the current default model and returns sources 
     method: 'POST',
     headers: {},
     body: {
-      prompt: 'Build a VR portal landing page.',
-      useWebSearch: true
+      prompt: 'Build a VR portal landing page.'
     }
   };
   const res = createMockRes();
@@ -139,7 +139,7 @@ test('site generator handler uses the current default model and returns sources 
   ]);
 });
 
-test('site generator handler omits live search tools by default', async () => {
+test('site generator handler reports when the model does not use live search', async () => {
   let requestBody = null;
   const handler = createSiteGeneratorHandler({
     apiKey: 'sk-test',
@@ -178,7 +178,8 @@ test('site generator handler omits live search tools by default', async () => {
     res
   );
 
-  assert.equal('tools' in requestBody, false);
+  assert.equal(requestBody.tool_choice, 'auto');
+  assert.deepEqual(requestBody.tools, [{ type: 'web_search' }]);
   assert.equal(res.body.usedWebSearch, false);
   assert.deepEqual(res.body.sources, []);
 });
