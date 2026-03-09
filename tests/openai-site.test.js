@@ -167,7 +167,7 @@ test('buildOpenAiRequest lets the model decide whether to use live search', () =
   assert.deepEqual(request.include, ['web_search_call.action.sources']);
 });
 
-test('buildOpenAiRequest keeps temperature for supported builder models', () => {
+test('buildOpenAiRequest keeps temperature for supported non-gpt-5 builder models', () => {
   const request = buildOpenAiRequest({
     model: 'gpt-4o-mini',
     prompt: 'Build a VR portal landing page.',
@@ -177,10 +177,28 @@ test('buildOpenAiRequest keeps temperature for supported builder models', () => 
   assert.equal(request.temperature, 0.35);
 });
 
+test('buildOpenAiRequest omits temperature for gpt-5 family builder models', () => {
+  const miniRequest = buildOpenAiRequest({
+    model: 'gpt-5-mini',
+    prompt: 'Build a VR portal landing page.',
+    now: new Date('2026-03-09T12:00:00.000Z')
+  });
+  const latestRequest = buildOpenAiRequest({
+    model: 'gpt-5.4',
+    prompt: 'Build a VR portal landing page.',
+    now: new Date('2026-03-09T12:00:00.000Z')
+  });
+
+  assert.equal('temperature' in miniRequest, false);
+  assert.equal('temperature' in latestRequest, false);
+});
+
 test('supported site models include the picker options', () => {
   assert.deepEqual(SUPPORTED_SITE_MODELS, [
     'gpt-4o-mini',
-    'gpt-4.1-mini'
+    'gpt-4.1-mini',
+    'gpt-5-mini',
+    'gpt-5.4'
   ]);
 });
 
@@ -298,14 +316,15 @@ test('site generator handler accepts a supported model override', async () => {
       headers: {},
       body: {
         prompt: 'Build a startup landing page.',
-        model: 'gpt-4o-mini'
+        model: 'gpt-5.4'
       }
     },
     res
   );
 
-  assert.equal(requestBody.model, 'gpt-4o-mini');
-  assert.equal(res.body.model, 'gpt-4o-mini');
+  assert.equal(requestBody.model, 'gpt-5.4');
+  assert.equal('temperature' in requestBody, false);
+  assert.equal(res.body.model, 'gpt-5.4');
 });
 
 test('site generator handler rejects unsupported model overrides', async () => {
@@ -320,7 +339,7 @@ test('site generator handler rejects unsupported model overrides', async () => {
       headers: {},
       body: {
         prompt: 'Build a startup landing page.',
-        model: 'gpt-5-mini'
+        model: 'gpt-5.4-mini'
       }
     },
     res
