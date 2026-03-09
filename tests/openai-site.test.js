@@ -162,8 +162,19 @@ test('buildOpenAiRequest lets the model decide whether to use live search', () =
   assert.equal(request.text.format.type, 'json_schema');
   assert.match(request.instructions, /Today is 2026-03-09\./);
   assert.equal(request.tool_choice, 'auto');
+  assert.equal('temperature' in request, false);
   assert.deepEqual(request.tools, [{ type: 'web_search' }]);
   assert.deepEqual(request.include, ['web_search_call.action.sources']);
+});
+
+test('buildOpenAiRequest keeps temperature for supported non-gpt-5 mini models', () => {
+  const request = buildOpenAiRequest({
+    model: 'gpt-4o-mini',
+    prompt: 'Build a VR portal landing page.',
+    now: new Date('2026-03-09T12:00:00.000Z')
+  });
+
+  assert.equal(request.temperature, 0.35);
 });
 
 test('supported site models include the picker options', () => {

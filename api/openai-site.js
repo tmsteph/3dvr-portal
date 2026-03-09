@@ -43,6 +43,10 @@ function formatIsoDate(value) {
   return resolveDate(value).toISOString().slice(0, 10);
 }
 
+function isGpt5FamilyModel(model) {
+  return /^gpt-5($|-)/.test(String(model || '').trim());
+}
+
 function normalizeRequestedModel(value) {
   const normalized = String(value || '').trim();
   if (!normalized) {
@@ -301,7 +305,6 @@ export function buildOpenAiRequest({ model, prompt, now = new Date(), stream = f
     instructions: buildPrompt(now),
     input: prompt,
     store: false,
-    temperature: 0.35,
     tool_choice: forceWebSearch ? 'required' : 'auto',
     tools: [{ type: 'web_search' }],
     include: ['web_search_call.action.sources'],
@@ -312,6 +315,10 @@ export function buildOpenAiRequest({ model, prompt, now = new Date(), stream = f
       }
     }
   };
+
+  if (!isGpt5FamilyModel(model)) {
+    requestBody.temperature = 0.35;
+  }
 
   if (stream) {
     requestBody.stream = true;
