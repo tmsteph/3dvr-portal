@@ -272,16 +272,6 @@
   color: var(--roadmap-ink-soft);
 }
 
-.warning-note {
-  margin-top: auto;
-  padding: 1rem 1.05rem;
-  border-radius: 20px;
-  background: var(--roadmap-warm-soft);
-  border: 1px solid rgba(246, 196, 107, 0.14);
-  color: #e7edf5;
-  line-height: 1.65;
-}
-
 .content-section {
   display: grid;
   gap: 1.1rem;
