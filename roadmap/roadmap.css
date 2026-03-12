@@ -190,9 +190,9 @@
 
 .metric-value {
   margin: 0;
-  font-size: 1.55rem;
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.15;
   color: #ffffff;
 }
 
