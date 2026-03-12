@@ -182,6 +182,22 @@ Environment controls:
 - `MONEY_AUTOPILOT_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
 - `MONEY_AUTOPILOT_CRON_DRY_RUN` (`true`/`false`)
 
+Portal billing center:
+
+- `STRIPE_PRICE_STARTER_ID` (or `STRIPE_PRICE_SUPPORTER_ID`) for the $5 monthly tier
+- `STRIPE_PRICE_PRO_ID` (or `STRIPE_PRICE_FOUNDER_ID`) for the $20 monthly tier
+- `STRIPE_PRICE_BUILDER_ID` (or `STRIPE_PRICE_STUDIO_ID`) for the $50 monthly tier
+- `PORTAL_ORIGIN` (recommended, for example `https://portal.3dvr.tech`)
+- `STRIPE_CUSTOMER_PORTAL_LOGIN_URL` (optional fallback if you enable Stripe's hosted customer portal login page)
+
+Routes:
+
+- `GET /api/stripe/checkout` returns billing diagnostics
+- `POST /api/stripe/checkout` creates a new checkout session, opens billing management, or routes an existing
+  subscriber into a Stripe plan-switch confirmation flow
+- `GET|POST /api/stripe/status` returns the current Stripe-backed plan plus duplicate-subscription warnings
+- `/billing/` is the account-linked billing center UI used by the public `3dvr.tech` site
+
 Security for UI-triggered autopilot:
 
 - `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.
@@ -193,9 +209,9 @@ Security for UI-triggered autopilot:
 - `MONEY_AUTOPILOT_ALLOW_FREE_PLAN=true` allows token issuance without an active Stripe subscription.
 - `MONEY_AUTOPILOT_ALLOWED_SUB_STATUSES` overrides accepted Stripe statuses (default: `active,trialing`).
 - `MONEY_AUTOPILOT_PRICE_PLAN_MAP` maps Stripe price IDs to plans, example:
-  `{"price_starter":"starter","price_pro":"pro"}`.
+  `{"price_starter":"starter","price_pro":"pro","price_builder":"builder"}`.
 - `MONEY_AUTOPILOT_RATE_LIMITS` sets per-plan quotas, example:
-  `{"free":{"minute":1,"day":1},"starter":{"minute":2,"day":10},"pro":{"minute":6,"day":80}}`.
+  `{"free":{"minute":1,"day":1},"starter":{"minute":2,"day":10},"pro":{"minute":6,"day":80},"builder":{"minute":12,"day":180}}`.
 
 Issue or refresh a user token from the page:
 

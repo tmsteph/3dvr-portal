@@ -18,14 +18,16 @@ const SHARED_USAGE_LIMITS = {
   guest: 2,
   account: 5,
   supporter: 20,
-  pro: 100
+  pro: 100,
+  builder: 250
 };
 
 const TIER_LABELS = {
   guest: 'guest',
   account: 'account',
   supporter: '$5 supporter',
-  pro: '$20 pro'
+  pro: '$20 pro',
+  builder: '$50 builder'
 };
 
 const defaultSecrets = {
@@ -53,6 +55,8 @@ let currentSearchUsage = null;
 let generateStatusAnimationTimer = null;
 
 const identityStorageKey = 'web-builder-identity';
+const sharedBillingTierStorageKey = 'portal-usage-tier';
+const userPubStorageKey = 'userPubKey';
 const openaiStorageKey = 'web-builder-openai';
 const vercelStorageKey = 'web-builder-vercel';
 const githubStorageKey = 'web-builder-github';
@@ -116,6 +120,16 @@ bindPreviewGuards();
 logMessage('Ready. Describe the site, audience, and tone, then draft the first version.');
 
 function resolveIdentity() {
+  const storedPub = safeRead(localStorage, userPubStorageKey) || safeRead(sessionStorage, userPubStorageKey);
+  if (storedPub) {
+    return storedPub;
+  }
+
+  const storedAlias = safeRead(localStorage, 'alias') || safeRead(sessionStorage, 'alias');
+  if (storedAlias) {
+    return storedAlias;
+  }
+
   const stored = safeRead(localStorage, identityStorageKey) || safeRead(sessionStorage, identityStorageKey);
   if (stored) {
     return stored;
@@ -467,10 +481,15 @@ function normalizeTier(rawTier) {
   const normalized = String(rawTier).toLowerCase();
   if (normalized === 'guest') return 'guest';
   if (['free', 'account'].includes(normalized)) return 'account';
-  if (['supporter', 'paid', '5'].includes(normalized)) return 'supporter';
+  if (['supporter', 'starter', 'paid', '5'].includes(normalized)) return 'supporter';
   if (['pro', '20'].includes(normalized)) return 'pro';
+  if (['builder', '50'].includes(normalized)) return 'builder';
   return 'guest';
 }
+
+currentUsageTier = normalizeTier(
+  safeRead(localStorage, sharedBillingTierStorageKey) || safeRead(localStorage, 'openai-workbench-tier')
+) || currentUsageTier;
 
 function resolveUsageTier() {
   return currentUsageTier || 'guest';
@@ -482,6 +501,7 @@ function subscribeToBillingTier() {
   tierSubscription.on(data => {
     const nextTier = normalizeTier(data?.tier || data?.plan || data);
     currentUsageTier = nextTier;
+    safeWrite(localStorage, sharedBillingTierStorageKey, nextTier);
     renderIdentity();
     updateSharedUsageStatus();
   });
