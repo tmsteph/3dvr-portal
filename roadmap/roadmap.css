@@ -131,7 +131,7 @@
 
 .hero-copy h1 {
   margin: 0.9rem 0 0;
-  max-width: 14ch;
+  max-width: 18ch;
   font-size: clamp(2.35rem, 5.2vw, 3.9rem);
   line-height: 1.02;
   letter-spacing: -0.03em;
@@ -482,6 +482,10 @@
 }
 
 @media (min-width: 920px) {
+  .metric-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .phase-item {
     grid-template-columns: 170px minmax(0, 1fr);
     align-items: start;
