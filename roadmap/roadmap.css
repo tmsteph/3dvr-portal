@@ -241,13 +241,6 @@
   font-size: clamp(1.55rem, 3vw, 2.2rem);
 }
 
-.panel-lead {
-  margin: 0;
-  font-size: 0.98rem;
-  color: var(--roadmap-ink-soft);
-  font-weight: 500;
-}
-
 .fact-list {
   display: grid;
   gap: 0.95rem;
