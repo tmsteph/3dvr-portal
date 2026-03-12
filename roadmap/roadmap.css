@@ -153,6 +153,28 @@
   line-height: 1.72;
 }
 
+.hero-links {
+  margin-top: 1rem;
+}
+
+.hero-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.15rem;
+  border-radius: 999px;
+  background: rgba(99, 198, 216, 0.12);
+  border: 1px solid rgba(99, 198, 216, 0.24);
+  color: #eaf7fb;
+  font-weight: 600;
+}
+
+.hero-links a:hover {
+  color: #ffffff;
+  border-color: rgba(125, 211, 252, 0.34);
+  background: rgba(99, 198, 216, 0.18);
+}
+
 .metric-row {
   display: grid;
   gap: 0.9rem;
