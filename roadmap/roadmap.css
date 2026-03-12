@@ -146,39 +146,11 @@
   color: rgba(223, 232, 243, 0.88);
 }
 
-.memo-summary {
-  max-width: 54rem;
-  margin-top: 1.4rem;
-  padding: 1rem 1.1rem;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-}
-
-.memo-points {
-  list-style: none;
-  padding: 0;
-  margin: 0.7rem 0 0;
-  display: grid;
-  gap: 0.7rem;
-}
-
-.memo-points li {
-  position: relative;
-  padding-left: 1rem;
-  color: rgba(235, 242, 249, 0.92);
-  line-height: 1.6;
-}
-
-.memo-points li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.62rem;
-  width: 0.42rem;
-  height: 0.42rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--roadmap-accent), #7dd3fc);
+.hero-detail {
+  max-width: 60ch;
+  margin: 0.95rem 0 0;
+  color: rgba(226, 235, 245, 0.84);
+  line-height: 1.72;
 }
 
 .metric-row {
@@ -510,10 +482,6 @@
 }
 
 @media (min-width: 920px) {
-  .hero {
-    grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.88fr);
-  }
-
   .phase-item {
     grid-template-columns: 170px minmax(0, 1fr);
     align-items: start;
