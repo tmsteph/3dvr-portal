@@ -83,7 +83,6 @@
   box-shadow: 0 28px 56px rgba(2, 6, 23, 0.34);
 }
 
-.hero-panel,
 .paper-card,
 .phase-item,
 .revenue-card,
@@ -93,7 +92,6 @@
   box-shadow: 0 24px 48px rgba(2, 6, 23, 0.18);
 }
 
-.hero-panel,
 .paper-card,
 .phase-item,
 .revenue-card {
@@ -101,14 +99,12 @@
   color: var(--roadmap-ink);
 }
 
-.hero-panel,
 .paper-card,
 .revenue-card {
   padding: 1.5rem;
 }
 
 .eyebrow,
-.panel-label,
 .mini-label,
 .card-kicker,
 .phase-time,
@@ -121,7 +117,6 @@
 }
 
 .eyebrow,
-.panel-label,
 .mini-label {
   color: #8fd6e4;
 }
@@ -132,15 +127,6 @@
 
 .eyebrow--dark {
   color: #8bdcf7;
-}
-
-.hero-date {
-  margin: 0.75rem 0 0;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #c9d5e5;
 }
 
 .hero-copy h1 {
@@ -222,47 +208,12 @@
   color: rgba(218, 228, 240, 0.82);
 }
 
-.hero-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.hero-panel h2,
 .paper-card h2,
 .paper-card h3,
 .phase-body h3,
 .mission-copy h2 {
   margin: 0;
   line-height: 1.12;
-}
-
-.hero-panel h2 {
-  font-size: clamp(1.55rem, 3vw, 2.2rem);
-}
-
-.fact-list {
-  display: grid;
-  gap: 0.95rem;
-  margin: 0;
-}
-
-.fact-list div {
-  padding-top: 0.95rem;
-  border-top: 1px solid var(--roadmap-line);
-}
-
-.fact-list dt {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--roadmap-accent);
-}
-
-.fact-list dd {
-  margin: 0.45rem 0 0;
-  color: var(--roadmap-ink-soft);
 }
 
 .content-section {
