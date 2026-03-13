@@ -32,6 +32,15 @@ function normalizeMetadataField(value = '') {
   return String(value || '').trim();
 }
 
+function compareBillingSubscriptionPriority(left, right) {
+  const planDelta = planWeight(right.plan) - planWeight(left.plan);
+  if (planDelta !== 0) {
+    return planDelta;
+  }
+
+  return Number(right?.created || 0) - Number(left?.created || 0);
+}
+
 function customerHasPortalLink(customer) {
   return Boolean(
     normalizeMetadataField(customer?.metadata?.portal_pub)
@@ -376,16 +385,32 @@ export async function resolveLegacyStripeCustomerByEmail({
     });
   }
 
-  if (activeMatches.length !== 1) {
+  if (!activeMatches.length) {
     return {
       customer: null,
-      source: activeMatches.length > 1 ? 'ambiguous-active-email' : 'not-found'
+      source: 'not-found'
+    };
+  }
+
+  if (activeMatches.length > 1) {
+    const active = activeMatches
+      .flatMap(match => match.active || [])
+      .sort(compareBillingSubscriptionPriority);
+
+    return {
+      customer: activeMatches[0].customer,
+      current: active[0] || null,
+      active,
+      duplicates: active.slice(1),
+      source: 'legacy_email_ambiguous',
+      matchCount: activeMatches.length
     };
   }
 
   return {
     ...activeMatches[0],
-    source: 'legacy_email'
+    source: 'legacy_email',
+    matchCount: 1
   };
 }
 
@@ -428,13 +453,7 @@ export function pickCurrentBillingSubscription(subscriptions = [], config = proc
       ...item,
       plan: resolveBillingPlanFromSubscription(item, planMap)
     }))
-    .sort((left, right) => {
-      const planDelta = planWeight(right.plan) - planWeight(left.plan);
-      if (planDelta !== 0) {
-        return planDelta;
-      }
-      return Number(right?.created || 0) - Number(left?.created || 0);
-    });
+    .sort(compareBillingSubscriptionPriority);
 
   return {
     current: activeSubscriptions[0] || null,

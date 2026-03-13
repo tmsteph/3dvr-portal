@@ -345,7 +345,7 @@ function updateManageButton() {
     label = 'Sign in first'
   } else if (hasLegacyUnlinkedSubscription()) {
     enabled = false
-    label = 'Legacy subscription'
+    label = state.currentResponse?.hasDuplicateActiveSubscriptions ? 'Legacy duplicates' : 'Legacy subscription'
   } else if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
     enabled = true
     label = 'Review duplicates'
@@ -378,6 +378,15 @@ function renderActionPrompt() {
   }
 
   if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
+    if (hasLegacyUnlinkedSubscription()) {
+      setStatus(
+        actionStatus,
+        'Multiple older Stripe subscriptions were found for this billing email. This billing center can show their status here, but checkout and management stay blocked until those records are linked or cleaned up.',
+        'warning'
+      )
+      return
+    }
+
     setStatus(
       actionStatus,
       'More than one active subscription was found. Open billing to cancel the extra plan and keep one clean account-linked subscription.',
@@ -616,7 +625,9 @@ function renderBillingState(payload = null) {
   if (payload.hasDuplicateActiveSubscriptions) {
     if (duplicateWarning) {
       duplicateWarning.hidden = false
-      duplicateWarning.textContent = `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Open billing and cancel the extra plan.`
+      duplicateWarning.textContent = payload.legacyNeedsLinking
+        ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email. This page can show their status, but it cannot manage those records yet.`
+        : `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Open billing and cancel the extra plan.`
     }
   } else if (duplicateWarning) {
     duplicateWarning.hidden = true
@@ -647,7 +658,7 @@ function renderBillingState(payload = null) {
         .map(item => `${labelForPlan(item.plan)} (${item.status})`)
         .join(' • ')
       billingDetail.textContent = activeLabels
-        ? `Found by billing email from the older system: ${activeLabels}. This subscription is not linked to this portal account yet, so billing actions stay limited here.`
+        ? `Found by billing email from the older system: ${activeLabels}. These subscriptions are not linked to this portal account yet, so billing actions stay limited here.`
         : 'A legacy Stripe subscription was found by billing email, but detailed line items were unavailable.'
     }
 

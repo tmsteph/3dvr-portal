@@ -117,6 +117,10 @@ export function createStripeCheckoutHandler(options = {}) {
         });
 
         if (legacyResolution.customer) {
+          const legacyConflictMessage = legacyResolution.matchCount > 1
+            ? 'We found multiple older Stripe subscriptions for this billing email, and they are not linked to this portal account yet. To avoid creating another duplicate subscription, do not start a new plan here yet.'
+            : 'We found an older Stripe subscription for this billing email, but it is not linked to this portal account yet. To avoid creating a duplicate subscription, do not start a new plan here yet.';
+
           return res.status(409).json({
             ...buildStatusPayload({
               customer: legacyResolution.customer,
@@ -128,7 +132,7 @@ export function createStripeCheckoutHandler(options = {}) {
               statusSource: legacyResolution.source,
               legacyNeedsLinking: true
             }),
-            error: 'We found an older Stripe subscription for this billing email, but it is not linked to this portal account yet. To avoid creating a duplicate subscription, do not start a new plan here yet.'
+            error: legacyConflictMessage
           });
         }
       }
