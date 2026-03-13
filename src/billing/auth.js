@@ -1,4 +1,5 @@
-// Force Vercel's serverless bundler to include Gun's nested text-encoding polyfill.
+// Force Vercel's serverless bundler to include Gun modules SEA loads dynamically.
+import 'gun/gun.js';
 import 'gun/lib/text-encoding/index.js';
 import SEA from 'gun/sea.js';
 
