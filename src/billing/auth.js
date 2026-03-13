@@ -3,9 +3,58 @@ import 'gun/gun.js';
 import 'gun/lib/text-encoding/index.js';
 import { webcrypto } from 'node:crypto';
 
-if (!globalThis.crypto?.subtle) {
-  globalThis.crypto = webcrypto;
+function assignRuntimeProperty(target, key, value) {
+  if (!target || !key || value === undefined) {
+    return;
+  }
+
+  try {
+    target[key] = value;
+    if (target[key] === value) {
+      return;
+    }
+  } catch (error) {
+    // Fall through to a descriptor-based write for read-only globals.
+  }
+
+  try {
+    Object.defineProperty(target, key, {
+      configurable: true,
+      writable: true,
+      value
+    });
+  } catch (error) {
+    // Ignore globals that cannot be redefined in this runtime.
+  }
 }
+
+function ensureSeaWebCryptoRuntime() {
+  const runtimeGlobal = globalThis;
+  assignRuntimeProperty(runtimeGlobal, 'crypto', webcrypto);
+  assignRuntimeProperty(runtimeGlobal, 'self', runtimeGlobal);
+
+  const targets = [
+    runtimeGlobal,
+    runtimeGlobal.self,
+    runtimeGlobal.window
+  ].filter((target, index, array) => target && array.indexOf(target) === index);
+
+  for (const target of targets) {
+    if (!target.crypto?.subtle || typeof target.crypto.subtle.importKey !== 'function') {
+      assignRuntimeProperty(target, 'crypto', runtimeGlobal.crypto || webcrypto);
+    }
+
+    if (!target.TextEncoder && typeof runtimeGlobal.TextEncoder === 'function') {
+      assignRuntimeProperty(target, 'TextEncoder', runtimeGlobal.TextEncoder);
+    }
+
+    if (!target.TextDecoder && typeof runtimeGlobal.TextDecoder === 'function') {
+      assignRuntimeProperty(target, 'TextDecoder', runtimeGlobal.TextDecoder);
+    }
+  }
+}
+
+ensureSeaWebCryptoRuntime();
 
 const { default: SEA } = await import('gun/sea.js');
 
