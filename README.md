@@ -198,6 +198,20 @@ Routes:
 - `GET|POST /api/stripe/status` returns the current Stripe-backed plan plus duplicate-subscription warnings
 - `/billing/` is the account-linked billing center UI used by the public `3dvr.tech` site
 
+Billing deployment topology:
+
+| Branch | Web domain | Portal domain | Stripe mode |
+| --- | --- | --- | --- |
+| `main` | `https://3dvr.tech` | `https://portal.3dvr.tech` | Live Stripe |
+| `staging` | `https://staging.3dvr.tech` | `https://portal-staging.3dvr.tech` | Live Stripe behind Vercel auth |
+| `feature/*` | Vercel preview URL | Vercel preview URL | Stripe test mode |
+
+- Keep `3dvr-web` and `3dvr-portal` on the same branch matrix so the public site and billing center stay in sync.
+- `feature/*` previews are the test environment. Use Stripe test keys plus matching Stripe test `price_...` ids there.
+- Never mix a Stripe test secret key with live `price_...` ids, or a live Stripe key with test `price_...` ids.
+- Existing live-subscriber verification belongs on `staging` or `main`, because Stripe test mode cannot see live customers.
+- When a web preview needs to talk to a portal preview, pass an explicit `portalOrigin` or keep the preview host map updated so plan links do not fall back to production by mistake.
+
 Security for UI-triggered autopilot:
 
 - `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.

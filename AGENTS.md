@@ -3,6 +3,19 @@
 ## Mission
 Keep this portal human-readable and maintainable. Favor clear intent over AI chatter and make every change easy for teammates to follow.
 
+## Deployment Topology
+- Keep `3dvr-portal` and `3dvr-web` on the same branch matrix:
+  - `main` -> `portal.3dvr.tech` and `3dvr.tech`
+  - `staging` -> `portal-staging.3dvr.tech` and `staging.3dvr.tech`
+  - `feature/*` -> Vercel preview URLs
+- Portal billing environments must stay mode-consistent:
+  - `main`: live `STRIPE_SECRET_KEY`, live `STRIPE_PRICE_STARTER_ID`, live `STRIPE_PRICE_PRO_ID`, live `STRIPE_PRICE_BUILDER_ID` when available, `PORTAL_ORIGIN=https://portal.3dvr.tech`
+  - `staging`: live Stripe key and live price IDs, `PORTAL_ORIGIN=https://portal-staging.3dvr.tech`, keep the deployment behind Vercel auth
+  - `feature/*`: Stripe test key plus matching Stripe test price IDs, preview `PORTAL_ORIGIN`
+- Never mix a Stripe test key with live `price_...` IDs, or a live Stripe key with test `price_...` IDs.
+- Existing live-subscriber verification must happen on `staging` or `main`. Feature previews are for test-mode checkout and switch flows.
+- When 3dvr-web and 3dvr-portal preview branches need to work together, prefer an explicit `portalOrigin` pairing over hard-coded production fallbacks.
+
 ## Process (Scrum & DRY)
 - Work iteratively in small, testable increments with concise commits and clear context.
 - Prefer reuse over reinvention: extract shared helpers and styles instead of duplicating logic.
