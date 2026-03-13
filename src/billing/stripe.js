@@ -242,6 +242,86 @@ export async function resolveStripeCustomer({
   };
 }
 
+export function customerMatchesPortalPub(customer, portalPub = '') {
+  const normalizedPortalPub = normalizeMetadataField(portalPub);
+  if (!normalizedPortalPub) {
+    return false;
+  }
+
+  return normalizeMetadataField(customer?.metadata?.portal_pub) === normalizedPortalPub;
+}
+
+export async function resolvePortalLinkedStripeCustomer({
+  stripeClient,
+  customerId = '',
+  billingEmail = '',
+  portalAlias = '',
+  portalPub = '',
+  createIfMissing = true
+} = {}) {
+  if (!stripeClient) {
+    return { customer: null, source: 'missing-client' };
+  }
+
+  const normalizedCustomerId = String(customerId || '').trim();
+  const normalizedEmail = normalizeBillingEmail(billingEmail);
+  const normalizedAlias = normalizeMetadataField(portalAlias);
+  const normalizedPub = normalizeMetadataField(portalPub);
+
+  if (!normalizedPub) {
+    return { customer: null, source: 'missing-portal-pub' };
+  }
+
+  if (normalizedCustomerId && stripeClient.customers?.retrieve) {
+    try {
+      const customer = await stripeClient.customers.retrieve(normalizedCustomerId);
+      if (customer && !customer.deleted && customerMatchesPortalPub(customer, normalizedPub)) {
+        return {
+          customer: await updateCustomerHints(stripeClient, customer, {
+            billingEmail: normalizedEmail,
+            portalAlias: normalizedAlias,
+            portalPub: normalizedPub
+          }),
+          source: 'customer_id'
+        };
+      }
+    } catch (error) {
+      // Fall through to portal-linked metadata lookup.
+    }
+  }
+
+  const metadataCandidates = await searchCustomersByMetadata(stripeClient, 'portal_pub', normalizedPub);
+  const customer = metadataCandidates.find(candidate => candidate && !candidate.deleted) || null;
+  if (customer) {
+    return {
+      customer: await updateCustomerHints(stripeClient, customer, {
+        billingEmail: normalizedEmail,
+        portalAlias: normalizedAlias,
+        portalPub: normalizedPub
+      }),
+      source: 'portal_pub'
+    };
+  }
+
+  if (!createIfMissing || !stripeClient.customers?.create) {
+    return { customer: null, source: 'not-found' };
+  }
+
+  const createdCustomer = await stripeClient.customers.create({
+    email: normalizedEmail || undefined,
+    metadata: buildBillingMetadata({
+      billingEmail: normalizedEmail,
+      portalAlias: normalizedAlias,
+      portalPub: normalizedPub
+    })
+  });
+
+  return {
+    customer: createdCustomer,
+    source: 'created'
+  };
+}
+
 export async function listBillingSubscriptions(stripeClient, customerId = '') {
   const normalizedCustomerId = String(customerId || '').trim();
   if (!stripeClient?.subscriptions?.list || !normalizedCustomerId) {

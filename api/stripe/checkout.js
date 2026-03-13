@@ -9,10 +9,11 @@ import {
   makeStripeClient,
   pickCurrentBillingSubscription,
   requireConfiguredPlanPrice,
+  resolvePortalLinkedStripeCustomer,
   resolvePlanDiagnostics,
-  resolveStripeCustomer,
   setCorsHeaders
 } from '../../src/billing/stripe.js';
+import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
 import {
   getBillingPlan,
   isValidBillingEmail,
@@ -59,8 +60,8 @@ export function createStripeCheckoutHandler(options = {}) {
     const rawBillingEmail = String(body.billingEmail || '').trim();
     const billingEmail = normalizeBillingEmail(rawBillingEmail);
     const customerId = String(body.customerId || '').trim();
-    const portalAlias = String(body.portalAlias || '').trim();
-    const portalPub = String(body.portalPub || '').trim();
+    const requestedPortalAlias = String(body.portalAlias || '').trim();
+    const requestedPortalPub = String(body.portalPub || '').trim();
     const customLabel = String(body.customLabel || '').trim();
     const customDescription = String(body.customDescription || '').trim();
     const customAmountCents = normalizeCustomAmount(body.customAmount);
@@ -79,12 +80,26 @@ export function createStripeCheckoutHandler(options = {}) {
       return res.status(400).json({ error: 'A custom one-time amount is required.' });
     }
 
+    const auth = await verifyBillingAuthPayload(body, {
+      config,
+      expectedOrigin: origin
+    });
+    if (!auth.ok) {
+      return res.status(401).json({ error: auth.reason });
+    }
+
+    const portalPub = auth.identity.pub;
+    const portalAlias = auth.identity.alias || requestedPortalAlias;
+    if (requestedPortalPub && requestedPortalPub !== portalPub) {
+      return res.status(403).json({ error: 'Billing access proof did not match this portal account.' });
+    }
+
     if (rawBillingEmail && !isValidBillingEmail(rawBillingEmail)) {
       return res.status(400).json({ error: 'Enter a valid billing email address.' });
     }
 
     try {
-      const customerResolution = await resolveStripeCustomer({
+      const customerResolution = await resolvePortalLinkedStripeCustomer({
         stripeClient,
         customerId,
         billingEmail,
@@ -97,7 +112,7 @@ export function createStripeCheckoutHandler(options = {}) {
       if (!customer) {
         return res.status(409).json({
           error: action === 'manage'
-            ? 'No paid billing record was found for this account yet. Choose a plan below to start.'
+            ? 'No portal-linked paid billing record was found for this signed-in account yet. Choose a plan below to start, or use your Stripe receipt link if this subscription predates portal linking.'
             : 'We could not match this request to a Stripe customer yet. Confirm the billing email and try again.'
         });
       }

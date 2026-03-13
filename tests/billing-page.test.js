@@ -42,6 +42,8 @@ describe('billing center', () => {
     assert.ok(js.includes("fetch('/api/stripe/checkout'"));
     assert.ok(js.includes("fetchJson('/api/stripe/checkout'"));
     assert.ok(js.includes("fetchJson('/api/stripe/status'"));
+    assert.ok(js.includes("Gun.SEA.sign({"));
+    assert.ok(js.includes('authProof'));
     assert.ok(js.includes("window.location.assign(signInHref(targetPlan))"));
   });
 });

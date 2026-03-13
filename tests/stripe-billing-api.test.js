@@ -1,5 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import SEA from 'gun/sea.js';
 import { createStripeCheckoutHandler } from '../api/stripe/checkout.js';
 import { createStripeStatusHandler } from '../api/stripe/status.js';
 
@@ -70,7 +71,7 @@ function createSubscription({
 function createMockStripe(overrides = {}) {
   const stripe = {
     customers: {
-      retrieve: mock.fn(async (customerId) => ({
+      retrieve: mock.fn(async customerId => ({
         id: customerId,
         email: 'existing@example.com',
         metadata: {}
@@ -125,6 +126,53 @@ function createMockStripe(overrides = {}) {
   return stripe;
 }
 
+async function createBillingAuth({
+  alias = 'existing@3dvr',
+  action = 'status',
+  origin = baseConfig.PORTAL_ORIGIN,
+  issuedAt = Date.now()
+} = {}) {
+  const pair = await SEA.pair();
+  const authProof = await SEA.sign({
+    scope: 'stripe-billing',
+    action,
+    alias,
+    pub: pair.pub,
+    origin,
+    iat: issuedAt
+  }, pair);
+
+  return {
+    alias,
+    pub: pair.pub,
+    authPub: pair.pub,
+    authProof,
+    issuedAt
+  };
+}
+
+function buildAuthedBody(auth, body = {}) {
+  return {
+    ...body,
+    authPub: auth.authPub,
+    authProof: auth.authProof,
+    portalAlias: auth.alias,
+    portalPub: auth.pub
+  };
+}
+
+function createPortalLinkedCustomer(auth, overrides = {}) {
+  return {
+    id: overrides.id || 'cus_existing',
+    email: overrides.email || 'existing@example.com',
+    metadata: {
+      portal_pub: auth.pub,
+      portal_alias: auth.alias,
+      ...(overrides.metadata || {})
+    }
+  };
+}
+
 describe('stripe billing checkout handler', () => {
   it('returns diagnostics on GET', async () => {
     const handler = createStripeCheckoutHandler({
@@ -149,7 +197,7 @@ describe('stripe billing checkout handler', () => {
     });
   });
 
-  it('creates a new subscription checkout session when no active subscription exists', async () => {
+  it('rejects unauthenticated POST billing requests before hitting Stripe', async () => {
     const stripe = createMockStripe();
     const handler = createStripeCheckoutHandler({
       stripeClient: stripe,
@@ -161,10 +209,39 @@ describe('stripe billing checkout handler', () => {
       body: {
         action: 'subscribe',
         plan: 'pro',
-        billingEmail: 'new@example.com',
-        portalAlias: 'new@3dvr',
-        portalPub: 'pub_new'
+        billingEmail: 'new@example.com'
       }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.deepEqual(res.body, {
+      error: 'Sign in again to verify billing access.'
+    });
+    assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
+    assert.equal(stripe.billingPortal.sessions.create.mock.calls.length, 0);
+  });
+
+  it('creates a new subscription checkout session when no linked Stripe customer exists', async () => {
+    const auth = await createBillingAuth({
+      alias: 'new@3dvr',
+      action: 'subscribe'
+    });
+    const stripe = createMockStripe();
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'subscribe',
+        plan: 'pro',
+        billingEmail: 'new@example.com'
+      })
     };
     const res = createMockRes();
 
@@ -178,19 +255,19 @@ describe('stripe billing checkout handler', () => {
       mode: 'subscription',
       customer: 'cus_new',
       allow_promotion_codes: true,
-      client_reference_id: 'pub_new',
+      client_reference_id: auth.pub,
       line_items: [{ price: 'price_pro', quantity: 1 }],
       metadata: {
         plan: 'pro',
-        portal_alias: 'new@3dvr',
-        portal_pub: 'pub_new',
+        portal_alias: auth.alias,
+        portal_pub: auth.pub,
         billing_email: 'new@example.com'
       },
       subscription_data: {
         metadata: {
           plan: 'pro',
-          portal_alias: 'new@3dvr',
-          portal_pub: 'pub_new',
+          portal_alias: auth.alias,
+          portal_pub: auth.pub,
           billing_email: 'new@example.com'
         }
       },
@@ -200,6 +277,10 @@ describe('stripe billing checkout handler', () => {
   });
 
   it('rejects invalid billing emails before creating checkout sessions', async () => {
+    const auth = await createBillingAuth({
+      alias: 'new@3dvr',
+      action: 'subscribe'
+    });
     const stripe = createMockStripe();
     const handler = createStripeCheckoutHandler({
       stripeClient: stripe,
@@ -208,12 +289,11 @@ describe('stripe billing checkout handler', () => {
 
     const req = {
       method: 'POST',
-      body: {
+      body: buildAuthedBody(auth, {
         action: 'subscribe',
         plan: 'starter',
-        billingEmail: 'not-an-email',
-        portalAlias: 'new@3dvr'
-      }
+        billingEmail: 'not-an-email'
+      })
     };
     const res = createMockRes();
 
@@ -224,17 +304,16 @@ describe('stripe billing checkout handler', () => {
     assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
   });
 
-  it('sends existing subscribers into a Stripe plan-switch confirmation flow', async () => {
+  it('sends linked subscribers into a Stripe plan-switch confirmation flow', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      action: 'subscribe'
+    });
+    const customer = createPortalLinkedCustomer(auth);
     const stripe = createMockStripe({
       customers: {
-        list: mock.fn(async () => ({
-          data: [
-            {
-              id: 'cus_existing',
-              email: 'existing@example.com',
-              metadata: {}
-            }
-          ]
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [customer] : []
         }))
       },
       subscriptions: {
@@ -242,6 +321,7 @@ describe('stripe billing checkout handler', () => {
           data: [
             createSubscription({
               id: 'sub_starter',
+              customer: customer.id,
               plan: 'starter',
               priceId: 'price_starter'
             })
@@ -257,13 +337,11 @@ describe('stripe billing checkout handler', () => {
 
     const req = {
       method: 'POST',
-      body: {
+      body: buildAuthedBody(auth, {
         action: 'subscribe',
         plan: 'pro',
-        billingEmail: 'existing@example.com',
-        portalAlias: 'existing@3dvr',
-        portalPub: 'pub_existing'
-      }
+        billingEmail: customer.email
+      })
     };
     const res = createMockRes();
 
@@ -274,7 +352,7 @@ describe('stripe billing checkout handler', () => {
     assert.equal(res.body.url, 'https://billing.stripe.com/test-session');
     assert.equal(stripe.billingPortal.sessions.create.mock.calls.length, 1);
     assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
-      customer: 'cus_existing',
+      customer: customer.id,
       return_url: 'https://portal.3dvr.tech/billing/?manage=return&plan=pro',
       flow_data: {
         type: 'subscription_update_confirm',
@@ -297,19 +375,19 @@ describe('stripe billing checkout handler', () => {
       }
     });
     assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
+    assert.equal(stripe.customers.list.mock.calls.length, 0);
   });
 
-  it('routes same-plan subscribers to general billing management instead of a second checkout', async () => {
+  it('routes same-plan linked subscribers to general billing management instead of a second checkout', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      action: 'subscribe'
+    });
+    const customer = createPortalLinkedCustomer(auth);
     const stripe = createMockStripe({
       customers: {
-        list: mock.fn(async () => ({
-          data: [
-            {
-              id: 'cus_existing',
-              email: 'existing@example.com',
-              metadata: {}
-            }
-          ]
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [customer] : []
         }))
       },
       subscriptions: {
@@ -317,6 +395,7 @@ describe('stripe billing checkout handler', () => {
           data: [
             createSubscription({
               id: 'sub_pro',
+              customer: customer.id,
               plan: 'pro',
               priceId: 'price_pro'
             })
@@ -332,11 +411,11 @@ describe('stripe billing checkout handler', () => {
 
     const req = {
       method: 'POST',
-      body: {
+      body: buildAuthedBody(auth, {
         action: 'subscribe',
         plan: 'pro',
-        billingEmail: 'existing@example.com'
-      }
+        billingEmail: customer.email
+      })
     };
     const res = createMockRes();
 
@@ -346,13 +425,17 @@ describe('stripe billing checkout handler', () => {
     assert.equal(res.body.flow, 'already_subscribed');
     assert.equal(stripe.billingPortal.sessions.create.mock.calls.length, 1);
     assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
-      customer: 'cus_existing',
+      customer: customer.id,
       return_url: 'https://portal.3dvr.tech/billing/?manage=return&plan=pro'
     });
     assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
   });
 
   it('creates a one-time payment checkout session for custom work', async () => {
+    const auth = await createBillingAuth({
+      alias: 'client@3dvr',
+      action: 'subscribe'
+    });
     const stripe = createMockStripe();
     const handler = createStripeCheckoutHandler({
       stripeClient: stripe,
@@ -361,16 +444,14 @@ describe('stripe billing checkout handler', () => {
 
     const req = {
       method: 'POST',
-      body: {
+      body: buildAuthedBody(auth, {
         action: 'subscribe',
         plan: 'custom',
         billingEmail: 'client@example.com',
-        portalAlias: 'client@3dvr',
-        portalPub: 'pub_client',
         customAmount: 250,
         customLabel: 'Custom project deposit',
         customDescription: 'Scoped sprint deposit'
-      }
+      })
     };
     const res = createMockRes();
 
@@ -383,7 +464,7 @@ describe('stripe billing checkout handler', () => {
       mode: 'payment',
       customer: 'cus_new',
       allow_promotion_codes: true,
-      client_reference_id: 'pub_client',
+      client_reference_id: auth.pub,
       line_items: [
         {
           quantity: 1,
@@ -395,8 +476,8 @@ describe('stripe billing checkout handler', () => {
               description: 'Scoped sprint deposit',
               metadata: {
                 plan: 'custom',
-                portal_alias: 'client@3dvr',
-                portal_pub: 'pub_client',
+                portal_alias: auth.alias,
+                portal_pub: auth.pub,
                 billing_email: 'client@example.com'
               }
             }
@@ -405,8 +486,8 @@ describe('stripe billing checkout handler', () => {
       ],
       metadata: {
         plan: 'custom',
-        portal_alias: 'client@3dvr',
-        portal_pub: 'pub_client',
+        portal_alias: auth.alias,
+        portal_pub: auth.pub,
         billing_email: 'client@example.com'
       },
       success_url: 'https://portal.3dvr.tech/billing/?checkout=success&plan=custom&session_id={CHECKOUT_SESSION_ID}',
@@ -414,7 +495,11 @@ describe('stripe billing checkout handler', () => {
     });
   });
 
-  it('returns a clear message when billing management is opened before any paid record exists', async () => {
+  it('returns a clear message when billing management is opened before any linked paid record exists', async () => {
+    const auth = await createBillingAuth({
+      alias: 'new@3dvr',
+      action: 'manage'
+    });
     const stripe = createMockStripe();
     const handler = createStripeCheckoutHandler({
       stripeClient: stripe,
@@ -423,10 +508,9 @@ describe('stripe billing checkout handler', () => {
 
     const req = {
       method: 'POST',
-      body: {
-        action: 'manage',
-        portalAlias: 'new@3dvr'
-      }
+      body: buildAuthedBody(auth, {
+        action: 'manage'
+      })
     };
     const res = createMockRes();
 
@@ -434,14 +518,14 @@ describe('stripe billing checkout handler', () => {
 
     assert.equal(res.statusCode, 409);
     assert.deepEqual(res.body, {
-      error: 'No paid billing record was found for this account yet. Choose a plan below to start.'
+      error: 'No portal-linked paid billing record was found for this signed-in account yet. Choose a plan below to start, or use your Stripe receipt link if this subscription predates portal linking.'
     });
     assert.equal(stripe.billingPortal.sessions.create.mock.calls.length, 0);
   });
 });
 
 describe('stripe billing status handler', () => {
-  it('returns free status when no matching customer exists', async () => {
+  it('rejects unauthenticated billing status requests', async () => {
     const stripe = createMockStripe();
     const handler = createStripeStatusHandler({
       stripeClient: stripe,
@@ -451,9 +535,59 @@ describe('stripe billing status handler', () => {
     const req = {
       method: 'POST',
       body: {
-        portalAlias: 'nobody@3dvr',
         billingEmail: 'missing@example.com'
       }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.deepEqual(res.body, {
+      error: 'Sign in again to verify billing access.'
+    });
+  });
+
+  it('rejects expired billing auth proofs', async () => {
+    const stripe = createMockStripe();
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      issuedAt: Date.now() - 10 * 60 * 1000
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {})
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.deepEqual(res.body, {
+      error: 'Billing access proof expired. Refresh your sign-in and try again.'
+    });
+  });
+
+  it('returns free status when no matching linked customer exists', async () => {
+    const auth = await createBillingAuth({
+      alias: 'nobody@3dvr'
+    });
+    const stripe = createMockStripe();
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        billingEmail: 'missing@example.com'
+      })
     };
     const res = createMockRes();
 
@@ -470,9 +604,13 @@ describe('stripe billing status handler', () => {
       duplicateActiveCount: 0,
       hasDuplicateActiveSubscriptions: false
     });
+    assert.equal(stripe.customers.list.mock.calls.length, 0);
   });
 
   it('rejects invalid billing emails before checking Stripe status', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr'
+    });
     const stripe = createMockStripe();
     const handler = createStripeStatusHandler({
       stripeClient: stripe,
@@ -481,9 +619,9 @@ describe('stripe billing status handler', () => {
 
     const req = {
       method: 'POST',
-      body: {
+      body: buildAuthedBody(auth, {
         billingEmail: 'not-an-email'
-      }
+      })
     };
     const res = createMockRes();
 
@@ -494,17 +632,15 @@ describe('stripe billing status handler', () => {
     assert.equal(stripe.customers.list.mock.calls.length, 0);
   });
 
-  it('returns the highest active subscription and flags duplicates', async () => {
+  it('returns the highest active linked subscription and flags duplicates', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr'
+    });
+    const customer = createPortalLinkedCustomer(auth);
     const stripe = createMockStripe({
       customers: {
-        list: mock.fn(async () => ({
-          data: [
-            {
-              id: 'cus_existing',
-              email: 'existing@example.com',
-              metadata: {}
-            }
-          ]
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [customer] : []
         }))
       },
       subscriptions: {
@@ -512,12 +648,14 @@ describe('stripe billing status handler', () => {
           data: [
             createSubscription({
               id: 'sub_starter',
+              customer: customer.id,
               plan: 'starter',
               priceId: 'price_starter',
               created: 1
             }),
             createSubscription({
               id: 'sub_builder',
+              customer: customer.id,
               plan: 'builder',
               priceId: 'price_builder',
               created: 2
@@ -534,9 +672,9 @@ describe('stripe billing status handler', () => {
 
     const req = {
       method: 'POST',
-      body: {
-        billingEmail: 'existing@example.com'
-      }
+      body: buildAuthedBody(auth, {
+        billingEmail: customer.email
+      })
     };
     const res = createMockRes();
 
@@ -561,5 +699,6 @@ describe('stripe billing status handler', () => {
         priceId: 'price_starter'
       }
     ]);
+    assert.equal(stripe.customers.list.mock.calls.length, 0);
   });
 });

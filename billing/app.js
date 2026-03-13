@@ -130,6 +130,10 @@ function hasKnownCustomer() {
   return Boolean(String(state.currentResponse?.customerId || state.customerId || '').trim())
 }
 
+function hasVerifiedBillingSession() {
+  return Boolean(state.signedIn && state.alias && state.pub)
+}
+
 function hasActivePaidSubscription() {
   return Boolean(
     state.currentPlan !== 'free'
@@ -283,7 +287,7 @@ function updateManageButton() {
   if (state.diagnostics.loaded && !state.diagnostics.stripeConfigured) {
     enabled = false
     label = 'Billing offline'
-  } else if (!state.signedIn || !state.alias) {
+  } else if (!hasVerifiedBillingSession()) {
     enabled = false
     label = 'Sign in first'
   } else if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
@@ -326,7 +330,7 @@ function renderActionPrompt() {
     return
   }
 
-  if (!state.signedIn || !state.alias) {
+  if (!hasVerifiedBillingSession()) {
     if (state.selectedPlan && STRIPE_PLAN_SET.has(state.selectedPlan)) {
       setStatus(actionStatus, `Selected ${labelForPlan(state.selectedPlan)}. Sign in to continue.`, 'info')
       return
@@ -652,6 +656,30 @@ async function fetchJson(url, payload) {
   return body
 }
 
+async function buildBillingAuthPayload(action = 'status') {
+  if (!hasVerifiedBillingSession()) {
+    throw new Error('Sign in again before opening Stripe billing.')
+  }
+
+  if (!Gun?.SEA || typeof Gun.SEA.sign !== 'function' || !user?._?.sea) {
+    throw new Error('Refresh your portal sign-in before opening Stripe billing.')
+  }
+
+  const authProof = await Gun.SEA.sign({
+    scope: 'stripe-billing',
+    action,
+    alias: state.alias,
+    pub: state.pub,
+    origin: window.location.origin,
+    iat: Date.now()
+  }, user._.sea)
+
+  return {
+    authPub: state.pub,
+    authProof
+  }
+}
+
 async function refreshBillingDiagnostics() {
   try {
     const response = await fetch('/api/stripe/checkout', {
@@ -687,7 +715,7 @@ async function refreshBillingStatus() {
     state.billingEmail = billingEmail
   }
 
-  if (!state.customerId && !billingEmail && !state.alias && !state.pub) {
+  if (!hasVerifiedBillingSession()) {
     if (hasTypedInvalidBillingEmail()) {
       setStatus(billingSummary, 'Enter a valid billing email to check status, or sign in to use your portal account.', 'warning')
       updateManageButton()
@@ -702,7 +730,9 @@ async function refreshBillingStatus() {
   setStatus(billingSummary, 'Checking Stripe billing status...', 'info')
 
   try {
+    const authPayload = await buildBillingAuthPayload('status')
     const payload = await fetchJson('/api/stripe/status', {
+      ...authPayload,
       customerId: state.customerId,
       billingEmail,
       portalAlias: state.alias,
@@ -731,7 +761,7 @@ function redirectToSignIn(plan = '') {
 function requireSignedInForPaidFlow(options = {}) {
   const { plan = '', redirectOnFailure = false } = options
 
-  if (state.signedIn && state.alias) {
+  if (hasVerifiedBillingSession()) {
     return true
   }
 
@@ -762,7 +792,9 @@ async function startCheckoutAction(payload) {
   rememberLocalBilling({ billingEmail: state.billingEmail, customerId: state.customerId })
   setStatus(actionStatus, 'Opening Stripe...', 'info')
 
+  const authPayload = await buildBillingAuthPayload(payload?.action || 'subscribe')
   const response = await fetchJson('/api/stripe/checkout', {
+    ...authPayload,
     ...payload,
     customerId: state.customerId,
     billingEmail: state.billingEmail,
