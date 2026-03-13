@@ -1,7 +1,13 @@
 // Force Vercel's serverless bundler to include Gun modules SEA loads dynamically.
 import 'gun/gun.js';
 import 'gun/lib/text-encoding/index.js';
-import SEA from 'gun/sea.js';
+import { webcrypto } from 'node:crypto';
+
+if (!globalThis.crypto?.subtle) {
+  globalThis.crypto = webcrypto;
+}
+
+const { default: SEA } = await import('gun/sea.js');
 
 export const BILLING_AUTH_SCOPE = 'stripe-billing';
 const DEFAULT_BILLING_AUTH_MAX_AGE_MS = 5 * 60 * 1000;
