@@ -45,6 +45,9 @@ describe('billing center', () => {
     assert.ok(js.includes("Gun.SEA.sign({"));
     assert.ok(js.includes('authProof'));
     assert.ok(js.includes('forceReauth = false'));
+    assert.ok(js.includes('user?._?.sea?.pub || user?.is?.pub'));
+    assert.ok(js.includes('waitForBillingSessionReady'));
+    assert.ok(js.includes('recoverBillingAuthSession'));
     assert.ok(js.includes("Refresh account to continue with Stripe billing on this tab."));
     assert.ok(js.includes("label = 'Refresh account first'"));
     assert.ok(js.includes('authPub: livePub'));

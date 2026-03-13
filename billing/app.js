@@ -131,12 +131,49 @@ function hasKnownCustomer() {
 }
 
 function currentSessionPub() {
-  return String(user?.is?.pub || '').trim()
+  return String(user?._?.sea?.pub || user?.is?.pub || '').trim()
+}
+
+function hasConsistentSessionPub() {
+  const seaPub = String(user?._?.sea?.pub || '').trim()
+  const sessionPub = String(user?.is?.pub || '').trim()
+  if (!seaPub || !sessionPub) {
+    return true
+  }
+  return seaPub === sessionPub
+}
+
+async function waitForBillingSessionReady(timeoutMs = 2500) {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const livePub = currentSessionPub()
+    if (livePub && user?._?.sea && hasConsistentSessionPub()) {
+      return true
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 100))
+  }
+
+  return Boolean(currentSessionPub() && user?._?.sea && hasConsistentSessionPub())
+}
+
+function isBillingAuthErrorMessage(message = '') {
+  const normalized = String(message || '').trim().toLowerCase()
+  return normalized.includes('verify billing access')
+    || normalized.includes('sign in again before opening stripe billing')
+    || normalized.includes('refresh your portal sign-in before opening stripe billing')
 }
 
 function hasVerifiedBillingSession() {
   const livePub = currentSessionPub()
-  return Boolean(state.signedIn && state.alias && livePub && user?._?.sea && (!state.pub || state.pub === livePub))
+  return Boolean(
+    state.signedIn
+    && state.alias
+    && livePub
+    && user?._?.sea
+    && hasConsistentSessionPub()
+    && (!state.pub || state.pub === livePub)
+  )
 }
 
 function needsBillingAuthRefresh() {
@@ -659,6 +696,8 @@ async function restoreStoredBillingAuth({ storedAlias = '', storedPassword = '',
   if (ack?.err) {
     throw new Error(String(ack.err))
   }
+
+  await waitForBillingSessionReady()
 }
 
 async function refreshAuthState(options = {}) {
@@ -753,6 +792,14 @@ async function buildBillingAuthPayload(action = 'status') {
   }
 }
 
+async function recoverBillingAuthSession() {
+  await refreshAuthState({ forceReauth: true })
+  const sessionReady = await waitForBillingSessionReady()
+  if (!sessionReady || !hasVerifiedBillingSession()) {
+    throw new Error('Refresh your portal sign-in before opening Stripe billing.')
+  }
+}
+
 async function refreshBillingDiagnostics() {
   try {
     const response = await fetch('/api/stripe/checkout', {
@@ -783,6 +830,10 @@ async function refreshBillingDiagnostics() {
 }
 
 async function refreshBillingStatus() {
+  return refreshBillingStatusAttempt(false)
+}
+
+async function refreshBillingStatusAttempt(retriedAuth) {
   const billingEmail = currentBillingEmail()
   if (billingEmail) {
     state.billingEmail = billingEmail
@@ -816,6 +867,15 @@ async function refreshBillingStatus() {
     await persistGunHints(payload)
     renderBillingState(payload)
   } catch (error) {
+    if (!retriedAuth && isBillingAuthErrorMessage(error?.message)) {
+      try {
+        await recoverBillingAuthSession()
+        return await refreshBillingStatusAttempt(true)
+      } catch (retryError) {
+        error = retryError
+      }
+    }
+
     setStatus(billingSummary, error?.message || 'Unable to load billing status.', 'error')
     updateManageButton()
     renderActionPrompt()
@@ -871,6 +931,10 @@ function requireSignedInForPaidFlow(options = {}) {
 }
 
 async function startCheckoutAction(payload) {
+  return startCheckoutActionAttempt(payload, false)
+}
+
+async function startCheckoutActionAttempt(payload, retriedAuth) {
   const billingEmail = currentBillingEmail()
   if (billingEmail) {
     state.billingEmail = billingEmail
@@ -879,24 +943,32 @@ async function startCheckoutAction(payload) {
   rememberLocalBilling({ billingEmail: state.billingEmail, customerId: state.customerId })
   setStatus(actionStatus, 'Opening Stripe...', 'info')
 
-  const authPayload = await buildBillingAuthPayload(payload?.action || 'subscribe')
-  const response = await fetchJson('/api/stripe/checkout', {
-    ...authPayload,
-    ...payload,
-    customerId: state.customerId,
-    billingEmail: state.billingEmail,
-    portalAlias: state.alias,
-    portalPub: state.pub
-  })
+  try {
+    const authPayload = await buildBillingAuthPayload(payload?.action || 'subscribe')
+    const response = await fetchJson('/api/stripe/checkout', {
+      ...authPayload,
+      ...payload,
+      customerId: state.customerId,
+      billingEmail: state.billingEmail,
+      portalAlias: state.alias,
+      portalPub: state.pub
+    })
 
-  rememberLocalBilling(response)
-  await persistGunHints(response)
+    rememberLocalBilling(response)
+    await persistGunHints(response)
 
-  if (!response.url) {
-    throw new Error('Stripe did not return a redirect URL.')
+    if (!response.url) {
+      throw new Error('Stripe did not return a redirect URL.')
+    }
+
+    window.location.assign(response.url)
+  } catch (error) {
+    if (!retriedAuth && isBillingAuthErrorMessage(error?.message)) {
+      await recoverBillingAuthSession()
+      return startCheckoutActionAttempt(payload, true)
+    }
+    throw error
   }
-
-  window.location.assign(response.url)
 }
 
 function handleFlashFromQuery() {
