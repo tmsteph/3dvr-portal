@@ -130,8 +130,17 @@ function hasKnownCustomer() {
   return Boolean(String(state.currentResponse?.customerId || state.customerId || '').trim())
 }
 
+function currentSessionPub() {
+  return String(user?.is?.pub || '').trim()
+}
+
 function hasVerifiedBillingSession() {
-  return Boolean(state.signedIn && state.alias && state.pub)
+  const livePub = currentSessionPub()
+  return Boolean(state.signedIn && state.alias && livePub && user?._?.sea && (!state.pub || state.pub === livePub))
+}
+
+function needsBillingAuthRefresh() {
+  return Boolean(state.signedIn && state.alias && !hasVerifiedBillingSession())
 }
 
 function hasActivePaidSubscription() {
@@ -287,6 +296,9 @@ function updateManageButton() {
   if (state.diagnostics.loaded && !state.diagnostics.stripeConfigured) {
     enabled = false
     label = 'Billing offline'
+  } else if (needsBillingAuthRefresh()) {
+    enabled = false
+    label = 'Refresh account first'
   } else if (!hasVerifiedBillingSession()) {
     enabled = false
     label = 'Sign in first'
@@ -327,6 +339,11 @@ function renderActionPrompt() {
       'More than one active subscription was found. Open billing to cancel the extra plan and keep one clean account-linked subscription.',
       'warning'
     )
+    return
+  }
+
+  if (needsBillingAuthRefresh()) {
+    setStatus(actionStatus, 'Refresh account to continue with Stripe billing on this tab.', 'warning')
     return
   }
 
@@ -505,11 +522,17 @@ function rememberLocalBilling(payload = {}) {
 function renderAccountSummary() {
   if (!accountSummary) return
 
+  const accountLabel = state.username && state.username.toLowerCase() !== 'guest'
+    ? `${state.username} (${state.alias})`
+    : state.alias
+  const pubSuffix = state.pub ? ` · ${state.pub.slice(0, 10)}...` : ''
+
+  if (needsBillingAuthRefresh()) {
+    setStatus(accountSummary, `Signed in as ${accountLabel}${pubSuffix}. Refresh account to re-verify billing access in this tab.`, 'warning')
+    return
+  }
+
   if (state.signedIn && state.alias) {
-    const accountLabel = state.username && state.username.toLowerCase() !== 'guest'
-      ? `${state.username} (${state.alias})`
-      : state.alias
-    const pubSuffix = state.pub ? ` · ${state.pub.slice(0, 10)}...` : ''
     setStatus(accountSummary, `Signed in as ${accountLabel}${pubSuffix}`, 'success')
     return
   }
@@ -604,7 +627,42 @@ async function syncHintsFromGun() {
   })
 }
 
-async function refreshAuthState() {
+async function restoreStoredBillingAuth({ storedAlias = '', storedPassword = '', storedPub = '', forceReauth = false } = {}) {
+  const livePub = currentSessionPub()
+  const needsFreshAuth = Boolean(
+    storedAlias
+    && storedPassword
+    && (
+      forceReauth
+      || !livePub
+      || !user?._?.sea
+      || (storedPub && livePub && storedPub !== livePub)
+    )
+  )
+
+  if (!needsFreshAuth) {
+    return
+  }
+
+  if ((forceReauth || livePub || user?._?.sea) && typeof user?.leave === 'function') {
+    try {
+      await Promise.resolve(user.leave())
+    } catch (error) {
+      console.warn('Unable to clear stale billing auth session', error)
+    }
+  }
+
+  const ack = await new Promise(resolve => {
+    user.auth(storedAlias, storedPassword, authAck => resolve(authAck || {}))
+  })
+
+  if (ack?.err) {
+    throw new Error(String(ack.err))
+  }
+}
+
+async function refreshAuthState(options = {}) {
+  const { forceReauth = false } = options
   refreshSignInLink()
 
   try {
@@ -619,19 +677,27 @@ async function refreshAuthState() {
   const storedPub = String(readStorage(userPubStorageKey) || '').trim()
   const storedSignedIn = readStorage('signedIn') === 'true'
 
-  if (storedSignedIn && storedAlias && storedPassword && !user?.is?.pub) {
+  if (storedSignedIn && storedAlias && storedPassword) {
     try {
-      await new Promise(resolve => {
-        user.auth(storedAlias, storedPassword, () => resolve())
+      await restoreStoredBillingAuth({
+        storedAlias,
+        storedPassword,
+        storedPub,
+        forceReauth
       })
     } catch (error) {
       console.warn('Unable to refresh stored billing auth session', error)
     }
   }
 
+  const livePub = currentSessionPub()
+  if (livePub) {
+    writeStorage(userPubStorageKey, livePub)
+  }
+
   state.alias = storedAlias
   state.username = storedUsername
-  state.pub = String(user?.is?.pub || storedPub || '').trim()
+  state.pub = String(livePub || storedPub || '').trim()
   state.signedIn = Boolean(storedSignedIn && storedAlias)
 
   renderAccountSummary()
@@ -661,21 +727,28 @@ async function buildBillingAuthPayload(action = 'status') {
     throw new Error('Sign in again before opening Stripe billing.')
   }
 
-  if (!Gun?.SEA || typeof Gun.SEA.sign !== 'function' || !user?._?.sea) {
+  const livePub = currentSessionPub()
+  if (!Gun?.SEA || typeof Gun.SEA.sign !== 'function' || !user?._?.sea || !livePub) {
     throw new Error('Refresh your portal sign-in before opening Stripe billing.')
+  }
+
+  if (state.pub !== livePub) {
+    state.pub = livePub
+    writeStorage(userPubStorageKey, livePub)
+    renderAccountSummary()
   }
 
   const authProof = await Gun.SEA.sign({
     scope: 'stripe-billing',
     action,
     alias: state.alias,
-    pub: state.pub,
+    pub: livePub,
     origin: window.location.origin,
     iat: Date.now()
   }, user._.sea)
 
   return {
-    authPub: state.pub,
+    authPub: livePub,
     authProof
   }
 }
@@ -763,6 +836,20 @@ function requireSignedInForPaidFlow(options = {}) {
 
   if (hasVerifiedBillingSession()) {
     return true
+  }
+
+  if (needsBillingAuthRefresh()) {
+    const targetPlan = plan || state.selectedPlan || selectedPlanFromUrl()
+    refreshSignInLink(targetPlan)
+    setStatus(
+      actionStatus,
+      targetPlan
+        ? `Selected ${labelForPlan(targetPlan)}. Refresh account first so Stripe stays attached to this portal identity.`
+        : 'Refresh account first so Stripe stays attached to this portal identity.',
+      'warning'
+    )
+    refreshAuthButton?.focus()
+    return false
   }
 
   const targetPlan = plan || state.selectedPlan || selectedPlanFromUrl()
@@ -860,7 +947,7 @@ function bindEvents() {
 
   refreshAuthButton?.addEventListener('click', async () => {
     setStatus(accountSummary, 'Refreshing your portal account...', 'info')
-    await refreshAuthState()
+    await refreshAuthState({ forceReauth: true })
     await refreshBillingStatus()
   })
 
@@ -980,7 +1067,7 @@ async function init() {
 }
 
 user.on('auth', async () => {
-  const pub = String(user?.is?.pub || '').trim()
+  const pub = currentSessionPub()
   if (pub) {
     state.pub = pub
     writeStorage(userPubStorageKey, pub)

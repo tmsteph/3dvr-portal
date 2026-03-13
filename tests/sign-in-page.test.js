@@ -31,4 +31,9 @@ describe('sign-in page', () => {
     assert.match(html, /Continue to billing/);
     assert.match(html, /Billing needs an account so Stripe stays linked to one portal identity/);
   });
+
+  it('persists the current portal pub when billing sign-in completes', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /localStorage\.setItem\('userPubKey', userPub\)/);
+  });
 });

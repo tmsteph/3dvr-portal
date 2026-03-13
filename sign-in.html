@@ -741,6 +741,10 @@
       localStorage.setItem('username', username);
       localStorage.setItem('alias', alias);
       localStorage.setItem('password', password);
+      const userPub = String((user && user.is && user.is.pub) || (user && user._ && user._.sea && user._.sea.pub) || '').trim();
+      if (userPub) {
+        localStorage.setItem('userPubKey', userPub);
+      }
       try {
         if (window.AuthIdentity && typeof window.AuthIdentity.writeSharedIdentity === 'function') {
           window.AuthIdentity.writeSharedIdentity({ signedIn: true, alias, username });
