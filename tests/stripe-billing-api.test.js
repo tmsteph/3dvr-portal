@@ -286,6 +286,51 @@ describe('stripe billing checkout handler', () => {
     });
   });
 
+  it('prefers the live preview request host over PORTAL_ORIGIN when creating checkout sessions', async () => {
+    const previewOrigin = 'https://3dvr-portal-old89t0jv-tmstephs-projects.vercel.app';
+    const auth = await createBillingAuth({
+      alias: 'preview@3dvr',
+      action: 'subscribe',
+      origin: previewOrigin
+    });
+    const stripe = createMockStripe();
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: {
+        ...baseConfig,
+        PORTAL_ORIGIN: 'https://3dvr-portal-git-staging-tmstephs-projects.vercel.app'
+      }
+    });
+
+    const req = {
+      method: 'POST',
+      headers: {
+        host: '3dvr-portal-old89t0jv-tmstephs-projects.vercel.app',
+        'x-forwarded-proto': 'https'
+      },
+      body: buildAuthedBody(auth, {
+        action: 'subscribe',
+        plan: 'starter',
+        billingEmail: 'preview@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'checkout_subscription');
+    assert.equal(stripe.checkout.sessions.create.mock.calls.length, 1);
+    assert.equal(
+      stripe.checkout.sessions.create.mock.calls[0].arguments[0].success_url,
+      `${previewOrigin}/billing/?checkout=success&plan=starter&session_id={CHECKOUT_SESSION_ID}`
+    );
+    assert.equal(
+      stripe.checkout.sessions.create.mock.calls[0].arguments[0].cancel_url,
+      `${previewOrigin}/billing/?checkout=cancel&plan=starter`
+    );
+  });
+
   it('rejects invalid billing emails before creating checkout sessions', async () => {
     const auth = await createBillingAuth({
       alias: 'new@3dvr',
@@ -720,6 +765,41 @@ describe('stripe billing status handler', () => {
       hasDuplicateActiveSubscriptions: false
     });
     assert.equal(stripe.customers.list.mock.calls.length, 1);
+  });
+
+  it('accepts billing proofs signed on the current preview host even when PORTAL_ORIGIN points at a branch alias', async () => {
+    const previewOrigin = 'https://3dvr-portal-old89t0jv-tmstephs-projects.vercel.app';
+    const auth = await createBillingAuth({
+      alias: 'preview@3dvr',
+      origin: previewOrigin
+    });
+    const stripe = createMockStripe();
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: {
+        ...baseConfig,
+        PORTAL_ORIGIN: 'https://3dvr-portal-git-staging-tmstephs-projects.vercel.app'
+      }
+    });
+
+    const req = {
+      method: 'POST',
+      headers: {
+        host: '3dvr-portal-old89t0jv-tmstephs-projects.vercel.app',
+        'x-forwarded-proto': 'https'
+      },
+      body: buildAuthedBody(auth, {
+        billingEmail: 'preview@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.currentPlan, 'free');
+    assert.equal(res.body.billingEmail, 'preview@example.com');
+    assert.equal(res.body.statusSource, 'not_found');
   });
 
   it('rejects invalid billing emails before checking Stripe status', async () => {

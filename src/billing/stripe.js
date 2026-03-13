@@ -14,6 +14,10 @@ function trimTrailingSlash(value = '') {
   return String(value || '').trim().replace(/\/+$/, '');
 }
 
+function firstHeaderValue(value = '') {
+  return String(value || '').split(',')[0].trim();
+}
+
 function escapeSearchTerm(value = '') {
   return String(value || '')
     .replace(/\\/g, '\\\\')
@@ -53,19 +57,20 @@ export function setCorsHeaders(res) {
 }
 
 export function getRequestOrigin(req, config = process.env) {
+  const host = firstHeaderValue(req?.headers?.['x-forwarded-host'] || req?.headers?.host || '');
+  if (host) {
+    const forwardedProto = firstHeaderValue(req?.headers?.['x-forwarded-proto'] || '').toLowerCase();
+    const isLocalHost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+    const protocol = forwardedProto || (isLocalHost ? 'http' : 'https');
+    return `${protocol}://${host}`;
+  }
+
   const explicitOrigin = trimTrailingSlash(config?.PORTAL_ORIGIN || config?.BILLING_BASE_URL || '');
   if (explicitOrigin) {
     return explicitOrigin;
   }
 
-  const host = String(req?.headers?.host || '').trim();
-  if (!host) {
-    return 'https://portal.3dvr.tech';
-  }
-
-  const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').trim();
-  const protocol = forwardedProto || (host.startsWith('localhost') ? 'http' : 'https');
-  return `${protocol}://${host}`;
+  return 'https://portal.3dvr.tech';
 }
 
 export function buildBillingUrls({ origin, plan = '' } = {}) {
