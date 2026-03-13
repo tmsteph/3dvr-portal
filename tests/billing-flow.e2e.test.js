@@ -69,9 +69,19 @@ const GUN_STUB_SOURCE = `
     const listeners = new Map();
     return {
       is: null,
-      recall() {},
+      _: { sea: null },
+      recall() {
+        const signedIn = window.localStorage.getItem('signedIn') === 'true';
+        const storedPub = String(window.localStorage.getItem('userPubKey') || '').trim();
+        if (signedIn && storedPub) {
+          this.is = { pub: storedPub };
+          this._ = { sea: { pub: storedPub } };
+        }
+      },
       auth(alias, password, callback) {
-        this.is = { pub: 'pub_' + String(alias || 'user') };
+        const pub = 'pub_' + String(alias || 'user');
+        this.is = { pub };
+        this._ = { sea: { pub } };
         const handler = listeners.get('auth');
         if (handler) {
           handler();
@@ -96,7 +106,12 @@ const GUN_STUB_SOURCE = `
     };
   };
 
-  window.SEA = window.SEA || {};
+  window.Gun.SEA = {
+    async sign(payload) {
+      return JSON.stringify(payload);
+    }
+  };
+  window.SEA = window.Gun.SEA;
 })();
 `
 
@@ -329,6 +344,7 @@ describe('billing center subscriber flows', () => {
         localStorage.setItem('signedIn', 'true')
         localStorage.setItem('alias', 'pilot@3dvr')
         localStorage.setItem('username', 'Pilot')
+        localStorage.setItem('userPubKey', 'pub_pilot')
       })
       await installBillingRoutes(context, {
         checkoutDiagnostics: {
@@ -375,6 +391,7 @@ describe('billing center subscriber flows', () => {
         localStorage.setItem('signedIn', 'true')
         localStorage.setItem('alias', 'member@3dvr')
         localStorage.setItem('username', 'Member')
+        localStorage.setItem('userPubKey', 'pub_member')
       })
       await installBillingRoutes(context, {
         statusResponse: createFreeStatus({
