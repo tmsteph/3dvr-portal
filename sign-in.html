@@ -134,6 +134,39 @@
       line-height: 1.6;
     }
 
+    .redirect-context {
+      display: grid;
+      gap: 8px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(240, 199, 94, 0.16), rgba(28, 105, 255, 0.18));
+      border: 1px solid rgba(240, 199, 94, 0.2);
+    }
+
+    .redirect-context[hidden] {
+      display: none;
+    }
+
+    .redirect-context__eyebrow {
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .redirect-context__title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .redirect-context__body {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
     form {
       display: flex;
       flex-direction: column;
@@ -336,7 +369,12 @@
         <div class="auth-header">
           <span class="auth-eyebrow">3DVR Portal</span>
           <h1 id="auth-title">Sign in or sign up</h1>
-          <p>Access your open web workspace, sync your progress, and build alongside the community powering our open-source tech company.</p>
+          <p id="auth-description">Access your open web workspace, sync your progress, and build alongside the community powering our open-source tech company.</p>
+          <div id="redirect-context" class="redirect-context" hidden>
+            <span id="redirect-context-eyebrow" class="redirect-context__eyebrow">Return after sign-in</span>
+            <p id="redirect-context-title" class="redirect-context__title">We will send you back to the page you came from.</p>
+            <p id="redirect-context-body" class="redirect-context__body">Create your account once so your tools, upgrades, and account history stay attached to one portal identity.</p>
+          </div>
         </div>
         <form onsubmit="event.preventDefault(); signIn();" aria-describedby="auth-title">
           <div>
@@ -358,16 +396,16 @@
             >
           </div>
           <div class="actions">
-            <button type="submit" class="primary-button">Sign in or sign up</button>
+            <button id="auth-submit" type="submit" class="primary-button">Sign in or sign up</button>
           </div>
           <p class="disclaimer">We use decentralized GUN.js storage. Your credentials are encrypted before leaving your device.</p>
           <p class="guest-note">
             Lost access?
             <a href="/auth/recovery.html">Recover account by email</a>
           </p>
-          <p class="guest-note">
+          <p class="guest-note" id="guest-note">
             Prefer to browse without an account?
-            <button type="button" onclick="continueAsGuest()">Continue as guest</button>
+            <button id="guest-button" type="button" onclick="continueAsGuest()">Continue as guest</button>
           </p>
         </form>
       </section>
@@ -519,6 +557,116 @@
     const user = gunContext.user;
     const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
     const gunIsStub = !!gunContext.isStub;
+    const DEFAULT_POST_SIGN_IN_DESTINATION = 'index.html';
+    const BILLING_PLAN_LABELS = {
+      starter: '$5 Family & Friends',
+      pro: '$20 Founder Plan',
+      builder: '$50 Builder Plan',
+      custom: 'Custom checkout'
+    };
+
+    function sanitizeRedirectDestination(rawValue) {
+      const candidate = typeof rawValue === 'string' ? rawValue.trim() : '';
+      if (!candidate) {
+        return DEFAULT_POST_SIGN_IN_DESTINATION;
+      }
+
+      try {
+        const resolved = new URL(candidate, window.location.origin);
+        if (resolved.origin !== window.location.origin) {
+          return DEFAULT_POST_SIGN_IN_DESTINATION;
+        }
+        const nextPath = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+        return nextPath || DEFAULT_POST_SIGN_IN_DESTINATION;
+      } catch (error) {
+        return DEFAULT_POST_SIGN_IN_DESTINATION;
+      }
+    }
+
+    function resolvePostSignInDestination() {
+      const params = new URLSearchParams(window.location.search);
+      return sanitizeRedirectDestination(params.get('redirect') || '');
+    }
+
+    function describeRedirectTarget(destination = DEFAULT_POST_SIGN_IN_DESTINATION) {
+      try {
+        const resolved = new URL(destination, window.location.origin);
+        const pathname = resolved.pathname || '/';
+        const normalizedPlan = String(resolved.searchParams.get('plan') || '').trim().toLowerCase();
+        const planLabel = BILLING_PLAN_LABELS[normalizedPlan] || '';
+        const isBilling = pathname === '/billing/' || pathname.startsWith('/billing/');
+        return {
+          destination: `${resolved.pathname}${resolved.search}${resolved.hash}`,
+          isBilling,
+          plan: normalizedPlan,
+          planLabel
+        };
+      } catch (error) {
+        return {
+          destination: DEFAULT_POST_SIGN_IN_DESTINATION,
+          isBilling: false,
+          plan: '',
+          planLabel: ''
+        };
+      }
+    }
+
+    const postSignInDestination = resolvePostSignInDestination();
+    const redirectContext = describeRedirectTarget(postSignInDestination);
+
+    function applyRedirectContext() {
+      const authTitle = document.getElementById('auth-title');
+      const authDescription = document.getElementById('auth-description');
+      const redirectPanel = document.getElementById('redirect-context');
+      const redirectEyebrow = document.getElementById('redirect-context-eyebrow');
+      const redirectTitle = document.getElementById('redirect-context-title');
+      const redirectBody = document.getElementById('redirect-context-body');
+      const authSubmit = document.getElementById('auth-submit');
+      const guestNote = document.getElementById('guest-note');
+      const guestButton = document.getElementById('guest-button');
+
+      if (!redirectPanel || !redirectEyebrow || !redirectTitle || !redirectBody) {
+        return;
+      }
+
+      if (!redirectContext.isBilling && redirectContext.destination === DEFAULT_POST_SIGN_IN_DESTINATION) {
+        redirectPanel.hidden = true;
+        return;
+      }
+
+      redirectPanel.hidden = false;
+
+      if (redirectContext.isBilling) {
+        const planMessage = redirectContext.planLabel
+          ? `You are almost back to ${redirectContext.planLabel}.`
+          : 'You are almost back to the billing center.';
+        if (authTitle) {
+          authTitle.textContent = 'Create your portal account to continue';
+        }
+        if (authDescription) {
+          authDescription.textContent = 'Sign in once so billing, upgrades, and invoices stay attached to one portal identity. Then we will send you straight back.';
+        }
+        redirectEyebrow.textContent = 'Billing checkout';
+        redirectTitle.textContent = planMessage;
+        redirectBody.textContent = 'Use the same account for future plan changes so switching tiers does not create a second subscription.';
+        if (authSubmit) {
+          authSubmit.textContent = redirectContext.planLabel
+            ? `Continue to ${redirectContext.planLabel}`
+            : 'Continue to billing';
+        }
+        if (guestNote && guestButton) {
+          guestNote.innerHTML = 'Billing needs an account so Stripe stays linked to one portal identity. <button id="guest-button" type="button" onclick="continueAsGuest()">Back to portal home</button>';
+        }
+        return;
+      }
+
+      redirectEyebrow.textContent = 'Return after sign-in';
+      redirectTitle.textContent = 'We will send you back after you sign in.';
+      redirectBody.textContent = 'Create your account once so your saved work and account activity stay linked to the same portal identity.';
+      if (authSubmit) {
+        authSubmit.textContent = 'Sign in and continue';
+      }
+    }
 
     function signIn() {
       const username = document.getElementById('username').value.trim();
@@ -618,7 +766,7 @@
           console.error('Failed to record user profile metadata', err);
         })
         .then(() => {
-          window.location.href = 'index.html';
+          window.location.href = postSignInDestination;
         });
     }
 
@@ -768,10 +916,11 @@
         console.warn('Failed to clear shared identity cookie', err);
       }
       localStorage.setItem('guest', 'true');
-      window.location.href = 'index.html';
+      window.location.href = redirectContext.isBilling ? 'index.html' : postSignInDestination;
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      applyRedirectContext();
       const usernameInput = document.getElementById('username');
       if (usernameInput) {
         try {
