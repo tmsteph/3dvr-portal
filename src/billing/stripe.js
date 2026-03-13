@@ -28,6 +28,13 @@ function normalizeMetadataField(value = '') {
   return String(value || '').trim();
 }
 
+function customerHasPortalLink(customer) {
+  return Boolean(
+    normalizeMetadataField(customer?.metadata?.portal_pub)
+    || normalizeMetadataField(customer?.metadata?.portal_alias)
+  );
+}
+
 export function makeStripeClient(config = process.env) {
   const secretKey = String(config?.STRIPE_SECRET_KEY || '').trim();
   if (!secretKey) {
@@ -331,6 +338,52 @@ export async function resolvePortalLinkedStripeCustomer({
   };
 }
 
+export async function resolveLegacyStripeCustomerByEmail({
+  stripeClient,
+  billingEmail = '',
+  config = process.env
+} = {}) {
+  const normalizedEmail = normalizeBillingEmail(billingEmail);
+  if (!stripeClient || !normalizedEmail || !stripeClient.customers?.list) {
+    return { customer: null, source: 'missing-email' };
+  }
+
+  const listed = await stripeClient.customers.list({ email: normalizedEmail, limit: 10 });
+  const candidates = (listed?.data || []).filter(customer => {
+    return customer
+      && !customer.deleted
+      && customerMatchesEmail(customer, normalizedEmail)
+      && !customerHasPortalLink(customer);
+  });
+
+  const activeMatches = [];
+  for (const customer of candidates) {
+    const subscriptions = await listBillingSubscriptions(stripeClient, customer.id);
+    const billingState = pickCurrentBillingSubscription(subscriptions, config);
+    if (!billingState.current) {
+      continue;
+    }
+    activeMatches.push({
+      customer,
+      current: billingState.current,
+      active: billingState.active,
+      duplicates: billingState.duplicates
+    });
+  }
+
+  if (activeMatches.length !== 1) {
+    return {
+      customer: null,
+      source: activeMatches.length > 1 ? 'ambiguous-active-email' : 'not-found'
+    };
+  }
+
+  return {
+    ...activeMatches[0],
+    source: 'legacy_email'
+  };
+}
+
 export async function listBillingSubscriptions(stripeClient, customerId = '') {
   const normalizedCustomerId = String(customerId || '').trim();
   if (!stripeClient?.subscriptions?.list || !normalizedCustomerId) {
@@ -385,14 +438,26 @@ export function pickCurrentBillingSubscription(subscriptions = [], config = proc
   };
 }
 
-export function buildStatusPayload({ customer, current, active, duplicates }) {
+export function buildStatusPayload({
+  customer,
+  current,
+  active,
+  duplicates,
+  exposeCustomerId = true,
+  portalLinked = true,
+  statusSource = portalLinked ? 'portal_linked' : 'not_found',
+  legacyNeedsLinking = false
+}) {
   const normalizedPlan = current?.plan || 'free';
   return {
     ok: true,
-    customerId: String(customer?.id || '').trim(),
+    customerId: exposeCustomerId ? String(customer?.id || '').trim() : '',
     billingEmail: normalizeBillingEmail(customer?.email || customer?.metadata?.billing_email || ''),
     currentPlan: normalizedPlan,
     usageTier: usageTierFromPlan(normalizedPlan),
+    portalLinked: Boolean(portalLinked),
+    statusSource: String(statusSource || '').trim() || 'portal_linked',
+    legacyNeedsLinking: Boolean(legacyNeedsLinking),
     activeSubscriptions: (active || []).map(item => ({
       id: item.id,
       status: item.status,

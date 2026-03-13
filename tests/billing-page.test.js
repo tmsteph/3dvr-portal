@@ -49,6 +49,8 @@ describe('billing center', () => {
     assert.ok(js.includes('waitForBillingSessionReady'));
     assert.ok(js.includes('recoverBillingAuthSession'));
     assert.ok(js.includes("Refresh account to continue with Stripe billing on this tab."));
+    assert.ok(js.includes('Legacy Stripe plan found:'));
+    assert.ok(js.includes('older Stripe subscription was found for this billing email'));
     assert.ok(js.includes("label = 'Refresh account first'"));
     assert.ok(js.includes('authPub: livePub'));
     assert.ok(js.includes("window.location.assign(signInHref(targetPlan))"));

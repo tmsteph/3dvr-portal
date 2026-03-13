@@ -9,6 +9,7 @@ import {
   makeStripeClient,
   pickCurrentBillingSubscription,
   requireConfiguredPlanPrice,
+  resolveLegacyStripeCustomerByEmail,
   resolvePortalLinkedStripeCustomer,
   resolvePlanDiagnostics,
   setCorsHeaders
@@ -99,14 +100,49 @@ export function createStripeCheckoutHandler(options = {}) {
     }
 
     try {
-      const customerResolution = await resolvePortalLinkedStripeCustomer({
+      let customerResolution = await resolvePortalLinkedStripeCustomer({
         stripeClient,
         customerId,
         billingEmail,
         portalAlias,
         portalPub,
-        createIfMissing: action === 'subscribe'
+        createIfMissing: false
       });
+
+      if (!customerResolution.customer) {
+        const legacyResolution = await resolveLegacyStripeCustomerByEmail({
+          stripeClient,
+          billingEmail,
+          config
+        });
+
+        if (legacyResolution.customer) {
+          return res.status(409).json({
+            ...buildStatusPayload({
+              customer: legacyResolution.customer,
+              current: legacyResolution.current,
+              active: legacyResolution.active,
+              duplicates: legacyResolution.duplicates,
+              exposeCustomerId: false,
+              portalLinked: false,
+              statusSource: legacyResolution.source,
+              legacyNeedsLinking: true
+            }),
+            error: 'We found an older Stripe subscription for this billing email, but it is not linked to this portal account yet. To avoid creating a duplicate subscription, do not start a new plan here yet.'
+          });
+        }
+      }
+
+      if (!customerResolution.customer && action === 'subscribe') {
+        customerResolution = await resolvePortalLinkedStripeCustomer({
+          stripeClient,
+          customerId,
+          billingEmail,
+          portalAlias,
+          portalPub,
+          createIfMissing: true
+        });
+      }
 
       const customer = customerResolution.customer;
       if (!customer) {

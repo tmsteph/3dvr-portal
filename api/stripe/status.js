@@ -4,6 +4,7 @@ import {
   listBillingSubscriptions,
   makeStripeClient,
   pickCurrentBillingSubscription,
+  resolveLegacyStripeCustomerByEmail,
   resolvePortalLinkedStripeCustomer,
   setCorsHeaders
 } from '../../src/billing/stripe.js';
@@ -73,12 +74,34 @@ export function createStripeStatusHandler(options = {}) {
       });
 
       if (!customerResolution.customer) {
+        const legacyResolution = await resolveLegacyStripeCustomerByEmail({
+          stripeClient,
+          billingEmail,
+          config
+        });
+
+        if (legacyResolution.customer) {
+          return res.status(200).json(buildStatusPayload({
+            customer: legacyResolution.customer,
+            current: legacyResolution.current,
+            active: legacyResolution.active,
+            duplicates: legacyResolution.duplicates,
+            exposeCustomerId: false,
+            portalLinked: false,
+            statusSource: legacyResolution.source,
+            legacyNeedsLinking: true
+          }));
+        }
+
         return res.status(200).json({
           ok: true,
           customerId: '',
           billingEmail,
           currentPlan: 'free',
           usageTier: 'account',
+          portalLinked: false,
+          statusSource: 'not_found',
+          legacyNeedsLinking: false,
           activeSubscriptions: [],
           duplicateActiveCount: 0,
           hasDuplicateActiveSubscriptions: false

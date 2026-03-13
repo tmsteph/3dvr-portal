@@ -130,6 +130,10 @@ function hasKnownCustomer() {
   return Boolean(String(state.currentResponse?.customerId || state.customerId || '').trim())
 }
 
+function hasLegacyUnlinkedSubscription() {
+  return Boolean(state.currentResponse?.legacyNeedsLinking)
+}
+
 function currentSessionPub() {
   return String(user?._?.sea?.pub || user?.is?.pub || '').trim()
 }
@@ -339,6 +343,9 @@ function updateManageButton() {
   } else if (!hasVerifiedBillingSession()) {
     enabled = false
     label = 'Sign in first'
+  } else if (hasLegacyUnlinkedSubscription()) {
+    enabled = false
+    label = 'Legacy subscription'
   } else if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
     enabled = true
     label = 'Review duplicates'
@@ -396,6 +403,11 @@ function renderActionPrompt() {
 
   if (hasTypedInvalidBillingEmail()) {
     setStatus(actionStatus, 'Enter a valid billing email address to continue.', 'warning')
+    return
+  }
+
+  if (hasLegacyUnlinkedSubscription()) {
+    setStatus(actionStatus, 'An older Stripe subscription was found for this billing email. We are showing its status here, but new checkout is blocked to avoid creating a duplicate plan.', 'warning')
     return
   }
 
@@ -618,6 +630,27 @@ function renderBillingState(payload = null) {
         ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
         : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
     }
+    updateManageButton()
+    renderActionPrompt()
+    return
+  }
+
+  if (payload.legacyNeedsLinking) {
+    setStatus(
+      billingSummary,
+      `Legacy Stripe plan found: ${labelForPlan(currentPlan)}.`,
+      payload.hasDuplicateActiveSubscriptions ? 'warning' : 'info'
+    )
+
+    if (billingDetail) {
+      const activeLabels = (payload.activeSubscriptions || [])
+        .map(item => `${labelForPlan(item.plan)} (${item.status})`)
+        .join(' • ')
+      billingDetail.textContent = activeLabels
+        ? `Found by billing email from the older system: ${activeLabels}. This subscription is not linked to this portal account yet, so billing actions stay limited here.`
+        : 'A legacy Stripe subscription was found by billing email, but detailed line items were unavailable.'
+    }
+
     updateManageButton()
     renderActionPrompt()
     return
@@ -863,8 +896,14 @@ async function refreshBillingStatusAttempt(retriedAuth) {
       portalPub: state.pub
     })
 
-    rememberLocalBilling(payload)
-    await persistGunHints(payload)
+    rememberLocalBilling(
+      payload?.legacyNeedsLinking
+        ? { billingEmail: payload.billingEmail }
+        : payload
+    )
+    if (!payload?.legacyNeedsLinking) {
+      await persistGunHints(payload)
+    }
     renderBillingState(payload)
   } catch (error) {
     if (!retriedAuth && isBillingAuthErrorMessage(error?.message)) {
@@ -1056,6 +1095,11 @@ function bindEvents() {
         return
       }
 
+      if (hasLegacyUnlinkedSubscription()) {
+        renderActionPrompt()
+        return
+      }
+
       if (hasTypedInvalidBillingEmail()) {
         setStatus(actionStatus, 'Enter a valid billing email address to continue.', 'warning')
         billingEmailInput?.focus()
@@ -1087,6 +1131,11 @@ function bindEvents() {
     highlightPlan('custom', { updateUrl: true })
 
     if (!requireSignedInForPaidFlow({ plan: 'custom', redirectOnFailure: true })) {
+      return
+    }
+
+    if (hasLegacyUnlinkedSubscription()) {
+      renderActionPrompt()
       return
     }
 
