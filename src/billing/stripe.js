@@ -144,7 +144,16 @@ async function updateCustomerHints(stripeClient, customer, { billingEmail, porta
     return customer;
   }
 
-  return stripeClient.customers.update(customer.id, patch);
+  try {
+    return await stripeClient.customers.update(customer.id, patch);
+  } catch (error) {
+    console.warn('Unable to sync Stripe billing hints', error);
+    return {
+      ...customer,
+      email: patch.email || customer?.email || '',
+      metadata
+    };
+  }
 }
 
 export async function resolveStripeCustomer({

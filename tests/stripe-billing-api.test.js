@@ -378,6 +378,52 @@ describe('stripe billing checkout handler', () => {
     assert.equal(stripe.customers.list.mock.calls.length, 0);
   });
 
+  it('continues checkout when syncing billing hints fails for a matched portal customer', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      action: 'subscribe'
+    });
+    const customer = createPortalLinkedCustomer(auth, {
+      email: '',
+      metadata: {
+        billing_email: ''
+      }
+    });
+    const stripe = createMockStripe({
+      customers: {
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [customer] : []
+        })),
+        update: mock.fn(async () => {
+          throw new Error('update failed');
+        })
+      }
+    });
+
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'subscribe',
+        plan: 'pro',
+        billingEmail: 'existing@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'checkout_subscription');
+    assert.equal(res.body.billingEmail, 'existing@example.com');
+    assert.equal(stripe.customers.update.mock.calls.length, 1);
+    assert.equal(stripe.checkout.sessions.create.mock.calls.length, 1);
+  });
+
   it('routes same-plan linked subscribers to general billing management instead of a second checkout', async () => {
     const auth = await createBillingAuth({
       alias: 'existing@3dvr',
@@ -700,5 +746,47 @@ describe('stripe billing status handler', () => {
       }
     ]);
     assert.equal(stripe.customers.list.mock.calls.length, 0);
+  });
+
+  it('keeps billing status available when syncing customer hints fails', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr'
+    });
+    const customer = createPortalLinkedCustomer(auth, {
+      email: '',
+      metadata: {
+        billing_email: ''
+      }
+    });
+    const stripe = createMockStripe({
+      customers: {
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [customer] : []
+        })),
+        update: mock.fn(async () => {
+          throw new Error('update failed');
+        })
+      }
+    });
+
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        billingEmail: 'existing@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.billingEmail, 'existing@example.com');
+    assert.equal(res.body.currentPlan, 'free');
+    assert.equal(stripe.customers.update.mock.calls.length, 1);
   });
 });
