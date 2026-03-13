@@ -199,6 +199,31 @@ describe('stripe billing checkout handler', () => {
     });
   });
 
+  it('rejects invalid billing emails before creating checkout sessions', async () => {
+    const stripe = createMockStripe();
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'subscribe',
+        plan: 'starter',
+        billingEmail: 'not-an-email',
+        portalAlias: 'new@3dvr'
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { error: 'Enter a valid billing email address.' });
+    assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
+  });
+
   it('sends existing subscribers into a Stripe plan-switch confirmation flow', async () => {
     const stripe = createMockStripe({
       customers: {
@@ -388,6 +413,31 @@ describe('stripe billing checkout handler', () => {
       cancel_url: 'https://portal.3dvr.tech/billing/?checkout=cancel&plan=custom'
     });
   });
+
+  it('returns a clear message when billing management is opened before any paid record exists', async () => {
+    const stripe = createMockStripe();
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'manage',
+        portalAlias: 'new@3dvr'
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 409);
+    assert.deepEqual(res.body, {
+      error: 'No paid billing record was found for this account yet. Choose a plan below to start.'
+    });
+    assert.equal(stripe.billingPortal.sessions.create.mock.calls.length, 0);
+  });
 });
 
 describe('stripe billing status handler', () => {
@@ -420,6 +470,28 @@ describe('stripe billing status handler', () => {
       duplicateActiveCount: 0,
       hasDuplicateActiveSubscriptions: false
     });
+  });
+
+  it('rejects invalid billing emails before checking Stripe status', async () => {
+    const stripe = createMockStripe();
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: {
+        billingEmail: 'not-an-email'
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { error: 'Enter a valid billing email address.' });
+    assert.equal(stripe.customers.list.mock.calls.length, 0);
   });
 
   it('returns the highest active subscription and flags duplicates', async () => {

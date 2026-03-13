@@ -22,7 +22,7 @@ describe('billing center', () => {
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Billing Center/);
     assert.match(html, /id="billing-email"/);
-    assert.match(html, /id="manage-billing"/);
+    assert.match(html, /id="manage-billing"[^>]+disabled[^>]+aria-disabled="true"/);
     assert.match(html, /data-plan-action="starter"/);
     assert.match(html, /data-plan-action="pro"/);
     assert.match(html, /data-plan-action="builder"/);
@@ -39,7 +39,9 @@ describe('billing center', () => {
     assert.ok(js.includes("billingRoot.get('customersByAlias')"));
     assert.ok(js.includes("billingRoot.get('customersByPub')"));
     assert.ok(js.includes("usageTierNode.get(state.pub).put"));
+    assert.ok(js.includes("fetch('/api/stripe/checkout'"));
     assert.ok(js.includes("fetchJson('/api/stripe/checkout'"));
     assert.ok(js.includes("fetchJson('/api/stripe/status'"));
+    assert.ok(js.includes("window.location.assign(signInHref(targetPlan))"));
   });
 });

@@ -69,7 +69,13 @@
 
         <label class="field" for="billing-email">
           <span>Billing email</span>
-          <input id="billing-email" type="email" autocomplete="email" placeholder="you@example.com">
+          <input
+            id="billing-email"
+            type="email"
+            autocomplete="email"
+            inputmode="email"
+            placeholder="you@example.com"
+          >
         </label>
 
         <p id="billing-summary" class="status status--info">We will look up your Stripe customer after sign-in.</p>
@@ -81,7 +87,9 @@
 
         <div class="button-row">
           <button id="refresh-status" class="button button--ghost" type="button">Refresh status</button>
-          <button id="manage-billing" class="button button--primary" type="button">Manage billing</button>
+          <button id="manage-billing" class="button button--primary" type="button" disabled aria-disabled="true">
+            Manage billing
+          </button>
         </div>
       </article>
     </section>

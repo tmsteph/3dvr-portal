@@ -6,7 +6,7 @@ import {
   resolveStripeCustomer,
   setCorsHeaders
 } from '../../src/billing/stripe.js';
-import { normalizeBillingEmail } from '../../src/billing/plans.js';
+import { isValidBillingEmail, normalizeBillingEmail } from '../../src/billing/plans.js';
 
 function readPayload(req) {
   if (req.method === 'GET') {
@@ -39,7 +39,12 @@ export function createStripeStatusHandler(options = {}) {
     const customerId = String(payload.customerId || '').trim();
     const portalAlias = String(payload.portalAlias || '').trim();
     const portalPub = String(payload.portalPub || '').trim();
-    const billingEmail = normalizeBillingEmail(payload.billingEmail);
+    const rawBillingEmail = String(payload.billingEmail || '').trim();
+    const billingEmail = normalizeBillingEmail(rawBillingEmail);
+
+    if (rawBillingEmail && !isValidBillingEmail(rawBillingEmail)) {
+      return res.status(400).json({ error: 'Enter a valid billing email address.' });
+    }
 
     if (!customerId && !portalAlias && !portalPub && !billingEmail) {
       return res.status(400).json({

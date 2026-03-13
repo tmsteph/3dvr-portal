@@ -15,6 +15,7 @@ import {
 } from '../../src/billing/stripe.js';
 import {
   getBillingPlan,
+  isValidBillingEmail,
   normalizeBillingEmail,
   normalizeBillingPlan,
   normalizeCustomAmount
@@ -55,7 +56,8 @@ export function createStripeCheckoutHandler(options = {}) {
     const body = readBody(req);
     const action = String(body.action || 'subscribe').trim().toLowerCase();
     const plan = normalizeBillingPlan(body.plan);
-    const billingEmail = normalizeBillingEmail(body.billingEmail);
+    const rawBillingEmail = String(body.billingEmail || '').trim();
+    const billingEmail = normalizeBillingEmail(rawBillingEmail);
     const customerId = String(body.customerId || '').trim();
     const portalAlias = String(body.portalAlias || '').trim();
     const portalPub = String(body.portalPub || '').trim();
@@ -77,6 +79,10 @@ export function createStripeCheckoutHandler(options = {}) {
       return res.status(400).json({ error: 'A custom one-time amount is required.' });
     }
 
+    if (rawBillingEmail && !isValidBillingEmail(rawBillingEmail)) {
+      return res.status(400).json({ error: 'Enter a valid billing email address.' });
+    }
+
     try {
       const customerResolution = await resolveStripeCustomer({
         stripeClient,
@@ -89,7 +95,11 @@ export function createStripeCheckoutHandler(options = {}) {
 
       const customer = customerResolution.customer;
       if (!customer) {
-        return res.status(404).json({ error: 'No Stripe customer could be resolved for this request.' });
+        return res.status(409).json({
+          error: action === 'manage'
+            ? 'No paid billing record was found for this account yet. Choose a plan below to start.'
+            : 'We could not match this request to a Stripe customer yet. Confirm the billing email and try again.'
+        });
       }
 
       const subscriptions = await listBillingSubscriptions(stripeClient, customer.id);

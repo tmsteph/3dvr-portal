@@ -43,6 +43,32 @@ const PLAN_LABELS = {
   custom: 'Custom project'
 }
 
+const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder'])
+const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'custom'])
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const DEFAULT_DIAGNOSTICS = Object.freeze({
+  loaded: false,
+  stripeConfigured: true,
+  customerPortalLoginConfigured: false,
+  planPricesConfigured: {
+    starter: true,
+    pro: true,
+    builder: true
+  }
+})
+
+function createDiagnosticsState(overrides = {}) {
+  return {
+    loaded: Boolean(overrides.loaded),
+    stripeConfigured: overrides.stripeConfigured !== false,
+    customerPortalLoginConfigured: Boolean(overrides.customerPortalLoginConfigured),
+    planPricesConfigured: {
+      ...DEFAULT_DIAGNOSTICS.planPricesConfigured,
+      ...(overrides.planPricesConfigured || {})
+    }
+  }
+}
+
 const state = {
   signedIn: false,
   alias: '',
@@ -53,7 +79,8 @@ const state = {
   currentPlan: 'free',
   usageTier: 'account',
   selectedPlan: '',
-  currentResponse: null
+  currentResponse: null,
+  diagnostics: createDiagnosticsState()
 }
 
 function readStorage(key) {
@@ -80,6 +107,37 @@ function normalizeEmail(value = '') {
   return String(value || '').trim().toLowerCase()
 }
 
+function sanitizeBillingEmail(value = '') {
+  const normalized = normalizeEmail(value)
+  if (!normalized || !EMAIL_PATTERN.test(normalized)) {
+    return ''
+  }
+
+  return normalized
+}
+
+function hasTypedInvalidBillingEmail() {
+  const rawValue = String(billingEmailInput?.value || '').trim()
+  return Boolean(rawValue) && !sanitizeBillingEmail(rawValue)
+}
+
+function currentBillingEmail() {
+  const typedEmail = sanitizeBillingEmail(billingEmailInput?.value || '')
+  return typedEmail || sanitizeBillingEmail(state.billingEmail)
+}
+
+function hasKnownCustomer() {
+  return Boolean(String(state.currentResponse?.customerId || state.customerId || '').trim())
+}
+
+function hasActivePaidSubscription() {
+  return Boolean(
+    state.currentPlan !== 'free'
+    && Array.isArray(state.currentResponse?.activeSubscriptions)
+    && state.currentResponse.activeSubscriptions.length
+  )
+}
+
 function setStatus(element, message, tone = 'info') {
   if (!element) return
   element.textContent = message
@@ -98,12 +156,35 @@ function setFlash(message = '') {
   flashMessage.textContent = message
 }
 
-function billingCenterHref() {
-  return `${window.location.pathname}${window.location.search}`
+function updatePlanQuery(plan = '') {
+  const nextUrl = new URL(window.location.href)
+  if (plan) {
+    nextUrl.searchParams.set('plan', plan)
+  } else {
+    nextUrl.searchParams.delete('plan')
+  }
+
+  window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`)
 }
 
-function signInHref() {
-  return `/sign-in.html?redirect=${encodeURIComponent(billingCenterHref())}`
+function billingCenterHref(plan = '') {
+  const nextUrl = new URL(window.location.href)
+  const selectedPlan = plan || state.selectedPlan || selectedPlanFromUrl()
+  if (selectedPlan) {
+    nextUrl.searchParams.set('plan', selectedPlan)
+  }
+
+  return `${nextUrl.pathname}${nextUrl.search}`
+}
+
+function signInHref(plan = '') {
+  return `/sign-in.html?redirect=${encodeURIComponent(billingCenterHref(plan))}`
+}
+
+function refreshSignInLink(plan = '') {
+  if (signInLink) {
+    signInLink.href = signInHref(plan)
+  }
 }
 
 function selectedPlanFromUrl() {
@@ -115,21 +196,191 @@ function labelForPlan(plan = '') {
   return PLAN_LABELS[plan] || plan || 'plan'
 }
 
-function highlightPlan(plan = '') {
+function highlightPlan(plan = '', options = {}) {
+  const { updateUrl = false } = options
+
   state.selectedPlan = plan
   planCards.forEach(card => {
     const targetPlan = card.dataset.planCard || ''
     card.classList.toggle('is-selected', Boolean(plan) && targetPlan === plan)
   })
-  if (selectedPlanLabel) {
-    if (plan) {
-      selectedPlanLabel.textContent = `Selected: ${labelForPlan(plan)}`
-    } else if (state.currentPlan && state.currentPlan !== 'free') {
-      selectedPlanLabel.textContent = `Current paid plan: ${labelForPlan(state.currentPlan)}`
-    } else {
-      selectedPlanLabel.textContent = 'Pick a plan below. Existing subscribers will be sent to a safe switch flow.'
-    }
+
+  if (updateUrl) {
+    updatePlanQuery(plan)
   }
+  refreshSignInLink(plan)
+
+  if (!selectedPlanLabel) {
+    return
+  }
+
+  if (plan) {
+    selectedPlanLabel.textContent = `Selected: ${labelForPlan(plan)}`
+    return
+  }
+
+  if (state.currentPlan && state.currentPlan !== 'free') {
+    selectedPlanLabel.textContent = `Current paid plan: ${labelForPlan(state.currentPlan)}`
+    return
+  }
+
+  selectedPlanLabel.textContent = 'Pick a plan below. Existing subscribers will be sent to a safe switch flow.'
+}
+
+function isPlanAvailable(plan = '') {
+  if (!state.diagnostics.loaded) {
+    return true
+  }
+
+  if (plan === 'custom') {
+    return Boolean(state.diagnostics.stripeConfigured)
+  }
+
+  if (!PAID_PLAN_SET.has(plan)) {
+    return true
+  }
+
+  return Boolean(state.diagnostics.stripeConfigured && state.diagnostics.planPricesConfigured?.[plan])
+}
+
+function applyButtonAvailability(button, enabled, unavailableLabel = 'Temporarily unavailable') {
+  if (!button) {
+    return
+  }
+
+  if (!button.dataset.defaultLabel) {
+    button.dataset.defaultLabel = button.textContent.trim()
+  }
+
+  button.disabled = !enabled
+  button.setAttribute('aria-disabled', String(!enabled))
+  button.textContent = enabled ? button.dataset.defaultLabel : unavailableLabel
+}
+
+function applyBillingDiagnostics() {
+  planButtons.forEach(button => {
+    const plan = String(button.dataset.planAction || '').trim().toLowerCase()
+    const enabled = isPlanAvailable(plan)
+    applyButtonAvailability(button, enabled)
+    button.closest('.plan-card')?.classList.toggle('is-unavailable', !enabled)
+  })
+
+  applyButtonAvailability(customSubmitButton, isPlanAvailable('custom'), 'Checkout unavailable')
+}
+
+function updateManageButton() {
+  if (!manageBillingButton) {
+    return
+  }
+
+  if (!manageBillingButton.dataset.defaultLabel) {
+    manageBillingButton.dataset.defaultLabel = manageBillingButton.textContent.trim()
+  }
+
+  let enabled = true
+  let label = manageBillingButton.dataset.defaultLabel || 'Manage billing'
+
+  if (state.diagnostics.loaded && !state.diagnostics.stripeConfigured) {
+    enabled = false
+    label = 'Billing offline'
+  } else if (!state.signedIn || !state.alias) {
+    enabled = false
+    label = 'Sign in first'
+  } else if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
+    enabled = true
+    label = 'Review duplicates'
+  } else if (!hasKnownCustomer()) {
+    enabled = false
+    label = 'Choose a plan first'
+  } else if (!hasActivePaidSubscription()) {
+    enabled = true
+    label = 'Billing history'
+  }
+
+  manageBillingButton.disabled = !enabled
+  manageBillingButton.setAttribute('aria-disabled', String(!enabled))
+  manageBillingButton.textContent = label
+}
+
+function renderActionPrompt() {
+  if (!actionStatus) {
+    return
+  }
+
+  if (state.diagnostics.loaded && !state.diagnostics.stripeConfigured) {
+    setStatus(actionStatus, 'Stripe billing is temporarily unavailable. Try again after the server configuration is finished.', 'warning')
+    return
+  }
+
+  if (state.selectedPlan && !isPlanAvailable(state.selectedPlan)) {
+    setStatus(actionStatus, `${labelForPlan(state.selectedPlan)} is temporarily unavailable right now.`, 'warning')
+    return
+  }
+
+  if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
+    setStatus(
+      actionStatus,
+      'More than one active subscription was found. Open billing to cancel the extra plan and keep one clean account-linked subscription.',
+      'warning'
+    )
+    return
+  }
+
+  if (!state.signedIn || !state.alias) {
+    if (state.selectedPlan && STRIPE_PLAN_SET.has(state.selectedPlan)) {
+      setStatus(actionStatus, `Selected ${labelForPlan(state.selectedPlan)}. Sign in to continue.`, 'info')
+      return
+    }
+
+    setStatus(actionStatus, 'Sign in to start a paid plan or manage an existing subscription.', 'info')
+    return
+  }
+
+  if (hasTypedInvalidBillingEmail()) {
+    setStatus(actionStatus, 'Enter a valid billing email address to continue.', 'warning')
+    return
+  }
+
+  if (state.selectedPlan === 'custom') {
+    if (!currentBillingEmail()) {
+      setStatus(actionStatus, 'Enter your billing email, then open the custom checkout.', 'info')
+      return
+    }
+
+    setStatus(actionStatus, 'Ready to open a one-time Stripe checkout for the agreed amount.', 'info')
+    return
+  }
+
+  if (PAID_PLAN_SET.has(state.selectedPlan)) {
+    if (!currentBillingEmail()) {
+      setStatus(actionStatus, `Enter your billing email, then continue with ${labelForPlan(state.selectedPlan)}.`, 'info')
+      return
+    }
+
+    if (state.currentPlan === state.selectedPlan && hasActivePaidSubscription()) {
+      setStatus(
+        actionStatus,
+        `You are already on ${labelForPlan(state.selectedPlan)}. Open billing for invoices, payment method updates, or cancellation.`,
+        'info'
+      )
+      return
+    }
+
+    setStatus(actionStatus, `Ready to continue with ${labelForPlan(state.selectedPlan)}. Stripe will open next.`, 'info')
+    return
+  }
+
+  if (hasActivePaidSubscription()) {
+    setStatus(actionStatus, 'Need invoices, cancellation, or payment method updates? Open Stripe billing.', 'info')
+    return
+  }
+
+  if (hasKnownCustomer()) {
+    setStatus(actionStatus, 'No paid plan is active right now. Choose a plan below or open your billing history.', 'info')
+    return
+  }
+
+  setStatus(actionStatus, 'Sign in, confirm your billing email, then choose a plan.', 'info')
 }
 
 function onceAsync(node) {
@@ -150,7 +401,7 @@ function normalizeHintRecord(record) {
   return {
     alias: String(record.alias || '').trim(),
     pub: String(record.pub || '').trim(),
-    email: normalizeEmail(record.email),
+    email: sanitizeBillingEmail(record.email),
     customerId: String(record.customerId || '').trim(),
     currentPlan: String(record.currentPlan || '').trim().toLowerCase(),
     usageTier: String(record.usageTier || '').trim().toLowerCase()
@@ -174,7 +425,7 @@ async function persistGunHints(payload = {}) {
     return
   }
 
-  const email = normalizeEmail(payload.billingEmail || state.billingEmail)
+  const email = sanitizeBillingEmail(payload.billingEmail || state.billingEmail)
   const customerId = String(payload.customerId || state.customerId || '').trim()
   const currentPlan = String(payload.currentPlan || state.currentPlan || 'free').trim().toLowerCase()
   const usageTier = String(payload.usageTier || state.usageTier || 'account').trim().toLowerCase()
@@ -223,7 +474,7 @@ async function persistGunHints(payload = {}) {
 }
 
 function rememberLocalBilling(payload = {}) {
-  const billingEmail = normalizeEmail(payload.billingEmail || payload.email || state.billingEmail)
+  const billingEmail = sanitizeBillingEmail(payload.billingEmail || payload.email || state.billingEmail)
   const customerId = String(payload.customerId || state.customerId || '').trim()
   const usageTier = String(payload.usageTier || state.usageTier || '').trim().toLowerCase()
 
@@ -273,22 +524,23 @@ function renderBillingState(payload = null) {
   highlightPlan(selectedPlanFromUrl() || (currentPlan !== 'free' ? currentPlan : ''))
 
   if (!payload) {
-    setStatus(
-      billingSummary,
-      'We will look up your Stripe customer after sign-in.',
-      'info'
-    )
+    setStatus(billingSummary, 'We will look up your Stripe customer after sign-in.', 'info')
+    if (billingDetail) {
+      billingDetail.textContent = 'If you already subscribe, the plan buttons below will route you through a safe switch flow instead of starting a second subscription.'
+    }
     if (duplicateWarning) {
       duplicateWarning.hidden = true
       duplicateWarning.textContent = ''
     }
+    updateManageButton()
+    renderActionPrompt()
     return
   }
 
   if (payload.hasDuplicateActiveSubscriptions) {
     if (duplicateWarning) {
       duplicateWarning.hidden = false
-      duplicateWarning.textContent = `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found.`
+      duplicateWarning.textContent = `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Open billing and cancel the extra plan.`
     }
   } else if (duplicateWarning) {
     duplicateWarning.hidden = true
@@ -298,8 +550,12 @@ function renderBillingState(payload = null) {
   if (currentPlan === 'free' || !(payload.activeSubscriptions || []).length) {
     setStatus(billingSummary, 'No paid subscription is active yet.', 'info')
     if (billingDetail) {
-      billingDetail.textContent = 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
+      billingDetail.textContent = hasKnownCustomer()
+        ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
+        : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
     }
+    updateManageButton()
+    renderActionPrompt()
     return
   }
 
@@ -317,6 +573,9 @@ function renderBillingState(payload = null) {
       ? `Active subscriptions: ${activeLabels}`
       : 'Stripe returned an active plan but no detailed line items.'
   }
+
+  updateManageButton()
+  renderActionPrompt()
 }
 
 async function syncHintsFromGun() {
@@ -342,9 +601,7 @@ async function syncHintsFromGun() {
 }
 
 async function refreshAuthState() {
-  if (signInLink) {
-    signInLink.href = signInHref()
-  }
+  refreshSignInLink()
 
   try {
     user.recall({ sessionStorage: true, localStorage: true })
@@ -375,6 +632,8 @@ async function refreshAuthState() {
 
   renderAccountSummary()
   await syncHintsFromGun()
+  updateManageButton()
+  renderActionPrompt()
 }
 
 async function fetchJson(url, payload) {
@@ -393,13 +652,49 @@ async function fetchJson(url, payload) {
   return body
 }
 
+async function refreshBillingDiagnostics() {
+  try {
+    const response = await fetch('/api/stripe/checkout', {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json'
+      }
+    })
+
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(body?.error || `Request failed (${response.status})`)
+    }
+
+    state.diagnostics = createDiagnosticsState({
+      loaded: true,
+      stripeConfigured: Boolean(body?.stripeConfigured),
+      customerPortalLoginConfigured: Boolean(body?.customerPortalLoginConfigured),
+      planPricesConfigured: body?.planPricesConfigured || {}
+    })
+  } catch (error) {
+    state.diagnostics = createDiagnosticsState()
+  }
+
+  applyBillingDiagnostics()
+  updateManageButton()
+  renderActionPrompt()
+}
+
 async function refreshBillingStatus() {
-  const billingEmail = normalizeEmail(billingEmailInput?.value || state.billingEmail)
+  const billingEmail = currentBillingEmail()
   if (billingEmail) {
     state.billingEmail = billingEmail
   }
 
-  if (!state.customerId && !state.billingEmail && !state.alias && !state.pub) {
+  if (!state.customerId && !billingEmail && !state.alias && !state.pub) {
+    if (hasTypedInvalidBillingEmail()) {
+      setStatus(billingSummary, 'Enter a valid billing email to check status, or sign in to use your portal account.', 'warning')
+      updateManageButton()
+      renderActionPrompt()
+      return
+    }
+
     renderBillingState(null)
     return
   }
@@ -409,7 +704,7 @@ async function refreshBillingStatus() {
   try {
     const payload = await fetchJson('/api/stripe/status', {
       customerId: state.customerId,
-      billingEmail: state.billingEmail,
+      billingEmail,
       portalAlias: state.alias,
       portalPub: state.pub
     })
@@ -419,24 +714,47 @@ async function refreshBillingStatus() {
     renderBillingState(payload)
   } catch (error) {
     setStatus(billingSummary, error?.message || 'Unable to load billing status.', 'error')
+    updateManageButton()
+    renderActionPrompt()
   }
 }
 
-function requireSignedInForPaidFlow() {
+function redirectToSignIn(plan = '') {
+  const targetPlan = plan || state.selectedPlan || selectedPlanFromUrl()
+  if (targetPlan) {
+    updatePlanQuery(targetPlan)
+  }
+  refreshSignInLink(targetPlan)
+  window.location.assign(signInHref(targetPlan))
+}
+
+function requireSignedInForPaidFlow(options = {}) {
+  const { plan = '', redirectOnFailure = false } = options
+
   if (state.signedIn && state.alias) {
     return true
   }
 
+  const targetPlan = plan || state.selectedPlan || selectedPlanFromUrl()
+  refreshSignInLink(targetPlan)
   setStatus(
     actionStatus,
-    'Sign in first so the paid plan stays attached to one portal account.',
+    targetPlan
+      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan stays attached to one portal account.`
+      : 'Sign in first so the paid plan stays attached to one portal account.',
     'warning'
   )
+  signInLink?.focus()
+
+  if (redirectOnFailure) {
+    redirectToSignIn(targetPlan)
+  }
+
   return false
 }
 
 async function startCheckoutAction(payload) {
-  const billingEmail = normalizeEmail(billingEmailInput?.value || state.billingEmail)
+  const billingEmail = currentBillingEmail()
   if (billingEmail) {
     state.billingEmail = billingEmail
   }
@@ -472,13 +790,42 @@ function handleFlashFromQuery() {
     setFlash('Plan change confirmed in Stripe. Refreshing your billing status now.')
     return
   }
+  if (params.get('manage') === 'return') {
+    setFlash('Returned from Stripe billing. Review your status below.')
+    return
+  }
   if (params.get('checkout') === 'cancel') {
     setFlash('Checkout was canceled before payment completed.')
-    return
   }
 }
 
 function bindEvents() {
+  billingEmailInput?.addEventListener('input', () => {
+    const rawValue = String(billingEmailInput.value || '').trim()
+    if (!rawValue) {
+      state.billingEmail = ''
+      writeStorage(billingEmailStorageKey, '')
+    } else {
+      const email = sanitizeBillingEmail(rawValue)
+      if (email) {
+        state.billingEmail = email
+        writeStorage(billingEmailStorageKey, email)
+      }
+    }
+
+    renderActionPrompt()
+  })
+
+  billingEmailInput?.addEventListener('blur', () => {
+    const email = sanitizeBillingEmail(billingEmailInput.value || '')
+    if (email) {
+      billingEmailInput.value = email
+      rememberLocalBilling({ billingEmail: email })
+    }
+
+    renderActionPrompt()
+  })
+
   refreshAuthButton?.addEventListener('click', async () => {
     setStatus(accountSummary, 'Refreshing your portal account...', 'info')
     await refreshAuthState()
@@ -490,6 +837,10 @@ function bindEvents() {
   })
 
   manageBillingButton?.addEventListener('click', async () => {
+    if (manageBillingButton.disabled) {
+      return
+    }
+
     if (!requireSignedInForPaidFlow()) {
       return
     }
@@ -503,14 +854,24 @@ function bindEvents() {
 
   planButtons.forEach(button => {
     button.addEventListener('click', async () => {
-      const plan = String(button.dataset.planAction || '').trim().toLowerCase()
-      highlightPlan(plan)
-
-      if (!requireSignedInForPaidFlow()) {
+      if (button.disabled) {
         return
       }
 
-      if (!normalizeEmail(billingEmailInput?.value || state.billingEmail)) {
+      const plan = String(button.dataset.planAction || '').trim().toLowerCase()
+      highlightPlan(plan, { updateUrl: true })
+
+      if (!requireSignedInForPaidFlow({ plan, redirectOnFailure: true })) {
+        return
+      }
+
+      if (hasTypedInvalidBillingEmail()) {
+        setStatus(actionStatus, 'Enter a valid billing email address to continue.', 'warning')
+        billingEmailInput?.focus()
+        return
+      }
+
+      if (!currentBillingEmail()) {
         setStatus(actionStatus, 'Enter the billing email you want tied to this portal account.', 'warning')
         billingEmailInput?.focus()
         return
@@ -528,7 +889,13 @@ function bindEvents() {
   })
 
   customSubmitButton?.addEventListener('click', async () => {
-    if (!requireSignedInForPaidFlow()) {
+    if (customSubmitButton.disabled) {
+      return
+    }
+
+    highlightPlan('custom', { updateUrl: true })
+
+    if (!requireSignedInForPaidFlow({ plan: 'custom', redirectOnFailure: true })) {
       return
     }
 
@@ -539,7 +906,13 @@ function bindEvents() {
       return
     }
 
-    if (!normalizeEmail(billingEmailInput?.value || state.billingEmail)) {
+    if (hasTypedInvalidBillingEmail()) {
+      setStatus(actionStatus, 'Enter a valid billing email address to continue.', 'warning')
+      billingEmailInput?.focus()
+      return
+    }
+
+    if (!currentBillingEmail()) {
       setStatus(actionStatus, 'Enter the billing email you want tied to this portal account.', 'warning')
       billingEmailInput?.focus()
       return
@@ -569,6 +942,7 @@ async function init() {
   handleFlashFromQuery()
   highlightPlan(selectedPlanFromUrl())
   bindEvents()
+  await refreshBillingDiagnostics()
   await refreshAuthState()
   await refreshBillingStatus()
 }

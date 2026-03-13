@@ -67,6 +67,8 @@ const PLAN_WEIGHTS = {
   builder: 3
 };
 
+const BILLING_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function normalizeBillingPlan(value = '') {
   const normalized = String(value || '')
     .trim()
@@ -116,7 +118,16 @@ export function resolveConfiguredPriceId(planValue, config = process.env) {
 }
 
 export function normalizeBillingEmail(value = '') {
-  return String(value || '').trim().toLowerCase();
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized || !BILLING_EMAIL_PATTERN.test(normalized)) {
+    return '';
+  }
+
+  return normalized;
+}
+
+export function isValidBillingEmail(value = '') {
+  return Boolean(normalizeBillingEmail(value));
 }
 
 export function normalizeCustomAmount(value) {
