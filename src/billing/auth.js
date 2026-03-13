@@ -1,3 +1,5 @@
+// Force Vercel's serverless bundler to include Gun's nested text-encoding polyfill.
+import 'gun/lib/text-encoding/index.js';
 import SEA from 'gun/sea.js';
 
 export const BILLING_AUTH_SCOPE = 'stripe-billing';
