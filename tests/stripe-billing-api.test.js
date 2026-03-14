@@ -68,6 +68,18 @@ function createSubscription({
   };
 }
 
+function createInvoice({
+  id = 'in_test',
+  created = 1,
+  customer = 'cus_existing'
+} = {}) {
+  return {
+    id,
+    created,
+    customer
+  };
+}
+
 function createMockStripe(overrides = {}) {
   const stripe = {
     customers: {
@@ -90,6 +102,9 @@ function createMockStripe(overrides = {}) {
       search: mock.fn(async () => ({ data: [] }))
     },
     subscriptions: {
+      list: mock.fn(async () => ({ data: [] }))
+    },
+    invoices: {
       list: mock.fn(async () => ({ data: [] }))
     },
     checkout: {
@@ -115,6 +130,9 @@ function createMockStripe(overrides = {}) {
   }
   if (overrides.subscriptions) {
     Object.assign(stripe.subscriptions, overrides.subscriptions);
+  }
+  if (overrides.invoices) {
+    Object.assign(stripe.invoices, overrides.invoices);
   }
   if (overrides.checkout?.sessions) {
     Object.assign(stripe.checkout.sessions, overrides.checkout.sessions);
@@ -165,6 +183,7 @@ function createPortalLinkedCustomer(auth, overrides = {}) {
   return {
     id: overrides.id || 'cus_existing',
     email: overrides.email || 'existing@example.com',
+    created: overrides.created || 0,
     metadata: {
       portal_pub: auth.pub,
       portal_alias: auth.alias,
@@ -177,6 +196,7 @@ function createLegacyCustomer(overrides = {}) {
   return {
     id: overrides.id || 'cus_legacy',
     email: overrides.email || 'legacy@example.com',
+    created: overrides.created || 0,
     metadata: {
       ...(overrides.metadata || {})
     }
@@ -430,7 +450,7 @@ describe('stripe billing checkout handler', () => {
       }
     });
     assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
-    assert.equal(stripe.customers.list.mock.calls.length, 0);
+    assert.equal(stripe.customers.list.mock.calls.length, 1);
   });
 
   it('continues checkout when syncing billing hints fails for a matched portal customer', async () => {
@@ -741,6 +761,82 @@ describe('stripe billing checkout handler', () => {
     assert.equal(res.body.duplicateActiveCount, 1);
     assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
   });
+
+  it('opens legacy billing when a newer portal-linked placeholder exists but legacy billing data is richer', async () => {
+    const auth = await createBillingAuth({
+      alias: 'legacy@3dvr',
+      action: 'manage'
+    });
+    const linkedCustomer = createPortalLinkedCustomer(auth, {
+      id: 'cus_linked',
+      email: 'legacy@example.com',
+      created: 50
+    });
+    const legacyCustomer = createLegacyCustomer({
+      id: 'cus_legacy',
+      email: 'legacy@example.com',
+      created: 10
+    });
+    const stripe = createMockStripe({
+      customers: {
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [linkedCustomer] : []
+        })),
+        list: mock.fn(async ({ email }) => ({
+          data: email === 'legacy@example.com' ? [linkedCustomer, legacyCustomer] : []
+        }))
+      },
+      subscriptions: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === legacyCustomer.id
+            ? [
+                createSubscription({
+                  id: 'sub_legacy',
+                  customer: legacyCustomer.id,
+                  plan: 'pro',
+                  priceId: 'price_pro',
+                  created: 100
+                })
+              ]
+            : []
+        }))
+      },
+      invoices: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === legacyCustomer.id
+            ? [createInvoice({ id: 'in_legacy', customer, created: 200 })]
+            : []
+        }))
+      }
+    });
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'manage',
+        customerId: linkedCustomer.id,
+        billingEmail: 'legacy@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'legacy_portal_manage');
+    assert.equal(res.body.statusSource, 'legacy_email');
+    assert.equal(res.body.legacyNeedsLinking, true);
+    assert.equal(res.body.hasInvoiceHistory, true);
+    assert.equal(res.body.legacyBillingManagementAvailable, true);
+    assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
+      customer: legacyCustomer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return'
+    });
+  });
 });
 
 describe('stripe billing status handler', () => {
@@ -822,6 +918,8 @@ describe('stripe billing status handler', () => {
       portalLinked: false,
       statusSource: 'not_found',
       legacyNeedsLinking: false,
+      hasInvoiceHistory: false,
+      legacyBillingManagementAvailable: false,
       activeSubscriptions: [],
       duplicateActiveCount: 0,
       hasDuplicateActiveSubscriptions: false
@@ -959,7 +1057,7 @@ describe('stripe billing status handler', () => {
         priceId: 'price_starter'
       }
     ]);
-    assert.equal(stripe.customers.list.mock.calls.length, 0);
+    assert.equal(stripe.customers.list.mock.calls.length, 1);
   });
 
   it('returns legacy active subscription status when an old unlinked Stripe customer matches the billing email', async () => {
@@ -1092,6 +1190,142 @@ describe('stripe billing status handler', () => {
         priceId: 'price_pro'
       }
     ]);
+  });
+
+  it('prefers legacy active subscription status over a newer empty portal-linked customer', async () => {
+    const auth = await createBillingAuth({
+      alias: 'legacy@3dvr'
+    });
+    const linkedCustomer = createPortalLinkedCustomer(auth, {
+      id: 'cus_linked',
+      email: 'legacy@example.com',
+      created: 50
+    });
+    const legacyCustomer = createLegacyCustomer({
+      id: 'cus_legacy',
+      email: 'legacy@example.com',
+      created: 10
+    });
+    const stripe = createMockStripe({
+      customers: {
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [linkedCustomer] : []
+        })),
+        list: mock.fn(async ({ email }) => ({
+          data: email === 'legacy@example.com' ? [linkedCustomer, legacyCustomer] : []
+        }))
+      },
+      subscriptions: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === legacyCustomer.id
+            ? [
+                createSubscription({
+                  id: 'sub_legacy',
+                  customer: legacyCustomer.id,
+                  plan: 'pro',
+                  priceId: 'price_pro',
+                  created: 100
+                })
+              ]
+            : []
+        }))
+      },
+      invoices: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === legacyCustomer.id
+            ? [createInvoice({ id: 'in_legacy', customer, created: 200 })]
+            : []
+        }))
+      }
+    });
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        customerId: linkedCustomer.id,
+        billingEmail: 'legacy@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.currentPlan, 'pro');
+    assert.equal(res.body.portalLinked, false);
+    assert.equal(res.body.statusSource, 'legacy_email');
+    assert.equal(res.body.legacyNeedsLinking, true);
+    assert.equal(res.body.hasInvoiceHistory, true);
+    assert.equal(res.body.legacyBillingManagementAvailable, true);
+    assert.deepEqual(res.body.activeSubscriptions, [
+      {
+        id: 'sub_legacy',
+        status: 'active',
+        plan: 'pro',
+        priceId: 'price_pro'
+      }
+    ]);
+  });
+
+  it('surfaces legacy invoice history when an empty linked customer exists but only older invoices remain', async () => {
+    const auth = await createBillingAuth({
+      alias: 'legacy@3dvr'
+    });
+    const linkedCustomer = createPortalLinkedCustomer(auth, {
+      id: 'cus_linked',
+      email: 'legacy@example.com',
+      created: 50
+    });
+    const legacyCustomer = createLegacyCustomer({
+      id: 'cus_legacy',
+      email: 'legacy@example.com',
+      created: 10
+    });
+    const stripe = createMockStripe({
+      customers: {
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [linkedCustomer] : []
+        })),
+        list: mock.fn(async ({ email }) => ({
+          data: email === 'legacy@example.com' ? [linkedCustomer, legacyCustomer] : []
+        }))
+      },
+      invoices: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === legacyCustomer.id
+            ? [createInvoice({ id: 'in_legacy', customer, created: 200 })]
+            : []
+        }))
+      }
+    });
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        customerId: linkedCustomer.id,
+        billingEmail: 'legacy@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.currentPlan, 'free');
+    assert.equal(res.body.portalLinked, false);
+    assert.equal(res.body.statusSource, 'legacy_email_history');
+    assert.equal(res.body.legacyNeedsLinking, true);
+    assert.equal(res.body.hasInvoiceHistory, true);
+    assert.equal(res.body.legacyBillingManagementAvailable, true);
+    assert.deepEqual(res.body.activeSubscriptions, []);
   });
 
   it('keeps billing status available when syncing customer hints fails', async () => {

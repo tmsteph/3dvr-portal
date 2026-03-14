@@ -4,14 +4,15 @@ import {
   buildStatusPayload,
   buildSubscriptionUpdateFlow,
   buildBillingUrls,
+  compareBillingCustomerRecords,
+  combineBillingCustomerRecords,
   getRequestOrigin,
-  listBillingSubscriptions,
   makeStripeClient,
-  pickCurrentBillingSubscription,
   requireConfiguredPlanPrice,
   resolveLegacyStripeCustomerByEmail,
   resolvePortalLinkedStripeCustomer,
   resolvePlanDiagnostics,
+  summarizeBillingCustomerRecord,
   setCorsHeaders
 } from '../../src/billing/stripe.js';
 import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
@@ -106,22 +107,36 @@ export function createStripeCheckoutHandler(options = {}) {
         billingEmail,
         portalAlias,
         portalPub,
-        createIfMissing: false
+        createIfMissing: false,
+        config
       });
+      let linkedState = combineBillingCustomerRecords(customerResolution.records || []);
+      let linkedRecord = linkedState.primary
+        || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
+      const legacyResolution = await resolveLegacyStripeCustomerByEmail({
+        stripeClient,
+        billingEmail,
+        config
+      });
+      const legacyState = combineBillingCustomerRecords(legacyResolution.records || []);
+      const legacyRecord = legacyState.primary || null;
+      const shouldPreferLegacy = Boolean(
+        legacyResolution.customer
+        && legacyRecord
+        && (
+          !linkedRecord
+          || compareBillingCustomerRecords(legacyRecord, linkedRecord) < 0
+        )
+      );
 
-      if (!customerResolution.customer) {
-        const legacyResolution = await resolveLegacyStripeCustomerByEmail({
-          stripeClient,
-          billingEmail,
-          config
-        });
+      if (shouldPreferLegacy && action === 'manage') {
+        if (stripeClient.billingPortal?.sessions?.create) {
+          const portalSession = await stripeClient.billingPortal.sessions.create({
+            customer: legacyResolution.customer.id,
+            return_url: billingUrls.portalReturnUrl
+          });
 
-        if (legacyResolution.customer) {
-          const legacyConflictMessage = legacyResolution.matchCount > 1
-            ? 'We found multiple older Stripe subscriptions for this billing email, and they are not linked to this portal account yet. To avoid creating another duplicate subscription, do not start a new plan here yet.'
-            : 'We found an older Stripe subscription for this billing email, but it is not linked to this portal account yet. To avoid creating a duplicate subscription, do not start a new plan here yet.';
-
-          return res.status(409).json({
+          return res.status(200).json({
             ...buildStatusPayload({
               customer: legacyResolution.customer,
               current: legacyResolution.current,
@@ -130,11 +145,38 @@ export function createStripeCheckoutHandler(options = {}) {
               exposeCustomerId: false,
               portalLinked: false,
               statusSource: legacyResolution.source,
-              legacyNeedsLinking: true
+              legacyNeedsLinking: true,
+              hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+              legacyBillingManagementAvailable: true
             }),
-            error: legacyConflictMessage
+            flow: 'legacy_portal_manage',
+            url: portalSession.url
           });
         }
+
+        return res.status(500).json({ error: 'Stripe Billing Portal is not configured.' });
+      }
+
+      if (shouldPreferLegacy && legacyResolution.current) {
+        const legacyConflictMessage = legacyResolution.matchCount > 1
+          ? 'We found multiple older Stripe subscriptions for this billing email, and they are not linked to this portal account yet. To avoid creating another duplicate subscription, do not start a new plan here yet.'
+          : 'We found an older Stripe subscription for this billing email, but it is not linked to this portal account yet. To avoid creating a duplicate subscription, do not start a new plan here yet.';
+
+        return res.status(409).json({
+          ...buildStatusPayload({
+            customer: legacyResolution.customer,
+            current: legacyResolution.current,
+            active: legacyResolution.active,
+            duplicates: legacyResolution.duplicates,
+            exposeCustomerId: false,
+            portalLinked: false,
+            statusSource: legacyResolution.source,
+            legacyNeedsLinking: true,
+            hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+            legacyBillingManagementAvailable: true
+          }),
+          error: legacyConflictMessage
+        });
       }
 
       if (!customerResolution.customer && action === 'subscribe') {
@@ -144,8 +186,12 @@ export function createStripeCheckoutHandler(options = {}) {
           billingEmail,
           portalAlias,
           portalPub,
-          createIfMissing: true
+          createIfMissing: true,
+          config
         });
+        linkedState = combineBillingCustomerRecords(customerResolution.records || []);
+        linkedRecord = linkedState.primary
+          || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
       }
 
       const customer = customerResolution.customer;
@@ -157,9 +203,25 @@ export function createStripeCheckoutHandler(options = {}) {
         });
       }
 
-      const subscriptions = await listBillingSubscriptions(stripeClient, customer.id);
-      const billingState = pickCurrentBillingSubscription(subscriptions, config);
-      const { current, active, duplicates } = billingState;
+      const current = linkedState.current || linkedRecord?.current || null;
+      const active = linkedState.active.length ? linkedState.active : linkedRecord?.active || [];
+      const duplicates = linkedState.active.length ? linkedState.duplicates : linkedRecord?.duplicates || [];
+      const statusSource = linkedState.recordCount > 1 ? 'portal_linked_multi' : 'portal_linked';
+      const hasInvoiceHistory = linkedState.recordCount ? linkedState.hasInvoiceHistory : linkedRecord?.hasInvoiceHistory;
+
+      if (action === 'subscribe' && duplicates.length && current && current.plan !== plan) {
+        return res.status(409).json({
+          ...buildStatusPayload({
+            customer,
+            current,
+            active,
+            duplicates,
+            statusSource,
+            hasInvoiceHistory
+          }),
+          error: 'More than one active Stripe subscription is already associated with this account. Cancel the extra subscription before changing plans here.'
+        });
+      }
 
       if (action === 'manage') {
         if (stripeClient.billingPortal?.sessions?.create) {
@@ -169,7 +231,14 @@ export function createStripeCheckoutHandler(options = {}) {
           });
 
           return res.status(200).json({
-            ...buildStatusPayload({ customer, current, active, duplicates }),
+            ...buildStatusPayload({
+              customer,
+              current,
+              active,
+              duplicates,
+              statusSource,
+              hasInvoiceHistory
+            }),
             flow: 'portal_manage',
             url: portalSession.url
           });
@@ -177,7 +246,14 @@ export function createStripeCheckoutHandler(options = {}) {
 
         if (config.STRIPE_CUSTOMER_PORTAL_LOGIN_URL) {
           return res.status(200).json({
-            ...buildStatusPayload({ customer, current, active, duplicates }),
+            ...buildStatusPayload({
+              customer,
+              current,
+              active,
+              duplicates,
+              statusSource,
+              hasInvoiceHistory
+            }),
             flow: 'portal_login',
             url: String(config.STRIPE_CUSTOMER_PORTAL_LOGIN_URL).trim()
           });
@@ -201,7 +277,7 @@ export function createStripeCheckoutHandler(options = {}) {
         );
 
         return res.status(200).json({
-          ...buildStatusPayload({ customer, current, active, duplicates }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory }),
           flow: 'checkout_payment',
           url: paymentSession.url
         });
@@ -215,7 +291,7 @@ export function createStripeCheckoutHandler(options = {}) {
         });
 
         return res.status(200).json({
-          ...buildStatusPayload({ customer, current, active, duplicates }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory }),
           flow: 'already_subscribed',
           url: portalSession.url
         });
@@ -232,7 +308,7 @@ export function createStripeCheckoutHandler(options = {}) {
         );
 
         return res.status(200).json({
-          ...buildStatusPayload({ customer, current, active, duplicates }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory }),
           flow: 'portal_update',
           targetPlan: getBillingPlan(plan)?.label || plan,
           url: portalSession.url
@@ -252,7 +328,7 @@ export function createStripeCheckoutHandler(options = {}) {
       );
 
       return res.status(200).json({
-        ...buildStatusPayload({ customer, current, active, duplicates }),
+        ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory }),
         flow: 'checkout_subscription',
         targetPlan: getBillingPlan(plan)?.label || plan,
         url: checkoutSession.url

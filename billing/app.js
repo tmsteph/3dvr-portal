@@ -134,6 +134,21 @@ function hasLegacyUnlinkedSubscription() {
   return Boolean(state.currentResponse?.legacyNeedsLinking)
 }
 
+function hasLegacyActiveSubscription() {
+  return Boolean(
+    hasLegacyUnlinkedSubscription()
+    && Array.isArray(state.currentResponse?.activeSubscriptions)
+    && state.currentResponse.activeSubscriptions.length
+  )
+}
+
+function canManageLegacyBilling() {
+  return Boolean(
+    hasLegacyUnlinkedSubscription()
+    && state.currentResponse?.legacyBillingManagementAvailable
+  )
+}
+
 function currentSessionPub() {
   return String(user?._?.sea?.pub || user?.is?.pub || '').trim()
 }
@@ -344,8 +359,14 @@ function updateManageButton() {
     enabled = false
     label = 'Sign in first'
   } else if (hasLegacyUnlinkedSubscription()) {
-    enabled = false
-    label = state.currentResponse?.hasDuplicateActiveSubscriptions ? 'Legacy duplicates' : 'Legacy subscription'
+    enabled = canManageLegacyBilling()
+    if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
+      label = canManageLegacyBilling() ? 'Review legacy billing' : 'Legacy duplicates'
+    } else if (hasLegacyActiveSubscription()) {
+      label = canManageLegacyBilling() ? 'Open legacy billing' : 'Legacy subscription'
+    } else {
+      label = canManageLegacyBilling() ? 'View legacy invoices' : 'Legacy history'
+    }
   } else if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
     enabled = true
     label = 'Review duplicates'
@@ -381,7 +402,9 @@ function renderActionPrompt() {
     if (hasLegacyUnlinkedSubscription()) {
       setStatus(
         actionStatus,
-        'Multiple older Stripe subscriptions were found for this billing email. This billing center can show their status here, but checkout and management stay blocked until those records are linked or cleaned up.',
+        canManageLegacyBilling()
+          ? 'Multiple older Stripe subscriptions were found for this billing email. Open legacy billing to inspect invoices or cancel extras. New checkout stays blocked until those records are linked or cleaned up.'
+          : 'Multiple older Stripe subscriptions were found for this billing email. This billing center can show their status here, but checkout and management stay blocked until those records are linked or cleaned up.',
         'warning'
       )
       return
@@ -416,7 +439,17 @@ function renderActionPrompt() {
   }
 
   if (hasLegacyUnlinkedSubscription()) {
-    setStatus(actionStatus, 'An older Stripe subscription was found for this billing email. We are showing its status here, but new checkout is blocked to avoid creating a duplicate plan.', 'warning')
+    setStatus(
+      actionStatus,
+      hasLegacyActiveSubscription()
+        ? canManageLegacyBilling()
+          ? 'An older Stripe subscription was found for this billing email. Open legacy billing to review invoices or payment methods. New checkout stays blocked to avoid creating a duplicate plan.'
+          : 'An older Stripe subscription was found for this billing email. We are showing its status here, but new checkout is blocked to avoid creating a duplicate plan.'
+        : canManageLegacyBilling()
+          ? 'Older Stripe billing history was found for this billing email. Open legacy billing to review invoices or payment methods, or choose a new plan below if you want to start a fresh portal-linked subscription.'
+          : 'Older Stripe billing history was found for this billing email. Review it before starting a new portal-linked subscription.',
+      hasLegacyActiveSubscription() ? 'warning' : 'info'
+    )
     return
   }
 
@@ -634,6 +667,41 @@ function renderBillingState(payload = null) {
     duplicateWarning.textContent = ''
   }
 
+  if (payload.legacyNeedsLinking) {
+    const activeLabels = (payload.activeSubscriptions || [])
+      .map(item => `${labelForPlan(item.plan)} (${item.status})`)
+      .join(' • ')
+    const hasLegacyActive = Boolean((payload.activeSubscriptions || []).length)
+
+    setStatus(
+      billingSummary,
+      hasLegacyActive
+        ? `Legacy Stripe plan found: ${labelForPlan(currentPlan)}.`
+        : payload.hasInvoiceHistory
+          ? 'Legacy Stripe billing history found for this email.'
+          : 'Legacy Stripe record found for this email.',
+      payload.hasDuplicateActiveSubscriptions ? 'warning' : hasLegacyActive ? 'info' : 'warning'
+    )
+
+    if (billingDetail) {
+      if (activeLabels) {
+        billingDetail.textContent = canManageLegacyBilling()
+          ? `Found by billing email from the older system: ${activeLabels}. Open legacy billing to review invoices or payment methods. New checkout stays blocked until this record is linked.`
+          : `Found by billing email from the older system: ${activeLabels}. These subscriptions are not linked to this portal account yet, so billing actions stay limited here.`
+      } else if (payload.hasInvoiceHistory) {
+        billingDetail.textContent = canManageLegacyBilling()
+          ? 'Older Stripe billing history was found for this billing email. Open legacy billing to review invoices, payment methods, or older cancellations. You can still start a fresh portal-linked plan below if you need a new active subscription.'
+          : 'Older Stripe billing history was found for this billing email, but this page cannot open it directly yet.'
+      } else {
+        billingDetail.textContent = 'A legacy Stripe subscription was found by billing email, but detailed line items were unavailable.'
+      }
+    }
+
+    updateManageButton()
+    renderActionPrompt()
+    return
+  }
+
   if (currentPlan === 'free' || !(payload.activeSubscriptions || []).length) {
     setStatus(billingSummary, 'No paid subscription is active yet.', 'info')
     if (billingDetail) {
@@ -641,27 +709,6 @@ function renderBillingState(payload = null) {
         ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
         : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
     }
-    updateManageButton()
-    renderActionPrompt()
-    return
-  }
-
-  if (payload.legacyNeedsLinking) {
-    setStatus(
-      billingSummary,
-      `Legacy Stripe plan found: ${labelForPlan(currentPlan)}.`,
-      payload.hasDuplicateActiveSubscriptions ? 'warning' : 'info'
-    )
-
-    if (billingDetail) {
-      const activeLabels = (payload.activeSubscriptions || [])
-        .map(item => `${labelForPlan(item.plan)} (${item.status})`)
-        .join(' • ')
-      billingDetail.textContent = activeLabels
-        ? `Found by billing email from the older system: ${activeLabels}. These subscriptions are not linked to this portal account yet, so billing actions stay limited here.`
-        : 'A legacy Stripe subscription was found by billing email, but detailed line items were unavailable.'
-    }
-
     updateManageButton()
     renderActionPrompt()
     return
@@ -1106,7 +1153,7 @@ function bindEvents() {
         return
       }
 
-      if (hasLegacyUnlinkedSubscription()) {
+      if (hasLegacyActiveSubscription()) {
         renderActionPrompt()
         return
       }
@@ -1145,7 +1192,7 @@ function bindEvents() {
       return
     }
 
-    if (hasLegacyUnlinkedSubscription()) {
+    if (hasLegacyActiveSubscription()) {
       renderActionPrompt()
       return
     }

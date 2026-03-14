@@ -136,6 +136,19 @@ function customerMatchesEmail(customer, email) {
   return normalizeBillingEmail(customer?.email) === normalizeBillingEmail(email);
 }
 
+function uniqueCustomers(customers = []) {
+  const seen = new Set();
+  return (customers || []).filter(customer => {
+    const customerId = String(customer?.id || '').trim();
+    if (!customer || customer.deleted || !customerId || seen.has(customerId)) {
+      return false;
+    }
+
+    seen.add(customerId);
+    return true;
+  });
+}
+
 async function updateCustomerHints(stripeClient, customer, { billingEmail, portalAlias, portalPub }) {
   if (!customer || !stripeClient?.customers?.update) {
     return customer;
@@ -287,7 +300,8 @@ export async function resolvePortalLinkedStripeCustomer({
   billingEmail = '',
   portalAlias = '',
   portalPub = '',
-  createIfMissing = true
+  createIfMissing = true,
+  config = process.env
 } = {}) {
   if (!stripeClient) {
     return { customer: null, source: 'missing-client' };
@@ -302,34 +316,43 @@ export async function resolvePortalLinkedStripeCustomer({
     return { customer: null, source: 'missing-portal-pub' };
   }
 
+  const linkedCandidates = [];
   if (normalizedCustomerId && stripeClient.customers?.retrieve) {
     try {
       const customer = await stripeClient.customers.retrieve(normalizedCustomerId);
       if (customer && !customer.deleted && customerMatchesPortalPub(customer, normalizedPub)) {
-        return {
-          customer: await updateCustomerHints(stripeClient, customer, {
-            billingEmail: normalizedEmail,
-            portalAlias: normalizedAlias,
-            portalPub: normalizedPub
-          }),
-          source: 'customer_id'
-        };
+        linkedCandidates.push(customer);
       }
     } catch (error) {
       // Fall through to portal-linked metadata lookup.
     }
   }
 
-  const metadataCandidates = await searchCustomersByMetadata(stripeClient, 'portal_pub', normalizedPub);
-  const customer = metadataCandidates.find(candidate => candidate && !candidate.deleted) || null;
-  if (customer) {
-    return {
-      customer: await updateCustomerHints(stripeClient, customer, {
+  linkedCandidates.push(...await searchCustomersByMetadata(stripeClient, 'portal_pub', normalizedPub));
+  const uniqueLinkedCandidates = uniqueCustomers(linkedCandidates);
+  if (uniqueLinkedCandidates.length) {
+    const syncedCandidates = [];
+    for (const candidate of uniqueLinkedCandidates) {
+      syncedCandidates.push(await updateCustomerHints(stripeClient, candidate, {
         billingEmail: normalizedEmail,
         portalAlias: normalizedAlias,
         portalPub: normalizedPub
-      }),
-      source: 'portal_pub'
+      }));
+    }
+
+    const linkedRecords = [];
+    for (const candidate of syncedCandidates) {
+      const record = await summarizeBillingCustomerRecord(stripeClient, candidate, config);
+      if (record) {
+        linkedRecords.push(record);
+      }
+    }
+
+    const combinedLinkedState = combineBillingCustomerRecords(linkedRecords);
+    return {
+      customer: combinedLinkedState.primary?.customer || syncedCandidates[0] || null,
+      records: linkedRecords,
+      source: uniqueLinkedCandidates.length > 1 ? 'portal_pub_multi' : 'portal_pub'
     };
   }
 
@@ -357,35 +380,32 @@ export async function resolveLegacyStripeCustomerByEmail({
   billingEmail = '',
   config = process.env
 } = {}) {
-  const normalizedEmail = normalizeBillingEmail(billingEmail);
-  if (!stripeClient || !normalizedEmail || !stripeClient.customers?.list) {
+  if (!stripeClient || !normalizeBillingEmail(billingEmail) || !stripeClient.customers?.list) {
     return { customer: null, source: 'missing-email' };
   }
 
-  const listed = await stripeClient.customers.list({ email: normalizedEmail, limit: 10 });
-  const candidates = (listed?.data || []).filter(customer => {
-    return customer
-      && !customer.deleted
-      && customerMatchesEmail(customer, normalizedEmail)
-      && !customerHasPortalLink(customer);
+  const records = await listLegacyStripeCustomerRecordsByEmail({
+    stripeClient,
+    billingEmail,
+    config
   });
-
-  const activeMatches = [];
-  for (const customer of candidates) {
-    const subscriptions = await listBillingSubscriptions(stripeClient, customer.id);
-    const billingState = pickCurrentBillingSubscription(subscriptions, config);
-    if (!billingState.current) {
-      continue;
-    }
-    activeMatches.push({
-      customer,
-      current: billingState.current,
-      active: billingState.active,
-      duplicates: billingState.duplicates
-    });
-  }
+  const activeMatches = records.filter(record => record.current);
 
   if (!activeMatches.length) {
+    if (records.length) {
+      const combinedHistoryState = combineBillingCustomerRecords(records);
+      return {
+        customer: combinedHistoryState.primary?.customer || null,
+        current: null,
+        active: [],
+        duplicates: [],
+        hasInvoiceHistory: combinedHistoryState.hasInvoiceHistory,
+        source: 'legacy_email_history',
+        matchCount: records.length,
+        records
+      };
+    }
+
     return {
       customer: null,
       source: 'not-found'
@@ -393,24 +413,29 @@ export async function resolveLegacyStripeCustomerByEmail({
   }
 
   if (activeMatches.length > 1) {
-    const active = activeMatches
-      .flatMap(match => match.active || [])
-      .sort(compareBillingSubscriptionPriority);
+    const combinedActiveState = combineBillingCustomerRecords(activeMatches);
 
     return {
-      customer: activeMatches[0].customer,
-      current: active[0] || null,
-      active,
-      duplicates: active.slice(1),
+      customer: combinedActiveState.primary?.customer || activeMatches[0].customer,
+      current: combinedActiveState.current,
+      active: combinedActiveState.active,
+      duplicates: combinedActiveState.duplicates,
+      hasInvoiceHistory: combineBillingCustomerRecords(records).hasInvoiceHistory,
       source: 'legacy_email_ambiguous',
-      matchCount: activeMatches.length
+      matchCount: activeMatches.length,
+      records
     };
   }
 
   return {
-    ...activeMatches[0],
+    customer: activeMatches[0].customer,
+    current: activeMatches[0].current,
+    active: activeMatches[0].active,
+    duplicates: activeMatches[0].duplicates,
+    hasInvoiceHistory: combineBillingCustomerRecords(records).hasInvoiceHistory,
     source: 'legacy_email',
-    matchCount: 1
+    matchCount: 1,
+    records
   };
 }
 
@@ -427,6 +452,109 @@ export async function listBillingSubscriptions(stripeClient, customerId = '') {
   });
 
   return Array.isArray(response?.data) ? response.data : [];
+}
+
+export async function listBillingInvoices(stripeClient, customerId = '', { limit = 1 } = {}) {
+  const normalizedCustomerId = String(customerId || '').trim();
+  if (!stripeClient?.invoices?.list || !normalizedCustomerId) {
+    return [];
+  }
+
+  const response = await stripeClient.invoices.list({
+    customer: normalizedCustomerId,
+    limit: Math.max(1, Math.min(Number(limit) || 1, 20))
+  });
+
+  return Array.isArray(response?.data) ? response.data : [];
+}
+
+export async function summarizeBillingCustomerRecord(stripeClient, customer, config = process.env) {
+  if (!customer || customer.deleted) {
+    return null;
+  }
+
+  const [subscriptions, invoices] = await Promise.all([
+    listBillingSubscriptions(stripeClient, customer.id),
+    listBillingInvoices(stripeClient, customer.id, { limit: 1 })
+  ]);
+  const billingState = pickCurrentBillingSubscription(subscriptions, config);
+  const latestInvoice = invoices[0] || null;
+
+  return {
+    customer,
+    current: billingState.current,
+    active: billingState.active,
+    duplicates: billingState.duplicates,
+    hasInvoiceHistory: Boolean(latestInvoice),
+    lastInvoiceAt: Number(latestInvoice?.created || 0)
+  };
+}
+
+export function compareBillingCustomerRecords(left, right) {
+  const planDelta = planWeight(right?.current?.plan || 'free') - planWeight(left?.current?.plan || 'free');
+  if (planDelta !== 0) {
+    return planDelta;
+  }
+
+  const currentCreatedDelta = Number(right?.current?.created || 0) - Number(left?.current?.created || 0);
+  if (currentCreatedDelta !== 0) {
+    return currentCreatedDelta;
+  }
+
+  const invoiceDelta = Number(right?.lastInvoiceAt || 0) - Number(left?.lastInvoiceAt || 0);
+  if (invoiceDelta !== 0) {
+    return invoiceDelta;
+  }
+
+  return Number(right?.customer?.created || 0) - Number(left?.customer?.created || 0);
+}
+
+export function combineBillingCustomerRecords(records = []) {
+  const normalizedRecords = (records || [])
+    .filter(Boolean)
+    .sort(compareBillingCustomerRecords);
+  const active = normalizedRecords
+    .flatMap(record => record.active || [])
+    .sort(compareBillingSubscriptionPriority);
+
+  return {
+    primary: normalizedRecords[0] || null,
+    current: active[0] || null,
+    active,
+    duplicates: active.slice(1),
+    hasInvoiceHistory: normalizedRecords.some(record => record.hasInvoiceHistory),
+    recordCount: normalizedRecords.length
+  };
+}
+
+export async function listLegacyStripeCustomerRecordsByEmail({
+  stripeClient,
+  billingEmail = '',
+  config = process.env
+} = {}) {
+  const normalizedEmail = normalizeBillingEmail(billingEmail);
+  if (!stripeClient || !normalizedEmail || !stripeClient.customers?.list) {
+    return [];
+  }
+
+  const listed = await stripeClient.customers.list({ email: normalizedEmail, limit: 10 });
+  const candidates = uniqueCustomers((listed?.data || []).filter(customer => {
+    return customerMatchesEmail(customer, normalizedEmail) && !customerHasPortalLink(customer);
+  }));
+
+  const records = [];
+  for (const customer of candidates) {
+    const record = await summarizeBillingCustomerRecord(stripeClient, customer, config);
+    if (!record) {
+      continue;
+    }
+
+    if (record.current || record.hasInvoiceHistory) {
+      records.push(record);
+    }
+  }
+
+  return records.sort(compareBillingCustomerRecords);
 }
 
 export function resolveBillingPlanFromSubscription(subscription, pricePlanMap = {}) {
@@ -470,7 +598,9 @@ export function buildStatusPayload({
   exposeCustomerId = true,
   portalLinked = true,
   statusSource = portalLinked ? 'portal_linked' : 'not_found',
-  legacyNeedsLinking = false
+  legacyNeedsLinking = false,
+  hasInvoiceHistory = false,
+  legacyBillingManagementAvailable = false
 }) {
   const normalizedPlan = current?.plan || 'free';
   return {
@@ -482,6 +612,8 @@ export function buildStatusPayload({
     portalLinked: Boolean(portalLinked),
     statusSource: String(statusSource || '').trim() || 'portal_linked',
     legacyNeedsLinking: Boolean(legacyNeedsLinking),
+    hasInvoiceHistory: Boolean(hasInvoiceHistory),
+    legacyBillingManagementAvailable: Boolean(legacyBillingManagementAvailable),
     activeSubscriptions: (active || []).map(item => ({
       id: item.id,
       status: item.status,

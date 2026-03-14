@@ -1,11 +1,12 @@
 import {
   buildStatusPayload,
+  compareBillingCustomerRecords,
+  combineBillingCustomerRecords,
   getRequestOrigin,
-  listBillingSubscriptions,
   makeStripeClient,
-  pickCurrentBillingSubscription,
   resolveLegacyStripeCustomerByEmail,
   resolvePortalLinkedStripeCustomer,
+  summarizeBillingCustomerRecord,
   setCorsHeaders
 } from '../../src/billing/stripe.js';
 import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
@@ -70,29 +71,44 @@ export function createStripeStatusHandler(options = {}) {
         billingEmail,
         portalAlias,
         portalPub,
-        createIfMissing: false
+        createIfMissing: false,
+        config
       });
+      const linkedState = combineBillingCustomerRecords(customerResolution.records || []);
+      const linkedRecord = linkedState.primary
+        || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
+      const legacyResolution = await resolveLegacyStripeCustomerByEmail({
+        stripeClient,
+        billingEmail,
+        config
+      });
+      const legacyState = combineBillingCustomerRecords(legacyResolution.records || []);
+      const legacyRecord = legacyState.primary || null;
+      const shouldPreferLegacy = Boolean(
+        legacyResolution.customer
+        && legacyRecord
+        && (
+          !linkedRecord
+          || compareBillingCustomerRecords(legacyRecord, linkedRecord) < 0
+        )
+      );
+
+      if (shouldPreferLegacy) {
+        return res.status(200).json(buildStatusPayload({
+          customer: legacyResolution.customer,
+          current: legacyResolution.current,
+          active: legacyResolution.active,
+          duplicates: legacyResolution.duplicates,
+          exposeCustomerId: false,
+          portalLinked: false,
+          statusSource: legacyResolution.source,
+          legacyNeedsLinking: true,
+          hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+          legacyBillingManagementAvailable: true
+        }));
+      }
 
       if (!customerResolution.customer) {
-        const legacyResolution = await resolveLegacyStripeCustomerByEmail({
-          stripeClient,
-          billingEmail,
-          config
-        });
-
-        if (legacyResolution.customer) {
-          return res.status(200).json(buildStatusPayload({
-            customer: legacyResolution.customer,
-            current: legacyResolution.current,
-            active: legacyResolution.active,
-            duplicates: legacyResolution.duplicates,
-            exposeCustomerId: false,
-            portalLinked: false,
-            statusSource: legacyResolution.source,
-            legacyNeedsLinking: true
-          }));
-        }
-
         return res.status(200).json({
           ok: true,
           customerId: '',
@@ -102,21 +118,21 @@ export function createStripeStatusHandler(options = {}) {
           portalLinked: false,
           statusSource: 'not_found',
           legacyNeedsLinking: false,
+          hasInvoiceHistory: false,
+          legacyBillingManagementAvailable: false,
           activeSubscriptions: [],
           duplicateActiveCount: 0,
           hasDuplicateActiveSubscriptions: false
         });
       }
 
-      const customer = customerResolution.customer;
-      const subscriptions = await listBillingSubscriptions(stripeClient, customer.id);
-      const billingState = pickCurrentBillingSubscription(subscriptions, config);
-
       return res.status(200).json(buildStatusPayload({
-        customer,
-        current: billingState.current,
-        active: billingState.active,
-        duplicates: billingState.duplicates
+        customer: linkedState.primary?.customer || linkedRecord?.customer || customerResolution.customer,
+        current: linkedState.current || linkedRecord?.current || null,
+        active: linkedState.active.length ? linkedState.active : linkedRecord?.active || [],
+        duplicates: linkedState.active.length ? linkedState.duplicates : linkedRecord?.duplicates || [],
+        statusSource: linkedState.recordCount > 1 ? 'portal_linked_multi' : 'portal_linked',
+        hasInvoiceHistory: linkedState.recordCount ? linkedState.hasInvoiceHistory : linkedRecord?.hasInvoiceHistory
       }));
     } catch (error) {
       console.error('Failed to resolve Stripe billing status', error);
