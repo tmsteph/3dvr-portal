@@ -1,0 +1,39 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { access, readFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+
+const signInUrl = new URL('../sign-in.html', import.meta.url);
+
+async function fileExists(path) {
+  try {
+    await access(path, constants.F_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+describe('sign-in page', () => {
+  it('preserves safe redirect targets after account creation', async () => {
+    assert.equal(await fileExists(signInUrl), true, 'sign-in.html should exist');
+
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /sanitizeRedirectDestination/);
+    assert.match(html, /const postSignInDestination = resolvePostSignInDestination\(\);/);
+    assert.match(html, /window\.location\.href = postSignInDestination;/);
+  });
+
+  it('adds billing-specific sign-in guidance when users arrive from the billing center', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /id="redirect-context"/);
+    assert.match(html, /Create your portal account to continue/);
+    assert.match(html, /Continue to billing/);
+    assert.match(html, /Billing needs an account so Stripe stays linked to one portal identity/);
+  });
+
+  it('persists the current portal pub when billing sign-in completes', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /localStorage\.setItem\('userPubKey', userPub\)/);
+  });
+});

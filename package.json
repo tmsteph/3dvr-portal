@@ -11,7 +11,7 @@
     "money:autopilot": "node scripts/money/run-autopilot.mjs",
     "playwright:install:linux": "node scripts/playwright/install-runtime.mjs",
     "playwright:install": "sh scripts/playwright/run-install.sh",
-    "playwright:e2e:tests": "node --test tests/contacts-identity.e2e.test.js tests/contacts-score.e2e.test.js",
+    "playwright:e2e:tests": "node --test tests/contacts-identity.e2e.test.js tests/contacts-score.e2e.test.js tests/billing-flow.e2e.test.js",
     "playwright:e2e:linux": "npm run playwright:install:linux && npm run playwright:e2e:tests",
     "playwright:e2e": "sh scripts/playwright/run-e2e.sh",
     "playwright:smoke:linux": "npm run playwright:install:linux && node scripts/playwright/smoke.mjs",
@@ -20,6 +20,7 @@
     "playwright:verify": "sh scripts/playwright/run-in-linux.sh playwright:verify:linux"
   },
   "dependencies": {
+    "gun": "^0.2020.1241",
     "nodemailer": "^6.9.8",
     "stripe": "^12.17.0"
   },

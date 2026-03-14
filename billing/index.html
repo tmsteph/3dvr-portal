@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Billing Center | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="Manage 3DVR subscriptions, switch plans without double-subscribing, and keep billing tied to your portal account."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="hero__eyebrow">Stripe Billing</p>
+        <h1 class="hero__title">Billing Center</h1>
+        <p class="hero__lead">
+          Start a paid plan, switch between tiers, or open Stripe billing management from one account-linked flow.
+          Paid plans are handled through the portal so upgrades replace the old plan instead of creating a second one.
+        </p>
+      </div>
+      <div class="hero__actions">
+        <a class="button button--ghost" href="../index.html">Back to Portal</a>
+        <a class="button button--ghost" href="https://3dvr.tech/subscribe/" target="_blank" rel="noreferrer">
+          Public pricing
+        </a>
+      </div>
+    </section>
+
+    <p id="flash-message" class="flash" hidden></p>
+
+    <section class="grid grid--top">
+      <article class="card" aria-labelledby="account-title">
+        <div class="card__header">
+          <div>
+            <p class="card__eyebrow">Portal Account</p>
+            <h2 id="account-title" class="card__title">Identity</h2>
+          </div>
+        </div>
+        <p id="account-summary" class="status status--info">Checking your portal session...</p>
+        <p class="meta">
+          Paid plan changes are tied to a portal account first. That gives us a stable customer identity even when the
+          billing email changes later.
+        </p>
+        <div class="button-row">
+          <a id="sign-in-link" class="button button--primary" href="../sign-in.html">Sign in or create account</a>
+          <button id="refresh-auth" class="button button--ghost" type="button">Refresh account</button>
+        </div>
+      </article>
+
+      <article class="card" aria-labelledby="status-title">
+        <div class="card__header">
+          <div>
+            <p class="card__eyebrow">Current Billing</p>
+            <h2 id="status-title" class="card__title">Subscription status</h2>
+          </div>
+        </div>
+
+        <label class="field" for="billing-email">
+          <span>Billing email</span>
+          <input
+            id="billing-email"
+            type="email"
+            autocomplete="email"
+            inputmode="email"
+            placeholder="you@example.com"
+          >
+        </label>
+
+        <p id="billing-summary" class="status status--info">We will look up your Stripe customer after sign-in.</p>
+        <p id="billing-detail" class="meta">
+          If you already subscribe, the plan buttons below will route you to a Stripe-confirmed plan switch instead of
+          starting a second subscription.
+        </p>
+        <p id="duplicate-warning" class="status status--warning" hidden></p>
+
+        <div class="button-row">
+          <button id="refresh-status" class="button button--ghost" type="button">Refresh status</button>
+          <button id="manage-billing" class="button button--primary" type="button" disabled aria-disabled="true">
+            Manage billing
+          </button>
+        </div>
+      </article>
+    </section>
+
+    <section class="card" aria-labelledby="plans-title">
+      <div class="card__header">
+        <div>
+          <p class="card__eyebrow">Plans</p>
+          <h2 id="plans-title" class="card__title">Choose your path</h2>
+        </div>
+        <p id="selected-plan-label" class="meta">Pick a plan below. Existing subscribers will be sent to a safe switch flow.</p>
+      </div>
+
+      <div class="plan-grid">
+        <article class="plan-card" data-plan-card="free">
+          <p class="plan-card__eyebrow">Free</p>
+          <h3>Starter access</h3>
+          <p class="plan-card__price">$0</p>
+          <p class="plan-card__copy">
+            Explore the portal, launch a simple page, and get into the ecosystem without a card.
+          </p>
+          <ul class="plan-card__list">
+            <li>Portal entry point</li>
+            <li>Public docs and experiments</li>
+            <li>No credit card required</li>
+          </ul>
+          <a class="button button--ghost plan-card__action" href="../free-trial.html">Start free</a>
+        </article>
+
+        <article class="plan-card" data-plan-card="starter">
+          <p class="plan-card__eyebrow">Family &amp; Friends</p>
+          <h3>Supporter tier</h3>
+          <p class="plan-card__price">$5<span>/mo</span></p>
+          <p class="plan-card__copy">
+            Keep your project warm with light monthly support, previews, and a cleaner upgrade path later.
+          </p>
+          <ul class="plan-card__list">
+            <li>All free features</li>
+            <li>Light monthly support</li>
+            <li>Safe future upgrades</li>
+          </ul>
+          <button class="button button--primary plan-card__action" data-plan-action="starter" type="button">
+            Choose $5
+          </button>
+        </article>
+
+        <article class="plan-card" data-plan-card="pro">
+          <p class="plan-card__eyebrow">Founder</p>
+          <h3>Build with us</h3>
+          <p class="plan-card__price">$20<span>/mo</span></p>
+          <p class="plan-card__copy">
+            Move faster with active execution help, product thinking, and a direct upgrade route from the $5 tier.
+          </p>
+          <ul class="plan-card__list">
+            <li>Done-for-you updates</li>
+            <li>Async support and strategy</li>
+            <li>Priority execution</li>
+          </ul>
+          <button class="button button--primary plan-card__action" data-plan-action="pro" type="button">
+            Choose $20
+          </button>
+        </article>
+
+        <article class="plan-card" data-plan-card="builder">
+          <p class="plan-card__eyebrow">Builder</p>
+          <h3>Deep partnership</h3>
+          <p class="plan-card__price">$50<span>/mo</span></p>
+          <p class="plan-card__copy">
+            Reserved for heavier collaboration, higher limits, and faster access to custom roadmap work.
+          </p>
+          <ul class="plan-card__list">
+            <li>Everything in Founder</li>
+            <li>Higher AI and builder limits</li>
+            <li>Priority planning lane</li>
+          </ul>
+          <button class="button button--primary plan-card__action" data-plan-action="builder" type="button">
+            Choose $50
+          </button>
+        </article>
+      </div>
+    </section>
+
+    <section class="card card--custom" aria-labelledby="custom-title">
+      <div class="card__header">
+        <div>
+          <p class="card__eyebrow">One-time Work</p>
+          <h2 id="custom-title" class="card__title">Custom payment or project deposit</h2>
+        </div>
+      </div>
+
+      <p class="meta">
+        Use this when we already agreed on a one-time amount and you need a hosted Stripe checkout instead of a monthly
+        subscription.
+      </p>
+
+      <div class="custom-grid">
+        <label class="field" for="custom-amount">
+          <span>Quoted amount (USD)</span>
+          <input id="custom-amount" type="number" min="1" step="1" placeholder="500">
+        </label>
+        <label class="field" for="custom-label">
+          <span>Label</span>
+          <input id="custom-label" type="text" maxlength="80" placeholder="Custom project deposit">
+        </label>
+      </div>
+
+      <label class="field" for="custom-description">
+        <span>Description</span>
+        <textarea id="custom-description" rows="3" placeholder="Optional scope note or invoice reference"></textarea>
+      </label>
+
+      <div class="button-row">
+        <button id="custom-submit" class="button button--primary" type="button">Open custom checkout</button>
+      </div>
+
+      <p id="action-status" class="status status--info" role="status" aria-live="polite">
+        Sign in, confirm your billing email, then choose a plan.
+      </p>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
