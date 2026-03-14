@@ -705,9 +705,11 @@ function renderBillingState(payload = null) {
   if (currentPlan === 'free' || !(payload.activeSubscriptions || []).length) {
     setStatus(billingSummary, 'No paid subscription is active yet.', 'info')
     if (billingDetail) {
-      billingDetail.textContent = hasKnownCustomer()
-        ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
-        : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
+      billingDetail.textContent = payload.autoLinkedLegacy
+        ? 'We linked an older Stripe billing record to this portal account automatically. No paid subscription is active right now, but you can open billing history if you need past invoices.'
+        : hasKnownCustomer()
+          ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
+          : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
     }
     updateManageButton()
     renderActionPrompt()
@@ -725,7 +727,9 @@ function renderBillingState(payload = null) {
       .map(item => `${labelForPlan(item.plan)} (${item.status})`)
       .join(' • ')
     billingDetail.textContent = activeLabels
-      ? `Active subscriptions: ${activeLabels}`
+      ? payload.autoLinkedLegacy
+        ? `Recovered and linked from an older Stripe record. Active subscriptions: ${activeLabels}`
+        : `Active subscriptions: ${activeLabels}`
       : 'Stripe returned an active plan but no detailed line items.'
   }
 
@@ -963,6 +967,9 @@ async function refreshBillingStatusAttempt(retriedAuth) {
       await persistGunHints(payload)
     }
     renderBillingState(payload)
+    if (payload?.autoLinkedLegacy) {
+      setFlash('We linked your older Stripe billing record to this portal account automatically.')
+    }
   } catch (error) {
     if (!retriedAuth && isBillingAuthErrorMessage(error?.message)) {
       try {

@@ -1,4 +1,5 @@
 import {
+  autoLinkLegacyStripeCustomer,
   buildCheckoutSessionPayload,
   buildCustomPaymentSessionPayload,
   buildStatusPayload,
@@ -101,6 +102,7 @@ export function createStripeCheckoutHandler(options = {}) {
     }
 
     try {
+      let autoLinkedLegacy = false;
       let customerResolution = await resolvePortalLinkedStripeCustomer({
         stripeClient,
         customerId,
@@ -113,11 +115,41 @@ export function createStripeCheckoutHandler(options = {}) {
       let linkedState = combineBillingCustomerRecords(customerResolution.records || []);
       let linkedRecord = linkedState.primary
         || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
-      const legacyResolution = await resolveLegacyStripeCustomerByEmail({
+      let legacyResolution = await resolveLegacyStripeCustomerByEmail({
         stripeClient,
         billingEmail,
         config
       });
+      const autoLinkResolution = await autoLinkLegacyStripeCustomer({
+        stripeClient,
+        legacyResolution,
+        linkedRecords: customerResolution.records || [],
+        billingEmail,
+        portalAlias,
+        portalPub
+      });
+
+      if (autoLinkResolution.autoLinked) {
+        autoLinkedLegacy = true;
+        customerResolution = await resolvePortalLinkedStripeCustomer({
+          stripeClient,
+          customerId: autoLinkResolution.customer?.id || customerId,
+          billingEmail,
+          portalAlias,
+          portalPub,
+          createIfMissing: false,
+          config
+        });
+        linkedState = combineBillingCustomerRecords(customerResolution.records || []);
+        linkedRecord = linkedState.primary
+          || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
+        legacyResolution = await resolveLegacyStripeCustomerByEmail({
+          stripeClient,
+          billingEmail,
+          config
+        });
+      }
+
       const legacyState = combineBillingCustomerRecords(legacyResolution.records || []);
       const legacyRecord = legacyState.primary || null;
       const shouldPreferLegacy = Boolean(
@@ -147,7 +179,8 @@ export function createStripeCheckoutHandler(options = {}) {
               statusSource: legacyResolution.source,
               legacyNeedsLinking: true,
               hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
-              legacyBillingManagementAvailable: true
+              legacyBillingManagementAvailable: true,
+              autoLinkedLegacy
             }),
             flow: 'legacy_portal_manage',
             url: portalSession.url
@@ -173,7 +206,8 @@ export function createStripeCheckoutHandler(options = {}) {
             statusSource: legacyResolution.source,
             legacyNeedsLinking: true,
             hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
-            legacyBillingManagementAvailable: true
+            legacyBillingManagementAvailable: true,
+            autoLinkedLegacy
           }),
           error: legacyConflictMessage
         });
@@ -217,7 +251,8 @@ export function createStripeCheckoutHandler(options = {}) {
             active,
             duplicates,
             statusSource,
-            hasInvoiceHistory
+            hasInvoiceHistory,
+            autoLinkedLegacy
           }),
           error: 'More than one active Stripe subscription is already associated with this account. Cancel the extra subscription before changing plans here.'
         });
@@ -237,7 +272,8 @@ export function createStripeCheckoutHandler(options = {}) {
               active,
               duplicates,
               statusSource,
-              hasInvoiceHistory
+              hasInvoiceHistory,
+              autoLinkedLegacy
             }),
             flow: 'portal_manage',
             url: portalSession.url
@@ -252,7 +288,8 @@ export function createStripeCheckoutHandler(options = {}) {
               active,
               duplicates,
               statusSource,
-              hasInvoiceHistory
+              hasInvoiceHistory,
+              autoLinkedLegacy
             }),
             flow: 'portal_login',
             url: String(config.STRIPE_CUSTOMER_PORTAL_LOGIN_URL).trim()
@@ -277,7 +314,7 @@ export function createStripeCheckoutHandler(options = {}) {
         );
 
         return res.status(200).json({
-          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
           flow: 'checkout_payment',
           url: paymentSession.url
         });
@@ -291,7 +328,7 @@ export function createStripeCheckoutHandler(options = {}) {
         });
 
         return res.status(200).json({
-          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
           flow: 'already_subscribed',
           url: portalSession.url
         });
@@ -308,7 +345,7 @@ export function createStripeCheckoutHandler(options = {}) {
         );
 
         return res.status(200).json({
-          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
           flow: 'portal_update',
           targetPlan: getBillingPlan(plan)?.label || plan,
           url: portalSession.url
@@ -328,7 +365,7 @@ export function createStripeCheckoutHandler(options = {}) {
       );
 
       return res.status(200).json({
-        ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory }),
+        ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
         flow: 'checkout_subscription',
         targetPlan: getBillingPlan(plan)?.label || plan,
         url: checkoutSession.url

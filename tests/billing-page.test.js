@@ -54,6 +54,8 @@ describe('billing center', () => {
     assert.ok(js.includes('Older Stripe billing history was found for this billing email'));
     assert.ok(js.includes("Open legacy billing"));
     assert.ok(js.includes("View legacy invoices"));
+    assert.ok(js.includes('Recovered and linked from an older Stripe record.'));
+    assert.ok(js.includes('We linked your older Stripe billing record to this portal account automatically.'));
     assert.ok(js.includes("label = 'Refresh account first'"));
     assert.ok(js.includes('authPub: livePub'));
     assert.ok(js.includes("window.location.assign(signInHref(targetPlan))"));

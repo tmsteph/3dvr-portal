@@ -190,6 +190,32 @@ async function updateCustomerHints(stripeClient, customer, { billingEmail, porta
   }
 }
 
+async function clearPortalLinkMetadata(stripeClient, customer, { canonicalCustomerId = '' } = {}) {
+  if (!customer || !stripeClient?.customers?.update) {
+    return customer;
+  }
+
+  const existingMetadata = customer.metadata && typeof customer.metadata === 'object'
+    ? customer.metadata
+    : {};
+  const metadata = {
+    ...existingMetadata,
+    portal_pub: '',
+    portal_alias: '',
+    canonical_customer_id: normalizeMetadataField(canonicalCustomerId) || normalizeMetadataField(existingMetadata.canonical_customer_id)
+  };
+
+  try {
+    return await stripeClient.customers.update(customer.id, { metadata });
+  } catch (error) {
+    console.warn('Unable to clear stale Stripe portal link', error);
+    return {
+      ...customer,
+      metadata
+    };
+  }
+}
+
 export async function resolveStripeCustomer({
   stripeClient,
   customerId = '',
@@ -490,6 +516,10 @@ export async function summarizeBillingCustomerRecord(stripeClient, customer, con
   };
 }
 
+export function isPlaceholderBillingRecord(record) {
+  return Boolean(record && !record.current && !record.hasInvoiceHistory);
+}
+
 export function compareBillingCustomerRecords(left, right) {
   const planDelta = planWeight(right?.current?.plan || 'free') - planWeight(left?.current?.plan || 'free');
   if (planDelta !== 0) {
@@ -524,6 +554,71 @@ export function combineBillingCustomerRecords(records = []) {
     duplicates: active.slice(1),
     hasInvoiceHistory: normalizedRecords.some(record => record.hasInvoiceHistory),
     recordCount: normalizedRecords.length
+  };
+}
+
+export function canAutoLinkLegacyStripeCustomer({
+  legacyResolution,
+  linkedRecords = []
+} = {}) {
+  if (!legacyResolution?.customer) {
+    return false;
+  }
+
+  if (Number(legacyResolution.matchCount || 0) !== 1) {
+    return false;
+  }
+
+  if (!legacyResolution.current && !legacyResolution.hasInvoiceHistory) {
+    return false;
+  }
+
+  if ((legacyResolution.records || []).filter(Boolean).length !== 1) {
+    return false;
+  }
+
+  return (linkedRecords || []).filter(Boolean).every(isPlaceholderBillingRecord);
+}
+
+export async function autoLinkLegacyStripeCustomer({
+  stripeClient,
+  legacyResolution,
+  linkedRecords = [],
+  billingEmail = '',
+  portalAlias = '',
+  portalPub = ''
+} = {}) {
+  if (!canAutoLinkLegacyStripeCustomer({ legacyResolution, linkedRecords })) {
+    return {
+      autoLinked: false,
+      customer: null,
+      releasedCustomerIds: []
+    };
+  }
+
+  const claimedCustomer = await updateCustomerHints(stripeClient, legacyResolution.customer, {
+    billingEmail,
+    portalAlias,
+    portalPub
+  });
+  const releasedCustomerIds = [];
+
+  for (const record of linkedRecords || []) {
+    const linkedCustomer = record?.customer;
+    if (!linkedCustomer || linkedCustomer.id === claimedCustomer.id || !customerHasPortalLink(linkedCustomer)) {
+      continue;
+    }
+
+    await clearPortalLinkMetadata(stripeClient, linkedCustomer, {
+      canonicalCustomerId: claimedCustomer.id
+    });
+    releasedCustomerIds.push(linkedCustomer.id);
+  }
+
+  return {
+    autoLinked: true,
+    customer: claimedCustomer,
+    releasedCustomerIds
   };
 }
 
@@ -600,7 +695,8 @@ export function buildStatusPayload({
   statusSource = portalLinked ? 'portal_linked' : 'not_found',
   legacyNeedsLinking = false,
   hasInvoiceHistory = false,
-  legacyBillingManagementAvailable = false
+  legacyBillingManagementAvailable = false,
+  autoLinkedLegacy = false
 }) {
   const normalizedPlan = current?.plan || 'free';
   return {
@@ -614,6 +710,7 @@ export function buildStatusPayload({
     legacyNeedsLinking: Boolean(legacyNeedsLinking),
     hasInvoiceHistory: Boolean(hasInvoiceHistory),
     legacyBillingManagementAvailable: Boolean(legacyBillingManagementAvailable),
+    autoLinkedLegacy: Boolean(autoLinkedLegacy),
     activeSubscriptions: (active || []).map(item => ({
       id: item.id,
       status: item.status,

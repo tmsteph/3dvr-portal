@@ -1,4 +1,5 @@
 import {
+  autoLinkLegacyStripeCustomer,
   buildStatusPayload,
   compareBillingCustomerRecords,
   combineBillingCustomerRecords,
@@ -65,7 +66,7 @@ export function createStripeStatusHandler(options = {}) {
     }
 
     try {
-      const customerResolution = await resolvePortalLinkedStripeCustomer({
+      let customerResolution = await resolvePortalLinkedStripeCustomer({
         stripeClient,
         customerId,
         billingEmail,
@@ -74,14 +75,45 @@ export function createStripeStatusHandler(options = {}) {
         createIfMissing: false,
         config
       });
-      const linkedState = combineBillingCustomerRecords(customerResolution.records || []);
-      const linkedRecord = linkedState.primary
+      let linkedState = combineBillingCustomerRecords(customerResolution.records || []);
+      let linkedRecord = linkedState.primary
         || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
-      const legacyResolution = await resolveLegacyStripeCustomerByEmail({
+      let legacyResolution = await resolveLegacyStripeCustomerByEmail({
         stripeClient,
         billingEmail,
         config
       });
+      let autoLinkedLegacy = false;
+      const autoLinkResolution = await autoLinkLegacyStripeCustomer({
+        stripeClient,
+        legacyResolution,
+        linkedRecords: customerResolution.records || [],
+        billingEmail,
+        portalAlias,
+        portalPub
+      });
+
+      if (autoLinkResolution.autoLinked) {
+        autoLinkedLegacy = true;
+        customerResolution = await resolvePortalLinkedStripeCustomer({
+          stripeClient,
+          customerId: autoLinkResolution.customer?.id || customerId,
+          billingEmail,
+          portalAlias,
+          portalPub,
+          createIfMissing: false,
+          config
+        });
+        linkedState = combineBillingCustomerRecords(customerResolution.records || []);
+        linkedRecord = linkedState.primary
+          || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
+        legacyResolution = await resolveLegacyStripeCustomerByEmail({
+          stripeClient,
+          billingEmail,
+          config
+        });
+      }
+
       const legacyState = combineBillingCustomerRecords(legacyResolution.records || []);
       const legacyRecord = legacyState.primary || null;
       const shouldPreferLegacy = Boolean(
@@ -104,7 +136,8 @@ export function createStripeStatusHandler(options = {}) {
           statusSource: legacyResolution.source,
           legacyNeedsLinking: true,
           hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
-          legacyBillingManagementAvailable: true
+          legacyBillingManagementAvailable: true,
+          autoLinkedLegacy
         }));
       }
 
@@ -120,6 +153,7 @@ export function createStripeStatusHandler(options = {}) {
           legacyNeedsLinking: false,
           hasInvoiceHistory: false,
           legacyBillingManagementAvailable: false,
+          autoLinkedLegacy,
           activeSubscriptions: [],
           duplicateActiveCount: 0,
           hasDuplicateActiveSubscriptions: false
@@ -132,7 +166,8 @@ export function createStripeStatusHandler(options = {}) {
         active: linkedState.active.length ? linkedState.active : linkedRecord?.active || [],
         duplicates: linkedState.active.length ? linkedState.duplicates : linkedRecord?.duplicates || [],
         statusSource: linkedState.recordCount > 1 ? 'portal_linked_multi' : 'portal_linked',
-        hasInvoiceHistory: linkedState.recordCount ? linkedState.hasInvoiceHistory : linkedRecord?.hasInvoiceHistory
+        hasInvoiceHistory: linkedState.recordCount ? linkedState.hasInvoiceHistory : linkedRecord?.hasInvoiceHistory,
+        autoLinkedLegacy
       }));
     } catch (error) {
       console.error('Failed to resolve Stripe billing status', error);
