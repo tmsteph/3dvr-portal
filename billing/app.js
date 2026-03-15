@@ -361,7 +361,7 @@ function updateManageButton() {
   } else if (hasLegacyUnlinkedSubscription()) {
     enabled = canManageLegacyBilling()
     if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
-      label = canManageLegacyBilling() ? 'Open primary legacy billing' : 'Legacy duplicates'
+      label = canManageLegacyBilling() ? 'Open one legacy record' : 'Legacy duplicates'
     } else if (hasLegacyActiveSubscription()) {
       label = canManageLegacyBilling() ? 'Open legacy billing' : 'Legacy subscription'
     } else {
@@ -403,7 +403,7 @@ function renderActionPrompt() {
       setStatus(
         actionStatus,
         canManageLegacyBilling()
-          ? 'Multiple older Stripe subscriptions were found for this billing email. Manage billing opens the primary legacy record first. Cancel extras there, then refresh this page before changing plans.'
+          ? 'Multiple older Stripe subscriptions were found for this billing email on separate Stripe records. Manage billing opens one record at a time. If you cancel the subscription you see and this warning remains after refresh, open billing again to reach the other record.'
           : 'Multiple older Stripe subscriptions were found for this billing email. This billing center can show their status here, but checkout and management stay blocked until those records are linked or cleaned up.',
         'warning'
       )
@@ -660,7 +660,7 @@ function renderBillingState(payload = null) {
       duplicateWarning.hidden = false
       duplicateWarning.textContent = payload.legacyNeedsLinking
         ? canManageLegacyBilling()
-          ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email. Manage billing opens the primary record first so you can review invoices or cancel extras, but the duplicate records still need cleanup afterward.`
+          ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email on separate Stripe records. Manage billing opens one record at a time, not all of them at once. If this warning remains after you review or cancel the visible subscription, return here, refresh, and open billing again to reach the next record.`
           : `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email. This page can show their status, but it cannot manage those records yet.`
         : `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Open billing and cancel the extra plan.`
     }
@@ -689,7 +689,7 @@ function renderBillingState(payload = null) {
       if (activeLabels) {
         billingDetail.textContent = canManageLegacyBilling()
           ? payload.hasDuplicateActiveSubscriptions
-            ? `Found by billing email from the older system: ${activeLabels}. Manage billing opens the primary legacy record first so you can review invoices or cancel extras. New checkout stays blocked until the duplicate records are cleaned up.`
+            ? `Found by billing email from the older system: ${activeLabels}. These live on separate Stripe records, so Manage billing opens one record at a time. Review or cancel the visible subscription, return here, refresh, and if the duplicate warning remains, open billing again to reach the other record. New checkout stays blocked until the duplicate records are cleaned up.`
             : `Found by billing email from the older system: ${activeLabels}. Open legacy billing to review invoices or payment methods. New checkout stays blocked until this record is linked.`
           : `Found by billing email from the older system: ${activeLabels}. These subscriptions are not linked to this portal account yet, so billing actions stay limited here.`
       } else if (payload.hasInvoiceHistory) {
