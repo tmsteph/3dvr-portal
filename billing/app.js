@@ -2,7 +2,7 @@ const gun = Gun({ peers: window.__GUN_PEERS__ || undefined })
 const user = gun.user()
 const portalRoot = gun.get('3dvr-portal')
 // Gun graph:
-// - 3dvr-portal/billing/customersByAlias/<alias> -> { alias, pub, email, linkedBillingEmails, customerId, currentPlan, usageTier, updatedAt }
+// - 3dvr-portal/billing/customersByAlias/<alias> -> { alias, pub, email, customerId, currentPlan, usageTier, updatedAt }
 // - 3dvr-portal/billing/customersByPub/<pub> -> same record for account-linked lookups
 // - 3dvr-portal/billing/usageTier/<pub|alias> -> { tier, plan, alias, updatedAt, source }
 const billingRoot = portalRoot.get('billing')
@@ -14,7 +14,6 @@ const sharedTierStorageKey = 'portal-usage-tier'
 const openAiTierStorageKey = 'openai-workbench-tier'
 const billingEmailStorageKey = 'portal-billing-email'
 const billingCustomerIdStorageKey = 'portal-billing-customer-id'
-const linkedBillingEmailsStorageKey = 'portal-linked-billing-emails'
 const userPubStorageKey = 'userPubKey'
 
 const accountSummary = document.getElementById('account-summary')
@@ -24,8 +23,6 @@ const duplicateWarning = document.getElementById('duplicate-warning')
 const actionStatus = document.getElementById('action-status')
 const flashMessage = document.getElementById('flash-message')
 const billingEmailInput = document.getElementById('billing-email')
-const linkedBillingEmailsList = document.getElementById('linked-billing-emails')
-const saveBillingEmailButton = document.getElementById('save-billing-email')
 const signInLink = document.getElementById('sign-in-link')
 const refreshAuthButton = document.getElementById('refresh-auth')
 const refreshStatusButton = document.getElementById('refresh-status')
@@ -78,7 +75,6 @@ const state = {
   pub: '',
   username: '',
   billingEmail: '',
-  linkedBillingEmails: [],
   customerId: '',
   currentPlan: 'free',
   usageTier: 'account',
@@ -120,97 +116,6 @@ function sanitizeBillingEmail(value = '') {
   return normalized
 }
 
-function normalizeBillingEmailList(values = []) {
-  const seen = new Set()
-  const emails = []
-
-  function visit(value) {
-    if (Array.isArray(value)) {
-      value.forEach(visit)
-      return
-    }
-
-    if (!value) {
-      return
-    }
-
-    const normalized = sanitizeBillingEmail(value)
-    if (!normalized || seen.has(normalized)) {
-      return
-    }
-
-    seen.add(normalized)
-    emails.push(normalized)
-  }
-
-  visit(values)
-  return emails.slice(0, 6)
-}
-
-function buildLinkedBillingEmailMap(emails = []) {
-  return Object.fromEntries(
-    normalizeBillingEmailList(emails).map(email => [email, email])
-  )
-}
-
-function normalizeLinkedBillingEmailRecord(value) {
-  if (Array.isArray(value)) {
-    return normalizeBillingEmailList(value)
-  }
-
-  if (!value || typeof value !== 'object') {
-    return []
-  }
-
-  const objectValues = Object.values(value)
-  if (objectValues.length) {
-    return normalizeBillingEmailList(objectValues)
-  }
-
-  return normalizeBillingEmailList(Object.keys(value))
-}
-
-function currentAccountStorageKey() {
-  return String(state.pub || state.alias || '').trim()
-}
-
-function readStoredLinkedBillingEmails(accountKey = currentAccountStorageKey()) {
-  if (!accountKey) {
-    return []
-  }
-
-  try {
-    const parsed = JSON.parse(readStorage(linkedBillingEmailsStorageKey) || '{}')
-    if (!parsed || typeof parsed !== 'object') {
-      return []
-    }
-    return normalizeBillingEmailList(parsed[accountKey] || [])
-  } catch (error) {
-    return []
-  }
-}
-
-function writeStoredLinkedBillingEmails(emails = [], accountKey = currentAccountStorageKey()) {
-  if (!accountKey) {
-    return
-  }
-
-  const normalizedEmails = normalizeBillingEmailList(emails)
-
-  try {
-    const parsed = JSON.parse(readStorage(linkedBillingEmailsStorageKey) || '{}')
-    const next = parsed && typeof parsed === 'object' ? parsed : {}
-    if (normalizedEmails.length) {
-      next[accountKey] = normalizedEmails
-    } else {
-      delete next[accountKey]
-    }
-    writeStorage(linkedBillingEmailsStorageKey, JSON.stringify(next))
-  } catch (error) {
-    console.warn('Failed to store linked billing emails', error)
-  }
-}
-
 function hasTypedInvalidBillingEmail() {
   const rawValue = String(billingEmailInput?.value || '').trim()
   return Boolean(rawValue) && !sanitizeBillingEmail(rawValue)
@@ -219,10 +124,6 @@ function hasTypedInvalidBillingEmail() {
 function currentBillingEmail() {
   const typedEmail = sanitizeBillingEmail(billingEmailInput?.value || '')
   return typedEmail || sanitizeBillingEmail(state.billingEmail)
-}
-
-function billingEmailsForLookup() {
-  return normalizeBillingEmailList([currentBillingEmail(), state.linkedBillingEmails])
 }
 
 function hasKnownCustomer() {
@@ -436,110 +337,6 @@ function applyBillingDiagnostics() {
   applyButtonAvailability(customSubmitButton, isPlanAvailable('custom'), 'Checkout unavailable')
 }
 
-function formatBillingEmailList(emails = []) {
-  return normalizeBillingEmailList(emails).join(', ')
-}
-
-function usesSavedBillingEmailLookup(payload = state.currentResponse) {
-  return Array.isArray(payload?.searchedBillingEmails) && payload.searchedBillingEmails.length > 1
-}
-
-function billingLookupLabel(payload = state.currentResponse) {
-  const matchedEmails = normalizeBillingEmailList([
-    payload?.matchedBillingEmails || [],
-    payload?.billingEmail || ''
-  ])
-
-  if (usesSavedBillingEmailLookup(payload)) {
-    return matchedEmails.length
-      ? `saved billing emails (${formatBillingEmailList(matchedEmails)})`
-      : 'saved billing emails'
-  }
-
-  return 'this billing email'
-}
-
-function legacyLookupLead(payload = state.currentResponse) {
-  return usesSavedBillingEmailLookup(payload)
-    ? `Found across ${billingLookupLabel(payload)} from the older system:`
-    : 'Found by billing email from the older system:'
-}
-
-function updateSaveBillingEmailButton() {
-  if (!saveBillingEmailButton) {
-    return
-  }
-
-  const email = sanitizeBillingEmail(billingEmailInput?.value || '')
-  const alreadySaved = Boolean(email && state.linkedBillingEmails.includes(email))
-  let enabled = Boolean(email) && hasVerifiedBillingSession() && !alreadySaved
-  let label = 'Save this email'
-
-  if (!hasVerifiedBillingSession()) {
-    enabled = false
-    label = needsBillingAuthRefresh() ? 'Refresh to save' : 'Sign in to save'
-  } else if (hasTypedInvalidBillingEmail()) {
-    enabled = false
-    label = 'Enter valid email'
-  } else if (alreadySaved) {
-    enabled = false
-    label = 'Saved to account'
-  }
-
-  saveBillingEmailButton.disabled = !enabled
-  saveBillingEmailButton.setAttribute('aria-disabled', String(!enabled))
-  saveBillingEmailButton.textContent = label
-}
-
-function renderLinkedBillingEmails() {
-  if (!linkedBillingEmailsList) {
-    return
-  }
-
-  linkedBillingEmailsList.textContent = ''
-  if (!state.linkedBillingEmails.length) {
-    const empty = document.createElement('p')
-    empty.className = 'meta saved-emails__empty'
-    empty.textContent = state.signedIn
-      ? 'No saved billing emails for this account yet.'
-      : 'Sign in to save the billing emails this account should search.'
-    linkedBillingEmailsList.append(empty)
-    updateSaveBillingEmailButton()
-    return
-  }
-
-  state.linkedBillingEmails.forEach(email => {
-    const pill = document.createElement('div')
-    pill.className = 'email-pill'
-
-    const useButton = document.createElement('button')
-    useButton.type = 'button'
-    useButton.className = 'email-pill__use'
-    useButton.dataset.linkedEmailAction = 'use'
-    useButton.dataset.email = email
-    useButton.textContent = email
-
-    const removeButton = document.createElement('button')
-    removeButton.type = 'button'
-    removeButton.className = 'email-pill__remove'
-    removeButton.dataset.linkedEmailAction = 'remove'
-    removeButton.dataset.email = email
-    removeButton.setAttribute('aria-label', `Remove saved billing email ${email}`)
-    removeButton.textContent = 'x'
-
-    pill.append(useButton, removeButton)
-    linkedBillingEmailsList.append(pill)
-  })
-
-  updateSaveBillingEmailButton()
-}
-
-function setLinkedBillingEmails(emails = []) {
-  state.linkedBillingEmails = normalizeBillingEmailList(emails)
-  writeStoredLinkedBillingEmails(state.linkedBillingEmails)
-  renderLinkedBillingEmails()
-}
-
 function updateManageButton() {
   if (!manageBillingButton) {
     return
@@ -606,8 +403,8 @@ function renderActionPrompt() {
       setStatus(
         actionStatus,
         canManageLegacyBilling()
-          ? `Multiple older Stripe subscriptions were found across ${billingLookupLabel()}. Manage billing opens one record at a time. If you cancel the subscription you see and this warning remains after refresh, open billing again to reach the other record.`
-          : `Multiple older Stripe subscriptions were found across ${billingLookupLabel()}. This billing center can show their status here, but checkout and management stay blocked until those records are linked or cleaned up.`,
+          ? 'Multiple older Stripe subscriptions were found for this billing email on separate Stripe records. Manage billing opens one record at a time. If you cancel the subscription you see and this warning remains after refresh, open billing again to reach the other record.'
+          : 'Multiple older Stripe subscriptions were found for this billing email. This billing center can show their status here, but checkout and management stay blocked until those records are linked or cleaned up.',
         'warning'
       )
       return
@@ -646,11 +443,11 @@ function renderActionPrompt() {
       actionStatus,
       hasLegacyActiveSubscription()
         ? canManageLegacyBilling()
-          ? `An older Stripe subscription was found across ${billingLookupLabel()}. Open legacy billing to review invoices or payment methods. New checkout stays blocked to avoid creating a duplicate plan.`
-          : `An older Stripe subscription was found across ${billingLookupLabel()}. We are showing its status here, but new checkout is blocked to avoid creating a duplicate plan.`
+          ? 'An older Stripe subscription was found for this billing email. Open legacy billing to review invoices or payment methods. New checkout stays blocked to avoid creating a duplicate plan.'
+          : 'An older Stripe subscription was found for this billing email. We are showing its status here, but new checkout is blocked to avoid creating a duplicate plan.'
         : canManageLegacyBilling()
-          ? `Older Stripe billing history was found across ${billingLookupLabel()}. Open legacy billing to review invoices or payment methods, or choose a new plan below if you want to start a fresh portal-linked subscription.`
-          : `Older Stripe billing history was found across ${billingLookupLabel()}. Review it before starting a new portal-linked subscription.`,
+          ? 'Older Stripe billing history was found for this billing email. Open legacy billing to review invoices or payment methods, or choose a new plan below if you want to start a fresh portal-linked subscription.'
+          : 'Older Stripe billing history was found for this billing email. Review it before starting a new portal-linked subscription.',
       hasLegacyActiveSubscription() ? 'warning' : 'info'
     )
     return
@@ -717,7 +514,6 @@ function normalizeHintRecord(record) {
     alias: String(record.alias || '').trim(),
     pub: String(record.pub || '').trim(),
     email: sanitizeBillingEmail(record.email),
-    linkedBillingEmails: normalizeLinkedBillingEmailRecord(record.linkedBillingEmails),
     customerId: String(record.customerId || '').trim(),
     currentPlan: String(record.currentPlan || '').trim().toLowerCase(),
     usageTier: String(record.usageTier || '').trim().toLowerCase()
@@ -733,20 +529,7 @@ async function readGunHints() {
     candidates.push(normalizeHintRecord(await onceAsync(customersByPubNode.get(state.pub))))
   }
 
-  const records = candidates.filter(Boolean)
-  if (!records.length) {
-    return null
-  }
-
-  return {
-    alias: records.find(record => record.alias)?.alias || '',
-    pub: records.find(record => record.pub)?.pub || '',
-    email: records.find(record => record.email)?.email || '',
-    linkedBillingEmails: normalizeBillingEmailList(records.flatMap(record => record.linkedBillingEmails || [])),
-    customerId: records.find(record => record.customerId)?.customerId || '',
-    currentPlan: records.find(record => record.currentPlan)?.currentPlan || '',
-    usageTier: records.find(record => record.usageTier)?.usageTier || ''
-  }
+  return candidates.find(Boolean) || null
 }
 
 async function persistGunHints(payload = {}) {
@@ -755,12 +538,6 @@ async function persistGunHints(payload = {}) {
   }
 
   const email = sanitizeBillingEmail(payload.billingEmail || state.billingEmail)
-  const linkedBillingEmails = normalizeBillingEmailList([
-    payload.linkedBillingEmails || [],
-    payload.matchedBillingEmails || [],
-    state.linkedBillingEmails,
-    email
-  ])
   const customerId = String(payload.customerId || state.customerId || '').trim()
   const currentPlan = String(payload.currentPlan || state.currentPlan || 'free').trim().toLowerCase()
   const usageTier = String(payload.usageTier || state.usageTier || 'account').trim().toLowerCase()
@@ -768,7 +545,6 @@ async function persistGunHints(payload = {}) {
     alias: state.alias,
     pub: state.pub,
     email,
-    linkedBillingEmails: buildLinkedBillingEmailMap(linkedBillingEmails),
     customerId,
     currentPlan,
     usageTier,
@@ -811,12 +587,6 @@ async function persistGunHints(payload = {}) {
 
 function rememberLocalBilling(payload = {}) {
   const billingEmail = sanitizeBillingEmail(payload.billingEmail || payload.email || state.billingEmail)
-  const linkedBillingEmails = normalizeBillingEmailList([
-    payload.linkedBillingEmails || [],
-    payload.matchedBillingEmails || [],
-    state.signedIn ? (payload.billingEmail || payload.email || '') : '',
-    state.linkedBillingEmails
-  ])
   const customerId = String(payload.customerId || state.customerId || '').trim()
   const usageTier = String(payload.usageTier || state.usageTier || '').trim().toLowerCase()
 
@@ -838,8 +608,6 @@ function rememberLocalBilling(payload = {}) {
     writeStorage(sharedTierStorageKey, usageTier)
     writeStorage(openAiTierStorageKey, usageTier)
   }
-
-  setLinkedBillingEmails(linkedBillingEmails)
 }
 
 function renderAccountSummary() {
@@ -892,8 +660,8 @@ function renderBillingState(payload = null) {
       duplicateWarning.hidden = false
       duplicateWarning.textContent = payload.legacyNeedsLinking
         ? canManageLegacyBilling()
-          ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found across ${billingLookupLabel(payload)} on separate Stripe records. Manage billing opens one record at a time, not all of them at once. If this warning remains after you review or cancel the visible subscription, return here, refresh, and open billing again to reach the next record.`
-          : `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found across ${billingLookupLabel(payload)}. This page can show their status, but it cannot manage those records yet.`
+          ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email on separate Stripe records. Manage billing opens one record at a time, not all of them at once. If this warning remains after you review or cancel the visible subscription, return here, refresh, and open billing again to reach the next record.`
+          : `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email. This page can show their status, but it cannot manage those records yet.`
         : `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Open billing and cancel the extra plan.`
     }
   } else if (duplicateWarning) {
@@ -910,16 +678,10 @@ function renderBillingState(payload = null) {
     setStatus(
       billingSummary,
       hasLegacyActive
-        ? usesSavedBillingEmailLookup(payload)
-          ? `Legacy Stripe plan found across saved billing emails: ${labelForPlan(currentPlan)}.`
-          : `Legacy Stripe plan found: ${labelForPlan(currentPlan)}.`
+        ? `Legacy Stripe plan found: ${labelForPlan(currentPlan)}.`
         : payload.hasInvoiceHistory
-          ? usesSavedBillingEmailLookup(payload)
-            ? 'Legacy Stripe billing history found across saved billing emails.'
-            : 'Legacy Stripe billing history found for this email.'
-          : usesSavedBillingEmailLookup(payload)
-            ? 'Legacy Stripe record found across saved billing emails.'
-            : 'Legacy Stripe record found for this email.',
+          ? 'Legacy Stripe billing history found for this email.'
+          : 'Legacy Stripe record found for this email.',
       payload.hasDuplicateActiveSubscriptions ? 'warning' : hasLegacyActive ? 'info' : 'warning'
     )
 
@@ -927,15 +689,15 @@ function renderBillingState(payload = null) {
       if (activeLabels) {
         billingDetail.textContent = canManageLegacyBilling()
           ? payload.hasDuplicateActiveSubscriptions
-            ? `${legacyLookupLead(payload)} ${activeLabels}. These live on separate Stripe records, so Manage billing opens one record at a time. Review or cancel the visible subscription, return here, refresh, and if the duplicate warning remains, open billing again to reach the other record. New checkout stays blocked until the duplicate records are cleaned up.`
-            : `${legacyLookupLead(payload)} ${activeLabels}. Open legacy billing to review invoices or payment methods. New checkout stays blocked until this record is linked.`
-          : `${legacyLookupLead(payload)} ${activeLabels}. These subscriptions are not linked to this portal account yet, so billing actions stay limited here.`
+            ? `Found by billing email from the older system: ${activeLabels}. These live on separate Stripe records, so Manage billing opens one record at a time. Review or cancel the visible subscription, return here, refresh, and if the duplicate warning remains, open billing again to reach the other record. New checkout stays blocked until the duplicate records are cleaned up.`
+            : `Found by billing email from the older system: ${activeLabels}. Open legacy billing to review invoices or payment methods. New checkout stays blocked until this record is linked.`
+          : `Found by billing email from the older system: ${activeLabels}. These subscriptions are not linked to this portal account yet, so billing actions stay limited here.`
       } else if (payload.hasInvoiceHistory) {
         billingDetail.textContent = canManageLegacyBilling()
-          ? `Older Stripe billing history was found across ${billingLookupLabel(payload)}. Open legacy billing to review invoices, payment methods, or older cancellations. You can still start a fresh portal-linked plan below if you need a new active subscription.`
-          : `Older Stripe billing history was found across ${billingLookupLabel(payload)}, but this page cannot open it directly yet.`
+          ? 'Older Stripe billing history was found for this billing email. Open legacy billing to review invoices, payment methods, or older cancellations. You can still start a fresh portal-linked plan below if you need a new active subscription.'
+          : 'Older Stripe billing history was found for this billing email, but this page cannot open it directly yet.'
       } else {
-        billingDetail.textContent = `A legacy Stripe subscription was found across ${billingLookupLabel(payload)}, but detailed line items were unavailable.`
+        billingDetail.textContent = 'A legacy Stripe subscription was found by billing email, but detailed line items were unavailable.'
       }
     }
 
@@ -982,7 +744,6 @@ function renderBillingState(payload = null) {
 async function syncHintsFromGun() {
   const gunHint = await readGunHints()
   if (!gunHint) {
-    renderLinkedBillingEmails()
     return
   }
 
@@ -997,7 +758,6 @@ async function syncHintsFromGun() {
   }
   rememberLocalBilling({
     billingEmail: gunHint.email,
-    linkedBillingEmails: gunHint.linkedBillingEmails,
     customerId: gunHint.customerId,
     usageTier: gunHint.usageTier
   })
@@ -1077,15 +837,8 @@ async function refreshAuthState(options = {}) {
   state.username = storedUsername
   state.pub = String(livePub || storedPub || '').trim()
   state.signedIn = Boolean(storedSignedIn && storedAlias)
-  state.linkedBillingEmails = state.signedIn
-    ? normalizeBillingEmailList([
-        readStoredLinkedBillingEmails(String(livePub || storedPub || storedAlias || '').trim()),
-        state.linkedBillingEmails
-      ])
-    : []
 
   renderAccountSummary()
-  renderLinkedBillingEmails()
   await syncHintsFromGun()
   updateManageButton()
   renderActionPrompt()
@@ -1205,17 +958,13 @@ async function refreshBillingStatusAttempt(retriedAuth) {
       ...authPayload,
       customerId: state.customerId,
       billingEmail,
-      billingEmails: billingEmailsForLookup(),
       portalAlias: state.alias,
       portalPub: state.pub
     })
 
     rememberLocalBilling(
       payload?.legacyNeedsLinking
-        ? {
-            billingEmail: payload.billingEmail,
-            matchedBillingEmails: payload.matchedBillingEmails
-          }
+        ? { billingEmail: payload.billingEmail }
         : payload
     )
     if (!payload?.legacyNeedsLinking) {
@@ -1309,7 +1058,6 @@ async function startCheckoutActionAttempt(payload, retriedAuth) {
       ...payload,
       customerId: state.customerId,
       billingEmail: state.billingEmail,
-      billingEmails: billingEmailsForLookup(),
       portalAlias: state.alias,
       portalPub: state.pub
     })
@@ -1364,7 +1112,6 @@ function bindEvents() {
       }
     }
 
-    updateSaveBillingEmailButton()
     renderActionPrompt()
   })
 
@@ -1375,64 +1122,7 @@ function bindEvents() {
       rememberLocalBilling({ billingEmail: email })
     }
 
-    updateSaveBillingEmailButton()
     renderActionPrompt()
-  })
-
-  saveBillingEmailButton?.addEventListener('click', async () => {
-    const email = sanitizeBillingEmail(billingEmailInput?.value || '')
-    if (!email || !hasVerifiedBillingSession()) {
-      updateSaveBillingEmailButton()
-      return
-    }
-
-    if (state.linkedBillingEmails.includes(email)) {
-      updateSaveBillingEmailButton()
-      return
-    }
-
-    const nextEmails = normalizeBillingEmailList([state.linkedBillingEmails, email])
-    setLinkedBillingEmails(nextEmails)
-    await persistGunHints({
-      billingEmail: state.billingEmail,
-      linkedBillingEmails: nextEmails
-    })
-    setFlash(`Saved ${email} to this portal account for legacy billing lookup.`)
-    renderActionPrompt()
-  })
-
-  linkedBillingEmailsList?.addEventListener('click', async event => {
-    const button = event.target?.closest?.('[data-linked-email-action]')
-    if (!button) {
-      return
-    }
-
-    const action = String(button.dataset.linkedEmailAction || '').trim()
-    const email = sanitizeBillingEmail(button.dataset.email || '')
-    if (!email) {
-      return
-    }
-
-    if (action === 'use') {
-      if (billingEmailInput) {
-        billingEmailInput.value = email
-      }
-      rememberLocalBilling({ billingEmail: email })
-      updateSaveBillingEmailButton()
-      renderActionPrompt()
-      return
-    }
-
-    if (action === 'remove') {
-      const nextEmails = state.linkedBillingEmails.filter(candidate => candidate !== email)
-      setLinkedBillingEmails(nextEmails)
-      await persistGunHints({
-        billingEmail: state.billingEmail,
-        linkedBillingEmails: nextEmails
-      })
-      setFlash(`Removed ${email} from this portal account.`)
-      renderActionPrompt()
-    }
   })
 
   refreshAuthButton?.addEventListener('click', async () => {
@@ -1561,7 +1251,6 @@ async function init() {
   handleFlashFromQuery()
   highlightPlan(selectedPlanFromUrl())
   bindEvents()
-  renderLinkedBillingEmails()
   await refreshBillingDiagnostics()
   await refreshAuthState()
   await refreshBillingStatus()

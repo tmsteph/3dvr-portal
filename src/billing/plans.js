@@ -68,7 +68,6 @@ const PLAN_WEIGHTS = {
 };
 
 const BILLING_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_BILLING_EMAILS = 6;
 
 export function normalizeBillingPlan(value = '') {
   const normalized = String(value || '')
@@ -129,46 +128,6 @@ export function normalizeBillingEmail(value = '') {
 
 export function isValidBillingEmail(value = '') {
   return Boolean(normalizeBillingEmail(value));
-}
-
-export function collectBillingEmails(...sources) {
-  const emails = [];
-  const invalid = [];
-  const seen = new Set();
-
-  function visit(value) {
-    if (Array.isArray(value)) {
-      value.forEach(visit);
-      return;
-    }
-
-    if (value === null || value === undefined) {
-      return;
-    }
-
-    const raw = String(value || '').trim();
-    if (!raw) {
-      return;
-    }
-
-    const normalized = normalizeBillingEmail(raw);
-    if (!normalized) {
-      invalid.push(raw);
-      return;
-    }
-
-    if (!seen.has(normalized) && emails.length < MAX_BILLING_EMAILS) {
-      seen.add(normalized);
-      emails.push(normalized);
-    }
-  }
-
-  sources.forEach(visit);
-
-  return {
-    emails,
-    invalid
-  };
 }
 
 export function normalizeCustomAmount(value) {

@@ -78,20 +78,6 @@
           >
         </label>
 
-        <section class="saved-emails" aria-labelledby="saved-emails-title">
-          <div class="saved-emails__header">
-            <p id="saved-emails-title" class="saved-emails__title">Saved billing emails</p>
-            <button id="save-billing-email" class="button button--ghost button--small" type="button" disabled aria-disabled="true">
-              Save this email
-            </button>
-          </div>
-          <p class="meta saved-emails__copy">
-            Add any billing emails this portal account has used. Status and Manage billing will check the saved list
-            for older Stripe records, but new checkout still uses the billing email field above.
-          </p>
-          <div id="linked-billing-emails" class="email-pills" aria-live="polite"></div>
-        </section>
-
         <p id="billing-summary" class="status status--info">We will look up your Stripe customer after sign-in.</p>
         <p id="billing-detail" class="meta">
           If you already subscribe, the plan buttons below will route you to a Stripe-confirmed plan switch instead of

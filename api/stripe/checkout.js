@@ -10,7 +10,7 @@ import {
   getRequestOrigin,
   makeStripeClient,
   requireConfiguredPlanPrice,
-  resolveLegacyStripeCustomersByEmails,
+  resolveLegacyStripeCustomerByEmail,
   resolvePortalLinkedStripeCustomer,
   resolvePlanDiagnostics,
   summarizeBillingCustomerRecord,
@@ -19,7 +19,7 @@ import {
 import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
 import {
   getBillingPlan,
-  collectBillingEmails,
+  isValidBillingEmail,
   normalizeBillingEmail,
   normalizeBillingPlan,
   normalizeCustomAmount
@@ -61,9 +61,7 @@ export function createStripeCheckoutHandler(options = {}) {
     const action = String(body.action || 'subscribe').trim().toLowerCase();
     const plan = normalizeBillingPlan(body.plan);
     const rawBillingEmail = String(body.billingEmail || '').trim();
-    const billingEmailInputs = collectBillingEmails(rawBillingEmail, body.billingEmails);
-    const billingEmail = normalizeBillingEmail(rawBillingEmail) || billingEmailInputs.emails[0] || '';
-    const billingEmails = billingEmailInputs.emails;
+    const billingEmail = normalizeBillingEmail(rawBillingEmail);
     const customerId = String(body.customerId || '').trim();
     const requestedPortalAlias = String(body.portalAlias || '').trim();
     const requestedPortalPub = String(body.portalPub || '').trim();
@@ -99,7 +97,7 @@ export function createStripeCheckoutHandler(options = {}) {
       return res.status(403).json({ error: 'Billing access proof did not match this portal account.' });
     }
 
-    if (billingEmailInputs.invalid.length) {
+    if (rawBillingEmail && !isValidBillingEmail(rawBillingEmail)) {
       return res.status(400).json({ error: 'Enter a valid billing email address.' });
     }
 
@@ -117,16 +115,16 @@ export function createStripeCheckoutHandler(options = {}) {
       let linkedState = combineBillingCustomerRecords(customerResolution.records || []);
       let linkedRecord = linkedState.primary
         || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
-      let legacyResolution = await resolveLegacyStripeCustomersByEmails({
+      let legacyResolution = await resolveLegacyStripeCustomerByEmail({
         stripeClient,
-        billingEmails,
+        billingEmail,
         config
       });
       const autoLinkResolution = await autoLinkLegacyStripeCustomer({
         stripeClient,
         legacyResolution,
         linkedRecords: customerResolution.records || [],
-        billingEmail: legacyResolution.matchedBillingEmail || billingEmail,
+        billingEmail,
         portalAlias,
         portalPub
       });
@@ -145,9 +143,9 @@ export function createStripeCheckoutHandler(options = {}) {
         linkedState = combineBillingCustomerRecords(customerResolution.records || []);
         linkedRecord = linkedState.primary
           || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
-        legacyResolution = await resolveLegacyStripeCustomersByEmails({
+        legacyResolution = await resolveLegacyStripeCustomerByEmail({
           stripeClient,
-          billingEmails,
+          billingEmail,
           config
         });
       }
@@ -182,9 +180,7 @@ export function createStripeCheckoutHandler(options = {}) {
               legacyNeedsLinking: true,
               hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
               legacyBillingManagementAvailable: true,
-              autoLinkedLegacy,
-              searchedBillingEmails: legacyResolution.searchedBillingEmails || billingEmails,
-              matchedBillingEmails: legacyResolution.matchedBillingEmails || []
+              autoLinkedLegacy
             }),
             flow: 'legacy_portal_manage',
             url: portalSession.url
@@ -211,9 +207,7 @@ export function createStripeCheckoutHandler(options = {}) {
             legacyNeedsLinking: true,
             hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
             legacyBillingManagementAvailable: true,
-            autoLinkedLegacy,
-            searchedBillingEmails: legacyResolution.searchedBillingEmails || billingEmails,
-            matchedBillingEmails: legacyResolution.matchedBillingEmails || []
+            autoLinkedLegacy
           }),
           error: legacyConflictMessage
         });
@@ -279,8 +273,7 @@ export function createStripeCheckoutHandler(options = {}) {
               duplicates,
               statusSource,
               hasInvoiceHistory,
-              autoLinkedLegacy,
-              searchedBillingEmails: billingEmails
+              autoLinkedLegacy
             }),
             flow: 'portal_manage',
             url: portalSession.url
@@ -296,8 +289,7 @@ export function createStripeCheckoutHandler(options = {}) {
               duplicates,
               statusSource,
               hasInvoiceHistory,
-              autoLinkedLegacy,
-              searchedBillingEmails: billingEmails
+              autoLinkedLegacy
             }),
             flow: 'portal_login',
             url: String(config.STRIPE_CUSTOMER_PORTAL_LOGIN_URL).trim()
@@ -322,16 +314,7 @@ export function createStripeCheckoutHandler(options = {}) {
         );
 
         return res.status(200).json({
-          ...buildStatusPayload({
-            customer,
-            current,
-            active,
-            duplicates,
-            statusSource,
-            hasInvoiceHistory,
-            autoLinkedLegacy,
-            searchedBillingEmails: billingEmails
-          }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
           flow: 'checkout_payment',
           url: paymentSession.url
         });
@@ -345,16 +328,7 @@ export function createStripeCheckoutHandler(options = {}) {
         });
 
         return res.status(200).json({
-          ...buildStatusPayload({
-            customer,
-            current,
-            active,
-            duplicates,
-            statusSource,
-            hasInvoiceHistory,
-            autoLinkedLegacy,
-            searchedBillingEmails: billingEmails
-          }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
           flow: 'already_subscribed',
           url: portalSession.url
         });
@@ -371,16 +345,7 @@ export function createStripeCheckoutHandler(options = {}) {
         );
 
         return res.status(200).json({
-          ...buildStatusPayload({
-            customer,
-            current,
-            active,
-            duplicates,
-            statusSource,
-            hasInvoiceHistory,
-            autoLinkedLegacy,
-            searchedBillingEmails: billingEmails
-          }),
+          ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
           flow: 'portal_update',
           targetPlan: getBillingPlan(plan)?.label || plan,
           url: portalSession.url
@@ -400,16 +365,7 @@ export function createStripeCheckoutHandler(options = {}) {
       );
 
       return res.status(200).json({
-        ...buildStatusPayload({
-          customer,
-          current,
-          active,
-          duplicates,
-          statusSource,
-          hasInvoiceHistory,
-          autoLinkedLegacy,
-          searchedBillingEmails: billingEmails
-        }),
+        ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
         flow: 'checkout_subscription',
         targetPlan: getBillingPlan(plan)?.label || plan,
         url: checkoutSession.url

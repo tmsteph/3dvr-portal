@@ -156,82 +156,6 @@ a {
   resize: vertical;
 }
 
-.saved-emails {
-  margin-top: 1rem;
-  padding: 0.95rem 1rem;
-  border: 1px solid rgba(19, 38, 61, 0.08);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.42);
-}
-
-.saved-emails__header {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.saved-emails__title {
-  margin: 0;
-  font-weight: 700;
-}
-
-.saved-emails__copy,
-.saved-emails__empty {
-  margin-top: 0.55rem;
-}
-
-.email-pills {
-  display: flex;
-  gap: 0.65rem;
-  flex-wrap: wrap;
-  margin-top: 0.8rem;
-}
-
-.email-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.22rem;
-  border-radius: 999px;
-  background: rgba(19, 38, 61, 0.06);
-  border: 1px solid rgba(19, 38, 61, 0.1);
-}
-
-.email-pill__use,
-.email-pill__remove {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-}
-
-.email-pill__use {
-  padding: 0.4rem 0.7rem;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.email-pill__remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2rem;
-  min-height: 2rem;
-  border-radius: 999px;
-  cursor: pointer;
-  color: var(--ink-soft);
-}
-
-.email-pill__use:hover,
-.email-pill__use:focus-visible,
-.email-pill__remove:hover,
-.email-pill__remove:focus-visible {
-  background: rgba(15, 118, 110, 0.12);
-  outline: none;
-}
-
 .button {
   display: inline-flex;
   align-items: center;
@@ -258,11 +182,6 @@ a {
   opacity: 0.65;
   transform: none;
   box-shadow: none;
-}
-
-.button--small {
-  min-height: 38px;
-  padding: 0.52rem 0.92rem;
 }
 
 .button--primary {
