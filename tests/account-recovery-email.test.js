@@ -212,7 +212,7 @@ describe('account recovery email api', () => {
     assert.equal(mail.sendMail.mock.calls[0].arguments[0].to, 'member@example.com');
   });
 
-  it('returns server error when transport config is missing', async () => {
+  it('returns service-unavailable details when transport config is missing', async () => {
     const handler = createAccountRecoveryEmailHandler({
       config: {
         ...baseConfig,
@@ -233,7 +233,10 @@ describe('account recovery email api', () => {
 
     await handler(req, res);
 
-    assert.equal(res.statusCode, 500);
-    assert.match(res.body.error, /Email transport is not configured/i);
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.code, 'email_transport_unavailable');
+    assert.equal(res.body.mailConfigured, false);
+    assert.equal(res.body.teamRecipientsConfigured, true);
+    assert.match(res.body.error, /not configured on this deployment/i);
   });
 });
