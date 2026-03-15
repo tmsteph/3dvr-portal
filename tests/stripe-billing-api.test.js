@@ -854,6 +854,65 @@ describe('stripe billing checkout handler', () => {
     assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
   });
 
+  it('opens legacy billing management when a saved billing email matches an older Stripe record', async () => {
+    const auth = await createBillingAuth({
+      alias: 'legacy@3dvr',
+      action: 'manage'
+    });
+    const legacyCustomer = createLegacyCustomer({
+      id: 'cus_legacy_saved',
+      email: 'saved@example.com'
+    });
+    const stripe = createMockStripe({
+      customers: {
+        list: mock.fn(async ({ email }) => ({
+          data: email === 'saved@example.com' ? [legacyCustomer] : []
+        }))
+      },
+      subscriptions: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === legacyCustomer.id
+            ? [
+                createSubscription({
+                  id: 'sub_saved',
+                  customer: legacyCustomer.id,
+                  plan: 'starter',
+                  priceId: 'price_starter'
+                })
+              ]
+            : []
+        }))
+      }
+    });
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'manage',
+        billingEmail: 'current@example.com',
+        billingEmails: ['saved@example.com']
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'legacy_portal_manage');
+    assert.equal(res.body.statusSource, 'legacy_email');
+    assert.equal(res.body.legacyNeedsLinking, true);
+    assert.deepEqual(res.body.searchedBillingEmails, ['current@example.com', 'saved@example.com']);
+    assert.deepEqual(res.body.matchedBillingEmails, ['saved@example.com']);
+    assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
+      customer: legacyCustomer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return'
+    });
+  });
+
   it('auto-links a richer legacy customer and clears placeholder links before opening billing management', async () => {
     const auth = await createBillingAuth({
       alias: 'legacy@3dvr',
@@ -1002,6 +1061,8 @@ describe('stripe billing status handler', () => {
       ok: true,
       customerId: '',
       billingEmail: 'missing@example.com',
+      searchedBillingEmails: ['missing@example.com'],
+      matchedBillingEmails: [],
       currentPlan: 'free',
       usageTier: 'account',
       portalLinked: false,
@@ -1015,6 +1076,69 @@ describe('stripe billing status handler', () => {
       hasDuplicateActiveSubscriptions: false
     });
     assert.equal(stripe.customers.list.mock.calls.length, 1);
+  });
+
+  it('searches across saved billing emails when legacy subscriptions live on different Stripe emails', async () => {
+    const auth = await createBillingAuth({
+      alias: 'legacy@3dvr'
+    });
+    const firstLegacyCustomer = createLegacyCustomer({
+      id: 'cus_legacy_one',
+      email: 'first@example.com'
+    });
+    const secondLegacyCustomer = createLegacyCustomer({
+      id: 'cus_legacy_two',
+      email: 'second@example.com'
+    });
+    const stripe = createMockStripe({
+      customers: {
+        list: mock.fn(async ({ email }) => ({
+          data: email === 'first@example.com'
+            ? [firstLegacyCustomer]
+            : email === 'second@example.com'
+              ? [secondLegacyCustomer]
+              : []
+        }))
+      },
+      subscriptions: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === firstLegacyCustomer.id || customer === secondLegacyCustomer.id
+            ? [
+                createSubscription({
+                  id: `sub_${customer}`,
+                  customer,
+                  plan: 'pro',
+                  priceId: 'price_pro'
+                })
+              ]
+            : []
+        }))
+      }
+    });
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        billingEmail: 'first@example.com',
+        billingEmails: ['second@example.com']
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.currentPlan, 'pro');
+    assert.equal(res.body.portalLinked, false);
+    assert.equal(res.body.statusSource, 'legacy_email_ambiguous');
+    assert.equal(res.body.legacyNeedsLinking, true);
+    assert.deepEqual(res.body.searchedBillingEmails, ['first@example.com', 'second@example.com']);
+    assert.deepEqual(res.body.matchedBillingEmails, ['first@example.com', 'second@example.com']);
+    assert.equal(res.body.hasDuplicateActiveSubscriptions, true);
   });
 
   it('accepts billing proofs signed on the current preview host even when PORTAL_ORIGIN points at a branch alias', async () => {

@@ -5,13 +5,13 @@ import {
   combineBillingCustomerRecords,
   getRequestOrigin,
   makeStripeClient,
-  resolveLegacyStripeCustomerByEmail,
+  resolveLegacyStripeCustomersByEmails,
   resolvePortalLinkedStripeCustomer,
   summarizeBillingCustomerRecord,
   setCorsHeaders
 } from '../../src/billing/stripe.js';
 import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
-import { isValidBillingEmail, normalizeBillingEmail } from '../../src/billing/plans.js';
+import { collectBillingEmails, normalizeBillingEmail } from '../../src/billing/plans.js';
 
 function readPayload(req) {
   if (req.method === 'GET') {
@@ -54,14 +54,16 @@ export function createStripeStatusHandler(options = {}) {
     const portalAlias = auth.identity.alias || String(payload.portalAlias || '').trim();
     const portalPub = auth.identity.pub;
     const rawBillingEmail = String(payload.billingEmail || '').trim();
-    const billingEmail = normalizeBillingEmail(rawBillingEmail);
+    const billingEmailInputs = collectBillingEmails(rawBillingEmail, payload.billingEmails);
+    const billingEmail = normalizeBillingEmail(rawBillingEmail) || billingEmailInputs.emails[0] || '';
+    const billingEmails = billingEmailInputs.emails;
     const requestedPortalPub = String(payload.portalPub || '').trim();
 
     if (requestedPortalPub && requestedPortalPub !== portalPub) {
       return res.status(403).json({ error: 'Billing access proof did not match this portal account.' });
     }
 
-    if (rawBillingEmail && !isValidBillingEmail(rawBillingEmail)) {
+    if (billingEmailInputs.invalid.length) {
       return res.status(400).json({ error: 'Enter a valid billing email address.' });
     }
 
@@ -78,9 +80,9 @@ export function createStripeStatusHandler(options = {}) {
       let linkedState = combineBillingCustomerRecords(customerResolution.records || []);
       let linkedRecord = linkedState.primary
         || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
-      let legacyResolution = await resolveLegacyStripeCustomerByEmail({
+      let legacyResolution = await resolveLegacyStripeCustomersByEmails({
         stripeClient,
-        billingEmail,
+        billingEmails,
         config
       });
       let autoLinkedLegacy = false;
@@ -88,7 +90,7 @@ export function createStripeStatusHandler(options = {}) {
         stripeClient,
         legacyResolution,
         linkedRecords: customerResolution.records || [],
-        billingEmail,
+        billingEmail: legacyResolution.matchedBillingEmail || billingEmail,
         portalAlias,
         portalPub
       });
@@ -107,9 +109,9 @@ export function createStripeStatusHandler(options = {}) {
         linkedState = combineBillingCustomerRecords(customerResolution.records || []);
         linkedRecord = linkedState.primary
           || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
-        legacyResolution = await resolveLegacyStripeCustomerByEmail({
+        legacyResolution = await resolveLegacyStripeCustomersByEmails({
           stripeClient,
-          billingEmail,
+          billingEmails,
           config
         });
       }
@@ -137,7 +139,9 @@ export function createStripeStatusHandler(options = {}) {
           legacyNeedsLinking: true,
           hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
           legacyBillingManagementAvailable: true,
-          autoLinkedLegacy
+          autoLinkedLegacy,
+          searchedBillingEmails: legacyResolution.searchedBillingEmails || billingEmails,
+          matchedBillingEmails: legacyResolution.matchedBillingEmails || []
         }));
       }
 
@@ -149,6 +153,8 @@ export function createStripeStatusHandler(options = {}) {
           currentPlan: 'free',
           usageTier: 'account',
           portalLinked: false,
+          searchedBillingEmails: billingEmails,
+          matchedBillingEmails: [],
           statusSource: 'not_found',
           legacyNeedsLinking: false,
           hasInvoiceHistory: false,
@@ -167,7 +173,8 @@ export function createStripeStatusHandler(options = {}) {
         duplicates: linkedState.active.length ? linkedState.duplicates : linkedRecord?.duplicates || [],
         statusSource: linkedState.recordCount > 1 ? 'portal_linked_multi' : 'portal_linked',
         hasInvoiceHistory: linkedState.recordCount ? linkedState.hasInvoiceHistory : linkedRecord?.hasInvoiceHistory,
-        autoLinkedLegacy
+        autoLinkedLegacy,
+        searchedBillingEmails: billingEmails
       }));
     } catch (error) {
       console.error('Failed to resolve Stripe billing status', error);

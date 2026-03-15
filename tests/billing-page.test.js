@@ -22,6 +22,9 @@ describe('billing center', () => {
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Billing Center/);
     assert.match(html, /id="billing-email"/);
+    assert.match(html, /id="save-billing-email"/);
+    assert.match(html, /id="linked-billing-emails"/);
+    assert.match(html, /Saved billing emails/);
     assert.match(html, /id="manage-billing"[^>]+disabled[^>]+aria-disabled="true"/);
     assert.match(html, /data-plan-action="starter"/);
     assert.match(html, /data-plan-action="pro"/);
@@ -38,6 +41,11 @@ describe('billing center', () => {
     const js = await readFile(appUrl, 'utf8');
     assert.ok(js.includes("billingRoot.get('customersByAlias')"));
     assert.ok(js.includes("billingRoot.get('customersByPub')"));
+    assert.ok(js.includes('linkedBillingEmailsStorageKey'));
+    assert.ok(js.includes('billingEmailsForLookup'));
+    assert.ok(js.includes('renderLinkedBillingEmails'));
+    assert.ok(js.includes('saveBillingEmailButton'));
+    assert.ok(js.includes('data-linked-email-action'));
     assert.ok(js.includes("usageTierNode.get(state.pub).put"));
     assert.ok(js.includes("fetch('/api/stripe/checkout'"));
     assert.ok(js.includes("fetchJson('/api/stripe/checkout'"));
@@ -50,8 +58,9 @@ describe('billing center', () => {
     assert.ok(js.includes('recoverBillingAuthSession'));
     assert.ok(js.includes("Refresh account to continue with Stripe billing on this tab."));
     assert.ok(js.includes('Legacy Stripe plan found:'));
-    assert.ok(js.includes('older Stripe subscription was found for this billing email'));
-    assert.ok(js.includes('Older Stripe billing history was found for this billing email'));
+    assert.ok(js.includes('Legacy Stripe plan found across saved billing emails:'));
+    assert.ok(js.includes('older Stripe subscription was found across'));
+    assert.ok(js.includes('Older Stripe billing history was found across'));
     assert.ok(js.includes("Open legacy billing"));
     assert.ok(js.includes("View legacy invoices"));
     assert.ok(js.includes('Open one legacy record'));

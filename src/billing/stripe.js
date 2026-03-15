@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import {
   BILLING_ACTIVE_STATUSES,
+  collectBillingEmails,
   getBillingPlan,
   normalizeBillingEmail,
   normalizeBillingPlan,
@@ -46,6 +47,10 @@ function customerHasPortalLink(customer) {
     normalizeMetadataField(customer?.metadata?.portal_pub)
     || normalizeMetadataField(customer?.metadata?.portal_alias)
   );
+}
+
+function uniqueBillingEmails(...sources) {
+  return collectBillingEmails(...sources).emails;
 }
 
 export function makeStripeClient(config = process.env) {
@@ -401,20 +406,73 @@ export async function resolvePortalLinkedStripeCustomer({
   };
 }
 
-export async function resolveLegacyStripeCustomerByEmail({
+export async function resolveLegacyStripeCustomersByEmails({
   stripeClient,
-  billingEmail = '',
+  billingEmails = [],
   config = process.env
 } = {}) {
-  if (!stripeClient || !normalizeBillingEmail(billingEmail) || !stripeClient.customers?.list) {
-    return { customer: null, source: 'missing-email' };
+  const searchedBillingEmails = collectBillingEmails(billingEmails).emails;
+  if (!stripeClient || !searchedBillingEmails.length || !stripeClient.customers?.list) {
+    return {
+      customer: null,
+      source: 'missing-email',
+      searchedBillingEmails,
+      matchedBillingEmails: []
+    };
   }
 
-  const records = await listLegacyStripeCustomerRecordsByEmail({
-    stripeClient,
-    billingEmail,
-    config
-  });
+  const recordsByCustomerId = new Map();
+  for (const billingEmail of searchedBillingEmails) {
+    const matches = await listLegacyStripeCustomerRecordsByEmail({
+      stripeClient,
+      billingEmail,
+      config
+    });
+
+    for (const record of matches) {
+      const customerId = String(record?.customer?.id || '').trim();
+      if (!customerId) {
+        continue;
+      }
+
+      const mergedMatchedEmails = uniqueBillingEmails(
+        record?.matchedBillingEmails || [],
+        normalizeBillingEmail(record?.customer?.email),
+        billingEmail
+      );
+      const nextRecord = {
+        ...record,
+        matchedBillingEmails: mergedMatchedEmails
+      };
+      const existingRecord = recordsByCustomerId.get(customerId);
+      if (!existingRecord) {
+        recordsByCustomerId.set(customerId, nextRecord);
+        continue;
+      }
+
+      if (compareBillingCustomerRecords(nextRecord, existingRecord) < 0) {
+        recordsByCustomerId.set(customerId, {
+          ...nextRecord,
+          matchedBillingEmails: uniqueBillingEmails(
+            existingRecord.matchedBillingEmails || [],
+            mergedMatchedEmails
+          )
+        });
+        continue;
+      }
+
+      existingRecord.matchedBillingEmails = uniqueBillingEmails(
+        existingRecord.matchedBillingEmails || [],
+        mergedMatchedEmails
+      );
+    }
+  }
+
+  const records = Array.from(recordsByCustomerId.values()).sort(compareBillingCustomerRecords);
+  const matchedBillingEmails = uniqueBillingEmails(
+    records.flatMap(record => record?.matchedBillingEmails || []),
+    records.map(record => normalizeBillingEmail(record?.customer?.email))
+  );
   const activeMatches = records.filter(record => record.current);
 
   if (!activeMatches.length) {
@@ -428,13 +486,18 @@ export async function resolveLegacyStripeCustomerByEmail({
         hasInvoiceHistory: combinedHistoryState.hasInvoiceHistory,
         source: 'legacy_email_history',
         matchCount: records.length,
-        records
+        records,
+        searchedBillingEmails,
+        matchedBillingEmails,
+        matchedBillingEmail: matchedBillingEmails[0] || ''
       };
     }
 
     return {
       customer: null,
-      source: 'not-found'
+      source: 'not-found',
+      searchedBillingEmails,
+      matchedBillingEmails: []
     };
   }
 
@@ -449,7 +512,10 @@ export async function resolveLegacyStripeCustomerByEmail({
       hasInvoiceHistory: combineBillingCustomerRecords(records).hasInvoiceHistory,
       source: 'legacy_email_ambiguous',
       matchCount: activeMatches.length,
-      records
+      records,
+      searchedBillingEmails,
+      matchedBillingEmails,
+      matchedBillingEmail: matchedBillingEmails[0] || ''
     };
   }
 
@@ -461,8 +527,23 @@ export async function resolveLegacyStripeCustomerByEmail({
     hasInvoiceHistory: combineBillingCustomerRecords(records).hasInvoiceHistory,
     source: 'legacy_email',
     matchCount: 1,
-    records
+    records,
+    searchedBillingEmails,
+    matchedBillingEmails,
+    matchedBillingEmail: matchedBillingEmails[0] || ''
   };
+}
+
+export async function resolveLegacyStripeCustomerByEmail({
+  stripeClient,
+  billingEmail = '',
+  config = process.env
+} = {}) {
+  return resolveLegacyStripeCustomersByEmails({
+    stripeClient,
+    billingEmails: [billingEmail],
+    config
+  });
 }
 
 export async function listBillingSubscriptions(stripeClient, customerId = '') {
@@ -696,13 +777,22 @@ export function buildStatusPayload({
   legacyNeedsLinking = false,
   hasInvoiceHistory = false,
   legacyBillingManagementAvailable = false,
-  autoLinkedLegacy = false
+  autoLinkedLegacy = false,
+  searchedBillingEmails = [],
+  matchedBillingEmails = []
 }) {
   const normalizedPlan = current?.plan || 'free';
+  const normalizedMatchedBillingEmails = uniqueBillingEmails(
+    matchedBillingEmails,
+    customer?.email,
+    customer?.metadata?.billing_email
+  );
   return {
     ok: true,
     customerId: exposeCustomerId ? String(customer?.id || '').trim() : '',
     billingEmail: normalizeBillingEmail(customer?.email || customer?.metadata?.billing_email || ''),
+    searchedBillingEmails: collectBillingEmails(searchedBillingEmails).emails,
+    matchedBillingEmails: normalizedMatchedBillingEmails,
     currentPlan: normalizedPlan,
     usageTier: usageTierFromPlan(normalizedPlan),
     portalLinked: Boolean(portalLinked),
