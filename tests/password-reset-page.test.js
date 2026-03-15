@@ -33,4 +33,10 @@ describe('password reset page', () => {
     assert.match(html, /Admin reset routing unavailable here/);
     assert.match(html, /recovery emails are not configured here yet/i);
   });
+
+  it('returns users to the canonical sign-in route after recovery', async () => {
+    const html = await readFile(passwordResetUrl, 'utf8');
+    assert.match(html, /href="\/sign-in\.html"/);
+    assert.doesNotMatch(html, /href="\/auth\/sign-in\.html"/);
+  });
 });
