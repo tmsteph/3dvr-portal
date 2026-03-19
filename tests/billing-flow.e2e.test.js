@@ -378,7 +378,7 @@ describe('billing center subscriber flows', () => {
     }
   }, { timeout: 45000 })
 
-  it('shows a duplicate-subscription recovery path for returning subscribers', async t => {
+  it('shows a clean returning-subscriber path after duplicate cleanup', async t => {
     const browser = await launchBrowser(t)
     if (!browser) {
       return
@@ -397,15 +397,9 @@ describe('billing center subscriber flows', () => {
         statusResponse: createFreeStatus({
           customerId: 'cus_existing',
           billingEmail: 'member@example.com',
-          currentPlan: 'builder',
-          usageTier: 'builder',
+          currentPlan: 'starter',
+          usageTier: 'supporter',
           activeSubscriptions: [
-            {
-              id: 'sub_builder',
-              status: 'active',
-              plan: 'builder',
-              priceId: 'price_builder'
-            },
             {
               id: 'sub_starter',
               status: 'active',
@@ -413,8 +407,8 @@ describe('billing center subscriber flows', () => {
               priceId: 'price_starter'
             }
           ],
-          duplicateActiveCount: 1,
-          hasDuplicateActiveSubscriptions: true
+          duplicateActiveCount: 0,
+          hasDuplicateActiveSubscriptions: false
         })
       })
       const page = await context.newPage()
@@ -422,19 +416,19 @@ describe('billing center subscriber flows', () => {
       await page.goto(`${baseUrl}/billing/`, { waitUntil: 'domcontentloaded' })
       await page.waitForFunction(() => {
         const button = document.getElementById('manage-billing')
-        return button && button.textContent && button.textContent.includes('Review duplicates')
+        return button && button.textContent && button.textContent.includes('Manage subscription')
       })
 
-      const duplicateText = (await page.textContent('#duplicate-warning')).trim()
+      const duplicateHidden = await page.getAttribute('#duplicate-warning', 'hidden')
       const manageLabel = (await page.textContent('#manage-billing')).trim()
       const manageDisabled = await page.getAttribute('#manage-billing', 'aria-disabled')
       const statusText = (await page.textContent('#action-status')).trim()
       const billingEmail = await page.inputValue('#billing-email')
 
-      assert.match(duplicateText, /cancel the extra plan/i)
-      assert.equal(manageLabel, 'Review duplicates')
+      assert.equal(duplicateHidden, '')
+      assert.equal(manageLabel, 'Manage subscription')
       assert.equal(manageDisabled, 'false')
-      assert.match(statusText, /cancel the extra plan/i)
+      assert.match(statusText, /open stripe billing/i)
       assert.equal(billingEmail, 'member@example.com')
     } finally {
       await browser.close()
