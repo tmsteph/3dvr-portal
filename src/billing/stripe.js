@@ -326,6 +326,15 @@ export function customerMatchesPortalPub(customer, portalPub = '') {
   return normalizeMetadataField(customer?.metadata?.portal_pub) === normalizedPortalPub;
 }
 
+export function customerMatchesPortalAlias(customer, portalAlias = '') {
+  const normalizedPortalAlias = normalizeMetadataField(portalAlias);
+  if (!normalizedPortalAlias) {
+    return false;
+  }
+
+  return normalizeMetadataField(customer?.metadata?.portal_alias) === normalizedPortalAlias;
+}
+
 export async function resolvePortalLinkedStripeCustomer({
   stripeClient,
   customerId = '',
@@ -344,15 +353,23 @@ export async function resolvePortalLinkedStripeCustomer({
   const normalizedAlias = normalizeMetadataField(portalAlias);
   const normalizedPub = normalizeMetadataField(portalPub);
 
-  if (!normalizedPub) {
-    return { customer: null, source: 'missing-portal-pub' };
+  if (!normalizedPub && !normalizedAlias) {
+    return { customer: null, source: 'missing-portal-identity' };
   }
 
   const linkedCandidates = [];
+  let linkedSource = 'not-found';
   if (normalizedCustomerId && stripeClient.customers?.retrieve) {
     try {
       const customer = await stripeClient.customers.retrieve(normalizedCustomerId);
-      if (customer && !customer.deleted && customerMatchesPortalPub(customer, normalizedPub)) {
+      if (
+        customer
+        && !customer.deleted
+        && (
+          customerMatchesPortalPub(customer, normalizedPub)
+          || customerMatchesPortalAlias(customer, normalizedAlias)
+        )
+      ) {
         linkedCandidates.push(customer);
       }
     } catch (error) {
@@ -360,8 +377,21 @@ export async function resolvePortalLinkedStripeCustomer({
     }
   }
 
-  linkedCandidates.push(...await searchCustomersByMetadata(stripeClient, 'portal_pub', normalizedPub));
-  const uniqueLinkedCandidates = uniqueCustomers(linkedCandidates);
+  if (normalizedPub) {
+    linkedCandidates.push(...await searchCustomersByMetadata(stripeClient, 'portal_pub', normalizedPub));
+  }
+
+  let uniqueLinkedCandidates = uniqueCustomers(linkedCandidates);
+  if (uniqueLinkedCandidates.length) {
+    linkedSource = uniqueLinkedCandidates.length > 1 ? 'portal_pub_multi' : 'portal_pub';
+  } else if (normalizedAlias) {
+    linkedCandidates.push(...await searchCustomersByMetadata(stripeClient, 'portal_alias', normalizedAlias));
+    uniqueLinkedCandidates = uniqueCustomers(linkedCandidates);
+    if (uniqueLinkedCandidates.length) {
+      linkedSource = uniqueLinkedCandidates.length > 1 ? 'portal_alias_multi' : 'portal_alias';
+    }
+  }
+
   if (uniqueLinkedCandidates.length) {
     const syncedCandidates = [];
     for (const candidate of uniqueLinkedCandidates) {
@@ -384,7 +414,7 @@ export async function resolvePortalLinkedStripeCustomer({
     return {
       customer: combinedLinkedState.primary?.customer || syncedCandidates[0] || null,
       records: linkedRecords,
-      source: uniqueLinkedCandidates.length > 1 ? 'portal_pub_multi' : 'portal_pub'
+      source: linkedSource
     };
   }
 

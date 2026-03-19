@@ -863,6 +863,73 @@ describe('stripe billing checkout handler', () => {
     });
   });
 
+  it('creates a cancellation flow for an alias-linked customer when portal_pub is missing', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      action: 'cancel'
+    });
+    const customer = createPortalLinkedCustomer(auth, {
+      metadata: {
+        portal_pub: ''
+      }
+    });
+    const customerMocks = createStatefulCustomerMocks([customer]);
+    const stripe = createMockStripe({
+      customers: customerMocks.customers,
+      subscriptions: {
+        list: mock.fn(async ({ customer: customerId }) => ({
+          data: customerId === customer.id
+            ? [
+                createSubscription({
+                  id: 'sub_starter',
+                  customer: customer.id,
+                  plan: 'starter',
+                  priceId: 'price_starter'
+                })
+              ]
+            : []
+        }))
+      }
+    });
+
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'cancel',
+        billingEmail: customer.email
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'portal_cancel');
+    assert.equal(customerMocks.store[0].metadata.portal_alias, auth.alias);
+    assert.equal(customerMocks.store[0].metadata.portal_pub, auth.pub);
+    assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
+      customer: customer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return',
+      flow_data: {
+        type: 'subscription_cancel',
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            return_url: 'https://portal.3dvr.tech/billing/?manage=cancelled'
+          }
+        },
+        subscription_cancel: {
+          subscription: 'sub_starter'
+        }
+      }
+    });
+  });
+
   it('creates a one-time payment checkout session for custom work', async () => {
     const auth = await createBillingAuth({
       alias: 'client@3dvr',
@@ -1334,6 +1401,67 @@ describe('stripe billing status handler', () => {
       hasDuplicateActiveSubscriptions: false
     });
     assert.equal(stripe.customers.list.mock.calls.length, 1);
+  });
+
+  it('finds alias-linked customers when portal_pub is missing and returns the active subscription', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr'
+    });
+    const customer = createPortalLinkedCustomer(auth, {
+      metadata: {
+        portal_pub: ''
+      }
+    });
+    const customerMocks = createStatefulCustomerMocks([customer]);
+    const stripe = createMockStripe({
+      customers: customerMocks.customers,
+      subscriptions: {
+        list: mock.fn(async ({ customer: customerId }) => ({
+          data: customerId === customer.id
+            ? [
+                createSubscription({
+                  id: 'sub_starter',
+                  customer: customer.id,
+                  plan: 'starter',
+                  priceId: 'price_starter'
+                })
+              ]
+            : []
+        }))
+      }
+    });
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        billingEmail: customer.email
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.currentPlan, 'starter');
+    assert.equal(res.body.portalLinked, true);
+    assert.equal(res.body.statusSource, 'portal_linked');
+    assert.equal(res.body.legacyNeedsLinking, false);
+    assert.equal(res.body.customerId, customer.id);
+    assert.deepEqual(res.body.activeSubscriptions, [
+      {
+        id: 'sub_starter',
+        status: 'active',
+        plan: 'starter',
+        priceId: 'price_starter'
+      }
+    ]);
+    assert.equal(customerMocks.store[0].metadata.portal_alias, auth.alias);
+    assert.equal(customerMocks.store[0].metadata.portal_pub, auth.pub);
+    assert.equal(stripe.customers.update.mock.calls.length, 1);
   });
 
   it('accepts billing proofs signed on the current preview host even when PORTAL_ORIGIN points at a branch alias', async () => {
