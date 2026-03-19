@@ -3,6 +3,7 @@ import {
   BILLING_ACTIVE_STATUSES,
   getBillingPlan,
   normalizeBillingEmail,
+  normalizeBillingEmailList,
   normalizeBillingPlan,
   planWeight,
   resolveConfiguredPriceId,
@@ -140,6 +141,19 @@ export async function searchCustomersByMetadata(stripeClient, metadataKey, value
 
 function customerMatchesEmail(customer, email) {
   return normalizeBillingEmail(customer?.email) === normalizeBillingEmail(email);
+}
+
+function billingEmailsFromCustomer(customer) {
+  return normalizeBillingEmailList(
+    customer?.email,
+    customer?.metadata?.billing_email
+  );
+}
+
+function billingEmailsFromRecords(records = []) {
+  return normalizeBillingEmailList(
+    (records || []).map(record => billingEmailsFromCustomer(record?.customer))
+  );
 }
 
 function uniqueCustomers(customers = []) {
@@ -437,20 +451,29 @@ export async function resolvePortalLinkedStripeCustomer({
   };
 }
 
-export async function resolveLegacyStripeCustomerByEmail({
+export async function resolveLegacyStripeCustomersByEmails({
   stripeClient,
   billingEmail = '',
+  billingEmails = [],
   config = process.env
 } = {}) {
-  if (!stripeClient || !normalizeBillingEmail(billingEmail) || !stripeClient.customers?.list) {
-    return { customer: null, source: 'missing-email' };
+  const normalizedEmails = normalizeBillingEmailList(billingEmail, billingEmails);
+  if (!stripeClient || !normalizedEmails.length || !stripeClient.customers?.list) {
+    return {
+      customer: null,
+      source: 'missing-email',
+      matchCount: 0,
+      records: []
+    };
   }
 
-  const records = await listLegacyStripeCustomerRecordsByEmail({
-    stripeClient,
-    billingEmail,
-    config
-  });
+  const records = uniqueBillingCustomerRecords((await Promise.all(
+    normalizedEmails.map(email => listLegacyStripeCustomerRecordsByEmail({
+      stripeClient,
+      billingEmail: email,
+      config
+    }))
+  )).flat()).sort(compareBillingCustomerRecords);
   const activeMatches = records.filter(record => record.current);
 
   if (!activeMatches.length) {
@@ -470,7 +493,9 @@ export async function resolveLegacyStripeCustomerByEmail({
 
     return {
       customer: null,
-      source: 'not-found'
+      source: 'not-found',
+      matchCount: 0,
+      records: []
     };
   }
 
@@ -499,6 +524,18 @@ export async function resolveLegacyStripeCustomerByEmail({
     matchCount: 1,
     records
   };
+}
+
+export async function resolveLegacyStripeCustomerByEmail({
+  stripeClient,
+  billingEmail = '',
+  config = process.env
+} = {}) {
+  return resolveLegacyStripeCustomersByEmails({
+    stripeClient,
+    billingEmail,
+    config
+  });
 }
 
 export async function listBillingSubscriptions(stripeClient, customerId = '') {
@@ -768,6 +805,7 @@ async function hydrateResolvedStripeBillingState({
   stripeClient,
   customerId = '',
   billingEmail = '',
+  billingEmails = [],
   portalAlias = '',
   portalPub = '',
   config = process.env
@@ -784,9 +822,16 @@ async function hydrateResolvedStripeBillingState({
   const linkedState = combineBillingCustomerRecords(customerResolution.records || []);
   const linkedRecord = linkedState.primary
     || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
-  const legacyResolution = await resolveLegacyStripeCustomerByEmail({
+  const resolvedBillingEmails = normalizeBillingEmailList(
+    billingEmail,
+    billingEmails,
+    billingEmailsFromRecords(customerResolution.records || []),
+    billingEmailsFromCustomer(linkedRecord?.customer || customerResolution.customer)
+  );
+  const legacyResolution = await resolveLegacyStripeCustomersByEmails({
     stripeClient,
     billingEmail,
+    billingEmails: resolvedBillingEmails,
     config
   });
 
@@ -794,7 +839,8 @@ async function hydrateResolvedStripeBillingState({
     customerResolution,
     linkedState,
     linkedRecord,
-    legacyResolution
+    legacyResolution,
+    billingEmails: resolvedBillingEmails
   };
 }
 
@@ -802,11 +848,13 @@ export async function resolveStripeBillingState({
   stripeClient,
   customerId = '',
   billingEmail = '',
+  billingEmails = [],
   portalAlias = '',
   portalPub = '',
   config = process.env
 } = {}) {
   let resolvedCustomerId = String(customerId || '').trim();
+  let resolvedBillingEmails = normalizeBillingEmailList(billingEmail, billingEmails);
   let autoLinkedLegacy = false;
   let customerResolution = null;
   let linkedState = combineBillingCustomerRecords();
@@ -819,6 +867,7 @@ export async function resolveStripeBillingState({
       stripeClient,
       customerId: resolvedCustomerId,
       billingEmail,
+      billingEmails: resolvedBillingEmails,
       portalAlias,
       portalPub,
       config
@@ -828,15 +877,17 @@ export async function resolveStripeBillingState({
     linkedState = resolved.linkedState;
     linkedRecord = resolved.linkedRecord;
     legacyResolution = resolved.legacyResolution;
+    resolvedBillingEmails = resolved.billingEmails;
   }
 
   await refreshState(resolvedCustomerId);
 
+  const preferredBillingEmail = normalizeBillingEmail(billingEmail) || resolvedBillingEmails[0] || '';
   const autoLinkResolution = await autoLinkLegacyStripeCustomer({
     stripeClient,
     legacyResolution,
     linkedRecords: customerResolution.records || [],
-    billingEmail,
+    billingEmail: preferredBillingEmail,
     portalAlias,
     portalPub
   });
@@ -850,7 +901,7 @@ export async function resolveStripeBillingState({
     stripeClient,
     linkedRecords: customerResolution.records || [],
     legacyRecords: legacyResolution.records || [],
-    billingEmail,
+    billingEmail: preferredBillingEmail,
     portalAlias,
     portalPub
   });
@@ -880,7 +931,8 @@ export async function resolveStripeBillingState({
     legacyRecord,
     shouldPreferLegacy,
     autoLinkedLegacy,
-    duplicateResolution
+    duplicateResolution,
+    billingEmails: resolvedBillingEmails
   };
 }
 
