@@ -117,6 +117,34 @@ export function resolveConfiguredPriceId(planValue, config = process.env) {
   return '';
 }
 
+function appendNormalizedBillingEmail(output, seen, value) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      appendNormalizedBillingEmail(output, seen, item);
+    }
+    return;
+  }
+
+  const normalized = normalizeBillingEmail(value);
+  if (!normalized || seen.has(normalized)) {
+    return;
+  }
+
+  seen.add(normalized);
+  output.push(normalized);
+}
+
+export function normalizeBillingEmailList(...values) {
+  const output = [];
+  const seen = new Set();
+
+  for (const value of values) {
+    appendNormalizedBillingEmail(output, seen, value);
+  }
+
+  return output;
+}
+
 export function normalizeBillingEmail(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized || !BILLING_EMAIL_PATTERN.test(normalized)) {

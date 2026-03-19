@@ -34,7 +34,7 @@ describe('billing center', () => {
     assert.match(html, /id="custom-submit"/);
     assert.match(html, /Already paying through Stripe\?/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
-    assert.match(html, /<script[^>]+src="\.\/app\.js\?v=20260319-legacy-cancel"/);
+    assert.match(html, /<script[^>]+src="\.\/app\.js\?v=20260319-billing-email-history"/);
   });
 
   it('stores account-linked billing hints in the billing app script', async () => {
@@ -44,6 +44,9 @@ describe('billing center', () => {
     const js = await readFile(appUrl, 'utf8');
     assert.ok(js.includes("billingRoot.get('customersByAlias')"));
     assert.ok(js.includes("billingRoot.get('customersByPub')"));
+    assert.ok(js.includes("const billingEmailsStorageKey = 'portal-billing-emails'"));
+    assert.ok(js.includes('billingEmails = normalizeBillingEmailList(record.billingEmails, record.emails, record.email)'));
+    assert.ok(js.includes('billingEmails: associatedBillingEmails('));
     assert.ok(js.includes("usageTierNode.get(state.pub).put"));
     assert.ok(js.includes("fetch('/api/stripe/checkout'"));
     assert.ok(js.includes("fetchJson('/api/stripe/checkout'"));

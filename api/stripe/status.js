@@ -6,7 +6,7 @@ import {
   setCorsHeaders
 } from '../../src/billing/stripe.js';
 import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
-import { isValidBillingEmail, normalizeBillingEmail } from '../../src/billing/plans.js';
+import { isValidBillingEmail, normalizeBillingEmail, normalizeBillingEmailList } from '../../src/billing/plans.js';
 
 function readPayload(req) {
   if (req.method === 'GET') {
@@ -50,6 +50,7 @@ export function createStripeStatusHandler(options = {}) {
     const portalPub = auth.identity.pub;
     const rawBillingEmail = String(payload.billingEmail || '').trim();
     const billingEmail = normalizeBillingEmail(rawBillingEmail);
+    const billingEmails = normalizeBillingEmailList(payload.billingEmails, billingEmail);
     const requestedPortalPub = String(payload.portalPub || '').trim();
 
     if (requestedPortalPub && requestedPortalPub !== portalPub) {
@@ -72,6 +73,7 @@ export function createStripeStatusHandler(options = {}) {
         stripeClient,
         customerId,
         billingEmail,
+        billingEmails,
         portalAlias,
         portalPub,
         config

@@ -2,7 +2,7 @@ const gun = Gun({ peers: window.__GUN_PEERS__ || undefined })
 const user = gun.user()
 const portalRoot = gun.get('3dvr-portal')
 // Gun graph:
-// - 3dvr-portal/billing/customersByAlias/<alias> -> { alias, pub, email, customerId, currentPlan, usageTier, updatedAt }
+// - 3dvr-portal/billing/customersByAlias/<alias> -> { alias, pub, email, billingEmails, customerId, currentPlan, usageTier, updatedAt }
 // - 3dvr-portal/billing/customersByPub/<pub> -> same record for account-linked lookups
 // - 3dvr-portal/billing/usageTier/<pub|alias> -> { tier, plan, alias, updatedAt, source }
 const billingRoot = portalRoot.get('billing')
@@ -13,6 +13,7 @@ const usageTierNode = billingRoot.get('usageTier')
 const sharedTierStorageKey = 'portal-usage-tier'
 const openAiTierStorageKey = 'openai-workbench-tier'
 const billingEmailStorageKey = 'portal-billing-email'
+const billingEmailsStorageKey = 'portal-billing-emails'
 const billingCustomerIdStorageKey = 'portal-billing-customer-id'
 const userPubStorageKey = 'userPubKey'
 
@@ -82,6 +83,7 @@ const state = {
   pub: '',
   username: '',
   billingEmail: '',
+  billingEmails: [],
   customerId: '',
   currentPlan: 'free',
   usageTier: 'account',
@@ -121,6 +123,55 @@ function sanitizeBillingEmail(value = '') {
   }
 
   return normalized
+}
+
+function normalizeBillingEmailList(...values) {
+  const output = []
+  const seen = new Set()
+
+  function appendValue(value) {
+    if (Array.isArray(value)) {
+      value.forEach(appendValue)
+      return
+    }
+
+    const email = sanitizeBillingEmail(value)
+    if (!email || seen.has(email)) {
+      return
+    }
+
+    seen.add(email)
+    output.push(email)
+  }
+
+  values.forEach(appendValue)
+  return output
+}
+
+function readStoredBillingEmails() {
+  const raw = String(readStorage(billingEmailsStorageKey) || '').trim()
+  if (!raw) {
+    return []
+  }
+
+  try {
+    return normalizeBillingEmailList(JSON.parse(raw))
+  } catch (error) {
+    return normalizeBillingEmailList(raw)
+  }
+}
+
+function writeStoredBillingEmails(emails = []) {
+  const normalized = normalizeBillingEmailList(emails)
+  writeStorage(billingEmailsStorageKey, normalized.length ? JSON.stringify(normalized) : '')
+}
+
+function associatedBillingEmails(...preferredValues) {
+  return normalizeBillingEmailList(
+    preferredValues,
+    state.billingEmails,
+    state.billingEmail
+  )
 }
 
 function hasTypedInvalidBillingEmail() {
@@ -627,10 +678,13 @@ function normalizeHintRecord(record) {
     return null
   }
 
+  const billingEmails = normalizeBillingEmailList(record.billingEmails, record.emails, record.email)
+
   return {
     alias: String(record.alias || '').trim(),
     pub: String(record.pub || '').trim(),
-    email: sanitizeBillingEmail(record.email),
+    email: billingEmails[0] || '',
+    billingEmails,
     customerId: String(record.customerId || '').trim(),
     currentPlan: String(record.currentPlan || '').trim().toLowerCase(),
     usageTier: String(record.usageTier || '').trim().toLowerCase()
@@ -654,7 +708,13 @@ async function persistGunHints(payload = {}) {
     return
   }
 
-  const email = sanitizeBillingEmail(payload.billingEmail || state.billingEmail)
+  const billingEmails = associatedBillingEmails(
+    payload.billingEmails,
+    payload.emails,
+    payload.billingEmail,
+    payload.email
+  )
+  const email = billingEmails[0] || ''
   const customerId = String(payload.customerId || state.customerId || '').trim()
   const currentPlan = resolveCurrentPlan(payload)
   const usageTier = String(payload.usageTier || state.usageTier || 'account').trim().toLowerCase()
@@ -662,6 +722,7 @@ async function persistGunHints(payload = {}) {
     alias: state.alias,
     pub: state.pub,
     email,
+    billingEmails,
     customerId,
     currentPlan,
     usageTier,
@@ -703,16 +764,33 @@ async function persistGunHints(payload = {}) {
 }
 
 function rememberLocalBilling(payload = {}) {
-  const billingEmail = sanitizeBillingEmail(payload.billingEmail || payload.email || state.billingEmail)
+  const typedEmail = sanitizeBillingEmail(billingEmailInput?.value || '')
+  const billingEmails = associatedBillingEmails(
+    payload.billingEmails,
+    payload.emails,
+    payload.billingEmail,
+    payload.email,
+    typedEmail
+  )
+  const billingEmail = typedEmail
+    || sanitizeBillingEmail(payload.billingEmail || payload.email || state.billingEmail)
+    || billingEmails[0]
+    || ''
   const customerId = String(payload.customerId || state.customerId || '').trim()
   const usageTier = String(payload.usageTier || state.usageTier || '').trim().toLowerCase()
 
+  state.billingEmails = billingEmails
+  writeStoredBillingEmails(billingEmails)
+
   if (billingEmail) {
     state.billingEmail = billingEmail
-    if (billingEmailInput) {
+    if (billingEmailInput && !typedEmail) {
       billingEmailInput.value = billingEmail
     }
     writeStorage(billingEmailStorageKey, billingEmail)
+  } else {
+    state.billingEmail = ''
+    writeStorage(billingEmailStorageKey, '')
   }
 
   if (customerId) {
@@ -870,6 +948,9 @@ async function syncHintsFromGun() {
   if (!state.billingEmail && gunHint.email) {
     state.billingEmail = gunHint.email
   }
+  if (!state.billingEmails.length && gunHint.billingEmails?.length) {
+    state.billingEmails = normalizeBillingEmailList(gunHint.billingEmails)
+  }
   if (!state.customerId && gunHint.customerId) {
     state.customerId = gunHint.customerId
   }
@@ -878,6 +959,7 @@ async function syncHintsFromGun() {
   }
   rememberLocalBilling({
     billingEmail: gunHint.email,
+    billingEmails: gunHint.billingEmails,
     customerId: gunHint.customerId,
     usageTier: gunHint.usageTier
   })
@@ -1079,18 +1161,27 @@ async function refreshBillingStatusAttempt(retriedAuth) {
       ...authPayload,
       customerId: state.customerId,
       billingEmail,
+      billingEmails: associatedBillingEmails(billingEmail),
       portalAlias: state.alias,
       portalPub: state.pub
     })
 
     rememberLocalBilling(
       payload?.legacyNeedsLinking
-        ? { billingEmail: payload.billingEmail }
+        ? {
+            billingEmail: payload.billingEmail,
+            billingEmails: associatedBillingEmails(billingEmail, payload.billingEmail)
+          }
         : payload
     )
-    if (!payload?.legacyNeedsLinking) {
-      await persistGunHints(payload)
-    }
+    await persistGunHints(
+      payload?.legacyNeedsLinking
+        ? {
+            billingEmail: payload.billingEmail || billingEmail,
+            billingEmails: associatedBillingEmails(billingEmail, payload.billingEmail)
+          }
+        : payload
+    )
     renderBillingState(payload)
     if (payload?.autoLinkedLegacy) {
       setFlash('We linked your older Stripe billing record to this portal account automatically.')
@@ -1179,6 +1270,7 @@ async function startCheckoutActionAttempt(payload, retriedAuth) {
       ...payload,
       customerId: state.customerId,
       billingEmail: state.billingEmail,
+      billingEmails: associatedBillingEmails(state.billingEmail),
       portalAlias: state.alias,
       portalPub: state.pub
     })
@@ -1233,7 +1325,9 @@ function bindEvents() {
       const email = sanitizeBillingEmail(rawValue)
       if (email) {
         state.billingEmail = email
+        state.billingEmails = associatedBillingEmails(email)
         writeStorage(billingEmailStorageKey, email)
+        writeStoredBillingEmails(state.billingEmails)
       }
     }
 
@@ -1395,6 +1489,7 @@ function bindEvents() {
 async function init() {
   rememberLocalBilling({
     billingEmail: readStorage(billingEmailStorageKey),
+    billingEmails: readStoredBillingEmails(),
     customerId: readStorage(billingCustomerIdStorageKey),
     usageTier: readStorage(sharedTierStorageKey) || readStorage(openAiTierStorageKey)
   })

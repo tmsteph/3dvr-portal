@@ -863,6 +863,87 @@ describe('stripe billing checkout handler', () => {
     });
   });
 
+  it('cancels an older legacy subscription found on an associated secondary billing email before opening cancel flow', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      action: 'cancel'
+    });
+    const linkedCustomer = createPortalLinkedCustomer(auth, {
+      id: 'cus_newer',
+      email: 'new@example.com'
+    });
+    const legacyCustomer = createLegacyCustomer({
+      id: 'cus_older',
+      email: 'old@example.com'
+    });
+    const customerMocks = createStatefulCustomerMocks([linkedCustomer, legacyCustomer]);
+    const subscriptionMocks = createStatefulSubscriptionMocks([
+      createSubscription({
+        id: 'sub_newer',
+        customer: linkedCustomer.id,
+        plan: 'starter',
+        priceId: 'price_starter',
+        created: 20
+      }),
+      createSubscription({
+        id: 'sub_older',
+        customer: legacyCustomer.id,
+        plan: 'starter',
+        priceId: 'price_starter',
+        created: 10
+      })
+    ]);
+    const stripe = createMockStripe({
+      customers: customerMocks.customers,
+      subscriptions: subscriptionMocks.subscriptions
+    });
+
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'cancel',
+        billingEmail: 'new@example.com',
+        billingEmails: ['new@example.com', 'old@example.com']
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'portal_cancel');
+    assert.equal(res.body.currentPlan, 'starter');
+    assert.equal(stripe.subscriptions.cancel.mock.calls.length, 1);
+    assert.deepEqual(stripe.subscriptions.cancel.mock.calls[0].arguments, [
+      'sub_older',
+      {
+        invoice_now: false,
+        prorate: false
+      }
+    ]);
+    assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
+      customer: linkedCustomer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return',
+      flow_data: {
+        type: 'subscription_cancel',
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            return_url: 'https://portal.3dvr.tech/billing/?manage=cancelled'
+          }
+        },
+        subscription_cancel: {
+          subscription: 'sub_newer'
+        }
+      }
+    });
+  });
+
   it('creates a cancellation flow for an alias-linked customer when portal_pub is missing', async () => {
     const auth = await createBillingAuth({
       alias: 'existing@3dvr',
@@ -1401,6 +1482,79 @@ describe('stripe billing status handler', () => {
       hasDuplicateActiveSubscriptions: false
     });
     assert.equal(stripe.customers.list.mock.calls.length, 1);
+  });
+
+  it('cancels an older legacy subscription found on an associated secondary billing email during status refresh', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr'
+    });
+    const linkedCustomer = createPortalLinkedCustomer(auth, {
+      id: 'cus_newer',
+      email: 'new@example.com'
+    });
+    const legacyCustomer = createLegacyCustomer({
+      id: 'cus_older',
+      email: 'old@example.com'
+    });
+    const customerMocks = createStatefulCustomerMocks([linkedCustomer, legacyCustomer]);
+    const subscriptionMocks = createStatefulSubscriptionMocks([
+      createSubscription({
+        id: 'sub_newer',
+        customer: linkedCustomer.id,
+        plan: 'starter',
+        priceId: 'price_starter',
+        created: 20
+      }),
+      createSubscription({
+        id: 'sub_older',
+        customer: legacyCustomer.id,
+        plan: 'starter',
+        priceId: 'price_starter',
+        created: 10
+      })
+    ]);
+    const stripe = createMockStripe({
+      customers: customerMocks.customers,
+      subscriptions: subscriptionMocks.subscriptions
+    });
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        billingEmail: 'new@example.com',
+        billingEmails: ['new@example.com', 'old@example.com']
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.currentPlan, 'starter');
+    assert.equal(res.body.portalLinked, true);
+    assert.equal(res.body.statusSource, 'portal_linked');
+    assert.equal(res.body.legacyNeedsLinking, false);
+    assert.equal(res.body.hasDuplicateActiveSubscriptions, false);
+    assert.deepEqual(res.body.activeSubscriptions, [
+      {
+        id: 'sub_newer',
+        status: 'active',
+        plan: 'starter',
+        priceId: 'price_starter'
+      }
+    ]);
+    assert.equal(stripe.subscriptions.cancel.mock.calls.length, 1);
+    assert.deepEqual(stripe.subscriptions.cancel.mock.calls[0].arguments, [
+      'sub_older',
+      {
+        invoice_now: false,
+        prorate: false
+      }
+    ]);
   });
 
   it('finds alias-linked customers when portal_pub is missing and returns the active subscription', async () => {

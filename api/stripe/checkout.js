@@ -21,6 +21,7 @@ import {
   getBillingPlan,
   isValidBillingEmail,
   normalizeBillingEmail,
+  normalizeBillingEmailList,
   normalizeBillingPlan,
   normalizeCustomAmount,
   resolveConfiguredPriceId
@@ -63,6 +64,7 @@ export function createStripeCheckoutHandler(options = {}) {
     const plan = normalizeBillingPlan(body.plan);
     const rawBillingEmail = String(body.billingEmail || '').trim();
     const billingEmail = normalizeBillingEmail(rawBillingEmail);
+    const billingEmails = normalizeBillingEmailList(body.billingEmails, billingEmail);
     const customerId = String(body.customerId || '').trim();
     const requestedPortalAlias = String(body.portalAlias || '').trim();
     const requestedPortalPub = String(body.portalPub || '').trim();
@@ -114,6 +116,7 @@ export function createStripeCheckoutHandler(options = {}) {
         stripeClient,
         customerId,
         billingEmail,
+        billingEmails,
         portalAlias,
         portalPub,
         config
