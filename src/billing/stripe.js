@@ -33,12 +33,17 @@ function normalizeMetadataField(value = '') {
 }
 
 function compareBillingSubscriptionPriority(left, right) {
-  const planDelta = planWeight(right.plan) - planWeight(left.plan);
+  const createdDelta = Number(right?.created || 0) - Number(left?.created || 0);
+  if (createdDelta !== 0) {
+    return createdDelta;
+  }
+
+  const planDelta = planWeight(right?.plan) - planWeight(left?.plan);
   if (planDelta !== 0) {
     return planDelta;
   }
 
-  return Number(right?.created || 0) - Number(left?.created || 0);
+  return String(right?.id || '').localeCompare(String(left?.id || ''));
 }
 
 function customerHasPortalLink(customer) {
@@ -522,14 +527,14 @@ export function isPlaceholderBillingRecord(record) {
 }
 
 export function compareBillingCustomerRecords(left, right) {
-  const planDelta = planWeight(right?.current?.plan || 'free') - planWeight(left?.current?.plan || 'free');
-  if (planDelta !== 0) {
-    return planDelta;
-  }
-
   const currentCreatedDelta = Number(right?.current?.created || 0) - Number(left?.current?.created || 0);
   if (currentCreatedDelta !== 0) {
     return currentCreatedDelta;
+  }
+
+  const planDelta = planWeight(right?.current?.plan || 'free') - planWeight(left?.current?.plan || 'free');
+  if (planDelta !== 0) {
+    return planDelta;
   }
 
   const invoiceDelta = Number(right?.lastInvoiceAt || 0) - Number(left?.lastInvoiceAt || 0);
@@ -555,6 +560,112 @@ export function combineBillingCustomerRecords(records = []) {
     duplicates: active.slice(1),
     hasInvoiceHistory: normalizedRecords.some(record => record.hasInvoiceHistory),
     recordCount: normalizedRecords.length
+  };
+}
+
+function uniqueBillingCustomerRecords(records = []) {
+  const seen = new Set();
+  return (records || []).filter(record => {
+    const customerId = String(record?.customer?.id || '').trim();
+    if (!record || !customerId || seen.has(customerId)) {
+      return false;
+    }
+
+    seen.add(customerId);
+    return true;
+  });
+}
+
+function listOwnedActiveSubscriptions(records = []) {
+  const seen = new Set();
+  return uniqueBillingCustomerRecords(records)
+    .flatMap(record => (record.active || []).filter(Boolean).map(subscription => ({
+      customer: record.customer || null,
+      subscription,
+      record
+    })))
+    .filter(entry => {
+      const subscriptionId = String(entry.subscription?.id || '').trim();
+      if (!subscriptionId || seen.has(subscriptionId)) {
+        return false;
+      }
+
+      seen.add(subscriptionId);
+      return true;
+    })
+    .sort((left, right) => compareBillingSubscriptionPriority(left.subscription, right.subscription));
+}
+
+export async function cancelStripeSubscription(
+  stripeClient,
+  subscription,
+  { invoiceNow = false, prorate = false } = {}
+) {
+  const subscriptionId = String(subscription?.id || subscription || '').trim();
+  if (!subscriptionId || !stripeClient?.subscriptions?.cancel) {
+    return null;
+  }
+
+  return stripeClient.subscriptions.cancel(subscriptionId, {
+    invoice_now: Boolean(invoiceNow),
+    prorate: Boolean(prorate)
+  });
+}
+
+export async function reconcileDuplicateActiveSubscriptions({
+  stripeClient,
+  linkedRecords = [],
+  legacyRecords = [],
+  billingEmail = '',
+  portalAlias = '',
+  portalPub = ''
+} = {}) {
+  const activeSubscriptions = listOwnedActiveSubscriptions([
+    ...(linkedRecords || []),
+    ...(legacyRecords || [])
+  ]);
+
+  if (activeSubscriptions.length <= 1 || !stripeClient?.subscriptions?.cancel) {
+    return {
+      reconciled: false,
+      winner: activeSubscriptions[0] || null,
+      cancelledSubscriptionIds: [],
+      autoLinkedLegacy: false
+    };
+  }
+
+  const [winner, ...duplicates] = activeSubscriptions;
+  const cancelledSubscriptionIds = [];
+
+  for (const duplicate of duplicates) {
+    await cancelStripeSubscription(stripeClient, duplicate.subscription, {
+      invoiceNow: false,
+      prorate: false
+    });
+    cancelledSubscriptionIds.push(duplicate.subscription.id);
+  }
+
+  let claimedCustomer = winner.customer || null;
+  let autoLinkedLegacy = false;
+  if (claimedCustomer && !customerHasPortalLink(claimedCustomer) && normalizeMetadataField(portalPub)) {
+    claimedCustomer = await updateCustomerHints(stripeClient, claimedCustomer, {
+      billingEmail,
+      portalAlias,
+      portalPub
+    });
+    autoLinkedLegacy = true;
+  }
+
+  return {
+    reconciled: Boolean(cancelledSubscriptionIds.length),
+    winner: winner
+      ? {
+          ...winner,
+          customer: claimedCustomer
+        }
+      : null,
+    cancelledSubscriptionIds,
+    autoLinkedLegacy
   };
 }
 
@@ -620,6 +731,126 @@ export async function autoLinkLegacyStripeCustomer({
     autoLinked: true,
     customer: claimedCustomer,
     releasedCustomerIds
+  };
+}
+
+async function hydrateResolvedStripeBillingState({
+  stripeClient,
+  customerId = '',
+  billingEmail = '',
+  portalAlias = '',
+  portalPub = '',
+  config = process.env
+} = {}) {
+  const customerResolution = await resolvePortalLinkedStripeCustomer({
+    stripeClient,
+    customerId,
+    billingEmail,
+    portalAlias,
+    portalPub,
+    createIfMissing: false,
+    config
+  });
+  const linkedState = combineBillingCustomerRecords(customerResolution.records || []);
+  const linkedRecord = linkedState.primary
+    || await summarizeBillingCustomerRecord(stripeClient, customerResolution.customer, config);
+  const legacyResolution = await resolveLegacyStripeCustomerByEmail({
+    stripeClient,
+    billingEmail,
+    config
+  });
+
+  return {
+    customerResolution,
+    linkedState,
+    linkedRecord,
+    legacyResolution
+  };
+}
+
+export async function resolveStripeBillingState({
+  stripeClient,
+  customerId = '',
+  billingEmail = '',
+  portalAlias = '',
+  portalPub = '',
+  config = process.env
+} = {}) {
+  let resolvedCustomerId = String(customerId || '').trim();
+  let autoLinkedLegacy = false;
+  let customerResolution = null;
+  let linkedState = combineBillingCustomerRecords();
+  let linkedRecord = null;
+  let legacyResolution = { customer: null, source: 'not-found' };
+
+  async function refreshState(nextCustomerId = resolvedCustomerId) {
+    resolvedCustomerId = String(nextCustomerId || '').trim();
+    const resolved = await hydrateResolvedStripeBillingState({
+      stripeClient,
+      customerId: resolvedCustomerId,
+      billingEmail,
+      portalAlias,
+      portalPub,
+      config
+    });
+
+    customerResolution = resolved.customerResolution;
+    linkedState = resolved.linkedState;
+    linkedRecord = resolved.linkedRecord;
+    legacyResolution = resolved.legacyResolution;
+  }
+
+  await refreshState(resolvedCustomerId);
+
+  const autoLinkResolution = await autoLinkLegacyStripeCustomer({
+    stripeClient,
+    legacyResolution,
+    linkedRecords: customerResolution.records || [],
+    billingEmail,
+    portalAlias,
+    portalPub
+  });
+
+  if (autoLinkResolution.autoLinked) {
+    autoLinkedLegacy = true;
+    await refreshState(autoLinkResolution.customer?.id || resolvedCustomerId);
+  }
+
+  const duplicateResolution = await reconcileDuplicateActiveSubscriptions({
+    stripeClient,
+    linkedRecords: customerResolution.records || [],
+    legacyRecords: legacyResolution.records || [],
+    billingEmail,
+    portalAlias,
+    portalPub
+  });
+
+  if (duplicateResolution.reconciled || duplicateResolution.autoLinkedLegacy) {
+    autoLinkedLegacy = autoLinkedLegacy || duplicateResolution.autoLinkedLegacy;
+    await refreshState(duplicateResolution.winner?.customer?.id || resolvedCustomerId);
+  }
+
+  const legacyState = combineBillingCustomerRecords(legacyResolution.records || []);
+  const legacyRecord = legacyState.primary || null;
+  const shouldPreferLegacy = Boolean(
+    legacyResolution.customer
+    && legacyRecord
+    && (
+      !linkedRecord
+      || compareBillingCustomerRecords(legacyRecord, linkedRecord) < 0
+    )
+  );
+
+  return {
+    customerResolution,
+    linkedState,
+    linkedRecord,
+    legacyResolution,
+    legacyState,
+    legacyRecord,
+    shouldPreferLegacy,
+    autoLinkedLegacy,
+    duplicateResolution
   };
 }
 
