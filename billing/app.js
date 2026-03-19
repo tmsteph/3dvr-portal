@@ -215,12 +215,32 @@ function needsBillingAuthRefresh() {
   return Boolean(state.signedIn && state.alias && !hasVerifiedBillingSession())
 }
 
-function hasActivePaidSubscription() {
-  return Boolean(
-    state.currentPlan !== 'free'
-    && Array.isArray(state.currentResponse?.activeSubscriptions)
-    && state.currentResponse.activeSubscriptions.length
-  )
+function firstActivePaidPlan(payload = state.currentResponse) {
+  const activeSubscriptions = Array.isArray(payload?.activeSubscriptions)
+    ? payload.activeSubscriptions
+    : []
+
+  for (const item of activeSubscriptions) {
+    const plan = String(item?.plan || '').trim().toLowerCase()
+    if (PAID_PLAN_SET.has(plan)) {
+      return plan
+    }
+  }
+
+  return ''
+}
+
+function resolveCurrentPlan(payload = state.currentResponse) {
+  const explicitPlan = String(payload?.currentPlan || state.currentPlan || '').trim().toLowerCase()
+  if (explicitPlan && explicitPlan !== 'free') {
+    return explicitPlan
+  }
+
+  return firstActivePaidPlan(payload) || explicitPlan || 'free'
+}
+
+function hasActivePaidSubscription(payload = state.currentResponse) {
+  return Boolean(firstActivePaidPlan(payload))
 }
 
 function hasDuplicateActiveSubscriptions() {
@@ -432,7 +452,7 @@ function updateCancelButton() {
   }
 
   let enabled = true
-  let label = hasActivePaidSubscription() ? labelForCancel(state.currentPlan) : 'Cancel renewal'
+  let label = hasActivePaidSubscription() ? labelForCancel(resolveCurrentPlan()) : 'Cancel renewal'
 
   if (state.diagnostics.loaded && !state.diagnostics.stripeConfigured) {
     enabled = false
@@ -559,7 +579,7 @@ function renderActionPrompt() {
       return
     }
 
-    if (state.currentPlan === state.selectedPlan && hasActivePaidSubscription()) {
+    if (resolveCurrentPlan() === state.selectedPlan && hasActivePaidSubscription()) {
       const legacyManaged = hasManageableLegacySubscription() || Boolean(state.currentResponse?.autoLinkedLegacy)
       setStatus(
         actionStatus,
@@ -578,7 +598,7 @@ function renderActionPrompt() {
   if (hasActivePaidSubscription()) {
     setStatus(
       actionStatus,
-      `Need invoices or payment method updates? Open Stripe billing. Need to stop renewal entirely? Use ${labelForCancel(state.currentPlan)} below. You do not need to choose Free first.`,
+      `Need invoices or payment method updates? Open Stripe billing. Need to stop renewal entirely? Use ${labelForCancel(resolveCurrentPlan())} below. You do not need to choose Free first.`,
       'info'
     )
     return
@@ -636,7 +656,7 @@ async function persistGunHints(payload = {}) {
 
   const email = sanitizeBillingEmail(payload.billingEmail || state.billingEmail)
   const customerId = String(payload.customerId || state.customerId || '').trim()
-  const currentPlan = String(payload.currentPlan || state.currentPlan || 'free').trim().toLowerCase()
+  const currentPlan = resolveCurrentPlan(payload)
   const usageTier = String(payload.usageTier || state.usageTier || 'account').trim().toLowerCase()
   const record = {
     alias: state.alias,
@@ -733,7 +753,7 @@ function renderAccountSummary() {
 }
 
 function renderBillingState(payload = null) {
-  const currentPlan = String(payload?.currentPlan || state.currentPlan || 'free').trim().toLowerCase() || 'free'
+  const currentPlan = resolveCurrentPlan(payload)
   state.currentPlan = currentPlan
   state.currentResponse = payload
   highlightPlan(selectedPlanFromUrl() || (currentPlan !== 'free' ? currentPlan : ''))
@@ -804,7 +824,7 @@ function renderBillingState(payload = null) {
     return
   }
 
-  if (currentPlan === 'free' || !(payload.activeSubscriptions || []).length) {
+  if (!hasActivePaidSubscription(payload)) {
     setStatus(billingSummary, 'No paid subscription is active yet.', 'info')
     if (billingDetail) {
       billingDetail.textContent = payload.autoLinkedLegacy
