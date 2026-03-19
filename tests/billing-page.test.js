@@ -34,7 +34,7 @@ describe('billing center', () => {
     assert.match(html, /id="custom-submit"/);
     assert.match(html, /Already paying through Stripe\?/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
-    assert.match(html, /<script[^>]+src="\.\/app\.js"/);
+    assert.match(html, /<script[^>]+src="\.\/app\.js\?v=20260319-legacy-cancel"/);
   });
 
   it('stores account-linked billing hints in the billing app script', async () => {
