@@ -44,6 +44,12 @@ const PLAN_LABELS = {
   custom: 'Custom project'
 }
 
+const CANCEL_LABELS = {
+  starter: 'Stop $5 billing',
+  pro: 'Stop $20 billing',
+  builder: 'Stop $50 billing'
+}
+
 const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder'])
 const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'custom'])
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -279,6 +285,10 @@ function labelForPlan(plan = '') {
   return PLAN_LABELS[plan] || plan || 'plan'
 }
 
+function labelForCancel(plan = '') {
+  return CANCEL_LABELS[plan] || 'Cancel renewal'
+}
+
 function highlightPlan(plan = '', options = {}) {
   const { updateUrl = false } = options
 
@@ -422,7 +432,7 @@ function updateCancelButton() {
   }
 
   let enabled = true
-  let label = cancelSubscriptionButton.dataset.defaultLabel || 'Cancel subscription'
+  let label = hasActivePaidSubscription() ? labelForCancel(state.currentPlan) : 'Cancel renewal'
 
   if (state.diagnostics.loaded && !state.diagnostics.stripeConfigured) {
     enabled = false
@@ -550,9 +560,12 @@ function renderActionPrompt() {
     }
 
     if (state.currentPlan === state.selectedPlan && hasActivePaidSubscription()) {
+      const legacyManaged = hasManageableLegacySubscription() || Boolean(state.currentResponse?.autoLinkedLegacy)
       setStatus(
         actionStatus,
-        `You are already on ${labelForPlan(state.selectedPlan)}. Open billing for invoices or payment methods, or use Cancel renewal below.`,
+        legacyManaged
+          ? `This ${labelForPlan(state.selectedPlan)} subscription came from older Stripe billing, but you can manage it normally here. Open billing for invoices or payment methods, or use ${labelForCancel(state.selectedPlan)} below. You do not need to choose Free first.`
+          : `You are already on ${labelForPlan(state.selectedPlan)}. Open billing for invoices or payment methods, or use ${labelForCancel(state.selectedPlan)} below.`,
         'info'
       )
       return
@@ -565,7 +578,7 @@ function renderActionPrompt() {
   if (hasActivePaidSubscription()) {
     setStatus(
       actionStatus,
-      'Need invoices or payment method updates? Open Stripe billing. Need to stop renewal? Use Cancel renewal below.',
+      `Need invoices or payment method updates? Open Stripe billing. Need to stop renewal entirely? Use ${labelForCancel(state.currentPlan)} below. You do not need to choose Free first.`,
       'info'
     )
     return
@@ -816,9 +829,11 @@ function renderBillingState(payload = null) {
       .map(item => `${labelForPlan(item.plan)} (${item.status})`)
       .join(' • ')
     billingDetail.textContent = activeLabels
-      ? payload.autoLinkedLegacy
-        ? `Recovered and linked from an older Stripe record. Active subscriptions: ${activeLabels}`
-        : `Active subscriptions: ${activeLabels}`
+      ? payload.legacyNeedsLinking
+        ? `Found by billing email from older Stripe billing. Active subscriptions: ${activeLabels}. Use Manage in Stripe for invoices or payment methods, or use ${labelForCancel(currentPlan)} below to stop billing.`
+        : payload.autoLinkedLegacy
+          ? `Recovered and linked from an older Stripe record. Active subscriptions: ${activeLabels}. Use ${labelForCancel(currentPlan)} below if you want to stop billing.`
+          : `Active subscriptions: ${activeLabels}`
       : 'Stripe returned an active plan but no detailed line items.'
   }
 
