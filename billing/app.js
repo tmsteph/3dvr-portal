@@ -150,6 +150,15 @@ function canManageLegacyBilling() {
   )
 }
 
+function hasManageableLegacySubscription() {
+  return Boolean(
+    hasLegacyUnlinkedSubscription()
+    && hasLegacyActiveSubscription()
+    && canManageLegacyBilling()
+    && !hasDuplicateActiveSubscriptions()
+  )
+}
+
 function currentSessionPub() {
   return String(user?._?.sea?.pub || user?.is?.pub || '').trim()
 }
@@ -381,11 +390,11 @@ function updateManageButton() {
   } else if (hasLegacyUnlinkedSubscription()) {
     enabled = canManageLegacyBilling()
     if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
-      label = canManageLegacyBilling() ? 'Open one legacy record' : 'Legacy duplicates'
+      label = canManageLegacyBilling() ? 'Review one subscription' : 'Subscription duplicates'
     } else if (hasLegacyActiveSubscription()) {
-      label = canManageLegacyBilling() ? 'Open legacy billing' : 'Legacy subscription'
+      label = canManageLegacyBilling() ? 'Manage subscription' : 'Subscription found'
     } else {
-      label = canManageLegacyBilling() ? 'View legacy invoices' : 'Legacy history'
+      label = canManageLegacyBilling() ? 'View billing history' : 'Billing history found'
     }
   } else if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
     enabled = true
@@ -509,7 +518,7 @@ function renderActionPrompt() {
     return
   }
 
-  if (hasLegacyUnlinkedSubscription()) {
+  if (hasLegacyUnlinkedSubscription() && !hasManageableLegacySubscription()) {
     setStatus(
       actionStatus,
       hasLegacyActiveSubscription()
@@ -745,7 +754,7 @@ function renderBillingState(payload = null) {
     duplicateWarning.textContent = ''
   }
 
-  if (payload.legacyNeedsLinking) {
+  if (payload.legacyNeedsLinking && !hasManageableLegacySubscription()) {
     const activeLabels = (payload.activeSubscriptions || [])
       .map(item => `${labelForPlan(item.plan)} (${item.status})`)
       .join(' • ')

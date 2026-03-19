@@ -1678,6 +1678,70 @@ describe('stripe billing status handler', () => {
     ]);
   });
 
+  it('auto-links a single legacy active subscription over a linked customer with invoice history but no active plan', async () => {
+    const auth = await createBillingAuth({
+      alias: 'legacy@3dvr'
+    });
+    const linkedCustomer = createPortalLinkedCustomer(auth, {
+      id: 'cus_linked',
+      email: 'legacy@example.com',
+      created: 50
+    });
+    const legacyCustomer = createLegacyCustomer({
+      id: 'cus_legacy',
+      email: 'legacy@example.com',
+      created: 10
+    });
+    const customerMocks = createStatefulCustomerMocks([linkedCustomer, legacyCustomer]);
+    const stripe = createMockStripe({
+      customers: customerMocks.customers,
+      subscriptions: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === legacyCustomer.id
+            ? [
+                createSubscription({
+                  id: 'sub_legacy',
+                  customer: legacyCustomer.id,
+                  plan: 'starter',
+                  priceId: 'price_starter'
+                })
+              ]
+            : []
+        }))
+      },
+      invoices: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === linkedCustomer.id
+            ? [createInvoice({ id: 'in_linked', customer, created: 75 })]
+            : []
+        }))
+      }
+    });
+    const handler = createStripeStatusHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        customerId: linkedCustomer.id,
+        billingEmail: 'legacy@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.currentPlan, 'starter');
+    assert.equal(res.body.portalLinked, true);
+    assert.equal(res.body.legacyNeedsLinking, false);
+    assert.equal(res.body.autoLinkedLegacy, true);
+    assert.equal(res.body.customerId, legacyCustomer.id);
+    assert.equal(customerMocks.store.find(customer => customer.id === linkedCustomer.id)?.metadata?.canonical_customer_id, legacyCustomer.id);
+  });
+
   it('auto-links a single legacy invoice-history customer when only an empty linked customer exists', async () => {
     const auth = await createBillingAuth({
       alias: 'legacy@3dvr'
