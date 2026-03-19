@@ -1,8 +1,10 @@
 import {
   autoLinkLegacyStripeCustomer,
   buildCheckoutSessionPayload,
+  buildSubscriptionCancelFlow,
   buildCustomPaymentSessionPayload,
   buildStatusPayload,
+  buildSubscriptionUpdateSelectionFlow,
   buildSubscriptionUpdateFlow,
   buildBillingUrls,
   compareBillingCustomerRecords,
@@ -22,7 +24,8 @@ import {
   isValidBillingEmail,
   normalizeBillingEmail,
   normalizeBillingPlan,
-  normalizeCustomAmount
+  normalizeCustomAmount,
+  resolveConfiguredPriceId
 } from '../../src/billing/plans.js';
 
 function readBody(req) {
@@ -71,8 +74,8 @@ export function createStripeCheckoutHandler(options = {}) {
     const origin = getRequestOrigin(req, config);
     const billingUrls = buildBillingUrls({ origin, plan });
 
-    if (!['subscribe', 'manage'].includes(action)) {
-      return res.status(400).json({ error: 'action must be subscribe or manage.' });
+    if (!['subscribe', 'manage', 'cancel'].includes(action)) {
+      return res.status(400).json({ error: 'action must be subscribe, manage, or cancel.' });
     }
 
     if (action === 'subscribe' && !plan) {
@@ -190,6 +193,146 @@ export function createStripeCheckoutHandler(options = {}) {
         return res.status(500).json({ error: 'Stripe Billing Portal is not configured.' });
       }
 
+      if (shouldPreferLegacy && action === 'cancel') {
+        if (!legacyResolution.current) {
+          return res.status(409).json({ error: 'No active Stripe subscription was found to cancel.' });
+        }
+
+        if ((legacyResolution.duplicates || []).length) {
+          return res.status(409).json({
+            ...buildStatusPayload({
+              customer: legacyResolution.customer,
+              current: legacyResolution.current,
+              active: legacyResolution.active,
+              duplicates: legacyResolution.duplicates,
+              exposeCustomerId: false,
+              portalLinked: false,
+              statusSource: legacyResolution.source,
+              legacyNeedsLinking: true,
+              hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+              legacyBillingManagementAvailable: true,
+              autoLinkedLegacy
+            }),
+            error: 'More than one active Stripe subscription matches this billing email. Open billing and review each record before cancelling.'
+          });
+        }
+
+        if (!stripeClient.billingPortal?.sessions?.create) {
+          return res.status(500).json({ error: 'Stripe Billing Portal is not configured.' });
+        }
+
+        const cancelSession = await stripeClient.billingPortal.sessions.create(
+          buildSubscriptionCancelFlow({
+            subscription: legacyResolution.current,
+            returnUrl: billingUrls.portalReturnUrl,
+            successUrl: billingUrls.portalCancelUrl
+          })
+        );
+
+        return res.status(200).json({
+          ...buildStatusPayload({
+            customer: legacyResolution.customer,
+            current: legacyResolution.current,
+            active: legacyResolution.active,
+            duplicates: legacyResolution.duplicates,
+            exposeCustomerId: false,
+            portalLinked: false,
+            statusSource: legacyResolution.source,
+            legacyNeedsLinking: true,
+            hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+            legacyBillingManagementAvailable: true,
+            autoLinkedLegacy
+          }),
+          flow: 'legacy_portal_cancel',
+          url: cancelSession.url
+        });
+      }
+
+      if (shouldPreferLegacy && action === 'subscribe' && legacyResolution.current) {
+        if ((legacyResolution.duplicates || []).length) {
+          return res.status(409).json({
+            ...buildStatusPayload({
+              customer: legacyResolution.customer,
+              current: legacyResolution.current,
+              active: legacyResolution.active,
+              duplicates: legacyResolution.duplicates,
+              exposeCustomerId: false,
+              portalLinked: false,
+              statusSource: legacyResolution.source,
+              legacyNeedsLinking: true,
+              hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+              legacyBillingManagementAvailable: true,
+              autoLinkedLegacy
+            }),
+            error: 'We found multiple older Stripe subscriptions for this billing email, and they are not linked to this portal account yet. To avoid creating another duplicate subscription, do not start a new plan here yet.'
+          });
+        }
+
+        if (!stripeClient.billingPortal?.sessions?.create) {
+          return res.status(500).json({ error: 'Stripe Billing Portal is not configured.' });
+        }
+
+        if (legacyResolution.current.plan === plan) {
+          const portalSession = await stripeClient.billingPortal.sessions.create({
+            customer: legacyResolution.customer.id,
+            return_url: billingUrls.portalReturnUrl
+          });
+
+          return res.status(200).json({
+            ...buildStatusPayload({
+              customer: legacyResolution.customer,
+              current: legacyResolution.current,
+              active: legacyResolution.active,
+              duplicates: legacyResolution.duplicates,
+              exposeCustomerId: false,
+              portalLinked: false,
+              statusSource: legacyResolution.source,
+              legacyNeedsLinking: true,
+              hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+              legacyBillingManagementAvailable: true,
+              autoLinkedLegacy
+            }),
+            flow: 'legacy_already_subscribed',
+            url: portalSession.url
+          });
+        }
+
+        const legacyTargetPriceId = resolveConfiguredPriceId(plan, config);
+        const portalSession = await stripeClient.billingPortal.sessions.create(
+          legacyTargetPriceId
+            ? buildSubscriptionUpdateFlow({
+                subscription: legacyResolution.current,
+                nextPriceId: legacyTargetPriceId,
+                returnUrl: billingUrls.portalReturnUrl,
+                successUrl: billingUrls.portalSuccessUrl
+              })
+            : buildSubscriptionUpdateSelectionFlow({
+                subscription: legacyResolution.current,
+                returnUrl: billingUrls.portalReturnUrl,
+                successUrl: billingUrls.portalSuccessUrl
+              })
+        );
+
+        return res.status(200).json({
+          ...buildStatusPayload({
+            customer: legacyResolution.customer,
+            current: legacyResolution.current,
+            active: legacyResolution.active,
+            duplicates: legacyResolution.duplicates,
+            exposeCustomerId: false,
+            portalLinked: false,
+            statusSource: legacyResolution.source,
+            legacyNeedsLinking: true,
+            hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+            legacyBillingManagementAvailable: true,
+            autoLinkedLegacy
+          }),
+          flow: legacyTargetPriceId ? 'legacy_portal_update' : 'legacy_portal_update_select',
+          targetPlan: getBillingPlan(plan)?.label || plan,
+          url: portalSession.url
+        });
+      }
+
       if (shouldPreferLegacy && legacyResolution.current) {
         const legacyConflictMessage = legacyResolution.matchCount > 1
           ? 'We found multiple older Stripe subscriptions for this billing email, and they are not linked to this portal account yet. To avoid creating another duplicate subscription, do not start a new plan here yet.'
@@ -258,6 +401,53 @@ export function createStripeCheckoutHandler(options = {}) {
         });
       }
 
+      if (action === 'cancel') {
+        if (!current) {
+          return res.status(409).json({ error: 'No active Stripe subscription was found to cancel.' });
+        }
+
+        if (duplicates.length) {
+          return res.status(409).json({
+            ...buildStatusPayload({
+              customer,
+              current,
+              active,
+              duplicates,
+              statusSource,
+              hasInvoiceHistory,
+              autoLinkedLegacy
+            }),
+            error: 'More than one active Stripe subscription is associated with this account. Open billing and cancel the extra subscription before using the direct cancel flow.'
+          });
+        }
+
+        if (!stripeClient.billingPortal?.sessions?.create) {
+          return res.status(500).json({ error: 'Stripe Billing Portal is not configured.' });
+        }
+
+        const cancelSession = await stripeClient.billingPortal.sessions.create(
+          buildSubscriptionCancelFlow({
+            subscription: current,
+            returnUrl: billingUrls.portalReturnUrl,
+            successUrl: billingUrls.portalCancelUrl
+          })
+        );
+
+        return res.status(200).json({
+          ...buildStatusPayload({
+            customer,
+            current,
+            active,
+            duplicates,
+            statusSource,
+            hasInvoiceHistory,
+            autoLinkedLegacy
+          }),
+          flow: 'portal_cancel',
+          url: cancelSession.url
+        });
+      }
+
       if (action === 'manage') {
         if (stripeClient.billingPortal?.sessions?.create) {
           const portalSession = await stripeClient.billingPortal.sessions.create({
@@ -320,7 +510,6 @@ export function createStripeCheckoutHandler(options = {}) {
         });
       }
 
-      const targetPriceId = requireConfiguredPlanPrice(plan, config);
       if (current?.plan === plan) {
         const portalSession = await stripeClient.billingPortal.sessions.create({
           customer: customer.id,
@@ -335,23 +524,35 @@ export function createStripeCheckoutHandler(options = {}) {
       }
 
       if (current) {
+        if (!stripeClient.billingPortal?.sessions?.create) {
+          return res.status(500).json({ error: 'Stripe Billing Portal is not configured.' });
+        }
+
+        const targetPriceId = resolveConfiguredPriceId(plan, config);
         const portalSession = await stripeClient.billingPortal.sessions.create(
-          buildSubscriptionUpdateFlow({
-            subscription: current,
-            nextPriceId: targetPriceId,
-            returnUrl: billingUrls.portalReturnUrl,
-            successUrl: billingUrls.portalSuccessUrl
-          })
+          targetPriceId
+            ? buildSubscriptionUpdateFlow({
+                subscription: current,
+                nextPriceId: targetPriceId,
+                returnUrl: billingUrls.portalReturnUrl,
+                successUrl: billingUrls.portalSuccessUrl
+              })
+            : buildSubscriptionUpdateSelectionFlow({
+                subscription: current,
+                returnUrl: billingUrls.portalReturnUrl,
+                successUrl: billingUrls.portalSuccessUrl
+              })
         );
 
         return res.status(200).json({
           ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
-          flow: 'portal_update',
+          flow: targetPriceId ? 'portal_update' : 'portal_update_select',
           targetPlan: getBillingPlan(plan)?.label || plan,
           url: portalSession.url
         });
       }
 
+      const targetPriceId = requireConfiguredPlanPrice(plan, config);
       const checkoutSession = await stripeClient.checkout.sessions.create(
         buildCheckoutSessionPayload({
           customer,

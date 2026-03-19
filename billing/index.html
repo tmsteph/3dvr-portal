@@ -79,6 +79,10 @@
             placeholder="you@example.com"
           >
         </label>
+        <p class="meta">
+          Already paying through Stripe? Enter the same billing email from your receipt so we can find older
+          subscriptions before you start a new one.
+        </p>
 
         <p id="billing-summary" class="status status--info">We will look up your Stripe customer after sign-in.</p>
         <p id="billing-detail" class="meta">
@@ -91,6 +95,9 @@
           <button id="refresh-status" class="button button--ghost" type="button">Refresh status</button>
           <button id="manage-billing" class="button button--primary" type="button" disabled aria-disabled="true">
             Manage billing
+          </button>
+          <button id="cancel-subscription" class="button button--ghost" type="button" disabled aria-disabled="true">
+            Cancel subscription
           </button>
         </div>
       </article>
