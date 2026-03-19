@@ -54,9 +54,9 @@ describe('billing center', () => {
     assert.ok(js.includes('Legacy Stripe plan found:'));
     assert.ok(js.includes('older Stripe subscription was found for this billing email'));
     assert.ok(js.includes('Older Stripe billing history was found for this billing email'));
-    assert.ok(js.includes("Open legacy billing"));
-    assert.ok(js.includes("View legacy invoices"));
-    assert.ok(js.includes('Open one legacy record'));
+    assert.ok(js.includes("Manage subscription"));
+    assert.ok(js.includes("View billing history"));
+    assert.ok(js.includes('Review one subscription'));
     assert.ok(js.includes('Manage billing opens one record at a time.'));
     assert.ok(js.includes('return here, refresh, and open billing again'));
     assert.ok(js.includes('Recovered and linked from an older Stripe record.'));

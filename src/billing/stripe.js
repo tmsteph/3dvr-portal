@@ -578,7 +578,7 @@ export function canAutoLinkLegacyStripeCustomer({
     return false;
   }
 
-  return (linkedRecords || []).filter(Boolean).every(isPlaceholderBillingRecord);
+  return !(linkedRecords || []).filter(Boolean).some(record => record?.current);
 }
 
 export async function autoLinkLegacyStripeCustomer({
