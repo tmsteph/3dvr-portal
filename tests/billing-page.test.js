@@ -23,7 +23,10 @@ describe('billing center', () => {
     assert.match(html, /Billing Center/);
     assert.match(html, /id="billing-email"/);
     assert.match(html, /id="manage-billing"[^>]+disabled[^>]+aria-disabled="true"/);
-    assert.match(html, /id="cancel-subscription"[^>]+disabled[^>]+aria-disabled="true"/);
+    assert.match(html, /Manage in Stripe/);
+    assert.match(html, /id="cancel-subscription"[^>]+button--danger[^>]+disabled[^>]+aria-disabled="true"/);
+    assert.match(html, /Cancel renewal/);
+    assert.match(html, /Cancel renewal opens Stripe's cancellation\s+confirmation/);
     assert.match(html, /data-plan-action="starter"/);
     assert.match(html, /data-plan-action="pro"/);
     assert.match(html, /data-plan-action="builder"/);
@@ -61,6 +64,7 @@ describe('billing center', () => {
     assert.ok(js.includes('return here, refresh, and open billing again'));
     assert.ok(js.includes('Recovered and linked from an older Stripe record.'));
     assert.ok(js.includes('We linked your older Stripe billing record to this portal account automatically.'));
+    assert.ok(js.includes('Cancel renewal below'));
     assert.ok(js.includes('Cancel subscription'));
     assert.ok(js.includes("action: 'cancel'"));
     assert.ok(js.includes("params.get('manage') === 'cancelled'"));

@@ -201,6 +201,33 @@ a {
   border-color: rgba(19, 38, 61, 0.12);
 }
 
+.button--danger {
+  background: rgba(180, 35, 24, 0.1);
+  color: var(--error);
+  border-color: rgba(180, 35, 24, 0.18);
+}
+
+.billing-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(19, 38, 61, 0.08);
+}
+
+.billing-actions__title {
+  margin: 0;
+  font-family: "Sora", "Segoe UI", sans-serif;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.billing-actions__copy {
+  margin-top: 0.45rem;
+}
+
+.billing-actions__buttons {
+  margin-top: 0.85rem;
+}
+
 .flash,
 .status {
   margin: 0.75rem 0 0;

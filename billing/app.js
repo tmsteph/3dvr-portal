@@ -552,7 +552,7 @@ function renderActionPrompt() {
     if (state.currentPlan === state.selectedPlan && hasActivePaidSubscription()) {
       setStatus(
         actionStatus,
-        `You are already on ${labelForPlan(state.selectedPlan)}. Open billing for invoices, payment method updates, or cancellation.`,
+        `You are already on ${labelForPlan(state.selectedPlan)}. Open billing for invoices or payment methods, or use Cancel renewal below.`,
         'info'
       )
       return
@@ -565,7 +565,7 @@ function renderActionPrompt() {
   if (hasActivePaidSubscription()) {
     setStatus(
       actionStatus,
-      'Need invoices or payment method updates? Open Stripe billing. Need to stop renewal? Use Cancel subscription.',
+      'Need invoices or payment method updates? Open Stripe billing. Need to stop renewal? Use Cancel renewal below.',
       'info'
     )
     return
