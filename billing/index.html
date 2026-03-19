@@ -91,13 +91,22 @@
 
         <div class="button-row">
           <button id="refresh-status" class="button button--ghost" type="button">Refresh status</button>
-          <button id="manage-billing" class="button button--primary" type="button" disabled aria-disabled="true">
-            Manage billing
-          </button>
-          <button id="cancel-subscription" class="button button--ghost" type="button" disabled aria-disabled="true">
-            Cancel subscription
-          </button>
         </div>
+        <section class="billing-actions" aria-labelledby="billing-actions-title">
+          <h3 id="billing-actions-title" class="billing-actions__title">Need to update or cancel?</h3>
+          <p class="meta billing-actions__copy">
+            Manage opens Stripe billing for invoices and payment methods. Cancel renewal opens Stripe's cancellation
+            confirmation for your current subscription.
+          </p>
+          <div class="button-row billing-actions__buttons">
+            <button id="manage-billing" class="button button--primary" type="button" disabled aria-disabled="true">
+              Manage in Stripe
+            </button>
+            <button id="cancel-subscription" class="button button--danger" type="button" disabled aria-disabled="true">
+              Cancel renewal
+            </button>
+          </div>
+        </section>
       </article>
     </section>
 
