@@ -23,10 +23,12 @@ describe('billing center', () => {
     assert.match(html, /Billing Center/);
     assert.match(html, /id="billing-email"/);
     assert.match(html, /id="manage-billing"[^>]+disabled[^>]+aria-disabled="true"/);
+    assert.match(html, /id="cancel-subscription"[^>]+disabled[^>]+aria-disabled="true"/);
     assert.match(html, /data-plan-action="starter"/);
     assert.match(html, /data-plan-action="pro"/);
     assert.match(html, /data-plan-action="builder"/);
     assert.match(html, /id="custom-submit"/);
+    assert.match(html, /Already paying through Stripe\?/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="\.\/app\.js"/);
   });
@@ -59,6 +61,10 @@ describe('billing center', () => {
     assert.ok(js.includes('return here, refresh, and open billing again'));
     assert.ok(js.includes('Recovered and linked from an older Stripe record.'));
     assert.ok(js.includes('We linked your older Stripe billing record to this portal account automatically.'));
+    assert.ok(js.includes('Cancel subscription'));
+    assert.ok(js.includes("action: 'cancel'"));
+    assert.ok(js.includes("params.get('manage') === 'cancelled'"));
+    assert.ok(js.includes('secure plan-change flow'));
     assert.ok(js.includes("label = 'Refresh account first'"));
     assert.ok(js.includes('authPub: livePub'));
     assert.ok(js.includes("window.location.assign(signInHref(targetPlan))"));

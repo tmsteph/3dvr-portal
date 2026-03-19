@@ -94,7 +94,8 @@ export function buildBillingUrls({ origin, plan = '' } = {}) {
     checkoutSuccessUrl: `${billingUrl}?checkout=success${returnSuffix}&session_id={CHECKOUT_SESSION_ID}`,
     checkoutCancelUrl: `${billingUrl}?checkout=cancel${returnSuffix}`,
     portalReturnUrl: `${billingUrl}?manage=return${returnSuffix}`,
-    portalSuccessUrl: `${billingUrl}?manage=success${returnSuffix}`
+    portalSuccessUrl: `${billingUrl}?manage=success${returnSuffix}`,
+    portalCancelUrl: `${billingUrl}?manage=cancelled${returnSuffix}`
   };
 }
 
@@ -748,6 +749,52 @@ export function buildSubscriptionUpdateFlow({ subscription, nextPriceId, returnU
             quantity: item.quantity || 1
           }
         ]
+      }
+    }
+  };
+}
+
+export function buildSubscriptionUpdateSelectionFlow({ subscription, returnUrl, successUrl }) {
+  if (!subscription?.id) {
+    throw new Error('An active Stripe subscription is required for plan changes.');
+  }
+
+  return {
+    customer: subscription.customer,
+    return_url: returnUrl,
+    flow_data: {
+      type: 'subscription_update',
+      after_completion: {
+        type: 'redirect',
+        redirect: {
+          return_url: successUrl
+        }
+      },
+      subscription_update: {
+        subscription: subscription.id
+      }
+    }
+  };
+}
+
+export function buildSubscriptionCancelFlow({ subscription, returnUrl, successUrl }) {
+  if (!subscription?.id) {
+    throw new Error('An active Stripe subscription is required for cancellation.');
+  }
+
+  return {
+    customer: subscription.customer,
+    return_url: returnUrl,
+    flow_data: {
+      type: 'subscription_cancel',
+      after_completion: {
+        type: 'redirect',
+        redirect: {
+          return_url: successUrl
+        }
+      },
+      subscription_cancel: {
+        subscription: subscription.id
       }
     }
   };

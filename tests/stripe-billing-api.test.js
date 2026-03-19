@@ -314,6 +314,33 @@ describe('stripe billing checkout handler', () => {
     });
   });
 
+  it('treats the legacy single-price env as the starter-plan fallback', async () => {
+    const handler = createStripeCheckoutHandler({
+      stripeClient: createMockStripe(),
+      config: {
+        STRIPE_SECRET_KEY: 'sk_test_key',
+        STRIPE_PRICE_ID: 'price_legacy_starter',
+        PORTAL_ORIGIN: 'https://portal.3dvr.tech'
+      }
+    });
+
+    const req = { method: 'GET', body: {} };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, {
+      stripeConfigured: true,
+      planPricesConfigured: {
+        starter: true,
+        pro: false,
+        builder: false
+      },
+      customerPortalLoginConfigured: false
+    });
+  });
+
   it('rejects unauthenticated POST billing requests before hitting Stripe', async () => {
     const stripe = createMockStripe();
     const handler = createStripeCheckoutHandler({
@@ -391,6 +418,41 @@ describe('stripe billing checkout handler', () => {
       success_url: 'https://portal.3dvr.tech/billing/?checkout=success&plan=pro&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://portal.3dvr.tech/billing/?checkout=cancel&plan=pro'
     });
+  });
+
+  it('creates starter checkout sessions from the legacy single-price env', async () => {
+    const auth = await createBillingAuth({
+      alias: 'legacy-price@3dvr',
+      action: 'subscribe'
+    });
+    const stripe = createMockStripe();
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: {
+        STRIPE_SECRET_KEY: 'sk_test_key',
+        STRIPE_PRICE_ID: 'price_legacy_starter',
+        PORTAL_ORIGIN: 'https://portal.3dvr.tech'
+      }
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'subscribe',
+        plan: 'starter',
+        billingEmail: 'legacy-price@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'checkout_subscription');
+    assert.equal(stripe.checkout.sessions.create.mock.calls.length, 1);
+    assert.deepEqual(stripe.checkout.sessions.create.mock.calls[0].arguments[0].line_items, [
+      { price: 'price_legacy_starter', quantity: 1 }
+    ]);
   });
 
   it('prefers the live preview request host over PORTAL_ORIGIN when creating checkout sessions', async () => {
@@ -540,6 +602,74 @@ describe('stripe billing checkout handler', () => {
     assert.equal(stripe.customers.list.mock.calls.length, 1);
   });
 
+  it('falls back to the generic Stripe plan-switcher when a target price is not mapped in env', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      action: 'subscribe'
+    });
+    const customer = createPortalLinkedCustomer(auth);
+    const stripe = createMockStripe({
+      customers: {
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [customer] : []
+        }))
+      },
+      subscriptions: {
+        list: mock.fn(async () => ({
+          data: [
+            createSubscription({
+              id: 'sub_starter',
+              customer: customer.id,
+              plan: 'starter',
+              priceId: 'price_starter'
+            })
+          ]
+        }))
+      }
+    });
+
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: {
+        STRIPE_SECRET_KEY: 'sk_test_key',
+        STRIPE_PRICE_STARTER_ID: 'price_starter',
+        PORTAL_ORIGIN: 'https://portal.3dvr.tech'
+      }
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'subscribe',
+        plan: 'pro',
+        billingEmail: customer.email
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'portal_update_select');
+    assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
+      customer: customer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return&plan=pro',
+      flow_data: {
+        type: 'subscription_update',
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            return_url: 'https://portal.3dvr.tech/billing/?manage=success&plan=pro'
+          }
+        },
+        subscription_update: {
+          subscription: 'sub_starter'
+        }
+      }
+    });
+    assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
+  });
+
   it('continues checkout when syncing billing hints fails for a matched portal customer', async () => {
     const auth = await createBillingAuth({
       alias: 'existing@3dvr',
@@ -637,6 +767,68 @@ describe('stripe billing checkout handler', () => {
       return_url: 'https://portal.3dvr.tech/billing/?manage=return&plan=pro'
     });
     assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
+  });
+
+  it('creates a direct Stripe cancellation flow for an existing subscription', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      action: 'cancel'
+    });
+    const customer = createPortalLinkedCustomer(auth);
+    const stripe = createMockStripe({
+      customers: {
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [customer] : []
+        }))
+      },
+      subscriptions: {
+        list: mock.fn(async () => ({
+          data: [
+            createSubscription({
+              id: 'sub_starter',
+              customer: customer.id,
+              plan: 'starter',
+              priceId: 'price_starter'
+            })
+          ]
+        }))
+      }
+    });
+
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'cancel',
+        billingEmail: customer.email
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'portal_cancel');
+    assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
+      customer: customer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return',
+      flow_data: {
+        type: 'subscription_cancel',
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            return_url: 'https://portal.3dvr.tech/billing/?manage=cancelled'
+          }
+        },
+        subscription_cancel: {
+          subscription: 'sub_starter'
+        }
+      }
+    });
   });
 
   it('creates a one-time payment checkout session for custom work', async () => {
@@ -789,6 +981,75 @@ describe('stripe billing checkout handler', () => {
       portal_alias: auth.alias,
       portal_pub: auth.pub,
       billing_email: 'legacy@example.com'
+    });
+  });
+
+  it('lets a single legacy active subscription open the generic Stripe plan-switcher', async () => {
+    const auth = await createBillingAuth({
+      alias: 'legacy@3dvr',
+      action: 'subscribe'
+    });
+    const legacyCustomer = createLegacyCustomer({
+      email: 'legacy@example.com'
+    });
+    const customerMocks = createStatefulCustomerMocks([legacyCustomer]);
+    const stripe = createMockStripe({
+      customers: customerMocks.customers,
+      subscriptions: {
+        list: mock.fn(async ({ customer }) => ({
+          data: customer === legacyCustomer.id
+            ? [
+                createSubscription({
+                  id: 'sub_legacy',
+                  customer: legacyCustomer.id,
+                  plan: 'starter',
+                  priceId: 'price_starter'
+                })
+              ]
+            : []
+        }))
+      }
+    });
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: {
+        STRIPE_SECRET_KEY: 'sk_test_key',
+        STRIPE_PRICE_STARTER_ID: 'price_starter',
+        PORTAL_ORIGIN: 'https://portal.3dvr.tech'
+      }
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'subscribe',
+        plan: 'pro',
+        billingEmail: 'legacy@example.com'
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'portal_update_select');
+    assert.equal(res.body.legacyNeedsLinking, false);
+    assert.equal(res.body.autoLinkedLegacy, true);
+    assert.deepEqual(stripe.billingPortal.sessions.create.mock.calls[0].arguments[0], {
+      customer: legacyCustomer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return&plan=pro',
+      flow_data: {
+        type: 'subscription_update',
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            return_url: 'https://portal.3dvr.tech/billing/?manage=success&plan=pro'
+          }
+        },
+        subscription_update: {
+          subscription: 'sub_legacy'
+        }
+      }
     });
   });
 

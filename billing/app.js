@@ -27,6 +27,7 @@ const signInLink = document.getElementById('sign-in-link')
 const refreshAuthButton = document.getElementById('refresh-auth')
 const refreshStatusButton = document.getElementById('refresh-status')
 const manageBillingButton = document.getElementById('manage-billing')
+const cancelSubscriptionButton = document.getElementById('cancel-subscription')
 const selectedPlanLabel = document.getElementById('selected-plan-label')
 const customAmountInput = document.getElementById('custom-amount')
 const customLabelInput = document.getElementById('custom-label')
@@ -207,6 +208,10 @@ function hasActivePaidSubscription() {
   )
 }
 
+function hasDuplicateActiveSubscriptions() {
+  return Boolean(state.currentResponse?.hasDuplicateActiveSubscriptions)
+}
+
 function setStatus(element, message, tone = 'info') {
   if (!element) return
   element.textContent = message
@@ -312,6 +317,21 @@ function isPlanAvailable(plan = '') {
   return Boolean(state.diagnostics.stripeConfigured && state.diagnostics.planPricesConfigured?.[plan])
 }
 
+function canUseStripePlanSwitcher(plan = '') {
+  return Boolean(
+    PAID_PLAN_SET.has(plan)
+    && state.diagnostics.stripeConfigured
+    && hasVerifiedBillingSession()
+    && hasActivePaidSubscription()
+    && !hasDuplicateActiveSubscriptions()
+    && (!hasLegacyUnlinkedSubscription() || canManageLegacyBilling())
+  )
+}
+
+function isPlanActionEnabled(plan = '') {
+  return isPlanAvailable(plan) || canUseStripePlanSwitcher(plan)
+}
+
 function applyButtonAvailability(button, enabled, unavailableLabel = 'Temporarily unavailable') {
   if (!button) {
     return
@@ -329,7 +349,7 @@ function applyButtonAvailability(button, enabled, unavailableLabel = 'Temporaril
 function applyBillingDiagnostics() {
   planButtons.forEach(button => {
     const plan = String(button.dataset.planAction || '').trim().toLowerCase()
-    const enabled = isPlanAvailable(plan)
+    const enabled = isPlanActionEnabled(plan)
     applyButtonAvailability(button, enabled)
     button.closest('.plan-card')?.classList.toggle('is-unavailable', !enabled)
   })
@@ -383,6 +403,48 @@ function updateManageButton() {
   manageBillingButton.textContent = label
 }
 
+function updateCancelButton() {
+  if (!cancelSubscriptionButton) {
+    return
+  }
+
+  if (!cancelSubscriptionButton.dataset.defaultLabel) {
+    cancelSubscriptionButton.dataset.defaultLabel = cancelSubscriptionButton.textContent.trim()
+  }
+
+  let enabled = true
+  let label = cancelSubscriptionButton.dataset.defaultLabel || 'Cancel subscription'
+
+  if (state.diagnostics.loaded && !state.diagnostics.stripeConfigured) {
+    enabled = false
+    label = 'Billing offline'
+  } else if (needsBillingAuthRefresh()) {
+    enabled = false
+    label = 'Refresh account first'
+  } else if (!hasVerifiedBillingSession()) {
+    enabled = false
+    label = 'Sign in first'
+  } else if (!hasActivePaidSubscription()) {
+    enabled = false
+    label = 'No active plan'
+  } else if (hasDuplicateActiveSubscriptions()) {
+    enabled = false
+    label = 'Review duplicates first'
+  } else if (hasLegacyUnlinkedSubscription() && !canManageLegacyBilling()) {
+    enabled = false
+    label = 'Legacy billing only'
+  }
+
+  cancelSubscriptionButton.disabled = !enabled
+  cancelSubscriptionButton.setAttribute('aria-disabled', String(!enabled))
+  cancelSubscriptionButton.textContent = label
+}
+
+function refreshBillingControls() {
+  updateManageButton()
+  updateCancelButton()
+}
+
 function renderActionPrompt() {
   if (!actionStatus) {
     return
@@ -394,6 +456,15 @@ function renderActionPrompt() {
   }
 
   if (state.selectedPlan && !isPlanAvailable(state.selectedPlan)) {
+    if (canUseStripePlanSwitcher(state.selectedPlan)) {
+      setStatus(
+        actionStatus,
+        `${labelForPlan(state.selectedPlan)} is not mapped in this portal yet, but Stripe can still open a secure plan-change flow for your existing subscription.`,
+        'info'
+      )
+      return
+    }
+
     setStatus(actionStatus, `${labelForPlan(state.selectedPlan)} is temporarily unavailable right now.`, 'warning')
     return
   }
@@ -443,7 +514,7 @@ function renderActionPrompt() {
       actionStatus,
       hasLegacyActiveSubscription()
         ? canManageLegacyBilling()
-          ? 'An older Stripe subscription was found for this billing email. Open legacy billing to review invoices or payment methods. New checkout stays blocked to avoid creating a duplicate plan.'
+          ? 'An older Stripe subscription was found for this billing email. Open legacy billing for invoices or payment methods, or choose another paid plan below to change the existing subscription without starting a duplicate plan.'
           : 'An older Stripe subscription was found for this billing email. We are showing its status here, but new checkout is blocked to avoid creating a duplicate plan.'
         : canManageLegacyBilling()
           ? 'Older Stripe billing history was found for this billing email. Open legacy billing to review invoices or payment methods, or choose a new plan below if you want to start a fresh portal-linked subscription.'
@@ -483,7 +554,11 @@ function renderActionPrompt() {
   }
 
   if (hasActivePaidSubscription()) {
-    setStatus(actionStatus, 'Need invoices, cancellation, or payment method updates? Open Stripe billing.', 'info')
+    setStatus(
+      actionStatus,
+      'Need invoices or payment method updates? Open Stripe billing. Need to stop renewal? Use Cancel subscription.',
+      'info'
+    )
     return
   }
 
@@ -640,6 +715,7 @@ function renderBillingState(payload = null) {
   state.currentPlan = currentPlan
   state.currentResponse = payload
   highlightPlan(selectedPlanFromUrl() || (currentPlan !== 'free' ? currentPlan : ''))
+  applyBillingDiagnostics()
 
   if (!payload) {
     setStatus(billingSummary, 'We will look up your Stripe customer after sign-in.', 'info')
@@ -650,7 +726,7 @@ function renderBillingState(payload = null) {
       duplicateWarning.hidden = true
       duplicateWarning.textContent = ''
     }
-    updateManageButton()
+    refreshBillingControls()
     renderActionPrompt()
     return
   }
@@ -690,7 +766,7 @@ function renderBillingState(payload = null) {
         billingDetail.textContent = canManageLegacyBilling()
           ? payload.hasDuplicateActiveSubscriptions
             ? `Found by billing email from the older system: ${activeLabels}. These live on separate Stripe records, so Manage billing opens one record at a time. Review or cancel the visible subscription, return here, refresh, and if the duplicate warning remains, open billing again to reach the other record. New checkout stays blocked until the duplicate records are cleaned up.`
-            : `Found by billing email from the older system: ${activeLabels}. Open legacy billing to review invoices or payment methods. New checkout stays blocked until this record is linked.`
+            : `Found by billing email from the older system: ${activeLabels}. Open legacy billing to review invoices or payment methods, or choose another paid plan below to open Stripe's secure plan-change flow for this existing subscription.`
           : `Found by billing email from the older system: ${activeLabels}. These subscriptions are not linked to this portal account yet, so billing actions stay limited here.`
       } else if (payload.hasInvoiceHistory) {
         billingDetail.textContent = canManageLegacyBilling()
@@ -701,7 +777,7 @@ function renderBillingState(payload = null) {
       }
     }
 
-    updateManageButton()
+    refreshBillingControls()
     renderActionPrompt()
     return
   }
@@ -715,7 +791,7 @@ function renderBillingState(payload = null) {
           ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
           : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
     }
-    updateManageButton()
+    refreshBillingControls()
     renderActionPrompt()
     return
   }
@@ -737,7 +813,7 @@ function renderBillingState(payload = null) {
       : 'Stripe returned an active plan but no detailed line items.'
   }
 
-  updateManageButton()
+  refreshBillingControls()
   renderActionPrompt()
 }
 
@@ -840,7 +916,8 @@ async function refreshAuthState(options = {}) {
 
   renderAccountSummary()
   await syncHintsFromGun()
-  updateManageButton()
+  applyBillingDiagnostics()
+  refreshBillingControls()
   renderActionPrompt()
 }
 
@@ -924,7 +1001,7 @@ async function refreshBillingDiagnostics() {
   }
 
   applyBillingDiagnostics()
-  updateManageButton()
+  refreshBillingControls()
   renderActionPrompt()
 }
 
@@ -941,7 +1018,7 @@ async function refreshBillingStatusAttempt(retriedAuth) {
   if (!hasVerifiedBillingSession()) {
     if (hasTypedInvalidBillingEmail()) {
       setStatus(billingSummary, 'Enter a valid billing email to check status, or sign in to use your portal account.', 'warning')
-      updateManageButton()
+      refreshBillingControls()
       renderActionPrompt()
       return
     }
@@ -985,7 +1062,7 @@ async function refreshBillingStatusAttempt(retriedAuth) {
     }
 
     setStatus(billingSummary, error?.message || 'Unable to load billing status.', 'error')
-    updateManageButton()
+    refreshBillingControls()
     renderActionPrompt()
   }
 }
@@ -1089,6 +1166,10 @@ function handleFlashFromQuery() {
     setFlash('Plan change confirmed in Stripe. Refreshing your billing status now.')
     return
   }
+  if (params.get('manage') === 'cancelled') {
+    setFlash('Subscription cancellation confirmed in Stripe. Refreshing your billing status now.')
+    return
+  }
   if (params.get('manage') === 'return') {
     setFlash('Returned from Stripe billing. Review your status below.')
     return
@@ -1115,14 +1196,24 @@ function bindEvents() {
     renderActionPrompt()
   })
 
-  billingEmailInput?.addEventListener('blur', () => {
+  billingEmailInput?.addEventListener('blur', async () => {
     const email = sanitizeBillingEmail(billingEmailInput.value || '')
+    const shouldRefresh = Boolean(
+      hasVerifiedBillingSession()
+      && email
+      && (!state.currentResponse || email !== sanitizeBillingEmail(state.currentResponse?.billingEmail || ''))
+    )
+
     if (email) {
       billingEmailInput.value = email
       rememberLocalBilling({ billingEmail: email })
     }
 
     renderActionPrompt()
+
+    if (shouldRefresh) {
+      await refreshBillingStatus()
+    }
   })
 
   refreshAuthButton?.addEventListener('click', async () => {
@@ -1151,6 +1242,22 @@ function bindEvents() {
     }
   })
 
+  cancelSubscriptionButton?.addEventListener('click', async () => {
+    if (cancelSubscriptionButton.disabled) {
+      return
+    }
+
+    if (!requireSignedInForPaidFlow()) {
+      return
+    }
+
+    try {
+      await startCheckoutAction({ action: 'cancel' })
+    } catch (error) {
+      setStatus(actionStatus, error?.message || 'Unable to open the Stripe cancellation flow.', 'error')
+    }
+  })
+
   planButtons.forEach(button => {
     button.addEventListener('click', async () => {
       if (button.disabled) {
@@ -1164,7 +1271,7 @@ function bindEvents() {
         return
       }
 
-      if (hasLegacyActiveSubscription()) {
+      if (hasLegacyActiveSubscription() && !canManageLegacyBilling()) {
         renderActionPrompt()
         return
       }

@@ -8,7 +8,7 @@ export const BILLING_PLANS = {
     shortLabel: '$5 supporter',
     amountLabel: '$5 / month',
     kind: 'subscription',
-    envKeys: ['STRIPE_PRICE_STARTER_ID', 'STRIPE_PRICE_SUPPORTER_ID']
+    envKeys: ['STRIPE_PRICE_STARTER_ID', 'STRIPE_PRICE_SUPPORTER_ID', 'STRIPE_PRICE_ID']
   },
   pro: {
     plan: 'pro',
