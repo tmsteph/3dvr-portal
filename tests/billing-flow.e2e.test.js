@@ -434,4 +434,59 @@ describe('billing center subscriber flows', () => {
       await browser.close()
     }
   }, { timeout: 45000 })
+
+  it('keeps cancel enabled when a legacy active subscription is present even if currentPlan falls back to free', async t => {
+    const browser = await launchBrowser(t)
+    if (!browser) {
+      return
+    }
+
+    try {
+      const context = await createContext(browser)
+      await installGunRoutes(context)
+      await context.addInitScript(() => {
+        localStorage.setItem('signedIn', 'true')
+        localStorage.setItem('alias', 'legacy@3dvr')
+        localStorage.setItem('username', 'Legacy')
+        localStorage.setItem('userPubKey', 'pub_legacy')
+      })
+      await installBillingRoutes(context, {
+        statusResponse: createFreeStatus({
+          customerId: '',
+          billingEmail: 'legacy@example.com',
+          currentPlan: 'free',
+          usageTier: 'account',
+          legacyNeedsLinking: true,
+          legacyBillingManagementAvailable: true,
+          activeSubscriptions: [
+            {
+              id: 'sub_starter',
+              status: 'active',
+              plan: 'starter',
+              priceId: 'price_starter'
+            }
+          ],
+          duplicateActiveCount: 0,
+          hasDuplicateActiveSubscriptions: false
+        })
+      })
+      const page = await context.newPage()
+
+      await page.goto(`${baseUrl}/billing/`, { waitUntil: 'domcontentloaded' })
+      await page.waitForFunction(() => {
+        const button = document.getElementById('cancel-subscription')
+        return button && button.textContent && button.textContent.includes('Stop $5 billing')
+      })
+
+      const manageLabel = (await page.textContent('#manage-billing')).trim()
+      const cancelLabel = (await page.textContent('#cancel-subscription')).trim()
+      const cancelDisabled = await page.getAttribute('#cancel-subscription', 'aria-disabled')
+
+      assert.equal(manageLabel, 'Manage subscription')
+      assert.equal(cancelLabel, 'Stop $5 billing')
+      assert.equal(cancelDisabled, 'false')
+    } finally {
+      await browser.close()
+    }
+  }, { timeout: 45000 })
 })
