@@ -24,6 +24,7 @@
     'test-message': 'Test the current pitch in one message',
     'final-readout': 'Prepare the Thursday readout'
   };
+  const CHIP_FIELDS = ['trustedReviewers', 'keyQuestions', 'objections', 'decisionList'];
   const DEFAULT_DATA = {
     trustedReviewers: '',
     keyQuestions: '',
@@ -45,6 +46,7 @@
   const fieldElements = Array.from(document.querySelectorAll('[data-field]'));
   const checkElements = Array.from(document.querySelectorAll('[data-check]'));
   const promptButtons = Array.from(document.querySelectorAll('[data-copy-prompt]'));
+  const chipContainers = Array.from(document.querySelectorAll('[data-chip-field]'));
   const identityLabel = document.getElementById('identityLabel');
   const identityValue = document.getElementById('identityValue');
   const identityDetail = document.getElementById('identityDetail');
@@ -60,6 +62,7 @@
   let storageKey = '';
   let state = createDefaultState();
   let saveTimer = null;
+  const chipControls = new Map();
 
   function createDefaultState() {
     const freshChecks = {};
@@ -105,6 +108,26 @@
     }
 
     return next;
+  }
+
+  function normalizeItem(value) {
+    return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+  }
+
+  function splitStoredItems(value) {
+    if (typeof value !== 'string') return [];
+    return value
+      .split('\n')
+      .map(normalizeItem)
+      .filter(Boolean);
+  }
+
+  function splitInputItems(value) {
+    if (typeof value !== 'string') return [];
+    return value
+      .split(/[\n,;]+/)
+      .map(normalizeItem)
+      .filter(Boolean);
   }
 
   function formatStamp(timestamp) {
@@ -205,22 +228,28 @@
   }
 
   function buildSummary(current) {
+    const formatList = (value) => {
+      const items = splitStoredItems(value);
+      if (!items.length) return '[not filled in]';
+      return items.map((item) => `- ${item}`).join('\n');
+    };
+
     return [
       'Week 1 worksheet summary',
       '',
       `Credited to: ${current.author.label} (${current.author.detail})`,
       '',
       'Trusted reviewers:',
-      current.trustedReviewers || '[not filled in]',
+      formatList(current.trustedReviewers),
       '',
       'Key questions:',
-      current.keyQuestions || '[not filled in]',
+      formatList(current.keyQuestions),
       '',
       'Objections:',
-      current.objections || '[not filled in]',
+      formatList(current.objections),
       '',
       'Decision list for Thursday, March 26, 2026:',
-      current.decisionList || '[not filled in]',
+      formatList(current.decisionList),
       '',
       'Current one-sentence pitch:',
       current.oneSentencePitch || '[not filled in]',
@@ -238,6 +267,10 @@
     fieldElements.forEach((field) => {
       const key = field.dataset.field;
       field.value = typeof state[key] === 'string' ? state[key] : '';
+    });
+
+    CHIP_FIELDS.forEach((key) => {
+      renderChipField(key);
     });
 
     checkElements.forEach((checkbox) => {
@@ -345,6 +378,9 @@
 
   function attachFieldHandlers() {
     fieldElements.forEach((field) => {
+      if (CHIP_FIELDS.includes(field.dataset.field)) {
+        return;
+      }
       field.addEventListener('input', () => {
         const key = field.dataset.field;
         state[key] = field.value;
@@ -356,6 +392,112 @@
       checkbox.addEventListener('change', () => {
         state.checks[checkbox.dataset.check] = checkbox.checked;
         commitLocalChange();
+      });
+    });
+  }
+
+  function renderChipField(key) {
+    const control = chipControls.get(key);
+    if (!control) return;
+
+    const items = splitStoredItems(state[key]);
+    control.list.innerHTML = '';
+
+    items.forEach((item, index) => {
+      const bubble = document.createElement('span');
+      bubble.className = 'chip-token';
+
+      const text = document.createElement('span');
+      text.className = 'chip-token-text';
+      text.textContent = item;
+      bubble.appendChild(text);
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'chip-remove';
+      remove.setAttribute('aria-label', `Remove ${item}`);
+      remove.textContent = '×';
+      remove.addEventListener('click', () => {
+        const nextItems = splitStoredItems(state[key]);
+        nextItems.splice(index, 1);
+        setChipItems(key, nextItems);
+      });
+      bubble.appendChild(remove);
+
+      control.list.appendChild(bubble);
+    });
+  }
+
+  function setChipItems(key, items) {
+    const control = chipControls.get(key);
+    const normalized = items
+      .map(normalizeItem)
+      .filter(Boolean);
+    const joined = normalized.join('\n');
+
+    if (control && control.hidden) {
+      control.hidden.value = joined;
+    }
+
+    state[key] = joined;
+    renderChipField(key);
+    commitLocalChange();
+  }
+
+  function addChipItems(key, rawValue) {
+    const nextItems = splitStoredItems(state[key]).concat(splitInputItems(rawValue));
+    if (!nextItems.length) {
+      return;
+    }
+    const control = chipControls.get(key);
+    if (control) {
+      control.entry.value = '';
+    }
+    setChipItems(key, nextItems);
+  }
+
+  function attachChipHandlers() {
+    chipContainers.forEach((container) => {
+      const key = container.dataset.chipField;
+      const list = container.querySelector(`[data-chip-list="${key}"]`);
+      const entry = container.querySelector(`[data-chip-entry="${key}"]`);
+      const hidden = container.querySelector(`[data-field="${key}"]`);
+
+      if (!key || !list || !entry || !hidden) {
+        return;
+      }
+
+      chipControls.set(key, { container, list, entry, hidden });
+
+      entry.addEventListener('keydown', (event) => {
+        if ((event.key === 'Enter' || event.key === ',' || event.key === 'Tab') && entry.value.trim()) {
+          event.preventDefault();
+          addChipItems(key, entry.value);
+          return;
+        }
+
+        if (event.key === 'Backspace' && !entry.value.trim()) {
+          const items = splitStoredItems(state[key]);
+          if (!items.length) return;
+          event.preventDefault();
+          items.pop();
+          setChipItems(key, items);
+        }
+      });
+
+      entry.addEventListener('blur', () => {
+        if (entry.value.trim()) {
+          addChipItems(key, entry.value);
+        }
+      });
+
+      entry.addEventListener('paste', (event) => {
+        const text = event.clipboardData ? event.clipboardData.getData('text') : '';
+        if (!text || !/[\n,;]/.test(text)) {
+          return;
+        }
+        event.preventDefault();
+        addChipItems(key, text);
       });
     });
   }
@@ -474,6 +616,7 @@
       .get('worksheets')
       .get(identity.key);
 
+    attachChipHandlers();
     syncInputs();
     attachFieldHandlers();
     attachCopyHandlers();

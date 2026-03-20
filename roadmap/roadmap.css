@@ -633,6 +633,85 @@
   box-shadow: 0 0 0 3px rgba(99, 198, 216, 0.14);
 }
 
+.chip-shell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  min-height: 8.5rem;
+  padding: 0.9rem;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chip-shell:focus-within {
+  border-color: rgba(99, 198, 216, 0.55);
+  box-shadow: 0 0 0 3px rgba(99, 198, 216, 0.14);
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.chip-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 100%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(99, 198, 216, 0.12);
+  border: 1px solid rgba(99, 198, 216, 0.24);
+  color: #eefbff;
+  line-height: 1.45;
+}
+
+.chip-token-text {
+  overflow-wrap: anywhere;
+}
+
+.chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.chip-remove:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.chip-entry {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+  border: none;
+  background: transparent;
+  color: #f5fbff;
+  font: inherit;
+  line-height: 1.5;
+  padding: 0.45rem 0.2rem;
+}
+
+.chip-entry:focus {
+  outline: none;
+}
+
+.chip-entry::placeholder {
+  color: rgba(224, 234, 245, 0.58);
+}
+
 .worksheet-toolbar,
 .prompt-actions {
   display: flex;

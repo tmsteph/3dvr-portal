@@ -91,14 +91,23 @@
             <p class="card-kicker">Trusted reviewers</p>
             <h3>Who should see the campaign this week?</h3>
             <div class="worksheet-field">
-              <label for="trustedReviewers">Name the people or groups most likely to give useful signal.</label>
-              <p class="worksheet-help">Aim for warm contacts who will answer honestly, not politely.</p>
-              <textarea
-                id="trustedReviewers"
-                class="worksheet-input worksheet-input--short"
-                placeholder="AV friends, one nonprofit lead, two artists, one teacher, one local business owner..."
-                data-field="trustedReviewers"
-              ></textarea>
+              <label for="trustedReviewersInput">Name the people or groups most likely to give useful signal.</label>
+              <p class="worksheet-help">Press Enter or comma to turn each reviewer into a bubble.</p>
+              <div class="chip-shell" data-chip-field="trustedReviewers">
+                <div class="chip-list" data-chip-list="trustedReviewers"></div>
+                <input
+                  id="trustedReviewersInput"
+                  class="chip-entry"
+                  type="text"
+                  placeholder="Type one reviewer, then press Enter"
+                  data-chip-entry="trustedReviewers"
+                >
+                <textarea
+                  id="trustedReviewers"
+                  hidden
+                  data-field="trustedReviewers"
+                ></textarea>
+              </div>
             </div>
           </article>
 
@@ -106,14 +115,23 @@
             <p class="card-kicker">Key questions</p>
             <h3>What exact questions keep coming up?</h3>
             <div class="worksheet-field">
-              <label for="keyQuestions">Capture the wording people actually use.</label>
-              <p class="worksheet-help">Write the raw questions, not polished summaries.</p>
-              <textarea
-                id="keyQuestions"
-                class="worksheet-input"
-                placeholder="What do I get on the free plan? Why is there a $5 step? What does $20 include?"
-                data-field="keyQuestions"
-              ></textarea>
+              <label for="keyQuestionsInput">Capture the wording people actually use.</label>
+              <p class="worksheet-help">Add one question per bubble so repeated wording stays easy to scan.</p>
+              <div class="chip-shell" data-chip-field="keyQuestions">
+                <div class="chip-list" data-chip-list="keyQuestions"></div>
+                <input
+                  id="keyQuestionsInput"
+                  class="chip-entry"
+                  type="text"
+                  placeholder="Type one question, then press Enter"
+                  data-chip-entry="keyQuestions"
+                >
+                <textarea
+                  id="keyQuestions"
+                  hidden
+                  data-field="keyQuestions"
+                ></textarea>
+              </div>
             </div>
           </article>
 
@@ -121,14 +139,23 @@
             <p class="card-kicker">Objections</p>
             <h3>What is slowing people down?</h3>
             <div class="worksheet-field">
-              <label for="objections">List the objections, confusion points, and trust gaps.</label>
-              <p class="worksheet-help">Group them later. For now, collect them cleanly.</p>
-              <textarea
-                id="objections"
-                class="worksheet-input"
-                placeholder="Not clear what changes between plans. Unsure whether setup is included. Wants examples before paying..."
-                data-field="objections"
-              ></textarea>
+              <label for="objectionsInput">List the objections, confusion points, and trust gaps.</label>
+              <p class="worksheet-help">Keep each objection separate so you can sort and answer it later.</p>
+              <div class="chip-shell" data-chip-field="objections">
+                <div class="chip-list" data-chip-list="objections"></div>
+                <input
+                  id="objectionsInput"
+                  class="chip-entry"
+                  type="text"
+                  placeholder="Type one objection, then press Enter"
+                  data-chip-entry="objections"
+                >
+                <textarea
+                  id="objections"
+                  hidden
+                  data-field="objections"
+                ></textarea>
+              </div>
             </div>
           </article>
 
@@ -136,14 +163,23 @@
             <p class="card-kicker">Decision list</p>
             <h3>What must be decided on March 26?</h3>
             <div class="worksheet-field">
-              <label for="decisionList">Write the decisions that should leave the Thursday meeting locked.</label>
-              <p class="worksheet-help">Keep it tight. If it does not need a decision next Thursday, leave it out.</p>
-              <textarea
-                id="decisionList"
-                class="worksheet-input"
-                placeholder="Pick the final free / $5 / $20 ladder language. Decide whether homepage creation stays in free. Approve the one-sentence pitch..."
-                data-field="decisionList"
-              ></textarea>
+              <label for="decisionListInput">Write the decisions that should leave the Thursday meeting locked.</label>
+              <p class="worksheet-help">Keep each decision as its own bubble. If it can wait, leave it out.</p>
+              <div class="chip-shell" data-chip-field="decisionList">
+                <div class="chip-list" data-chip-list="decisionList"></div>
+                <input
+                  id="decisionListInput"
+                  class="chip-entry"
+                  type="text"
+                  placeholder="Type one decision, then press Enter"
+                  data-chip-entry="decisionList"
+                >
+                <textarea
+                  id="decisionList"
+                  hidden
+                  data-field="decisionList"
+                ></textarea>
+              </div>
             </div>
           </article>
 
