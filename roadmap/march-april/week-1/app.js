@@ -24,7 +24,7 @@
     'test-message': 'Test the current pitch in one message',
     'final-readout': 'Prepare the Thursday readout'
   };
-  const CHIP_FIELDS = ['trustedReviewers', 'keyQuestions', 'objections', 'decisionList'];
+  const ITEM_FIELDS = ['trustedReviewers', 'keyQuestions', 'objections', 'decisionList'];
   const DEFAULT_DATA = {
     trustedReviewers: '',
     keyQuestions: '',
@@ -46,7 +46,7 @@
   const fieldElements = Array.from(document.querySelectorAll('[data-field]'));
   const checkElements = Array.from(document.querySelectorAll('[data-check]'));
   const promptButtons = Array.from(document.querySelectorAll('[data-copy-prompt]'));
-  const chipContainers = Array.from(document.querySelectorAll('[data-chip-field]'));
+  const entryContainers = Array.from(document.querySelectorAll('[data-entry-field]'));
   const identityLabel = document.getElementById('identityLabel');
   const identityValue = document.getElementById('identityValue');
   const identityDetail = document.getElementById('identityDetail');
@@ -62,7 +62,7 @@
   let storageKey = '';
   let state = createDefaultState();
   let saveTimer = null;
-  const chipControls = new Map();
+  const entryControls = new Map();
 
   function createDefaultState() {
     const freshChecks = {};
@@ -122,10 +122,10 @@
       .filter(Boolean);
   }
 
-  function splitInputItems(value) {
+  function splitInputItems(value, { allowCommas = false } = {}) {
     if (typeof value !== 'string') return [];
     return value
-      .split(/[\n,;]+/)
+      .split(allowCommas ? /[\n,;]+/ : /\n+/)
       .map(normalizeItem)
       .filter(Boolean);
   }
@@ -269,8 +269,8 @@
       field.value = typeof state[key] === 'string' ? state[key] : '';
     });
 
-    CHIP_FIELDS.forEach((key) => {
-      renderChipField(key);
+    ITEM_FIELDS.forEach((key) => {
+      renderEntryField(key);
     });
 
     checkElements.forEach((checkbox) => {
@@ -378,7 +378,7 @@
 
   function attachFieldHandlers() {
     fieldElements.forEach((field) => {
-      if (CHIP_FIELDS.includes(field.dataset.field)) {
+      if (ITEM_FIELDS.includes(field.dataset.field)) {
         return;
       }
       field.addEventListener('input', () => {
@@ -396,108 +396,172 @@
     });
   }
 
-  function renderChipField(key) {
-    const control = chipControls.get(key);
+  function resetEntryComposer(key, { keepValue = false } = {}) {
+    const control = entryControls.get(key);
     if (!control) return;
+    control.editIndex = -1;
+    control.addButton.textContent = control.addLabel;
+    control.cancelButton.hidden = true;
+    if (!keepValue) {
+      control.input.value = '';
+    }
+  }
 
+  function renderEntryField(key) {
+    const control = entryControls.get(key);
+    if (!control) return;
     const items = splitStoredItems(state[key]);
+    control.hidden.value = state[key];
     control.list.innerHTML = '';
 
-    items.forEach((item, index) => {
-      const bubble = document.createElement('span');
-      bubble.className = 'chip-token';
+    if (!items.length) {
+      const empty = document.createElement('p');
+      empty.className = 'entry-empty';
+      empty.textContent = 'No entries yet. Add the first one above.';
+      control.list.appendChild(empty);
+      return;
+    }
 
-      const text = document.createElement('span');
-      text.className = 'chip-token-text';
+    items.forEach((item, index) => {
+      const card = document.createElement('article');
+      card.className = 'entry-card';
+
+      const text = document.createElement('p');
+      text.className = 'entry-card__text';
       text.textContent = item;
-      bubble.appendChild(text);
+      card.appendChild(text);
+
+      const actions = document.createElement('div');
+      actions.className = 'entry-card__actions';
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'mini-button mini-button--ghost mini-button--small';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => {
+        control.editIndex = index;
+        control.input.value = item;
+        control.addButton.textContent = 'Update';
+        control.cancelButton.hidden = false;
+        control.input.focus();
+      });
+      actions.appendChild(edit);
 
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.className = 'chip-remove';
-      remove.setAttribute('aria-label', `Remove ${item}`);
-      remove.textContent = '×';
+      remove.className = 'mini-button mini-button--ghost mini-button--small';
+      remove.textContent = 'Remove';
       remove.addEventListener('click', () => {
         const nextItems = splitStoredItems(state[key]);
         nextItems.splice(index, 1);
-        setChipItems(key, nextItems);
+        setEntryItems(key, nextItems);
       });
-      bubble.appendChild(remove);
+      actions.appendChild(remove);
 
-      control.list.appendChild(bubble);
+      card.appendChild(actions);
+      control.list.appendChild(card);
     });
   }
 
-  function setChipItems(key, items) {
-    const control = chipControls.get(key);
+  function setEntryItems(key, items) {
+    const control = entryControls.get(key);
     const normalized = items
       .map(normalizeItem)
       .filter(Boolean);
     const joined = normalized.join('\n');
 
+    state[key] = joined;
     if (control && control.hidden) {
       control.hidden.value = joined;
     }
-
-    state[key] = joined;
-    renderChipField(key);
+    resetEntryComposer(key);
+    renderEntryField(key);
     commitLocalChange();
   }
 
-  function addChipItems(key, rawValue) {
-    const nextItems = splitStoredItems(state[key]).concat(splitInputItems(rawValue));
-    if (!nextItems.length) {
-      return;
-    }
-    const control = chipControls.get(key);
-    if (control) {
-      control.entry.value = '';
-    }
-    setChipItems(key, nextItems);
+  function parseEntryDraft(key, rawValue) {
+    const allowCommas = key === 'trustedReviewers';
+    return splitInputItems(rawValue, { allowCommas });
   }
 
-  function attachChipHandlers() {
-    chipContainers.forEach((container) => {
-      const key = container.dataset.chipField;
-      const list = container.querySelector(`[data-chip-list="${key}"]`);
-      const entry = container.querySelector(`[data-chip-entry="${key}"]`);
+  function submitEntry(key) {
+    const control = entryControls.get(key);
+    if (!control) return;
+
+    const draftItems = parseEntryDraft(key, control.input.value);
+    if (!draftItems.length) {
+      return;
+    }
+
+    const nextItems = splitStoredItems(state[key]);
+    if (Number.isInteger(control.editIndex) && control.editIndex >= 0) {
+      nextItems.splice(control.editIndex, 1, ...draftItems);
+    } else {
+      nextItems.push(...draftItems);
+    }
+
+    setEntryItems(key, nextItems);
+  }
+
+  function attachEntryHandlers() {
+    entryContainers.forEach((container) => {
+      const key = container.dataset.entryField;
+      const list = container.querySelector(`[data-entry-list="${key}"]`);
+      const input = container.querySelector(`[data-entry-input="${key}"]`);
+      const addButton = container.querySelector(`[data-entry-add="${key}"]`);
+      const cancelButton = container.querySelector(`[data-entry-cancel="${key}"]`);
       const hidden = container.querySelector(`[data-field="${key}"]`);
 
-      if (!key || !list || !entry || !hidden) {
+      if (!key || !list || !input || !addButton || !cancelButton || !hidden) {
         return;
       }
 
-      chipControls.set(key, { container, list, entry, hidden });
+      entryControls.set(key, {
+        container,
+        list,
+        input,
+        addButton,
+        cancelButton,
+        addLabel: addButton.textContent,
+        hidden,
+        editIndex: -1,
+        multiline: input.tagName === 'TEXTAREA'
+      });
 
-      entry.addEventListener('keydown', (event) => {
-        if ((event.key === 'Enter' || event.key === ',' || event.key === 'Tab') && entry.value.trim()) {
+      addButton.addEventListener('click', () => {
+        submitEntry(key);
+      });
+
+      cancelButton.addEventListener('click', () => {
+        resetEntryComposer(key);
+      });
+
+      input.addEventListener('keydown', (event) => {
+        const control = entryControls.get(key);
+        if (!control) return;
+        if (!control.multiline && event.key === 'Enter' && input.value.trim()) {
           event.preventDefault();
-          addChipItems(key, entry.value);
+          submitEntry(key);
           return;
         }
-
-        if (event.key === 'Backspace' && !entry.value.trim()) {
-          const items = splitStoredItems(state[key]);
-          if (!items.length) return;
+        if (control.multiline && (event.metaKey || event.ctrlKey) && event.key === 'Enter' && input.value.trim()) {
           event.preventDefault();
-          items.pop();
-          setChipItems(key, items);
+          submitEntry(key);
         }
       });
 
-      entry.addEventListener('blur', () => {
-        if (entry.value.trim()) {
-          addChipItems(key, entry.value);
-        }
-      });
-
-      entry.addEventListener('paste', (event) => {
+      input.addEventListener('paste', (event) => {
         const text = event.clipboardData ? event.clipboardData.getData('text') : '';
-        if (!text || !/[\n,;]/.test(text)) {
+        const allowCommas = key === 'trustedReviewers';
+        const splitPattern = allowCommas ? /[\n,;]+/ : /\n+/;
+        if (!text || !splitPattern.test(text)) {
           return;
         }
         event.preventDefault();
-        addChipItems(key, text);
+        const parsed = parseEntryDraft(key, text);
+        if (!parsed.length) return;
+        const nextItems = splitStoredItems(state[key]).concat(parsed);
+        setEntryItems(key, nextItems);
       });
     });
   }
@@ -616,7 +680,7 @@
       .get('worksheets')
       .get(identity.key);
 
-    attachChipHandlers();
+    attachEntryHandlers();
     syncInputs();
     attachFieldHandlers();
     attachCopyHandlers();
