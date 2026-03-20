@@ -61,6 +61,7 @@
   let worksheetNode = null;
   let storageKey = '';
   let state = createDefaultState();
+  let activeIdentity = { ...DEFAULT_DATA.author };
   let saveTimer = null;
   const entryControls = new Map();
 
@@ -76,37 +77,57 @@
     };
   }
 
-  function cloneState(input) {
-    const next = createDefaultState();
-    if (!input || typeof input !== 'object') {
-      return next;
+  function assignStateValues(target, input) {
+    if (!target || !input || typeof input !== 'object') {
+      return target;
     }
 
     fieldElements.forEach((field) => {
       const key = field.dataset.field;
       if (typeof input[key] === 'string') {
-        next[key] = input[key];
+        target[key] = input[key];
       }
     });
 
-    const sourceChecks = input.checks && typeof input.checks === 'object' ? input.checks : {};
-    CHECK_IDS.forEach((id) => {
-      next.checks[id] = Boolean(sourceChecks[id]);
-    });
+    if (input.checks && typeof input.checks === 'object') {
+      CHECK_IDS.forEach((id) => {
+        if (Object.prototype.hasOwnProperty.call(input.checks, id)) {
+          target.checks[id] = Boolean(input.checks[id]);
+        }
+      });
+    }
 
-    next.updatedAt = Number.isFinite(Number(input.updatedAt)) ? Number(input.updatedAt) : 0;
-    next.localSavedAt = Number.isFinite(Number(input.localSavedAt)) ? Number(input.localSavedAt) : 0;
-    next.gunSavedAt = Number.isFinite(Number(input.gunSavedAt)) ? Number(input.gunSavedAt) : 0;
+    const updatedAt = Number(input.updatedAt);
+    if (Number.isFinite(updatedAt)) {
+      target.updatedAt = updatedAt;
+    }
+
+    const localSavedAt = Number(input.localSavedAt);
+    if (Number.isFinite(localSavedAt)) {
+      target.localSavedAt = localSavedAt;
+    }
+
+    const gunSavedAt = Number(input.gunSavedAt);
+    if (Number.isFinite(gunSavedAt)) {
+      target.gunSavedAt = gunSavedAt;
+    }
 
     if (input.author && typeof input.author === 'object') {
-      next.author = {
-        mode: typeof input.author.mode === 'string' ? input.author.mode : next.author.mode,
-        key: typeof input.author.key === 'string' ? input.author.key : next.author.key,
-        label: typeof input.author.label === 'string' ? input.author.label : next.author.label,
-        detail: typeof input.author.detail === 'string' ? input.author.detail : next.author.detail
+      target.author = {
+        mode: typeof input.author.mode === 'string' ? input.author.mode : target.author.mode,
+        key: typeof input.author.key === 'string' ? input.author.key : target.author.key,
+        label: typeof input.author.label === 'string' ? input.author.label : target.author.label,
+        detail: typeof input.author.detail === 'string' ? input.author.detail : target.author.detail
       };
     }
 
+    return target;
+  }
+
+  function cloneState(input, base = null) {
+    const next = createDefaultState();
+    assignStateValues(next, base);
+    assignStateValues(next, input);
     return next;
   }
 
@@ -225,6 +246,27 @@
     identityLabel.textContent = identity.mode === 'user' ? 'Signed-in credit' : 'Guest credit';
     identityValue.textContent = identity.label;
     identityDetail.textContent = identity.detail;
+  }
+
+  function mergeAuthorWithIdentity(author) {
+    const nextAuthor = author && typeof author === 'object'
+      ? { ...DEFAULT_DATA.author, ...author }
+      : { ...DEFAULT_DATA.author };
+
+    if (!activeIdentity || typeof activeIdentity !== 'object') {
+      return nextAuthor;
+    }
+
+    if (nextAuthor.key && activeIdentity.key && nextAuthor.key !== activeIdentity.key) {
+      return nextAuthor;
+    }
+
+    return {
+      mode: activeIdentity.mode || nextAuthor.mode,
+      key: activeIdentity.key || nextAuthor.key,
+      label: activeIdentity.label || nextAuthor.label,
+      detail: activeIdentity.detail || nextAuthor.detail
+    };
   }
 
   function buildSummary(current) {
@@ -354,7 +396,7 @@
       if (ack && ack.err) {
         console.warn('Gun backup failed', ack.err);
         gunStatus.textContent = 'Gun backup failed, local save still active';
-        gunDetail.textContent = 'Check your connection or Gun relay access, then keep working locally.';
+        gunDetail.textContent = 'Check your connection or Brave shields / Gun relay access, then keep working locally.';
         return;
       }
       state.gunSavedAt = Date.now();
@@ -591,6 +633,59 @@
     });
   }
 
+  function applyIncomingState(input, { source = 'remote', persistLocal = true } = {}) {
+    const nextState = cloneState(input, state);
+    if (nextState.updatedAt <= state.updatedAt) {
+      return false;
+    }
+
+    state = nextState;
+    state.author = mergeAuthorWithIdentity(state.author);
+    updateIdentityUI(state.author);
+    syncInputs();
+
+    if (persistLocal) {
+      writeLocalState();
+    }
+
+    if (source === 'remote') {
+      gunStatus.textContent = state.gunSavedAt
+        ? `Gun backup: ${formatStamp(state.gunSavedAt)}`
+        : 'Loaded remote worksheet';
+      gunDetail.textContent = `Synced the latest worksheet credited to ${state.author.label}.`;
+    } else if (source === 'storage') {
+      summaryStatus.textContent = 'Synced changes from another 3DVR window.';
+    }
+
+    return true;
+  }
+
+  function handleRemoteSnapshot(remote, { initial = false } = {}) {
+    if (!remote || typeof remote !== 'object') {
+      if (!initial) {
+        return;
+      }
+      gunStatus.textContent = state.gunSavedAt
+        ? `Gun backup: ${formatStamp(state.gunSavedAt)}`
+        : 'Ready for first Gun backup';
+      gunDetail.textContent = `Backups will be credited to ${state.author.label}.`;
+      return;
+    }
+
+    if (applyIncomingState(remote, { source: 'remote', persistLocal: true })) {
+      return;
+    }
+
+    if (!initial) {
+      return;
+    }
+
+    gunStatus.textContent = state.gunSavedAt
+      ? `Gun backup: ${formatStamp(state.gunSavedAt)}`
+      : 'Ready for first Gun backup';
+    gunDetail.textContent = `Local worksheet is current. Backups stay credited to ${state.author.label}.`;
+  }
+
   function loadRemoteState() {
     if (!worksheetNode || worksheetNode.__isGunStub) {
       gunStatus.textContent = 'Gun backup unavailable, local save still active';
@@ -599,32 +694,53 @@
     }
 
     worksheetNode.once((remote) => {
-      if (!remote || typeof remote !== 'object') {
-        gunStatus.textContent = state.gunSavedAt
-          ? `Gun backup: ${formatStamp(state.gunSavedAt)}`
-          : 'Ready for first Gun backup';
-        gunDetail.textContent = `Backups will be credited to ${state.author.label}.`;
-        return;
-      }
-
-      const remoteState = cloneState(remote);
-      if (remoteState.updatedAt > state.updatedAt) {
-        state = remoteState;
-        state.author = buildIdentity();
-        writeLocalState();
-        syncInputs();
-        gunStatus.textContent = remoteState.gunSavedAt
-          ? `Gun backup: ${formatStamp(remoteState.gunSavedAt)}`
-          : 'Loaded remote worksheet';
-        gunDetail.textContent = `Loaded the latest worksheet credited to ${remoteState.author.label || state.author.label}.`;
-        return;
-      }
-
-      gunStatus.textContent = state.gunSavedAt
-        ? `Gun backup: ${formatStamp(state.gunSavedAt)}`
-        : 'Ready for first Gun backup';
-      gunDetail.textContent = `Local worksheet is current. Backups stay credited to ${state.author.label}.`;
+      handleRemoteSnapshot(remote, { initial: true });
     });
+  }
+
+  function subscribeRemoteState() {
+    if (!worksheetNode || worksheetNode.__isGunStub) {
+      return;
+    }
+
+    try {
+      worksheetNode.on((remote) => {
+        handleRemoteSnapshot(remote, { initial: false });
+      });
+    } catch (err) {
+      console.warn('Unable to subscribe to worksheet updates', err);
+    }
+  }
+
+  function syncStateFromStorage() {
+    const localState = readLocalState();
+    applyIncomingState(localState, { source: 'storage', persistLocal: false });
+  }
+
+  function attachCrossWindowSync() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (event) => {
+        if (!event || event.key !== storageKey) {
+          return;
+        }
+        syncStateFromStorage();
+      });
+
+      window.addEventListener('focus', () => {
+        syncStateFromStorage();
+        loadRemoteState();
+      });
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          return;
+        }
+        syncStateFromStorage();
+        loadRemoteState();
+      });
+    }
   }
 
   function initGun() {
@@ -662,12 +778,12 @@
   function initWorkspace() {
     initGun();
 
-    const identity = buildIdentity();
-    updateIdentityUI(identity);
+    activeIdentity = buildIdentity();
+    updateIdentityUI(activeIdentity);
 
-    storageKey = `${STORAGE_PREFIX}${identity.key}`;
+    storageKey = `${STORAGE_PREFIX}${activeIdentity.key}`;
     state = readLocalState();
-    state.author = identity;
+    state.author = mergeAuthorWithIdentity(state.author);
 
     const gun = gunContext && gunContext.gun && typeof gunContext.gun.get === 'function'
       ? gunContext.gun
@@ -678,13 +794,15 @@
       .get('march-april')
       .get('week-1')
       .get('worksheets')
-      .get(identity.key);
+      .get(activeIdentity.key);
 
     attachEntryHandlers();
     syncInputs();
     attachFieldHandlers();
     attachCopyHandlers();
+    attachCrossWindowSync();
     loadRemoteState();
+    subscribeRemoteState();
   }
 
   initWorkspace();
