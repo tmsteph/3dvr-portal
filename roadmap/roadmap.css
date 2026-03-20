@@ -227,6 +227,7 @@
   max-width: 54rem;
 }
 
+.section-heading h1,
 .section-heading h2 {
   margin: 0.35rem 0 0;
   font-size: clamp(1.75rem, 3.7vw, 2.45rem);
