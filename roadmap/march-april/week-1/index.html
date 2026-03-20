@@ -92,16 +92,20 @@
             <h3>Who should see the campaign this week?</h3>
             <div class="worksheet-field">
               <label for="trustedReviewersInput">Name the people or groups most likely to give useful signal.</label>
-              <p class="worksheet-help">Press Enter or comma to turn each reviewer into a bubble.</p>
-              <div class="chip-shell" data-chip-field="trustedReviewers">
-                <div class="chip-list" data-chip-list="trustedReviewers"></div>
-                <input
-                  id="trustedReviewersInput"
-                  class="chip-entry"
-                  type="text"
-                  placeholder="Type one reviewer, then press Enter"
-                  data-chip-entry="trustedReviewers"
-                >
+              <p class="worksheet-help">Add each reviewer as its own entry. Press Enter to add quickly.</p>
+              <div class="entry-workspace" data-entry-field="trustedReviewers">
+                <div class="entry-composer entry-composer--inline">
+                  <input
+                    id="trustedReviewersInput"
+                    class="entry-input"
+                    type="text"
+                    placeholder="Add one reviewer or group"
+                    data-entry-input="trustedReviewers"
+                  >
+                  <button class="mini-button" type="button" data-entry-add="trustedReviewers">Add reviewer</button>
+                  <button class="mini-button mini-button--ghost" type="button" data-entry-cancel="trustedReviewers" hidden>Cancel</button>
+                </div>
+                <div class="entry-list" data-entry-list="trustedReviewers"></div>
                 <textarea
                   id="trustedReviewers"
                   hidden
@@ -116,16 +120,22 @@
             <h3>What exact questions keep coming up?</h3>
             <div class="worksheet-field">
               <label for="keyQuestionsInput">Capture the wording people actually use.</label>
-              <p class="worksheet-help">Add one question per bubble so repeated wording stays easy to scan.</p>
-              <div class="chip-shell" data-chip-field="keyQuestions">
-                <div class="chip-list" data-chip-list="keyQuestions"></div>
-                <input
-                  id="keyQuestionsInput"
-                  class="chip-entry"
-                  type="text"
-                  placeholder="Type one question, then press Enter"
-                  data-chip-entry="keyQuestions"
-                >
+              <p class="worksheet-help">Add one question at a time. Use the button or press Ctrl+Enter.</p>
+              <div class="entry-workspace" data-entry-field="keyQuestions">
+                <div class="entry-composer">
+                  <textarea
+                    id="keyQuestionsInput"
+                    class="entry-input entry-input--multiline"
+                    rows="3"
+                    placeholder="Add one exact question"
+                    data-entry-input="keyQuestions"
+                  ></textarea>
+                  <div class="entry-actions">
+                    <button class="mini-button" type="button" data-entry-add="keyQuestions">Add question</button>
+                    <button class="mini-button mini-button--ghost" type="button" data-entry-cancel="keyQuestions" hidden>Cancel</button>
+                  </div>
+                </div>
+                <div class="entry-list" data-entry-list="keyQuestions"></div>
                 <textarea
                   id="keyQuestions"
                   hidden
@@ -140,16 +150,22 @@
             <h3>What is slowing people down?</h3>
             <div class="worksheet-field">
               <label for="objectionsInput">List the objections, confusion points, and trust gaps.</label>
-              <p class="worksheet-help">Keep each objection separate so you can sort and answer it later.</p>
-              <div class="chip-shell" data-chip-field="objections">
-                <div class="chip-list" data-chip-list="objections"></div>
-                <input
-                  id="objectionsInput"
-                  class="chip-entry"
-                  type="text"
-                  placeholder="Type one objection, then press Enter"
-                  data-chip-entry="objections"
-                >
+              <p class="worksheet-help">Keep each objection separate so you can sort, answer, or remove it later.</p>
+              <div class="entry-workspace" data-entry-field="objections">
+                <div class="entry-composer">
+                  <textarea
+                    id="objectionsInput"
+                    class="entry-input entry-input--multiline"
+                    rows="3"
+                    placeholder="Add one objection or trust gap"
+                    data-entry-input="objections"
+                  ></textarea>
+                  <div class="entry-actions">
+                    <button class="mini-button" type="button" data-entry-add="objections">Add objection</button>
+                    <button class="mini-button mini-button--ghost" type="button" data-entry-cancel="objections" hidden>Cancel</button>
+                  </div>
+                </div>
+                <div class="entry-list" data-entry-list="objections"></div>
                 <textarea
                   id="objections"
                   hidden
@@ -164,16 +180,22 @@
             <h3>What must be decided on March 26?</h3>
             <div class="worksheet-field">
               <label for="decisionListInput">Write the decisions that should leave the Thursday meeting locked.</label>
-              <p class="worksheet-help">Keep each decision as its own bubble. If it can wait, leave it out.</p>
-              <div class="chip-shell" data-chip-field="decisionList">
-                <div class="chip-list" data-chip-list="decisionList"></div>
-                <input
-                  id="decisionListInput"
-                  class="chip-entry"
-                  type="text"
-                  placeholder="Type one decision, then press Enter"
-                  data-chip-entry="decisionList"
-                >
+              <p class="worksheet-help">Add only the real Thursday decisions. If it can wait, leave it out.</p>
+              <div class="entry-workspace" data-entry-field="decisionList">
+                <div class="entry-composer">
+                  <textarea
+                    id="decisionListInput"
+                    class="entry-input entry-input--multiline"
+                    rows="3"
+                    placeholder="Add one decision that needs approval"
+                    data-entry-input="decisionList"
+                  ></textarea>
+                  <div class="entry-actions">
+                    <button class="mini-button" type="button" data-entry-add="decisionList">Add decision</button>
+                    <button class="mini-button mini-button--ghost" type="button" data-entry-cancel="decisionList" hidden>Cancel</button>
+                  </div>
+                </div>
+                <div class="entry-list" data-entry-list="decisionList"></div>
                 <textarea
                   id="decisionList"
                   hidden
