@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Week 1 Worksheet | March-April 2026 Roadmap</title>
+  <meta
+    name="description"
+    content="Week 1 worksheet for the March-April 2026 roadmap: daily actions, 5-minute tasks, AI prompts, and autosaved notes backed up with GunJS."
+  >
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
+  <script src="/score.js"></script>
+  <link rel="stylesheet" href="../../../styles/global.css">
+  <link rel="stylesheet" href="../../roadmap.css">
+  <script defer src="./app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="landing theme-dark roadmap-page roadmap-detail-page roadmap-week-page">
+  <a class="skip-link" href="#weekOneContent">Skip to Week 1 worksheet</a>
+  <div class="roadmap-shell">
+    <nav class="top-buttons" aria-label="Week 1 quick links">
+      <a href="../../../index.html">Main Portal</a>
+      <a href="../index.html">March-April Plan</a>
+      <a href="../../index.html">Roadmap Overview</a>
+      <a href="/openai-app/index.html">Portal AI</a>
+    </nav>
+
+    <main id="weekOneContent" class="roadmap-main">
+      <section class="hero" aria-labelledby="week-one-title">
+        <div class="hero-copy hero-copy--wide">
+          <p class="eyebrow">Week 1 worksheet</p>
+          <h1 id="week-one-title">Show it. Listen. Build the decision list.</h1>
+          <p class="hero-summary">
+            Use this page to collect clean signal before the Thursday, March 26, 2026 decision meeting.
+          </p>
+          <p class="hero-detail">
+            The worksheet autosaves on this device, backs up to GunJS, and credits the current portal user or guest identity.
+          </p>
+
+          <div class="hero-links">
+            <a href="../index.html">Back to March-April plan</a>
+            <a href="https://3dvr.tech/launch-your-site.html" target="_blank" rel="noreferrer">Open campaign landing page</a>
+            <a href="/openai-app/index.html">Open portal AI</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="workspace-title">
+        <div class="section-heading">
+          <p class="eyebrow">Workspace status</p>
+          <h2 id="workspace-title">Save locally. Back up to Gun. Credit the person doing the work.</h2>
+        </div>
+
+        <div class="status-strip">
+          <article class="status-card">
+            <p class="card-kicker">Credit</p>
+            <h3 id="identityLabel">Resolving identity...</h3>
+            <p class="status-value" id="identityValue">Checking portal session</p>
+            <p class="status-detail" id="identityDetail">If no user is signed in, this worksheet will fall back to a guest identity.</p>
+          </article>
+
+          <article class="status-card">
+            <p class="card-kicker">Local save</p>
+            <h3>Autosave is always on.</h3>
+            <p class="status-value" id="localStatus">Waiting for first edit</p>
+            <p class="status-detail">Every worksheet field and checklist item saves in this browser as you work.</p>
+          </article>
+
+          <article class="status-card">
+            <p class="card-kicker">Gun backup</p>
+            <h3>Remote backup follows your identity.</h3>
+            <p class="status-value" id="gunStatus">Preparing Gun backup...</p>
+            <p class="status-detail" id="gunDetail">Backups go to the portal roadmap workspace so the worksheet can follow you across devices.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="worksheet-title">
+        <div class="section-heading">
+          <p class="eyebrow">Guided worksheet</p>
+          <h2 id="worksheet-title">Capture the signal you need for next Thursday.</h2>
+          <p>
+            Fill in the fields below. Then copy the summary into a meeting note, a message thread, or an AI prompt.
+          </p>
+        </div>
+
+        <div class="worksheet-grid">
+          <article class="worksheet-card">
+            <p class="card-kicker">Trusted reviewers</p>
+            <h3>Who should see the campaign this week?</h3>
+            <div class="worksheet-field">
+              <label for="trustedReviewers">Name the people or groups most likely to give useful signal.</label>
+              <p class="worksheet-help">Aim for warm contacts who will answer honestly, not politely.</p>
+              <textarea
+                id="trustedReviewers"
+                class="worksheet-input worksheet-input--short"
+                placeholder="AV friends, one nonprofit lead, two artists, one teacher, one local business owner..."
+                data-field="trustedReviewers"
+              ></textarea>
+            </div>
+          </article>
+
+          <article class="worksheet-card">
+            <p class="card-kicker">Key questions</p>
+            <h3>What exact questions keep coming up?</h3>
+            <div class="worksheet-field">
+              <label for="keyQuestions">Capture the wording people actually use.</label>
+              <p class="worksheet-help">Write the raw questions, not polished summaries.</p>
+              <textarea
+                id="keyQuestions"
+                class="worksheet-input"
+                placeholder="What do I get on the free plan? Why is there a $5 step? What does $20 include?"
+                data-field="keyQuestions"
+              ></textarea>
+            </div>
+          </article>
+
+          <article class="worksheet-card">
+            <p class="card-kicker">Objections</p>
+            <h3>What is slowing people down?</h3>
+            <div class="worksheet-field">
+              <label for="objections">List the objections, confusion points, and trust gaps.</label>
+              <p class="worksheet-help">Group them later. For now, collect them cleanly.</p>
+              <textarea
+                id="objections"
+                class="worksheet-input"
+                placeholder="Not clear what changes between plans. Unsure whether setup is included. Wants examples before paying..."
+                data-field="objections"
+              ></textarea>
+            </div>
+          </article>
+
+          <article class="worksheet-card">
+            <p class="card-kicker">Decision list</p>
+            <h3>What must be decided on March 26?</h3>
+            <div class="worksheet-field">
+              <label for="decisionList">Write the decisions that should leave the Thursday meeting locked.</label>
+              <p class="worksheet-help">Keep it tight. If it does not need a decision next Thursday, leave it out.</p>
+              <textarea
+                id="decisionList"
+                class="worksheet-input"
+                placeholder="Pick the final free / $5 / $20 ladder language. Decide whether homepage creation stays in free. Approve the one-sentence pitch..."
+                data-field="decisionList"
+              ></textarea>
+            </div>
+          </article>
+
+          <article class="worksheet-card">
+            <p class="card-kicker">Current pitch</p>
+            <h3>What is the best one-sentence version right now?</h3>
+            <div class="worksheet-field">
+              <label for="oneSentencePitch">Draft the shortest version you can actually say out loud.</label>
+              <p class="worksheet-help">Keep it direct enough to test in a message or short call.</p>
+              <textarea
+                id="oneSentencePitch"
+                class="worksheet-input worksheet-input--short"
+                placeholder="We help people move from discovery to launch to growth with a clear Free, $5/mo, and $20/mo path."
+                data-field="oneSentencePitch"
+              ></textarea>
+            </div>
+          </article>
+
+          <article class="worksheet-card">
+            <p class="card-kicker">Meeting-ready summary</p>
+            <h3>Use this as the handoff into AI or the Thursday meeting.</h3>
+            <div class="worksheet-field">
+              <label for="worksheetSummary">Auto-built from your notes.</label>
+              <p class="worksheet-help">This field updates as you type. Copy it into a message thread, note, or AI tool.</p>
+              <textarea
+                id="worksheetSummary"
+                class="worksheet-input"
+                readonly
+              ></textarea>
+            </div>
+            <div class="worksheet-toolbar">
+              <button class="mini-button" type="button" id="copySummary">Copy worksheet summary</button>
+              <a class="mini-button mini-button--ghost" href="/openai-app/index.html">Open portal AI</a>
+              <p class="sync-note" id="summaryStatus">Summary ready to copy.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="daily-title">
+        <div class="section-heading">
+          <p class="eyebrow">Daily breakdown</p>
+          <h2 id="daily-title">Break Week 1 into small daily wins.</h2>
+        </div>
+
+        <div class="daily-grid">
+          <article class="daily-card">
+            <p class="card-kicker">Thursday, March 19</p>
+            <h3>Kick off the campaign.</h3>
+            <ul class="daily-list">
+              <li>Show the landing page and the current Free, $5/mo, and $20/mo ladder.</li>
+              <li>Ask people where the offer feels unclear, weak, or incomplete.</li>
+              <li>Leave with a real list of questions instead of defending the current copy.</li>
+            </ul>
+          </article>
+
+          <article class="daily-card">
+            <p class="card-kicker">Friday, March 20</p>
+            <h3>Sort the first reactions.</h3>
+            <ul class="daily-list">
+              <li>Move every question into buckets: price, offer, trust, proof, and next step.</li>
+              <li>Highlight the wording that repeats.</li>
+              <li>Cut duplicate notes down to the clearest version.</li>
+            </ul>
+          </article>
+
+          <article class="daily-card">
+            <p class="card-kicker">Saturday, March 21</p>
+            <h3>Tighten the message.</h3>
+            <ul class="daily-list">
+              <li>Rewrite the one-sentence pitch three different ways.</li>
+              <li>Test which version feels easiest to say and easiest to understand.</li>
+              <li>Keep only the language that makes the ladder clearer.</li>
+            </ul>
+          </article>
+
+          <article class="daily-card">
+            <p class="card-kicker">Sunday, March 22</p>
+            <h3>Clean up the decision list.</h3>
+            <ul class="daily-list">
+              <li>Separate true decisions from open questions.</li>
+              <li>Write one sentence for what must be locked on Thursday.</li>
+              <li>Delete anything that can wait until after launch.</li>
+            </ul>
+          </article>
+
+          <article class="daily-card">
+            <p class="card-kicker">Monday, March 23</p>
+            <h3>Get outside signal.</h3>
+            <ul class="daily-list">
+              <li>Put the current ladder in front of a few warm contacts who were not in the kickoff.</li>
+              <li>Ask where they hesitate, not whether they like it.</li>
+              <li>Capture the phrases that lead to the cleanest response.</li>
+            </ul>
+          </article>
+
+          <article class="daily-card">
+            <p class="card-kicker">Tuesday, March 24</p>
+            <h3>Turn notes into choices.</h3>
+            <ul class="daily-list">
+              <li>Write the top two or three ladder options still worth discussing.</li>
+              <li>Draft the strongest version of each option.</li>
+              <li>Prepare the tradeoffs so Thursday does not drift.</li>
+            </ul>
+          </article>
+
+          <article class="daily-card">
+            <p class="card-kicker">Wednesday, March 25</p>
+            <h3>Prep the Thursday close.</h3>
+            <ul class="daily-list">
+              <li>Bring one short summary, one decision list, and one current pitch.</li>
+              <li>Put the repeated objections at the top.</li>
+              <li>Show only the choices that are ready to approve.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="micro-title">
+        <div class="section-heading">
+          <p class="eyebrow">5-minute tasks</p>
+          <h2 id="micro-title">Use short tasks to keep the week moving.</h2>
+        </div>
+
+        <div class="worksheet-grid">
+          <article class="worksheet-card">
+            <p class="card-kicker">Quick wins</p>
+            <h3>Check these off whenever momentum stalls.</h3>
+            <ul class="checklist">
+              <li>
+                <label class="check-row">
+                  <input type="checkbox" data-check="list-five-reviewers">
+                  <span>List five people who can give real Week 1 feedback.</span>
+                </label>
+              </li>
+              <li>
+                <label class="check-row">
+                  <input type="checkbox" data-check="rewrite-pitch">
+                  <span>Rewrite the pitch in 20 words or less.</span>
+                </label>
+              </li>
+              <li>
+                <label class="check-row">
+                  <input type="checkbox" data-check="capture-one-question">
+                  <span>Record one exact question someone asked about the offer.</span>
+                </label>
+              </li>
+              <li>
+                <label class="check-row">
+                  <input type="checkbox" data-check="capture-one-objection">
+                  <span>Record one objection that would block a yes.</span>
+                </label>
+              </li>
+            </ul>
+          </article>
+
+          <article class="worksheet-card">
+            <p class="card-kicker">Decision prep</p>
+            <h3>Use these before the March 26 meeting.</h3>
+            <ul class="checklist">
+              <li>
+                <label class="check-row">
+                  <input type="checkbox" data-check="trim-decision-list">
+                  <span>Trim the decision list down to what really needs approval.</span>
+                </label>
+              </li>
+              <li>
+                <label class="check-row">
+                  <input type="checkbox" data-check="collect-proof">
+                  <span>Collect one screenshot or quote that makes the offer feel real.</span>
+                </label>
+              </li>
+              <li>
+                <label class="check-row">
+                  <input type="checkbox" data-check="test-message">
+                  <span>Send one direct message using the current one-sentence pitch.</span>
+                </label>
+              </li>
+              <li>
+                <label class="check-row">
+                  <input type="checkbox" data-check="final-readout">
+                  <span>Prepare the final Thursday readout: questions, objections, and decisions.</span>
+                </label>
+              </li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="ai-title">
+        <div class="section-heading">
+          <p class="eyebrow">AI assist</p>
+          <h2 id="ai-title">Use AI to compress the week faster, not to replace the signal.</h2>
+          <p>
+            These prompts assume you paste in the worksheet summary, raw notes, or both. Copy one, then open portal AI.
+          </p>
+        </div>
+
+        <div class="prompt-grid">
+          <article class="prompt-card">
+            <p class="card-kicker">Prompt 01</p>
+            <h3>Sort the raw questions.</h3>
+            <p class="prompt-meta">Use this after the first round of feedback.</p>
+            <textarea class="worksheet-input prompt-block" readonly data-prompt="question-sorter">You are helping me prepare for a Thursday decision meeting about a three-step offer ladder.
+
+I will paste raw feedback from Week 1. Group the feedback into:
+1. price questions
+2. offer clarity questions
+3. trust or proof gaps
+4. onboarding questions
+5. next-step confusion
+
+Then give me:
+- the top five repeated questions
+- the exact wording worth keeping
+- a short decision list for the meeting
+
+Feedback:
+[PASTE WEEK 1 NOTES HERE]</textarea>
+            <div class="prompt-actions">
+              <button class="mini-button" type="button" data-copy-prompt="question-sorter">Copy prompt</button>
+              <a class="mini-button mini-button--ghost" href="/openai-app/index.html">Open portal AI</a>
+            </div>
+          </article>
+
+          <article class="prompt-card">
+            <p class="card-kicker">Prompt 02</p>
+            <h3>Turn objections into fixes.</h3>
+            <p class="prompt-meta">Use this when the same hesitation shows up twice.</p>
+            <textarea class="worksheet-input prompt-block" readonly data-prompt="objection-fixer">I am refining a Free, $5/mo, and $20/mo ladder.
+
+Here are the objections people raised:
+[PASTE OBJECTIONS HERE]
+
+For each objection:
+- explain what the person is really unsure about
+- suggest one direct copy fix
+- suggest one proof asset or example that would reduce the objection
+- tell me whether this requires a real product decision or only clearer wording
+
+Finish with the top three changes to make this week.</textarea>
+            <div class="prompt-actions">
+              <button class="mini-button" type="button" data-copy-prompt="objection-fixer">Copy prompt</button>
+              <a class="mini-button mini-button--ghost" href="/openai-app/index.html">Open portal AI</a>
+            </div>
+          </article>
+
+          <article class="prompt-card">
+            <p class="card-kicker">Prompt 03</p>
+            <h3>Sharpen the pitch.</h3>
+            <p class="prompt-meta">Use this when the offer still feels wordy.</p>
+            <textarea class="worksheet-input prompt-block" readonly data-prompt="pitch-tightener">I need a sharper one-sentence pitch for a three-step service ladder.
+
+Current pitch:
+[PASTE CURRENT PITCH HERE]
+
+Context:
+[PASTE WORKSHEET SUMMARY HERE]
+
+Give me:
+- 5 tighter versions
+- the strongest version for a direct message
+- the strongest version for a meeting intro
+- the strongest version for a landing page hero
+
+Keep each version direct, concrete, and skimmable.</textarea>
+            <div class="prompt-actions">
+              <button class="mini-button" type="button" data-copy-prompt="pitch-tightener">Copy prompt</button>
+              <a class="mini-button mini-button--ghost" href="/openai-app/index.html">Open portal AI</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <footer class="roadmap-footer">
+        <p>Week 1 worksheet added March 20, 2026 with local autosave, GunJS backup, and identity-based credit.</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

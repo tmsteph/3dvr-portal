@@ -410,6 +410,37 @@
   color: var(--roadmap-ink);
 }
 
+.weekly-card--linked {
+  padding: 0;
+  overflow: hidden;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.weekly-link-card {
+  display: grid;
+  gap: 1rem;
+  height: 100%;
+  padding: 1.5rem;
+  color: inherit;
+}
+
+.weekly-link-card:hover {
+  color: inherit;
+}
+
+.weekly-card--linked:hover,
+.weekly-card--linked:focus-within {
+  transform: translateY(-2px);
+  border-color: rgba(99, 198, 216, 0.32);
+  box-shadow: 0 30px 60px rgba(2, 6, 23, 0.28);
+}
+
+.weekly-link-card:focus-visible {
+  outline: 2px solid rgba(99, 198, 216, 0.6);
+  outline-offset: -2px;
+  border-radius: 28px;
+}
+
 .weekly-meta {
   display: flex;
   align-items: center;
@@ -448,6 +479,11 @@
   line-height: 1.7;
 }
 
+.weekly-note {
+  margin-top: 0.2rem;
+  font-size: 0.95rem;
+}
+
 .weekly-list {
   list-style: none;
   padding: 0;
@@ -478,6 +514,240 @@
   margin-top: 1rem;
   color: var(--roadmap-ink);
   font-weight: 700;
+}
+
+.weekly-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  color: #f2f8ff;
+  font-weight: 700;
+}
+
+.weekly-cta-arrow {
+  font-size: 1.15rem;
+  transition: transform 0.25s ease;
+}
+
+.weekly-card--linked:hover .weekly-cta-arrow,
+.weekly-card--linked:focus-within .weekly-cta-arrow {
+  transform: translateX(4px);
+}
+
+.status-strip,
+.daily-grid,
+.prompt-grid,
+.worksheet-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.status-card,
+.daily-card,
+.prompt-card,
+.worksheet-card {
+  padding: 1.4rem;
+  border-radius: 28px;
+  border: 1px solid var(--roadmap-line);
+  background: var(--roadmap-paper-strong);
+  box-shadow: 0 24px 48px rgba(2, 6, 23, 0.2);
+  color: var(--roadmap-ink);
+}
+
+.status-card p,
+.daily-card p,
+.prompt-card p,
+.worksheet-card p {
+  margin: 0.75rem 0 0;
+  color: var(--roadmap-ink-soft);
+  line-height: 1.7;
+}
+
+.status-card strong,
+.daily-card strong,
+.prompt-card strong,
+.worksheet-card strong {
+  color: var(--roadmap-ink);
+}
+
+.status-value {
+  margin-top: 0.8rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.status-detail {
+  font-size: 0.95rem;
+}
+
+.status-card h3,
+.worksheet-card h3,
+.daily-card h3,
+.prompt-card h3 {
+  margin-top: 0.45rem;
+  font-size: 1.18rem;
+  color: var(--roadmap-ink);
+}
+
+.worksheet-field {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.worksheet-field label {
+  font-weight: 700;
+  color: var(--roadmap-ink);
+}
+
+.worksheet-help {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--roadmap-ink-soft);
+}
+
+.worksheet-input {
+  width: 100%;
+  min-height: 10rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f5fbff;
+  font: inherit;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.worksheet-input--short {
+  min-height: 7rem;
+}
+
+.worksheet-input:focus {
+  outline: none;
+  border-color: rgba(99, 198, 216, 0.55);
+  box-shadow: 0 0 0 3px rgba(99, 198, 216, 0.14);
+}
+
+.worksheet-toolbar,
+.prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.mini-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.72rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 198, 216, 0.24);
+  background: rgba(99, 198, 216, 0.12);
+  color: #eaf7fb;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.mini-button:hover {
+  color: #ffffff;
+  border-color: rgba(125, 211, 252, 0.34);
+  background: rgba(99, 198, 216, 0.18);
+  transform: translateY(-1px);
+}
+
+.mini-button--ghost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(148, 163, 184, 0.14);
+  color: var(--roadmap-ink);
+}
+
+.mini-button--ghost:hover {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sync-note {
+  margin: 0;
+  color: var(--roadmap-ink-soft);
+  font-size: 0.94rem;
+}
+
+.daily-list,
+.micro-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.daily-list li,
+.micro-list li {
+  position: relative;
+  padding-left: 1rem;
+  line-height: 1.6;
+  color: var(--roadmap-ink-soft);
+}
+
+.daily-list li::before,
+.micro-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--roadmap-accent), var(--roadmap-warm));
+}
+
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.checklist li {
+  display: block;
+}
+
+.check-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.check-row input {
+  margin-top: 0.2rem;
+  accent-color: var(--roadmap-accent-strong);
+}
+
+.check-row span {
+  color: var(--roadmap-ink-soft);
+  line-height: 1.6;
+}
+
+.prompt-block {
+  margin: 1rem 0 0;
+  min-height: 12rem;
+  white-space: pre-wrap;
+}
+
+.prompt-meta {
+  margin-top: 0.6rem;
+  font-size: 0.92rem;
 }
 
 .revenue-card {
@@ -646,6 +916,13 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .status-strip,
+  .worksheet-grid,
+  .daily-grid,
+  .prompt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .content-section--split,
   .mission-banner {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -681,11 +958,20 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .status-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .revenue-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .card-grid--four {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .daily-grid,
+  .prompt-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
