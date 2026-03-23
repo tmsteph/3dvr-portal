@@ -107,16 +107,56 @@ function resolvePortalOrigin(config = process.env) {
   return origin.endsWith('/') ? origin.slice(0, -1) : origin;
 }
 
+function resolveMailCredentials(config = process.env) {
+  const user = normalizeEmail(config.GMAIL_USER);
+  const pass = normalizeText(config.GMAIL_APP_PASSWORD);
+
+  return {
+    user,
+    pass,
+    configured: Boolean(user && pass)
+  };
+}
+
+function resolveAccountRecoveryDiagnostics(config = process.env) {
+  const teamRecipients = resolveTeamRecipients(config);
+  const mail = resolveMailCredentials(config);
+
+  return {
+    mailConfigured: mail.configured,
+    teamRecipientsConfigured: teamRecipients.length > 0
+  };
+}
+
+function createRecoveryUnavailableBody(config = process.env, code = 'email_transport_unavailable') {
+  const diagnostics = resolveAccountRecoveryDiagnostics(config);
+
+  if (code === 'team_recipients_unavailable') {
+    return {
+      error: 'Admin reset request email routing is not configured on this deployment.',
+      code,
+      ...diagnostics
+    };
+  }
+
+  return {
+    error: 'Recovery email is not configured on this deployment.',
+    code,
+    ...diagnostics
+  };
+}
+
 function createTransport(config = process.env) {
-  if (!config.GMAIL_USER || !config.GMAIL_APP_PASSWORD) {
-    throw new Error('Email transport is not configured.');
+  const mail = resolveMailCredentials(config);
+  if (!mail.configured) {
+    throw new Error('Recovery email is not configured on this deployment.');
   }
 
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: config.GMAIL_USER,
-      pass: config.GMAIL_APP_PASSWORD
+      user: mail.user,
+      pass: mail.pass
     }
   });
 }
@@ -285,22 +325,11 @@ export function createAccountRecoveryEmailHandler(options = {}) {
     }
 
     if (req.method === 'GET') {
-      const teamRecipients = resolveTeamRecipients(config);
-      return res.status(200).json({
-        mailConfigured: Boolean(config.GMAIL_USER && config.GMAIL_APP_PASSWORD),
-        teamRecipientsConfigured: teamRecipients.length > 0
-      });
+      return res.status(200).json(resolveAccountRecoveryDiagnostics(config));
     }
 
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
-    }
-
-    let transport;
-    try {
-      transport = getTransport();
-    } catch (error) {
-      return res.status(500).json({ error: error.message || 'Email transport is not configured.' });
     }
 
     const mode = normalizeText(req.body?.mode || 'lookup').toLowerCase();
@@ -312,23 +341,56 @@ export function createAccountRecoveryEmailHandler(options = {}) {
     const temporaryPassword = normalizeText(req.body?.temporaryPassword);
     const issuedBy = normalizeText(req.body?.issuedBy);
 
+    if (
+      mode !== 'lookup'
+      && mode !== 'admin-reset-request'
+      && mode !== 'admin-reset-issued'
+    ) {
+      return res.status(400).json({
+        error: 'Unsupported recovery mode. Use lookup, admin-reset-request, or admin-reset-issued.'
+      });
+    }
+
     if (!email) {
       return res.status(400).json({ error: 'A valid recovery email is required.' });
+    }
+
+    if (mode === 'lookup' && !alias && !aliases.length) {
+      return res.status(400).json({ error: 'Alias details are required for lookup emails.' });
+    }
+
+    if (mode === 'admin-reset-issued' && (!alias || !username || temporaryPassword.length < 6)) {
+      return res.status(400).json({
+        error: 'Alias, username, and a temporary password (6+ chars) are required.'
+      });
+    }
+
+    if (!resolveMailCredentials(config).configured) {
+      return res.status(503).json(createRecoveryUnavailableBody(config));
+    }
+
+    if (mode === 'admin-reset-request' && !resolveTeamRecipients(config).length) {
+      return res.status(503).json(
+        createRecoveryUnavailableBody(config, 'team_recipients_unavailable')
+      );
+    }
+
+    let transport;
+    try {
+      transport = getTransport();
+    } catch (error) {
+      return res.status(503).json(createRecoveryUnavailableBody(config));
     }
 
     const portalOrigin = resolvePortalOrigin(config);
     const signInUrl = `${portalOrigin}/sign-in.html`;
     const resetUrl = `${portalOrigin}/password-reset.html`;
 
-    const sender = config.GMAIL_USER || 'no-reply@3dvr.tech';
+    const sender = resolveMailCredentials(config).user || 'no-reply@3dvr.tech';
     const from = `"3DVR Portal Accounts" <${sender}>`;
 
     try {
       if (mode === 'lookup') {
-        if (!alias && !aliases.length) {
-          return res.status(400).json({ error: 'Alias details are required for lookup emails.' });
-        }
-
         await transport.sendMail({
           from,
           to: email,
@@ -350,9 +412,6 @@ export function createAccountRecoveryEmailHandler(options = {}) {
 
       if (mode === 'admin-reset-request') {
         const teamRecipients = resolveTeamRecipients(config);
-        if (!teamRecipients.length) {
-          return res.status(500).json({ error: 'Team notification email is not configured.' });
-        }
 
         await transport.sendMail({
           from,
@@ -405,10 +464,6 @@ export function createAccountRecoveryEmailHandler(options = {}) {
           alias
         });
       }
-
-      return res.status(400).json({
-        error: 'Unsupported recovery mode. Use lookup, admin-reset-request, or admin-reset-issued.'
-      });
     } catch (error) {
       return res.status(500).json({
         error: error.message || 'Unable to send recovery email.'

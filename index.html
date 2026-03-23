@@ -9,7 +9,6 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="score.js"></script>
   <script src="/pwa-install.js" defer></script>
-  <script defer src="/_vercel/insights/script.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <link rel="stylesheet" href="index-style.css">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -32,6 +31,8 @@
       window.__APP_NAME__ = window.__APP_NAME__ || '3dvr-tech';
     }
   </script>
+
+  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body class="landing theme-dark">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -140,6 +141,16 @@
             <span class="app-card__title">Deploy Guides</span>
             <span class="app-card__meta">Grab GitHub/Vercel tokens, IDs, and stable alias steps.</span>
           </a>
+          <a href="email-operator/index.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">📨</span>
+            <span class="app-card__title">Email Operator</span>
+            <span class="app-card__meta">Triage inboxes, draft replies, and gate automation through approval queues.</span>
+          </a>
+          <a href="billing/index.html" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">💳</span>
+            <span class="app-card__title">Billing</span>
+            <span class="app-card__meta">Manage plans, invoices, renewals, and Stripe-linked account status.</span>
+          </a>
           <a href="finance/index.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">💰</span>
             <span class="app-card__title">Finance</span>
@@ -214,6 +225,13 @@
             <span class="app-card__icon" aria-hidden="true">💼</span>
             <span class="app-card__title">Sales</span>
             <span class="app-card__meta">Navigate playbooks, training, and launch kits.</span>
+          </a>
+          <a href="roadmap/" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🗺️</span>
+            <span class="app-card__title">Roadmap</span>
+            <span class="app-card__meta">
+              Review the 12-month plan for turning services into sustainable revenue.
+            </span>
           </a>
           <a href="/seo/" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🧭</span>
@@ -434,7 +452,7 @@
       <h2 id="auth-modal-title">Sign in to save your progress</h2>
       <p>Create an account to sync your points across all your devices.</p>
       <div class="auth-modal__actions">
-        <button type="button" class="cta primary" onclick="window.location.href='/auth/sign-in.html'">Sign in / Create account</button>
+        <button type="button" class="cta primary" onclick="window.location.href='/sign-in.html'">Sign in / Create account</button>
         <button type="button" class="cta ghost" onclick="continueAsGuest()">Continue as guest</button>
       </div>
     </div>

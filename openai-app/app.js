@@ -165,6 +165,7 @@ const apiKeyStorageKey = 'openai-api-key';
 const vercelTokenStorageKey = 'vercel-token';
 const githubTokenStorageKey = 'github-token';
 const sessionKey = 'openai-workbench-session';
+const sharedBillingTierStorageKey = 'portal-usage-tier';
 const vaultAutoEnabledKey = 'vault-auto-enabled';
 const vaultRememberPassphraseKey = 'vault-remember-passphrase';
 const vaultAutoAliasKey = 'vault-auto-alias';
@@ -318,14 +319,16 @@ const SHARED_USAGE_LIMITS = {
   guest: 2,
   account: 5,
   supporter: 20,
-  pro: 100
+  pro: 100,
+  builder: 250
 };
 
 const TIER_LABELS = {
   guest: 'guest',
   account: 'account',
   supporter: '$5 supporter',
-  pro: '$20 pro'
+  pro: '$20 pro',
+  builder: '$50 builder'
 };
 
 const defaultSecrets = {
@@ -406,8 +409,11 @@ function getTodayKey() {
 
 function normalizeTier(value) {
   const normalized = (value || '').toString().trim().toLowerCase();
-  if (['guest', 'account', 'supporter', 'pro'].includes(normalized)) {
+  if (['guest', 'account', 'supporter', 'pro', 'builder'].includes(normalized)) {
     return normalized;
+  }
+  if (normalized === 'starter') {
+    return 'supporter';
   }
   if (normalized === 'supporter5' || normalized === 'supporter-5') {
     return 'supporter';
@@ -415,11 +421,16 @@ function normalizeTier(value) {
   if (normalized === 'pro20' || normalized === 'pro-20') {
     return 'pro';
   }
+  if (normalized === 'builder50' || normalized === 'builder-50' || normalized === '50') {
+    return 'builder';
+  }
   return '';
 }
 
 function resolveUsageTier() {
-  const stored = normalizeTier(storage.getItem('openai-workbench-tier'));
+  const stored = normalizeTier(
+    storage.getItem('openai-workbench-tier') || storage.getItem(sharedBillingTierStorageKey)
+  );
   if (stored) return stored;
   const normalized = normalizeTier(currentUsageTier);
   if (normalized) return normalized;
@@ -523,12 +534,16 @@ function detachTierSubscription() {
 
 function subscribeToBillingTier() {
   detachTierSubscription();
-  currentUsageTier = normalizeTier(storage.getItem('openai-workbench-tier'));
+  currentUsageTier = normalizeTier(
+    storage.getItem('openai-workbench-tier') || storage.getItem(sharedBillingTierStorageKey)
+  );
   tierSubscription = billingTierNode.get(identityKey);
   tierSubscription.on(data => {
     const nextTier = normalizeTier(data?.tier || data?.plan || data);
     if (nextTier) {
       currentUsageTier = nextTier;
+      storage.setItem('openai-workbench-tier', nextTier);
+      storage.setItem(sharedBillingTierStorageKey, nextTier);
     }
     updateSharedUsageStatus();
   });
@@ -1882,7 +1897,7 @@ async function sendToOpenAI() {
   const model = modelSelect.value;
 
   if (!apiKey) {
-    outputBox.textContent = 'Add your OpenAI API key to start chatting.';
+    outputBox.textContent = 'Add an OpenAI API key or load shared defaults first. Portal billing tiers raise shared-key limits, but they do not create an OpenAI API account.';
     return;
   }
 

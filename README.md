@@ -182,6 +182,38 @@ Environment controls:
 - `MONEY_AUTOPILOT_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
 - `MONEY_AUTOPILOT_CRON_DRY_RUN` (`true`/`false`)
 
+Portal billing center:
+
+- `STRIPE_PRICE_STARTER_ID` (or `STRIPE_PRICE_SUPPORTER_ID`) for the $5 monthly tier
+- `STRIPE_PRICE_PRO_ID` (or `STRIPE_PRICE_FOUNDER_ID`) for the $20 monthly tier
+- `STRIPE_PRICE_BUILDER_ID` (or `STRIPE_PRICE_STUDIO_ID`) for the $50 monthly tier
+- `PORTAL_ORIGIN` (recommended, for example `https://portal.3dvr.tech`)
+- `STRIPE_CUSTOMER_PORTAL_LOGIN_URL` (optional fallback if you enable Stripe's hosted customer portal login page)
+
+Routes:
+
+- `GET /api/stripe/checkout` returns billing diagnostics
+- `POST /api/stripe/checkout` creates a new checkout session, opens billing management, or routes an existing
+  subscriber into a Stripe plan-switch confirmation flow
+- `GET|POST /api/stripe/status` returns the current Stripe-backed plan plus duplicate-subscription warnings
+- `/billing/` is the account-linked billing center UI used by the public `3dvr.tech` site
+
+Billing deployment topology:
+
+| Branch | Web domain | Portal domain | Stripe mode |
+| --- | --- | --- | --- |
+| `main` | `https://3dvr.tech` | `https://portal.3dvr.tech` | Live Stripe |
+| `staging` | `https://staging.3dvr.tech` | `https://portal-staging.3dvr.tech` | Live Stripe behind Vercel auth |
+| `feature/*` | Vercel preview URL | Vercel preview URL | Stripe test mode |
+
+- Keep `3dvr-web` and `3dvr-portal` on the same branch matrix so the public site and billing center stay in sync.
+- `feature/*` previews are the test environment. Use Stripe test keys plus matching Stripe test `price_...` ids there.
+- Never mix a Stripe test secret key with live `price_...` ids, or a live Stripe key with test `price_...` ids.
+- Existing live-subscriber verification belongs on `staging` or `main`, because Stripe test mode cannot see live customers.
+- After each new `staging` deploy, run `npm run vercel:alias-staging` from `3dvr-portal` so `https://staging.3dvr.tech` and `https://portal-staging.3dvr.tech` stay attached to the current staging previews.
+- A healthy protected staging domain returns `401` from Vercel auth. `404 DEPLOYMENT_NOT_FOUND` means the staging alias is broken.
+- When a web preview needs to talk to a portal preview, pass an explicit `portalOrigin` or keep the preview host map updated so plan links do not fall back to production by mistake.
+
 Security for UI-triggered autopilot:
 
 - `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.
@@ -193,9 +225,9 @@ Security for UI-triggered autopilot:
 - `MONEY_AUTOPILOT_ALLOW_FREE_PLAN=true` allows token issuance without an active Stripe subscription.
 - `MONEY_AUTOPILOT_ALLOWED_SUB_STATUSES` overrides accepted Stripe statuses (default: `active,trialing`).
 - `MONEY_AUTOPILOT_PRICE_PLAN_MAP` maps Stripe price IDs to plans, example:
-  `{"price_starter":"starter","price_pro":"pro"}`.
+  `{"price_starter":"starter","price_pro":"pro","price_builder":"builder"}`.
 - `MONEY_AUTOPILOT_RATE_LIMITS` sets per-plan quotas, example:
-  `{"free":{"minute":1,"day":1},"starter":{"minute":2,"day":10},"pro":{"minute":6,"day":80}}`.
+  `{"free":{"minute":1,"day":1},"starter":{"minute":2,"day":10},"pro":{"minute":6,"day":80},"builder":{"minute":12,"day":180}}`.
 
 Issue or refresh a user token from the page:
 
