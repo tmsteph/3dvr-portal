@@ -372,7 +372,8 @@ describe('billing center subscriber flows', () => {
       assert.equal(proLabel, 'Temporarily unavailable')
       assert.equal(manageLabel, 'Choose a plan first')
       assert.equal(manageDisabled, 'true')
-      assert.match(statusText, /temporarily unavailable/i)
+      assert.match(statusText, /founder plan is unavailable on this deployment/i)
+      assert.match(statusText, /stripe_price_pro_id or stripe_price_founder_id/i)
     } finally {
       await browser.close()
     }
@@ -416,7 +417,7 @@ describe('billing center subscriber flows', () => {
       await page.goto(`${baseUrl}/billing/`, { waitUntil: 'domcontentloaded' })
       await page.waitForFunction(() => {
         const button = document.getElementById('manage-billing')
-        return button && button.textContent && button.textContent.includes('Manage subscription')
+        return button && button.textContent && button.textContent.includes('Manage in Stripe')
       })
 
       const duplicateHidden = await page.getAttribute('#duplicate-warning', 'hidden')
@@ -426,7 +427,7 @@ describe('billing center subscriber flows', () => {
       const billingEmail = await page.inputValue('#billing-email')
 
       assert.equal(duplicateHidden, '')
-      assert.equal(manageLabel, 'Manage subscription')
+      assert.equal(manageLabel, 'Manage in Stripe')
       assert.equal(manageDisabled, 'false')
       assert.match(statusText, /open stripe billing/i)
       assert.equal(billingEmail, 'member@example.com')
