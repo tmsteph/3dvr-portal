@@ -734,7 +734,7 @@ function clearLocalKeys() {
   vercelInput.value = '';
   githubInput.value = '';
   if (builderModelSelect) {
-    builderModelSelect.value = 'gpt-4o-mini';
+    builderModelSelect.value = 'gpt-4.1-mini';
   }
   updateKeyStatus('Removed personal keys from this device.');
   refreshSharedKeyUsage('openai', '');
@@ -1066,7 +1066,7 @@ async function requestGeneration(prompt, mode) {
     const requestBody = {
       prompt,
       apiKey,
-      model: builderModelSelect?.value || 'gpt-4o-mini'
+      model: builderModelSelect?.value || 'gpt-4.1-mini'
     };
 
     let result;

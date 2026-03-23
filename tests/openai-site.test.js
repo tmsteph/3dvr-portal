@@ -179,7 +179,7 @@ test('buildOpenAiRequest keeps temperature for supported non-gpt-5 builder model
 
 test('buildOpenAiRequest omits temperature for gpt-5 family builder models', () => {
   const miniRequest = buildOpenAiRequest({
-    model: 'gpt-5-mini',
+    model: 'gpt-5.4-mini',
     prompt: 'Build a VR portal landing page.',
     now: new Date('2026-03-09T12:00:00.000Z')
   });
@@ -194,10 +194,11 @@ test('buildOpenAiRequest omits temperature for gpt-5 family builder models', () 
 });
 
 test('supported site models include the picker options', () => {
+  assert.equal(DEFAULT_MODEL, 'gpt-4.1-mini');
   assert.deepEqual(SUPPORTED_SITE_MODELS, [
     'gpt-4o-mini',
     'gpt-4.1-mini',
-    'gpt-5-mini',
+    'gpt-5.4-mini',
     'gpt-5.4'
   ]);
 });
@@ -339,7 +340,7 @@ test('site generator handler rejects unsupported model overrides', async () => {
       headers: {},
       body: {
         prompt: 'Build a startup landing page.',
-        model: 'gpt-5.4-mini'
+        model: 'gpt-5-mini'
       }
     },
     res

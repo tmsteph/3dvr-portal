@@ -1,8 +1,8 @@
-export const DEFAULT_MODEL = 'gpt-4o-mini';
+export const DEFAULT_MODEL = 'gpt-4.1-mini';
 export const SUPPORTED_SITE_MODELS = Object.freeze([
   'gpt-4o-mini',
   'gpt-4.1-mini',
-  'gpt-5-mini',
+  'gpt-5.4-mini',
   'gpt-5.4'
 ]);
 
