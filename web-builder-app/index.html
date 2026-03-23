@@ -101,9 +101,11 @@
       <label for="builder-model">Model</label>
       <select id="builder-model">
         <option value="gpt-4o-mini">GPT-4o mini - fastest</option>
-        <option value="gpt-4.1-mini" selected>GPT-4.1 mini - balanced</option>
+        <option value="gpt-4.1-mini" selected>GPT-4.1 mini - balanced default</option>
+        <option value="gpt-5.4-mini">GPT-5.4 mini - newer small model</option>
+        <option value="gpt-5.4">GPT-5.4 - latest</option>
       </select>
-      <p class="meta">Mini models only. Faster options trade off some quality for lower wait time.</p>
+      <p class="meta">GPT-4.1 mini stays the default. GPT-5.4 options can take longer but may design better.</p>
 
       <div class="button-row">
         <button id="generate" class="primary">Draft Website</button>
