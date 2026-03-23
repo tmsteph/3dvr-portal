@@ -8,6 +8,17 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - On devices where the full `~/` control plane is missing or different, read the mirrored files there before making broad assumptions.
 - Treat the mirrored files as portable context, but prefer the live `~/` files when both are present.
 
+## Focus Rule
+- Default to work that helps win or serve a paying customer.
+- Keep this operating rule visible in planning, commits, and reviews: `Sell first. Build second. Keep it simple.`
+- Avoid expanding billing, portal, or platform scope unless the change supports a real user flow, active delivery, or a clear revenue path.
+
+## Git Workflow
+- Do not make substantive changes directly on `main`. Create a branch first.
+- Open a pull request for changes that should be merged, deployed, or remembered. Use the PR as the record of intent and tradeoffs.
+- Keep PRs tightly scoped and note any Stripe mode, portal-origin, or account-linking impact in the description.
+- When `3dvr-portal` depends on `3dvr-web`, link the paired branch or PR so preview environments stay coordinated.
+
 ## Deployment Topology
 - Keep `3dvr-portal` and `3dvr-web` on the same branch matrix:
   - `main` -> `portal.3dvr.tech` and `3dvr.tech`
