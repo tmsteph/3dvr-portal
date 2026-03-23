@@ -36,4 +36,10 @@ describe('sign-in page', () => {
     const html = await readFile(signInUrl, 'utf8');
     assert.match(html, /localStorage\.setItem\('userPubKey', userPub\)/);
   });
+
+  it('links directly to the canonical password reset route', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /href="\/password-reset\.html"/);
+    assert.doesNotMatch(html, /href="\/auth\/recovery\.html"/);
+  });
 });
