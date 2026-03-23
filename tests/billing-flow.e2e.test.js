@@ -429,7 +429,7 @@ describe('billing center subscriber flows', () => {
       assert.equal(duplicateHidden, '')
       assert.equal(manageLabel, 'Manage in Stripe')
       assert.equal(manageDisabled, 'false')
-      assert.match(statusText, /open stripe billing/i)
+      assert.match(statusText, /open billing for invoices or payment methods/i)
       assert.equal(billingEmail, 'member@example.com')
     } finally {
       await browser.close()
