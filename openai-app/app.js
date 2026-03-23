@@ -1897,7 +1897,7 @@ async function sendToOpenAI() {
   const model = modelSelect.value;
 
   if (!apiKey) {
-    outputBox.textContent = 'Add your OpenAI API key to start chatting.';
+    outputBox.textContent = 'Add an OpenAI API key or load shared defaults first. Portal billing tiers raise shared-key limits, but they do not create an OpenAI API account.';
     return;
   }
 

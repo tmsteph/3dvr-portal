@@ -36,6 +36,9 @@ const customDescriptionInput = document.getElementById('custom-description')
 const customSubmitButton = document.getElementById('custom-submit')
 const planButtons = Array.from(document.querySelectorAll('[data-plan-action]'))
 const planCards = Array.from(document.querySelectorAll('[data-plan-card]'))
+const bootScreen = document.getElementById('boot-screen')
+const bootStatus = document.getElementById('boot-status')
+const bootDetail = document.getElementById('boot-detail')
 
 const PLAN_LABELS = {
   free: 'Free plan',
@@ -54,6 +57,9 @@ const CANCEL_LABELS = {
 const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder'])
 const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'custom'])
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const BOOT_MIN_DURATION_MS = 320
+const bootStartedAt = Date.now()
+
 const DEFAULT_DIAGNOSTICS = Object.freeze({
   loaded: false,
   stripeConfigured: true,
@@ -90,6 +96,46 @@ const state = {
   selectedPlan: '',
   currentResponse: null,
   diagnostics: createDiagnosticsState()
+}
+
+function wait(ms) {
+  return new Promise(resolve => window.setTimeout(resolve, ms))
+}
+
+function setBootMessage(status = '', detail = '') {
+  if (status && bootStatus) {
+    bootStatus.textContent = status
+  }
+
+  if (detail && bootDetail) {
+    bootDetail.textContent = detail
+  }
+}
+
+async function finishBootScreen(options = {}) {
+  const { status = '', detail = '' } = options
+
+  if (status || detail) {
+    setBootMessage(status, detail)
+  }
+
+  const elapsed = Date.now() - bootStartedAt
+  if (elapsed < BOOT_MIN_DURATION_MS) {
+    await wait(BOOT_MIN_DURATION_MS - elapsed)
+  }
+
+  if (bootScreen) {
+    bootScreen.setAttribute('aria-busy', 'false')
+  }
+
+  document.body?.classList.remove('is-booting')
+  document.body?.classList.add('is-ready')
+
+  if (bootScreen) {
+    window.setTimeout(() => {
+      bootScreen.hidden = true
+    }, 320)
+  }
 }
 
 function readStorage(key) {
@@ -360,6 +406,13 @@ function labelForCancel(plan = '') {
   return CANCEL_LABELS[plan] || 'Cancel renewal'
 }
 
+function configHintForPlan(plan = '') {
+  if (plan === 'starter') return 'STRIPE_PRICE_STARTER_ID or STRIPE_PRICE_SUPPORTER_ID'
+  if (plan === 'pro') return 'STRIPE_PRICE_PRO_ID or STRIPE_PRICE_FOUNDER_ID'
+  if (plan === 'builder') return 'STRIPE_PRICE_BUILDER_ID or STRIPE_PRICE_STUDIO_ID'
+  return 'the matching Stripe price env var'
+}
+
 function highlightPlan(plan = '', options = {}) {
   const { updateUrl = false } = options
 
@@ -549,13 +602,13 @@ function renderActionPrompt() {
     if (canUseStripePlanSwitcher(state.selectedPlan)) {
       setStatus(
         actionStatus,
-        `${labelForPlan(state.selectedPlan)} is not mapped in this portal yet, but Stripe can still open a secure plan-change flow for your existing subscription.`,
+        `${labelForPlan(state.selectedPlan)} is not mapped on this deployment. Stripe can only offer it if the Billing Portal already exposes that price. For a direct upgrade path, configure ${configHintForPlan(state.selectedPlan)}.`,
         'info'
       )
       return
     }
 
-    setStatus(actionStatus, `${labelForPlan(state.selectedPlan)} is temporarily unavailable right now.`, 'warning')
+    setStatus(actionStatus, `${labelForPlan(state.selectedPlan)} is unavailable on this deployment. Configure ${configHintForPlan(state.selectedPlan)} to enable it here.`, 'warning')
     return
   }
 
@@ -1487,6 +1540,11 @@ function bindEvents() {
 }
 
 async function init() {
+  setBootMessage(
+    'Loading billing center...',
+    'Checking billing configuration, your portal session, and any active Stripe subscription.'
+  )
+
   rememberLocalBilling({
     billingEmail: readStorage(billingEmailStorageKey),
     billingEmails: readStoredBillingEmails(),
@@ -1497,9 +1555,38 @@ async function init() {
   handleFlashFromQuery()
   highlightPlan(selectedPlanFromUrl())
   bindEvents()
-  await refreshBillingDiagnostics()
-  await refreshAuthState()
-  await refreshBillingStatus()
+
+  try {
+    setBootMessage(
+      'Checking Stripe configuration...',
+      'Confirming which plans are available on this deployment.'
+    )
+    await refreshBillingDiagnostics()
+
+    setBootMessage(
+      'Connecting your portal account...',
+      'Verifying the signed-in identity used for billing actions.'
+    )
+    await refreshAuthState()
+
+    setBootMessage(
+      'Looking up your subscription...',
+      'Matching your portal account and billing email with existing Stripe records.'
+    )
+    await refreshBillingStatus()
+
+    await finishBootScreen({
+      status: 'Billing center ready.',
+      detail: 'Your account, plan options, and Stripe status are up to date.'
+    })
+  } catch (error) {
+    console.error('Billing center bootstrap failed', error)
+    setStatus(actionStatus, error?.message || 'Unable to finish loading billing status. Try Refresh status.', 'error')
+    await finishBootScreen({
+      status: 'Billing center loaded with warnings.',
+      detail: 'Some checks failed. Review the status cards below and use Refresh status if needed.'
+    })
+  }
 }
 
 user.on('auth', async () => {

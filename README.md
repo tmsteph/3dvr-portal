@@ -210,6 +210,8 @@ Billing deployment topology:
 - `feature/*` previews are the test environment. Use Stripe test keys plus matching Stripe test `price_...` ids there.
 - Never mix a Stripe test secret key with live `price_...` ids, or a live Stripe key with test `price_...` ids.
 - Existing live-subscriber verification belongs on `staging` or `main`, because Stripe test mode cannot see live customers.
+- After each new `staging` deploy, run `npm run vercel:alias-staging` from `3dvr-portal` so `https://staging.3dvr.tech` and `https://portal-staging.3dvr.tech` stay attached to the current staging previews.
+- A healthy protected staging domain returns `401` from Vercel auth. `404 DEPLOYMENT_NOT_FOUND` means the staging alias is broken.
 - When a web preview needs to talk to a portal preview, pass an explicit `portalOrigin` or keep the preview host map updated so plan links do not fall back to production by mistake.
 
 Security for UI-triggered autopilot:

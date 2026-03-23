@@ -1043,7 +1043,7 @@ async function readGenerationStream(response, { onStatus } = {}) {
 async function requestGeneration(prompt, mode) {
   const apiKey = getActiveKey(openaiInput, defaultSecrets.openai, 'openai');
   if (!apiKey) {
-    setGenerateStatus('No OpenAI key available. Open Config and load defaults or add a personal key.', 'warning');
+    setGenerateStatus('No OpenAI key available. Open Config and load shared defaults or add a personal key. Portal billing tiers do not include OpenAI API billing.', 'warning');
     revealConfig();
     return;
   }

@@ -14,14 +14,23 @@
     href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="./styles.css?v=20260319-billing-email-history">
+  <link rel="stylesheet" href="./styles.css?v=20260322-billing-offers">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
-<body>
+<body class="is-booting">
+  <div id="boot-screen" class="boot-screen" aria-live="polite" aria-busy="true">
+    <div class="boot-screen__panel">
+      <p class="boot-screen__eyebrow">3DVR Portal</p>
+      <p class="boot-screen__title">Loading billing center</p>
+      <p id="boot-status" class="boot-screen__status">Checking billing configuration...</p>
+      <p id="boot-detail" class="boot-screen__detail">Connecting your portal account and matching any existing Stripe subscription.</p>
+      <div class="boot-screen__meter" aria-hidden="true"><span></span></div>
+    </div>
+  </div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -30,6 +39,9 @@
         <p class="hero__lead">
           Start a paid plan, switch between tiers, or open Stripe billing management from one account-linked flow.
           Paid plans are handled through the portal so upgrades replace the old plan instead of creating a second one.
+        </p>
+        <p class="meta">
+          Portal plans upgrade your 3DVR account tier and shared usage limits. They do not include OpenAI API billing or create an OpenAI API key.
         </p>
       </div>
       <div class="hero__actions">
@@ -122,35 +134,45 @@
       </div>
 
       <div class="plan-grid">
-        <article class="plan-card" data-plan-card="free">
-          <p class="plan-card__eyebrow">Free</p>
-          <h3>Starter access</h3>
-          <p class="plan-card__price">$0</p>
+        <article class="plan-card plan-card--framed" data-offer-card="embedded">
+          <div class="plan-card__topline">
+            <p class="plan-card__eyebrow">Embedded</p>
+            <span class="plan-card__tag">Framing now</span>
+          </div>
+          <h3>Dedicated execution lane</h3>
+          <p class="plan-card__price">$200<span>/mo</span></p>
           <p class="plan-card__copy">
-            Explore the portal, launch a simple page, and get into the ecosystem without a card.
+            For teams that want a tighter operating loop: recurring execution help, faster unblock time, and direct
+            planning each month.
           </p>
           <ul class="plan-card__list">
-            <li>Portal entry point</li>
-            <li>Public docs and experiments</li>
-            <li>No credit card required</li>
+            <li>Everything in Builder</li>
+            <li>Reserved monthly sprint capacity</li>
+            <li>Direct roadmap and delivery support</li>
           </ul>
-          <a class="button button--ghost plan-card__action" href="../free-trial.html">Start free</a>
+          <p class="plan-card__note">Not self-serve yet. We scope this directly before turning on billing.</p>
+          <a
+            class="button button--ghost plan-card__action"
+            href="mailto:hello@3dvr.tech?subject=3DVR%20Portal%20%24200%20Offer&body=I%27m%20interested%20in%20the%20%24200%2Fmonth%20offer."
+          >
+            Talk to us
+          </a>
         </article>
 
-        <article class="plan-card" data-plan-card="starter">
-          <p class="plan-card__eyebrow">Family &amp; Friends</p>
-          <h3>Supporter tier</h3>
-          <p class="plan-card__price">$5<span>/mo</span></p>
+        <article class="plan-card" data-plan-card="builder">
+          <p class="plan-card__eyebrow">Builder</p>
+          <h3>Deep partnership</h3>
+          <p class="plan-card__price">$50<span>/mo</span></p>
           <p class="plan-card__copy">
-            Keep your project warm with light monthly support, previews, and a cleaner upgrade path later.
+            Reserved for heavier collaboration, higher limits, and faster access to custom roadmap work.
           </p>
           <ul class="plan-card__list">
-            <li>All free features</li>
-            <li>Light monthly support</li>
-            <li>Safe future upgrades</li>
+            <li>Everything in Founder</li>
+            <li>Higher AI and builder limits</li>
+            <li>Priority planning lane</li>
           </ul>
-          <button class="button button--primary plan-card__action" data-plan-action="starter" type="button">
-            Choose $5
+          <button class="button button--primary plan-card__action" data-plan-action="builder" type="button">
+            Choose $50
           </button>
         </article>
 
@@ -171,21 +193,36 @@
           </button>
         </article>
 
-        <article class="plan-card" data-plan-card="builder">
-          <p class="plan-card__eyebrow">Builder</p>
-          <h3>Deep partnership</h3>
-          <p class="plan-card__price">$50<span>/mo</span></p>
+        <article class="plan-card" data-plan-card="starter">
+          <p class="plan-card__eyebrow">Family &amp; Friends</p>
+          <h3>Supporter tier</h3>
+          <p class="plan-card__price">$5<span>/mo</span></p>
           <p class="plan-card__copy">
-            Reserved for heavier collaboration, higher limits, and faster access to custom roadmap work.
+            Keep your project warm with light monthly support, previews, and a cleaner upgrade path later.
           </p>
           <ul class="plan-card__list">
-            <li>Everything in Founder</li>
-            <li>Higher AI and builder limits</li>
-            <li>Priority planning lane</li>
+            <li>All free features</li>
+            <li>Light monthly support</li>
+            <li>Safe future upgrades</li>
           </ul>
-          <button class="button button--primary plan-card__action" data-plan-action="builder" type="button">
-            Choose $50
+          <button class="button button--primary plan-card__action" data-plan-action="starter" type="button">
+            Choose $5
           </button>
+        </article>
+
+        <article class="plan-card" data-plan-card="free">
+          <p class="plan-card__eyebrow">Free</p>
+          <h3>Starter access</h3>
+          <p class="plan-card__price">$0</p>
+          <p class="plan-card__copy">
+            Explore the portal, launch a simple page, and get into the ecosystem without a card.
+          </p>
+          <ul class="plan-card__list">
+            <li>Portal entry point</li>
+            <li>Public docs and experiments</li>
+            <li>No credit card required</li>
+          </ul>
+          <a class="button button--ghost plan-card__action" href="../free-trial.html">Start free</a>
         </article>
       </div>
     </section>

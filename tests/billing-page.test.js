@@ -31,10 +31,41 @@ describe('billing center', () => {
     assert.match(html, /data-plan-action="starter"/);
     assert.match(html, /data-plan-action="pro"/);
     assert.match(html, /data-plan-action="builder"/);
+    assert.match(html, /data-offer-card="embedded"/);
+    assert.match(html, /\$200<span>\/mo<\/span>/);
+    assert.match(html, /Not self-serve yet\./);
+    assert.match(html, /mailto:hello@3dvr\.tech\?subject=3DVR%20Portal%20%24200%20Offer/);
     assert.match(html, /id="custom-submit"/);
     assert.match(html, /Already paying through Stripe\?/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="\.\/app\.js\?v=20260319-billing-email-history"/);
+    const embeddedIndex = html.indexOf('data-offer-card="embedded"');
+    const builderIndex = html.indexOf('data-plan-card="builder"');
+    const proIndex = html.indexOf('data-plan-card="pro"');
+    const starterIndex = html.indexOf('data-plan-card="starter"');
+    const freeIndex = html.indexOf('data-plan-card="free"');
+    assert.ok(embeddedIndex !== -1, 'Embedded $200 offer card should be present');
+    assert.ok(builderIndex !== -1, 'Builder plan card should be present');
+    assert.ok(proIndex !== -1, 'Pro plan card should be present');
+    assert.ok(starterIndex !== -1, 'Starter plan card should be present');
+    assert.ok(freeIndex !== -1, 'Free plan card should be present');
+    assert.ok(embeddedIndex < builderIndex, 'Embedded offer should render before Builder');
+    assert.ok(builderIndex < proIndex, 'Builder should render before Pro');
+    assert.ok(proIndex < starterIndex, 'Pro should render before Starter');
+    assert.ok(starterIndex < freeIndex, 'Starter should render before Free');
+  });
+
+  it('registers billing in the portal app grid', async () => {
+    const portalIndex = new URL('../index.html', baseDir);
+    assert.equal(await fileExists(portalIndex), true, 'root index.html should exist');
+
+    const html = await readFile(portalIndex, 'utf8');
+    const billingIndex = html.indexOf('>Billing<');
+    const financeIndex = html.indexOf('>Finance<');
+    assert.ok(billingIndex !== -1, 'Billing app card should be listed on the portal');
+    assert.ok(financeIndex !== -1, 'Finance app card should still be present');
+    assert.ok(billingIndex < financeIndex, 'Billing card should appear before Finance to keep alphabetical order');
+    assert.match(html, /href="billing\/(?:index\.html)?"/);
   });
 
   it('stores account-linked billing hints in the billing app script', async () => {

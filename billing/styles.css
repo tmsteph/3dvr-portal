@@ -35,14 +35,107 @@ body {
   line-height: 1.55;
 }
 
+body.is-booting {
+  overflow: hidden;
+}
+
 a {
   color: inherit;
 }
 
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1.1rem;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(15, 118, 110, 0.18), transparent 28%),
+    radial-gradient(circle at 86% 10%, rgba(205, 137, 53, 0.18), transparent 24%),
+    rgba(244, 239, 230, 0.96);
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+
+body.is-ready .boot-screen {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.boot-screen__panel {
+  width: min(420px, 100%);
+  background: rgba(255, 250, 241, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+  padding: 1.25rem 1.1rem;
+}
+
+.boot-screen__eyebrow,
+.boot-screen__title,
+.boot-screen__status,
+.boot-screen__detail {
+  margin: 0;
+}
+
+.boot-screen__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--brand-strong);
+}
+
+.boot-screen__title {
+  margin-top: 0.5rem;
+  font-family: "Sora", "Segoe UI", sans-serif;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.boot-screen__status {
+  margin-top: 0.8rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.boot-screen__detail {
+  margin-top: 0.45rem;
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+}
+
+.boot-screen__meter {
+  margin-top: 1rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(19, 38, 61, 0.08);
+}
+
+.boot-screen__meter span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.18), var(--brand), rgba(205, 137, 53, 0.8));
+  animation: boot-meter-slide 1.1s ease-in-out infinite;
+}
+
 .shell {
+  transition: opacity 0.28s ease, transform 0.28s ease;
   width: min(1180px, calc(100% - 1.5rem));
   margin: 0 auto;
   padding: 1rem 0 2rem;
+}
+
+body.is-booting .shell {
+  opacity: 0.12;
+  transform: scale(0.995);
+  pointer-events: none;
+  user-select: none;
 }
 
 .hero,
@@ -280,6 +373,44 @@ a {
   padding: 1rem;
 }
 
+.plan-card__topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.plan-card--framed {
+  background:
+    radial-gradient(circle at top right, rgba(205, 137, 53, 0.18), transparent 42%),
+    linear-gradient(160deg, rgba(19, 38, 61, 0.98), rgba(23, 56, 83, 0.96));
+  color: #f4f8ff;
+  border-color: rgba(205, 137, 53, 0.38);
+  box-shadow: 0 20px 42px rgba(19, 38, 61, 0.24);
+}
+
+.plan-card--framed .plan-card__eyebrow,
+.plan-card--framed .plan-card__copy,
+.plan-card--framed .plan-card__list,
+.plan-card--framed .plan-card__price span,
+.plan-card--framed .plan-card__note {
+  color: rgba(244, 248, 255, 0.82);
+}
+
+.plan-card__tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(205, 137, 53, 0.18);
+  border: 1px solid rgba(205, 137, 53, 0.28);
+  color: #ffe3be;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
 .plan-card.is-selected {
   border-color: rgba(15, 118, 110, 0.42);
   box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.12), 0 16px 36px rgba(15, 118, 110, 0.12);
@@ -324,8 +455,20 @@ a {
   margin-top: 0.35rem;
 }
 
+.plan-card__note {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
 .plan-card__action {
   margin-top: auto;
+}
+
+.plan-card--framed .plan-card__action {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #f4f8ff;
 }
 
 .card--custom {
@@ -356,5 +499,19 @@ a {
 
   .button-row {
     flex-direction: column;
+  }
+}
+
+@keyframes boot-meter-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  55% {
+    transform: translateX(120%);
+  }
+
+  100% {
+    transform: translateX(210%);
   }
 }
