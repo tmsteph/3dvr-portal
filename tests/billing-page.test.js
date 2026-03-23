@@ -31,10 +31,11 @@ describe('billing center', () => {
     assert.match(html, /data-plan-action="starter"/);
     assert.match(html, /data-plan-action="pro"/);
     assert.match(html, /data-plan-action="builder"/);
+    assert.match(html, /data-plan-action="enterprise"/);
     assert.match(html, /id="custom-submit"/);
     assert.match(html, /Already paying through Stripe\?/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
-    assert.match(html, /<script[^>]+src="\.\/app\.js\?v=20260319-billing-email-history"/);
+    assert.match(html, /<script[^>]+src="\.\/app\.js\?v=20260322-enterprise-plan"/);
   });
 
   it('stores account-linked billing hints in the billing app script', async () => {
@@ -69,6 +70,7 @@ describe('billing center', () => {
     assert.ok(js.includes('Recovered and linked from an older Stripe record.'));
     assert.ok(js.includes('We linked your older Stripe billing record to this portal account automatically.'));
     assert.ok(js.includes('Stop $5 billing'));
+    assert.ok(js.includes('Stop $200 billing'));
     assert.ok(js.includes('You do not need to choose Free first'));
     assert.ok(js.includes("action: 'cancel'"));
     assert.ok(js.includes("params.get('manage') === 'cancelled'"));

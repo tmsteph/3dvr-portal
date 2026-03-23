@@ -5,6 +5,7 @@ const DEFAULT_PLAN_LIMITS = {
   starter: { minute: 2, day: 10 },
   pro: { minute: 6, day: 80 },
   builder: { minute: 12, day: 180 },
+  enterprise: { minute: 30, day: 500 },
   admin: { minute: 9999, day: 9999 }
 };
 
@@ -238,10 +239,13 @@ export function resolvePlanFromSubscription(subscription, pricePlanMap = {}) {
     if (metadataPlan === 'supporter') {
       return 'starter';
     }
-    if (metadataPlan === 'founder') {
-      return 'pro';
-    }
-    return metadataPlan;
+  if (metadataPlan === 'founder') {
+    return 'pro';
+  }
+  if (metadataPlan === 'enterprise' || metadataPlan === 'enterprise-plan') {
+    return 'enterprise';
+  }
+  return metadataPlan;
   }
 
   const priceId = String(item?.price?.id || '').trim();
@@ -252,6 +256,9 @@ export function resolvePlanFromSubscription(subscription, pricePlanMap = {}) {
   const nicknamePlan = String(item?.price?.nickname || '').trim().toLowerCase();
   if (nicknamePlan.includes('builder') || nicknamePlan.includes('studio') || nicknamePlan.includes('partner')) {
     return 'builder';
+  }
+  if (nicknamePlan.includes('enterprise') || nicknamePlan.includes('scale')) {
+    return 'enterprise';
   }
   if (nicknamePlan.includes('founder')) {
     return 'pro';

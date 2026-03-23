@@ -134,6 +134,19 @@ test('resolvePlanFromSubscription supports metadata and mapped price ids', () =>
     }
   }, {});
   assert.equal(marketingPlan, 'builder');
+
+  const enterprisePlan = resolvePlanFromSubscription({
+    items: {
+      data: [
+        {
+          price: {
+            nickname: 'Enterprise Plan'
+          }
+        }
+      ]
+    }
+  }, {});
+  assert.equal(enterprisePlan, 'enterprise');
 });
 
 test('parse helpers return sane fallbacks', () => {

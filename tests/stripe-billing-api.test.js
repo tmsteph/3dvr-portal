@@ -9,6 +9,7 @@ const baseConfig = {
   STRIPE_PRICE_STARTER_ID: 'price_starter',
   STRIPE_PRICE_PRO_ID: 'price_pro',
   STRIPE_PRICE_BUILDER_ID: 'price_builder',
+  STRIPE_PRICE_ENTERPRISE_ID: 'price_enterprise',
   PORTAL_ORIGIN: 'https://portal.3dvr.tech'
 };
 
@@ -340,7 +341,8 @@ describe('stripe billing checkout handler', () => {
       planPricesConfigured: {
         starter: true,
         pro: true,
-        builder: true
+        builder: true,
+        enterprise: true
       },
       customerPortalLoginConfigured: false
     });
@@ -367,7 +369,8 @@ describe('stripe billing checkout handler', () => {
       planPricesConfigured: {
         starter: true,
         pro: false,
-        builder: false
+        builder: false,
+        enterprise: false
       },
       customerPortalLoginConfigured: false
     });

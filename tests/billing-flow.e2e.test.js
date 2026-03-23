@@ -217,7 +217,8 @@ async function installBillingRoutes(context, options = {}) {
     planPricesConfigured: {
       starter: true,
       pro: true,
-      builder: true
+      builder: true,
+      enterprise: true
     },
     customerPortalLoginConfigured: false,
     ...(options.checkoutDiagnostics || {})
@@ -351,7 +352,8 @@ describe('billing center subscriber flows', () => {
           planPricesConfigured: {
             starter: true,
             pro: false,
-            builder: true
+            builder: true,
+            enterprise: true
           }
         },
         statusResponse: createFreeStatus()

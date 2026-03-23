@@ -42,17 +42,19 @@ const PLAN_LABELS = {
   starter: 'Family & Friends',
   pro: 'Founder Plan',
   builder: 'Builder Plan',
+  enterprise: 'Enterprise Plan',
   custom: 'Custom project'
 }
 
 const CANCEL_LABELS = {
   starter: 'Stop $5 billing',
   pro: 'Stop $20 billing',
-  builder: 'Stop $50 billing'
+  builder: 'Stop $50 billing',
+  enterprise: 'Stop $200 billing'
 }
 
-const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder'])
-const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'custom'])
+const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder', 'enterprise'])
+const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'enterprise', 'custom'])
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const DEFAULT_DIAGNOSTICS = Object.freeze({
   loaded: false,
@@ -61,7 +63,8 @@ const DEFAULT_DIAGNOSTICS = Object.freeze({
   planPricesConfigured: {
     starter: true,
     pro: true,
-    builder: true
+    builder: true,
+    enterprise: true
   }
 })
 

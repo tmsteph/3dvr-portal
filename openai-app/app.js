@@ -320,7 +320,8 @@ const SHARED_USAGE_LIMITS = {
   account: 5,
   supporter: 20,
   pro: 100,
-  builder: 250
+  builder: 250,
+  enterprise: 500
 };
 
 const TIER_LABELS = {
@@ -328,7 +329,8 @@ const TIER_LABELS = {
   account: 'account',
   supporter: '$5 supporter',
   pro: '$20 pro',
-  builder: '$50 builder'
+  builder: '$50 builder',
+  enterprise: '$200 enterprise'
 };
 
 const defaultSecrets = {
@@ -409,7 +411,7 @@ function getTodayKey() {
 
 function normalizeTier(value) {
   const normalized = (value || '').toString().trim().toLowerCase();
-  if (['guest', 'account', 'supporter', 'pro', 'builder'].includes(normalized)) {
+  if (['guest', 'account', 'supporter', 'pro', 'builder', 'enterprise'].includes(normalized)) {
     return normalized;
   }
   if (normalized === 'starter') {
@@ -423,6 +425,9 @@ function normalizeTier(value) {
   }
   if (normalized === 'builder50' || normalized === 'builder-50' || normalized === '50') {
     return 'builder';
+  }
+  if (normalized === 'enterprise200' || normalized === 'enterprise-200' || normalized === '200') {
+    return 'enterprise';
   }
   return '';
 }

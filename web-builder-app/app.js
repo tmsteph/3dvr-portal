@@ -19,7 +19,8 @@ const SHARED_USAGE_LIMITS = {
   account: 5,
   supporter: 20,
   pro: 100,
-  builder: 250
+  builder: 250,
+  enterprise: 500
 };
 
 const TIER_LABELS = {
@@ -27,7 +28,8 @@ const TIER_LABELS = {
   account: 'account',
   supporter: '$5 supporter',
   pro: '$20 pro',
-  builder: '$50 builder'
+  builder: '$50 builder',
+  enterprise: '$200 enterprise'
 };
 
 const defaultSecrets = {
@@ -484,6 +486,7 @@ function normalizeTier(rawTier) {
   if (['supporter', 'starter', 'paid', '5'].includes(normalized)) return 'supporter';
   if (['pro', '20'].includes(normalized)) return 'pro';
   if (['builder', '50'].includes(normalized)) return 'builder';
+  if (['enterprise', '200'].includes(normalized)) return 'enterprise';
   return 'guest';
 }
 
