@@ -1607,13 +1607,16 @@ function attachEvents() {
     openDetail(card.dataset.recordId || '');
   });
 
-  elements.detailActions?.addEventListener('click', async event => {
+  const handleDetailActionClick = async event => {
     const actionTarget = event.target.closest('[data-action]');
     if (!actionTarget) return;
     event.preventDefault();
     event.stopPropagation();
     await handleAction(actionTarget.dataset.action || '', actionTarget.dataset.recordId || '');
-  });
+  };
+
+  elements.detailActions?.addEventListener('click', handleDetailActionClick);
+  elements.detailWorkspace?.addEventListener('click', handleDetailActionClick);
 }
 
 function startSync() {

@@ -179,6 +179,7 @@ describe('contacts PWA configuration', () => {
     assert.ok(pwaInstallRule);
     assert.ok(workerRule);
     assert.ok(manifestRule);
+    assert.equal(config.ignoreCommand, 'sh ./ignore-build.sh');
 
     assert.equal(findHeaderValue(pwaInstallRule.headers, 'Cache-Control'), 'no-cache');
     assert.equal(findHeaderValue(workerRule.headers, 'Cache-Control'), 'no-cache');
@@ -187,5 +188,12 @@ describe('contacts PWA configuration', () => {
       findHeaderValue(manifestRule.headers, 'Cache-Control'),
       'public, max-age=0, must-revalidate'
     );
+  });
+
+  it('ships a contacts-scoped ignored build script for the standalone Vercel project', async () => {
+    const source = await readProjectFile('contacts/ignore-build.sh');
+
+    assert.match(source, /git rev-parse HEAD\^/);
+    assert.match(source, /git diff --quiet HEAD\^ HEAD -- \./);
   });
 });
