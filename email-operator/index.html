@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Operator | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="Run approval-first email automation inside the portal with triage, drafts, approvals, and audit-ready workflows."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="../auth-identity.js"></script>
+  <script src="../score.js"></script>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="email-body">
+  <a class="email-skip" href="#main">Skip to email operator content</a>
+  <nav class="email-nav" aria-label="Portal navigation">
+    <a href="../index.html">Portal</a>
+    <a href="../contacts/index.html">Contacts</a>
+    <a href="../crm/index.html">CRM</a>
+    <a href="../calendar/index.html">Calendar</a>
+    <a href="../openai-app/index.html">OpenAI Workbench</a>
+  </nav>
+
+  <main id="main" class="email-shell">
+    <header class="email-hero">
+      <div class="email-hero__copy">
+        <p class="email-hero__eyebrow">Codex Wrapper</p>
+        <h1 class="email-hero__title">Email Operator</h1>
+        <p class="email-hero__lead">
+          Run inbox triage, drafting, approvals, and selective automation inside the portal. This is the first
+          operator workflow that can become a real business instead of a vague AI promise.
+        </p>
+        <div class="email-hero__actions">
+          <a class="email-button email-button--primary" href="../crm/index.html">Open CRM context</a>
+          <a class="email-button email-button--ghost" href="../contacts/index.html">Map contacts</a>
+        </div>
+        <div class="status-row" aria-live="polite">
+          <span id="connection-badge" class="status-badge">Connecting to Gun</span>
+          <span id="operator-badge" class="status-badge status-badge--neutral">Resolving operator</span>
+        </div>
+      </div>
+      <aside class="signal-card" aria-label="Operator principles">
+        <p class="signal-card__eyebrow">Approval-first automation</p>
+        <h2>Human judgment stays in the loop.</h2>
+        <ul>
+          <li>Classify threads before drafting.</li>
+          <li>Draft replies before any send decision.</li>
+          <li>Auto-send only low-risk categories after approval rules are proven.</li>
+        </ul>
+      </aside>
+    </header>
+
+    <section class="stats-grid" aria-labelledby="stats-heading">
+      <div class="metric-card metric-card--primary">
+        <p class="metric-card__eyebrow">Operator load</p>
+        <h2 id="stats-heading">Active queue</h2>
+        <p id="metric-active" class="metric-card__value">0</p>
+        <p class="metric-card__detail">Threads still in motion</p>
+      </div>
+      <div class="metric-card">
+        <p class="metric-card__eyebrow">Needs sorting</p>
+        <h2>Triage</h2>
+        <p id="metric-triage" class="metric-card__value">0</p>
+        <p class="metric-card__detail">Threads waiting for a routing decision</p>
+      </div>
+      <div class="metric-card">
+        <p class="metric-card__eyebrow">Human checkpoint</p>
+        <h2>Approval queue</h2>
+        <p id="metric-approval" class="metric-card__value">0</p>
+        <p class="metric-card__detail">Drafts ready for eyes-on review</p>
+      </div>
+      <div class="metric-card">
+        <p class="metric-card__eyebrow">Low-risk lane</p>
+        <h2>Automation</h2>
+        <p id="metric-automation" class="metric-card__value">0</p>
+        <p class="metric-card__detail">Threads that can move toward rule-based sending</p>
+      </div>
+    </section>
+
+    <section class="operator-layout" aria-labelledby="queue-heading">
+      <aside class="operator-panel operator-panel--queue">
+        <div class="panel-head">
+          <div>
+            <p class="panel-head__eyebrow">Inbox queue</p>
+            <h2 id="queue-heading">Triage board</h2>
+          </div>
+          <p id="visible-count" class="panel-head__meta">0 threads</p>
+        </div>
+        <div class="filter-row" role="toolbar" aria-label="Filter email queue">
+          <button type="button" class="filter-pill is-active" data-filter="all">All</button>
+          <button type="button" class="filter-pill" data-filter="triage">Triage</button>
+          <button type="button" class="filter-pill" data-filter="drafting">Drafting</button>
+          <button type="button" class="filter-pill" data-filter="approval">Approval</button>
+          <button type="button" class="filter-pill" data-filter="automation">Automation</button>
+          <button type="button" class="filter-pill" data-filter="sent">Sent</button>
+          <button type="button" class="filter-pill" data-filter="archive">Archive</button>
+        </div>
+        <div id="thread-list" class="thread-list" role="listbox" aria-label="Email operator queue"></div>
+      </aside>
+
+      <section class="operator-panel operator-panel--detail" aria-labelledby="thread-subject">
+        <div class="detail-head">
+          <div>
+            <p class="panel-head__eyebrow">Selected thread</p>
+            <h2 id="thread-subject">Loading thread…</h2>
+            <p id="thread-summary" class="detail-head__summary">
+              Pulling the queue into a focused operator view.
+            </p>
+          </div>
+          <div class="detail-status">
+            <span id="stage-chip" class="status-chip">Loading</span>
+            <span id="urgency-chip" class="status-chip status-chip--soft">Urgency</span>
+          </div>
+        </div>
+
+        <dl class="detail-grid">
+          <div>
+            <dt>From</dt>
+            <dd id="thread-from">-</dd>
+          </div>
+          <div>
+            <dt>Company</dt>
+            <dd id="thread-company">-</dd>
+          </div>
+          <div>
+            <dt>Category</dt>
+            <dd id="thread-category">-</dd>
+          </div>
+          <div>
+            <dt>Received</dt>
+            <dd id="thread-received">-</dd>
+          </div>
+          <div>
+            <dt>CRM stage</dt>
+            <dd id="thread-crm-stage">-</dd>
+          </div>
+          <div>
+            <dt>Next step</dt>
+            <dd id="thread-next-step">-</dd>
+          </div>
+        </dl>
+
+        <section class="context-card" aria-labelledby="context-heading">
+          <div class="panel-head panel-head--tight">
+            <div>
+              <p class="panel-head__eyebrow">Operator context</p>
+              <h3 id="context-heading">Why this thread matters</h3>
+            </div>
+            <div class="stack-list" aria-label="Linked operator systems">
+              <a class="stack-pill" href="../contacts/index.html">Contacts</a>
+              <a class="stack-pill" href="../crm/index.html">CRM</a>
+              <a class="stack-pill" href="../calendar/index.html">Calendar</a>
+              <a class="stack-pill" href="../openai-app/index.html">Workbench</a>
+            </div>
+          </div>
+          <p id="recommended-action" class="context-card__lead">-</p>
+          <div class="context-points">
+            <p id="thread-contact-context">-</p>
+            <p id="thread-relationship-context">-</p>
+          </div>
+        </section>
+
+        <section class="action-deck" aria-label="Thread actions">
+          <button type="button" class="email-button email-button--secondary" data-operator-action="queue-draft">
+            Queue for draft
+          </button>
+          <button type="button" class="email-button email-button--secondary" data-operator-action="ready-approval">
+            Ready for approval
+          </button>
+          <button type="button" class="email-button email-button--secondary" data-operator-action="route-automation">
+            Route to automation
+          </button>
+          <button type="button" class="email-button email-button--primary" data-operator-action="approve-send">
+            Approve send
+          </button>
+          <button type="button" class="email-button email-button--ghost" data-operator-action="archive-thread">
+            Archive
+          </button>
+          <button type="button" class="email-button email-button--ghost" data-operator-action="reopen-thread">
+            Re-open
+          </button>
+        </section>
+
+        <section class="editor-grid">
+          <article class="editor-card">
+            <div class="panel-head panel-head--tight">
+              <div>
+                <p class="panel-head__eyebrow">Reply drafting</p>
+                <h3>Draft queue</h3>
+              </div>
+              <div class="button-row button-row--compact">
+                <button type="button" class="mini-button" id="generate-draft">Generate draft</button>
+                <button type="button" class="mini-button" id="save-draft">Save draft</button>
+                <button type="button" class="mini-button" id="copy-draft">Copy draft</button>
+              </div>
+            </div>
+            <label class="editor-label" for="draft-editor">Reply draft</label>
+            <textarea id="draft-editor" class="editor-field" rows="12"></textarea>
+          </article>
+
+          <article class="editor-card">
+            <div class="panel-head panel-head--tight">
+              <div>
+                <p class="panel-head__eyebrow">Operator notes</p>
+                <h3>Approval and prompt deck</h3>
+              </div>
+              <div class="button-row button-row--compact">
+                <button type="button" class="mini-button" id="save-notes">Save notes</button>
+                <button type="button" class="mini-button" id="copy-prompt">Copy prompt</button>
+              </div>
+            </div>
+            <label class="editor-label" for="notes-editor">Approval notes</label>
+            <textarea id="notes-editor" class="editor-field editor-field--short" rows="6"></textarea>
+            <label class="editor-label" for="operator-prompt">Workbench prompt</label>
+            <textarea id="operator-prompt" class="editor-field editor-field--short" rows="8" readonly></textarea>
+          </article>
+        </section>
+      </section>
+    </section>
+
+    <section class="guidance-grid" aria-labelledby="activity-heading">
+      <article class="guidance-card">
+        <p class="guidance-card__eyebrow">Audit trail</p>
+        <h2 id="activity-heading">Recent operator activity</h2>
+        <div id="activity-feed" class="activity-feed" role="list"></div>
+      </article>
+      <article class="guidance-card guidance-card--accent">
+        <p class="guidance-card__eyebrow">MVP boundary</p>
+        <h2>Draft-first beats full autonomy.</h2>
+        <p>
+          Start with inbox triage, draft replies, and approval queues. Automate only the categories you can defend,
+          explain, and roll back.
+        </p>
+      </article>
+      <article class="guidance-card">
+        <p class="guidance-card__eyebrow">Build target</p>
+        <h2>One operator shell, many workflows</h2>
+        <p>
+          Once email feels solid, the same portal shell can expand into calendar, sales follow-up, support triage, and
+          personal admin.
+        </p>
+      </article>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

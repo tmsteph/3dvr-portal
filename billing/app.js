@@ -15,6 +15,7 @@ const openAiTierStorageKey = 'openai-workbench-tier'
 const billingEmailStorageKey = 'portal-billing-email'
 const billingEmailsStorageKey = 'portal-billing-emails'
 const billingCustomerIdStorageKey = 'portal-billing-customer-id'
+const billingStatusCacheStorageKey = 'portal-billing-status-cache'
 const userPubStorageKey = 'userPubKey'
 
 const accountSummary = document.getElementById('account-summary')
@@ -36,6 +37,9 @@ const customDescriptionInput = document.getElementById('custom-description')
 const customSubmitButton = document.getElementById('custom-submit')
 const planButtons = Array.from(document.querySelectorAll('[data-plan-action]'))
 const planCards = Array.from(document.querySelectorAll('[data-plan-card]'))
+const bootScreen = document.getElementById('boot-screen')
+const bootStatus = document.getElementById('boot-status')
+const bootDetail = document.getElementById('boot-detail')
 
 const PLAN_LABELS = {
   free: 'Free plan',
@@ -54,6 +58,9 @@ const CANCEL_LABELS = {
 const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder'])
 const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'custom'])
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const BOOT_MIN_DURATION_MS = 160
+const bootStartedAt = Date.now()
+
 const DEFAULT_DIAGNOSTICS = Object.freeze({
   loaded: false,
   stripeConfigured: true,
@@ -92,6 +99,46 @@ const state = {
   diagnostics: createDiagnosticsState()
 }
 
+function wait(ms) {
+  return new Promise(resolve => window.setTimeout(resolve, ms))
+}
+
+function setBootMessage(status = '', detail = '') {
+  if (status && bootStatus) {
+    bootStatus.textContent = status
+  }
+
+  if (detail && bootDetail) {
+    bootDetail.textContent = detail
+  }
+}
+
+async function finishBootScreen(options = {}) {
+  const { status = '', detail = '' } = options
+
+  if (status || detail) {
+    setBootMessage(status, detail)
+  }
+
+  const elapsed = Date.now() - bootStartedAt
+  if (elapsed < BOOT_MIN_DURATION_MS) {
+    await wait(BOOT_MIN_DURATION_MS - elapsed)
+  }
+
+  if (bootScreen) {
+    bootScreen.setAttribute('aria-busy', 'false')
+  }
+
+  document.body?.classList.remove('is-booting')
+  document.body?.classList.add('is-ready')
+
+  if (bootScreen) {
+    window.setTimeout(() => {
+      bootScreen.hidden = true
+    }, 320)
+  }
+}
+
 function readStorage(key) {
   try {
     return localStorage.getItem(key) || ''
@@ -110,6 +157,55 @@ function writeStorage(key, value) {
   } catch (error) {
     console.warn('Failed to write local storage key', key, error)
   }
+}
+
+function readStoredJson(key) {
+  const raw = String(readStorage(key) || '').trim()
+  if (!raw) {
+    return null
+  }
+
+  try {
+    return JSON.parse(raw)
+  } catch (error) {
+    return null
+  }
+}
+
+function writeStoredJson(key, value) {
+  if (!value || typeof value !== 'object') {
+    writeStorage(key, '')
+    return
+  }
+
+  try {
+    writeStorage(key, JSON.stringify(value))
+  } catch (error) {
+    console.warn('Failed to serialize stored JSON key', key, error)
+  }
+}
+
+function hydrateStoredAccountState() {
+  state.alias = String(readStorage('alias') || '').trim()
+  state.username = String(readStorage('username') || '').trim()
+  state.pub = String(readStorage(userPubStorageKey) || '').trim()
+  state.signedIn = readStorage('signedIn') === 'true' && Boolean(state.alias)
+}
+
+function readStoredBillingStatus() {
+  const cached = readStoredJson(billingStatusCacheStorageKey)
+  return cached && typeof cached === 'object' ? cached : null
+}
+
+function cacheBillingStatus(payload = null) {
+  if (!payload || typeof payload !== 'object') {
+    return
+  }
+
+  writeStoredJson(billingStatusCacheStorageKey, {
+    ...payload,
+    cachedAt: Date.now()
+  })
 }
 
 function normalizeEmail(value = '') {
@@ -360,6 +456,13 @@ function labelForCancel(plan = '') {
   return CANCEL_LABELS[plan] || 'Cancel renewal'
 }
 
+function configHintForPlan(plan = '') {
+  if (plan === 'starter') return 'STRIPE_PRICE_STARTER_ID or STRIPE_PRICE_SUPPORTER_ID'
+  if (plan === 'pro') return 'STRIPE_PRICE_PRO_ID or STRIPE_PRICE_FOUNDER_ID'
+  if (plan === 'builder') return 'STRIPE_PRICE_BUILDER_ID or STRIPE_PRICE_STUDIO_ID'
+  return 'the matching Stripe price env var'
+}
+
 function highlightPlan(plan = '', options = {}) {
   const { updateUrl = false } = options
 
@@ -549,13 +652,13 @@ function renderActionPrompt() {
     if (canUseStripePlanSwitcher(state.selectedPlan)) {
       setStatus(
         actionStatus,
-        `${labelForPlan(state.selectedPlan)} is not mapped in this portal yet, but Stripe can still open a secure plan-change flow for your existing subscription.`,
+        `${labelForPlan(state.selectedPlan)} is not mapped on this deployment. Stripe can only offer it if the Billing Portal already exposes that price. For a direct upgrade path, configure ${configHintForPlan(state.selectedPlan)}.`,
         'info'
       )
       return
     }
 
-    setStatus(actionStatus, `${labelForPlan(state.selectedPlan)} is temporarily unavailable right now.`, 'warning')
+    setStatus(actionStatus, `${labelForPlan(state.selectedPlan)} is unavailable on this deployment. Configure ${configHintForPlan(state.selectedPlan)} to enable it here.`, 'warning')
     return
   }
 
@@ -825,7 +928,7 @@ function renderAccountSummary() {
 
   setStatus(
     accountSummary,
-    'Sign in before starting or switching paid plans so the Stripe customer stays tied to one portal account.',
+    'Sign in before starting or switching paid plans so your chosen plan, billing, and support stay tied to one portal account.',
     'warning'
   )
 }
@@ -909,7 +1012,7 @@ function renderBillingState(payload = null) {
         ? 'We linked an older Stripe billing record to this portal account automatically. No paid subscription is active right now, but you can open billing history if you need past invoices.'
         : hasKnownCustomer()
           ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
-          : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
+          : 'Choose a paid plan to create a portal-linked Stripe checkout tied to this account.'
     }
     refreshBillingControls()
     renderActionPrompt()
@@ -1182,6 +1285,7 @@ async function refreshBillingStatusAttempt(retriedAuth) {
           }
         : payload
     )
+    cacheBillingStatus(payload)
     renderBillingState(payload)
     if (payload?.autoLinkedLegacy) {
       setFlash('We linked your older Stripe billing record to this portal account automatically.')
@@ -1237,8 +1341,8 @@ function requireSignedInForPaidFlow(options = {}) {
   setStatus(
     actionStatus,
     targetPlan
-      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan stays attached to one portal account.`
-      : 'Sign in first so the paid plan stays attached to one portal account.',
+      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan, billing, and onboarding stay attached to one portal account.`
+      : 'Sign in first so the paid plan, billing, and onboarding stay attached to one portal account.',
     'warning'
   )
   signInLink?.focus()
@@ -1486,20 +1590,52 @@ function bindEvents() {
   })
 }
 
+async function refreshLiveBillingBootstrap() {
+  try {
+    await Promise.all([
+      refreshBillingDiagnostics(),
+      refreshAuthState()
+    ])
+
+    await refreshBillingStatus()
+  } catch (error) {
+    console.error('Billing center bootstrap failed', error)
+    setStatus(actionStatus, error?.message || 'Unable to finish loading billing status. Try Refresh status.', 'error')
+  }
+}
+
 async function init() {
+  setBootMessage(
+    'Loading billing center...',
+    'Showing saved billing details first, then refreshing your live Stripe status.'
+  )
+
   rememberLocalBilling({
     billingEmail: readStorage(billingEmailStorageKey),
     billingEmails: readStoredBillingEmails(),
     customerId: readStorage(billingCustomerIdStorageKey),
     usageTier: readStorage(sharedTierStorageKey) || readStorage(openAiTierStorageKey)
   })
+  hydrateStoredAccountState()
 
   handleFlashFromQuery()
   highlightPlan(selectedPlanFromUrl())
   bindEvents()
-  await refreshBillingDiagnostics()
-  await refreshAuthState()
-  await refreshBillingStatus()
+  renderAccountSummary()
+
+  const cachedStatus = readStoredBillingStatus()
+  renderBillingState(cachedStatus)
+
+  try {
+    await finishBootScreen({
+      status: 'Billing center ready.',
+      detail: 'Refreshing your live account and Stripe status in the background.'
+    })
+  } catch (error) {
+    console.error('Unable to finish the initial billing boot screen', error)
+  }
+
+  void refreshLiveBillingBootstrap()
 }
 
 user.on('auth', async () => {
