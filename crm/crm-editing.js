@@ -8,7 +8,38 @@ const DEFAULT_STATUS_OPTIONS = Object.freeze([
   'Lost',
 ]);
 
+const DEFAULT_MARKET_SEGMENT_OPTIONS = Object.freeze([
+  '',
+  'Owner-led service business',
+  'Creative studio or agency',
+  'Event or AV operator',
+  'Educator or community org',
+  'Local business with referrals',
+  'Independent builder or side-hustle',
+]);
+
+const DEFAULT_PAIN_SEVERITY_OPTIONS = Object.freeze([
+  '',
+  'Low',
+  'Medium',
+  'High',
+  'Critical',
+]);
+
+const DEFAULT_PILOT_STATUS_OPTIONS = Object.freeze([
+  '',
+  'Watching',
+  'Warm',
+  'Pilot candidate',
+  'Pilot active',
+  'Customer',
+  'Not a fit',
+]);
+
 export const CRM_STATUS_OPTIONS = DEFAULT_STATUS_OPTIONS;
+export const CRM_MARKET_SEGMENT_OPTIONS = DEFAULT_MARKET_SEGMENT_OPTIONS;
+export const CRM_PAIN_SEVERITY_OPTIONS = DEFAULT_PAIN_SEVERITY_OPTIONS;
+export const CRM_PILOT_STATUS_OPTIONS = DEFAULT_PILOT_STATUS_OPTIONS;
 
 export function createCrmEditingManager(initialIds = []) {
   const editing = new Set();
@@ -61,6 +92,9 @@ export function createCrmEditingManager(initialIds = []) {
 if (typeof window !== 'undefined') {
   window.crmEditing = Object.assign({}, window.crmEditing, {
     CRM_STATUS_OPTIONS,
+    CRM_MARKET_SEGMENT_OPTIONS,
+    CRM_PAIN_SEVERITY_OPTIONS,
+    CRM_PILOT_STATUS_OPTIONS,
     createCrmEditingManager,
   });
 }
