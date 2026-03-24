@@ -928,7 +928,7 @@ function renderAccountSummary() {
 
   setStatus(
     accountSummary,
-    'Sign in before starting or switching paid plans so the Stripe customer stays tied to one portal account.',
+    'Sign in before starting or switching paid plans so your chosen plan, billing, and support stay tied to one portal account.',
     'warning'
   )
 }
@@ -1012,7 +1012,7 @@ function renderBillingState(payload = null) {
         ? 'We linked an older Stripe billing record to this portal account automatically. No paid subscription is active right now, but you can open billing history if you need past invoices.'
         : hasKnownCustomer()
           ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
-          : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
+          : 'Choose a paid plan to create a portal-linked Stripe checkout tied to this account.'
     }
     refreshBillingControls()
     renderActionPrompt()
@@ -1341,8 +1341,8 @@ function requireSignedInForPaidFlow(options = {}) {
   setStatus(
     actionStatus,
     targetPlan
-      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan stays attached to one portal account.`
-      : 'Sign in first so the paid plan stays attached to one portal account.',
+      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan, billing, and onboarding stay attached to one portal account.`
+      : 'Sign in first so the paid plan, billing, and onboarding stay attached to one portal account.',
     'warning'
   )
   signInLink?.focus()
