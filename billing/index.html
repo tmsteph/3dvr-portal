@@ -11,13 +11,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
+    rel="preload"
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    as="style"
+  >
+  <link
     href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
     rel="stylesheet"
+    media="print"
+    onload="this.media='all'"
   >
+  <noscript>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    >
+  </noscript>
   <link rel="stylesheet" href="./styles.css?v=20260322-billing-offers">
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
-  <script src="/gun-init.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script defer src="/gun-init.js"></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -130,52 +143,10 @@
           <p class="card__eyebrow">Plans</p>
           <h2 id="plans-title" class="card__title">Choose your path</h2>
         </div>
-        <p id="selected-plan-label" class="meta">Pick a plan below. Existing subscribers will be sent to a safe switch flow.</p>
+        <p id="selected-plan-label" class="meta">Start with Founder, Family &amp; Friends, or Free. Existing subscribers will be sent to a safe switch flow.</p>
       </div>
 
       <div class="plan-grid">
-        <article class="plan-card plan-card--framed" data-offer-card="embedded">
-          <div class="plan-card__topline">
-            <p class="plan-card__eyebrow">Embedded</p>
-            <span class="plan-card__tag">Framing now</span>
-          </div>
-          <h3>Dedicated execution lane</h3>
-          <p class="plan-card__price">$200<span>/mo</span></p>
-          <p class="plan-card__copy">
-            For teams that want a tighter operating loop: recurring execution help, faster unblock time, and direct
-            planning each month.
-          </p>
-          <ul class="plan-card__list">
-            <li>Everything in Builder</li>
-            <li>Reserved monthly sprint capacity</li>
-            <li>Direct roadmap and delivery support</li>
-          </ul>
-          <p class="plan-card__note">Not self-serve yet. We scope this directly before turning on billing.</p>
-          <a
-            class="button button--ghost plan-card__action"
-            href="mailto:hello@3dvr.tech?subject=3DVR%20Portal%20%24200%20Offer&body=I%27m%20interested%20in%20the%20%24200%2Fmonth%20offer."
-          >
-            Talk to us
-          </a>
-        </article>
-
-        <article class="plan-card" data-plan-card="builder">
-          <p class="plan-card__eyebrow">Builder</p>
-          <h3>Deep partnership</h3>
-          <p class="plan-card__price">$50<span>/mo</span></p>
-          <p class="plan-card__copy">
-            Reserved for heavier collaboration, higher limits, and faster access to custom roadmap work.
-          </p>
-          <ul class="plan-card__list">
-            <li>Everything in Founder</li>
-            <li>Higher AI and builder limits</li>
-            <li>Priority planning lane</li>
-          </ul>
-          <button class="button button--primary plan-card__action" data-plan-action="builder" type="button">
-            Choose $50
-          </button>
-        </article>
-
         <article class="plan-card" data-plan-card="pro">
           <p class="plan-card__eyebrow">Founder</p>
           <h3>Build with us</h3>
@@ -224,6 +195,55 @@
           </ul>
           <a class="button button--ghost plan-card__action" href="../free-trial.html">Start free</a>
         </article>
+
+        <article class="plan-card" data-plan-card="builder">
+          <div class="plan-card__topline">
+            <p class="plan-card__eyebrow">Builder</p>
+            <span class="plan-card__tag">Coming soon</span>
+          </div>
+          <h3>Deep partnership</h3>
+          <p class="plan-card__price">$50<span>/mo</span></p>
+          <p class="plan-card__copy">
+            Reserved for heavier collaboration, higher limits, and faster access to custom roadmap work.
+          </p>
+          <ul class="plan-card__list">
+            <li>Everything in Founder</li>
+            <li>Higher AI and builder limits</li>
+            <li>Priority planning lane</li>
+          </ul>
+          <p class="plan-card__note">We are wiring live Builder billing now. Reach out and we will scope the right lane with you.</p>
+          <a
+            class="button button--ghost plan-card__action"
+            href="mailto:hello@3dvr.tech?subject=3DVR%20Portal%20%2450%20Builder%20Interest&body=I%27m%20interested%20in%20the%20%2450%2Fmonth%20Builder%20offer."
+          >
+            Ask about $50
+          </a>
+        </article>
+
+        <article class="plan-card plan-card--framed" data-offer-card="embedded">
+          <div class="plan-card__topline">
+            <p class="plan-card__eyebrow">Embedded</p>
+            <span class="plan-card__tag">Coming soon</span>
+          </div>
+          <h3>Dedicated execution lane</h3>
+          <p class="plan-card__price">$200<span>/mo</span></p>
+          <p class="plan-card__copy">
+            For teams that want a tighter operating loop: recurring execution help, faster unblock time, and direct
+            planning each month.
+          </p>
+          <ul class="plan-card__list">
+            <li>Everything in Builder</li>
+            <li>Reserved monthly sprint capacity</li>
+            <li>Direct roadmap and delivery support</li>
+          </ul>
+          <p class="plan-card__note">We are framing this lane now. For now we scope it directly before turning on billing.</p>
+          <a
+            class="button button--ghost plan-card__action"
+            href="mailto:hello@3dvr.tech?subject=3DVR%20Portal%20%24200%20Offer&body=I%27m%20interested%20in%20the%20%24200%2Fmonth%20offer."
+          >
+            Ask about $200
+          </a>
+        </article>
       </div>
     </section>
 
@@ -266,6 +286,6 @@
     </section>
   </main>
 
-  <script type="module" src="./app.js?v=20260319-billing-email-history"></script>
+  <script type="module" src="./app.js?v=20260323-billing-fast-path"></script>
 </body>
 </html>
