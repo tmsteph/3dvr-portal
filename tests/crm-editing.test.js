@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createCrmEditingManager, CRM_STATUS_OPTIONS } from '../crm/crm-editing.js';
+import {
+  createCrmEditingManager,
+  CRM_STATUS_OPTIONS,
+  CRM_MARKET_SEGMENT_OPTIONS,
+  CRM_PAIN_SEVERITY_OPTIONS,
+  CRM_PILOT_STATUS_OPTIONS,
+} from '../crm/crm-editing.js';
 
 describe('crm editing manager', () => {
   it('tracks editing ids with stable set semantics', () => {
@@ -42,8 +48,22 @@ describe('crm editing manager', () => {
   });
 });
 
-describe('crm status options', () => {
+describe('crm option sets', () => {
   it('provides the default CRM status labels', () => {
     assert.deepEqual(Array.from(CRM_STATUS_OPTIONS), ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost']);
+  });
+
+  it('provides the market segment, pain severity, and pilot status labels', () => {
+    assert.deepEqual(Array.from(CRM_MARKET_SEGMENT_OPTIONS), [
+      '',
+      'Owner-led service business',
+      'Creative studio or agency',
+      'Event or AV operator',
+      'Educator or community org',
+      'Local business with referrals',
+      'Independent builder or side-hustle',
+    ]);
+    assert.deepEqual(Array.from(CRM_PAIN_SEVERITY_OPTIONS), ['', 'Low', 'Medium', 'High', 'Critical']);
+    assert.deepEqual(Array.from(CRM_PILOT_STATUS_OPTIONS), ['', 'Watching', 'Warm', 'Pilot candidate', 'Pilot active', 'Customer', 'Not a fit']);
   });
 });

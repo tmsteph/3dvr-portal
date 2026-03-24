@@ -6,6 +6,7 @@ import {
 import { classifyPreviewHref } from './preview-guards.js';
 
 const gun = Gun({ peers: window.__GUN_PEERS__ || undefined });
+const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
 const workbenchRoot = portalRoot.get('ai-workbench');
 // Gun graph: 3dvr-portal/ai-workbench/defaults -> { apiKey, vercelToken, githubToken, ... }
@@ -53,9 +54,14 @@ let currentTitle = '';
 let currentSources = [];
 let currentSearchUsage = null;
 let generateStatusAnimationTimer = null;
+let billingStatusSyncPromise = null;
 
 const identityStorageKey = 'web-builder-identity';
 const sharedBillingTierStorageKey = 'portal-usage-tier';
+const billingEmailStorageKey = 'portal-billing-email';
+const billingEmailsStorageKey = 'portal-billing-emails';
+const billingCustomerIdStorageKey = 'portal-billing-customer-id';
+const billingStatusCacheStorageKey = 'portal-billing-status-cache';
 const userPubStorageKey = 'userPubKey';
 const openaiStorageKey = 'web-builder-openai';
 const vercelStorageKey = 'web-builder-vercel';
@@ -105,9 +111,11 @@ const previewFrame = document.getElementById('preview');
 const builderSources = document.getElementById('builder-sources');
 const outputBox = document.getElementById('output');
 
-const identityKey = resolveIdentity();
+let identityKey = resolveIdentity();
+recallBillingSession();
 
 hydrateStoredKeys();
+hydrateCachedBillingStatus();
 subscribeToDefaults();
 subscribeToBillingTier();
 subscribeToUsageCounters();
@@ -138,6 +146,20 @@ function resolveIdentity() {
   const generated = Gun.text.random();
   safeWrite(localStorage, identityStorageKey, generated);
   return generated;
+}
+
+function refreshIdentityScope() {
+  const nextIdentity = resolveIdentity();
+  if (!nextIdentity || nextIdentity === identityKey) {
+    renderIdentity();
+    return;
+  }
+
+  identityKey = nextIdentity;
+  subscribeToBillingTier();
+  subscribeToUsageCounters();
+  renderIdentity();
+  void syncBillingStatusFromStripe();
 }
 
 function aliasToDisplay(alias) {
@@ -332,6 +354,335 @@ function safeRemove(store, key) {
     return true;
   } catch (error) {
     return false;
+  }
+}
+
+
+function safeParseJson(raw) {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+}
+
+function readSharedValue(key) {
+  return safeRead(localStorage, key) || safeRead(sessionStorage, key);
+}
+
+function writeSharedValue(key, value) {
+  if (!value) {
+    safeRemove(localStorage, key);
+    safeRemove(sessionStorage, key);
+    return;
+  }
+
+  if (!safeWrite(localStorage, key, value)) {
+    safeWrite(sessionStorage, key, value);
+  }
+}
+
+function normalizeEmail(value = '') {
+  return String(value || '').trim().toLowerCase();
+}
+
+function sanitizeBillingEmail(value = '') {
+  const normalized = normalizeEmail(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : '';
+}
+
+function normalizeBillingEmailList(...values) {
+  const emails = [];
+  const seen = new Set();
+
+  function appendValue(value) {
+    if (Array.isArray(value)) {
+      value.forEach(appendValue);
+      return;
+    }
+
+    const normalized = sanitizeBillingEmail(value);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    emails.push(normalized);
+  }
+
+  values.forEach(appendValue);
+  return emails;
+}
+
+function resolveBillingAlias() {
+  return String(readSharedValue('alias') || '').trim();
+}
+
+function currentSessionPub() {
+  return String(user?._?.sea?.pub || user?.is?.pub || '').trim();
+}
+
+function hasConsistentSessionPub() {
+  const seaPub = String(user?._?.sea?.pub || '').trim();
+  const sessionPub = String(user?.is?.pub || '').trim();
+  if (!seaPub || !sessionPub) {
+    return true;
+  }
+  return seaPub === sessionPub;
+}
+
+function hasStoredPortalAccount() {
+  return readSharedValue('signedIn') === 'true' && Boolean(resolveBillingAlias());
+}
+
+function recallBillingSession() {
+  try {
+    user.recall({ sessionStorage: true, localStorage: true });
+  } catch (error) {
+    console.warn('Unable to recall Gun billing session', error);
+  }
+}
+
+async function waitForBillingSessionReady(timeoutMs = 2500) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const livePub = currentSessionPub();
+    if (livePub && user?._?.sea && hasConsistentSessionPub()) {
+      return true;
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 100));
+  }
+
+  return Boolean(currentSessionPub() && user?._?.sea && hasConsistentSessionPub());
+}
+
+async function restoreStoredBillingAuth({ forceReauth = false } = {}) {
+  const storedAlias = resolveBillingAlias();
+  const storedPassword = String(readSharedValue('password') || '').trim();
+  const storedPub = String(readSharedValue(userPubStorageKey) || '').trim();
+  const livePub = currentSessionPub();
+  const needsFreshAuth = Boolean(
+    storedAlias
+    && storedPassword
+    && (
+      forceReauth
+      || !livePub
+      || !user?._?.sea
+      || (storedPub && livePub && storedPub !== livePub)
+    )
+  );
+
+  if (!needsFreshAuth) {
+    return;
+  }
+
+  if ((forceReauth || livePub || user?._?.sea) && typeof user?.leave === 'function') {
+    try {
+      await Promise.resolve(user.leave());
+    } catch (error) {
+      console.warn('Unable to clear stale billing auth session', error);
+    }
+  }
+
+  const ack = await new Promise(resolve => {
+    user.auth(storedAlias, storedPassword, authAck => resolve(authAck || {}));
+  });
+
+  if (ack?.err) {
+    throw new Error(String(ack.err));
+  }
+
+  await waitForBillingSessionReady();
+}
+
+function hasVerifiedBillingSession() {
+  return Boolean(
+    hasStoredPortalAccount()
+    && currentSessionPub()
+    && user?._?.sea
+    && hasConsistentSessionPub()
+  );
+}
+
+function isBillingAuthErrorMessage(message = '') {
+  const normalized = String(message || '').trim().toLowerCase();
+  return normalized.includes('verify billing access')
+    || normalized.includes('refresh your portal sign-in')
+    || normalized.includes('sign in again before opening stripe billing');
+}
+
+async function buildBillingAuthPayload(action = 'status') {
+  if (!hasVerifiedBillingSession()) {
+    throw new Error('Refresh your portal sign-in before checking live billing.');
+  }
+
+  const livePub = currentSessionPub();
+  if (!Gun?.SEA || typeof Gun.SEA.sign !== 'function' || !user?._?.sea || !livePub) {
+    throw new Error('Refresh your portal sign-in before checking live billing.');
+  }
+
+  writeSharedValue(userPubStorageKey, livePub);
+  const authProof = await Gun.SEA.sign({
+    scope: 'stripe-billing',
+    action,
+    alias: resolveBillingAlias(),
+    pub: livePub,
+    origin: window.location.origin,
+    iat: Date.now()
+  }, user._.sea);
+
+  return {
+    authPub: livePub,
+    authProof,
+    portalAlias: resolveBillingAlias(),
+    portalPub: livePub
+  };
+}
+
+function readStoredBillingEmails() {
+  const raw = String(readSharedValue(billingEmailsStorageKey) || '').trim();
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    return normalizeBillingEmailList(JSON.parse(raw));
+  } catch (error) {
+    return normalizeBillingEmailList(raw);
+  }
+}
+
+function rememberBillingStatus(payload = {}) {
+  const billingEmails = normalizeBillingEmailList(
+    payload.billingEmails,
+    payload.emails,
+    payload.billingEmail,
+    payload.email,
+    readStoredBillingEmails(),
+    readSharedValue(billingEmailStorageKey)
+  );
+  const billingEmail = sanitizeBillingEmail(
+    payload.billingEmail || payload.email || readSharedValue(billingEmailStorageKey)
+  ) || billingEmails[0] || '';
+  const customerId = String(payload.customerId || '').trim();
+  const currentPlan = String(payload.currentPlan || payload.plan || '').trim().toLowerCase();
+  const nextTier = normalizeTier(payload.usageTier || currentPlan) || (currentPlan === 'free' ? 'account' : '');
+
+  writeSharedValue(
+    billingEmailsStorageKey,
+    billingEmails.length ? JSON.stringify(billingEmails) : ''
+  );
+  if (billingEmail) {
+    writeSharedValue(billingEmailStorageKey, billingEmail);
+  }
+  if (customerId) {
+    writeSharedValue(billingCustomerIdStorageKey, customerId);
+  }
+  if (payload && typeof payload === 'object') {
+    writeSharedValue(billingStatusCacheStorageKey, JSON.stringify({
+      ...payload,
+      cachedAt: Date.now()
+    }));
+  }
+
+  if (!nextTier) {
+    return;
+  }
+
+  currentUsageTier = nextTier;
+  writeSharedValue(sharedBillingTierStorageKey, nextTier);
+  writeSharedValue('openai-workbench-tier', nextTier);
+
+  const alias = resolveBillingAlias();
+  const livePub = currentSessionPub();
+  const tierRecord = {
+    tier: nextTier,
+    plan: currentPlan || (nextTier === 'account' ? 'free' : nextTier),
+    alias,
+    updatedAt: Date.now(),
+    source: 'stripe-status-sync'
+  };
+
+  if (alias) {
+    billingTierNode.get(alias).put(tierRecord);
+  }
+  if (livePub) {
+    billingTierNode.get(livePub).put(tierRecord);
+  }
+
+  renderIdentity();
+  updateSharedUsageStatus();
+}
+
+async function syncBillingStatusAttempt(forceReauth = false, retriedAuth = false) {
+  if (!hasStoredPortalAccount()) {
+    return null;
+  }
+
+  try {
+    if (forceReauth || !hasVerifiedBillingSession()) {
+      await restoreStoredBillingAuth({ forceReauth });
+    }
+
+    if (!hasVerifiedBillingSession()) {
+      return null;
+    }
+
+    const authPayload = await buildBillingAuthPayload('status');
+    const billingEmail = sanitizeBillingEmail(readSharedValue(billingEmailStorageKey));
+    const response = await fetch('/api/stripe/status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...authPayload,
+        customerId: String(readSharedValue(billingCustomerIdStorageKey) || '').trim(),
+        billingEmail,
+        billingEmails: normalizeBillingEmailList(billingEmail, readStoredBillingEmails()),
+        portalAlias: resolveBillingAlias(),
+        portalPub: authPayload.authPub
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || `Request failed (${response.status})`);
+    }
+
+    rememberBillingStatus(payload);
+    return payload;
+  } catch (error) {
+    if (!retriedAuth && isBillingAuthErrorMessage(error?.message)) {
+      return syncBillingStatusAttempt(true, true);
+    }
+
+    console.warn('Unable to sync live billing status for the web builder', error);
+    return null;
+  }
+}
+
+function syncBillingStatusFromStripe(options = {}) {
+  if (billingStatusSyncPromise) {
+    return billingStatusSyncPromise;
+  }
+
+  const { forceReauth = false } = options;
+  billingStatusSyncPromise = syncBillingStatusAttempt(forceReauth, false)
+    .finally(() => {
+      billingStatusSyncPromise = null;
+    });
+  return billingStatusSyncPromise;
+}
+
+function hydrateCachedBillingStatus() {
+  const cached = safeParseJson(readSharedValue(billingStatusCacheStorageKey));
+  if (cached && typeof cached === 'object') {
+    rememberBillingStatus(cached);
   }
 }
 
@@ -1306,7 +1657,19 @@ function wireEvents() {
 }
 
 window.addEventListener('storage', (event) => {
-  if (!event || ['signedIn', 'guest', 'alias', 'username', 'guestDisplayName'].includes(event.key)) {
-    renderIdentity();
+  if (!event || ['signedIn', 'guest', 'alias', 'username', 'guestDisplayName', userPubStorageKey].includes(event.key)) {
+    refreshIdentityScope();
+    void syncBillingStatusFromStripe();
   }
 });
+
+user.on('auth', () => {
+  const livePub = currentSessionPub();
+  if (livePub) {
+    writeSharedValue(userPubStorageKey, livePub);
+  }
+  refreshIdentityScope();
+  void syncBillingStatusFromStripe();
+});
+
+void syncBillingStatusFromStripe();

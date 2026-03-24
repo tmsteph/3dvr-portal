@@ -166,6 +166,11 @@ const vercelTokenStorageKey = 'vercel-token';
 const githubTokenStorageKey = 'github-token';
 const sessionKey = 'openai-workbench-session';
 const sharedBillingTierStorageKey = 'portal-usage-tier';
+const billingEmailStorageKey = 'portal-billing-email';
+const billingEmailsStorageKey = 'portal-billing-emails';
+const billingCustomerIdStorageKey = 'portal-billing-customer-id';
+const billingStatusCacheStorageKey = 'portal-billing-status-cache';
+const userPubStorageKey = 'userPubKey';
 const vaultAutoEnabledKey = 'vault-auto-enabled';
 const vaultRememberPassphraseKey = 'vault-remember-passphrase';
 const vaultAutoAliasKey = 'vault-auto-alias';
@@ -180,7 +185,7 @@ const defaultAutoLoadKey = 'openai-workbench-default-auto-load';
 const storedSession = storage.getItem(sessionKey);
 let sessionId = storedSession || Gun.text.random();
 storage.setItem(sessionKey, sessionId);
-let identityKey = sessionId;
+let identityKey = resolveStoredIdentityScope() || sessionId;
 let transcriptNode = workbenchRoot.get(identityKey).get('transcripts');
 let deploymentNode = workbenchRoot.get(identityKey).get('vercel');
 let githubNode = workbenchRoot.get(identityKey).get('github');
@@ -264,6 +269,7 @@ const developerPrompt = [
 let currentDefaultConfig = {};
 let subscriptionVersion = 0;
 let accountAlias = '';
+let billingStatusSyncPromise = null;
 const demoState = {
   prompt: 'Create a simple landing page for a VR coworking lounge with a hero, feature list, and contact button.',
   response: [
@@ -400,6 +406,304 @@ function parseStoredJson(raw) {
     return JSON.parse(raw);
   } catch (error) {
     return null;
+  }
+}
+
+
+function normalizeEmail(value = '') {
+  return String(value || '').trim().toLowerCase();
+}
+
+function sanitizeBillingEmail(value = '') {
+  const normalized = normalizeEmail(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : '';
+}
+
+function normalizeBillingEmailList(...values) {
+  const emails = [];
+  const seen = new Set();
+
+  function appendValue(value) {
+    if (Array.isArray(value)) {
+      value.forEach(appendValue);
+      return;
+    }
+
+    const normalized = sanitizeBillingEmail(value);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    emails.push(normalized);
+  }
+
+  values.forEach(appendValue);
+  return emails;
+}
+
+function readStoredBillingEmails() {
+  const raw = String(storage.getItem(billingEmailsStorageKey) || '').trim();
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    return normalizeBillingEmailList(JSON.parse(raw));
+  } catch (error) {
+    return normalizeBillingEmailList(raw);
+  }
+}
+
+function resolveBillingAlias() {
+  return String(accountAlias || readStoredIdentityScopeValue('alias') || '').trim();
+}
+
+function currentSessionPub() {
+  return String(user?._?.sea?.pub || user?.is?.pub || '').trim();
+}
+
+function hasConsistentSessionPub() {
+  const seaPub = String(user?._?.sea?.pub || '').trim();
+  const sessionPub = String(user?.is?.pub || '').trim();
+  if (!seaPub || !sessionPub) {
+    return true;
+  }
+  return seaPub === sessionPub;
+}
+
+async function waitForBillingSessionReady(timeoutMs = 2500) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const livePub = currentSessionPub();
+    if (livePub && user?._?.sea && hasConsistentSessionPub()) {
+      return true;
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 100));
+  }
+
+  return Boolean(currentSessionPub() && user?._?.sea && hasConsistentSessionPub());
+}
+
+function hasStoredPortalAccount() {
+  return readStoredIdentityScopeValue('signedIn') === 'true' && Boolean(resolveBillingAlias());
+}
+
+async function restoreStoredBillingAuth({ forceReauth = false } = {}) {
+  const storedAlias = String(readStoredIdentityScopeValue('alias') || '').trim();
+  const storedPassword = String(readStoredIdentityScopeValue('password') || '').trim();
+  const storedPub = String(readStoredIdentityScopeValue(userPubStorageKey) || '').trim();
+  const livePub = currentSessionPub();
+  const needsFreshAuth = Boolean(
+    storedAlias
+    && storedPassword
+    && (
+      forceReauth
+      || !livePub
+      || !user?._?.sea
+      || (storedPub && livePub && storedPub !== livePub)
+    )
+  );
+
+  if (!needsFreshAuth) {
+    return;
+  }
+
+  if ((forceReauth || livePub || user?._?.sea) && typeof user?.leave === 'function') {
+    try {
+      await Promise.resolve(user.leave());
+    } catch (error) {
+      console.warn('Unable to clear stale billing auth session', error);
+    }
+  }
+
+  const ack = await new Promise(resolve => {
+    user.auth(storedAlias, storedPassword, authAck => resolve(authAck || {}));
+  });
+
+  if (ack?.err) {
+    throw new Error(String(ack.err));
+  }
+
+  await waitForBillingSessionReady();
+}
+
+function hasVerifiedBillingSession() {
+  const livePub = currentSessionPub();
+  return Boolean(
+    hasStoredPortalAccount()
+    && livePub
+    && user?._?.sea
+    && hasConsistentSessionPub()
+  );
+}
+
+function isBillingAuthErrorMessage(message = '') {
+  const normalized = String(message || '').trim().toLowerCase();
+  return normalized.includes('verify billing access')
+    || normalized.includes('refresh your portal sign-in')
+    || normalized.includes('sign in again before opening stripe billing');
+}
+
+async function buildBillingAuthPayload(action = 'status') {
+  if (!hasVerifiedBillingSession()) {
+    throw new Error('Refresh your portal sign-in before checking live billing.');
+  }
+
+  const livePub = currentSessionPub();
+  const alias = resolveBillingAlias();
+  if (!Gun?.SEA || typeof Gun.SEA.sign !== 'function' || !user?._?.sea || !livePub) {
+    throw new Error('Refresh your portal sign-in before checking live billing.');
+  }
+
+  storage.setItem(userPubStorageKey, livePub);
+  const authProof = await Gun.SEA.sign({
+    scope: 'stripe-billing',
+    action,
+    alias,
+    pub: livePub,
+    origin: window.location.origin,
+    iat: Date.now()
+  }, user._.sea);
+
+  return {
+    authPub: livePub,
+    authProof,
+    portalAlias: alias,
+    portalPub: livePub
+  };
+}
+
+function rememberBillingStatus(payload = {}) {
+  const billingEmails = normalizeBillingEmailList(
+    payload.billingEmails,
+    payload.emails,
+    payload.billingEmail,
+    payload.email,
+    readStoredBillingEmails(),
+    storage.getItem(billingEmailStorageKey)
+  );
+  const billingEmail = sanitizeBillingEmail(
+    payload.billingEmail || payload.email || storage.getItem(billingEmailStorageKey)
+  ) || billingEmails[0] || '';
+  const customerId = String(payload.customerId || '').trim();
+  const currentPlan = String(payload.currentPlan || payload.plan || '').trim().toLowerCase();
+  const nextTier = normalizeTier(payload.usageTier || currentPlan) || (currentPlan === 'free' ? 'account' : '');
+
+  if (billingEmails.length) {
+    storage.setItem(billingEmailsStorageKey, JSON.stringify(billingEmails));
+  } else {
+    storage.removeItem(billingEmailsStorageKey);
+  }
+
+  if (billingEmail) {
+    storage.setItem(billingEmailStorageKey, billingEmail);
+  }
+
+  if (customerId) {
+    storage.setItem(billingCustomerIdStorageKey, customerId);
+  }
+
+  if (payload && typeof payload === 'object') {
+    storage.setItem(billingStatusCacheStorageKey, JSON.stringify({
+      ...payload,
+      cachedAt: Date.now()
+    }));
+  }
+
+  if (!nextTier) {
+    return;
+  }
+
+  currentUsageTier = nextTier;
+  storage.setItem('openai-workbench-tier', nextTier);
+  storage.setItem(sharedBillingTierStorageKey, nextTier);
+
+  const alias = resolveBillingAlias();
+  const livePub = currentSessionPub();
+  const tierRecord = {
+    tier: nextTier,
+    plan: currentPlan || (nextTier === 'account' ? 'free' : nextTier),
+    alias,
+    updatedAt: Date.now(),
+    source: 'stripe-status-sync'
+  };
+
+  if (alias) {
+    billingTierNode.get(alias).put(tierRecord);
+  }
+  if (livePub) {
+    billingTierNode.get(livePub).put(tierRecord);
+  }
+
+  updateSharedUsageStatus();
+}
+
+async function syncBillingStatusAttempt(forceReauth = false, retriedAuth = false) {
+  if (!hasStoredPortalAccount()) {
+    return null;
+  }
+
+  try {
+    if (forceReauth || !hasVerifiedBillingSession()) {
+      await restoreStoredBillingAuth({ forceReauth });
+    }
+
+    if (!hasVerifiedBillingSession()) {
+      return null;
+    }
+
+    const authPayload = await buildBillingAuthPayload('status');
+    const billingEmail = sanitizeBillingEmail(storage.getItem(billingEmailStorageKey));
+    const response = await fetch('/api/stripe/status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...authPayload,
+        customerId: String(storage.getItem(billingCustomerIdStorageKey) || '').trim(),
+        billingEmail,
+        billingEmails: normalizeBillingEmailList(billingEmail, readStoredBillingEmails()),
+        portalAlias: resolveBillingAlias(),
+        portalPub: authPayload.authPub
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || `Request failed (${response.status})`);
+    }
+
+    rememberBillingStatus(payload);
+    return payload;
+  } catch (error) {
+    if (!retriedAuth && isBillingAuthErrorMessage(error?.message)) {
+      return syncBillingStatusAttempt(true, true);
+    }
+
+    console.warn('Unable to sync live billing status for the workbench', error);
+    return null;
+  }
+}
+
+function syncBillingStatusFromStripe(options = {}) {
+  if (billingStatusSyncPromise) {
+    return billingStatusSyncPromise;
+  }
+
+  const { forceReauth = false } = options;
+  billingStatusSyncPromise = syncBillingStatusAttempt(forceReauth, false)
+    .finally(() => {
+      billingStatusSyncPromise = null;
+    });
+  return billingStatusSyncPromise;
+}
+
+function hydrateCachedBillingStatus() {
+  const cached = parseStoredJson(storage.getItem(billingStatusCacheStorageKey));
+  if (cached && typeof cached === 'object') {
+    rememberBillingStatus(cached);
   }
 }
 
@@ -739,6 +1043,42 @@ function updateAccountStatus(message) {
   if (accountStatus) {
     accountStatus.textContent = message;
   }
+}
+
+function readStoredIdentityScopeValue(key) {
+  try {
+    const localValue = localStorage.getItem(key);
+    if (localValue) {
+      return String(localValue).trim();
+    }
+  } catch (error) {
+    // ignore blocked localStorage access
+  }
+
+  try {
+    const sessionValue = sessionStorage.getItem(key);
+    if (sessionValue) {
+      return String(sessionValue).trim();
+    }
+  } catch (error) {
+    // ignore blocked sessionStorage access
+  }
+
+  return '';
+}
+
+function resolveStoredIdentityScope() {
+  const storedPub = readStoredIdentityScopeValue(userPubStorageKey);
+  if (storedPub) {
+    return storedPub;
+  }
+
+  const storedAlias = readStoredIdentityScopeValue('alias');
+  if (storedAlias) {
+    return storedAlias;
+  }
+
+  return '';
 }
 
 function setIdentityScope(key) {
@@ -2407,8 +2747,16 @@ vaultLoadBtn?.addEventListener('click', loadKeyFromVault);
 vaultSaveAllBtn?.addEventListener('click', saveAllKeysToVault);
 vaultLoadAllBtn?.addEventListener('click', loadAllVaultSecrets);
 
+window.addEventListener('storage', (event) => {
+  if (!event || ['signedIn', 'guest', 'alias', 'username', 'guestDisplayName', userPubStorageKey].includes(event.key)) {
+    setIdentityScope(resolveStoredIdentityScope() || sessionId);
+    void syncBillingStatusFromStripe();
+  }
+});
+
 restoreAutoVaultPreferences();
 restoreDefaultPreferences();
+hydrateCachedBillingStatus();
 
 recallUserSession();
 subscribeToDefaults();
@@ -2416,6 +2764,7 @@ resetUsageTracking();
 user.on('auth', async () => {
   const pub = user?.is?.pub;
   if (pub) {
+    storage.setItem(userPubStorageKey, pub);
     setIdentityScope(pub);
   }
   user.get('alias').once((value) => {
@@ -2427,6 +2776,7 @@ user.on('auth', async () => {
   });
   await syncCachedSecretsToAccount();
   hydrateAccountSecrets();
+  void syncBillingStatusFromStripe();
 });
 attemptStoredAuth();
 
@@ -2444,3 +2794,4 @@ maybeAutoLoadVaultSecret();
 startHistorySubscription();
 startDeploymentSubscription();
 startGithubSubscription();
+void syncBillingStatusFromStripe();

@@ -88,6 +88,7 @@
         <div class="mt-4 flex flex-wrap gap-2">
           <a href="../contacts/index.html" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded">Open contacts</a>
           <a href="../sales/training/" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded">Review training</a>
+          <a href="../roadmap/march-april/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded">Sprint plan</a>
         </div>
       </div>
       <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
@@ -101,6 +102,24 @@
           <div class="bg-gray-900/60 border border-white/5 rounded-lg py-3">
             <div class="text-2xl font-semibold" id="visibleCount">0</div>
             <div>Visible now</div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5 md:col-span-2">
+        <h2 class="text-lg font-semibold mb-2">Market-fit lens</h2>
+        <p class="text-sm text-gray-300">Every record should answer three things: who this person is, what repeated pain they feel, and whether they should become a pilot.</p>
+        <div class="mt-4 grid gap-3 text-sm text-gray-300 md:grid-cols-3">
+          <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3">
+            <p class="text-xs uppercase tracking-[0.28em] text-sky-300">Who</p>
+            <p class="mt-2">Owner-led service businesses, creative operators, local teams, and people already in your reach.</p>
+          </div>
+          <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3">
+            <p class="text-xs uppercase tracking-[0.28em] text-sky-300">Pain</p>
+            <p class="mt-2">Unclear offer, weak homepage, scattered contacts, and missed follow-up are the first pains to score.</p>
+          </div>
+          <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3">
+            <p class="text-xs uppercase tracking-[0.28em] text-sky-300">Pilot</p>
+            <p class="mt-2">Use pilot status, offer amount, and next experiment to decide who gets active time this week.</p>
           </div>
         </div>
       </div>
@@ -150,20 +169,20 @@
           <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
           <input type="text" id="company" placeholder="Company" class="w-full p-2 rounded text-black" />
           <input type="text" id="phone" placeholder="Phone" class="w-full p-2 rounded text-black" />
-          <input type="text" id="role" placeholder="Role (client, lead...)" class="w-full p-2 rounded text-black" />
+          <input type="text" id="role" placeholder="Role (owner, manager, lead...)" class="w-full p-2 rounded text-black" />
           <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
-          <select id="status" class="w-full p-2 rounded text-black">
-            <option value="">Status (optional)</option>
-            <option>Lead</option>
-            <option>Prospect</option>
-            <option>Active</option>
-            <option>Negotiating</option>
-            <option>Won</option>
-            <option>Lost</option>
-          </select>
+          <select id="status" class="w-full p-2 rounded text-black"></select>
           <input type="date" id="nextFollowUp" class="w-full p-2 rounded text-black" />
+          <select id="marketSegment" class="w-full p-2 rounded text-black"></select>
+          <input type="text" id="primaryPain" placeholder="Primary pain" class="w-full p-2 rounded text-black" />
+          <select id="painSeverity" class="w-full p-2 rounded text-black"></select>
+          <input type="text" id="currentWorkaround" placeholder="Current workaround" class="w-full p-2 rounded text-black" />
+          <select id="pilotStatus" class="w-full p-2 rounded text-black"></select>
+          <input type="text" id="offerAmount" placeholder="Offer / pilot amount" class="w-full p-2 rounded text-black" />
+          <input type="text" id="lastSignal" placeholder="Last signal" class="w-full p-2 rounded text-black" />
+          <input type="text" id="nextExperiment" placeholder="Next experiment" class="w-full p-2 rounded text-black" />
         </div>
-        <textarea id="notes" placeholder="Notes" class="w-full p-2 rounded text-black"></textarea>
+        <textarea id="notes" placeholder="Notes and context" class="w-full p-2 rounded text-black"></textarea>
         <div class="flex gap-2">
           <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save</button>
           <button type="button" id="cancelCrmCreate" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
@@ -252,6 +271,9 @@
         };
       })();
     const CRM_STATUS_OPTIONS = window.crmEditing?.CRM_STATUS_OPTIONS || ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost'];
+    const CRM_MARKET_SEGMENT_OPTIONS = window.crmEditing?.CRM_MARKET_SEGMENT_OPTIONS || [''];
+    const CRM_PAIN_SEVERITY_OPTIONS = window.crmEditing?.CRM_PAIN_SEVERITY_OPTIONS || ['', 'Low', 'Medium', 'High', 'Critical'];
+    const CRM_PILOT_STATUS_OPTIONS = window.crmEditing?.CRM_PILOT_STATUS_OPTIONS || ['', 'Watching', 'Warm', 'Pilot candidate', 'Pilot active', 'Customer', 'Not a fit'];
     const CONTACT_BUTTON_ADD_LABEL = 'Add to contacts';
     const CONTACT_BUTTON_OPEN_LABEL = 'Open in contacts';
     const form = document.getElementById('contactForm');
@@ -287,6 +309,21 @@
     const touchLogIndex = new Map();
     const WEEKLY_CHALLENGE_GOAL = 3;
     const participantId = getParticipantId();
+
+    function renderSelectOptions(options, selectedValue = '', placeholderLabel = 'Select') {
+      return (Array.isArray(options) ? options : []).map(option => {
+        const value = option || '';
+        const label = value || placeholderLabel;
+        const selected = selectedValue === value ? 'selected' : '';
+        return `<option value="${safeAttr(value)}" ${selected}>${safe(label)}</option>`;
+      }).join('');
+    }
+
+    function populateCreateSelect(selectId, options, placeholderLabel) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      select.innerHTML = renderSelectOptions(options, '', placeholderLabel);
+    }
 
     function sanitizeRecord(data) {
       if (!data || typeof data !== 'object') return {};
@@ -340,6 +377,11 @@
       }
       return raw;
     }
+
+    populateCreateSelect('status', CRM_STATUS_OPTIONS, 'Status (optional)');
+    populateCreateSelect('marketSegment', CRM_MARKET_SEGMENT_OPTIONS, 'Market segment');
+    populateCreateSelect('painSeverity', CRM_PAIN_SEVERITY_OPTIONS, 'Pain severity');
+    populateCreateSelect('pilotStatus', CRM_PILOT_STATUS_OPTIONS, 'Pilot status');
 
     function getContactButtonLabel(record, id) {
       return findContactInWorkspace(record, id)
@@ -686,6 +728,14 @@
         tags: getFieldValue('tags'),
         status: getFieldValue('status'),
         nextFollowUp: getFieldValue('nextFollowUp'),
+        marketSegment: getFieldValue('marketSegment'),
+        primaryPain: getFieldValue('primaryPain'),
+        painSeverity: getFieldValue('painSeverity'),
+        currentWorkaround: getFieldValue('currentWorkaround'),
+        pilotStatus: getFieldValue('pilotStatus'),
+        offerAmount: getFieldValue('offerAmount'),
+        lastSignal: getFieldValue('lastSignal'),
+        nextExperiment: getFieldValue('nextExperiment'),
         notes: getFieldValue('notes'),
         lastContacted: '',
         activityCount: 0,
@@ -794,7 +844,7 @@
     }
 
     function crmDuplicateCompletenessScore(record) {
-      const fields = ['email', 'phone', 'company', 'role', 'tags', 'status', 'notes'];
+      const fields = ['email', 'phone', 'company', 'role', 'tags', 'status', 'notes', 'marketSegment', 'primaryPain', 'pilotStatus'];
       return fields.reduce((score, field) => {
         if (record[field]) score += 1;
         return score;
@@ -814,6 +864,24 @@
       const updatedValue = stamp ? `Updated: ${new Date(stamp).toLocaleString()}` : 'Updated: —';
       const statusBadge = record.status ? `<span class="text-xs px-2 py-0.5 rounded bg-emerald-700/60 border border-emerald-400/30">${safe(record.status)}</span>` : '';
       const followUp = record.nextFollowUp ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/30">Follow-up ${safe(record.nextFollowUp)}</span>` : '';
+      const marketFitBadges = [
+        record.marketSegment,
+        record.painSeverity ? `Pain ${record.painSeverity}` : '',
+        record.pilotStatus ? `Pilot ${record.pilotStatus}` : '',
+        record.offerAmount ? `Offer ${record.offerAmount}` : '',
+      ].filter(Boolean);
+      const marketFitBadgeHtml = marketFitBadges.length
+        ? `<div class="flex flex-wrap gap-1">${marketFitBadges.map(item => `<span class="text-xs px-2 py-0.5 rounded bg-sky-950/80 border border-sky-400/30 text-sky-100">${safe(item)}</span>`).join('')}</div>`
+        : '';
+      const marketFitSummary = [
+        record.primaryPain ? `Pain: ${record.primaryPain}` : '',
+        record.currentWorkaround ? `Workaround: ${record.currentWorkaround}` : '',
+        record.lastSignal ? `Last signal: ${record.lastSignal}` : '',
+        record.nextExperiment ? `Next: ${record.nextExperiment}` : '',
+      ].filter(Boolean).join(' · ');
+      const marketFitText = marketFitSummary
+        ? `<p class="text-xs text-sky-100/90 bg-sky-950/40 border border-sky-400/15 rounded-lg p-3">${safe(marketFitSummary)}</p>`
+        : '';
       const contactHint = record.email || record.name || '';
       const contactMatch = findContactInWorkspace(record, id);
       const buttonLabel = safe(getContactButtonLabel(record, id));
@@ -829,7 +897,24 @@
         ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/40 text-amber-50">Duplicates ×${safe(duplicateInfo.total)}</span>`
         : '';
       const duplicateSection = duplicateInfo ? renderCrmDuplicateSection(record, duplicateInfo) : '';
-      const haystackParts = [record.name, record.email, record.company, record.phone, record.role, record.tags, record.status, record.notes];
+      const haystackParts = [
+        record.name,
+        record.email,
+        record.company,
+        record.phone,
+        record.role,
+        record.tags,
+        record.status,
+        record.notes,
+        record.marketSegment,
+        record.primaryPain,
+        record.painSeverity,
+        record.currentWorkaround,
+        record.pilotStatus,
+        record.offerAmount,
+        record.lastSignal,
+        record.nextExperiment,
+      ];
       if (duplicateInfo) {
         duplicateInfo.records.forEach(item => {
           if (item.id !== id) {
@@ -850,6 +935,8 @@
               </div>
               <p class="text-sm text-gray-300">${emailLink}${companyText}${roleText}${phoneLink ? ` · ${phoneLink}` : ''}</p>
               ${tagsText}
+              ${marketFitBadgeHtml}
+              ${marketFitText}
               ${notesText}
               <div class="grid gap-1 text-xs text-gray-400 sm:grid-cols-2">
                 <div>Last contacted: ${record.lastContacted ? safe(timeAgo(record.lastContacted)) : '—'}</div>
@@ -873,7 +960,24 @@
 
     function renderCrmEditForm(record) {
       const id = record.id;
-      const haystack = [record.name, record.email, record.company, record.phone, record.role, record.tags, record.status, record.notes]
+      const haystack = [
+        record.name,
+        record.email,
+        record.company,
+        record.phone,
+        record.role,
+        record.tags,
+        record.status,
+        record.notes,
+        record.marketSegment,
+        record.primaryPain,
+        record.painSeverity,
+        record.currentWorkaround,
+        record.pilotStatus,
+        record.offerAmount,
+        record.lastSignal,
+        record.nextExperiment,
+      ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
@@ -888,9 +992,23 @@
               <input id="edit-role-${safeAttr(id)}" value="${safeAttr(record.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
               <input id="edit-tags-${safeAttr(id)}" value="${safeAttr(record.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
               <select id="edit-status-${safeAttr(id)}" class="w-full p-2 rounded text-black">
-                ${CRM_STATUS_OPTIONS.map(status => `<option value="${safeAttr(status)}" ${((record.status || '') === status) ? 'selected' : ''}>${status || 'Status (optional)'}</option>`).join('')}
+                ${renderSelectOptions(CRM_STATUS_OPTIONS, record.status || '', 'Status (optional)')}
               </select>
               <input id="edit-next-${safeAttr(id)}" type="date" value="${safeAttr((record.nextFollowUp || '').slice(0, 10))}" class="w-full p-2 rounded text-black" />
+              <select id="edit-marketSegment-${safeAttr(id)}" class="w-full p-2 rounded text-black">
+                ${renderSelectOptions(CRM_MARKET_SEGMENT_OPTIONS, record.marketSegment || '', 'Market segment')}
+              </select>
+              <input id="edit-primaryPain-${safeAttr(id)}" value="${safeAttr(record.primaryPain)}" placeholder="Primary pain" class="w-full p-2 rounded text-black" />
+              <select id="edit-painSeverity-${safeAttr(id)}" class="w-full p-2 rounded text-black">
+                ${renderSelectOptions(CRM_PAIN_SEVERITY_OPTIONS, record.painSeverity || '', 'Pain severity')}
+              </select>
+              <input id="edit-currentWorkaround-${safeAttr(id)}" value="${safeAttr(record.currentWorkaround)}" placeholder="Current workaround" class="w-full p-2 rounded text-black" />
+              <select id="edit-pilotStatus-${safeAttr(id)}" class="w-full p-2 rounded text-black">
+                ${renderSelectOptions(CRM_PILOT_STATUS_OPTIONS, record.pilotStatus || '', 'Pilot status')}
+              </select>
+              <input id="edit-offerAmount-${safeAttr(id)}" value="${safeAttr(record.offerAmount)}" placeholder="Offer / pilot amount" class="w-full p-2 rounded text-black" />
+              <input id="edit-lastSignal-${safeAttr(id)}" value="${safeAttr(record.lastSignal)}" placeholder="Last signal" class="w-full p-2 rounded text-black" />
+              <input id="edit-nextExperiment-${safeAttr(id)}" value="${safeAttr(record.nextExperiment)}" placeholder="Next experiment" class="w-full p-2 rounded text-black" />
             </div>
             <textarea id="edit-notes-${safeAttr(id)}" class="w-full p-2 rounded text-black" placeholder="Notes">${safe(record.notes)}</textarea>
             <div class="flex gap-2">
@@ -1260,6 +1378,14 @@
         tags: document.getElementById(`edit-tags-${id}`).value.trim(),
         status: document.getElementById(`edit-status-${id}`).value.trim(),
         nextFollowUp: document.getElementById(`edit-next-${id}`).value.trim(),
+        marketSegment: document.getElementById(`edit-marketSegment-${id}`).value.trim(),
+        primaryPain: document.getElementById(`edit-primaryPain-${id}`).value.trim(),
+        painSeverity: document.getElementById(`edit-painSeverity-${id}`).value.trim(),
+        currentWorkaround: document.getElementById(`edit-currentWorkaround-${id}`).value.trim(),
+        pilotStatus: document.getElementById(`edit-pilotStatus-${id}`).value.trim(),
+        offerAmount: document.getElementById(`edit-offerAmount-${id}`).value.trim(),
+        lastSignal: document.getElementById(`edit-lastSignal-${id}`).value.trim(),
+        nextExperiment: document.getElementById(`edit-nextExperiment-${id}`).value.trim(),
         notes: document.getElementById(`edit-notes-${id}`).value.trim(),
         updated: now,
         created: current.created || created || now
@@ -1601,6 +1727,14 @@
 
       const metaRows = [
         ['Status', record.status || '—'],
+        ['Market segment', record.marketSegment || '—'],
+        ['Primary pain', record.primaryPain || '—'],
+        ['Pain severity', record.painSeverity || '—'],
+        ['Current workaround', record.currentWorkaround || '—'],
+        ['Pilot status', record.pilotStatus || '—'],
+        ['Offer amount', record.offerAmount || '—'],
+        ['Last signal', record.lastSignal || '—'],
+        ['Next experiment', record.nextExperiment || '—'],
         ['Next follow-up', record.nextFollowUp || '—'],
         ['Last contacted', record.lastContacted ? `${timeAgo(record.lastContacted)} · ${new Date(record.lastContacted).toLocaleString()}` : '—'],
         ['Touches', typeof record.activityCount === 'number' ? record.activityCount : 0],
