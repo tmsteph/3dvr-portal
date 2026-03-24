@@ -489,6 +489,35 @@
       });
       actions.appendChild(edit);
 
+      if (key === 'trustedReviewers') {
+        const addLead = document.createElement('button');
+        addLead.type = 'button';
+        addLead.className = 'mini-button mini-button--ghost mini-button--small';
+        addLead.textContent = 'Add lead';
+        addLead.addEventListener('click', () => {
+          handleTrustedReviewerAction(addLead, item, 'person');
+        });
+        actions.appendChild(addLead);
+
+        const addGroup = document.createElement('button');
+        addGroup.type = 'button';
+        addGroup.className = 'mini-button mini-button--ghost mini-button--small';
+        addGroup.textContent = 'Add group';
+        addGroup.addEventListener('click', () => {
+          handleTrustedReviewerAction(addGroup, item, 'group');
+        });
+        actions.appendChild(addGroup);
+
+        const addContact = document.createElement('button');
+        addContact.type = 'button';
+        addContact.className = 'mini-button mini-button--ghost mini-button--small';
+        addContact.textContent = 'Contacts';
+        addContact.addEventListener('click', () => {
+          handleTrustedReviewerAction(addContact, item, 'contact');
+        });
+        actions.appendChild(addContact);
+      }
+
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'mini-button mini-button--ghost mini-button--small';
@@ -524,6 +553,149 @@
   function parseEntryDraft(key, rawValue) {
     const allowCommas = key === 'trustedReviewers';
     return splitInputItems(rawValue, { allowCommas });
+  }
+
+  function setWorksheetStatus(message) {
+    if (summaryStatus) {
+      summaryStatus.textContent = message;
+    }
+  }
+
+  function parseReviewerEntry(value) {
+    const raw = normalizeItem(value);
+    const emailMatch = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    const email = emailMatch ? emailMatch[0].trim() : '';
+    let name = raw;
+    if (email) {
+      name = raw
+        .replace(email, ' ')
+        .replace(/[<>()[\]-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    if (!name && email) {
+      name = email.split('@')[0];
+    }
+    return { raw, name: name || raw, email };
+  }
+
+  function generateEntryId(prefix) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function writeGunRecord(node, payload) {
+    return new Promise((resolve, reject) => {
+      if (!node || typeof node.get !== 'function') {
+        reject(new Error('gun-unavailable'));
+        return;
+      }
+      node.get(payload.id).put(payload, (ack) => {
+        if (ack && ack.err) {
+          reject(new Error(String(ack.err)));
+          return;
+        }
+        resolve(payload);
+      });
+    });
+  }
+
+  function createReviewerCrmPayload(item, recordType = 'person') {
+    const parsed = parseReviewerEntry(item);
+    const now = new Date().toISOString();
+    if (recordType === 'group') {
+      return {
+        id: generateEntryId('group'),
+        recordType: 'group',
+        name: parsed.name,
+        tags: 'trusted reviewer, worksheet',
+        status: 'Lead',
+        notes: `Captured from the Week 1 trusted reviewers list.
+
+Original entry: ${parsed.raw}`,
+        source: 'Roadmap Week 1 worksheet',
+        created: now,
+        updated: now
+      };
+    }
+
+    return {
+      id: generateEntryId('lead'),
+      contactId: '',
+      recordType: 'person',
+      name: parsed.name,
+      email: parsed.email,
+      tags: 'trusted reviewer, worksheet',
+      status: 'Lead',
+      notes: `Captured from the Week 1 trusted reviewers list.
+
+Original entry: ${parsed.raw}`,
+      source: 'Roadmap Week 1 worksheet',
+      created: now,
+      updated: now,
+      lastContacted: '',
+      activityCount: 0
+    };
+  }
+
+  function createReviewerContactPayload(item) {
+    const parsed = parseReviewerEntry(item);
+    const now = new Date().toISOString();
+    return {
+      id: generateEntryId('contact'),
+      name: parsed.name,
+      email: parsed.email,
+      tags: 'trusted reviewer, worksheet',
+      notes: `Captured from the Week 1 trusted reviewers list.
+
+Original entry: ${parsed.raw}`,
+      source: 'Roadmap Week 1 worksheet',
+      created: now,
+      updated: now,
+      lastContacted: '',
+      activityCount: 0
+    };
+  }
+
+  async function handleTrustedReviewerAction(button, item, action) {
+    if (!gunContext || gunContext.isStub || !gunContext.gun || typeof gunContext.gun.get !== 'function') {
+      setWorksheetStatus('Gun is unavailable in this browser. Open CRM or contacts manually.');
+      return;
+    }
+
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Saving…';
+
+    try {
+      let payload = null;
+      let node = null;
+      let successMessage = '';
+      if (action === 'group') {
+        payload = createReviewerCrmPayload(item, 'group');
+        node = gunContext.gun.get('3dvr-crm');
+        successMessage = `Added ${payload.name} to CRM as a group.`;
+      } else if (action === 'contact') {
+        payload = createReviewerContactPayload(item);
+        node = gunContext.gun.get('org-3dvr-demo');
+        successMessage = `Added ${payload.name} to shared contacts.`;
+      } else {
+        payload = createReviewerCrmPayload(item, 'person');
+        node = gunContext.gun.get('3dvr-crm');
+        successMessage = `Added ${payload.name} to CRM as a lead.`;
+      }
+
+      await writeGunRecord(node, payload);
+      setWorksheetStatus(successMessage);
+    } catch (err) {
+      console.warn('Unable to push reviewer into portal workspace', err);
+      setWorksheetStatus('Save failed. Try again or open CRM / contacts directly.');
+    } finally {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
   }
 
   function submitEntry(key) {

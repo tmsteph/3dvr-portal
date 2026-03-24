@@ -6,6 +6,11 @@ import {
   CRM_MARKET_SEGMENT_OPTIONS,
   CRM_PAIN_SEVERITY_OPTIONS,
   CRM_PILOT_STATUS_OPTIONS,
+  CRM_RECORD_TYPE_OPTIONS,
+  normalizeCrmRecordType,
+  parseCrmList,
+  sanitizeCrmRecord,
+  buildCrmRelationshipBoard,
 } from '../crm/crm-editing.js';
 
 describe('crm editing manager', () => {
@@ -34,8 +39,6 @@ describe('crm editing manager', () => {
       { record: recordA, editing: false },
       { record: recordB, editing: true },
     ]);
-
-    // ensure the original record objects are preserved
     assert.equal(marked[1].record, recordB);
   });
 
@@ -53,7 +56,7 @@ describe('crm option sets', () => {
     assert.deepEqual(Array.from(CRM_STATUS_OPTIONS), ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost']);
   });
 
-  it('provides the market segment, pain severity, and pilot status labels', () => {
+  it('provides the market segment, pain severity, pilot status, and record type labels', () => {
     assert.deepEqual(Array.from(CRM_MARKET_SEGMENT_OPTIONS), [
       '',
       'Owner-led service business',
@@ -65,5 +68,51 @@ describe('crm option sets', () => {
     ]);
     assert.deepEqual(Array.from(CRM_PAIN_SEVERITY_OPTIONS), ['', 'Low', 'Medium', 'High', 'Critical']);
     assert.deepEqual(Array.from(CRM_PILOT_STATUS_OPTIONS), ['', 'Watching', 'Warm', 'Pilot candidate', 'Pilot active', 'Customer', 'Not a fit']);
+    assert.deepEqual(Array.from(CRM_RECORD_TYPE_OPTIONS), [
+      { value: 'person', label: 'Person / lead' },
+      { value: 'group', label: 'Group / account' },
+      { value: 'problem', label: 'Problem / pain' },
+    ]);
+  });
+});
+
+describe('crm relationship helpers', () => {
+  it('normalizes record types and list fields', () => {
+    assert.equal(normalizeCrmRecordType('GROUP'), 'group');
+    assert.equal(normalizeCrmRecordType('problem'), 'problem');
+    assert.equal(normalizeCrmRecordType('anything-else'), 'person');
+    assert.deepEqual(parseCrmList('alpha, beta\nalpha'), ['alpha', 'beta']);
+    assert.deepEqual(sanitizeCrmRecord({
+      id: 'p-1',
+      recordType: 'Problem',
+      groupId: '  g-1  ',
+      linkedGroupIds: ['g-1', 'g-1', 'g-2'],
+      linkedPersonIds: 'p-1, p-2',
+    }), {
+      id: 'p-1',
+      recordType: 'problem',
+      groupId: 'g-1',
+      linkedGroupIds: 'g-1, g-2',
+      linkedPersonIds: 'p-1, p-2',
+    });
+  });
+
+  it('builds group, people, and problem relationships for the CRM pipeline', () => {
+    const board = buildCrmRelationshipBoard([
+      { id: 'group-a', recordType: 'group', name: 'Acme Studio', updated: '2026-03-24T10:00:00.000Z' },
+      { id: 'person-a', recordType: 'person', name: 'Ava', groupId: 'group-a', updated: '2026-03-24T11:00:00.000Z' },
+      { id: 'person-b', recordType: 'person', name: 'Ben', updated: '2026-03-24T09:00:00.000Z' },
+      { id: 'problem-a', recordType: 'problem', name: 'Missed follow-up', linkedGroupIds: 'group-a', linkedPersonIds: 'person-a', updated: '2026-03-24T12:00:00.000Z' },
+      { id: 'problem-b', recordType: 'problem', name: 'Weak homepage', linkedPersonIds: 'person-b', updated: '2026-03-24T08:00:00.000Z' },
+    ]);
+
+    assert.equal(board.groups.length, 1);
+    assert.equal(board.groups[0].group.id, 'group-a');
+    assert.deepEqual(board.groups[0].members.map(record => record.id), ['person-a']);
+    assert.deepEqual(board.groups[0].linkedProblems.map(record => record.id), ['problem-a']);
+    assert.deepEqual(board.standalonePeople.map(record => record.id), ['person-b']);
+    assert.deepEqual(board.linkedProblemsByPersonId['person-a'].map(record => record.id), ['problem-a']);
+    assert.deepEqual(board.linkedProblemsByPersonId['person-b'].map(record => record.id), ['problem-b']);
+    assert.deepEqual(board.standaloneProblems.map(record => record.id), []);
   });
 });
