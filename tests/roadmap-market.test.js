@@ -3,25 +3,33 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 describe('roadmap market framing', () => {
-  it('keeps the roadmap overview tied to real buyers, pain, and pilots', async () => {
+  it('keeps the roadmap overview short and action-first', async () => {
     const html = await readFile(new URL('../roadmap/index.html', import.meta.url), 'utf8');
-    assert.match(html, /Current market definition/);
-    assert.match(html, /Start with real people already in reach\./);
-    assert.match(html, /Use Contacts to track who they are and CRM to score repeated pain, pilot readiness,/);
-    assert.match(html, /Owner-led teams who need cleaner execution\./);
-    assert.match(html, /Sell relief, not software\./);
-    assert.match(html, /Track objections, delays, language, and pilot readiness inside Contacts and CRM\./);
-    assert.match(html, /Put 20 real people into Contacts and CRM\./);
+    assert.match(html, /Move signal into paid starts\./);
+    assert.match(html, /Four phases\./);
+    assert.match(html, /Open Week 1 worksheet/);
+    assert.match(html, /Add lead in CRM/);
+    assert.match(html, /Add group in CRM/);
+    assert.match(html, /Open shared contacts/);
+    assert.match(html, /Track problems once\./);
   });
 
-  it('keeps the March-April sprint focused on qualified warm contacts', async () => {
+  it('keeps the March-April sprint led by the weekly roadmap', async () => {
     const html = await readFile(new URL('../roadmap/march-april/index.html', import.meta.url), 'utf8');
-    assert.match(html, /Current market focus/);
-    assert.match(html, /Use this sprint to qualify a real buyer lane\./);
-    assert.match(html, /Keep the March-April work tied to real people in Contacts and CRM\./);
-    assert.match(html, /Send outreach to 20 warm contacts already logged in Contacts and CRM\./);
-    assert.match(html, /updated CRM fields, and a clear objection list\./);
-    assert.match(html, /log the reason in CRM\./);
+    assert.match(html, /Six weeks\. One goal: turn reviewer signal into clean records and paid starts\./);
+    assert.match(html, /Weekly roadmap/);
+    assert.match(html, /Push reviewer entries into CRM or contacts as they become useful\./);
+    assert.match(html, /Track four numbers every Thursday\./);
+    assert.match(html, /Run the same loop every week\./);
+  });
+
+  it('keeps the week 1 worksheet intro short and useful', async () => {
+    const html = await readFile(new URL('../roadmap/march-april/week-1/index.html', import.meta.url), 'utf8');
+    assert.match(html, /Fill this out before Thursday\./);
+    assert.match(html, /Open CRM/);
+    assert.match(html, /Open contacts/);
+    assert.match(html, /Seven days\./);
+    assert.match(html, /Use AI to compress the notes\./);
   });
 
   it('ships CRM fields for pain scoring and pilot readiness', async () => {
