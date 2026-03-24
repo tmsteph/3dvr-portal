@@ -1,5 +1,6 @@
 (function weekOneWorksheet() {
   const STORAGE_PREFIX = '3dvr:roadmap:march-april:week-1:worksheet:';
+  const SHARED_WORKSHEET_KEY = 'shared';
   const DEFAULT_PEERS = [
     'wss://relay.3dvr.tech/gun',
     'wss://gun-relay-3dvr.fly.dev/gun'
@@ -60,6 +61,7 @@
   let gunContext = null;
   let worksheetNode = null;
   let storageKey = '';
+  let legacyStorageKeys = [];
   let state = createDefaultState();
   let activeIdentity = { ...DEFAULT_DATA.author };
   let saveTimer = null;
@@ -333,8 +335,18 @@
     if (!storageKey) return createDefaultState();
     try {
       const raw = localStorage.getItem(storageKey);
-      if (!raw) return createDefaultState();
-      return cloneState(JSON.parse(raw));
+      if (raw) {
+        return cloneState(JSON.parse(raw));
+      }
+
+      for (const legacyKey of legacyStorageKeys) {
+        const legacyRaw = localStorage.getItem(legacyKey);
+        if (legacyRaw) {
+          return cloneState(JSON.parse(legacyRaw));
+        }
+      }
+
+      return createDefaultState();
     } catch (err) {
       console.warn('Unable to read local worksheet state', err);
       return createDefaultState();
@@ -953,7 +965,10 @@ Original entry: ${parsed.raw}`,
     activeIdentity = buildIdentity();
     updateIdentityUI(activeIdentity);
 
-    storageKey = `${STORAGE_PREFIX}${activeIdentity.key}`;
+    storageKey = `${STORAGE_PREFIX}${SHARED_WORKSHEET_KEY}`;
+    legacyStorageKeys = activeIdentity.key
+      ? [`${STORAGE_PREFIX}${activeIdentity.key}`]
+      : [];
     state = readLocalState();
     state.author = mergeAuthorWithIdentity(state.author);
 
@@ -966,7 +981,7 @@ Original entry: ${parsed.raw}`,
       .get('march-april')
       .get('week-1')
       .get('worksheets')
-      .get(activeIdentity.key);
+      .get(SHARED_WORKSHEET_KEY);
 
     attachEntryHandlers();
     syncInputs();

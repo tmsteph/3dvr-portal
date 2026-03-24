@@ -45,4 +45,14 @@ describe('roadmap and CRM integration', () => {
     assert.match(script, /Contacts/);
     assert.match(script, /Roadmap Week 1 worksheet/);
   });
+
+  it('keeps the week 1 worksheet shared across account switches', async () => {
+    const script = await readFile(new URL('../roadmap/march-april/week-1/app.js', import.meta.url), 'utf8');
+    assert.match(script, /const SHARED_WORKSHEET_KEY = 'shared';/);
+    assert.match(script, /let legacyStorageKeys = \[\];/);
+    assert.match(script, /legacyStorageKeys = activeIdentity\.key/);
+    assert.match(script, /localStorage\.getItem\(legacyKey\)/);
+    assert.match(script, /storageKey = `\$\{STORAGE_PREFIX\}\$\{SHARED_WORKSHEET_KEY\}`;/);
+    assert.match(script, /\.get\(SHARED_WORKSHEET_KEY\);/);
+  });
 });
