@@ -371,11 +371,11 @@
         <div class="auth-header">
           <span class="auth-eyebrow">3DVR Portal</span>
           <h1 id="auth-title">Sign in or sign up</h1>
-          <p id="auth-description">Access your open web workspace, sync your progress, and build alongside the community powering our open-source tech company.</p>
+          <p id="auth-description">Use one portal account for your plan, billing, saved work, and support so every next step stays attached to the same identity.</p>
           <div id="redirect-context" class="redirect-context" hidden>
             <span id="redirect-context-eyebrow" class="redirect-context__eyebrow">Return after sign-in</span>
             <p id="redirect-context-title" class="redirect-context__title">We will send you back to the page you came from.</p>
-            <p id="redirect-context-body" class="redirect-context__body">Create your account once so your tools, upgrades, and account history stay attached to one portal identity.</p>
+            <p id="redirect-context-body" class="redirect-context__body">Create one account so your plan, billing history, saved work, and support stay linked to the same portal identity.</p>
           </div>
         </div>
         <form onsubmit="event.preventDefault(); signIn();" aria-describedby="auth-title">
@@ -414,14 +414,14 @@
       <aside class="auth-aside" aria-label="3dvr portal benefits">
         <div class="badge-row">
           <span class="badge">Encrypted sync</span>
-          <span class="badge">Open source</span>
+          <span class="badge">Billing + workspace</span>
         </div>
         <div class="feature-list">
           <div class="feature-item">
             <div class="feature-icon" aria-hidden="true">🎯</div>
             <div>
-              <h3>Unified workspace</h3>
-              <p>Pick up projects right where you left them and keep every tool in your web app stack within reach.</p>
+              <h3>One account, every step</h3>
+              <p>Keep your plan, billing history, saved work, and support flow tied to the same portal identity.</p>
             </div>
           </div>
           <div class="feature-item">
@@ -646,11 +646,11 @@
           authTitle.textContent = 'Create your portal account to continue';
         }
         if (authDescription) {
-          authDescription.textContent = 'Sign in once so billing, upgrades, and invoices stay attached to one portal identity. Then we will send you straight back.';
+          authDescription.textContent = 'Sign in once so your chosen plan, upgrades, invoices, and onboarding stay attached to one portal identity. Then we will send you straight back.';
         }
         redirectEyebrow.textContent = 'Billing checkout';
         redirectTitle.textContent = planMessage;
-        redirectBody.textContent = 'Use the same account for future plan changes so switching tiers does not create a second subscription.';
+        redirectBody.textContent = 'Use the same account for checkout, future plan changes, and invoices so switching tiers never creates a second subscription.';
         if (authSubmit) {
           authSubmit.textContent = redirectContext.planLabel
             ? `Continue to ${redirectContext.planLabel}`
@@ -664,7 +664,7 @@
 
       redirectEyebrow.textContent = 'Return after sign-in';
       redirectTitle.textContent = 'We will send you back after you sign in.';
-      redirectBody.textContent = 'Create your account once so your saved work and account activity stay linked to the same portal identity.';
+      redirectBody.textContent = 'Create one account so your plan, billing history, saved work, and support stay linked to the same portal identity.';
       if (authSubmit) {
         authSubmit.textContent = 'Sign in and continue';
       }
