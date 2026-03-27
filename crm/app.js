@@ -596,14 +596,24 @@ function buildRecordFromForm(existingRecord = {}) {
 
 function renderSection(title, description, body) {
   return `
-    <section data-section class="space-y-4">
-      <div>
-        <h3 class="text-lg font-semibold text-white">${safe(title)}</h3>
-        <p class="text-sm text-gray-400">${safe(description)}</p>
+    <section data-section class="space-y-3">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-semibold text-white">${safe(title)}</h3>
+          <p class="text-sm text-gray-400">${safe(description)}</p>
+        </div>
       </div>
-      <div class="space-y-4">${body}</div>
+      <div class="space-y-3">${body}</div>
     </section>
   `;
+}
+
+function renderCompactFacts(items = []) {
+  const tokens = Array.isArray(items)
+    ? items.map(value => String(value || '').trim()).filter(Boolean)
+    : [];
+  if (!tokens.length) return '';
+  return `<p class="text-xs text-gray-400">${tokens.map(item => safe(item)).join(' · ')}</p>`;
 }
 
 function renderGroupCluster(cluster) {
@@ -619,40 +629,34 @@ function renderGroupCluster(cluster) {
     ...cluster.members.map(member => member.name),
     ...problems.map(problem => problem.name),
   ]);
-  const membersHtml = cluster.members.length
-    ? cluster.members.map(member => renderPersonCard(member, { nested: true })).join('')
-    : '<div class="ml-4 rounded-lg border border-dashed border-white/10 bg-gray-950/40 px-4 py-3 text-sm text-gray-400">No people linked yet. Use “Add lead” to place the next person under this group.</div>';
 
   return `
     <section class="space-y-3">
-      <article class="crm-card bg-gray-900/60 border border-white/5 rounded-lg p-4" data-record-id="${safeAttr(group.id)}" data-record-type="group" data-status="${safeAttr(group.status || "")}" data-haystack="${safeAttr(haystack)}">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div class="space-y-3 lg:max-w-2xl">
+      <article class="crm-card bg-gray-900/60 border border-white/5 rounded-2xl p-4 transition hover:border-white/15 hover:bg-gray-800/80" data-record-id="${safeAttr(group.id)}" data-record-type="group" data-status="${safeAttr(group.status || '')}" data-haystack="${safeAttr(haystack)}">
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div class="min-w-0 space-y-2">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-[11px] uppercase tracking-[0.28em] rounded-full bg-sky-950/80 border border-sky-400/30 px-2 py-1 text-sky-100">Group</span>
-              <h3 class="text-lg font-semibold text-white">${safe(group.name || '(untitled group)')}</h3>
+              <h3 class="text-lg font-semibold text-white truncate">${safe(group.name || '(untitled group)')}</h3>
             </div>
-            ${renderBadgeRow([
+            ${renderCompactFacts([
               group.status,
               group.marketSegment,
               group.pilotStatus ? `Pilot ${group.pilotStatus}` : '',
               `${cluster.members.length} ${cluster.members.length === 1 ? 'person' : 'people'}`,
-              problems.length ? `${problems.length} linked ${problems.length === 1 ? 'problem' : 'problems'}` : '',
+              problems.length ? `${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}` : '',
             ])}
             ${renderTagRow(group.tags)}
-            ${problems.length ? `<div class="space-y-2"><p class="text-xs uppercase tracking-[0.28em] text-sky-300">Linked problems</p>${renderRecordChips(problems)}</div>` : ''}
-            ${group.notes ? `<p class="text-sm text-gray-300 whitespace-pre-line">${safe(group.notes)}</p>` : ''}
-            <p class="text-xs text-gray-400">Updated ${safe(formatUpdated(group.updated || group.created))}</p>
+            ${renderCompactFacts([
+              group.notes ? group.notes.split(/\s+/).slice(0, 14).join(' ') : '',
+            ])}
           </div>
-          <div class="flex flex-col gap-2 lg:w-44">
-            <button type="button" data-action="new-member" data-record-id="${safeAttr(group.id)}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm">Add lead</button>
-            <button type="button" data-action="new-problem" data-record-id="${safeAttr(group.id)}" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded text-sm">Log problem</button>
-            <button type="button" data-action="edit-record" data-record-id="${safeAttr(group.id)}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
-            <button type="button" data-action="delete-record" data-record-id="${safeAttr(group.id)}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
+          <div class="flex shrink-0 items-start">
+            <button type="button" data-action="open-detail" data-record-id="${safeAttr(group.id)}" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded text-sm">Open</button>
           </div>
         </div>
       </article>
-      <div class="space-y-3 border-l border-white/10 pl-4">${membersHtml}</div>
+      <div class="space-y-3 border-l border-white/10 pl-4">${cluster.members.length ? cluster.members.map(member => renderPersonCard(member, { nested: true })).join('') : '<div class="ml-4 rounded-lg border border-dashed border-white/10 bg-gray-950/40 px-4 py-3 text-sm text-gray-400">No people linked yet. Use “Add lead” from the detail view.</div>'}</div>
     </section>
   `;
 }
@@ -681,23 +685,28 @@ function renderPersonCard(record, { nested = false } = {}) {
     group?.name,
     ...problems.map(problem => problem.name),
   ]);
+  const detailLine = [record.primaryPain, record.currentWorkaround, record.lastSignal, record.nextExperiment]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(' · ');
 
   return `
-    <article class="crm-card rounded-lg border p-4 ${nested ? 'bg-gray-950/50 border-white/10' : 'bg-gray-900/60 border-white/5'}" data-record-id="${safeAttr(record.id)}" data-record-type="person" data-status="${safeAttr(record.status || "")}" data-contact-id="${safeAttr(record.contactId || "")}" data-next-follow-up="${safeAttr(normalizeFollowUpInput(record.nextFollowUp || ""))}" data-updated-at="${safeAttr(record.updated || record.created || "")}" data-haystack="${safeAttr(haystack)}">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div class="space-y-3 lg:max-w-2xl">
+    <article class="crm-card rounded-2xl border p-4 transition hover:border-white/15 hover:bg-gray-800/80 ${nested ? 'bg-gray-950/55 border-white/10' : 'bg-gray-900/60 border-white/5'}" data-record-id="${safeAttr(record.id)}" data-record-type="person" data-status="${safeAttr(record.status || '')}" data-contact-id="${safeAttr(record.contactId || '')}" data-next-follow-up="${safeAttr(normalizeFollowUpInput(record.nextFollowUp || ''))}" data-updated-at="${safeAttr(record.updated || record.created || '')}" data-haystack="${safeAttr(haystack)}">
+      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div class="min-w-0 space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-[11px] uppercase tracking-[0.28em] rounded-full bg-emerald-950/80 border border-emerald-400/30 px-2 py-1 text-emerald-100">Person</span>
-            <h3 class="text-lg font-semibold text-white">${safe(record.name || '(untitled lead)')}</h3>
-            ${group ? `<button type="button" data-action="open-detail" data-record-id="${safeAttr(group.id)}" class="text-xs px-2 py-0.5 rounded bg-white/10 border border-white/10 text-gray-100">${safe(group.name || 'Group')}</button>` : ''}
+            <h3 class="text-lg font-semibold text-white truncate">${safe(record.name || '(untitled lead)')}</h3>
+            ${group ? `<span class="text-xs px-2 py-0.5 rounded bg-white/10 border border-white/10 text-gray-100">${safe(group.name || 'Group')}</span>` : ''}
+            ${duplicateInfo ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-900/50 border border-amber-500/30 text-amber-100">Dupes ${safe(String(duplicateInfo.total))}</span>` : ''}
           </div>
-          ${renderBadgeRow([
+          ${renderCompactFacts([
             record.status,
             record.nextFollowUp ? `Follow-up ${record.nextFollowUp}` : '',
             record.marketSegment,
             record.painSeverity ? `Pain ${record.painSeverity}` : '',
             record.pilotStatus ? `Pilot ${record.pilotStatus}` : '',
-            duplicateInfo ? `Dupes ${duplicateInfo.total}` : '',
           ])}
           ${(record.email || record.company || record.role || record.phone) ? `<p class="text-sm text-gray-300">${[
             record.email ? `<a href="mailto:${encodeURIComponent(record.email)}" class="text-sky-400 hover:underline">${safe(record.email)}</a>` : '',
@@ -705,28 +714,15 @@ function renderPersonCard(record, { nested = false } = {}) {
             record.role ? safe(record.role) : '',
             record.phone ? `<a href="tel:${encodeURIComponent(record.phone)}" class="text-sky-400 hover:underline">${safe(record.phone)}</a>` : '',
           ].filter(Boolean).join(' · ')}</p>` : ''}
-          ${renderTagRow(record.tags)}
-          ${record.primaryPain || record.currentWorkaround || record.lastSignal || record.nextExperiment ? `<p class="text-xs text-sky-100/90 rounded-lg border border-sky-400/15 bg-sky-950/40 p-3">${safe([
-            record.primaryPain ? `Pain: ${record.primaryPain}` : '',
-            record.currentWorkaround ? `Workaround: ${record.currentWorkaround}` : '',
-            record.lastSignal ? `Last signal: ${record.lastSignal}` : '',
-            record.nextExperiment ? `Next: ${record.nextExperiment}` : '',
-          ].filter(Boolean).join(' · '))}</p>` : ''}
-          ${problems.length ? `<div class="space-y-2"><p class="text-xs uppercase tracking-[0.28em] text-sky-300">Problems</p>${renderRecordChips(problems)}</div>` : ''}
-          ${record.notes ? `<p class="text-sm text-gray-300 whitespace-pre-line">${safe(record.notes)}</p>` : ''}
-          <div class="grid gap-1 text-xs text-gray-400 sm:grid-cols-2">
-            <div>Last contacted: ${record.lastContacted ? safe(timeAgo(record.lastContacted)) : '—'}</div>
-            <div>Touches: ${safe(String(toActivityCount(record.activityCount)))}</div>
-            <div>Group: ${group ? safe(group.name || 'Group') : '—'}</div>
-            <div>Updated ${safe(formatUpdated(record.updated || record.created))}</div>
-          </div>
+          ${detailLine ? `<p class="text-xs text-sky-100/90 rounded-lg border border-sky-400/15 bg-sky-950/40 p-3">${safe(detailLine)}</p>` : ''}
+          ${renderCompactFacts([
+            `Last contacted ${record.lastContacted ? timeAgo(record.lastContacted) : '—'}`,
+            `Touches ${safe(String(toActivityCount(record.activityCount)))}`,
+            `Updated ${safe(formatUpdated(record.updated || record.created))}`,
+          ])}
         </div>
-        <div class="flex flex-col gap-2 lg:w-44">
-          <button type="button" data-action="ensure-contact" data-record-id="${safeAttr(record.id)}" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm">${safe(getContactButtonLabel(record))}</button>
-          <button type="button" data-action="log-touch" data-record-id="${safeAttr(record.id)}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Log touch</button>
-          <button type="button" data-action="quick-follow-up" data-record-id="${safeAttr(record.id)}" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded text-sm">+7d follow-up</button>
-          <button type="button" data-action="edit-record" data-record-id="${safeAttr(record.id)}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
-          <button type="button" data-action="delete-record" data-record-id="${safeAttr(record.id)}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
+        <div class="flex shrink-0 items-start">
+          <button type="button" data-action="open-detail" data-record-id="${safeAttr(record.id)}" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded text-sm">Open</button>
         </div>
       </div>
     </article>
@@ -749,34 +745,29 @@ function renderProblemCard(record) {
   ]);
 
   return `
-    <article class="crm-card bg-gray-900/60 border border-white/5 rounded-lg p-4" data-record-id="${safeAttr(record.id)}" data-record-type="problem" data-status="" data-haystack="${safeAttr(haystack)}">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div class="space-y-3 lg:max-w-2xl">
+    <article class="crm-card bg-gray-900/60 border border-white/5 rounded-2xl p-4 transition hover:border-white/15 hover:bg-gray-800/80" data-record-id="${safeAttr(record.id)}" data-record-type="problem" data-status="" data-haystack="${safeAttr(haystack)}">
+      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div class="min-w-0 space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-[11px] uppercase tracking-[0.28em] rounded-full bg-rose-950/80 border border-rose-400/30 px-2 py-1 text-rose-100">Problem</span>
-            <h3 class="text-lg font-semibold text-white">${safe(record.name || '(untitled problem)')}</h3>
+            <h3 class="text-lg font-semibold text-white truncate">${safe(record.name || '(untitled problem)')}</h3>
           </div>
-          ${renderBadgeRow([
+          ${renderCompactFacts([
             record.painSeverity ? `Pain ${record.painSeverity}` : '',
             linkedGroups.length ? `${linkedGroups.length} ${linkedGroups.length === 1 ? 'group' : 'groups'}` : '',
             linkedPeople.length ? `${linkedPeople.length} ${linkedPeople.length === 1 ? 'person' : 'people'}` : '',
             record.offerAmount ? `Impact ${record.offerAmount}` : '',
           ])}
           ${record.primaryPain && record.primaryPain !== record.name ? `<p class="text-sm text-gray-300">${safe(record.primaryPain)}</p>` : ''}
-          <div class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.28em] text-sky-300">Linked groups</p>
-            ${renderRecordChips(linkedGroups)}
-          </div>
-          <div class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.28em] text-sky-300">Linked people</p>
-            ${renderRecordChips(linkedPeople)}
-          </div>
-          ${record.notes ? `<p class="text-sm text-gray-300 whitespace-pre-line">${safe(record.notes)}</p>` : ''}
+          ${renderCompactFacts([
+            linkedGroups.length ? 'Groups linked' : '',
+            linkedPeople.length ? 'People linked' : '',
+            record.lastSignal ? `Signal ${record.lastSignal}` : '',
+          ])}
           <p class="text-xs text-gray-400">Updated ${safe(formatUpdated(record.updated || record.created))}</p>
         </div>
-        <div class="flex flex-col gap-2 lg:w-44">
-          <button type="button" data-action="edit-record" data-record-id="${safeAttr(record.id)}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
-          <button type="button" data-action="delete-record" data-record-id="${safeAttr(record.id)}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
+        <div class="flex shrink-0 items-start">
+          <button type="button" data-action="open-detail" data-record-id="${safeAttr(record.id)}" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded text-sm">Open</button>
         </div>
       </div>
     </article>
