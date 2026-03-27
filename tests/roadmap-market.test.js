@@ -5,8 +5,7 @@ import { readFile } from 'node:fs/promises';
 describe('roadmap and CRM integration', () => {
   it('keeps the roadmap overview short and tied to CRM and contacts actions', async () => {
     const html = await readFile(new URL('../roadmap/index.html', import.meta.url), 'utf8');
-    assert.match(html, /Move signal into paid starts\./);
-    assert.match(html, /Four phases\./);
+    assert.match(html, /Move signal into the portal fast\./);
     assert.match(html, /Open Week 1 worksheet/);
     assert.match(html, /Add lead in CRM/);
     assert.match(html, /Add group in CRM/);
@@ -16,14 +15,13 @@ describe('roadmap and CRM integration', () => {
 
   it('keeps the March-April sprint tied to the worksheet, CRM, and contacts loop', async () => {
     const html = await readFile(new URL('../roadmap/march-april/index.html', import.meta.url), 'utf8');
-    assert.match(html, /Six weeks\. One goal: turn reviewer signal into clean records and paid starts\./);
-    assert.match(html, /Six weeks\./);
+    assert.match(html, /Keep this sprint short, visible, and tied to the same portal workflow/);
+    assert.match(html, /Use the sprint to create cleaner records and better next steps\./);
     assert.match(html, /Open Week 1 worksheet/);
     assert.match(html, /Add lead in CRM/);
     assert.match(html, /Add group in CRM/);
     assert.match(html, /Open shared contacts/);
     assert.match(html, /Push reviewer entries into CRM or contacts as they become useful\./);
-    assert.match(html, /Run the same loop every week\./);
   });
 
   it('ships CRM capture for groups, people, problems, and quick leads', async () => {

@@ -148,8 +148,12 @@
         <p class="text-xs text-gray-400">Use the full form when you need follow-up dates, linked problems, or more detailed notes.</p>
       </div>
       <div class="space-y-6">
-        <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-          <label for="filter" class="block text-sm text-gray-300 mb-2">Search workspace</label>
+        <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5 space-y-3">
+          <div class="flex flex-wrap gap-2">
+            <button id="filterAllRecords" type="button" class="px-3 py-1.5 rounded text-sm bg-sky-600 text-white">All records</button>
+            <button id="filterWarmLeads" type="button" class="px-3 py-1.5 rounded text-sm bg-white/10 text-gray-200">Warm leads</button>
+          </div>
+          <label for="filter" class="block text-sm text-gray-300">Search workspace</label>
           <input id="filter" type="search" placeholder="Filter by name, group, problem, tags, or notes" class="w-full p-2 rounded text-black" />
         </div>
         <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
