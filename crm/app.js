@@ -18,7 +18,10 @@ const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
 const guestsRoot = gun.get('3dvr-guests');
 const crmRecords = gun.get('3dvr-crm');
-const contactsWorkspace = gun.get('org-3dvr-demo');
+const ORG_CONTACTS_SPACE = 'org-3dvr';
+const ORG_CONTACTS_NODE_KEY = 'org-3dvr-demo';
+const contactsWorkspaceOrg = gun.get(ORG_CONTACTS_NODE_KEY);
+const contactsWorkspacePersonal = user.get('contacts');
 const touchLogRoot = portalRoot.get('crm-touch-log');
 const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
   ? window.ScoreSystem.getManager({ gun, user, portalRoot })
@@ -34,7 +37,8 @@ const ls = window.localStorage;
 const signedIn = ls.getItem('signedIn') === 'true';
 const alias = ls.getItem('alias') || '';
 const password = ls.getItem('password') || '';
-const contactWorkspaceIndex = Object.create(null);
+const contactWorkspaceOrgIndex = Object.create(null);
+const contactWorkspacePersonalIndex = Object.create(null);
 const crmIndex = Object.create(null);
 const touchLogIndex = new Map();
 const duplicateSummaryById = new Map();
@@ -308,38 +312,70 @@ function sortByName(a, b) {
   return String(a?.name || '').localeCompare(String(b?.name || ''));
 }
 
-function getGroupRecord(record) {
-  if (!record?.groupId) return null;
-  const group = state.board.index[record.groupId];
-  return group && group.recordType === 'group' ? group : null;
+function getPreferredContactsSpace() {
+  return signedIn ? 'personal' : ORG_CONTACTS_SPACE;
 }
 
-function findContactInWorkspace(record) {
+function getContactsSpaceLabel(space = getPreferredContactsSpace()) {
+  return space === 'personal' ? 'your personal contacts workspace' : 'the shared contacts workspace';
+}
+
+function getContactsWorkspaceNode(space = getPreferredContactsSpace()) {
+  return space === 'personal' ? contactsWorkspacePersonal : contactsWorkspaceOrg;
+}
+
+function getContactWorkspaceIndex(space = getPreferredContactsSpace()) {
+  return space === 'personal' ? contactWorkspacePersonalIndex : contactWorkspaceOrgIndex;
+}
+
+function getOtherContactsSpace(space = getPreferredContactsSpace()) {
+  return space === 'personal' ? ORG_CONTACTS_SPACE : 'personal';
+}
+
+function findContactInIndex(record, index, space) {
   if (!record || record.recordType !== 'person') return null;
   const directIds = [record.id, record.contactId].filter(Boolean);
   for (const id of directIds) {
-    if (contactWorkspaceIndex[id]) {
-      return { id, data: contactWorkspaceIndex[id] };
+    if (index[id]) {
+      return { id, data: index[id], space };
     }
   }
-  for (const [contactId, data] of Object.entries(contactWorkspaceIndex)) {
+  for (const [contactId, data] of Object.entries(index)) {
     if (data?.crmId === record.id) {
-      return { id: contactId, data };
+      return { id: contactId, data, space };
     }
   }
   const email = normaliseEmail(record.email);
   if (email) {
-    for (const [contactId, data] of Object.entries(contactWorkspaceIndex)) {
+    for (const [contactId, data] of Object.entries(index)) {
       if (normaliseEmail(data?.email) === email) {
-        return { id: contactId, data };
+        return { id: contactId, data, space };
       }
     }
   }
   return null;
 }
 
+function getGroupRecord(record) {
+  if (!record?.groupId) return null;
+  const group = state.board.index[record.groupId];
+  return group && group.recordType === 'group' ? group : null;
+}
+
+function findContactInWorkspace(record, { space = getPreferredContactsSpace(), allowFallback = true } = {}) {
+  const primaryIndex = getContactWorkspaceIndex(space);
+  const primaryMatch = findContactInIndex(record, primaryIndex, space);
+  if (primaryMatch || !allowFallback) {
+    return primaryMatch;
+  }
+
+  const fallbackSpace = getOtherContactsSpace(space);
+  const fallbackIndex = getContactWorkspaceIndex(fallbackSpace);
+  return findContactInIndex(record, fallbackIndex, fallbackSpace);
+}
+
 function getContactButtonLabel(record) {
-  return findContactInWorkspace(record) ? 'Open in contacts' : 'Add to contacts';
+  return findContactInWorkspace(record, { allowFallback: false }) ? 'Open in contacts' : 'Add to contacts';
 }
 
 function populateStaticSelects() {
@@ -925,9 +961,14 @@ function putCrmRecord(record) {
   });
 }
 
-function putContactRecord(id, payload) {
+function putContactRecord(id, payload, space = getPreferredContactsSpace()) {
   return new Promise((resolve, reject) => {
-    contactsWorkspace.get(id).put(payload, ack => {
+    const node = getContactsWorkspaceNode(space);
+    if (!node || typeof node.get !== 'function') {
+      reject(new Error(`Unable to resolve contacts node for space: ${space}`));
+      return;
+    }
+    node.get(id).put(payload, ack => {
       if (ack && ack.err) {
         reject(new Error(String(ack.err)));
         return;
@@ -957,7 +998,8 @@ async function ensureContact(recordId) {
   }
 
   const now = new Date().toISOString();
-  const existing = findContactInWorkspace(record);
+  const targetSpace = getPreferredContactsSpace();
+  const existing = findContactInWorkspace(record, { space: targetSpace, allowFallback: false });
   if (existing) {
     if (existing.data?.crmId !== record.id) {
       await putContactRecord(existing.id, {
@@ -965,7 +1007,7 @@ async function ensureContact(recordId) {
         crmId: record.id,
         syncedFromCrmAt: now,
         updated: now,
-      });
+      }, targetSpace);
     }
     await putCrmRecord({
       ...record,
@@ -974,11 +1016,12 @@ async function ensureContact(recordId) {
       updated: now,
       created: record.created || now,
     });
-    openContactsWorkspace(existing.id);
+    openContactsWorkspace(existing.id, targetSpace);
     return;
   }
 
-  const contactId = record.contactId && !contactWorkspaceIndex[record.contactId]
+  const targetIndex = getContactWorkspaceIndex(targetSpace);
+  const contactId = record.contactId && !targetIndex[record.contactId]
     ? record.contactId
     : generateId();
   await putContactRecord(contactId, {
@@ -999,7 +1042,7 @@ async function ensureContact(recordId) {
     crmId: record.id,
     source: record.source || 'CRM workspace',
     syncedFromCrmAt: now,
-  });
+  }, targetSpace);
   await putCrmRecord({
     ...record,
     contactId,
@@ -1007,12 +1050,12 @@ async function ensureContact(recordId) {
     updated: now,
     created: record.created || now,
   });
-  openContactsWorkspace(contactId);
+  openContactsWorkspace(contactId, targetSpace);
 }
 
-function openContactsWorkspace(contactId) {
+function openContactsWorkspace(contactId, space = getPreferredContactsSpace()) {
   const url = new URL('../contacts/index.html', window.location.href);
-  url.searchParams.set('space', 'org-3dvr');
+  url.searchParams.set('space', space);
   if (contactId) {
     url.searchParams.set('contact', contactId);
   }
@@ -1264,12 +1307,13 @@ function buildDetailWorkspace(record, context) {
     `;
   }
 
-  const workspaceMatch = findContactInWorkspace(record);
+  const preferredSpace = getPreferredContactsSpace();
+  const workspaceMatch = findContactInWorkspace(record, { space: preferredSpace, allowFallback: false });
   return `
     <div class="space-y-3">
       <div class="rounded-lg border ${workspaceMatch ? 'border-teal-500/30 bg-teal-900/40' : 'border-white/10 bg-gray-800/80'} p-4">
         <p class="text-sm font-semibold ${workspaceMatch ? 'text-teal-200' : 'text-gray-100'}">${workspaceMatch ? 'Linked contacts entry' : 'No linked contact yet'}</p>
-        <p class="text-xs mt-1 ${workspaceMatch ? 'text-teal-100/80' : 'text-gray-400'}">${workspaceMatch ? safe(workspaceMatch.data?.name || '(untitled contact)') : 'Use “Add to contacts” to place this person in the shared contacts workspace.'}</p>
+        <p class="text-xs mt-1 ${workspaceMatch ? 'text-teal-100/80' : 'text-gray-400'}">${workspaceMatch ? safe(workspaceMatch.data?.name || '(untitled contact)') : `Use “Add to contacts” to place this person in ${getContactsSpaceLabel(preferredSpace)}.`}</p>
       </div>
       <div class="rounded-lg border border-white/10 bg-gray-800/80 p-4">
         <p class="text-sm font-semibold text-gray-100">Problems linked to this person</p>
@@ -1719,15 +1763,27 @@ function startSync() {
     });
   }
 
-  contactsWorkspace.map().on((data, id) => {
+  contactsWorkspaceOrg.map().on((data, id) => {
     if (!id) return;
     if (!data) {
-      delete contactWorkspaceIndex[id];
+      delete contactWorkspaceOrgIndex[id];
     } else {
-      contactWorkspaceIndex[id] = { ...(contactWorkspaceIndex[id] || {}), ...data, id };
+      contactWorkspaceOrgIndex[id] = { ...(contactWorkspaceOrgIndex[id] || {}), ...data, id };
     }
     scheduleRender();
   });
+
+  if (signedIn && contactsWorkspacePersonal && typeof contactsWorkspacePersonal.map === 'function') {
+    contactsWorkspacePersonal.map().on((data, id) => {
+      if (!id) return;
+      if (!data) {
+        delete contactWorkspacePersonalIndex[id];
+      } else {
+        contactWorkspacePersonalIndex[id] = { ...(contactWorkspacePersonalIndex[id] || {}), ...data, id };
+      }
+      scheduleRender();
+    });
+  }
 
   touchLogRoot.map().on((data, id) => {
     if (!id) return;

@@ -35,10 +35,12 @@ test('Contacts page exposes CRM link filter', async () => {
   assert.match(html, /value="unlinked"/);
 });
 
-test('CRM and Contacts preserve shared workspace link context', async () => {
+test('CRM and Contacts preserve space-aware link context', async () => {
   const crmJs = await read('crm/app.js');
   const contactsHtml = await read('contacts/index.html');
-  assert.match(crmJs, /url\.searchParams\.set\('space', 'org-3dvr'\)/);
+  assert.match(crmJs, /function getPreferredContactsSpace()/);
+  assert.match(crmJs, /return signedIn \? 'personal' : ORG_CONTACTS_SPACE/);
+  assert.match(crmJs, /url\.searchParams\.set\('space', space\)/);
   assert.match(crmJs, /url\.searchParams\.set\('contact', contactId\)/);
   assert.match(contactsHtml, /function crmContactHref\(contactId = ''\)/);
   assert.match(contactsHtml, /\?contact=\$\{encodeURIComponent\(id\)\}/);
