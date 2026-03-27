@@ -49,6 +49,7 @@ const elements = {
   filterInput: document.getElementById('filter'),
   filterAllButton: document.getElementById('filterAllRecords'),
   filterWarmButton: document.getElementById('filterWarmLeads'),
+  personWorkflowFilter: document.getElementById('personWorkflowFilter'),
   totalCount: document.getElementById('totalCount'),
   visibleCount: document.getElementById('visibleCount'),
   emptyState: document.getElementById('emptyState'),
@@ -646,7 +647,7 @@ function renderPersonCard(record, { nested = false } = {}) {
   ]);
 
   return `
-    <article class="crm-card rounded-lg border p-4 ${nested ? 'bg-gray-950/50 border-white/10' : 'bg-gray-900/60 border-white/5'}" data-record-id="${safeAttr(record.id)}" data-record-type="person" data-status="${safeAttr(record.status || "")}" data-haystack="${safeAttr(haystack)}">
+    <article class="crm-card rounded-lg border p-4 ${nested ? 'bg-gray-950/50 border-white/10' : 'bg-gray-900/60 border-white/5'}" data-record-id="${safeAttr(record.id)}" data-record-type="person" data-status="${safeAttr(record.status || "")}" data-contact-id="${safeAttr(record.contactId || "")}" data-next-follow-up="${safeAttr(normalizeFollowUpInput(record.nextFollowUp || ""))}" data-updated-at="${safeAttr(record.updated || record.created || "")}" data-haystack="${safeAttr(haystack)}">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div class="space-y-3 lg:max-w-2xl">
           <div class="flex flex-wrap items-center gap-2">
@@ -826,8 +827,11 @@ function applyFocusHighlight() {
 
 function applyFilter() {
   const query = String(elements.filterInput?.value || '').trim().toLowerCase();
+  const workflowFilter = String(elements.personWorkflowFilter?.value || '');
   const warmOnly = state.filterMode === 'warm';
   const cards = Array.from(elements.list?.querySelectorAll('.crm-card[data-haystack]') || []);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   let visible = 0;
 
   cards.forEach(card => {
@@ -835,7 +839,43 @@ function applyFilter() {
     const status = String(card.dataset.status || '');
     const recordType = String(card.dataset.recordType || '');
     const warmMiss = warmOnly && (recordType !== 'person' || !isWarmLeadStatus(status));
-    const hidden = haystackMiss || warmMiss;
+
+    let workflowMiss = false;
+    if (workflowFilter) {
+      if (recordType !== 'person') {
+        workflowMiss = true;
+      } else {
+        const contactId = String(card.dataset.contactId || '').trim();
+        const nextFollowUpRaw = String(card.dataset.nextFollowUp || '').trim();
+        const updatedAtRaw = String(card.dataset.updatedAt || '').trim();
+        const nextFollowUp = nextFollowUpRaw ? new Date(`${nextFollowUpRaw}T00:00:00`) : null;
+        const updatedAt = updatedAtRaw ? new Date(updatedAtRaw) : null;
+
+        if (workflowFilter === 'linked') workflowMiss = !contactId;
+        if (workflowFilter === 'unlinked') workflowMiss = Boolean(contactId);
+        if (workflowFilter === 'none') workflowMiss = Boolean(nextFollowUp);
+        if (workflowFilter === 'overdue') workflowMiss = !nextFollowUp || nextFollowUp >= today;
+        if (workflowFilter === 'week') {
+          if (!nextFollowUp) {
+            workflowMiss = true;
+          } else {
+            const end = new Date(today);
+            end.setDate(end.getDate() + 7);
+            workflowMiss = !(nextFollowUp >= today && nextFollowUp <= end);
+          }
+        }
+        if (workflowFilter === 'stale-14') {
+          if (!updatedAt || Number.isNaN(updatedAt.getTime())) {
+            workflowMiss = true;
+          } else {
+            const staleCutoff = Date.now() - (14 * 24 * 60 * 60 * 1000);
+            workflowMiss = updatedAt.getTime() > staleCutoff;
+          }
+        }
+      }
+    }
+
+    const hidden = haystackMiss || warmMiss || workflowMiss;
     card.classList.toggle('hidden', hidden);
     if (!hidden) visible += 1;
   });
@@ -1604,6 +1644,7 @@ function attachEvents() {
   elements.form?.addEventListener('submit', handleCreateSubmit);
   elements.quickLeadForm?.addEventListener('submit', handleQuickLeadSubmit);
   elements.filterInput?.addEventListener('input', applyFilter);
+  elements.personWorkflowFilter?.addEventListener('change', applyFilter);
   elements.filterAllButton?.addEventListener('click', () => setFilterMode('all'));
   elements.filterWarmButton?.addEventListener('click', () => setFilterMode('warm'));
   elements.recordType?.addEventListener('change', () => applyCreateTypeVisibility(elements.recordType.value));
@@ -1626,6 +1667,14 @@ function attachEvents() {
   });
 
   document.addEventListener('keydown', event => {
+    const targetTag = String(event.target?.tagName || '').toLowerCase();
+    const isTypingContext = targetTag === 'input' || targetTag === 'textarea' || targetTag === 'select' || event.target?.isContentEditable;
+    if (event.key === '/' && !isTypingContext) {
+      event.preventDefault();
+      elements.filterInput?.focus();
+      return;
+    }
+
     if (event.key !== 'Escape') return;
     if (elements.detailOverlay && !elements.detailOverlay.classList.contains('hidden')) {
       closeDetail();

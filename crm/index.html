@@ -153,8 +153,25 @@
             <button id="filterAllRecords" type="button" class="px-3 py-1.5 rounded text-sm bg-sky-600 text-white">All records</button>
             <button id="filterWarmLeads" type="button" class="px-3 py-1.5 rounded text-sm bg-white/10 text-gray-200">Warm leads</button>
           </div>
-          <label for="filter" class="block text-sm text-gray-300">Search workspace</label>
-          <input id="filter" type="search" placeholder="Filter by name, group, problem, tags, or notes" class="w-full p-2 rounded text-black" />
+          <div class="grid gap-3 md:grid-cols-[1fr,240px] md:items-end">
+            <div>
+              <label for="filter" class="block text-sm text-gray-300">Search workspace</label>
+              <input id="filter" type="search" placeholder="Filter by name, group, problem, tags, or notes" class="w-full p-2 rounded text-black" />
+            </div>
+            <div>
+              <label for="personWorkflowFilter" class="block text-sm text-gray-300">Person workflow</label>
+              <select id="personWorkflowFilter" class="w-full p-2 rounded text-black">
+                <option value="">All people</option>
+                <option value="linked">Linked to contacts</option>
+                <option value="unlinked">Not linked to contacts</option>
+                <option value="overdue">Follow-up overdue</option>
+                <option value="none">No follow-up date</option>
+                <option value="week">Follow-up due this week</option>
+                <option value="stale-14">Stale (14+ days)</option>
+              </select>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400">Tip: press <kbd class="rounded border border-white/20 px-1 py-0.5">/</kbd> to jump to search.</p>
         </div>
         <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
           <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">

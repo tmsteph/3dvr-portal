@@ -134,8 +134,8 @@
 
       <!-- Filters -->
       <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
-        <div class="grid gap-2 md:grid-cols-[1fr,200px,200px,200px] items-end">
-          <div>
+        <div class="grid grid-cols-2 gap-2 md:grid-cols-[1fr,180px,180px,180px,180px] items-end">
+          <div class="col-span-2 md:col-span-1">
             <label class="text-sm text-gray-300">Search</label>
             <input id="search" placeholder="Name, email, company, tags…" class="w-full p-2 rounded text-black" />
           </div>
@@ -155,6 +155,14 @@
               <option value="today">Due today</option>
               <option value="week">Due this week</option>
               <option value="none">No follow-up</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-gray-300">CRM link</label>
+            <select id="filterCrmLink" class="w-full p-2 rounded text-black">
+              <option value="">All</option>
+              <option value="linked">Linked to CRM</option>
+              <option value="unlinked">Not linked</option>
             </select>
           </div>
           <div>
@@ -1375,6 +1383,7 @@ const btnReset = document.getElementById('btnReset');
 const searchEl = document.getElementById('search');
 const filterStatusEl = document.getElementById('filterStatus');
 const filterFollowEl = document.getElementById('filterFollow');
+const filterCrmLinkEl = document.getElementById('filterCrmLink');
 const sortOrderEl = document.getElementById('sortOrder');
 const countEl = document.getElementById('count');
 const duplicateSummaryEl = document.getElementById('duplicateSummary');
@@ -2576,6 +2585,7 @@ function addContactToCrm(id){
 searchEl.addEventListener('input', debounce(()=>{ page=1; updateList(); }, 200));
 filterStatusEl.addEventListener('change', ()=>{ page=1; updateList(); });
 filterFollowEl.addEventListener('change', ()=>{ page=1; updateList(); });
+filterCrmLinkEl.addEventListener('change', ()=>{ page=1; updateList(); });
 sortOrderEl.addEventListener('change', ()=>{ page=1; updateList(); });
 
 prevPageBtn.addEventListener('click', ()=>{ if(page>1){ page--; updateList(); }});
@@ -2585,6 +2595,7 @@ function applyFilters(items){
   const q = searchEl.value.trim().toLowerCase();
   const fS = filterStatusEl.value;
   const fF = filterFollowEl.value;
+  const fC = filterCrmLinkEl.value;
   const sortMode = sortOrderEl.value || 'name-first';
   const today = new Date(); today.setHours(0,0,0,0);
 
@@ -2592,6 +2603,8 @@ function applyFilters(items){
     const hay = `${c.name||''} ${c.email||''} ${c.phone||''} ${c.company||''} ${c.role||''} ${c.tags||''} ${c.notes||''}`.toLowerCase();
     if(q && !hay.includes(q)) return false;
     if(fS && (c.status||'') !== fS) return false;
+    if(fC === 'linked' && !c.crmId) return false;
+    if(fC === 'unlinked' && c.crmId) return false;
 
     if(fF){
       const nf = c.nextFollowUp ? new Date(c.nextFollowUp) : null;
