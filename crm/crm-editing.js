@@ -1,5 +1,9 @@
 const DEFAULT_STATUS_OPTIONS = Object.freeze([
   '',
+  'Warm - Awareness',
+  'Warm - Discovery',
+  'Warm - Invited',
+  'Warm - Follow-up',
   'Lead',
   'Prospect',
   'Active',

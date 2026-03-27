@@ -39,12 +39,16 @@ const crmIndex = Object.create(null);
 const touchLogIndex = new Map();
 const duplicateSummaryById = new Map();
 const WEEKLY_CHALLENGE_GOAL = 3;
+const DEFAULT_PERSON_STATUS = 'Warm - Awareness';
+const WARM_STATUS_PREFIX = 'warm -';
 const focusClasses = ['ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-gray-900'];
 
 const elements = {
   form: document.getElementById('contactForm'),
   list: document.getElementById('contactList'),
   filterInput: document.getElementById('filter'),
+  filterAllButton: document.getElementById('filterAllRecords'),
+  filterWarmButton: document.getElementById('filterWarmLeads'),
   totalCount: document.getElementById('totalCount'),
   visibleCount: document.getElementById('visibleCount'),
   emptyState: document.getElementById('emptyState'),
@@ -92,6 +96,7 @@ const state = {
   detailId: '',
   editingId: '',
   formMode: 'create',
+  filterMode: 'all',
   focusId: (params.get('contact') || params.get('focus') || '').trim(),
   focusApplied: false,
   draftApplied: false,
@@ -338,7 +343,7 @@ function getContactButtonLabel(record) {
 
 function populateStaticSelects() {
   setSelectOptions(elements.recordType, CRM_RECORD_TYPE_OPTIONS, 'person', 'Record type');
-  setSelectOptions(document.getElementById('status'), CRM_STATUS_OPTIONS, 'Lead', 'Status (optional)');
+  setSelectOptions(document.getElementById('status'), CRM_STATUS_OPTIONS, DEFAULT_PERSON_STATUS, 'Status (optional)');
   setSelectOptions(document.getElementById('marketSegment'), CRM_MARKET_SEGMENT_OPTIONS, '', 'Market segment');
   setSelectOptions(document.getElementById('painSeverity'), CRM_PAIN_SEVERITY_OPTIONS, '', 'Pain severity');
   setSelectOptions(document.getElementById('pilotStatus'), CRM_PILOT_STATUS_OPTIONS, '', 'Pilot status');
@@ -465,7 +470,7 @@ function fillCreateForm(record = {}) {
   document.getElementById('phone').value = record.phone || '';
   document.getElementById('role').value = record.role || '';
   document.getElementById('tags').value = record.tags || '';
-  document.getElementById('status').value = record.status || (type === 'problem' ? '' : 'Lead');
+  document.getElementById('status').value = record.status || (type === 'problem' ? '' : DEFAULT_PERSON_STATUS);
   document.getElementById('nextFollowUp').value = normalizeFollowUpInput(record.nextFollowUp || '');
   document.getElementById('marketSegment').value = record.marketSegment || '';
   document.getElementById('primaryPain').value = record.primaryPain || '';
@@ -505,7 +510,7 @@ function closeCreateOverlay({ reset = false } = {}) {
   if (reset) {
     state.formMode = 'create';
     state.editingId = '';
-    fillCreateForm({ recordType: 'person', status: 'Lead' });
+    fillCreateForm({ recordType: 'person', status: DEFAULT_PERSON_STATUS });
     elements.createTitle.textContent = getCreateTitle('create', 'person');
     if (elements.createDescription) {
       elements.createDescription.textContent = getCreateDescription('create', 'person');
@@ -583,7 +588,7 @@ function renderGroupCluster(cluster) {
 
   return `
     <section class="space-y-3">
-      <article class="crm-card bg-gray-900/60 border border-white/5 rounded-lg p-4" data-record-id="${safeAttr(group.id)}" data-haystack="${safeAttr(haystack)}">
+      <article class="crm-card bg-gray-900/60 border border-white/5 rounded-lg p-4" data-record-id="${safeAttr(group.id)}" data-record-type="group" data-status="${safeAttr(group.status || "")}" data-haystack="${safeAttr(haystack)}">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div class="space-y-3 lg:max-w-2xl">
             <div class="flex flex-wrap items-center gap-2">
@@ -641,7 +646,7 @@ function renderPersonCard(record, { nested = false } = {}) {
   ]);
 
   return `
-    <article class="crm-card rounded-lg border p-4 ${nested ? 'bg-gray-950/50 border-white/10' : 'bg-gray-900/60 border-white/5'}" data-record-id="${safeAttr(record.id)}" data-haystack="${safeAttr(haystack)}">
+    <article class="crm-card rounded-lg border p-4 ${nested ? 'bg-gray-950/50 border-white/10' : 'bg-gray-900/60 border-white/5'}" data-record-id="${safeAttr(record.id)}" data-record-type="person" data-status="${safeAttr(record.status || "")}" data-haystack="${safeAttr(haystack)}">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div class="space-y-3 lg:max-w-2xl">
           <div class="flex flex-wrap items-center gap-2">
@@ -707,7 +712,7 @@ function renderProblemCard(record) {
   ]);
 
   return `
-    <article class="crm-card bg-gray-900/60 border border-white/5 rounded-lg p-4" data-record-id="${safeAttr(record.id)}" data-haystack="${safeAttr(haystack)}">
+    <article class="crm-card bg-gray-900/60 border border-white/5 rounded-lg p-4" data-record-id="${safeAttr(record.id)}" data-record-type="problem" data-status="" data-haystack="${safeAttr(haystack)}">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div class="space-y-3 lg:max-w-2xl">
           <div class="flex flex-wrap items-center gap-2">
@@ -772,6 +777,36 @@ function updateCounts(total, visible) {
   }
 }
 
+function isWarmLeadStatus(status) {
+  return String(status || '').trim().toLowerCase().startsWith(WARM_STATUS_PREFIX);
+}
+
+function updateFilterButtons() {
+  const isWarm = state.filterMode === 'warm';
+  if (elements.filterAllButton) {
+    elements.filterAllButton.classList.toggle('bg-sky-600', !isWarm);
+    elements.filterAllButton.classList.toggle('text-white', !isWarm);
+    elements.filterAllButton.classList.toggle('bg-white/10', isWarm);
+    elements.filterAllButton.classList.toggle('text-gray-200', isWarm);
+  }
+  if (elements.filterWarmButton) {
+    elements.filterWarmButton.classList.toggle('bg-sky-600', isWarm);
+    elements.filterWarmButton.classList.toggle('text-white', isWarm);
+    elements.filterWarmButton.classList.toggle('bg-white/10', !isWarm);
+    elements.filterWarmButton.classList.toggle('text-gray-200', !isWarm);
+  }
+}
+
+function setFilterMode(mode) {
+  const normalized = mode === 'warm' ? 'warm' : 'all';
+  if (state.filterMode === normalized) {
+    return;
+  }
+  state.filterMode = normalized;
+  updateFilterButtons();
+  applyFilter();
+}
+
 function applyFocusHighlight() {
   if (!state.focusId) return;
   const cards = elements.list?.querySelectorAll('.crm-card[data-record-id]') || [];
@@ -791,11 +826,16 @@ function applyFocusHighlight() {
 
 function applyFilter() {
   const query = String(elements.filterInput?.value || '').trim().toLowerCase();
+  const warmOnly = state.filterMode === 'warm';
   const cards = Array.from(elements.list?.querySelectorAll('.crm-card[data-haystack]') || []);
   let visible = 0;
 
   cards.forEach(card => {
-    const hidden = Boolean(query) && !String(card.dataset.haystack || '').includes(query);
+    const haystackMiss = Boolean(query) && !String(card.dataset.haystack || '').includes(query);
+    const status = String(card.dataset.status || '');
+    const recordType = String(card.dataset.recordType || '');
+    const warmMiss = warmOnly && (recordType !== 'person' || !isWarmLeadStatus(status));
+    const hidden = haystackMiss || warmMiss;
     card.classList.toggle('hidden', hidden);
     if (!hidden) visible += 1;
   });
@@ -1472,7 +1512,7 @@ async function handleQuickLeadSubmit(event) {
       email: String(elements.quickLeadEmail?.value || '').trim(),
       company: group?.name || '',
       tags: 'quick lead',
-      status: 'Lead',
+      status: DEFAULT_PERSON_STATUS,
       primaryPain: pain,
       lastSignal: 'Captured from quick lead form',
       groupId,
@@ -1534,7 +1574,7 @@ async function handleAction(action, recordId) {
   if (action === 'new-member') {
     openCreateOverlay({
       type: 'person',
-      preset: { groupId: record.id, company: record.name || '', status: 'Lead', source: 'CRM group lane' },
+      preset: { groupId: record.id, company: record.name || '', status: DEFAULT_PERSON_STATUS, source: 'CRM group lane' },
     });
     return;
   }
@@ -1564,6 +1604,8 @@ function attachEvents() {
   elements.form?.addEventListener('submit', handleCreateSubmit);
   elements.quickLeadForm?.addEventListener('submit', handleQuickLeadSubmit);
   elements.filterInput?.addEventListener('input', applyFilter);
+  elements.filterAllButton?.addEventListener('click', () => setFilterMode('all'));
+  elements.filterWarmButton?.addEventListener('click', () => setFilterMode('warm'));
   elements.recordType?.addEventListener('change', () => applyCreateTypeVisibility(elements.recordType.value));
   elements.openCreate?.addEventListener('click', () => openCreateOverlay({ type: 'person' }));
   elements.openGroupCreate?.addEventListener('click', () => openCreateOverlay({ type: 'group' }));
@@ -1665,9 +1707,10 @@ function startSync() {
 }
 
 function init() {
+  updateFilterButtons();
   populateStaticSelects();
   refreshRelationshipControls();
-  fillCreateForm({ recordType: 'person', status: 'Lead' });
+  fillCreateForm({ recordType: 'person', status: DEFAULT_PERSON_STATUS });
   attachEvents();
   startIdentityBadge();
   startSync();

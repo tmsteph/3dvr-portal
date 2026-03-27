@@ -53,7 +53,7 @@ describe('crm editing manager', () => {
 
 describe('crm option sets', () => {
   it('provides the default CRM status labels', () => {
-    assert.deepEqual(Array.from(CRM_STATUS_OPTIONS), ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost']);
+    assert.deepEqual(Array.from(CRM_STATUS_OPTIONS), ['', 'Warm - Awareness', 'Warm - Discovery', 'Warm - Invited', 'Warm - Follow-up', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost']);
   });
 
   it('provides the market segment, pain severity, pilot status, and record type labels', () => {
