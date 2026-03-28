@@ -491,7 +491,7 @@ function highlightPlan(plan = '', options = {}) {
     return
   }
 
-  selectedPlanLabel.textContent = 'Pick a plan below. Existing subscribers will be sent to a safe switch flow.'
+  selectedPlanLabel.textContent = 'Pick a plan below. Existing subscribers will be sent to a safe switch flow that replaces older paid plans automatically.'
 }
 
 function isPlanAvailable(plan = '') {
@@ -580,9 +580,6 @@ function updateManageButton() {
     } else {
       label = canManageLegacyBilling() ? 'View billing history' : 'Billing history found'
     }
-  } else if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
-    enabled = true
-    label = 'Review duplicates'
   } else if (!hasKnownCustomer()) {
     enabled = false
     label = 'Choose a plan first'
@@ -622,7 +619,7 @@ function updateCancelButton() {
     label = 'No active plan'
   } else if (hasDuplicateActiveSubscriptions()) {
     enabled = false
-    label = 'Review duplicates first'
+    label = 'Choose plan to keep'
   } else if (hasLegacyUnlinkedSubscription() && !canManageLegacyBilling()) {
     enabled = false
     label = 'Legacy billing only'
@@ -667,8 +664,8 @@ function renderActionPrompt() {
       setStatus(
         actionStatus,
         canManageLegacyBilling()
-          ? 'Multiple older Stripe subscriptions were found for this billing email on separate Stripe records. Manage billing opens one record at a time. If you cancel the subscription you see and this warning remains after refresh, open billing again to reach the other record.'
-          : 'Multiple older Stripe subscriptions were found for this billing email. This billing center can show their status here, but checkout and management stay blocked until those records are linked or cleaned up.',
+          ? 'Multiple older Stripe subscriptions were found for this billing email on separate Stripe records. Choose the plan you want to keep. After Stripe confirms the switch, the older paid plans will be canceled automatically. Manage billing still opens one record at a time for invoices or payment methods.'
+          : 'Multiple older Stripe subscriptions were found for this billing email. Choose the plan you want to keep, and Stripe will replace the older paid plans automatically after the verified switch completes.',
         'warning'
       )
       return
@@ -676,7 +673,7 @@ function renderActionPrompt() {
 
     setStatus(
       actionStatus,
-      'More than one active subscription was found. Open billing to cancel the extra plan and keep one clean account-linked subscription.',
+      'More than one active subscription was found. Choose the plan you want to keep; after Stripe confirms the switch, the older paid plans will be canceled automatically.',
       'warning'
     )
     return
@@ -943,7 +940,7 @@ function renderBillingState(payload = null) {
   if (!payload) {
     setStatus(billingSummary, 'We will look up your Stripe customer after sign-in.', 'info')
     if (billingDetail) {
-      billingDetail.textContent = 'If you already subscribe, the plan buttons below will route you through a safe switch flow instead of starting a second subscription.'
+      billingDetail.textContent = 'If you already subscribe, the plan buttons below will route you through a safe switch flow that keeps the new plan and cancels older paid plans automatically.'
     }
     if (duplicateWarning) {
       duplicateWarning.hidden = true
@@ -959,9 +956,9 @@ function renderBillingState(payload = null) {
       duplicateWarning.hidden = false
       duplicateWarning.textContent = payload.legacyNeedsLinking
         ? canManageLegacyBilling()
-          ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email on separate Stripe records. Manage billing opens one record at a time, not all of them at once. If this warning remains after you review or cancel the visible subscription, return here, refresh, and open billing again to reach the next record.`
-          : `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email. This page can show their status, but it cannot manage those records yet.`
-        : `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Open billing and cancel the extra plan.`
+          ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email on separate Stripe records. Choose the plan you want to keep. After Stripe confirms the replacement, the older paid plans will be canceled automatically.`
+          : `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email. Choose the plan you want to keep, and the older paid plans will be replaced automatically after the verified Stripe switch.`
+        : `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Choose the plan you want to keep, and the older paid plans will be canceled automatically after the Stripe-confirmed switch.`
     }
   } else if (duplicateWarning) {
     duplicateWarning.hidden = true
