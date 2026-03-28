@@ -28,5 +28,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Choose a plan/);
     assert.match(html, /Already have a plan\?/);
     assert.match(html, /Open the page you actually need/);
+    assert.match(html, /mailto:3dvr\.tech@gmail\.com/);
+    assert.match(html, /href="\.\.\/calendar\/index\.html">Open calendar<\/a>/);
+    assert.doesNotMatch(html, /cal\.com\/3dvr\/intro/);
   });
 });
