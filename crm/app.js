@@ -1053,6 +1053,16 @@ function openContactsWorkspace(contactId, space = getPreferredContactsSpace()) {
   window.location.href = url.toString();
 }
 
+function updateContactsLinks() {
+  const space = getPreferredContactsSpace();
+  const url = new URL('../contacts/index.html', window.location.href);
+  url.searchParams.set('space', space);
+  const href = url.toString();
+  document.querySelectorAll('[data-contacts-link]').forEach(link => {
+    link.setAttribute('href', href);
+  });
+}
+
 function openTouchPrompt(record) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
@@ -1809,6 +1819,7 @@ function init() {
   fillCreateForm({ recordType: 'person', status: DEFAULT_PERSON_STATUS });
   attachEvents();
   startIdentityBadge();
+  updateContactsLinks();
   startSync();
   renderWeeklyChallenge();
   renderList();
