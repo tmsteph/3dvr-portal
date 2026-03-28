@@ -85,7 +85,7 @@ function hydrateStoredKey() {
     apiKeyInput.value = stored;
     updateKeyStatus('Using the OpenAI key stored by the Workbench.');
   } else {
-    updateKeyStatus('No key found yet. Paste one from the Workbench.');
+    updateKeyStatus('No key found yet. Paste one from the Workbench. Portal billing tiers do not create an OpenAI API key.');
   }
 }
 
@@ -173,7 +173,7 @@ async function handleGenerate() {
   const apiKey = (apiKeyInput.value || '').trim() || safeRead(localStorage, keyStorageKey) || safeRead(sessionStorage, keyStorageKey);
 
   if (!apiKey) {
-    updateKeyStatus('Add your OpenAI key first.');
+    updateKeyStatus('Add an OpenAI key first. Portal billing tiers do not create an OpenAI API key.');
     return;
   }
 

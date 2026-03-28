@@ -11,7 +11,9 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
   <script src="../score.js"></script>
-  <script type="module" src="./crm-editing.js"></script>
+  <script type="module" src="./app.js"></script>
+
+  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body class="bg-gray-900 text-white font-sans min-h-screen">
   <header class="bg-gray-950/70 border-b border-white/10">
@@ -25,7 +27,7 @@
       <nav class="flex flex-wrap gap-2 text-sm">
         <a href="../sales/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Sales home</a>
         <a href="../sales/training/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Training playbook</a>
-        <a href="../contacts/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts workspace</a>
+        <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts workspace</a>
       </nav>
     </div>
   </header>
@@ -43,90 +45,107 @@
     <span class="text-xs text-gray-300">Profile →</span>
   </a>
 
-  <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
-    <section class="grid gap-4 lg:grid-cols-[1fr,320px]">
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5 space-y-3">
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <section class="grid gap-3 lg:grid-cols-[1.15fr,0.85fr,0.85fr]">
+      <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-4 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-xl font-semibold">Three-touch weekly game</h2>
+          <h2 class="text-lg font-semibold">Three-touch weekly game</h2>
           <span id="challengeStatus" class="text-xs px-2 py-1 rounded bg-white/10 text-gray-200">Loading…</span>
         </div>
-        <p class="text-sm text-gray-300">
-          Log three contacts each week directly in the CRM. Calling, emailing, or messaging the same person three times all
-          counts—just make sure every touch is captured here.
-        </p>
-        <p class="text-sm text-amber-200/90 bg-amber-900/30 border border-amber-500/30 rounded-lg p-3">
-          After each touch, ask the person when you can follow up and record the date. Consistent follow-ups keep the streak
-          alive.
-        </p>
-        <div class="space-y-2">
-          <div class="flex items-center justify-between text-sm text-gray-300">
-            <span><span id="challengeWeeklyCount">0</span> / <span id="challengeWeeklyGoal">3</span> touches logged this week</span>
-            <span id="challengeWeeklyDetail" class="text-xs text-gray-400">Waiting for first log…</span>
-          </div>
-          <div class="h-3 bg-gray-900/70 rounded-full overflow-hidden border border-white/5">
-            <div id="challengeProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-sky-500" style="width: 0%"></div>
-          </div>
-        </div>
-      </div>
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-lg font-semibold">This week’s log</h3>
-          <span class="text-xs uppercase tracking-[0.28em] text-gray-400">Live</span>
-        </div>
-        <div id="challengeRecentList" class="space-y-3 text-sm text-gray-300">
-          <p class="text-gray-400">Logs will appear after you click “Log touch” on a CRM record.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="grid gap-4 md:grid-cols-2">
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <h2 class="text-lg font-semibold mb-2">Shared context</h2>
-        <p class="text-sm text-gray-300">This CRM uses the same 3DVR GUN relay as the contacts workspace. Tag people the same way so both apps stay aligned.</p>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <a href="../contacts/index.html" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded">Open contacts</a>
-          <a href="../sales/training/" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded">Review training</a>
-        </div>
-      </div>
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <h2 class="text-lg font-semibold mb-2">Deal pulse</h2>
-        <p class="text-sm text-gray-300">Track how many records you have overall versus what is visible after filtering.</p>
-        <div class="mt-4 grid grid-cols-2 gap-3 text-center text-sm text-gray-300">
-          <div class="bg-gray-900/60 border border-white/5 rounded-lg py-3">
-            <div class="text-2xl font-semibold" id="totalCount">0</div>
-            <div>Total records</div>
-          </div>
-          <div class="bg-gray-900/60 border border-white/5 rounded-lg py-3">
-            <div class="text-2xl font-semibold" id="visibleCount">0</div>
-            <div>Visible now</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="grid gap-6 lg:grid-cols-[320px,1fr]">
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-end justify-between gap-3">
           <div>
-            <h2 class="text-xl font-semibold">Add CRM record</h2>
-            <p class="text-sm text-gray-300">Capture notes or deal details without leaving the list.</p>
+            <p class="text-3xl font-semibold leading-none"><span id="challengeWeeklyCount">0</span>/<span id="challengeWeeklyGoal">3</span></p>
+            <p class="text-xs uppercase tracking-[0.28em] text-gray-400 mt-1">Touches this week</p>
           </div>
-          <button id="openCrmCreate" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">New record</button>
+          <span id="challengeWeeklyDetail" class="text-xs text-gray-400 text-right max-w-[12rem]">Waiting for first log…</span>
         </div>
+        <div class="h-2 bg-gray-900/70 rounded-full overflow-hidden border border-white/5">
+          <div id="challengeProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-sky-500" style="width: 0%"></div>
+        </div>
+      </div>
+      <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-4 space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-[0.28em] text-gray-300">Shared context</h3>
+        <p class="text-sm text-gray-300">
+          CRM and Contacts share the same Gun relay. Keep names, tags, and follow-up dates aligned so the detail view does
+          the heavy lifting.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <a href="../contacts/index.html" data-contacts-link class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded-lg text-sm">Open contacts</a>
+          <a href="../sales/training/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm">Training</a>
+        </div>
+      </div>
+      <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-4 space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-[0.28em] text-gray-300">Deal pulse</h3>
+        <p class="text-sm text-gray-300">Quick scan of the whole board versus the slice you filtered down to.</p>
+        <div class="grid grid-cols-2 gap-3 text-center text-sm text-gray-300">
+          <div class="bg-gray-900/60 border border-white/5 rounded-xl py-3">
+            <div class="text-2xl font-semibold" id="totalCount">0</div>
+            <div>Total</div>
+          </div>
+          <div class="bg-gray-900/60 border border-white/5 rounded-xl py-3">
+            <div class="text-2xl font-semibold" id="visibleCount">0</div>
+            <div>Visible</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-[360px,1fr]">
+      <div id="crm-capture" class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-4">
+        <div class="space-y-2">
+          <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">Capture lane</p>
+          <h2 class="text-xl font-semibold">Add the next real lead fast.</h2>
+          <p class="text-sm text-gray-300">The list stays compact. Use the detail view for edits, follow-up, and contact sync.</p>
+        </div>
+        <form id="quickLeadForm" class="grid gap-3">
+          <input id="quickLeadName" type="text" placeholder="Lead name" class="w-full p-2 rounded text-black" />
+          <input id="quickLeadEmail" type="email" placeholder="Email (optional)" class="w-full p-2 rounded text-black" />
+          <select id="quickLeadGroupId" class="w-full p-2 rounded text-black"></select>
+          <input id="quickLeadPrimaryPain" type="text" placeholder="Main problem you heard" class="w-full p-2 rounded text-black" />
+          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">Add lead</button>
+        </form>
+        <div class="grid gap-2 sm:grid-cols-2">
+          <button id="openCrmCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Full lead form</button>
+          <button id="openGroupCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">New group</button>
+          <button id="openProblemCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Log problem</button>
+          <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm text-center">Open contacts</a>
+        </div>
+        <p class="text-xs text-gray-400">Use the full form when you need linked problems or more detailed notes.</p>
       </div>
       <div class="space-y-6">
-        <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-          <label for="filter" class="block text-sm text-gray-300 mb-2">Search workspace</label>
-          <input id="filter" type="search" placeholder="Filter by name, email, tags, or notes" class="w-full p-2 rounded text-black" />
+        <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-3">
+          <div class="flex flex-wrap gap-2">
+            <button id="filterAllRecords" type="button" class="px-3 py-1.5 rounded text-sm bg-sky-600 text-white">All records</button>
+            <button id="filterWarmLeads" type="button" class="px-3 py-1.5 rounded text-sm bg-white/10 text-gray-200">Warm leads</button>
+          </div>
+          <div class="grid gap-3 md:grid-cols-[1fr,240px] md:items-end">
+            <div>
+              <label for="filter" class="block text-sm text-gray-300">Search workspace</label>
+              <input id="filter" type="search" placeholder="Filter by name, group, problem, tags, or notes" class="w-full p-2 rounded text-black" />
+            </div>
+            <div>
+              <label for="personWorkflowFilter" class="block text-sm text-gray-300">Person workflow</label>
+              <select id="personWorkflowFilter" class="w-full p-2 rounded text-black">
+                <option value="">All people</option>
+                <option value="linked">Linked to contacts</option>
+                <option value="unlinked">Not linked to contacts</option>
+                <option value="overdue">Follow-up overdue</option>
+                <option value="none">No follow-up date</option>
+                <option value="week">Follow-up due this week</option>
+                <option value="stale-14">Stale (14+ days)</option>
+              </select>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400">Tip: press <kbd class="rounded border border-white/20 px-1 py-0.5">/</kbd> to jump to search.</p>
         </div>
-        <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
+        <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-5">
           <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
-            <h2 class="text-xl font-semibold">Contacts</h2>
+            <h2 class="text-xl font-semibold">Pipeline</h2>
             <span class="text-xs uppercase tracking-[0.32em] text-gray-400">Live</span>
           </div>
           <div id="crmDuplicateSummary" class="hidden bg-amber-900/40 border border-amber-500/30 rounded-lg p-3 text-sm text-amber-100 mb-4"></div>
-          <div id="contactList" class="space-y-4"></div>
-          <div id="emptyState" class="text-sm text-gray-400 hidden">No contacts yet. Add someone from the form or sync from the contacts app.</div>
+          <div id="contactList" class="space-y-3"></div>
+          <div id="emptyState" class="text-sm text-gray-400 hidden">No records yet. Add a group, lead, or problem to get started.</div>
         </div>
       </div>
     </section>
@@ -143,25 +162,73 @@
         <button id="closeCrmCreate" type="button" class="self-end text-sm text-gray-300 hover:text-white">Close</button>
       </div>
       <form id="contactForm" class="mt-6 grid gap-3">
-        <div class="grid gap-2 md:grid-cols-2">
-          <input type="text" id="name" placeholder="Name" class="w-full p-2 rounded text-black" />
-          <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
-          <input type="text" id="company" placeholder="Company" class="w-full p-2 rounded text-black" />
-          <input type="text" id="phone" placeholder="Phone" class="w-full p-2 rounded text-black" />
-          <input type="text" id="role" placeholder="Role (client, lead...)" class="w-full p-2 rounded text-black" />
-          <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
-          <select id="status" class="w-full p-2 rounded text-black">
-            <option value="">Status (optional)</option>
-            <option>Lead</option>
-            <option>Prospect</option>
-            <option>Active</option>
-            <option>Negotiating</option>
-            <option>Won</option>
-            <option>Lost</option>
-          </select>
-          <input type="date" id="nextFollowUp" class="w-full p-2 rounded text-black" />
+        <div class="grid gap-3 md:grid-cols-2">
+          <div class="md:col-span-2">
+            <label for="recordType" class="block text-sm text-gray-300 mb-1">Record type</label>
+            <select id="recordType" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person group problem">
+            <input type="text" id="name" placeholder="Name or problem title" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person">
+            <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person">
+            <input type="text" id="company" placeholder="Company" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person">
+            <input type="text" id="phone" placeholder="Phone" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person">
+            <input type="text" id="role" placeholder="Role (owner, manager, lead...)" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group">
+            <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group">
+            <select id="status" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person">
+            <input type="date" id="nextFollowUp" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group">
+            <select id="marketSegment" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person problem">
+            <input type="text" id="primaryPain" placeholder="Primary pain" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person problem">
+            <select id="painSeverity" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person">
+            <input type="text" id="currentWorkaround" placeholder="Current workaround" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group">
+            <select id="pilotStatus" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person problem">
+            <input type="text" id="offerAmount" placeholder="Offer / impact amount" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person problem">
+            <input type="text" id="lastSignal" placeholder="Last signal" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person problem">
+            <input type="text" id="nextExperiment" placeholder="Next experiment" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person" class="md:col-span-2">
+            <label for="groupId" class="block text-sm text-gray-300 mb-1">Group</label>
+            <select id="groupId" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="problem" class="md:col-span-2">
+            <label for="linkedGroupIds" class="block text-sm text-gray-300 mb-1">Linked groups</label>
+            <select id="linkedGroupIds" class="w-full p-2 rounded text-black h-32" multiple></select>
+          </div>
+          <div data-create-types="problem" class="md:col-span-2">
+            <label for="linkedPersonIds" class="block text-sm text-gray-300 mb-1">Linked people</label>
+            <select id="linkedPersonIds" class="w-full p-2 rounded text-black h-32" multiple></select>
+          </div>
         </div>
-        <textarea id="notes" placeholder="Notes" class="w-full p-2 rounded text-black"></textarea>
+        <textarea id="notes" placeholder="Notes and context" class="w-full p-2 rounded text-black"></textarea>
         <div class="flex gap-2">
           <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save</button>
           <button type="button" id="cancelCrmCreate" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
@@ -171,7 +238,7 @@
   </div>
 
   <div id="crmDetailOverlay" class="hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto">
-    <div id="crmDetailCard" class="w-full max-w-2xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
+    <div id="crmDetailCard" class="w-full max-w-3xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
       <button id="closeCrmDetail" type="button" class="absolute top-4 right-4 text-sm text-gray-300 hover:text-white">Close</button>
       <div class="space-y-5">
         <div class="space-y-1">
@@ -179,1551 +246,14 @@
           <h2 id="crmDetailName" class="text-2xl font-semibold">Name</h2>
           <p id="crmDetailSummary" class="text-sm text-gray-300">Summary</p>
         </div>
-        <div id="crmDetailTags" class="hidden"></div>
-        <div id="crmDetailNotes" class="hidden"></div>
-        <div id="crmDetailMeta" class="grid gap-2 text-sm text-gray-300"></div>
-        <div id="crmDetailWorkspace" class="text-sm text-gray-300"></div>
         <div id="crmDetailActions" class="flex flex-wrap gap-2"></div>
+        <div id="crmDetailWorkspace" class="text-sm text-gray-300"></div>
+        <div id="crmDetailTags" class="hidden"></div>
+        <div id="crmDetailMeta" class="grid gap-2 text-sm text-gray-300"></div>
+        <div id="crmDetailNotes" class="hidden"></div>
       </div>
     </div>
   </div>
 
-  <script>
-    const gun = Gun(window.__GUN_PEERS__ || [
-      'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
-    ]);
-    const user = gun.user();
-    const portalRoot = gun.get('3dvr-portal');
-    const guestsRoot = gun.get('3dvr-guests');
-    const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
-      ? window.ScoreSystem.getManager({ gun, user, portalRoot })
-      : null;
-    try {
-      user.recall({ sessionStorage: true, localStorage: true });
-    } catch (err) {
-      console.warn('Unable to recall user session', err);
-    }
-
-    const ls = localStorage;
-    const signedIn = ls.getItem('signedIn') === 'true';
-    const alias = ls.getItem('alias') || '';
-    const password = ls.getItem('password') || '';
-
-    const crmRecords = gun.get('3dvr-crm');
-    const editingManager = window.crmEditing && typeof window.crmEditing.createCrmEditingManager === 'function'
-      ? window.crmEditing.createCrmEditingManager()
-      : (() => {
-        const editing = new Set();
-        return {
-          enter(id) {
-            if (!id) return false;
-            const before = editing.size;
-            editing.add(String(id));
-            return editing.size !== before;
-          },
-          exit(id) {
-            if (!id) return false;
-            return editing.delete(String(id));
-          },
-          isEditing(id) {
-            if (!id) return false;
-            return editing.has(String(id));
-          },
-          list() {
-            return Array.from(editing);
-          },
-          clear() {
-            const hadEntries = editing.size > 0;
-            editing.clear();
-            return hadEntries;
-          },
-          count() {
-            return editing.size;
-          },
-          markRecords(records) {
-            return (Array.isArray(records) ? records : []).map(record => ({
-              record,
-              editing: record && record.id != null ? editing.has(String(record.id)) : false,
-            }));
-          }
-        };
-      })();
-    const CRM_STATUS_OPTIONS = window.crmEditing?.CRM_STATUS_OPTIONS || ['', 'Lead', 'Prospect', 'Active', 'Negotiating', 'Won', 'Lost'];
-    const CONTACT_BUTTON_ADD_LABEL = 'Add to contacts';
-    const CONTACT_BUTTON_OPEN_LABEL = 'Open in contacts';
-    const form = document.getElementById('contactForm');
-    const list = document.getElementById('contactList');
-    const filterInput = document.getElementById('filter');
-    const totalCountEl = document.getElementById('totalCount');
-    const visibleCountEl = document.getElementById('visibleCount');
-    const emptyState = document.getElementById('emptyState');
-    const duplicateSummaryEl = document.getElementById('crmDuplicateSummary');
-    const crmFloatingIdentity = document.getElementById('crmFloatingIdentity');
-    const crmFloatingName = document.getElementById('crmFloatingName');
-    const crmFloatingScore = document.getElementById('crmFloatingScore');
-    const crmCreateOverlay = document.getElementById('crmCreateOverlay');
-    const challengeWeeklyCount = document.getElementById('challengeWeeklyCount');
-    const challengeWeeklyGoal = document.getElementById('challengeWeeklyGoal');
-    const challengeWeeklyDetail = document.getElementById('challengeWeeklyDetail');
-    const challengeProgressBar = document.getElementById('challengeProgressBar');
-    const challengeRecentList = document.getElementById('challengeRecentList');
-    const challengeStatus = document.getElementById('challengeStatus');
-    const openCrmCreateBtn = document.getElementById('openCrmCreate');
-    const closeCrmCreateBtn = document.getElementById('closeCrmCreate');
-    const cancelCrmCreateBtn = document.getElementById('cancelCrmCreate');
-    const params = new URLSearchParams(window.location.search);
-    const focusContactId = params.get('contact');
-    let focusApplied = false;
-    const focusClasses = ['ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-gray-900'];
-    let contactsWorkspace = null;
-    let contactsWorkspaceListener = null;
-    let contactsSpaceKey = 'public-demo';
-    let contactWorkspaceIndex = {};
-    const contactsWorkspaceWaiters = [];
-    const touchLogRoot = portalRoot.get('crm-touch-log');
-    const touchLogIndex = new Map();
-    const WEEKLY_CHALLENGE_GOAL = 3;
-    const participantId = getParticipantId();
-
-    function sanitizeRecord(data) {
-      if (!data || typeof data !== 'object') return {};
-      const clean = {};
-      Object.entries(data).forEach(([key, value]) => {
-        if (key === '_' || typeof value === 'function') return;
-        clean[key] = value;
-      });
-      return clean;
-    }
-
-    function getParticipantId() {
-      const storedUsername = (ls.getItem('username') || '').trim();
-      const storedAlias = (alias || '').trim();
-      const guestId = (ls.getItem('guestId') || '').trim();
-      return storedUsername || storedAlias || guestId || 'guest';
-    }
-
-    function getParticipantLabel() {
-      const username = (ls.getItem('username') || '').trim();
-      const aliasName = (alias || '').trim();
-      if (username) return username;
-      if (aliasName) return aliasName;
-      const guestDisplay = (ls.getItem('guestDisplayName') || '').trim();
-      return guestDisplay || 'Guest';
-    }
-
-    function startOfCurrentWeek() {
-      const now = new Date();
-      const start = new Date(now);
-      const day = start.getDay();
-      const diff = day === 0 ? -6 : 1 - day;
-      start.setHours(0, 0, 0, 0);
-      start.setDate(start.getDate() + diff);
-      return start;
-    }
-
-    function isTimestampInCurrentWeek(timestamp, weekStart = startOfCurrentWeek()) {
-      const date = new Date(timestamp);
-      if (Number.isNaN(date.getTime())) return false;
-      return date >= weekStart;
-    }
-
-    function normalizeFollowUpInput(input) {
-      const raw = (input || '').trim();
-      if (!raw) return '';
-      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-      const parsed = new Date(raw);
-      if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString().slice(0, 10);
-      }
-      return raw;
-    }
-
-    function getContactButtonLabel(record, id) {
-      return findContactInWorkspace(record, id)
-        ? CONTACT_BUTTON_OPEN_LABEL
-        : CONTACT_BUTTON_ADD_LABEL;
-    }
-    const crmIndex = {};
-    const crmDuplicateExpandedState = new Map();
-    const crmDuplicateMetaById = new Map();
-    const crmDuplicatePrimaryById = new Map();
-    let crmRenderTimer = null;
-    function aliasToDisplay(value) {
-      const normalized = typeof value === 'string' ? value.trim() : '';
-      if (!normalized) return '';
-      if (normalized.includes('@')) {
-        return normalized.split('@')[0];
-      }
-      return normalized;
-    }
-
-    function sanitizeScoreDisplay(value) {
-      if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
-        return window.ScoreSystem.sanitizeScore(value);
-      }
-      const numeric = typeof value === 'number' ? value : Number(value);
-      if (!Number.isFinite(numeric)) return 0;
-      return Math.max(0, Math.round(numeric));
-    }
-
-    function renderRecentTouchList(entries) {
-      if (!challengeRecentList) return;
-      if (!entries || entries.length === 0) {
-        challengeRecentList.innerHTML = '<p class="text-gray-400">Logs will appear after you click “Log touch” on a CRM record.</p>';
-        return;
-      }
-      const sorted = entries.slice().sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
-      const rows = sorted.slice(0, 5).map(entry => {
-        const followUp = entry.followUp ? safe(entry.followUp) : 'Not scheduled';
-        const noteLine = entry.note ? `<p class="text-xs text-gray-200 mt-2 whitespace-pre-line">Touch notes: ${safe(entry.note)}</p>` : '';
-        const contactName = entry.contactName ? safe(entry.contactName) : 'Unnamed contact';
-        const timeLabel = entry.timestamp ? safe(timeAgo(entry.timestamp)) : 'Unknown time';
-        const absTime = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '';
-        const loggedBy = safe(entry.loggedBy || entry.participantId || 'Unknown');
-        return `
-          <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3">
-            <div class="flex flex-wrap justify-between text-sm text-gray-200">
-              <span class="font-semibold">${contactName}</span>
-              <span class="text-xs text-gray-400" title="${safeAttr(absTime)}">${timeLabel}</span>
-            </div>
-            <p class="text-xs text-gray-300 mt-1">Next follow-up: ${followUp}</p>
-            ${noteLine}
-            <p class="text-xs text-gray-400">Logged by ${loggedBy}</p>
-          </div>
-        `;
-      }).join('');
-      challengeRecentList.innerHTML = rows;
-    }
-
-    function renderWeeklyChallenge() {
-      if (challengeWeeklyGoal) {
-        challengeWeeklyGoal.textContent = WEEKLY_CHALLENGE_GOAL;
-      }
-      if (!challengeWeeklyCount || !challengeProgressBar || !challengeWeeklyDetail) return;
-      const weekStart = startOfCurrentWeek();
-      const entries = Array.from(touchLogIndex.values()).filter(entry => {
-        if (!entry || !entry.timestamp) return false;
-        const matchesOwner = !entry.participantId || entry.participantId === participantId;
-        return matchesOwner && isTimestampInCurrentWeek(entry.timestamp, weekStart);
-      });
-      const count = entries.length;
-      const remaining = Math.max(0, WEEKLY_CHALLENGE_GOAL - count);
-      const percent = Math.min(100, Math.round((count / WEEKLY_CHALLENGE_GOAL) * 100));
-      challengeWeeklyCount.textContent = count;
-      challengeProgressBar.style.width = `${percent}%`;
-      challengeWeeklyDetail.textContent = count >= WEEKLY_CHALLENGE_GOAL
-        ? 'Goal met—keep going!'
-        : `${remaining} to go this week`;
-      if (challengeStatus) {
-        challengeStatus.textContent = count >= WEEKLY_CHALLENGE_GOAL ? 'On track' : 'Keep going';
-        challengeStatus.classList.toggle('bg-emerald-600/40', count >= WEEKLY_CHALLENGE_GOAL);
-        challengeStatus.classList.toggle('bg-white/10', count < WEEKLY_CHALLENGE_GOAL);
-      }
-      renderRecentTouchList(entries);
-    }
-
-    if (crmFloatingIdentity && crmFloatingName && crmFloatingScore) {
-      const isSignedIn = signedIn;
-      const isGuest = !isSignedIn && ls.getItem('guest') === 'true';
-      let latestDisplayName = '';
-      let aliasDisplay = aliasToDisplay(alias);
-
-      function updateIdentityName() {
-        let display = '';
-        if (latestDisplayName) {
-          display = latestDisplayName;
-        } else if (isSignedIn) {
-          const stored = (ls.getItem('username') || '').trim();
-          display = stored || aliasDisplay || 'Guest';
-        } else if (isGuest) {
-          const guestStored = (ls.getItem('guestDisplayName') || '').trim();
-          display = guestStored || aliasDisplay || 'Guest';
-        } else {
-          display = aliasDisplay || 'Guest';
-        }
-        crmFloatingName.textContent = `👤 ${display}`;
-      }
-
-      function updateIdentityScore(score) {
-        crmFloatingScore.textContent = `⭐ ${sanitizeScoreDisplay(score)}`;
-      }
-
-      updateIdentityName();
-      updateIdentityScore(scoreManager ? scoreManager.getCurrent() : 0);
-
-      if (scoreManager) {
-        scoreManager.subscribe(updateIdentityScore);
-      }
-
-      if (isSignedIn) {
-        try {
-          user.get('alias').on(value => {
-            aliasDisplay = aliasToDisplay(value);
-            updateIdentityName();
-          });
-          user.get('username').on(name => {
-            const normalized = typeof name === 'string' ? name.trim() : '';
-            latestDisplayName = normalized;
-            if (normalized) {
-              ls.setItem('username', normalized);
-            }
-            updateIdentityName();
-          });
-        } catch (err) {
-          console.warn('Failed to bind signed-in identity listeners', err);
-        }
-      } else if (isGuest) {
-        let guestId = '';
-        if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-          guestId = window.ScoreSystem.ensureGuestIdentity() || '';
-        } else {
-          const legacyId = ls.getItem('userId');
-          if (legacyId && !ls.getItem('guestId')) {
-            ls.setItem('guestId', legacyId);
-          }
-          if (legacyId) {
-            ls.removeItem('userId');
-          }
-          guestId = ls.getItem('guestId');
-          if (!guestId) {
-            guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
-            ls.setItem('guestId', guestId);
-          }
-          if (!ls.getItem('guestDisplayName')) {
-            ls.setItem('guestDisplayName', 'Guest');
-          }
-        }
-        if (guestId && guestsRoot) {
-          try {
-            guestsRoot.get(guestId).get('username').on(name => {
-              const normalized = typeof name === 'string' ? name.trim() : '';
-              latestDisplayName = normalized;
-              if (normalized) {
-                ls.setItem('guestDisplayName', normalized);
-              }
-              updateIdentityName();
-            });
-          } catch (err) {
-            console.warn('Failed to bind guest identity listener', err);
-          }
-        }
-      }
-    }
-
-    if (touchLogRoot && typeof touchLogRoot.map === 'function') {
-      touchLogRoot.map().on((data, id) => {
-        if (!id) return;
-        if (!data) {
-          touchLogIndex.delete(id);
-        } else {
-          const sanitized = sanitizeRecord(data);
-          touchLogIndex.set(id, {
-            ...sanitized,
-            id,
-            timestamp: sanitized.timestamp || sanitized.time || sanitized.lastContacted || ''
-          });
-        }
-        renderWeeklyChallenge();
-      });
-    } else {
-      renderWeeklyChallenge();
-    }
-    const crmDetailOverlay = document.getElementById('crmDetailOverlay');
-    const crmDetailName = document.getElementById('crmDetailName');
-    const crmDetailSummary = document.getElementById('crmDetailSummary');
-    const crmDetailTags = document.getElementById('crmDetailTags');
-    const crmDetailNotes = document.getElementById('crmDetailNotes');
-    const crmDetailMeta = document.getElementById('crmDetailMeta');
-    const crmDetailWorkspace = document.getElementById('crmDetailWorkspace');
-    const crmDetailActions = document.getElementById('crmDetailActions');
-    const closeCrmDetailBtn = document.getElementById('closeCrmDetail');
-
-    function openCrmCreateOverlay() {
-      if (!crmCreateOverlay) return;
-      crmCreateOverlay.classList.remove('hidden');
-      const firstField = crmCreateOverlay.querySelector('input, textarea, select');
-      if (firstField) {
-        requestAnimationFrame(() => firstField.focus());
-      }
-    }
-
-    function closeCrmCreateOverlay() {
-      if (!crmCreateOverlay) return;
-      crmCreateOverlay.classList.add('hidden');
-    }
-
-    if (openCrmCreateBtn) {
-      openCrmCreateBtn.addEventListener('click', () => {
-        openCrmCreateOverlay();
-      });
-    }
-
-    if (closeCrmCreateBtn) {
-      closeCrmCreateBtn.addEventListener('click', () => {
-        closeCrmCreateOverlay();
-      });
-    }
-
-    if (cancelCrmCreateBtn) {
-      cancelCrmCreateBtn.addEventListener('click', () => {
-        form?.reset();
-        closeCrmCreateOverlay();
-      });
-    }
-
-    if (crmCreateOverlay) {
-      crmCreateOverlay.addEventListener('click', event => {
-        if (event.target === crmCreateOverlay) {
-          closeCrmCreateOverlay();
-        }
-      });
-    }
-
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && crmCreateOverlay && !crmCreateOverlay.classList.contains('hidden')) {
-        closeCrmCreateOverlay();
-      }
-    });
-
-    function waitForContactsWorkspace(timeout = 4000) {
-      if (contactsWorkspace) return Promise.resolve(contactsWorkspace);
-      return new Promise(resolve => {
-        const waiter = node => {
-          if (timer) clearTimeout(timer);
-          resolve(node);
-        };
-        const timer = timeout ? setTimeout(() => {
-          const index = contactsWorkspaceWaiters.indexOf(waiter);
-          if (index >= 0) {
-            contactsWorkspaceWaiters.splice(index, 1);
-          }
-          resolve(null);
-        }, timeout) : null;
-        contactsWorkspaceWaiters.push(waiter);
-      });
-    }
-
-    function setContactsWorkspace(node, spaceKey = 'public-demo') {
-      if (contactsWorkspaceListener && typeof contactsWorkspaceListener.off === 'function') {
-        try {
-          contactsWorkspaceListener.off();
-        } catch (err) {
-          console.warn('Failed to detach contacts workspace listener', err);
-        }
-      }
-      contactsWorkspaceListener = null;
-      contactsWorkspace = node;
-      contactsSpaceKey = spaceKey;
-      contactWorkspaceIndex = {};
-      if (node) {
-        contactsWorkspaceListener = node.map().on((data, contactId) => {
-          if (!contactId) return;
-          if (!data) {
-            delete contactWorkspaceIndex[contactId];
-            return;
-          }
-          contactWorkspaceIndex[contactId] = { ...(contactWorkspaceIndex[contactId] || {}), ...data, id: contactId };
-        });
-      }
-      while (contactsWorkspaceWaiters.length) {
-        const resolve = contactsWorkspaceWaiters.shift();
-        try {
-          if (typeof resolve === 'function') {
-            resolve(node);
-          }
-        } catch (err) {
-          console.warn('Failed to notify contacts workspace waiter', err);
-        }
-      }
-    }
-
-    function usePersonalContacts() {
-      setContactsWorkspace(user.get('contacts'), 'personal');
-    }
-
-    function usePublicContacts() {
-      setContactsWorkspace(gun.get('contacts-public'), 'public-demo');
-    }
-
-    if (typeof user.on === 'function') {
-      user.on('auth', () => {
-        usePersonalContacts();
-      });
-    }
-
-    if (user.is) {
-      usePersonalContacts();
-    } else if (signedIn && alias && password) {
-      user.auth(alias, password, ack => {
-        if (ack && ack.err) {
-          console.warn('CRM auth failed', ack.err);
-          usePublicContacts();
-        } else {
-          usePersonalContacts();
-        }
-      });
-    } else {
-      usePublicContacts();
-    }
-
-    const getFieldValue = id => (document.getElementById(id)?.value || '').trim();
-
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const id = Date.now().toString();
-      const now = new Date().toISOString();
-      const contact = {
-        id,
-        contactId: id,
-        name: getFieldValue('name'),
-        email: getFieldValue('email'),
-        company: getFieldValue('company'),
-        phone: getFieldValue('phone'),
-        role: getFieldValue('role'),
-        tags: getFieldValue('tags'),
-        status: getFieldValue('status'),
-        nextFollowUp: getFieldValue('nextFollowUp'),
-        notes: getFieldValue('notes'),
-        lastContacted: '',
-        activityCount: 0,
-        source: 'CRM workspace',
-        created: now,
-        updated: now
-      };
-      crmRecords.get(id).put(contact);
-      if (scoreManager) {
-        scoreManager.increment(10);
-      }
-      form.reset();
-      closeCrmCreateOverlay();
-    });
-
-    crmRecords.map().on((data, id) => {
-      if (!id) return;
-      if (!data) {
-        delete crmIndex[id];
-      } else {
-        const sanitized = sanitizeRecord(data);
-        crmIndex[id] = { ...(crmIndex[id] || {}), ...sanitized, id };
-      }
-      scheduleRender();
-    });
-
-    function scheduleRender() {
-      clearTimeout(crmRenderTimer);
-      crmRenderTimer = setTimeout(renderList, 40);
-    }
-
-    function renderList() {
-      const records = Object.values(crmIndex);
-      const sorted = records.slice().sort((a, b) => {
-        const aStamp = a.updated || a.created || '';
-        const bStamp = b.updated || b.created || '';
-        if (aStamp === bStamp) {
-          return (a.name || '').localeCompare(b.name || '');
-        }
-        return bStamp.localeCompare(aStamp);
-      });
-      const collapsed = collapseCrmDuplicates(sorted);
-      const markedRecords = editingManager.markRecords(collapsed.records);
-      list.innerHTML = markedRecords.map(item => item.editing ? renderCrmEditForm(item.record) : renderCrmCard(item.record)).join('');
-      markedRecords.forEach(item => {
-        const record = item.record;
-        attachCrmCardInteractions(record);
-        if (crmDuplicateMetaById.has(record.id)) {
-          wireCrmDuplicateControls(record.id);
-        }
-      });
-      applyFilter();
-    }
-
-    function collapseCrmDuplicates(records) {
-      crmDuplicateMetaById.clear();
-      crmDuplicatePrimaryById.clear();
-      const groups = computeDuplicateGroups(records);
-      const hiddenIds = new Set();
-      groups.forEach(group => {
-        const ordered = sortCrmDuplicateCandidates(group.items);
-        const primary = ordered[0];
-        const duplicates = ordered.slice(1);
-        const emailSummary = describeEmailDifferences(ordered);
-        crmDuplicateMetaById.set(primary.id, {
-          name: group.name,
-          total: ordered.length,
-          records: ordered,
-          duplicates,
-          emailSummary
-        });
-        ordered.forEach(item => {
-          crmDuplicatePrimaryById.set(item.id, primary.id);
-          if (item.id !== primary.id) hiddenIds.add(item.id);
-        });
-      });
-      const seenPrimaries = new Set();
-      const result = [];
-      records.forEach(record => {
-        const primaryId = crmDuplicatePrimaryById.get(record.id);
-        if (primaryId) {
-          if (record.id === primaryId && !seenPrimaries.has(primaryId)) {
-            result.push(record);
-            seenPrimaries.add(primaryId);
-          }
-        } else {
-          result.push(record);
-        }
-      });
-      return { records: result, hiddenCount: hiddenIds.size };
-    }
-
-    function sortCrmDuplicateCandidates(items) {
-      return items.slice().sort((a, b) => {
-        const aLinked = a.contactId ? 1 : 0;
-        const bLinked = b.contactId ? 1 : 0;
-        if (aLinked !== bLinked) return bLinked - aLinked;
-        const aStamp = a.updated || a.created || '';
-        const bStamp = b.updated || b.created || '';
-        if (aStamp !== bStamp) return bStamp.localeCompare(aStamp);
-        const aScore = crmDuplicateCompletenessScore(a);
-        const bScore = crmDuplicateCompletenessScore(b);
-        if (aScore !== bScore) return bScore - aScore;
-        return (a.id || '').localeCompare(b.id || '');
-      });
-    }
-
-    function crmDuplicateCompletenessScore(record) {
-      const fields = ['email', 'phone', 'company', 'role', 'tags', 'status', 'notes'];
-      return fields.reduce((score, field) => {
-        if (record[field]) score += 1;
-        return score;
-      }, 0);
-    }
-
-    function renderCrmCard(record) {
-      const id = record.id;
-      const displayName = record.name ? safe(record.name) : '(no name)';
-      const emailLink = record.email ? `<a href="mailto:${encodeURIComponent(record.email)}" class="text-sky-400 hover:underline">${safe(record.email)}</a>` : '';
-      const phoneLink = record.phone ? `<a href="tel:${encodeURIComponent(record.phone)}" class="text-sky-400 hover:underline">${safe(record.phone)}</a>` : '';
-      const companyText = record.company ? ` · ${safe(record.company)}` : '';
-      const roleText = record.role ? ` · ${safe(record.role)}` : '';
-      const tagsText = record.tags ? `<div class="flex flex-wrap gap-1">${record.tags.split(',').map(tag => tag.trim()).filter(Boolean).map(tag => `<span class="text-xs px-2 py-0.5 rounded bg-white/10">${safe(tag)}</span>`).join('')}</div>` : '';
-      const notesText = record.notes ? `<p class="text-sm text-gray-300 whitespace-pre-line">${safe(record.notes)}</p>` : '';
-      const stamp = record.updated || record.created;
-      const updatedValue = stamp ? `Updated: ${new Date(stamp).toLocaleString()}` : 'Updated: —';
-      const statusBadge = record.status ? `<span class="text-xs px-2 py-0.5 rounded bg-emerald-700/60 border border-emerald-400/30">${safe(record.status)}</span>` : '';
-      const followUp = record.nextFollowUp ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/30">Follow-up ${safe(record.nextFollowUp)}</span>` : '';
-      const contactHint = record.email || record.name || '';
-      const contactMatch = findContactInWorkspace(record, id);
-      const buttonLabel = safe(getContactButtonLabel(record, id));
-      const contactTitle = contactMatch
-        ? (contactHint
-          ? `Open contacts workspace and search for ${contactHint}`
-          : 'Open contacts workspace')
-        : (contactHint
-          ? `Add to contacts workspace and search for ${contactHint}`
-          : 'Add to contacts workspace');
-      const duplicateInfo = crmDuplicateMetaById.get(id);
-      const duplicateBadge = duplicateInfo
-        ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/40 text-amber-50">Duplicates ×${safe(duplicateInfo.total)}</span>`
-        : '';
-      const duplicateSection = duplicateInfo ? renderCrmDuplicateSection(record, duplicateInfo) : '';
-      const haystackParts = [record.name, record.email, record.company, record.phone, record.role, record.tags, record.status, record.notes];
-      if (duplicateInfo) {
-        duplicateInfo.records.forEach(item => {
-          if (item.id !== id) {
-            haystackParts.push(item.name, item.email, item.company, item.phone, item.role, item.tags, item.status, item.notes);
-          }
-        });
-      }
-      const haystack = haystackParts.filter(Boolean).join(' ').toLowerCase();
-      return `
-        <div class="crm-card bg-gray-900/60 border border-white/5 rounded-lg p-4" id="${safeAttr(id)}" data-haystack="${safeAttr(haystack)}" data-created="${safeAttr(record.created || '')}">
-          <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div class="space-y-2 md:max-w-xl">
-              <div class="flex flex-wrap gap-2 items-center">
-                <h3 class="text-lg font-semibold">${displayName}</h3>
-                ${statusBadge}
-                ${followUp}
-                ${duplicateBadge}
-              </div>
-              <p class="text-sm text-gray-300">${emailLink}${companyText}${roleText}${phoneLink ? ` · ${phoneLink}` : ''}</p>
-              ${tagsText}
-              ${notesText}
-              <div class="grid gap-1 text-xs text-gray-400 sm:grid-cols-2">
-                <div>Last contacted: ${record.lastContacted ? safe(timeAgo(record.lastContacted)) : '—'}</div>
-                <div>Touches: ${safe(typeof record.activityCount === 'number' ? record.activityCount : 0)}</div>
-                <div>Next follow-up: ${record.nextFollowUp ? safe(record.nextFollowUp) : '—'}</div>
-                <div>${safe(updatedValue)}</div>
-              </div>
-              ${duplicateSection}
-            </div>
-            <div class="flex flex-col gap-2 md:w-48">
-              <button id="open-contacts-${safeAttr(id)}" onclick="ensureContact('${safeAttr(id)}')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded text-sm" title="${safeAttr(contactTitle)}">${buttonLabel}</button>
-              <button onclick="logTouch('${safeAttr(id)}')" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">Log touch</button>
-              <button onclick="quickFollowUp('${safeAttr(id)}')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded text-sm">+7d follow-up</button>
-              <button onclick="editContact(event, '${safeAttr(id)}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm">Edit</button>
-              <button onclick="deleteContact('${safeAttr(id)}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">Delete</button>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderCrmEditForm(record) {
-      const id = record.id;
-      const haystack = [record.name, record.email, record.company, record.phone, record.role, record.tags, record.status, record.notes]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return `
-        <div class="crm-card crm-card-editing bg-gray-900/60 border border-white/5 rounded-lg p-4" id="${safeAttr(id)}" data-haystack="${safeAttr(haystack)}" data-created="${safeAttr(record.created || '')}" data-editing="true">
-          <form class="space-y-3" onsubmit="saveEdit(event, '${safeAttr(id)}')">
-            <div class="grid gap-2 md:grid-cols-2">
-              <input id="edit-name-${safeAttr(id)}" value="${safeAttr(record.name)}" placeholder="Name" class="w-full p-2 rounded text-black" />
-              <input id="edit-email-${safeAttr(id)}" value="${safeAttr(record.email)}" placeholder="Email" class="w-full p-2 rounded text-black" />
-              <input id="edit-company-${safeAttr(id)}" value="${safeAttr(record.company)}" placeholder="Company" class="w-full p-2 rounded text-black" />
-              <input id="edit-phone-${safeAttr(id)}" value="${safeAttr(record.phone)}" placeholder="Phone" class="w-full p-2 rounded text-black" />
-              <input id="edit-role-${safeAttr(id)}" value="${safeAttr(record.role)}" placeholder="Role" class="w-full p-2 rounded text-black" />
-              <input id="edit-tags-${safeAttr(id)}" value="${safeAttr(record.tags)}" placeholder="Tags" class="w-full p-2 rounded text-black" />
-              <select id="edit-status-${safeAttr(id)}" class="w-full p-2 rounded text-black">
-                ${CRM_STATUS_OPTIONS.map(status => `<option value="${safeAttr(status)}" ${((record.status || '') === status) ? 'selected' : ''}>${status || 'Status (optional)'}</option>`).join('')}
-              </select>
-              <input id="edit-next-${safeAttr(id)}" type="date" value="${safeAttr((record.nextFollowUp || '').slice(0, 10))}" class="w-full p-2 rounded text-black" />
-            </div>
-            <textarea id="edit-notes-${safeAttr(id)}" class="w-full p-2 rounded text-black" placeholder="Notes">${safe(record.notes)}</textarea>
-            <div class="flex gap-2">
-              <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded text-sm">Save</button>
-              <button type="button" onclick="cancelEdit('${safeAttr(id)}')" class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-sm">Cancel</button>
-            </div>
-          </form>
-        </div>
-      `;
-    }
-
-    function getCrmDuplicateToggleLabel(meta, expanded) {
-      const duplicatesCount = Math.max(0, (meta?.total || 1) - 1);
-      if (duplicatesCount === 0) return 'Show duplicates';
-      return expanded ? `Hide duplicates (${duplicatesCount})` : `Show duplicates (${duplicatesCount} hidden)`;
-    }
-
-    function renderCrmDuplicateSection(record, meta) {
-      const expanded = crmDuplicateExpandedState.get(record.id) === true;
-      const duplicatesCount = Math.max(0, meta.total - 1);
-      const emailDetail = meta.emailSummary && meta.emailSummary.descriptions.length
-        ? `${safe(meta.emailSummary.uniqueCount)} email value${meta.emailSummary.uniqueCount === 1 ? '' : 's'} (${meta.emailSummary.descriptions.map(part => safe(part)).join(', ')})`
-        : 'No email differences recorded';
-      const rows = meta.records.map(item => renderCrmDuplicateRow(item, record.id)).join('');
-      return `
-        <div class="mt-3 bg-amber-900/30 border border-amber-500/30 rounded-lg p-3 text-amber-50/90">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-sm font-semibold">Auto-hidden duplicates</p>
-            <button type="button" class="text-xs bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 px-2 py-1 rounded transition" data-crm-duplicate-toggle="${safeAttr(record.id)}" aria-expanded="${expanded ? 'true' : 'false'}">${safe(getCrmDuplicateToggleLabel(meta, expanded))}</button>
-          </div>
-          <p class="text-xs text-amber-100/80 mt-2">${safe(duplicatesCount)} additional record${duplicatesCount === 1 ? '' : 's'} hidden · ${emailDetail}</p>
-          <div id="crm-duplicate-panel-${safeAttr(record.id)}" class="mt-3 space-y-2 ${expanded ? '' : 'hidden'}">
-            ${rows}
-          </div>
-        </div>
-      `;
-    }
-
-    function renderCrmDuplicateRow(record, primaryId) {
-      const isPrimary = record.id === primaryId;
-      const summaryParts = [];
-      if (record.email) summaryParts.push(record.email);
-      if (record.phone) summaryParts.push(record.phone);
-      const roleCompany = [record.role, record.company].filter(Boolean).join(' @ ');
-      if (roleCompany) summaryParts.push(roleCompany);
-      if (record.nextFollowUp) summaryParts.push(`Follow-up ${record.nextFollowUp}`);
-      if (record.status) summaryParts.push(`Status ${record.status}`);
-      const summary = summaryParts.length ? safe(summaryParts.join(' · ')) : '—';
-      const updatedText = record.updated ? `Updated ${timeAgo(record.updated)}` : 'Updated —';
-      const badges = [];
-      if (isPrimary) badges.push('Shown in list');
-      if (record.contactId && record.contactId !== record.id) badges.push('Linked contact');
-      const badgeHtml = badges.map(label => `<span class="text-[10px] uppercase tracking-wide bg-white/10 border border-white/20 px-2 py-0.5 rounded">${safe(label)}</span>`).join(' ');
-      const actionHtml = isPrimary ? '' : `<button type="button" data-crm-duplicate-open="${safeAttr(record.id)}" class="text-xs bg-gray-800/70 hover:bg-gray-700 border border-white/15 px-2 py-1 rounded">Open details</button>`;
-      return `
-        <div class="bg-gray-900/50 border border-white/10 rounded-lg p-3 space-y-2">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p class="text-sm font-semibold text-white/90">${safe(record.name || '(no name)')}</p>
-              <p class="text-xs text-gray-300">${summary}</p>
-            </div>
-            <div class="text-xs text-gray-400 text-right">
-              <p>${safe(updatedText)}</p>
-              <p>Touches ${safe(typeof record.activityCount === 'number' ? record.activityCount : 0)}</p>
-            </div>
-          </div>
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="flex flex-wrap gap-1">${badgeHtml}</div>
-            ${actionHtml}
-          </div>
-        </div>
-      `;
-    }
-
-    function applyCrmDuplicateExpandedState(primaryId) {
-      const meta = crmDuplicateMetaById.get(primaryId);
-      if (!meta) return;
-      const expanded = crmDuplicateExpandedState.get(primaryId) === true;
-      const panel = document.getElementById(`crm-duplicate-panel-${primaryId}`);
-      const toggle = document.querySelector(`[data-crm-duplicate-toggle="${primaryId}"]`);
-      if (panel) {
-        panel.classList.toggle('hidden', !expanded);
-      }
-      if (toggle) {
-        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        toggle.textContent = getCrmDuplicateToggleLabel(meta, expanded);
-      }
-    }
-
-    function toggleCrmDuplicatePanel(primaryId) {
-      const meta = crmDuplicateMetaById.get(primaryId);
-      if (!meta) return;
-      const next = !(crmDuplicateExpandedState.get(primaryId) === true);
-      if (next) {
-        crmDuplicateExpandedState.set(primaryId, true);
-      } else {
-        crmDuplicateExpandedState.delete(primaryId);
-      }
-      applyCrmDuplicateExpandedState(primaryId);
-    }
-
-    function wireCrmDuplicateControls(primaryId) {
-      const meta = crmDuplicateMetaById.get(primaryId);
-      if (!meta) return;
-      const toggle = document.querySelector(`[data-crm-duplicate-toggle="${primaryId}"]`);
-      if (toggle) {
-        toggle.addEventListener('click', evt => {
-          evt.stopPropagation();
-          toggleCrmDuplicatePanel(primaryId);
-        });
-      }
-      meta.records.forEach(record => {
-        if (record.id === primaryId) return;
-        const openBtn = document.querySelector(`[data-crm-duplicate-open="${record.id}"]`);
-        if (openBtn) {
-          openBtn.addEventListener('click', evt => {
-            evt.stopPropagation();
-            crmDuplicateExpandedState.set(primaryId, true);
-            applyCrmDuplicateExpandedState(primaryId);
-            openCrmDetail(record.id);
-          });
-        }
-      });
-      applyCrmDuplicateExpandedState(primaryId);
-    }
-
-    function attachCrmCardInteractions(record) {
-      const card = document.getElementById(record.id);
-      if (!card) return;
-      if (editingManager.isEditing(record.id)) {
-        card.dataset.editing = 'true';
-        card.classList.add('crm-card-editing');
-        card.classList.remove('cursor-pointer');
-        const stopPropagationTargets = card.querySelectorAll('form, input, select, textarea, button');
-        stopPropagationTargets.forEach(target => {
-          target.addEventListener('click', evt => evt.stopPropagation());
-        });
-        return;
-      }
-      delete card.dataset.editing;
-      card.classList.remove('crm-card-editing');
-      card.addEventListener('click', evt => {
-        if (card.dataset.editing === 'true' || card.classList.contains('crm-card-editing')) return;
-        if (evt.target.closest('button') || evt.target.closest('a') || evt.target.closest('form')) return;
-        openCrmDetail(record.id);
-      });
-      card.classList.add('cursor-pointer');
-    }
-
-    function applyFocusHighlight() {
-      if (!focusContactId) return;
-      const cards = list?.querySelectorAll?.('.crm-card') || [];
-      cards.forEach(card => {
-        focusClasses.forEach(cls => card.classList.remove(cls));
-      });
-      const targetId = crmDuplicatePrimaryById.get(focusContactId) || focusContactId;
-      const card = document.getElementById(targetId);
-      if (!card) return;
-      focusClasses.forEach(cls => card.classList.add(cls));
-      if (targetId !== focusContactId && crmDuplicateMetaById.has(targetId)) {
-        crmDuplicateExpandedState.set(targetId, true);
-        applyCrmDuplicateExpandedState(targetId);
-      }
-      if (!focusApplied) {
-        focusApplied = true;
-        setTimeout(() => {
-          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      }
-    }
-
-    async function ensureContact(id) {
-      const button = document.getElementById(`open-contacts-${id}`);
-      if (!button) return;
-      button.disabled = true;
-      button.textContent = 'Preparing…';
-
-      await waitForContactsWorkspace();
-      let workspace = contactsWorkspace;
-      if (!workspace) {
-        button.disabled = false;
-        button.textContent = getContactButtonLabel(null, id);
-        alert('Contacts workspace is not available right now. Please try again.');
-        return;
-      }
-
-      button.textContent = 'Checking…';
-      crmRecords.get(id).once(record => {
-        workspace = contactsWorkspace || workspace;
-        if (!record || !workspace) {
-          button.disabled = false;
-          button.textContent = getContactButtonLabel(record, id);
-          if (!record) {
-            alert('This record is no longer available.');
-          } else {
-            alert('Contacts workspace is not available right now. Please try again.');
-          }
-          return;
-        }
-
-        const now = new Date().toISOString();
-        const crmRecordId = id;
-        const existing = findContactInWorkspace(record, id);
-        if (existing) {
-          button.textContent = 'Opening…';
-          const desiredCrmId = record.id || crmRecordId;
-          if (!existing.data || existing.data.crmId !== desiredCrmId) {
-            workspace.get(existing.id).put({ crmId: desiredCrmId, syncedFromCrmAt: now });
-            if (existing.data) {
-              contactWorkspaceIndex[existing.id] = { ...existing.data, crmId: desiredCrmId, syncedFromCrmAt: now };
-            }
-          }
-          crmRecords.get(crmRecordId).put({ contactId: existing.id, syncedToContactsAt: now });
-          openContactsWorkspace(existing.id);
-          setTimeout(() => {
-            button.disabled = false;
-            button.textContent = getContactButtonLabel(record, id);
-          }, 200);
-          return;
-        }
-
-        const desiredCrmId = record.id || crmRecordId;
-        const contactId = desiredCrmId && !contactWorkspaceIndex[desiredCrmId]
-          ? desiredCrmId
-          : generateContactId();
-        const payload = {
-          id: contactId,
-          name: record.name || '',
-          email: record.email || '',
-          phone: record.phone || '',
-          company: record.company || '',
-          role: record.role || '',
-          tags: record.tags || '',
-          status: record.status || '',
-          nextFollowUp: record.nextFollowUp || '',
-          notes: record.notes || '',
-          created: record.created || now,
-          updated: now,
-          lastContacted: record.lastContacted || '',
-          activityCount: typeof record.activityCount === 'number' ? record.activityCount : 0,
-          crmId: desiredCrmId,
-          source: record.source || 'CRM workspace',
-          syncedFromCrmAt: now
-        };
-
-        button.textContent = 'Adding…';
-        workspace.get(contactId).put(payload, ack => {
-          if (ack && ack.err) {
-            console.error('Unable to add to contacts workspace', ack.err);
-            button.disabled = false;
-            button.textContent = getContactButtonLabel(record, id);
-            alert('Unable to add this person to contacts right now. Please try again.');
-            return;
-          }
-          contactWorkspaceIndex[contactId] = payload;
-          crmRecords.get(crmRecordId).put({ contactId, syncedToContactsAt: now });
-          button.textContent = 'Opening…';
-          openContactsWorkspace(contactId);
-          setTimeout(() => {
-            button.disabled = false;
-            button.textContent = getContactButtonLabel(record, id);
-          }, 200);
-        });
-      });
-    }
-
-    function findContactInWorkspace(record, keyId) {
-      if (!record) return null;
-      const directIds = [];
-      if (keyId) directIds.push(keyId);
-      if (record.id && !directIds.includes(record.id)) directIds.push(record.id);
-      if (record.contactId && !directIds.includes(record.contactId)) directIds.push(record.contactId);
-      for (const directId of directIds) {
-        if (contactWorkspaceIndex[directId]) {
-          return { id: directId, data: contactWorkspaceIndex[directId] };
-        }
-      }
-
-      const crmId = record.id;
-      if (crmId) {
-        for (const [contactId, data] of Object.entries(contactWorkspaceIndex)) {
-          if (data && data.crmId === crmId) {
-            return { id: contactId, data };
-          }
-        }
-      }
-
-      const email = normaliseEmail(record.email);
-      if (email) {
-        for (const [contactId, data] of Object.entries(contactWorkspaceIndex)) {
-          if (normaliseEmail(data && data.email) === email) {
-            return { id: contactId, data };
-          }
-        }
-      }
-
-      return null;
-    }
-
-    function normaliseEmail(value) {
-      return (value || '').toString().trim().toLowerCase();
-    }
-
-    function generateContactId() {
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-      }
-      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    }
-
-    function openContactsWorkspace(contactId) {
-      const url = new URL('../contacts/index.html', window.location.href);
-      url.searchParams.set('space', contactsSpaceKey);
-      if (contactId) {
-        url.searchParams.set('contact', contactId);
-      }
-      window.location.href = url.toString();
-    }
-
-    function editContact(evtOrId, maybeId) {
-      const event = (evtOrId && typeof evtOrId.preventDefault === 'function') ? evtOrId : null;
-      const id = typeof evtOrId === 'string' ? evtOrId : maybeId;
-      if (!id) return;
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      if (!crmIndex[id]) {
-        crmRecords.get(id).once(data => {
-          if (!data) return;
-          crmIndex[id] = { ...(crmIndex[id] || {}), ...sanitizeRecord(data), id };
-          editingManager.enter(id);
-          scheduleRender();
-          focusCrmEditField(id, 1);
-        });
-      } else {
-        editingManager.enter(id);
-        scheduleRender();
-        focusCrmEditField(id, 1);
-      }
-    }
-
-    function focusCrmEditField(id, attempt = 0) {
-      if (attempt > 5) return;
-      const input = document.getElementById(`edit-name-${id}`) || document.getElementById(`edit-email-${id}`);
-      if (input && typeof input.focus === 'function') {
-        input.focus();
-        return;
-      }
-      setTimeout(() => focusCrmEditField(id, attempt + 1), 80);
-    }
-
-    function saveEdit(e, id) {
-      e.preventDefault();
-      const cardEl = document.getElementById(id);
-      const created = cardEl && cardEl.dataset ? cardEl.dataset.created : '';
-      const current = crmIndex[id] || {};
-      const now = new Date().toISOString();
-      const updated = {
-        ...current,
-        id,
-        name: document.getElementById(`edit-name-${id}`).value.trim(),
-        email: document.getElementById(`edit-email-${id}`).value.trim(),
-        company: document.getElementById(`edit-company-${id}`).value.trim(),
-        phone: document.getElementById(`edit-phone-${id}`).value.trim(),
-        role: document.getElementById(`edit-role-${id}`).value.trim(),
-        tags: document.getElementById(`edit-tags-${id}`).value.trim(),
-        status: document.getElementById(`edit-status-${id}`).value.trim(),
-        nextFollowUp: document.getElementById(`edit-next-${id}`).value.trim(),
-        notes: document.getElementById(`edit-notes-${id}`).value.trim(),
-        updated: now,
-        created: current.created || created || now
-      };
-      crmRecords.get(id).put(updated);
-      clearCardEditingState(id);
-      if (scoreManager) {
-        scoreManager.increment(1);
-      }
-    }
-
-    function cancelEdit(id) {
-      clearCardEditingState(id);
-      crmRecords.get(id).once(data => {
-        if (!data) return;
-        const sanitized = sanitizeRecord(data);
-        crmIndex[id] = { ...(crmIndex[id] || {}), ...sanitized, id };
-        scheduleRender();
-      });
-    }
-
-    function clearCardEditingState(id) {
-      const card = document.getElementById(id);
-      editingManager.exit(id);
-      if (card) {
-        delete card.dataset.editing;
-        card.classList.remove('crm-card-editing');
-        card.classList.add('cursor-pointer');
-      }
-      scheduleRender();
-    }
-
-    function deleteContact(id) {
-      crmRecords.get(id).put(null);
-    }
-
-    function openTouchPrompt(record) {
-      return new Promise(resolve => {
-        const overlay = document.createElement('div');
-        overlay.className = 'fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto flex items-start justify-center';
-        overlay.setAttribute('role', 'dialog');
-        overlay.setAttribute('aria-modal', 'true');
-        overlay.innerHTML = `
-          <div class="w-full max-w-xl bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 space-y-4" role="document">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <p class="text-xs uppercase tracking-[0.32em] text-amber-300">Log touch</p>
-                <h3 class="text-xl font-semibold text-white">${safe(record.name || record.email || 'Unnamed contact')}</h3>
-                <p class="text-sm text-gray-300">Capture quick context now or leave blank to add later.</p>
-              </div>
-              <button type="button" class="text-sm text-gray-300 hover:text-white" data-touch-cancel>Cancel</button>
-            </div>
-            <form class="space-y-4" data-touch-form>
-              <div class="space-y-2">
-                <label class="block text-sm text-gray-200">Any notes about this touch?</label>
-                <textarea class="w-full p-2 rounded text-black" rows="3" placeholder="Add quick notes (optional)" data-touch-note></textarea>
-                <p class="text-xs text-gray-400">You can leave this empty and add notes later.</p>
-              </div>
-              <div class="space-y-2">
-                <label class="block text-sm text-gray-200" for="touch-follow-up">Schedule the next touch</label>
-                <input id="touch-follow-up" type="date" class="w-full p-2 rounded text-black" data-touch-follow-up />
-                <p class="text-xs text-gray-400">Choose a date or skip for now—you can set a follow-up later.</p>
-                <button type="button" class="text-xs text-sky-300 hover:text-sky-200" data-touch-clear-follow>Skip follow-up date</button>
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded text-sm font-medium">Log touch</button>
-                <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm" data-touch-skip>Log without updates</button>
-              </div>
-            </form>
-          </div>
-        `;
-        document.body.appendChild(overlay);
-
-        const form = overlay.querySelector('[data-touch-form]');
-        const noteInput = overlay.querySelector('[data-touch-note]');
-        const followInput = overlay.querySelector('[data-touch-follow-up]');
-        const skipBtn = overlay.querySelector('[data-touch-skip]');
-        const cancelBtn = overlay.querySelector('[data-touch-cancel]');
-        const clearFollowBtn = overlay.querySelector('[data-touch-clear-follow]');
-
-        if (followInput && record.nextFollowUp) {
-          followInput.value = normalizeFollowUpInput(record.nextFollowUp);
-        }
-
-        function close(result) {
-          if (overlay.parentNode) {
-            overlay.parentNode.removeChild(overlay);
-          }
-          resolve(result);
-        }
-
-        overlay.addEventListener('click', evt => {
-          if (evt.target === overlay) {
-            close(null);
-          }
-        });
-
-        if (cancelBtn) {
-          cancelBtn.addEventListener('click', () => close(null));
-        }
-
-        if (clearFollowBtn && followInput) {
-          clearFollowBtn.addEventListener('click', evt => {
-            evt.preventDefault();
-            followInput.value = '';
-          });
-        }
-
-        if (skipBtn) {
-          skipBtn.addEventListener('click', evt => {
-            evt.preventDefault();
-            close({ notes: '', followUp: '' });
-          });
-        }
-
-        if (form) {
-          form.addEventListener('submit', evt => {
-            evt.preventDefault();
-            const notes = noteInput ? noteInput.value.trim() : '';
-            const followUp = followInput ? followInput.value : '';
-            close({ notes, followUp });
-          });
-        }
-      });
-    }
-
-    async function logTouch(id) {
-      const record = sanitizeRecord(crmIndex[id]);
-      if (!record || Object.keys(record).length === 0) return;
-      const now = new Date().toISOString();
-      const promptResult = await openTouchPrompt(record);
-      if (!promptResult) return;
-      const followUpValue = normalizeFollowUpInput(promptResult.followUp || record.nextFollowUp || '');
-      const touchNotes = (promptResult.notes || '').trim();
-      const touchesRaw = Number.parseInt(record.activityCount, 10);
-      const touches = Number.isNaN(touchesRaw) ? 0 : touchesRaw;
-      const notePrefix = touchNotes
-        ? `[Touch ${new Date(now).toLocaleString()}] ${touchNotes}`
-        : '';
-      const mergedNotes = notePrefix
-        ? (record.notes ? `${record.notes}\n\n${notePrefix}` : notePrefix)
-        : record.notes || '';
-      const next = {
-        ...record,
-        id,
-        contactId: record.contactId || record.id || id,
-        lastContacted: now,
-        activityCount: touches + 1,
-        nextFollowUp: followUpValue || record.nextFollowUp || '',
-        notes: mergedNotes,
-        updated: now,
-        created: record.created || now
-      };
-      crmRecords.get(id).put(next);
-      if (touchLogRoot && typeof touchLogRoot.get === 'function') {
-        const logId = `${id}-${Date.now()}`;
-        const entry = {
-          id: logId,
-          recordId: record.contactId || record.id || id,
-          contactName: record.name || record.email || 'Unnamed contact',
-          timestamp: now,
-          followUp: followUpValue || record.nextFollowUp || '',
-          note: touchNotes,
-          participantId,
-          loggedBy: getParticipantLabel()
-        };
-        touchLogRoot.get(logId).put(entry);
-        touchLogIndex.set(logId, entry);
-        renderWeeklyChallenge();
-      }
-    }
-
-    function quickFollowUp(id) {
-      const record = sanitizeRecord(crmIndex[id]);
-      if (!record || Object.keys(record).length === 0) return;
-      const base = record.nextFollowUp ? new Date(record.nextFollowUp) : new Date();
-      if (Number.isNaN(base.getTime())) {
-        base.setTime(Date.now());
-      }
-      base.setDate(base.getDate() + 7);
-      const now = new Date().toISOString();
-      const next = {
-        ...record,
-        id,
-        contactId: record.contactId || record.id || id,
-        nextFollowUp: base.toISOString().slice(0, 10),
-        updated: now,
-        created: record.created || now
-      };
-      crmRecords.get(id).put(next);
-    }
-
-    function applyFilter() {
-      const query = ((filterInput && filterInput.value) || '').toLowerCase().trim();
-      const cards = Array.from(list.querySelectorAll('[data-haystack]'));
-      let visible = 0;
-      cards.forEach(card => {
-        const haystack = card.dataset.haystack || '';
-        const hidden = query && !haystack.includes(query);
-        card.classList.toggle('hidden', hidden);
-        if (!hidden) visible++;
-      });
-      updateCounts(Object.keys(crmIndex).length, visible);
-      updateDuplicateSummary();
-      applyFocusHighlight();
-    }
-
-    function updateCounts(total, visible) {
-      if (totalCountEl) totalCountEl.textContent = total;
-      if (visibleCountEl) visibleCountEl.textContent = visible;
-      if (!emptyState) return;
-      if (total === 0) {
-        emptyState.textContent = 'No contacts yet. Add someone from the form or sync from the contacts app.';
-        emptyState.classList.remove('hidden');
-      } else if (visible === 0) {
-        emptyState.textContent = 'No contacts match your filter yet.';
-        emptyState.classList.remove('hidden');
-      } else {
-        emptyState.classList.add('hidden');
-      }
-    }
-
-    function computeDuplicateGroups(records) {
-      const groups = new Map();
-      records.forEach(record => {
-        const rawName = (record.name || '').trim();
-        const key = rawName.toLowerCase() || '__no_name__';
-        const display = rawName || '(no name)';
-        if (!groups.has(key)) {
-          groups.set(key, { name: display, items: [] });
-        } else if (display !== '(no name)' && groups.get(key).name === '(no name)') {
-          groups.get(key).name = display;
-        }
-        groups.get(key).items.push(record);
-      });
-      return Array.from(groups.values())
-        .filter(group => group.items.length > 1)
-        .sort((a, b) => b.items.length - a.items.length);
-    }
-
-    function describeEmailDifferences(items) {
-      const stats = new Map();
-      let missing = 0;
-      items.forEach(record => {
-        const email = (record.email || '').trim();
-        if (email) {
-          const key = email.toLowerCase();
-          if (!stats.has(key)) {
-            stats.set(key, { label: email, count: 0 });
-          }
-          stats.get(key).count += 1;
-        } else {
-          missing += 1;
-        }
-      });
-      const parts = Array.from(stats.values())
-        .sort((a, b) => b.count - a.count)
-        .map(part => `${part.label}×${part.count}`);
-      if (missing) {
-        parts.push(`(no email)×${missing}`);
-      }
-      return {
-        uniqueCount: stats.size + (missing ? 1 : 0),
-        descriptions: parts
-      };
-    }
-
-    function updateDuplicateSummary() {
-      if (!duplicateSummaryEl) return;
-      const groups = computeDuplicateGroups(Object.values(crmIndex));
-      if (groups.length === 0) {
-        duplicateSummaryEl.classList.add('hidden');
-        duplicateSummaryEl.innerHTML = '';
-        return;
-      }
-
-      const totalFlagged = groups.reduce((sum, group) => sum + group.items.length, 0);
-      const maxGroups = 5;
-      const displayGroups = groups.slice(0, maxGroups);
-      const listItems = displayGroups.map(group => {
-        const emailSummary = describeEmailDifferences(group.items);
-        const label = `${group.items.length} record${group.items.length === 1 ? '' : 's'}`;
-        const emailDetail = emailSummary.descriptions.length
-          ? ` · ${emailSummary.uniqueCount} email value${emailSummary.uniqueCount === 1 ? '' : 's'} (${emailSummary.descriptions.map(part => safe(part)).join(', ')})`
-          : '';
-        return `<li class="list-disc list-inside">${safe(group.name)} — ${safe(label)}${emailDetail}</li>`;
-      }).join('');
-
-      const moreGroups = groups.length - displayGroups.length;
-      const moreNote = moreGroups > 0
-        ? `<li class="list-disc list-inside text-xs text-amber-200/80">+${moreGroups} more group${moreGroups === 1 ? '' : 's'} with duplicates</li>`
-        : '';
-
-      duplicateSummaryEl.classList.remove('hidden');
-      duplicateSummaryEl.innerHTML = `
-        <p class="text-xs uppercase tracking-[0.32em] text-amber-200/70">Possible duplicates</p>
-        <p class="text-xs text-amber-100/80 mt-1">${safe(groups.length)} group${groups.length === 1 ? '' : 's'} covering ${safe(totalFlagged)} record${totalFlagged === 1 ? '' : 's'}.</p>
-        <ul class="mt-2 space-y-1 text-sm text-amber-100/90">${listItems}${moreNote}</ul>
-      `;
-    }
-
-    function openCrmDetail(id) {
-      const record = crmIndex[id];
-      if (!record) return;
-      const summary = [];
-      if (record.email) {
-        summary.push(`<a class="underline hover:no-underline" href="mailto:${encodeURIComponent(record.email)}">${safe(record.email)}</a>`);
-      }
-      if (record.role) {
-        summary.push(safe(record.role));
-      }
-      if (record.company) {
-        summary.push(safe(record.company));
-      }
-      if (record.phone) {
-        summary.push(`<a class="underline hover:no-underline" href="tel:${encodeURIComponent(record.phone)}">${safe(record.phone)}</a>`);
-      }
-
-      crmDetailName.textContent = record.name ? record.name : '(no name)';
-      crmDetailSummary.innerHTML = summary.join(' · ') || '—';
-
-      if (record.tags) {
-        const tagHtml = record.tags.split(',').map(tag => tag.trim()).filter(Boolean)
-          .map(tag => `<span class="text-xs px-2 py-0.5 rounded bg-white/10">${safe(tag)}</span>`).join(' ');
-        crmDetailTags.innerHTML = `<div class="flex flex-wrap gap-1">${tagHtml}</div>`;
-        crmDetailTags.classList.remove('hidden');
-      } else {
-        crmDetailTags.classList.add('hidden');
-        crmDetailTags.innerHTML = '';
-      }
-
-      if (record.notes) {
-        crmDetailNotes.innerHTML = `<div class="bg-gray-800/70 border border-white/10 rounded-lg p-3 text-sm text-gray-200 whitespace-pre-wrap">${safe(record.notes)}</div>`;
-        crmDetailNotes.classList.remove('hidden');
-      } else {
-        crmDetailNotes.classList.add('hidden');
-        crmDetailNotes.innerHTML = '';
-      }
-
-      const metaRows = [
-        ['Status', record.status || '—'],
-        ['Next follow-up', record.nextFollowUp || '—'],
-        ['Last contacted', record.lastContacted ? `${timeAgo(record.lastContacted)} · ${new Date(record.lastContacted).toLocaleString()}` : '—'],
-        ['Touches', typeof record.activityCount === 'number' ? record.activityCount : 0],
-        ['Created', record.created ? new Date(record.created).toLocaleString() : '—'],
-        ['Updated', record.updated ? new Date(record.updated).toLocaleString() : '—']
-      ];
-      crmDetailMeta.innerHTML = metaRows.map(([label, value]) => `
-        <div class="flex justify-between gap-3">
-          <span class="text-gray-400">${safe(label)}</span>
-          <span class="font-medium text-white/90 text-right">${safe(value)}</span>
-        </div>
-      `).join('');
-
-      const workspaceMatch = findWorkspaceContact(record);
-      const detailButtonLabel = getContactButtonLabel(record, id);
-      if (workspaceMatch) {
-        const wsSummary = [];
-        if (workspaceMatch.email) wsSummary.push(workspaceMatch.email);
-        if (workspaceMatch.company) wsSummary.push(workspaceMatch.company);
-        crmDetailWorkspace.innerHTML = `
-          <div class="bg-teal-900/40 border border-teal-500/30 rounded-lg p-4">
-            <p class="text-sm font-semibold text-teal-200">Linked contacts workspace entry</p>
-            <p class="text-xs text-teal-100/80 mt-1">${safe(workspaceMatch.name || '(no name)')}</p>
-            ${wsSummary.length ? `<p class="text-xs text-teal-100/70 mt-2">${safe(wsSummary.join(' · '))}</p>` : ''}
-          </div>
-        `;
-      } else {
-        crmDetailWorkspace.innerHTML = `
-          <div class="bg-gray-800/80 border border-white/10 rounded-lg p-4">
-            <p class="text-sm font-semibold text-gray-100">No linked contact yet</p>
-            <p class="text-xs text-gray-400 mt-1">Use "${CONTACT_BUTTON_ADD_LABEL}" to find or create a matching person.</p>
-          </div>
-        `;
-      }
-
-      crmDetailActions.innerHTML = `
-        <button id="crm-detail-open-${id}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">${detailButtonLabel}</button>
-        <button id="crm-detail-touch-${id}" class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1.5 rounded">Log touch</button>
-        <button id="crm-detail-follow-${id}" class="bg-amber-500 hover:bg-amber-600 text-white text-sm px-3 py-1.5 rounded">+7d follow-up</button>
-        <button id="crm-detail-edit-${id}" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1.5 rounded">Edit</button>
-        <button id="crm-detail-delete-${id}" class="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1.5 rounded">Delete</button>
-      `;
-
-      const ensureId = record.contactId || id;
-      document.getElementById(`crm-detail-open-${id}`)?.addEventListener('click', () => {
-        ensureContact(ensureId);
-        closeCrmDetail();
-      });
-      document.getElementById(`crm-detail-touch-${id}`)?.addEventListener('click', () => {
-        logTouch(id);
-        setTimeout(() => openCrmDetail(id), 120);
-      });
-      document.getElementById(`crm-detail-follow-${id}`)?.addEventListener('click', () => {
-        quickFollowUp(id);
-        setTimeout(() => openCrmDetail(id), 120);
-      });
-      document.getElementById(`crm-detail-edit-${id}`)?.addEventListener('click', () => {
-        closeCrmDetail();
-        editContact(id);
-      });
-      document.getElementById(`crm-detail-delete-${id}`)?.addEventListener('click', () => {
-        if (confirm('Delete this CRM record?')) {
-          closeCrmDetail();
-          deleteContact(id);
-        }
-      });
-
-      crmDetailOverlay.classList.remove('hidden');
-      crmDetailOverlay.scrollTop = 0;
-    }
-
-    function closeCrmDetail() {
-      crmDetailOverlay.classList.add('hidden');
-    }
-
-    function findWorkspaceContact(record) {
-      if (!record) return null;
-      const directId = record.contactId || record.id;
-      if (directId && contactWorkspaceIndex[directId]) {
-        return contactWorkspaceIndex[directId];
-      }
-      if (record.email) {
-        const email = record.email.toLowerCase();
-        return Object.values(contactWorkspaceIndex).find(entry => (entry.email || '').toLowerCase() === email) || null;
-      }
-      return null;
-    }
-
-    closeCrmDetailBtn.addEventListener('click', closeCrmDetail);
-    crmDetailOverlay.addEventListener('click', evt => {
-      if (evt.target === crmDetailOverlay) closeCrmDetail();
-    });
-    document.addEventListener('keydown', evt => {
-      if (evt.key === 'Escape' && !crmDetailOverlay.classList.contains('hidden')) {
-        closeCrmDetail();
-      }
-    });
-
-    if (filterInput) {
-      filterInput.addEventListener('input', applyFilter);
-    }
-
-    function timeAgo(iso) {
-      const date = new Date(iso);
-      if (Number.isNaN(date.getTime())) return '—';
-      const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-      if (seconds < 60) return `${seconds}s ago`;
-      const minutes = Math.floor(seconds / 60);
-      if (minutes < 60) return `${minutes}m ago`;
-      const hours = Math.floor(minutes / 60);
-      if (hours < 24) return `${hours}h ago`;
-      const days = Math.floor(hours / 24);
-      if (days < 30) return `${days}d ago`;
-      return date.toLocaleDateString();
-    }
-
-    function safe(value) {
-      return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    function safeAttr(value) {
-      return safe(value).replace(/"/g, '&quot;');
-    }
-
-    applyFilter();
-  </script>
 </body>
 </html>

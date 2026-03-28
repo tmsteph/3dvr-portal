@@ -3,7 +3,7 @@
 importScripts('/chat/notification-routing.js');
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v10';
+const CACHE_VERSION = 'v13';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 const chatNotificationRouting = self.ChatNotificationRouting || null;
@@ -104,6 +104,7 @@ const isHTML = (req) => req.headers.get('accept')?.includes('text/html');
 const isGunRealtime = (url) => url.includes('/gun') || url.startsWith('wss://') || url.startsWith('ws://');
 const isAPI = (url) => url.includes('/api/'); // adjust if you add APIs
 const isStyleRequest = (req) => req.destination === 'style';
+const isScriptRequest = (req) => req.destination === 'script';
 const isChatClientUrl = (clientUrl) => {
   try {
     const url = new URL(clientUrl);
@@ -149,6 +150,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (isScriptRequest(req)) {
+    event.respondWith(networkFirst(req, { cacheMode: 'reload' }));
+    return;
+  }
+
   if (isHTML(req)) {
     // Network-first for HTML for freshness
     event.respondWith(
@@ -161,7 +167,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (['script', 'image', 'font'].includes(req.destination)) {
+  if (['image', 'font'].includes(req.destination)) {
     staleWhileRevalidate(event, STATIC_CACHE);
     return;
   }

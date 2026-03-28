@@ -69,9 +69,19 @@ const GUN_STUB_SOURCE = `
     const listeners = new Map();
     return {
       is: null,
-      recall() {},
+      _: { sea: null },
+      recall() {
+        const signedIn = window.localStorage.getItem('signedIn') === 'true';
+        const storedPub = String(window.localStorage.getItem('userPubKey') || '').trim();
+        if (signedIn && storedPub) {
+          this.is = { pub: storedPub };
+          this._ = { sea: { pub: storedPub } };
+        }
+      },
       auth(alias, password, callback) {
-        this.is = { pub: 'pub_' + String(alias || 'user') };
+        const pub = 'pub_' + String(alias || 'user');
+        this.is = { pub };
+        this._ = { sea: { pub } };
         const handler = listeners.get('auth');
         if (handler) {
           handler();
@@ -96,7 +106,12 @@ const GUN_STUB_SOURCE = `
     };
   };
 
-  window.SEA = window.SEA || {};
+  window.Gun.SEA = {
+    async sign(payload) {
+      return JSON.stringify(payload);
+    }
+  };
+  window.SEA = window.Gun.SEA;
 })();
 `
 
@@ -329,6 +344,7 @@ describe('billing center subscriber flows', () => {
         localStorage.setItem('signedIn', 'true')
         localStorage.setItem('alias', 'pilot@3dvr')
         localStorage.setItem('username', 'Pilot')
+        localStorage.setItem('userPubKey', 'pub_pilot')
       })
       await installBillingRoutes(context, {
         checkoutDiagnostics: {
@@ -356,13 +372,14 @@ describe('billing center subscriber flows', () => {
       assert.equal(proLabel, 'Temporarily unavailable')
       assert.equal(manageLabel, 'Choose a plan first')
       assert.equal(manageDisabled, 'true')
-      assert.match(statusText, /temporarily unavailable/i)
+      assert.match(statusText, /founder plan is unavailable on this deployment/i)
+      assert.match(statusText, /stripe_price_pro_id or stripe_price_founder_id/i)
     } finally {
       await browser.close()
     }
   }, { timeout: 45000 })
 
-  it('shows a duplicate-subscription recovery path for returning subscribers', async t => {
+  it('shows a clean returning-subscriber path after duplicate cleanup', async t => {
     const browser = await launchBrowser(t)
     if (!browser) {
       return
@@ -375,20 +392,15 @@ describe('billing center subscriber flows', () => {
         localStorage.setItem('signedIn', 'true')
         localStorage.setItem('alias', 'member@3dvr')
         localStorage.setItem('username', 'Member')
+        localStorage.setItem('userPubKey', 'pub_member')
       })
       await installBillingRoutes(context, {
         statusResponse: createFreeStatus({
           customerId: 'cus_existing',
           billingEmail: 'member@example.com',
-          currentPlan: 'builder',
-          usageTier: 'builder',
+          currentPlan: 'starter',
+          usageTier: 'supporter',
           activeSubscriptions: [
-            {
-              id: 'sub_builder',
-              status: 'active',
-              plan: 'builder',
-              priceId: 'price_builder'
-            },
             {
               id: 'sub_starter',
               status: 'active',
@@ -396,8 +408,8 @@ describe('billing center subscriber flows', () => {
               priceId: 'price_starter'
             }
           ],
-          duplicateActiveCount: 1,
-          hasDuplicateActiveSubscriptions: true
+          duplicateActiveCount: 0,
+          hasDuplicateActiveSubscriptions: false
         })
       })
       const page = await context.newPage()
@@ -405,20 +417,75 @@ describe('billing center subscriber flows', () => {
       await page.goto(`${baseUrl}/billing/`, { waitUntil: 'domcontentloaded' })
       await page.waitForFunction(() => {
         const button = document.getElementById('manage-billing')
-        return button && button.textContent && button.textContent.includes('Review duplicates')
+        return button && button.textContent && button.textContent.includes('Manage in Stripe')
       })
 
-      const duplicateText = (await page.textContent('#duplicate-warning')).trim()
+      const duplicateHidden = await page.getAttribute('#duplicate-warning', 'hidden')
       const manageLabel = (await page.textContent('#manage-billing')).trim()
       const manageDisabled = await page.getAttribute('#manage-billing', 'aria-disabled')
       const statusText = (await page.textContent('#action-status')).trim()
       const billingEmail = await page.inputValue('#billing-email')
 
-      assert.match(duplicateText, /cancel the extra plan/i)
-      assert.equal(manageLabel, 'Review duplicates')
+      assert.equal(duplicateHidden, '')
+      assert.equal(manageLabel, 'Manage in Stripe')
       assert.equal(manageDisabled, 'false')
-      assert.match(statusText, /cancel the extra plan/i)
+      assert.match(statusText, /open billing for invoices or payment methods/i)
       assert.equal(billingEmail, 'member@example.com')
+    } finally {
+      await browser.close()
+    }
+  }, { timeout: 45000 })
+
+  it('keeps cancel enabled when a legacy active subscription is present even if currentPlan falls back to free', async t => {
+    const browser = await launchBrowser(t)
+    if (!browser) {
+      return
+    }
+
+    try {
+      const context = await createContext(browser)
+      await installGunRoutes(context)
+      await context.addInitScript(() => {
+        localStorage.setItem('signedIn', 'true')
+        localStorage.setItem('alias', 'legacy@3dvr')
+        localStorage.setItem('username', 'Legacy')
+        localStorage.setItem('userPubKey', 'pub_legacy')
+      })
+      await installBillingRoutes(context, {
+        statusResponse: createFreeStatus({
+          customerId: '',
+          billingEmail: 'legacy@example.com',
+          currentPlan: 'free',
+          usageTier: 'account',
+          legacyNeedsLinking: true,
+          legacyBillingManagementAvailable: true,
+          activeSubscriptions: [
+            {
+              id: 'sub_starter',
+              status: 'active',
+              plan: 'starter',
+              priceId: 'price_starter'
+            }
+          ],
+          duplicateActiveCount: 0,
+          hasDuplicateActiveSubscriptions: false
+        })
+      })
+      const page = await context.newPage()
+
+      await page.goto(`${baseUrl}/billing/`, { waitUntil: 'domcontentloaded' })
+      await page.waitForFunction(() => {
+        const button = document.getElementById('cancel-subscription')
+        return button && button.textContent && button.textContent.includes('Stop $5 billing')
+      })
+
+      const manageLabel = (await page.textContent('#manage-billing')).trim()
+      const cancelLabel = (await page.textContent('#cancel-subscription')).trim()
+      const cancelDisabled = await page.getAttribute('#cancel-subscription', 'aria-disabled')
+
+      assert.equal(manageLabel, 'Manage subscription')
+      assert.equal(cancelLabel, 'Stop $5 billing')
+      assert.equal(cancelDisabled, 'false')
     } finally {
       await browser.close()
     }

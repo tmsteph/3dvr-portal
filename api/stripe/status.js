@@ -1,12 +1,12 @@
 import {
   buildStatusPayload,
-  listBillingSubscriptions,
+  getRequestOrigin,
   makeStripeClient,
-  pickCurrentBillingSubscription,
-  resolveStripeCustomer,
+  resolveStripeBillingState,
   setCorsHeaders
 } from '../../src/billing/stripe.js';
-import { isValidBillingEmail, normalizeBillingEmail } from '../../src/billing/plans.js';
+import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
+import { isValidBillingEmail, normalizeBillingEmail, normalizeBillingEmailList } from '../../src/billing/plans.js';
 
 function readPayload(req) {
   if (req.method === 'GET') {
@@ -36,31 +36,64 @@ export function createStripeStatusHandler(options = {}) {
     }
 
     const payload = readPayload(req);
+    const origin = getRequestOrigin(req, config);
+    const auth = await verifyBillingAuthPayload(payload, {
+      config,
+      expectedOrigin: origin
+    });
+    if (!auth.ok) {
+      return res.status(401).json({ error: auth.reason });
+    }
+
     const customerId = String(payload.customerId || '').trim();
-    const portalAlias = String(payload.portalAlias || '').trim();
-    const portalPub = String(payload.portalPub || '').trim();
+    const portalAlias = auth.identity.alias || String(payload.portalAlias || '').trim();
+    const portalPub = auth.identity.pub;
     const rawBillingEmail = String(payload.billingEmail || '').trim();
     const billingEmail = normalizeBillingEmail(rawBillingEmail);
+    const billingEmails = normalizeBillingEmailList(payload.billingEmails, billingEmail);
+    const requestedPortalPub = String(payload.portalPub || '').trim();
+
+    if (requestedPortalPub && requestedPortalPub !== portalPub) {
+      return res.status(403).json({ error: 'Billing access proof did not match this portal account.' });
+    }
 
     if (rawBillingEmail && !isValidBillingEmail(rawBillingEmail)) {
       return res.status(400).json({ error: 'Enter a valid billing email address.' });
     }
 
-    if (!customerId && !portalAlias && !portalPub && !billingEmail) {
-      return res.status(400).json({
-        error: 'Provide customerId, portalAlias, portalPub, or billingEmail to check billing status.'
-      });
-    }
-
     try {
-      const customerResolution = await resolveStripeCustomer({
+      const {
+        customerResolution,
+        linkedState,
+        linkedRecord,
+        legacyResolution,
+        shouldPreferLegacy,
+        autoLinkedLegacy
+      } = await resolveStripeBillingState({
         stripeClient,
         customerId,
         billingEmail,
+        billingEmails,
         portalAlias,
         portalPub,
-        createIfMissing: false
+        config
       });
+
+      if (shouldPreferLegacy) {
+        return res.status(200).json(buildStatusPayload({
+          customer: legacyResolution.customer,
+          current: legacyResolution.current,
+          active: legacyResolution.active,
+          duplicates: legacyResolution.duplicates,
+          exposeCustomerId: false,
+          portalLinked: false,
+          statusSource: legacyResolution.source,
+          legacyNeedsLinking: true,
+          hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
+          legacyBillingManagementAvailable: true,
+          autoLinkedLegacy
+        }));
+      }
 
       if (!customerResolution.customer) {
         return res.status(200).json({
@@ -69,21 +102,26 @@ export function createStripeStatusHandler(options = {}) {
           billingEmail,
           currentPlan: 'free',
           usageTier: 'account',
+          portalLinked: false,
+          statusSource: 'not_found',
+          legacyNeedsLinking: false,
+          hasInvoiceHistory: false,
+          legacyBillingManagementAvailable: false,
+          autoLinkedLegacy,
           activeSubscriptions: [],
           duplicateActiveCount: 0,
           hasDuplicateActiveSubscriptions: false
         });
       }
 
-      const customer = customerResolution.customer;
-      const subscriptions = await listBillingSubscriptions(stripeClient, customer.id);
-      const billingState = pickCurrentBillingSubscription(subscriptions, config);
-
       return res.status(200).json(buildStatusPayload({
-        customer,
-        current: billingState.current,
-        active: billingState.active,
-        duplicates: billingState.duplicates
+        customer: linkedState.primary?.customer || linkedRecord?.customer || customerResolution.customer,
+        current: linkedState.current || linkedRecord?.current || null,
+        active: linkedState.active.length ? linkedState.active : linkedRecord?.active || [],
+        duplicates: linkedState.active.length ? linkedState.duplicates : linkedRecord?.duplicates || [],
+        statusSource: linkedState.recordCount > 1 ? 'portal_linked_multi' : 'portal_linked',
+        hasInvoiceHistory: linkedState.recordCount ? linkedState.hasInvoiceHistory : linkedRecord?.hasInvoiceHistory,
+        autoLinkedLegacy
       }));
     } catch (error) {
       console.error('Failed to resolve Stripe billing status', error);

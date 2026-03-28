@@ -17,9 +17,13 @@
     "playwright:smoke:linux": "npm run playwright:install:linux && node scripts/playwright/smoke.mjs",
     "playwright:smoke": "sh scripts/playwright/run-smoke.sh",
     "playwright:verify:linux": "npm run playwright:e2e:linux && npm run playwright:smoke:linux",
-    "playwright:verify": "sh scripts/playwright/run-in-linux.sh playwright:verify:linux"
+    "playwright:verify": "sh scripts/playwright/run-in-linux.sh playwright:verify:linux",
+    "vercel:alias-staging": "sh scripts/vercel/alias-staging-domains.sh",
+    "playwright:ux:linux": "npm run playwright:install:linux && node scripts/playwright/ux-pass.mjs",
+    "playwright:ux": "sh scripts/playwright/run-in-linux.sh playwright:ux:linux"
   },
   "dependencies": {
+    "gun": "^0.2020.1241",
     "nodemailer": "^6.9.8",
     "stripe": "^12.17.0"
   },
