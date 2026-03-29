@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cell Network | 3dvr Portal</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --bg-soft: #0f1b30;
+      --panel: rgba(15, 27, 48, 0.86);
+      --panel-2: rgba(20, 36, 61, 0.9);
+      --text: #eef6ff;
+      --muted: #aac0d7;
+      --line: rgba(146, 183, 255, 0.18);
+      --gold: #f2cf7a;
+      --blue: #84b8ff;
+      --green: #9fe3c1;
+      --danger: #ff9f9f;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(91, 144, 255, 0.18), transparent 30%),
+        radial-gradient(circle at right, rgba(242, 207, 122, 0.12), transparent 25%),
+        linear-gradient(180deg, #07101c 0%, #091523 35%, #0c1828 100%);
+      color: var(--text);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.05), transparent 0.7rem),
+        radial-gradient(circle at 80% 30%, rgba(255,255,255,0.04), transparent 0.6rem),
+        radial-gradient(circle at 50% 80%, rgba(255,255,255,0.03), transparent 0.8rem);
+      background-size: 220px 220px, 280px 280px, 320px 320px;
+      opacity: 0.35;
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .hero-main {
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      right: -40px;
+      top: -40px;
+      background: radial-gradient(circle, rgba(132,184,255,0.22), transparent 65%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(132, 184, 255, 0.1);
+      border: 1px solid rgba(132, 184, 255, 0.16);
+      color: var(--blue);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: clamp(2.2rem, 4vw, 4.2rem);
+      line-height: 0.98;
+      margin: 0 0 14px;
+      max-width: 11ch;
+    }
+
+    .accent {
+      color: var(--gold);
+    }
+
+    .lead {
+      font-size: 1.02rem;
+      line-height: 1.7;
+      color: var(--muted);
+      max-width: 62ch;
+      margin-bottom: 24px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    button, .button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:hover, .button:hover { transform: translateY(-1px); }
+
+    .primary {
+      background: linear-gradient(135deg, #f2cf7a, #dbaa36);
+      color: #10141d;
+      font-weight: 700;
+    }
+
+    .secondary {
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .hero-stat {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .hero-stat strong {
+      display: block;
+      font-size: 1.4rem;
+      margin-bottom: 6px;
+      color: var(--gold);
+    }
+
+    .hero-stat span {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .hero-side {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: var(--panel-2);
+    }
+
+    .network {
+      min-height: 300px;
+      position: relative;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background:
+        radial-gradient(circle at center, rgba(132,184,255,0.08), transparent 40%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      overflow: hidden;
+    }
+
+    .network svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.9;
+    }
+
+    .network-node {
+      position: absolute;
+      width: 88px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 10px;
+      font-size: 0.82rem;
+      line-height: 1.2;
+      background: linear-gradient(180deg, rgba(132,184,255,0.24), rgba(132,184,255,0.08));
+      border: 1px solid rgba(132,184,255,0.35);
+      box-shadow: 0 10px 35px rgba(0,0,0,0.28);
+    }
+
+    .network-node.core {
+      width: 108px;
+      background: linear-gradient(180deg, rgba(242,207,122,0.34), rgba(242,207,122,0.1));
+      border-color: rgba(242,207,122,0.4);
+      color: #fff7e1;
+      font-weight: 700;
+    }
+
+    .meta {
+      display: grid;
+      gap: 10px;
+    }
+
+    .meta-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .meta-item strong { color: var(--text); }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 1.4rem;
+    }
+
+    .panel p {
+      color: var(--muted);
+      line-height: 1.7;
+      margin-top: 0;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .list-item {
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.025);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .list-item strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .mini-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .mini-card h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .mini-card p {
+      margin: 0;
+      font-size: 0.94rem;
+    }
+
+    .builder {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-wrap {
+      padding: 22px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.92rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      color: var(--text);
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: rgba(132,184,255,0.45);
+      box-shadow: 0 0 0 4px rgba(132,184,255,0.1);
+    }
+
+    .full { grid-column: 1 / -1; }
+
+    .preview {
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .preview-card {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .preview-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tag {
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      background: rgba(159, 227, 193, 0.1);
+      border: 1px solid rgba(159, 227, 193, 0.18);
+      color: var(--green);
+    }
+
+    .footer-note {
+      text-align: center;
+      color: var(--muted);
+      padding: 18px;
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .section-grid,
+      .builder {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 20px, 1180px); }
+      .hero-main, .hero-side, .panel, .form-wrap, .preview { padding: 18px; }
+      .hero-grid, .mini-grid, .form-grid { grid-template-columns: 1fr; }
+      h1 { max-width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="card hero-main">
+        <div class="eyebrow">3dvr Portal • Organization App</div>
+        <h1>Build a <span class="accent">cell unit</span> that crosses all lines.</h1>
+        <p class="lead">
+          A Cell is a small, trusted group that helps people organize across jobs, skills, neighborhoods, projects, and communities.
+          It can support rank-and-file committees while also connecting builders, workers, parents, organizers, and entrepreneurs into one living network.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#builder">Create a Cell</a>
+          <a class="button secondary" href="#model">See the model</a>
+        </div>
+        <div class="hero-grid">
+          <div class="hero-stat">
+            <strong>3–12</strong>
+            <span>ideal members per unit</span>
+          </div>
+          <div class="hero-stat">
+            <strong>4</strong>
+            <span>core rotating roles</span>
+          </div>
+          <div class="hero-stat">
+            <strong>∞</strong>
+            <span>networked expansion</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="card hero-side">
+        <div class="network" aria-label="Cell network illustration">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="50" y1="28" x2="20" y2="22" stroke="rgba(132,184,255,0.4)" stroke-width="0.5" />
+            <line x1="50" y1="28" x2="78" y2="22" stroke="rgba(132,184,255,0.4)" stroke-width="0.5" />
+            <line x1="50" y1="28" x2="22" y2="70" stroke="rgba(132,184,255,0.4)" stroke-width="0.5" />
+            <line x1="50" y1="28" x2="76" y2="70" stroke="rgba(132,184,255,0.4)" stroke-width="0.5" />
+            <line x1="22" y1="70" x2="76" y2="70" stroke="rgba(242,207,122,0.28)" stroke-width="0.45" />
+            <line x1="20" y1="22" x2="22" y2="70" stroke="rgba(159,227,193,0.2)" stroke-width="0.4" />
+            <line x1="78" y1="22" x2="76" y2="70" stroke="rgba(159,227,193,0.2)" stroke-width="0.4" />
+          </svg>
+          <div class="network-node core" style="left: calc(50% - 54px); top: 18%;">Core<br />Cell</div>
+          <div class="network-node" style="left: 10%; top: 6%;">Workers</div>
+          <div class="network-node" style="right: 10%; top: 6%;">Builders</div>
+          <div class="network-node" style="left: 12%; bottom: 8%;">Families</div>
+          <div class="network-node" style="right: 12%; bottom: 8%;">Projects</div>
+        </div>
+        <div class="meta">
+          <div class="meta-item"><span>Primary purpose</span><strong>coordination across lines</strong></div>
+          <div class="meta-item"><span>Can support</span><strong>committees, mutual aid, business</strong></div>
+          <div class="meta-item"><span>Portal use</span><strong>CRM + planning + community</strong></div>
+        </div>
+      </aside>
+    </section>
+
+    <section id="model" class="section-grid">
+      <div class="card panel">
+        <h2>How the model works</h2>
+        <p>
+          This app treats organization as a repeatable, portable unit. Each Cell can support one workplace, many workplaces, or no workplace at all.
+          The point is to give people a shared place to identify needs, exchange skills, organize action, and build economic resilience together.
+        </p>
+        <div class="list">
+          <div class="list-item">
+            <strong>1. Form a trusted group</strong>
+            Start with a small circle of people who actually want to show up consistently.
+          </div>
+          <div class="list-item">
+            <strong>2. Define roles and rhythms</strong>
+            Keep it lightweight: organizer, communicator, builder, connector.
+          </div>
+          <div class="list-item">
+            <strong>3. Track needs, offers, and opportunities</strong>
+            Jobs, clients, childcare, rides, tools, skills, money, and shared goals.
+          </div>
+          <div class="list-item">
+            <strong>4. Connect outward</strong>
+            Link Cells together into a distributed network without forcing everyone into one hierarchy.
+          </div>
+        </div>
+      </div>
+
+      <div class="card panel">
+        <h2>Why this goes beyond a committee</h2>
+        <p>
+          Rank-and-file committees are powerful, but usually workplace-centered. A Cell can include workers, freelancers, family members, technologists,
+          and organizers all at once. It becomes a universal unit for cooperation.
+        </p>
+        <div class="mini-grid">
+          <div class="mini-card">
+            <h3>Workplace</h3>
+            <p>Support negotiations, safety issues, schedules, and solidarity.</p>
+          </div>
+          <div class="mini-card">
+            <h3>Economic</h3>
+            <p>Share leads, referrals, gigs, customers, and ways to make money.</p>
+          </div>
+          <div class="mini-card">
+            <h3>Mutual Aid</h3>
+            <p>Coordinate rides, food, childcare, housing, or emergency support.</p>
+          </div>
+          <div class="mini-card">
+            <h3>Builder Culture</h3>
+            <p>Use the portal to launch pages, docs, chats, tools, and local projects.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="builder">
+      <div id="builder" class="card form-wrap">
+        <h2>Cell Builder</h2>
+        <p>
+          Sketch your first unit. This can later connect to portal accounts, private rooms, member lists, notes, payments, or project pages.
+        </p>
+        <form id="cellForm" class="form-grid">
+          <div>
+            <label for="cellName">Cell name</label>
+            <input id="cellName" name="cellName" type="text" placeholder="Example: South Bay Builder Cell" value="3dvr Builder Cell" />
+          </div>
+          <div>
+            <label for="focus">Primary focus</label>
+            <select id="focus" name="focus">
+              <option>Cross-line organization</option>
+              <option>Workplace support</option>
+              <option>Builder community</option>
+              <option>Mutual aid</option>
+              <option>Lead generation</option>
+            </select>
+          </div>
+          <div>
+            <label for="size">Target size</label>
+            <input id="size" name="size" type="text" placeholder="3–12 people" value="6 people" />
+          </div>
+          <div>
+            <label for="rhythm">Meeting rhythm</label>
+            <input id="rhythm" name="rhythm" type="text" placeholder="Weekly, biweekly, daily" value="Weekly" />
+          </div>
+          <div class="full">
+            <label for="purpose">Shared purpose</label>
+            <textarea id="purpose" name="purpose" placeholder="What is this unit for?">Support workers, builders, and friends across different lines of life while sharing opportunities, organizing action, and helping each other make progress.</textarea>
+          </div>
+          <div class="full">
+            <label for="pillars">Core pillars</label>
+            <input id="pillars" name="pillars" type="text" placeholder="e.g. support, projects, leads, care" value="support, leads, projects, coordination" />
+          </div>
+          <div class="full" style="display:flex; gap:12px; flex-wrap:wrap; margin-top: 4px;">
+            <button type="submit" class="primary">Generate Preview</button>
+            <button type="button" class="secondary" id="resetBtn">Reset</button>
+          </div>
+        </form>
+      </div>
+
+      <aside class="card preview">
+        <div class="preview-card">
+          <h3 id="previewTitle">3dvr Builder Cell</h3>
+          <p id="previewPurpose">
+            Support workers, builders, and friends across different lines of life while sharing opportunities, organizing action, and helping each other make progress.
+          </p>
+          <div class="tag-row" id="previewTags">
+            <span class="tag">support</span>
+            <span class="tag">leads</span>
+            <span class="tag">projects</span>
+            <span class="tag">coordination</span>
+          </div>
+        </div>
+        <div class="preview-card">
+          <h3>Operational Snapshot</h3>
+          <div class="meta">
+            <div class="meta-item"><span>Focus</span><strong id="previewFocus">Cross-line organization</strong></div>
+            <div class="meta-item"><span>Size</span><strong id="previewSize">6 people</strong></div>
+            <div class="meta-item"><span>Rhythm</span><strong id="previewRhythm">Weekly</strong></div>
+          </div>
+        </div>
+        <div class="preview-card">
+          <h3>Portal directions</h3>
+          <p>
+            Next version ideas: member roster, shared needs board, opportunity pipeline, notes, map, chat, and links to project apps across the portal.
+          </p>
+        </div>
+      </aside>
+    </section>
+
+    <div class="footer-note">
+      Built as a concept app for the 3dvr Portal — a universal organizing unit for people, projects, and power.
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('cellForm');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const defaults = {
+      cellName: '3dvr Builder Cell',
+      focus: 'Cross-line organization',
+      size: '6 people',
+      rhythm: 'Weekly',
+      purpose: 'Support workers, builders, and friends across different lines of life while sharing opportunities, organizing action, and helping each other make progress.',
+      pillars: 'support, leads, projects, coordination'
+    };
+
+    function updatePreview() {
+      const cellName = document.getElementById('cellName').value.trim() || defaults.cellName;
+      const focus = document.getElementById('focus').value;
+      const size = document.getElementById('size').value.trim() || defaults.size;
+      const rhythm = document.getElementById('rhythm').value.trim() || defaults.rhythm;
+      const purpose = document.getElementById('purpose').value.trim() || defaults.purpose;
+      const pillars = document.getElementById('pillars').value.trim() || defaults.pillars;
+
+      document.getElementById('previewTitle').textContent = cellName;
+      document.getElementById('previewFocus').textContent = focus;
+      document.getElementById('previewSize').textContent = size;
+      document.getElementById('previewRhythm').textContent = rhythm;
+      document.getElementById('previewPurpose').textContent = purpose;
+
+      const tagsEl = document.getElementById('previewTags');
+      tagsEl.innerHTML = '';
+      pillars
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(Boolean)
+        .slice(0, 8)
+        .forEach(tag => {
+          const span = document.createElement('span');
+          span.className = 'tag';
+          span.textContent = tag;
+          tagsEl.appendChild(span);
+        });
+
+      if (!tagsEl.children.length) {
+        ['support', 'projects', 'coordination'].forEach(tag => {
+          const span = document.createElement('span');
+          span.className = 'tag';
+          span.textContent = tag;
+          tagsEl.appendChild(span);
+        });
+      }
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      updatePreview();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      document.getElementById('cellName').value = defaults.cellName;
+      document.getElementById('focus').value = defaults.focus;
+      document.getElementById('size').value = defaults.size;
+      document.getElementById('rhythm').value = defaults.rhythm;
+      document.getElementById('purpose').value = defaults.purpose;
+      document.getElementById('pillars').value = defaults.pillars;
+      updatePreview();
+    });
+
+    updatePreview();
+  </script>
+</body>
+</html>
