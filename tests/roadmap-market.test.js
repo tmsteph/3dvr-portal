@@ -29,7 +29,7 @@ describe('roadmap and CRM integration', () => {
   it('ships CRM capture for groups, people, problems, and quick leads', async () => {
     const html = await readFile(new URL('../crm/index.html', import.meta.url), 'utf8');
     assert.match(html, /Add the next real lead fast\./);
-    assert.match(html, /Groups hold accounts, people sit under groups, and problems can link to both\./);
+    assert.match(html, /Use the full form when you need linked problems or more detailed notes\./);
     assert.match(html, /id="quickLeadForm"/);
     assert.match(html, /id="recordType"/);
     assert.match(html, /id="groupId"/);
