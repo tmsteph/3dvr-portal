@@ -28,6 +28,7 @@ describe('billing center', () => {
     assert.match(html, /Cancel renewal/);
     assert.match(html, /Cancel renewal opens Stripe's cancellation\s+confirmation/);
     assert.match(html, /You do not need to choose a free plan first/);
+    assert.match(html, /Find your passions, organize your life, and get into the portal without a card\./);
     assert.match(html, /data-plan-action="starter"/);
     assert.match(html, /data-plan-action="pro"/);
     assert.match(html, /data-plan-action="builder"/);

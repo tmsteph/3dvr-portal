@@ -14,7 +14,7 @@ describe('portal customer journey pages', () => {
 
   it('keeps the free trial page tied to the portal account journey', async () => {
     const html = await readFile(new URL('../free-trial.html', import.meta.url), 'utf8');
-    assert.match(html, /Start free inside the portal/);
+    assert.match(html, /Find your passions and organize your life/);
     assert.match(html, /Create or use one portal account/);
     assert.match(html, /Send free-plan link/);
     assert.match(html, /Sign in or create account/);
