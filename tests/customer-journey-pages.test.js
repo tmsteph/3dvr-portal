@@ -6,7 +6,7 @@ describe('portal customer journey pages', () => {
   it('gives the portal home a clear new-vs-returning entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
     assert.match(html, /Choose your path into the portal/);
-    assert.match(html, /New here\? Choose a plan, create your account, and continue inside the portal\./);
+    assert.match(html, /New here\? Start with the guided path into plans, launch, and support\./);
     assert.match(html, /New here\? Start here/);
     assert.match(html, /Manage billing/);
     assert.match(html, /Browse apps/);
@@ -14,7 +14,7 @@ describe('portal customer journey pages', () => {
 
   it('keeps the free trial page tied to the portal account journey', async () => {
     const html = await readFile(new URL('../free-trial.html', import.meta.url), 'utf8');
-    assert.match(html, /Start free inside the portal/);
+    assert.match(html, /Find your passions and organize your life/);
     assert.match(html, /Create or use one portal account/);
     assert.match(html, /Send free-plan link/);
     assert.match(html, /Sign in or create account/);
