@@ -112,7 +112,8 @@ describe('billing center', () => {
     assert.ok(js.includes("View billing history"));
     assert.ok(js.includes('Review one subscription'));
     assert.ok(js.includes('Manage billing opens one record at a time.'));
-    assert.ok(js.includes('return here, refresh, and open billing again'));
+    assert.ok(js.includes('Choose the plan you want to keep'));
+    assert.ok(js.includes('older paid plans will be canceled automatically'));
     assert.ok(js.includes('Recovered and linked from an older Stripe record.'));
     assert.ok(js.includes('We linked your older Stripe billing record to this portal account automatically.'));
     assert.ok(js.includes('Stop $5 billing'));
@@ -123,5 +124,7 @@ describe('billing center', () => {
     assert.ok(js.includes("label = 'Refresh account first'"));
     assert.ok(js.includes('authPub: livePub'));
     assert.ok(js.includes("window.location.assign(signInHref(targetPlan))"));
+    assert.ok(!js.includes('cancel the extra plan'));
+    assert.ok(!js.includes("label = 'Review duplicates'"));
   });
 });
