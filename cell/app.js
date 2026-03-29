@@ -172,6 +172,14 @@ function parseMemberCount(sizeValue) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function readStoredValue(key) {
+  try {
+    return window.localStorage.getItem(key) || '';
+  } catch (err) {
+    return '';
+  }
+}
+
 const gunContext = ensureGunContext(createCellGun, 'cell');
 const gun = gunContext.gun;
 const user = gunContext.user;
@@ -412,7 +420,7 @@ function buildCellRecord(existing = {}) {
     purpose: String(elements.purpose.value || existing.purpose || '').trim(),
     pillars,
     linkedApps: DEFAULT_APP_LINKS.map(item => item.key),
-    owner: existing.owner || (window.localStorage.getItem('username') || window.localStorage.getItem('alias') || 'Guest').trim(),
+    owner: existing.owner || (readStoredValue('username') || readStoredValue('alias') || 'Guest').trim(),
     createdAt: existing.createdAt || now,
     updatedAt: now,
     memberCount: parseMemberCount(size),
@@ -421,11 +429,11 @@ function buildCellRecord(existing = {}) {
   return record;
 }
 
-function logCellActivity(record) {
+function logCellActivity(record, isNew = false) {
   const entryId = `${record.id}:${Date.now()}`;
   activityRoot.get(entryId).put({
     id: entryId,
-    type: state.cells[record.id] ? 'cell.updated' : 'cell.created',
+    type: isNew ? 'cell.created' : 'cell.updated',
     cellId: record.id,
     name: record.name,
     focus: record.focus,
@@ -439,6 +447,7 @@ function saveCell(event) {
   event.preventDefault();
   const existing = getSelectedCell() || {};
   const record = buildCellRecord(existing);
+  const isNew = !state.cells[record.id];
   if (!record.name) {
     record.name = 'Untitled Cell';
   }
@@ -455,7 +464,7 @@ function saveCell(event) {
     if (typeof window.__updateCellPreview === 'function') {
       window.__updateCellPreview();
     }
-    logCellActivity(record);
+    logCellActivity(record, isNew);
     renderState();
   });
 }
