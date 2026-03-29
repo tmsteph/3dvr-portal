@@ -191,6 +191,7 @@ Portal billing center:
 - `STRIPE_PRICE_STARTER_ID` (or `STRIPE_PRICE_SUPPORTER_ID`) for the $5 monthly tier
 - `STRIPE_PRICE_PRO_ID` (or `STRIPE_PRICE_FOUNDER_ID`) for the $20 monthly tier
 - `STRIPE_PRICE_BUILDER_ID` (or `STRIPE_PRICE_STUDIO_ID`) for the $50 monthly tier
+- `STRIPE_PRICE_EMBEDDED_ID` (or `STRIPE_PRICE_EXECUTION_ID`) for the $200 monthly tier
 - `PORTAL_ORIGIN` (recommended, for example `https://portal.3dvr.tech`)
 - `STRIPE_CUSTOMER_PORTAL_LOGIN_URL` (optional fallback if you enable Stripe's hosted customer portal login page)
 

@@ -28,6 +28,15 @@ export const BILLING_PLANS = {
     kind: 'subscription',
     envKeys: ['STRIPE_PRICE_BUILDER_ID', 'STRIPE_PRICE_STUDIO_ID']
   },
+  embedded: {
+    plan: 'embedded',
+    usageTier: 'embedded',
+    label: 'Embedded Plan',
+    shortLabel: '$200 embedded',
+    amountLabel: '$200 / month',
+    kind: 'subscription',
+    envKeys: ['STRIPE_PRICE_EMBEDDED_ID', 'STRIPE_PRICE_EXECUTION_ID', 'STRIPE_PRICE_200_ID']
+  },
   custom: {
     plan: 'custom',
     usageTier: 'account',
@@ -54,6 +63,9 @@ const PLAN_ALIASES = {
   studio: 'builder',
   partner: 'builder',
   '50': 'builder',
+  embedded: 'embedded',
+  execution: 'embedded',
+  '200': 'embedded',
   custom: 'custom',
   one_time: 'custom',
   'one-time': 'custom',
@@ -64,7 +76,8 @@ const PLAN_WEIGHTS = {
   free: 0,
   starter: 1,
   pro: 2,
-  builder: 3
+  builder: 3,
+  embedded: 4
 };
 
 const BILLING_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

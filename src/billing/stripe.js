@@ -974,7 +974,8 @@ export function resolvePricePlanMap(config = process.env) {
   const configured = {
     [String(config?.STRIPE_PRICE_STARTER_ID || config?.STRIPE_PRICE_SUPPORTER_ID || '').trim()]: 'starter',
     [String(config?.STRIPE_PRICE_PRO_ID || config?.STRIPE_PRICE_FOUNDER_ID || '').trim()]: 'pro',
-    [String(config?.STRIPE_PRICE_BUILDER_ID || config?.STRIPE_PRICE_STUDIO_ID || '').trim()]: 'builder'
+    [String(config?.STRIPE_PRICE_BUILDER_ID || config?.STRIPE_PRICE_STUDIO_ID || '').trim()]: 'builder',
+    [String(config?.STRIPE_PRICE_EMBEDDED_ID || config?.STRIPE_PRICE_EXECUTION_ID || config?.STRIPE_PRICE_200_ID || '').trim()]: 'embedded'
   };
 
   return Object.fromEntries(
@@ -1199,7 +1200,8 @@ export function resolvePlanDiagnostics(config = process.env) {
   return {
     starter: Boolean(resolveConfiguredPriceId('starter', config)),
     pro: Boolean(resolveConfiguredPriceId('pro', config)),
-    builder: Boolean(resolveConfiguredPriceId('builder', config))
+    builder: Boolean(resolveConfiguredPriceId('builder', config)),
+    embedded: Boolean(resolveConfiguredPriceId('embedded', config))
   };
 }
 

@@ -46,17 +46,19 @@ const PLAN_LABELS = {
   starter: 'Family & Friends',
   pro: 'Founder Plan',
   builder: 'Builder Plan',
+  embedded: 'Embedded Plan',
   custom: 'Custom project'
 }
 
 const CANCEL_LABELS = {
   starter: 'Stop $5 billing',
   pro: 'Stop $20 billing',
-  builder: 'Stop $50 billing'
+  builder: 'Stop $50 billing',
+  embedded: 'Stop $200 billing'
 }
 
-const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder'])
-const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'custom'])
+const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder', 'embedded'])
+const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'embedded', 'custom'])
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const BOOT_MIN_DURATION_MS = 160
 const bootStartedAt = Date.now()
@@ -68,7 +70,8 @@ const DEFAULT_DIAGNOSTICS = Object.freeze({
   planPricesConfigured: {
     starter: true,
     pro: true,
-    builder: true
+    builder: true,
+    embedded: true
   }
 })
 
@@ -460,6 +463,7 @@ function configHintForPlan(plan = '') {
   if (plan === 'starter') return 'STRIPE_PRICE_STARTER_ID or STRIPE_PRICE_SUPPORTER_ID'
   if (plan === 'pro') return 'STRIPE_PRICE_PRO_ID or STRIPE_PRICE_FOUNDER_ID'
   if (plan === 'builder') return 'STRIPE_PRICE_BUILDER_ID or STRIPE_PRICE_STUDIO_ID'
+  if (plan === 'embedded') return 'STRIPE_PRICE_EMBEDDED_ID or STRIPE_PRICE_EXECUTION_ID'
   return 'the matching Stripe price env var'
 }
 
@@ -928,7 +932,7 @@ function renderAccountSummary() {
 
   setStatus(
     accountSummary,
-    'Sign in before starting or switching paid plans so the Stripe customer stays tied to one portal account.',
+    'Sign in before starting or switching paid plans so your chosen plan, billing, and support stay tied to one portal account.',
     'warning'
   )
 }
@@ -1012,7 +1016,7 @@ function renderBillingState(payload = null) {
         ? 'We linked an older Stripe billing record to this portal account automatically. No paid subscription is active right now, but you can open billing history if you need past invoices.'
         : hasKnownCustomer()
           ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
-          : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
+          : 'Choose a paid plan to create a portal-linked Stripe checkout tied to this account.'
     }
     refreshBillingControls()
     renderActionPrompt()
@@ -1341,8 +1345,8 @@ function requireSignedInForPaidFlow(options = {}) {
   setStatus(
     actionStatus,
     targetPlan
-      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan stays attached to one portal account.`
-      : 'Sign in first so the paid plan stays attached to one portal account.',
+      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan, billing, and onboarding stay attached to one portal account.`
+      : 'Sign in first so the paid plan, billing, and onboarding stay attached to one portal account.',
     'warning'
   )
   signInLink?.focus()
