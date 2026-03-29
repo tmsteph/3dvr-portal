@@ -32,6 +32,7 @@
     <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3">
       <a id="portalHomeLink" href="https://portal.3dvr.tech/index.html" class="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-white">← Portal</a>
       <a id="portalCrmLink" href="https://portal.3dvr.tech/crm/index.html" class="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-white">CRM</a>
+      <a id="portalCellLink" href="https://portal.3dvr.tech/cell/index.html" class="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-white">Cell</a>
       <h1 class="min-w-0 flex-1 text-lg sm:text-2xl font-bold truncate">Contacts <span class="text-teal-400">· 3DVR</span></h1>
       <span id="spaceBadge" class="hidden shrink-0 text-xs px-2 py-1 rounded bg-white/10">personal</span>
       <div class="w-full sm:w-auto sm:ms-auto min-w-0 flex items-center justify-end gap-2">
@@ -74,6 +75,13 @@
         type="button"
         class="bg-rose-500/80 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded"
       >Sign in</button>
+    </div>
+  </div>
+  <div id="cellContextBanner" class="max-w-6xl mx-auto px-4 pt-2 hidden">
+    <div class="rounded-lg border border-cyan-500/30 bg-cyan-950/40 px-3 py-2 flex flex-wrap items-center gap-2 text-sm text-cyan-100">
+      <span class="font-semibold">Cell context active</span>
+      <span id="cellContextLabel" class="text-cyan-100/90">Linked from Cell</span>
+      <a id="cellContextLink" href="../cell/index.html" class="text-cyan-200 hover:text-white underline underline-offset-2">Open Cell</a>
     </div>
   </div>
 
@@ -711,6 +719,14 @@ function crmContactHref(contactId = '') {
   return portalHref(`/crm/index.html?contact=${encodeURIComponent(id)}`);
 }
 
+function cellWorkspaceHref(cellId = '') {
+  const id = typeof cellId === 'string' ? cellId.trim() : String(cellId || '').trim();
+  if (!id) {
+    return portalHref('/cell/index.html');
+  }
+  return portalHref(`/cell/index.html?cellId=${encodeURIComponent(id)}`);
+}
+
 const { storage: ls, native: nativeLocalStorage } = ensureLocalStorage();
 if (window.AuthIdentity && typeof window.AuthIdentity.syncStorageFromSharedIdentity === 'function') {
   try {
@@ -820,6 +836,10 @@ const authFormStatus = document.getElementById('authFormStatus');
 const closeAuthModalBtn = document.getElementById('closeAuthModal');
 const continueGuestAuthBtn = document.getElementById('continueGuestAuth');
 const authStatusSignIn = document.getElementById('authStatusSignIn');
+const portalCellLink = document.getElementById('portalCellLink');
+const cellContextBanner = document.getElementById('cellContextBanner');
+const cellContextLabel = document.getElementById('cellContextLabel');
+const cellContextLink = document.getElementById('cellContextLink');
 let syncStatus = null;
 let authStatus = null;
 let authStatusMessage = null;
@@ -827,6 +847,7 @@ let lastFocusedBeforeAuth = null;
 const urlParams = new URLSearchParams(window.location.search);
 const requestedSpace = urlParams.get('space');
 const focusContactId = urlParams.get('contact');
+const cellContextId = (urlParams.get('cellId') || urlParams.get('cell') || '').trim();
 const focusClasses = ['ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-gray-900'];
 let focusScrollDone = false;
 
@@ -838,6 +859,22 @@ function refreshSignedInDisplay() {
   const signedInLabel = `Signed in as ${usernameTrimmed}${aliasSegment}`;
   userDisplay.textContent = signedInLabel;
   userDisplay.title = signedInLabel;
+}
+
+function refreshCellContextBanner() {
+  if (portalCellLink) {
+    portalCellLink.href = cellWorkspaceHref(cellContextId);
+  }
+  if (!cellContextBanner || !cellContextLabel || !cellContextLink) {
+    return;
+  }
+  if (!cellContextId) {
+    cellContextBanner.hidden = true;
+    return;
+  }
+  cellContextBanner.hidden = false;
+  cellContextLabel.textContent = `Linked from Cell ${cellContextId}`;
+  cellContextLink.href = cellWorkspaceHref(cellContextId);
 }
 
 let pendingSpaceRefreshTimer = null;
@@ -1417,9 +1454,14 @@ if (portalHomeLink) {
 if (portalCrmLink) {
   portalCrmLink.href = portalHref('/crm/index.html');
 }
+if (portalCellLink) {
+  portalCellLink.href = cellWorkspaceHref(cellContextId);
+}
 if (floatingIdentity) {
   floatingIdentity.href = portalHref('/profile.html#profile');
 }
+
+refreshCellContextBanner();
 
 let lastFocusedBeforeCreate = null;
 

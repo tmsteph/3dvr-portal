@@ -679,6 +679,163 @@ export async function cancelStripeSubscription(
   });
 }
 
+export function resolveManagedBillingPlanFromSubscription(subscription, config = process.env) {
+  const planMap = resolvePricePlanMap(config);
+  const item = firstActiveItem(subscription);
+  const metadataPlan = normalizeBillingPlan(item?.price?.metadata?.plan || '');
+  if (metadataPlan && getBillingPlan(metadataPlan)?.kind === 'subscription') {
+    return metadataPlan;
+  }
+
+  const priceId = String(item?.price?.id || '').trim();
+  if (priceId && planMap[priceId]) {
+    const mappedPlan = normalizeBillingPlan(planMap[priceId]);
+    if (mappedPlan && getBillingPlan(mappedPlan)?.kind === 'subscription') {
+      return mappedPlan;
+    }
+  }
+
+  const nicknamePlan = String(item?.price?.nickname || '').trim().toLowerCase();
+  if (nicknamePlan.includes('builder') || nicknamePlan.includes('studio') || nicknamePlan.includes('partner')) {
+    return 'builder';
+  }
+  if (nicknamePlan.includes('founder') || nicknamePlan.includes('pro')) {
+    return 'pro';
+  }
+  if (
+    nicknamePlan.includes('starter')
+    || nicknamePlan.includes('supporter')
+    || nicknamePlan.includes('family')
+  ) {
+    return 'starter';
+  }
+
+  return '';
+}
+
+export async function cancelRedundantBillingSubscriptions({
+  stripeClient,
+  customerId = '',
+  billingEmail = '',
+  billingEmails = [],
+  portalAlias = '',
+  portalPub = '',
+  keepSubscriptionId = '',
+  config = process.env
+} = {}) {
+  const normalizedCustomerId = String(customerId || '').trim();
+  const normalizedPortalAlias = normalizeMetadataField(portalAlias);
+  const normalizedPortalPub = normalizeMetadataField(portalPub);
+  const normalizedKeepSubscriptionId = String(keepSubscriptionId || '').trim();
+
+  if (!stripeClient || !normalizedKeepSubscriptionId) {
+    return {
+      keptSubscriptionId: normalizedKeepSubscriptionId,
+      cancelledSubscriptionIds: [],
+      canceledCount: 0,
+      autoLinkedLegacy: false
+    };
+  }
+
+  let linkedRecords = [];
+  let linkedCustomer = null;
+
+  if (normalizedPortalPub || normalizedPortalAlias) {
+    const linkedResolution = await resolvePortalLinkedStripeCustomer({
+      stripeClient,
+      customerId: normalizedCustomerId,
+      billingEmail,
+      portalAlias: normalizedPortalAlias,
+      portalPub: normalizedPortalPub,
+      createIfMissing: false,
+      config
+    });
+
+    linkedRecords = uniqueBillingCustomerRecords(linkedResolution.records || []);
+    linkedCustomer = linkedResolution.customer || null;
+  }
+
+  if (!linkedCustomer && normalizedCustomerId && stripeClient.customers?.retrieve) {
+    try {
+      const explicitCustomer = await stripeClient.customers.retrieve(normalizedCustomerId);
+      if (explicitCustomer && !explicitCustomer.deleted) {
+        linkedCustomer = explicitCustomer;
+        const explicitRecord = await summarizeBillingCustomerRecord(stripeClient, explicitCustomer, config);
+        linkedRecords = uniqueBillingCustomerRecords([
+          ...linkedRecords,
+          ...(explicitRecord ? [explicitRecord] : [])
+        ]);
+      }
+    } catch (error) {
+      console.warn('Unable to retrieve Stripe customer for duplicate cleanup', error);
+    }
+  }
+
+  const resolvedBillingEmails = normalizeBillingEmailList(
+    billingEmail,
+    billingEmails,
+    billingEmailsFromRecords(linkedRecords),
+    billingEmailsFromCustomer(linkedCustomer)
+  );
+
+  const legacyResolution = await resolveLegacyStripeCustomersByEmails({
+    stripeClient,
+    billingEmail: resolvedBillingEmails[0],
+    billingEmails: resolvedBillingEmails,
+    config
+  });
+
+  const managedActiveSubscriptions = listOwnedActiveSubscriptions([
+    ...linkedRecords,
+    ...(legacyResolution.records || [])
+  ]);
+
+  const winner = managedActiveSubscriptions.find(item => item.subscription?.id === normalizedKeepSubscriptionId) || null;
+  if (!winner) {
+    return {
+      keptSubscriptionId: normalizedKeepSubscriptionId,
+      cancelledSubscriptionIds: [],
+      canceledCount: 0,
+      autoLinkedLegacy: false
+    };
+  }
+
+  const cancelledSubscriptionIds = [];
+  for (const entry of managedActiveSubscriptions) {
+    const subscription = entry.subscription;
+    if (subscription?.id === normalizedKeepSubscriptionId) {
+      continue;
+    }
+
+    await cancelStripeSubscription(stripeClient, subscription, {
+      invoiceNow: false,
+      prorate: false
+    });
+    cancelledSubscriptionIds.push(subscription.id);
+  }
+
+  let autoLinkedLegacy = false;
+  if (
+    winner.customer
+    && !customerHasPortalLink(winner.customer)
+    && (normalizedPortalPub || normalizedPortalAlias)
+  ) {
+    await updateCustomerHints(stripeClient, winner.customer, {
+      billingEmail: resolvedBillingEmails[0],
+      portalAlias: normalizedPortalAlias,
+      portalPub: normalizedPortalPub
+    });
+    autoLinkedLegacy = true;
+  }
+
+  return {
+    keptSubscriptionId: normalizedKeepSubscriptionId,
+    cancelledSubscriptionIds,
+    canceledCount: cancelledSubscriptionIds.length,
+    autoLinkedLegacy
+  };
+}
+
 export async function reconcileDuplicateActiveSubscriptions({
   stripeClient,
   linkedRecords = [],
@@ -984,13 +1141,13 @@ export function resolvePricePlanMap(config = process.env) {
 }
 
 export function pickCurrentBillingSubscription(subscriptions = [], config = process.env) {
-  const planMap = resolvePricePlanMap(config);
   const activeSubscriptions = (subscriptions || [])
     .filter(item => BILLING_ACTIVE_STATUSES.includes(String(item?.status || '').toLowerCase()))
     .map(item => ({
       ...item,
-      plan: resolveBillingPlanFromSubscription(item, planMap)
+      plan: resolveManagedBillingPlanFromSubscription(item, config)
     }))
+    .filter(item => Boolean(item.plan))
     .sort(compareBillingSubscriptionPriority);
 
   return {
@@ -1163,12 +1320,25 @@ export function buildCustomPaymentSessionPayload({
   billingEmail = ''
 } = {}) {
   const urls = buildBillingUrls({ origin, plan: 'custom' });
-  const metadata = buildBillingMetadata({
+  const metadata = {
+    ...buildBillingMetadata({
+      plan: 'custom',
+      portalAlias,
+      portalPub,
+      billingEmail
+    }),
+    custom_label: normalizeMetadataField(label) || 'Custom Project Payment',
+    custom_description: normalizeMetadataField(description),
+    custom_amount_cents: String(Number(amountCents) || 0)
+  };
+  const sessionMetadata = Object.fromEntries(
+    Object.entries(metadata).filter(([, value]) => Boolean(value))
+  );
+  const productMetadata = {
+    ...sessionMetadata,
     plan: 'custom',
-    portalAlias,
-    portalPub,
-    billingEmail
-  });
+    custom_amount_cents: String(Number(amountCents) || 0)
+  };
   const accountReference = portalPub || portalAlias || normalizeBillingEmail(billingEmail) || customer?.id || '';
 
   return {
@@ -1185,12 +1355,12 @@ export function buildCustomPaymentSessionPayload({
           product_data: {
             name: label,
             description: description || undefined,
-            metadata
+            metadata: productMetadata
           }
         }
       }
     ],
-    metadata,
+    metadata: sessionMetadata,
     success_url: urls.checkoutSuccessUrl,
     cancel_url: urls.checkoutCancelUrl
   };
