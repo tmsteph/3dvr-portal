@@ -143,6 +143,24 @@ const gunContext = ensureGunContext(
   'finance'
 );
 const gun = gunContext.gun;
+const params = new URLSearchParams(window.location.search);
+const cellContextId = (params.get('cellId') || params.get('cell') || '').trim();
+const cellContextBanner = document.getElementById('cellContextBanner');
+const cellContextLabel = document.getElementById('cellContextLabel');
+const cellContextLink = document.getElementById('cellContextLink');
+
+function refreshCellContextBanner() {
+  if (!cellContextBanner || !cellContextLabel || !cellContextLink) {
+    return;
+  }
+  if (!cellContextId) {
+    cellContextBanner.hidden = true;
+    return;
+  }
+  cellContextBanner.hidden = false;
+  cellContextLabel.textContent = `Cell ${cellContextId}`;
+  cellContextLink.href = `../cell/index.html?cellId=${encodeURIComponent(cellContextId)}`;
+}
 
 function attemptFinanceReconnection() {
   const refreshed = ensureGunContext(createFinanceGun, 'finance-retry');
@@ -176,6 +194,8 @@ if (gunContext.isStub) {
     }
   });
 }
+
+refreshCellContextBanner();
 
 // Finance data now lives under 3dvr-portal/finance to align with the shared workspace graph. We
 // still read and write legacy finance/<*> nodes so older clients can participate while migrating.

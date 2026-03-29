@@ -69,6 +69,21 @@ body {
   transform: translateY(-1px);
 }
 
+.finance-cell-context {
+  max-width: 1120px;
+  margin: 1rem auto 0;
+  padding: 0 1.5rem;
+}
+
+.finance-cell-context__card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.finance-cell-context__helper {
+  max-width: 60ch;
+}
+
 .finance-shell {
   max-width: 1120px;
   margin: 0 auto;

@@ -1061,7 +1061,10 @@ describe('stripe billing checkout handler', () => {
                 plan: 'custom',
                 portal_alias: auth.alias,
                 portal_pub: auth.pub,
-                billing_email: 'client@example.com'
+                billing_email: 'client@example.com',
+                custom_label: 'Custom project deposit',
+                custom_description: 'Scoped sprint deposit',
+                custom_amount_cents: '25000'
               }
             }
           }
@@ -1071,7 +1074,10 @@ describe('stripe billing checkout handler', () => {
         plan: 'custom',
         portal_alias: auth.alias,
         portal_pub: auth.pub,
-        billing_email: 'client@example.com'
+        billing_email: 'client@example.com',
+        custom_label: 'Custom project deposit',
+        custom_description: 'Scoped sprint deposit',
+        custom_amount_cents: '25000'
       },
       success_url: 'https://portal.3dvr.tech/billing/?checkout=success&plan=custom&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://portal.3dvr.tech/billing/?checkout=cancel&plan=custom'

@@ -207,25 +207,6 @@ export function createStripeCheckoutHandler(options = {}) {
       }
 
       if (shouldPreferLegacy && action === 'subscribe' && legacyResolution.current) {
-        if ((legacyResolution.duplicates || []).length) {
-          return res.status(409).json({
-            ...buildStatusPayload({
-              customer: legacyResolution.customer,
-              current: legacyResolution.current,
-              active: legacyResolution.active,
-              duplicates: legacyResolution.duplicates,
-              exposeCustomerId: false,
-              portalLinked: false,
-              statusSource: legacyResolution.source,
-              legacyNeedsLinking: true,
-              hasInvoiceHistory: legacyResolution.hasInvoiceHistory,
-              legacyBillingManagementAvailable: true,
-              autoLinkedLegacy
-            }),
-            error: 'We found multiple older Stripe subscriptions for this billing email, and they are not linked to this portal account yet. To avoid creating another duplicate subscription, do not start a new plan here yet.'
-          });
-        }
-
         if (!stripeClient.billingPortal?.sessions?.create) {
           return res.status(500).json({ error: 'Stripe Billing Portal is not configured.' });
         }

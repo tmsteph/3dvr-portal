@@ -381,6 +381,70 @@ describe('billing center subscriber flows', () => {
     }
   }, { timeout: 45000 })
 
+  it('guides duplicate subscribers toward choosing the plan to keep', async t => {
+    const browser = await launchBrowser(t)
+    if (!browser) {
+      return
+    }
+
+    try {
+      const context = await createContext(browser)
+      await installGunRoutes(context)
+      await context.addInitScript(() => {
+        localStorage.setItem('signedIn', 'true')
+        localStorage.setItem('alias', 'member@3dvr')
+        localStorage.setItem('username', 'Member')
+        localStorage.setItem('userPubKey', 'pub_member')
+      })
+      await installBillingRoutes(context, {
+        statusResponse: createFreeStatus({
+          customerId: 'cus_existing',
+          billingEmail: 'member@example.com',
+          currentPlan: 'builder',
+          usageTier: 'builder',
+          activeSubscriptions: [
+            {
+              id: 'sub_builder',
+              status: 'active',
+              plan: 'builder',
+              priceId: 'price_builder'
+            },
+            {
+              id: 'sub_starter',
+              status: 'active',
+              plan: 'starter',
+              priceId: 'price_starter'
+            }
+          ],
+          duplicateActiveCount: 1,
+          hasDuplicateActiveSubscriptions: true
+        })
+      })
+      const page = await context.newPage()
+
+      await page.goto(`${baseUrl}/billing/`, { waitUntil: 'domcontentloaded' })
+      await page.waitForFunction(() => {
+        const warning = document.getElementById('duplicate-warning')
+        return warning && warning.textContent && warning.textContent.includes('Choose the plan you want to keep')
+      })
+
+      const duplicateText = (await page.textContent('#duplicate-warning')).trim()
+      const manageLabel = (await page.textContent('#manage-billing')).trim()
+      const manageDisabled = await page.getAttribute('#manage-billing', 'aria-disabled')
+      const cancelLabel = (await page.textContent('#cancel-subscription')).trim()
+      const statusText = (await page.textContent('#action-status')).trim()
+
+      assert.match(duplicateText, /Choose the plan you want to keep/i)
+      assert.match(duplicateText, /older paid plans will be canceled automatically/i)
+      assert.equal(manageLabel, 'Manage in Stripe')
+      assert.equal(manageDisabled, 'false')
+      assert.equal(cancelLabel, 'Choose plan to keep')
+      assert.match(statusText, /Choose the plan you want to keep/i)
+    } finally {
+      await browser.close()
+    }
+  }, { timeout: 45000 })
+
   it('shows a clean returning-subscriber path after duplicate cleanup', async t => {
     const browser = await launchBrowser(t)
     if (!browser) {
