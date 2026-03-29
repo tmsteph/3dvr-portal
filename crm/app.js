@@ -95,6 +95,7 @@ const elements = {
 };
 
 const params = new URLSearchParams(window.location.search);
+const cellContextId = (params.get('cellId') || params.get('cell') || '').trim();
 const state = {
   board: buildCrmRelationshipBoard([]),
   renderTimer: null,
@@ -115,6 +116,23 @@ const state = {
     source: (params.get('source') || '').trim(),
   },
 };
+
+const cellContextBanner = document.getElementById('cellContextBanner');
+const cellContextLabel = document.getElementById('cellContextLabel');
+const cellContextLink = document.getElementById('cellContextLink');
+
+function refreshCellContextBanner() {
+  if (!cellContextBanner || !cellContextLabel || !cellContextLink) {
+    return;
+  }
+  if (!cellContextId) {
+    cellContextBanner.hidden = true;
+    return;
+  }
+  cellContextBanner.hidden = false;
+  cellContextLabel.textContent = `Linked from Cell ${cellContextId}`;
+  cellContextLink.href = `../cell/index.html?cellId=${encodeURIComponent(cellContextId)}`;
+}
 
 function safe(value) {
   return String(value == null ? '' : value)
@@ -1820,6 +1838,7 @@ function init() {
   attachEvents();
   startIdentityBadge();
   updateContactsLinks();
+  refreshCellContextBanner();
   startSync();
   renderWeeklyChallenge();
   renderList();
