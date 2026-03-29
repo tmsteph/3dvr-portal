@@ -31,6 +31,9 @@ describe('cell hub', () => {
     assert.match(html, /Cell Builder/);
     assert.match(html, /Core(?:<br\s*\/?>)?Cell/);
     assert.match(html, /data-cell-app="contacts"/);
+    assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
+    assert.match(html, /<script[^>]+src="\.{2}\/gun-init\.js"/);
+    assert.match(html, /<script[^>]+src="\.{2}\/score\.js"/);
     assert.match(html, /<script[^>]+src="\.\/app\.js"/);
     assert.ok(!html.includes('Node Builder'), 'the page should be branded as Cell, not Node');
   });
