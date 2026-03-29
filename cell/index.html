@@ -324,6 +324,120 @@
       margin-bottom: 20px;
     }
 
+    .cell-dashboard {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0 4px;
+    }
+
+    .status-chip {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .status-chip span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-bottom: 6px;
+    }
+
+    .status-chip strong {
+      font-size: 1rem;
+    }
+
+    .cell-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .cell-card {
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.025);
+      border-radius: 18px;
+      padding: 14px 16px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .cell-card.is-active {
+      border-color: rgba(242,207,122,0.45);
+      box-shadow: 0 0 0 1px rgba(242,207,122,0.12);
+    }
+
+    .cell-card__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .cell-card__title {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .cell-card__meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .cell-pill-row,
+    .app-link-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .cell-pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background: rgba(132,184,255,0.1);
+      border: 1px solid rgba(132,184,255,0.18);
+      color: var(--blue);
+    }
+
+    .cell-pill--gold {
+      background: rgba(242,207,122,0.12);
+      border-color: rgba(242,207,122,0.2);
+      color: var(--gold);
+    }
+
+    .cell-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .app-link {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      text-decoration: none;
+      color: var(--text);
+      font-size: 0.92rem;
+    }
+
+    .app-link:hover {
+      border-color: rgba(132,184,255,0.35);
+      transform: translateY(-1px);
+    }
+
     .form-wrap {
       padding: 22px;
     }
@@ -409,7 +523,8 @@
     @media (max-width: 980px) {
       .hero,
       .section-grid,
-      .builder {
+      .builder,
+      .cell-dashboard {
         grid-template-columns: 1fr;
       }
     }
@@ -417,7 +532,7 @@
     @media (max-width: 700px) {
       .shell { width: min(100% - 20px, 1180px); }
       .hero-main, .hero-side, .panel, .form-wrap, .preview { padding: 18px; }
-      .hero-grid, .mini-grid, .form-grid { grid-template-columns: 1fr; }
+      .hero-grid, .mini-grid, .form-grid, .status-grid { grid-template-columns: 1fr; }
       h1 { max-width: 100%; }
     }
 
@@ -546,6 +661,7 @@
           Sketch your first unit. This can later connect to portal accounts, private rooms, member lists, notes, payments, or project pages.
         </p>
         <form id="cellForm" class="form-grid">
+          <input id="cellId" name="cellId" type="hidden" value="" />
           <div>
             <label for="cellName">Cell name</label>
             <input id="cellName" name="cellName" type="text" placeholder="Example: South Bay Builder Cell" value="3dvr Builder Cell" />
@@ -577,7 +693,7 @@
             <input id="pillars" name="pillars" type="text" placeholder="e.g. support, projects, leads, care" value="support, leads, projects, coordination" />
           </div>
           <div class="full" style="display:flex; gap:12px; flex-wrap:wrap; margin-top: 4px;">
-            <button type="submit" class="primary">Generate Preview</button>
+            <button type="submit" class="primary">Save Cell</button>
             <button type="button" class="secondary" id="resetBtn">Reset</button>
           </div>
         </form>
@@ -613,10 +729,52 @@
       </aside>
     </section>
 
+    <section class="cell-dashboard">
+      <div class="card panel">
+        <div class="cell-card__header">
+          <div>
+            <h2 style="margin-bottom: 6px;">Live Cell registry</h2>
+            <p style="margin-bottom: 0;">Cells sync through Gun under `3dvr-portal/cellHub/cells` so the portal can reuse the same workspace graph everywhere.</p>
+          </div>
+          <span class="status-chip"><span>Sync</span><strong id="syncStatus">Connecting…</strong></span>
+        </div>
+        <div class="status-grid" aria-label="Cell sync stats">
+          <div class="status-chip"><span>Saved cells</span><strong id="cellCount">0</strong></div>
+          <div class="status-chip"><span>Selected cell</span><strong id="activeCellLabel">None</strong></div>
+          <div class="status-chip"><span>Linked apps</span><strong id="linkedAppCount">5</strong></div>
+          <div class="status-chip"><span>Last save</span><strong id="lastSavedAt">—</strong></div>
+        </div>
+        <div id="cellList" class="cell-list"></div>
+        <p id="cellEmpty" class="footer-note" style="padding: 12px 0 0; text-align:left;">No cells have been saved yet. Create one above to seed the shared graph.</p>
+      </div>
+
+      <div class="card panel">
+        <h2>Connected apps</h2>
+        <p>
+          Every Cell can fan out into the rest of the portal. The links below carry the active `cellId` into the shared tools.
+        </p>
+        <div class="app-link-row" style="margin-bottom: 14px;">
+          <a class="app-link" data-cell-app="contacts" href="../contacts/index.html">Contacts</a>
+          <a class="app-link" data-cell-app="crm" href="../crm/index.html">CRM</a>
+          <a class="app-link" data-cell-app="finance" href="../finance/index.html">Finance</a>
+          <a class="app-link" data-cell-app="chat" href="../chat/">Chat</a>
+          <a class="app-link" data-cell-app="billing" href="../billing/index.html">Billing</a>
+        </div>
+        <div class="preview-card">
+          <h3>How it flows</h3>
+          <p style="margin-bottom: 0;">
+            Save a Cell here, open it in CRM to work the relationship graph, open Contacts to organize people around it, or open Finance to keep the group’s costs and reimbursements aligned.
+          </p>
+        </div>
+      </div>
+    </section>
+
     <div class="footer-note">
       Built as a concept app for the 3dvr Portal — a universal organizing unit for people, projects, and power.
     </div>
   </main>
+
+  <script src="./app.js"></script>
 
   <script>
     const form = document.getElementById('cellForm');
@@ -669,6 +827,10 @@
       }
     }
 
+    window.__cellDefaults = defaults;
+    window.__updateCellPreview = updatePreview;
+
+    form.addEventListener('input', updatePreview);
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       updatePreview();
