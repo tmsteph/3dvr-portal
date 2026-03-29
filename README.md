@@ -184,6 +184,10 @@ Environment controls:
 
 Portal billing center:
 
+- Keep local secrets in `.env.local` and use `.env.example` as the template.
+- Run `npm run env:check` to confirm the minimum Stripe and Gmail variables are present
+  before testing billing or webhook flows locally. It reads `.env.local` by default when
+  that file exists.
 - `STRIPE_PRICE_STARTER_ID` (or `STRIPE_PRICE_SUPPORTER_ID`) for the $5 monthly tier
 - `STRIPE_PRICE_PRO_ID` (or `STRIPE_PRICE_FOUNDER_ID`) for the $20 monthly tier
 - `STRIPE_PRICE_BUILDER_ID` (or `STRIPE_PRICE_STUDIO_ID`) for the $50 monthly tier
