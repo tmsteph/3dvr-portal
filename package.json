@@ -7,6 +7,7 @@
     "dev": "http-server -c-1 -p 3000",
     "start": "npm run dev",
     "test": "node --test",
+    "env:check": "node scripts/env/check.mjs",
     "money:loop": "node scripts/money/run-loop.mjs",
     "money:autopilot": "node scripts/money/run-autopilot.mjs",
     "playwright:install:linux": "node scripts/playwright/install-runtime.mjs",
