@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>3dvr.tech • Training Model (Hormozi-inspired)</title>
-  <meta name="description" content="A single-file training system to craft offers, generate leads, close sales, deliver value, and retain customers. Inspired by Alex Hormozi’s style—original content, not quotes." />
+  <title>3dvr.tech • Reach-Out Training</title>
+  <meta name="description" content="A practical sales training page for reaching out to leads, booking follow-ups, closing the next step, and keeping the CRM moving." />
   <style>
     :root{
       --bg:#0b0d10; --panel:#12161c; --ink:#e9edf1; --muted:#aeb7c2; --accent:#6ee7ff; --ok:#8cffd3; --warn:#ffd37a; --bad:#ff7a7a;
@@ -83,7 +83,7 @@
         <div class="logo" aria-hidden="true"></div>
         <div>
           <h1>3dvr.tech Training</h1>
-          <div class="muted">Hormozi-inspired, builder-first</div>
+          <div class="muted">Reach-out first, builder-friendly</div>
         </div>
       </div>
       <div class="search">
@@ -106,7 +106,7 @@
             <span aria-hidden="true">›</span>
             <span>Training</span>
           </nav>
-          <div class="muted">Foundation → Offer → Leads → Sales → Delivery → Retention → Flywheel</div>
+          <div class="muted">Reach-out method → Pitch → Leads → Sales → Delivery → Retention → Flywheel</div>
           <h2 id="title">Select a module</h2>
         </div>
         <div class="actions">
@@ -129,6 +129,24 @@
   <script>
   // --- Simple training data model (inspired by Hormozi principles, original wording) ---
   const MODEL = [
+    { id:"reachout", name:"Reach-Out Method", time:"~15m", items:[
+      {type:"text", title:"The method", body:"When momentum drops, do one real reach-out before you do anything else. The goal is a human touch, a clear next step, and a logged follow-up."},
+      {type:"text", title:"The 5-step loop", body:"1) Pick one warm lead. 2) Send one short personal message. 3) Ask one clear question. 4) Log the touch in CRM and contacts. 5) Set the next follow-up before you leave."},
+      {type:"form", title:"Today’s outreach plan", fields:[
+        {k:"lead", label:"Lead or account", type:"text"},
+        {k:"source", label:"Where did they come from?", type:"text"},
+        {k:"reason", label:"Why them today?", type:"text"},
+        {k:"message", label:"Message draft", type:"text"},
+        {k:"next", label:"Next step / follow-up date", type:"text"}
+      ]},
+      {type:"check", title:"Done for the day", list:[
+        "Picked one lead to contact",
+        "Sent one human message",
+        "Logged the touch in CRM",
+        "Set the next follow-up",
+        "Asked for one clear next step"
+      ]}
+    ]},
     { id:"pitch", name:"Rapid Pitch System", time:"~20m", items:[
       {type:"text", title:"Why Start Here", body:"People give you seconds, not minutes. Lead with a one-line promise that ties outcomes to proof and an easy next step."},
       {type:"form", title:"One-Line Pitch", fields:[
@@ -259,6 +277,12 @@
   ];
 
   const TOOLKIT = {
+    reachout: [
+      { href: '../lead-generation.html', label: 'Lead Capture', desc: 'Use the inbox path that turns interest into a real record.' },
+      { href: '../../crm/index.html', label: 'CRM dashboard', desc: 'Log the touch, stage the deal, and set the next follow-up.' },
+      { href: '../../contacts/index.html', label: 'Contacts workspace', desc: 'Keep the person, relationship, and follow-up context together.' },
+      { href: '../scripts.html', label: 'Scripts & objections', desc: 'Pull the exact talk track needed for the next message or call.' }
+    ],
     pitch: [
       { href: 'marketing.html', label: 'Marketing dashboard', desc: 'Drop the refined pitch into top content slots.' },
       { href: 'leads.html', label: 'Leads tracker', desc: 'Log outreach reps and note which pitch variant converts.' }
