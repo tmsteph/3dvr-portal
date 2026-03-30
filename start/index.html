@@ -11,205 +11,233 @@
       href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap"
       rel="stylesheet"
     />
-
-  <script defer src="/_vercel/insights/script.js"></script>
+    <script defer src="/_vercel/insights/script.js"></script>
   </head>
   <body>
     <header class="hero">
       <nav class="top-nav" aria-label="Main navigation">
         <a class="brand" href="../index.html">3dvr.tech</a>
         <div class="nav-links">
-          <a href="#discover">Daily check-in</a>
-          <a href="#fast-track">Small group</a>
-          <a href="#support">Returning?</a>
-          <a href="#resources">Shortcuts</a>
+          <a href="#router">3-question router</a>
+          <a href="#plans">Paid plans</a>
+          <a href="#shortcuts">Shortcuts</a>
         </div>
       </nav>
-      <div class="hero-content">
-        <span class="tag">Start here</span>
-        <h1>Pick one clear starting point</h1>
-        <p>
-          If you feel lost, open Life. If you want accountability, open Cell. If you are
-          ready to launch a page, offer, or business, move into projects and paid support.
-        </p>
-        <div class="hero-actions">
-          <a class="button primary" href="../life/index.html">Open Life</a>
-          <a class="button secondary" href="../cell/index.html">Open Cell</a>
+
+      <div class="hero-grid">
+        <div class="hero-content">
+          <span class="tag">Start here</span>
+          <h1>Pick a path in under a minute</h1>
+          <p>
+            This page exists to solve pain fast. Answer three questions, get a next move,
+            and keep paid help one tap away when you are ready to launch something real.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#router">Use the router</a>
+            <a class="button secondary" href="https://3dvr.tech/subscribe/">View paid plans</a>
+          </div>
+          <div class="hero-status">
+            <span>Relief first</span>
+            <span>Community second</span>
+            <span>Income next</span>
+          </div>
         </div>
+
+        <aside class="hero-panel" id="plans">
+          <span class="panel-label">Paid plans, easy to find</span>
+          <h2>Choose the support lane when you need it</h2>
+          <p>
+            Stay free while you get organized. Step into paid help when you want faster
+            execution, accountability, or direct launch support.
+          </p>
+          <div class="plan-dock">
+            <a class="plan-chip" href="https://3dvr.tech/subscribe/free-plan.html">
+              <strong>Free</strong>
+              <span>Life starter</span>
+            </a>
+            <a class="plan-chip" href="https://3dvr.tech/subscribe/family-friends.html">
+              <strong>$5</strong>
+              <span>Family &amp; Friends</span>
+            </a>
+            <a class="plan-chip" href="https://3dvr.tech/subscribe/founder-plan.html">
+              <strong>$20</strong>
+              <span>Founder</span>
+            </a>
+            <a class="plan-chip" href="https://3dvr.tech/subscribe/builder-plan.html">
+              <strong>$50</strong>
+              <span>Builder</span>
+            </a>
+          </div>
+        </aside>
       </div>
     </header>
 
-    <main>
-      <section id="discover" class="section">
-        <div class="section-heading">
-          <span class="tag">Step 1</span>
-          <h2>Choose what you need today</h2>
+    <main class="dashboard-shell">
+      <section class="router-shell" id="router" aria-labelledby="router-title">
+        <div class="section-heading section-heading--left">
+          <span class="tag tag--dark">3-question router</span>
+          <h2 id="router-title">Answer three things. Get one next move.</h2>
           <p>
-            Most people need one of three things: a personal reset, a small group, or help launching something.
+            Keep this short on purpose. Pick the pain, the outcome you want, and the level of
+            support you are ready for.
           </p>
         </div>
-        <div class="path-grid">
-          <article class="card">
-            <h3>Life</h3>
-            <p>
-              Use a short daily check-in and weekly reflection to understand what is going on and what to do next.
+
+        <div class="router-grid">
+          <form class="router-form" id="startRouter">
+            <fieldset class="question-card">
+              <legend>1. What hurts most right now?</legend>
+              <p>Pick the pain that is slowing you down the most.</p>
+              <div class="choice-grid">
+                <label class="choice">
+                  <input type="radio" name="pain" value="scattered" checked />
+                  <span class="choice__body">
+                    <strong>I feel scattered</strong>
+                    <span>I need a reset and one clear next step.</span>
+                  </span>
+                </label>
+                <label class="choice">
+                  <input type="radio" name="pain" value="alone" />
+                  <span class="choice__body">
+                    <strong>I feel alone</strong>
+                    <span>I do better when people are around me.</span>
+                  </span>
+                </label>
+                <label class="choice">
+                  <input type="radio" name="pain" value="income" />
+                  <span class="choice__body">
+                    <strong>I need income</strong>
+                    <span>I want help launching something that can make money.</span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="question-card">
+              <legend>2. What do you want next?</legend>
+              <p>Choose the outcome that would help most this week.</p>
+              <div class="choice-grid">
+                <label class="choice">
+                  <input type="radio" name="goal" value="clarity" checked />
+                  <span class="choice__body">
+                    <strong>A clear next step</strong>
+                    <span>I need clarity more than more tools.</span>
+                  </span>
+                </label>
+                <label class="choice">
+                  <input type="radio" name="goal" value="community" />
+                  <span class="choice__body">
+                    <strong>A small group</strong>
+                    <span>I want accountability and support.</span>
+                  </span>
+                </label>
+                <label class="choice">
+                  <input type="radio" name="goal" value="launch" />
+                  <span class="choice__body">
+                    <strong>A launch plan</strong>
+                    <span>I want to ship an offer, page, or project.</span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="question-card">
+              <legend>3. How much help do you want?</legend>
+              <p>Pick the support level that feels realistic right now.</p>
+              <div class="choice-grid">
+                <label class="choice">
+                  <input type="radio" name="support" value="free" checked />
+                  <span class="choice__body">
+                    <strong>Free</strong>
+                    <span>I want to get moving before I pay.</span>
+                  </span>
+                </label>
+                <label class="choice">
+                  <input type="radio" name="support" value="community" />
+                  <span class="choice__body">
+                    <strong>Community</strong>
+                    <span>I want people and light support around me.</span>
+                  </span>
+                </label>
+                <label class="choice">
+                  <input type="radio" name="support" value="direct" />
+                  <span class="choice__body">
+                    <strong>Direct help</strong>
+                    <span>I want paid support that moves faster.</span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+          </form>
+
+          <aside class="result-card" aria-live="polite">
+            <span class="panel-label">Best next move</span>
+            <h3 id="routerTitle">Start with Life</h3>
+            <p id="routerCopy">
+              You need a daily reset before you need more tools. Use Life to log how you feel,
+              what happened today, and what matters tomorrow.
             </p>
-            <ul>
-              <li>Log how you feel</li>
-              <li>Write what happened today</li>
-              <li>Choose what matters tomorrow</li>
+            <ul class="result-list" id="routerPoints">
+              <li>3-minute daily check-in</li>
+              <li>Weekly reflection</li>
+              <li>Stay free while you get organized</li>
             </ul>
-            <a class="button tertiary" href="../life/index.html">Open Life</a>
-          </article>
-          <article class="card">
-            <h3>Cell</h3>
-            <p>
-              Create or join a small group that meets regularly, keeps each other moving, and shares support.
-            </p>
-            <ul>
-              <li>3 to 12 people around shared goals</li>
-              <li>Mutual support and accountability</li>
-              <li>A portable structure you can keep growing</li>
-            </ul>
-            <a class="button tertiary" href="../cell/index.html">Open Cell</a>
-          </article>
-          <article class="card">
-            <h3>Start your thing</h3>
-            <p>
-              When you are ready to launch a project, offer, service, or small business, start here.
-            </p>
-            <ul>
-              <li>Turn an idea into a real plan</li>
-              <li>Use projects, notes, contacts, and calendar together</li>
-              <li>Add paid help when you need it</li>
-            </ul>
-            <a class="button tertiary" href="../projects/index.html">Open Projects</a>
-          </article>
-        </div>
-        <div class="callout">
-          <h3>Need paid support?</h3>
-          <p>
-            Stay free while you get organized. Move into paid plans when you need direct help building or launching.
-          </p>
-          <a class="button primary" href="https://3dvr.tech/subscribe/">View plans</a>
+            <p class="result-plan" id="routerPlan">Best lane now: Free + Life</p>
+            <div class="result-actions">
+              <a class="button primary" id="routerPrimary" href="../life/index.html">Open Life</a>
+              <a
+                class="button tertiary"
+                id="routerSecondary"
+                href="https://3dvr.tech/subscribe/free-plan.html"
+              >See free plan</a>
+              <a class="button tertiary" href="https://3dvr.tech/subscribe/">All plans</a>
+            </div>
+          </aside>
         </div>
       </section>
 
-      <section id="fast-track" class="section alt">
-        <div class="section-heading">
-          <span class="tag">Step 2</span>
-          <h2>Use them in this order</h2>
-          <p>
-            Start personal, then add people, then open the tools for real work.
-          </p>
-        </div>
-        <div class="journey">
-          <div class="journey-step">
-            <span class="step-number">1</span>
-            <div>
-              <h3>Life: 3-minute check-in</h3>
-              <p>Track how you feel, what happened today, and the one thing that matters tomorrow.</p>
-            </div>
-          </div>
-          <div class="journey-step">
-            <span class="step-number">2</span>
-            <div>
-              <h3>Cell: weekly support group</h3>
-              <p>Bring in other people when you want accountability, regular check-ins, and shared progress.</p>
-            </div>
-          </div>
-          <div class="journey-step">
-            <span class="step-number">3</span>
-            <div>
-              <h3>Projects: launch real work</h3>
-              <p>Use projects, notes, contacts, and calendar when you are ready to launch an offer, page, service, or business.</p>
-            </div>
-          </div>
-        </div>
-        <div class="card-grid">
-          <article class="card">
-            <h3>Life first</h3>
-            <p>Use this when you need a daily reset and one next action.</p>
-            <a class="button secondary" href="../life/index.html">Open Life</a>
-          </article>
-          <article class="card">
-            <h3>Cell second</h3>
-            <p>Use this when progress feels easier with a small group around you.</p>
-            <a class="button secondary" href="../cell/index.html">Open Cell</a>
-          </article>
-          <article class="card">
-            <h3>Projects third</h3>
-            <p>Use this when you are ready to shape your own thing into real work.</p>
-            <a class="button secondary" href="../projects/index.html">Open projects</a>
-          </article>
-        </div>
-      </section>
-
-      <section id="support" class="section">
-        <div class="section-heading">
-          <span class="tag">Step 3</span>
-          <h2>Already have a plan or account?</h2>
-          <p>
-            Skip the onboarding and jump straight to the page you actually need.
-          </p>
-        </div>
-        <div class="support-grid">
-          <article class="support-card">
-            <h3>Sign in</h3>
-            <p>
-              Use one portal account for your saved work, plan, billing history, and support.
-            </p>
-          </article>
-          <article class="support-card">
-            <h3>Manage billing</h3>
-            <p>
-              Switch tiers, check invoices, or handle the Stripe handoff without creating a second subscription.
-            </p>
-          </article>
-          <article class="support-card">
-            <h3>Open the app grid</h3>
-            <p>
-              Go straight back into the wider workspace once you are done with setup.
-            </p>
-          </article>
-        </div>
-        <div class="callout">
-          <h3>Need the account tools?</h3>
-          <p>Sign in first if you need your portal identity, billing, or the full app list right now.</p>
-          <a class="button primary" href="../sign-in.html">Open sign-in</a>
-        </div>
-      </section>
-
-      <section id="resources" class="section alt">
-        <div class="section-heading">
-          <span class="tag">Shortcuts</span>
-          <h2>Open the page you actually need</h2>
-          <p>Use these when you already know the destination.</p>
-        </div>
-        <div class="resource-grid">
-          <article class="resource-card">
-            <h3>Public pricing</h3>
-            <p>Compare plans when you want more support or a clearer build lane.</p>
-            <a class="button tertiary" href="https://3dvr.tech/subscribe/">Open pricing</a>
-          </article>
-          <article class="resource-card">
-            <h3>Life</h3>
-            <p>Start with the no-card path for clarity, check-ins, and next steps.</p>
-            <a class="button tertiary" href="../life/index.html">Open Life</a>
-          </article>
-          <article class="resource-card">
-            <h3>Billing</h3>
-            <p>Manage plans, invoices, and Stripe-linked account state.</p>
+      <section class="compact-grid" id="shortcuts" aria-label="Quick actions">
+        <article class="mini-panel">
+          <span class="panel-label">Fast lanes</span>
+          <h2>Skip the reading</h2>
+          <p>Open the exact page you need and keep moving.</p>
+          <div class="quick-actions">
+            <a class="button tertiary" href="../sign-in.html">Open sign-in</a>
             <a class="button tertiary" href="../billing/index.html">Open billing</a>
-          </article>
-        </div>
+            <a class="button tertiary" href="../cell/index.html">Open Cell</a>
+            <a class="button tertiary" href="../index.html">Browse apps</a>
+            <a class="button tertiary" href="../projects/index.html">Open Projects</a>
+          </div>
+        </article>
+
+        <article class="mini-panel">
+          <span class="panel-label">Use this order</span>
+          <h2>Relief, people, then launch</h2>
+          <div class="sequence-list">
+            <div class="sequence-item">
+              <strong>1. Life</strong>
+              <span>3-minute check-in, one clear next action.</span>
+            </div>
+            <div class="sequence-item">
+              <strong>2. Cell</strong>
+              <span>Small group, weekly accountability, shared momentum.</span>
+            </div>
+            <div class="sequence-item">
+              <strong>3. Projects</strong>
+              <span>Turn the idea into an offer, page, or business.</span>
+            </div>
+          </div>
+        </article>
       </section>
     </main>
 
     <footer class="footer">
       <p>
-        Made with care by 3dvr.tech &bull; <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+        Made with care by 3dvr.tech &bull;
+        <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
       </p>
     </footer>
+
+    <script type="module" src="/start/router.js"></script>
   </body>
 </html>

@@ -9,6 +9,10 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Open Life for a daily check-in\./);
     assert.match(html, /Daily check-in/);
     assert.match(html, /Small group/);
+    assert.match(html, /View paid plans/);
+    assert.match(html, /Life starter/);
+    assert.match(html, /Family &amp; Friends/);
+    assert.match(html, /Builder/);
     assert.match(html, /Browse apps/);
     assert.match(html, /Choose the kind of help you need/);
     assert.match(html, /Start Your Thing/);
@@ -24,21 +28,23 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Open billing center/);
   });
 
-  it('turns the start page into a concrete onboarding-first decision hub', async () => {
+  it('turns the start page into a compact onboarding router with easy plan access', async () => {
     const html = await readFile(new URL('../start/index.html', import.meta.url), 'utf8');
-    assert.match(html, /Pick one clear starting point/);
-    assert.match(html, /If you feel lost, open Life\./);
-    assert.match(html, /Choose what you need today/);
+    assert.match(html, /Pick a path in under a minute/);
+    assert.match(html, /3-question router/);
+    assert.match(html, /Paid plans, easy to find/);
+    assert.match(html, /What hurts most right now\?/);
+    assert.match(html, /What do you want next\?/);
+    assert.match(html, /How much help do you want\?/);
+    assert.match(html, /Best next move/);
     assert.match(html, /Open Life/);
     assert.match(html, /Open Cell/);
     assert.match(html, /Open Projects/);
-    assert.match(html, /Use them in this order/);
-    assert.match(html, /Life: 3-minute check-in/);
-    assert.match(html, /Cell: weekly support group/);
-    assert.match(html, /Projects: launch real work/);
-    assert.match(html, /Already have a plan or account\?/);
-    assert.match(html, /Open the page you actually need/);
+    assert.match(html, /All plans/);
+    assert.match(html, /Open sign-in/);
+    assert.match(html, /Browse apps/);
+    assert.match(html, /Relief, people, then launch/);
     assert.match(html, /mailto:3dvr\.tech@gmail\.com/);
-    assert.match(html, /href="\.\.\/sign-in\.html">Open sign-in<\/a>/);
+    assert.match(html, /src="\/start\/router\.js"/);
   });
 });
