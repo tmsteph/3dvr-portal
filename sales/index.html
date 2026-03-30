@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>3dvr Sales Directory</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-  <script src="/gun-init.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
-  <script src="/score.js"></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -18,11 +14,15 @@
       <div>
         <p class="uppercase tracking-[0.3em] text-xs text-blue-200">3dvr.tech</p>
         <h1 class="text-3xl font-bold mt-2">Founder Revenue Launchpad</h1>
-        <p class="text-sm text-blue-100 mt-1">Jump straight into CRM, contacts, calendar, and more to keep momentum high.</p>
+        <p class="text-sm text-blue-100 mt-1">Pick one lead, one offer, and one ask. Keep the close path simple.</p>
       </div>
       <nav class="flex flex-wrap gap-2 text-sm">
+        <a href="../start/" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">Start Here</a>
+        <a href="../lead-generation.html" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">Lead Capture</a>
         <a href="../contacts/index.html" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">Contacts Workspace</a>
         <a href="../crm/index.html" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">CRM</a>
+        <a href="../billing/index.html" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">Billing</a>
+        <a href="training/" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">Sales Training</a>
         <a href="../calendar" class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-lg transition">Calendar</a>
         <a
           href="../roadmap/index.html"
@@ -41,7 +41,7 @@
             <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Today&apos;s close</p>
             <h2 class="text-xl font-semibold mt-2">Sell one offer, then move the next lead.</h2>
             <p class="text-sm text-slate-300 mt-2 max-w-2xl">
-              This is the shortest path to cash: identify the fit, send the right ask, and route the lead into CRM or billing.
+              This is the shortest path to cash: identify the fit, send the right ask, and route the lead into CRM, billing, or follow-up.
             </p>
           </div>
           <p class="text-xs uppercase tracking-[0.3em] text-blue-200">One lead. One offer. One ask.</p>
@@ -65,6 +65,7 @@
             <div class="flex flex-wrap gap-2 pt-1">
               <a href="../billing/index.html" class="inline-flex items-center justify-center rounded-lg bg-white text-blue-900 px-4 py-2 text-sm font-semibold hover:bg-blue-50">Open billing</a>
               <a href="../crm/?draft=1&lead=Builder%20follow-up&status=Lead&offer=50&next=Follow%20up%20today&source=sales-hub&tags=builder%2Csales-hub" class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Draft CRM</a>
+              <a href="mailto:hello@3dvr.tech?subject=3DVR%20Builder%20Follow-Up&body=I%20want%20to%20talk%20about%20the%20%2450%2Fmonth%20Builder%20offer." class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Ask Builder</a>
             </div>
           </article>
 
@@ -85,6 +86,7 @@
             <div class="flex flex-wrap gap-2 pt-1">
               <a href="../billing/index.html" class="inline-flex items-center justify-center rounded-lg bg-white text-blue-900 px-4 py-2 text-sm font-semibold hover:bg-blue-50">Open billing</a>
               <a href="../crm/?draft=1&lead=Embedded%20follow-up&status=Lead&offer=200&next=Follow%20up%20today&source=sales-hub&tags=embedded%2Csales-hub" class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Draft CRM</a>
+              <a href="mailto:hello@3dvr.tech?subject=3DVR%20Embedded%20Follow-Up&body=I%20want%20to%20talk%20about%20the%20%24200%2Fmonth%20Embedded%20offer." class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Ask Embedded</a>
             </div>
           </article>
 
@@ -105,6 +107,7 @@
             <div class="flex flex-wrap gap-2 pt-1">
               <a href="../billing/index.html" class="inline-flex items-center justify-center rounded-lg bg-white text-blue-900 px-4 py-2 text-sm font-semibold hover:bg-blue-50">Open billing</a>
               <a href="../crm/?draft=1&lead=Custom%20project%20follow-up&status=Lead&offer=custom&next=Confirm%20scope&source=sales-hub&tags=custom%2Csales-hub" class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Draft CRM</a>
+              <a href="pitch.html" class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Use the pitch</a>
             </div>
           </article>
         </div>
@@ -129,21 +132,33 @@
     <section id="sales-pitch" class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg">
       <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
         <div>
-          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Recognition</p>
-          <h2 class="text-xl font-semibold">Top Sales People</h2>
-          <p class="text-sm text-slate-300 mt-2">Live rankings pulled from the portal so everyone can see who is leading from the front.</p>
+          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Sales Guidance</p>
+          <h2 class="text-xl font-semibold">What to do next on a real deal</h2>
+          <p class="text-sm text-slate-300 mt-2 max-w-3xl">Use the hub in this order: sharpen the pitch, pick the right script, qualify in CRM, then route the buyer into billing once scope and timing are clear.</p>
         </div>
         <div class="text-right text-xs text-slate-400 space-y-1">
-          <p class="font-semibold text-blue-200">Portal-backed data</p>
-          <p id="sales-leaderboard-status">Syncing real performance...</p>
+          <p class="font-semibold text-blue-200">Recommended flow</p>
+          <p>Pitch → Script → CRM → Billing</p>
         </div>
       </div>
-      <div id="sales-leaderboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        <article class="rounded-xl border border-white/5 bg-slate-900/80 p-5 shadow-lg animate-pulse">
-          <div class="h-4 w-24 rounded bg-white/10"></div>
-          <div class="h-6 w-48 rounded bg-white/10 mt-3"></div>
-          <div class="h-4 w-32 rounded bg-white/10 mt-2"></div>
-          <div class="h-4 w-full rounded bg-white/10 mt-4"></div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <article class="rounded-xl border border-white/5 bg-slate-900/80 p-5 shadow-lg">
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">1. Frame the offer</p>
+          <h3 class="text-lg font-semibold mt-2">Lead with the right promise</h3>
+          <p class="text-sm text-slate-300 mt-3">Say who it is for, the outcome, and the fastest believable path. Keep it short enough to deliver in under a minute.</p>
+          <a href="pitch.html" class="inline-flex items-center mt-4 text-sm font-semibold text-blue-300 hover:text-blue-200">Open pitch page →</a>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900/80 p-5 shadow-lg">
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">2. Run the conversation</p>
+          <h3 class="text-lg font-semibold mt-2">Use questions that move the deal</h3>
+          <p class="text-sm text-slate-300 mt-3">Find the problem, budget band, timing, and decision path before you explain delivery. If those are vague, the deal is still early.</p>
+          <a href="scripts.html" class="inline-flex items-center mt-4 text-sm font-semibold text-blue-300 hover:text-blue-200">Open scripts →</a>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900/80 p-5 shadow-lg">
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">3. Close the next step</p>
+          <h3 class="text-lg font-semibold mt-2">Turn interest into commitment</h3>
+          <p class="text-sm text-slate-300 mt-3">Record the next step in CRM, confirm who pays, and send the buyer to the correct billing path while the conversation is still warm.</p>
+          <a href="../billing/index.html" class="inline-flex items-center mt-4 text-sm font-semibold text-blue-300 hover:text-blue-200">Open billing center →</a>
         </article>
       </div>
     </section>
@@ -151,16 +166,61 @@
     <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Sales Pitch</p>
-          <h2 class="text-xl font-semibold">Share the vision, invite micro-investors</h2>
+          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Pitch + Guidance</p>
+          <h2 class="text-xl font-semibold">Start with the message, then follow a concrete sales path</h2>
           <p class="text-sm text-slate-300 mt-2 max-w-2xl">
-            Use the dedicated pitch page to inspire subscribers with the mission, founder points incentive, and
-            community-owned roadmap. It includes a ready-to-send outreach script.
+            The pitch page explains the offer at a high level. The scripts page helps you run discovery, demos, objections,
+            and follow-up. Use training when you need to tighten the offer or rehearse the sequence.
           </p>
         </div>
-        <a href="/sales/pitch.html" class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">
-          Open Sales Pitch Page
+        <div class="flex flex-wrap gap-2">
+          <a href="pitch.html" class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Open pitch</a>
+          <a href="scripts.html" class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Open scripts</a>
+          <a href="training/" class="inline-flex items-center justify-center rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Open training</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Journey Map</p>
+          <h2 class="text-xl font-semibold">Buyer journey infographic</h2>
+          <p class="text-sm text-slate-300 mt-2 max-w-2xl">
+            Keep the funnel visible: capture the lead, qualify them in CRM, route billing, onboard them into the portal, and retain them with clear next steps.
+          </p>
+        </div>
+        <a href="/sales/buyer-journey.html" class="inline-flex items-center justify-center rounded-lg bg-blue-500/20 border border-blue-300/20 px-4 py-2 text-sm font-semibold text-blue-100 hover:bg-blue-500/30">
+          Open Buyer Journey
         </a>
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Daily Sales Moves</p>
+          <h2 class="text-xl font-semibold">Keep guidance tied to action</h2>
+        </div>
+        <a href="../crm/index.html" class="text-sm font-semibold text-blue-300 hover:text-blue-200">Open CRM queue →</a>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm text-slate-300">
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4">
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Morning</p>
+          <p class="mt-2">Review new leads, stale opportunities, and every follow-up due today before opening anything else.</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4">
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Discovery</p>
+          <p class="mt-2">Ask what they need, why now, what it is worth, and who decides. Do not pitch a full build before those answers exist.</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4">
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Proposal</p>
+          <p class="mt-2">Summarize the offer in plain language, confirm the next step, and give one clear route into plan selection or custom billing.</p>
+        </article>
+        <article class="rounded-xl border border-white/5 bg-slate-900 p-4">
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">End of day</p>
+          <p class="mt-2">Every active record needs a next follow-up date, a stage, and a short note on what moves the deal forward.</p>
+        </article>
       </div>
     </section>
 
@@ -169,8 +229,28 @@
         <h2 class="text-xl font-semibold">Explore Tools</h2>
         <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Choose a workspace to dive in</p>
       </div>
-      <p class="text-sm text-slate-300 max-w-3xl mb-6">Pick the workspace that matches what you need to move forward right now—manage deals, coordinate your calendar, organize contacts, and capture notes without losing momentum.</p>
+      <p class="text-sm text-slate-300 max-w-3xl mb-6">Pick the workspace that matches the current selling step: sharpen the story, run the call, organize the relationship, and move the buyer into a real commitment.</p>
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <a href="pitch.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Message</p>
+          <h3 class="text-lg font-semibold mt-2">Pitch</h3>
+          <p class="text-sm text-slate-300 mt-3">Use the vision, value, and next-step framing that explains 3dvr.tech clearly without wandering.</p>
+        </a>
+        <a href="scripts.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Conversation</p>
+          <h3 class="text-lg font-semibold mt-2">Scripts &amp; Objections</h3>
+          <p class="text-sm text-slate-300 mt-3">Keep discovery, demo structure, objection handling, and close language in one place.</p>
+        </a>
+        <a href="../start/" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Onboarding</p>
+          <h3 class="text-lg font-semibold mt-2">Start Here</h3>
+          <p class="text-sm text-slate-300 mt-3">Guide founders and collaborators from idea discovery into launch, support, and a real next step.</p>
+        </a>
+        <a href="../lead-generation.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
+          <p class="text-xs uppercase tracking-wide text-blue-300">Inbound</p>
+          <h3 class="text-lg font-semibold mt-2">Lead Capture</h3>
+          <p class="text-sm text-slate-300 mt-3">Turn form submissions into tagged CRM and contacts records the team can follow up on immediately.</p>
+        </a>
         <a href="../crm/index.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
           <p class="text-xs uppercase tracking-wide text-blue-300">Deals</p>
           <h3 class="text-lg font-semibold mt-2">CRM</h3>
@@ -179,7 +259,7 @@
         <a href="training/" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
           <p class="text-xs uppercase tracking-wide text-blue-300">Skills</p>
           <h3 class="text-lg font-semibold mt-2">Sales Training</h3>
-          <p class="text-sm text-slate-300 mt-3">Build your rapid pitch, sharpen offers, and rehearse follow-up flows in one workspace.</p>
+          <p class="text-sm text-slate-300 mt-3">Start the reach-out desk, sharpen the pitch, and keep follow-up moving in one workspace.</p>
         </a>
         <a href="../contacts/index.html" class="block rounded-2xl bg-slate-900/70 border border-white/5 p-5 shadow-lg transition hover:border-blue-400">
           <p class="text-xs uppercase tracking-wide text-blue-300">Network</p>
@@ -224,152 +304,5 @@
       &copy; 2025 3dvr.tech — Built for Builders
     </div>
   </footer>
-  <script>
-    (function initializeSalesLeaderboard() {
-      const statusEl = document.getElementById('sales-leaderboard-status');
-      const gridEl = document.getElementById('sales-leaderboard-grid');
-
-      function createNodeStub() {
-        if (window.ScoreSystem && typeof window.ScoreSystem.createGunNodeStub === 'function') {
-          return window.ScoreSystem.createGunNodeStub();
-        }
-        return {
-          get() {
-            return this;
-          },
-          put() {
-            return this;
-          },
-          once(callback) {
-            if (typeof callback === 'function') {
-              callback();
-            }
-            return this;
-          },
-          on() {
-            return { off() {} };
-          },
-          map() {
-            return { on() { return { off() {} }; } };
-          }
-        };
-      }
-
-      const peers = Array.isArray(window.__GUN_PEERS__) && window.__GUN_PEERS__.length
-        ? window.__GUN_PEERS__
-        : [
-            'wss://relay.3dvr.tech/gun',
-            'wss://gun-relay-3dvr.fly.dev/gun'
-          ];
-
-      const gunContext = window.ScoreSystem && typeof window.ScoreSystem.ensureGun === 'function'
-        ? window.ScoreSystem.ensureGun(() => (typeof Gun === 'function'
-          ? Gun({ peers, axe: true })
-          : null), { label: 'sales-leaderboard' })
-        : { gun: typeof Gun === 'function' ? Gun({ peers, axe: true }) : createNodeStub(), isStub: typeof Gun !== 'function' };
-
-      const gun = gunContext.gun || null;
-      const portalRoot = gun && typeof gun.get === 'function'
-        ? gun.get('3dvr-portal')
-        : createNodeStub();
-      const userStats = portalRoot && typeof portalRoot.get === 'function'
-        ? portalRoot.get('userStats')
-        : createNodeStub();
-
-      const records = {};
-      let subscription = null;
-
-      function formatRelativeTime(timestamp) {
-        if (!timestamp) return 'moments ago';
-        const now = Date.now();
-        const diff = Math.max(0, now - timestamp);
-        const minutes = Math.floor(diff / 60000);
-        if (minutes < 1) return 'moments ago';
-        if (minutes < 60) return `${minutes}m ago`;
-        const hours = Math.floor(minutes / 60);
-        if (hours < 24) return `${hours}h ago`;
-        const days = Math.floor(hours / 24);
-        return `${days}d ago`;
-      }
-
-      function renderLeaderboard() {
-        const entries = Object.values(records)
-          .filter(entry => entry && Number.isFinite(entry.points))
-          .sort((a, b) => b.points - a.points)
-          .slice(0, 6);
-
-        if (!entries.length) {
-          statusEl.textContent = gunContext.isStub
-            ? 'Offline — showing placeholder until Gun connects.'
-            : 'Waiting for portal stats to sync...';
-          gridEl.innerHTML = `
-            <article class="rounded-xl border border-white/10 bg-slate-900/80 p-5 shadow-lg">
-              <p class="text-xs uppercase tracking-[0.25em] text-slate-400">No results yet</p>
-              <h3 class="text-lg font-semibold mt-2">Portal data syncing</h3>
-              <p class="text-sm text-slate-300 mt-2">Stay tuned—leaderboard updates automatically when sales stats arrive.</p>
-            </article>
-          `;
-          return;
-        }
-
-        statusEl.textContent = gunContext.isStub
-          ? 'Live data paused (offline mode).'
-          : 'Pulled directly from portal user stats.';
-
-        gridEl.innerHTML = entries.map((entry, index) => {
-          const label = index === 0 ? '#1 Closer' : `#${index + 1} Rising`;
-          const accent = index === 0
-            ? 'border-blue-500/40 bg-gradient-to-br from-blue-800/60 via-blue-700/60 to-purple-800/50'
-            : index === 1
-              ? 'border-amber-400/50 bg-slate-900/80'
-              : 'border-emerald-400/50 bg-slate-900/80';
-          return `
-            <article class="rounded-xl ${accent} p-5 shadow-lg border">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-xs uppercase tracking-[0.25em] text-blue-200">${label}</p>
-                  <h3 class="text-lg font-semibold">${entry.username || entry.alias}</h3>
-                  <p class="text-sm text-slate-300 mt-1">${entry.alias || 'Anonymous builder'}</p>
-                </div>
-                <span class="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">${entry.points} pts</span>
-              </div>
-              <p class="mt-3 text-sm text-slate-200">Last updated ${formatRelativeTime(entry.lastUpdated)} — broadcasting wins from the portal.</p>
-            </article>
-          `;
-        }).join('');
-      }
-
-      function attachLeaderboard() {
-        try {
-          subscription = userStats.map().on((data, key) => {
-            if (!key) return;
-            if (!data) {
-              delete records[key];
-            } else {
-              const points = Number(data.points || 0);
-              records[key] = {
-                alias: data.alias || key,
-                username: data.username || key,
-                points: Number.isFinite(points) ? points : 0,
-                lastUpdated: data.lastUpdated || 0
-              };
-            }
-            renderLeaderboard();
-          });
-        } catch (err) {
-          console.warn('Failed to subscribe to sales leaderboard', err);
-          statusEl.textContent = 'Unable to load portal stats right now.';
-        }
-      }
-
-      attachLeaderboard();
-
-      window.addEventListener('beforeunload', () => {
-        if (subscription && typeof subscription.off === 'function') {
-          subscription.off();
-        }
-      });
-    })();
-  </script>
 </body>
 </html>

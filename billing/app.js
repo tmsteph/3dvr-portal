@@ -46,17 +46,19 @@ const PLAN_LABELS = {
   starter: 'Family & Friends',
   pro: 'Founder Plan',
   builder: 'Builder Plan',
+  embedded: 'Embedded Plan',
   custom: 'Custom project'
 }
 
 const CANCEL_LABELS = {
   starter: 'Stop $5 billing',
   pro: 'Stop $20 billing',
-  builder: 'Stop $50 billing'
+  builder: 'Stop $50 billing',
+  embedded: 'Stop $200 billing'
 }
 
-const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder'])
-const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'custom'])
+const PAID_PLAN_SET = new Set(['starter', 'pro', 'builder', 'embedded'])
+const STRIPE_PLAN_SET = new Set(['starter', 'pro', 'builder', 'embedded', 'custom'])
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const BOOT_MIN_DURATION_MS = 160
 const bootStartedAt = Date.now()
@@ -68,7 +70,8 @@ const DEFAULT_DIAGNOSTICS = Object.freeze({
   planPricesConfigured: {
     starter: true,
     pro: true,
-    builder: true
+    builder: true,
+    embedded: true
   }
 })
 
@@ -460,6 +463,7 @@ function configHintForPlan(plan = '') {
   if (plan === 'starter') return 'STRIPE_PRICE_STARTER_ID or STRIPE_PRICE_SUPPORTER_ID'
   if (plan === 'pro') return 'STRIPE_PRICE_PRO_ID or STRIPE_PRICE_FOUNDER_ID'
   if (plan === 'builder') return 'STRIPE_PRICE_BUILDER_ID or STRIPE_PRICE_STUDIO_ID'
+  if (plan === 'embedded') return 'STRIPE_PRICE_EMBEDDED_ID or STRIPE_PRICE_EXECUTION_ID'
   return 'the matching Stripe price env var'
 }
 
@@ -491,7 +495,7 @@ function highlightPlan(plan = '', options = {}) {
     return
   }
 
-  selectedPlanLabel.textContent = 'Pick a plan below. Existing subscribers will be sent to a safe switch flow.'
+  selectedPlanLabel.textContent = 'Pick a plan below. Existing subscribers will be sent to a safe switch flow that replaces older paid plans automatically.'
 }
 
 function isPlanAvailable(plan = '') {
@@ -580,9 +584,6 @@ function updateManageButton() {
     } else {
       label = canManageLegacyBilling() ? 'View billing history' : 'Billing history found'
     }
-  } else if (state.currentResponse?.hasDuplicateActiveSubscriptions) {
-    enabled = true
-    label = 'Review duplicates'
   } else if (!hasKnownCustomer()) {
     enabled = false
     label = 'Choose a plan first'
@@ -622,7 +623,7 @@ function updateCancelButton() {
     label = 'No active plan'
   } else if (hasDuplicateActiveSubscriptions()) {
     enabled = false
-    label = 'Review duplicates first'
+    label = 'Choose plan to keep'
   } else if (hasLegacyUnlinkedSubscription() && !canManageLegacyBilling()) {
     enabled = false
     label = 'Legacy billing only'
@@ -667,8 +668,8 @@ function renderActionPrompt() {
       setStatus(
         actionStatus,
         canManageLegacyBilling()
-          ? 'Multiple older Stripe subscriptions were found for this billing email on separate Stripe records. Manage billing opens one record at a time. If you cancel the subscription you see and this warning remains after refresh, open billing again to reach the other record.'
-          : 'Multiple older Stripe subscriptions were found for this billing email. This billing center can show their status here, but checkout and management stay blocked until those records are linked or cleaned up.',
+          ? 'Multiple older Stripe subscriptions were found for this billing email on separate Stripe records. Choose the plan you want to keep. After Stripe confirms the switch, the older paid plans will be canceled automatically. Manage billing still opens one record at a time for invoices or payment methods.'
+          : 'Multiple older Stripe subscriptions were found for this billing email. Choose the plan you want to keep, and Stripe will replace the older paid plans automatically after the verified switch completes.',
         'warning'
       )
       return
@@ -676,7 +677,7 @@ function renderActionPrompt() {
 
     setStatus(
       actionStatus,
-      'More than one active subscription was found. Open billing to cancel the extra plan and keep one clean account-linked subscription.',
+      'More than one active subscription was found. Choose the plan you want to keep; after Stripe confirms the switch, the older paid plans will be canceled automatically.',
       'warning'
     )
     return
@@ -928,7 +929,7 @@ function renderAccountSummary() {
 
   setStatus(
     accountSummary,
-    'Sign in before starting or switching paid plans so the Stripe customer stays tied to one portal account.',
+    'Sign in before starting or switching paid plans so your chosen plan, billing, and support stay tied to one portal account.',
     'warning'
   )
 }
@@ -943,7 +944,7 @@ function renderBillingState(payload = null) {
   if (!payload) {
     setStatus(billingSummary, 'We will look up your Stripe customer after sign-in.', 'info')
     if (billingDetail) {
-      billingDetail.textContent = 'If you already subscribe, the plan buttons below will route you through a safe switch flow instead of starting a second subscription.'
+      billingDetail.textContent = 'If you already subscribe, the plan buttons below will route you through a safe switch flow that keeps the new plan and cancels older paid plans automatically.'
     }
     if (duplicateWarning) {
       duplicateWarning.hidden = true
@@ -959,9 +960,9 @@ function renderBillingState(payload = null) {
       duplicateWarning.hidden = false
       duplicateWarning.textContent = payload.legacyNeedsLinking
         ? canManageLegacyBilling()
-          ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email on separate Stripe records. Manage billing opens one record at a time, not all of them at once. If this warning remains after you review or cancel the visible subscription, return here, refresh, and open billing again to reach the next record.`
-          : `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email. This page can show their status, but it cannot manage those records yet.`
-        : `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Open billing and cancel the extra plan.`
+          ? `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email on separate Stripe records. Choose the plan you want to keep. After Stripe confirms the replacement, the older paid plans will be canceled automatically.`
+          : `Warning: ${payload.duplicateActiveCount + 1} older Stripe subscriptions were found for this billing email. Choose the plan you want to keep, and the older paid plans will be replaced automatically after the verified Stripe switch.`
+        : `Warning: ${payload.duplicateActiveCount + 1} active subscriptions were found. Choose the plan you want to keep, and the older paid plans will be canceled automatically after the Stripe-confirmed switch.`
     }
   } else if (duplicateWarning) {
     duplicateWarning.hidden = true
@@ -1012,7 +1013,7 @@ function renderBillingState(payload = null) {
         ? 'We linked an older Stripe billing record to this portal account automatically. No paid subscription is active right now, but you can open billing history if you need past invoices.'
         : hasKnownCustomer()
           ? 'This account already has billing history. Choose a paid plan or open billing history if you need past invoices.'
-          : 'Choose a paid plan to create a Stripe checkout tied to this portal account.'
+          : 'Choose a paid plan to create a portal-linked Stripe checkout tied to this account.'
     }
     refreshBillingControls()
     renderActionPrompt()
@@ -1341,8 +1342,8 @@ function requireSignedInForPaidFlow(options = {}) {
   setStatus(
     actionStatus,
     targetPlan
-      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan stays attached to one portal account.`
-      : 'Sign in first so the paid plan stays attached to one portal account.',
+      ? `Selected ${labelForPlan(targetPlan)}. Sign in first so the plan, billing, and onboarding stay attached to one portal account.`
+      : 'Sign in first so the paid plan, billing, and onboarding stay attached to one portal account.',
     'warning'
   )
   signInLink?.focus()

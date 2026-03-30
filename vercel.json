@@ -89,6 +89,10 @@
   ],
   "rewrites": [
     {
+      "source": "/webhooks/stripe",
+      "destination": "/api/webhooks/stripe"
+    },
+    {
       "source": "/api/account-recovery-email",
       "destination": "/api/calendar/reminder-email"
     },

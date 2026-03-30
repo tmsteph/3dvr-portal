@@ -7,6 +7,7 @@
     "dev": "http-server -c-1 -p 3000",
     "start": "npm run dev",
     "test": "node --test",
+    "env:check": "node scripts/env/check.mjs",
     "money:loop": "node scripts/money/run-loop.mjs",
     "money:autopilot": "node scripts/money/run-autopilot.mjs",
     "playwright:install:linux": "node scripts/playwright/install-runtime.mjs",
@@ -18,7 +19,9 @@
     "playwright:smoke": "sh scripts/playwright/run-smoke.sh",
     "playwright:verify:linux": "npm run playwright:e2e:linux && npm run playwright:smoke:linux",
     "playwright:verify": "sh scripts/playwright/run-in-linux.sh playwright:verify:linux",
-    "vercel:alias-staging": "sh scripts/vercel/alias-staging-domains.sh"
+    "vercel:alias-staging": "sh scripts/vercel/alias-staging-domains.sh",
+    "playwright:ux:linux": "npm run playwright:install:linux && node scripts/playwright/ux-pass.mjs",
+    "playwright:ux": "sh scripts/playwright/run-in-linux.sh playwright:ux:linux"
   },
   "dependencies": {
     "gun": "^0.2020.1241",

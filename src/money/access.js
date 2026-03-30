@@ -5,6 +5,7 @@ const DEFAULT_PLAN_LIMITS = {
   starter: { minute: 2, day: 10 },
   pro: { minute: 6, day: 80 },
   builder: { minute: 12, day: 180 },
+  embedded: { minute: 24, day: 360 },
   admin: { minute: 9999, day: 9999 }
 };
 
@@ -252,6 +253,9 @@ export function resolvePlanFromSubscription(subscription, pricePlanMap = {}) {
   const nicknamePlan = String(item?.price?.nickname || '').trim().toLowerCase();
   if (nicknamePlan.includes('builder') || nicknamePlan.includes('studio') || nicknamePlan.includes('partner')) {
     return 'builder';
+  }
+  if (nicknamePlan.includes('embedded') || nicknamePlan.includes('execution')) {
+    return 'embedded';
   }
   if (nicknamePlan.includes('founder')) {
     return 'pro';

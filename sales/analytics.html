@@ -21,7 +21,7 @@
           <h1 class="text-3xl font-bold">Analytics &amp; Reporting</h1>
           <p class="text-sm text-blue-100">Surface the KPIs that steer revenue decisions in real time.</p>
         </div>
-        <a href="../score.js" class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Data schema reference</a>
+        <a href="../billing/" class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">Open billing center</a>
       </div>
     </div>
   </header>
@@ -32,15 +32,15 @@
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
           <p class="text-xs uppercase tracking-wide text-slate-400">Revenue pulse</p>
-          <p class="text-sm text-slate-300 mt-2">Download the latest ARR snapshot from Looker Studio and paste highlights into the Monday update.</p>
+          <p class="text-sm text-slate-300 mt-2">Review active paid plans, custom checkouts, and recent billing changes before the weekly revenue update.</p>
         </article>
         <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
           <p class="text-xs uppercase tracking-wide text-slate-400">Sales cycle</p>
-          <p class="text-sm text-slate-300 mt-2">Compare current cycle length in the CRM dashboard against the 30-day benchmark and flag variance.</p>
+          <p class="text-sm text-slate-300 mt-2">Check CRM status, last-contacted, and next-follow-up fields to spot deals that are slowing down.</p>
         </article>
         <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-4">
           <p class="text-xs uppercase tracking-wide text-slate-400">Retention</p>
-          <p class="text-sm text-slate-300 mt-2">Review the customer success scorecard and tag at-risk renewals in the shared tracker.</p>
+          <p class="text-sm text-slate-300 mt-2">Look for duplicate-subscription warnings, downgrade requests, and accounts asking for a different billing path.</p>
         </article>
       </div>
     </section>
@@ -49,24 +49,24 @@
       <article class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 space-y-6">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-semibold">Revenue Sources</h2>
-          <button type="button" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Download report</button>
+          <a href="../crm/index.html" class="text-xs uppercase tracking-[0.3em] text-blue-300 hover:text-blue-200">Open CRM</a>
         </div>
         <div class="space-y-4 text-sm text-slate-300">
           <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
-            <p class="font-semibold text-slate-100">Immersive design services</p>
-            <p>Export booked revenue by line item from Looker. Highlight top three accounts in the Monday board.</p>
+            <p class="font-semibold text-slate-100">Website launches and landing-page builds</p>
+            <p>Track which CRM opportunities turn into scoped launch work and which proof pages helped close them.</p>
           </div>
           <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
-            <p class="font-semibold text-slate-100">Digital twin platform</p>
-            <p>Verify subscription metrics in Stripe and align ARR numbers with finance's spreadsheet.</p>
+            <p class="font-semibold text-slate-100">Recurring monthly plans</p>
+            <p>Use Stripe-linked billing records to watch supporter, founder, and builder plan counts over time.</p>
           </div>
           <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
-            <p class="font-semibold text-slate-100">Training &amp; enablement</p>
-            <p>Pull attendance + satisfaction data from the LMS to identify cross-sell opportunities.</p>
+            <p class="font-semibold text-slate-100">Custom one-time checkouts</p>
+            <p>Review deposits and project payments created from the billing center once scope is agreed.</p>
           </div>
           <div class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2">
-            <p class="font-semibold text-slate-100">Advisory retainers</p>
-            <p>Confirm renewal schedules with customer success and update forecast categories in the CRM.</p>
+            <p class="font-semibold text-slate-100">Expansion from active relationships</p>
+            <p>Spot clients asking for more pages, automations, or support and log the upsell path in CRM.</p>
           </div>
         </div>
       </article>
@@ -74,15 +74,15 @@
         <h2 class="text-lg font-semibold">Alert Feed</h2>
         <div class="rounded-xl border border-blue-500/40 bg-blue-900/30 p-4">
           <p class="font-semibold text-blue-100">Pipeline velocity watch</p>
-          <p class="text-xs text-blue-200 mt-2">Set CRM alert for deals aging past stage thresholds and notify owners in Slack.</p>
+          <p class="text-xs text-blue-200 mt-2">Flag CRM records with no recent contact or a missing follow-up date before they stall.</p>
         </div>
         <div class="rounded-xl border border-amber-500/40 bg-amber-900/20 p-4">
           <p class="font-semibold text-amber-100">Renewal health</p>
-          <p class="text-xs text-amber-200 mt-2">Monitor product usage dashboards; trigger success play when engagement dips below target.</p>
+          <p class="text-xs text-amber-200 mt-2">Review billing center warnings when a subscriber needs to switch plans, update payment details, or clean up duplicates.</p>
         </div>
         <div class="rounded-xl border border-emerald-500/40 bg-emerald-900/20 p-4">
           <p class="font-semibold text-emerald-100">Expansion signals</p>
-          <p class="text-xs text-emerald-200 mt-2">Flag accounts adopting new modules and send AE + AM a shared expansion brief.</p>
+          <p class="text-xs text-emerald-200 mt-2">Watch contact and CRM notes for requests about new pages, domains, content refreshes, or automations.</p>
         </div>
       </aside>
     </section>
@@ -95,15 +95,15 @@
       <div class="grid gap-4 md:grid-cols-2">
         <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2 text-sm text-slate-300">
           <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Dashboards</h3>
-          <p>• Revenue + pipeline health (Looker Studio)</p>
-          <p>• Marketing attribution (Mode Analytics)</p>
-          <p>• Customer success retention (Notion)</p>
+          <p>• CRM stage counts, follow-up dates, and stale opportunities.</p>
+          <p>• Lead-capture totals and tagged inbound sources.</p>
+          <p>• Billing plan mix across $5, $20, $50, and custom work.</p>
         </article>
         <article class="rounded-xl border border-white/5 bg-slate-900 p-4 space-y-2 text-sm text-slate-300">
           <h3 class="text-sm font-semibold text-slate-100 uppercase tracking-[0.3em]">Data Hygiene</h3>
-          <p>• Automatic duplicate detection runs nightly.</p>
-          <p>• Required fields: use case, timeline, buying team.</p>
-          <p>• Archive deals idle 45+ days for clean reporting.</p>
+          <p>• Run duplicate review in Contacts before the weekly pipeline pass.</p>
+          <p>• Keep source, timeline, budget, and next follow-up filled in on active records.</p>
+          <p>• Archive deals only after a manual review so context is not lost.</p>
         </article>
       </div>
     </section>

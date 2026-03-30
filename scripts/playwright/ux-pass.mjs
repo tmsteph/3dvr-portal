@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { mkdir, readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import process from 'node:process';
-import { setTimeout as delay } from 'node:timers/promises';
 import { firefox } from 'playwright';
 
-const port = Number.parseInt(process.env.PLAYWRIGHT_PORT ?? '4173', 10);
+const port = Number.parseInt(process.env.PLAYWRIGHT_PORT ?? '4174', 10);
 assert(Number.isInteger(port) && port > 0 && port < 65536, 'PLAYWRIGHT_PORT must be a valid TCP port');
 
 const host = '127.0.0.1';
 const rootDir = resolve(process.cwd());
-const baseUrl = `http://${host}:${port}`;
+const baseUrl = 'http://' + host + ':' + port;
+const outDir = resolve(process.cwd(), '.tmp/playwright-ux');
 const mimeTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.gif', 'image/gif'],
@@ -31,11 +31,42 @@ const mimeTypes = new Map([
 
 function resolveSafePath(pathname) {
   const normalized = pathname === '/' ? '/index.html' : pathname;
-  const absolutePath = resolve(rootDir, `.${normalized}`);
-  if (absolutePath !== rootDir && !absolutePath.startsWith(`${rootDir}${sep}`)) {
+  const absolutePath = resolve(rootDir, '.' + normalized);
+  if (absolutePath !== rootDir && !absolutePath.startsWith(rootDir + sep)) {
     return null;
   }
   return absolutePath;
+}
+
+async function openAndCheck(page, label, path, requiredSelectors) {
+  const url = baseUrl + path;
+  const response = await page.goto(url, { waitUntil: 'domcontentloaded' });
+  assert(response && response.ok(), 'Expected ' + url + ' to load successfully');
+
+  for (const selector of requiredSelectors) {
+    await page.waitForSelector(selector, { timeout: 10000 });
+  }
+
+  const hasOverflow = await page.evaluate(() => {
+    const root = document.documentElement;
+    return root.scrollWidth > window.innerWidth + 1;
+  });
+  assert.equal(hasOverflow, false, label + ' should not overflow horizontally');
+
+  for (const selector of requiredSelectors) {
+    await page.waitForSelector(selector, { timeout: 10000, state: 'attached' });
+    const visible = await page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return false;
+      el.scrollIntoView({ block: 'center' });
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    }, selector);
+    assert.equal(visible, true, label + ' expected visible selector ' + selector);
+  }
+
+  await page.screenshot({ path: join(outDir, label + '.png'), fullPage: true });
 }
 
 let browser;
@@ -69,6 +100,7 @@ const server = createServer(async (request, response) => {
 });
 
 try {
+  await mkdir(outDir, { recursive: true });
   await new Promise((resolveServer, rejectServer) => {
     server.once('error', rejectServer);
     server.listen(port, host, () => {
@@ -78,18 +110,16 @@ try {
   });
 
   browser = await firefox.launch({ headless: true });
-  const page = await browser.newPage();
-  const response = await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  assert(response && response.ok(), `Expected ${baseUrl} to return 2xx/3xx`);
 
-  await page.waitForSelector('#landing-title', { timeout: 10000 });
-  const pageTitle = await page.title();
-  const heading = (await page.locator('#landing-title').innerText()).trim();
+  const desktop = await browser.newPage({ viewport: { width: 1366, height: 900 } });
+  await openAndCheck(desktop, 'desktop-crm', '/crm/index.html', ['#quickLeadName', '#filter', '#personWorkflowFilter']);
+  await openAndCheck(desktop, 'desktop-contacts', '/contacts/index.html', ['#search', '#filterCrmLink', '#sortOrder']);
 
-  assert.equal(pageTitle, '3DVR Portal');
-  assert.match(heading, /Welcome to the 3DVR Portal|Choose your path into the portal/i);
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await openAndCheck(mobile, 'mobile-crm', '/crm/index.html', ['#quickLeadName', '#filter', '#personWorkflowFilter']);
+  await openAndCheck(mobile, 'mobile-contacts', '/contacts/index.html', ['#search', '#filterCrmLink', '#sortOrder']);
 
-  console.log(`Playwright smoke check passed at ${baseUrl}`);
+  console.log('Playwright UX pass completed: mobile + desktop checks passed');
 } finally {
   if (browser) {
     await browser.close();
@@ -106,6 +136,4 @@ try {
       });
     });
   }
-
-  await delay(100);
 }

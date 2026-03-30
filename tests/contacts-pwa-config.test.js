@@ -163,6 +163,19 @@ describe('contacts PWA configuration', () => {
     );
   });
 
+  it('rewrites the public Stripe webhook path to the API handler', async () => {
+    const vercelText = await readProjectFile('vercel.json');
+    const config = JSON.parse(vercelText);
+    const rewrites = Array.isArray(config.rewrites) ? config.rewrites : [];
+
+    const stripeWebhookRewrite = rewrites.find(
+      (rule) => rule.source === '/webhooks/stripe'
+    );
+
+    assert.ok(stripeWebhookRewrite);
+    assert.equal(stripeWebhookRewrite.destination, '/api/webhooks/stripe');
+  });
+
   it('ships standalone Vercel headers inside the contacts directory', async () => {
     const vercelText = await readProjectFile('contacts/vercel.json');
     const config = JSON.parse(vercelText);

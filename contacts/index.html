@@ -32,6 +32,7 @@
     <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3">
       <a id="portalHomeLink" href="https://portal.3dvr.tech/index.html" class="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-white">← Portal</a>
       <a id="portalCrmLink" href="https://portal.3dvr.tech/crm/index.html" class="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-white">CRM</a>
+      <a id="portalCellLink" href="https://portal.3dvr.tech/cell/index.html" class="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-white">Cell</a>
       <h1 class="min-w-0 flex-1 text-lg sm:text-2xl font-bold truncate">Contacts <span class="text-teal-400">· 3DVR</span></h1>
       <span id="spaceBadge" class="hidden shrink-0 text-xs px-2 py-1 rounded bg-white/10">personal</span>
       <div class="w-full sm:w-auto sm:ms-auto min-w-0 flex items-center justify-end gap-2">
@@ -76,6 +77,13 @@
       >Sign in</button>
     </div>
   </div>
+  <div id="cellContextBanner" class="max-w-6xl mx-auto px-4 pt-2 hidden">
+    <div class="rounded-lg border border-cyan-500/30 bg-cyan-950/40 px-3 py-2 flex flex-wrap items-center gap-2 text-sm text-cyan-100">
+      <span class="font-semibold">Cell context active</span>
+      <span id="cellContextLabel" class="text-cyan-100/90">Linked from Cell</span>
+      <a id="cellContextLink" href="../cell/index.html" class="text-cyan-200 hover:text-white underline underline-offset-2">Open Cell</a>
+    </div>
+  </div>
 
   <main class="max-w-6xl mx-auto p-4 grid gap-6 md:grid-cols-[320px,1fr]">
 
@@ -83,8 +91,7 @@
     <section class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
       <h2 class="text-lg font-semibold mb-2">Space</h2>
       <p class="text-sm text-gray-300 mb-3">
-        Store your personal and professional contacts here. Signed-in members default to a private space, while guests start
-        in the shared public demo—switch any time below.
+        Store your personal and professional contacts here. Keep the active space tight and switch only when you need a shared demo.
       </p>
       <select id="spaceSelect" class="w-full p-2 rounded text-black">
         <option value="personal" selected>Personal (private to your account)</option>
@@ -134,8 +141,8 @@
 
       <!-- Filters -->
       <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
-        <div class="grid gap-2 md:grid-cols-[1fr,200px,200px,200px] items-end">
-          <div>
+        <div class="grid grid-cols-2 gap-2 md:grid-cols-[1fr,180px,180px,180px,180px] items-end">
+          <div class="col-span-2 md:col-span-1">
             <label class="text-sm text-gray-300">Search</label>
             <input id="search" placeholder="Name, email, company, tags…" class="w-full p-2 rounded text-black" />
           </div>
@@ -155,6 +162,14 @@
               <option value="today">Due today</option>
               <option value="week">Due this week</option>
               <option value="none">No follow-up</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-gray-300">CRM link</label>
+            <select id="filterCrmLink" class="w-full p-2 rounded text-black">
+              <option value="">All</option>
+              <option value="linked">Linked to CRM</option>
+              <option value="unlinked">Not linked</option>
             </select>
           </div>
           <div>
@@ -223,7 +238,7 @@
   </div>
 
   <div id="contactDetailOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto">
-    <div id="contactDetailCard" class="w-full max-w-2xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
+    <div id="contactDetailCard" class="w-full max-w-3xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
       <button id="closeContactDetail" type="button" class="absolute top-4 right-4 text-sm text-gray-300 hover:text-white">Close</button>
       <div class="space-y-5">
         <div class="space-y-1">
@@ -231,11 +246,11 @@
           <h2 id="contactDetailName" class="text-2xl font-semibold">Name</h2>
           <p id="contactDetailSummary" class="text-sm text-gray-300">Summary</p>
         </div>
-        <div id="contactDetailTags" class="hidden"></div>
-        <div id="contactDetailNotes" class="hidden"></div>
-        <div id="contactDetailMeta" class="grid gap-2 text-sm text-gray-300"></div>
-        <div id="contactDetailLinks" class="text-sm text-gray-300"></div>
         <div id="contactDetailActions" class="flex flex-wrap gap-2"></div>
+        <div id="contactDetailLinks" class="text-sm text-gray-300"></div>
+        <div id="contactDetailTags" class="hidden"></div>
+        <div id="contactDetailMeta" class="grid gap-2 text-sm text-gray-300"></div>
+        <div id="contactDetailNotes" class="hidden"></div>
       </div>
     </div>
   </div>
@@ -704,6 +719,14 @@ function crmContactHref(contactId = '') {
   return portalHref(`/crm/index.html?contact=${encodeURIComponent(id)}`);
 }
 
+function cellWorkspaceHref(cellId = '') {
+  const id = typeof cellId === 'string' ? cellId.trim() : String(cellId || '').trim();
+  if (!id) {
+    return portalHref('/cell/index.html');
+  }
+  return portalHref(`/cell/index.html?cellId=${encodeURIComponent(id)}`);
+}
+
 const { storage: ls, native: nativeLocalStorage } = ensureLocalStorage();
 if (window.AuthIdentity && typeof window.AuthIdentity.syncStorageFromSharedIdentity === 'function') {
   try {
@@ -813,6 +836,10 @@ const authFormStatus = document.getElementById('authFormStatus');
 const closeAuthModalBtn = document.getElementById('closeAuthModal');
 const continueGuestAuthBtn = document.getElementById('continueGuestAuth');
 const authStatusSignIn = document.getElementById('authStatusSignIn');
+const portalCellLink = document.getElementById('portalCellLink');
+const cellContextBanner = document.getElementById('cellContextBanner');
+const cellContextLabel = document.getElementById('cellContextLabel');
+const cellContextLink = document.getElementById('cellContextLink');
 let syncStatus = null;
 let authStatus = null;
 let authStatusMessage = null;
@@ -820,6 +847,7 @@ let lastFocusedBeforeAuth = null;
 const urlParams = new URLSearchParams(window.location.search);
 const requestedSpace = urlParams.get('space');
 const focusContactId = urlParams.get('contact');
+const cellContextId = (urlParams.get('cellId') || urlParams.get('cell') || '').trim();
 const focusClasses = ['ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-gray-900'];
 let focusScrollDone = false;
 
@@ -831,6 +859,22 @@ function refreshSignedInDisplay() {
   const signedInLabel = `Signed in as ${usernameTrimmed}${aliasSegment}`;
   userDisplay.textContent = signedInLabel;
   userDisplay.title = signedInLabel;
+}
+
+function refreshCellContextBanner() {
+  if (portalCellLink) {
+    portalCellLink.href = cellWorkspaceHref(cellContextId);
+  }
+  if (!cellContextBanner || !cellContextLabel || !cellContextLink) {
+    return;
+  }
+  if (!cellContextId) {
+    cellContextBanner.hidden = true;
+    return;
+  }
+  cellContextBanner.hidden = false;
+  cellContextLabel.textContent = `Linked from Cell ${cellContextId}`;
+  cellContextLink.href = cellWorkspaceHref(cellContextId);
 }
 
 let pendingSpaceRefreshTimer = null;
@@ -1375,6 +1419,7 @@ const btnReset = document.getElementById('btnReset');
 const searchEl = document.getElementById('search');
 const filterStatusEl = document.getElementById('filterStatus');
 const filterFollowEl = document.getElementById('filterFollow');
+const filterCrmLinkEl = document.getElementById('filterCrmLink');
 const sortOrderEl = document.getElementById('sortOrder');
 const countEl = document.getElementById('count');
 const duplicateSummaryEl = document.getElementById('duplicateSummary');
@@ -1409,9 +1454,14 @@ if (portalHomeLink) {
 if (portalCrmLink) {
   portalCrmLink.href = portalHref('/crm/index.html');
 }
+if (portalCellLink) {
+  portalCellLink.href = cellWorkspaceHref(cellContextId);
+}
 if (floatingIdentity) {
   floatingIdentity.href = portalHref('/profile.html#profile');
 }
+
+refreshCellContextBanner();
 
 let lastFocusedBeforeCreate = null;
 
@@ -2576,6 +2626,7 @@ function addContactToCrm(id){
 searchEl.addEventListener('input', debounce(()=>{ page=1; updateList(); }, 200));
 filterStatusEl.addEventListener('change', ()=>{ page=1; updateList(); });
 filterFollowEl.addEventListener('change', ()=>{ page=1; updateList(); });
+filterCrmLinkEl.addEventListener('change', ()=>{ page=1; updateList(); });
 sortOrderEl.addEventListener('change', ()=>{ page=1; updateList(); });
 
 prevPageBtn.addEventListener('click', ()=>{ if(page>1){ page--; updateList(); }});
@@ -2585,6 +2636,7 @@ function applyFilters(items){
   const q = searchEl.value.trim().toLowerCase();
   const fS = filterStatusEl.value;
   const fF = filterFollowEl.value;
+  const fC = filterCrmLinkEl.value;
   const sortMode = sortOrderEl.value || 'name-first';
   const today = new Date(); today.setHours(0,0,0,0);
 
@@ -2592,6 +2644,8 @@ function applyFilters(items){
     const hay = `${c.name||''} ${c.email||''} ${c.phone||''} ${c.company||''} ${c.role||''} ${c.tags||''} ${c.notes||''}`.toLowerCase();
     if(q && !hay.includes(q)) return false;
     if(fS && (c.status||'') !== fS) return false;
+    if(fC === 'linked' && !c.crmId) return false;
+    if(fC === 'unlinked' && c.crmId) return false;
 
     if(fF){
       const nf = c.nextFollowUp ? new Date(c.nextFollowUp) : null;
@@ -3025,35 +3079,32 @@ function renderCard(c){
     : '';
 
   return `
-  <div class="contact-card bg-gray-800 p-4 rounded-lg border border-white/10" id="${c.id}">
-    <div class="flex flex-col sm:flex-row gap-3 sm:items-start">
-      <div class="flex-1">
+  <div class="contact-card bg-gray-800/70 p-4 rounded-2xl border border-white/10 transition hover:border-white/15 hover:bg-gray-800" id="${c.id}">
+    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div class="min-w-0 flex-1 space-y-2">
         <div class="flex items-center gap-2 flex-wrap">
-          <h3 class="text-lg font-bold">${hx(c.name||'(no name)')}</h3>
+          <h3 class="text-lg font-bold truncate">${hx(c.name||'(no name)')}</h3>
           ${c.status?`<span class="text-xs px-2 py-0.5 rounded bg-teal-700/60 border border-teal-400/30">${hx(c.status)}</span>`:''}
           ${hasCrmLink?`<span class="text-xs px-2 py-0.5 rounded bg-sky-700/60 border border-sky-400/30">CRM linked</span>`:''}
           ${duplicateBadge}
           ${overdue?`<span class="text-xs px-2 py-0.5 rounded bg-rose-700/60 border border-rose-400/30">Overdue</span>`:(today?`<span class="text-xs px-2 py-0.5 rounded bg-amber-700/60 border border-amber-400/30">Due today</span>`:'')}
         </div>
-        <p class="text-sm text-gray-300 mt-0.5">
+        <p class="text-sm text-gray-300">
           ${email}${(email && (c.role||c.company))?' · ':''}${hx([c.role,c.company].filter(Boolean).join(' @ '))}
           ${phone?` · ${phone}`:''}
         </p>
-        ${tags?`<div class="mt-2 flex flex-wrap gap-1">${tags}</div>`:''}
-        ${c.notes?`<p class="text-sm text-gray-300 mt-2 whitespace-pre-wrap">${hx(c.notes)}</p>`:''}
-
-        <div class="text-xs text-gray-400 mt-2 grid gap-1 sm:grid-cols-2">
-          ${c.lastContacted?`<div>Last contacted: ${ago(c.lastContacted)}</div>`:`<div>Last contacted: —</div>`}
-          <div>Next follow-up: ${c.nextFollowUp||'—'}</div>
-          <div>Updated: ${c.updated?ago(c.updated):'—'}</div>
-          <div>Touches: ${c.activityCount||0}</div>
+        ${tags?`<div class="flex flex-wrap gap-1">${tags}</div>`:''}
+        <div class="flex flex-wrap gap-3 text-xs text-gray-400">
+          <span>Last contacted: ${c.lastContacted?ago(c.lastContacted):'—'}</span>
+          <span>Next follow-up: ${c.nextFollowUp||'—'}</span>
+          <span>Updated: ${c.updated?ago(c.updated):'—'}</span>
+          <span>Touches: ${c.activityCount||0}</span>
         </div>
         ${duplicateInfo ? renderDuplicateSection(c, duplicateInfo) : ''}
       </div>
       <div class="shrink-0 flex flex-wrap gap-2">
         ${crmAction}
-        <button id="edit-${c.id}" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1.5 rounded text-sm">Edit</button>
-        <button id="del-${c.id}" class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded text-sm">Delete</button>
+        <button type="button" id="open-${c.id}" class="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded text-sm border border-white/10">Open</button>
       </div>
     </div>
   </div>`;
@@ -3127,6 +3178,14 @@ function attachCardInteractions(contact, editing){
         addContactToCrm(contact.id);
       });
     }
+  }
+  const openBtn = document.getElementById(`open-${contact.id}`);
+  if(openBtn){
+    openBtn.addEventListener('click', evt=>{
+      evt.preventDefault();
+      evt.stopPropagation();
+      openContactDetail(contact.id);
+    });
   }
   card.addEventListener('click', evt=>{
     if(evt.target.closest('button') || evt.target.closest('a') || evt.target.closest('form')) return;

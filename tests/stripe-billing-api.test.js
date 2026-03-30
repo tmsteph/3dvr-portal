@@ -9,6 +9,7 @@ const baseConfig = {
   STRIPE_PRICE_STARTER_ID: 'price_starter',
   STRIPE_PRICE_PRO_ID: 'price_pro',
   STRIPE_PRICE_BUILDER_ID: 'price_builder',
+  STRIPE_PRICE_EMBEDDED_ID: 'price_embedded',
   PORTAL_ORIGIN: 'https://portal.3dvr.tech'
 };
 
@@ -340,7 +341,8 @@ describe('stripe billing checkout handler', () => {
       planPricesConfigured: {
         starter: true,
         pro: true,
-        builder: true
+        builder: true,
+        embedded: true
       },
       customerPortalLoginConfigured: false
     });
@@ -367,7 +369,8 @@ describe('stripe billing checkout handler', () => {
       planPricesConfigured: {
         starter: true,
         pro: false,
-        builder: false
+        builder: false,
+        embedded: false
       },
       customerPortalLoginConfigured: false
     });
@@ -1058,7 +1061,10 @@ describe('stripe billing checkout handler', () => {
                 plan: 'custom',
                 portal_alias: auth.alias,
                 portal_pub: auth.pub,
-                billing_email: 'client@example.com'
+                billing_email: 'client@example.com',
+                custom_label: 'Custom project deposit',
+                custom_description: 'Scoped sprint deposit',
+                custom_amount_cents: '25000'
               }
             }
           }
@@ -1068,7 +1074,10 @@ describe('stripe billing checkout handler', () => {
         plan: 'custom',
         portal_alias: auth.alias,
         portal_pub: auth.pub,
-        billing_email: 'client@example.com'
+        billing_email: 'client@example.com',
+        custom_label: 'Custom project deposit',
+        custom_description: 'Scoped sprint deposit',
+        custom_amount_cents: '25000'
       },
       success_url: 'https://portal.3dvr.tech/billing/?checkout=success&plan=custom&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://portal.3dvr.tech/billing/?checkout=cancel&plan=custom'

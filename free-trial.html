@@ -2,144 +2,294 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Start Your Free Trial | 3dvr.tech</title>
+  <title>Start Free in the Portal | 3dvr.tech</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="https://fav.farm/🚀" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
 
+    :root {
+      --bg: linear-gradient(160deg, #071120, #123457 54%, #08111f);
+      --panel: rgba(255, 255, 255, 0.08);
+      --panel-strong: rgba(255, 255, 255, 0.12);
+      --line: rgba(255, 255, 255, 0.12);
+      --text: #f3f7fb;
+      --muted: #c2d2e7;
+      --accent: #38bdf8;
+      --accent-strong: #7dd3fc;
+    }
+
+    * { box-sizing: border-box; }
     body {
       font-family: 'Inter', sans-serif;
       margin: 0;
-      padding: 0;
-      background: linear-gradient(to bottom right, #0a192f, #1c3a5f);
-      color: #f0f8ff;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .shell {
+      width: min(100%, 980px);
+      display: grid;
+      gap: 0;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      background: rgba(5, 12, 24, 0.72);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(18px);
+    }
+
+    .panel,
+    .aside {
+      padding: 36px;
+    }
+
+    .panel {
+      background: rgba(5, 12, 24, 0.64);
+    }
+
+    .aside {
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.12), rgba(255, 255, 255, 0.04));
+      border-left: 1px solid var(--line);
+    }
+
+    .top-links,
+    .mini-links,
+    .next-steps {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      position: relative;
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
-    .container {
-      background-color: rgba(255, 255, 255, 0.05);
-      padding: 40px;
-      border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-      text-align: center;
-      max-width: 400px;
-      width: 100%;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    .top-links a,
+    .mini-links a {
+      color: var(--accent-strong);
+      font-size: 0.95rem;
+      text-decoration: none;
     }
 
-    .top-link {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      margin-bottom: 10px;
-      display: block;
-    }
-
-    .top-link:hover {
-      color: #38bdf8;
+    .eyebrow {
+      display: inline-block;
+      margin-top: 18px;
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent-strong);
     }
 
     h1 {
-      font-size: 1.8rem;
-      margin-bottom: 10px;
-      font-weight: 800;
-      color: #ffffff;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 1.05;
+      margin: 12px 0 14px;
     }
 
-    p {
-      font-size: 0.95rem;
-      margin-bottom: 20px;
-      color: #c0d3ec;
+    .lead,
+    .aside p,
+    .step-copy,
+    .secure-note,
+    .message {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .journey {
+      margin: 24px 0 0;
+      display: grid;
+      gap: 14px;
+    }
+
+    .journey-step {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+
+    .journey-number {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent-strong);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+    }
+
+    .journey-step h2 {
+      margin: 0 0 4px;
+      font-size: 1rem;
+    }
+
+    form {
+      margin-top: 24px;
+      display: grid;
+      gap: 14px;
+    }
+
+    label {
+      font-size: 0.92rem;
+      color: var(--muted);
+      font-weight: 600;
     }
 
     input[type="email"] {
-      padding: 12px;
-      border-radius: 8px;
-      border: none;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
       width: 100%;
       font-size: 1rem;
-      margin-bottom: 15px;
       background: #ffffff;
-      color: #000;
+      color: #08111f;
+      margin-top: 8px;
     }
 
     button {
-      padding: 12px;
+      padding: 14px 18px;
       width: 100%;
-      background-color: #38bdf8;
-      color: #000;
+      background-color: var(--accent);
+      color: #08111f;
       border: none;
-      font-weight: 600;
+      font-weight: 800;
       font-size: 1rem;
-      border-radius: 8px;
+      border-radius: 12px;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      transition: transform 0.2s ease, background-color 0.2s ease;
     }
 
     button:hover {
+      transform: translateY(-1px);
       background-color: #0ea5e9;
     }
 
     .message {
-      margin-top: 20px;
-      font-weight: bold;
       min-height: 24px;
-      color: #ffffff;
+      font-weight: 700;
     }
 
     .secure-note {
-      margin-top: 10px;
-      font-size: 0.8rem;
-      color: #94a3b8;
+      font-size: 0.88rem;
+    }
+
+    .aside h2 {
+      margin: 0 0 12px;
+      font-size: 1.35rem;
+    }
+
+    .next-steps {
+      margin-top: 18px;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .next-steps a {
+      color: var(--text);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
     }
 
     footer {
-      position: absolute;
-      bottom: 20px;
-      font-size: 0.8rem;
-      color: #7f9eb2;
+      margin-top: 18px;
+      font-size: 0.84rem;
+      color: #93abc4;
     }
 
     footer a {
-      color: #38bdf8;
+      color: var(--accent-strong);
       text-decoration: none;
     }
 
-    footer a:hover {
-      text-decoration: underline;
+    @media (max-width: 820px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .aside {
+        border-left: none;
+        border-top: 1px solid var(--line);
+      }
     }
   </style>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
-  <div class="container">
-    <a href="index.html" class="top-link">← Back to Portal</a>
-    <h1>Start Your Free Trial</h1>
-    <p>No credit card needed – just your email.</p>
-    <form id="trialForm">
-      <input type="email" id="email" placeholder="you@example.com" required />
-      <button type="submit">🚀 Start Free Trial</button>
-      <div class="message" id="message"></div>
-      <div class="secure-note">This is a secure page from <a href="https://3dvr.tech"><strong>3dvr.tech</strong></a>.</div>
-    </form>
-  </div>
+  <div class="shell">
+    <section class="panel">
+      <div class="top-links">
+        <a href="/index.html">← Back to portal</a>
+        <a href="https://3dvr.tech/subscribe/">View plans</a>
+      </div>
+      <span class="eyebrow">Free path</span>
+      <h1>Find your passions and organize your life</h1>
+      <p class="lead">Share your email, then continue into one portal account for a free setup flow that helps you sort what matters and open Life. No credit card required.</p>
 
-  <footer>
-    &copy; 2025 <a href="https://3dvr.tech">3dvr.tech</a> – Open Tech for Dreamers
-  </footer>
+      <div class="journey" aria-label="Free plan journey">
+        <div class="journey-step">
+          <div class="journey-number">1</div>
+          <div>
+            <h2>Enter your email</h2>
+            <p class="step-copy">We use it to send your free-plan confirmation and the next step back into the portal.</p>
+          </div>
+        </div>
+        <div class="journey-step">
+          <div class="journey-number">2</div>
+          <div>
+            <h2>Create or use one portal account</h2>
+            <p class="step-copy">Keep your free access, future upgrades, and support attached to the same identity.</p>
+          </div>
+        </div>
+        <div class="journey-step">
+          <div class="journey-number">3</div>
+          <div>
+            <h2>Open Life and organize what matters</h2>
+            <p class="step-copy">Use the Life app to map your passions, routines, goals, and next steps, then keep building from the same portal account.</p>
+          </div>
+        </div>
+      </div>
+
+      <form id="trialForm">
+        <label for="email">Email for your free-plan next steps
+          <input type="email" id="email" placeholder="you@example.com" required />
+        </label>
+        <button type="submit">Send free-plan link</button>
+        <div class="message" id="message"></div>
+        <div class="secure-note">This secure page is part of the 3dvr.tech portal flow.</div>
+      </form>
+    </section>
+
+    <aside class="aside">
+      <h2>Already know your next step?</h2>
+      <p>Use the same portal account for free access, billing changes, invoices, and ongoing support. If you already have an account or need a paid plan, jump straight there.</p>
+      <div class="next-steps">
+        <a href="/sign-in.html">Sign in or create account</a>
+        <a href="/billing/">Open billing center</a>
+        <a href="/life/">Open Life</a>
+        <a href="https://3dvr.tech/subscribe/">Back to public pricing</a>
+      </div>
+      <footer>
+        &copy; 2026 <a href="https://3dvr.tech">3dvr.tech</a> · Open Tech for Dreamers
+      </footer>
+    </aside>
+  </div>
 
   <script>
     document.getElementById('trialForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const email = document.getElementById('email').value;
       const messageEl = document.getElementById('message');
-      messageEl.textContent = '⏳ Sending...';
+      messageEl.textContent = 'Sending your free-plan next step...';
 
       try {
         const res = await fetch('/api/trial.js', {
@@ -150,12 +300,12 @@
 
         const data = await res.json();
         if (res.ok) {
-          messageEl.textContent = '✅ Trial started! Check your email.';
+          messageEl.textContent = 'Free-plan request sent. Check your email, then continue in the portal and open Life.';
         } else {
-          messageEl.textContent = `❌ ${data.error || 'Something went wrong'}`;
+          messageEl.textContent = data.error || 'Something went wrong. Please try again.';
         }
       } catch (err) {
-        messageEl.textContent = '❌ Network error. Please try again.';
+        messageEl.textContent = 'Network error. Please try again.';
       }
     });
   </script>

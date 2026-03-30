@@ -92,6 +92,9 @@ test('createInMemoryRateLimiter enforces minute and day caps', () => {
   });
   assert.equal(dayExceeded.allowed, false);
   assert.equal(dayExceeded.scope, 'day');
+
+  assert.ok(DEFAULT_RATE_LIMITS.embedded.minute > DEFAULT_RATE_LIMITS.builder.minute);
+  assert.ok(DEFAULT_RATE_LIMITS.embedded.day > DEFAULT_RATE_LIMITS.builder.day);
 });
 
 test('resolvePlanFromSubscription supports metadata and mapped price ids', () => {
@@ -134,6 +137,19 @@ test('resolvePlanFromSubscription supports metadata and mapped price ids', () =>
     }
   }, {});
   assert.equal(marketingPlan, 'builder');
+
+  const embeddedPlan = resolvePlanFromSubscription({
+    items: {
+      data: [
+        {
+          price: {
+            nickname: 'Embedded Plan'
+          }
+        }
+      ]
+    }
+  }, {});
+  assert.equal(embeddedPlan, 'embedded');
 });
 
 test('parse helpers return sane fallbacks', () => {

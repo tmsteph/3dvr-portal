@@ -24,11 +24,34 @@ describe('cell hub', () => {
     assert.match(html, /Build a <span class="accent">cell unit<\/span> that crosses all lines\./);
     assert.match(html, /Create a Cell/);
     assert.match(html, /id="cellForm"/);
+    assert.match(html, /id="cellList"/);
+    assert.match(html, /id="syncStatus"/);
     assert.match(html, /id="previewTitle"/);
     assert.match(html, /id="previewTags"/);
     assert.match(html, /Cell Builder/);
     assert.match(html, /Core(?:<br\s*\/?>)?Cell/);
+    assert.match(html, /data-cell-app="contacts"/);
+    assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
+    assert.match(html, /<script[^>]+src="\.{2}\/gun-init\.js"/);
+    assert.match(html, /<script[^>]+src="\.{2}\/score\.js"/);
+    assert.match(html, /<script[^>]+src="\.\/app\.js"/);
     assert.ok(!html.includes('Node Builder'), 'the page should be branded as Cell, not Node');
+  });
+
+  it('ships a Gun-backed workspace script wired to the portal graph and app links', async () => {
+    const appUrl = new URL('app.js', baseDir);
+    assert.equal(await fileExists(appUrl), true, 'app.js should exist');
+
+    const js = await readFile(appUrl, 'utf8');
+    assert.match(js, /gun\.get\('3dvr-portal'\)/);
+    assert.match(js, /get\('cellHub'\)/);
+    assert.match(js, /get\('cells'\)/);
+    assert.match(js, /cellId/);
+    assert.match(js, /contacts\/index\.html/);
+    assert.match(js, /crm\/index\.html/);
+    assert.match(js, /finance\/index\.html/);
+    assert.match(js, /chat\//);
+    assert.match(js, /billing\/index\.html/);
   });
 
   it('registers the Cell workspace in the portal app grid', async () => {

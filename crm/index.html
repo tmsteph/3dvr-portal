@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
   <script src="../score.js"></script>
-  <script type="module" src="./crm-editing.js"></script>
+  <script type="module" src="./app.js"></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -27,10 +27,19 @@
       <nav class="flex flex-wrap gap-2 text-sm">
         <a href="../sales/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Sales home</a>
         <a href="../sales/training/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Training playbook</a>
-        <a href="../contacts/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts workspace</a>
+        <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts workspace</a>
+        <a href="../cell/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Cell</a>
       </nav>
     </div>
   </header>
+
+  <div id="cellContextBanner" class="max-w-6xl mx-auto px-4 pt-3 hidden">
+    <div class="rounded-2xl border border-sky-400/25 bg-sky-950/40 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-sky-100">
+      <span class="font-semibold">Cell context active</span>
+      <span id="cellContextLabel" class="text-sky-100/90">Linked from Cell</span>
+      <a id="cellContextLink" href="../cell/index.html" class="underline underline-offset-2 text-sky-200 hover:text-white">Open Cell</a>
+    </div>
+  </div>
 
   <a
     id="crmFloatingIdentity"
@@ -45,7 +54,7 @@
     <span class="text-xs text-gray-300">Profile →</span>
   </a>
 
-  <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
     <section class="grid gap-4 lg:grid-cols-[1fr,320px]">
       <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -74,108 +83,106 @@
       </div>
     </section>
 
-    <section class="grid gap-4 lg:grid-cols-[1fr,320px]">
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5 space-y-3">
+    <section class="grid gap-3 lg:grid-cols-[1.15fr,0.85fr,0.85fr]">
+      <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-4 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-xl font-semibold">Three-touch weekly game</h2>
+          <h2 class="text-lg font-semibold">Three-touch weekly game</h2>
           <span id="challengeStatus" class="text-xs px-2 py-1 rounded bg-white/10 text-gray-200">Loading…</span>
         </div>
-        <p class="text-sm text-gray-300">
-          Log three contacts each week directly in the CRM. Calling, emailing, or messaging the same person three times all
-          counts—just make sure every touch is captured here.
-        </p>
-        <p class="text-sm text-amber-200/90 bg-amber-900/30 border border-amber-500/30 rounded-lg p-3">
-          After each touch, ask the person when you can follow up and record the date. Consistent follow-ups keep the streak
-          alive.
-        </p>
-        <div class="space-y-2">
-          <div class="flex items-center justify-between text-sm text-gray-300">
-            <span><span id="challengeWeeklyCount">0</span> / <span id="challengeWeeklyGoal">3</span> touches logged this week</span>
-            <span id="challengeWeeklyDetail" class="text-xs text-gray-400">Waiting for first log…</span>
-          </div>
-          <div class="h-3 bg-gray-900/70 rounded-full overflow-hidden border border-white/5">
-            <div id="challengeProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-sky-500" style="width: 0%"></div>
-          </div>
-        </div>
-      </div>
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-lg font-semibold">This week’s log</h3>
-          <span class="text-xs uppercase tracking-[0.28em] text-gray-400">Live</span>
-        </div>
-        <div id="challengeRecentList" class="space-y-3 text-sm text-gray-300">
-          <p class="text-gray-400">Logs will appear after you click “Log touch” on a CRM record.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="grid gap-4 md:grid-cols-2">
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <h2 class="text-lg font-semibold mb-2">Shared context</h2>
-        <p class="text-sm text-gray-300">This CRM uses the same 3DVR GUN relay as the contacts workspace. Tag people the same way so both apps stay aligned.</p>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <a href="../contacts/index.html" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded">Open contacts</a>
-          <a href="../sales/training/" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded">Review training</a>
-          <a href="../roadmap/march-april/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded">Sprint plan</a>
-        </div>
-      </div>
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <h2 class="text-lg font-semibold mb-2">Deal pulse</h2>
-        <p class="text-sm text-gray-300">Track how many records you have overall versus what is visible after filtering.</p>
-        <div class="mt-4 grid grid-cols-2 gap-3 text-center text-sm text-gray-300">
-          <div class="bg-gray-900/60 border border-white/5 rounded-lg py-3">
-            <div class="text-2xl font-semibold" id="totalCount">0</div>
-            <div>Total records</div>
-          </div>
-          <div class="bg-gray-900/60 border border-white/5 rounded-lg py-3">
-            <div class="text-2xl font-semibold" id="visibleCount">0</div>
-            <div>Visible now</div>
-          </div>
-        </div>
-      </div>
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5 md:col-span-2">
-        <h2 class="text-lg font-semibold mb-2">Market-fit lens</h2>
-        <p class="text-sm text-gray-300">Every record should answer three things: who this person is, what repeated pain they feel, and whether they should become a pilot.</p>
-        <div class="mt-4 grid gap-3 text-sm text-gray-300 md:grid-cols-3">
-          <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3">
-            <p class="text-xs uppercase tracking-[0.28em] text-sky-300">Who</p>
-            <p class="mt-2">Owner-led service businesses, creative operators, local teams, and people already in your reach.</p>
-          </div>
-          <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3">
-            <p class="text-xs uppercase tracking-[0.28em] text-sky-300">Pain</p>
-            <p class="mt-2">Unclear offer, weak homepage, scattered contacts, and missed follow-up are the first pains to score.</p>
-          </div>
-          <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3">
-            <p class="text-xs uppercase tracking-[0.28em] text-sky-300">Pilot</p>
-            <p class="mt-2">Use pilot status, offer amount, and next experiment to decide who gets active time this week.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="grid gap-6 lg:grid-cols-[320px,1fr]">
-      <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-end justify-between gap-3">
           <div>
-            <h2 class="text-xl font-semibold">Add CRM record</h2>
-            <p class="text-sm text-gray-300">Capture notes or deal details without leaving the list.</p>
+            <p class="text-3xl font-semibold leading-none"><span id="challengeWeeklyCount">0</span>/<span id="challengeWeeklyGoal">3</span></p>
+            <p class="text-xs uppercase tracking-[0.28em] text-gray-400 mt-1">Touches this week</p>
           </div>
-          <button id="openCrmCreate" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">New record</button>
+          <span id="challengeWeeklyDetail" class="text-xs text-gray-400 text-right max-w-[12rem]">Waiting for first log…</span>
         </div>
+        <div class="h-2 bg-gray-900/70 rounded-full overflow-hidden border border-white/5">
+          <div id="challengeProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-sky-500" style="width: 0%"></div>
+        </div>
+      </div>
+      <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-4 space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-[0.28em] text-gray-300">Shared context</h3>
+        <p class="text-sm text-gray-300">
+          CRM and Contacts share the same Gun relay. Keep names, tags, and follow-up dates aligned so the detail view does
+          the heavy lifting.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <a href="../contacts/index.html" data-contacts-link class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded-lg text-sm">Open contacts</a>
+          <a href="../sales/training/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm">Training</a>
+        </div>
+      </div>
+      <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-4 space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-[0.28em] text-gray-300">Deal pulse</h3>
+        <p class="text-sm text-gray-300">Quick scan of the whole board versus the slice you filtered down to.</p>
+        <div class="grid grid-cols-2 gap-3 text-center text-sm text-gray-300">
+          <div class="bg-gray-900/60 border border-white/5 rounded-xl py-3">
+            <div class="text-2xl font-semibold" id="totalCount">0</div>
+            <div>Total</div>
+          </div>
+          <div class="bg-gray-900/60 border border-white/5 rounded-xl py-3">
+            <div class="text-2xl font-semibold" id="visibleCount">0</div>
+            <div>Visible</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-[360px,1fr]">
+      <div id="crm-capture" class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-4">
+        <div class="space-y-2">
+          <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">Capture lane</p>
+          <h2 class="text-xl font-semibold">Add the next real lead fast.</h2>
+          <p class="text-sm text-gray-300">The list stays compact. Use the detail view for edits, follow-up, and contact sync.</p>
+        </div>
+        <form id="quickLeadForm" class="grid gap-3">
+          <input id="quickLeadName" type="text" placeholder="Lead name" class="w-full p-2 rounded text-black" />
+          <input id="quickLeadEmail" type="email" placeholder="Email (optional)" class="w-full p-2 rounded text-black" />
+          <select id="quickLeadGroupId" class="w-full p-2 rounded text-black"></select>
+          <input id="quickLeadPrimaryPain" type="text" placeholder="Main problem you heard" class="w-full p-2 rounded text-black" />
+          <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">Add lead</button>
+        </form>
+        <div class="grid gap-2 sm:grid-cols-2">
+          <button id="openCrmCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Full lead form</button>
+          <button id="openGroupCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">New group</button>
+          <button id="openProblemCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Log problem</button>
+          <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm text-center">Open contacts</a>
+        </div>
+        <p class="text-xs text-gray-400">Use the full form when you need linked problems or more detailed notes.</p>
       </div>
       <div class="space-y-6">
-        <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
-          <label for="filter" class="block text-sm text-gray-300 mb-2">Search workspace</label>
-          <input id="filter" type="search" placeholder="Filter by name, email, tags, or notes" class="w-full p-2 rounded text-black" />
+        <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-3">
+          <div class="flex flex-wrap gap-2">
+            <button id="filterAllRecords" type="button" class="px-3 py-1.5 rounded text-sm bg-sky-600 text-white">All records</button>
+            <button id="filterWarmLeads" type="button" class="px-3 py-1.5 rounded text-sm bg-white/10 text-gray-200">Warm leads</button>
+          </div>
+          <div class="grid gap-3 md:grid-cols-[1fr,240px] md:items-end">
+            <div>
+              <label for="filter" class="block text-sm text-gray-300">Search workspace</label>
+              <input id="filter" type="search" placeholder="Filter by name, group, problem, tags, or notes" class="w-full p-2 rounded text-black" />
+            </div>
+            <div>
+              <label for="personWorkflowFilter" class="block text-sm text-gray-300">Person workflow</label>
+              <select id="personWorkflowFilter" class="w-full p-2 rounded text-black">
+                <option value="">All people</option>
+                <option value="linked">Linked to contacts</option>
+                <option value="unlinked">Not linked to contacts</option>
+                <option value="overdue">Follow-up overdue</option>
+                <option value="none">No follow-up date</option>
+                <option value="week">Follow-up due this week</option>
+                <option value="stale-14">Stale (14+ days)</option>
+              </select>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400">Tip: press <kbd class="rounded border border-white/20 px-1 py-0.5">/</kbd> to jump to search.</p>
         </div>
-        <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5">
+        <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-5">
           <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
-            <h2 class="text-xl font-semibold">Contacts</h2>
+            <h2 class="text-xl font-semibold">Pipeline</h2>
             <span class="text-xs uppercase tracking-[0.32em] text-gray-400">Live</span>
           </div>
           <div id="crmDuplicateSummary" class="hidden bg-amber-900/40 border border-amber-500/30 rounded-lg p-3 text-sm text-amber-100 mb-4"></div>
-          <div id="contactList" class="space-y-4"></div>
-          <div id="emptyState" class="text-sm text-gray-400 hidden">No contacts yet. Add someone from the form or sync from the contacts app.</div>
+          <div id="contactList" class="space-y-3"></div>
+          <div id="emptyState" class="text-sm text-gray-400 hidden">No records yet. Add a group, lead, or problem to get started.</div>
         </div>
       </div>
     </section>
@@ -192,23 +199,71 @@
         <button id="closeCrmCreate" type="button" class="self-end text-sm text-gray-300 hover:text-white">Close</button>
       </div>
       <form id="contactForm" class="mt-6 grid gap-3">
-        <div class="grid gap-2 md:grid-cols-2">
-          <input type="text" id="name" placeholder="Name" class="w-full p-2 rounded text-black" />
-          <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
-          <input type="text" id="company" placeholder="Company" class="w-full p-2 rounded text-black" />
-          <input type="text" id="phone" placeholder="Phone" class="w-full p-2 rounded text-black" />
-          <input type="text" id="role" placeholder="Role (owner, manager, lead...)" class="w-full p-2 rounded text-black" />
-          <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
-          <select id="status" class="w-full p-2 rounded text-black"></select>
-          <input type="date" id="nextFollowUp" class="w-full p-2 rounded text-black" />
-          <select id="marketSegment" class="w-full p-2 rounded text-black"></select>
-          <input type="text" id="primaryPain" placeholder="Primary pain" class="w-full p-2 rounded text-black" />
-          <select id="painSeverity" class="w-full p-2 rounded text-black"></select>
-          <input type="text" id="currentWorkaround" placeholder="Current workaround" class="w-full p-2 rounded text-black" />
-          <select id="pilotStatus" class="w-full p-2 rounded text-black"></select>
-          <input type="text" id="offerAmount" placeholder="Offer / pilot amount" class="w-full p-2 rounded text-black" />
-          <input type="text" id="lastSignal" placeholder="Last signal" class="w-full p-2 rounded text-black" />
-          <input type="text" id="nextExperiment" placeholder="Next experiment" class="w-full p-2 rounded text-black" />
+        <div class="grid gap-3 md:grid-cols-2">
+          <div class="md:col-span-2">
+            <label for="recordType" class="block text-sm text-gray-300 mb-1">Record type</label>
+            <select id="recordType" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person group problem">
+            <input type="text" id="name" placeholder="Name or problem title" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person">
+            <input type="email" id="email" placeholder="Email" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person">
+            <input type="text" id="company" placeholder="Company" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person">
+            <input type="text" id="phone" placeholder="Phone" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person">
+            <input type="text" id="role" placeholder="Role (owner, manager, lead...)" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group">
+            <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group">
+            <select id="status" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person">
+            <input type="date" id="nextFollowUp" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group">
+            <select id="marketSegment" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person problem">
+            <input type="text" id="primaryPain" placeholder="Primary pain" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person problem">
+            <select id="painSeverity" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person">
+            <input type="text" id="currentWorkaround" placeholder="Current workaround" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group">
+            <select id="pilotStatus" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="person problem">
+            <input type="text" id="offerAmount" placeholder="Offer / impact amount" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person problem">
+            <input type="text" id="lastSignal" placeholder="Last signal" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person problem">
+            <input type="text" id="nextExperiment" placeholder="Next experiment" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person" class="md:col-span-2">
+            <label for="groupId" class="block text-sm text-gray-300 mb-1">Group</label>
+            <select id="groupId" class="w-full p-2 rounded text-black"></select>
+          </div>
+          <div data-create-types="problem" class="md:col-span-2">
+            <label for="linkedGroupIds" class="block text-sm text-gray-300 mb-1">Linked groups</label>
+            <select id="linkedGroupIds" class="w-full p-2 rounded text-black h-32" multiple></select>
+          </div>
+          <div data-create-types="problem" class="md:col-span-2">
+            <label for="linkedPersonIds" class="block text-sm text-gray-300 mb-1">Linked people</label>
+            <select id="linkedPersonIds" class="w-full p-2 rounded text-black h-32" multiple></select>
+          </div>
         </div>
         <textarea id="notes" placeholder="Notes and context" class="w-full p-2 rounded text-black"></textarea>
         <div class="flex gap-2">
@@ -220,7 +275,7 @@
   </div>
 
   <div id="crmDetailOverlay" class="hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto">
-    <div id="crmDetailCard" class="w-full max-w-2xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
+    <div id="crmDetailCard" class="w-full max-w-3xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6 relative">
       <button id="closeCrmDetail" type="button" class="absolute top-4 right-4 text-sm text-gray-300 hover:text-white">Close</button>
       <div class="space-y-5">
         <div class="space-y-1">
@@ -228,11 +283,11 @@
           <h2 id="crmDetailName" class="text-2xl font-semibold">Name</h2>
           <p id="crmDetailSummary" class="text-sm text-gray-300">Summary</p>
         </div>
-        <div id="crmDetailTags" class="hidden"></div>
-        <div id="crmDetailNotes" class="hidden"></div>
-        <div id="crmDetailMeta" class="grid gap-2 text-sm text-gray-300"></div>
-        <div id="crmDetailWorkspace" class="text-sm text-gray-300"></div>
         <div id="crmDetailActions" class="flex flex-wrap gap-2"></div>
+        <div id="crmDetailWorkspace" class="text-sm text-gray-300"></div>
+        <div id="crmDetailTags" class="hidden"></div>
+        <div id="crmDetailMeta" class="grid gap-2 text-sm text-gray-300"></div>
+        <div id="crmDetailNotes" class="hidden"></div>
       </div>
     </div>
   </div>
