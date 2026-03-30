@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3dvr.tech • Reach-Out Desk</title>
   <meta name="description" content="A short daily outreach method for contacting leads, tightening the pitch, logging follow-up, and keeping the pipeline clean." />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
   <style>
     :root{
       --bg:#0b0d10; --panel:#12161c; --ink:#e9edf1; --muted:#aeb7c2; --accent:#6ee7ff; --ok:#8cffd3; --warn:#ffd37a; --bad:#ff7a7a;
@@ -132,7 +134,7 @@
     </main>
   </div>
   <script>
-  // --- Simple training data model (original wording, built for daily outreach) ---
+  // --- Simple training data model (built for daily outreach) ---
   const MODEL = [
     { id:"reachout", name:"Reach-Out Method", time:"~15m", items:[
       {type:"text", title:"Start here", body:"Do one real reach-out before you do anything else. The goal is a human touch, a clear next step, and a logged follow-up."},
@@ -232,16 +234,119 @@
   // --- State ---
   const SKEY = 'training.v1';
   const BASE_TITLE = document.title;
+  const GUN_QUEUE_NODE_PATH = ['3dvr-portal', 'sales-training', 'today-queue'];
   let STATE = JSON.parse(localStorage.getItem(SKEY) || '{}');
   let focusMode = localStorage.getItem(`${SKEY}.focus`) === '1';
   let activeModule = localStorage.getItem(`${SKEY}.active`) || null;
+  let trainingGun = null;
+  let reachoutQueueNode = null;
+  let reachoutQueueSnapshot = '';
 
-  function save() {
+  function createTrainingGun() {
+    if (typeof window === 'undefined' || typeof window.Gun !== 'function') {
+      return null;
+    }
+
+    const peers = window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ];
+
+    try {
+      return window.Gun({ peers });
+    } catch (error) {
+      console.warn('Sales training Gun init failed', error);
+      try {
+        return window.Gun({ peers, radisk: false, localStorage: false });
+      } catch (fallbackError) {
+        console.warn('Sales training Gun fallback failed', fallbackError);
+        return null;
+      }
+    }
+  }
+
+  function normalizeQueueEntry(item = {}) {
+    return {
+      id: String(item.id || Date.now()),
+      lead: String(item.lead || '').trim(),
+      message: String(item.message || '').trim(),
+      next: String(item.next || '').trim(),
+      done: Boolean(item.done)
+    };
+  }
+
+  function normalizeQueue(list = []) {
+    return Array.isArray(list)
+      ? list.map(normalizeQueueEntry).filter(item => item.lead && item.message && item.next)
+      : [];
+  }
+
+  function queueSignature(list = []) {
+    return JSON.stringify(normalizeQueue(list));
+  }
+
+  function getReachoutQueue() {
+    return normalizeQueue(STATE.reachoutQueue || []);
+  }
+
+  function persistReachoutQueueToGun() {
+    if (!reachoutQueueNode) {
+      return;
+    }
+
+    reachoutQueueNode.put({
+      items: getReachoutQueue(),
+      updatedAt: new Date().toISOString()
+    }, ack => {
+      if (ack && ack.err) {
+        console.warn('Sales training queue sync failed', ack.err);
+      }
+    });
+  }
+
+  function setReachoutQueue(next, options = {}) {
+    STATE.reachoutQueue = normalizeQueue(next);
+    reachoutQueueSnapshot = queueSignature(STATE.reachoutQueue);
+    save(false);
+    if (!options.fromGun) {
+      persistReachoutQueueToGun();
+    }
+  }
+
+  function hydrateReachoutQueueFromGun() {
+    if (!reachoutQueueNode) {
+      return;
+    }
+
+    const applyRemoteQueue = (data) => {
+      if (!data || !data.updatedAt) {
+        return;
+      }
+
+      const nextQueue = normalizeQueue(data.items || []);
+      const nextSignature = queueSignature(nextQueue);
+      if (nextSignature === reachoutQueueSnapshot) {
+        return;
+      }
+
+      reachoutQueueSnapshot = nextSignature;
+      STATE.reachoutQueue = nextQueue;
+      save(false);
+    };
+
+    reachoutQueueNode.once(applyRemoteQueue);
+    reachoutQueueNode.on(applyRemoteQueue);
+  }
+
+  function save(syncReachoutQueue = false) {
     localStorage.setItem(SKEY, JSON.stringify(STATE));
     renderSidebar();
     if (activeModule) {
       const current = MODEL.find(m => m.id === activeModule);
       if (current) renderOverview(current);
+    }
+    if (syncReachoutQueue) {
+      persistReachoutQueueToGun();
     }
   }
   function pctDone(id) {
@@ -259,6 +364,9 @@
     STATE.reachoutQueue = next;
     save();
   }
+  function getQueueSyncLabel() {
+    return reachoutQueueNode ? 'Shared with Gun' : 'Local only';
+  }
   function renderReachoutQueueCard() {
     const card = document.createElement('div');
     card.className = 'card';
@@ -268,10 +376,12 @@
       const active = queue.filter(item => !item.done).length;
       const done = queue.length - active;
       const activeLabel = active === 1 ? 'lead' : 'leads';
+      const syncLabel = getQueueSyncLabel();
 
       let html = `
         <h3>Today's queue</h3>
         <p class="muted">Keep the queue small. Add one lead, write one message, and set one next step before you move on.</p>
+        <div class="tiny" style="margin-top:8px">${syncLabel} • ${GUN_QUEUE_NODE_PATH.join(' / ')}</div>
         <form data-queue-form class="grid" style="margin-top:12px">
           <input name="lead" type="text" placeholder="Lead or account" required>
           <input name="message" type="text" placeholder="Message or angle" required>
@@ -319,6 +429,7 @@
             ...getReachoutQueue(),
             { id: String(Date.now()), lead, message, next, done: false }
           ]);
+          form.reset();
         });
       }
 
@@ -383,7 +494,7 @@
     localStorage.setItem(`${SKEY}.active`, id);
     localStorage.setItem(`${SKEY}.opened`, '1');
     document.getElementById('title').textContent = m.name;
-    document.title = `${m.name} • 3dvr Training`;
+    document.title = `${m.name} • Reach-Out Desk`;
     renderOverview(m);
     const root = document.getElementById('content');
     root.innerHTML = '';
@@ -550,7 +661,7 @@
   function resetProgress() {
     if (confirm('Reset all local progress?')) {
       STATE = {};
-      save();
+      setReachoutQueue([]);
       activeModule = null;
       localStorage.removeItem(`${SKEY}.active`);
       localStorage.removeItem(`${SKEY}.opened`);
@@ -575,6 +686,15 @@
   }
 
   // --- Init ---
+  trainingGun = createTrainingGun();
+  if (trainingGun) {
+    window.gun = trainingGun;
+    reachoutQueueNode = trainingGun
+      .get(GUN_QUEUE_NODE_PATH[0])
+      .get(GUN_QUEUE_NODE_PATH[1])
+      .get(GUN_QUEUE_NODE_PATH[2]);
+    hydrateReachoutQueueFromGun();
+  }
   renderSidebar();
   applyFocus();
   const stored = activeModule && MODEL.find(m => m.id === activeModule);
