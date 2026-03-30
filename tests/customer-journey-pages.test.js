@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 describe('portal customer journey pages', () => {
-  it('gives the portal home a clear direction-community-build entry path', async () => {
+  it('gives the portal home a clear concrete entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-    assert.match(html, /Find your direction inside the portal/);
-    assert.match(html, /Start with Life if things feel unclear\./);
-    assert.match(html, /Start with Life/);
-    assert.match(html, /Join a Cell/);
+    assert.match(html, /Pick one clear starting point/);
+    assert.match(html, /Open Life for a daily check-in\./);
+    assert.match(html, /Daily check-in/);
+    assert.match(html, /Small group/);
     assert.match(html, /Browse apps/);
-    assert.match(html, /Start with the part you need right now/);
+    assert.match(html, /Choose the kind of help you need/);
     assert.match(html, /Start Your Thing/);
+    assert.match(html, /Log how you feel, what happened today, and what matters tomorrow\./);
   });
 
   it('keeps the free trial page tied to the portal account journey', async () => {
@@ -23,15 +24,18 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Open billing center/);
   });
 
-  it('turns the start page into an onboarding-first decision hub', async () => {
+  it('turns the start page into a concrete onboarding-first decision hub', async () => {
     const html = await readFile(new URL('../start/index.html', import.meta.url), 'utf8');
-    assert.match(html, /Get clear, join community, and start your thing/);
-    assert.match(html, /Start with Life for\s+direction, join a Cell for accountability/);
-    assert.match(html, /Choose the help you need right now/);
+    assert.match(html, /Pick one clear starting point/);
+    assert.match(html, /If you feel lost, open Life\./);
+    assert.match(html, /Choose what you need today/);
     assert.match(html, /Open Life/);
     assert.match(html, /Open Cell/);
     assert.match(html, /Open Projects/);
-    assert.match(html, /Build momentum in order/);
+    assert.match(html, /Use them in this order/);
+    assert.match(html, /Life: 3-minute check-in/);
+    assert.match(html, /Cell: weekly support group/);
+    assert.match(html, /Projects: launch real work/);
     assert.match(html, /Already have a plan or account\?/);
     assert.match(html, /Open the page you actually need/);
     assert.match(html, /mailto:3dvr\.tech@gmail\.com/);
