@@ -33,8 +33,8 @@
     .progress{height:6px;background:#11161d;border-radius:999px;overflow:hidden}
     .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7cf,#9ff);transition:width .2s ease}
 
-    main{padding:24px;max-width:1200px;margin:0 auto}
-    header.top{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap}
+    main{padding:24px;max-width:1320px;margin:0 auto}
+    header.top{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap}
     header .crumbs{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
     header .crumbs a{color:var(--ink);opacity:.8}
     header .crumbs span{opacity:.5}
@@ -44,17 +44,45 @@
     .btn-ok{border-color:#1f6f5e;background:#0f2622}
     .btn-warn{border-color:#6a5b23;background:#26200f}
 
-    .card{background:var(--card);border:1px solid var(--ring);border-radius:16px;padding:18px;box-shadow:var(--elev)}
+    .card{background:var(--card);border:1px solid var(--ring);border-radius:18px;padding:18px;box-shadow:var(--elev)}
     .grid{display:grid;gap:16px}
     .grid.cols-2{grid-template-columns:1fr 1fr}
     .grid.cols-1{grid-template-columns:1fr}
-    .overview{margin-bottom:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .workspace-shell{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,380px);gap:20px;align-items:start}
+    .workspace-main{display:grid;gap:16px;min-width:0}
+    .workspace-rail{position:sticky;top:24px;align-self:start;display:grid;gap:16px;min-width:0}
+    .workspace-intro{
+      display:grid;
+      gap:10px;
+      background:
+        radial-gradient(circle at top right, rgba(110, 231, 255, 0.12), transparent 45%),
+        linear-gradient(145deg, rgba(18, 22, 28, 0.98), rgba(15, 19, 24, 0.98));
+    }
+    .workspace-kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--accent);
+    }
+    .workspace-intro h2{font-size:clamp(1.6rem, 3vw, 2.4rem);margin:0}
+    .workspace-intro p{margin:0;color:var(--muted);max-width:70ch}
+    .workspace-content{margin:0}
+    .workspace-content .card,
+    .workspace-rail .card{background:linear-gradient(180deg, rgba(15,17,21,.98), rgba(13,15,19,.98))}
+    .overview{grid-template-columns:1fr}
     .link-stack{display:grid;gap:10px;margin-top:12px}
     .link-stack a{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:10px;border:1px solid var(--ring);background:#10151c}
     .link-stack a:hover{border-color:#334155}
     .link-stack span{font-size:12px;color:var(--muted)}
     .module.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(110,231,255,.4)}
     .focus-mode .sidebar{position:static;height:auto}
+    @media (max-width:1080px){
+      .workspace-shell{grid-template-columns:1fr}
+      .workspace-rail{position:static}
+    }
     @media (max-width:960px){.wrap{grid-template-columns:1fr} .sidebar{position:static;height:auto} .grid.cols-2{grid-template-columns:1fr}}
 
     h2{margin:0 0 8px;font-size:22px}
@@ -114,7 +142,6 @@
             <span>Training</span>
           </nav>
           <div class="muted">Reach-out → Pitch → Follow-up → Pipeline</div>
-          <h2 id="title">Select a step</h2>
         </div>
         <div class="actions">
           <button id="focusToggle" class="btn" type="button">Focus Mode</button>
@@ -126,10 +153,20 @@
           <button onclick="resetProgress()" class="btn" type="button">Reset</button>
         </div>
       </header>
-      <section id="overview" class="grid overview"></section>
-      <section id="content" class="grid"></section>
-
-      <p class="tiny">This page stores your notes &amp; checklists locally in your browser (localStorage). No accounts required. You can export/import JSON to sync devices.</p>
+      <section class="workspace-shell">
+        <div class="workspace-main">
+          <article class="card workspace-intro">
+            <div class="workspace-kicker">Current step</div>
+            <h2 id="title">Select a step</h2>
+            <p>Work one step at a time. The active step appears here, then the details and queue load underneath it so the page stays usable instead of sprawling downward.</p>
+          </article>
+          <section id="content" class="grid workspace-content"></section>
+        </div>
+        <aside class="workspace-rail">
+          <section id="overview" class="grid overview"></section>
+          <p class="tiny">This page stores your notes and checklists locally in your browser. Export or import JSON when you want a backup.</p>
+        </aside>
+      </section>
 
     </main>
   </div>
@@ -356,13 +393,6 @@
     const done = STATE[id]?.checks || {};
     const completed = checks.filter(label => done[label]).length;
     return checks.length ? Math.round((100 * completed) / checks.length) : 0;
-  }
-  function getReachoutQueue() {
-    return Array.isArray(STATE.reachoutQueue) ? STATE.reachoutQueue : [];
-  }
-  function setReachoutQueue(next) {
-    STATE.reachoutQueue = next;
-    save();
   }
   function getQueueSyncLabel() {
     return reachoutQueueNode ? 'Shared with Gun' : 'Local only';
@@ -626,7 +656,7 @@
 
   function applyFocus() {
     const root = document.getElementById('content');
-    if (root) root.className = focusMode ? 'grid cols-1' : 'grid cols-2';
+    if (root) root.className = focusMode ? 'grid workspace-content cols-1' : 'grid workspace-content cols-2';
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.classList.toggle('focus-mode', focusMode);
     updateFocusButton();
