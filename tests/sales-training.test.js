@@ -6,12 +6,15 @@ test('sales training leads with the outreach method', async () => {
   const salesHubHtml = await readFile(new URL('../sales/index.html', import.meta.url), 'utf8');
   const html = await readFile(new URL('../sales/training/index.html', import.meta.url), 'utf8');
 
-  assert.match(salesHubHtml, /Work the reach-out method, sharpen the pitch, and rehearse follow-up flows in one workspace\./);
-  assert.match(html, /Reach-Out Training/);
+  assert.match(salesHubHtml, /Start the reach-out desk, sharpen the pitch, and keep follow-up moving in one workspace\./);
+  assert.match(html, /Reach-Out Desk/);
+  assert.match(html, /One lead\. One message\. One follow-up\./);
   assert.match(html, /Reach-Out Method/);
-  assert.match(html, /The 5-step loop/);
-  assert.match(html, /Today’s outreach plan/);
+  assert.match(html, /The method/);
+  assert.match(html, /Outreach queue/);
   assert.match(html, /Done for the day/);
   assert.match(html, /Lead Capture/);
   assert.match(html, /CRM dashboard/);
+  assert.match(html, /Follow-Up Loop/);
+  assert.match(html, /Pipeline Hygiene/);
 });
