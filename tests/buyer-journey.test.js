@@ -8,6 +8,7 @@ test('sales buyer journey page keeps the internal funnel visible', async () => {
 
   assert.match(salesHubHtml, /Buyer journey infographic/);
   assert.match(salesHubHtml, /Open Buyer Journey/);
+  assert.match(html, /Five stages/);
   assert.match(html, /Buyer Journey Infographic/);
   assert.match(html, /lead capture, qualification, checkout, onboarding, and retention/);
   assert.match(html, /Lead Capture/);

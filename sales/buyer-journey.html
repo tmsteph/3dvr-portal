@@ -34,46 +34,13 @@
   <main class="max-w-6xl mx-auto px-6 py-10 space-y-10">
     <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg overflow-hidden relative">
       <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300"></div>
-      <div class="grid gap-6 lg:grid-cols-[minmax(0,1.2fr),minmax(320px,0.8fr)] items-stretch">
+      <div class="grid gap-6">
         <div>
-          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">At a glance</p>
-          <h2 class="text-2xl md:text-4xl font-semibold mt-3">The path from curious visitor to long-term customer.</h2>
+          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Five stages</p>
+          <h2 class="text-2xl md:text-4xl font-semibold mt-3">Lead capture, qualification, billing, onboarding, retention.</h2>
           <p class="text-slate-300 mt-4 max-w-3xl leading-7">
-            A buyer sees the offer, checks proof, asks for scope, moves through billing, and then either stays active or gets handed off to support. The portal should make each step obvious.
+            This is the internal buyer path. The team should think in stages first, then use the summary to know which tool owns each step.
           </p>
-          <div class="mt-6 flex flex-wrap gap-3">
-            <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100">Lead capture</span>
-            <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100">CRM qualification</span>
-            <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100">Billing handoff</span>
-            <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100">Onboarding</span>
-            <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100">Retention</span>
-          </div>
-        </div>
-
-        <div class="rounded-2xl bg-slate-950/70 border border-white/5 p-5">
-          <p class="text-xs uppercase tracking-[0.25em] text-blue-300">Flow summary</p>
-          <ol class="mt-4 space-y-3">
-            <li class="flex gap-3">
-              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">1</span>
-              <span class="text-sm text-slate-200">Lead lands on the public site or campaign page.</span>
-            </li>
-            <li class="flex gap-3">
-              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">2</span>
-              <span class="text-sm text-slate-200">Lead Capture writes the contact into Gun and CRM.</span>
-            </li>
-            <li class="flex gap-3">
-              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">3</span>
-              <span class="text-sm text-slate-200">Sales qualifies the buyer and points them to the right plan or custom scope.</span>
-            </li>
-            <li class="flex gap-3">
-              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">4</span>
-              <span class="text-sm text-slate-200">Billing handles Stripe checkout and plan switching without duplicate subscriptions.</span>
-            </li>
-            <li class="flex gap-3">
-              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">5</span>
-              <span class="text-sm text-slate-200">Onboarding moves the customer into the portal, Life, support, and ongoing work.</span>
-            </li>
-          </ol>
         </div>
       </div>
     </section>
@@ -138,6 +105,44 @@
           <p class="text-sm text-slate-200 mt-2">Portal home, Life, Support, Sales Hub, and roadmap follow-up.</p>
         </div>
       </article>
+    </section>
+
+    <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg">
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,1.2fr),minmax(320px,0.8fr)] items-stretch">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">At a glance</p>
+          <h2 class="text-xl font-semibold mt-2">The path from curious visitor to long-term customer.</h2>
+          <p class="text-sm text-slate-300 mt-3 max-w-3xl leading-7">
+            A buyer sees the offer, checks proof, asks for scope, moves through billing, and then either stays active or gets handed off to support. The portal should make each step obvious.
+          </p>
+        </div>
+
+        <div class="rounded-2xl bg-slate-950/70 border border-white/5 p-5">
+          <p class="text-xs uppercase tracking-[0.25em] text-blue-300">Flow summary</p>
+          <ol class="mt-4 space-y-3">
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">1</span>
+              <span class="text-sm text-slate-200">Lead lands on the public site or campaign page.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">2</span>
+              <span class="text-sm text-slate-200">Lead Capture writes the contact into Gun and CRM.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">3</span>
+              <span class="text-sm text-slate-200">Sales qualifies the buyer and points them to the right plan or custom scope.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">4</span>
+              <span class="text-sm text-slate-200">Billing handles Stripe checkout and plan switching without duplicate subscriptions.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-400/20 text-blue-100 font-semibold">5</span>
+              <span class="text-sm text-slate-200">Onboarding moves the customer into the portal, Life, support, and ongoing work.</span>
+            </li>
+          </ol>
+        </div>
+      </div>
     </section>
 
     <section class="rounded-2xl bg-slate-900/70 border border-white/5 p-6 shadow-lg">
