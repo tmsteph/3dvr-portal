@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Life | 3dvr Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="../score.js"></script>
+  <style>
+    :root {
+      --bg: #07131d;
+      --bg-soft: #0f1d2b;
+      --panel: rgba(16, 29, 44, 0.88);
+      --panel-soft: rgba(23, 41, 62, 0.92);
+      --line: rgba(144, 193, 255, 0.16);
+      --text: #f4f8fc;
+      --muted: #b8cbe0;
+      --blue: #8cc4ff;
+      --mint: #95e6c2;
+      --gold: #f4d27a;
+      --rose: #ff9fba;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(140, 196, 255, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 14%, rgba(149, 230, 194, 0.13), transparent 26%),
+        radial-gradient(circle at 20% 88%, rgba(244, 210, 122, 0.1), transparent 28%),
+        linear-gradient(180deg, #06101a 0%, #0b1622 40%, #0f1b2a 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(255,255,255,0.05), transparent 0.7rem),
+        radial-gradient(circle at 78% 28%, rgba(255,255,255,0.04), transparent 0.6rem),
+        radial-gradient(circle at 52% 82%, rgba(255,255,255,0.03), transparent 0.8rem);
+      background-size: 220px 220px, 280px 280px, 320px 320px;
+      opacity: 0.35;
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      width: min(1200px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 22px 0 46px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: rgba(8, 16, 28, 0.78);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      flex-wrap: wrap;
+    }
+
+    .topbar__brand {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .topbar__brand strong {
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .topbar__brand span {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .topbar__links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .topbar__links a,
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+      font-weight: 700;
+    }
+
+    .topbar__links a {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.06);
+    }
+
+    .topbar__links a:hover,
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 28px;
+      margin-bottom: 20px;
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(12, 24, 37, 0.94), rgba(17, 33, 51, 0.96));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -20px -60px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(140,196,255,0.22), transparent 66%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(140, 196, 255, 0.1);
+      border: 1px solid rgba(140, 196, 255, 0.16);
+      color: var(--blue);
+      font-size: 0.8rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.2rem, 4.2vw, 4rem);
+      line-height: 0.98;
+      max-width: 10.5ch;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 68ch;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 1.03rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .button--primary {
+      background: linear-gradient(135deg, #8cc4ff, #95e6c2);
+      color: #08111f;
+    }
+
+    .button--secondary {
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .stat {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 8px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.45rem;
+      line-height: 1.1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      gap: 20px;
+    }
+
+    .card {
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .card__body {
+      padding: 22px;
+    }
+
+    .section-title {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+    }
+
+    .section-copy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .panel-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .two-up {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      font: inherit;
+      padding: 12px 13px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 94px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: rgba(140, 196, 255, 0.5);
+      box-shadow: 0 0 0 4px rgba(140, 196, 255, 0.1);
+    }
+
+    input[type="range"] {
+      padding: 0;
+      accent-color: var(--blue);
+    }
+
+    output {
+      color: var(--gold);
+      font-weight: 800;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .category-card {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .category-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .save-status {
+      margin: 0;
+      color: var(--muted);
+      min-height: 1.4em;
+      font-size: 0.94rem;
+    }
+
+    .dashboard {
+      display: grid;
+      gap: 18px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.86rem;
+      margin-bottom: 8px;
+    }
+
+    .metric strong {
+      font-size: 1.3rem;
+    }
+
+    .bars {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bar-row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .bar-row__head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .bar {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #8cc4ff, #95e6c2);
+    }
+
+    .entry-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .entry-item {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .entry-item strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .entry-meta {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 8px;
+    }
+
+    .entry-copy {
+      color: var(--text);
+      line-height: 1.55;
+      margin: 0;
+      white-space: pre-wrap;
+    }
+
+    .links-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .links-row a {
+      color: var(--mint);
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .footer-note {
+      text-align: center;
+      color: var(--muted);
+      padding: 18px 0 0;
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 980px) {
+      .layout,
+      .two-up,
+      .metric-grid,
+      .category-grid,
+      .hero-stats {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .shell { width: min(100% - 20px, 1200px); }
+      .hero,
+      .card__body { padding: 18px; }
+      h1 { max-width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="topbar__brand">
+        <strong>Life</strong>
+        <span>Find your passions and organize your life with a free starter flow.</span>
+      </div>
+      <nav class="topbar__links" aria-label="Life navigation">
+        <a href="../index.html">Home</a>
+        <a href="../cell/index.html">Cell</a>
+        <a href="../notes/">Notes</a>
+        <a href="../contacts/index.html">Contacts</a>
+        <a href="../crm/index.html">CRM</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <span class="eyebrow">Life OS</span>
+      <h1>See your life clearly, then move it forward.</h1>
+      <p class="lead">
+        Life is the simple check-in loop for 3dvr. Track how you feel, what happened today, what matters tomorrow, and how the big parts of life are moving.
+        The data stays inside the portal on Gun so it can sync across browsers and pair with your other apps.
+      </p>
+      <div class="hero-actions">
+        <a class="button button--primary" href="#checkin">Start a check-in</a>
+        <a class="button button--secondary" href="../cell/index.html">Open Cell</a>
+        <a class="button button--secondary" href="../notes/">Open Notes</a>
+      </div>
+      <div class="hero-stats" aria-label="Life overview">
+        <div class="stat">
+          <span>Daily focus</span>
+          <strong>1 check-in</strong>
+        </div>
+        <div class="stat">
+          <span>Weekly rhythm</span>
+          <strong>1 reflection</strong>
+        </div>
+        <div class="stat">
+          <span>Life areas</span>
+          <strong>5 simple categories</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="layout" aria-labelledby="lifeTitle">
+      <article class="card" id="checkin">
+        <div class="card__body">
+          <span class="eyebrow">Daily check-in</span>
+          <h2 class="section-title" id="lifeTitle">What changed today?</h2>
+          <p class="section-copy">
+            Keep this lightweight. You can add one note a day, or come back later for a fuller weekly reflection.
+          </p>
+
+          <form id="lifeForm" class="form-grid">
+            <div class="two-up">
+              <label for="lifeDate">
+                Date
+                <input id="lifeDate" name="lifeDate" type="date" />
+              </label>
+              <label for="moodScore">
+                Mood
+                <output id="moodValue" for="moodScore">7</output>
+                <input id="moodScore" name="moodScore" type="range" min="1" max="10" step="1" value="7" />
+              </label>
+            </div>
+
+            <label for="todayText">
+              What happened today?
+              <textarea id="todayText" name="todayText" placeholder="A short summary of the day."></textarea>
+            </label>
+
+            <label for="tomorrowText">
+              What matters tomorrow?
+              <textarea id="tomorrowText" name="tomorrowText" placeholder="The one thing to protect next."></textarea>
+            </label>
+
+            <div class="category-grid" aria-label="Life categories">
+              <div class="category-card">
+                <div class="category-head"><span>Mind</span><output id="mindValue" for="mindScore">7</output></div>
+                <input id="mindScore" name="mindScore" type="range" min="1" max="10" step="1" value="7" />
+              </div>
+              <div class="category-card">
+                <div class="category-head"><span>Body</span><output id="bodyValue" for="bodyScore">7</output></div>
+                <input id="bodyScore" name="bodyScore" type="range" min="1" max="10" step="1" value="7" />
+              </div>
+              <div class="category-card">
+                <div class="category-head"><span>Money</span><output id="moneyValue" for="moneyScore">7</output></div>
+                <input id="moneyScore" name="moneyScore" type="range" min="1" max="10" step="1" value="7" />
+              </div>
+              <div class="category-card">
+                <div class="category-head"><span>Relationships</span><output id="relationshipsValue" for="relationshipsScore">7</output></div>
+                <input id="relationshipsScore" name="relationshipsScore" type="range" min="1" max="10" step="1" value="7" />
+              </div>
+              <div class="category-card">
+                <div class="category-head"><span>Projects</span><output id="projectsValue" for="projectsScore">7</output></div>
+                <input id="projectsScore" name="projectsScore" type="range" min="1" max="10" step="1" value="7" />
+              </div>
+            </div>
+
+            <label for="weeklyText">
+              Weekly reflection
+              <textarea id="weeklyText" name="weeklyText" placeholder="What worked, what didn’t, and what should change next week?"></textarea>
+            </label>
+
+            <div class="actions">
+              <button class="button button--primary" type="submit">Save check-in</button>
+              <button class="button button--secondary" type="button" id="clearDraft">Clear draft</button>
+            </div>
+            <p id="saveStatus" class="save-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </article>
+
+      <aside class="dashboard">
+        <section class="card">
+          <div class="card__body">
+            <span class="eyebrow">Life dashboard</span>
+            <div class="metric-grid">
+              <div class="metric">
+                <span>Average mood</span>
+                <strong id="averageMood">--</strong>
+              </div>
+              <div class="metric">
+                <span>7-day trend</span>
+                <strong id="trendLabel">--</strong>
+              </div>
+              <div class="metric">
+                <span>Active streak</span>
+                <strong id="streakValue">--</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card__body">
+            <span class="eyebrow">Category balance</span>
+            <h3 class="section-title">How the big areas are moving</h3>
+            <div class="bars" id="categoryBars" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card__body">
+            <span class="eyebrow">Reflection</span>
+            <h3 class="section-title">Latest weekly note</h3>
+            <p class="section-copy" id="latestReflection">No reflections yet. Save one when you want to review the week.</p>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card__body">
+            <span class="eyebrow">Recent entries</span>
+            <ul class="entry-list" id="entryList"></ul>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card__body">
+            <span class="eyebrow">Connect the loop</span>
+            <h3 class="section-title">Move between apps</h3>
+            <p class="section-copy">
+              Life pairs well with Cell for accountability, Notes for longer thinking, and CRM when a goal turns into a real opportunity.
+            </p>
+            <div class="links-row">
+              <a href="../cell/index.html">Open Cell</a>
+              <a href="../notes/">Open Notes</a>
+              <a href="../crm/index.html">Open CRM</a>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <p class="footer-note">
+      Stored under <code>3dvr-portal/life</code> in Gun, with a local cache fallback for offline drafts.
+    </p>
+  </main>
+
+  <script src="./app.js?v=20260329-life-mvp"></script>
+</body>
+</html>

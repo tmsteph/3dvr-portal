@@ -233,7 +233,7 @@
       </div>
       <span class="eyebrow">Free path</span>
       <h1>Find your passions and organize your life</h1>
-      <p class="lead">Share your email, then continue into one portal account for a free setup flow that helps you sort what matters. No credit card required.</p>
+      <p class="lead">Share your email, then continue into one portal account for a free setup flow that helps you sort what matters and open Life. No credit card required.</p>
 
       <div class="journey" aria-label="Free plan journey">
         <div class="journey-step">
@@ -253,8 +253,8 @@
         <div class="journey-step">
           <div class="journey-number">3</div>
           <div>
-            <h2>Organize what matters</h2>
-            <p class="step-copy">Map your passions, routines, goals, and next steps, then keep building from the same portal account.</p>
+            <h2>Open Life and organize what matters</h2>
+            <p class="step-copy">Use the Life app to map your passions, routines, goals, and next steps, then keep building from the same portal account.</p>
           </div>
         </div>
       </div>
@@ -275,6 +275,7 @@
       <div class="next-steps">
         <a href="/sign-in.html">Sign in or create account</a>
         <a href="/billing/">Open billing center</a>
+        <a href="/life/">Open Life</a>
         <a href="https://3dvr.tech/subscribe/">Back to public pricing</a>
       </div>
       <footer>
@@ -299,7 +300,7 @@
 
         const data = await res.json();
         if (res.ok) {
-          messageEl.textContent = 'Free-plan request sent. Check your email, then continue in the portal.';
+          messageEl.textContent = 'Free-plan request sent. Check your email, then continue in the portal and open Life.';
         } else {
           messageEl.textContent = data.error || 'Something went wrong. Please try again.';
         }

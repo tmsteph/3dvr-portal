@@ -67,6 +67,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Chat](https://3dvr-portal.vercel.app/chat/)
 - [Calendar Hub](https://3dvr-portal.vercel.app/calendar/)
 - [Contacts](https://3dvr-portal.vercel.app/contacts/)
+- [Life](https://3dvr-portal.vercel.app/life/)
 
 Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
 
@@ -122,6 +123,7 @@ Automation data sync is available in the UI at `/money-ai/`, which writes each r
 - `gun.get('3dvr-portal').get('money-ai').get('runs')`
 - `gun.get('3dvr-portal').get('money-ai').get('opportunities')`
 - `gun.get('3dvr-portal').get('money-ai').get('ads')`
+- `gun.get('3dvr-portal').get('life').get('entries')`
 
 Legacy mirror writes also continue to `gun.get('money-ai')` for older clients.
 
