@@ -23,7 +23,7 @@ body {
 .calendar-header {
   margin: 0 auto 40px;
   max-width: 1100px;
-  text-align: center;
+  text-align: left;
 }
 
 .calendar-header__back {
@@ -46,12 +46,56 @@ body {
   max-width: 720px;
 }
 
+.calendar-header__highlights {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 24px;
+}
+
+.calendar-highlight {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(212, 222, 238, 0.92);
+  border-radius: calc(var(--calendar-radius) - 4px);
+  box-shadow: 0 12px 30px rgba(15, 46, 81, 0.06);
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+}
+
+.calendar-highlight span {
+  color: var(--calendar-primary-dark);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.calendar-highlight strong {
+  color: #18202d;
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
 .calendar-shell {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 420px);
+  align-items: start;
   margin: 0 auto;
-  max-width: 1100px;
+  max-width: 1200px;
+}
+
+.panel--primary {
+  padding: 34px;
+}
+
+.calendar-rail {
+  display: grid;
+  gap: 24px;
+  position: sticky;
+  top: 24px;
 }
 
 .panel {
@@ -256,19 +300,21 @@ button:hover {
 .event-results {
   border: 1px dashed rgba(212, 222, 238, 0.8);
   border-radius: 14px;
-  margin-top: 24px;
+  margin-top: 20px;
   min-height: 140px;
   padding: 20px;
 }
 
 .calendar-view {
-  background: rgba(92, 160, 211, 0.05);
-  border: 1px solid rgba(212, 222, 238, 0.8);
-  border-radius: 16px;
+  background:
+    radial-gradient(circle at top right, rgba(92, 160, 211, 0.12), transparent 40%),
+    rgba(92, 160, 211, 0.04);
+  border: 1px solid rgba(212, 222, 238, 0.78);
+  border-radius: 18px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 24px;
+  margin-top: 20px;
   padding: 24px;
 }
 
@@ -334,8 +380,8 @@ button:hover {
 }
 
 .calendar-view__day {
-  background: white;
-  border: 1px solid rgba(212, 222, 238, 0.9);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(212, 222, 238, 0.92);
   border-radius: 14px;
   cursor: pointer;
   display: flex;
@@ -395,7 +441,7 @@ button:hover {
 }
 
 .calendar-view__event {
-  background: rgba(92, 160, 211, 0.15);
+  background: rgba(92, 160, 211, 0.14);
   border-radius: 10px;
   color: var(--calendar-primary-dark);
   display: inline-flex;
@@ -425,7 +471,7 @@ button:hover {
 }
 
 .calendar-view__details {
-  border-top: 1px solid rgba(212, 222, 238, 0.6);
+  border-top: 1px solid rgba(212, 222, 238, 0.65);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -462,8 +508,8 @@ button:hover {
 }
 
 .calendar-view__details-item {
-  background: white;
-  border: 1px solid rgba(212, 222, 238, 0.9);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(212, 222, 238, 0.92);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -518,7 +564,8 @@ button:hover {
 }
 
 .event-card {
-  background: rgba(92, 160, 211, 0.08);
+  background: linear-gradient(180deg, rgba(92, 160, 211, 0.1), rgba(255, 255, 255, 0.86));
+  border: 1px solid rgba(212, 222, 238, 0.88);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -562,7 +609,7 @@ button:hover {
 }
 
 .event-card__description {
-  color: #1f2d3d;
+  color: #213041;
   margin: 0;
   white-space: pre-wrap;
 }
@@ -602,7 +649,7 @@ button:hover {
 .create-event-actions {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .create-event-actions button {
@@ -644,12 +691,12 @@ button:hover {
 }
 
 .log {
-  background: rgba(20, 26, 38, 0.75);
+  background: linear-gradient(180deg, rgba(20, 26, 38, 0.92), rgba(20, 26, 38, 0.8));
   border-radius: 14px;
   color: white;
   font-family: 'Poppins', sans-serif;
   font-size: 0.95rem;
-  margin-top: 18px;
+  margin-top: 20px;
   padding: 16px;
   white-space: pre-wrap;
 }
@@ -669,6 +716,18 @@ button:hover {
 
   .calendar-header__subtitle {
     font-size: 1rem;
+  }
+
+  .calendar-header__highlights {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-rail {
+    position: static;
   }
 
   .calendar-view {
@@ -719,6 +778,10 @@ button:hover {
     gap: 20px;
   }
 
+  .panel--primary {
+    padding: 20px 16px;
+  }
+
   .panel {
     padding: 20px 16px;
   }
@@ -726,6 +789,10 @@ button:hover {
   .calendar-header {
     margin-bottom: 28px;
     text-align: left;
+  }
+
+  .calendar-header__highlights {
+    margin-top: 18px;
   }
 
   .calendar-header__title {
