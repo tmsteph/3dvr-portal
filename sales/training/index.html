@@ -62,6 +62,11 @@
     .kpi .box{min-width:160px;padding:12px 14px;border:1px dashed #2a3340;border-radius:12px}
     .checklist label{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed #1a2230}
     .checklist input{transform:translateY(2px)}
+    .queue-item{display:grid;gap:10px;padding:12px 0;border-bottom:1px dashed #1a2230}
+    .queue-item:last-child{border-bottom:0}
+    .queue-item.done{opacity:.66}
+    .queue-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .queue-actions{display:flex;gap:8px;flex-wrap:wrap}
     textarea, input[type="text"], input[type="url"], input[type="number"]{width:100%;background:#0c1015;border:1px solid var(--ring);color:var(--ink);border-radius:12px;padding:10px}
     details{border:1px solid var(--ring);border-radius:12px;margin:8px 0;background:#0d1218}
     details > summary{cursor:pointer;list-style:none;padding:12px 14px}
@@ -247,6 +252,95 @@
     const completed = checks.filter(label => done[label]).length;
     return checks.length ? Math.round((100 * completed) / checks.length) : 0;
   }
+  function getReachoutQueue() {
+    return Array.isArray(STATE.reachoutQueue) ? STATE.reachoutQueue : [];
+  }
+  function setReachoutQueue(next) {
+    STATE.reachoutQueue = next;
+    save();
+  }
+  function renderReachoutQueueCard() {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    function render() {
+      const queue = getReachoutQueue();
+      const active = queue.filter(item => !item.done).length;
+      const done = queue.length - active;
+      const activeLabel = active === 1 ? 'lead' : 'leads';
+
+      let html = `
+        <h3>Today's queue</h3>
+        <p class="muted">Keep the queue small. Add one lead, write one message, and set one next step before you move on.</p>
+        <form data-queue-form class="grid" style="margin-top:12px">
+          <input name="lead" type="text" placeholder="Lead or account" required>
+          <input name="message" type="text" placeholder="Message or angle" required>
+          <input name="next" type="text" placeholder="Next step or follow-up date" required>
+          <button class="btn-ok" type="submit">Add to queue</button>
+        </form>
+        <div class="tiny" style="margin-top:10px">${active} active ${activeLabel}${done ? `, ${done} done` : ''}</div>
+        <div class="queue-list" style="margin-top:12px">`;
+
+      if (!queue.length) {
+        html += '<p class="tiny">No leads in the queue yet.</p>';
+      } else {
+        queue.forEach((item) => {
+          html += `
+            <div class="queue-item ${item.done ? 'done' : ''}">
+              <div>
+                <strong>${item.lead}</strong>
+                <div class="tiny">${item.message}</div>
+              </div>
+              <div class="queue-meta">
+                <span class="pill">${item.next}</span>
+                ${item.done ? '<span class="pill">Done</span>' : '<span class="pill">Active</span>'}
+              </div>
+              <div class="queue-actions">
+                <button type="button" class="btn" data-queue-toggle="${item.id}">${item.done ? 'Reopen' : 'Mark done'}</button>
+                <button type="button" class="btn-warn" data-queue-remove="${item.id}">Remove</button>
+              </div>
+            </div>`;
+        });
+      }
+
+      html += '</div>';
+      card.innerHTML = html;
+
+      const form = card.querySelector('[data-queue-form]');
+      if (form) {
+        form.addEventListener('submit', (event) => {
+          event.preventDefault();
+          const data = new FormData(form);
+          const lead = String(data.get('lead') || '').trim();
+          const message = String(data.get('message') || '').trim();
+          const next = String(data.get('next') || '').trim();
+          if (!lead || !message || !next) return;
+          setReachoutQueue([
+            ...getReachoutQueue(),
+            { id: String(Date.now()), lead, message, next, done: false }
+          ]);
+        });
+      }
+
+      card.querySelectorAll('[data-queue-toggle]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const queue = getReachoutQueue().map((item) => (
+            item.id === button.dataset.queueToggle ? { ...item, done: !item.done } : item
+          ));
+          setReachoutQueue(queue);
+        });
+      });
+
+      card.querySelectorAll('[data-queue-remove]').forEach((button) => {
+        button.addEventListener('click', () => {
+          setReachoutQueue(getReachoutQueue().filter((item) => item.id !== button.dataset.queueRemove));
+        });
+      });
+    }
+
+    render();
+    return card;
+  }
 
   // --- Sidebar ---
   function renderSidebar() {
@@ -403,6 +497,10 @@
       });
       stack.appendChild(list);
       board.appendChild(stack);
+    }
+
+    if (module.id === 'reachout') {
+      board.appendChild(renderReachoutQueueCard());
     }
 
     updateFocusButton();

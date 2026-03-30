@@ -11,6 +11,7 @@ test('sales training leads with the outreach method', async () => {
   assert.match(html, /One lead\. One message\. One follow-up\./);
   assert.match(html, /Reach-Out Method/);
   assert.match(html, /The method/);
+  assert.match(html, /Today's queue/);
   assert.match(html, /Outreach queue/);
   assert.match(html, /Done for the day/);
   assert.match(html, /Lead Capture/);
