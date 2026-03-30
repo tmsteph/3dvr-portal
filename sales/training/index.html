@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>3dvr.tech • Training Model (Hormozi-inspired)</title>
-  <meta name="description" content="A single-file training system to craft offers, generate leads, close sales, deliver value, and retain customers. Inspired by Alex Hormozi’s style—original content, not quotes." />
+  <title>3dvr.tech • Reach-Out Desk</title>
+  <meta name="description" content="A short daily outreach method for contacting leads, tightening the pitch, logging follow-up, and keeping the pipeline clean." />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
   <style>
     :root{
       --bg:#0b0d10; --panel:#12161c; --ink:#e9edf1; --muted:#aeb7c2; --accent:#6ee7ff; --ok:#8cffd3; --warn:#ffd37a; --bad:#ff7a7a;
@@ -83,7 +85,7 @@
         <div class="logo" aria-hidden="true"></div>
         <div>
           <h1>3dvr.tech Training</h1>
-          <div class="muted">Hormozi-inspired, builder-first</div>
+          <div class="muted">One lead. One message. One follow-up.</div>
         </div>
       </div>
       <div class="search">
@@ -106,8 +108,8 @@
             <span aria-hidden="true">›</span>
             <span>Training</span>
           </nav>
-          <div class="muted">Foundation → Offer → Leads → Sales → Delivery → Retention → Flywheel</div>
-          <h2 id="title">Select a module</h2>
+          <div class="muted">Reach-out → Pitch → Follow-up → Pipeline</div>
+          <h2 id="title">Select a step</h2>
         </div>
         <div class="actions">
           <button id="focusToggle" class="btn" type="button">Focus Mode</button>
@@ -127,10 +129,28 @@
     </main>
   </div>
   <script>
-  // --- Simple training data model (inspired by Hormozi principles, original wording) ---
+  // --- Simple training data model (built for daily outreach) ---
   const MODEL = [
-    { id:"pitch", name:"Rapid Pitch System", time:"~20m", items:[
-      {type:"text", title:"Why Start Here", body:"People give you seconds, not minutes. Lead with a one-line promise that ties outcomes to proof and an easy next step."},
+    { id:"reachout", name:"Reach-Out Method", time:"~15m", items:[
+      {type:"text", title:"Start here", body:"Do one real reach-out before you do anything else. The goal is a human touch, a clear next step, and a logged follow-up."},
+      {type:"text", title:"The method", body:"1) Pick one warm lead. 2) Send one short personal message. 3) Ask one clear question. 4) Log the touch in CRM and contacts. 5) Set the next follow-up before you leave."},
+      {type:"form", title:"Outreach queue", fields:[
+        {k:"lead", label:"Lead or account", type:"text"},
+        {k:"source", label:"Where did they come from?", type:"text"},
+        {k:"reason", label:"Why now?", type:"text"},
+        {k:"message", label:"Message draft", type:"text"},
+        {k:"next", label:"Next step / follow-up date", type:"text"}
+      ]},
+      {type:"check", title:"Done for the day", list:[
+        "Picked one lead to contact",
+        "Sent one human message",
+        "Logged the touch in CRM",
+        "Set the next follow-up",
+        "Asked for one clear next step"
+      ]}
+    ]},
+    { id:"pitch", name:"Rapid Pitch System", time:"~15m", items:[
+      {type:"text", title:"Say it in one breath", body:"People give you seconds, not minutes. Lead with a one-line promise that ties outcome to proof and an easy next step."},
       {type:"form", title:"One-Line Pitch", fields:[
         {k:"audience", label:"Audience (who are you speaking to?)", type:"text"},
         {k:"pain", label:"Pain or urgent priority", type:"text"},
@@ -150,141 +170,55 @@
         "Practiced twice with a peer or mirror"
       ]}
     ]},
-    { id:"foundation", name:"0) Foundation & Avatar", time:"~30m", items:[
-      {type:"text", title:"Define One Avatar", body:"Pick one audience you can win for in 90 days. Niche down until your offers become obvious."},
-      {type:"form", title:"Avatar Sketch", fields:[
-        {k:"who", label:"Who are they? (role, stage)", type:"text"},
-        {k:"pains", label:"Top 3 pains/frictions", type:"text"},
-        {k:"dream", label:"Desired outcome in numbers", type:"text"},
-        {k:"where", label:"Where do they hang out? (platforms, groups)", type:"text"}
+    { id:"followup", name:"Follow-Up Loop", time:"~10m", items:[
+      {type:"text", title:"Stay warm", body:"If the answer is not now, set the next step before you close the page. No lead should leave without a date or reason."},
+      {type:"form", title:"Follow-up plan", fields:[
+        {k:"lead", label:"Lead or account", type:"text"},
+        {k:"why", label:"Why are we following up?", type:"text"},
+        {k:"next", label:"Next step", type:"text"},
+        {k:"when", label:"Follow-up date", type:"text"}
       ]},
       {type:"check", title:"Checklist", list:[
-        "Narrowed to one clear avatar",
-        "Defined quantifiable dream outcome",
-        "Listed top frictions and constraints",
-        "Identified watering holes (traffic sources)"
-      ]},
-    ]},
-
-    { id:"offer", name:"1) Grand-Slam Offer (Value Equation)", time:"~45m", items:[
-      {type:"text", title:"Value Equation", body:"Value increases with perceived dream outcome &amp; likelihood of achievement, and decreases with time delay &amp; effort/sacrifice. Design the offer to maximize value without brute-forcing price cuts."},
-      {type:"form", title:"Offer Builder", fields:[
-        {k:"dream", label:"Dream Outcome (specific numbers)", type:"text"},
-        {k:"likelihood", label:"Proof &amp; Mechanisms (why it will work)", type:"text"},
-        {k:"delay", label:"Time to Value (how fast?)", type:"text"},
-        {k:"effort", label:"Effort/Sacrifice removed via done-for-you, templates, or coaching", type:"text"},
-        {k:"bonuses", label:"Stacked Bonuses (deliverables)", type:"text"},
-        {k:"guarantee", label:"Risk Reversal (terms)", type:"text"},
-        {k:"price", label:"Price &amp; Terms (monthly, setup, pay-in-full)", type:"text"}
-      ]},
-      {type:"check", title:"Checklist", list:[
-        "Clear promise and timeline",
-        "3-5 bonuses tied to bottlenecks",
-        "Risk reversal that feels unfair (to you)",
-        "Price linked to value, not cost"
+        "Next step is calendar-bound",
+        "CRM stage is current",
+        "Reply path is clear",
+        "Nothing left in a vague state"
       ]}
     ]},
-
-    { id:"leads", name:"2) Lead Engine (Organic → Paid)", time:"~45m", items:[
-      {type:"text", title:"Daily Inputs", body:"Ship one piece of content, make five direct touches, and one collaboration outreach daily. Compounds faster than waiting for perfect ads."},
-      {type:"form", title:"Lead Magnet", fields:[
-        {k:"hook", label:"Hook (pattern interrupt)", type:"text"},
-        {k:"promise", label:"Result in advance (what do they get?)", type:"text"},
-        {k:"cta", label:"CTA (what action?)", type:"text"},
-        {k:"link", label:"URL (optional)", type:"url"}
-      ]},
-      {type:"check", title:"Checklist", list:[
-        "Setup tracking sheet (inputs, leads, calls)",
-        "Defined 3 content pillars",
-        "Outbound script prepared",
-        "Calendar link live"
-      ]}
-    ]},
-
-    { id:"sales", name:"3) Sales Calls (Diagnose → Prescribe)", time:"~45m", items:[
-      {type:"text", title:"Call Flow", body:"Frame → Probe → Diagnose → Prescribe → Align on consequences → Ask. Stay in control with empathy; sell the outcome, not the tool."},
-      {type:"form", title:"Script Notes", fields:[
-        {k:"opening", label:"Opening frame (agenda, time check)", type:"text"},
-        {k:"probe", label:"Problem &amp; cost probes (numbers)", type:"text"},
-        {k:"prescribe", label:"Prescription (offer mapping)", type:"text"},
-        {k:"objections", label:"Likely objections + resolves", type:"text"}
-      ]},
-      {type:"check", title:"Checklist", list:[
-        "Booked with context (form/DM)",
-        "Disqualified poor fits early",
-        "Quoted price after value recap",
-        "Clear next step (pay or plan)"
-      ]}
-    ]},
-
-    { id:"delivery", name:"4) Delivery &amp; Proof", time:"~30m", items:[
-      {type:"text", title:"Fast Wins", body:"Engineer a 24- to 72-hour quick win to reinforce belief. Capture proof (before/after metrics, testimonials)."},
-      {type:"form", title:"Onboarding", fields:[
-        {k:"kickoff", label:"Kickoff checklist / first tasks", type:"text"},
-        {k:"metrics", label:"North-star metrics &amp; cadence", type:"text"}
-      ]},
-      {type:"check", title:"Checklist", list:[
-        "Client dashboard created",
-        "Quick-win delivered",
-        "Weekly cadence locked",
-        "Proof captured (metrics, quote, video)"
-      ]}
-    ]},
-
-    { id:"retention", name:"5) Retention, Ascension, Referrals", time:"~30m", items:[
-      {type:"text", title:"Keep &amp; Grow", body:"Prevent churn with proactive success calls, roadmap reveals, and milestone celebrations. Invite referrals after wins."},
-      {type:"form", title:"Ascension Plan", fields:[
-        {k:"next", label:"Next-step offers (what &amp; when)", type:"text"},
-        {k:"ref", label:"Referral moment &amp; ask script", type:"text"}
-      ]},
-      {type:"check", title:"Checklist", list:[
-        "Churn reasons logged",
-        "NPS/CSAT touchpoints",
-        "Referral mechanism live",
-        "Case study pipeline"
-      ]}
-    ]},
-
-    { id:"metrics", name:"6) Metrics &amp; Targets", time:"~20m", items:[
-      {type:"text", title:"Simple Funnel Math", body:"Track Inputs → Leads → Calls → Shows → Closes → Revenue → Profit. Improve one constraint at a time."},
-      {type:"kpi", title:"Weekly Snapshot", fields:[
-        {k:"inputs", label:"Content/Outbound inputs", type:"number"},
-        {k:"leads", label:"Leads", type:"number"},
+    { id:"pipeline", name:"Pipeline Hygiene", time:"~10m", items:[
+      {type:"text", title:"Keep the queue clean", body:"The goal is not more tabs. The goal is a pipeline where every active deal has a stage, a note, and a next action."},
+      {type:"kpi", title:"Weekly snapshot", fields:[
+        {k:"touches", label:"Touches sent", type:"number"},
+        {k:"replies", label:"Replies received", type:"number"},
         {k:"calls", label:"Booked calls", type:"number"},
-        {k:"shows", label:"Show rate (%)", type:"number"},
-        {k:"closes", label:"Closed deals", type:"number"},
-        {k:"mrr", label:"MRR ($)", type:"number"}
+        {k:"wins", label:"Closed deals", type:"number"}
+      ]},
+      {type:"check", title:"Checklist", list:[
+        "Every active deal has a next step",
+        "Stale records are archived or revived",
+        "Notes are readable in under 10 seconds",
+        "Open CRM queue is current"
       ]}
     ]}
   ];
 
   const TOOLKIT = {
+    reachout: [
+      { href: '../lead-generation.html', label: 'Lead Capture', desc: 'Use the inbox path that turns interest into a real record.' },
+      { href: '../../crm/index.html', label: 'CRM dashboard', desc: 'Log the touch, stage the deal, and set the next follow-up.' },
+      { href: '../../contacts/index.html', label: 'Contacts workspace', desc: 'Keep the person, relationship, and follow-up context together.' },
+      { href: '../scripts.html', label: 'Scripts & objections', desc: 'Pull the exact talk track needed for the next message or call.' }
+    ],
     pitch: [
       { href: 'marketing.html', label: 'Marketing dashboard', desc: 'Drop the refined pitch into top content slots.' },
-      { href: 'leads.html', label: 'Leads tracker', desc: 'Log outreach reps and note which pitch variant converts.' }
+      { href: '../crm/index.html', label: 'CRM dashboard', desc: 'Use live opportunities to pressure-test the promise.' }
     ],
-    foundation: [
-      { href: '../../contacts/index.html', label: 'Contacts workspace', desc: 'Map real people to your avatar notes.' },
-      { href: 'leads.html', label: 'Leads tracker', desc: 'Pair avatar research with pipeline commitments.' }
+    followup: [
+      { href: '../../crm/index.html', label: 'CRM dashboard', desc: 'Update stage, next step, and ownership while the conversation is current.' },
+      { href: '../../contacts/index.html', label: 'Contacts workspace', desc: 'Keep the person and follow-up history together.' }
     ],
-    offer: [
-      { href: '../../crm/index.html', label: 'CRM dashboard', desc: 'Validate pricing and guarantees against live deals.' }
-    ],
-    leads: [
-      { href: '../../contacts/index.html', label: 'Contacts workspace', desc: 'Segment outreach lists with tags and follow-ups.' },
-      { href: 'marketing.html', label: 'Marketing dashboard', desc: 'Line up campaigns that feed the lead engine.' }
-    ],
-    sales: [
-      { href: '../../crm/index.html', label: 'CRM dashboard', desc: 'Log call outcomes and next steps while momentum is high.' },
-      { href: '../../contacts/index.html', label: 'Contacts workspace', desc: 'Update buyer committees and warm introductions.' }
-    ],
-    delivery: [
-      { href: '../../crm/index.html', label: 'CRM dashboard', desc: 'Track onboarding milestones and proof artifacts.' }
-    ],
-    retention: [
-      { href: '../../contacts/index.html', label: 'Contacts workspace', desc: 'Tag promoters for referral asks and milestone gifts.' }
-    ],
-    metrics: [
+    pipeline: [
+      { href: '../../crm/index.html', label: 'CRM dashboard', desc: 'Audit stale records, queue priorities, and active opportunities.' },
       { href: 'analytics.html', label: 'Analytics & reporting', desc: 'Compare weekly snapshot entries with live dashboards.' }
     ],
     default: [
@@ -295,16 +229,119 @@
   // --- State ---
   const SKEY = 'training.v1';
   const BASE_TITLE = document.title;
+  const GUN_QUEUE_NODE_PATH = ['3dvr-portal', 'sales-training', 'today-queue'];
   let STATE = JSON.parse(localStorage.getItem(SKEY) || '{}');
   let focusMode = localStorage.getItem(`${SKEY}.focus`) === '1';
   let activeModule = localStorage.getItem(`${SKEY}.active`) || null;
+  let trainingGun = null;
+  let reachoutQueueNode = null;
+  let reachoutQueueSnapshot = '';
 
-  function save() {
+  function createTrainingGun() {
+    if (typeof window === 'undefined' || typeof window.Gun !== 'function') {
+      return null;
+    }
+
+    const peers = window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ];
+
+    try {
+      return window.Gun({ peers });
+    } catch (error) {
+      console.warn('Sales training Gun init failed', error);
+      try {
+        return window.Gun({ peers, radisk: false, localStorage: false });
+      } catch (fallbackError) {
+        console.warn('Sales training Gun fallback failed', fallbackError);
+        return null;
+      }
+    }
+  }
+
+  function normalizeQueueEntry(item = {}) {
+    return {
+      id: String(item.id || Date.now()),
+      lead: String(item.lead || '').trim(),
+      message: String(item.message || '').trim(),
+      next: String(item.next || '').trim(),
+      done: Boolean(item.done)
+    };
+  }
+
+  function normalizeQueue(list = []) {
+    return Array.isArray(list)
+      ? list.map(normalizeQueueEntry).filter(item => item.lead && item.message && item.next)
+      : [];
+  }
+
+  function queueSignature(list = []) {
+    return JSON.stringify(normalizeQueue(list));
+  }
+
+  function getReachoutQueue() {
+    return normalizeQueue(STATE.reachoutQueue || []);
+  }
+
+  function persistReachoutQueueToGun() {
+    if (!reachoutQueueNode) {
+      return;
+    }
+
+    reachoutQueueNode.put({
+      items: getReachoutQueue(),
+      updatedAt: new Date().toISOString()
+    }, ack => {
+      if (ack && ack.err) {
+        console.warn('Sales training queue sync failed', ack.err);
+      }
+    });
+  }
+
+  function setReachoutQueue(next, options = {}) {
+    STATE.reachoutQueue = normalizeQueue(next);
+    reachoutQueueSnapshot = queueSignature(STATE.reachoutQueue);
+    save(false);
+    if (!options.fromGun) {
+      persistReachoutQueueToGun();
+    }
+  }
+
+  function hydrateReachoutQueueFromGun() {
+    if (!reachoutQueueNode) {
+      return;
+    }
+
+    const applyRemoteQueue = (data) => {
+      if (!data || !data.updatedAt) {
+        return;
+      }
+
+      const nextQueue = normalizeQueue(data.items || []);
+      const nextSignature = queueSignature(nextQueue);
+      if (nextSignature === reachoutQueueSnapshot) {
+        return;
+      }
+
+      reachoutQueueSnapshot = nextSignature;
+      STATE.reachoutQueue = nextQueue;
+      save(false);
+    };
+
+    reachoutQueueNode.once(applyRemoteQueue);
+    reachoutQueueNode.on(applyRemoteQueue);
+  }
+
+  function save(syncReachoutQueue = false) {
     localStorage.setItem(SKEY, JSON.stringify(STATE));
     renderSidebar();
     if (activeModule) {
       const current = MODEL.find(m => m.id === activeModule);
       if (current) renderOverview(current);
+    }
+    if (syncReachoutQueue) {
+      persistReachoutQueueToGun();
     }
   }
   function pctDone(id) {
@@ -314,6 +351,95 @@
     const done = STATE[id]?.checks || {};
     const completed = checks.filter(label => done[label]).length;
     return checks.length ? Math.round((100 * completed) / checks.length) : 0;
+  }
+  function getQueueSyncLabel() {
+    return reachoutQueueNode ? 'Shared with Gun' : 'Local only';
+  }
+
+  function renderReachoutQueueCard() {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    function render() {
+      const queue = getReachoutQueue();
+      const active = queue.filter(item => !item.done).length;
+      const done = queue.length - active;
+      const activeLabel = active === 1 ? 'lead' : 'leads';
+      const syncLabel = getQueueSyncLabel();
+
+      let html = `
+        <h3>Today's queue</h3>
+        <p class="muted">Keep the queue small. Add one lead, write one message, and set one next step before you move on.</p>
+        <div class="tiny" style="margin-top:8px">${syncLabel} • ${GUN_QUEUE_NODE_PATH.join(' / ')}</div>
+        <form data-queue-form class="grid" style="margin-top:12px">
+          <input name="lead" type="text" placeholder="Lead or account" required>
+          <input name="message" type="text" placeholder="Message or angle" required>
+          <input name="next" type="text" placeholder="Next step or follow-up date" required>
+          <button class="btn-ok" type="submit">Add to queue</button>
+        </form>
+        <div class="tiny" style="margin-top:10px">${active} active ${activeLabel}${done ? `, ${done} done` : ''}</div>
+        <div class="queue-list" style="margin-top:12px">`;
+
+      if (!queue.length) {
+        html += '<p class="tiny">No leads in the queue yet.</p>';
+      } else {
+        queue.forEach((item) => {
+          html += `
+            <div class="queue-item ${item.done ? 'done' : ''}">
+              <div>
+                <strong>${item.lead}</strong>
+                <div class="tiny">${item.message}</div>
+              </div>
+              <div class="queue-meta">
+                <span class="pill">${item.next}</span>
+                ${item.done ? '<span class="pill">Done</span>' : '<span class="pill">Active</span>'}
+              </div>
+              <div class="queue-actions">
+                <button type="button" class="btn" data-queue-toggle="${item.id}">${item.done ? 'Reopen' : 'Mark done'}</button>
+                <button type="button" class="btn-warn" data-queue-remove="${item.id}">Remove</button>
+              </div>
+            </div>`;
+        });
+      }
+
+      html += '</div>';
+      card.innerHTML = html;
+
+      const form = card.querySelector('[data-queue-form]');
+      if (form) {
+        form.addEventListener('submit', (event) => {
+          event.preventDefault();
+          const data = new FormData(form);
+          const lead = String(data.get('lead') || '').trim();
+          const message = String(data.get('message') || '').trim();
+          const next = String(data.get('next') || '').trim();
+          if (!lead || !message || !next) return;
+          setReachoutQueue([
+            ...getReachoutQueue(),
+            { id: String(Date.now()), lead, message, next, done: false }
+          ]);
+          form.reset();
+        });
+      }
+
+      card.querySelectorAll('[data-queue-toggle]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const queue = getReachoutQueue().map((item) => (
+            item.id === button.dataset.queueToggle ? { ...item, done: !item.done } : item
+          ));
+          setReachoutQueue(queue);
+        });
+      });
+
+      card.querySelectorAll('[data-queue-remove]').forEach((button) => {
+        button.addEventListener('click', () => {
+          setReachoutQueue(getReachoutQueue().filter((item) => item.id !== button.dataset.queueRemove));
+        });
+      });
+    }
+
+    render();
+    return card;
   }
 
   // --- Sidebar ---
@@ -357,7 +483,7 @@
     localStorage.setItem(`${SKEY}.active`, id);
     localStorage.setItem(`${SKEY}.opened`, '1');
     document.getElementById('title').textContent = m.name;
-    document.title = `${m.name} • 3dvr Training`;
+    document.title = `${m.name} • Reach-Out Desk`;
     renderOverview(m);
     const root = document.getElementById('content');
     root.innerHTML = '';
@@ -439,7 +565,7 @@
     if (!module) {
       const card = document.createElement('div');
       card.className = 'card';
-      card.innerHTML = '<h3>Pick a module</h3><p class="muted">Choose a stage to see checklists, forms, and linked tools.</p>';
+      card.innerHTML = '<h3>Pick a step</h3><p class="muted">Choose a step to see the checklist, the form, and the tools that keep the deal moving.</p>';
       board.appendChild(card);
       document.title = BASE_TITLE;
       updateFocusButton();
@@ -471,6 +597,10 @@
       });
       stack.appendChild(list);
       board.appendChild(stack);
+    }
+
+    if (module.id === 'reachout') {
+      board.appendChild(renderReachoutQueueCard());
     }
 
     updateFocusButton();
@@ -520,13 +650,13 @@
   function resetProgress() {
     if (confirm('Reset all local progress?')) {
       STATE = {};
-      save();
+      setReachoutQueue([]);
       activeModule = null;
       localStorage.removeItem(`${SKEY}.active`);
       localStorage.removeItem(`${SKEY}.opened`);
       renderSidebar();
       document.getElementById('content').innerHTML = '';
-      document.getElementById('title').textContent = 'Select a module';
+      document.getElementById('title').textContent = 'Select a step';
       renderOverview(null);
       document.title = BASE_TITLE;
       applyFocus();
@@ -545,6 +675,15 @@
   }
 
   // --- Init ---
+  trainingGun = createTrainingGun();
+  if (trainingGun) {
+    window.gun = trainingGun;
+    reachoutQueueNode = trainingGun
+      .get(GUN_QUEUE_NODE_PATH[0])
+      .get(GUN_QUEUE_NODE_PATH[1])
+      .get(GUN_QUEUE_NODE_PATH[2]);
+    hydrateReachoutQueueFromGun();
+  }
   renderSidebar();
   applyFocus();
   const stored = activeModule && MODEL.find(m => m.id === activeModule);
