@@ -314,6 +314,46 @@ body.landing {
   margin-top: 0.75rem;
 }
 
+.plan-ribbon {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  width: min(100%, 760px);
+  margin: 1.15rem auto 0;
+}
+
+.plan-pill {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  text-decoration: none;
+  text-align: left;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.42);
+  color: var(--color-text);
+  box-shadow: 0 24px 60px rgba(4, 9, 20, 0.4);
+  transition: transform var(--transition-base),
+    border-color var(--transition-base),
+    background var(--transition-base);
+}
+
+.plan-pill:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.plan-pill strong {
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.plan-pill span {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
 .cta {
   display: inline-flex;
   align-items: center;
@@ -886,6 +926,10 @@ footer a {
     justify-content: flex-start;
   }
 
+  .plan-ribbon {
+    margin-left: 0;
+  }
+
   .app-hub__header {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
     align-items: end;
@@ -903,6 +947,10 @@ footer a {
 
   .hero-eyebrow {
     width: 100%;
+  }
+
+  .plan-ribbon {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .app-hub__header {
