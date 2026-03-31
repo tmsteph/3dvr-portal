@@ -66,11 +66,24 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - If server code under `api/` changes, start the dev server (`npm run dev`) to confirm it boots cleanly.
 - Document manual walkthroughs for UX-impacting changes, including cache clears and cross-browser GunJS resilience.
 
+## Debian `proot` On Android
+- When Linux-only tooling is flaky or unsupported in native Termux, switch early to Debian `proot` instead of fighting the Android environment.
+- Standard setup:
+  - `pkg install proot-distro`
+  - `proot-distro install debian`
+  - `proot-distro login debian`
+- Prefer the repo wrappers when they exist instead of inventing one-off Debian commands.
+- Typical triggers for Debian `proot` in this repo:
+  - Playwright or browser automation
+  - Linux-native CLI dependencies that fail under Termux
+  - Toolchains that expect a standard glibc userland
+
 ## Playwright On Termux
 - Do not run Playwright browser tests directly in native Termux with `node --test` because browsers are unsupported there.
 - On Android/Termux, always use the proot wrapper scripts so tests run inside Debian:
   - `npm run playwright:e2e`
   - `npm run playwright:smoke`
   - `npm run playwright:verify`
+- These commands already route through `scripts/playwright/run-in-linux.sh`, which logs into Debian `proot` for you.
 - If proot is missing, install it with `pkg install proot-distro` then `proot-distro install debian`.
 - If you need a specific script, route it through `scripts/playwright/run-in-linux.sh <npm-script-name>`.
