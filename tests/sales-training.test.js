@@ -17,6 +17,9 @@ test('sales training keeps the active step in the center workspace', async () =>
   assert.match(html, /Shared with Gun/);
   assert.match(html, /Today's queue/);
   assert.match(html, /today-queue/);
+  assert.match(html, /data-queue-sync-status/);
+  assert.match(html, /Queue sync failed\. Local copy kept on this device\./);
+  assert.match(html, /Shared with Gun\. Last synced/);
   assert.match(html, /itemsJson: serializeQueueForGun\(getReachoutQueue\(\)\)/);
   assert.match(html, /const rawJson = typeof data\.itemsJson === 'string' \? data\.itemsJson\.trim\(\) : ''/);
   assert.match(html, /Lead Capture/);

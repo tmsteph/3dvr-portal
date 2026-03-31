@@ -97,6 +97,12 @@
     .queue-item.done{opacity:.66}
     .queue-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .queue-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .queue-sync-status{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#0d1218}
+    .queue-sync-status--ok{border-color:#1f6f5e;background:#0f2622;color:var(--ok)}
+    .queue-sync-status--error{border-color:#6d2424;background:#261010;color:var(--bad)}
+    .queue-sync-status--syncing{border-color:#1f4b62;background:#0d1b25;color:var(--accent)}
+    .queue-sync-status--idle,
+    .queue-sync-status--local{color:var(--muted)}
     textarea, input[type="text"], input[type="url"], input[type="number"]{width:100%;background:#0c1015;border:1px solid var(--ring);color:var(--ink);border-radius:12px;padding:10px}
     details{border:1px solid var(--ring);border-radius:12px;margin:8px 0;background:#0d1218}
     details > summary{cursor:pointer;list-style:none;padding:12px 14px}
@@ -280,6 +286,9 @@
   let reachoutQueueNode = null;
   let touchLogRoot = null;
   let reachoutQueueSnapshot = '';
+  let reachoutQueueSyncState = 'local';
+  let reachoutQueueSyncMessage = 'Local only. Queue stays on this device until Gun is available.';
+  let reachoutQueueSyncedAt = '';
 
   function createTrainingGun() {
     if (typeof window === 'undefined' || typeof window.Gun !== 'function') {
@@ -357,6 +366,77 @@
     return normalizeQueue(Array.isArray(data.items) ? data.items : []);
   }
 
+  function formatQueueSyncTime(value = '') {
+    if (!value) {
+      return '';
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return '';
+    }
+    return parsed.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function getQueueSyncStatus() {
+    if (!reachoutQueueNode) {
+      return {
+        state: 'local',
+        text: 'Local only. Queue stays on this device until Gun is available.'
+      };
+    }
+
+    if (reachoutQueueSyncState === 'error') {
+      return {
+        state: 'error',
+        text: reachoutQueueSyncMessage || 'Queue sync failed. Local copy kept on this device.'
+      };
+    }
+
+    if (reachoutQueueSyncState === 'syncing') {
+      return {
+        state: 'syncing',
+        text: reachoutQueueSyncMessage || 'Syncing shared queue with Gun…'
+      };
+    }
+
+    if (reachoutQueueSyncedAt) {
+      const time = formatQueueSyncTime(reachoutQueueSyncedAt);
+      return {
+        state: 'ok',
+        text: time
+          ? `Shared with Gun. Last synced ${time}.`
+          : 'Shared with Gun. Queue sync is healthy.'
+      };
+    }
+
+    return {
+      state: 'idle',
+      text: reachoutQueueSyncMessage || 'Shared with Gun. Ready to sync.'
+    };
+  }
+
+  function updateQueueSyncUi(root = document) {
+    const syncLabel = `${getQueueSyncLabel()} • ${GUN_QUEUE_NODE_PATH.join(' / ')}`;
+    const status = getQueueSyncStatus();
+
+    root.querySelectorAll('[data-queue-sync-mode]').forEach((node) => {
+      node.textContent = syncLabel;
+    });
+
+    root.querySelectorAll('[data-queue-sync-status]').forEach((node) => {
+      node.dataset.state = status.state;
+      node.className = `queue-sync-status queue-sync-status--${status.state}`;
+      node.textContent = status.text;
+    });
+  }
+
+  function setQueueSyncState({ state = 'idle', message = '', syncedAt = '' } = {}) {
+    reachoutQueueSyncState = state;
+    reachoutQueueSyncMessage = message;
+    reachoutQueueSyncedAt = syncedAt;
+    updateQueueSyncUi();
+  }
+
   function persistReachoutQueueToGun() {
     if (!reachoutQueueNode) {
       return;
@@ -368,7 +448,17 @@
     }, ack => {
       if (ack && ack.err) {
         console.warn('Sales training queue sync failed', ack.err);
+        setQueueSyncState({
+          state: 'error',
+          message: 'Queue sync failed. Local copy kept on this device.'
+        });
+        return;
       }
+
+      setQueueSyncState({
+        state: 'ok',
+        syncedAt: new Date().toISOString()
+      });
     });
   }
 
@@ -376,6 +466,23 @@
     STATE.reachoutQueue = normalizeQueue(next);
     reachoutQueueSnapshot = queueSignature(STATE.reachoutQueue);
     save(false);
+    if (options.fromGun) {
+      setQueueSyncState({
+        state: reachoutQueueNode ? 'ok' : 'local',
+        syncedAt: options.updatedAt || reachoutQueueSyncedAt,
+        message: reachoutQueueNode ? 'Shared queue loaded from Gun.' : 'Local only.'
+      });
+    } else if (reachoutQueueNode) {
+      setQueueSyncState({
+        state: 'syncing',
+        message: 'Syncing shared queue with Gun…'
+      });
+    } else {
+      setQueueSyncState({
+        state: 'local',
+        message: 'Local only. Queue stays on this device until Gun is available.'
+      });
+    }
     if (!options.fromGun) {
       persistReachoutQueueToGun();
     }
@@ -394,12 +501,22 @@
       const nextQueue = parseQueueFromGun(data);
       const nextSignature = queueSignature(nextQueue);
       if (nextSignature === reachoutQueueSnapshot) {
+        setQueueSyncState({
+          state: 'ok',
+          syncedAt: data.updatedAt || reachoutQueueSyncedAt,
+          message: 'Shared queue loaded from Gun.'
+        });
         return;
       }
 
       reachoutQueueSnapshot = nextSignature;
       STATE.reachoutQueue = nextQueue;
       save(false);
+      setQueueSyncState({
+        state: 'ok',
+        syncedAt: data.updatedAt || '',
+        message: 'Shared queue loaded from Gun.'
+      });
     };
 
     reachoutQueueNode.once(applyRemoteQueue);
@@ -485,7 +602,8 @@
       let html = `
         <h3>Today's queue</h3>
         <p class="muted">Keep the queue small. Add one lead, write one message, and set one next step before you move on.</p>
-        <div class="tiny" style="margin-top:8px">${syncLabel} • ${GUN_QUEUE_NODE_PATH.join(' / ')}</div>
+        <div class="tiny" style="margin-top:8px" data-queue-sync-mode>${syncLabel} • ${GUN_QUEUE_NODE_PATH.join(' / ')}</div>
+        <div class="queue-sync-status queue-sync-status--${getQueueSyncStatus().state}" data-queue-sync-status data-state="${getQueueSyncStatus().state}">${getQueueSyncStatus().text}</div>
         <form data-queue-form class="grid" style="margin-top:12px">
           <input name="lead" type="text" placeholder="Lead or account" required>
           <input name="message" type="text" placeholder="Message or angle" required>
@@ -521,6 +639,7 @@
 
       html += '</div>';
       card.innerHTML = html;
+      updateQueueSyncUi(card);
 
       const form = card.querySelector('[data-queue-form]');
       if (form) {
@@ -835,6 +954,15 @@
       .get(TOUCH_LOG_NODE_PATH[0])
       .get(TOUCH_LOG_NODE_PATH[1]);
     hydrateReachoutQueueFromGun();
+    setQueueSyncState({
+      state: 'idle',
+      message: 'Shared with Gun. Ready to sync.'
+    });
+  } else {
+    setQueueSyncState({
+      state: 'local',
+      message: 'Local only. Queue stays on this device until Gun is available.'
+    });
   }
   renderSidebar();
   applyFocus();
