@@ -15,6 +15,8 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
   assert.match(researchHtml, /interviewSprintStatus/);
   assert.match(researchHtml, /interviewLogList/);
   assert.match(researchHtml, /interviewSprintBar/);
+  assert.match(researchHtml, /interviewMinimumStatus/);
+  assert.match(researchHtml, /data-interview-minimum="professional-services"/);
   assert.match(researchHtml, /Live Segment Scoreboard/);
   assert.match(researchHtml, /Watch which segment actually moves in CRM/);
   assert.match(researchHtml, /Reply and win counts come from the shared CRM touch log, not from status guesses\./);
@@ -29,6 +31,8 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
   assert.match(researchJs, /closed-won/);
   assert.match(researchJs, /itemsJson: serializeQueueForGun\(currentQueue\)/);
   assert.match(researchJs, /itemsJson: serializeInterviewsForGun\(currentInterviews\)/);
+  assert.match(researchJs, /const minimumSlots = \[/);
+  assert.match(researchJs, /document\.querySelector\(`\[data-interview-minimum="\$\{item\.key\}"\]`\)/);
   assert.match(researchJs, /const rawJson = typeof data\.itemsJson === 'string' \? data\.itemsJson\.trim\(\) : ''/);
   assert.match(researchJs, /data-queue-playbook-id/);
   assert.match(researchJs, /data-interview-remove-id/);
