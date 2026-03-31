@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
-  <script defer src="/sales/scoreboard.js"></script>
+  <script defer type="module" src="/sales/scoreboard.js"></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -56,10 +56,10 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div class="space-y-3">
             <p id="weekLabel" class="text-xs uppercase tracking-[0.3em] text-amber-300">Week of March 30, 2026</p>
-            <h2 class="text-2xl font-semibold">See the week in one screen.</h2>
+            <h2 class="text-2xl font-semibold">Overview</h2>
             <p class="text-sm text-slate-300 max-w-2xl">
-              Outreach, replies, wins, and queue load come from the shared CRM touch log and reach-out desk. Paid
-              counts, deposits, and weekly focus stay in a manual ledger so the business reality stays visible.
+              Outreach, replies, wins, and queue load come from the shared CRM touch log and reach-out desk. Subscriber
+              counts come from billing and finance sync. Only goals, deposits, cash, and weekly focus stay manual.
             </p>
           </div>
           <div class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 min-w-[240px]">
@@ -72,6 +72,11 @@
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 shadow-lg">
+            <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Finance signal</p>
+            <p class="mt-3 text-3xl font-semibold text-amber-200" data-live-metric="stripeSubscribers">0</p>
+            <p class="mt-2 text-sm text-slate-300">Active Stripe subscribers</p>
+          </article>
           <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 shadow-lg">
             <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Live week</p>
             <p class="mt-3 text-3xl font-semibold text-amber-300" data-live-metric="outreach">0</p>
@@ -98,19 +103,19 @@
             <p class="mt-2 text-sm text-slate-300">Deposits closed</p>
           </article>
           <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 shadow-lg">
-            <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Paid base</p>
+            <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Portal-linked paid base</p>
             <p class="mt-3 text-3xl font-semibold text-slate-100" data-live-metric="builderCustomers">0</p>
-            <p class="mt-2 text-sm text-slate-300">Active Builder</p>
+            <p class="mt-2 text-sm text-slate-300">Builder accounts</p>
           </article>
           <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 shadow-lg">
-            <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Paid base</p>
+            <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Portal-linked paid base</p>
             <p class="mt-3 text-3xl font-semibold text-slate-100" data-live-metric="embeddedCustomers">0</p>
-            <p class="mt-2 text-sm text-slate-300">Active Embedded</p>
+            <p class="mt-2 text-sm text-slate-300">Embedded accounts</p>
           </article>
           <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 shadow-lg">
             <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Recurring estimate</p>
             <p class="mt-3 text-3xl font-semibold text-emerald-200" data-live-metric="mrr">$0</p>
-            <p class="mt-2 text-sm text-slate-300">Builder MRR + Embedded MRR</p>
+            <p class="mt-2 text-sm text-slate-300">Linked Builder MRR + Linked Embedded MRR</p>
           </article>
         </div>
       </article>
@@ -126,6 +131,9 @@
         <div class="rounded-xl border border-white/5 bg-slate-950/80 p-4">
           <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Data status</p>
           <p id="liveDataStatus" class="mt-2 text-sm text-slate-300">Checking shared CRM touches and the reach-out queue…</p>
+          <p id="subscriberSourceNote" class="mt-2 text-xs text-slate-500">
+            Builder and Embedded counts come from portal-linked billing records. Total active subscribers come from finance Stripe metrics.
+          </p>
         </div>
         <div class="space-y-3">
           <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Quick actions</p>
@@ -168,8 +176,8 @@
             <p class="text-xs uppercase tracking-[0.3em] text-amber-300">Weekly ledger</p>
             <h2 class="text-xl font-semibold mt-2">Save the numbers you do not get from the touch log.</h2>
             <p class="mt-2 text-sm text-slate-300 max-w-2xl">
-              This is the manual layer for the roadmap: goals, current paid accounts, closed deposits, cash collected,
-              and the one product, revenue, and system move for the week.
+              This is the manual layer for the roadmap: goals, closed deposits, cash collected, and the one product,
+              revenue, and system move for the week.
             </p>
           </div>
           <button
@@ -199,15 +207,7 @@
             </label>
           </div>
 
-          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <label class="block">
-              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Active Builder</span>
-              <input id="builderCustomers" name="builderCustomers" type="number" min="0" class="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-100" />
-            </label>
-            <label class="block">
-              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Active Embedded</span>
-              <input id="embeddedCustomers" name="embeddedCustomers" type="number" min="0" class="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-100" />
-            </label>
+          <div class="grid gap-4 md:grid-cols-2">
             <label class="block">
               <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Deposits closed</span>
               <input id="depositCount" name="depositCount" type="number" min="0" class="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-100" />
@@ -279,12 +279,16 @@
         <div class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 space-y-3">
           <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Revenue math</p>
           <div class="flex items-center justify-between gap-3 text-sm text-slate-300">
-            <span>Builder MRR</span>
+            <span>Linked Builder MRR</span>
             <span id="builderMrrValue">$0</span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm text-slate-300">
-            <span>Embedded MRR</span>
+            <span>Linked Embedded MRR</span>
             <span id="embeddedMrrValue">$0</span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm text-slate-300">
+            <span>Active Stripe subscribers</span>
+            <span id="stripeSubscriberValue">0</span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm text-slate-100">
             <span>Cash collected this week</span>
