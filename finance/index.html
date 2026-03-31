@@ -106,6 +106,9 @@
         <p id="profitability-status" class="finance-helper" role="status" aria-live="polite">
           Linked paid accounts and Stripe subscriber totals will sync shortly.
         </p>
+        <p id="profitability-sync-meta" class="finance-helper">
+          Stripe totals, customer summaries, and billing links will show their latest sync times here.
+        </p>
         <dl class="finance-summary__grid">
           <div class="finance-summary__stat">
             <dt>Active Stripe subscribers</dt>
@@ -133,6 +136,8 @@
           </div>
         </dl>
         <div class="finance-card__actions">
+          <button id="profitability-refresh-totals" type="button" class="finance-button">Refresh Stripe totals</button>
+          <button id="profitability-refresh-customers" type="button" class="finance-button finance-button--secondary">Refresh customer summaries</button>
           <a href="../sales/scoreboard.html" class="finance-button finance-button--secondary">Open profitability desk</a>
           <a href="../billing/index.html" class="finance-button finance-button--secondary">Open billing</a>
         </div>
