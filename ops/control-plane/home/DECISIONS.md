@@ -12,3 +12,9 @@
 - Codex should prefer proactive execution and durable systems over repeated clarifying loops.
 - Core repos should carry mirrored copies of the control plane so the context follows across devices where `~/` may differ.
 - Core repos should include a restore script so any one of them can seed `~/` on a new device.
+
+## 2026-03-31
+- For 3DVR, `Free`, `$5`, and `$20` are acquisition and bridge lanes; the main revenue engine is `Builder`, `Embedded`, and scoped one-time work.
+- The best near-term profitability wedge is owner-led service businesses, professional services, and small support teams with lead-follow-up and operating-rhythm pain.
+- Confused individuals remain an important acquisition audience, but the paid GTM center is small operators and teams with real revenue and coordination pain.
+- Market-facing copy should lead with concrete outcomes like leads, follow-up, scheduling, payments, and weekly rhythm before introducing internal product names.
