@@ -28,7 +28,10 @@ describe('email operator hub', () => {
     assert.match(html, /id="notes-editor"/);
     assert.match(html, /id="operator-prompt"/);
     assert.match(html, /data-filter="approval"/);
-    assert.match(html, /data-operator-action="approve-send"/);
+    assert.match(html, /data-operator-action="open-mail"/);
+    assert.match(html, /data-operator-action="mark-sent"/);
+    assert.match(html, /Open mail draft/);
+    assert.match(html, /Mark sent \+ log touch/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="\.\.\/auth-identity\.js"/);
     assert.match(html, /<script[^>]+src="\.\.\/score\.js"/);
@@ -67,8 +70,14 @@ describe('email operator hub', () => {
     assert.match(js, /get\('operators'\)\.get\(state\.operator\.key\)/);
     assert.match(js, /threadsNode\.map\(\)\.on/);
     assert.match(js, /seedOperatorThreads/);
+    assert.match(js, /importQueryThreadIfNeeded/);
     assert.match(js, /generateDraftTemplate/);
+    assert.match(js, /buildImportedThread/);
+    assert.match(js, /buildMailtoHref/);
+    assert.match(js, /logOutreachTouch/);
     assert.match(js, /buildWorkbenchPrompt/);
     assert.match(js, /3dvr-portal\/emailOperator\/operators/);
+    assert.match(js, /portalRoot\.get\('crm-touch-log'\)/);
+    assert.match(js, /gun\.get\('3dvr-crm'\)/);
   });
 });
