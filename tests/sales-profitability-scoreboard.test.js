@@ -19,6 +19,10 @@ test('profitability desk ties the roadmap to the live sales system', async () =>
   assert.match(scoreboardHtml, /Overview/);
   assert.match(scoreboardHtml, /Subscriber\s+counts come from billing and finance sync/);
   assert.match(scoreboardHtml, /Active Stripe subscribers/);
+  assert.match(scoreboardHtml, /Some paid accounts are not linked inside the portal yet\./);
+  assert.match(scoreboardHtml, /Refresh Stripe totals/);
+  assert.match(scoreboardHtml, /Open admin Stripe/);
+  assert.match(scoreboardHtml, /Open billing recovery/);
   assert.match(scoreboardHtml, /data-live-metric="outreach"/);
   assert.match(scoreboardHtml, /data-live-metric="stripeSubscribers"/);
   assert.match(scoreboardHtml, /data-live-metric="replies"/);
@@ -51,6 +55,9 @@ test('profitability desk ties the roadmap to the live sales system', async () =>
   assert.match(scoreboardJs, /summarizeLinkedBilling/);
   assert.match(scoreboardJs, /normalizeUsageTierRecord/);
   assert.match(scoreboardJs, /stripeSubscribers/);
+  assert.match(scoreboardJs, /async function refreshStripeTotals\(\)/);
+  assert.match(scoreboardJs, /fetch\('\/api\/stripe\/metrics'\)/);
+  assert.match(scoreboardJs, /refreshStripeTotalsButton\?\.addEventListener\('click', refreshStripeTotals\)/);
   assert.match(scoreboardJs, /Shared weekly ledger saved for/);
 
   assert.match(scoreboardDataJs, /export function summarizeLinkedBilling/);

@@ -24,6 +24,9 @@ const planSyncStatus = document.getElementById('planSyncStatus');
 const focusList = document.getElementById('focusList');
 const weeklyPlanForm = document.getElementById('weeklyPlanForm');
 const savePlanButton = document.getElementById('savePlanButton');
+const linkGapCard = document.getElementById('linkGapCard');
+const linkGapStatus = document.getElementById('linkGapStatus');
+const refreshStripeTotalsButton = document.getElementById('refreshStripeTotalsButton');
 const builderMrrValue = document.getElementById('builderMrrValue');
 const embeddedMrrValue = document.getElementById('embeddedMrrValue');
 const stripeSubscriberValue = document.getElementById('stripeSubscriberValue');
@@ -57,6 +60,7 @@ let billingUsageTierIndex = Object.create(null);
 let stripeMetricsState = normalizeStripeMetricsRecord();
 let queueLoaded = false;
 let touchLogLoaded = false;
+let refreshStripeTotalsInFlight = false;
 
 // Shared node shapes:
 // - gun.get('3dvr-portal').get('sales-training').get('today-queue') => { itemsJson, updatedAt }
@@ -233,6 +237,7 @@ function getLiveMetrics(plan = weeklyPlan) {
     linkedPaidCustomers: linkedCounts.linkedPaidCustomers,
     builderCustomers: linkedCounts.builderCustomers,
     embeddedCustomers: linkedCounts.embeddedCustomers,
+    linkGap: Math.max(0, stripeMetricsState.activeSubscribers - linkedCounts.linkedPaidCustomers),
     mrr: estimatedMrr,
     cashCollected: plan.weeklyCashCollected,
   };
@@ -460,6 +465,20 @@ function renderPlanStatus(message) {
   }
 }
 
+function renderLinkGap(metrics) {
+  if (!linkGapCard || !linkGapStatus) {
+    return;
+  }
+
+  if (metrics.linkGap > 0) {
+    linkGapCard.hidden = false;
+    linkGapStatus.textContent = `Stripe shows ${metrics.stripeSubscribers} active subscriber${metrics.stripeSubscribers === 1 ? '' : 's'}, but portal billing only shows ${metrics.linkedPaidCustomers} linked paid account${metrics.linkedPaidCustomers === 1 ? '' : 's'}. Refresh the Stripe totals, then recover the missing account link${metrics.linkGap === 1 ? '' : 's'}.`;
+    return;
+  }
+
+  linkGapCard.hidden = true;
+}
+
 function renderAll() {
   const metrics = getLiveMetrics();
   const stage = getRoadmapStage(metrics, weeklyPlan);
@@ -499,6 +518,7 @@ function renderAll() {
   }
 
   renderFocusItems(buildFocusItems(metrics, weeklyPlan));
+  renderLinkGap(metrics);
 
   if (priorityNote) {
     if (metrics.stripeSubscribers > metrics.linkedPaidCustomers) {
@@ -515,6 +535,68 @@ function renderAll() {
   }
 
   renderDataStatus();
+}
+
+async function refreshStripeTotals() {
+  if (refreshStripeTotalsInFlight) {
+    return;
+  }
+
+  refreshStripeTotalsInFlight = true;
+  if (refreshStripeTotalsButton) {
+    refreshStripeTotalsButton.disabled = true;
+    refreshStripeTotalsButton.textContent = 'Refreshing…';
+  }
+  if (linkGapStatus) {
+    linkGapStatus.textContent = 'Refreshing live Stripe totals from the API…';
+  }
+
+  try {
+    const response = await fetch('/api/stripe/metrics');
+    if (!response.ok) {
+      throw new Error(`Stripe API responded with ${response.status}`);
+    }
+
+    const payload = await response.json();
+    stripeMetricsState = normalizeStripeMetricsRecord({
+      activeSubscribers: payload.activeSubscribers,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (stripeMetricsNode && typeof stripeMetricsNode.put === 'function') {
+      stripeMetricsNode.put({
+        available: payload.available || {},
+        pending: payload.pending || {},
+        activeSubscribers: stripeMetricsState.activeSubscribers,
+        updatedAt: stripeMetricsState.updatedAt,
+      }, ack => {
+        if (ack && ack.err) {
+          console.warn('Failed to persist refreshed stripe metrics', ack.err);
+        }
+      });
+    }
+
+    renderAll();
+    if (linkGapStatus) {
+      const metrics = getLiveMetrics();
+      if (metrics.linkGap > 0) {
+        linkGapStatus.textContent = `Refreshed live totals. ${metrics.linkGap} paid account${metrics.linkGap === 1 ? '' : 's'} still need portal billing links.`;
+      } else {
+        linkGapStatus.textContent = 'Refreshed live totals. Finance and portal billing are aligned right now.';
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to refresh stripe totals from profitability desk', error);
+    if (linkGapStatus) {
+      linkGapStatus.textContent = `Unable to refresh Stripe totals: ${error.message}`;
+    }
+  } finally {
+    refreshStripeTotalsInFlight = false;
+    if (refreshStripeTotalsButton) {
+      refreshStripeTotalsButton.disabled = false;
+      refreshStripeTotalsButton.textContent = 'Refresh Stripe totals';
+    }
+  }
 }
 
 function hydrateQueueFromLocal() {
@@ -697,6 +779,7 @@ function init() {
   });
 
   savePlanButton?.addEventListener('click', saveWeeklyPlan);
+  refreshStripeTotalsButton?.addEventListener('click', refreshStripeTotals);
 }
 
 init();
