@@ -48,6 +48,8 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Build mobile-first layouts that adapt gracefully to all screen sizes, including ultra-wide and VR displays.
 - Use semantic HTML, accessible labels, and keyboard-friendly interactions.
 - Favor calm, intuitive experiences with ergonomic spacing and clear visual hierarchy.
+- Use `3dvr.tech@gmail.com` as the canonical 3DVR contact email in CTAs, support copy, and public-facing docs.
+- Do not introduce `hello@3dvr.tech`.
 
 ## Formatting
 - Use two spaces for indentation in HTML, CSS, JavaScript, and JSON.
