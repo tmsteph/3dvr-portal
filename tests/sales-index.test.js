@@ -13,6 +13,8 @@ test('sales index leads with the revenue close section', async () => {
   assert.match(html, /Ask Embedded/);
   assert.match(html, /Open billing/);
   assert.match(html, /Sales Training/);
+  assert.match(html, /Profitability Desk/);
+  assert.match(html, /Open profitability desk/);
 
   assert.ok(
     html.indexOf('Today&apos;s close') < html.indexOf('Sales Guidance'),
