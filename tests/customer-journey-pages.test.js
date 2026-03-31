@@ -6,22 +6,24 @@ describe('portal customer journey pages', () => {
   it('gives the portal home a clear concrete entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
     assert.match(html, /Get in, get moving\./);
-    assert.match(html, /Pick one lane: daily direction, a support group, or a launch path\./);
+    assert.match(html, /Pick one lane and keep the rest out of the way\./);
     assert.match(html, /Daily direction/);
     assert.match(html, /Support group/);
     assert.match(html, /Start your thing/);
-    assert.match(html, /View paid plans/);
     assert.match(html, /Get started/);
     assert.match(html, /Family &amp; Friends/);
     assert.match(html, /Builder/);
-    assert.match(html, /Start in one tap/);
-    assert.match(html, /Pick the lane that matches the problem right now\./);
+    assert.match(html, /Jump into the right lane/);
     assert.match(html, /Daily Direction/);
     assert.match(html, /Life: 3-minute check-in and one clear next step\./);
     assert.match(html, /Support Group/);
     assert.match(html, /Cell: small-group accountability and weekly momentum\./);
     assert.match(html, /Start Your Thing/);
     assert.match(html, /Start Here: tools and paid help for a project, offer, or business\./);
+    assert.match(html, /Search the dock/);
+    assert.match(html, /App dock/);
+    assert.match(html, /data-app-list/);
+    assert.match(html, /shortcut-grid/);
   });
 
   it('keeps the free trial page tied to the portal account journey', async () => {
