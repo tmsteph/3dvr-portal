@@ -21,8 +21,10 @@ test('profitability desk ties the roadmap to the live sales system', async () =>
   assert.match(scoreboardHtml, /Active Stripe subscribers/);
   assert.match(scoreboardHtml, /Some paid accounts are not linked inside the portal yet\./);
   assert.match(scoreboardHtml, /Refresh Stripe totals/);
+  assert.match(scoreboardHtml, /Refresh customer summaries/);
   assert.match(scoreboardHtml, /Open admin Stripe/);
   assert.match(scoreboardHtml, /Open billing recovery/);
+  assert.match(scoreboardHtml, /id="liveSyncTimestamps"/);
   assert.match(scoreboardHtml, /data-live-metric="outreach"/);
   assert.match(scoreboardHtml, /data-live-metric="stripeSubscribers"/);
   assert.match(scoreboardHtml, /data-live-metric="replies"/);
@@ -45,19 +47,26 @@ test('profitability desk ties the roadmap to the live sales system', async () =>
   assert.doesNotMatch(scoreboardHtml, /id="embeddedCustomers"/);
 
   assert.match(scoreboardJs, /from '\.\/scoreboard-data\.js'/);
+  assert.match(scoreboardJs, /from '\.\.\/finance\/stripe-sync\.js'/);
   assert.match(scoreboardJs, /const GUN_QUEUE_NODE_PATH = \['3dvr-portal', 'sales-training', 'today-queue'\]/);
   assert.match(scoreboardJs, /const TOUCH_LOG_NODE_PATH = \['3dvr-portal', 'crm-touch-log'\]/);
   assert.match(scoreboardJs, /const BILLING_USAGE_TIER_NODE_PATH = \['3dvr-portal', 'billing', 'usageTier'\]/);
   assert.match(scoreboardJs, /const STRIPE_METRICS_NODE_PATH = \['3dvr-portal', 'finance', 'stripe', 'metrics', 'latest'\]/);
+  assert.match(scoreboardJs, /const STRIPE_CUSTOMERS_NODE_PATH = \['3dvr-portal', 'finance', 'stripeCustomers'\]/);
   assert.match(scoreboardJs, /const SCOREBOARD_NODE_PATH = \['3dvr-portal', 'sales-scoreboard', 'weekly'\]/);
   assert.match(scoreboardJs, /reply-received/);
   assert.match(scoreboardJs, /closed-won/);
   assert.match(scoreboardJs, /summarizeLinkedBilling/);
   assert.match(scoreboardJs, /normalizeUsageTierRecord/);
+  assert.match(scoreboardJs, /normalizeStripeCustomerRecord/);
+  assert.match(scoreboardJs, /formatSyncTimestamp/);
+  assert.match(scoreboardJs, /syncStripeCustomerSummaries/);
   assert.match(scoreboardJs, /stripeSubscribers/);
   assert.match(scoreboardJs, /async function refreshStripeTotals\(\)/);
+  assert.match(scoreboardJs, /async function refreshStripeCustomers\(\)/);
   assert.match(scoreboardJs, /fetch\('\/api\/stripe\/metrics'\)/);
   assert.match(scoreboardJs, /refreshStripeTotalsButton\?\.addEventListener\('click', refreshStripeTotals\)/);
+  assert.match(scoreboardJs, /refreshStripeCustomersButton\?\.addEventListener\('click', refreshStripeCustomers\)/);
   assert.match(scoreboardJs, /Shared weekly ledger saved for/);
 
   assert.match(scoreboardDataJs, /export function summarizeLinkedBilling/);

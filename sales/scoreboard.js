@@ -6,6 +6,12 @@ import {
   normalizeWeeklyPlan,
   summarizeLinkedBilling,
 } from './scoreboard-data.js';
+import {
+  formatSyncTimestamp,
+  getLatestRecordUpdatedAt,
+  normalizeStripeCustomerRecord,
+  syncStripeCustomerSummaries,
+} from '../finance/stripe-sync.js';
 
 const LOCAL_SCOREBOARD_KEY = 'sales-scoreboard.v1';
 const LOCAL_TRAINING_STATE_KEY = 'training.v1';
@@ -13,6 +19,7 @@ const GUN_QUEUE_NODE_PATH = ['3dvr-portal', 'sales-training', 'today-queue'];
 const TOUCH_LOG_NODE_PATH = ['3dvr-portal', 'crm-touch-log'];
 const BILLING_USAGE_TIER_NODE_PATH = ['3dvr-portal', 'billing', 'usageTier'];
 const STRIPE_METRICS_NODE_PATH = ['3dvr-portal', 'finance', 'stripe', 'metrics', 'latest'];
+const STRIPE_CUSTOMERS_NODE_PATH = ['3dvr-portal', 'finance', 'stripeCustomers'];
 const SCOREBOARD_NODE_PATH = ['3dvr-portal', 'sales-scoreboard', 'weekly'];
 
 const weekLabel = document.getElementById('weekLabel');
@@ -20,6 +27,7 @@ const roadmapStage = document.getElementById('roadmapStage');
 const roadmapStageNote = document.getElementById('roadmapStageNote');
 const priorityNote = document.getElementById('priorityNote');
 const liveDataStatus = document.getElementById('liveDataStatus');
+const liveSyncTimestamps = document.getElementById('liveSyncTimestamps');
 const planSyncStatus = document.getElementById('planSyncStatus');
 const focusList = document.getElementById('focusList');
 const weeklyPlanForm = document.getElementById('weeklyPlanForm');
@@ -27,6 +35,7 @@ const savePlanButton = document.getElementById('savePlanButton');
 const linkGapCard = document.getElementById('linkGapCard');
 const linkGapStatus = document.getElementById('linkGapStatus');
 const refreshStripeTotalsButton = document.getElementById('refreshStripeTotalsButton');
+const refreshStripeCustomersButton = document.getElementById('refreshStripeCustomersButton');
 const builderMrrValue = document.getElementById('builderMrrValue');
 const embeddedMrrValue = document.getElementById('embeddedMrrValue');
 const stripeSubscriberValue = document.getElementById('stripeSubscriberValue');
@@ -50,6 +59,7 @@ let queueNode = null;
 let touchLogNode = null;
 let billingUsageTierNode = null;
 let stripeMetricsNode = null;
+let stripeCustomersNode = null;
 let weeklyLedgerNode = null;
 let queueItems = [];
 let queueSignature = '[]';
@@ -58,15 +68,18 @@ let weeklyPlanSnapshot = JSON.stringify(weeklyPlan);
 let touchLogIndex = Object.create(null);
 let billingUsageTierIndex = Object.create(null);
 let stripeMetricsState = normalizeStripeMetricsRecord();
+let stripeCustomerIndex = Object.create(null);
 let queueLoaded = false;
 let touchLogLoaded = false;
 let refreshStripeTotalsInFlight = false;
+let refreshStripeCustomersInFlight = false;
 
 // Shared node shapes:
 // - gun.get('3dvr-portal').get('sales-training').get('today-queue') => { itemsJson, updatedAt }
 // - gun.get('3dvr-portal').get('crm-touch-log').get(logId) => { timestamp, touchType, segment, ... }
 // - gun.get('3dvr-portal').get('billing').get('usageTier').get(<pub|alias>) => { tier, plan, alias, updatedAt, source }
 // - gun.get('3dvr-portal').get('finance').get('stripe').get('metrics').get('latest') => { activeSubscribers, updatedAt }
+// - gun.get('3dvr-portal').get('finance').get('stripeCustomers').get(<aggregateKey>) => { customerId, aggregateKey, updatedAt, ... }
 // - gun.get('3dvr-portal').get('sales-scoreboard').get('weekly').get(weekKey) => manual weekly ledger
 
 function createProfitabilityGun() {
@@ -457,6 +470,14 @@ function renderDataStatus() {
   const billingState = billingUsageTierNode ? 'billing sync live' : 'billing sync unavailable';
   const stripeState = stripeMetricsNode ? 'stripe metrics live' : 'stripe metrics unavailable';
   liveDataStatus.textContent = `${queueState} • ${touchState} • ${billingState} • ${stripeState} • week key ${WEEK_KEY}`;
+
+  if (!liveSyncTimestamps) {
+    return;
+  }
+
+  const billingUpdatedAt = getLatestRecordUpdatedAt(billingUsageTierIndex, record => normalizeUsageTierRecord(record) || {});
+  const customerUpdatedAt = getLatestRecordUpdatedAt(stripeCustomerIndex, normalizeStripeCustomerRecord);
+  liveSyncTimestamps.textContent = `Stripe totals ${formatSyncTimestamp(stripeMetricsState.updatedAt)} • customer summaries ${formatSyncTimestamp(customerUpdatedAt)} • billing links ${formatSyncTimestamp(billingUpdatedAt)}`;
 }
 
 function renderPlanStatus(message) {
@@ -599,6 +620,58 @@ async function refreshStripeTotals() {
   }
 }
 
+async function refreshStripeCustomers() {
+  if (refreshStripeCustomersInFlight) {
+    return;
+  }
+
+  refreshStripeCustomersInFlight = true;
+  if (refreshStripeCustomersButton) {
+    refreshStripeCustomersButton.disabled = true;
+    refreshStripeCustomersButton.textContent = 'Refreshing customers…';
+  }
+  if (linkGapStatus) {
+    linkGapStatus.textContent = 'Refreshing Stripe customer summaries from the API…';
+  }
+
+  try {
+    const result = await syncStripeCustomerSummaries({
+      customersNode: stripeCustomersNode,
+      currentRecords: stripeCustomerIndex,
+      applyRecord(key, record) {
+        stripeCustomerIndex[key] = record;
+      },
+      removeRecord(key) {
+        delete stripeCustomerIndex[key];
+      },
+    });
+
+    renderAll();
+    if (linkGapStatus) {
+      const metrics = getLiveMetrics();
+      const syncedLabel = result.synced
+        ? `Refreshed ${result.count} customer summar${result.count === 1 ? 'y' : 'ies'} at ${formatSyncTimestamp(result.updatedAt)}.`
+        : `Loaded ${result.count} customer summar${result.count === 1 ? 'y' : 'ies'} from Stripe at ${formatSyncTimestamp(result.updatedAt)}, but Gun is unavailable so the shared index was not updated.`;
+      if (metrics.linkGap > 0) {
+        linkGapStatus.textContent = `${syncedLabel} ${metrics.linkGap} paid account${metrics.linkGap === 1 ? '' : 's'} still need portal billing links.`;
+      } else {
+        linkGapStatus.textContent = `${syncedLabel} Finance and portal billing are aligned right now.`;
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to refresh stripe customer summaries from profitability desk', error);
+    if (linkGapStatus) {
+      linkGapStatus.textContent = `Unable to refresh Stripe customer summaries: ${error.message}`;
+    }
+  } finally {
+    refreshStripeCustomersInFlight = false;
+    if (refreshStripeCustomersButton) {
+      refreshStripeCustomersButton.disabled = false;
+      refreshStripeCustomersButton.textContent = 'Refresh customer summaries';
+    }
+  }
+}
+
 function hydrateQueueFromLocal() {
   queueItems = readLocalTrainingQueue();
   queueSignature = JSON.stringify(queueItems);
@@ -691,6 +764,36 @@ function hydrateStripeMetrics() {
   stripeMetricsNode.on(applyMetrics);
 }
 
+function hydrateStripeCustomers() {
+  if (!stripeCustomersNode) {
+    return;
+  }
+
+  stripeCustomersNode.map().on((data, id) => {
+    const recordId = String(id || '').trim();
+    if (!recordId) {
+      return;
+    }
+
+    if (!data) {
+      delete stripeCustomerIndex[recordId];
+      renderAll();
+      return;
+    }
+
+    const record = normalizeStripeCustomerRecord(data);
+    if (!record.aggregateKey && !record.customerId && !record.email) {
+      return;
+    }
+
+    stripeCustomerIndex[recordId] = {
+      ...record,
+      aggregateKey: record.aggregateKey || recordId,
+    };
+    renderAll();
+  });
+}
+
 function hydrateWeeklyLedger() {
   if (!weeklyLedgerNode) {
     return;
@@ -754,6 +857,7 @@ function init() {
     touchLogNode = getNodeFromPath(profitabilityGun, TOUCH_LOG_NODE_PATH);
     billingUsageTierNode = getNodeFromPath(profitabilityGun, BILLING_USAGE_TIER_NODE_PATH);
     stripeMetricsNode = getNodeFromPath(profitabilityGun, STRIPE_METRICS_NODE_PATH);
+    stripeCustomersNode = getNodeFromPath(profitabilityGun, STRIPE_CUSTOMERS_NODE_PATH);
     weeklyLedgerNode = getNodeFromPath(profitabilityGun, [...SCOREBOARD_NODE_PATH, WEEK_KEY]);
   }
 
@@ -762,6 +866,7 @@ function init() {
   hydrateTouchLog();
   hydrateBillingUsageTiers();
   hydrateStripeMetrics();
+  hydrateStripeCustomers();
   hydrateWeeklyLedger();
 
   if (!queueNode || !touchLogNode || !billingUsageTierNode || !stripeMetricsNode) {
@@ -780,6 +885,7 @@ function init() {
 
   savePlanButton?.addEventListener('click', saveWeeklyPlan);
   refreshStripeTotalsButton?.addEventListener('click', refreshStripeTotals);
+  refreshStripeCustomersButton?.addEventListener('click', refreshStripeCustomers);
 }
 
 init();

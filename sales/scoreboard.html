@@ -131,6 +131,9 @@
         <div class="rounded-xl border border-white/5 bg-slate-950/80 p-4">
           <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Data status</p>
           <p id="liveDataStatus" class="mt-2 text-sm text-slate-300">Checking shared CRM touches and the reach-out queue…</p>
+          <p id="liveSyncTimestamps" class="mt-2 text-xs text-slate-500">
+            Stripe totals, customer summaries, and billing links will show their latest sync times here.
+          </p>
           <p id="subscriberSourceNote" class="mt-2 text-xs text-slate-500">
             Builder and Embedded counts come from portal-linked billing records. Total active subscribers come from finance Stripe metrics.
           </p>
@@ -153,6 +156,11 @@
               type="button"
               class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-50"
             >Refresh Stripe totals</button>
+            <button
+              id="refreshStripeCustomersButton"
+              type="button"
+              class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+            >Refresh customer summaries</button>
             <a
               href="../admin/index.html"
               class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"

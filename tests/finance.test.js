@@ -30,6 +30,9 @@ describe('finance ledger hub', () => {
     assert.match(html, /id="profitability-embedded-count"/);
     assert.match(html, /id="profitability-mrr"/);
     assert.match(html, /id="profitability-link-gap"/);
+    assert.match(html, /id="profitability-sync-meta"/);
+    assert.match(html, /id="profitability-refresh-totals"/);
+    assert.match(html, /id="profitability-refresh-customers"/);
     assert.match(html, /Open profitability desk/);
     assert.match(html, /id="finance-ledger"/);
     assert.match(html, /href="\.\/incoming\.html"/);
@@ -62,12 +65,16 @@ describe('finance ledger hub', () => {
     assert.ok(js.includes("portalRoot.get('finance')"));
     assert.ok(js.includes("portalRoot.get('billing')"));
     assert.ok(js.includes("gun.get('finance')"));
+    assert.ok(js.includes("financeRoot.get('stripeCustomers')"));
     assert.match(js, /financeRoot\.get\('expenditures'\)/);
     assert.match(js, /legacyFinanceRoot\.get\('expenditures'\)/);
     assert.match(js, /billingRoot\.get\('usageTier'\)/);
     assert.match(js, /summarizeLinkedBilling/);
     assert.match(js, /estimateRecurringRevenue/);
+    assert.match(js, /formatSyncTimestamp/);
+    assert.match(js, /syncStripeCustomerSummaries/);
     assert.match(js, /renderProfitabilitySummary/);
+    assert.match(js, /refreshProfitabilityStripeCustomers/);
     assert.match(js, /writeRecordToSources\(/);
     assert.match(js, /form\.addEventListener\('submit'/);
     assert.match(js, /Gun\.text\.random/);

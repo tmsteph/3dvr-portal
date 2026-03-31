@@ -3,6 +3,12 @@ import {
   normalizeStripeMetricsRecord,
   summarizeLinkedBilling
 } from '../sales/scoreboard-data.js';
+import {
+  formatSyncTimestamp,
+  getLatestRecordUpdatedAt,
+  normalizeStripeCustomerRecord,
+  syncStripeCustomerSummaries
+} from './stripe-sync.js';
 
 function createLocalGunSubscriptionStub() {
   return {
@@ -226,6 +232,9 @@ const legacyEthereumRoot = legacyFinanceRoot && typeof legacyFinanceRoot.get ===
 const stripeRoot = financeRoot && typeof financeRoot.get === 'function'
   ? financeRoot.get('stripe')
   : createLocalGunNodeStub();
+const stripeCustomersNode = financeRoot && typeof financeRoot.get === 'function'
+  ? financeRoot.get('stripeCustomers')
+  : createLocalGunNodeStub();
 const billingUsageTierNode = billingRoot && typeof billingRoot.get === 'function'
   ? billingRoot.get('usageTier')
   : createLocalGunNodeStub();
@@ -350,6 +359,9 @@ const profitabilityEmbeddedCount = document.getElementById('profitability-embedd
 const profitabilityMrr = document.getElementById('profitability-mrr');
 const profitabilityLinkGap = document.getElementById('profitability-link-gap');
 const profitabilityStatus = document.getElementById('profitability-status');
+const profitabilitySyncMeta = document.getElementById('profitability-sync-meta');
+const profitabilityRefreshTotals = document.getElementById('profitability-refresh-totals');
+const profitabilityRefreshCustomers = document.getElementById('profitability-refresh-customers');
 
 const ethStatus = document.getElementById('eth-status');
 const ethConnectButton = document.getElementById('eth-connect');
@@ -368,7 +380,9 @@ const payables = new Map();
 const ethPayments = new Map();
 const stripeEvents = new Map();
 const billingUsageTierRecords = Object.create(null);
+const stripeCustomerRecords = Object.create(null);
 let stripeMetricsIntervalId = null;
+let profitabilityCustomerRefreshInFlight = false;
 const stripeMetricsState = {
   available: {},
   pending: {},
@@ -446,6 +460,9 @@ forEachSource(stripeMetricsSources, source => {
 if (billingUsageTierNode && typeof billingUsageTierNode.map === 'function' && typeof billingUsageTierNode.map().on === 'function') {
   billingUsageTierNode.map().on(handleBillingUsageTierUpdate);
 }
+if (stripeCustomersNode && typeof stripeCustomersNode.map === 'function' && typeof stripeCustomersNode.map().on === 'function') {
+  stripeCustomersNode.map().on(handleStripeCustomerUpdate);
+}
 if (stripeEventsStatus) {
   fetchStripeEvents();
 }
@@ -454,6 +471,18 @@ if (stripeLiveRefresh) {
   stripeLiveRefresh.addEventListener('click', event => {
     event.preventDefault();
     fetchStripeMetrics(false);
+  });
+}
+if (profitabilityRefreshTotals) {
+  profitabilityRefreshTotals.addEventListener('click', event => {
+    event.preventDefault();
+    fetchStripeMetrics(false);
+  });
+}
+if (profitabilityRefreshCustomers) {
+  profitabilityRefreshCustomers.addEventListener('click', event => {
+    event.preventDefault();
+    refreshProfitabilityStripeCustomers();
   });
 }
 const shouldPollStripeMetrics = stripeBalanceDisplays.length > 0
@@ -1148,6 +1177,82 @@ function handleBillingUsageTierUpdate(raw, key) {
   renderProfitabilitySummary();
 }
 
+function handleStripeCustomerUpdate(raw, key) {
+  if (!key) {
+    return;
+  }
+
+  if (!raw) {
+    delete stripeCustomerRecords[key];
+    renderProfitabilitySummary();
+    return;
+  }
+
+  const cleaned = sanitizeRecord(raw);
+  if (!cleaned) {
+    return;
+  }
+
+  const normalized = normalizeStripeCustomerRecord(cleaned);
+  if (!normalized.aggregateKey && !normalized.customerId && !normalized.email) {
+    return;
+  }
+
+  stripeCustomerRecords[key] = {
+    ...normalized,
+    aggregateKey: normalized.aggregateKey || key
+  };
+  renderProfitabilitySummary();
+}
+
+async function refreshProfitabilityStripeCustomers() {
+  if (profitabilityCustomerRefreshInFlight) {
+    return;
+  }
+
+  profitabilityCustomerRefreshInFlight = true;
+  if (profitabilityRefreshCustomers) {
+    profitabilityRefreshCustomers.disabled = true;
+    profitabilityRefreshCustomers.textContent = 'Refreshing customers...';
+  }
+  if (profitabilityStatus) {
+    profitabilityStatus.classList.remove('finance-helper--error');
+    profitabilityStatus.textContent = 'Refreshing Stripe customer summaries...';
+  }
+
+  try {
+    const result = await syncStripeCustomerSummaries({
+      customersNode: stripeCustomersNode,
+      currentRecords: stripeCustomerRecords,
+      applyRecord(key, record) {
+        stripeCustomerRecords[key] = record;
+      },
+      removeRecord(key) {
+        delete stripeCustomerRecords[key];
+      }
+    });
+
+    renderProfitabilitySummary();
+    if (profitabilityStatus) {
+      profitabilityStatus.classList.remove('finance-helper--error');
+      profitabilityStatus.textContent = result.synced
+        ? `Synced ${result.count} Stripe customer summar${result.count === 1 ? 'y' : 'ies'} at ${formatSyncTimestamp(result.updatedAt)}.`
+        : `Loaded ${result.count} Stripe customer summar${result.count === 1 ? 'y' : 'ies'} at ${formatSyncTimestamp(result.updatedAt)}, but Gun is unavailable so the shared index was not updated.`;
+    }
+  } catch (error) {
+    if (profitabilityStatus) {
+      profitabilityStatus.textContent = `Unable to refresh Stripe customer summaries: ${error.message}`;
+      profitabilityStatus.classList.add('finance-helper--error');
+    }
+  } finally {
+    profitabilityCustomerRefreshInFlight = false;
+    if (profitabilityRefreshCustomers) {
+      profitabilityRefreshCustomers.disabled = false;
+      profitabilityRefreshCustomers.textContent = 'Refresh customer summaries';
+    }
+  }
+}
+
 function renderProfitabilitySummary() {
   if (!profitabilityStatus) {
     return;
@@ -1157,6 +1262,8 @@ function renderProfitabilitySummary() {
   const linkedMrr = estimateRecurringRevenue(linked);
   const stripeTotals = normalizeStripeMetricsRecord(stripeMetricsState);
   const linkGap = Math.max(0, stripeTotals.activeSubscribers - linked.linkedPaidCustomers);
+  const billingUpdatedAt = getLatestRecordUpdatedAt(billingUsageTierRecords);
+  const customerUpdatedAt = getLatestRecordUpdatedAt(stripeCustomerRecords, normalizeStripeCustomerRecord);
 
   if (profitabilityStripeSubscribers) {
     profitabilityStripeSubscribers.textContent = stripeTotals.activeSubscribers.toLocaleString();
@@ -1176,13 +1283,18 @@ function renderProfitabilitySummary() {
   if (profitabilityLinkGap) {
     profitabilityLinkGap.textContent = linkGap.toLocaleString();
   }
+  if (profitabilitySyncMeta) {
+    profitabilitySyncMeta.textContent = `Stripe totals ${formatSyncTimestamp(stripeTotals.updatedAt)} • customer summaries ${formatSyncTimestamp(customerUpdatedAt)} • billing links ${formatSyncTimestamp(billingUpdatedAt)}`;
+  }
 
   if (linkGap > 0) {
     profitabilityStatus.textContent = `Stripe shows ${stripeTotals.activeSubscribers.toLocaleString()} active subscriber${stripeTotals.activeSubscribers === 1 ? '' : 's'}, but portal billing only shows ${linked.linkedPaidCustomers.toLocaleString()} linked paid account${linked.linkedPaidCustomers === 1 ? '' : 's'}. Use the profitability desk or billing to recover the missing links.`;
+    profitabilityStatus.classList.remove('finance-helper--error');
     return;
   }
 
   profitabilityStatus.textContent = `Finance and billing are aligned across ${linked.linkedPaidCustomers.toLocaleString()} linked paid account${linked.linkedPaidCustomers === 1 ? '' : 's'}.`;
+  profitabilityStatus.classList.remove('finance-helper--error');
 }
 
 const stripeEventsLimit = 3;
