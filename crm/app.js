@@ -168,6 +168,38 @@ function safeAttr(value) {
   return safe(value).replace(/"/g, '&quot;');
 }
 
+function buildEmailOperatorHref(record = {}) {
+  const params = new URLSearchParams();
+  params.set('draft', '1');
+  if (record.id) params.set('threadId', `crm-${record.id}`);
+  if (record.id) params.set('recordId', record.id);
+  if (record.name) {
+    params.set('lead', record.name);
+    params.set('contact', record.name);
+  }
+  if (record.email) params.set('email', record.email);
+  if (record.company) params.set('company', record.company);
+  if (record.status) params.set('status', record.status);
+  if (record.marketSegment) params.set('segment', record.marketSegment);
+  if (record.primaryPain) params.set('pain', record.primaryPain);
+  if (record.offerAmount) params.set('offer', record.offerAmount);
+  if (record.lastSignal) params.set('signal', record.lastSignal);
+  if (record.nextExperiment) params.set('experiment', record.nextExperiment);
+  if (record.notes) params.set('notes', record.notes);
+  if (record.tags) params.set('tags', record.tags);
+  params.set('source', 'crm');
+
+  const nextAction = String(record.nextExperiment || record.nextFollowUp || '').trim();
+  if (nextAction) {
+    params.set('next', nextAction);
+  }
+
+  const subjectTarget = String(record.company || record.name || 'lead').trim();
+  params.set('subject', `3dvr follow-up for ${subjectTarget}`);
+
+  return `../email-operator/index.html?${params.toString()}`;
+}
+
 function aliasToDisplay(value) {
   const normalized = typeof value === 'string' ? value.trim() : '';
   if (!normalized) return '';
@@ -1451,6 +1483,7 @@ function buildDetailActions(record) {
 
   return `
     <button data-action="ensure-contact" data-record-id="${safeAttr(record.id)}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">${safe(getContactButtonLabel(record))}</button>
+    <a href="${safeAttr(buildEmailOperatorHref(record))}" class="inline-flex items-center justify-center bg-sky-500 hover:bg-sky-400 text-white text-sm px-3 py-1.5 rounded">Queue outreach</a>
     <button data-action="log-touch" data-record-id="${safeAttr(record.id)}" class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1.5 rounded">Log touch</button>
     <button data-action="quick-follow-up" data-record-id="${safeAttr(record.id)}" class="bg-amber-500 hover:bg-amber-600 text-white text-sm px-3 py-1.5 rounded">+7d follow-up</button>
     <button data-action="edit-record" data-record-id="${safeAttr(record.id)}" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1.5 rounded">Edit</button>

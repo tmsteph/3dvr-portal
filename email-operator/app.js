@@ -26,7 +26,8 @@
     'queue-draft': 'Moved into the draft queue.',
     'ready-approval': 'Marked ready for approval.',
     'route-automation': 'Routed into the automation lane.',
-    'approve-send': 'Approved and marked as sent.',
+    'open-mail': 'Opened the draft in your email app.',
+    'mark-sent': 'Marked as sent and logged the outreach touch.',
     'archive-thread': 'Archived for reference.',
     'reopen-thread': 'Re-opened for fresh triage.',
   };
@@ -72,6 +73,7 @@
     saveNotes: document.getElementById('save-notes'),
     copyPrompt: document.getElementById('copy-prompt'),
   };
+  const params = new URLSearchParams(window.location.search);
 
   function normalizeText(value) {
     return typeof value === 'string' ? value.trim() : '';
@@ -97,6 +99,24 @@
     } catch (_error) {
       return '';
     }
+  }
+
+  function normalizeEmail(value) {
+    return normalizeText(value).toLowerCase();
+  }
+
+  function parseTagList(value) {
+    return normalizeText(value)
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean);
+  }
+
+  function compactTextParts(parts) {
+    return parts
+      .map(part => normalizeText(part))
+      .filter(Boolean)
+      .join(' ');
   }
 
   function createLocalGunSubscriptionStub() {
@@ -253,6 +273,164 @@
     };
   }
 
+  function readImportedDraftParams() {
+    const imported = {
+      threadId: normalizeText(params.get('threadId')),
+      recordId: normalizeText(params.get('recordId')),
+      lead: normalizeText(params.get('lead')) || normalizeText(params.get('name')),
+      contact: normalizeText(params.get('contact')),
+      email: normalizeEmail(params.get('email')),
+      company: normalizeText(params.get('company')),
+      status: normalizeText(params.get('status')),
+      segment: normalizeText(params.get('segment')),
+      pain: normalizeText(params.get('pain')),
+      offer: normalizeText(params.get('offer')) || normalizeText(params.get('amount')),
+      next: normalizeText(params.get('next')) || normalizeText(params.get('followup')),
+      signal: normalizeText(params.get('signal')),
+      experiment: normalizeText(params.get('experiment')),
+      notes: normalizeText(params.get('notes')) || normalizeText(params.get('note')),
+      source: normalizeText(params.get('source')),
+      tags: parseTagList(params.get('tags')),
+      subject: normalizeText(params.get('subject')),
+      message: normalizeText(params.get('message')),
+      draftRequested: params.get('draft') === '1',
+    };
+
+    const hasDraft = imported.draftRequested || [
+      imported.threadId,
+      imported.recordId,
+      imported.lead,
+      imported.contact,
+      imported.email,
+      imported.company,
+      imported.segment,
+      imported.pain,
+      imported.offer,
+      imported.notes,
+      imported.source,
+      imported.message,
+    ].some(Boolean);
+
+    return { imported, hasDraft };
+  }
+
+  function buildImportedThreadId(imported) {
+    if (imported.threadId) {
+      return sanitizeNodeKey(imported.threadId);
+    }
+    if (imported.recordId) {
+      return sanitizeNodeKey(`crm-${imported.recordId}`);
+    }
+    const fallback = compactTextParts([
+      imported.company,
+      imported.contact,
+      imported.lead,
+      imported.segment,
+      imported.source || 'outreach',
+    ]);
+    return sanitizeNodeKey(`import-${fallback || Date.now()}`);
+  }
+
+  function buildImportedSubject(imported) {
+    if (imported.subject) {
+      return imported.subject;
+    }
+    const subjectTarget = imported.company || imported.contact || imported.lead || imported.segment || 'outreach';
+    if (imported.offer) {
+      return `3dvr ${imported.offer} follow-up for ${subjectTarget}`;
+    }
+    return `3dvr follow-up for ${subjectTarget}`;
+  }
+
+  function buildImportedNotes(imported) {
+    return [
+      imported.notes,
+      imported.signal ? `Signal: ${imported.signal}` : '',
+      imported.experiment ? `Experiment: ${imported.experiment}` : '',
+      imported.tags.length ? `Tags: ${imported.tags.join(', ')}` : '',
+    ].filter(Boolean).join('\n');
+  }
+
+  function buildImportedDraftBody(imported, operatorLabel) {
+    if (imported.message) {
+      return imported.message;
+    }
+
+    const greetingName = imported.contact
+      || imported.lead
+      || imported.company
+      || 'there';
+    const supportLine = imported.pain
+      ? `From what I can tell, the main pressure is ${imported.pain.toLowerCase()}.`
+      : 'From what I can tell, the main pressure is keeping leads and follow-up from slipping.';
+    const offerLine = imported.offer
+      ? `The cleanest fit on our side looks like ${imported.offer} because it keeps the next action visible without adding a heavy stack.`
+      : 'The cleanest fit on our side is a simple weekly operating loop that keeps the next action visible.';
+    const nextLine = imported.next
+      ? imported.next
+      : 'If it helps, I can show you the simplest version and map the next step with you.';
+
+    return [
+      `${greetingName},`,
+      '',
+      'I do not think you need more software for the sake of it.',
+      supportLine,
+      offerLine,
+      nextLine,
+      '',
+      `Best,`,
+      operatorLabel,
+    ].join('\n');
+  }
+
+  function buildImportedThread(imported, operatorLabel) {
+    const targetName = imported.contact || imported.lead || imported.company || 'New outreach target';
+    const company = imported.company || imported.lead || imported.segment || 'Unassigned company';
+    const relationshipBits = [
+      imported.segment ? `Segment: ${imported.segment}.` : '',
+      imported.offer ? `Offer: ${imported.offer}.` : '',
+      imported.source ? `Source: ${imported.source}.` : '',
+    ].filter(Boolean).join(' ');
+    const contactBits = [
+      imported.pain ? `Pain heard: ${imported.pain}.` : '',
+      imported.signal ? `Market signal: ${imported.signal}.` : '',
+      imported.notes ? `Notes: ${imported.notes}` : '',
+    ].filter(Boolean).join(' ');
+
+    return {
+      id: buildImportedThreadId(imported),
+      subject: buildImportedSubject(imported),
+      senderName: targetName,
+      senderEmail: imported.email || 'add-email-before-send@example.com',
+      company,
+      category: 'sales',
+      urgency: imported.offer ? 'high' : 'medium',
+      stage: imported.draftRequested ? 'drafting' : 'triage',
+      summary: imported.pain
+        ? `Outbound draft for ${targetName} focused on ${imported.pain.toLowerCase()}.`
+        : `Outbound draft for ${targetName}.`,
+      recommendedAction: 'Tighten the note, open the email draft, then log the touch after you send it.',
+      contactContext: contactBits || 'No pain notes yet. Add what you heard before you send the draft.',
+      relationshipContext: relationshipBits || 'No segment or offer context yet.',
+      crmStage: imported.status || 'Lead',
+      nextStep: imported.next || 'Review the draft and send the first outreach note.',
+      autoSendEligible: false,
+      lastActionLabel: 'Imported from CRM or sales research.',
+      receivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      draft: buildImportedDraftBody(imported, operatorLabel),
+      notes: buildImportedNotes(imported),
+      recordId: imported.recordId,
+      marketSegment: imported.segment,
+      primaryPain: imported.pain,
+      offerAmount: imported.offer,
+      source: imported.source || 'email-operator-import',
+      tags: imported.tags.join(', '),
+      direction: 'outbound',
+      touchLoggedAt: '',
+    };
+  }
+
   function buildDefaultThreads(operatorLabel) {
     return [
       {
@@ -404,6 +582,14 @@
       draft: thread && typeof thread.draft === 'string' ? thread.draft : '',
       notes: thread && typeof thread.notes === 'string' ? thread.notes : '',
       sentAt: normalizeText(thread && thread.sentAt),
+      recordId: normalizeText(thread && thread.recordId),
+      marketSegment: normalizeText(thread && thread.marketSegment),
+      primaryPain: normalizeText(thread && thread.primaryPain),
+      offerAmount: normalizeText(thread && thread.offerAmount),
+      source: normalizeText(thread && thread.source),
+      tags: normalizeText(thread && thread.tags),
+      direction: normalizeText(thread && thread.direction) || 'inbound',
+      touchLoggedAt: normalizeText(thread && thread.touchLoggedAt),
     };
   }
 
@@ -465,6 +651,30 @@
   }
 
   function generateDraftTemplate(thread, operatorLabel) {
+    if (thread.direction === 'outbound') {
+      const imported = {
+        contact: thread.senderName,
+        lead: thread.senderName,
+        email: thread.senderEmail,
+        company: thread.company,
+        segment: thread.marketSegment,
+        pain: thread.primaryPain,
+        offer: thread.offerAmount,
+        next: thread.nextStep,
+        signal: '',
+        experiment: '',
+        notes: thread.notes,
+        source: thread.source,
+        tags: parseTagList(thread.tags),
+        subject: thread.subject,
+        message: '',
+        recordId: thread.recordId,
+        threadId: thread.id,
+        draftRequested: true,
+      };
+      return buildImportedDraftBody(imported, operatorLabel);
+    }
+
     const greetingName = thread.senderName.split(' ')[0] || thread.senderName;
     const greeting = `${greetingName},`;
     const businessLine = {
@@ -481,22 +691,27 @@
   function buildWorkbenchPrompt(thread) {
     return [
       'Draft a concise email reply in a direct, pragmatic voice.',
+      `Direction: ${thread.direction === 'outbound' ? 'Outbound outreach' : 'Inbound reply'}`,
       `Thread subject: ${thread.subject}`,
       `Sender: ${thread.senderName} <${thread.senderEmail}>`,
       `Company: ${thread.company}`,
       `Category: ${categoryLabel(thread.category)}`,
       `Urgency: ${thread.urgency}`,
+      thread.marketSegment ? `Market segment: ${thread.marketSegment}` : '',
+      thread.primaryPain ? `Primary pain: ${thread.primaryPain}` : '',
+      thread.offerAmount ? `Offer amount: ${thread.offerAmount}` : '',
       `Summary: ${thread.summary}`,
       `Recommended action: ${thread.recommendedAction}`,
       `CRM stage: ${thread.crmStage}`,
       `Context: ${thread.contactContext}`,
       `Relationship: ${thread.relationshipContext}`,
       'Constraints: keep the response human, specific, and no more than 180 words.',
-    ].join('\n');
+    ].filter(Boolean).join('\n');
   }
 
   const operator = resolveOperatorIdentity();
   const initialThreads = buildThreadIndex(buildDefaultThreads(operator.label));
+  const importedDraftState = readImportedDraftParams();
   const state = {
     operator,
     gunStatus: 'connecting',
@@ -509,8 +724,12 @@
   const gunContext = ensureGunContext(createEmailOperatorGun, 'email-operator');
   const gun = gunContext.gun;
   const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
+  const crmRecords = gun && typeof gun.get === 'function' ? gun.get('3dvr-crm') : createLocalGunNodeStub();
   const emailOperatorRoot = portalRoot && typeof portalRoot.get === 'function'
     ? portalRoot.get('emailOperator')
+    : createLocalGunNodeStub();
+  const touchLogRoot = portalRoot && typeof portalRoot.get === 'function'
+    ? portalRoot.get('crm-touch-log')
     : createLocalGunNodeStub();
 
   // Graph shape: 3dvr-portal/emailOperator/operators/<operatorKey>/{meta,threads/<threadId>}
@@ -553,6 +772,74 @@
       state.selectedThreadId = fallback.id;
     }
     return fallback || null;
+  }
+
+  function buildMailtoHref(thread) {
+    const recipient = normalizeEmail(thread && thread.senderEmail);
+    if (!recipient || recipient === 'unknown@example.com' || recipient === 'add-email-before-send@example.com') {
+      return '';
+    }
+    const subject = normalizeText(thread && thread.subject) || '3dvr follow-up';
+    const body = typeof thread?.draft === 'string' && thread.draft.trim()
+      ? thread.draft.trim()
+      : generateDraftTemplate(thread, state.operator.label);
+    return `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  function appendNoteBlock(existingNotes, newLine) {
+    const notes = normalizeText(existingNotes);
+    const line = normalizeText(newLine);
+    if (!line) {
+      return notes;
+    }
+    return notes ? `${line}\n${notes}` : line;
+  }
+
+  function logOutreachTouch(thread) {
+    if (!thread || !thread.recordId || !crmRecords || typeof crmRecords.get !== 'function') {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const logId = sanitizeNodeKey(`email-operator-${thread.id}-${now}`);
+    const touchLabel = 'Outreach sent';
+    const noteLine = `[${touchLabel} ${new Date(now).toLocaleString()}] Sent from Email Operator.`;
+
+    crmRecords.get(thread.recordId).once(existingRecord => {
+      const existing = existingRecord && typeof existingRecord === 'object' ? existingRecord : {};
+      const activityCount = Number.parseInt(existing.activityCount, 10);
+      const nextCount = Number.isNaN(activityCount) ? 1 : activityCount + 1;
+      const nextStatus = normalizeText(existing.status) || normalizeText(thread.crmStage) || 'Warm - Awareness';
+      const notes = appendNoteBlock(existing.notes, noteLine);
+
+      crmRecords.get(thread.recordId).put({
+        ...existing,
+        id: thread.recordId,
+        status: nextStatus,
+        activityCount: nextCount,
+        lastContacted: now,
+        lastTouchType: 'outreach-sent',
+        notes,
+        updated: now,
+      });
+    });
+
+    touchLogRoot.get(logId).put({
+      id: logId,
+      recordId: thread.recordId,
+      contactName: thread.senderName,
+      email: thread.senderEmail,
+      company: thread.company,
+      segment: thread.marketSegment,
+      source: thread.source || 'email-operator',
+      note: `Sent from Email Operator for ${thread.subject}.`,
+      touchType: 'outreach-sent',
+      touchTypeLabel: touchLabel,
+      participantId: state.operator.key,
+      loggedBy: state.operator.label,
+      followUp: normalizeText(thread.nextStep),
+      timestamp: now,
+    });
   }
 
   function renderFilters(visibleCount) {
@@ -653,7 +940,8 @@
       queueDraft: stage !== 'drafting' && stage !== 'approval' && stage !== 'sent',
       readyApproval: stage !== 'approval' && stage !== 'sent' && stage !== 'archive',
       routeAutomation: stage !== 'automation' && stage !== 'sent' && stage !== 'archive',
-      approveSend: stage !== 'sent' && stage !== 'archive',
+      openMail: stage !== 'archive',
+      markSent: stage !== 'sent' && stage !== 'archive',
       archiveThread: stage !== 'archive',
       reopenThread: stage === 'sent' || stage === 'archive',
     };
@@ -709,6 +997,10 @@
     refs.actionButtons.forEach(button => {
       const action = button.dataset.operatorAction;
       const key = action.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
+      if (action === 'open-mail') {
+        button.hidden = !visibility[key] || !buildMailtoHref(thread);
+        return;
+      }
       button.hidden = !visibility[key];
     });
   }
@@ -772,6 +1064,20 @@
       return;
     }
 
+    if (action === 'open-mail') {
+      const href = buildMailtoHref(thread);
+      if (!href) {
+        window.alert('Add a real email address before opening the draft.');
+        return;
+      }
+      updateThread(thread.id, {
+        draft: refs.draftEditor.value.trim() || thread.draft,
+        lastActionLabel: ACTION_LABELS[action] || 'Opened the draft.',
+      });
+      window.location.href = href;
+      return;
+    }
+
     const patch = {
       lastActionLabel: ACTION_LABELS[action] || 'Updated thread state.',
     };
@@ -788,10 +1094,11 @@
       patch.stage = 'automation';
       patch.autoSendEligible = true;
       patch.nextStep = 'Convert this into a reusable low-risk automation rule.';
-    } else if (action === 'approve-send') {
+    } else if (action === 'mark-sent') {
       patch.stage = 'sent';
       patch.sentAt = new Date().toISOString();
-      patch.nextStep = 'Watch for reply or create a follow-up task.';
+      patch.touchLoggedAt = patch.sentAt;
+      patch.nextStep = 'Watch for reply or schedule the follow-up.';
     } else if (action === 'archive-thread') {
       patch.stage = 'archive';
       patch.nextStep = 'Reference only.';
@@ -802,6 +1109,60 @@
     }
 
     updateThread(thread.id, patch);
+    if (action === 'mark-sent') {
+      logOutreachTouch({
+        ...thread,
+        ...patch,
+        draft: refs.draftEditor.value.trim() || thread.draft,
+        notes: refs.notesEditor.value.trim() || thread.notes,
+      });
+    }
+  }
+
+  function importQueryThreadIfNeeded() {
+    if (!importedDraftState.hasDraft) {
+      return;
+    }
+
+    const importedThread = buildImportedThread(importedDraftState.imported, state.operator.label);
+    threadsNode.get(importedThread.id).once(existing => {
+      const previous = existing && typeof existing === 'object' && normalizeText(existing.subject)
+        ? normalizeThread(existing, importedThread.id)
+        : null;
+      const merged = normalizeThread({
+        ...importedThread,
+        ...(previous || {}),
+        id: importedThread.id,
+        senderEmail: importedThread.senderEmail === 'add-email-before-send@example.com' && previous?.senderEmail
+          ? previous.senderEmail
+          : importedThread.senderEmail,
+        draft: previous?.draft || importedThread.draft,
+        notes: previous?.notes || importedThread.notes,
+        stage: previous?.stage || importedThread.stage,
+        recordId: importedThread.recordId || previous?.recordId,
+        marketSegment: importedThread.marketSegment || previous?.marketSegment,
+        primaryPain: importedThread.primaryPain || previous?.primaryPain,
+        offerAmount: importedThread.offerAmount || previous?.offerAmount,
+        source: importedThread.source || previous?.source,
+        tags: importedThread.tags || previous?.tags,
+        direction: previous?.direction || importedThread.direction,
+      }, importedThread.id);
+
+      state.threads[merged.id] = merged;
+      state.selectedThreadId = merged.id;
+      threadsNode.get(merged.id).put(merged);
+      metaNode.put({
+        activeFilter: 'all',
+        selectedThreadId: merged.id,
+        operatorLabel: state.operator.label,
+        seedVersion: SEED_VERSION,
+        updatedAt: new Date().toISOString(),
+      });
+      render();
+      if (window.history && typeof window.history.replaceState === 'function') {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    });
   }
 
   function seedOperatorThreads() {
@@ -943,5 +1304,6 @@
 
   seedOperatorThreads();
   subscribeToGun();
+  importQueryThreadIfNeeded();
   render();
 })(window, document);

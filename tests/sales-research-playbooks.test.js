@@ -9,9 +9,12 @@ test('sales research desk includes segment playbooks and richer CRM draft contex
   assert.match(researchHtml, /Outreach Playbooks/);
   assert.match(researchHtml, /Copy opener/);
   assert.match(researchHtml, /Copy full playbook/);
+  assert.match(researchHtml, /Open operator/);
   assert.match(researchHtml, /data-copy-playbook-id="professional-services-opener"/);
   assert.match(researchHtml, /data-copy-playbook-id="local-service-opener"/);
   assert.match(researchHtml, /data-copy-playbook-id="support-team-opener"/);
+  assert.match(researchHtml, /email-operator\/index\.html\?draft=1&threadId=research-pro-services/);
+  assert.match(researchHtml, /email-operator\/index\.html\?draft=1&threadId=playbook-professional-services/);
   assert.match(researchHtml, /segment=Professional%20services/);
   assert.match(researchHtml, /segment=Local%20services/);
   assert.match(researchHtml, /segment=Support%20team%20or%20community%20org/);
