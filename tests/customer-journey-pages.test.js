@@ -21,11 +21,14 @@ describe('portal customer journey pages', () => {
 
   it('keeps the free trial page tied to the portal account journey', async () => {
     const html = await readFile(new URL('../free-trial.html', import.meta.url), 'utf8');
-    assert.match(html, /Find your passions and organize your life/);
+    assert.match(html, /Get organized and take your next step/);
     assert.match(html, /Create or use one portal account/);
+    assert.match(html, /Start with daily direction/);
     assert.match(html, /Send free-plan link/);
     assert.match(html, /Sign in or create account/);
     assert.match(html, /Open billing center/);
+    assert.match(html, /Open start flow/);
+    assert.doesNotMatch(html, /open Life/i);
   });
 
   it('turns the start page into a compact onboarding router with easy plan access', async () => {
@@ -37,13 +40,14 @@ describe('portal customer journey pages', () => {
     assert.match(html, /What do you want next\?/);
     assert.match(html, /How much help do you want\?/);
     assert.match(html, /Best next move/);
-    assert.match(html, /Open Life/);
-    assert.match(html, /Open Cell/);
+    assert.match(html, /Open daily direction/);
+    assert.match(html, /Open support group/);
     assert.match(html, /Open Projects/);
     assert.match(html, /All plans/);
     assert.match(html, /Open sign-in/);
     assert.match(html, /Browse apps/);
-    assert.match(html, /Relief, people, then launch/);
+    assert.match(html, /Get grounded, get support, then launch/);
+    assert.match(html, /Get started/);
     assert.match(html, /mailto:3dvr\.tech@gmail\.com/);
     assert.match(html, /src="\/start\/router\.js"/);
   });

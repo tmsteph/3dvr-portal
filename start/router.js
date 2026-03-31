@@ -1,30 +1,30 @@
 const ROUTES = {
   life: {
-    title: 'Start with Life',
+    title: 'Start with daily direction',
     copy:
-      'You need a daily reset before you need more tools. Use Life to log how you feel, what happened today, and what matters tomorrow.',
+      'You need a daily reset before you need more tools. Start with a simple check-in so you can sort what happened today and choose one next step.',
     points: [
       '3-minute daily check-in',
       'Weekly reflection',
       'Stay free while you get organized',
     ],
-    plan: 'Best lane now: Free + Life',
-    primaryLabel: 'Open Life',
+    plan: 'Best lane now: Free',
+    primaryLabel: 'Open daily direction',
     primaryHref: '../life/index.html',
     secondaryLabel: 'See free plan',
     secondaryHref: 'https://3dvr.tech/subscribe/free-plan.html',
   },
   cell: {
-    title: 'Open Cell and add people',
+    title: 'Build a support group',
     copy:
-      'You need accountability and shared momentum. Start a Cell so a small group can help you stay consistent.',
+      'You need accountability and shared momentum. Start with a small support group so other people can help you stay consistent.',
     points: [
       '3 to 12 people around shared goals',
       'Weekly support and accountability',
       'Light support fits well with the $5 lane',
     ],
-    plan: 'Best lane now: Cell + Family & Friends $5',
-    primaryLabel: 'Open Cell',
+    plan: 'Best lane now: Family & Friends $5',
+    primaryLabel: 'Open support group',
     primaryHref: '../cell/index.html',
     secondaryLabel: 'See $5 plan',
     secondaryHref: 'https://3dvr.tech/subscribe/family-friends.html',
