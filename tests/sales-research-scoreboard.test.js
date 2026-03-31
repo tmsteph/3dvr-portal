@@ -19,6 +19,7 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
   assert.match(researchHtml, /scheduleInterviewForm/);
   assert.match(researchHtml, /scheduledInterviewList/);
   assert.match(researchHtml, /scheduleInterviewCalendarLink/);
+  assert.match(researchHtml, /interviewScheduledId/);
   assert.match(researchHtml, /data-interview-minimum="professional-services"/);
   assert.match(researchHtml, /Live Segment Scoreboard/);
   assert.match(researchHtml, /Watch which segment actually moves in CRM/);
@@ -40,6 +41,10 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
   assert.match(researchJs, /document\.querySelector\(`\[data-interview-minimum="\$\{item\.key\}"\]`\)/);
   assert.match(researchJs, /buildInterviewCalendarUrl/);
   assert.match(researchJs, /data-scheduled-interview-remove-id/);
+  assert.match(researchJs, /data-scheduled-interview-log-id/);
+  assert.match(researchJs, /function prefillInterviewFormFromScheduled/);
+  assert.match(researchJs, />Log outcome</);
+  assert.match(researchJs, /Saved the interview log and cleared the scheduled slot\./);
   assert.match(researchJs, /const rawJson = typeof data\.itemsJson === 'string' \? data\.itemsJson\.trim\(\) : ''/);
   assert.match(researchJs, /data-queue-playbook-id/);
   assert.match(researchJs, /data-interview-remove-id/);

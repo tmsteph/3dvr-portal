@@ -65,6 +65,7 @@ const interviewNotes = document.getElementById('interviewNotes');
 const interviewNextStep = document.getElementById('interviewNextStep');
 const interviewLogSaveStatus = document.getElementById('interviewLogSaveStatus');
 const interviewLogList = document.getElementById('interviewLogList');
+const interviewScheduledId = document.getElementById('interviewScheduledId');
 const scheduleInterviewForm = document.getElementById('scheduleInterviewForm');
 const scheduleInterviewSegment = document.getElementById('scheduleInterviewSegment');
 const scheduleInterviewCompany = document.getElementById('scheduleInterviewCompany');
@@ -600,10 +601,54 @@ function renderScheduledInterviewList() {
             href="${safeAttr(buildInterviewCalendarUrl(item))}"
             class="inline-flex items-center justify-center rounded-lg border border-sky-300/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-500/20"
           >Open calendar draft</a>
+          <button
+            type="button"
+            data-scheduled-interview-log-id="${safeAttr(item.id)}"
+            class="inline-flex items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20"
+          >Log outcome</button>
         </div>
       </article>
     `)
     .join('');
+}
+
+function getScheduledInterviewById(id) {
+  return currentScheduledInterviews.find(item => item.id === id) || null;
+}
+
+function prefillInterviewFormFromScheduled(interview) {
+  if (!interview || !interviewLogForm) {
+    return;
+  }
+
+  if (interviewScheduledId instanceof HTMLInputElement) {
+    interviewScheduledId.value = interview.id;
+  }
+  if (interviewSegment) {
+    interviewSegment.value = interview.segmentId;
+  }
+  if (interviewCompany) {
+    interviewCompany.value = interview.company || '';
+  }
+  if (interviewContact) {
+    interviewContact.value = interview.contact || '';
+  }
+  if (interviewStatus) {
+    interviewStatus.value = 'Interviewed';
+  }
+  if (interviewNotes) {
+    interviewNotes.value = interview.note
+      ? `Prep note: ${interview.note}\n\nWhat actually happened: `
+      : '';
+  }
+  if (interviewNextStep) {
+    interviewNextStep.value = 'Send follow-up and set the next step within 24 hours';
+  }
+  if (interviewLogSaveStatus) {
+    interviewLogSaveStatus.textContent = `Loaded ${interview.company || interview.contact || interview.segmentLabel}. Save the interview log to clear this slot from Upcoming.`;
+  }
+  interviewLogForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  interviewNotes?.focus();
 }
 
 function updateScheduleCalendarLink() {
@@ -752,6 +797,16 @@ function handleScheduledInterviewSubmit(event) {
 }
 
 function handleScheduledInterviewListClick(event) {
+  const logButton = event.target.closest('[data-scheduled-interview-log-id]');
+  if (logButton) {
+    const scheduledInterviewId = String(logButton.getAttribute('data-scheduled-interview-log-id') || '').trim();
+    const scheduledInterview = getScheduledInterviewById(scheduledInterviewId);
+    if (scheduledInterview) {
+      prefillInterviewFormFromScheduled(scheduledInterview);
+    }
+    return;
+  }
+
   const removeButton = event.target.closest('[data-scheduled-interview-remove-id]');
   if (!removeButton) {
     return;
@@ -970,6 +1025,7 @@ function handleInterviewSubmit(event) {
   const status = INTERVIEW_STATUS_VALUES.includes(String(interviewStatus?.value || '').trim())
     ? String(interviewStatus.value).trim()
     : 'Queued';
+  const scheduledId = String(interviewScheduledId?.value || '').trim();
 
   if (!company && !contact) {
     if (interviewLogSaveStatus) {
@@ -998,12 +1054,24 @@ function handleInterviewSubmit(event) {
     message: 'saved interview',
   });
 
+  if (scheduledId) {
+    setScheduledInterviews(
+      currentScheduledInterviews.filter(item => item.id !== scheduledId),
+      { message: 'logged scheduled slot' }
+    );
+  }
+
   interviewLogForm?.reset();
+  if (interviewScheduledId instanceof HTMLInputElement) {
+    interviewScheduledId.value = '';
+  }
   if (interviewSegment) {
     interviewSegment.value = segmentId;
   }
   if (interviewLogSaveStatus) {
-    interviewLogSaveStatus.textContent = 'Saved the interview log. Keep the next step concrete.';
+    interviewLogSaveStatus.textContent = scheduledId
+      ? 'Saved the interview log and cleared the scheduled slot.'
+      : 'Saved the interview log. Keep the next step concrete.';
   }
 }
 
