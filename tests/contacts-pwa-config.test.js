@@ -176,6 +176,19 @@ describe('contacts PWA configuration', () => {
     assert.equal(stripeWebhookRewrite.destination, '/api/webhooks/stripe');
   });
 
+  it('schedules the homepage hero growth cron route', async () => {
+    const vercelText = await readProjectFile('vercel.json');
+    const config = JSON.parse(vercelText);
+    const crons = Array.isArray(config.crons) ? config.crons : [];
+
+    const growthCron = crons.find(
+      (rule) => rule.path === '/api/growth/homepage-hero-cron'
+    );
+
+    assert.ok(growthCron);
+    assert.equal(growthCron.schedule, '43 2 * * *');
+  });
+
   it('ships standalone Vercel headers inside the contacts directory', async () => {
     const vercelText = await readProjectFile('contacts/vercel.json');
     const config = JSON.parse(vercelText);

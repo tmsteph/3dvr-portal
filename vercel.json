@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/growth/homepage-hero-cron",
+      "schedule": "43 2 * * *"
+    },
+    {
       "path": "/api/money/autopilot-cron",
       "schedule": "17 1 * * *"
     }

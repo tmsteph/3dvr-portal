@@ -54,10 +54,10 @@
           <div>
             <p class="text-xs uppercase tracking-[0.3em] text-cyan-300">Live experiment</p>
             <h2 class="text-2xl font-semibold mt-2">Homepage hero</h2>
-            <p class="text-sm text-slate-300 mt-2 max-w-2xl">
-              Two variants are currently in play: one clarity-first and one traction-first. The homepage script reads
-              this Gun config and switches automatically when a winner is promoted.
-            </p>
+          <p class="text-sm text-slate-300 mt-2 max-w-2xl">
+            Two variants are currently in play: one clarity-first and one traction-first. The homepage script reads
+            this Gun config and switches automatically when a winner is promoted by the lab or the background cron.
+          </p>
           </div>
           <p id="growthLabStatus" class="text-sm text-slate-400">Connecting to growth nodes…</p>
         </div>
@@ -85,7 +85,7 @@
         <h2 class="text-xl font-semibold">Promote or reset the homepage winner</h2>
         <p class="text-sm text-slate-300">
           Use manual controls when you need to override the split quickly. The homepage listens to the same config and
-          applies the live winner without a copy-only redeploy.
+          applies the live winner without a copy-only redeploy. When cron is enabled, auto mode also runs in the background.
         </p>
         <div class="grid gap-3">
           <button id="setWinnerClarity" type="button" class="inline-flex items-center justify-center rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400">Promote clarity variant</button>
