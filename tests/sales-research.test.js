@@ -28,6 +28,7 @@ test('sales research desk keeps current market signals tied to action', async ()
   assert.match(html, /id="scheduledInterviewList"/);
   assert.match(html, /Open calendar draft/);
   assert.match(html, /id="interviewLogForm"/);
+  assert.match(html, /id="interviewScheduledId"/);
   assert.match(html, /id="interviewSprintStatus"/);
   assert.match(html, /First 3 today/);
   assert.match(html, /One real conversation per segment/);
