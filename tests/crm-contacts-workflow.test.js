@@ -14,6 +14,12 @@ test('CRM page exposes workflow filters for fast lead retrieval', async () => {
   assert.match(html, /id="filterAllRecords"/);
   assert.match(html, /id="filterWarmLeads"/);
   assert.match(html, /id="personWorkflowFilter"/);
+  assert.match(html, /id="crmResearchProfessionalServices"/);
+  assert.match(html, /id="crmResearchLocalServices"/);
+  assert.match(html, /id="crmResearchSupportTeams"/);
+  assert.match(html, /id="crmTaxonomyTags"/);
+  assert.match(html, /segment\/pro-services/);
+  assert.match(html, /offer\/embedded/);
   assert.match(html, /data-contacts-link/);
   assert.doesNotMatch(html, /space=org-3dvr/);
   assert.match(html, /value="linked"/);

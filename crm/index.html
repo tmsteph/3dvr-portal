@@ -147,6 +147,29 @@
           <button id="openProblemCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Log problem</button>
           <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm text-center">Open contacts</a>
         </div>
+        <div class="rounded-xl border border-white/10 bg-gray-950/40 p-4 space-y-3">
+          <div>
+            <p class="text-xs font-semibold tracking-[0.32em] text-sky-300 uppercase">Research presets</p>
+            <p class="text-sm text-gray-300 mt-1">Open the full lead form with segment, pain, offer, and source tags already in place.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <a
+              id="crmResearchProfessionalServices"
+              href="?draft=1&status=Warm%20-%20Awareness&segment=Professional%20services&pain=Lead%20flow%20and%20follow-up&pilot=Warm&offer=%2450%2Fmo&signal=Market%20research%20outreach&experiment=Book%20a%2015-minute%20discovery%20call&source=market-research&tags=segment%2Fpro-services%2Cpain%2Ffollow-up%2Cintent%2Frevenue%2Coffer%2Fbuilder%2Csource%2Foutbound"
+              class="bg-sky-500/90 hover:bg-sky-500 text-white px-3 py-2 rounded text-sm font-medium"
+            >Pro services interview</a>
+            <a
+              id="crmResearchLocalServices"
+              href="?draft=1&status=Warm%20-%20Awareness&segment=Local%20services&pain=Lead%20flow%2C%20estimates%2C%20and%20follow-up&pilot=Warm&offer=%2450%2Fmo&signal=Market%20research%20outreach&experiment=Book%20a%2015-minute%20discovery%20call&source=market-research&tags=segment%2Flocal-services%2Cpain%2Flead-flow%2Cpain%2Ffollow-up%2Cintent%2Frevenue%2Coffer%2Fbuilder%2Csource%2Foutbound"
+              class="bg-amber-500/90 hover:bg-amber-500 text-gray-950 px-3 py-2 rounded text-sm font-medium"
+            >Local service interview</a>
+            <a
+              id="crmResearchSupportTeams"
+              href="?draft=1&status=Lead&segment=Support%20team%20or%20community%20org&pain=Intake%2C%20scheduling%2C%20and%20shared%20coordination&pilot=Pilot%20candidate&offer=%24200%2Fmo&signal=Market%20research%20outreach&experiment=Book%20a%2015-minute%20team%20workflow%20call&source=market-research&tags=segment%2Fsupport-teams%2Cpain%2Fcoordination%2Cpain%2Fscheduling%2Cintent%2Frevenue%2Coffer%2Fembedded%2Csource%2Foutbound"
+              class="bg-purple-500/90 hover:bg-purple-500 text-white px-3 py-2 rounded text-sm font-medium"
+            >Support team interview</a>
+          </div>
+        </div>
         <p class="text-xs text-gray-400">Use the full form when you need linked problems or more detailed notes.</p>
       </div>
       <div class="space-y-6">
@@ -220,7 +243,27 @@
             <input type="text" id="role" placeholder="Role (owner, manager, lead...)" class="w-full p-2 rounded text-black" />
           </div>
           <div data-create-types="person group">
-            <input type="text" id="tags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
+            <input type="text" id="tags" list="crmTaxonomyTags" placeholder="Tags (comma separated)" class="w-full p-2 rounded text-black" />
+          </div>
+          <div data-create-types="person group" class="md:col-span-2 rounded-xl border border-white/10 bg-gray-950/40 p-4 space-y-3">
+            <div>
+              <p class="text-xs font-semibold tracking-[0.32em] text-sky-300 uppercase">Structured tag helper</p>
+              <p class="text-sm text-gray-300 mt-1">Use the same segment, pain, intent, offer, and source tags across sales research and CRM.</p>
+            </div>
+            <div class="flex flex-wrap gap-2 text-xs text-gray-200">
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">segment/pro-services</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">segment/local-services</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">segment/support-teams</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">pain/lead-flow</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">pain/follow-up</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">pain/scheduling</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">pain/coordination</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">intent/revenue</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">offer/builder</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">offer/embedded</span>
+              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">source/outbound</span>
+            </div>
+            <p class="text-xs text-gray-400">The tags input supports autocomplete from the shared taxonomy list below.</p>
           </div>
           <div data-create-types="person group">
             <select id="status" class="w-full p-2 rounded text-black"></select>
@@ -271,6 +314,31 @@
           <button type="button" id="cancelCrmCreate" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
         </div>
       </form>
+      <datalist id="crmTaxonomyTags">
+        <option value="segment/pro-services"></option>
+        <option value="segment/local-services"></option>
+        <option value="segment/support-teams"></option>
+        <option value="pain/lead-flow"></option>
+        <option value="pain/follow-up"></option>
+        <option value="pain/scheduling"></option>
+        <option value="pain/payments"></option>
+        <option value="pain/coordination"></option>
+        <option value="pain/tool-sprawl"></option>
+        <option value="intent/clarity"></option>
+        <option value="intent/organize"></option>
+        <option value="intent/launch"></option>
+        <option value="intent/revenue"></option>
+        <option value="offer/free"></option>
+        <option value="offer/founder"></option>
+        <option value="offer/builder"></option>
+        <option value="offer/embedded"></option>
+        <option value="offer/deposit"></option>
+        <option value="source/outbound"></option>
+        <option value="source/referral"></option>
+        <option value="source/site"></option>
+        <option value="source/community"></option>
+        <option value="source/social"></option>
+      </datalist>
     </div>
   </div>
 

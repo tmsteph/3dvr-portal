@@ -59,11 +59,13 @@ describe('crm option sets', () => {
   it('provides the market segment, pain severity, pilot status, and record type labels', () => {
     assert.deepEqual(Array.from(CRM_MARKET_SEGMENT_OPTIONS), [
       '',
+      'Professional services',
+      'Local services',
+      'Support team or community org',
       'Owner-led service business',
       'Creative studio or agency',
       'Event or AV operator',
       'Educator or community org',
-      'Local business with referrals',
       'Independent builder or side-hustle',
     ]);
     assert.deepEqual(Array.from(CRM_PAIN_SEVERITY_OPTIONS), ['', 'Low', 'Medium', 'High', 'Critical']);

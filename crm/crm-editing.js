@@ -14,11 +14,13 @@ const DEFAULT_STATUS_OPTIONS = Object.freeze([
 
 const DEFAULT_MARKET_SEGMENT_OPTIONS = Object.freeze([
   '',
+  'Professional services',
+  'Local services',
+  'Support team or community org',
   'Owner-led service business',
   'Creative studio or agency',
   'Event or AV operator',
   'Educator or community org',
-  'Local business with referrals',
   'Independent builder or side-hustle',
 ]);
 
