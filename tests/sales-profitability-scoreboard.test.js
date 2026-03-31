@@ -7,6 +7,7 @@ test('profitability desk ties the roadmap to the live sales system', async () =>
   const researchHtml = await readFile(new URL('../sales/research.html', import.meta.url), 'utf8');
   const scoreboardHtml = await readFile(new URL('../sales/scoreboard.html', import.meta.url), 'utf8');
   const scoreboardJs = await readFile(new URL('../sales/scoreboard.js', import.meta.url), 'utf8');
+  const scoreboardDataJs = await readFile(new URL('../sales/scoreboard-data.js', import.meta.url), 'utf8');
 
   assert.match(salesHubHtml, /Profitability/);
   assert.match(salesHubHtml, /Open profitability desk/);
@@ -15,8 +16,11 @@ test('profitability desk ties the roadmap to the live sales system', async () =>
 
   assert.match(scoreboardHtml, /Profitability Desk/);
   assert.match(scoreboardHtml, /Weekly operator view/);
-  assert.match(scoreboardHtml, /See the week in one screen\./);
+  assert.match(scoreboardHtml, /Overview/);
+  assert.match(scoreboardHtml, /Subscriber\s+counts come from billing and finance sync/);
+  assert.match(scoreboardHtml, /Active Stripe subscribers/);
   assert.match(scoreboardHtml, /data-live-metric="outreach"/);
+  assert.match(scoreboardHtml, /data-live-metric="stripeSubscribers"/);
   assert.match(scoreboardHtml, /data-live-metric="replies"/);
   assert.match(scoreboardHtml, /data-live-metric="wins"/);
   assert.match(scoreboardHtml, /data-live-metric="queueOpen"/);
@@ -28,16 +32,28 @@ test('profitability desk ties the roadmap to the live sales system', async () =>
   assert.match(scoreboardHtml, /One product move/);
   assert.match(scoreboardHtml, /One revenue move/);
   assert.match(scoreboardHtml, /One system move/);
-  assert.match(scoreboardHtml, /Builder MRR \+ Embedded MRR/);
+  assert.match(scoreboardHtml, /Linked Builder MRR \+ Linked Embedded MRR/);
+  assert.match(scoreboardHtml, /type="module" src="\/sales\/scoreboard\.js"/);
   assert.match(scoreboardHtml, /\/sales\/scoreboard\.js/);
   assert.match(scoreboardHtml, /https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
   assert.match(scoreboardHtml, /\/gun-init\.js/);
+  assert.doesNotMatch(scoreboardHtml, /id="builderCustomers"/);
+  assert.doesNotMatch(scoreboardHtml, /id="embeddedCustomers"/);
 
+  assert.match(scoreboardJs, /from '\.\/scoreboard-data\.js'/);
   assert.match(scoreboardJs, /const GUN_QUEUE_NODE_PATH = \['3dvr-portal', 'sales-training', 'today-queue'\]/);
   assert.match(scoreboardJs, /const TOUCH_LOG_NODE_PATH = \['3dvr-portal', 'crm-touch-log'\]/);
+  assert.match(scoreboardJs, /const BILLING_USAGE_TIER_NODE_PATH = \['3dvr-portal', 'billing', 'usageTier'\]/);
+  assert.match(scoreboardJs, /const STRIPE_METRICS_NODE_PATH = \['3dvr-portal', 'finance', 'stripe', 'metrics', 'latest'\]/);
   assert.match(scoreboardJs, /const SCOREBOARD_NODE_PATH = \['3dvr-portal', 'sales-scoreboard', 'weekly'\]/);
   assert.match(scoreboardJs, /reply-received/);
   assert.match(scoreboardJs, /closed-won/);
-  assert.match(scoreboardJs, /const estimatedMrr = \(plan\.builderCustomers \* 50\) \+ \(plan\.embeddedCustomers \* 200\)/);
+  assert.match(scoreboardJs, /summarizeLinkedBilling/);
+  assert.match(scoreboardJs, /normalizeUsageTierRecord/);
+  assert.match(scoreboardJs, /stripeSubscribers/);
   assert.match(scoreboardJs, /Shared weekly ledger saved for/);
+
+  assert.match(scoreboardDataJs, /export function summarizeLinkedBilling/);
+  assert.match(scoreboardDataJs, /export function normalizeStripeMetricsRecord/);
+  assert.match(scoreboardDataJs, /export function estimateRecurringRevenue/);
 });
