@@ -1,7 +1,7 @@
 const LOCAL_TRAINING_STATE_KEY = 'training.v1';
 const GUN_QUEUE_NODE_PATH = ['3dvr-portal', 'sales-training', 'today-queue'];
 const CRM_NODE_KEY = '3dvr-crm';
-const LOW_SIGNAL_STATUSES = new Set(['', 'Warm - Awareness', 'Lead', 'Prospect']);
+const TOUCH_LOG_NODE_PATH = ['3dvr-portal', 'crm-touch-log'];
 
 const SEGMENTS = Object.freeze({
   'professional-services': Object.freeze({
@@ -37,9 +37,11 @@ const scoreboardUpdated = document.getElementById('scoreboardUpdated');
 let researchGun = null;
 let reachoutQueueNode = null;
 let crmRecordsNode = null;
+let touchLogRoot = null;
 let queueSnapshot = '[]';
 let currentQueue = [];
 const crmRecordIndex = Object.create(null);
+const touchLogIndex = Object.create(null);
 let scoreboardTimer = null;
 
 function createResearchGun() {
@@ -83,6 +85,10 @@ function normalizeQueueEntry(item = {}) {
     segment: String(item.segment || '').trim(),
     playbook: String(item.playbook || '').trim(),
     createdAt: String(item.createdAt || '').trim(),
+    completedAt: String(item.completedAt || '').trim(),
+    touchLogId: String(item.touchLogId || '').trim(),
+    touchType: String(item.touchType || 'outreach-sent').trim(),
+    recordId: String(item.recordId || '').trim(),
   };
 }
 
@@ -232,6 +238,10 @@ function queueSegmentPlaybook(segmentId) {
       segment: segment.label,
       playbook: segmentId,
       createdAt: new Date().toISOString(),
+      completedAt: '',
+      touchLogId: '',
+      touchType: 'outreach-sent',
+      recordId: '',
       done: false,
     },
   ], {
@@ -254,9 +264,17 @@ function normalizeCrmRecord(data) {
   return clean;
 }
 
-function isEngaged(record) {
-  const status = String(record?.status || '').trim();
-  return status !== '' && !LOW_SIGNAL_STATUSES.has(status);
+function normalizeTouchLogEntry(data, id) {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+  return {
+    ...normalizeCrmRecord(data),
+    id: String(id || data.id || '').trim(),
+    timestamp: String(data.timestamp || data.time || data.lastContacted || '').trim(),
+    touchType: String(data.touchType || 'outreach-sent').trim(),
+    segment: String(data.segment || '').trim(),
+  };
 }
 
 function getPeopleForSegment(segment) {
@@ -268,32 +286,42 @@ function getPeopleForSegment(segment) {
   });
 }
 
+function getTouchesForSegment(segment) {
+  return Object.values(touchLogIndex).filter(entry => {
+    if (!entry) return false;
+    const entrySegment = String(entry.segment || '').trim();
+    return entrySegment === segment.label || entrySegment === segment.marketSegment;
+  });
+}
+
 function renderScoreboardCard(segmentId, records) {
   const card = document.querySelector(`[data-score-segment="${segmentId}"]`);
   if (!card) {
     return;
   }
 
+  const segment = SEGMENTS[segmentId];
+  const touches = getTouchesForSegment(segment);
   const tracked = records.length;
-  const engaged = records.filter(isEngaged).length;
-  const won = records.filter(record => String(record.status || '').trim() === 'Won').length;
-  const closeRate = tracked ? `${Math.round((won / tracked) * 100)}%` : '0%';
-  const lost = records.filter(record => String(record.status || '').trim() === 'Lost').length;
+  const sent = touches.filter(entry => entry.touchType === 'outreach-sent').length;
+  const replies = touches.filter(entry => entry.touchType === 'reply-received').length;
+  const won = touches.filter(entry => entry.touchType === 'closed-won').length;
+  const replyRate = sent ? `${Math.round((replies / sent) * 100)}%` : '0%';
 
   const trackedEl = card.querySelector('[data-score-metric="tracked"]');
-  const engagedEl = card.querySelector('[data-score-metric="engaged"]');
+  const sentEl = card.querySelector('[data-score-metric="sent"]');
+  const repliesEl = card.querySelector('[data-score-metric="replies"]');
   const wonEl = card.querySelector('[data-score-metric="won"]');
-  const closeRateEl = card.querySelector('[data-score-metric="close-rate"]');
   const noteEl = card.querySelector('[data-score-note]');
 
   if (trackedEl) trackedEl.textContent = String(tracked);
-  if (engagedEl) engagedEl.textContent = String(engaged);
+  if (sentEl) sentEl.textContent = String(sent);
+  if (repliesEl) repliesEl.textContent = String(replies);
   if (wonEl) wonEl.textContent = String(won);
-  if (closeRateEl) closeRateEl.textContent = closeRate;
   if (noteEl) {
-    noteEl.textContent = tracked
-      ? `${engaged} engaged proxy, ${won} won, ${lost} lost. Move the segment with the strongest close rate.`
-      : 'No CRM records yet for this segment.';
+    noteEl.textContent = tracked || touches.length
+      ? `${sent} sent, ${replies} replies, ${won} won. Reply rate ${replyRate}.`
+      : 'No CRM or touch-log records yet for this segment.';
   }
 }
 
@@ -302,7 +330,7 @@ function renderScoreboard() {
     renderScoreboardCard(segmentId, getPeopleForSegment(segment));
   });
   if (scoreboardUpdated) {
-    scoreboardUpdated.textContent = `Live from ${CRM_NODE_KEY} • ${new Date().toLocaleTimeString([], {
+    scoreboardUpdated.textContent = `Live from ${CRM_NODE_KEY} + ${TOUCH_LOG_NODE_PATH[1]} • ${new Date().toLocaleTimeString([], {
       hour: 'numeric',
       minute: '2-digit',
     })}`;
@@ -337,6 +365,27 @@ function hydrateCrmScoreboard() {
       return;
     }
     crmRecordIndex[recordId] = record;
+    scheduleScoreboardRender();
+  });
+}
+
+function hydrateTouchLogScoreboard() {
+  if (!touchLogRoot) {
+    return;
+  }
+
+  touchLogRoot.map().on((data, id) => {
+    const entryId = String(id || '').trim();
+    if (!entryId) {
+      return;
+    }
+    const entry = normalizeTouchLogEntry(data, id);
+    if (!entry || !Object.keys(entry).length) {
+      delete touchLogIndex[entryId];
+      scheduleScoreboardRender();
+      return;
+    }
+    touchLogIndex[entryId] = entry;
     scheduleScoreboardRender();
   });
 }
@@ -376,10 +425,14 @@ function init() {
       .get(GUN_QUEUE_NODE_PATH[1])
       .get(GUN_QUEUE_NODE_PATH[2]);
     crmRecordsNode = researchGun.get(CRM_NODE_KEY);
+    touchLogRoot = researchGun
+      .get(TOUCH_LOG_NODE_PATH[0])
+      .get(TOUCH_LOG_NODE_PATH[1]);
   }
 
   hydrateQueueFromGun();
   hydrateCrmScoreboard();
+  hydrateTouchLogScoreboard();
   renderScoreboard();
 }
 

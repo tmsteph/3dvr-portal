@@ -272,11 +272,13 @@
   const SKEY = 'training.v1';
   const BASE_TITLE = document.title;
   const GUN_QUEUE_NODE_PATH = ['3dvr-portal', 'sales-training', 'today-queue'];
+  const TOUCH_LOG_NODE_PATH = ['3dvr-portal', 'crm-touch-log'];
   let STATE = JSON.parse(localStorage.getItem(SKEY) || '{}');
   let focusMode = localStorage.getItem(`${SKEY}.focus`) === '1';
   let activeModule = localStorage.getItem(`${SKEY}.active`) || null;
   let trainingGun = null;
   let reachoutQueueNode = null;
+  let touchLogRoot = null;
   let reachoutQueueSnapshot = '';
 
   function createTrainingGun() {
@@ -312,7 +314,11 @@
       source: String(item.source || '').trim(),
       segment: String(item.segment || '').trim(),
       playbook: String(item.playbook || '').trim(),
-      createdAt: String(item.createdAt || '').trim()
+      createdAt: String(item.createdAt || '').trim(),
+      completedAt: String(item.completedAt || '').trim(),
+      touchLogId: String(item.touchLogId || '').trim(),
+      touchType: String(item.touchType || 'outreach-sent').trim(),
+      recordId: String(item.recordId || '').trim()
     };
   }
 
@@ -401,6 +407,49 @@
   function getQueueSyncLabel() {
     return reachoutQueueNode ? 'Shared with Gun' : 'Local only';
   }
+
+  function getTrainingParticipantId() {
+    const username = String(localStorage.getItem('username') || '').trim();
+    const storedAlias = String(localStorage.getItem('alias') || '').trim();
+    const guestId = String(localStorage.getItem('guestId') || '').trim();
+    return username || storedAlias || guestId || 'guest';
+  }
+
+  function getTrainingParticipantLabel() {
+    const username = String(localStorage.getItem('username') || '').trim();
+    const storedAlias = String(localStorage.getItem('alias') || '').trim();
+    const guestDisplayName = String(localStorage.getItem('guestDisplayName') || '').trim();
+    return username || storedAlias || guestDisplayName || 'Guest';
+  }
+
+  function writeTouchLogEntry(item) {
+    if (!touchLogRoot || !item || !item.id) {
+      return;
+    }
+
+    const timestamp = item.completedAt || new Date().toISOString();
+    const logId = item.touchLogId || `${item.id}-${Date.now()}`;
+    touchLogRoot.get(logId).put({
+      id: logId,
+      recordId: item.recordId || item.id,
+      contactName: item.lead || 'Unnamed lead',
+      timestamp,
+      followUp: item.next || '',
+      note: item.message || '',
+      touchType: item.touchType || 'outreach-sent',
+      touchTypeLabel: 'Outreach sent',
+      source: item.source || 'Reach-Out Desk',
+      segment: item.segment || '',
+      playbook: item.playbook || '',
+      participantId: getTrainingParticipantId(),
+      loggedBy: getTrainingParticipantLabel()
+    }, ack => {
+      if (ack && ack.err) {
+        console.warn('Sales training touch log sync failed', ack.err);
+      }
+    });
+  }
+
   function renderReachoutQueueCard() {
     const card = document.createElement('div');
     card.className = 'card';
@@ -463,7 +512,21 @@
           if (!lead || !message || !next) return;
           setReachoutQueue([
             ...getReachoutQueue(),
-            { id: String(Date.now()), lead, message, next, done: false, source: 'Reach-Out Desk', segment: '', playbook: 'manual', createdAt: new Date().toISOString() }
+            {
+              id: String(Date.now()),
+              lead,
+              message,
+              next,
+              done: false,
+              source: 'Reach-Out Desk',
+              segment: '',
+              playbook: 'manual',
+              createdAt: new Date().toISOString(),
+              completedAt: '',
+              touchLogId: '',
+              touchType: 'outreach-sent',
+              recordId: ''
+            }
           ]);
           form.reset();
         });
@@ -471,10 +534,28 @@
 
       card.querySelectorAll('[data-queue-toggle]').forEach((button) => {
         button.addEventListener('click', () => {
-          const queue = getReachoutQueue().map((item) => (
-            item.id === button.dataset.queueToggle ? { ...item, done: !item.done } : item
-          ));
+          let completedItem = null;
+          const queue = getReachoutQueue().map((item) => {
+            if (item.id !== button.dataset.queueToggle) {
+              return item;
+            }
+
+            if (item.done) {
+              return { ...item, done: false, completedAt: '', touchLogId: '' };
+            }
+
+            completedItem = {
+              ...item,
+              done: true,
+              completedAt: new Date().toISOString(),
+              touchLogId: `${item.id}-${Date.now()}`
+            };
+            return completedItem;
+          });
           setReachoutQueue(queue);
+          if (completedItem) {
+            writeTouchLogEntry(completedItem);
+          }
         });
       });
 
@@ -729,6 +810,9 @@
       .get(GUN_QUEUE_NODE_PATH[0])
       .get(GUN_QUEUE_NODE_PATH[1])
       .get(GUN_QUEUE_NODE_PATH[2]);
+    touchLogRoot = trainingGun
+      .get(TOUCH_LOG_NODE_PATH[0])
+      .get(TOUCH_LOG_NODE_PATH[1]);
     hydrateReachoutQueueFromGun();
   }
   renderSidebar();

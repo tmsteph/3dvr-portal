@@ -45,6 +45,14 @@ const duplicateSummaryById = new Map();
 const WEEKLY_CHALLENGE_GOAL = 3;
 const DEFAULT_PERSON_STATUS = 'Warm - Awareness';
 const WARM_STATUS_PREFIX = 'warm -';
+const TOUCH_TYPE_OPTIONS = Object.freeze([
+  Object.freeze({ value: 'outreach-sent', label: 'Outreach sent' }),
+  Object.freeze({ value: 'reply-received', label: 'Reply received' }),
+  Object.freeze({ value: 'call-booked', label: 'Call booked' }),
+  Object.freeze({ value: 'meeting-held', label: 'Meeting held' }),
+  Object.freeze({ value: 'closed-won', label: 'Closed won' }),
+  Object.freeze({ value: 'closed-lost', label: 'Closed lost' }),
+]);
 const focusClasses = ['ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-gray-900'];
 
 const elements = {
@@ -189,6 +197,44 @@ function generateId() {
 function toActivityCount(value) {
   const numeric = Number.parseInt(value, 10);
   return Number.isNaN(numeric) ? 0 : numeric;
+}
+
+function normalizeTouchType(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  const match = TOUCH_TYPE_OPTIONS.find(option => option.value === normalized);
+  return match ? match.value : 'outreach-sent';
+}
+
+function getTouchTypeLabel(value = '') {
+  const normalized = normalizeTouchType(value);
+  const match = TOUCH_TYPE_OPTIONS.find(option => option.value === normalized);
+  return match ? match.label : 'Outreach sent';
+}
+
+function deriveStatusFromTouch(record = {}, touchType = 'outreach-sent') {
+  const current = String(record.status || '').trim();
+  const normalizedType = normalizeTouchType(touchType);
+
+  if (normalizedType === 'closed-won') return 'Won';
+  if (normalizedType === 'closed-lost') return 'Lost';
+  if (current === 'Won' || current === 'Lost') return current;
+
+  if (normalizedType === 'reply-received') {
+    if (!current || current === 'Lead' || current === 'Prospect' || current === DEFAULT_PERSON_STATUS || current === 'Warm - Follow-up') {
+      return 'Warm - Discovery';
+    }
+    return current;
+  }
+
+  if (normalizedType === 'call-booked') {
+    return current && current !== DEFAULT_PERSON_STATUS ? current : 'Active';
+  }
+
+  if (normalizedType === 'meeting-held') {
+    return 'Negotiating';
+  }
+
+  return current || DEFAULT_PERSON_STATUS;
 }
 
 function getFieldValue(id) {
@@ -478,6 +524,8 @@ function pruneRecordForType(record) {
     next.contactId = '';
     next.lastContacted = '';
     next.activityCount = 0;
+    next.lastReplyAt = '';
+    next.replyCount = 0;
     return next;
   }
 
@@ -496,12 +544,15 @@ function pruneRecordForType(record) {
     next.contactId = '';
     next.lastContacted = '';
     next.activityCount = 0;
+    next.lastReplyAt = '';
+    next.replyCount = 0;
     return next;
   }
 
   next.linkedGroupIds = '';
   next.linkedPersonIds = '';
   next.activityCount = toActivityCount(next.activityCount);
+  next.replyCount = toActivityCount(next.replyCount);
   return next;
 }
 
@@ -751,6 +802,7 @@ function renderPersonCard(record, { nested = false } = {}) {
           ${renderCompactFacts([
             `Last contacted ${record.lastContacted ? timeAgo(record.lastContacted) : '—'}`,
             `Touches ${safe(String(toActivityCount(record.activityCount)))}`,
+            `Replies ${safe(String(toActivityCount(record.replyCount)))}`,
             `Updated ${safe(formatUpdated(record.updated || record.created))}`,
           ])}
         </div>
@@ -1112,6 +1164,12 @@ function openTouchPrompt(record) {
         </div>
         <form data-touch-form class="space-y-4">
           <div class="space-y-2">
+            <label class="block text-sm text-gray-200">Touch type</label>
+            <select data-touch-type class="w-full p-2 rounded text-black">
+              ${TOUCH_TYPE_OPTIONS.map(option => `<option value="${safeAttr(option.value)}">${safe(option.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="space-y-2">
             <label class="block text-sm text-gray-200">Any notes about this touch?</label>
             <textarea data-touch-note class="w-full p-2 rounded text-black" rows="3" placeholder="Add quick notes (optional)"></textarea>
           </div>
@@ -1132,6 +1190,7 @@ function openTouchPrompt(record) {
     const form = overlay.querySelector('[data-touch-form]');
     const noteInput = overlay.querySelector('[data-touch-note]');
     const followInput = overlay.querySelector('[data-touch-follow-up]');
+    const typeInput = overlay.querySelector('[data-touch-type]');
     if (followInput && record.nextFollowUp) {
       followInput.value = normalizeFollowUpInput(record.nextFollowUp);
     }
@@ -1151,13 +1210,14 @@ function openTouchPrompt(record) {
     });
     overlay.querySelector('[data-touch-skip]')?.addEventListener('click', event => {
       event.preventDefault();
-      close({ notes: '', followUp: '' });
+      close({ notes: '', followUp: '', touchType: typeInput ? typeInput.value : 'outreach-sent' });
     });
     form?.addEventListener('submit', event => {
       event.preventDefault();
       close({
         notes: noteInput ? noteInput.value.trim() : '',
         followUp: followInput ? followInput.value : '',
+        touchType: typeInput ? typeInput.value : 'outreach-sent',
       });
     });
   });
@@ -1174,9 +1234,13 @@ async function logTouch(recordId) {
   if (!promptResult) return;
 
   const now = new Date().toISOString();
+  const touchType = normalizeTouchType(promptResult.touchType);
+  const touchTypeLabel = getTouchTypeLabel(touchType);
+  const nextStatus = deriveStatusFromTouch(record, touchType);
+  const isReply = touchType === 'reply-received';
   const followUp = normalizeFollowUpInput(promptResult.followUp || record.nextFollowUp || '');
   const touchNotes = String(promptResult.notes || '').trim();
-  const notePrefix = touchNotes ? `[Touch ${new Date(now).toLocaleString()}] ${touchNotes}` : '';
+  const notePrefix = touchNotes ? `[${touchTypeLabel} ${new Date(now).toLocaleString()}] ${touchNotes}` : '';
   const mergedNotes = notePrefix
     ? (record.notes ? `${record.notes}\n\n${notePrefix}` : notePrefix)
     : record.notes || '';
@@ -1184,9 +1248,13 @@ async function logTouch(recordId) {
   await putCrmRecord(pruneRecordForType({
     ...record,
     id: recordId,
+    status: nextStatus,
     lastContacted: now,
     activityCount: toActivityCount(record.activityCount) + 1,
-    nextFollowUp: followUp || record.nextFollowUp || '',
+    nextFollowUp: touchType === 'closed-won' || touchType === 'closed-lost' ? '' : (followUp || record.nextFollowUp || ''),
+    lastReplyAt: isReply ? now : String(record.lastReplyAt || ''),
+    replyCount: isReply ? toActivityCount(record.replyCount) + 1 : toActivityCount(record.replyCount),
+    lastTouchType: touchType,
     notes: mergedNotes,
     updated: now,
     created: record.created || now,
@@ -1200,6 +1268,11 @@ async function logTouch(recordId) {
     timestamp: now,
     followUp: followUp || record.nextFollowUp || '',
     note: touchNotes,
+    touchType,
+    touchTypeLabel,
+    source: 'CRM workspace',
+    segment: record.marketSegment || '',
+    statusAfter: nextStatus,
     participantId: getParticipantId(),
     loggedBy: getParticipantLabel(),
   };
@@ -1298,6 +1371,8 @@ function buildDetailMeta(record, context) {
       ['Next follow-up', record.nextFollowUp || '—'],
       ['Last contacted', record.lastContacted ? `${timeAgo(record.lastContacted)} · ${new Date(record.lastContacted).toLocaleString()}` : '—'],
       ['Touches', toActivityCount(record.activityCount)],
+      ['Replies', toActivityCount(record.replyCount)],
+      ['Last reply', record.lastReplyAt ? `${timeAgo(record.lastReplyAt)} · ${new Date(record.lastReplyAt).toLocaleString()}` : '—'],
       ['Created', record.created ? new Date(record.created).toLocaleString() : '—'],
       ['Updated', record.updated ? new Date(record.updated).toLocaleString() : '—'],
     ];
@@ -1457,6 +1532,7 @@ function renderRecentTouchList(entries) {
           <span class="font-semibold">${safe(entry.contactName || 'Unnamed contact')}</span>
           <span class="text-xs text-gray-400">${safe(entry.timestamp ? timeAgo(entry.timestamp) : 'Unknown time')}</span>
         </div>
+        <p class="text-xs text-sky-200 mt-1">${safe(entry.touchTypeLabel || getTouchTypeLabel(entry.touchType))}${entry.segment ? ` • ${safe(entry.segment)}` : ''}${entry.source ? ` • ${safe(entry.source)}` : ''}</p>
         <p class="text-xs text-gray-300 mt-1">Next follow-up: ${safe(entry.followUp || 'Not scheduled')}</p>
         ${entry.note ? `<p class="text-xs text-gray-200 mt-2 whitespace-pre-line">Touch notes: ${safe(entry.note)}</p>` : ''}
         <p class="text-xs text-gray-400">Logged by ${safe(entry.loggedBy || entry.participantId || 'Unknown')}</p>
@@ -1841,6 +1917,8 @@ function startSync() {
         ...sanitizeCrmRecord(data),
         id,
         timestamp: data.timestamp || data.time || data.lastContacted || '',
+        touchType: normalizeTouchType(data.touchType || ''),
+        touchTypeLabel: data.touchTypeLabel || getTouchTypeLabel(data.touchType || ''),
       });
     }
     renderWeeklyChallenge();
