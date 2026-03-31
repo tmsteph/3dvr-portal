@@ -96,6 +96,7 @@ const elements = {
 
 const params = new URLSearchParams(window.location.search);
 const cellContextId = (params.get('cellId') || params.get('cell') || '').trim();
+const draftTypeParam = (params.get('type') || '').trim();
 const state = {
   board: buildCrmRelationshipBoard([]),
   renderTimer: null,
@@ -107,12 +108,26 @@ const state = {
   focusApplied: false,
   draftApplied: false,
   urlDraft: {
-    type: normalizeCrmRecordType(params.get('type') || ''),
+    type: draftTypeParam ? normalizeCrmRecordType(draftTypeParam) : '',
     name: (params.get('name') || '').trim(),
+    lead: (params.get('lead') || '').trim(),
     email: (params.get('email') || '').trim(),
+    company: (params.get('company') || '').trim(),
+    phone: (params.get('phone') || '').trim(),
+    role: (params.get('role') || '').trim(),
+    tags: (params.get('tags') || '').trim(),
+    status: (params.get('status') || '').trim(),
+    nextFollowUp: (params.get('next') || params.get('followup') || '').trim(),
+    marketSegment: (params.get('segment') || '').trim(),
+    primaryPain: (params.get('pain') || '').trim(),
+    painSeverity: (params.get('severity') || '').trim(),
+    currentWorkaround: (params.get('workaround') || '').trim(),
+    pilotStatus: (params.get('pilot') || '').trim(),
+    offerAmount: (params.get('offer') || params.get('amount') || '').trim(),
+    lastSignal: (params.get('signal') || '').trim(),
+    nextExperiment: (params.get('experiment') || '').trim(),
     groupId: (params.get('groupId') || '').trim(),
-    pain: (params.get('pain') || '').trim(),
-    notes: (params.get('notes') || '').trim(),
+    notes: (params.get('notes') || params.get('note') || '').trim(),
     source: (params.get('source') || '').trim(),
   },
 };
@@ -1552,17 +1567,30 @@ function scheduleRender() {
 function applyUrlDraftIfNeeded() {
   if (state.draftApplied) return;
   const draft = state.urlDraft;
-  const hasDraft = params.has('type') || Boolean(draft.name || draft.email || draft.groupId || draft.pain || draft.notes);
+  const hasDraft = params.has('type') || Object.values(draft).some(value => Boolean(value));
   if (!hasDraft) return;
   state.draftApplied = true;
   openCreateOverlay({
     type: draft.type || 'person',
     preset: {
       recordType: draft.type || 'person',
-      name: draft.name,
+      name: draft.lead || draft.name,
       email: draft.email,
+      company: draft.company,
+      phone: draft.phone,
+      role: draft.role,
+      tags: draft.tags,
+      status: draft.status,
+      nextFollowUp: draft.nextFollowUp,
+      marketSegment: draft.marketSegment,
       groupId: draft.groupId,
-      primaryPain: draft.pain,
+      primaryPain: draft.primaryPain,
+      painSeverity: draft.painSeverity,
+      currentWorkaround: draft.currentWorkaround,
+      pilotStatus: draft.pilotStatus,
+      offerAmount: draft.offerAmount,
+      lastSignal: draft.lastSignal,
+      nextExperiment: draft.nextExperiment,
       notes: draft.notes,
       source: draft.source,
     },
