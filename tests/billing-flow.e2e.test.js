@@ -209,6 +209,32 @@ async function installGunRoutes(context) {
   })
 }
 
+async function installExternalRoutes(context) {
+  await context.route('https://fonts.googleapis.com/**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/css; charset=utf-8',
+      body: ''
+    })
+  })
+
+  await context.route('https://fonts.gstatic.com/**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'font/woff2',
+      body: ''
+    })
+  })
+
+  await context.route('**/_vercel/insights/script.js', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: ''
+    })
+  })
+}
+
 async function installBillingRoutes(context, options = {}) {
   const statusPosts = []
   const checkoutPosts = []
@@ -308,6 +334,7 @@ describe('billing center subscriber flows', () => {
     try {
       const context = await createContext(browser)
       await installGunRoutes(context)
+      await installExternalRoutes(context)
       const requests = await installBillingRoutes(context, {
         statusResponse: createFreeStatus()
       })
@@ -341,6 +368,7 @@ describe('billing center subscriber flows', () => {
     try {
       const context = await createContext(browser)
       await installGunRoutes(context)
+      await installExternalRoutes(context)
       await context.addInitScript(() => {
         localStorage.setItem('signedIn', 'true')
         localStorage.setItem('alias', 'pilot@3dvr')
@@ -390,6 +418,7 @@ describe('billing center subscriber flows', () => {
     try {
       const context = await createContext(browser)
       await installGunRoutes(context)
+      await installExternalRoutes(context)
       await context.addInitScript(() => {
         localStorage.setItem('signedIn', 'true')
         localStorage.setItem('alias', 'member@3dvr')
@@ -454,6 +483,7 @@ describe('billing center subscriber flows', () => {
     try {
       const context = await createContext(browser)
       await installGunRoutes(context)
+      await installExternalRoutes(context)
       await context.addInitScript(() => {
         localStorage.setItem('signedIn', 'true')
         localStorage.setItem('alias', 'member@3dvr')
@@ -511,6 +541,7 @@ describe('billing center subscriber flows', () => {
     try {
       const context = await createContext(browser)
       await installGunRoutes(context)
+      await installExternalRoutes(context)
       await context.addInitScript(() => {
         localStorage.setItem('signedIn', 'true')
         localStorage.setItem('alias', 'legacy@3dvr')

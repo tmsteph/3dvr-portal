@@ -23,6 +23,162 @@ const MIME_TYPES = {
   '.webmanifest': 'application/manifest+json',
 };
 
+const GUN_STUB_SOURCE = `
+(() => {
+  const store = new Map();
+  const listeners = new Map();
+  const authListeners = new Set();
+
+  function clone(value) {
+    if (value === undefined) return undefined;
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function keyFor(path) {
+    return path.join('/');
+  }
+
+  function snapshotFor(path) {
+    const key = keyFor(path);
+    if (store.has(key)) {
+      return clone(store.get(key));
+    }
+
+    const prefix = key ? key + '/' : '';
+    const output = {};
+    let found = false;
+
+    for (const [storedKey, value] of store.entries()) {
+      if (!storedKey.startsWith(prefix)) continue;
+      const remainder = storedKey.slice(prefix.length);
+      if (!remainder || remainder.includes('/')) continue;
+      output[remainder] = clone(value);
+      found = true;
+    }
+
+    return found ? output : undefined;
+  }
+
+  function notify(path) {
+    const key = keyFor(path);
+    const bucket = listeners.get(key) || [];
+    const snapshot = snapshotFor(path);
+    bucket.forEach((callback) => callback(snapshot));
+  }
+
+  function makeNode(path = []) {
+    const node = {
+      get(next) {
+        return makeNode([...path, String(next)]);
+      },
+      put(value, callback) {
+        store.set(keyFor(path), clone(value));
+        notify(path);
+        callback && callback({ ok: true });
+        return node;
+      },
+      set(value, callback) {
+        return node.put(value, callback);
+      },
+      once(callback) {
+        callback && setTimeout(() => callback(snapshotFor(path)), 0);
+        return node;
+      },
+      on(callback) {
+        const key = keyFor(path);
+        const bucket = listeners.get(key) || [];
+        bucket.push(callback);
+        listeners.set(key, bucket);
+        callback && setTimeout(() => callback(snapshotFor(path)), 0);
+        return { off() {} };
+      },
+      off() {},
+      map() {
+        return {
+          on(callback) {
+            const prefix = keyFor(path);
+            for (const [storedKey, value] of store.entries()) {
+              if (!storedKey.startsWith(prefix + '/')) continue;
+              const remainder = storedKey.slice(prefix.length + 1);
+              if (!remainder || remainder.includes('/')) continue;
+              callback(clone(value), remainder);
+            }
+            return { off() {} };
+          }
+        };
+      }
+    };
+    return node;
+  }
+
+  function createUser() {
+    const userNode = makeNode(['~user']);
+    const user = {
+      ...userNode,
+      is: null,
+      _: { sea: null },
+      recall() {
+        const signedIn = window.localStorage.getItem('signedIn') === 'true';
+        const storedAlias = String(window.localStorage.getItem('alias') || '').trim();
+        const storedPub = String(window.localStorage.getItem('userPubKey') || '').trim();
+        if (signedIn && storedPub) {
+          user.is = { pub: storedPub, alias: storedAlias };
+          user._ = { sea: { pub: storedPub } };
+        }
+      },
+      auth(alias, _password, callback) {
+        const normalizedAlias = String(alias || '').trim();
+        const pub = 'pub_' + normalizedAlias.replace(/[^a-z0-9]+/gi, '_');
+        user.is = { pub, alias: normalizedAlias };
+        user._ = { sea: { pub } };
+        window.setTimeout(() => {
+          authListeners.forEach((listener) => listener());
+          callback && callback({ ok: true, pub });
+        }, 0);
+      },
+      create(alias, _password, callback) {
+        const normalizedAlias = String(alias || '').trim();
+        const pub = 'pub_' + normalizedAlias.replace(/[^a-z0-9]+/gi, '_');
+        user.is = { pub, alias: normalizedAlias };
+        user._ = { sea: { pub } };
+        window.setTimeout(() => {
+          callback && callback({ ok: true, pub });
+        }, 0);
+      },
+      leave() {
+        user.is = null;
+        user._ = { sea: null };
+      },
+      on(eventName, callback) {
+        if (eventName === 'auth' && typeof callback === 'function') {
+          authListeners.add(callback);
+        }
+      }
+    };
+    return user;
+  }
+
+  window.Gun = function Gun() {
+    const user = createUser();
+    return {
+      user() {
+        return user;
+      },
+      get(key) {
+        return makeNode([String(key)]);
+      }
+    };
+  };
+
+  window.Gun.SEA = {
+    async sign(payload) {
+      return JSON.stringify(payload);
+    }
+  };
+  window.SEA = window.Gun.SEA;
+})();
+`;
+
 let server;
 let baseUrl;
 let cachedBrowserType = null;
@@ -115,6 +271,56 @@ describe('contacts identity flows', () => {
     }
   }
 
+  async function installExternalRoutes(context) {
+    await context.route('https://cdn.jsdelivr.net/npm/gun/gun.js', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript; charset=utf-8',
+        body: GUN_STUB_SOURCE
+      });
+    });
+
+    await context.route('https://cdn.jsdelivr.net/npm/gun/sea.js', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript; charset=utf-8',
+        body: 'window.SEA = window.Gun && window.Gun.SEA ? window.Gun.SEA : {};'
+      });
+    });
+
+    await context.route('https://cdn.jsdelivr.net/npm/gun/axe.js', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript; charset=utf-8',
+        body: ''
+      });
+    });
+
+    await context.route('https://cdn.tailwindcss.com', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript; charset=utf-8',
+        body: 'window.tailwind = window.tailwind || {};'
+      });
+    });
+
+    await context.route('**/_vercel/insights/script.js', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript; charset=utf-8',
+        body: ''
+      });
+    });
+
+    await context.route('https://fav.farm/**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/svg+xml; charset=utf-8',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"></svg>'
+      });
+    });
+  }
+
   it('shows stored signed-in identity even when the session is missing', async t => {
     const browser = await launchChromium(t);
     if (!browser) {
@@ -122,6 +328,7 @@ describe('contacts identity flows', () => {
     }
     try {
       const context = await createContext(browser);
+      await installExternalRoutes(context);
       await context.addInitScript(({ username, alias }) => {
         localStorage.setItem('signedIn', 'true');
         localStorage.setItem('username', username);
@@ -133,7 +340,7 @@ describe('contacts identity flows', () => {
       }, { username: 'Agent Zero', alias: 'agent.zero@3dvr' });
 
       const page = await context.newPage();
-      await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
+      await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#userDisplay');
 
       const headerDisplay = (await page.textContent('#userDisplay')).trim();
@@ -158,8 +365,9 @@ describe('contacts identity flows', () => {
     }
     try {
       const context = await createContext(browser);
+      await installExternalRoutes(context);
       const primary = await context.newPage();
-      await primary.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
+      await primary.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'domcontentloaded' });
       await primary.waitForSelector('#floatingIdentityName');
       await primary.waitForFunction(() => {
         const el = document.getElementById('floatingIdentityName');
@@ -167,7 +375,7 @@ describe('contacts identity flows', () => {
       });
 
       const secondary = await context.newPage();
-      await secondary.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+      await secondary.goto(`${baseUrl}/sign-in.html`, { waitUntil: 'domcontentloaded' });
       await secondary.evaluate(({ username, alias }) => {
         localStorage.removeItem('guest');
         localStorage.setItem('alias', alias);
@@ -195,11 +403,12 @@ describe('contacts identity flows', () => {
     }
     try {
       const context = await createContext(browser);
+      await installExternalRoutes(context);
       const page = await context.newPage();
       const username = `contacts${Date.now()}`;
       const password = `Test!${Math.random().toString(36).slice(2, 8)}`;
 
-      await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
+      await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'domcontentloaded' });
       await page.click('#btnLogin');
       await page.fill('#authUsername', username);
       await page.fill('#authPassword', password);
@@ -237,11 +446,13 @@ describe('contacts identity flows', () => {
     }
     try {
       const context = await createContext(browser);
+      await installExternalRoutes(context);
       const page = await context.newPage();
       const username = `playwright${Date.now()}`;
       const password = `Test!${Math.random().toString(36).slice(2, 8)}`;
 
-      await page.goto(`${baseUrl}/sign-in.html`, { waitUntil: 'networkidle' });
+      await page.goto(`${baseUrl}/sign-in.html`, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('#username');
       await page.fill('#username', username);
       await page.fill('#password', password);
 
@@ -250,7 +461,7 @@ describe('contacts identity flows', () => {
         page.click('button.primary-button'),
       ]);
 
-      await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
+      await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#userDisplay');
 
       const headerDisplay = (await page.textContent('#userDisplay')).trim();
