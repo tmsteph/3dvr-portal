@@ -5,23 +5,23 @@ import { readFile } from 'node:fs/promises';
 describe('portal customer journey pages', () => {
   it('gives the portal home a clear concrete entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-    assert.match(html, /Pick one clear starting point/);
-    assert.match(html, /Start with a daily check-in when you need clarity\./);
-    assert.match(html, /Daily check-in/);
-    assert.match(html, /Small group/);
+    assert.match(html, /Get in, get moving\./);
+    assert.match(html, /Pick one lane: daily direction, a support group, or a launch path\./);
+    assert.match(html, /Daily direction/);
+    assert.match(html, /Support group/);
+    assert.match(html, /Start your thing/);
     assert.match(html, /View paid plans/);
     assert.match(html, /Get started/);
     assert.match(html, /Family &amp; Friends/);
     assert.match(html, /Builder/);
-    assert.match(html, /Browse apps/);
-    assert.match(html, /Choose the kind of help you need/);
-    assert.match(html, /Choose daily direction when you need clarity\./);
+    assert.match(html, /Start in one tap/);
+    assert.match(html, /Pick the lane that matches the problem right now\./);
     assert.match(html, /Daily Direction/);
-    assert.match(html, /Opens Life for check-ins, reflection, and one clear next step\./);
+    assert.match(html, /Life: 3-minute check-in and one clear next step\./);
     assert.match(html, /Support Group/);
-    assert.match(html, /Opens Cell to create or join a small group for accountability and weekly momentum\./);
+    assert.match(html, /Cell: small-group accountability and weekly momentum\./);
     assert.match(html, /Start Your Thing/);
-    assert.match(html, /Choose the tools and paid support that help you launch a page, offer, service, or project\./);
+    assert.match(html, /Start Here: tools and paid help for a project, offer, or business\./);
   });
 
   it('keeps the free trial page tied to the portal account journey', async () => {
