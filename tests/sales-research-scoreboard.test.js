@@ -12,19 +12,26 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
   assert.match(researchHtml, /\/sales\/research\.js/);
   assert.match(researchHtml, /Queue opener/);
   assert.match(researchHtml, /researchQueueStatus/);
+  assert.match(researchHtml, /interviewSprintStatus/);
+  assert.match(researchHtml, /interviewLogList/);
+  assert.match(researchHtml, /interviewSprintBar/);
   assert.match(researchHtml, /Live Segment Scoreboard/);
   assert.match(researchHtml, /Watch which segment actually moves in CRM/);
   assert.match(researchHtml, /Reply and win counts come from the shared CRM touch log, not from status guesses\./);
 
   assert.match(researchJs, /const GUN_QUEUE_NODE_PATH = \['3dvr-portal', 'sales-training', 'today-queue'\]/);
+  assert.match(researchJs, /const GUN_INTERVIEW_NODE_PATH = \['3dvr-portal', 'sales-research', 'interviews'\]/);
   assert.match(researchJs, /const CRM_NODE_KEY = '3dvr-crm'/);
   assert.match(researchJs, /const TOUCH_LOG_NODE_PATH = \['3dvr-portal', 'crm-touch-log'\]/);
+  assert.match(researchJs, /const INTERVIEW_TARGET = 15/);
   assert.match(researchJs, /Market research desk/);
   assert.match(researchJs, /reply-received/);
   assert.match(researchJs, /closed-won/);
   assert.match(researchJs, /itemsJson: serializeQueueForGun\(currentQueue\)/);
+  assert.match(researchJs, /itemsJson: serializeInterviewsForGun\(currentInterviews\)/);
   assert.match(researchJs, /const rawJson = typeof data\.itemsJson === 'string' \? data\.itemsJson\.trim\(\) : ''/);
   assert.match(researchJs, /data-queue-playbook-id/);
+  assert.match(researchJs, /data-interview-remove-id/);
 
   assert.match(trainingHtml, /TOUCH_LOG_NODE_PATH = \['3dvr-portal', 'crm-touch-log'\]/);
   assert.match(trainingHtml, /source: String\(item\.source \|\| ''\)\.trim\(\)/);
