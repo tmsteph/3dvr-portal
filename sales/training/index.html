@@ -336,13 +336,34 @@
     return normalizeQueue(STATE.reachoutQueue || []);
   }
 
+  function serializeQueueForGun(list = []) {
+    return JSON.stringify(normalizeQueue(list));
+  }
+
+  function parseQueueFromGun(data = {}) {
+    if (!data || typeof data !== 'object') {
+      return [];
+    }
+
+    const rawJson = typeof data.itemsJson === 'string' ? data.itemsJson.trim() : '';
+    if (rawJson) {
+      try {
+        return normalizeQueue(JSON.parse(rawJson));
+      } catch (error) {
+        console.warn('Sales training queue parse failed', error);
+      }
+    }
+
+    return normalizeQueue(Array.isArray(data.items) ? data.items : []);
+  }
+
   function persistReachoutQueueToGun() {
     if (!reachoutQueueNode) {
       return;
     }
 
     reachoutQueueNode.put({
-      items: getReachoutQueue(),
+      itemsJson: serializeQueueForGun(getReachoutQueue()),
       updatedAt: new Date().toISOString()
     }, ack => {
       if (ack && ack.err) {
@@ -370,7 +391,7 @@
         return;
       }
 
-      const nextQueue = normalizeQueue(data.items || []);
+      const nextQueue = parseQueueFromGun(data);
       const nextSignature = queueSignature(nextQueue);
       if (nextSignature === reachoutQueueSnapshot) {
         return;

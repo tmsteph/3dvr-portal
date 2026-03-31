@@ -17,6 +17,8 @@ test('sales training keeps the active step in the center workspace', async () =>
   assert.match(html, /Shared with Gun/);
   assert.match(html, /Today's queue/);
   assert.match(html, /today-queue/);
+  assert.match(html, /itemsJson: serializeQueueForGun\(getReachoutQueue\(\)\)/);
+  assert.match(html, /const rawJson = typeof data\.itemsJson === 'string' \? data\.itemsJson\.trim\(\) : ''/);
   assert.match(html, /Lead Capture/);
   assert.match(html, /CRM dashboard/);
   assert.match(html, /Follow-Up Loop/);

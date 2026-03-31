@@ -22,6 +22,8 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
   assert.match(researchJs, /Market research desk/);
   assert.match(researchJs, /reply-received/);
   assert.match(researchJs, /closed-won/);
+  assert.match(researchJs, /itemsJson: serializeQueueForGun\(currentQueue\)/);
+  assert.match(researchJs, /const rawJson = typeof data\.itemsJson === 'string' \? data\.itemsJson\.trim\(\) : ''/);
   assert.match(researchJs, /data-queue-playbook-id/);
 
   assert.match(trainingHtml, /TOUCH_LOG_NODE_PATH = \['3dvr-portal', 'crm-touch-log'\]/);
