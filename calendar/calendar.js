@@ -1158,6 +1158,40 @@ function toLocalDateTimeInputValue(date) {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+function readCreateEventPrefillFromQuery() {
+  if (typeof window === 'undefined' || !window.location || !window.location.search) {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (
+    !params.has('prefill') &&
+    !params.has('title') &&
+    !params.has('start') &&
+    !params.has('description')
+  ) {
+    return null;
+  }
+
+  const prefill = {
+    title: params.get('title')?.trim() || '',
+    start: params.get('start')?.trim() || '',
+    end: params.get('end')?.trim() || '',
+    timeZone: params.get('timeZone')?.trim() || DEFAULT_TIME_ZONE || 'UTC',
+    description: params.get('description')?.trim() || '',
+    reminderRecipients: params.get('reminderRecipients')?.trim() || '',
+    reminderMessage: params.get('reminderMessage')?.trim() || '',
+    reminderLink: params.get('reminderLink')?.trim() || '',
+    source: params.get('source')?.trim() || '',
+  };
+
+  if (!prefill.title && !prefill.start && !prefill.description) {
+    return null;
+  }
+
+  return prefill;
+}
+
 function computeDefaultEventTimes(dateString) {
   const now = new Date();
   const todayKey = toDateKey(now);
@@ -2105,6 +2139,78 @@ function hydrateCreateFormDefaults() {
   prefillCreateEventForm(calendarState.selectedDate, { force: true });
 }
 
+function applyCreateEventPrefillFromQuery() {
+  if (!createEventForm) {
+    return false;
+  }
+
+  const prefill = readCreateEventPrefillFromQuery();
+  if (!prefill) {
+    return false;
+  }
+
+  const startDate = prefill.start ? new Date(prefill.start) : null;
+  const endDate = prefill.end ? new Date(prefill.end) : null;
+  if (startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
+    calendarState.viewDate = startOfMonth(startDate);
+    calendarState.selectedDate = toDateKey(startDate);
+    renderCalendar();
+  }
+
+  setCreateEventMode('create');
+  setCreateEventExpanded(true);
+  resetCreateEventFormDirty();
+
+  const titleField = createEventForm.elements.namedItem('title');
+  if (titleField instanceof HTMLInputElement) {
+    titleField.value = prefill.title || titleField.value;
+  }
+
+  const startField = createEventForm.elements.namedItem('start');
+  if (startField instanceof HTMLInputElement && startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
+    startField.value = toLocalDateTimeInputValue(startDate);
+  }
+
+  const endField = createEventForm.elements.namedItem('end');
+  if (endField instanceof HTMLInputElement && endDate instanceof Date && !Number.isNaN(endDate.getTime())) {
+    endField.value = toLocalDateTimeInputValue(endDate);
+  }
+
+  const timeZoneField = createEventForm.elements.namedItem('timeZone');
+  if (timeZoneField instanceof HTMLInputElement) {
+    timeZoneField.value = prefill.timeZone || timeZoneField.value || DEFAULT_TIME_ZONE || 'UTC';
+  }
+
+  const descriptionField = createEventForm.elements.namedItem('description');
+  if (descriptionField instanceof HTMLTextAreaElement) {
+    descriptionField.value = prefill.description || '';
+  }
+
+  const reminderRecipientsField = createEventForm.elements.namedItem('reminderRecipients');
+  if (reminderRecipientsField instanceof HTMLInputElement && prefill.reminderRecipients) {
+    reminderRecipientsField.value = prefill.reminderRecipients;
+  }
+
+  const reminderMessageField = createEventForm.elements.namedItem('reminderMessage');
+  if (reminderMessageField instanceof HTMLTextAreaElement && prefill.reminderMessage) {
+    reminderMessageField.value = prefill.reminderMessage;
+  }
+
+  const reminderLinkField = createEventForm.elements.namedItem('reminderLink');
+  if (reminderLinkField instanceof HTMLInputElement && prefill.reminderLink) {
+    reminderLinkField.value = prefill.reminderLink;
+  }
+
+  resetCreateEventFormDirty();
+  showLog(
+    prefill.source === 'sales-research'
+      ? 'Loaded an interview draft from Sales Research. Save it to put the slot on your calendar.'
+      : 'Loaded a prefilled event draft. Review it and save when ready.',
+    'info'
+  );
+  return true;
+}
+
 function updateCreateEventToggleLabel(expanded) {
   if (!createEventToggle) return;
   const mode = createEventForm?.dataset.mode === 'edit' ? 'edit' : 'create';
@@ -2248,3 +2354,4 @@ const readyMessage = gunEvents
   ? 'Ready to manage your calendar. Local events sync through the 3DVR relay and can connect to Google or Outlook when needed.'
   : 'Ready to manage your local calendar. Connect Google or Outlook to sync when needed.';
 showLog(readyMessage);
+applyCreateEventPrefillFromQuery();
