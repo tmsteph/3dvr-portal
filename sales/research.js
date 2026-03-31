@@ -6,7 +6,7 @@ const TOUCH_LOG_NODE_PATH = ['3dvr-portal', 'crm-touch-log'];
 const SEGMENTS = Object.freeze({
   'professional-services': Object.freeze({
     label: 'Professional services',
-    marketSegment: 'Creative studio or agency',
+    marketSegment: 'Professional services',
     queueLead: 'Professional services Builder outreach',
     nextStep: 'Send first Builder note today',
     opener: 'You probably do not need more software. You need a cleaner way to keep leads moving and follow up before work slips.',
@@ -14,7 +14,7 @@ const SEGMENTS = Object.freeze({
   }),
   'local-service': Object.freeze({
     label: 'Construction and local service',
-    marketSegment: 'Owner-led service business',
+    marketSegment: 'Local services',
     queueLead: 'Local service Builder outreach',
     nextStep: 'Send first owner-operator note today',
     opener: 'A lot of owner-operators do not need a giant stack. They need a simple lane for lead flow, follow-up, and jobs in motion.',
@@ -22,7 +22,7 @@ const SEGMENTS = Object.freeze({
   }),
   'support-team': Object.freeze({
     label: 'Health, support, and local teams',
-    marketSegment: 'Educator or community org',
+    marketSegment: 'Support team or community org',
     queueLead: 'Support team Embedded outreach',
     nextStep: 'Send first Embedded note today',
     opener: 'Teams usually do not need more apps first. They need one clearer operating loop for intake, scheduling, and shared follow-up.',
