@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Market Research Desk | 3dvr Sales</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -198,7 +200,11 @@
           class="text-sm text-slate-400"
           role="status"
           aria-live="polite"
-        >Copy one opener or the full playbook for the next segment you are working.</p>
+        >Copy one opener, queue it, or start the draft for the next segment you are working.</p>
+      </div>
+      <div class="rounded-xl border border-white/5 bg-slate-950/80 px-4 py-3 text-sm text-slate-300">
+        <span class="font-semibold text-slate-100">Queue status</span>
+        <span id="researchQueueStatus" class="ml-2 text-slate-400">Checking the shared reach-out queue…</span>
       </div>
       <div class="grid gap-5 xl:grid-cols-3">
         <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-5 shadow-lg space-y-4">
@@ -226,6 +232,11 @@
               data-copy-playbook-id="professional-services-opener"
               class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-blue-50"
             >Copy opener</button>
+            <button
+              type="button"
+              data-queue-playbook-id="professional-services"
+              class="inline-flex items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/20"
+            >Queue opener</button>
             <button
               type="button"
               data-copy-playbook-id="professional-services-full"
@@ -261,6 +272,11 @@
             >Copy opener</button>
             <button
               type="button"
+              data-queue-playbook-id="local-service"
+              class="inline-flex items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/20"
+            >Queue opener</button>
+            <button
+              type="button"
               data-copy-playbook-id="local-service-full"
               class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
             >Copy full playbook</button>
@@ -294,12 +310,107 @@
             >Copy opener</button>
             <button
               type="button"
+              data-queue-playbook-id="support-team"
+              class="inline-flex items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/20"
+            >Queue opener</button>
+            <button
+              type="button"
               data-copy-playbook-id="support-team-full"
               class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
             >Copy full playbook</button>
           </div>
         </article>
       </div>
+    </section>
+
+    <section class="rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-lg space-y-5">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-emerald-300">Live Segment Scoreboard</p>
+          <h2 class="text-xl font-semibold">Watch which segment actually moves in CRM</h2>
+        </div>
+        <p id="scoreboardUpdated" class="text-sm text-slate-400">Loading CRM signals…</p>
+      </div>
+      <div class="grid gap-5 xl:grid-cols-3">
+        <article data-score-segment="professional-services" class="rounded-2xl border border-white/5 bg-slate-950/80 p-5 shadow-lg space-y-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.25em] text-blue-300">Professional services</p>
+            <h3 class="text-lg font-semibold mt-2">Creative studio or agency</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-sm text-slate-300">
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="tracked" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Tracked</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="engaged" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Engaged</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="won" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Won</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="close-rate" class="text-2xl font-semibold text-slate-100">0%</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Close rate</div>
+            </div>
+          </div>
+          <p data-score-note class="text-sm text-slate-400">Waiting for CRM records in this segment.</p>
+        </article>
+
+        <article data-score-segment="local-service" class="rounded-2xl border border-white/5 bg-slate-950/80 p-5 shadow-lg space-y-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.25em] text-blue-300">Construction and local service</p>
+            <h3 class="text-lg font-semibold mt-2">Owner-led service business</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-sm text-slate-300">
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="tracked" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Tracked</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="engaged" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Engaged</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="won" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Won</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="close-rate" class="text-2xl font-semibold text-slate-100">0%</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Close rate</div>
+            </div>
+          </div>
+          <p data-score-note class="text-sm text-slate-400">Waiting for CRM records in this segment.</p>
+        </article>
+
+        <article data-score-segment="support-team" class="rounded-2xl border border-white/5 bg-slate-950/80 p-5 shadow-lg space-y-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.25em] text-blue-300">Health, support, and local teams</p>
+            <h3 class="text-lg font-semibold mt-2">Educator or community org</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-sm text-slate-300">
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="tracked" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Tracked</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="engaged" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Engaged</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="won" class="text-2xl font-semibold text-slate-100">0</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Won</div>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3 text-center">
+              <div data-score-metric="close-rate" class="text-2xl font-semibold text-slate-100">0%</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Close rate</div>
+            </div>
+          </div>
+          <p data-score-note class="text-sm text-slate-400">Waiting for CRM records in this segment.</p>
+        </article>
+      </div>
+      <p class="text-sm text-slate-400">Engaged is a reply proxy based on CRM status beyond awareness, lead, and prospect.</p>
     </section>
 
     <section class="grid gap-5 lg:grid-cols-[1.1fr,0.9fr]">
@@ -374,52 +485,6 @@
       &copy; 2026 3dvr.tech — Built for builders who need traction
     </div>
   </footer>
-  <script>
-    const playbookCopyStatus = document.getElementById('playbookCopyStatus');
-    const playbookTexts = {
-      'professional-services-opener': 'You probably do not need more software. You need a cleaner way to keep leads moving and follow up before work slips.',
-      'professional-services-full': 'Open with: You probably do not need more software. You need a cleaner way to keep leads moving and follow up before work slips.\nAsk: Where do inquiries usually stall right now: replies, follow-up, quoting, or weekly organization?\nClose: If you want, I can show you a lightweight Builder setup that keeps the next client touch visible every week.',
-      'local-service-opener': 'A lot of owner-operators do not need a giant stack. They need a simple lane for lead flow, follow-up, and jobs in motion.',
-      'local-service-full': 'Open with: A lot of owner-operators do not need a giant stack. They need a simple lane for lead flow, follow-up, and jobs in motion.\nAsk: What gets missed most often right now: new inquiries, quote follow-up, scheduling, or keeping jobs organized?\nClose: I can show you a Builder flow that keeps the next lead, next quote, and next follow-up from getting buried.',
-      'support-team-opener': 'Teams usually do not need more apps first. They need one clearer operating loop for intake, scheduling, and shared follow-up.',
-      'support-team-full': 'Open with: Teams usually do not need more apps first. They need one clearer operating loop for intake, scheduling, and shared follow-up.\nAsk: Where does coordination break down most often right now: intake, scheduling, handoff, or client follow-up?\nClose: If the pain is shared across a real team, Embedded is the cleaner fit because it gives you a tighter monthly execution lane.'
-    };
-
-    async function copyPlaybookText(text) {
-      if (!text) return false;
-      try {
-        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-          await navigator.clipboard.writeText(text);
-          return true;
-        }
-      } catch (error) {
-        console.warn('Clipboard API unavailable', error);
-      }
-
-      const helper = document.createElement('textarea');
-      helper.value = text;
-      helper.setAttribute('readonly', '');
-      helper.style.position = 'absolute';
-      helper.style.left = '-9999px';
-      document.body.appendChild(helper);
-      helper.select();
-      const copied = document.execCommand('copy');
-      document.body.removeChild(helper);
-      return copied;
-    }
-
-    document.querySelectorAll('[data-copy-playbook-id]').forEach(button => {
-      button.addEventListener('click', async () => {
-        const playbookId = button.getAttribute('data-copy-playbook-id') || '';
-        const text = playbookTexts[playbookId] || '';
-        const copied = await copyPlaybookText(text);
-        if (playbookCopyStatus) {
-          playbookCopyStatus.textContent = copied
-            ? 'Copied playbook text. Start the CRM draft while the segment is still in front of you.'
-            : 'Copy failed. Select the text manually and keep moving.';
-        }
-      });
-    });
-  </script>
+  <script defer src="/sales/research.js"></script>
 </body>
 </html>

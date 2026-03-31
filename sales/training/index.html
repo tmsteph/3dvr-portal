@@ -308,7 +308,11 @@
       lead: String(item.lead || '').trim(),
       message: String(item.message || '').trim(),
       next: String(item.next || '').trim(),
-      done: Boolean(item.done)
+      done: Boolean(item.done),
+      source: String(item.source || '').trim(),
+      segment: String(item.segment || '').trim(),
+      playbook: String(item.playbook || '').trim(),
+      createdAt: String(item.createdAt || '').trim()
     };
   }
 
@@ -432,6 +436,8 @@
                 <div class="tiny">${item.message}</div>
               </div>
               <div class="queue-meta">
+                ${item.segment ? `<span class="pill">${item.segment}</span>` : ''}
+                ${item.source ? `<span class="pill">${item.source}</span>` : ''}
                 <span class="pill">${item.next}</span>
                 ${item.done ? '<span class="pill">Done</span>' : '<span class="pill">Active</span>'}
               </div>
@@ -457,7 +463,7 @@
           if (!lead || !message || !next) return;
           setReachoutQueue([
             ...getReachoutQueue(),
-            { id: String(Date.now()), lead, message, next, done: false }
+            { id: String(Date.now()), lead, message, next, done: false, source: 'Reach-Out Desk', segment: '', playbook: 'manual', createdAt: new Date().toISOString() }
           ]);
           form.reset();
         });
