@@ -201,6 +201,40 @@ async function createContext(browser) {
   }
 }
 
+async function installExternalRoutes(context) {
+  await context.route('https://cdn.jsdelivr.net/npm/gun/gun.js', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: GUN_STUB_SOURCE
+    });
+  });
+
+  await context.route('https://fonts.googleapis.com/**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/css; charset=utf-8',
+      body: ''
+    });
+  });
+
+  await context.route('https://fonts.gstatic.com/**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'font/woff2',
+      body: ''
+    });
+  });
+
+  await context.route('**/_vercel/insights/script.js', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: ''
+    });
+  });
+}
+
 describe('sales research interview scheduling flow', () => {
   before(async () => {
     server = createServer(async (req, res) => {
@@ -239,22 +273,7 @@ describe('sales research interview scheduling flow', () => {
 
     try {
       const context = await createContext(browser);
-
-      await context.route('https://cdn.jsdelivr.net/npm/gun/gun.js', async route => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/javascript; charset=utf-8',
-          body: GUN_STUB_SOURCE
-        });
-      });
-
-      await context.route('**/_vercel/insights/script.js', async route => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/javascript; charset=utf-8',
-          body: ''
-        });
-      });
+      await installExternalRoutes(context);
 
       const page = await context.newPage();
       const company = `E2E Studio ${Date.now()}`;
@@ -263,7 +282,7 @@ describe('sales research interview scheduling flow', () => {
       const date = '2026-04-02';
       const time = '13:30';
 
-      await page.goto(`${baseUrl}/sales/research.html`, { waitUntil: 'networkidle' });
+      await page.goto(`${baseUrl}/sales/research.html`, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#scheduleInterviewForm');
 
       await page.selectOption('#scheduleInterviewSegment', 'professional-services');
@@ -294,7 +313,7 @@ describe('sales research interview scheduling flow', () => {
       assert.ok(calendarHref, 'expected an interview calendar draft link');
 
       const calendarPage = await context.newPage();
-      await calendarPage.goto(new URL(calendarHref, `${baseUrl}/sales/research.html`).href, { waitUntil: 'networkidle' });
+      await calendarPage.goto(new URL(calendarHref, `${baseUrl}/sales/research.html`).href, { waitUntil: 'domcontentloaded' });
       await calendarPage.waitForFunction(() => {
         const container = document.querySelector('[data-create-event-container]');
         return container && !container.hidden;
