@@ -1,16 +1,18 @@
-const GUN_PEERS = window.__GUN_PEERS__ || [
-  'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun',
-];
-const EXPERIMENT_CONFIG_PATH = ['3dvr-portal', 'growth', 'experiments', 'homepage-hero', 'config'];
-const EXPERIMENT_EVENT_PATH = ['3dvr-portal', 'growth', 'experiments', 'homepage-hero', 'events'];
-const FEEDBACK_EVENT_PATH = ['3dvr-portal', 'growth', 'feedback', 'homepage-hero'];
-const MIN_COMPARISON_VIEWS = 5;
-const AUTO_PROMOTION_GAP = 0.05;
-const VARIANTS = Object.freeze({
-  clarity: Object.freeze({ key: 'clarity', label: 'Clarity-first copy' }),
-  traction: Object.freeze({ key: 'traction', label: 'Traction-first copy' }),
-});
+import {
+  AUTO_PROMOTION_GAP,
+  DEFAULT_GUN_PEERS,
+  EXPERIMENT_CONFIG_PATH,
+  EXPERIMENT_EVENT_PATH,
+  FEEDBACK_EVENT_PATH,
+  MIN_COMPARISON_VIEWS,
+  VARIANTS,
+  computeStats,
+  getNode,
+  normalizeConfig,
+  normalizeEvent,
+  normalizeFeedback,
+  pickRecommendedWinner,
+} from '../src/growth/homepage-hero.js';
 
 const refs = {
   growthLabStatus: document.getElementById('growthLabStatus'),
@@ -48,15 +50,12 @@ const state = {
     clarityWeight: 50,
     tractionWeight: 50,
     updatedAt: '',
+    updatedBy: '',
   },
   events: Object.create(null),
   feedback: Object.create(null),
   lastAutoSignature: '',
 };
-
-function getNode(root, path) {
-  return path.reduce((node, key) => (node && typeof node.get === 'function' ? node.get(key) : null), root);
-}
 
 function createGun() {
   if (typeof window.Gun !== 'function') {
@@ -64,53 +63,20 @@ function createGun() {
   }
 
   try {
-    return window.Gun({ peers: GUN_PEERS });
+    return window.Gun({ peers: window.__GUN_PEERS__ || DEFAULT_GUN_PEERS });
   } catch (error) {
     console.warn('Growth lab Gun init failed', error);
     try {
-      return window.Gun({ peers: GUN_PEERS, radisk: false, localStorage: false });
+      return window.Gun({
+        peers: window.__GUN_PEERS__ || DEFAULT_GUN_PEERS,
+        radisk: false,
+        localStorage: false,
+      });
     } catch (fallbackError) {
       console.warn('Growth lab Gun fallback failed', fallbackError);
       return null;
     }
   }
-}
-
-function normalizeConfig(data = {}) {
-  return {
-    autoMode: typeof data.autoMode === 'boolean' ? data.autoMode : true,
-    winner: VARIANTS[String(data.winner || '').trim()] ? String(data.winner).trim() : '',
-    winnerReason: String(data.winnerReason || '').trim(),
-    clarityWeight: Math.max(1, Number.parseInt(data.clarityWeight, 10) || 50),
-    tractionWeight: Math.max(1, Number.parseInt(data.tractionWeight, 10) || 50),
-    updatedAt: String(data.updatedAt || '').trim(),
-  };
-}
-
-function normalizeEvent(data = {}, id = '') {
-  return {
-    id: String(id || data.id || '').trim(),
-    visitorId: String(data.visitorId || '').trim(),
-    page: String(data.page || '').trim(),
-    eventType: String(data.eventType || '').trim(),
-    cta: String(data.cta || '').trim(),
-    variant: VARIANTS[String(data.variant || '').trim()] ? String(data.variant).trim() : '',
-    timestamp: String(data.timestamp || '').trim(),
-    source: String(data.source || '').trim(),
-  };
-}
-
-function normalizeFeedback(data = {}, id = '') {
-  return {
-    id: String(id || data.id || '').trim(),
-    visitorId: String(data.visitorId || '').trim(),
-    page: String(data.page || '').trim(),
-    sentiment: String(data.sentiment || '').trim(),
-    variant: VARIANTS[String(data.variant || '').trim()] ? String(data.variant).trim() : '',
-    prompt: String(data.prompt || '').trim(),
-    timestamp: String(data.timestamp || '').trim(),
-    source: String(data.source || '').trim(),
-  };
 }
 
 function formatTimestamp(value) {
@@ -137,73 +103,6 @@ function shortVisitor(visitorId) {
   return visitorId ? visitorId.slice(0, 8) : 'guest';
 }
 
-function computeStats() {
-  const stats = {
-    clarity: { views: 0, clicks: 0, clear: 0, unclear: 0 },
-    traction: { views: 0, clicks: 0, clear: 0, unclear: 0 },
-  };
-
-  Object.values(state.events).forEach(entry => {
-    if (!entry.variant || !stats[entry.variant] || entry.page !== 'homepage') {
-      return;
-    }
-    if (entry.eventType === 'view') {
-      stats[entry.variant].views += 1;
-    }
-    if (entry.eventType === 'cta-click') {
-      stats[entry.variant].clicks += 1;
-    }
-  });
-
-  Object.values(state.feedback).forEach(entry => {
-    if (!entry.variant || !stats[entry.variant] || entry.page !== 'homepage') {
-      return;
-    }
-    if (entry.sentiment === 'clear') {
-      stats[entry.variant].clear += 1;
-    }
-    if (entry.sentiment === 'unclear') {
-      stats[entry.variant].unclear += 1;
-    }
-  });
-
-  return stats;
-}
-
-function computeVariantScore(stat) {
-  const clickRate = stat.views ? stat.clicks / stat.views : 0;
-  const feedbackTotal = stat.clear + stat.unclear;
-  const clarityRate = feedbackTotal ? stat.clear / feedbackTotal : 0;
-  return (clickRate * 0.7) + (clarityRate * 0.3);
-}
-
-function pickRecommendedWinner(stats) {
-  const entries = Object.entries(stats)
-    .map(([key, stat]) => ({
-      key,
-      stat,
-      clickRate: stat.views ? stat.clicks / stat.views : 0,
-      clarityRate: (stat.clear + stat.unclear) ? stat.clear / (stat.clear + stat.unclear) : 0,
-      score: computeVariantScore(stat),
-    }))
-    .filter(entry => entry.stat.views >= MIN_COMPARISON_VIEWS);
-
-  if (entries.length < 2) {
-    return null;
-  }
-
-  entries.sort((left, right) => right.score - left.score);
-  const [best, second] = entries;
-  if (!best || !second || (best.score - second.score) < AUTO_PROMOTION_GAP) {
-    return null;
-  }
-
-  return {
-    key: best.key,
-    reason: `Auto-promoted ${best.key} from stronger click and clarity signals.`,
-    signature: `${best.key}:${best.score.toFixed(4)}:${second.score.toFixed(4)}:${best.stat.views}:${second.stat.views}`,
-  };
-}
 
 function renderList(container, items, formatter, emptyMessage) {
   if (!container) {
@@ -223,7 +122,7 @@ function renderList(container, items, formatter, emptyMessage) {
 }
 
 function render() {
-  const stats = computeStats();
+  const stats = computeStats(state.events, state.feedback);
   const totalViews = stats.clarity.views + stats.traction.views;
   const totalClicks = stats.clarity.clicks + stats.traction.clicks;
   const totalFeedback = stats.clarity.clear + stats.clarity.unclear + stats.traction.clear + stats.traction.unclear;
@@ -232,7 +131,7 @@ function render() {
 
   if (refs.growthLabStatus) {
     refs.growthLabStatus.textContent = state.config.updatedAt
-      ? `Watching live data • config updated ${formatTimestamp(state.config.updatedAt)}`
+      ? `Watching live data • config updated ${formatTimestamp(state.config.updatedAt)}${state.config.updatedBy ? ` via ${state.config.updatedBy}` : ''}`
       : 'Watching live data';
   }
   if (refs.growthCurrentWinner) {
@@ -315,7 +214,10 @@ function render() {
     'No homepage events yet.'
   );
 
-  const recommended = pickRecommendedWinner(stats);
+  const recommended = pickRecommendedWinner(stats, {
+    minComparisonViews: MIN_COMPARISON_VIEWS,
+    autoPromotionGap: AUTO_PROMOTION_GAP,
+  });
   if (refs.growthConfigStatus && !state.config.winnerReason) {
     refs.growthConfigStatus.textContent = recommended
       ? `Recommended winner: ${recommended.key}.`
@@ -331,6 +233,7 @@ function writeConfig(configNode, patch, message) {
     ...state.config,
     ...patch,
     updatedAt: new Date().toISOString(),
+    updatedBy: 'growth-lab',
   };
   configNode.put(state.config);
   if (refs.growthConfigStatus) {
@@ -339,7 +242,10 @@ function writeConfig(configNode, patch, message) {
 }
 
 function maybeAutoPromote(configNode) {
-  const recommended = pickRecommendedWinner(computeStats());
+  const recommended = pickRecommendedWinner(computeStats(state.events, state.feedback), {
+    minComparisonViews: MIN_COMPARISON_VIEWS,
+    autoPromotionGap: AUTO_PROMOTION_GAP,
+  });
   if (!state.config.autoMode || !recommended) {
     state.lastAutoSignature = '';
     return;

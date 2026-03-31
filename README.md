@@ -183,6 +183,10 @@ Environment controls:
 - `CRON_SECRET` (recommended for Vercel Cron auth header)
 - `MONEY_AUTOPILOT_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
 - `MONEY_AUTOPILOT_CRON_DRY_RUN` (`true`/`false`)
+- `GROWTH_HOMEPAGE_CRON_ENABLED` (`true`/`false`, required for `/api/growth/homepage-hero-cron`)
+- `GROWTH_HOMEPAGE_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
+- `GROWTH_HOMEPAGE_CRON_DRY_RUN` (`true`/`false`)
+- `GROWTH_GUN_PEERS` (optional comma-separated relay override for growth cron reads)
 
 Portal billing center:
 
@@ -254,6 +258,12 @@ Scheduled background execution options:
    On Pro/Enterprise you can increase frequency (for example every 6 hours).
 3. Optional query overrides on manual trigger:
    `/api/money/autopilot-cron?dryRun=true&autoDiscover=false&publish=true&vercelDeploy=true&promotion=true`
+4. Homepage growth cron: `vercel.json` also schedules `/api/growth/homepage-hero-cron` once daily
+   (`43 2 * * *`) for Hobby-plan compatibility. The route uses the same
+   `Authorization: Bearer <CRON_SECRET>` pattern and only runs when
+   `GROWTH_HOMEPAGE_CRON_ENABLED=true`.
+5. Optional manual dry-run:
+   `/api/growth/homepage-hero-cron?dryRun=true`
 
 Important: promotion dispatch only sends campaign tasks to your webhook. Paid ad spend happens only if your webhook
 worker actually creates campaigns in Google Ads/social APIs.
