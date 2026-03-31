@@ -16,6 +16,8 @@ test('sales index leads with the revenue close section', async () => {
   assert.match(html, /email-operator\/index\.html\?draft=1&threadId=sales-embedded-follow-up/);
   assert.match(html, /Open billing/);
   assert.match(html, /Sales Training/);
+  assert.match(html, /Growth Lab/);
+  assert.match(html, /Open growth lab/);
   assert.match(html, /Profitability Desk/);
   assert.match(html, /Open profitability desk/);
 
