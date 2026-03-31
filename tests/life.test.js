@@ -26,9 +26,9 @@ describe('life app', () => {
     assert.match(portalIndex, /<span class="app-card__title">Life<\/span>/);
     assert.match(portalIndex, /Track daily check-ins, weekly reflection, and the five parts of your life/);
 
-    assert.match(freeTrial, /open Life/);
-    assert.match(freeTrial, /Open Life and organize what matters/);
-    assert.match(freeTrial, /href="\/life\/"/);
+    assert.match(freeTrial, /continue in the portal start flow/);
+    assert.match(freeTrial, /Start with daily direction/);
+    assert.match(freeTrial, /href="\/start\/"/);
 
     assert.match(readme, /\[Life\]\(https:\/\/3dvr-portal\.vercel\.app\/life\/\)/);
     assert.match(readme, /gun\.get\('3dvr-portal'\)\.get\('life'\)\.get\('entries'\)/);
