@@ -238,6 +238,32 @@
         </div>
         <p id="interviewSprintDetail" class="text-sm text-slate-400">No interviews logged yet. Open a draft, have the conversation, then log it here.</p>
       </div>
+      <div class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 space-y-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.24em] text-slate-400">First 3 today</p>
+            <h3 class="text-lg font-semibold text-slate-100">One real conversation per segment</h3>
+          </div>
+          <p id="interviewMinimumStatus" class="text-sm text-slate-400">0 / 3 segments covered</p>
+        </div>
+        <div class="grid gap-3 md:grid-cols-3">
+          <article data-interview-minimum="professional-services" class="rounded-xl border border-white/5 bg-slate-900/70 p-4 space-y-2">
+            <p class="text-xs uppercase tracking-[0.24em] text-blue-300">Professional services</p>
+            <p data-interview-minimum-state class="text-sm font-semibold text-slate-100">Not covered yet</p>
+            <p data-interview-minimum-note class="text-xs text-slate-400">Log one conversation to cover this lane.</p>
+          </article>
+          <article data-interview-minimum="local-service" class="rounded-xl border border-white/5 bg-slate-900/70 p-4 space-y-2">
+            <p class="text-xs uppercase tracking-[0.24em] text-amber-300">Local services</p>
+            <p data-interview-minimum-state class="text-sm font-semibold text-slate-100">Not covered yet</p>
+            <p data-interview-minimum-note class="text-xs text-slate-400">Log one conversation to cover this lane.</p>
+          </article>
+          <article data-interview-minimum="support-team" class="rounded-xl border border-white/5 bg-slate-900/70 p-4 space-y-2">
+            <p class="text-xs uppercase tracking-[0.24em] text-purple-300">Support teams</p>
+            <p data-interview-minimum-state class="text-sm font-semibold text-slate-100">Not covered yet</p>
+            <p data-interview-minimum-note class="text-xs text-slate-400">Log one conversation to cover this lane.</p>
+          </article>
+        </div>
+      </div>
       <div class="flex flex-wrap gap-2">
         <a
           id="interviewShortcutProfessional"

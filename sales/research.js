@@ -46,6 +46,7 @@ const scoreboardUpdated = document.getElementById('scoreboardUpdated');
 const interviewSprintStatus = document.getElementById('interviewSprintStatus');
 const interviewSprintDetail = document.getElementById('interviewSprintDetail');
 const interviewSprintBar = document.getElementById('interviewSprintBar');
+const interviewMinimumStatus = document.getElementById('interviewMinimumStatus');
 const interviewLoggedCount = document.getElementById('interviewLoggedCount');
 const interviewTargetCount = document.getElementById('interviewTargetCount');
 const interviewProfessionalCount = document.getElementById('interviewProfessionalCount');
@@ -460,6 +461,34 @@ function renderInterviewTracker() {
   if (interviewLocalCount) interviewLocalCount.textContent = String(local);
   if (interviewSupportCount) interviewSupportCount.textContent = String(support);
   if (interviewSprintBar) interviewSprintBar.style.width = `${progress}%`;
+  const minimumSlots = [
+    { key: 'professional-services', count: professional },
+    { key: 'local-service', count: local },
+    { key: 'support-team', count: support },
+  ];
+  const minimumComplete = minimumSlots.filter(item => item.count > 0).length;
+  if (interviewMinimumStatus) {
+    interviewMinimumStatus.textContent = `${minimumComplete} / 3 segments covered`;
+  }
+  minimumSlots.forEach(item => {
+    const card = document.querySelector(`[data-interview-minimum="${item.key}"]`);
+    if (!card) {
+      return;
+    }
+    const stateEl = card.querySelector('[data-interview-minimum-state]');
+    const noteEl = card.querySelector('[data-interview-minimum-note]');
+    if (item.count > 0) {
+      card.classList.add('border-emerald-400/30', 'bg-emerald-500/10');
+      card.classList.remove('border-white/5', 'bg-slate-900/70');
+      if (stateEl) stateEl.textContent = 'Covered';
+      if (noteEl) noteEl.textContent = `${item.count} logged so far.`;
+      return;
+    }
+    card.classList.remove('border-emerald-400/30', 'bg-emerald-500/10');
+    card.classList.add('border-white/5', 'bg-slate-900/70');
+    if (stateEl) stateEl.textContent = 'Not covered yet';
+    if (noteEl) noteEl.textContent = 'Log one conversation to cover this lane.';
+  });
   if (interviewSprintDetail) {
     interviewSprintDetail.textContent = total
       ? `${remaining} left to reach the first ${INTERVIEW_TARGET}. Keep the mix balanced across all three segments.`

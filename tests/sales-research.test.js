@@ -25,6 +25,9 @@ test('sales research desk keeps current market signals tied to action', async ()
   assert.match(html, /Open support-team draft/);
   assert.match(html, /id="interviewLogForm"/);
   assert.match(html, /id="interviewSprintStatus"/);
+  assert.match(html, /First 3 today/);
+  assert.match(html, /One real conversation per segment/);
+  assert.match(html, /id="interviewMinimumStatus"/);
   assert.match(html, /These picks are inferred from Census, SBA, and Fed data plus current 3dvr offers\./);
   assert.match(html, /https:\/\/www\.census\.gov\/econ\/bfs\/pdf\/historic\/bfs_2025m12\.pdf/);
   assert.match(html, /https:\/\/advocacy\.sba\.gov\/wp-content\/uploads\/2025\/06\/United_States_2025-State-Profile\.pdf/);
