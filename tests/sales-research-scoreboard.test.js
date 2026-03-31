@@ -16,6 +16,9 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
   assert.match(researchHtml, /interviewLogList/);
   assert.match(researchHtml, /interviewSprintBar/);
   assert.match(researchHtml, /interviewMinimumStatus/);
+  assert.match(researchHtml, /scheduleInterviewForm/);
+  assert.match(researchHtml, /scheduledInterviewList/);
+  assert.match(researchHtml, /scheduleInterviewCalendarLink/);
   assert.match(researchHtml, /data-interview-minimum="professional-services"/);
   assert.match(researchHtml, /Live Segment Scoreboard/);
   assert.match(researchHtml, /Watch which segment actually moves in CRM/);
@@ -23,6 +26,7 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
 
   assert.match(researchJs, /const GUN_QUEUE_NODE_PATH = \['3dvr-portal', 'sales-training', 'today-queue'\]/);
   assert.match(researchJs, /const GUN_INTERVIEW_NODE_PATH = \['3dvr-portal', 'sales-research', 'interviews'\]/);
+  assert.match(researchJs, /const GUN_INTERVIEW_SCHEDULE_NODE_PATH = \['3dvr-portal', 'sales-research', 'schedule'\]/);
   assert.match(researchJs, /const CRM_NODE_KEY = '3dvr-crm'/);
   assert.match(researchJs, /const TOUCH_LOG_NODE_PATH = \['3dvr-portal', 'crm-touch-log'\]/);
   assert.match(researchJs, /const INTERVIEW_TARGET = 15/);
@@ -31,8 +35,11 @@ test('sales research desk wires the shared queue and live segment scoreboard', a
   assert.match(researchJs, /closed-won/);
   assert.match(researchJs, /itemsJson: serializeQueueForGun\(currentQueue\)/);
   assert.match(researchJs, /itemsJson: serializeInterviewsForGun\(currentInterviews\)/);
+  assert.match(researchJs, /itemsJson: serializeScheduledInterviewsForGun\(currentScheduledInterviews\)/);
   assert.match(researchJs, /const minimumSlots = \[/);
   assert.match(researchJs, /document\.querySelector\(`\[data-interview-minimum="\$\{item\.key\}"\]`\)/);
+  assert.match(researchJs, /buildInterviewCalendarUrl/);
+  assert.match(researchJs, /data-scheduled-interview-remove-id/);
   assert.match(researchJs, /const rawJson = typeof data\.itemsJson === 'string' \? data\.itemsJson\.trim\(\) : ''/);
   assert.match(researchJs, /data-queue-playbook-id/);
   assert.match(researchJs, /data-interview-remove-id/);

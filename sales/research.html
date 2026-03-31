@@ -281,6 +281,85 @@
           class="inline-flex items-center justify-center rounded-lg bg-purple-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500"
         >Open support-team draft</a>
       </div>
+      <div class="grid gap-4 xl:grid-cols-[1.1fr,0.9fr]">
+        <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-5 shadow-lg space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Schedule</p>
+              <h3 class="text-lg font-semibold text-slate-100">Schedule the next interview</h3>
+            </div>
+            <a
+              href="../calendar/index.html"
+              class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10"
+            >Open calendar</a>
+          </div>
+          <p class="text-sm text-slate-300">
+            Save a real slot, then open the calendar draft with the interview details already filled in.
+          </p>
+          <form id="scheduleInterviewForm" class="grid gap-3 md:grid-cols-2">
+            <label class="space-y-2">
+              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Segment</span>
+              <select id="scheduleInterviewSegment" class="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100">
+                <option value="professional-services">Professional services</option>
+                <option value="local-service">Construction and local service</option>
+                <option value="support-team">Health, support, and local teams</option>
+              </select>
+            </label>
+            <label class="space-y-2">
+              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Company or team</span>
+              <input id="scheduleInterviewCompany" type="text" placeholder="Studio, contractor, or organization name" class="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100" />
+            </label>
+            <label class="space-y-2">
+              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Contact</span>
+              <input id="scheduleInterviewContact" type="text" placeholder="Owner, manager, or team lead" class="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100" />
+            </label>
+            <label class="space-y-2">
+              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Date</span>
+              <input id="scheduleInterviewDate" type="date" class="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100" />
+            </label>
+            <label class="space-y-2">
+              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Start time</span>
+              <input id="scheduleInterviewTime" type="time" class="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100" />
+            </label>
+            <label class="space-y-2">
+              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Duration</span>
+              <select id="scheduleInterviewDuration" class="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100">
+                <option value="15">15 minutes</option>
+                <option value="20">20 minutes</option>
+                <option value="30">30 minutes</option>
+              </select>
+            </label>
+            <label class="space-y-2 md:col-span-2">
+              <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Prep note</span>
+              <textarea id="scheduleInterviewNote" placeholder="What pain do you expect to hear, and what opener should you use?" class="min-h-[96px] w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100"></textarea>
+            </label>
+            <div class="md:col-span-2 flex flex-wrap items-center gap-3">
+              <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Save slot</button>
+              <a
+                id="scheduleInterviewCalendarLink"
+                href="../calendar/index.html"
+                class="inline-flex items-center justify-center rounded-lg border border-sky-300/20 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-100 hover:bg-sky-500/20"
+              >Open calendar draft</a>
+              <p id="scheduledInterviewStatus" class="text-sm text-slate-400" role="status" aria-live="polite">Save a concrete slot, then open the calendar draft.</p>
+            </div>
+          </form>
+        </article>
+
+        <aside class="rounded-2xl border border-white/5 bg-slate-950/80 p-5 shadow-lg space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Upcoming</p>
+              <h3 class="text-lg font-semibold text-slate-100">Scheduled interview slots</h3>
+            </div>
+            <p id="scheduledInterviewSummary" class="text-xs uppercase tracking-[0.24em] text-slate-400">No slots saved yet</p>
+          </div>
+          <div id="scheduledInterviewList" class="space-y-3">
+            <div class="rounded-xl border border-dashed border-white/10 bg-slate-900/40 px-4 py-5 text-sm text-slate-400">
+              No interview slots saved yet. Book one real time on the calendar, not just another intention.
+            </div>
+          </div>
+        </aside>
+      </div>
       <form id="interviewLogForm" class="grid gap-3 xl:grid-cols-2">
         <label class="space-y-2">
           <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Segment</span>

@@ -23,6 +23,10 @@ test('sales research desk keeps current market signals tied to action', async ()
   assert.match(html, /Open pro interview draft/);
   assert.match(html, /Open local interview draft/);
   assert.match(html, /Open support-team draft/);
+  assert.match(html, /Schedule the next interview/);
+  assert.match(html, /id="scheduleInterviewForm"/);
+  assert.match(html, /id="scheduledInterviewList"/);
+  assert.match(html, /Open calendar draft/);
   assert.match(html, /id="interviewLogForm"/);
   assert.match(html, /id="interviewSprintStatus"/);
   assert.match(html, /First 3 today/);

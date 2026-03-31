@@ -1,10 +1,14 @@
 const LOCAL_TRAINING_STATE_KEY = 'training.v1';
 const LOCAL_INTERVIEW_STATE_KEY = 'sales-research.interviews.v1';
+const LOCAL_INTERVIEW_SCHEDULE_STATE_KEY = 'sales-research.schedule.v1';
 const GUN_QUEUE_NODE_PATH = ['3dvr-portal', 'sales-training', 'today-queue'];
 const GUN_INTERVIEW_NODE_PATH = ['3dvr-portal', 'sales-research', 'interviews'];
+const GUN_INTERVIEW_SCHEDULE_NODE_PATH = ['3dvr-portal', 'sales-research', 'schedule'];
 const CRM_NODE_KEY = '3dvr-crm';
 const TOUCH_LOG_NODE_PATH = ['3dvr-portal', 'crm-touch-log'];
 const INTERVIEW_TARGET = 15;
+const DEFAULT_INTERVIEW_DURATION_MINUTES = 15;
+const DEFAULT_INTERVIEW_TIME = '11:00';
 const INTERVIEW_STATUS_VALUES = Object.freeze([
   'Queued',
   'Reached out',
@@ -61,16 +65,31 @@ const interviewNotes = document.getElementById('interviewNotes');
 const interviewNextStep = document.getElementById('interviewNextStep');
 const interviewLogSaveStatus = document.getElementById('interviewLogSaveStatus');
 const interviewLogList = document.getElementById('interviewLogList');
+const scheduleInterviewForm = document.getElementById('scheduleInterviewForm');
+const scheduleInterviewSegment = document.getElementById('scheduleInterviewSegment');
+const scheduleInterviewCompany = document.getElementById('scheduleInterviewCompany');
+const scheduleInterviewContact = document.getElementById('scheduleInterviewContact');
+const scheduleInterviewDate = document.getElementById('scheduleInterviewDate');
+const scheduleInterviewTime = document.getElementById('scheduleInterviewTime');
+const scheduleInterviewDuration = document.getElementById('scheduleInterviewDuration');
+const scheduleInterviewNote = document.getElementById('scheduleInterviewNote');
+const scheduleInterviewCalendarLink = document.getElementById('scheduleInterviewCalendarLink');
+const scheduledInterviewStatus = document.getElementById('scheduledInterviewStatus');
+const scheduledInterviewSummary = document.getElementById('scheduledInterviewSummary');
+const scheduledInterviewList = document.getElementById('scheduledInterviewList');
 
 let researchGun = null;
 let reachoutQueueNode = null;
 let interviewsNode = null;
+let scheduledInterviewsNode = null;
 let crmRecordsNode = null;
 let touchLogRoot = null;
 let queueSnapshot = '[]';
 let currentQueue = [];
 let interviewSnapshot = '[]';
 let currentInterviews = [];
+let scheduleSnapshot = '[]';
+let currentScheduledInterviews = [];
 const crmRecordIndex = Object.create(null);
 const touchLogIndex = Object.create(null);
 let scoreboardTimer = null;
@@ -127,6 +146,99 @@ function formatTimestamp(value) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function padNumber(value) {
+  return String(value).padStart(2, '0');
+}
+
+function toLocalDateInputValue(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return `${date.getFullYear()}-${padNumber(date.getMonth() + 1)}-${padNumber(date.getDate())}`;
+}
+
+function toLocalTimeInputValue(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return `${padNumber(date.getHours())}:${padNumber(date.getMinutes())}`;
+}
+
+function parseScheduledInterviewStart(dateValue, timeValue) {
+  if (!dateValue || !timeValue) {
+    return null;
+  }
+  const parsed = new Date(`${dateValue}T${timeValue}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function clampInterviewDuration(value) {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_INTERVIEW_DURATION_MINUTES;
+  }
+  return Math.max(15, Math.min(Math.trunc(value), 120));
+}
+
+function buildNextInterviewDefaults() {
+  const next = new Date();
+  next.setSeconds(0, 0);
+  next.setDate(next.getDate() + 1);
+  next.setHours(11, 0, 0, 0);
+  while (next.getDay() === 0 || next.getDay() === 6) {
+    next.setDate(next.getDate() + 1);
+  }
+  return {
+    date: toLocalDateInputValue(next),
+    time: DEFAULT_INTERVIEW_TIME,
+    durationMinutes: DEFAULT_INTERVIEW_DURATION_MINUTES,
+  };
+}
+
+function formatInterviewSlot(value, durationMinutes = DEFAULT_INTERVIEW_DURATION_MINUTES) {
+  const start = new Date(value);
+  if (Number.isNaN(start.getTime())) {
+    return 'Unscheduled';
+  }
+  return `${start.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })} • ${clampInterviewDuration(durationMinutes)} min`;
+}
+
+function buildInterviewCalendarUrl(interview = {}) {
+  const segmentId = SEGMENTS[interview.segmentId] ? String(interview.segmentId) : 'professional-services';
+  const segment = SEGMENTS[segmentId];
+  const start = new Date(interview.startsAt || '');
+  if (Number.isNaN(start.getTime())) {
+    return '../calendar/index.html';
+  }
+  const end = new Date(start.getTime() + (clampInterviewDuration(interview.durationMinutes) * 60 * 1000));
+  const titleTarget = String(interview.company || interview.contact || segment.label).trim();
+  const title = `Interview • ${segment.label} • ${titleTarget}`;
+  const descriptionLines = [
+    `Segment: ${segment.label}`,
+    interview.company ? `Company: ${interview.company}` : '',
+    interview.contact ? `Contact: ${interview.contact}` : '',
+    interview.note ? `Prep note: ${interview.note}` : '',
+    `Opener: ${segment.opener}`,
+    'Source: Sales research desk',
+  ].filter(Boolean);
+  const params = new URLSearchParams();
+  params.set('prefill', '1');
+  params.set('source', 'sales-research');
+  params.set('title', title);
+  params.set('start', start.toISOString());
+  params.set('end', end.toISOString());
+  params.set('description', descriptionLines.join('\n'));
+  params.set('timeZone', Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+  if (interview.note) {
+    params.set('reminderMessage', interview.note);
+  }
+  return `../calendar/index.html?${params.toString()}`;
 }
 
 function normalizeQueueEntry(item = {}) {
@@ -358,6 +470,300 @@ function normalizeInterviews(list = []) {
 
 function interviewSignature(list = []) {
   return JSON.stringify(normalizeInterviews(list));
+}
+
+function normalizeScheduledInterviewEntry(item = {}) {
+  const segmentId = SEGMENTS[item.segmentId] ? String(item.segmentId) : 'professional-services';
+  const startsAtValue = String(item.startsAt || '').trim();
+  const startsAtDate = new Date(startsAtValue);
+  const startsAt = Number.isNaN(startsAtDate.getTime()) ? '' : startsAtDate.toISOString();
+  return {
+    id: String(item.id || generateId()),
+    segmentId,
+    segmentLabel: SEGMENTS[segmentId].label,
+    company: String(item.company || '').trim(),
+    contact: String(item.contact || '').trim(),
+    startsAt,
+    durationMinutes: clampInterviewDuration(Number.parseInt(item.durationMinutes, 10)),
+    note: String(item.note || '').trim(),
+    createdAt: String(item.createdAt || new Date().toISOString()).trim(),
+    updatedAt: String(item.updatedAt || item.createdAt || new Date().toISOString()).trim(),
+    source: String(item.source || 'Market research desk').trim(),
+  };
+}
+
+function normalizeScheduledInterviews(list = []) {
+  return Array.isArray(list)
+    ? list
+      .map(normalizeScheduledInterviewEntry)
+      .filter(item => item.startsAt && (item.company || item.contact))
+      .sort((a, b) => String(a.startsAt || '').localeCompare(String(b.startsAt || '')))
+    : [];
+}
+
+function scheduledInterviewSignature(list = []) {
+  return JSON.stringify(normalizeScheduledInterviews(list));
+}
+
+function readLocalScheduledInterviews() {
+  try {
+    return JSON.parse(window.localStorage.getItem(LOCAL_INTERVIEW_SCHEDULE_STATE_KEY) || '{}');
+  } catch (error) {
+    console.warn('Unable to read scheduled interview state', error);
+    return {};
+  }
+}
+
+function persistLocalScheduledInterviews(list) {
+  try {
+    window.localStorage.setItem(LOCAL_INTERVIEW_SCHEDULE_STATE_KEY, JSON.stringify({
+      items: normalizeScheduledInterviews(list),
+      updatedAt: new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.warn('Unable to persist scheduled interview state', error);
+  }
+}
+
+function serializeScheduledInterviewsForGun(list = []) {
+  return JSON.stringify(normalizeScheduledInterviews(list));
+}
+
+function parseScheduledInterviewsFromGun(data = {}) {
+  if (!data || typeof data !== 'object') {
+    return [];
+  }
+
+  const rawJson = typeof data.itemsJson === 'string' ? data.itemsJson.trim() : '';
+  if (rawJson) {
+    try {
+      return normalizeScheduledInterviews(JSON.parse(rawJson));
+    } catch (error) {
+      console.warn('Scheduled interview parse failed', error);
+    }
+  }
+
+  return normalizeScheduledInterviews(Array.isArray(data.items) ? data.items : []);
+}
+
+function renderScheduledInterviewStatus(message = '') {
+  if (!scheduledInterviewStatus) {
+    return;
+  }
+  const mode = scheduledInterviewsNode ? 'Shared with Gun' : 'Local fallback';
+  scheduledInterviewStatus.textContent = message
+    ? `${mode} • ${currentScheduledInterviews.length} slots saved • ${message}`
+    : `${mode} • ${currentScheduledInterviews.length} slots saved`;
+}
+
+function renderScheduledInterviewList() {
+  if (!scheduledInterviewList) {
+    return;
+  }
+
+  if (!currentScheduledInterviews.length) {
+    scheduledInterviewList.innerHTML = `
+      <div class="rounded-xl border border-dashed border-white/10 bg-slate-900/40 px-4 py-5 text-sm text-slate-400">
+        No interview slots saved yet. Book one real time on the calendar, not just another intention.
+      </div>
+    `;
+    if (scheduledInterviewSummary) {
+      scheduledInterviewSummary.textContent = 'No slots saved yet';
+    }
+    return;
+  }
+
+  const nextSlot = currentScheduledInterviews[0];
+  if (scheduledInterviewSummary) {
+    scheduledInterviewSummary.textContent = `${currentScheduledInterviews.length} saved • next ${formatInterviewSlot(nextSlot.startsAt, nextSlot.durationMinutes)}`;
+  }
+
+  scheduledInterviewList.innerHTML = currentScheduledInterviews
+    .slice(0, 6)
+    .map(item => `
+      <article class="rounded-xl border border-white/5 bg-slate-900/70 p-4 space-y-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.24em] text-slate-400">${safe(item.segmentLabel)}</p>
+            <h4 class="text-sm font-semibold text-slate-100">${safe(item.company || item.contact || 'Scheduled interview')}</h4>
+            <p class="text-xs text-slate-400">${safe(item.contact || 'No contact saved')} • ${safe(formatInterviewSlot(item.startsAt, item.durationMinutes))}</p>
+          </div>
+          <button
+            type="button"
+            data-scheduled-interview-remove-id="${safeAttr(item.id)}"
+            class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10"
+          >Remove</button>
+        </div>
+        <p class="text-sm text-slate-300">${safe(item.note || 'Use the segment opener, keep it to 15 minutes, and capture the real pain clearly.')}</p>
+        <div class="flex flex-wrap gap-2">
+          <a
+            href="${safeAttr(buildInterviewCalendarUrl(item))}"
+            class="inline-flex items-center justify-center rounded-lg border border-sky-300/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-500/20"
+          >Open calendar draft</a>
+        </div>
+      </article>
+    `)
+    .join('');
+}
+
+function updateScheduleCalendarLink() {
+  if (!scheduleInterviewCalendarLink) {
+    return;
+  }
+
+  const startsAt = parseScheduledInterviewStart(
+    String(scheduleInterviewDate?.value || '').trim(),
+    String(scheduleInterviewTime?.value || '').trim()
+  );
+
+  if (!(startsAt instanceof Date) || Number.isNaN(startsAt.getTime())) {
+    scheduleInterviewCalendarLink.href = '../calendar/index.html';
+    return;
+  }
+
+  const entry = normalizeScheduledInterviewEntry({
+    segmentId: String(scheduleInterviewSegment?.value || '').trim(),
+    company: String(scheduleInterviewCompany?.value || '').trim(),
+    contact: String(scheduleInterviewContact?.value || '').trim(),
+    startsAt: startsAt.toISOString(),
+    durationMinutes: Number.parseInt(scheduleInterviewDuration?.value || '', 10),
+    note: String(scheduleInterviewNote?.value || '').trim(),
+  });
+  scheduleInterviewCalendarLink.href = buildInterviewCalendarUrl(entry);
+}
+
+function persistScheduledInterviewsToGun() {
+  if (!scheduledInterviewsNode) {
+    return;
+  }
+  scheduledInterviewsNode.put({
+    itemsJson: serializeScheduledInterviewsForGun(currentScheduledInterviews),
+    updatedAt: new Date().toISOString(),
+  }, ack => {
+    if (ack && ack.err) {
+      console.warn('Scheduled interview sync failed', ack.err);
+      renderScheduledInterviewStatus('sync failed');
+    }
+  });
+}
+
+function setScheduledInterviews(nextInterviews, options = {}) {
+  currentScheduledInterviews = normalizeScheduledInterviews(nextInterviews);
+  scheduleSnapshot = scheduledInterviewSignature(currentScheduledInterviews);
+  persistLocalScheduledInterviews(currentScheduledInterviews);
+  renderScheduledInterviewList();
+  renderScheduledInterviewStatus(options.message || '');
+  if (!options.fromGun) {
+    persistScheduledInterviewsToGun();
+  }
+}
+
+function hydrateScheduledInterviewsFromLocal() {
+  const state = readLocalScheduledInterviews();
+  currentScheduledInterviews = normalizeScheduledInterviews(state.items || []);
+  scheduleSnapshot = scheduledInterviewSignature(currentScheduledInterviews);
+  renderScheduledInterviewList();
+  renderScheduledInterviewStatus();
+}
+
+function hydrateScheduledInterviewsFromGun() {
+  if (!scheduledInterviewsNode) {
+    return;
+  }
+
+  const applyRemoteSchedule = (data) => {
+    if (!data || !data.updatedAt) {
+      return;
+    }
+    const nextSchedule = parseScheduledInterviewsFromGun(data);
+    const nextSignature = scheduledInterviewSignature(nextSchedule);
+    if (nextSignature === scheduleSnapshot) {
+      return;
+    }
+    setScheduledInterviews(nextSchedule, { fromGun: true });
+  };
+
+  scheduledInterviewsNode.once(applyRemoteSchedule);
+  scheduledInterviewsNode.on(applyRemoteSchedule);
+}
+
+function resetScheduledInterviewForm() {
+  if (!scheduleInterviewForm) {
+    return;
+  }
+  scheduleInterviewForm.reset();
+  const defaults = buildNextInterviewDefaults();
+  if (scheduleInterviewSegment) {
+    scheduleInterviewSegment.value = 'professional-services';
+  }
+  if (scheduleInterviewDate) {
+    scheduleInterviewDate.value = defaults.date;
+  }
+  if (scheduleInterviewTime) {
+    scheduleInterviewTime.value = defaults.time;
+  }
+  if (scheduleInterviewDuration) {
+    scheduleInterviewDuration.value = String(defaults.durationMinutes);
+  }
+  updateScheduleCalendarLink();
+}
+
+function handleScheduledInterviewSubmit(event) {
+  event.preventDefault();
+  const company = String(scheduleInterviewCompany?.value || '').trim();
+  const contact = String(scheduleInterviewContact?.value || '').trim();
+  const startsAt = parseScheduledInterviewStart(
+    String(scheduleInterviewDate?.value || '').trim(),
+    String(scheduleInterviewTime?.value || '').trim()
+  );
+
+  if (!company && !contact) {
+    renderScheduledInterviewStatus('add at least a company or contact');
+    scheduleInterviewCompany?.focus();
+    return;
+  }
+
+  if (!(startsAt instanceof Date) || Number.isNaN(startsAt.getTime())) {
+    renderScheduledInterviewStatus('choose a valid date and time');
+    scheduleInterviewDate?.focus();
+    return;
+  }
+
+  const now = new Date().toISOString();
+  setScheduledInterviews([
+    ...currentScheduledInterviews,
+    {
+      id: generateId(),
+      segmentId: String(scheduleInterviewSegment?.value || '').trim(),
+      company,
+      contact,
+      startsAt: startsAt.toISOString(),
+      durationMinutes: Number.parseInt(scheduleInterviewDuration?.value || '', 10),
+      note: String(scheduleInterviewNote?.value || '').trim(),
+      createdAt: now,
+      updatedAt: now,
+      source: 'Market research desk',
+    },
+  ], {
+    message: 'saved slot',
+  });
+
+  resetScheduledInterviewForm();
+}
+
+function handleScheduledInterviewListClick(event) {
+  const removeButton = event.target.closest('[data-scheduled-interview-remove-id]');
+  if (!removeButton) {
+    return;
+  }
+  const scheduledInterviewId = String(removeButton.getAttribute('data-scheduled-interview-remove-id') || '').trim();
+  if (!scheduledInterviewId) {
+    return;
+  }
+  setScheduledInterviews(
+    currentScheduledInterviews.filter(item => item.id !== scheduledInterviewId),
+    { message: 'removed slot' }
+  );
 }
 
 function readLocalInterviewState() {
@@ -786,9 +1192,15 @@ function init() {
   bindPlaybookActions();
   hydrateQueueFromLocal();
   hydrateInterviewsFromLocal();
+  hydrateScheduledInterviewsFromLocal();
+  resetScheduledInterviewForm();
 
   interviewLogForm?.addEventListener('submit', handleInterviewSubmit);
   interviewLogList?.addEventListener('click', handleInterviewListClick);
+  scheduleInterviewForm?.addEventListener('submit', handleScheduledInterviewSubmit);
+  scheduledInterviewList?.addEventListener('click', handleScheduledInterviewListClick);
+  scheduleInterviewForm?.addEventListener('input', updateScheduleCalendarLink);
+  scheduleInterviewForm?.addEventListener('change', updateScheduleCalendarLink);
 
   researchGun = createResearchGun();
   if (researchGun) {
@@ -800,6 +1212,10 @@ function init() {
       .get(GUN_INTERVIEW_NODE_PATH[0])
       .get(GUN_INTERVIEW_NODE_PATH[1])
       .get(GUN_INTERVIEW_NODE_PATH[2]);
+    scheduledInterviewsNode = researchGun
+      .get(GUN_INTERVIEW_SCHEDULE_NODE_PATH[0])
+      .get(GUN_INTERVIEW_SCHEDULE_NODE_PATH[1])
+      .get(GUN_INTERVIEW_SCHEDULE_NODE_PATH[2]);
     crmRecordsNode = researchGun.get(CRM_NODE_KEY);
     touchLogRoot = researchGun
       .get(TOUCH_LOG_NODE_PATH[0])
@@ -808,9 +1224,11 @@ function init() {
 
   hydrateQueueFromGun();
   hydrateInterviewsFromGun();
+  hydrateScheduledInterviewsFromGun();
   hydrateCrmScoreboard();
   hydrateTouchLogScoreboard();
   renderInterviewTracker();
+  renderScheduledInterviewList();
   renderScoreboard();
 }
 
