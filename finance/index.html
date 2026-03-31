@@ -97,6 +97,46 @@
           </a>
         </div>
       </div>
+
+      <div class="finance-card finance-card--metrics" aria-labelledby="profitability-title">
+        <div class="finance-card__header">
+          <h2 id="profitability-title" class="finance-card__title">Profitability alignment</h2>
+          <p class="finance-card__subhead">Sales + finance shared view</p>
+        </div>
+        <p id="profitability-status" class="finance-helper" role="status" aria-live="polite">
+          Linked paid accounts and Stripe subscriber totals will sync shortly.
+        </p>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Active Stripe subscribers</dt>
+            <dd id="profitability-stripe-subscribers">0</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Linked paid accounts</dt>
+            <dd id="profitability-linked-paid">0</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Linked Builder</dt>
+            <dd id="profitability-builder-count">0</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Linked Embedded</dt>
+            <dd id="profitability-embedded-count">0</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Linked recurring MRR</dt>
+            <dd id="profitability-mrr">$0.00</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Link gap</dt>
+            <dd id="profitability-link-gap">0</dd>
+          </div>
+        </dl>
+        <div class="finance-card__actions">
+          <a href="../sales/scoreboard.html" class="finance-button finance-button--secondary">Open profitability desk</a>
+          <a href="../billing/index.html" class="finance-button finance-button--secondary">Open billing</a>
+        </div>
+      </div>
     </section>
 
     <section class="finance-card finance-card--ledger" aria-labelledby="ledger-title">
@@ -110,6 +150,6 @@
     </section>
   </main>
 
-  <script src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

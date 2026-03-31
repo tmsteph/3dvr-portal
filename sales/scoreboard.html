@@ -135,6 +135,34 @@
             Builder and Embedded counts come from portal-linked billing records. Total active subscribers come from finance Stripe metrics.
           </p>
         </div>
+        <div
+          id="linkGapCard"
+          class="rounded-xl border border-amber-300/20 bg-amber-500/10 p-4 space-y-3"
+          hidden
+        >
+          <div>
+            <p class="text-xs uppercase tracking-[0.25em] text-amber-200">Link gap</p>
+            <h3 class="mt-2 text-lg font-semibold text-white">Some paid accounts are not linked inside the portal yet.</h3>
+            <p id="linkGapStatus" class="mt-2 text-sm text-slate-200">
+              Stripe totals are ahead of the linked portal billing base.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              id="refreshStripeTotalsButton"
+              type="button"
+              class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-50"
+            >Refresh Stripe totals</button>
+            <a
+              href="../admin/index.html"
+              class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+            >Open admin Stripe</a>
+            <a
+              href="../billing/index.html"
+              class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+            >Open billing recovery</a>
+          </div>
+        </div>
         <div class="space-y-3">
           <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Quick actions</p>
           <a

@@ -1,4 +1,8 @@
-'use strict';
+import {
+  estimateRecurringRevenue,
+  normalizeStripeMetricsRecord,
+  summarizeLinkedBilling
+} from '../sales/scoreboard-data.js';
 
 function createLocalGunSubscriptionStub() {
   return {
@@ -205,6 +209,9 @@ const portalRoot = gun && typeof gun.get === 'function'
 const financeRoot = portalRoot && typeof portalRoot.get === 'function'
   ? portalRoot.get('finance')
   : createLocalGunNodeStub();
+const billingRoot = portalRoot && typeof portalRoot.get === 'function'
+  ? portalRoot.get('billing')
+  : createLocalGunNodeStub();
 const legacyFinanceRoot = gun && typeof gun.get === 'function'
   ? gun.get('finance')
   : createLocalGunNodeStub();
@@ -218,6 +225,9 @@ const legacyEthereumRoot = legacyFinanceRoot && typeof legacyFinanceRoot.get ===
   : createLocalGunNodeStub();
 const stripeRoot = financeRoot && typeof financeRoot.get === 'function'
   ? financeRoot.get('stripe')
+  : createLocalGunNodeStub();
+const billingUsageTierNode = billingRoot && typeof billingRoot.get === 'function'
+  ? billingRoot.get('usageTier')
   : createLocalGunNodeStub();
 const legacyStripeRoot = legacyFinanceRoot && typeof legacyFinanceRoot.get === 'function'
   ? legacyFinanceRoot.get('stripe')
@@ -333,6 +343,13 @@ const stripeOverviewBalance = document.getElementById('stripe-overview-balance')
 const stripeBalanceDisplays = [stripeLiveBalance, stripeOverviewBalance].filter(Boolean);
 const stripeOverviewSubscribers = document.getElementById('stripe-overview-subscribers');
 const stripeSubscriberDisplays = [stripeLiveSubscribers, stripeOverviewSubscribers].filter(Boolean);
+const profitabilityStripeSubscribers = document.getElementById('profitability-stripe-subscribers');
+const profitabilityLinkedPaid = document.getElementById('profitability-linked-paid');
+const profitabilityBuilderCount = document.getElementById('profitability-builder-count');
+const profitabilityEmbeddedCount = document.getElementById('profitability-embedded-count');
+const profitabilityMrr = document.getElementById('profitability-mrr');
+const profitabilityLinkGap = document.getElementById('profitability-link-gap');
+const profitabilityStatus = document.getElementById('profitability-status');
 
 const ethStatus = document.getElementById('eth-status');
 const ethConnectButton = document.getElementById('eth-connect');
@@ -350,6 +367,7 @@ const entries = new Map();
 const payables = new Map();
 const ethPayments = new Map();
 const stripeEvents = new Map();
+const billingUsageTierRecords = Object.create(null);
 let stripeMetricsIntervalId = null;
 const stripeMetricsState = {
   available: {},
@@ -425,6 +443,9 @@ forEachSource(stripeMetricsSources, source => {
     }
   }
 });
+if (billingUsageTierNode && typeof billingUsageTierNode.map === 'function' && typeof billingUsageTierNode.map().on === 'function') {
+  billingUsageTierNode.map().on(handleBillingUsageTierUpdate);
+}
 if (stripeEventsStatus) {
   fetchStripeEvents();
 }
@@ -976,6 +997,8 @@ function updateStripeDisplays(metrics) {
     stripeLiveStatus.textContent = statusParts.join(' ');
     stripeLiveStatus.classList.remove('finance-helper--error');
   }
+
+  renderProfitabilitySummary();
 }
 
 function applyStripeMetricsPatch(patch) {
@@ -1103,6 +1126,63 @@ function handleStripeMetricsUpdate(raw) {
     return;
   }
   applyStripeMetricsPatch(metrics);
+}
+
+function handleBillingUsageTierUpdate(raw, key) {
+  if (!key) {
+    return;
+  }
+
+  if (!raw) {
+    delete billingUsageTierRecords[key];
+    renderProfitabilitySummary();
+    return;
+  }
+
+  const cleaned = sanitizeRecord(raw);
+  if (!cleaned) {
+    return;
+  }
+
+  billingUsageTierRecords[key] = cleaned;
+  renderProfitabilitySummary();
+}
+
+function renderProfitabilitySummary() {
+  if (!profitabilityStatus) {
+    return;
+  }
+
+  const linked = summarizeLinkedBilling(billingUsageTierRecords);
+  const linkedMrr = estimateRecurringRevenue(linked);
+  const stripeTotals = normalizeStripeMetricsRecord(stripeMetricsState);
+  const linkGap = Math.max(0, stripeTotals.activeSubscribers - linked.linkedPaidCustomers);
+
+  if (profitabilityStripeSubscribers) {
+    profitabilityStripeSubscribers.textContent = stripeTotals.activeSubscribers.toLocaleString();
+  }
+  if (profitabilityLinkedPaid) {
+    profitabilityLinkedPaid.textContent = linked.linkedPaidCustomers.toLocaleString();
+  }
+  if (profitabilityBuilderCount) {
+    profitabilityBuilderCount.textContent = linked.builderCustomers.toLocaleString();
+  }
+  if (profitabilityEmbeddedCount) {
+    profitabilityEmbeddedCount.textContent = linked.embeddedCustomers.toLocaleString();
+  }
+  if (profitabilityMrr) {
+    profitabilityMrr.textContent = numberFormatter.format(linkedMrr);
+  }
+  if (profitabilityLinkGap) {
+    profitabilityLinkGap.textContent = linkGap.toLocaleString();
+  }
+
+  if (linkGap > 0) {
+    profitabilityStatus.textContent = `Stripe shows ${stripeTotals.activeSubscribers.toLocaleString()} active subscriber${stripeTotals.activeSubscribers === 1 ? '' : 's'}, but portal billing only shows ${linked.linkedPaidCustomers.toLocaleString()} linked paid account${linked.linkedPaidCustomers === 1 ? '' : 's'}. Use the profitability desk or billing to recover the missing links.`;
+    return;
+  }
+
+  profitabilityStatus.textContent = `Finance and billing are aligned across ${linked.linkedPaidCustomers.toLocaleString()} linked paid account${linked.linkedPaidCustomers === 1 ? '' : 's'}.`;
 }
 
 const stripeEventsLimit = 3;
