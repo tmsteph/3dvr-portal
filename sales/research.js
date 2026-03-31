@@ -1,7 +1,17 @@
 const LOCAL_TRAINING_STATE_KEY = 'training.v1';
+const LOCAL_INTERVIEW_STATE_KEY = 'sales-research.interviews.v1';
 const GUN_QUEUE_NODE_PATH = ['3dvr-portal', 'sales-training', 'today-queue'];
+const GUN_INTERVIEW_NODE_PATH = ['3dvr-portal', 'sales-research', 'interviews'];
 const CRM_NODE_KEY = '3dvr-crm';
 const TOUCH_LOG_NODE_PATH = ['3dvr-portal', 'crm-touch-log'];
+const INTERVIEW_TARGET = 15;
+const INTERVIEW_STATUS_VALUES = Object.freeze([
+  'Queued',
+  'Reached out',
+  'Interviewed',
+  'Qualified',
+  'Not a fit',
+]);
 
 const SEGMENTS = Object.freeze({
   'professional-services': Object.freeze({
@@ -33,13 +43,33 @@ const SEGMENTS = Object.freeze({
 const playbookCopyStatus = document.getElementById('playbookCopyStatus');
 const researchQueueStatus = document.getElementById('researchQueueStatus');
 const scoreboardUpdated = document.getElementById('scoreboardUpdated');
+const interviewSprintStatus = document.getElementById('interviewSprintStatus');
+const interviewSprintDetail = document.getElementById('interviewSprintDetail');
+const interviewSprintBar = document.getElementById('interviewSprintBar');
+const interviewLoggedCount = document.getElementById('interviewLoggedCount');
+const interviewTargetCount = document.getElementById('interviewTargetCount');
+const interviewProfessionalCount = document.getElementById('interviewProfessionalCount');
+const interviewLocalCount = document.getElementById('interviewLocalCount');
+const interviewSupportCount = document.getElementById('interviewSupportCount');
+const interviewLogForm = document.getElementById('interviewLogForm');
+const interviewSegment = document.getElementById('interviewSegment');
+const interviewCompany = document.getElementById('interviewCompany');
+const interviewContact = document.getElementById('interviewContact');
+const interviewStatus = document.getElementById('interviewStatus');
+const interviewNotes = document.getElementById('interviewNotes');
+const interviewNextStep = document.getElementById('interviewNextStep');
+const interviewLogSaveStatus = document.getElementById('interviewLogSaveStatus');
+const interviewLogList = document.getElementById('interviewLogList');
 
 let researchGun = null;
 let reachoutQueueNode = null;
+let interviewsNode = null;
 let crmRecordsNode = null;
 let touchLogRoot = null;
 let queueSnapshot = '[]';
 let currentQueue = [];
+let interviewSnapshot = '[]';
+let currentInterviews = [];
 const crmRecordIndex = Object.create(null);
 const touchLogIndex = Object.create(null);
 let scoreboardTimer = null;
@@ -72,6 +102,30 @@ function generateId() {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function safe(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function safeAttr(value) {
+  return safe(value).replace(/"/g, '&quot;');
+}
+
+function formatTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown time';
+  }
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 function normalizeQueueEntry(item = {}) {
@@ -271,6 +325,270 @@ function queueSegmentPlaybook(segmentId) {
   updatePlaybookStatus('Queued the opener in the shared reach-out desk. Open training or CRM while the segment is still warm.');
 }
 
+function normalizeInterviewEntry(item = {}) {
+  const segmentId = SEGMENTS[item.segmentId] ? String(item.segmentId) : 'professional-services';
+  const segment = SEGMENTS[segmentId];
+  const status = INTERVIEW_STATUS_VALUES.includes(String(item.status || '').trim())
+    ? String(item.status || '').trim()
+    : 'Queued';
+  return {
+    id: String(item.id || generateId()),
+    segmentId,
+    segmentLabel: segment.label,
+    company: String(item.company || '').trim(),
+    contact: String(item.contact || '').trim(),
+    status,
+    notes: String(item.notes || '').trim(),
+    nextStep: String(item.nextStep || '').trim(),
+    createdAt: String(item.createdAt || new Date().toISOString()).trim(),
+    updatedAt: String(item.updatedAt || item.createdAt || new Date().toISOString()).trim(),
+    source: String(item.source || 'Market research desk').trim(),
+  };
+}
+
+function normalizeInterviews(list = []) {
+  return Array.isArray(list)
+    ? list
+      .map(normalizeInterviewEntry)
+      .filter(item => item.company || item.contact || item.notes)
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+    : [];
+}
+
+function interviewSignature(list = []) {
+  return JSON.stringify(normalizeInterviews(list));
+}
+
+function readLocalInterviewState() {
+  try {
+    return JSON.parse(window.localStorage.getItem(LOCAL_INTERVIEW_STATE_KEY) || '{}');
+  } catch (error) {
+    console.warn('Unable to read interview state', error);
+    return {};
+  }
+}
+
+function persistLocalInterviews(list) {
+  try {
+    window.localStorage.setItem(LOCAL_INTERVIEW_STATE_KEY, JSON.stringify({
+      items: normalizeInterviews(list),
+      updatedAt: new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.warn('Unable to persist interview state', error);
+  }
+}
+
+function serializeInterviewsForGun(list = []) {
+  return JSON.stringify(normalizeInterviews(list));
+}
+
+function parseInterviewsFromGun(data = {}) {
+  if (!data || typeof data !== 'object') {
+    return [];
+  }
+
+  const rawJson = typeof data.itemsJson === 'string' ? data.itemsJson.trim() : '';
+  if (rawJson) {
+    try {
+      return normalizeInterviews(JSON.parse(rawJson));
+    } catch (error) {
+      console.warn('Interview log parse failed', error);
+    }
+  }
+
+  return normalizeInterviews(Array.isArray(data.items) ? data.items : []);
+}
+
+function updateInterviewStatus(message = '') {
+  if (!interviewSprintStatus) {
+    return;
+  }
+  const mode = interviewsNode ? 'Shared with Gun' : 'Local fallback';
+  interviewSprintStatus.textContent = message
+    ? `${mode} • ${currentInterviews.length}/${INTERVIEW_TARGET} logged • ${message}`
+    : `${mode} • ${currentInterviews.length}/${INTERVIEW_TARGET} logged`;
+}
+
+function renderInterviewList() {
+  if (!interviewLogList) {
+    return;
+  }
+
+  if (!currentInterviews.length) {
+    interviewLogList.innerHTML = '<div class="rounded-2xl border border-dashed border-white/10 bg-slate-950/60 px-4 py-5 text-sm text-slate-400">No interviews logged yet. Use a CRM draft above, talk to a real buyer, then log what you learned here.</div>';
+    return;
+  }
+
+  interviewLogList.innerHTML = currentInterviews
+    .slice(0, INTERVIEW_TARGET)
+    .map(item => `
+      <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 shadow-lg space-y-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.24em] text-slate-400">${safe(item.segmentLabel)}</p>
+            <h3 class="text-lg font-semibold text-slate-100">${safe(item.company || item.contact || 'Untitled interview')}</h3>
+            <p class="text-sm text-slate-400">${safe(item.contact || 'No contact saved')} • ${safe(item.status)}</p>
+          </div>
+          <button
+            type="button"
+            data-interview-remove-id="${safeAttr(item.id)}"
+            class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10"
+          >Remove</button>
+        </div>
+        <p class="text-sm text-slate-300">${safe(item.notes || 'No pain notes saved yet.')}</p>
+        <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+          <span>Next step: ${safe(item.nextStep || 'Not set')}</span>
+          <span>${safe(formatTimestamp(item.updatedAt))}</span>
+        </div>
+      </article>
+    `)
+    .join('');
+}
+
+function renderInterviewTracker() {
+  const total = currentInterviews.length;
+  const professional = currentInterviews.filter(item => item.segmentId === 'professional-services').length;
+  const local = currentInterviews.filter(item => item.segmentId === 'local-service').length;
+  const support = currentInterviews.filter(item => item.segmentId === 'support-team').length;
+  const remaining = Math.max(INTERVIEW_TARGET - total, 0);
+  const progress = Math.min((total / INTERVIEW_TARGET) * 100, 100);
+
+  if (interviewLoggedCount) interviewLoggedCount.textContent = String(total);
+  if (interviewTargetCount) interviewTargetCount.textContent = String(INTERVIEW_TARGET);
+  if (interviewProfessionalCount) interviewProfessionalCount.textContent = String(professional);
+  if (interviewLocalCount) interviewLocalCount.textContent = String(local);
+  if (interviewSupportCount) interviewSupportCount.textContent = String(support);
+  if (interviewSprintBar) interviewSprintBar.style.width = `${progress}%`;
+  if (interviewSprintDetail) {
+    interviewSprintDetail.textContent = total
+      ? `${remaining} left to reach the first ${INTERVIEW_TARGET}. Keep the mix balanced across all three segments.`
+      : 'No interviews logged yet. Open a draft, have the conversation, then log it here.';
+  }
+  renderInterviewList();
+}
+
+function persistInterviewsToGun() {
+  if (!interviewsNode) {
+    return;
+  }
+  interviewsNode.put({
+    itemsJson: serializeInterviewsForGun(currentInterviews),
+    updatedAt: new Date().toISOString(),
+  }, ack => {
+    if (ack && ack.err) {
+      console.warn('Interview log sync failed', ack.err);
+      updateInterviewStatus('sync failed');
+    }
+  });
+}
+
+function setInterviews(nextInterviews, options = {}) {
+  currentInterviews = normalizeInterviews(nextInterviews);
+  interviewSnapshot = interviewSignature(currentInterviews);
+  persistLocalInterviews(currentInterviews);
+  renderInterviewTracker();
+  updateInterviewStatus(options.message || '');
+  if (!options.fromGun) {
+    persistInterviewsToGun();
+  }
+}
+
+function hydrateInterviewsFromLocal() {
+  const state = readLocalInterviewState();
+  currentInterviews = normalizeInterviews(state.items || []);
+  interviewSnapshot = interviewSignature(currentInterviews);
+  renderInterviewTracker();
+  updateInterviewStatus();
+}
+
+function hydrateInterviewsFromGun() {
+  if (!interviewsNode) {
+    return;
+  }
+
+  const applyRemoteInterviews = (data) => {
+    if (!data || !data.updatedAt) {
+      return;
+    }
+    const nextInterviews = parseInterviewsFromGun(data);
+    const nextSignature = interviewSignature(nextInterviews);
+    if (nextSignature === interviewSnapshot) {
+      return;
+    }
+    setInterviews(nextInterviews, { fromGun: true });
+  };
+
+  interviewsNode.once(applyRemoteInterviews);
+  interviewsNode.on(applyRemoteInterviews);
+}
+
+function handleInterviewSubmit(event) {
+  event.preventDefault();
+  const segmentId = SEGMENTS[String(interviewSegment?.value || '').trim()]
+    ? String(interviewSegment.value).trim()
+    : 'professional-services';
+  const company = String(interviewCompany?.value || '').trim();
+  const contact = String(interviewContact?.value || '').trim();
+  const notes = String(interviewNotes?.value || '').trim();
+  const nextStep = String(interviewNextStep?.value || '').trim();
+  const status = INTERVIEW_STATUS_VALUES.includes(String(interviewStatus?.value || '').trim())
+    ? String(interviewStatus.value).trim()
+    : 'Queued';
+
+  if (!company && !contact) {
+    if (interviewLogSaveStatus) {
+      interviewLogSaveStatus.textContent = 'Add at least a company or contact before saving.';
+    }
+    interviewCompany?.focus();
+    return;
+  }
+
+  const now = new Date().toISOString();
+  setInterviews([
+    {
+      id: generateId(),
+      segmentId,
+      company,
+      contact,
+      status,
+      notes,
+      nextStep,
+      createdAt: now,
+      updatedAt: now,
+      source: 'Market research desk',
+    },
+    ...currentInterviews,
+  ], {
+    message: 'saved interview',
+  });
+
+  interviewLogForm?.reset();
+  if (interviewSegment) {
+    interviewSegment.value = segmentId;
+  }
+  if (interviewLogSaveStatus) {
+    interviewLogSaveStatus.textContent = 'Saved the interview log. Keep the next step concrete.';
+  }
+}
+
+function handleInterviewListClick(event) {
+  const removeButton = event.target.closest('[data-interview-remove-id]');
+  if (!removeButton) {
+    return;
+  }
+  const interviewId = String(removeButton.getAttribute('data-interview-remove-id') || '').trim();
+  if (!interviewId) {
+    return;
+  }
+  setInterviews(currentInterviews.filter(item => item.id !== interviewId), {
+    message: 'removed interview',
+  });
+  if (interviewLogSaveStatus) {
+    interviewLogSaveStatus.textContent = 'Removed the interview log entry.';
+  }
+}
+
 function normalizeCrmRecord(data) {
   if (!data || typeof data !== 'object') {
     return null;
@@ -438,6 +756,10 @@ function bindPlaybookActions() {
 function init() {
   bindPlaybookActions();
   hydrateQueueFromLocal();
+  hydrateInterviewsFromLocal();
+
+  interviewLogForm?.addEventListener('submit', handleInterviewSubmit);
+  interviewLogList?.addEventListener('click', handleInterviewListClick);
 
   researchGun = createResearchGun();
   if (researchGun) {
@@ -445,6 +767,10 @@ function init() {
       .get(GUN_QUEUE_NODE_PATH[0])
       .get(GUN_QUEUE_NODE_PATH[1])
       .get(GUN_QUEUE_NODE_PATH[2]);
+    interviewsNode = researchGun
+      .get(GUN_INTERVIEW_NODE_PATH[0])
+      .get(GUN_INTERVIEW_NODE_PATH[1])
+      .get(GUN_INTERVIEW_NODE_PATH[2]);
     crmRecordsNode = researchGun.get(CRM_NODE_KEY);
     touchLogRoot = researchGun
       .get(TOUCH_LOG_NODE_PATH[0])
@@ -452,8 +778,10 @@ function init() {
   }
 
   hydrateQueueFromGun();
+  hydrateInterviewsFromGun();
   hydrateCrmScoreboard();
   hydrateTouchLogScoreboard();
+  renderInterviewTracker();
   renderScoreboard();
 }
 

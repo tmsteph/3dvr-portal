@@ -200,6 +200,107 @@
     <section class="rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-lg space-y-5">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-emerald-300">First 15 interviews</p>
+          <h2 class="text-xl font-semibold">Log real conversations, not vague intentions</h2>
+        </div>
+        <p id="interviewSprintStatus" class="text-sm text-slate-400">Loading the shared interview log…</p>
+      </div>
+      <div class="grid gap-4 md:grid-cols-5">
+        <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 text-center">
+          <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Logged</p>
+          <p id="interviewLoggedCount" class="mt-2 text-3xl font-semibold text-slate-100">0</p>
+          <p class="text-xs text-slate-500">real conversations</p>
+        </article>
+        <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 text-center">
+          <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Target</p>
+          <p id="interviewTargetCount" class="mt-2 text-3xl font-semibold text-emerald-300">15</p>
+          <p class="text-xs text-slate-500">current sprint</p>
+        </article>
+        <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 text-center">
+          <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Pro services</p>
+          <p id="interviewProfessionalCount" class="mt-2 text-3xl font-semibold text-blue-300">0</p>
+          <p class="text-xs text-slate-500">segment count</p>
+        </article>
+        <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 text-center">
+          <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Local services</p>
+          <p id="interviewLocalCount" class="mt-2 text-3xl font-semibold text-amber-300">0</p>
+          <p class="text-xs text-slate-500">segment count</p>
+        </article>
+        <article class="rounded-2xl border border-white/5 bg-slate-950/80 p-4 text-center">
+          <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Support teams</p>
+          <p id="interviewSupportCount" class="mt-2 text-3xl font-semibold text-purple-300">0</p>
+          <p class="text-xs text-slate-500">segment count</p>
+        </article>
+      </div>
+      <div class="space-y-2">
+        <div class="h-2 rounded-full border border-white/5 bg-slate-950/90 overflow-hidden">
+          <div id="interviewSprintBar" class="h-full rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-purple-400" style="width: 0%"></div>
+        </div>
+        <p id="interviewSprintDetail" class="text-sm text-slate-400">No interviews logged yet. Open a draft, have the conversation, then log it here.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a
+          id="interviewShortcutProfessional"
+          href="../crm/?draft=1&status=Warm%20-%20Awareness&segment=Professional%20services&pain=Lead%20flow%20and%20follow-up&pilot=Warm&offer=%2450%2Fmo&signal=Interview%20sprint&experiment=Book%20a%2015-minute%20discovery%20call&source=market-research&tags=segment%2Fpro-services%2Cpain%2Ffollow-up%2Cintent%2Frevenue%2Coffer%2Fbuilder%2Csource%2Foutbound"
+          class="inline-flex items-center justify-center rounded-lg bg-sky-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500"
+        >Open pro interview draft</a>
+        <a
+          id="interviewShortcutLocal"
+          href="../crm/?draft=1&status=Warm%20-%20Awareness&segment=Local%20services&pain=Lead%20flow%2C%20estimates%2C%20and%20follow-up&pilot=Warm&offer=%2450%2Fmo&signal=Interview%20sprint&experiment=Book%20a%2015-minute%20discovery%20call&source=market-research&tags=segment%2Flocal-services%2Cpain%2Flead-flow%2Cpain%2Ffollow-up%2Cintent%2Frevenue%2Coffer%2Fbuilder%2Csource%2Foutbound"
+          class="inline-flex items-center justify-center rounded-lg bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-500"
+        >Open local interview draft</a>
+        <a
+          id="interviewShortcutSupport"
+          href="../crm/?draft=1&status=Lead&segment=Support%20team%20or%20community%20org&pain=Intake%2C%20scheduling%2C%20and%20shared%20coordination&pilot=Pilot%20candidate&offer=%24200%2Fmo&signal=Interview%20sprint&experiment=Book%20a%2015-minute%20team%20workflow%20call&source=market-research&tags=segment%2Fsupport-teams%2Cpain%2Fcoordination%2Cpain%2Fscheduling%2Cintent%2Frevenue%2Coffer%2Fembedded%2Csource%2Foutbound"
+          class="inline-flex items-center justify-center rounded-lg bg-purple-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500"
+        >Open support-team draft</a>
+      </div>
+      <form id="interviewLogForm" class="grid gap-3 xl:grid-cols-2">
+        <label class="space-y-2">
+          <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Segment</span>
+          <select id="interviewSegment" class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100">
+            <option value="professional-services">Professional services</option>
+            <option value="local-service">Construction and local service</option>
+            <option value="support-team">Health, support, and local teams</option>
+          </select>
+        </label>
+        <label class="space-y-2">
+          <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Company or team</span>
+          <input id="interviewCompany" type="text" placeholder="Studio, contractor, or organization name" class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100" />
+        </label>
+        <label class="space-y-2">
+          <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Contact</span>
+          <input id="interviewContact" type="text" placeholder="Owner or team lead" class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100" />
+        </label>
+        <label class="space-y-2">
+          <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Status</span>
+          <select id="interviewStatus" class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100">
+            <option value="Queued">Queued</option>
+            <option value="Reached out">Reached out</option>
+            <option value="Interviewed">Interviewed</option>
+            <option value="Qualified">Qualified</option>
+            <option value="Not a fit">Not a fit</option>
+          </select>
+        </label>
+        <label class="space-y-2 xl:col-span-2">
+          <span class="text-xs uppercase tracking-[0.24em] text-slate-400">What pain did you hear?</span>
+          <textarea id="interviewNotes" placeholder="Lead flow, scheduling, follow-up, payments, coordination..." class="min-h-[120px] w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100"></textarea>
+        </label>
+        <label class="space-y-2 xl:col-span-2">
+          <span class="text-xs uppercase tracking-[0.24em] text-slate-400">Next step</span>
+          <input id="interviewNextStep" type="text" placeholder="Book the follow-up call, send Builder overview, or mark not a fit" class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-100" />
+        </label>
+        <div class="xl:col-span-2 flex flex-wrap items-center gap-3">
+          <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Save interview log</button>
+          <p id="interviewLogSaveStatus" class="text-sm text-slate-400" role="status" aria-live="polite">Use the CRM draft links above, then log the conversation outcome here.</p>
+        </div>
+      </form>
+      <div id="interviewLogList" class="space-y-3"></div>
+    </section>
+
+    <section class="rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-lg space-y-5">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
           <p class="text-xs uppercase tracking-[0.3em] text-emerald-300">Outreach Playbooks</p>
           <h2 class="text-xl font-semibold">Copy the opener, then start the draft</h2>
         </div>
