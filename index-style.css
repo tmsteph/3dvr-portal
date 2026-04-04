@@ -404,6 +404,65 @@ body.landing {
   margin-top: 0.2rem;
 }
 
+.workspace-strip {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.15rem;
+}
+
+.workspace-strip__label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.workspace-ribbon {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.workspace-pill {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 1rem;
+  text-decoration: none;
+  text-align: left;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background:
+    linear-gradient(155deg, rgba(10, 17, 34, 0.74), rgba(15, 23, 42, 0.58)),
+    rgba(15, 23, 42, 0.42);
+  color: var(--color-text);
+  box-shadow: 0 18px 40px rgba(4, 9, 20, 0.22);
+  transition: transform var(--transition-base),
+    border-color var(--transition-base),
+    background var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.workspace-pill:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.52);
+  background:
+    linear-gradient(155deg, rgba(8, 15, 31, 0.88), rgba(15, 23, 42, 0.72)),
+    rgba(15, 23, 42, 0.58);
+  box-shadow: 0 24px 52px rgba(4, 9, 20, 0.3);
+}
+
+.workspace-pill strong {
+  font-size: 0.98rem;
+  color: rgba(226, 232, 240, 0.98);
+}
+
+.workspace-pill span {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
 .plan-strip__label {
   font-size: 0.76rem;
   font-weight: 700;
@@ -1048,6 +1107,10 @@ footer a {
     min-width: calc(50% - 0.35rem);
   }
 
+  .workspace-ribbon {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .app-hub__header {
     gap: 1.25rem;
   }
@@ -1071,6 +1134,10 @@ footer a {
 
   .auth-modal__panel {
     padding: 2rem 1.5rem;
+  }
+
+  .workspace-ribbon {
+    grid-template-columns: 1fr;
   }
 
   .install-btn {
