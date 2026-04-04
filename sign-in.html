@@ -8,6 +8,7 @@
   <script src="gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="auth-identity.js"></script>
+  <script src="oauth.js"></script>
   <script src="account-recovery.js"></script>
   <style>
     :root {
@@ -207,6 +208,67 @@
       margin-top: 12px;
     }
 
+    .oauth-panel {
+      display: grid;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .oauth-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: rgba(248, 251, 255, 0.42);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .oauth-divider::before,
+    .oauth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .oauth-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .oauth-button {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(9, 20, 38, 0.9);
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      text-align: left;
+      transition: border 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .oauth-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(240, 199, 94, 0.36);
+    }
+
+    .oauth-button[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .oauth-status {
+      min-height: 1.1rem;
+      font-size: 0.82rem;
+      color: rgba(248, 251, 255, 0.72);
+      line-height: 1.5;
+    }
+
     .primary-button {
       width: 100%;
       padding: 15px 18px;
@@ -396,6 +458,17 @@
               placeholder="you@example.com"
               autocomplete="email"
             >
+          </div>
+          <div class="oauth-panel" aria-labelledby="oauth-options-title">
+            <div class="oauth-divider" id="oauth-options-title">Or continue with OAuth</div>
+            <div class="oauth-grid">
+              <button id="oauth-google" type="button" class="oauth-button" data-provider="google">Continue with Google</button>
+              <button id="oauth-microsoft" type="button" class="oauth-button" data-provider="microsoft">Continue with Microsoft</button>
+              <button id="oauth-apple" type="button" class="oauth-button" data-provider="apple">Continue with Apple</button>
+            </div>
+            <p id="oauth-status" class="oauth-status" role="status" aria-live="polite">
+              Google and Microsoft can later power contacts and calendar. Apple adds account verification for portal access.
+            </p>
           </div>
           <div class="actions">
             <button id="auth-submit" type="submit" class="primary-button">Sign in or sign up</button>
@@ -670,6 +743,204 @@
       }
     }
 
+    function aliasToDisplayValue(value = '') {
+      const normalized = String(value || '').trim();
+      if (!normalized) return '';
+      return normalized.includes('@') ? normalized.split('@')[0] : normalized;
+    }
+
+    function setOauthStatus(message = '', tone = 'info') {
+      const statusEl = document.getElementById('oauth-status');
+      if (!statusEl) return;
+      const copy = String(message || '').trim();
+      statusEl.textContent = copy || 'Google and Microsoft can later power contacts and calendar. Apple adds account verification for portal access.';
+      statusEl.style.color = tone === 'error'
+        ? '#ffb4b4'
+        : tone === 'success'
+        ? '#b8f1c5'
+        : 'rgba(248, 251, 255, 0.72)';
+    }
+
+    function onceGun(node) {
+      return new Promise(resolve => {
+        if (!node || typeof node.once !== 'function') {
+          resolve(undefined);
+          return;
+        }
+        try {
+          node.once(value => resolve(value));
+        } catch (_err) {
+          resolve(undefined);
+        }
+      });
+    }
+
+    function putGun(node, payload) {
+      return new Promise(resolve => {
+        if (!node || typeof node.put !== 'function') {
+          resolve(false);
+          return;
+        }
+        try {
+          node.put(payload, ack => resolve(!(ack && ack.err)));
+        } catch (_err) {
+          resolve(false);
+        }
+      });
+    }
+
+    async function resolveOAuthAlias(identity = {}, aliasHint = '') {
+      const provider = String(identity.provider || '').trim().toLowerCase();
+      const providerAccountId = String(identity.providerAccountId || '').trim();
+      let mapped = null;
+      if (provider && providerAccountId && portalRoot && typeof portalRoot.get === 'function') {
+        mapped = await onceGun(
+          portalRoot
+            .get('oauthAccounts')
+            .get(provider)
+            .get(providerAccountId)
+        );
+      }
+
+      const email = String(identity.email || mapped?.email || '').trim().toLowerCase();
+      const alias = email
+        || String(mapped?.alias || aliasHint || '').trim().toLowerCase()
+        || `${provider || 'oauth'}-${String(providerAccountId || 'user').slice(0, 24).replace(/[^a-z0-9_-]+/gi, '-') || 'user'}@oauth.3dvr`;
+      const username = String(
+        identity.displayName
+        || mapped?.displayName
+        || mapped?.username
+        || aliasToDisplayValue(email || alias)
+        || 'User'
+      ).trim();
+
+      return {
+        alias,
+        username,
+        mapped,
+      };
+    }
+
+    async function persistOAuthIdentity(result = {}, resolvedIdentity = {}) {
+      const identity = result.identity || {};
+      const provider = String(result.provider || identity.provider || '').trim().toLowerCase();
+      const providerAccountId = String(identity.providerAccountId || '').trim();
+      const alias = String(resolvedIdentity.alias || '').trim().toLowerCase();
+      const username = String(resolvedIdentity.username || '').trim();
+      const verifiedEmail = String(identity.email || '').trim().toLowerCase();
+      if (!(provider && providerAccountId && alias && portalRoot && typeof portalRoot.get === 'function')) {
+        return;
+      }
+
+      const providerNode = portalRoot
+        .get('oauthAccounts')
+        .get(provider)
+        .get(providerAccountId);
+      const existing = await onceGun(providerNode);
+      const createdAt = existing && existing.createdAt ? existing.createdAt : Date.now();
+      await putGun(providerNode, {
+        provider,
+        providerAccountId,
+        alias,
+        email: verifiedEmail,
+        username,
+        displayName: String(identity.displayName || username || '').trim(),
+        verifiedEmail,
+        authMethod: 'oauth',
+        linkedAt: existing && existing.linkedAt ? existing.linkedAt : Date.now(),
+        createdAt,
+        lastLogin: Date.now(),
+        lastScopeKey: String(result.scopeKey || '').trim(),
+      });
+    }
+
+    async function finishOAuthLogin(result = {}) {
+      const identity = result.identity || {};
+      const resolved = await resolveOAuthAlias(identity, result.aliasHint || identity.alias || '');
+      const alias = resolved.alias;
+      const username = resolved.username;
+      const verifiedEmail = String(identity.email || '').trim().toLowerCase();
+
+      if (!(window.PortalOAuth && typeof window.PortalOAuth.writeAuthSession === 'function')) {
+        throw new Error('OAuth runtime is not available in this browser.');
+      }
+
+      window.PortalOAuth.writeAuthSession({
+        alias,
+        username,
+        provider: result.provider || identity.provider,
+        providerAccountId: identity.providerAccountId,
+        verifiedEmail,
+      });
+      if (window.PortalOAuth && typeof window.PortalOAuth.storeConnectionFromResult === 'function') {
+        window.PortalOAuth.storeConnectionFromResult(result);
+      }
+      localStorage.removeItem('userPubKey');
+      clearGuestSession();
+      await persistOAuthIdentity(result, { alias, username });
+      await recordUserProfile(username, alias, verifiedEmail);
+      window.location.href = postSignInDestination;
+    }
+
+    async function consumePendingOAuthResult() {
+      if (!(window.PortalOAuth && typeof window.PortalOAuth.consumePendingResult === 'function')) {
+        return;
+      }
+      const result = window.PortalOAuth.consumePendingResult();
+      if (!result) {
+        return;
+      }
+      if (!result.ok) {
+        setOauthStatus(result.error || 'OAuth sign-in could not be completed.', 'error');
+        return;
+      }
+      setOauthStatus(`Finishing ${String(result.provider || 'OAuth')} sign-in…`, 'info');
+      try {
+        await finishOAuthLogin(result);
+      } catch (err) {
+        console.error('Failed to finalize OAuth sign-in', err);
+        setOauthStatus(err.message || 'OAuth sign-in could not be completed.', 'error');
+      }
+    }
+
+    async function refreshOauthButtons() {
+      const buttons = Array.from(document.querySelectorAll('.oauth-button[data-provider]'));
+      if (!(window.PortalOAuth && typeof window.PortalOAuth.fetchProviderConfig === 'function')) {
+        buttons.forEach(button => {
+          button.disabled = true;
+        });
+        setOauthStatus('OAuth runtime is unavailable in this browser.', 'error');
+        return;
+      }
+
+      await Promise.all(buttons.map(async button => {
+        const provider = button.dataset.provider || '';
+        try {
+          const config = await window.PortalOAuth.fetchProviderConfig(provider);
+          button.disabled = !config.configured;
+          button.title = config.configured
+            ? `Continue with ${config.label}`
+            : `${config.label} OAuth is not configured on this deployment yet.`;
+        } catch (err) {
+          button.disabled = true;
+          button.title = err.message || 'OAuth config unavailable.';
+        }
+      }));
+    }
+
+    function startOauth(provider) {
+      if (!(window.PortalOAuth && typeof window.PortalOAuth.begin === 'function')) {
+        setOauthStatus('OAuth runtime is unavailable in this browser.', 'error');
+        return;
+      }
+      setOauthStatus(`Opening ${provider}…`, 'info');
+      window.PortalOAuth.begin(provider, {
+        intent: 'signin',
+        scopeKey: 'identity',
+        returnTo: `${window.location.pathname}${window.location.search}`,
+      });
+    }
+
     function signIn() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
@@ -743,13 +1014,17 @@
       localStorage.setItem('username', username);
       localStorage.setItem('alias', alias);
       localStorage.setItem('password', password);
+      localStorage.removeItem('authMethod');
+      localStorage.removeItem('authProvider');
+      localStorage.removeItem('oauthAccountId');
+      localStorage.removeItem('verifiedEmail');
       const userPub = String((user && user.is && user.is.pub) || (user && user._ && user._.sea && user._.sea.pub) || '').trim();
       if (userPub) {
         localStorage.setItem('userPubKey', userPub);
       }
       try {
         if (window.AuthIdentity && typeof window.AuthIdentity.writeSharedIdentity === 'function') {
-          window.AuthIdentity.writeSharedIdentity({ signedIn: true, alias, username });
+          window.AuthIdentity.writeSharedIdentity({ signedIn: true, alias, username, authMethod: '' });
         }
       } catch (err) {
         console.warn('Failed to persist shared identity cookie', err);
@@ -914,6 +1189,9 @@
     }
 
     function continueAsGuest() {
+      if (window.PortalOAuth && typeof window.PortalOAuth.clearAuthSessionMarkers === 'function') {
+        window.PortalOAuth.clearAuthSessionMarkers();
+      }
       try {
         if (window.AuthIdentity && typeof window.AuthIdentity.clearSharedIdentity === 'function') {
           window.AuthIdentity.clearSharedIdentity();
@@ -927,6 +1205,11 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       applyRedirectContext();
+      consumePendingOAuthResult();
+      refreshOauthButtons();
+      document.querySelectorAll('.oauth-button[data-provider]').forEach(button => {
+        button.addEventListener('click', () => startOauth(button.dataset.provider || ''));
+      });
       const usernameInput = document.getElementById('username');
       if (usernameInput) {
         try {

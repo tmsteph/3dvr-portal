@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
   <script src="../score.js"></script>
+  <script src="../oauth.js"></script>
   <script type="module" src="./app.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -194,6 +195,39 @@
           <input id="quickLeadPrimaryPain" type="text" placeholder="Main problem you heard" class="w-full p-2 rounded text-black" />
           <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">Add lead</button>
         </form>
+        <div class="rounded-xl border border-white/10 bg-gray-950/40 p-4 space-y-3">
+          <div>
+            <p class="text-xs font-semibold tracking-[0.32em] text-sky-300 uppercase">Phone contact import</p>
+            <p class="text-sm text-gray-300 mt-1">
+              Pull warm contacts straight from Android Chrome when supported, or import a
+              <code>.vcf</code>/<code>.csv</code> export from iPhone or desktop contacts.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="crmPickDeviceContacts" type="button" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded text-sm font-medium">
+              Pick from phone
+            </button>
+            <label class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm cursor-pointer">
+              Import VCF / CSV
+              <input
+                id="crmImportFile"
+                type="file"
+                accept=".csv,.vcf,text/csv,text/vcard,text/x-vcard"
+                class="hidden"
+                multiple
+              >
+            </label>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="crmImportGoogleContacts" type="button" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded text-sm font-medium">
+              Import Google contacts
+            </button>
+            <button id="crmImportMicrosoftContacts" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded text-sm font-medium">
+              Import Microsoft contacts
+            </button>
+          </div>
+          <p id="crmImportStatus" class="hidden rounded-lg border px-3 py-2 text-xs" role="status" aria-live="polite"></p>
+        </div>
         <div class="grid gap-2 sm:grid-cols-2">
           <button id="openCrmCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Full lead form</button>
           <button id="openGroupCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">New group</button>

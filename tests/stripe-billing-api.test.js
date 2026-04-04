@@ -1,8 +1,8 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import SEA from 'gun/sea.js';
-import { createStripeCheckoutHandler } from '../api/stripe/checkout.js';
-import { createStripeStatusHandler } from '../api/stripe/status.js';
+import { createStripeCheckoutHandler } from '../src/billing/api-checkout.js';
+import { createStripeStatusHandler } from '../src/billing/api-status.js';
 
 const baseConfig = {
   STRIPE_SECRET_KEY: 'sk_test_key',

@@ -1,3 +1,10 @@
+import {
+  PORTAL_OAUTH_AUTH_METHOD,
+  PORTAL_OAUTH_CONTACTS_ROOT,
+  getOAuthContactsNodeKey,
+  normalizeOAuthText,
+} from '../src/oauth/shared.js';
+
 export function aliasToDisplay(value) {
   const normalized = typeof value === 'string' ? value.trim() : '';
   if (!normalized) return '';
@@ -167,8 +174,11 @@ export function resolveSpaceNode({
   userHasSession,
   user,
   gun,
+  portalRoot,
   guestsRoot,
   guestId,
+  authMethod = '',
+  oauthAlias = '',
   orgSpaceKey = 'org-3dvr-demo',
 } = {}) {
   const normalizedSpace = typeof space === 'string' && space ? space : 'personal';
@@ -185,6 +195,29 @@ export function resolveSpaceNode({
         shouldClearAuth: true,
         // Keep listening to the old child collection until all personal data migrates.
         legacyNodes: legacyPersonalContacts ? [legacyPersonalContacts] : [],
+      };
+    }
+    const normalizedAuthMethod = normalizeOAuthText(authMethod);
+    const normalizedOauthAlias = normalizeOAuthText(oauthAlias);
+    if (
+      signedIn
+      && normalizedAuthMethod === PORTAL_OAUTH_AUTH_METHOD
+      && normalizedOauthAlias
+      && portalRoot
+      && typeof portalRoot.get === 'function'
+    ) {
+      const oauthContactsRoot = portalRoot
+        .get(PORTAL_OAUTH_CONTACTS_ROOT)
+        .get(getOAuthContactsNodeKey(normalizedOauthAlias));
+      const legacyOauthContacts = oauthContactsRoot && typeof oauthContactsRoot.get === 'function'
+        ? oauthContactsRoot.get('contacts')
+        : null;
+      return {
+        node: oauthContactsRoot,
+        requiresAuth: false,
+        shouldClearAuth: true,
+        // OAuth users sync personal contacts into an alias-scoped portal node until a SEA session exists.
+        legacyNodes: legacyOauthContacts ? [legacyOauthContacts] : [],
       };
     }
     if (signedIn) {

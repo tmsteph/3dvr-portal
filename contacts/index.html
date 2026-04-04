@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
   <script src="./auth-identity.js"></script>
+  <script src="../oauth.js"></script>
   <script src="./score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script
@@ -105,6 +106,49 @@
 
       <hr class="my-4 border-white/10">
 
+      <h3 class="text-base font-semibold mb-2">Phone import</h3>
+      <p class="text-sm text-gray-300 mb-3">
+        Pull contacts straight from Android Chrome when the browser allows it, or import a
+        <code>.vcf</code>/<code>.csv</code> export from iPhone, Apple Contacts, Google Contacts, or Outlook.
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <button id="btnPickDeviceContacts" type="button" class="bg-teal-600 hover:bg-teal-500 px-3 py-2 rounded">
+          Pick from phone
+        </button>
+        <label class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded cursor-pointer">
+          Import VCF / CSV
+          <input id="bulkImport" type="file" accept=".csv,.vcf,text/csv,text/vcard,text/x-vcard" class="hidden" multiple>
+        </label>
+      </div>
+      <p class="mt-2 text-xs text-gray-400">
+        Android Chrome can offer a direct contact picker. iPhone and Safari users can export or share a vCard file and import it here.
+      </p>
+      <div class="mt-4 space-y-3 rounded-xl border border-white/10 bg-gray-900/55 p-3">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">Cloud import</p>
+          <p class="mt-1 text-sm text-gray-300">
+            Pull contacts from connected Google or Microsoft accounts. Apple contacts stay on the
+            phone picker and <code>.vcf</code> path above.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button id="btnImportGoogleContacts" type="button" class="bg-sky-600 hover:bg-sky-500 px-3 py-2 rounded text-sm">
+            Import Google contacts
+          </button>
+          <button id="btnImportMicrosoftContacts" type="button" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded text-sm">
+            Import Microsoft contacts
+          </button>
+        </div>
+      </div>
+      <p
+        id="contactsImportStatus"
+        class="hidden mt-3 rounded-lg border px-3 py-2 text-xs"
+        role="status"
+        aria-live="polite"
+      ></p>
+
+      <hr class="my-4 border-white/10">
+
       <h3 class="text-base font-semibold mb-2">Backup</h3>
       <div class="flex flex-wrap gap-2">
         <button id="btnExportJSON" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded">Export JSON</button>
@@ -113,13 +157,9 @@
           Import JSON
           <input id="importFile" type="file" accept="application/json" class="hidden">
         </label>
-        <label class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded cursor-pointer">
-          Upload contacts
-          <input id="bulkImport" type="file" accept=".csv,.vcf,text/csv,text/vcard,text/x-vcard" class="hidden" multiple>
-        </label>
       </div>
       <p class="mt-2 text-xs text-gray-400">
-        Export a CSV or vCard file from Apple Contacts, Android/Google, Gmail, or Outlook and upload it here.
+        Use JSON when you want a full backup of this workspace, including CRM link metadata.
       </p>
 
     </section>
@@ -430,6 +470,14 @@ import {
   resolveSpaceNode,
   toPortalHref,
 } from './contacts-core.js';
+import {
+  CONTACT_IMPORT_ACCEPT,
+  buildImportMatchKeys,
+  mergeCommaSeparatedValues,
+  parseContactFileText,
+  pickDeviceContacts,
+  supportsDeviceContactPicker,
+} from '../src/contacts/import.js';
 /* ---------- Gun & session reuse ---------- */
 function createLocalGunSubscriptionStub() {
   return {
@@ -639,6 +687,7 @@ const CONTACT_FIELDS = [
   'status',
   'nextFollowUp',
   'notes',
+  'source',
   'created',
   'updated',
   'lastContacted',
@@ -1229,6 +1278,9 @@ btnLogout.addEventListener('click', () => {
   } catch (err) {
     console.warn('Failed to clear shared identity cookie', err);
   }
+  if (window.PortalOAuth && typeof window.PortalOAuth.clearAuthSessionMarkers === 'function') {
+    window.PortalOAuth.clearAuthSessionMarkers();
+  }
   password = '';
   ls.removeItem('signedIn'); ls.removeItem('alias'); ls.removeItem('username'); ls.removeItem('password');
   location.reload();
@@ -1322,8 +1374,11 @@ function getSpaceResolution(space = currentSpace) {
     userHasSession: hasActiveUserSession(),
     user,
     gun,
+    portalRoot,
     guestsRoot,
     guestId,
+    authMethod: ls.getItem('authMethod') || '',
+    oauthAlias: alias,
     orgSpaceKey: ORG_SPACE_KEY,
   }) || {};
 
@@ -1435,6 +1490,10 @@ const btnExportJSON = document.getElementById('btnExportJSON');
 const btnExportCSV = document.getElementById('btnExportCSV');
 const importFile = document.getElementById('importFile');
 const bulkImport = document.getElementById('bulkImport');
+const btnPickDeviceContacts = document.getElementById('btnPickDeviceContacts');
+const btnImportGoogleContacts = document.getElementById('btnImportGoogleContacts');
+const btnImportMicrosoftContacts = document.getElementById('btnImportMicrosoftContacts');
+const contactsImportStatus = document.getElementById('contactsImportStatus');
 const createContactOverlay = document.getElementById('createContactOverlay');
 const contactDetailOverlay = document.getElementById('contactDetailOverlay');
 const contactDetailName = document.getElementById('contactDetailName');
@@ -1459,6 +1518,9 @@ if (portalCellLink) {
 }
 if (floatingIdentity) {
   floatingIdentity.href = portalHref('/profile.html#profile');
+}
+if (bulkImport) {
+  bulkImport.accept = CONTACT_IMPORT_ACCEPT;
 }
 
 refreshCellContextBanner();
@@ -1487,6 +1549,128 @@ closeCreateContactBtn?.addEventListener('click', closeCreateContact);
 createContactOverlay?.addEventListener('click', evt=>{
   if(evt.target === createContactOverlay) closeCreateContact();
 });
+
+function setContactsImportStatus(message = '', tone = 'info'){
+  if(!contactsImportStatus) return;
+  const copy = String(message || '').trim();
+  if(!copy){
+    contactsImportStatus.className = 'hidden mt-3 rounded-lg border px-3 py-2 text-xs';
+    contactsImportStatus.textContent = '';
+    return;
+  }
+  const palettes = {
+    info: 'border-sky-500/30 bg-sky-950/40 text-sky-100',
+    success: 'border-emerald-500/30 bg-emerald-950/40 text-emerald-100',
+    warn: 'border-amber-500/30 bg-amber-950/40 text-amber-100',
+    error: 'border-rose-500/30 bg-rose-950/40 text-rose-100',
+  };
+  contactsImportStatus.className = `mt-3 rounded-lg border px-3 py-2 text-xs ${palettes[tone] || palettes.info}`;
+  contactsImportStatus.textContent = copy;
+}
+
+function refreshDeviceImportButton(){
+  if(!btnPickDeviceContacts) return;
+  const supported = supportsDeviceContactPicker(window.navigator);
+  btnPickDeviceContacts.disabled = !supported;
+  btnPickDeviceContacts.classList.toggle('opacity-60', !supported);
+  btnPickDeviceContacts.classList.toggle('cursor-not-allowed', !supported);
+  btnPickDeviceContacts.textContent = supported ? 'Pick from phone' : 'Phone picker unavailable';
+}
+
+async function refreshOauthImportButtons(){
+  const runtime = window.PortalOAuth;
+  const buttons = [
+    { provider: 'google', button: btnImportGoogleContacts },
+    { provider: 'microsoft', button: btnImportMicrosoftContacts },
+  ];
+  if (!runtime || typeof runtime.fetchProviderConfig !== 'function') {
+    buttons.forEach(entry => {
+      if (!entry.button) return;
+      entry.button.disabled = true;
+      entry.button.classList.add('opacity-60', 'cursor-not-allowed');
+    });
+    return;
+  }
+  await Promise.all(buttons.map(async entry => {
+    if (!entry.button) return;
+    try {
+      const config = await runtime.fetchProviderConfig(entry.provider);
+      const enabled = Boolean(config && config.configured);
+      entry.button.disabled = !enabled;
+      entry.button.classList.toggle('opacity-60', !enabled);
+      entry.button.classList.toggle('cursor-not-allowed', !enabled);
+      entry.button.title = enabled
+        ? `Import contacts from ${config.label}`
+        : `${config.label} OAuth is not configured on this deployment yet.`;
+    } catch (err) {
+      entry.button.disabled = true;
+      entry.button.classList.add('opacity-60', 'cursor-not-allowed');
+      entry.button.title = err.message || 'OAuth config unavailable.';
+    }
+  }));
+}
+
+async function importProviderContacts(provider){
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.begin !== 'function' || typeof runtime.listContacts !== 'function') {
+    setContactsImportStatus('OAuth is not available in this browser.', 'error');
+    return;
+  }
+  const connection = typeof runtime.getConnection === 'function'
+    ? runtime.getConnection(provider)
+    : null;
+  if (!connection || !connection.accessToken) {
+    setContactsImportStatus(`Connecting ${provider} so contacts can be imported…`, 'info');
+    runtime.begin(provider, {
+      intent: 'contacts-import',
+      scopeKey: 'contacts',
+      returnTo: `${window.location.pathname}${window.location.search}`,
+      aliasHint: signedIn ? alias : '',
+    });
+    return;
+  }
+
+  setContactsImportStatus(`Loading ${provider} contacts…`, 'info');
+  try {
+    const payload = await runtime.listContacts(provider, {
+      accessToken: connection.accessToken,
+      limit: 200,
+    });
+    const summary = await importContactsIntoWorkspace(payload.contacts || [], {
+      sourceLabel: provider === 'google' ? 'Google OAuth' : 'Microsoft OAuth',
+    });
+    setContactsImportStatus(
+      summary.total
+        ? `Imported ${summary.created} new and updated ${summary.updated} existing contact${summary.total===1?'':'s'} from ${provider}.`
+        : `No contacts were returned from ${provider}.`,
+      summary.total ? 'success' : 'warn'
+    );
+  } catch (err) {
+    console.error(`Unable to import ${provider} contacts`, err);
+    setContactsImportStatus(`Unable to import ${provider} contacts: ${err.message}`, 'error');
+  }
+}
+
+async function consumePendingOauthImportResult(){
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.consumePendingResult !== 'function') {
+    return;
+  }
+  const result = runtime.consumePendingResult();
+  if (!result) {
+    return;
+  }
+  if (!result.ok) {
+    setContactsImportStatus(result.error || 'OAuth import could not be completed.', 'error');
+    return;
+  }
+  if (typeof runtime.storeConnectionFromResult === 'function') {
+    runtime.storeConnectionFromResult(result);
+  }
+  if (result.intent === 'contacts-import') {
+    await importProviderContacts(result.provider || '');
+  }
+}
 
 /* ---------- State ---------- */
 let contactsIndex = {};
@@ -2224,6 +2408,92 @@ function sanitizeContactRecord(source = {}, fallbackId){
     result.updated = source.updated;
   }
   return result.id ? result : null;
+}
+
+function mergeImportedNotes(existingValue = '', importedValue = ''){
+  const existing = String(existingValue || '').trim();
+  const imported = String(importedValue || '').trim();
+  if(!imported) return existing;
+  if(!existing) return imported;
+  if(existing.includes(imported)) return existing;
+  return `${existing}\n\nImported note:\n${imported}`;
+}
+
+function findExistingImportedContact(importedRecord){
+  const targetKeys = new Set(buildImportMatchKeys(importedRecord));
+  if(!targetKeys.size) return null;
+  return Object.values(contactsIndex).find(record=>{
+    return buildImportMatchKeys(record).some(key=>targetKeys.has(key));
+  }) || null;
+}
+
+async function upsertImportedContact(importedRecord, { sourceLabel = 'Phone import' } = {}){
+  const existing = findExistingImportedContact(importedRecord);
+  const id = existing?.id || importedRecord.id || createId();
+  const created = existing?.created || importedRecord.created || nowISO();
+  const updated = nowISO();
+  const merged = sanitizeContactRecord({
+    ...(existing || {}),
+    id,
+    name: existing?.name || importedRecord.name || '',
+    email: existing?.email || importedRecord.email || '',
+    phone: existing?.phone || importedRecord.phone || '',
+    company: existing?.company || importedRecord.company || '',
+    role: existing?.role || importedRecord.role || '',
+    tags: mergeCommaSeparatedValues(existing?.tags, importedRecord.tags),
+    status: existing?.status || importedRecord.status || '',
+    nextFollowUp: existing?.nextFollowUp || importedRecord.nextFollowUp || '',
+    notes: mergeImportedNotes(existing?.notes, importedRecord.notes),
+    source: importedRecord.source || existing?.source || sourceLabel,
+    created,
+    updated,
+    lastContacted: existing?.lastContacted || importedRecord.lastContacted || '',
+    activityCount: typeof existing?.activityCount === 'number' ? existing.activityCount : 0,
+    crmId: existing?.crmId || importedRecord.crmId || '',
+    syncedFromContactsAt: existing?.syncedFromContactsAt || importedRecord.syncedFromContactsAt || '',
+    syncedToCRMAt: existing?.syncedToCRMAt || importedRecord.syncedToCRMAt || '',
+  }, id);
+  if(!merged) return 'skipped';
+
+  contactsIndex[id] = merged;
+  writeSpaceCache(currentSpace, contactsIndex);
+  scheduleRender();
+  await commitOperation({ type: 'put', space: currentSpace, id, data: merged });
+  flushQueue(currentSpace);
+  updateSyncStatus();
+  return existing ? 'updated' : 'created';
+}
+
+async function importContactsIntoWorkspace(records, { sourceLabel = 'Phone import' } = {}){
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const importedIds = [];
+
+  for(const record of (Array.isArray(records) ? records : [])){
+    if(!record){
+      skipped += 1;
+      continue;
+    }
+    const outcome = await upsertImportedContact(record, { sourceLabel });
+    if(outcome === 'created'){
+      created += 1;
+      importedIds.push(record.id);
+      continue;
+    }
+    if(outcome === 'updated'){
+      updated += 1;
+      importedIds.push(record.id);
+      continue;
+    }
+    skipped += 1;
+  }
+
+  if(scoreManager && (created || updated)){
+    scoreManager.increment(created + updated);
+  }
+
+  return { created, updated, skipped, total: created + updated };
 }
 
 function readSpaceCache(space){
@@ -3236,6 +3506,7 @@ function openContactDetail(id){
 
   const metaRows = [
     ['Status', contact.status || '—'],
+    ['Source', contact.source || '—'],
     ['Next follow-up', contact.nextFollowUp || '—'],
     ['Last contacted', contact.lastContacted ? `${ago(contact.lastContacted)} · ${new Date(contact.lastContacted).toLocaleDateString()}` : '—'],
     ['Touches', contact.activityCount || 0],
@@ -3370,7 +3641,7 @@ btnExportJSON.addEventListener('click', ()=>{
 });
 btnExportCSV.addEventListener('click', ()=>{
   const rows = Object.values(contactsIndex);
-  const cols = ['id','name','email','phone','company','role','tags','status','nextFollowUp','notes','created','updated','lastContacted','activityCount'];
+  const cols = ['id','name','email','phone','company','role','tags','status','nextFollowUp','notes','source','created','updated','lastContacted','activityCount'];
   const header = cols.join(',');
   const lines = rows.map(r=>cols.map(k=>csvCell(r[k])).join(','));
   download(`contacts-${currentSpace}-${Date.now()}.csv`, [header, ...lines].join('\n'), 'text/csv');
@@ -3387,35 +3658,84 @@ importFile.addEventListener('change', async e=>{
       const updated = rec.updated || nowISO();
       updateContact(id, { ...rec, id, created, updated });
     });
-    alert(`Imported ${arr.length} contacts.`);
+    setContactsImportStatus(`Imported ${arr.length} contact${arr.length===1?'':'s'} from JSON.`, 'success');
   }catch(err){
-    alert('Import failed: ' + err.message);
+    setContactsImportStatus(`JSON import failed: ${err.message}`, 'error');
   }finally{
     importFile.value = '';
   }
+});
+
+btnPickDeviceContacts?.addEventListener('click', async ()=>{
+  if(!supportsDeviceContactPicker(window.navigator)){
+    setContactsImportStatus('This browser cannot open the phone contact picker. Import a .vcf or .csv file instead.', 'warn');
+    bulkImport?.click();
+    return;
+  }
+  setContactsImportStatus('Opening the phone contact picker…', 'info');
+  try {
+    const records = await pickDeviceContacts({
+      navigatorLike: window.navigator,
+      multiple: true,
+      source: 'Phone import',
+      now: nowISO(),
+      idFactory: createId,
+    });
+    if(!records.length){
+      setContactsImportStatus('No contacts were selected from the phone picker.', 'warn');
+      return;
+    }
+    const summary = await importContactsIntoWorkspace(records, { sourceLabel: 'Phone import' });
+    setContactsImportStatus(
+      `Imported ${summary.created} new and updated ${summary.updated} existing contact${(summary.created + summary.updated) === 1 ? '' : 's'} from your phone.`,
+      'success'
+    );
+  } catch(err) {
+    if(err && err.name === 'AbortError'){
+      setContactsImportStatus('Phone contact picking was canceled.', 'warn');
+      return;
+    }
+    console.error(err);
+    setContactsImportStatus(`Phone contact import failed: ${err.message}`, 'error');
+  }
+});
+
+btnImportGoogleContacts?.addEventListener('click', async ()=>{
+  await importProviderContacts('google');
+});
+
+btnImportMicrosoftContacts?.addEventListener('click', async ()=>{
+  await importProviderContacts('microsoft');
 });
 
 bulkImport.addEventListener('change', async e=>{
   const files = Array.from(e.target.files || []);
   if(!files.length) return;
   try {
-    let total = 0;
+    let created = 0;
+    let updated = 0;
     for (const file of files) {
       const text = await file.text();
-      const parsed = parseContactFile(text, file.name);
-      if(!parsed.length) continue;
-      parsed.forEach(rec=>{
-        const id = rec.id || createId();
-        const created = rec.created || nowISO();
-        const updated = rec.updated || nowISO();
-        updateContact(id, { ...rec, id, created, updated });
+      const parsed = parseContactFileText(text, file.name, {
+        now: nowISO(),
+        idFactory: createId,
+        source: 'Phone import file',
       });
-      total += parsed.length;
+      if(!parsed.length) continue;
+      const summary = await importContactsIntoWorkspace(parsed, { sourceLabel: 'Phone import file' });
+      created += summary.created;
+      updated += summary.updated;
     }
-    alert(total ? `Imported ${total} contact${total===1?'':'s'} from uploaded file(s).` : 'No contacts detected in the uploaded files.');
+    const total = created + updated;
+    setContactsImportStatus(
+      total
+        ? `Imported ${created} new and updated ${updated} existing contact${total===1?'':'s'} from uploaded file(s).`
+        : 'No contacts were detected in the uploaded files.',
+      total ? 'success' : 'warn'
+    );
   } catch(err) {
     console.error(err);
-    alert('Upload failed: ' + err.message);
+    setContactsImportStatus(`Upload failed: ${err.message}`, 'error');
   } finally {
     bulkImport.value = '';
   }
@@ -3440,78 +3760,11 @@ function csvCell(v){
   const s=String(v).replace(/"/g,'""');
   if(/[",\n]/.test(s)) return `"${s}"`; return s;
 }
-function parseContactFile(text, filename=''){
-  const lower = filename.toLowerCase();
-  if(lower.endsWith('.vcf') || /BEGIN:VCARD/i.test(text)) return parseVCard(text);
-  return parseCSVContacts(text);
-}
 function createId(){
   if(typeof crypto !== 'undefined' && crypto.randomUUID){
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-function parseVCard(text){
-  const cards = text.split(/BEGIN:VCARD/i).slice(1).map(chunk=>chunk.split(/END:VCARD/i)[0]||'');
-  return cards.map(card=>card.split(/\r?\n/)).map(lines=>{
-    const unfolded = [];
-    lines.forEach(line=>{
-      if(line==null) return;
-      if(line.startsWith(' ') || line.startsWith('\t')){
-        unfolded[unfolded.length-1] = (unfolded[unfolded.length-1]||'') + line.slice(1);
-      } else {
-        unfolded.push(line);
-      }
-    });
-    const data = {};
-    unfolded.forEach(raw=>{
-      if(!raw) return;
-      const [keyPart, ...rest] = raw.split(':');
-      if(!rest.length) return;
-      const value = rest.join(':').trim();
-      const key = keyPart.split(';')[0].toUpperCase();
-      if(key==='FN') data.name = decodeVCard(value, keyPart);
-      if(key==='EMAIL') data.email = decodeVCard(value, keyPart);
-      if(key==='TEL') data.phone = decodeVCard(value, keyPart);
-      if(key==='ORG') data.company = decodeVCard(value, keyPart);
-      if(key==='TITLE') data.role = decodeVCard(value, keyPart);
-      if(key==='NOTE') data.notes = decodeVCard(value, keyPart);
-    });
-    data.tags = '';
-    return normalizeImportedContact(data);
-  }).filter(Boolean);
-}
-function decodeVCard(value, meta=''){
-  let result = value;
-  if(/ENCODING=QUOTED-PRINTABLE/i.test(meta)){
-    result = result.replace(/=\r?\n/g, '').replace(/=([0-9A-F]{2})/gi, (_, hex)=>String.fromCharCode(parseInt(hex,16)));
-  }
-  result = result.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g,'\\');
-  return result.trim();
-}
-function parseCSVContacts(text){
-  const rows = text.split(/\r?\n/).filter(line=>line.trim().length>0);
-  if(!rows.length) return [];
-  const header = csvSplit(rows.shift());
-  const cols = header.map(h=>h.trim().toLowerCase());
-  return rows.map(row=>{
-    const values = csvSplit(row);
-    const data = {};
-    cols.forEach((col, idx)=>{
-      const val = values[idx]||'';
-      const norm = col.replace(/\s+\d+\s*-\s*/g, ' ').trim();
-      if(['name','full name'].includes(norm)) data.name = val;
-      if(['first name','firstname','given name'].includes(norm)) data.firstName = val;
-      if(['last name','lastname','surname','family name'].includes(norm)) data.lastName = val;
-      if(norm.includes('email') || norm.includes('e-mail')) data.email = val;
-      if(norm.includes('phone')||norm.includes('mobile')||norm.includes('telephone')) data.phone = val;
-      if(['company','organization','organisation','org','organization name','organisation name'].includes(norm)) data.company = val;
-      if(['title','job title','position','role','organization title','organisation title'].includes(norm)) data.role = val;
-      if(norm.includes('note')) data.notes = val;
-      if(norm.includes('tag')||norm.includes('label')||norm.includes('group membership')) data.tags = val;
-    });
-    return normalizeImportedContact(data);
-  }).filter(Boolean);
 }
 function csvSplit(line){
   const result = [];
@@ -3544,27 +3797,6 @@ function csvSplit(line){
   result.push(current.trim());
   return result;
 }
-function normalizeImportedContact(raw){
-  if(!raw) return null;
-  const name = raw.name || [raw.firstName, raw.lastName].filter(Boolean).join(' ').trim();
-  if(!(name || raw.email || raw.phone)) return null;
-  return {
-    id: createId(),
-    name: name || '',
-    email: (raw.email||'').trim(),
-    phone: (raw.phone||'').trim(),
-    company: (raw.company||'').trim(),
-    role: (raw.role||'').trim(),
-    tags: (raw.tags||'').trim(),
-    status: '',
-    nextFollowUp: '',
-    notes: (raw.notes||'').trim(),
-    created: nowISO(),
-    updated: nowISO(),
-    lastContacted: '',
-    activityCount: 0
-  };
-}
 function download(filename, data, type){
   const blob = new Blob([data], {type});
   const a = document.createElement('a');
@@ -3574,6 +3806,9 @@ function download(filename, data, type){
 }
 
 /* Initial render once listeners start */
+refreshDeviceImportButton();
+refreshOauthImportButtons();
+consumePendingOauthImportResult();
 let firstRenderTimer = setTimeout(updateList, 200);
 </script>
 

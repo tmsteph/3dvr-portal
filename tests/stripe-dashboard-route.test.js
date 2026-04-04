@@ -7,12 +7,20 @@ function createMockRes() {
     statusCode: 200,
     body: undefined,
     headers: {},
+    ended: false,
     status(code) {
       this.statusCode = code;
       return this;
     },
     json(payload) {
       this.body = payload;
+      return this;
+    },
+    end(payload) {
+      this.ended = true;
+      if (payload !== undefined) {
+        this.body = payload;
+      }
       return this;
     },
     setHeader(key, value) {
@@ -162,4 +170,20 @@ test('stripe dashboard route rejects unknown endpoints', async () => {
 
   assert.equal(res.statusCode, 404);
   assert.match(res.body.error, /Unknown Stripe endpoint/);
+});
+
+test('stripe dashboard route delegates checkout and status subpaths before GET-only dashboard checks', async () => {
+  const handler = createStripeDashboardHandler({
+    stripeClient: createDashboardStripeMock(),
+  });
+
+  const checkoutRes = createMockRes();
+  await handler({ method: 'OPTIONS', query: { route: 'checkout' } }, checkoutRes);
+  assert.equal(checkoutRes.statusCode, 200);
+  assert.equal(checkoutRes.ended, true);
+
+  const statusRes = createMockRes();
+  await handler({ method: 'OPTIONS', query: { route: 'status' } }, statusRes);
+  assert.equal(statusRes.statusCode, 200);
+  assert.equal(statusRes.ended, true);
 });

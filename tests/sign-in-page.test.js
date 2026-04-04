@@ -42,4 +42,16 @@ describe('sign-in page', () => {
     assert.match(html, /href="\/password-reset\.html"/);
     assert.doesNotMatch(html, /href="\/auth\/recovery\.html"/);
   });
+
+  it('offers OAuth sign-in buttons and runtime wiring for Google, Microsoft, and Apple', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /<script src="oauth\.js"><\/script>/);
+    assert.match(html, /id="oauth-google"/);
+    assert.match(html, /id="oauth-microsoft"/);
+    assert.match(html, /id="oauth-apple"/);
+    assert.match(html, /function finishOAuthLogin\(result = \{\}\)/);
+    assert.match(html, /PortalOAuth\.writeAuthSession/);
+    assert.match(html, /PortalOAuth\.storeConnectionFromResult/);
+    assert.match(html, /PortalOAuth\.begin\(provider,/);
+  });
 });

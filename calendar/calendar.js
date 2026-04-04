@@ -444,6 +444,37 @@ function readConnection(provider) {
   }
 }
 
+function getOauthProviderName(provider) {
+  return provider === 'outlook' ? 'microsoft' : provider;
+}
+
+function readOauthConnection(provider) {
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.getConnection !== 'function') {
+    return null;
+  }
+  const connection = runtime.getConnection(getOauthProviderName(provider));
+  if (!connection || typeof connection !== 'object' || !connection.accessToken) {
+    return null;
+  }
+  if (provider === 'google') {
+    return {
+      accessToken: connection.accessToken,
+      calendarId: connection.calendarId || PROVIDERS.google.defaults.calendarId,
+      source: 'oauth',
+      email: connection.email || '',
+      updatedAt: connection.updatedAt || new Date().toISOString(),
+    };
+  }
+  return {
+    accessToken: connection.accessToken,
+    mailbox: connection.email || connection.mailbox || '',
+    source: 'oauth',
+    email: connection.email || '',
+    updatedAt: connection.updatedAt || new Date().toISOString(),
+  };
+}
+
 function writeConnection(provider, payload) {
   const config = PROVIDERS[provider];
   if (!config) return;
@@ -498,7 +529,8 @@ function hydrateForms() {
 function hydrateState() {
   state.connections.clear();
   Object.keys(PROVIDERS).forEach(provider => {
-    const stored = readConnection(provider);
+    const oauthConnection = readOauthConnection(provider);
+    const stored = oauthConnection || readConnection(provider);
     if (stored) {
       state.connections.set(provider, stored);
     }
@@ -2053,12 +2085,80 @@ function handleDisconnect(event) {
   const button = event.currentTarget;
   const provider = button.dataset.provider;
   removeConnection(provider);
+  const runtime = window.PortalOAuth;
+  if (runtime && typeof runtime.clearConnection === 'function') {
+    runtime.clearConnection(getOauthProviderName(provider));
+  }
   const form = document.querySelector(`form[data-provider="${provider}"]`);
   if (form) {
     form.reset();
   }
   hydrateForms();
   showLog(`${PROVIDERS[provider].label} tokens removed from this browser.`, 'info');
+}
+
+async function refreshOauthButtons() {
+  const runtime = window.PortalOAuth;
+  const buttons = Array.from(document.querySelectorAll('button[data-action="oauth-connect"][data-provider]'));
+  if (!runtime || typeof runtime.fetchProviderConfig !== 'function') {
+    buttons.forEach(button => {
+      button.disabled = true;
+    });
+    return;
+  }
+  await Promise.all(buttons.map(async button => {
+    const provider = button.dataset.provider || '';
+    const oauthProvider = getOauthProviderName(provider);
+    try {
+      const config = await runtime.fetchProviderConfig(oauthProvider);
+      button.disabled = !config.configured;
+      button.title = config.configured
+        ? `Connect ${config.label} with OAuth`
+        : `${config.label} OAuth is not configured on this deployment yet.`;
+    } catch (err) {
+      button.disabled = true;
+      button.title = err.message || 'OAuth config unavailable.';
+    }
+  }));
+}
+
+function handleOauthConnect(event) {
+  const button = event.currentTarget;
+  const provider = button.dataset.provider || '';
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.begin !== 'function') {
+    showLog('OAuth is not available in this browser.', 'error');
+    return;
+  }
+  runtime.begin(getOauthProviderName(provider), {
+    intent: 'calendar-connect',
+    scopeKey: 'calendar',
+    returnTo: `${window.location.pathname}${window.location.search}`,
+    aliasHint: localStorage.getItem('signedIn') === 'true' ? (localStorage.getItem('alias') || '') : '',
+  });
+}
+
+function consumePendingOauthResult() {
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.consumePendingResult !== 'function') {
+    return;
+  }
+  const result = runtime.consumePendingResult();
+  if (!result) {
+    return;
+  }
+  if (!result.ok) {
+    showLog(result.error || 'OAuth connection could not be completed.', 'error');
+    return;
+  }
+  if (typeof runtime.storeConnectionFromResult === 'function') {
+    runtime.storeConnectionFromResult(result);
+  }
+  if (result.intent === 'calendar-connect') {
+    hydrateState();
+    const providerName = result.provider === 'microsoft' ? 'Outlook' : 'Google';
+    showLog(`${providerName} connection stored locally from OAuth.`, 'success');
+  }
 }
 
 function resetCreateEventFormDirty() {
@@ -2293,6 +2393,10 @@ function bindEvents() {
     .querySelectorAll('button[data-action="disconnect"]')
     .forEach(button => button.addEventListener('click', handleDisconnect));
 
+  document
+    .querySelectorAll('button[data-action="oauth-connect"][data-provider]')
+    .forEach(button => button.addEventListener('click', handleOauthConnect));
+
   if (syncForm) {
     const fetchButton = syncForm.querySelector('[data-action="fetch-events"]');
     const refreshButton = syncForm.querySelector('[data-action="refresh-status"]');
@@ -2344,11 +2448,13 @@ function bindEvents() {
 
 initializeCalendarView();
 hydrateState();
+consumePendingOauthResult();
 hydrateLocalEvents();
 ensureDefaultTodayEvent();
 initializeCreateEventToggle();
 hydrateCreateFormDefaults();
 bindEvents();
+refreshOauthButtons();
 setupGunSync();
 const readyMessage = gunEvents
   ? 'Ready to manage your calendar. Local events sync through the 3DVR relay and can connect to Google or Outlook when needed.'
