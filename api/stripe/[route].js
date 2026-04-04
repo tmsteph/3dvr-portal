@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { resolvePlanFromSubscription } from '../../src/money/access.js';
 
 function makeStripeClient(config = process.env) {
   const secretKey = String(config?.STRIPE_SECRET_KEY || '').trim();
@@ -104,6 +105,89 @@ function summarizeBalances(entries) {
   }, {});
 }
 
+function toCurrencyAmount(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  const parsed = Number.parseFloat(String(value || '').trim());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toMonthlyAmount(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return 0;
+  }
+
+  const interval = String(entry?.price?.recurring?.interval || '').trim().toLowerCase();
+  const intervalCount = Math.max(1, Number.parseInt(entry?.price?.recurring?.interval_count, 10) || 1);
+  const quantity = Math.max(1, Number.parseInt(entry?.quantity, 10) || 1);
+  const unitAmount = toCurrencyAmount(entry?.price?.unit_amount ?? entry?.price?.unit_amount_decimal);
+  const grossAmount = unitAmount * quantity;
+
+  if (!grossAmount || !interval) {
+    return 0;
+  }
+
+  if (interval === 'month') {
+    return Math.round(grossAmount / intervalCount);
+  }
+
+  if (interval === 'year') {
+    return Math.round(grossAmount / (12 * intervalCount));
+  }
+
+  if (interval === 'week') {
+    return Math.round((grossAmount * 52) / (12 * intervalCount));
+  }
+
+  if (interval === 'day') {
+    return Math.round((grossAmount * 30) / intervalCount);
+  }
+
+  return 0;
+}
+
+function summarizeRecurringRevenue(subscriptions = []) {
+  return subscriptions.reduce((acc, subscription) => {
+    const items = Array.isArray(subscription?.items?.data)
+      ? subscription.items.data
+      : [];
+
+    items.forEach(item => {
+      const currency = String(item?.price?.currency || 'usd').trim().toUpperCase();
+      const monthlyAmount = toMonthlyAmount(item);
+      if (!monthlyAmount) {
+        return;
+      }
+      acc[currency] = (acc[currency] || 0) + monthlyAmount;
+    });
+
+    return acc;
+  }, {});
+}
+
+function summarizeSubscriptionPlans(subscriptions = [], pricePlanMap = {}) {
+  return subscriptions.reduce((acc, subscription) => {
+    const plan = String(resolvePlanFromSubscription(subscription, pricePlanMap) || 'unknown').trim().toLowerCase() || 'unknown';
+    acc[plan] = (acc[plan] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function resolvePricePlanMap(config = process.env) {
+  const configured = {
+    [String(config?.STRIPE_PRICE_STARTER_ID || config?.STRIPE_PRICE_SUPPORTER_ID || '').trim()]: 'starter',
+    [String(config?.STRIPE_PRICE_PRO_ID || config?.STRIPE_PRICE_FOUNDER_ID || '').trim()]: 'pro',
+    [String(config?.STRIPE_PRICE_BUILDER_ID || config?.STRIPE_PRICE_STUDIO_ID || '').trim()]: 'builder',
+    [String(config?.STRIPE_PRICE_EMBEDDED_ID || config?.STRIPE_PRICE_EXECUTION_ID || config?.STRIPE_PRICE_200_ID || '').trim()]: 'embedded'
+  };
+
+  return Object.fromEntries(
+    Object.entries(configured).filter(([key]) => Boolean(String(key || '').trim()))
+  );
+}
+
 function getRouteValue(req) {
   const route = req?.query?.route;
   if (Array.isArray(route)) {
@@ -135,18 +219,22 @@ async function listCustomers(stripeClient, res) {
   });
 }
 
-async function listMetrics(stripeClient, res) {
+async function listMetrics(stripeClient, res, config = process.env) {
   const subscriptionsIterator = stripeClient.subscriptions.list({
     status: 'active',
-    limit: 100
+    limit: 100,
+    expand: ['data.items.data.price']
   });
   const allSubscriptions = await subscriptionsIterator.autoPagingToArray({ limit: 1000 });
   const balance = await stripeClient.balance.retrieve();
+  const pricePlanMap = resolvePricePlanMap(config);
 
   return res.status(200).json({
     available: summarizeBalances(balance.available),
     pending: summarizeBalances(balance.pending),
     activeSubscribers: allSubscriptions.length,
+    recurringRevenue: summarizeRecurringRevenue(allSubscriptions),
+    planCounts: summarizeSubscriptionPlans(allSubscriptions, pricePlanMap),
     hasMoreSubscribers: allSubscriptions.length >= 1000
   });
 }
@@ -191,7 +279,7 @@ export function createStripeDashboardHandler({
         return await listCustomers(stripeClient, res);
       }
       if (route === 'metrics') {
-        return await listMetrics(stripeClient, res);
+        return await listMetrics(stripeClient, res, config);
       }
       if (route === 'events') {
         return await listEvents(req, stripeClient, res, config);

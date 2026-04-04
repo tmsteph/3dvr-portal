@@ -52,11 +52,15 @@
           </div>
           <div class="finance-summary__stat">
             <dt>Stripe available balance</dt>
-            <dd id="stripe-overview-balance">$0.00</dd>
+            <dd id="stripe-overview-balance">&mdash;</dd>
           </div>
           <div class="finance-summary__stat">
             <dt>Active Stripe subscribers</dt>
-            <dd id="stripe-overview-subscribers">0</dd>
+            <dd id="stripe-overview-subscribers">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Live Stripe MRR</dt>
+            <dd id="stripe-overview-mrr">&mdash;</dd>
           </div>
           <div class="finance-summary__stat">
             <dt>Latest entry</dt>
@@ -104,7 +108,7 @@
           <p class="finance-card__subhead">Sales + finance shared view</p>
         </div>
         <p id="profitability-status" class="finance-helper" role="status" aria-live="polite">
-          Linked paid accounts and Stripe subscriber totals will sync shortly.
+          Live Stripe totals load first. Portal billing links sync separately from the shared finance graph.
         </p>
         <p id="profitability-sync-meta" class="finance-helper">
           Stripe totals, customer summaries, and billing links will show their latest sync times here.
@@ -112,27 +116,31 @@
         <dl class="finance-summary__grid">
           <div class="finance-summary__stat">
             <dt>Active Stripe subscribers</dt>
-            <dd id="profitability-stripe-subscribers">0</dd>
+            <dd id="profitability-stripe-subscribers">&mdash;</dd>
           </div>
           <div class="finance-summary__stat">
-            <dt>Linked paid accounts</dt>
-            <dd id="profitability-linked-paid">0</dd>
+            <dt>Live Stripe MRR</dt>
+            <dd id="profitability-live-mrr">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Portal-linked paid accounts</dt>
+            <dd id="profitability-linked-paid">&mdash;</dd>
           </div>
           <div class="finance-summary__stat">
             <dt>Linked Builder</dt>
-            <dd id="profitability-builder-count">0</dd>
+            <dd id="profitability-builder-count">&mdash;</dd>
           </div>
           <div class="finance-summary__stat">
             <dt>Linked Embedded</dt>
-            <dd id="profitability-embedded-count">0</dd>
+            <dd id="profitability-embedded-count">&mdash;</dd>
           </div>
           <div class="finance-summary__stat">
-            <dt>Linked recurring MRR</dt>
-            <dd id="profitability-mrr">$0.00</dd>
+            <dt>Portal-linked MRR</dt>
+            <dd id="profitability-mrr">&mdash;</dd>
           </div>
           <div class="finance-summary__stat">
             <dt>Link gap</dt>
-            <dd id="profitability-link-gap">0</dd>
+            <dd id="profitability-link-gap">&mdash;</dd>
           </div>
         </dl>
         <div class="finance-card__actions">

@@ -49,6 +49,7 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Use semantic HTML, accessible labels, and keyboard-friendly interactions.
 - Favor calm, intuitive experiences with ergonomic spacing and clear visual hierarchy.
 - Use `3dvr.tech@gmail.com` as the canonical 3DVR contact email in CTAs, support copy, and public-facing docs.
+- There is no separate public `@3dvr.tech` mailbox set up right now.
 - Do not introduce `hello@3dvr.tech`.
 
 ## Formatting

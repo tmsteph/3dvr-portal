@@ -346,13 +346,17 @@ const stripeEventsStatus = document.getElementById('stripe-events-status');
 const stripeEventsRefresh = document.getElementById('stripe-events-refresh');
 const stripeLiveBalance = document.getElementById('stripe-live-balance');
 const stripeLiveSubscribers = document.getElementById('stripe-live-subscribers');
+const stripeLiveMrr = document.getElementById('stripe-live-mrr');
 const stripeLiveStatus = document.getElementById('stripe-live-status');
 const stripeLiveRefresh = document.getElementById('stripe-live-refresh');
 const stripeOverviewBalance = document.getElementById('stripe-overview-balance');
 const stripeBalanceDisplays = [stripeLiveBalance, stripeOverviewBalance].filter(Boolean);
 const stripeOverviewSubscribers = document.getElementById('stripe-overview-subscribers');
 const stripeSubscriberDisplays = [stripeLiveSubscribers, stripeOverviewSubscribers].filter(Boolean);
+const stripeOverviewMrr = document.getElementById('stripe-overview-mrr');
+const stripeMrrDisplays = [stripeLiveMrr, stripeOverviewMrr].filter(Boolean);
 const profitabilityStripeSubscribers = document.getElementById('profitability-stripe-subscribers');
+const profitabilityLiveMrr = document.getElementById('profitability-live-mrr');
 const profitabilityLinkedPaid = document.getElementById('profitability-linked-paid');
 const profitabilityBuilderCount = document.getElementById('profitability-builder-count');
 const profitabilityEmbeddedCount = document.getElementById('profitability-embedded-count');
@@ -383,11 +387,19 @@ const billingUsageTierRecords = Object.create(null);
 const stripeCustomerRecords = Object.create(null);
 let stripeMetricsIntervalId = null;
 let profitabilityCustomerRefreshInFlight = false;
+let stripeMetricsLoaded = false;
+let billingUsageTierLoaded = false;
+let billingUsageTierSyncTimedOut = false;
 const stripeMetricsState = {
   available: {},
   pending: {},
+  recurringRevenue: {},
   activeSubscribers: 0,
   updatedAt: null
+};
+const gunPeerState = {
+  connected: false,
+  hadConnection: false,
 };
 const ethState = {
   account: null,
@@ -399,6 +411,7 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
   currency: 'USD',
   minimumFractionDigits: 2
 });
+const unavailableMetricLabel = '\u2014';
 if (dateInput) {
   dateInput.value = defaultDate();
 }
@@ -406,6 +419,23 @@ if (dateInput) {
 if (dueDateInput) {
   dueDateInput.value = defaultDate();
 }
+
+if (gun && typeof gun.on === 'function') {
+  gun.on('hi', () => {
+    gunPeerState.connected = true;
+    gunPeerState.hadConnection = true;
+    renderProfitabilitySummary();
+  });
+  gun.on('bye', () => {
+    gunPeerState.connected = false;
+    renderProfitabilitySummary();
+  });
+}
+
+window.setTimeout(() => {
+  billingUsageTierSyncTimedOut = true;
+  renderProfitabilitySummary();
+}, 4000);
 
 if (form) {
   form.addEventListener('submit', handleSubmit);
@@ -447,6 +477,7 @@ forEachSource(stripeMetricsSources, source => {
   if (latestNode && typeof latestNode.get === 'function') {
     const availableNode = latestNode.get('available');
     const pendingNode = latestNode.get('pending');
+    const recurringRevenueNode = latestNode.get('recurringRevenue');
 
     if (availableNode && typeof availableNode.on === 'function') {
       availableNode.on(data => handleStripeTotalsUpdate('available', data));
@@ -454,6 +485,10 @@ forEachSource(stripeMetricsSources, source => {
 
     if (pendingNode && typeof pendingNode.on === 'function') {
       pendingNode.on(data => handleStripeTotalsUpdate('pending', data));
+    }
+
+    if (recurringRevenueNode && typeof recurringRevenueNode.on === 'function') {
+      recurringRevenueNode.on(data => handleStripeTotalsUpdate('recurringRevenue', data));
     }
   }
 });
@@ -1004,6 +1039,7 @@ function updateStripeDisplays(metrics) {
 
   const availableTotals = formatStripeTotals(metrics.available);
   const pendingTotals = formatStripeTotals(metrics.pending);
+  const recurringRevenueTotals = formatStripeTotals(metrics.recurringRevenue);
   const subscriberCount = Number.isFinite(metrics.activeSubscribers)
     ? metrics.activeSubscribers
     : 0;
@@ -1016,11 +1052,16 @@ function updateStripeDisplays(metrics) {
     display.textContent = subscriberCount.toLocaleString();
   });
 
+  stripeMrrDisplays.forEach(display => {
+    display.textContent = recurringRevenueTotals.label;
+  });
+
   if (stripeLiveStatus) {
     const statusParts = [`Available ${availableTotals.currency} balance updated.`];
     if (pendingTotals.amount > 0) {
       statusParts.push(`Pending ${pendingTotals.label}.`);
     }
+    statusParts.push(`Live Stripe MRR ${recurringRevenueTotals.label}.`);
     statusParts.push(`Active subscribers: ${subscriberCount.toLocaleString()}.`);
 
     stripeLiveStatus.textContent = statusParts.join(' ');
@@ -1037,6 +1078,7 @@ function applyStripeMetricsPatch(patch) {
 
   const availableTotals = normalizeStripeTotals(patch.available);
   const pendingTotals = normalizeStripeTotals(patch.pending);
+  const recurringRevenueTotals = normalizeStripeTotals(patch.recurringRevenue);
 
   if (availableTotals) {
     stripeMetricsState.available = availableTotals;
@@ -1044,6 +1086,10 @@ function applyStripeMetricsPatch(patch) {
 
   if (pendingTotals) {
     stripeMetricsState.pending = pendingTotals;
+  }
+
+  if (recurringRevenueTotals) {
+    stripeMetricsState.recurringRevenue = recurringRevenueTotals;
   }
 
   if (Number.isFinite(patch.activeSubscribers)) {
@@ -1054,16 +1100,18 @@ function applyStripeMetricsPatch(patch) {
     stripeMetricsState.updatedAt = patch.updatedAt;
   }
 
+  stripeMetricsLoaded = true;
   updateStripeDisplays(stripeMetricsState);
 }
 
 function handleStripeTotalsUpdate(kind, rawTotals) {
   const normalized = normalizeStripeTotals(rawTotals);
-  if (!normalized || (kind !== 'available' && kind !== 'pending')) {
+  if (!normalized || !['available', 'pending', 'recurringRevenue'].includes(kind)) {
     return;
   }
 
   stripeMetricsState[kind] = normalized;
+  stripeMetricsLoaded = true;
   updateStripeDisplays(stripeMetricsState);
 }
 
@@ -1090,10 +1138,12 @@ function writeStripeMetrics(metrics) {
 
     const availableTotals = normalizeStripeTotals(metrics.available) || {};
     const pendingTotals = normalizeStripeTotals(metrics.pending) || {};
+    const recurringRevenueTotals = normalizeStripeTotals(metrics.recurringRevenue) || {};
 
     if (typeof latestNode.get === 'function') {
       const availableNode = latestNode.get('available');
       const pendingNode = latestNode.get('pending');
+      const recurringRevenueNode = latestNode.get('recurringRevenue');
 
       if (availableNode && typeof availableNode.put === 'function') {
         availableNode.put(availableTotals, ack => {
@@ -1107,6 +1157,14 @@ function writeStripeMetrics(metrics) {
         pendingNode.put(pendingTotals, ack => {
           if (index === 0 && ack && ack.err) {
             console.warn('Failed to persist pending stripe totals to primary node', ack.err);
+          }
+        });
+      }
+
+      if (recurringRevenueNode && typeof recurringRevenueNode.put === 'function') {
+        recurringRevenueNode.put(recurringRevenueTotals, ack => {
+          if (index === 0 && ack && ack.err) {
+            console.warn('Failed to persist recurring Stripe revenue to primary node', ack.err);
           }
         });
       }
@@ -1135,6 +1193,7 @@ async function fetchStripeMetrics(quiet = false) {
     const metricsRecord = {
       available: payload.available,
       pending: payload.pending,
+      recurringRevenue: payload.recurringRevenue,
       activeSubscribers: payload.activeSubscribers,
       updatedAt: new Date().toISOString()
     };
@@ -1162,6 +1221,8 @@ function handleBillingUsageTierUpdate(raw, key) {
     return;
   }
 
+  billingUsageTierLoaded = true;
+
   if (!raw) {
     delete billingUsageTierRecords[key];
     renderProfitabilitySummary();
@@ -1175,6 +1236,36 @@ function handleBillingUsageTierUpdate(raw, key) {
 
   billingUsageTierRecords[key] = cleaned;
   renderProfitabilitySummary();
+}
+
+function setTextContent(element, value) {
+  if (element) {
+    element.textContent = value;
+  }
+}
+
+function getBillingLinkAvailability() {
+  if (Object.keys(billingUsageTierRecords).length > 0) {
+    return 'ready';
+  }
+
+  if (!stripeMetricsLoaded) {
+    return 'pending';
+  }
+
+  if (!billingUsageTierSyncTimedOut) {
+    return 'pending';
+  }
+
+  if (gunContext.isStub || (!gunPeerState.connected && !gunPeerState.hadConnection)) {
+    return 'unavailable';
+  }
+
+  if (billingUsageTierLoaded) {
+    return 'ready';
+  }
+
+  return 'pending';
 }
 
 function handleStripeCustomerUpdate(raw, key) {
@@ -1261,30 +1352,59 @@ function renderProfitabilitySummary() {
   const linked = summarizeLinkedBilling(billingUsageTierRecords);
   const linkedMrr = estimateRecurringRevenue(linked);
   const stripeTotals = normalizeStripeMetricsRecord(stripeMetricsState);
-  const linkGap = Math.max(0, stripeTotals.activeSubscribers - linked.linkedPaidCustomers);
+  const stripeRecurringRevenue = formatStripeTotals(stripeTotals.recurringRevenue || {});
+  const billingLinkAvailability = getBillingLinkAvailability();
+  const billingLinkMetricsReady = billingLinkAvailability === 'ready';
+  const linkGap = billingLinkMetricsReady
+    ? Math.max(0, stripeTotals.activeSubscribers - linked.linkedPaidCustomers)
+    : null;
   const billingUpdatedAt = getLatestRecordUpdatedAt(billingUsageTierRecords);
   const customerUpdatedAt = getLatestRecordUpdatedAt(stripeCustomerRecords, normalizeStripeCustomerRecord);
 
-  if (profitabilityStripeSubscribers) {
-    profitabilityStripeSubscribers.textContent = stripeTotals.activeSubscribers.toLocaleString();
-  }
-  if (profitabilityLinkedPaid) {
-    profitabilityLinkedPaid.textContent = linked.linkedPaidCustomers.toLocaleString();
-  }
-  if (profitabilityBuilderCount) {
-    profitabilityBuilderCount.textContent = linked.builderCustomers.toLocaleString();
-  }
-  if (profitabilityEmbeddedCount) {
-    profitabilityEmbeddedCount.textContent = linked.embeddedCustomers.toLocaleString();
-  }
-  if (profitabilityMrr) {
-    profitabilityMrr.textContent = numberFormatter.format(linkedMrr);
-  }
-  if (profitabilityLinkGap) {
-    profitabilityLinkGap.textContent = linkGap.toLocaleString();
-  }
+  setTextContent(
+    profitabilityStripeSubscribers,
+    stripeMetricsLoaded ? stripeTotals.activeSubscribers.toLocaleString() : unavailableMetricLabel
+  );
+  setTextContent(
+    profitabilityLiveMrr,
+    stripeMetricsLoaded ? stripeRecurringRevenue.label : unavailableMetricLabel
+  );
+  setTextContent(
+    profitabilityLinkedPaid,
+    billingLinkMetricsReady ? linked.linkedPaidCustomers.toLocaleString() : unavailableMetricLabel
+  );
+  setTextContent(
+    profitabilityBuilderCount,
+    billingLinkMetricsReady ? linked.builderCustomers.toLocaleString() : unavailableMetricLabel
+  );
+  setTextContent(
+    profitabilityEmbeddedCount,
+    billingLinkMetricsReady ? linked.embeddedCustomers.toLocaleString() : unavailableMetricLabel
+  );
+  setTextContent(
+    profitabilityMrr,
+    billingLinkMetricsReady ? numberFormatter.format(linkedMrr) : unavailableMetricLabel
+  );
+  setTextContent(
+    profitabilityLinkGap,
+    typeof linkGap === 'number' ? linkGap.toLocaleString() : unavailableMetricLabel
+  );
   if (profitabilitySyncMeta) {
     profitabilitySyncMeta.textContent = `Stripe totals ${formatSyncTimestamp(stripeTotals.updatedAt)} • customer summaries ${formatSyncTimestamp(customerUpdatedAt)} • billing links ${formatSyncTimestamp(billingUpdatedAt)}`;
+  }
+
+  if (!stripeMetricsLoaded) {
+    profitabilityStatus.textContent = 'Live Stripe totals are still syncing.';
+    profitabilityStatus.classList.remove('finance-helper--error');
+    return;
+  }
+
+  if (!billingLinkMetricsReady) {
+    profitabilityStatus.textContent = billingLinkAvailability === 'unavailable'
+      ? 'Live Stripe totals are current, but portal billing links are unavailable in this browser right now. Active subscribers and live Stripe MRR are current; linked-account diagnostics are not.'
+      : 'Live Stripe totals are current. Portal billing links are still syncing, so linked-account diagnostics may be incomplete.';
+    profitabilityStatus.classList.remove('finance-helper--error');
+    return;
   }
 
   if (linkGap > 0) {

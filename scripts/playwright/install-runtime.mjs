@@ -2,16 +2,38 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import process from 'node:process';
+import {
+  DEFAULT_INSTALL_BROWSERS,
+  normalizeInstallBrowserTargetForRuntime,
+} from './browser-targets.mjs';
 
-const DEFAULT_BROWSERS = ['chromium', 'firefox'];
+const DEFAULT_BROWSERS = DEFAULT_INSTALL_BROWSERS;
 
 export function parseBrowserTargets(value = '', fallback = DEFAULT_BROWSERS) {
+  return parseBrowserTargetsForRuntime(value, fallback, process.platform, process.arch);
+}
+
+export function parseBrowserTargetsForRuntime(
+  value = '',
+  fallback = DEFAULT_BROWSERS,
+  platform = process.platform,
+  arch = process.arch,
+) {
   const normalized = typeof value === 'string' ? value.trim() : '';
   if (!normalized) {
-    return [...fallback];
+    return [...fallback]
+      .map(item => normalizeInstallBrowserTargetForRuntime(item, platform, arch))
+      .filter(Boolean);
   }
-  const targets = normalized.split(/\s+/).map(item => item.trim()).filter(Boolean);
-  return targets.length ? Array.from(new Set(targets)) : [...fallback];
+  const targets = normalized
+    .split(/\s+/)
+    .map(item => normalizeInstallBrowserTargetForRuntime(item, platform, arch))
+    .filter(Boolean);
+  return targets.length
+    ? Array.from(new Set(targets))
+    : [...fallback]
+      .map(item => normalizeInstallBrowserTargetForRuntime(item, platform, arch))
+      .filter(Boolean);
 }
 
 export function isTermuxRuntime(env = process.env, platform = process.platform) {

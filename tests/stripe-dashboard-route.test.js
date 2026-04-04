@@ -43,7 +43,40 @@ function createDashboardStripeMock() {
     },
     subscriptions: {
       list: mock.fn(() => ({
-        autoPagingToArray: async () => ([{ id: 'sub_1' }, { id: 'sub_2' }])
+        autoPagingToArray: async () => ([
+          {
+            id: 'sub_1',
+            items: {
+              data: [
+                {
+                  quantity: 1,
+                  price: {
+                    currency: 'usd',
+                    unit_amount: 5000,
+                    recurring: { interval: 'month', interval_count: 1 },
+                    metadata: { plan: 'builder' }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            id: 'sub_2',
+            items: {
+              data: [
+                {
+                  quantity: 1,
+                  price: {
+                    currency: 'usd',
+                    unit_amount: 240000,
+                    recurring: { interval: 'year', interval_count: 1 },
+                    metadata: { plan: 'embedded' }
+                  }
+                }
+              ]
+            }
+          }
+        ])
       }))
     },
     balance: {
@@ -99,6 +132,8 @@ test('stripe dashboard route serves balance metrics', async () => {
   assert.deepEqual(res.body.available, { USD: 1200 });
   assert.deepEqual(res.body.pending, { USD: 300 });
   assert.equal(res.body.activeSubscribers, 2);
+  assert.deepEqual(res.body.recurringRevenue, { USD: 25000 });
+  assert.deepEqual(res.body.planCounts, { builder: 1, embedded: 1 });
   assert.equal(stripeClient.subscriptions.list.mock.calls.length, 1);
 });
 

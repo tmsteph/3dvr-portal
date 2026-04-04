@@ -25,11 +25,13 @@ describe('finance ledger hub', () => {
     assert.match(html, /Profitability alignment/);
     assert.match(html, /id="profitability-status"/);
     assert.match(html, /id="profitability-stripe-subscribers"/);
+    assert.match(html, /id="profitability-live-mrr"/);
     assert.match(html, /id="profitability-linked-paid"/);
     assert.match(html, /id="profitability-builder-count"/);
     assert.match(html, /id="profitability-embedded-count"/);
     assert.match(html, /id="profitability-mrr"/);
     assert.match(html, /id="profitability-link-gap"/);
+    assert.match(html, /id="stripe-overview-mrr"/);
     assert.match(html, /id="profitability-sync-meta"/);
     assert.match(html, /id="profitability-refresh-totals"/);
     assert.match(html, /id="profitability-refresh-customers"/);
@@ -55,6 +57,18 @@ describe('finance ledger hub', () => {
     assert.match(css, /\.finance-card/);
   });
 
+  it('includes the Stripe workspace with live recurring revenue metrics', async () => {
+    const stripeUrl = new URL('stripe.html', baseDir);
+    assert.equal(await fileExists(stripeUrl), true, 'stripe.html should exist');
+
+    const html = await readFile(stripeUrl, 'utf8');
+    assert.match(html, /Stripe workspace/);
+    assert.match(html, /Live Stripe MRR/);
+    assert.match(html, /id="stripe-live-mrr"/);
+    assert.match(html, /id="stripe-live-subscribers"/);
+    assert.match(html, /id="stripe-live-balance"/);
+  });
+
   it('persists entries to portal and legacy finance Gun graphs with documented structure', async () => {
     const scriptUrl = new URL('app.js', baseDir);
     assert.equal(await fileExists(scriptUrl), true, 'app.js should exist');
@@ -71,6 +85,8 @@ describe('finance ledger hub', () => {
     assert.match(js, /billingRoot\.get\('usageTier'\)/);
     assert.match(js, /summarizeLinkedBilling/);
     assert.match(js, /estimateRecurringRevenue/);
+    assert.match(js, /stripeMetricsState = \{/);
+    assert.match(js, /recurringRevenue: \{\}/);
     assert.match(js, /formatSyncTimestamp/);
     assert.match(js, /syncStripeCustomerSummaries/);
     assert.match(js, /renderProfitabilitySummary/);

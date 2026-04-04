@@ -4,7 +4,10 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
-import { firefox } from 'playwright';
+import {
+  launchConfiguredPlaywrightBrowser,
+  resolvePlaywrightBrowser,
+} from './browser-targets.mjs';
 
 const port = Number.parseInt(process.env.PLAYWRIGHT_PORT ?? '4173', 10);
 assert(Number.isInteger(port) && port > 0 && port < 65536, 'PLAYWRIGHT_PORT must be a valid TCP port');
@@ -12,6 +15,7 @@ assert(Number.isInteger(port) && port > 0 && port < 65536, 'PLAYWRIGHT_PORT must
 const host = '127.0.0.1';
 const rootDir = resolve(process.cwd());
 const baseUrl = `http://${host}:${port}`;
+const browserTarget = resolvePlaywrightBrowser(process.env.PLAYWRIGHT_BROWSER, 'firefox');
 const mimeTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.gif', 'image/gif'],
@@ -77,7 +81,7 @@ try {
     });
   });
 
-  browser = await firefox.launch({ headless: true });
+  browser = await launchConfiguredPlaywrightBrowser(browserTarget);
   const page = await browser.newPage();
   const response = await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   assert(response && response.ok(), `Expected ${baseUrl} to return 2xx/3xx`);
@@ -89,7 +93,7 @@ try {
   assert.equal(pageTitle, '3DVR Portal');
   assert.match(heading, /Welcome to the 3DVR Portal|Choose your path into the portal|Get in, get moving\./i);
 
-  console.log(`Playwright smoke check passed at ${baseUrl}`);
+  console.log(`Playwright smoke check passed in ${browserTarget.displayName} at ${baseUrl}`);
 } finally {
   if (browser) {
     await browser.close();

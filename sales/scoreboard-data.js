@@ -98,15 +98,32 @@ export function summarizeLinkedBilling(records = {}) {
 }
 
 export function normalizeStripeMetricsRecord(data = {}) {
+  const normalizeCurrencyTotals = (value) => {
+    if (!value || typeof value !== 'object') {
+      return {};
+    }
+
+    return Object.entries(value).reduce((acc, [currency, amount]) => {
+      const normalizedCurrency = String(currency || '').trim().toUpperCase();
+      const numeric = Number.parseFloat(String(amount));
+      if (normalizedCurrency && Number.isFinite(numeric)) {
+        acc[normalizedCurrency] = numeric;
+      }
+      return acc;
+    }, {});
+  };
+
   if (!data || typeof data !== 'object') {
     return {
       activeSubscribers: 0,
+      recurringRevenue: {},
       updatedAt: '',
     };
   }
 
   return {
     activeSubscribers: toWholeNumber(data.activeSubscribers, 0),
+    recurringRevenue: normalizeCurrencyTotals(data.recurringRevenue),
     updatedAt: String(data.updatedAt || '').trim(),
   };
 }

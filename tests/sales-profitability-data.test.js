@@ -82,10 +82,14 @@ test('profitability data helpers keep weekly plan manual fields only', () => {
 test('profitability data helpers normalize stripe metrics and estimate linked MRR', () => {
   const metrics = normalizeStripeMetricsRecord({
     activeSubscribers: '7',
+    recurringRevenue: {
+      usd: '27500',
+    },
     updatedAt: '2026-03-31T12:00:00.000Z',
   });
 
   assert.equal(metrics.activeSubscribers, 7);
+  assert.deepEqual(metrics.recurringRevenue, { USD: 27500 });
   assert.equal(metrics.updatedAt, '2026-03-31T12:00:00.000Z');
   assert.equal(estimateRecurringRevenue({ builderCustomers: 2, embeddedCustomers: 3 }), 700);
 });

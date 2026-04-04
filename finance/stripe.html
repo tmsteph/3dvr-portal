@@ -26,7 +26,7 @@
       <p class="finance-hero__eyebrow">Stripe workspace</p>
       <h1 id="page-title" class="finance-hero__title">Stripe</h1>
       <p class="finance-hero__lead">
-        Monitor webhooks, subscriber counts, and live balances with data that syncs to the shared finance graph.
+        Monitor webhooks, subscriber counts, live MRR, and balances with data that syncs to the shared finance graph.
       </p>
     </header>
 
@@ -37,17 +37,21 @@
           <p class="finance-card__subhead">Live totals and subscribers</p>
         </div>
         <div class="finance-card__actions">
-          <p id="stripe-live-status" class="finance-helper" role="status" aria-live="polite">Live Stripe balance and subscriber counts will sync shortly.</p>
+          <p id="stripe-live-status" class="finance-helper" role="status" aria-live="polite">Live Stripe balance, active subscribers, and recurring revenue will sync shortly.</p>
           <button type="button" id="stripe-live-refresh" class="finance-button finance-button--secondary">Refresh live totals</button>
         </div>
         <dl class="finance-summary__grid">
           <div class="finance-summary__stat">
             <dt>Live available balance</dt>
-            <dd id="stripe-live-balance">$0.00</dd>
+            <dd id="stripe-live-balance">&mdash;</dd>
           </div>
           <div class="finance-summary__stat">
             <dt>Active subscribers</dt>
-            <dd id="stripe-live-subscribers">0</dd>
+            <dd id="stripe-live-subscribers">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Live Stripe MRR</dt>
+            <dd id="stripe-live-mrr">&mdash;</dd>
           </div>
         </dl>
       </div>
