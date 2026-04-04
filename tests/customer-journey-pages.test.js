@@ -33,6 +33,17 @@ describe('portal customer journey pages', () => {
     assert.match(html, /shortcut-grid/);
   });
 
+  it('keeps the portal homepage calm on very narrow mobile screens', async () => {
+    const css = await readFile(new URL('../index-style.css', import.meta.url), 'utf8');
+    const globalCss = await readFile(new URL('../styles/global.css', import.meta.url), 'utf8');
+
+    assert.match(globalCss, /-webkit-text-size-adjust:\s*100%/);
+    assert.match(globalCss, /text-size-adjust:\s*100%/);
+    assert.match(css, /@media \(max-width: 380px\)/);
+    assert.match(css, /\.hero-actions \.cta\s*\{/);
+    assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
+  });
+
   it('keeps the free trial page tied to the portal account journey', async () => {
     const html = await readFile(new URL('../free-trial.html', import.meta.url), 'utf8');
     assert.match(html, /Get organized and take your next step/);

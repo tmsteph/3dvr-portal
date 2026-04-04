@@ -1147,3 +1147,42 @@ footer a {
     justify-content: center;
   }
 }
+
+@media (max-width: 380px) {
+  .landing-shell {
+    padding: 4rem 0.85rem 2.75rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 8.8vw, 2.35rem);
+  }
+
+  .hero-tagline {
+    font-size: 0.94rem;
+    line-height: 1.5;
+  }
+
+  .hero-panel {
+    padding: 1rem;
+  }
+
+  .hero-actions {
+    gap: 0.65rem;
+  }
+
+  .hero-actions .cta {
+    width: 100%;
+    padding: 0.78rem 1.1rem;
+  }
+
+  .workspace-pill,
+  .plan-pill,
+  .shortcut-card,
+  .app-card {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .app-card {
+    gap: 0.75rem;
+  }
+}
