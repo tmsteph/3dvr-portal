@@ -29,6 +29,11 @@
   --identity-shadow: 0 24px 46px rgba(15, 23, 42, 0.12);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 *,
 *::before,
 *::after {
