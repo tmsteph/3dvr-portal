@@ -7,18 +7,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles/global.css">
-  <link rel="stylesheet" href="/calendar/calendar.css">
-  <link rel="stylesheet" href="/styles/install-banner.css">
-  <link rel="manifest" href="/app-manifests/calendar.webmanifest">
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="./calendar.css">
+  <link rel="stylesheet" href="../styles/install-banner.css">
+  <link rel="manifest" href="./calendar.webmanifest">
   <meta name="theme-color" content="#0e1116">
-  <script src="/pwa-install.js" defer></script>
+  <script
+    src="./pwa-install.js"
+    data-sw-url="./service-worker.js"
+    data-sw-scope="./"
+    defer
+  ></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
   <header class="calendar-header">
-    <a class="calendar-header__back" href="../index.html">⬅ Back to Portal</a>
+    <a class="calendar-header__back" href="../index.html" data-portal-home-link>⬅ Back to Portal</a>
     <h1 class="calendar-header__title">Calendar Hub</h1>
     <p class="calendar-header__subtitle">
       Manage your schedule directly in the portal. Events live in your local calendar first, with optional
@@ -431,8 +436,8 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-  <script src="/gun-init.js"></script>
-  <script src="/oauth.js"></script>
-  <script src="/calendar/calendar.js" type="module"></script>
+  <script src="../gun-init.js"></script>
+  <script src="../oauth.js"></script>
+  <script src="./calendar.js" type="module"></script>
 </body>
 </html>

@@ -107,6 +107,7 @@ const calendarQuickConnected = document.getElementById('calendarQuickConnected')
 const calendarQuickConnectedMeta = document.getElementById('calendarQuickConnectedMeta');
 const calendarQuickSelected = document.getElementById('calendarQuickSelected');
 const calendarQuickSelectedMeta = document.getElementById('calendarQuickSelectedMeta');
+const portalHomeLink = document.querySelector('[data-portal-home-link]');
 
 const calendarMonthFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'long',
@@ -122,6 +123,89 @@ const calendarWeekdayFormatter = new Intl.DateTimeFormat(undefined, {
 const calendarFullDateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'full'
 });
+const DEFAULT_PORTAL_ORIGIN = 'https://portal.3dvr.tech';
+
+function normalizeOrigin(value = '') {
+  const normalizedValue = typeof value === 'string' ? value.trim() : '';
+  if (!normalizedValue) return '';
+  try {
+    return new URL(normalizedValue).origin;
+  } catch (_error) {
+    return '';
+  }
+}
+
+function inferPortalOriginFromStandaloneHost(currentOrigin = '') {
+  const normalizedCurrent = normalizeOrigin(currentOrigin);
+  if (!normalizedCurrent) {
+    return '';
+  }
+
+  try {
+    const currentUrl = new URL(normalizedCurrent);
+    const host = (currentUrl.hostname || '').trim();
+    const lowerHost = host.toLowerCase();
+    let siblingHost = '';
+
+    if (lowerHost.startsWith('calendar-staging.')) {
+      siblingHost = `portal-staging.${host.slice('calendar-staging.'.length)}`;
+    } else if (lowerHost.startsWith('calendar.')) {
+      siblingHost = `portal.${host.slice('calendar.'.length)}`;
+    }
+
+    if (!siblingHost) {
+      return '';
+    }
+
+    return `${currentUrl.protocol}//${siblingHost}${currentUrl.port ? `:${currentUrl.port}` : ''}`;
+  } catch (_error) {
+    return '';
+  }
+}
+
+function resolvePortalOrigin({
+  configuredOrigin = '',
+  currentOrigin = '',
+  pathname = '',
+  fallbackOrigin = DEFAULT_PORTAL_ORIGIN,
+} = {}) {
+  const configured = normalizeOrigin(configuredOrigin);
+  if (configured) {
+    return configured;
+  }
+
+  const current = normalizeOrigin(currentOrigin);
+  const normalizedPath = typeof pathname === 'string' ? pathname.trim() : '';
+  if (current && (normalizedPath === '/calendar' || normalizedPath.startsWith('/calendar/'))) {
+    return current;
+  }
+
+  const inferredPortal = inferPortalOriginFromStandaloneHost(current);
+  if (inferredPortal) {
+    return inferredPortal;
+  }
+
+  const fallback = normalizeOrigin(fallbackOrigin);
+  if (fallback) {
+    return fallback;
+  }
+  if (current) {
+    return current;
+  }
+  return DEFAULT_PORTAL_ORIGIN;
+}
+
+function hydratePortalHomeLink() {
+  if (!portalHomeLink || typeof window === 'undefined') {
+    return;
+  }
+
+  const portalOrigin = resolvePortalOrigin({
+    currentOrigin: window.location.origin,
+    pathname: window.location.pathname,
+  });
+  portalHomeLink.href = new URL('/', `${portalOrigin}/`).toString();
+}
 
 function slugifyKey(value, fallback = '') {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -2569,6 +2653,7 @@ ensureDefaultTodayEvent();
 initializeCreateEventToggle();
 hydrateCreateFormDefaults();
 bindEvents();
+hydratePortalHomeLink();
 refreshOauthButtons();
 setupGunSync();
 const readyMessage = gunEvents
