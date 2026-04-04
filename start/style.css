@@ -373,7 +373,7 @@ a {
 
 .compact-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   margin-top: 18px;
 }
@@ -415,6 +415,12 @@ a {
 .footer a {
   color: #fff;
   text-decoration: none;
+}
+
+@media (max-width: 1180px) {
+  .compact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 960px) {
