@@ -58,155 +58,210 @@
         </p>
       </div>
 
-      <div class="create-event-actions">
-        <button
-          type="button"
-          data-action="toggle-create-event"
-          data-label-open="Add event"
-          data-label-close="Hide event form"
-          data-label-edit-open="Editing event"
-          data-label-edit-close="Cancel edit"
-          aria-expanded="false"
-          aria-controls="create-event-form"
-        >Add event</button>
+      <div class="calendar-quickstats" aria-label="Calendar summary">
+        <article class="calendar-stat">
+          <p class="calendar-stat__label">Upcoming</p>
+          <p class="calendar-stat__value" id="calendarQuickUpcoming">0</p>
+          <p class="calendar-stat__meta" id="calendarQuickUpcomingMeta">No future events yet.</p>
+        </article>
+        <article class="calendar-stat">
+          <p class="calendar-stat__label">Connected</p>
+          <p class="calendar-stat__value" id="calendarQuickConnected">0</p>
+          <p class="calendar-stat__meta" id="calendarQuickConnectedMeta">Local-only workflow active.</p>
+        </article>
+        <article class="calendar-stat">
+          <p class="calendar-stat__label">Selected day</p>
+          <p class="calendar-stat__value" id="calendarQuickSelected">Today</p>
+          <p class="calendar-stat__meta" id="calendarQuickSelectedMeta">Pick a day to review its schedule.</p>
+        </article>
       </div>
 
-      <div class="create-event-form__container" data-create-event-container hidden>
-        <form class="create-event-form" id="create-event-form">
-          <input type="hidden" name="eventId">
-          <div class="create-event-form__row">
-            <label class="field">
-              <span class="field__label">Title</span>
-              <input type="text" name="title" required placeholder="Sprint planning">
-            </label>
-            <label class="field">
-              <span class="field__label">Start</span>
-              <input type="datetime-local" name="start" required>
-            </label>
-            <label class="field">
-              <span class="field__label">End</span>
-              <input type="datetime-local" name="end" required>
-            </label>
+      <div class="calendar-workspace">
+        <div class="calendar-stage">
+          <div class="calendar-view" aria-labelledby="calendar-view-title">
+            <div class="calendar-view__header">
+              <div>
+                <h3 id="calendar-view-title">Monthly overview</h3>
+                <p class="calendar-view__subtitle">See your saved events at a glance and click a day to focus it.</p>
+              </div>
+              <div class="calendar-view__controls" role="group" aria-label="Change month">
+                <button type="button" class="button-secondary" data-calendar-nav="prev" aria-label="Previous month">‹</button>
+                <button type="button" class="button-secondary" data-calendar-today>Today</button>
+                <button type="button" class="button-secondary" data-calendar-nav="next" aria-label="Next month">›</button>
+              </div>
+            </div>
+            <p class="calendar-view__current" data-calendar-current aria-live="polite"></p>
+            <div class="calendar-view__grid" role="grid" aria-describedby="calendar-view-title">
+              <div class="calendar-view__grid-inner">
+                <div class="calendar-view__day-names" data-calendar-day-names role="row"></div>
+                <div class="calendar-view__days" data-calendar-grid role="rowgroup"></div>
+              </div>
+            </div>
+            <div class="calendar-view__details" data-calendar-details hidden>
+              <h4 class="calendar-view__details-title" data-calendar-details-title></h4>
+              <p class="calendar-view__details-empty" data-calendar-details-empty>No events for this day yet. Use the button below to add one.</p>
+              <div class="calendar-view__details-actions" data-calendar-details-actions hidden>
+                <button type="button" class="button-secondary" data-action="add-event-for-day">Add event for this day</button>
+              </div>
+              <ul class="calendar-view__details-list" data-calendar-details-list></ul>
+            </div>
           </div>
-          <div class="create-event-form__row">
-            <label class="field">
-              <span class="field__label">Timezone</span>
-              <input type="text" name="timeZone" required>
-            </label>
-            <label class="field">
-              <span class="field__label">Description</span>
-              <textarea name="description" rows="3" placeholder="Add agenda and dial-in details"></textarea>
-            </label>
+        </div>
+
+        <aside class="calendar-planner" aria-labelledby="calendar-planner-title">
+          <div class="planner-card planner-card--accent">
+            <div class="planner-card__header">
+              <p class="planner-card__eyebrow">Quick planner</p>
+              <h3 id="calendar-planner-title">Add an event without losing the month</h3>
+              <p class="planner-card__intro">
+                Keep the month visible, pick a day, then open the planner only when you need to capture or edit a slot.
+              </p>
+            </div>
+            <div class="create-event-actions">
+              <button
+                type="button"
+                data-action="toggle-create-event"
+                data-label-open="Open planner"
+                data-label-close="Hide planner"
+                data-label-edit-open="Editing event"
+                data-label-edit-close="Cancel edit"
+                aria-expanded="false"
+                aria-controls="create-event-form"
+              >Open planner</button>
+            </div>
+
+            <div class="create-event-form__container" data-create-event-container hidden>
+              <form class="create-event-form" id="create-event-form">
+                <input type="hidden" name="eventId">
+                <div class="create-event-form__row">
+                  <label class="field">
+                    <span class="field__label">Title</span>
+                    <input type="text" name="title" required placeholder="Sprint planning">
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Start</span>
+                    <input type="datetime-local" name="start" required>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">End</span>
+                    <input type="datetime-local" name="end" required>
+                  </label>
+                </div>
+                <div class="create-event-form__row">
+                  <label class="field">
+                    <span class="field__label">Timezone</span>
+                    <input type="text" name="timeZone" required>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Description</span>
+                    <textarea name="description" rows="3" placeholder="Add agenda and dial-in details"></textarea>
+                  </label>
+                </div>
+
+                <div class="create-event-form__row">
+                  <fieldset class="field">
+                    <legend class="field__label">Repeat</legend>
+                    <p class="field__help">Create weekly copies so recurring meetings stay in sync.</p>
+                    <label class="field field--checkbox">
+                      <input type="checkbox" name="repeatWeekly">
+                      <span class="field__label">Repeat every week</span>
+                    </label>
+                    <label class="field">
+                      <span class="field__label">Number of weeks</span>
+                      <input type="number" name="repeatWeeks" min="1" max="52" placeholder="Indefinitely">
+                      <span class="field__help">Includes the first week. Leave blank to repeat indefinitely (default).</span>
+                    </label>
+                  </fieldset>
+                </div>
+
+                <fieldset class="create-event-form__reminder">
+                  <legend>Email reminder</legend>
+                  <p class="field__help">Choose when to email attendees about this event.</p>
+                  <div class="create-event-form__row">
+                    <label class="field">
+                      <span class="field__label">Send reminder</span>
+                      <select name="reminderDayOffset">
+                        <option value="0">The day of the event</option>
+                        <option value="-1">Day before</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span class="field__label">At</span>
+                      <input type="time" name="reminderTime" value="10:00">
+                    </label>
+                    <label class="field">
+                      <span class="field__label">Recipients</span>
+                      <input type="text" name="reminderRecipients" placeholder="team@example.com, guest@example.com">
+                      <span class="field__help">Comma separate addresses. Defaults to you if left blank.</span>
+                    </label>
+                    <label class="field">
+                      <span class="field__label">Reminder link</span>
+                      <input type="url" name="reminderLink" placeholder="https://meet.example.com/room">
+                      <span class="field__help">Optional meeting or watch link to include in reminder emails.</span>
+                    </label>
+                    <label class="field">
+                      <span class="field__label">Reminder message</span>
+                      <textarea name="reminderMessage" rows="3" placeholder="Add the invite link and quick instructions"></textarea>
+                      <span class="field__help">Shared in the reminder email along with the event details.</span>
+                    </label>
+                    <label class="field field--checkbox">
+                      <input type="checkbox" name="sendReminderAfterSave">
+                      <span class="field__label">Send reminder right after saving</span>
+                      <span class="field__help">Uses the reminder schedule above and recipients to email immediately.</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="create-event-form__sync">
+                  <legend>Optional sync</legend>
+                  <p>Select the services that should also receive this event after it is stored locally.</p>
+                  <label class="chip">
+                    <input type="checkbox" name="syncProviders" value="google">
+                    <span>Google</span>
+                  </label>
+                  <label class="chip">
+                    <input type="checkbox" name="syncProviders" value="outlook">
+                    <span>Outlook</span>
+                  </label>
+                </fieldset>
+
+                <button type="submit">Save event</button>
+              </form>
+            </div>
           </div>
-
-          <div class="create-event-form__row">
-            <fieldset class="field">
-              <legend class="field__label">Repeat</legend>
-              <p class="field__help">Create weekly copies so recurring meetings stay in sync.</p>
-              <label class="field field--checkbox">
-                <input type="checkbox" name="repeatWeekly">
-                <span class="field__label">Repeat every week</span>
-              </label>
-              <label class="field">
-                <span class="field__label">Number of weeks</span>
-                <input type="number" name="repeatWeeks" min="1" max="52" placeholder="Indefinitely">
-                <span class="field__help">Includes the first week. Leave blank to repeat indefinitely (default).</span>
-              </label>
-            </fieldset>
-          </div>
-
-          <fieldset class="create-event-form__reminder">
-            <legend>Email reminder</legend>
-            <p class="field__help">Choose when to email attendees about this event.</p>
-            <div class="create-event-form__row">
-              <label class="field">
-                <span class="field__label">Send reminder</span>
-                <select name="reminderDayOffset">
-                  <option value="0">The day of the event</option>
-                  <option value="-1">Day before</option>
-                </select>
-              </label>
-              <label class="field">
-                <span class="field__label">At</span>
-                <input type="time" name="reminderTime" value="10:00">
-              </label>
-            <label class="field">
-              <span class="field__label">Recipients</span>
-              <input type="text" name="reminderRecipients" placeholder="team@example.com, guest@example.com">
-              <span class="field__help">Comma separate addresses. Defaults to you if left blank.</span>
-            </label>
-            <label class="field">
-              <span class="field__label">Reminder link</span>
-              <input type="url" name="reminderLink" placeholder="https://meet.example.com/room">
-              <span class="field__help">Optional meeting or watch link to include in reminder emails.</span>
-            </label>
-            <label class="field">
-              <span class="field__label">Reminder message</span>
-              <textarea name="reminderMessage" rows="3" placeholder="Add the invite link and quick instructions"></textarea>
-              <span class="field__help">Shared in the reminder email along with the event details.</span>
-            </label>
-            <label class="field field--checkbox">
-              <input type="checkbox" name="sendReminderAfterSave">
-              <span class="field__label">Send reminder right after saving</span>
-              <span class="field__help">Uses the reminder schedule above and recipients to email immediately.</span>
-            </label>
-          </div>
-        </fieldset>
-
-          <fieldset class="create-event-form__sync">
-            <legend>Optional sync</legend>
-            <p>Select the services that should also receive this event after it is stored locally.</p>
-            <label class="chip">
-              <input type="checkbox" name="syncProviders" value="google">
-              <span>Google</span>
-            </label>
-            <label class="chip">
-              <input type="checkbox" name="syncProviders" value="outlook">
-              <span>Outlook</span>
-            </label>
-          </fieldset>
-
-          <button type="submit">Save event</button>
-        </form>
+        </aside>
       </div>
 
-      <div class="calendar-view" aria-labelledby="calendar-view-title">
-        <div class="calendar-view__header">
+      <section class="calendar-activity" aria-labelledby="calendar-activity-title">
+        <div class="calendar-activity__header">
           <div>
-            <h3 id="calendar-view-title">Monthly overview</h3>
-            <p class="calendar-view__subtitle">See your saved events at a glance.</p>
-          </div>
-          <div class="calendar-view__controls" role="group" aria-label="Change month">
-            <button type="button" class="button-secondary" data-calendar-nav="prev" aria-label="Previous month">‹</button>
-            <button type="button" class="button-secondary" data-calendar-today>Today</button>
-            <button type="button" class="button-secondary" data-calendar-nav="next" aria-label="Next month">›</button>
+            <p class="planner-card__eyebrow">Activity</p>
+            <h3 id="calendar-activity-title">Imported events and status updates</h3>
+            <p class="planner-card__intro">
+              Keep long event cards and sync messages below the main calendar so the month stays the focus.
+            </p>
           </div>
         </div>
-        <p class="calendar-view__current" data-calendar-current aria-live="polite"></p>
-        <div class="calendar-view__grid" role="grid" aria-describedby="calendar-view-title">
-          <div class="calendar-view__grid-inner">
-            <div class="calendar-view__day-names" data-calendar-day-names role="row"></div>
-            <div class="calendar-view__days" data-calendar-grid role="rowgroup"></div>
+        <div class="calendar-activity__grid">
+          <div class="event-results" aria-live="polite">
+            <div class="event-results__empty" data-empty>
+              <p>No events yet. Add one above or import from Google/Outlook when you're ready.</p>
+            </div>
+            <ul class="event-results__list" data-event-list></ul>
           </div>
-        </div>
-        <div class="calendar-view__details" data-calendar-details hidden>
-          <h4 class="calendar-view__details-title" data-calendar-details-title></h4>
-          <p class="calendar-view__details-empty" data-calendar-details-empty>No events for this day yet. Use the button below to add one.</p>
-          <div class="calendar-view__details-actions" data-calendar-details-actions hidden>
-            <button type="button" class="button-secondary" data-action="add-event-for-day">Add event for this day</button>
-          </div>
-          <ul class="calendar-view__details-list" data-calendar-details-list></ul>
-        </div>
-      </div>
 
-      <div class="event-results" aria-live="polite">
-        <div class="event-results__empty" data-empty>
-          <p>No events yet. Add one above or import from Google/Outlook when you're ready.</p>
+          <div class="calendar-console">
+            <h4 class="calendar-console__title">Log</h4>
+            <p class="calendar-console__intro">Import, sync, and reminder updates land here while you work.</p>
+            <div
+              class="log"
+              aria-live="polite"
+              data-log
+              data-empty-message="Import, sync, and reminder updates will appear here."
+            ></div>
+          </div>
         </div>
-        <ul class="event-results__list" data-event-list></ul>
-      </div>
-
-      <div class="log" aria-live="polite" data-log></div>
+      </section>
     </section>
 
     <aside class="calendar-rail">
