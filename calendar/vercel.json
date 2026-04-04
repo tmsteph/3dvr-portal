@@ -43,8 +43,8 @@
   ],
   "rewrites": [
     {
-      "source": "/api/:path((?!_proxy$).*)",
-      "destination": "/api/_proxy?path=:path*"
+      "source": "/api/:path*",
+      "destination": "https://portal.3dvr.tech/api/:path*"
     }
   ],
   "ignoreCommand": "sh ./ignore-build.sh"
