@@ -133,144 +133,24 @@
   ],
   "rewrites": [
     {
-      "source": "/",
+      "source": "/:calendarPath((?!api(?:/|$)|_vercel(?:/|$)|styles/|icons/|favicon\\.ico$|gun-init\\.js$|oauth\\.js$|calendar(?:/|$)).*)",
       "has": [
         {
           "type": "host",
           "value": "calendar.3dvr.tech"
         }
       ],
-      "destination": "/calendar/index.html"
+      "destination": "/calendar/:calendarPath*"
     },
     {
-      "source": "/index.html",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/index.html"
-    },
-    {
-      "source": "/calendar.css",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/calendar.css"
-    },
-    {
-      "source": "/calendar.js",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/calendar.js"
-    },
-    {
-      "source": "/pwa-install.js",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/pwa-install.js"
-    },
-    {
-      "source": "/calendar.webmanifest",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/calendar.webmanifest"
-    },
-    {
-      "source": "/service-worker.js",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/service-worker.js"
-    },
-    {
-      "source": "/",
+      "source": "/:calendarPath((?!api(?:/|$)|_vercel(?:/|$)|styles/|icons/|favicon\\.ico$|gun-init\\.js$|oauth\\.js$|calendar(?:/|$)).*)",
       "has": [
         {
           "type": "host",
           "value": "calendar-staging.3dvr.tech"
         }
       ],
-      "destination": "/calendar/index.html"
-    },
-    {
-      "source": "/index.html",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar-staging.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/index.html"
-    },
-    {
-      "source": "/calendar.css",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar-staging.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/calendar.css"
-    },
-    {
-      "source": "/calendar.js",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar-staging.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/calendar.js"
-    },
-    {
-      "source": "/pwa-install.js",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar-staging.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/pwa-install.js"
-    },
-    {
-      "source": "/calendar.webmanifest",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar-staging.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/calendar.webmanifest"
-    },
-    {
-      "source": "/service-worker.js",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar-staging.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/service-worker.js"
+      "destination": "/calendar/:calendarPath*"
     },
     {
       "source": "/webhooks/stripe",
