@@ -69,6 +69,23 @@ test('calendar standalone proxy builds target URLs and forwards the original hos
   assert.equal(headers.get('accept'), 'application/json');
 });
 
+test('calendar standalone proxy rebuilds rewritten catch-all paths from the proxy route', () => {
+  const req = {
+    query: {
+      path: ['oauth', 'google'],
+      action: 'config',
+      returnTo: '/',
+    },
+  };
+
+  const targetUrl = buildProxyTargetUrl(req, 'https://portal.3dvr.tech');
+
+  assert.equal(
+    targetUrl.href,
+    'https://portal.3dvr.tech/api/oauth/google?action=config&returnTo=%2F'
+  );
+});
+
 test('calendar standalone proxy reads JSON request bodies for forwarded POST calls', async () => {
   const req = {
     method: 'POST',

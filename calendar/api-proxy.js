@@ -49,6 +49,31 @@ export function resolvePortalOrigin(req, env = process.env) {
 
 export function buildProxyTargetUrl(req, portalOrigin) {
   const targetOrigin = normalizeOrigin(portalOrigin) || DEFAULT_PORTAL_ORIGIN;
+  const proxiedPath = req?.query?.path;
+  const normalizedProxyPath = Array.isArray(proxiedPath)
+    ? proxiedPath.map((value) => String(value || '').trim()).filter(Boolean).join('/')
+    : String(proxiedPath || '').trim().replace(/^\/+/, '');
+
+  if (normalizedProxyPath) {
+    const targetUrl = new URL(`api/${normalizedProxyPath}`, `${targetOrigin}/`);
+    const query = req?.query && typeof req.query === 'object' ? req.query : {};
+    const searchParams = new URLSearchParams();
+
+    for (const [key, rawValue] of Object.entries(query)) {
+      if (key === 'path' || rawValue == null) continue;
+      if (Array.isArray(rawValue)) {
+        rawValue.forEach((value) => searchParams.append(key, String(value)));
+      } else {
+        searchParams.set(key, String(rawValue));
+      }
+    }
+
+    if (searchParams.size) {
+      targetUrl.search = searchParams.toString();
+    }
+    return targetUrl;
+  }
+
   const requestPath = String(req?.url || '/api').replace(/^\//, '');
   return new URL(requestPath, `${targetOrigin}/`);
 }
