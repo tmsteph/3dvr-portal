@@ -14,6 +14,19 @@ test('CRM page exposes workflow filters for fast lead retrieval', async () => {
   assert.match(html, /id="filterAllRecords"/);
   assert.match(html, /id="filterWarmLeads"/);
   assert.match(html, /id="personWorkflowFilter"/);
+  assert.match(html, /Today's Sales Moves/);
+  assert.match(html, /id="salesMovesFollowUpCount"/);
+  assert.match(html, /id="salesMovesHotDraftCount"/);
+  assert.match(html, /id="salesMovesWarmStaleCount"/);
+  assert.match(html, /id="salesMovesRepliesCount"/);
+  assert.match(html, /id="warmth"/);
+  assert.match(html, /id="fit"/);
+  assert.match(html, /id="urgency"/);
+  assert.match(html, /id="lastContacted"/);
+  assert.match(html, /id="nextBestAction"/);
+  assert.match(html, /id="objection"/);
+  assert.match(html, /id="crmDetailDrafts"/);
+  assert.match(html, /id="crmDetailTimeline"/);
   assert.match(html, /id="crmResearchProfessionalServices"/);
   assert.match(html, /id="crmResearchLocalServices"/);
   assert.match(html, /id="crmResearchSupportTeams"/);
@@ -34,6 +47,10 @@ test('CRM app includes keyboard search shortcut and person workflow filter wirin
   assert.match(js, /event\.key === '\/' && !isTypingContext/);
   assert.match(js, /data-contact-id=/);
   assert.match(js, /workflowFilter === 'linked'/);
+  assert.match(js, /crm-outreach-drafts/);
+  assert.match(js, /renderSalesMoves/);
+  assert.match(js, /saveLeadDraft/);
+  assert.match(js, /renderTimeline/);
 });
 
 test('Contacts page exposes CRM link filter', async () => {

@@ -42,6 +42,29 @@ const DEFAULT_PILOT_STATUS_OPTIONS = Object.freeze([
   'Not a fit',
 ]);
 
+const DEFAULT_WARMTH_OPTIONS = Object.freeze([
+  Object.freeze({ value: '', label: 'Warmth' }),
+  Object.freeze({ value: 'cold', label: 'Cold' }),
+  Object.freeze({ value: 'warm', label: 'Warm' }),
+  Object.freeze({ value: 'hot', label: 'Hot' }),
+]);
+
+const DEFAULT_FIT_OPTIONS = Object.freeze([
+  Object.freeze({ value: '', label: 'Fit' }),
+  Object.freeze({ value: 'website', label: 'Website' }),
+  Object.freeze({ value: 'branding', label: 'Branding' }),
+  Object.freeze({ value: 'app', label: 'App' }),
+  Object.freeze({ value: 'support', label: 'Support' }),
+  Object.freeze({ value: 'consulting', label: 'Consulting' }),
+]);
+
+const DEFAULT_URGENCY_OPTIONS = Object.freeze([
+  Object.freeze({ value: '', label: 'Urgency' }),
+  Object.freeze({ value: 'low', label: 'Low' }),
+  Object.freeze({ value: 'medium', label: 'Medium' }),
+  Object.freeze({ value: 'high', label: 'High' }),
+]);
+
 const DEFAULT_RECORD_TYPE_OPTIONS = Object.freeze([
   Object.freeze({ value: 'person', label: 'Person / lead' }),
   Object.freeze({ value: 'group', label: 'Group / account' }),
@@ -52,6 +75,9 @@ export const CRM_STATUS_OPTIONS = DEFAULT_STATUS_OPTIONS;
 export const CRM_MARKET_SEGMENT_OPTIONS = DEFAULT_MARKET_SEGMENT_OPTIONS;
 export const CRM_PAIN_SEVERITY_OPTIONS = DEFAULT_PAIN_SEVERITY_OPTIONS;
 export const CRM_PILOT_STATUS_OPTIONS = DEFAULT_PILOT_STATUS_OPTIONS;
+export const CRM_WARMTH_OPTIONS = DEFAULT_WARMTH_OPTIONS;
+export const CRM_FIT_OPTIONS = DEFAULT_FIT_OPTIONS;
+export const CRM_URGENCY_OPTIONS = DEFAULT_URGENCY_OPTIONS;
 export const CRM_RECORD_TYPE_OPTIONS = DEFAULT_RECORD_TYPE_OPTIONS;
 
 export function createCrmEditingManager(initialIds = []) {
@@ -110,6 +136,41 @@ export function normalizeCrmRecordType(value = '') {
   return 'person';
 }
 
+export function normalizeCrmWarmth(value = '', fallbackStatus = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'cold' || normalized === 'warm' || normalized === 'hot') {
+    return normalized;
+  }
+
+  const status = String(fallbackStatus || '').trim().toLowerCase();
+  if (status === 'active' || status === 'negotiating' || status === 'won') {
+    return 'hot';
+  }
+  if (status.startsWith('warm -')) {
+    return 'warm';
+  }
+  if (status === 'lead' || status === 'prospect' || status === 'lost') {
+    return 'cold';
+  }
+  return '';
+}
+
+export function normalizeCrmFit(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'website' || normalized === 'branding' || normalized === 'app' || normalized === 'support' || normalized === 'consulting') {
+    return normalized;
+  }
+  return '';
+}
+
+export function normalizeCrmUrgency(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'low' || normalized === 'medium' || normalized === 'high') {
+    return normalized;
+  }
+  return '';
+}
+
 export function parseCrmList(value) {
   const parts = Array.isArray(value)
     ? value
@@ -145,6 +206,14 @@ export function sanitizeCrmRecord(data) {
   clean.groupId = String(clean.groupId || '').trim();
   clean.linkedGroupIds = serializeCrmList(clean.linkedGroupIds);
   clean.linkedPersonIds = serializeCrmList(clean.linkedPersonIds);
+  clean.nextFollowUp = String(clean.nextFollowUp || clean.nextFollowup || '').trim();
+  delete clean.nextFollowup;
+  clean.warmth = normalizeCrmWarmth(clean.warmth, clean.status);
+  clean.fit = normalizeCrmFit(clean.fit);
+  clean.urgency = normalizeCrmUrgency(clean.urgency);
+  clean.objection = String(clean.objection || '').trim();
+  clean.nextBestAction = String(clean.nextBestAction || clean.nextExperiment || '').trim();
+  clean.lastContacted = String(clean.lastContacted || '').trim();
 
   return clean;
 }

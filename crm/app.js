@@ -3,8 +3,12 @@ import {
   CRM_MARKET_SEGMENT_OPTIONS,
   CRM_PAIN_SEVERITY_OPTIONS,
   CRM_PILOT_STATUS_OPTIONS,
+  CRM_WARMTH_OPTIONS,
+  CRM_FIT_OPTIONS,
+  CRM_URGENCY_OPTIONS,
   CRM_RECORD_TYPE_OPTIONS,
   normalizeCrmRecordType,
+  normalizeCrmWarmth,
   parseCrmList,
   sanitizeCrmRecord,
   buildCrmRelationshipBoard,
@@ -18,11 +22,13 @@ const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
 const guestsRoot = gun.get('3dvr-guests');
 const crmRecords = gun.get('3dvr-crm');
+const CRM_DRAFTS_NODE_PATH = ['3dvr-portal', 'crm-outreach-drafts'];
 const ORG_CONTACTS_SPACE = 'org-3dvr';
 const ORG_CONTACTS_NODE_KEY = 'org-3dvr-demo';
 const contactsWorkspaceOrg = gun.get(ORG_CONTACTS_NODE_KEY);
 const contactsWorkspacePersonal = user.get('contacts');
 const touchLogRoot = portalRoot.get('crm-touch-log');
+const crmDraftsRoot = portalRoot.get('crm-outreach-drafts');
 const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
   ? window.ScoreSystem.getManager({ gun, user, portalRoot })
   : null;
@@ -40,18 +46,90 @@ const password = ls.getItem('password') || '';
 const contactWorkspaceOrgIndex = Object.create(null);
 const contactWorkspacePersonalIndex = Object.create(null);
 const crmIndex = Object.create(null);
+const draftIndex = new Map();
 const touchLogIndex = new Map();
 const duplicateSummaryById = new Map();
 const WEEKLY_CHALLENGE_GOAL = 3;
+const SALES_STALE_DAYS = 7;
 const DEFAULT_PERSON_STATUS = 'Warm - Awareness';
 const WARM_STATUS_PREFIX = 'warm -';
+const DEFAULT_DRAFT_TONE = 'professional';
+const SALES_DRAFT_PRESETS = Object.freeze({
+  builder: Object.freeze({
+    name: 'Builder follow-up',
+    status: DEFAULT_PERSON_STATUS,
+    warmth: 'warm',
+    fit: 'website',
+    marketSegment: 'Professional services',
+    primaryPain: 'Lead flow and follow-up',
+    pilotStatus: 'Warm',
+    offerAmount: '$50/mo',
+    lastSignal: 'Sales handoff',
+    nextExperiment: 'Book a 15-minute discovery call',
+    nextBestAction: 'Send a short Builder intro and ask for a call.',
+    source: 'Sales handoff',
+  }),
+  embedded: Object.freeze({
+    name: 'Embedded follow-up',
+    status: 'Lead',
+    warmth: 'warm',
+    fit: 'support',
+    marketSegment: 'Support team or community org',
+    primaryPain: 'Intake, scheduling, and shared coordination',
+    pilotStatus: 'Pilot candidate',
+    offerAmount: '$200/mo',
+    lastSignal: 'Sales handoff',
+    nextExperiment: 'Book a 15-minute workflow call',
+    nextBestAction: 'Offer a short operations call and confirm the bottleneck.',
+    source: 'Sales handoff',
+  }),
+  custom: Object.freeze({
+    name: 'Custom project follow-up',
+    status: DEFAULT_PERSON_STATUS,
+    warmth: 'warm',
+    fit: 'app',
+    marketSegment: 'Owner-led service business',
+    primaryPain: 'A custom workflow or build is still under discussion',
+    pilotStatus: 'Watching',
+    offerAmount: 'Custom quote',
+    lastSignal: 'Sales handoff',
+    nextExperiment: 'Send the next scoped offer',
+    nextBestAction: 'Share the direct offer and ask for the decision path.',
+    source: 'Sales handoff',
+  }),
+});
+const DRAFT_TYPE_OPTIONS = Object.freeze([
+  Object.freeze({
+    value: 'firstMessage',
+    label: 'First message',
+    description: 'Open the relationship with a clear, human first note.',
+  }),
+  Object.freeze({
+    value: 'followUp',
+    label: 'Follow-up',
+    description: 'Reference the last touch and make the next step easy.',
+  }),
+  Object.freeze({
+    value: 'softCheckIn',
+    label: 'Soft check-in',
+    description: 'Keep the lead warm without forcing a hard ask.',
+  }),
+  Object.freeze({
+    value: 'directOffer',
+    label: 'Direct offer',
+    description: 'State the offer, fit, and next best action directly.',
+  }),
+]);
 const TOUCH_TYPE_OPTIONS = Object.freeze([
+  Object.freeze({ value: 'drafted', label: 'Drafted' }),
   Object.freeze({ value: 'outreach-sent', label: 'Outreach sent' }),
   Object.freeze({ value: 'reply-received', label: 'Reply received' }),
+  Object.freeze({ value: 'follow-up-scheduled', label: 'Follow-up scheduled' }),
   Object.freeze({ value: 'call-booked', label: 'Call booked' }),
   Object.freeze({ value: 'meeting-held', label: 'Meeting held' }),
   Object.freeze({ value: 'closed-won', label: 'Closed won' }),
-  Object.freeze({ value: 'closed-lost', label: 'Closed lost' }),
+  Object.freeze({ value: 'closed-later', label: 'Closed later' }),
+  Object.freeze({ value: 'not-a-fit', label: 'Not a fit' }),
 ]);
 const focusClasses = ['ring-2', 'ring-sky-400', 'ring-offset-2', 'ring-offset-gray-900'];
 
@@ -77,6 +155,9 @@ const elements = {
   openCreate: document.getElementById('openCrmCreate'),
   openGroupCreate: document.getElementById('openGroupCreate'),
   openProblemCreate: document.getElementById('openProblemCreate'),
+  draftBuilder: document.getElementById('crmDraftBuilder'),
+  draftEmbedded: document.getElementById('crmDraftEmbedded'),
+  draftCustom: document.getElementById('crmDraftCustom'),
   closeCreate: document.getElementById('closeCrmCreate'),
   cancelCreate: document.getElementById('cancelCrmCreate'),
   detailOverlay: document.getElementById('crmDetailOverlay'),
@@ -96,10 +177,22 @@ const elements = {
   challengeProgressBar: document.getElementById('challengeProgressBar'),
   challengeRecentList: document.getElementById('challengeRecentList'),
   challengeStatus: document.getElementById('challengeStatus'),
+  salesMovesSummary: document.getElementById('salesMovesSummary'),
+  salesMovesFollowUpCount: document.getElementById('salesMovesFollowUpCount'),
+  salesMovesFollowUpList: document.getElementById('salesMovesFollowUpList'),
+  salesMovesHotDraftCount: document.getElementById('salesMovesHotDraftCount'),
+  salesMovesHotDraftList: document.getElementById('salesMovesHotDraftList'),
+  salesMovesWarmStaleCount: document.getElementById('salesMovesWarmStaleCount'),
+  salesMovesWarmStaleList: document.getElementById('salesMovesWarmStaleList'),
+  salesMovesRepliesCount: document.getElementById('salesMovesRepliesCount'),
+  salesMovesRepliesList: document.getElementById('salesMovesRepliesList'),
   recordType: document.getElementById('recordType'),
   groupId: document.getElementById('groupId'),
   linkedGroupIds: document.getElementById('linkedGroupIds'),
   linkedPersonIds: document.getElementById('linkedPersonIds'),
+  detailDrafts: document.getElementById('crmDetailDrafts'),
+  detailTimeline: document.getElementById('crmDetailTimeline'),
+  detailSalesNote: document.getElementById('crmDetailSalesNote'),
 };
 
 const params = new URLSearchParams(window.location.search);
@@ -125,7 +218,10 @@ const state = {
     role: (params.get('role') || '').trim(),
     tags: (params.get('tags') || '').trim(),
     status: (params.get('status') || '').trim(),
-    nextFollowUp: (params.get('next') || params.get('followup') || '').trim(),
+    warmth: (params.get('warmth') || '').trim(),
+    fit: (params.get('fit') || '').trim(),
+    urgency: (params.get('urgency') || '').trim(),
+    nextFollowUp: (params.get('next') || params.get('followup') || params.get('nextFollowup') || '').trim(),
     marketSegment: (params.get('segment') || '').trim(),
     primaryPain: (params.get('pain') || '').trim(),
     painSeverity: (params.get('severity') || '').trim(),
@@ -134,6 +230,9 @@ const state = {
     offerAmount: (params.get('offer') || params.get('amount') || '').trim(),
     lastSignal: (params.get('signal') || '').trim(),
     nextExperiment: (params.get('experiment') || '').trim(),
+    nextBestAction: (params.get('nextBestAction') || params.get('nextAction') || '').trim(),
+    objection: (params.get('objection') || '').trim(),
+    lastContacted: (params.get('lastContacted') || '').trim(),
     groupId: (params.get('groupId') || '').trim(),
     notes: (params.get('notes') || params.get('note') || '').trim(),
     source: (params.get('source') || '').trim(),
@@ -168,6 +267,14 @@ function safeAttr(value) {
   return safe(value).replace(/"/g, '&quot;');
 }
 
+function escapeSelectorValue(value) {
+  const raw = String(value || '');
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(raw);
+  }
+  return raw.replace(/["\\]/g, '\\$&');
+}
+
 function buildEmailOperatorHref(record = {}) {
   const params = new URLSearchParams();
   params.set('draft', '1');
@@ -189,7 +296,7 @@ function buildEmailOperatorHref(record = {}) {
   if (record.tags) params.set('tags', record.tags);
   params.set('source', 'crm');
 
-  const nextAction = String(record.nextExperiment || record.nextFollowUp || '').trim();
+  const nextAction = String(record.nextBestAction || record.nextExperiment || record.nextFollowUp || '').trim();
   if (nextAction) {
     params.set('next', nextAction);
   }
@@ -233,6 +340,9 @@ function toActivityCount(value) {
 
 function normalizeTouchType(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'sent') return 'outreach-sent';
+  if (normalized === 'replied') return 'reply-received';
+  if (normalized === 'closed-lost') return 'closed-later';
   const match = TOUCH_TYPE_OPTIONS.find(option => option.value === normalized);
   return match ? match.value : 'outreach-sent';
 }
@@ -248,7 +358,7 @@ function deriveStatusFromTouch(record = {}, touchType = 'outreach-sent') {
   const normalizedType = normalizeTouchType(touchType);
 
   if (normalizedType === 'closed-won') return 'Won';
-  if (normalizedType === 'closed-lost') return 'Lost';
+  if (normalizedType === 'not-a-fit') return 'Lost';
   if (current === 'Won' || current === 'Lost') return current;
 
   if (normalizedType === 'reply-received') {
@@ -264,6 +374,10 @@ function deriveStatusFromTouch(record = {}, touchType = 'outreach-sent') {
 
   if (normalizedType === 'meeting-held') {
     return 'Negotiating';
+  }
+
+  if (normalizedType === 'closed-later') {
+    return 'Warm - Follow-up';
   }
 
   return current || DEFAULT_PERSON_STATUS;
@@ -337,6 +451,142 @@ function normalizeFollowUpInput(value) {
     return parsed.toISOString().slice(0, 10);
   }
   return raw;
+}
+
+function normalizeDateTimeLocalInput(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return raw;
+  }
+  const offsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function parseDateTimeLocalInput(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return raw;
+  }
+  return parsed.toISOString();
+}
+
+function formatTitleCase(value) {
+  return String(value || '')
+    .split(/[\s-]+/)
+    .map(token => token ? `${token.slice(0, 1).toUpperCase()}${token.slice(1)}` : '')
+    .join(' ');
+}
+
+function resolveLeadWarmth(record = {}) {
+  return normalizeCrmWarmth(record.warmth, record.status);
+}
+
+function resolveLeadFit(record = {}) {
+  return String(record.fit || '').trim().toLowerCase();
+}
+
+function resolveLeadUrgency(record = {}) {
+  const normalized = String(record.urgency || '').trim().toLowerCase();
+  if (normalized === 'low' || normalized === 'medium' || normalized === 'high') {
+    return normalized;
+  }
+  return '';
+}
+
+function getDraftTypeConfig(draftType) {
+  return DRAFT_TYPE_OPTIONS.find(option => option.value === draftType) || DRAFT_TYPE_OPTIONS[0];
+}
+
+function sanitizeDraftBundle(recordId, data = {}) {
+  const clean = {};
+  Object.entries(data || {}).forEach(([key, value]) => {
+    if (key === '_' || typeof value === 'function') {
+      return;
+    }
+    clean[key] = value;
+  });
+  const leadId = String(clean.leadId || clean.recordId || recordId || '').trim();
+  const next = {
+    leadId,
+    tone: String(clean.tone || DEFAULT_DRAFT_TONE).trim().toLowerCase() || DEFAULT_DRAFT_TONE,
+    updated: String(clean.updated || '').trim(),
+    updatedBy: String(clean.updatedBy || '').trim(),
+  };
+  DRAFT_TYPE_OPTIONS.forEach(option => {
+    next[option.value] = String(clean[option.value] || '').trim();
+  });
+  return next;
+}
+
+function getLeadDraftBundle(recordId) {
+  return sanitizeDraftBundle(recordId, draftIndex.get(recordId) || {});
+}
+
+function hasOutreachDraft(recordId) {
+  const bundle = getLeadDraftBundle(recordId);
+  return DRAFT_TYPE_OPTIONS.some(option => Boolean(bundle[option.value]));
+}
+
+function sortByTimestampDesc(a, b) {
+  return String(b?.timestamp || '').localeCompare(String(a?.timestamp || ''));
+}
+
+function getRecordTimelineEntries(record = {}) {
+  const contactId = String(record.contactId || '').trim();
+  return Array.from(touchLogIndex.values())
+    .filter(entry => {
+      const entryRecordId = String(entry?.recordId || '').trim();
+      const entryCrmRecordId = String(entry?.crmRecordId || '').trim();
+      const entryContactId = String(entry?.contactId || '').trim();
+      return entryCrmRecordId === record.id
+        || entryRecordId === record.id
+        || Boolean(contactId && (entryRecordId === contactId || entryContactId === contactId));
+    })
+    .sort(sortByTimestampDesc);
+}
+
+function comparePeopleByFollowUpThenName(a, b) {
+  const aDate = normalizeFollowUpInput(a.nextFollowUp || '');
+  const bDate = normalizeFollowUpInput(b.nextFollowUp || '');
+  if (aDate && bDate && aDate !== bDate) {
+    return aDate.localeCompare(bDate);
+  }
+  if (aDate && !bDate) return -1;
+  if (!aDate && bDate) return 1;
+  return String(a?.name || '').localeCompare(String(b?.name || ''));
+}
+
+function comparePeopleByRecencyThenName(a, b) {
+  const aDate = String(a?.lastContacted || '');
+  const bDate = String(b?.lastContacted || '');
+  if (aDate !== bDate) {
+    return aDate.localeCompare(bDate);
+  }
+  return String(a?.name || '').localeCompare(String(b?.name || ''));
+}
+
+function isClosedStatus(status = '') {
+  const normalized = String(status || '').trim().toLowerCase();
+  return normalized === 'won' || normalized === 'lost';
+}
+
+function needsReplyResponse(record = {}) {
+  if (!record.lastReplyAt || isClosedStatus(record.status)) {
+    return false;
+  }
+  const lastReplyAt = new Date(record.lastReplyAt);
+  const lastContacted = record.lastContacted ? new Date(record.lastContacted) : null;
+  if (Number.isNaN(lastReplyAt.getTime())) {
+    return false;
+  }
+  if (!lastContacted || Number.isNaN(lastContacted.getTime())) {
+    return true;
+  }
+  return lastReplyAt.getTime() >= lastContacted.getTime();
 }
 
 function getParticipantId() {
@@ -492,6 +742,9 @@ function getContactButtonLabel(record) {
 function populateStaticSelects() {
   setSelectOptions(elements.recordType, CRM_RECORD_TYPE_OPTIONS, 'person', 'Record type');
   setSelectOptions(document.getElementById('status'), CRM_STATUS_OPTIONS, DEFAULT_PERSON_STATUS, 'Status (optional)');
+  setSelectOptions(document.getElementById('warmth'), CRM_WARMTH_OPTIONS, '', 'Warmth');
+  setSelectOptions(document.getElementById('fit'), CRM_FIT_OPTIONS, '', 'Fit');
+  setSelectOptions(document.getElementById('urgency'), CRM_URGENCY_OPTIONS, '', 'Urgency');
   setSelectOptions(document.getElementById('marketSegment'), CRM_MARKET_SEGMENT_OPTIONS, '', 'Market segment');
   setSelectOptions(document.getElementById('painSeverity'), CRM_PAIN_SEVERITY_OPTIONS, '', 'Pain severity');
   setSelectOptions(document.getElementById('pilotStatus'), CRM_PILOT_STATUS_OPTIONS, '', 'Pilot status');
@@ -543,6 +796,11 @@ function pruneRecordForType(record) {
     next.company = '';
     next.phone = '';
     next.role = '';
+    next.warmth = '';
+    next.fit = '';
+    next.urgency = '';
+    next.objection = '';
+    next.nextBestAction = '';
     next.nextFollowUp = '';
     next.primaryPain = '';
     next.painSeverity = '';
@@ -568,6 +826,11 @@ function pruneRecordForType(record) {
     next.role = '';
     next.tags = '';
     next.status = '';
+    next.warmth = '';
+    next.fit = '';
+    next.urgency = '';
+    next.objection = '';
+    next.nextBestAction = '';
     next.nextFollowUp = '';
     next.marketSegment = '';
     next.currentWorkaround = '';
@@ -585,6 +848,12 @@ function pruneRecordForType(record) {
   next.linkedPersonIds = '';
   next.activityCount = toActivityCount(next.activityCount);
   next.replyCount = toActivityCount(next.replyCount);
+  next.warmth = resolveLeadWarmth(next);
+  next.fit = resolveLeadFit(next);
+  next.urgency = resolveLeadUrgency(next);
+  next.objection = String(next.objection || '').trim();
+  next.nextBestAction = String(next.nextBestAction || next.nextExperiment || '').trim();
+  next.lastContacted = String(next.lastContacted || '').trim();
   return next;
 }
 
@@ -624,7 +893,11 @@ function fillCreateForm(record = {}) {
   document.getElementById('role').value = record.role || '';
   document.getElementById('tags').value = record.tags || '';
   document.getElementById('status').value = record.status || (type === 'problem' ? '' : DEFAULT_PERSON_STATUS);
+  document.getElementById('warmth').value = resolveLeadWarmth(record);
+  document.getElementById('fit').value = resolveLeadFit(record);
+  document.getElementById('urgency').value = resolveLeadUrgency(record);
   document.getElementById('nextFollowUp').value = normalizeFollowUpInput(record.nextFollowUp || '');
+  document.getElementById('lastContacted').value = normalizeDateTimeLocalInput(record.lastContacted || '');
   document.getElementById('marketSegment').value = record.marketSegment || '';
   document.getElementById('primaryPain').value = record.primaryPain || '';
   document.getElementById('painSeverity').value = record.painSeverity || '';
@@ -633,6 +906,8 @@ function fillCreateForm(record = {}) {
   document.getElementById('offerAmount').value = record.offerAmount || '';
   document.getElementById('lastSignal').value = record.lastSignal || '';
   document.getElementById('nextExperiment').value = record.nextExperiment || '';
+  document.getElementById('nextBestAction').value = record.nextBestAction || record.nextExperiment || '';
+  document.getElementById('objection').value = record.objection || '';
   document.getElementById('notes').value = record.notes || '';
   elements.groupId.value = record.groupId || '';
   setMultiSelectOptions(elements.linkedGroupIds, Array.from(elements.linkedGroupIds.options || []).map(option => ({ value: option.value, label: option.textContent || option.value })), parseCrmList(record.linkedGroupIds));
@@ -688,7 +963,13 @@ function buildRecordFromForm(existingRecord = {}) {
     role: type === 'person' ? getFieldValue('role') : '',
     tags: type === 'problem' ? '' : getFieldValue('tags'),
     status: type === 'problem' ? '' : getFieldValue('status'),
+    warmth: type === 'person' ? resolveLeadWarmth({ warmth: getFieldValue('warmth'), status: getFieldValue('status') }) : '',
+    fit: type === 'person' ? resolveLeadFit({ fit: getFieldValue('fit') }) : '',
+    urgency: type === 'person' ? resolveLeadUrgency({ urgency: getFieldValue('urgency') }) : '',
     nextFollowUp: type === 'person' ? normalizeFollowUpInput(getFieldValue('nextFollowUp')) : '',
+    lastContacted: type === 'person'
+      ? (parseDateTimeLocalInput(getFieldValue('lastContacted')) || String(existingRecord.lastContacted || '').trim())
+      : '',
     marketSegment: type === 'problem' ? '' : getFieldValue('marketSegment'),
     primaryPain: type === 'group' ? '' : getFieldValue('primaryPain'),
     painSeverity: type === 'group' ? '' : getFieldValue('painSeverity'),
@@ -697,6 +978,8 @@ function buildRecordFromForm(existingRecord = {}) {
     offerAmount: type === 'group' ? '' : getFieldValue('offerAmount'),
     lastSignal: type === 'group' ? '' : getFieldValue('lastSignal'),
     nextExperiment: type === 'group' ? '' : getFieldValue('nextExperiment'),
+    nextBestAction: type === 'person' ? getFieldValue('nextBestAction') : '',
+    objection: type === 'person' ? getFieldValue('objection') : '',
     notes: getFieldValue('notes'),
     groupId,
     linkedGroupIds: type === 'problem' ? getSelectedValues(elements.linkedGroupIds) : [],
@@ -705,7 +988,6 @@ function buildRecordFromForm(existingRecord = {}) {
     created: existingRecord.created || now,
     updated: now,
     contactId: type === 'person' ? String(existingRecord.contactId || '').trim() : '',
-    lastContacted: type === 'person' ? String(existingRecord.lastContacted || '').trim() : '',
     activityCount: type === 'person' ? toActivityCount(existingRecord.activityCount) : 0,
   });
 }
@@ -781,6 +1063,10 @@ function renderPersonCard(record, { nested = false } = {}) {
   const group = getGroupRecord(record);
   const problems = (state.board.linkedProblemsByPersonId[record.id] || []).slice().sort(sortByName);
   const duplicateInfo = duplicateSummaryById.get(record.id);
+  const warmth = resolveLeadWarmth(record);
+  const fit = resolveLeadFit(record);
+  const urgency = resolveLeadUrgency(record);
+  const nextBestAction = String(record.nextBestAction || record.nextExperiment || '').trim();
   const haystack = buildHaystack([
     record.name,
     record.email,
@@ -794,21 +1080,26 @@ function renderPersonCard(record, { nested = false } = {}) {
     record.primaryPain,
     record.painSeverity,
     record.currentWorkaround,
+    record.objection,
     record.pilotStatus,
     record.offerAmount,
     record.lastSignal,
     record.nextExperiment,
+    nextBestAction,
+    warmth,
+    fit,
+    urgency,
     group?.name,
     ...problems.map(problem => problem.name),
   ]);
-  const detailLine = [record.primaryPain, record.currentWorkaround, record.lastSignal, record.nextExperiment]
+  const detailLine = [record.primaryPain, record.currentWorkaround, record.objection, nextBestAction]
     .map(value => String(value || '').trim())
     .filter(Boolean)
     .slice(0, 2)
     .join(' · ');
 
   return `
-    <article class="crm-card rounded-2xl border p-4 transition hover:border-white/15 hover:bg-gray-800/80 ${nested ? 'bg-gray-950/55 border-white/10' : 'bg-gray-900/60 border-white/5'}" data-record-id="${safeAttr(record.id)}" data-record-type="person" data-status="${safeAttr(record.status || '')}" data-contact-id="${safeAttr(record.contactId || '')}" data-next-follow-up="${safeAttr(normalizeFollowUpInput(record.nextFollowUp || ''))}" data-updated-at="${safeAttr(record.updated || record.created || '')}" data-haystack="${safeAttr(haystack)}">
+    <article class="crm-card rounded-2xl border p-4 transition hover:border-white/15 hover:bg-gray-800/80 ${nested ? 'bg-gray-950/55 border-white/10' : 'bg-gray-900/60 border-white/5'}" data-record-id="${safeAttr(record.id)}" data-record-type="person" data-status="${safeAttr(record.status || '')}" data-warmth="${safeAttr(warmth)}" data-contact-id="${safeAttr(record.contactId || '')}" data-next-follow-up="${safeAttr(normalizeFollowUpInput(record.nextFollowUp || ''))}" data-updated-at="${safeAttr(record.updated || record.created || '')}" data-haystack="${safeAttr(haystack)}">
       <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div class="min-w-0 space-y-2">
           <div class="flex flex-wrap items-center gap-2">
@@ -817,6 +1108,11 @@ function renderPersonCard(record, { nested = false } = {}) {
             ${group ? `<span class="text-xs px-2 py-0.5 rounded bg-white/10 border border-white/10 text-gray-100">${safe(group.name || 'Group')}</span>` : ''}
             ${duplicateInfo ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-900/50 border border-amber-500/30 text-amber-100">Dupes ${safe(String(duplicateInfo.total))}</span>` : ''}
           </div>
+          ${renderBadgeRow([
+            warmth ? `Warmth ${formatTitleCase(warmth)}` : '',
+            fit ? `Fit ${formatTitleCase(fit)}` : '',
+            urgency ? `Urgency ${formatTitleCase(urgency)}` : '',
+          ])}
           ${renderCompactFacts([
             record.status,
             record.nextFollowUp ? `Follow-up ${record.nextFollowUp}` : '',
@@ -831,6 +1127,7 @@ function renderPersonCard(record, { nested = false } = {}) {
             record.phone ? `<a href="tel:${encodeURIComponent(record.phone)}" class="text-sky-400 hover:underline">${safe(record.phone)}</a>` : '',
           ].filter(Boolean).join(' · ')}</p>` : ''}
           ${detailLine ? `<p class="text-xs text-sky-100/90 rounded-lg border border-sky-400/15 bg-sky-950/40 p-3">${safe(detailLine)}</p>` : ''}
+          ${nextBestAction ? `<p class="text-xs text-amber-100/90 rounded-lg border border-amber-400/15 bg-amber-950/40 p-3">Next best action: ${safe(nextBestAction)}</p>` : ''}
           ${renderCompactFacts([
             `Last contacted ${record.lastContacted ? timeAgo(record.lastContacted) : '—'}`,
             `Touches ${safe(String(toActivityCount(record.activityCount)))}`,
@@ -926,6 +1223,11 @@ function isWarmLeadStatus(status) {
   return String(status || '').trim().toLowerCase().startsWith(WARM_STATUS_PREFIX);
 }
 
+function isWarmLeadCard(card) {
+  const warmth = String(card?.dataset?.warmth || '').trim().toLowerCase();
+  return warmth === 'warm' || (!warmth && isWarmLeadStatus(card?.dataset?.status || ''));
+}
+
 function updateFilterButtons() {
   const isWarm = state.filterMode === 'warm';
   if (elements.filterAllButton) {
@@ -982,7 +1284,7 @@ function applyFilter() {
     const haystackMiss = Boolean(query) && !String(card.dataset.haystack || '').includes(query);
     const status = String(card.dataset.status || '');
     const recordType = String(card.dataset.recordType || '');
-    const warmMiss = warmOnly && (recordType !== 'person' || !isWarmLeadStatus(status));
+    const warmMiss = warmOnly && (recordType !== 'person' || !isWarmLeadCard(card));
 
     let workflowMiss = false;
     if (workflowFilter) {
@@ -1055,6 +1357,107 @@ function renderList() {
 
   elements.list.innerHTML = sections.join('');
   applyFilter();
+  renderSalesMoves();
+}
+
+function renderSalesMoveRows(target, records, formatter) {
+  if (!target) return;
+  if (!records.length) {
+    target.innerHTML = '<p class="text-sm text-gray-400">Nothing urgent in this lane right now.</p>';
+    return;
+  }
+  target.innerHTML = records
+    .slice(0, 4)
+    .map(record => {
+      const copy = formatter(record);
+      return `
+        <button
+          type="button"
+          data-action="open-detail"
+          data-record-id="${safeAttr(record.id)}"
+          class="w-full rounded-xl border border-white/10 bg-gray-950/45 px-3 py-3 text-left transition hover:border-sky-400/30 hover:bg-gray-900/70"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-white truncate">${safe(record.name || '(untitled lead)')}</p>
+              <p class="text-xs text-gray-400 mt-1">${safe(copy.kicker)}</p>
+            </div>
+            <span class="text-[11px] uppercase tracking-[0.24em] text-sky-200/80">${safe(copy.badge)}</span>
+          </div>
+          <p class="text-sm text-gray-200 mt-2">${safe(copy.body)}</p>
+        </button>
+      `;
+    })
+    .join('');
+}
+
+function renderSalesMoves() {
+  const people = state.board.people.filter(record => !isClosedStatus(record.status));
+  const todayKey = normalizeFollowUpInput(new Date().toISOString().slice(0, 10));
+  const staleCutoff = Date.now() - (SALES_STALE_DAYS * 24 * 60 * 60 * 1000);
+
+  const followUpToday = people
+    .filter(record => {
+      const nextFollowUp = normalizeFollowUpInput(record.nextFollowUp || '');
+      return Boolean(nextFollowUp && nextFollowUp <= todayKey);
+    })
+    .sort(comparePeopleByFollowUpThenName);
+
+  const hotWithoutDraft = people
+    .filter(record => resolveLeadWarmth(record) === 'hot' && !hasOutreachDraft(record.id))
+    .sort((a, b) => String(b.updated || b.created || '').localeCompare(String(a.updated || a.created || '')));
+
+  const warmNotContacted = people
+    .filter(record => {
+      if (resolveLeadWarmth(record) !== 'warm') {
+        return false;
+      }
+      if (!record.lastContacted) {
+        return true;
+      }
+      const lastContacted = new Date(record.lastContacted);
+      if (Number.isNaN(lastContacted.getTime())) {
+        return true;
+      }
+      return lastContacted.getTime() <= staleCutoff;
+    })
+    .sort(comparePeopleByRecencyThenName);
+
+  const repliesNeedingResponse = people
+    .filter(needsReplyResponse)
+    .sort((a, b) => String(b.lastReplyAt || '').localeCompare(String(a.lastReplyAt || '')));
+
+  if (elements.salesMovesSummary) {
+    const totalMoves = followUpToday.length + hotWithoutDraft.length + warmNotContacted.length + repliesNeedingResponse.length;
+    elements.salesMovesSummary.textContent = totalMoves
+      ? `${totalMoves} sales moves need attention across ${people.length} live leads.`
+      : `No urgent sales moves right now across ${people.length} live leads.`;
+  }
+  if (elements.salesMovesFollowUpCount) elements.salesMovesFollowUpCount.textContent = String(followUpToday.length);
+  if (elements.salesMovesHotDraftCount) elements.salesMovesHotDraftCount.textContent = String(hotWithoutDraft.length);
+  if (elements.salesMovesWarmStaleCount) elements.salesMovesWarmStaleCount.textContent = String(warmNotContacted.length);
+  if (elements.salesMovesRepliesCount) elements.salesMovesRepliesCount.textContent = String(repliesNeedingResponse.length);
+
+  renderSalesMoveRows(elements.salesMovesFollowUpList, followUpToday, record => ({
+    badge: 'Follow-up',
+    kicker: record.nextFollowUp ? `Due ${record.nextFollowUp}` : 'No date set',
+    body: record.nextBestAction || record.nextExperiment || record.primaryPain || 'Reach out and move the conversation forward.',
+  }));
+  renderSalesMoveRows(elements.salesMovesHotDraftList, hotWithoutDraft, record => ({
+    badge: 'Hot lead',
+    kicker: record.fit ? `${formatTitleCase(record.fit)} fit` : (record.company || record.status || 'Hot lead'),
+    body: record.nextBestAction || 'Create a first outreach draft before this lead cools down.',
+  }));
+  renderSalesMoveRows(elements.salesMovesWarmStaleList, warmNotContacted, record => ({
+    badge: 'Warm',
+    kicker: record.lastContacted ? `Last touch ${timeAgo(record.lastContacted)}` : 'No touch logged yet',
+    body: record.nextBestAction || record.objection || 'Send a soft check-in and keep the thread alive.',
+  }));
+  renderSalesMoveRows(elements.salesMovesRepliesList, repliesNeedingResponse, record => ({
+    badge: 'Reply',
+    kicker: record.lastReplyAt ? `Reply ${timeAgo(record.lastReplyAt)}` : 'Reply waiting',
+    body: record.objection || record.nextBestAction || 'Answer the reply while the conversation is still warm.',
+  }));
 }
 
 function putCrmRecord(record) {
@@ -1096,6 +1499,284 @@ function deleteCrmRecord(id) {
       resolve();
     });
   });
+}
+
+function putLeadDrafts(recordId, payload) {
+  return new Promise((resolve, reject) => {
+    crmDraftsRoot.get(recordId).put(payload, ack => {
+      if (ack && ack.err) {
+        reject(new Error(String(ack.err)));
+        return;
+      }
+      resolve(payload);
+    });
+  });
+}
+
+function showDetailSalesNote(message = '', tone = 'sky') {
+  if (!elements.detailSalesNote) return;
+  const palette = tone === 'amber'
+    ? 'border border-amber-500/30 bg-amber-950/40 text-amber-100'
+    : tone === 'rose'
+    ? 'border border-rose-500/30 bg-rose-950/40 text-rose-100'
+    : 'border border-sky-500/30 bg-sky-950/40 text-sky-100';
+
+  if (!message) {
+    elements.detailSalesNote.className = 'hidden';
+    elements.detailSalesNote.textContent = '';
+    return;
+  }
+
+  elements.detailSalesNote.className = `rounded-lg px-3 py-2 text-xs ${palette}`;
+  elements.detailSalesNote.textContent = message;
+}
+
+async function copyTextToClipboard(value) {
+  const text = String(value || '').trim();
+  if (!text) {
+    throw new Error('Nothing to copy.');
+  }
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const fallback = document.createElement('textarea');
+  fallback.value = text;
+  fallback.setAttribute('readonly', 'readonly');
+  fallback.className = 'fixed -left-[9999px] top-0';
+  document.body.appendChild(fallback);
+  fallback.select();
+  document.execCommand('copy');
+  fallback.remove();
+}
+
+function buildMockDraft(record, draftType, tone = DEFAULT_DRAFT_TONE) {
+  const firstName = String(record.name || 'there').trim().split(/\s+/)[0] || 'there';
+  const fit = resolveLeadFit(record);
+  const fitLine = fit ? `${formatTitleCase(fit)} support` : '3DVR support';
+  const pain = String(record.primaryPain || record.currentWorkaround || record.objection || '').trim();
+  const action = String(record.nextBestAction || record.nextExperiment || '').trim();
+  const offer = String(record.offerAmount || '').trim();
+  const company = String(record.company || '').trim();
+  const subject = company || record.name || 'your team';
+  const toneLine = tone === 'playful'
+    ? 'Wanted to send a quick note before this drifted.'
+    : tone === 'confident'
+    ? 'I can help tighten this up fast.'
+    : tone === 'friendly'
+    ? 'Wanted to check in with a quick note.'
+    : 'Following up with a focused note.';
+
+  if (draftType === 'firstMessage') {
+    return [
+      `Hi ${firstName},`,
+      '',
+      `${toneLine} I think 3DVR could help ${subject} around ${pain || fitLine}.`,
+      action ? `If it helps, the next best move is simple: ${action}.` : 'If it helps, I can sketch the cleanest next step from here.',
+      offer ? `That likely fits inside ${offer}.` : '',
+      '',
+      'Thomas',
+    ].filter(Boolean).join('\n');
+  }
+
+  if (draftType === 'followUp') {
+    return [
+      `Hi ${firstName},`,
+      '',
+      `Circling back on ${pain || fitLine}.`,
+      action ? `If this is still live, I can take the next step on ${action}.` : 'If this is still active, I can send over the most useful next step.',
+      '',
+      'Thomas',
+    ].filter(Boolean).join('\n');
+  }
+
+  if (draftType === 'softCheckIn') {
+    return [
+      `Hi ${firstName},`,
+      '',
+      'Quick check-in in case the timing is better now.',
+      pain ? `I still think there is a clean way to help with ${pain}.` : 'I still think there is a clean way to help here.',
+      action ? `Happy to take ${action} if that would help.` : 'Happy to send a simple outline if useful.',
+      '',
+      'Thomas',
+    ].filter(Boolean).join('\n');
+  }
+
+  return [
+    `Hi ${firstName},`,
+    '',
+    `Here is the direct offer from my side: I can help ${subject} with ${pain || fitLine}.`,
+    offer ? `The current scope would land around ${offer}.` : '',
+    action ? `Next best action: ${action}.` : 'If that is useful, I can send the next step today.',
+    '',
+    'Thomas',
+  ].filter(Boolean).join('\n');
+}
+
+async function generateOutreachDraft(record, draftType, tone = DEFAULT_DRAFT_TONE) {
+  if (window.crmOutreach && typeof window.crmOutreach.generateDraft === 'function') {
+    const response = await window.crmOutreach.generateDraft({
+      record,
+      draftType,
+      tone,
+      drafts: getLeadDraftBundle(record.id),
+    });
+    return String(response || '').trim();
+  }
+  return buildMockDraft(record, draftType, tone);
+}
+
+function appendTouchLogEntry(record = {}, {
+  touchType = 'outreach-sent',
+  note = '',
+  followUp = '',
+  source = 'CRM workspace',
+  statusAfter = '',
+  draftType = '',
+  timestamp = new Date().toISOString(),
+} = {}) {
+  const normalizedRecord = sanitizeCrmRecord(record);
+  const normalizedType = normalizeTouchType(touchType);
+  const logId = `${normalizedRecord.id || 'crm'}-${generateId()}`;
+  const entry = {
+    id: logId,
+    recordId: normalizedRecord.contactId || normalizedRecord.id || '',
+    crmRecordId: normalizedRecord.id || '',
+    contactId: normalizedRecord.contactId || '',
+    contactName: normalizedRecord.name || normalizedRecord.email || 'Unnamed contact',
+    timestamp,
+    followUp: normalizeFollowUpInput(followUp || normalizedRecord.nextFollowUp || ''),
+    note: String(note || '').trim(),
+    touchType: normalizedType,
+    touchTypeLabel: getTouchTypeLabel(normalizedType),
+    draftType: String(draftType || '').trim(),
+    source,
+    segment: normalizedRecord.marketSegment || '',
+    statusAfter: statusAfter || normalizedRecord.status || '',
+    participantId: getParticipantId(),
+    loggedBy: getParticipantLabel(),
+  };
+  touchLogRoot.get(logId).put(entry);
+  touchLogIndex.set(logId, entry);
+  renderWeeklyChallenge();
+  renderSalesMoves();
+  return entry;
+}
+
+async function saveLeadDraft(recordId, draftType, content) {
+  const record = sanitizeCrmRecord(crmIndex[recordId] || state.board.index[recordId] || {});
+  if (!record.id || record.recordType !== 'person') {
+    throw new Error('Only person records can store outreach drafts.');
+  }
+
+  const draftConfig = getDraftTypeConfig(draftType);
+  const previous = getLeadDraftBundle(recordId);
+  const nextValue = String(content || '').trim();
+  const now = new Date().toISOString();
+  const payload = sanitizeDraftBundle(recordId, {
+    ...previous,
+    leadId: recordId,
+    [draftConfig.value]: nextValue,
+    updated: now,
+    updatedBy: getParticipantLabel(),
+  });
+  await putLeadDrafts(recordId, payload);
+  draftIndex.set(recordId, payload);
+  renderSalesMoves();
+
+  if (nextValue && nextValue !== previous[draftConfig.value]) {
+    appendTouchLogEntry(record, {
+      touchType: 'drafted',
+      note: `Saved ${draftConfig.label.toLowerCase()} draft.`,
+      followUp: record.nextFollowUp || '',
+      source: 'CRM drafts',
+      statusAfter: record.status || '',
+      draftType: draftConfig.value,
+      timestamp: now,
+    });
+  }
+
+  return payload;
+}
+
+function renderDraftCards(record) {
+  if (!elements.detailDrafts) return;
+  if (record.recordType !== 'person') {
+    elements.detailDrafts.innerHTML = '';
+    return;
+  }
+
+  const bundle = getLeadDraftBundle(record.id);
+  elements.detailDrafts.innerHTML = `
+    <section class="space-y-4 rounded-lg border border-white/10 bg-gray-800/80 p-4">
+      <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p class="text-xs uppercase tracking-[0.32em] text-sky-300">Outreach drafts</p>
+          <h3 class="text-lg font-semibold text-white">Human-in-the-loop messages</h3>
+          <p class="text-sm text-gray-300">Save one working draft per move, copy it fast, or use the mock generator as an AI hook.</p>
+        </div>
+        <p class="text-xs text-gray-400">${bundle.updated ? `Last saved ${formatUpdated(bundle.updated)} by ${safe(bundle.updatedBy || 'Unknown')}` : 'No outreach drafts saved yet.'}</p>
+      </div>
+      <div class="grid gap-3 md:grid-cols-2">
+        ${DRAFT_TYPE_OPTIONS.map(option => `
+          <article class="rounded-xl border border-white/10 bg-gray-950/45 p-4 space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h4 class="text-sm font-semibold text-white">${safe(option.label)}</h4>
+                <p class="text-xs text-gray-400 mt-1">${safe(option.description)}</p>
+              </div>
+              <span class="text-[11px] uppercase tracking-[0.24em] text-sky-200/80">${safe(option.value)}</span>
+            </div>
+            <textarea
+              data-draft-input
+              data-record-id="${safeAttr(record.id)}"
+              data-draft-type="${safeAttr(option.value)}"
+              rows="6"
+              class="w-full rounded-lg border border-white/10 bg-gray-900/70 p-3 text-sm text-white"
+              placeholder="Write the ${safeAttr(option.label.toLowerCase())} here"
+            >${safe(bundle[option.value] || '')}</textarea>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" data-action="save-draft" data-record-id="${safeAttr(record.id)}" data-draft-type="${safeAttr(option.value)}" class="bg-sky-500 hover:bg-sky-400 text-white text-sm px-3 py-1.5 rounded">Save</button>
+              <button type="button" data-action="copy-draft" data-record-id="${safeAttr(record.id)}" data-draft-type="${safeAttr(option.value)}" class="bg-white/10 hover:bg-white/20 text-white text-sm px-3 py-1.5 rounded">Copy</button>
+              <button type="button" data-action="generate-draft" data-record-id="${safeAttr(record.id)}" data-draft-type="${safeAttr(option.value)}" class="bg-indigo-500 hover:bg-indigo-400 text-white text-sm px-3 py-1.5 rounded">Mock generate</button>
+            </div>
+          </article>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function renderTimeline(record) {
+  if (!elements.detailTimeline) return;
+  if (record.recordType !== 'person') {
+    elements.detailTimeline.innerHTML = '';
+    return;
+  }
+
+  const entries = getRecordTimelineEntries(record);
+  elements.detailTimeline.innerHTML = `
+    <section class="space-y-4 rounded-lg border border-white/10 bg-gray-800/80 p-4">
+      <div>
+        <p class="text-xs uppercase tracking-[0.32em] text-sky-300">Interaction timeline</p>
+        <h3 class="text-lg font-semibold text-white">Append-only history</h3>
+        <p class="text-sm text-gray-300">Drafts, touches, replies, and outcome changes stay in one timeline.</p>
+      </div>
+      <div class="space-y-3 ${entries.length > 6 ? 'max-h-96 overflow-y-auto pr-1' : ''}">
+        ${entries.length ? entries.map(entry => `
+          <article class="rounded-xl border border-white/10 bg-gray-950/45 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-sm font-semibold text-white">${safe(entry.touchTypeLabel || getTouchTypeLabel(entry.touchType))}</p>
+              <p class="text-xs text-gray-400">${safe(entry.timestamp ? formatUpdated(entry.timestamp) : 'Unknown time')}</p>
+            </div>
+            <p class="text-xs text-sky-200 mt-1">${safe(entry.source || 'CRM workspace')}${entry.draftType ? ` · ${safe(getDraftTypeConfig(entry.draftType).label)}` : ''}${entry.followUp ? ` · Follow-up ${safe(entry.followUp)}` : ''}</p>
+            ${entry.note ? `<p class="text-sm text-gray-200 mt-2 whitespace-pre-wrap">${safe(entry.note)}</p>` : ''}
+            <p class="text-xs text-gray-400 mt-2">Logged by ${safe(entry.loggedBy || entry.participantId || 'Unknown')}</p>
+          </article>
+        `).join('') : '<p class="text-sm text-gray-400">Timeline entries will appear here after you save a draft, log a touch, or schedule follow-up.</p>'}
+      </div>
+    </section>
+  `;
 }
 
 async function ensureContact(recordId) {
@@ -1283,34 +1964,26 @@ async function logTouch(recordId) {
     status: nextStatus,
     lastContacted: now,
     activityCount: toActivityCount(record.activityCount) + 1,
-    nextFollowUp: touchType === 'closed-won' || touchType === 'closed-lost' ? '' : (followUp || record.nextFollowUp || ''),
+    nextFollowUp: touchType === 'closed-won' || touchType === 'not-a-fit' ? '' : (followUp || record.nextFollowUp || ''),
     lastReplyAt: isReply ? now : String(record.lastReplyAt || ''),
     replyCount: isReply ? toActivityCount(record.replyCount) + 1 : toActivityCount(record.replyCount),
     lastTouchType: touchType,
+    pilotStatus: touchType === 'not-a-fit' ? 'Not a fit' : record.pilotStatus || '',
     notes: mergedNotes,
     updated: now,
     created: record.created || now,
   }));
-
-  const logId = `${recordId}-${Date.now()}`;
-  const entry = {
-    id: logId,
-    recordId: record.contactId || record.id || recordId,
-    contactName: record.name || record.email || 'Unnamed contact',
-    timestamp: now,
+  appendTouchLogEntry({
+    ...record,
+    status: nextStatus,
+  }, {
+    touchType,
     followUp: followUp || record.nextFollowUp || '',
     note: touchNotes,
-    touchType,
-    touchTypeLabel,
     source: 'CRM workspace',
-    segment: record.marketSegment || '',
     statusAfter: nextStatus,
-    participantId: getParticipantId(),
-    loggedBy: getParticipantLabel(),
-  };
-  touchLogRoot.get(logId).put(entry);
-  touchLogIndex.set(logId, entry);
-  renderWeeklyChallenge();
+    timestamp: now,
+  });
   if (scoreManager) scoreManager.increment(1);
 }
 
@@ -1332,7 +2005,15 @@ function quickFollowUp(recordId) {
     nextFollowUp: base.toISOString().slice(0, 10),
     updated: new Date().toISOString(),
     created: record.created || new Date().toISOString(),
-  })).catch(err => {
+  })).then(() => {
+    appendTouchLogEntry(record, {
+      touchType: 'follow-up-scheduled',
+      followUp: base.toISOString().slice(0, 10),
+      note: 'Scheduled the next follow-up.',
+      source: 'CRM workspace',
+      statusAfter: record.status || '',
+    });
+  }).catch(err => {
     console.error('Unable to set follow-up', err);
   });
 }
@@ -1391,15 +2072,20 @@ function buildDetailMeta(record, context) {
     : [
       ['Type', 'Person'],
       ['Status', record.status || '—'],
+      ['Warmth', resolveLeadWarmth(record) ? formatTitleCase(resolveLeadWarmth(record)) : '—'],
+      ['Fit', resolveLeadFit(record) ? formatTitleCase(resolveLeadFit(record)) : '—'],
+      ['Urgency', resolveLeadUrgency(record) ? formatTitleCase(resolveLeadUrgency(record)) : '—'],
       ['Group', context.group?.name || '—'],
       ['Market segment', record.marketSegment || '—'],
       ['Primary pain', record.primaryPain || '—'],
       ['Pain severity', record.painSeverity || '—'],
       ['Current workaround', record.currentWorkaround || '—'],
+      ['Objection', record.objection || '—'],
       ['Pilot status', record.pilotStatus || '—'],
       ['Offer amount', record.offerAmount || '—'],
       ['Last signal', record.lastSignal || '—'],
       ['Next experiment', record.nextExperiment || '—'],
+      ['Next best action', record.nextBestAction || '—'],
       ['Next follow-up', record.nextFollowUp || '—'],
       ['Last contacted', record.lastContacted ? `${timeAgo(record.lastContacted)} · ${new Date(record.lastContacted).toLocaleString()}` : '—'],
       ['Touches', toActivityCount(record.activityCount)],
@@ -1452,6 +2138,15 @@ function buildDetailWorkspace(record, context) {
   const workspaceMatch = findContactInWorkspace(record, { space: preferredSpace, allowFallback: false });
   return `
     <div class="space-y-3">
+      <div class="rounded-lg border border-white/10 bg-gray-950/45 p-4">
+        <p class="text-sm font-semibold text-gray-100">Sales cockpit</p>
+        <p class="text-xs text-gray-400 mt-1">${safe(record.nextBestAction || record.nextExperiment || 'Choose the next human move and keep it explicit.')}</p>
+        ${renderBadgeRow([
+          resolveLeadWarmth(record) ? `Warmth ${formatTitleCase(resolveLeadWarmth(record))}` : '',
+          resolveLeadFit(record) ? `Fit ${formatTitleCase(resolveLeadFit(record))}` : '',
+          resolveLeadUrgency(record) ? `Urgency ${formatTitleCase(resolveLeadUrgency(record))}` : '',
+        ])}
+      </div>
       <div class="rounded-lg border ${workspaceMatch ? 'border-teal-500/30 bg-teal-900/40' : 'border-white/10 bg-gray-800/80'} p-4">
         <p class="text-sm font-semibold ${workspaceMatch ? 'text-teal-200' : 'text-gray-100'}">${workspaceMatch ? 'Linked contacts entry' : 'No linked contact yet'}</p>
         <p class="text-xs mt-1 ${workspaceMatch ? 'text-teal-100/80' : 'text-gray-400'}">${workspaceMatch ? safe(workspaceMatch.data?.name || '(untitled contact)') : `Use “Add to contacts” to place this person in ${getContactsSpaceLabel(preferredSpace)}.`}</p>
@@ -1522,6 +2217,7 @@ function openDetail(recordId) {
   state.detailId = recordId;
   elements.detailName.textContent = record.name || '(untitled record)';
   elements.detailSummary.innerHTML = buildDetailSummary(record, context);
+  showDetailSalesNote('');
   if (record.tags) {
     elements.detailTags.innerHTML = renderTagRow(record.tags);
     elements.detailTags.classList.remove('hidden');
@@ -1539,12 +2235,17 @@ function openDetail(recordId) {
   elements.detailMeta.innerHTML = buildDetailMeta(record, context);
   elements.detailWorkspace.innerHTML = buildDetailWorkspace(record, context);
   elements.detailActions.innerHTML = buildDetailActions(record);
+  renderDraftCards(record);
+  renderTimeline(record);
   elements.detailOverlay?.classList.remove('hidden');
   elements.detailOverlay.scrollTop = 0;
 }
 
 function closeDetail() {
   state.detailId = '';
+  showDetailSalesNote('');
+  if (elements.detailDrafts) elements.detailDrafts.innerHTML = '';
+  if (elements.detailTimeline) elements.detailTimeline.innerHTML = '';
   elements.detailOverlay?.classList.add('hidden');
 }
 
@@ -1690,7 +2391,11 @@ function applyUrlDraftIfNeeded() {
       role: draft.role,
       tags: draft.tags,
       status: draft.status,
+      warmth: draft.warmth,
+      fit: draft.fit,
+      urgency: draft.urgency,
       nextFollowUp: draft.nextFollowUp,
+      lastContacted: draft.lastContacted,
       marketSegment: draft.marketSegment,
       groupId: draft.groupId,
       primaryPain: draft.primaryPain,
@@ -1700,6 +2405,8 @@ function applyUrlDraftIfNeeded() {
       offerAmount: draft.offerAmount,
       lastSignal: draft.lastSignal,
       nextExperiment: draft.nextExperiment,
+      nextBestAction: draft.nextBestAction,
+      objection: draft.objection,
       notes: draft.notes,
       source: draft.source,
     },
@@ -1753,7 +2460,12 @@ async function handleQuickLeadSubmit(event) {
       company: group?.name || '',
       tags: 'quick lead',
       status: DEFAULT_PERSON_STATUS,
+      warmth: 'warm',
+      fit: '',
+      urgency: '',
       primaryPain: pain,
+      objection: '',
+      nextBestAction: '',
       lastSignal: 'Captured from quick lead form',
       groupId,
       source: 'CRM quick lead',
@@ -1788,6 +2500,53 @@ async function handleQuickLeadSubmit(event) {
   } catch (err) {
     console.error('Unable to add quick lead', err);
     window.alert('Unable to add this lead right now.');
+  }
+}
+
+function getDetailDraftInput(recordId, draftType) {
+  if (!elements.detailDrafts) return null;
+  const safeRecordId = escapeSelectorValue(recordId);
+  const safeDraftType = escapeSelectorValue(draftType);
+  return elements.detailDrafts.querySelector(`[data-draft-input][data-record-id="${safeRecordId}"][data-draft-type="${safeDraftType}"]`);
+}
+
+async function handleDraftAction(action, recordId, draftType) {
+  const record = sanitizeCrmRecord(crmIndex[recordId] || state.board.index[recordId] || {});
+  if (!record.id || record.recordType !== 'person') {
+    showDetailSalesNote('Only person records can use outreach drafts.', 'rose');
+    return;
+  }
+
+  const input = getDetailDraftInput(recordId, draftType);
+  const draftConfig = getDraftTypeConfig(draftType);
+
+  try {
+    if (action === 'copy-draft') {
+      const value = String(input?.value || getLeadDraftBundle(recordId)[draftConfig.value] || '').trim();
+      await copyTextToClipboard(value);
+      showDetailSalesNote(`Copied ${draftConfig.label.toLowerCase()} to the clipboard.`, 'sky');
+      return;
+    }
+
+    if (action === 'generate-draft') {
+      const nextValue = await generateOutreachDraft(record, draftConfig.value, getLeadDraftBundle(recordId).tone || DEFAULT_DRAFT_TONE);
+      if (input) {
+        input.value = nextValue;
+      }
+      await saveLeadDraft(recordId, draftConfig.value, nextValue);
+      renderTimeline(record);
+      showDetailSalesNote(`Generated and saved a mock ${draftConfig.label.toLowerCase()}.`, 'amber');
+      return;
+    }
+
+    if (action === 'save-draft') {
+      await saveLeadDraft(recordId, draftConfig.value, input?.value || '');
+      renderTimeline(record);
+      showDetailSalesNote(`Saved ${draftConfig.label.toLowerCase()}.`, 'sky');
+    }
+  } catch (err) {
+    console.error(`Unable to ${action}`, err);
+    showDetailSalesNote(`Unable to ${draftConfig.label.toLowerCase()} right now.`, 'rose');
   }
 }
 
@@ -1851,6 +2610,9 @@ function attachEvents() {
   elements.openCreate?.addEventListener('click', () => openCreateOverlay({ type: 'person' }));
   elements.openGroupCreate?.addEventListener('click', () => openCreateOverlay({ type: 'group' }));
   elements.openProblemCreate?.addEventListener('click', () => openCreateOverlay({ type: 'problem' }));
+  elements.draftBuilder?.addEventListener('click', () => openCreateOverlay({ type: 'person', preset: SALES_DRAFT_PRESETS.builder }));
+  elements.draftEmbedded?.addEventListener('click', () => openCreateOverlay({ type: 'person', preset: SALES_DRAFT_PRESETS.embedded }));
+  elements.draftCustom?.addEventListener('click', () => openCreateOverlay({ type: 'person', preset: SALES_DRAFT_PRESETS.custom }));
   elements.closeCreate?.addEventListener('click', () => closeCreateOverlay({ reset: true }));
   elements.cancelCreate?.addEventListener('click', () => closeCreateOverlay({ reset: true }));
   elements.closeDetail?.addEventListener('click', closeDetail);
@@ -1908,6 +2670,25 @@ function attachEvents() {
 
   elements.detailActions?.addEventListener('click', handleDetailActionClick);
   elements.detailWorkspace?.addEventListener('click', handleDetailActionClick);
+  [
+    elements.salesMovesFollowUpList,
+    elements.salesMovesHotDraftList,
+    elements.salesMovesWarmStaleList,
+    elements.salesMovesRepliesList,
+  ].forEach(section => {
+    section?.addEventListener('click', handleDetailActionClick);
+  });
+  elements.detailDrafts?.addEventListener('click', async event => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    event.preventDefault();
+    event.stopPropagation();
+    await handleDraftAction(
+      actionTarget.dataset.action || '',
+      actionTarget.dataset.recordId || '',
+      actionTarget.dataset.draftType || ''
+    );
+  });
 }
 
 function startSync() {
@@ -1941,6 +2722,16 @@ function startSync() {
     });
   }
 
+  crmDraftsRoot.map().on((data, id) => {
+    if (!id) return;
+    if (!data) {
+      draftIndex.delete(id);
+    } else {
+      draftIndex.set(id, sanitizeDraftBundle(id, data));
+    }
+    renderSalesMoves();
+  });
+
   touchLogRoot.map().on((data, id) => {
     if (!id) return;
     if (!data) {
@@ -1949,12 +2740,23 @@ function startSync() {
       touchLogIndex.set(id, {
         ...sanitizeCrmRecord(data),
         id,
+        recordId: String(data.recordId || '').trim(),
+        crmRecordId: String(data.crmRecordId || '').trim(),
+        contactId: String(data.contactId || '').trim(),
         timestamp: data.timestamp || data.time || data.lastContacted || '',
         touchType: normalizeTouchType(data.touchType || ''),
         touchTypeLabel: data.touchTypeLabel || getTouchTypeLabel(data.touchType || ''),
+        draftType: String(data.draftType || '').trim(),
       });
     }
     renderWeeklyChallenge();
+    renderSalesMoves();
+    if (state.detailId) {
+      const currentRecord = sanitizeCrmRecord(crmIndex[state.detailId] || state.board.index[state.detailId] || {});
+      if (currentRecord.id) {
+        renderTimeline(currentRecord);
+      }
+    }
   });
 
   crmRecords.map().on((data, id) => {
