@@ -102,6 +102,12 @@
   - production verified live
 - Mention tests run, and say plainly when something was not tested.
 
+## Contact Email Rule
+- The canonical 3DVR contact email is `3dvr.tech@gmail.com`.
+- There is no separate public `@3dvr.tech` mailbox set up right now.
+- Do not use `hello@3dvr.tech` in copy, CTAs, metadata, docs, or support instructions.
+- If a page or document needs a public contact email and the user has not specified another one, use `3dvr.tech@gmail.com`.
+
 ## Repo-Specific Reminder
 - Before editing inside any of these repos, check for a local `AGENTS.md` first:
   - `3dvr-portal`

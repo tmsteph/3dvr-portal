@@ -284,6 +284,16 @@ What this does:
 
 On Android/Termux, the command automatically runs inside a local Debian `proot-distro` if available.
 
+For explicit Chrome and Safari-style coverage:
+
+```bash
+npm run playwright:verify:chrome-safari
+```
+
+This installs the best available Blink target plus `webkit`, then runs the smoke check once in Chrome-style Blink and
+once in WebKit. On Linux Arm64, Playwright falls back from branded Chrome to Chromium because Google Chrome is not
+available there. On Linux, `safari` means Playwright WebKit parity rather than desktop Safari itself.
+
 ### Run the Playwright contacts E2E suite
 
 Use this to run the Chromium-based contacts identity + score browser tests:

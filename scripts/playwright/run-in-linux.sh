@@ -16,6 +16,10 @@ esac
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 
+quote_for_single_quotes() {
+  printf "%s" "$1" | sed "s/'/'\\\\''/g"
+}
+
 run_local() {
   cd "$ROOT_DIR"
   npm run "$TARGET_SCRIPT"
@@ -40,8 +44,11 @@ if [ "$is_android" = "true" ]; then
     exit 1
   fi
 
-  PLAYWRIGHT_BROWSER_VALUE=${PLAYWRIGHT_BROWSER:-firefox}
-  proot-distro login debian -- sh -lc "cd '$ROOT_DIR' && PLAYWRIGHT_BROWSER='$PLAYWRIGHT_BROWSER_VALUE' npm run $TARGET_SCRIPT"
+  PLAYWRIGHT_BROWSER_VALUE=$(quote_for_single_quotes "${PLAYWRIGHT_BROWSER:-firefox}")
+  PLAYWRIGHT_BROWSERS_VALUE=$(quote_for_single_quotes "${PLAYWRIGHT_BROWSERS:-}")
+  PLAYWRIGHT_INSTALL_DEPS_VALUE=$(quote_for_single_quotes "${PLAYWRIGHT_INSTALL_DEPS:-}")
+  PLAYWRIGHT_PORT_VALUE=$(quote_for_single_quotes "${PLAYWRIGHT_PORT:-}")
+  proot-distro login debian -- sh -lc "cd '$ROOT_DIR' && PLAYWRIGHT_BROWSER='$PLAYWRIGHT_BROWSER_VALUE' PLAYWRIGHT_BROWSERS='$PLAYWRIGHT_BROWSERS_VALUE' PLAYWRIGHT_INSTALL_DEPS='$PLAYWRIGHT_INSTALL_DEPS_VALUE' PLAYWRIGHT_PORT='$PLAYWRIGHT_PORT_VALUE' npm run $TARGET_SCRIPT"
   exit 0
 fi
 
