@@ -13,6 +13,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Core workspaces/);
     assert.match(html, /Contacts/);
     assert.match(html, /Messenger/);
+    assert.match(html, /Calendar/);
+    assert.match(html, /Meetings, follow-ups, and synced schedules\./);
     assert.match(html, /Finance/);
     assert.match(html, /Billing/);
     assert.match(html, /Get started/);
