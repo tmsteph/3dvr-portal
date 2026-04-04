@@ -4,9 +4,9 @@ import {
   makeStripeClient,
   resolveStripeBillingState,
   setCorsHeaders
-} from '../../src/billing/stripe.js';
-import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
-import { isValidBillingEmail, normalizeBillingEmail, normalizeBillingEmailList } from '../../src/billing/plans.js';
+} from './stripe.js';
+import { verifyBillingAuthPayload } from './auth.js';
+import { isValidBillingEmail, normalizeBillingEmail, normalizeBillingEmailList } from './plans.js';
 
 function readPayload(req) {
   if (req.method === 'GET') {

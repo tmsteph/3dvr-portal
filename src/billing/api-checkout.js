@@ -15,8 +15,8 @@ import {
   resolveStripeBillingState,
   summarizeBillingCustomerRecord,
   setCorsHeaders
-} from '../../src/billing/stripe.js';
-import { verifyBillingAuthPayload } from '../../src/billing/auth.js';
+} from './stripe.js';
+import { verifyBillingAuthPayload } from './auth.js';
 import {
   getBillingPlan,
   isValidBillingEmail,
@@ -25,7 +25,7 @@ import {
   normalizeBillingPlan,
   normalizeCustomAmount,
   resolveConfiguredPriceId
-} from '../../src/billing/plans.js';
+} from './plans.js';
 
 function readBody(req) {
   return req?.body && typeof req.body === 'object' ? req.body : {};

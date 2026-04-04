@@ -1,5 +1,7 @@
 import Stripe from 'stripe';
 import { resolvePlanFromSubscription } from '../../src/money/access.js';
+import { createStripeCheckoutHandler } from '../../src/billing/api-checkout.js';
+import { createStripeStatusHandler } from '../../src/billing/api-status.js';
 
 function makeStripeClient(config = process.env) {
   const secretKey = String(config?.STRIPE_SECRET_KEY || '').trim();
@@ -259,30 +261,46 @@ async function listEvents(req, stripeClient, res, config = process.env) {
 }
 
 export function createStripeDashboardHandler({
-  stripeClient = makeStripeClient(),
+  stripeClient,
   config = process.env
 } = {}) {
+  const resolvedStripeClient = stripeClient || makeStripeClient(config);
+  const checkoutHandler = createStripeCheckoutHandler({
+    stripeClient: resolvedStripeClient,
+    config,
+  });
+  const statusHandler = createStripeStatusHandler({
+    stripeClient: resolvedStripeClient,
+    config,
+  });
+
   return async function handler(req, res) {
+    const route = getRouteValue(req);
+    if (route === 'checkout') {
+      return checkoutHandler(req, res);
+    }
+    if (route === 'status') {
+      return statusHandler(req, res);
+    }
+
+    if (!resolvedStripeClient) {
+      return res.status(500).json({ error: 'Stripe is not configured on the server.' });
+    }
+
     if (req.method !== 'GET') {
       res.setHeader('Allow', 'GET');
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    if (!stripeClient) {
-      return res.status(500).json({ error: 'Stripe is not configured on the server.' });
-    }
-
-    const route = getRouteValue(req);
-
     try {
       if (route === 'customers') {
-        return await listCustomers(stripeClient, res);
+        return await listCustomers(resolvedStripeClient, res);
       }
       if (route === 'metrics') {
-        return await listMetrics(stripeClient, res, config);
+        return await listMetrics(resolvedStripeClient, res, config);
       }
       if (route === 'events') {
-        return await listEvents(req, stripeClient, res, config);
+        return await listEvents(req, resolvedStripeClient, res, config);
       }
 
       return res.status(404).json({ error: `Unknown Stripe endpoint: ${route || 'missing'}` });

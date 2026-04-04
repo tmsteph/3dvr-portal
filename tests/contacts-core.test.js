@@ -228,6 +228,41 @@ describe('contacts core helpers', () => {
       assert.deepEqual(userContacts.get.mock.calls[0].arguments, ['contacts']);
     });
 
+    it('falls back to an alias-scoped portal contacts node for OAuth-only personal space', () => {
+      const legacyOauthContacts = { kind: 'legacy-oauth-contacts' };
+      const oauthContactsNode = {
+        kind: 'oauth-contacts-root',
+        get: mock.fn(() => legacyOauthContacts),
+      };
+      const oauthUserNode = {
+        kind: 'oauth-user-node',
+        get: mock.fn(() => oauthContactsNode),
+      };
+      const oauthRoot = {
+        get: mock.fn(() => oauthUserNode),
+      };
+      const portalRoot = {
+        get: mock.fn(() => oauthRoot),
+      };
+
+      const result = resolveSpaceNode({
+        space: 'personal',
+        signedIn: true,
+        userHasSession: false,
+        portalRoot,
+        authMethod: 'oauth',
+        oauthAlias: 'agent@3dvr.tech',
+      });
+
+      assert.equal(result.node, oauthUserNode);
+      assert.equal(result.requiresAuth, false);
+      assert.equal(result.shouldClearAuth, true);
+      assert.deepEqual(result.legacyNodes, [oauthContactsNode]);
+      assert.deepEqual(portalRoot.get.mock.calls[0].arguments, ['contacts-users']);
+      assert.deepEqual(oauthRoot.get.mock.calls[0].arguments, ['agent@3dvr.tech']);
+      assert.deepEqual(oauthUserNode.get.mock.calls[0].arguments, ['contacts']);
+    });
+
     it('indicates that personal space requires auth when signed in without a session', () => {
       const result = resolveSpaceNode({
         space: 'personal',

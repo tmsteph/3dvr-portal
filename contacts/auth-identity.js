@@ -28,13 +28,19 @@
     }
     const username = normalizeText(payload.username);
     const signedIn = payload.signedIn !== false;
+    const authMethod = normalizeText(payload.authMethod);
+    const authProvider = normalizeText(payload.authProvider);
+    const verifiedEmail = normalizeText(payload.verifiedEmail).toLowerCase();
     const timestamp = Number(payload.updatedAt);
     const updatedAt = Number.isFinite(timestamp) ? Math.round(timestamp) : Date.now();
     return {
       alias,
       username,
       signedIn,
-      updatedAt
+      updatedAt,
+      authMethod,
+      authProvider,
+      verifiedEmail
     };
   }
 
@@ -108,11 +114,15 @@
 
     const nextAlias = identity.alias;
     const nextUsername = identity.username || aliasToDisplay(nextAlias) || 'User';
+    const nextVerifiedEmail = normalizeText(identity.verifiedEmail).toLowerCase();
     const hasStoredPassword = normalizeText(storage.getItem('password')).length > 0;
-    const nextSignedIn = hasStoredPassword;
+    const nextSignedIn = hasStoredPassword || identity.authMethod === 'oauth';
     const currentSignedIn = storage.getItem('signedIn') === 'true';
     const currentAlias = normalizeText(storage.getItem('alias'));
     const currentUsername = normalizeText(storage.getItem('username'));
+    const currentAuthMethod = normalizeText(storage.getItem('authMethod'));
+    const currentAuthProvider = normalizeText(storage.getItem('authProvider'));
+    const currentVerifiedEmail = normalizeText(storage.getItem('verifiedEmail')).toLowerCase();
     const hasGuestMarkers = Boolean(
       storage.getItem('guest')
       || storage.getItem('guestId')
@@ -122,6 +132,9 @@
       currentSignedIn !== nextSignedIn
       || currentAlias !== nextAlias
       || currentUsername !== nextUsername
+      || currentAuthMethod !== identity.authMethod
+      || currentAuthProvider !== identity.authProvider
+      || currentVerifiedEmail !== nextVerifiedEmail
       || hasGuestMarkers
     );
 
@@ -136,6 +149,21 @@
     }
     storage.setItem('alias', nextAlias);
     storage.setItem('username', nextUsername);
+    if (identity.authMethod) {
+      storage.setItem('authMethod', identity.authMethod);
+    } else {
+      storage.removeItem('authMethod');
+    }
+    if (identity.authProvider) {
+      storage.setItem('authProvider', identity.authProvider);
+    } else {
+      storage.removeItem('authProvider');
+    }
+    if (identity.verifiedEmail) {
+      storage.setItem('verifiedEmail', identity.verifiedEmail);
+    } else {
+      storage.removeItem('verifiedEmail');
+    }
     storage.removeItem('guest');
     storage.removeItem('guestId');
     storage.removeItem('guestDisplayName');

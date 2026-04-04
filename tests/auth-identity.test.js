@@ -132,6 +132,26 @@ describe('auth identity helper', () => {
     assert.equal(localStorage.getItem('username'), 'Pilot');
   });
 
+  it('preserves signed-in mode for OAuth identities without a stored password', () => {
+    const { api, localStorage } = loadAuthIdentity();
+
+    api.writeSharedIdentity({
+      signedIn: true,
+      alias: 'oauth@3dvr',
+      username: 'OAuth User',
+      authMethod: 'oauth',
+      authProvider: 'google',
+      verifiedEmail: 'oauth@example.com',
+    });
+
+    const changed = api.syncStorageFromSharedIdentity(localStorage);
+    assert.equal(changed, true);
+    assert.equal(localStorage.getItem('signedIn'), 'true');
+    assert.equal(localStorage.getItem('authMethod'), 'oauth');
+    assert.equal(localStorage.getItem('authProvider'), 'google');
+    assert.equal(localStorage.getItem('verifiedEmail'), 'oauth@example.com');
+  });
+
   it('clears shared identity cookies', () => {
     const { api } = loadAuthIdentity();
 

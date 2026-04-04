@@ -8,6 +8,7 @@
   <script src="gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="auth-identity.js"></script>
+  <script src="oauth.js"></script>
   <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <style>
@@ -164,6 +165,63 @@
       font-weight: 700;
       border: 1px solid rgba(37, 99, 235, 0.18);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    .provider-list {
+      display: grid;
+      gap: 0.85rem;
+      margin-top: 1rem;
+    }
+
+    .provider-row {
+      display: grid;
+      gap: 0.75rem;
+      padding: 0.95rem 1rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-alt);
+      border: 1px solid var(--surface-border);
+    }
+
+    .provider-row__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .provider-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--color-text-muted);
+    }
+
+    .provider-status[data-tone="ok"] {
+      background: rgba(34, 197, 94, 0.16);
+      color: #166534;
+    }
+
+    .provider-status[data-tone="warn"] {
+      background: rgba(245, 158, 11, 0.18);
+      color: #92400e;
+    }
+
+    .provider-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+    }
+
+    .button-secondary {
+      background: rgba(15, 23, 42, 0.04);
+      color: var(--color-text);
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      box-shadow: none;
     }
 
     .progress-wrap {
@@ -510,6 +568,50 @@
       </div>
     </article>
 
+    <article class="card" id="profile-oauth" aria-live="polite">
+      <p class="label">OAuth identity</p>
+      <h2 class="display-name" style="font-size:1.35rem;margin-top:0.4rem;">Account verification + provider links</h2>
+      <p class="helper-text">
+        Link Google, Microsoft, or Apple to verify who owns this portal account. Google and Microsoft also
+        unlock calendar and contacts connections in this browser.
+      </p>
+      <div class="provider-list">
+        <section class="provider-row" data-provider-row="google">
+          <div class="provider-row__header">
+            <strong>Google</strong>
+            <span class="provider-status" id="oauth-status-google">Checking…</span>
+          </div>
+          <p class="helper-text" id="oauth-copy-google">Used for account verification, contacts import, and calendar sync.</p>
+          <div class="provider-actions">
+            <button type="button" class="button-secondary" id="oauth-link-google">Link Google</button>
+            <button type="button" class="button-secondary" id="oauth-clear-google">Clear local connection</button>
+          </div>
+        </section>
+        <section class="provider-row" data-provider-row="microsoft">
+          <div class="provider-row__header">
+            <strong>Microsoft</strong>
+            <span class="provider-status" id="oauth-status-microsoft">Checking…</span>
+          </div>
+          <p class="helper-text" id="oauth-copy-microsoft">Used for account verification, Outlook calendar sync, and CRM/contact import.</p>
+          <div class="provider-actions">
+            <button type="button" class="button-secondary" id="oauth-link-microsoft">Link Microsoft</button>
+            <button type="button" class="button-secondary" id="oauth-clear-microsoft">Clear local connection</button>
+          </div>
+        </section>
+        <section class="provider-row" data-provider-row="apple">
+          <div class="provider-row__header">
+            <strong>Apple</strong>
+            <span class="provider-status" id="oauth-status-apple">Checking…</span>
+          </div>
+          <p class="helper-text" id="oauth-copy-apple">Used for Sign in with Apple and account verification. Contacts stay on the phone picker and vCard path.</p>
+          <div class="provider-actions">
+            <button type="button" class="button-secondary" id="oauth-link-apple">Link Apple</button>
+          </div>
+        </section>
+      </div>
+      <p class="helper-text" id="oauth-profile-status" style="margin-top:1rem;">Link a provider to keep sign-in and customer journey data attached to the same portal identity.</p>
+    </article>
+
     <article class="card admin-card" aria-live="polite">
       <h2><span id="admin-badge">Admin</span> Control</h2>
       <p class="admin-subtitle">Quick links that keep the portal healthy, curated, and in sync for everyone.</p>
@@ -649,6 +751,40 @@ const coworkerButton = document.getElementById('coworker-button');
 const userSearchEl = document.getElementById('user-search');
 const userSearchInput = document.getElementById('user-search-input');
 const userResultsEl = document.getElementById('user-results');
+const oauthProfileStatusEl = document.getElementById('oauth-profile-status');
+
+const oauthProviderRefs = {
+  google: {
+    status: document.getElementById('oauth-status-google'),
+    copy: document.getElementById('oauth-copy-google'),
+    link: document.getElementById('oauth-link-google'),
+    clear: document.getElementById('oauth-clear-google'),
+  },
+  microsoft: {
+    status: document.getElementById('oauth-status-microsoft'),
+    copy: document.getElementById('oauth-copy-microsoft'),
+    link: document.getElementById('oauth-link-microsoft'),
+    clear: document.getElementById('oauth-clear-microsoft'),
+  },
+  apple: {
+    status: document.getElementById('oauth-status-apple'),
+    copy: document.getElementById('oauth-copy-apple'),
+    link: document.getElementById('oauth-link-apple'),
+    clear: null,
+  },
+};
+
+const oauthBaseCopy = {
+  google: 'Used for account verification, contacts import, and calendar sync.',
+  microsoft: 'Used for account verification, Outlook calendar sync, and CRM/contact import.',
+  apple: 'Used for Sign in with Apple and account verification. Contacts stay on the phone picker and vCard path.',
+};
+
+const OAUTH_PROFILE_SCOPES = {
+  google: 'contacts-calendar',
+  microsoft: 'contacts-calendar',
+  apple: 'identity',
+};
 
 const userIndexNode = portalRoot.get('userIndex');
 const userStatsNode = portalRoot.get('userStats');
@@ -681,8 +817,18 @@ function writeSharedIdentity(aliasHint = '') {
     return;
   }
   const username = (portalStoredName || latestProfileName || aliasToDisplay(alias) || 'User').trim();
+  const authMethod = (localStorage.getItem('authMethod') || '').trim();
+  const authProvider = (localStorage.getItem('authProvider') || '').trim().toLowerCase();
+  const verifiedEmail = (localStorage.getItem('verifiedEmail') || '').trim().toLowerCase();
   try {
-    window.AuthIdentity.writeSharedIdentity({ signedIn: true, alias, username });
+    window.AuthIdentity.writeSharedIdentity({
+      signedIn: true,
+      alias,
+      username,
+      authMethod,
+      authProvider,
+      verifiedEmail,
+    });
   } catch (err) {
     console.warn('Failed to persist shared identity cookie', err);
   }
@@ -697,6 +843,93 @@ function clearSharedIdentity() {
   } catch (err) {
     console.warn('Failed to clear shared identity cookie', err);
   }
+}
+
+function readStoredAlias() {
+  return (localStorage.getItem('alias') || '').trim().toLowerCase();
+}
+
+function readStoredAuthMethod() {
+  return (localStorage.getItem('authMethod') || '').trim().toLowerCase();
+}
+
+function readStoredAuthProvider() {
+  return (localStorage.getItem('authProvider') || '').trim().toLowerCase();
+}
+
+function readStoredVerifiedEmail() {
+  return (localStorage.getItem('verifiedEmail') || '').trim().toLowerCase();
+}
+
+function hasOauthOnlySession() {
+  return readStoredAuthMethod() === 'oauth' && !localStorage.getItem('password');
+}
+
+function setOauthProfileStatus(message = '') {
+  if (!oauthProfileStatusEl) {
+    return;
+  }
+  oauthProfileStatusEl.textContent = message || 'Link a provider to keep sign-in and customer journey data attached to the same portal identity.';
+}
+
+function setOauthProviderStatus(provider, message, tone = '') {
+  const refs = oauthProviderRefs[provider];
+  if (!refs || !refs.status) {
+    return;
+  }
+  refs.status.textContent = message;
+  if (tone) {
+    refs.status.dataset.tone = tone;
+  } else {
+    delete refs.status.dataset.tone;
+  }
+}
+
+function setOauthProviderCopy(provider, message = '') {
+  const refs = oauthProviderRefs[provider];
+  if (!refs || !refs.copy) {
+    return;
+  }
+  refs.copy.textContent = message || oauthBaseCopy[provider] || '';
+}
+
+function setOauthButtonState(button, disabled) {
+  if (!button) {
+    return;
+  }
+  if (disabled) {
+    button.setAttribute('disabled', 'true');
+  } else {
+    button.removeAttribute('disabled');
+  }
+}
+
+function onceGun(node) {
+  return new Promise(resolve => {
+    if (!node || typeof node.once !== 'function') {
+      resolve(null);
+      return;
+    }
+    try {
+      node.once(data => resolve(data || null));
+    } catch (_err) {
+      resolve(null);
+    }
+  });
+}
+
+function putGun(node, payload) {
+  return new Promise(resolve => {
+    if (!node || typeof node.put !== 'function') {
+      resolve(false);
+      return;
+    }
+    try {
+      node.put(payload, ack => resolve(!(ack && ack.err)));
+    } catch (_err) {
+      resolve(false);
+    }
+  });
 }
 
 function normalizeAliasInput(raw) {
@@ -748,6 +981,17 @@ function upsertUserDirectory(alias, username) {
   });
 }
 
+function persistPortalProfileName(usernameHint = '') {
+  const alias = readStoredAlias();
+  if (!alias) {
+    return;
+  }
+  const username = (usernameHint || portalStoredName || latestProfileName || aliasToDisplay(alias) || 'User').trim();
+  upsertUserDirectory(alias, username).then(meta => {
+    ensureKnownUser(alias, username, meta);
+  });
+}
+
 function ensureKnownUser(alias, username, metadata = {}) {
   knownUsers.set(alias, {
     alias,
@@ -756,6 +1000,239 @@ function ensureKnownUser(alias, username, metadata = {}) {
     lastLogin: metadata.lastLogin || 0
   });
   renderUserResults(userSearchInput ? userSearchInput.value.trim().toLowerCase() : '');
+}
+
+function summarizeOauthConnection(connection = {}) {
+  const pieces = [];
+  const displayName = typeof connection.displayName === 'string' ? connection.displayName.trim() : '';
+  const email = typeof connection.email === 'string' ? connection.email.trim().toLowerCase() : '';
+  if (displayName) {
+    pieces.push(displayName);
+  }
+  if (email && email !== displayName.toLowerCase()) {
+    pieces.push(email);
+  }
+  return pieces.join(' • ');
+}
+
+async function persistOauthAccountLink(result = {}) {
+  const identity = result.identity || {};
+  const provider = String(result.provider || identity.provider || '').trim().toLowerCase();
+  const providerAccountId = String(identity.providerAccountId || '').trim();
+  const alias = readStoredAlias();
+  const username = (portalStoredName || latestProfileName || aliasName || aliasToDisplay(alias) || 'User').trim();
+  const verifiedEmail = String(identity.email || '').trim().toLowerCase();
+
+  if (!(provider && providerAccountId && alias && portalRoot && typeof portalRoot.get === 'function')) {
+    return false;
+  }
+
+  const providerNode = portalRoot
+    .get('oauthAccounts')
+    .get(provider)
+    .get(providerAccountId);
+  const existing = await onceGun(providerNode);
+  const createdAt = existing && existing.createdAt ? existing.createdAt : Date.now();
+
+  const saved = await putGun(providerNode, {
+    provider,
+    providerAccountId,
+    alias,
+    email: verifiedEmail,
+    username,
+    displayName: String(identity.displayName || username || '').trim(),
+    verifiedEmail,
+    authMethod: readStoredAuthMethod() || 'oauth',
+    linkedAt: existing && existing.linkedAt ? existing.linkedAt : Date.now(),
+    createdAt,
+    lastLogin: Date.now(),
+    lastScopeKey: String(result.scopeKey || '').trim(),
+    linkedFrom: 'profile',
+  });
+
+  persistPortalProfileName(username);
+  return saved;
+}
+
+function persistOauthVerification(provider, identity = {}) {
+  const normalizedProvider = String(provider || '').trim().toLowerCase();
+  const verifiedEmail = String(identity.email || '').trim().toLowerCase();
+  if (normalizedProvider) {
+    localStorage.setItem('authProvider', normalizedProvider);
+  }
+  if (verifiedEmail) {
+    localStorage.setItem('verifiedEmail', verifiedEmail);
+  }
+  writeSharedIdentity();
+}
+
+async function refreshOauthProfile() {
+  const runtime = window.PortalOAuth;
+  const signedInAlias = readStoredAlias();
+  const activeProvider = readStoredAuthProvider();
+  const verifiedEmail = readStoredVerifiedEmail();
+
+  if (!(runtime && typeof runtime.fetchProviderConfig === 'function')) {
+    Object.keys(oauthProviderRefs).forEach(provider => {
+      const refs = oauthProviderRefs[provider];
+      setOauthProviderStatus(provider, 'Unavailable', 'warn');
+      setOauthProviderCopy(provider, `${oauthBaseCopy[provider]} OAuth controls are unavailable in this browser.`);
+      setOauthButtonState(refs.link, true);
+      setOauthButtonState(refs.clear, true);
+    });
+    setOauthProfileStatus('OAuth controls are unavailable in this browser right now.');
+    return;
+  }
+
+  await Promise.all(Object.keys(oauthProviderRefs).map(async provider => {
+    const refs = oauthProviderRefs[provider];
+    let config;
+    try {
+      config = await runtime.fetchProviderConfig(provider);
+    } catch (err) {
+      config = {
+        configured: false,
+        label: provider,
+        supports: {},
+        error: err?.message || 'Unable to load provider status.',
+      };
+    }
+
+    const connection = typeof runtime.getConnection === 'function'
+      ? runtime.getConnection(provider)
+      : null;
+    const summary = summarizeOauthConnection(connection || {});
+
+    if (!signedInAlias) {
+      setOauthProviderStatus(provider, 'Sign in first', 'warn');
+      setOauthProviderCopy(provider, `Sign in to attach ${config.label || provider} to a portal identity.`);
+      setOauthButtonState(refs.link, true);
+      setOauthButtonState(refs.clear, !connection);
+      return;
+    }
+
+    if (!config.configured) {
+      setOauthProviderStatus(provider, 'Not configured', 'warn');
+      setOauthProviderCopy(provider, config.error || `${config.label || provider} OAuth is not configured on this deployment yet.`);
+      setOauthButtonState(refs.link, true);
+      setOauthButtonState(refs.clear, !connection);
+      return;
+    }
+
+    if (connection && connection.accessToken) {
+      const label = activeProvider === provider ? 'Linked + verified' : 'Linked';
+      setOauthProviderStatus(provider, label, 'ok');
+      setOauthProviderCopy(
+        provider,
+        summary
+          ? `${oauthBaseCopy[provider]} Current browser connection: ${summary}.`
+          : `${oauthBaseCopy[provider]} This browser already has a live connection.`
+      );
+      setOauthButtonState(refs.link, false);
+      setOauthButtonState(refs.clear, false);
+      return;
+    }
+
+    if (activeProvider === provider) {
+      const verificationLabel = verifiedEmail ? `Verified as ${verifiedEmail}` : 'Verified';
+      setOauthProviderStatus(provider, verificationLabel, 'ok');
+      setOauthProviderCopy(provider, `${oauthBaseCopy[provider]} Link again here if you want to refresh browser access tokens.`);
+      setOauthButtonState(refs.link, false);
+      setOauthButtonState(refs.clear, true);
+      return;
+    }
+
+    setOauthProviderStatus(provider, 'Ready to link', 'warn');
+    setOauthProviderCopy(provider, oauthBaseCopy[provider]);
+    setOauthButtonState(refs.link, false);
+    setOauthButtonState(refs.clear, !connection);
+  }));
+
+  if (!signedInAlias) {
+    setOauthProfileStatus('Sign in before linking Google, Microsoft, or Apple to this portal identity.');
+    return;
+  }
+
+  const providerText = activeProvider ? ` Last verified provider: ${activeProvider}.` : '';
+  const emailText = verifiedEmail ? ` Verified email: ${verifiedEmail}.` : '';
+  setOauthProfileStatus(`Signed in as ${signedInAlias}.${providerText}${emailText}`.trim());
+}
+
+async function finishProfileOauthLink(result = {}) {
+  if (!(result && result.ok)) {
+    throw new Error('OAuth link could not be completed.');
+  }
+  const runtime = window.PortalOAuth;
+  if (!(runtime && typeof runtime.storeConnectionFromResult === 'function')) {
+    throw new Error('OAuth runtime is not available in this browser.');
+  }
+  const alias = readStoredAlias();
+  if (!alias) {
+    throw new Error('Sign in before linking a provider to this portal account.');
+  }
+
+  runtime.storeConnectionFromResult(result);
+  persistOauthVerification(result.provider, result.identity || {});
+  await persistOauthAccountLink(result);
+  await refreshOauthProfile();
+  setOauthProfileStatus(`Linked ${String(result.provider || 'OAuth')} to ${alias}.`);
+}
+
+async function consumePendingProfileOauthResult() {
+  const runtime = window.PortalOAuth;
+  if (!(runtime && typeof runtime.consumePendingResult === 'function')) {
+    return;
+  }
+
+  const result = runtime.consumePendingResult();
+  if (!result || result.intent !== 'profile-link') {
+    return;
+  }
+
+  if (!result.ok) {
+    setOauthProfileStatus(result.error || 'OAuth link could not be completed.');
+    await refreshOauthProfile();
+    return;
+  }
+
+  try {
+    setOauthProfileStatus(`Finishing ${String(result.provider || 'OAuth')} link…`);
+    await finishProfileOauthLink(result);
+  } catch (err) {
+    console.error('Failed to finish profile OAuth link', err);
+    setOauthProfileStatus(err?.message || 'OAuth link could not be completed.');
+  }
+}
+
+function startProfileOauthLink(provider) {
+  const runtime = window.PortalOAuth;
+  const alias = readStoredAlias();
+  if (!alias || !isSignedIn) {
+    setOauthProfileStatus('Sign in before linking Google, Microsoft, or Apple to this portal identity.');
+    return;
+  }
+  if (!(runtime && typeof runtime.begin === 'function')) {
+    setOauthProfileStatus('OAuth runtime is unavailable in this browser.');
+    return;
+  }
+
+  setOauthProfileStatus(`Redirecting to ${provider}…`);
+  runtime.begin(provider, {
+    intent: 'profile-link',
+    scopeKey: OAUTH_PROFILE_SCOPES[provider] || 'identity',
+    returnTo: '/profile.html#profile-oauth',
+    aliasHint: alias,
+  });
+}
+
+async function clearProfileOauthConnection(provider) {
+  const runtime = window.PortalOAuth;
+  if (!(runtime && typeof runtime.clearConnection === 'function')) {
+    return;
+  }
+  runtime.clearConnection(provider);
+  await refreshOauthProfile();
+  setOauthProfileStatus(`Cleared the local ${provider} browser connection. Gun link records were left intact.`);
 }
 
 function computeDisplayName() {
@@ -970,6 +1447,7 @@ function handleProfileName(name) {
     if (isSignedIn) {
       portalStoredName = normalized;
       localStorage.setItem('username', portalStoredName);
+      persistPortalProfileName(portalStoredName);
       writeSharedIdentity();
     } else if (isGuest) {
       guestStoredName = normalized;
@@ -1037,35 +1515,43 @@ function subscribeToScore() {
   scoreManager.whenReady().then(value => updateProfile(value));
 }
 
-function initializeSignedInProfile() {
+function initializeSignedInProfile({ oauthOnly = false } = {}) {
   isSignedIn = true;
   isGuest = false;
   localStorage.removeItem('guest');
   localStorage.removeItem('guestId');
   localStorage.removeItem('guestDisplayName');
   guestStoredName = '';
-  activeProfile = user;
-  writeSharedIdentity();
+  const signedInAlias = readStoredAlias();
+  activeProfile = oauthOnly && signedInAlias
+    ? userIndexNode.get(signedInAlias)
+    : user;
+  writeSharedIdentity(signedInAlias);
 
-  if (!window.ScoreSystem || typeof window.ScoreSystem.recallUserSession !== 'function') {
-    try {
-      user.recall({ sessionStorage: true, localStorage: true });
-    } catch (err) {
-      console.warn('Unable to recall user session', err);
+  if (!oauthOnly) {
+    if (!window.ScoreSystem || typeof window.ScoreSystem.recallUserSession !== 'function') {
+      try {
+        user.recall({ sessionStorage: true, localStorage: true });
+      } catch (err) {
+        console.warn('Unable to recall user session', err);
+      }
+    } else {
+      window.ScoreSystem.recallUserSession(user);
     }
+
+    user.get('alias').on(value => {
+      const normalizedAlias = typeof value === 'string' ? value.trim() : '';
+      aliasName = aliasToDisplay(normalizedAlias);
+      if (normalizedAlias) {
+        localStorage.setItem('alias', normalizedAlias);
+        writeSharedIdentity(normalizedAlias);
+      }
+      applyDisplayName();
+    });
   } else {
-    window.ScoreSystem.recallUserSession(user);
+    aliasName = aliasToDisplay(signedInAlias);
+    persistPortalProfileName(portalStoredName || aliasName || 'User');
   }
-
-  user.get('alias').on(value => {
-    const normalizedAlias = typeof value === 'string' ? value.trim() : '';
-    aliasName = aliasToDisplay(normalizedAlias);
-    if (normalizedAlias) {
-      localStorage.setItem('alias', normalizedAlias);
-      writeSharedIdentity(normalizedAlias);
-    }
-    applyDisplayName();
-  });
 
   watchUsername(activeProfile);
   applyDisplayName();
@@ -1093,10 +1579,13 @@ function initializeGuestProfile() {
 
 const signedInAlias = (localStorage.getItem('alias') || '').trim();
 const signedInPassword = localStorage.getItem('password');
+const signedInAuthMethod = readStoredAuthMethod();
 
-if (isSignedIn && signedInAlias && signedInPassword) {
+if (isSignedIn && signedInAlias && (signedInPassword || signedInAuthMethod === 'oauth')) {
   aliasName = aliasToDisplay(signedInAlias);
-  if (user.is) {
+  if (signedInAuthMethod === 'oauth' && !signedInPassword) {
+    initializeSignedInProfile({ oauthOnly: true });
+  } else if (user.is) {
     initializeSignedInProfile();
   } else {
     user.auth(signedInAlias, signedInPassword, ack => {
@@ -1126,6 +1615,7 @@ function saveUsername() {
   if (isSignedIn) {
     portalStoredName = name;
     localStorage.setItem('username', portalStoredName);
+    persistPortalProfileName(portalStoredName);
     writeSharedIdentity();
   } else if (isGuest) {
     guestStoredName = name;
@@ -1451,6 +1941,22 @@ function resetScore() {
 
   performReset();
 }
+
+Object.entries(oauthProviderRefs).forEach(([provider, refs]) => {
+  if (refs.link) {
+    refs.link.addEventListener('click', () => {
+      startProfileOauthLink(provider);
+    });
+  }
+  if (refs.clear) {
+    refs.clear.addEventListener('click', () => {
+      clearProfileOauthConnection(provider);
+    });
+  }
+});
+
+refreshOauthProfile();
+consumePendingProfileOauthResult();
 </script>
 
 </body>

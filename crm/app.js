@@ -13,6 +13,20 @@ import {
   sanitizeCrmRecord,
   buildCrmRelationshipBoard,
 } from './crm-editing.js';
+import {
+  CONTACT_IMPORT_ACCEPT,
+  buildImportMatchKeys,
+  buildImportedCrmRecord,
+  mergeCommaSeparatedValues,
+  parseContactFileText,
+  pickDeviceContacts,
+  supportsDeviceContactPicker,
+} from '../src/contacts/import.js';
+import {
+  PORTAL_OAUTH_AUTH_METHOD,
+  PORTAL_OAUTH_CONTACTS_ROOT,
+  getOAuthContactsNodeKey,
+} from '../src/oauth/shared.js';
 
 const gun = Gun(window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
@@ -26,7 +40,6 @@ const CRM_DRAFTS_NODE_PATH = ['3dvr-portal', 'crm-outreach-drafts'];
 const ORG_CONTACTS_SPACE = 'org-3dvr';
 const ORG_CONTACTS_NODE_KEY = 'org-3dvr-demo';
 const contactsWorkspaceOrg = gun.get(ORG_CONTACTS_NODE_KEY);
-const contactsWorkspacePersonal = user.get('contacts');
 const touchLogRoot = portalRoot.get('crm-touch-log');
 const crmDraftsRoot = portalRoot.get('crm-outreach-drafts');
 const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
@@ -43,6 +56,10 @@ const ls = window.localStorage;
 const signedIn = ls.getItem('signedIn') === 'true';
 const alias = ls.getItem('alias') || '';
 const password = ls.getItem('password') || '';
+const authMethod = String(ls.getItem('authMethod') || '').trim();
+const contactsWorkspacePersonal = authMethod === PORTAL_OAUTH_AUTH_METHOD && alias
+  ? portalRoot.get(PORTAL_OAUTH_CONTACTS_ROOT).get(getOAuthContactsNodeKey(alias))
+  : user.get('contacts');
 const contactWorkspaceOrgIndex = Object.create(null);
 const contactWorkspacePersonalIndex = Object.create(null);
 const crmIndex = Object.create(null);
@@ -155,6 +172,11 @@ const elements = {
   openCreate: document.getElementById('openCrmCreate'),
   openGroupCreate: document.getElementById('openGroupCreate'),
   openProblemCreate: document.getElementById('openProblemCreate'),
+  importPicker: document.getElementById('crmPickDeviceContacts'),
+  importFile: document.getElementById('crmImportFile'),
+  importGoogle: document.getElementById('crmImportGoogleContacts'),
+  importMicrosoft: document.getElementById('crmImportMicrosoftContacts'),
+  importStatus: document.getElementById('crmImportStatus'),
   draftBuilder: document.getElementById('crmDraftBuilder'),
   draftEmbedded: document.getElementById('crmDraftEmbedded'),
   draftCustom: document.getElementById('crmDraftCustom'),
@@ -426,6 +448,79 @@ function formatUpdated(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleString();
+}
+
+function mergeImportedNotes(existingValue = '', importedValue = '') {
+  const existing = String(existingValue || '').trim();
+  const imported = String(importedValue || '').trim();
+  if (!imported) return existing;
+  if (!existing) return imported;
+  if (existing.includes(imported)) return existing;
+  return `${existing}\n\nImported note:\n${imported}`;
+}
+
+function showImportStatus(message = '', tone = 'info') {
+  if (!elements.importStatus) return;
+  const copy = String(message || '').trim();
+  if (!copy) {
+    elements.importStatus.className = 'hidden rounded-lg border px-3 py-2 text-xs';
+    elements.importStatus.textContent = '';
+    return;
+  }
+  const palettes = {
+    info: 'border border-sky-500/30 bg-sky-950/40 text-sky-100',
+    success: 'border border-emerald-500/30 bg-emerald-950/40 text-emerald-100',
+    warn: 'border border-amber-500/30 bg-amber-950/40 text-amber-100',
+    error: 'border border-rose-500/30 bg-rose-950/40 text-rose-100',
+  };
+  elements.importStatus.className = `rounded-lg px-3 py-2 text-xs ${palettes[tone] || palettes.info}`;
+  elements.importStatus.textContent = copy;
+}
+
+function refreshImportControls() {
+  if (elements.importFile) {
+    elements.importFile.accept = CONTACT_IMPORT_ACCEPT;
+  }
+  if (!elements.importPicker) return;
+  const supported = supportsDeviceContactPicker(window.navigator);
+  elements.importPicker.disabled = !supported;
+  elements.importPicker.classList.toggle('opacity-60', !supported);
+  elements.importPicker.classList.toggle('cursor-not-allowed', !supported);
+  elements.importPicker.textContent = supported ? 'Pick from phone' : 'Phone picker unavailable';
+}
+
+async function refreshOauthImportControls() {
+  const runtime = window.PortalOAuth;
+  const buttons = [
+    { provider: 'google', button: elements.importGoogle },
+    { provider: 'microsoft', button: elements.importMicrosoft },
+  ];
+  if (!runtime || typeof runtime.fetchProviderConfig !== 'function') {
+    buttons.forEach(entry => {
+      if (!entry.button) return;
+      entry.button.disabled = true;
+      entry.button.classList.add('opacity-60', 'cursor-not-allowed');
+    });
+    return;
+  }
+
+  await Promise.all(buttons.map(async entry => {
+    if (!entry.button) return;
+    try {
+      const config = await runtime.fetchProviderConfig(entry.provider);
+      const enabled = Boolean(config && config.configured);
+      entry.button.disabled = !enabled;
+      entry.button.classList.toggle('opacity-60', !enabled);
+      entry.button.classList.toggle('cursor-not-allowed', !enabled);
+      entry.button.title = enabled
+        ? `Import contacts from ${config.label}`
+        : `${config.label} OAuth is not configured on this deployment yet.`;
+    } catch (err) {
+      entry.button.disabled = true;
+      entry.button.classList.add('opacity-60', 'cursor-not-allowed');
+      entry.button.title = err.message || 'OAuth config unavailable.';
+    }
+  }));
 }
 
 function timeAgo(value) {
@@ -737,6 +832,153 @@ function findContactInWorkspace(record, { space = getPreferredContactsSpace(), a
 
 function getContactButtonLabel(record) {
   return findContactInWorkspace(record, { allowFallback: false }) ? 'Open in contacts' : 'Add to contacts';
+}
+
+function findExistingImportedLead(importedRecord) {
+  const targetKeys = new Set(buildImportMatchKeys(importedRecord));
+  if (!targetKeys.size) return null;
+  return state.board.people.find(record => buildImportMatchKeys(record).some(key => targetKeys.has(key))) || null;
+}
+
+function mergeImportedLead(existingRecord, importedRecord, { sourceLabel = 'Phone import' } = {}) {
+  const base = buildImportedCrmRecord(importedRecord, {
+    source: sourceLabel,
+    tags: mergeCommaSeparatedValues(importedRecord.tags, 'source/phone-import'),
+    now: new Date().toISOString(),
+    idFactory: generateId,
+  });
+  if (!base) return null;
+  const existing = existingRecord ? sanitizeCrmRecord(existingRecord) : null;
+  const timestamp = new Date().toISOString();
+  return pruneRecordForType({
+    ...(existing || {}),
+    ...base,
+    id: existing?.id || base.id,
+    name: existing?.name || base.name,
+    email: existing?.email || base.email,
+    phone: existing?.phone || base.phone,
+    company: existing?.company || base.company,
+    role: existing?.role || base.role,
+    tags: mergeCommaSeparatedValues(existing?.tags, base.tags),
+    status: existing?.status || base.status || DEFAULT_PERSON_STATUS,
+    warmth: existing?.warmth || base.warmth || 'warm',
+    fit: existing?.fit || base.fit || '',
+    urgency: existing?.urgency || base.urgency || '',
+    nextFollowUp: existing?.nextFollowUp || base.nextFollowUp || '',
+    notes: mergeImportedNotes(existing?.notes, base.notes),
+    source: existing?.source || base.source || sourceLabel,
+    nextBestAction: existing?.nextBestAction || base.nextBestAction,
+    objection: existing?.objection || base.objection || '',
+    lastSignal: existing?.lastSignal || base.lastSignal,
+    contactId: existing?.contactId || base.contactId || '',
+    created: existing?.created || base.created || timestamp,
+    updated: timestamp,
+    lastContacted: existing?.lastContacted || '',
+    activityCount: toActivityCount(existing?.activityCount),
+    replyCount: toActivityCount(existing?.replyCount),
+    lastReplyAt: String(existing?.lastReplyAt || ''),
+  });
+}
+
+async function importContactsIntoCrm(records, { sourceLabel = 'Phone import' } = {}) {
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const importedIds = [];
+
+  for (const record of (Array.isArray(records) ? records : [])) {
+    if (!record) {
+      skipped += 1;
+      continue;
+    }
+    const existing = findExistingImportedLead(record);
+    const merged = mergeImportedLead(existing, record, { sourceLabel });
+    if (!merged) {
+      skipped += 1;
+      continue;
+    }
+    await putCrmRecord(merged);
+    importedIds.push(merged.id);
+    if (existing) {
+      updated += 1;
+    } else {
+      created += 1;
+    }
+  }
+
+  if (importedIds.length) {
+    state.focusId = importedIds[0];
+    state.focusApplied = false;
+    if (importedIds.length === 1) {
+      openDetail(importedIds[0]);
+    }
+  }
+  if (scoreManager && importedIds.length) {
+    scoreManager.increment(importedIds.length);
+  }
+  return { created, updated, skipped, total: created + updated };
+}
+
+async function importOauthContacts(provider) {
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.begin !== 'function' || typeof runtime.listContacts !== 'function') {
+    showImportStatus('OAuth is not available in this browser.', 'error');
+    return;
+  }
+  const connection = typeof runtime.getConnection === 'function'
+    ? runtime.getConnection(provider)
+    : null;
+  if (!connection || !connection.accessToken) {
+    showImportStatus(`Connecting ${provider} so contacts can be imported…`, 'info');
+    runtime.begin(provider, {
+      intent: 'crm-import',
+      scopeKey: 'contacts',
+      returnTo: `${window.location.pathname}${window.location.search}`,
+      aliasHint: signedIn ? alias : '',
+    });
+    return;
+  }
+
+  showImportStatus(`Loading ${provider} contacts…`, 'info');
+  try {
+    const payload = await runtime.listContacts(provider, {
+      accessToken: connection.accessToken,
+      limit: 200,
+    });
+    const summary = await importContactsIntoCrm(payload.contacts || [], {
+      sourceLabel: provider === 'google' ? 'Google OAuth' : 'Microsoft OAuth',
+    });
+    showImportStatus(
+      summary.total
+        ? `Imported ${summary.created} new and updated ${summary.updated} existing lead${summary.total === 1 ? '' : 's'} from ${provider}.`
+        : `No contacts were returned from ${provider}.`,
+      summary.total ? 'success' : 'warn'
+    );
+  } catch (err) {
+    console.error(`Unable to import ${provider} contacts into CRM`, err);
+    showImportStatus(`CRM import failed: ${err.message}`, 'error');
+  }
+}
+
+async function consumePendingOauthImportResult() {
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.consumePendingResult !== 'function') {
+    return;
+  }
+  const result = runtime.consumePendingResult();
+  if (!result) {
+    return;
+  }
+  if (!result.ok) {
+    showImportStatus(result.error || 'OAuth import could not be completed.', 'error');
+    return;
+  }
+  if (typeof runtime.storeConnectionFromResult === 'function') {
+    runtime.storeConnectionFromResult(result);
+  }
+  if (result.intent === 'crm-import') {
+    await importOauthContacts(result.provider || '');
+  }
 }
 
 function populateStaticSelects() {
@@ -1467,6 +1709,8 @@ function putCrmRecord(record) {
         reject(new Error(String(ack.err)));
         return;
       }
+      crmIndex[record.id] = { ...(crmIndex[record.id] || {}), ...sanitizeCrmRecord(record), id: record.id };
+      scheduleRender();
       resolve(record);
     });
   });
@@ -1484,6 +1728,9 @@ function putContactRecord(id, payload, space = getPreferredContactsSpace()) {
         reject(new Error(String(ack.err)));
         return;
       }
+      const index = getContactWorkspaceIndex(space);
+      index[id] = { ...(index[id] || {}), ...payload, id };
+      scheduleRender();
       resolve(payload);
     });
   });
@@ -1496,6 +1743,8 @@ function deleteCrmRecord(id) {
         reject(new Error(String(ack.err)));
         return;
       }
+      delete crmIndex[id];
+      scheduleRender();
       resolve();
     });
   });
@@ -2503,6 +2752,77 @@ async function handleQuickLeadSubmit(event) {
   }
 }
 
+async function handleImportPicker() {
+  if (!supportsDeviceContactPicker(window.navigator)) {
+    showImportStatus('This browser cannot open the phone contact picker. Import a .vcf or .csv file instead.', 'warn');
+    elements.importFile?.click();
+    return;
+  }
+
+  showImportStatus('Opening the phone contact picker…', 'info');
+  try {
+    const records = await pickDeviceContacts({
+      navigatorLike: window.navigator,
+      multiple: true,
+      source: 'Phone import',
+      now: new Date().toISOString(),
+      idFactory: generateId,
+    });
+    if (!records.length) {
+      showImportStatus('No contacts were selected from the phone picker.', 'warn');
+      return;
+    }
+    const summary = await importContactsIntoCrm(records, { sourceLabel: 'Phone import' });
+    showImportStatus(
+      `Imported ${summary.created} new and updated ${summary.updated} existing lead${summary.total === 1 ? '' : 's'} from your phone.`,
+      'success'
+    );
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      showImportStatus('Phone contact picking was canceled.', 'warn');
+      return;
+    }
+    console.error('Unable to import phone contacts into CRM', err);
+    showImportStatus(`Phone contact import failed: ${err.message}`, 'error');
+  }
+}
+
+async function handleImportFiles(event) {
+  const files = Array.from(event.target?.files || []);
+  if (!files.length) return;
+
+  try {
+    let created = 0;
+    let updated = 0;
+    for (const file of files) {
+      const text = await file.text();
+      const records = parseContactFileText(text, file.name, {
+        now: new Date().toISOString(),
+        idFactory: generateId,
+        source: 'Phone import file',
+      });
+      if (!records.length) continue;
+      const summary = await importContactsIntoCrm(records, { sourceLabel: 'Phone import file' });
+      created += summary.created;
+      updated += summary.updated;
+    }
+    const total = created + updated;
+    showImportStatus(
+      total
+        ? `Imported ${created} new and updated ${updated} existing lead${total === 1 ? '' : 's'} from uploaded file(s).`
+        : 'No leads were detected in the uploaded files.',
+      total ? 'success' : 'warn'
+    );
+  } catch (err) {
+    console.error('Unable to import CRM files', err);
+    showImportStatus(`CRM import failed: ${err.message}`, 'error');
+  } finally {
+    if (elements.importFile) {
+      elements.importFile.value = '';
+    }
+  }
+}
+
 function getDetailDraftInput(recordId, draftType) {
   if (!elements.detailDrafts) return null;
   const safeRecordId = escapeSelectorValue(recordId);
@@ -2610,6 +2930,14 @@ function attachEvents() {
   elements.openCreate?.addEventListener('click', () => openCreateOverlay({ type: 'person' }));
   elements.openGroupCreate?.addEventListener('click', () => openCreateOverlay({ type: 'group' }));
   elements.openProblemCreate?.addEventListener('click', () => openCreateOverlay({ type: 'problem' }));
+  elements.importPicker?.addEventListener('click', handleImportPicker);
+  elements.importFile?.addEventListener('change', handleImportFiles);
+  elements.importGoogle?.addEventListener('click', async () => {
+    await importOauthContacts('google');
+  });
+  elements.importMicrosoft?.addEventListener('click', async () => {
+    await importOauthContacts('microsoft');
+  });
   elements.draftBuilder?.addEventListener('click', () => openCreateOverlay({ type: 'person', preset: SALES_DRAFT_PRESETS.builder }));
   elements.draftEmbedded?.addEventListener('click', () => openCreateOverlay({ type: 'person', preset: SALES_DRAFT_PRESETS.embedded }));
   elements.draftCustom?.addEventListener('click', () => openCreateOverlay({ type: 'person', preset: SALES_DRAFT_PRESETS.custom }));
@@ -2692,7 +3020,7 @@ function attachEvents() {
 }
 
 function startSync() {
-  if (!user.is && signedIn && alias && password) {
+  if (!user.is && signedIn && authMethod !== PORTAL_OAUTH_AUTH_METHOD && alias && password) {
     user.auth(alias, password, ack => {
       if (ack && ack.err) {
         console.warn('CRM auth failed', ack.err);
@@ -2773,10 +3101,13 @@ function startSync() {
 
 function init() {
   updateFilterButtons();
+  refreshImportControls();
+  refreshOauthImportControls();
   populateStaticSelects();
   refreshRelationshipControls();
   fillCreateForm({ recordType: 'person', status: DEFAULT_PERSON_STATUS });
   attachEvents();
+  consumePendingOauthImportResult();
   startIdentityBadge();
   updateContactsLinks();
   refreshCellContextBanner();
