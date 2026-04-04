@@ -43,24 +43,30 @@ describe('calendar PWA configuration', () => {
     assert.match(html, /data-sw-url="\.\/*service-worker\.js"/);
     assert.match(html, /data-sw-scope="\.\//);
     assert.match(html, /href="\.\/*calendar\.webmanifest"/);
+    assert.match(html, /href="\.\/*global\.css"/);
+    assert.match(html, /href="\.\/*install-banner\.css"/);
     assert.match(html, /src="\.\/*calendar\.js"/);
-    assert.match(html, /src="\.\.\/gun-init\.js"/);
-    assert.match(html, /src="\.\.\/oauth\.js"/);
+    assert.match(html, /src="\.\/*gun-init\.js"/);
+    assert.match(html, /src="\.\/*oauth\.js"/);
+    assert.match(html, /href="\.\/*icons\/icon-192\.png"/);
     assert.match(html, /data-portal-home-link/);
   });
 
   it('ships a calendar-specific service worker', async () => {
     const workerSource = await readProjectFile('calendar/service-worker.js');
 
-    assert.match(workerSource, /const CACHE_VERSION = 'v1';/);
+    assert.match(workerSource, /const CACHE_VERSION = 'v2';/);
     assert.match(workerSource, /calendar-static-/);
     assert.match(workerSource, /calendar-html-/);
+    assert.match(workerSource, /scopeAsset\('global\.css'\)/);
     assert.match(workerSource, /scopeAsset\('calendar\.css'\)/);
+    assert.match(workerSource, /scopeAsset\('install-banner\.css'\)/);
     assert.match(workerSource, /scopeAsset\('calendar\.js'\)/);
+    assert.match(workerSource, /scopeAsset\('gun-init\.js'\)/);
+    assert.match(workerSource, /scopeAsset\('oauth\.js'\)/);
     assert.match(workerSource, /scopeAsset\('pwa-install\.js'\)/);
     assert.match(workerSource, /scopeAsset\('calendar\.webmanifest'\)/);
-    assert.match(workerSource, /scopeAsset\('\.\.\/styles\/global\.css'\)/);
-    assert.match(workerSource, /scopeAsset\('\.\.\/oauth\.js'\)/);
+    assert.match(workerSource, /scopeAsset\('icons\/icon-192\.png'\)/);
     assert.match(workerSource, /request\.mode === 'navigate'/);
     assert.match(workerSource, /type === 'SKIP_WAITING'/);
   });
@@ -85,27 +91,21 @@ describe('calendar PWA configuration', () => {
     assert.match(source, /function hydratePortalHomeLink\(\)/);
   });
 
-  it('marks calendar install files as no-cache and rewrites calendar subdomains with wildcard host rules', async () => {
+  it('keeps the portal calendar install files scoped under /calendar in the main Vercel project', async () => {
     const vercelText = await readProjectFile('vercel.json');
     const config = JSON.parse(vercelText);
     const rules = Array.isArray(config.headers) ? config.headers : [];
     const rewrites = Array.isArray(config.rewrites) ? config.rewrites : [];
 
     const manifestRule = rules.find((rule) => rule.source === '/calendar/calendar.webmanifest');
-    const subdomainManifestRule = rules.find((rule) => rule.source === '/calendar.webmanifest');
     const pwaInstallRule = rules.find((rule) => rule.source === '/calendar/pwa-install.js');
     const workerRule = rules.find((rule) => rule.source === '/calendar/service-worker.js');
 
     assert.ok(manifestRule);
-    assert.ok(subdomainManifestRule);
     assert.ok(pwaInstallRule);
     assert.ok(workerRule);
     assert.equal(
       findHeaderValue(manifestRule.headers, 'Cache-Control'),
-      'public, max-age=0, must-revalidate'
-    );
-    assert.equal(
-      findHeaderValue(subdomainManifestRule.headers, 'Cache-Control'),
       'public, max-age=0, must-revalidate'
     );
     assert.equal(findHeaderValue(pwaInstallRule.headers, 'Cache-Control'), 'no-cache');
@@ -114,26 +114,50 @@ describe('calendar PWA configuration', () => {
       findHeaderValue(workerRule.headers, 'Service-Worker-Allowed'),
       '/calendar/'
     );
-
-    const expectedHostSource =
-      '/:calendarPath((?!api(?:/|$)|_vercel(?:/|$)|styles/|icons/|favicon\\.ico$|gun-init\\.js$|oauth\\.js$|calendar(?:/|$)).*)';
-
-    const productionWildcardRewrite = rewrites.find(
-      (rule) =>
-        rule.source === expectedHostSource
-        && rule.destination === '/calendar/:calendarPath*'
-        && Array.isArray(rule.has)
-        && rule.has.some((entry) => entry.type === 'host' && entry.value === 'calendar.3dvr.tech')
+    assert.equal(
+      rewrites.some(
+        (rule) =>
+          Array.isArray(rule.has)
+          && rule.has.some(
+            (entry) =>
+              entry.type === 'host'
+              && (entry.value === 'calendar.3dvr.tech' || entry.value === 'calendar-staging.3dvr.tech')
+          )
+      ),
+      false
     );
-    const stagingWildcardRewrite = rewrites.find(
-      (rule) =>
-        rule.source === expectedHostSource
-        && rule.destination === '/calendar/:calendarPath*'
-        && Array.isArray(rule.has)
-        && rule.has.some((entry) => entry.type === 'host' && entry.value === 'calendar-staging.3dvr.tech')
-    );
+  });
 
-    assert.ok(productionWildcardRewrite);
-    assert.ok(stagingWildcardRewrite);
+  it('ships standalone Vercel headers and an API proxy inside the calendar directory', async () => {
+    const vercelText = await readProjectFile('calendar/vercel.json');
+    const config = JSON.parse(vercelText);
+    const rules = Array.isArray(config.headers) ? config.headers : [];
+
+    const staticAssetsRule = rules.find(
+      (rule) => rule.source === '/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|webp|woff2?)'
+    );
+    const manifestRule = rules.find((rule) => rule.source === '/calendar.webmanifest');
+    const pwaInstallRule = rules.find((rule) => rule.source === '/pwa-install.js');
+    const workerRule = rules.find((rule) => rule.source === '/service-worker.js');
+
+    assert.ok(staticAssetsRule);
+    assert.ok(manifestRule);
+    assert.ok(pwaInstallRule);
+    assert.ok(workerRule);
+    assert.equal(config.ignoreCommand, 'sh ./ignore-build.sh');
+    assert.equal(
+      findHeaderValue(manifestRule.headers, 'Cache-Control'),
+      'public, max-age=0, must-revalidate'
+    );
+    assert.equal(findHeaderValue(pwaInstallRule.headers, 'Cache-Control'), 'no-cache');
+    assert.equal(findHeaderValue(workerRule.headers, 'Cache-Control'), 'no-cache');
+    assert.equal(findHeaderValue(workerRule.headers, 'Service-Worker-Allowed'), '/');
+  });
+
+  it('ships a calendar-scoped ignored build script for the standalone Vercel project', async () => {
+    const source = await readProjectFile('calendar/ignore-build.sh');
+
+    assert.match(source, /git rev-parse HEAD\^/);
+    assert.match(source, /git diff --quiet HEAD\^ HEAD -- \./);
   });
 });

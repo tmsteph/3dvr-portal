@@ -1,6 +1,6 @@
 /* calendar/service-worker.js */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `calendar-static-${CACHE_VERSION}`;
 const HTML_CACHE = `calendar-html-${CACHE_VERSION}`;
 const SCOPE_URL = new URL(self.registration.scope);
@@ -9,17 +9,17 @@ const scopeAsset = (asset = '') => new URL(asset, SCOPE_URL).pathname;
 const STATIC_ASSETS = [
   scopeAsset(''),
   scopeAsset('index.html'),
+  scopeAsset('global.css'),
   scopeAsset('calendar.css'),
+  scopeAsset('install-banner.css'),
   scopeAsset('calendar.js'),
+  scopeAsset('gun-init.js'),
+  scopeAsset('oauth.js'),
   scopeAsset('pwa-install.js'),
   scopeAsset('calendar.webmanifest'),
-  scopeAsset('../styles/global.css'),
-  scopeAsset('../styles/install-banner.css'),
-  scopeAsset('../gun-init.js'),
-  scopeAsset('../oauth.js'),
-  scopeAsset('../icons/icon-192.png'),
-  scopeAsset('../icons/icon-512.png'),
-  scopeAsset('../icons/maskable-512.png')
+  scopeAsset('icons/icon-192.png'),
+  scopeAsset('icons/icon-512.png'),
+  scopeAsset('icons/maskable-512.png')
 ];
 
 const createReloadedRequests = (assets) =>

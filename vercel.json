@@ -38,15 +38,6 @@
       ]
     },
     {
-      "source": "/calendar.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
       "source": "/calendar/calendar.webmanifest",
       "headers": [
         {
@@ -132,26 +123,6 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/:calendarPath((?!api(?:/|$)|_vercel(?:/|$)|styles/|icons/|favicon\\.ico$|gun-init\\.js$|oauth\\.js$|calendar(?:/|$)).*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/:calendarPath*"
-    },
-    {
-      "source": "/:calendarPath((?!api(?:/|$)|_vercel(?:/|$)|styles/|icons/|favicon\\.ico$|gun-init\\.js$|oauth\\.js$|calendar(?:/|$)).*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "calendar-staging.3dvr.tech"
-        }
-      ],
-      "destination": "/calendar/:calendarPath*"
-    },
     {
       "source": "/webhooks/stripe",
       "destination": "/api/webhooks/stripe"

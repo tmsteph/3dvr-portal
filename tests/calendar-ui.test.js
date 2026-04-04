@@ -26,7 +26,7 @@ test('calendar hub presents a clear hero, month-first workspace, and side rail',
   assert.match(html, /Import from external calendars/);
   assert.match(html, /Connect Google with OAuth/);
   assert.match(html, /Connect Microsoft with OAuth/);
-  assert.match(html, /<script src="\.\.\/oauth\.js"><\/script>/);
+  assert.match(html, /<script src="\.\/oauth\.js"><\/script>/);
 
   assert.ok(
     html.indexOf('panel--primary') < html.indexOf('calendar-rail'),
