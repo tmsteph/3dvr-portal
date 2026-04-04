@@ -6,8 +6,12 @@ import {
   CRM_MARKET_SEGMENT_OPTIONS,
   CRM_PAIN_SEVERITY_OPTIONS,
   CRM_PILOT_STATUS_OPTIONS,
+  CRM_WARMTH_OPTIONS,
+  CRM_FIT_OPTIONS,
+  CRM_URGENCY_OPTIONS,
   CRM_RECORD_TYPE_OPTIONS,
   normalizeCrmRecordType,
+  normalizeCrmWarmth,
   parseCrmList,
   sanitizeCrmRecord,
   buildCrmRelationshipBoard,
@@ -70,6 +74,26 @@ describe('crm option sets', () => {
     ]);
     assert.deepEqual(Array.from(CRM_PAIN_SEVERITY_OPTIONS), ['', 'Low', 'Medium', 'High', 'Critical']);
     assert.deepEqual(Array.from(CRM_PILOT_STATUS_OPTIONS), ['', 'Watching', 'Warm', 'Pilot candidate', 'Pilot active', 'Customer', 'Not a fit']);
+    assert.deepEqual(Array.from(CRM_WARMTH_OPTIONS), [
+      { value: '', label: 'Warmth' },
+      { value: 'cold', label: 'Cold' },
+      { value: 'warm', label: 'Warm' },
+      { value: 'hot', label: 'Hot' },
+    ]);
+    assert.deepEqual(Array.from(CRM_FIT_OPTIONS), [
+      { value: '', label: 'Fit' },
+      { value: 'website', label: 'Website' },
+      { value: 'branding', label: 'Branding' },
+      { value: 'app', label: 'App' },
+      { value: 'support', label: 'Support' },
+      { value: 'consulting', label: 'Consulting' },
+    ]);
+    assert.deepEqual(Array.from(CRM_URGENCY_OPTIONS), [
+      { value: '', label: 'Urgency' },
+      { value: 'low', label: 'Low' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' },
+    ]);
     assert.deepEqual(Array.from(CRM_RECORD_TYPE_OPTIONS), [
       { value: 'person', label: 'Person / lead' },
       { value: 'group', label: 'Group / account' },
@@ -83,19 +107,36 @@ describe('crm relationship helpers', () => {
     assert.equal(normalizeCrmRecordType('GROUP'), 'group');
     assert.equal(normalizeCrmRecordType('problem'), 'problem');
     assert.equal(normalizeCrmRecordType('anything-else'), 'person');
+    assert.equal(normalizeCrmWarmth('', 'Warm - Discovery'), 'warm');
+    assert.equal(normalizeCrmWarmth('', 'Negotiating'), 'hot');
     assert.deepEqual(parseCrmList('alpha, beta\nalpha'), ['alpha', 'beta']);
     assert.deepEqual(sanitizeCrmRecord({
       id: 'p-1',
-      recordType: 'Problem',
+      recordType: 'Person',
       groupId: '  g-1  ',
       linkedGroupIds: ['g-1', 'g-1', 'g-2'],
       linkedPersonIds: 'p-1, p-2',
+      status: 'Warm - Awareness',
+      fit: 'APP',
+      urgency: 'HIGH',
+      nextFollowup: '2026-04-10',
+      nextExperiment: 'Send a proposal',
+      objection: 'Timing is messy',
     }), {
       id: 'p-1',
-      recordType: 'problem',
+      recordType: 'person',
       groupId: 'g-1',
       linkedGroupIds: 'g-1, g-2',
       linkedPersonIds: 'p-1, p-2',
+      status: 'Warm - Awareness',
+      fit: 'app',
+      urgency: 'high',
+      nextFollowUp: '2026-04-10',
+      nextExperiment: 'Send a proposal',
+      nextBestAction: 'Send a proposal',
+      objection: 'Timing is messy',
+      warmth: 'warm',
+      lastContacted: '',
     });
   });
 

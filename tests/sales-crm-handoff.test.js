@@ -5,6 +5,7 @@ import test from 'node:test';
 test('sales hub routes offers into prefilled CRM drafts', async () => {
   const salesHtml = await readFile(new URL('../sales/index.html', import.meta.url), 'utf8');
   const crmHtml = await readFile(new URL('../crm/index.html', import.meta.url), 'utf8');
+  const crmAppJs = await readFile(new URL('../crm/app.js', import.meta.url), 'utf8');
 
   assert.match(salesHtml, /Today&apos;s close/);
   assert.match(salesHtml, /Draft CRM/);
@@ -16,9 +17,12 @@ test('sales hub routes offers into prefilled CRM drafts', async () => {
   assert.match(crmHtml, /Builder draft/);
   assert.match(crmHtml, /Embedded draft/);
   assert.match(crmHtml, /Custom draft/);
-  assert.match(crmHtml, /fillCrmCreateForm/);
-  assert.match(crmHtml, /const draftFromParams = \{/);
-  assert.match(crmHtml, /openCrmCreateOverlay\(draftFromParams\)/);
+  assert.match(crmHtml, /type="module" src="\.\/app\.js"/);
+  assert.doesNotMatch(crmHtml, /const gun = Gun\(window\.__GUN_PEERS__/);
+  assert.match(crmAppJs, /SALES_DRAFT_PRESETS/);
+  assert.match(crmAppJs, /applyUrlDraftIfNeeded/);
+  assert.match(crmAppJs, /lead: \(params\.get\('lead'\) \|\| ''\)\.trim\(\)/);
+  assert.match(crmAppJs, /elements\.draftBuilder\?\.addEventListener/);
   assert.match(crmHtml, /Use the sales hub to start a CRM draft with the offer, source, and next step already filled in\./);
 
   assert.ok(
