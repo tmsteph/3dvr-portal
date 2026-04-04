@@ -140,7 +140,7 @@ describe('calendar PWA configuration', () => {
     const manifestRule = rules.find((rule) => rule.source === '/calendar.webmanifest');
     const pwaInstallRule = rules.find((rule) => rule.source === '/pwa-install.js');
     const workerRule = rules.find((rule) => rule.source === '/service-worker.js');
-    const apiProxyRewrite = rewrites.find((rule) => rule.source === '/api/:path*');
+    const apiProxyRewrite = rewrites.find((rule) => rule.source === '/api/:path((?!_proxy$).*)');
 
     assert.ok(staticAssetsRule);
     assert.ok(manifestRule);
@@ -155,7 +155,7 @@ describe('calendar PWA configuration', () => {
     assert.equal(findHeaderValue(pwaInstallRule.headers, 'Cache-Control'), 'no-cache');
     assert.equal(findHeaderValue(workerRule.headers, 'Cache-Control'), 'no-cache');
     assert.equal(findHeaderValue(workerRule.headers, 'Service-Worker-Allowed'), '/');
-    assert.equal(apiProxyRewrite.destination, '/api/proxy?path=:path*');
+    assert.equal(apiProxyRewrite.destination, '/api/_proxy?path=:path*');
   });
 
   it('ships a calendar-scoped ignored build script for the standalone Vercel project', async () => {
