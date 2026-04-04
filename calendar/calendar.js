@@ -101,10 +101,20 @@ const calendarDetailsList = document.querySelector('[data-calendar-details-list]
 const calendarDetailsEmpty = document.querySelector('[data-calendar-details-empty]');
 const calendarDetailsActions = document.querySelector('[data-calendar-details-actions]');
 const addEventForDayButton = document.querySelector('[data-action="add-event-for-day"]');
+const calendarQuickUpcoming = document.getElementById('calendarQuickUpcoming');
+const calendarQuickUpcomingMeta = document.getElementById('calendarQuickUpcomingMeta');
+const calendarQuickConnected = document.getElementById('calendarQuickConnected');
+const calendarQuickConnectedMeta = document.getElementById('calendarQuickConnectedMeta');
+const calendarQuickSelected = document.getElementById('calendarQuickSelected');
+const calendarQuickSelectedMeta = document.getElementById('calendarQuickSelectedMeta');
 
 const calendarMonthFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'long',
   year: 'numeric'
+});
+const calendarShortDateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric'
 });
 const calendarWeekdayFormatter = new Intl.DateTimeFormat(undefined, {
   weekday: 'short'
@@ -486,6 +496,7 @@ function writeConnection(provider, payload) {
   localStorage.setItem(config.storageKey, JSON.stringify(record));
   state.connections.set(provider, record);
   updateStatus(provider, true);
+  updateCalendarQuickStats(state.localEvents);
 }
 
 function removeConnection(provider) {
@@ -494,6 +505,7 @@ function removeConnection(provider) {
   localStorage.removeItem(config.storageKey);
   state.connections.delete(provider);
   updateStatus(provider, false);
+  updateCalendarQuickStats(state.localEvents);
 }
 
 function updateStatus(provider, isConnected) {
@@ -537,6 +549,7 @@ function hydrateState() {
     updateStatus(provider, Boolean(stored));
   });
   hydrateForms();
+  updateCalendarQuickStats(state.localEvents);
 }
 
 function showLog(message, type = 'info') {
@@ -842,6 +855,7 @@ function renderCalendar(events = state.localEvents) {
 
 function renderSelectedDayDetails() {
   if (!calendarDetails || !calendarDetailsTitle || !calendarDetailsList || !calendarDetailsEmpty) {
+    updateCalendarQuickStats(state.localEvents);
     return;
   }
   const { selectedDate } = calendarState;
@@ -854,6 +868,7 @@ function renderSelectedDayDetails() {
     calendarDetailsList.innerHTML = '';
     calendarDetailsEmpty.hidden = true;
     prefillCreateEventForm(null);
+    updateCalendarQuickStats(state.localEvents);
     return;
   }
 
@@ -870,6 +885,7 @@ function renderSelectedDayDetails() {
   if (!eventsForDay.length) {
     calendarDetailsEmpty.hidden = false;
     prefillCreateEventForm(selectedDate);
+    updateCalendarQuickStats(state.localEvents);
     return;
   }
 
@@ -936,6 +952,7 @@ function renderSelectedDayDetails() {
     });
 
   prefillCreateEventForm(selectedDate);
+  updateCalendarQuickStats(state.localEvents);
 }
 
 function selectCalendarDate(dateString) {
@@ -994,6 +1011,104 @@ function handleAddEventForSelectedDay() {
   resetCreateEventFormDirty();
   prefillCreateEventForm(targetDate, { force: true });
   setCreateEventExpanded(true);
+}
+
+function getEventsForSelectedDate(events = state.localEvents) {
+  const { selectedDate } = calendarState;
+  if (!selectedDate) {
+    return [];
+  }
+
+  const cachedEvents = calendarState.dayEvents.get(selectedDate);
+  if (Array.isArray(cachedEvents)) {
+    return cachedEvents;
+  }
+
+  return (Array.isArray(events) ? events : []).filter(event => {
+    if (!event || typeof event.start !== 'string' || !event.start) {
+      return false;
+    }
+    const eventDate = new Date(event.start);
+    if (Number.isNaN(eventDate.getTime())) {
+      return false;
+    }
+    return toDateKey(eventDate) === selectedDate;
+  });
+}
+
+function updateCalendarQuickStats(events = state.localEvents) {
+  const nextEvents = (Array.isArray(events) ? events : [])
+    .filter(event => {
+      if (!event || typeof event.start !== 'string' || !event.start) {
+        return false;
+      }
+      const startTime = Date.parse(event.start);
+      return !Number.isNaN(startTime) && startTime >= Date.now();
+    })
+    .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+
+  if (calendarQuickUpcoming) {
+    calendarQuickUpcoming.textContent = String(nextEvents.length);
+  }
+  if (calendarQuickUpcomingMeta) {
+    if (!nextEvents.length) {
+      calendarQuickUpcomingMeta.textContent = 'No future events yet.';
+    } else {
+      const nextEvent = nextEvents[0];
+      const nextTime = formatDateTime(nextEvent.start, nextEvent.timeZone);
+      calendarQuickUpcomingMeta.textContent = `${nextEvent.title || 'Untitled event'} • ${nextTime}`;
+    }
+  }
+
+  const connectedProviders = Object.keys(PROVIDERS).filter(provider => state.connections.has(provider));
+  if (calendarQuickConnected) {
+    calendarQuickConnected.textContent = String(connectedProviders.length);
+  }
+  if (calendarQuickConnectedMeta) {
+    if (!connectedProviders.length) {
+      calendarQuickConnectedMeta.textContent = 'Local-only workflow active.';
+    } else {
+      const labels = connectedProviders.map(provider => PROVIDERS[provider]?.label || provider);
+      calendarQuickConnectedMeta.textContent = `${labels.join(' + ')} connected.`;
+    }
+  }
+
+  const { selectedDate } = calendarState;
+  if (!calendarQuickSelected || !calendarQuickSelectedMeta) {
+    return;
+  }
+  if (!selectedDate) {
+    calendarQuickSelected.textContent = 'None';
+    calendarQuickSelectedMeta.textContent = 'Pick a day to review its schedule.';
+    return;
+  }
+
+  const selectedDay = new Date(`${selectedDate}T00:00:00`);
+  const isValidSelectedDay = !Number.isNaN(selectedDay.getTime());
+  const isToday = selectedDate === toDateKey(new Date());
+  const selectedEvents = getEventsForSelectedDate(events);
+
+  calendarQuickSelected.textContent = isToday
+    ? 'Today'
+    : isValidSelectedDay
+      ? calendarShortDateFormatter.format(selectedDay)
+      : 'Selected';
+
+  if (!isValidSelectedDay) {
+    calendarQuickSelectedMeta.textContent = 'Pick a day to review its schedule.';
+    return;
+  }
+
+  const count = selectedEvents.length;
+  if (!count) {
+    calendarQuickSelectedMeta.textContent = `${calendarFullDateFormatter.format(selectedDay)} has no events yet.`;
+    return;
+  }
+
+  calendarQuickSelectedMeta.textContent =
+    count === 1
+      ? `1 event scheduled on ${calendarFullDateFormatter.format(selectedDay)}.`
+      : `${count} events scheduled on ${calendarFullDateFormatter.format(selectedDay)}.`;
 }
 
 function renderEvents(events = state.localEvents) {
