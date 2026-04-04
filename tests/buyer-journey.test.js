@@ -10,10 +10,12 @@ test('sales buyer journey page keeps the internal funnel visible', async () => {
   assert.match(salesHubHtml, /Open Buyer Journey/);
   assert.match(html, /Five stages/);
   assert.match(html, /Buyer Journey Infographic/);
-  assert.match(html, /lead capture, qualification, checkout, onboarding, and retention/);
+  assert.match(html, /lead capture, qualification, checkout, onboarding, and delivery/);
   assert.match(html, /Lead Capture/);
   assert.match(html, /CRM/);
   assert.match(html, /Billing/);
-  assert.match(html, /Life/);
+  assert.match(html, /Onboard \+ Deliver/);
+  assert.match(html, /Start \+ Projects/);
+  assert.match(html, /Open Start Here/);
   assert.match(html, /Open Lead Capture/);
 });
