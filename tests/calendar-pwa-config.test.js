@@ -85,7 +85,7 @@ describe('calendar PWA configuration', () => {
     assert.match(source, /function hydratePortalHomeLink\(\)/);
   });
 
-  it('marks calendar install files as no-cache and rewrites calendar subdomain roots', async () => {
+  it('marks calendar install files as no-cache and rewrites calendar subdomains with wildcard host rules', async () => {
     const vercelText = await readProjectFile('vercel.json');
     const config = JSON.parse(vercelText);
     const rules = Array.isArray(config.headers) ? config.headers : [];
@@ -115,38 +115,25 @@ describe('calendar PWA configuration', () => {
       '/calendar/'
     );
 
-    const productionRootRewrite = rewrites.find(
+    const expectedHostSource =
+      '/:calendarPath((?!api(?:/|$)|_vercel(?:/|$)|styles/|icons/|favicon\\.ico$|gun-init\\.js$|oauth\\.js$|calendar(?:/|$)).*)';
+
+    const productionWildcardRewrite = rewrites.find(
       (rule) =>
-        rule.source === '/'
-        && rule.destination === '/calendar/index.html'
+        rule.source === expectedHostSource
+        && rule.destination === '/calendar/:calendarPath*'
         && Array.isArray(rule.has)
         && rule.has.some((entry) => entry.type === 'host' && entry.value === 'calendar.3dvr.tech')
     );
-    const productionWorkerRewrite = rewrites.find(
+    const stagingWildcardRewrite = rewrites.find(
       (rule) =>
-        rule.source === '/service-worker.js'
-        && rule.destination === '/calendar/service-worker.js'
-        && Array.isArray(rule.has)
-        && rule.has.some((entry) => entry.type === 'host' && entry.value === 'calendar.3dvr.tech')
-    );
-    const productionInstallerRewrite = rewrites.find(
-      (rule) =>
-        rule.source === '/pwa-install.js'
-        && rule.destination === '/calendar/pwa-install.js'
-        && Array.isArray(rule.has)
-        && rule.has.some((entry) => entry.type === 'host' && entry.value === 'calendar.3dvr.tech')
-    );
-    const stagingRootRewrite = rewrites.find(
-      (rule) =>
-        rule.source === '/'
-        && rule.destination === '/calendar/index.html'
+        rule.source === expectedHostSource
+        && rule.destination === '/calendar/:calendarPath*'
         && Array.isArray(rule.has)
         && rule.has.some((entry) => entry.type === 'host' && entry.value === 'calendar-staging.3dvr.tech')
     );
 
-    assert.ok(productionRootRewrite);
-    assert.ok(productionInstallerRewrite);
-    assert.ok(productionWorkerRewrite);
-    assert.ok(stagingRootRewrite);
+    assert.ok(productionWildcardRewrite);
+    assert.ok(stagingWildcardRewrite);
   });
 });
