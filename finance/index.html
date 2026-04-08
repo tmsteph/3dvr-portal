@@ -102,6 +102,40 @@
         </div>
       </div>
 
+      <div class="finance-card finance-card--metrics" aria-labelledby="stripe-cashflow-title">
+        <div class="finance-card__header">
+          <h2 id="stripe-cashflow-title" class="finance-card__title">Stripe cashflow snapshot</h2>
+          <p class="finance-card__subhead">Real money movement</p>
+        </div>
+        <p id="stripe-cashflow-status" class="finance-helper" role="status" aria-live="polite">
+          Stripe balance transactions load separately so you can see what came in, what went out, and where it went.
+        </p>
+        <p id="stripe-cashflow-meta" class="finance-helper">
+          Recent counterparties, payouts, and financing-related movement live in the Stripe workspace.
+        </p>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Money in</dt>
+            <dd id="stripe-cashflow-inflow">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Money out</dt>
+            <dd id="stripe-cashflow-outflow">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Stripe fees</dt>
+            <dd id="stripe-cashflow-fees">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Net change</dt>
+            <dd id="stripe-cashflow-net">&mdash;</dd>
+          </div>
+        </dl>
+        <div class="finance-card__actions">
+          <a href="./stripe.html" class="finance-button finance-button--secondary">Open Stripe cashflow</a>
+        </div>
+      </div>
+
       <div class="finance-card finance-card--metrics" aria-labelledby="profitability-title">
         <div class="finance-card__header">
           <h2 id="profitability-title" class="finance-card__title">Profitability alignment</h2>

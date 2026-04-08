@@ -35,6 +35,79 @@ const MOCK_STRIPE_METRICS = {
   planCounts: { builder: 1, embedded: 1, pro: 1 },
   hasMoreSubscribers: false,
 };
+const MOCK_STRIPE_CASHFLOW = {
+  updatedAt: '2026-04-08T03:00:00.000Z',
+  detailLimit: 2,
+  summary: {
+    transactionCount: 4,
+    inflow: { USD: 185245 },
+    outflow: { USD: 48200 },
+    fees: { USD: 645 },
+    net: { USD: 136400 },
+    payouts: { USD: 42000 },
+    payins: { USD: 5000 },
+    financingIn: { USD: 150000 },
+    financingOut: { USD: 6200 },
+    updatedAt: '2026-04-08T03:00:00.000Z',
+    isTruncated: false,
+    detailLimit: 2,
+    summaryLimit: 5000,
+  },
+  transactions: [
+    {
+      id: 'txn_charge',
+      createdAt: '2026-04-08T01:00:00.000Z',
+      availableOn: '2026-04-08T01:30:00.000Z',
+      currency: 'USD',
+      amount: 30245,
+      fee: 645,
+      net: 29600,
+      type: 'charge',
+      typeLabel: 'Charge',
+      reportingCategory: 'charge',
+      reportingLabel: 'Charge',
+      status: 'available',
+      sourceId: 'ch_123',
+      sourceObject: 'charge',
+      label: 'Portal User',
+      detail: 'user@example.com • Invoice in_123 • Card • Charge ch_123',
+      description: 'Builder subscription',
+      counterpartyType: 'customer',
+      customerId: 'cus_123',
+      customerName: 'Portal User',
+      customerEmail: 'user@example.com',
+      group: 'customer_payment',
+      groupLabel: 'Customer payment',
+      direction: 'inflow',
+    },
+    {
+      id: 'txn_financing',
+      createdAt: '2026-04-08T00:30:00.000Z',
+      availableOn: '2026-04-08T00:45:00.000Z',
+      currency: 'USD',
+      amount: -6200,
+      fee: 0,
+      net: -6200,
+      type: 'anticipation_repayment',
+      typeLabel: 'Anticipation Repayment',
+      reportingCategory: 'adjustment',
+      reportingLabel: 'Adjustment',
+      status: 'available',
+      sourceId: 'src_financing',
+      sourceObject: '',
+      label: 'Stripe Capital repayment',
+      detail: 'Source src_financing',
+      description: 'Stripe Capital repayment',
+      counterpartyType: '',
+      customerId: '',
+      customerName: '',
+      customerEmail: '',
+      group: 'financing',
+      groupLabel: 'Financing',
+      direction: 'outflow',
+    }
+  ]
+};
 const unavailableMetricLabel = '\u2014';
 
 describe('finance live stripe metrics', () => {
@@ -55,6 +128,12 @@ describe('finance live stripe metrics', () => {
         if (requestUrl.pathname === '/api/stripe/events') {
           res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ events: [], hasWebhookSecret: false }));
+          return;
+        }
+
+        if (requestUrl.pathname === '/api/stripe/cashflow') {
+          res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(MOCK_STRIPE_CASHFLOW));
           return;
         }
 
@@ -105,7 +184,9 @@ describe('finance live stripe metrics', () => {
       await page.waitForFunction(() => {
         return document.getElementById('stripe-overview-balance')?.textContent?.trim() === '$182.45'
           && document.getElementById('stripe-overview-subscribers')?.textContent?.trim() === '3'
-          && document.getElementById('stripe-overview-mrr')?.textContent?.trim() === '$300.00';
+          && document.getElementById('stripe-overview-mrr')?.textContent?.trim() === '$300.00'
+          && document.getElementById('stripe-cashflow-inflow')?.textContent?.trim() === '$1,852.45'
+          && document.getElementById('stripe-cashflow-outflow')?.textContent?.trim() === '$482.00';
       });
       await page.waitForTimeout(4500);
 
@@ -113,6 +194,10 @@ describe('finance live stripe metrics', () => {
         overviewBalance: document.getElementById('stripe-overview-balance')?.textContent?.trim() || null,
         overviewSubscribers: document.getElementById('stripe-overview-subscribers')?.textContent?.trim() || null,
         overviewMrr: document.getElementById('stripe-overview-mrr')?.textContent?.trim() || null,
+        cashflowIn: document.getElementById('stripe-cashflow-inflow')?.textContent?.trim() || null,
+        cashflowOut: document.getElementById('stripe-cashflow-outflow')?.textContent?.trim() || null,
+        cashflowFees: document.getElementById('stripe-cashflow-fees')?.textContent?.trim() || null,
+        cashflowNet: document.getElementById('stripe-cashflow-net')?.textContent?.trim() || null,
         linkedPaid: document.getElementById('profitability-linked-paid')?.textContent?.trim() || null,
         linkedMrr: document.getElementById('profitability-mrr')?.textContent?.trim() || null,
         status: document.getElementById('profitability-status')?.textContent?.trim() || null,
@@ -121,6 +206,10 @@ describe('finance live stripe metrics', () => {
       assert.equal(snapshot.overviewBalance, '$182.45');
       assert.equal(snapshot.overviewSubscribers, '3');
       assert.equal(snapshot.overviewMrr, '$300.00');
+      assert.equal(snapshot.cashflowIn, '$1,852.45');
+      assert.equal(snapshot.cashflowOut, '$482.00');
+      assert.equal(snapshot.cashflowFees, '$6.45');
+      assert.equal(snapshot.cashflowNet, '$1,364.00');
       assert.equal(snapshot.linkedPaid, unavailableMetricLabel);
       assert.equal(snapshot.linkedMrr, unavailableMetricLabel);
       assert.match(
@@ -153,20 +242,34 @@ describe('finance live stripe metrics', () => {
       await page.waitForFunction(() => {
         return document.getElementById('stripe-live-balance')?.textContent?.trim() === '$182.45'
           && document.getElementById('stripe-live-subscribers')?.textContent?.trim() === '3'
-          && document.getElementById('stripe-live-mrr')?.textContent?.trim() === '$300.00';
+          && document.getElementById('stripe-live-mrr')?.textContent?.trim() === '$300.00'
+          && document.getElementById('stripe-cashflow-financing-out')?.textContent?.trim() === '$62.00';
       });
 
       const snapshot = await page.evaluate(() => ({
         balance: document.getElementById('stripe-live-balance')?.textContent?.trim() || null,
         subscribers: document.getElementById('stripe-live-subscribers')?.textContent?.trim() || null,
         mrr: document.getElementById('stripe-live-mrr')?.textContent?.trim() || null,
+        payouts: document.getElementById('stripe-cashflow-payouts')?.textContent?.trim() || null,
+        payins: document.getElementById('stripe-cashflow-payins')?.textContent?.trim() || null,
+        financingIn: document.getElementById('stripe-cashflow-financing-in')?.textContent?.trim() || null,
+        financingOut: document.getElementById('stripe-cashflow-financing-out')?.textContent?.trim() || null,
+        cashflowList: document.getElementById('stripe-cashflow-list')?.textContent?.trim() || null,
       }));
 
       assert.deepEqual(snapshot, {
         balance: '$182.45',
         subscribers: '3',
         mrr: '$300.00',
+        payouts: '$420.00',
+        payins: '$50.00',
+        financingIn: '$1,500.00',
+        financingOut: '$62.00',
+        cashflowList: snapshot.cashflowList,
       });
+      assert.ok(snapshot.cashflowList);
+      assert.match(snapshot.cashflowList, /Portal User/);
+      assert.match(snapshot.cashflowList, /Stripe Capital repayment/);
     } finally {
       await browser.close();
     }

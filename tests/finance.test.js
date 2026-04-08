@@ -32,10 +32,17 @@ describe('finance ledger hub', () => {
     assert.match(html, /id="profitability-mrr"/);
     assert.match(html, /id="profitability-link-gap"/);
     assert.match(html, /id="stripe-overview-mrr"/);
+    assert.match(html, /Stripe cashflow snapshot/);
+    assert.match(html, /id="stripe-cashflow-status"/);
+    assert.match(html, /id="stripe-cashflow-inflow"/);
+    assert.match(html, /id="stripe-cashflow-outflow"/);
+    assert.match(html, /id="stripe-cashflow-fees"/);
+    assert.match(html, /id="stripe-cashflow-net"/);
     assert.match(html, /id="profitability-sync-meta"/);
     assert.match(html, /id="profitability-refresh-totals"/);
     assert.match(html, /id="profitability-refresh-customers"/);
     assert.match(html, /Open profitability desk/);
+    assert.match(html, /Open Stripe cashflow/);
     assert.match(html, /id="finance-ledger"/);
     assert.match(html, /href="\.\/incoming\.html"/);
     assert.match(html, /href="\.\/outgoing\.html"/);
@@ -67,6 +74,14 @@ describe('finance ledger hub', () => {
     assert.match(html, /id="stripe-live-mrr"/);
     assert.match(html, /id="stripe-live-subscribers"/);
     assert.match(html, /id="stripe-live-balance"/);
+    assert.match(html, /Stripe cashflow/);
+    assert.match(html, /id="stripe-cashflow-refresh"/);
+    assert.match(html, /id="stripe-cashflow-meta"/);
+    assert.match(html, /id="stripe-cashflow-payouts"/);
+    assert.match(html, /id="stripe-cashflow-payins"/);
+    assert.match(html, /id="stripe-cashflow-financing-in"/);
+    assert.match(html, /id="stripe-cashflow-financing-out"/);
+    assert.match(html, /id="stripe-cashflow-list"/);
   });
 
   it('persists entries to portal and legacy finance Gun graphs with documented structure', async () => {
@@ -86,11 +101,15 @@ describe('finance ledger hub', () => {
     assert.match(js, /summarizeLinkedBilling/);
     assert.match(js, /estimateRecurringRevenue/);
     assert.match(js, /stripeMetricsState = \{/);
+    assert.match(js, /stripeCashflowState = \{/);
     assert.match(js, /recurringRevenue: \{\}/);
     assert.match(js, /formatSyncTimestamp/);
     assert.match(js, /syncStripeCustomerSummaries/);
     assert.match(js, /renderProfitabilitySummary/);
     assert.match(js, /refreshProfitabilityStripeCustomers/);
+    assert.match(js, /fetch\('\/api\/stripe\/cashflow'\)/);
+    assert.match(js, /renderStripeCashflowSummary/);
+    assert.match(js, /renderStripeCashflowTransactions/);
     assert.match(js, /writeRecordToSources\(/);
     assert.match(js, /form\.addEventListener\('submit'/);
     assert.match(js, /Gun\.text\.random/);

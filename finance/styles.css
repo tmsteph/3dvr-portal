@@ -442,6 +442,11 @@ body {
   gap: 1rem;
 }
 
+.finance-entry__title-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .finance-entry__title {
   margin: 0;
   font-size: 1.1rem;
@@ -453,6 +458,18 @@ body {
   font-size: 1.05rem;
   font-weight: 600;
   color: #38bdf8;
+}
+
+.finance-entry__amount--positive {
+  color: #4ade80;
+}
+
+.finance-entry__amount--negative {
+  color: #fda4af;
+}
+
+.finance-entry__amount--neutral {
+  color: #e2e8f0;
 }
 
 .finance-entry__meta {

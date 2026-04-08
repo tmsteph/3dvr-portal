@@ -349,6 +349,19 @@ const stripeLiveSubscribers = document.getElementById('stripe-live-subscribers')
 const stripeLiveMrr = document.getElementById('stripe-live-mrr');
 const stripeLiveStatus = document.getElementById('stripe-live-status');
 const stripeLiveRefresh = document.getElementById('stripe-live-refresh');
+const stripeCashflowStatus = document.getElementById('stripe-cashflow-status');
+const stripeCashflowMeta = document.getElementById('stripe-cashflow-meta');
+const stripeCashflowRefresh = document.getElementById('stripe-cashflow-refresh');
+const stripeCashflowList = document.getElementById('stripe-cashflow-list');
+const stripeCashflowEmpty = document.getElementById('stripe-cashflow-empty');
+const stripeCashflowInflow = document.getElementById('stripe-cashflow-inflow');
+const stripeCashflowOutflow = document.getElementById('stripe-cashflow-outflow');
+const stripeCashflowFees = document.getElementById('stripe-cashflow-fees');
+const stripeCashflowNet = document.getElementById('stripe-cashflow-net');
+const stripeCashflowPayouts = document.getElementById('stripe-cashflow-payouts');
+const stripeCashflowPayins = document.getElementById('stripe-cashflow-payins');
+const stripeCashflowFinancingIn = document.getElementById('stripe-cashflow-financing-in');
+const stripeCashflowFinancingOut = document.getElementById('stripe-cashflow-financing-out');
 const stripeOverviewBalance = document.getElementById('stripe-overview-balance');
 const stripeBalanceDisplays = [stripeLiveBalance, stripeOverviewBalance].filter(Boolean);
 const stripeOverviewSubscribers = document.getElementById('stripe-overview-subscribers');
@@ -387,6 +400,7 @@ const billingUsageTierRecords = Object.create(null);
 const stripeCustomerRecords = Object.create(null);
 let stripeMetricsIntervalId = null;
 let profitabilityCustomerRefreshInFlight = false;
+let stripeCashflowRefreshInFlight = false;
 let stripeMetricsLoaded = false;
 let billingUsageTierLoaded = false;
 let billingUsageTierSyncTimedOut = false;
@@ -396,6 +410,11 @@ const stripeMetricsState = {
   recurringRevenue: {},
   activeSubscribers: 0,
   updatedAt: null
+};
+const stripeCashflowState = {
+  summary: null,
+  transactions: [],
+  loaded: false
 };
 const gunPeerState = {
   connected: false,
@@ -508,6 +527,12 @@ if (stripeLiveRefresh) {
     fetchStripeMetrics(false);
   });
 }
+if (stripeCashflowRefresh) {
+  stripeCashflowRefresh.addEventListener('click', event => {
+    event.preventDefault();
+    fetchStripeCashflow(false);
+  });
+}
 if (profitabilityRefreshTotals) {
   profitabilityRefreshTotals.addEventListener('click', event => {
     event.preventDefault();
@@ -528,6 +553,22 @@ if (shouldPollStripeMetrics) {
   stripeMetricsIntervalId = window.setInterval(() => {
     fetchStripeMetrics(true);
   }, 60000);
+}
+const shouldLoadStripeCashflow = [
+  stripeCashflowStatus,
+  stripeCashflowMeta,
+  stripeCashflowList,
+  stripeCashflowInflow,
+  stripeCashflowOutflow,
+  stripeCashflowFees,
+  stripeCashflowNet,
+  stripeCashflowPayouts,
+  stripeCashflowPayins,
+  stripeCashflowFinancingIn,
+  stripeCashflowFinancingOut,
+].some(Boolean);
+if (shouldLoadStripeCashflow) {
+  fetchStripeCashflow(true);
 }
 
 if (ethConnectButton) {
@@ -1032,6 +1073,50 @@ function normalizeStripeTotals(rawTotals) {
   return Object.keys(totals).length ? totals : null;
 }
 
+function hasStripeTotalsData(rawTotals) {
+  const normalized = normalizeStripeTotals(rawTotals);
+  return Boolean(normalized && Object.keys(normalized).length > 0);
+}
+
+function formatStripeCurrencyAmount(amount, currency = 'USD', { absolute = false, signed = false } = {}) {
+  const normalizedCurrency = String(currency || 'USD').trim().toUpperCase() || 'USD';
+  const numericAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+  const centsValue = absolute ? Math.abs(numericAmount) : numericAmount;
+
+  let formatter = numberFormatter;
+  try {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: normalizedCurrency,
+      minimumFractionDigits: 2
+    });
+  } catch (err) {
+    formatter = numberFormatter;
+  }
+
+  if (signed && numericAmount !== 0) {
+    const absoluteLabel = formatter.format(normalizeAmount(Math.abs(numericAmount) / 100));
+    return `${numericAmount > 0 ? '+' : '-'}${absoluteLabel}`;
+  }
+
+  return formatter.format(normalizeAmount(centsValue / 100));
+}
+
+function formatLedgerTimestamp(value) {
+  const parsed = Date.parse(String(value || '').trim());
+  if (!Number.isFinite(parsed)) {
+    return 'Recently updated';
+  }
+
+  return new Date(parsed).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
 function updateStripeDisplays(metrics) {
   if (!metrics || typeof metrics !== 'object') {
     return;
@@ -1214,6 +1299,224 @@ function handleStripeMetricsUpdate(raw) {
     return;
   }
   applyStripeMetricsPatch(metrics);
+}
+
+function renderStripeCashflowSummary() {
+  if (!stripeCashflowState.loaded) {
+    return;
+  }
+
+  const summary = stripeCashflowState.summary && typeof stripeCashflowState.summary === 'object'
+    ? stripeCashflowState.summary
+    : {};
+  const hasTransactions = Number.isFinite(summary.transactionCount) && summary.transactionCount > 0;
+
+  setTextContent(stripeCashflowInflow, formatStripeTotals(summary.inflow).label);
+  setTextContent(stripeCashflowOutflow, formatStripeTotals(summary.outflow).label);
+  setTextContent(stripeCashflowFees, formatStripeTotals(summary.fees).label);
+  setTextContent(stripeCashflowNet, formatStripeTotals(summary.net).label);
+  setTextContent(stripeCashflowPayouts, formatStripeTotals(summary.payouts).label);
+  setTextContent(stripeCashflowPayins, formatStripeTotals(summary.payins).label);
+  setTextContent(stripeCashflowFinancingIn, formatStripeTotals(summary.financingIn).label);
+  setTextContent(stripeCashflowFinancingOut, formatStripeTotals(summary.financingOut).label);
+
+  if (stripeCashflowMeta) {
+    if (!hasTransactions) {
+      stripeCashflowMeta.textContent = 'Stripe returned no balance transactions for this account yet.';
+    } else {
+      const coverageLabel = summary.isTruncated
+        ? `Totals use the most recent ${summary.transactionCount.toLocaleString()} Stripe balance transactions.`
+        : `Totals cover ${summary.transactionCount.toLocaleString()} Stripe balance transactions.`;
+      const detailCount = Array.isArray(stripeCashflowState.transactions)
+        ? stripeCashflowState.transactions.length
+        : 0;
+      const detailLabel = detailCount > 0
+        ? `Showing ${detailCount.toLocaleString()} recent detailed row${detailCount === 1 ? '' : 's'}.`
+        : 'No detailed rows were returned.';
+      stripeCashflowMeta.textContent = `${coverageLabel} Updated ${formatSyncTimestamp(summary.updatedAt)}. ${detailLabel}`;
+    }
+  }
+
+  if (stripeCashflowStatus) {
+    if (!hasTransactions) {
+      stripeCashflowStatus.textContent = 'No Stripe balance activity has been returned yet.';
+      stripeCashflowStatus.classList.remove('finance-helper--error');
+      return;
+    }
+
+    const statusParts = [
+      `Money in ${formatStripeTotals(summary.inflow).label}.`,
+      `Money out ${formatStripeTotals(summary.outflow).label}.`,
+      `Net ${formatStripeTotals(summary.net).label}.`
+    ];
+
+    if (hasStripeTotalsData(summary.payouts)) {
+      statusParts.push(`Payouts ${formatStripeTotals(summary.payouts).label}.`);
+    }
+    if (hasStripeTotalsData(summary.payins)) {
+      statusParts.push(`Pay-ins ${formatStripeTotals(summary.payins).label}.`);
+    }
+    if (hasStripeTotalsData(summary.financingIn) || hasStripeTotalsData(summary.financingOut)) {
+      statusParts.push('Financing activity is present in the Stripe balance history.');
+    }
+
+    stripeCashflowStatus.textContent = statusParts.join(' ');
+    stripeCashflowStatus.classList.remove('finance-helper--error');
+  }
+}
+
+function renderStripeCashflowTransactions() {
+  if (!stripeCashflowList) {
+    return;
+  }
+
+  const sortedTransactions = Array.isArray(stripeCashflowState.transactions)
+    ? stripeCashflowState.transactions.slice().sort((a, b) => {
+      const aStamp = Date.parse(a?.createdAt || 0);
+      const bStamp = Date.parse(b?.createdAt || 0);
+      if (Number.isNaN(aStamp) || Number.isNaN(bStamp)) {
+        return 0;
+      }
+      return bStamp - aStamp;
+    })
+    : [];
+
+  stripeCashflowList.innerHTML = '';
+
+  if (sortedTransactions.length === 0) {
+    if (stripeCashflowEmpty) {
+      stripeCashflowEmpty.hidden = false;
+      stripeCashflowList.append(stripeCashflowEmpty);
+    }
+    return;
+  }
+
+  if (stripeCashflowEmpty) {
+    stripeCashflowEmpty.hidden = true;
+  }
+
+  sortedTransactions.forEach(transaction => {
+    const container = document.createElement('article');
+    container.className = 'finance-entry';
+    container.setAttribute('role', 'listitem');
+
+    const header = document.createElement('div');
+    header.className = 'finance-entry__header';
+
+    const titleGroup = document.createElement('div');
+    titleGroup.className = 'finance-entry__title-group';
+
+    const title = document.createElement('h3');
+    title.className = 'finance-entry__title';
+    title.textContent = transaction.label || transaction.reportingLabel || 'Stripe activity';
+
+    const meta = document.createElement('p');
+    meta.className = 'finance-entry__meta';
+    const metaParts = [
+      formatLedgerTimestamp(transaction.createdAt),
+      transaction.groupLabel || transaction.reportingLabel || transaction.typeLabel
+    ];
+    if (
+      transaction.reportingLabel
+      && transaction.reportingLabel !== transaction.groupLabel
+      && transaction.reportingLabel !== transaction.typeLabel
+    ) {
+      metaParts.push(transaction.reportingLabel);
+    } else if (transaction.typeLabel && transaction.typeLabel !== transaction.groupLabel) {
+      metaParts.push(transaction.typeLabel);
+    }
+    if (transaction.availableOn) {
+      metaParts.push(`Available ${formatLedgerTimestamp(transaction.availableOn)}`);
+    }
+    meta.textContent = metaParts.filter(Boolean).join(' • ');
+
+    titleGroup.append(title, meta);
+
+    const amount = document.createElement('span');
+    amount.className = 'finance-entry__amount';
+    if (transaction.net > 0) {
+      amount.classList.add('finance-entry__amount--positive');
+    } else if (transaction.net < 0) {
+      amount.classList.add('finance-entry__amount--negative');
+    } else {
+      amount.classList.add('finance-entry__amount--neutral');
+    }
+    amount.textContent = formatStripeCurrencyAmount(transaction.net, transaction.currency, { signed: true });
+
+    header.append(titleGroup, amount);
+
+    const details = document.createElement('p');
+    details.className = 'finance-entry__notes';
+    const detailParts = [];
+    const detailText = String(transaction.detail || '').trim();
+    const descriptionText = String(transaction.description || '').trim();
+
+    if (detailText) {
+      detailParts.push(detailText);
+    }
+    if (descriptionText && descriptionText !== title.textContent && descriptionText !== detailText) {
+      detailParts.push(descriptionText);
+    }
+    detailParts.push(`Gross ${formatStripeCurrencyAmount(transaction.amount, transaction.currency)}`);
+    if (transaction.fee > 0) {
+      detailParts.push(`Fees ${formatStripeCurrencyAmount(transaction.fee, transaction.currency)}`);
+    }
+    if (!detailText && transaction.sourceId) {
+      detailParts.push(`Source ${transaction.sourceId}`);
+    }
+
+    details.textContent = detailParts.filter(Boolean).join(' • ');
+
+    container.append(header, details);
+    stripeCashflowList.append(container);
+  });
+}
+
+async function fetchStripeCashflow(quiet = false) {
+  if (!shouldLoadStripeCashflow || stripeCashflowRefreshInFlight) {
+    return;
+  }
+
+  stripeCashflowRefreshInFlight = true;
+
+  if (stripeCashflowRefresh) {
+    stripeCashflowRefresh.disabled = true;
+    stripeCashflowRefresh.textContent = 'Refreshing...';
+  }
+  if (!quiet && stripeCashflowStatus) {
+    stripeCashflowStatus.classList.remove('finance-helper--error');
+    stripeCashflowStatus.textContent = 'Refreshing Stripe cashflow...';
+  }
+
+  try {
+    const response = await fetch('/api/stripe/cashflow');
+    if (!response.ok) {
+      throw new Error(`Stripe API responded with ${response.status}`);
+    }
+
+    const payload = await response.json();
+    stripeCashflowState.summary = payload.summary && typeof payload.summary === 'object'
+      ? payload.summary
+      : {};
+    stripeCashflowState.transactions = Array.isArray(payload.transactions)
+      ? payload.transactions
+      : [];
+    stripeCashflowState.loaded = true;
+
+    renderStripeCashflowSummary();
+    renderStripeCashflowTransactions();
+  } catch (err) {
+    if (stripeCashflowStatus) {
+      stripeCashflowStatus.textContent = `Unable to load Stripe cashflow: ${err.message}`;
+      stripeCashflowStatus.classList.add('finance-helper--error');
+    }
+  } finally {
+    stripeCashflowRefreshInFlight = false;
+    if (stripeCashflowRefresh) {
+      stripeCashflowRefresh.disabled = false;
+      stripeCashflowRefresh.textContent = 'Refresh cashflow';
+    }
+  }
 }
 
 function handleBillingUsageTierUpdate(raw, key) {
