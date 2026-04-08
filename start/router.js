@@ -1,61 +1,68 @@
+function buildBillingStartHref(plan = '') {
+  const target = plan
+    ? `../billing/?plan=${encodeURIComponent(plan)}`
+    : '../billing/';
+  return `../sign-in.html?redirect=${encodeURIComponent(target)}`;
+}
+
 const ROUTES = {
   life: {
-    title: 'Start with daily direction',
+    title: 'Start free in the portal',
     copy:
-      'You need a daily reset before you need more tools. Start with a simple check-in so you can sort what happened today and choose one next step.',
+      'You need a clean first step more than more tools. Start free with your email, then continue into one portal account.',
     points: [
-      '3-minute daily check-in',
-      'Weekly reflection',
-      'Stay free while you get organized',
+      'Email first, no credit card',
+      'One portal account for future upgrades',
+      'Daily direction is the first workspace',
     ],
     plan: 'Best lane now: Free',
-    primaryLabel: 'Open daily direction',
-    primaryHref: '../life/index.html',
-    secondaryLabel: 'See free plan',
-    secondaryHref: 'https://3dvr.tech/subscribe/free-plan.html',
+    primaryLabel: 'Start free',
+    primaryHref: '../free-trial.html',
+    secondaryLabel: 'Open sign-in',
+    secondaryHref: '../sign-in.html',
   },
   cell: {
-    title: 'Build a support group',
+    title: 'Continue with Family & Friends',
     copy:
-      'You need accountability and shared momentum. Start with a small support group so other people can help you stay consistent.',
+      'You want people around you and light paid support. Sign in once, then continue to the $5 lane tied to your portal account.',
     points: [
-      '3 to 12 people around shared goals',
-      'Weekly support and accountability',
-      'Light support fits well with the $5 lane',
+      'Portal account first, then Stripe',
+      'Light support and a cleaner upgrade path',
+      'Good fit when community matters more than heavy execution',
     ],
     plan: 'Best lane now: Family & Friends $5',
-    primaryLabel: 'Open support group',
-    primaryHref: '../cell/index.html',
-    secondaryLabel: 'See $5 plan',
-    secondaryHref: 'https://3dvr.tech/subscribe/family-friends.html',
+    primaryLabel: 'Continue with $5 plan',
+    primaryHref: buildBillingStartHref('starter'),
+    secondaryLabel: 'Start free first',
+    secondaryHref: '../free-trial.html',
   },
   founder: {
-    title: 'Launch with Founder',
+    title: 'Continue with Founder',
     copy:
-      'You are ready to launch something real and want paid help. Founder is the lane for direct support while you build a page, offer, or service.',
+      'You are ready to launch something real and want direct help. Sign in once, then continue into the $20 Founder lane.',
     points: [
-      'Direct help on the next launch step',
-      'Pair with Projects, Notes, and Calendar',
-      'Good fit when you want speed without jumping to the heaviest lane',
+      'Portal account first, then Stripe',
+      'Good fit when you want speed without the heaviest lane',
+      'Keeps upgrades, invoices, and support on one identity',
     ],
     plan: 'Best lane now: Founder $20',
-    primaryLabel: 'See $20 Founder',
-    primaryHref: 'https://3dvr.tech/subscribe/founder-plan.html',
+    primaryLabel: 'Continue with $20 plan',
+    primaryHref: buildBillingStartHref('pro'),
     secondaryLabel: 'Open Projects',
     secondaryHref: '../projects/index.html',
   },
   builder: {
-    title: 'Go Builder',
+    title: 'Continue with Builder',
     copy:
-      'You are focused on income and want more execution support. Builder is the stronger paid lane for shipping offers, pages, and revenue systems faster.',
+      'You are focused on shipping and want deeper collaboration. Sign in once, then continue into the $50 Builder lane.',
     points: [
-      'Direct support for launch and revenue work',
-      'Best fit when the goal is income, not just clarity',
+      'Portal account first, then Stripe',
+      'Best fit when the goal is execution, not just clarity',
       'Use Projects to keep the work moving after checkout',
     ],
     plan: 'Best lane now: Builder $50',
-    primaryLabel: 'See $50 Builder',
-    primaryHref: 'https://3dvr.tech/subscribe/builder-plan.html',
+    primaryLabel: 'Continue with $50 plan',
+    primaryHref: buildBillingStartHref('builder'),
     secondaryLabel: 'Open Projects',
     secondaryHref: '../projects/index.html',
   },
@@ -139,4 +146,4 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   });
 }
 
-export { ROUTES, getRecommendation, getRouteKey, initStartRouter };
+export { ROUTES, buildBillingStartHref, getRecommendation, getRouteKey, initStartRouter };

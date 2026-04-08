@@ -495,7 +495,7 @@ function highlightPlan(plan = '', options = {}) {
     return
   }
 
-  selectedPlanLabel.textContent = 'Pick a plan below. Existing subscribers will be sent to a safe switch flow that replaces older paid plans automatically.'
+  selectedPlanLabel.textContent = 'Use Start for the quickest route, or pick a plan below if you already know your lane.'
 }
 
 function isPlanAvailable(plan = '') {

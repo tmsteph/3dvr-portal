@@ -18,66 +18,203 @@
       <nav class="top-nav" aria-label="Main navigation">
         <a class="brand" href="../index.html">3dvr.tech</a>
         <div class="nav-links">
-          <a href="#router">3-question router</a>
-          <a href="#customer-path">Customer path</a>
-          <a href="#plans">Paid plans</a>
-          <a href="#shortcuts">Shortcuts</a>
+          <a href="#paths">Paths</a>
+          <a href="#paid-lanes">Paid lanes</a>
+          <a href="#router">Help me choose</a>
+          <a href="../billing/index.html">Billing</a>
         </div>
       </nav>
 
       <div class="hero-grid">
         <div class="hero-content">
           <span class="tag">Start here</span>
-          <h1>Pick a path in under a minute</h1>
+          <h1>One account. One path. One next move.</h1>
           <p>
-            This page exists to solve pain fast. Answer three questions, get a next move,
-            and keep lead capture, billing, and customer delivery one tap away when you are ready to launch something real.
+            Start free if you want to get moving. Start paid if you want direct help. If you already pay
+            through Stripe, go straight to billing management.
           </p>
           <div class="hero-actions">
-            <a class="button primary" href="#router">Use the router</a>
-            <a class="button secondary" href="https://3dvr.tech/subscribe/">View paid plans</a>
+            <a class="button primary" href="../free-trial.html">Start free</a>
+            <a class="button secondary" href="#paid-lanes">Choose a paid lane</a>
+            <a class="button tertiary" href="../billing/index.html">Already paying?</a>
           </div>
           <div class="hero-status">
-            <span>Lead capture ready</span>
-            <span>Billing easy to reach</span>
-            <span>Customer path visible</span>
+            <span>No card for free</span>
+            <span>One portal account</span>
+            <span>Switch plans later in Stripe</span>
           </div>
         </div>
 
-        <aside class="hero-panel" id="plans">
-          <span class="panel-label">Paid plans, easy to find</span>
-          <h2>Choose the support lane when you need it</h2>
+        <aside class="hero-panel">
+          <span class="panel-label">What happens next</span>
+          <h2>Keep the journey obvious</h2>
           <p>
-            Stay free while you get organized. Step into paid help when you want faster
-            execution, accountability, or direct launch support.
+            The job of this page is simple: make the first step clear, keep billing attached to one
+            portal identity, and avoid sending existing customers back through acquisition copy.
           </p>
-          <div class="plan-dock">
-            <a class="plan-chip" href="https://3dvr.tech/subscribe/free-plan.html">
-              <strong>Free</strong>
-              <span>Get started</span>
-            </a>
-            <a class="plan-chip" href="https://3dvr.tech/subscribe/family-friends.html">
-              <strong>$5</strong>
-              <span>Family &amp; Friends</span>
-            </a>
-            <a class="plan-chip" href="https://3dvr.tech/subscribe/founder-plan.html">
-              <strong>$20</strong>
-              <span>Founder</span>
-            </a>
-            <a class="plan-chip" href="https://3dvr.tech/subscribe/builder-plan.html">
-              <strong>$50</strong>
-              <span>Builder</span>
-            </a>
+          <div class="step-list">
+            <div class="step-item">
+              <strong>1. Choose free, paid, or existing billing</strong>
+              <span>Do not make every customer start on the same screen.</span>
+            </div>
+            <div class="step-item">
+              <strong>2. Sign in once for paid plans</strong>
+              <span>That keeps checkout, invoices, plan changes, and support on one identity.</span>
+            </div>
+            <div class="step-item">
+              <strong>3. Land in the right place immediately</strong>
+              <span>Free goes into the portal. Paid continues to Stripe. Existing customers open billing.</span>
+            </div>
+          </div>
+          <div class="hero-actions hero-actions--stacked">
+            <a class="button tertiary" href="../sign-in.html">Open sign-in</a>
+            <a class="button tertiary" href="../billing/index.html">Open billing</a>
           </div>
         </aside>
       </div>
     </header>
 
     <main class="dashboard-shell">
+      <section class="journey-shell" id="paths" aria-labelledby="paths-title">
+        <div class="section-heading section-heading--left">
+          <span class="tag tag--dark">3 clear paths</span>
+          <h2 id="paths-title">Start where you actually are</h2>
+          <p>
+            Free, paid, and existing billing each get their own first step. That keeps the entry
+            path short and reduces decision drag before someone even gets into the portal.
+          </p>
+        </div>
+
+        <div class="path-grid">
+          <article class="path-card">
+            <span class="panel-label">Free path</span>
+            <h3>Get moving without a card</h3>
+            <p>
+              Start with your email, create one portal account, and use daily direction as the first
+              workspace.
+            </p>
+            <ul class="path-list">
+              <li>Email first</li>
+              <li>No credit card required</li>
+              <li>Clean upgrade path later</li>
+            </ul>
+            <div class="path-card__actions">
+              <a class="button primary" href="../free-trial.html">Start free</a>
+              <a class="button tertiary" href="../life/index.html">Open Daily Direction</a>
+            </div>
+          </article>
+
+          <article class="path-card">
+            <span class="panel-label">Paid path</span>
+            <h3>Sign in once, then choose a lane</h3>
+            <p>
+              Paid help starts with one portal account. After sign-in, the matching plan stays tied to
+              the same identity for upgrades, invoices, and support.
+            </p>
+            <ul class="path-list">
+              <li>Account first</li>
+              <li>Stripe checkout second</li>
+              <li>Safer plan switches later</li>
+            </ul>
+            <div class="path-card__actions">
+              <a class="button primary" href="../sign-in.html?redirect=%2Fbilling%2F">Sign in for paid plans</a>
+              <a class="button tertiary" href="#paid-lanes">Compare paid lanes</a>
+            </div>
+          </article>
+
+          <article class="path-card">
+            <span class="panel-label">Existing billing</span>
+            <h3>Manage what is already active</h3>
+            <p>
+              Returning subscribers should not have to wade through acquisition copy. Open billing to
+              switch plans, update payment methods, invoices, or cancel renewal.
+            </p>
+            <ul class="path-list">
+              <li>Switch tiers safely</li>
+              <li>Invoices and payment methods</li>
+              <li>Cancellation through Stripe</li>
+            </ul>
+            <div class="path-card__actions">
+              <a class="button primary" href="../billing/index.html">Open billing</a>
+              <a class="button tertiary" href="../sign-in.html?redirect=%2Fbilling%2F">Sign in for billing</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="lane-shell" id="paid-lanes" aria-labelledby="paid-lanes-title">
+        <div class="section-heading section-heading--left">
+          <span class="tag tag--dark">Paid lanes</span>
+          <h2 id="paid-lanes-title">Choose a paid lane, then sign in once</h2>
+          <p>
+            These buttons go into the portal account flow directly. After sign-in you land back in billing
+            with the lane preselected, ready to continue into Stripe.
+          </p>
+        </div>
+
+        <div class="lane-grid">
+          <article class="lane-card">
+            <p class="lane-card__eyebrow">Family &amp; Friends</p>
+            <h3>$5 / month</h3>
+            <p class="lane-card__copy">
+              Light support, community energy, and a gentle paid path when someone is not ready for heavier execution help.
+            </p>
+            <ul class="lane-card__list">
+              <li>Light monthly support</li>
+              <li>Good first paid step</li>
+              <li>Safe future upgrades</li>
+            </ul>
+            <a class="button primary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dstarter">Continue with $5</a>
+          </article>
+
+          <article class="lane-card">
+            <p class="lane-card__eyebrow">Founder</p>
+            <h3>$20 / month</h3>
+            <p class="lane-card__copy">
+              Direct help for a launch, offer, or active project when speed matters more than staying fully DIY.
+            </p>
+            <ul class="lane-card__list">
+              <li>Direct execution help</li>
+              <li>Stronger support than $5</li>
+              <li>Clean route to Builder later</li>
+            </ul>
+            <a class="button primary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dpro">Continue with $20</a>
+          </article>
+
+          <article class="lane-card">
+            <p class="lane-card__eyebrow">Builder</p>
+            <h3>$50 / month</h3>
+            <p class="lane-card__copy">
+              Deeper collaboration, faster unblock time, and a stronger operating rhythm for real execution work.
+            </p>
+            <ul class="lane-card__list">
+              <li>Higher support lane</li>
+              <li>Faster execution loop</li>
+              <li>Priority planning</li>
+            </ul>
+            <a class="button primary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Continue with $50</a>
+          </article>
+
+          <article class="lane-card lane-card--featured">
+            <p class="lane-card__eyebrow">Embedded</p>
+            <h3>$200 / month</h3>
+            <p class="lane-card__copy">
+              Reserved monthly execution capacity for teams that want a tighter loop and more dedicated delivery support.
+            </p>
+            <ul class="lane-card__list">
+              <li>Reserved monthly capacity</li>
+              <li>Faster unblock time</li>
+              <li>Direct roadmap support</li>
+            </ul>
+            <a class="button primary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dembedded">Continue with $200</a>
+          </article>
+        </div>
+      </section>
+
       <section class="router-shell" id="router" aria-labelledby="router-title">
         <div class="section-heading section-heading--left">
-          <span class="tag tag--dark">3-question router</span>
-          <h2 id="router-title">Answer three things. Get one next move.</h2>
+          <span class="tag tag--dark">Need help choosing?</span>
+          <h2 id="router-title">Answer three quick questions</h2>
           <p>
             Keep this short on purpose. Pick the pain, the outcome you want, and the level of
             support you are ready for.
@@ -173,80 +310,70 @@
 
           <aside class="result-card" aria-live="polite">
             <span class="panel-label">Best next move</span>
-            <h3 id="routerTitle">Start with daily direction</h3>
+            <h3 id="routerTitle">Start free in the portal</h3>
             <p id="routerCopy">
-              You need a daily reset before you need more tools. Start with a simple check-in so
-              you can sort what happened today and choose one next step.
+              You need a clean first step more than more tools. Start free with your email, then
+              continue into one portal account.
             </p>
             <ul class="result-list" id="routerPoints">
-              <li>3-minute daily check-in</li>
-              <li>Weekly reflection</li>
-              <li>Stay free while you get organized</li>
+              <li>Email first, no credit card</li>
+              <li>One portal account for future upgrades</li>
+              <li>Daily direction is the first workspace</li>
             </ul>
             <p class="result-plan" id="routerPlan">Best lane now: Free</p>
             <div class="result-actions">
-              <a class="button primary" id="routerPrimary" href="../life/index.html">Open daily direction</a>
-              <a
-                class="button tertiary"
-                id="routerSecondary"
-                href="https://3dvr.tech/subscribe/free-plan.html"
-              >See free plan</a>
-              <a class="button tertiary" href="https://3dvr.tech/subscribe/">All plans</a>
+              <a class="button primary" id="routerPrimary" href="../free-trial.html">Start free</a>
+              <a class="button tertiary" id="routerSecondary" href="../sign-in.html">Open sign-in</a>
+              <a class="button tertiary" href="#paid-lanes">All paid lanes</a>
             </div>
           </aside>
         </div>
       </section>
 
-      <section class="compact-grid" id="shortcuts" aria-label="Quick actions and customer path">
+      <section class="compact-grid" id="customer-path" aria-label="Quick actions and customer path">
         <article class="mini-panel">
-          <span class="panel-label">Fast lanes</span>
-          <h2>Skip the reading</h2>
-          <p>Open the exact page you need and keep moving.</p>
+          <span class="panel-label">Free first</span>
+          <h2>Keep the free path small and real</h2>
+          <p>If someone is not ready to pay, the next step should still feel concrete and useful.</p>
           <div class="quick-actions">
-            <a class="button tertiary" href="../sign-in.html">Open sign-in</a>
-            <a class="button tertiary" href="../lead-generation.html">Open lead capture</a>
-            <a class="button tertiary" href="../crm/index.html">Open CRM</a>
-            <a class="button tertiary" href="../billing/index.html">Open billing</a>
-            <a class="button tertiary" href="../contacts/index.html">Open Contacts</a>
-            <a class="button tertiary" href="../sales/buyer-journey.html">Open Buyer Journey</a>
+            <a class="button tertiary" href="../free-trial.html">Start free</a>
+            <a class="button tertiary" href="../life/index.html">Open Daily Direction</a>
             <a class="button tertiary" href="../index.html">Browse apps</a>
-            <a class="button tertiary" href="../projects/index.html">Open Projects</a>
           </div>
         </article>
 
-        <article class="mini-panel" id="customer-path">
-          <span class="panel-label">Customer path</span>
-          <h2>Move a warm lead into a real customer</h2>
-          <p>Keep the next move visible from first form fill to paid work in motion.</p>
+        <article class="mini-panel">
+          <span class="panel-label">Existing billing</span>
+          <h2>Manage what is already active</h2>
+          <p>Returning customers should not have to wade back through plan education.</p>
           <div class="sequence-list">
             <div class="sequence-item">
-              <strong>1. Lead capture</strong>
-              <span>Get the name, email, goal, and timing into one shared record.</span>
+              <strong>1. Open billing center</strong>
+              <span>Go straight to the page that knows how to switch, cancel, and open Stripe management.</span>
             </div>
             <div class="sequence-item">
-              <strong>2. CRM follow-up</strong>
-              <span>Track warmth, fit, objections, and the next best action.</span>
+              <strong>2. Sign in with the same portal account</strong>
+              <span>That keeps the Stripe customer, invoices, and future upgrades on one identity.</span>
             </div>
             <div class="sequence-item">
-              <strong>3. Billing handoff</strong>
-              <span>Route the right plan or custom checkout while the conversation is still warm.</span>
+              <strong>3. Use Stripe for the last mile</strong>
+              <span>Payment methods, invoices, plan switches, and cancellation all stay in the same place.</span>
             </div>
-            <div class="sequence-item">
-              <strong>4. Onboarding + delivery</strong>
-              <span>Use Start, Projects, Contacts, and Messenger to keep the customer journey moving.</span>
-            </div>
+          </div>
+          <div class="quick-actions">
+            <a class="button tertiary" href="../billing/index.html">Open billing center</a>
+            <a class="button tertiary" href="../sign-in.html?redirect=%2Fbilling%2F">Sign in for billing</a>
           </div>
         </article>
 
         <article class="mini-panel">
           <span class="panel-label">After checkout</span>
           <h2>After billing, start the work cleanly</h2>
-          <p>Do not make the customer guess what happens next. Open the workspace that keeps the relationship moving.</p>
+          <p>Do not make the customer guess what happens next after payment or sign-up.</p>
           <div class="quick-actions">
             <a class="button tertiary" href="../projects/index.html">Open Projects</a>
             <a class="button tertiary" href="../contacts/index.html">Open Contacts</a>
             <a class="button tertiary" href="/chat/">Open Messenger</a>
-            <a class="button tertiary" href="../sales/index.html">Open Sales</a>
             <a class="button tertiary" href="../finance/index.html">Open Finance</a>
           </div>
         </article>

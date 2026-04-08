@@ -97,6 +97,8 @@ a {
 
 .hero-content,
 .hero-panel,
+.journey-shell,
+.lane-shell,
 .router-shell,
 .mini-panel {
   border-radius: var(--radius);
@@ -218,6 +220,38 @@ a {
   font-size: 1.7rem;
 }
 
+.hero-actions--stacked {
+  margin-top: 18px;
+}
+
+.step-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.step-item,
+.path-card,
+.lane-card {
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.step-item {
+  display: grid;
+  gap: 4px;
+}
+
+.step-item strong {
+  color: var(--gold);
+}
+
+.step-item span {
+  color: var(--text-soft);
+}
+
 .plan-dock {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -249,6 +283,8 @@ a {
   padding: 0 0 28px;
 }
 
+.journey-shell,
+.lane-shell,
 .router-shell {
   margin-top: 18px;
   padding: 24px;
@@ -263,6 +299,75 @@ a {
 
 .section-heading--left {
   text-align: left;
+}
+
+.path-grid,
+.lane-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.path-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lane-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.path-card,
+.lane-card {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.path-card h3,
+.lane-card h3 {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.08;
+}
+
+.path-card p,
+.lane-card__copy {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.path-list,
+.lane-card__list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-soft);
+  display: grid;
+  gap: 6px;
+}
+
+.path-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.lane-card__eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.78rem;
+  color: var(--accent);
+}
+
+.lane-card--featured {
+  background:
+    radial-gradient(circle at top right, rgba(244, 209, 124, 0.18), transparent 34%),
+    rgba(255, 255, 255, 0.06);
+  border-color: rgba(244, 209, 124, 0.26);
+}
+
+.lane-card--featured .lane-card__eyebrow {
+  color: #fff2c9;
 }
 
 .router-grid {
@@ -418,6 +523,14 @@ a {
 }
 
 @media (max-width: 1180px) {
+  .path-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lane-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .compact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -425,6 +538,8 @@ a {
 
 @media (max-width: 960px) {
   .hero-grid,
+  .path-grid,
+  .lane-grid,
   .router-grid,
   .compact-grid {
     grid-template-columns: 1fr;
@@ -465,6 +580,8 @@ a {
 
   .hero-content,
   .hero-panel,
+  .journey-shell,
+  .lane-shell,
   .router-shell,
   .mini-panel {
     padding: 18px;
@@ -479,6 +596,7 @@ a {
   }
 
   .quick-actions,
+  .path-card__actions,
   .result-actions {
     flex-direction: column;
   }
