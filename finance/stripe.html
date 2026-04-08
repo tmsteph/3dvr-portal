@@ -26,7 +26,7 @@
       <p class="finance-hero__eyebrow">Stripe workspace</p>
       <h1 id="page-title" class="finance-hero__title">Stripe</h1>
       <p class="finance-hero__lead">
-        Monitor webhooks, subscriber counts, live MRR, and balances with data that syncs to the shared finance graph.
+        Monitor balances, subscriber totals, cash in, cash out, payouts, and financing activity with live Stripe data.
       </p>
     </header>
 
@@ -56,6 +56,56 @@
         </dl>
       </div>
 
+      <div class="finance-card finance-card--metrics" aria-labelledby="stripe-cashflow-title">
+        <div class="finance-card__header">
+          <h2 id="stripe-cashflow-title" class="finance-card__title">Stripe cashflow</h2>
+          <p class="finance-card__subhead">Balance transactions and counterparties</p>
+        </div>
+        <div class="finance-card__actions">
+          <p id="stripe-cashflow-status" class="finance-helper" role="status" aria-live="polite">
+            Stripe cashflow totals and recent counterparties will sync shortly.
+          </p>
+          <button type="button" id="stripe-cashflow-refresh" class="finance-button finance-button--secondary">Refresh cashflow</button>
+        </div>
+        <p id="stripe-cashflow-meta" class="finance-helper">
+          This view separates inflows, outflows, fees, payouts, pay-ins, and financing-related movement.
+        </p>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat">
+            <dt>Money in</dt>
+            <dd id="stripe-cashflow-inflow">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Money out</dt>
+            <dd id="stripe-cashflow-outflow">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Stripe fees</dt>
+            <dd id="stripe-cashflow-fees">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Net change</dt>
+            <dd id="stripe-cashflow-net">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Bank payouts</dt>
+            <dd id="stripe-cashflow-payouts">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Pay-ins</dt>
+            <dd id="stripe-cashflow-payins">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Financing in</dt>
+            <dd id="stripe-cashflow-financing-in">&mdash;</dd>
+          </div>
+          <div class="finance-summary__stat">
+            <dt>Financing out</dt>
+            <dd id="stripe-cashflow-financing-out">&mdash;</dd>
+          </div>
+        </dl>
+      </div>
+
       <div class="finance-card finance-card--ledger" aria-labelledby="stripe-webhooks-title">
         <div class="finance-card__header">
           <h2 id="stripe-webhooks-title" class="finance-card__title">Stripe webhooks</h2>
@@ -70,6 +120,16 @@
         <div id="stripe-events" class="finance-ledger" role="list">
           <p id="stripe-events-empty" class="finance-ledger__empty">No webhook events synced yet.</p>
         </div>
+      </div>
+    </section>
+
+    <section class="finance-card finance-card--ledger" aria-labelledby="stripe-cashflow-log-title">
+      <div class="finance-card__header">
+        <h2 id="stripe-cashflow-log-title" class="finance-card__title">Recent Stripe balance activity</h2>
+        <span class="finance-card__subhead">Who paid, where money moved, and what Stripe withheld</span>
+      </div>
+      <div id="stripe-cashflow-list" class="finance-ledger" role="list">
+        <p id="stripe-cashflow-empty" class="finance-ledger__empty">No Stripe balance transactions synced yet.</p>
       </div>
     </section>
   </main>

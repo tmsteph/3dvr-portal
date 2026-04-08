@@ -30,6 +30,97 @@ function createMockRes() {
 }
 
 function createDashboardStripeMock() {
+  const recentBalanceTransactions = [
+    {
+      id: 'txn_charge',
+      amount: 10000,
+      available_on: 1700000600,
+      created: 1700000500,
+      currency: 'usd',
+      description: 'Builder subscription',
+      fee: 320,
+      net: 9680,
+      reporting_category: 'charge',
+      status: 'available',
+      type: 'charge',
+      source: {
+        id: 'ch_1',
+        object: 'charge',
+        customer: { id: 'cus_1', email: 'user@example.com', name: 'Portal User' },
+        billing_details: { name: 'Portal User', email: 'user@example.com' },
+        payment_method_details: { type: 'card' },
+        invoice: 'in_1'
+      }
+    },
+    {
+      id: 'txn_payout',
+      amount: -7000,
+      available_on: 1700000800,
+      created: 1700000700,
+      currency: 'usd',
+      description: 'Payout to bank',
+      fee: 0,
+      net: -7000,
+      reporting_category: 'payout',
+      status: 'pending',
+      type: 'payout',
+      source: {
+        id: 'po_1',
+        object: 'payout',
+        description: 'Payout to bank',
+        destination: 'ba_1',
+        method: 'standard',
+        arrival_date: 1700000900
+      }
+    },
+    {
+      id: 'txn_payin',
+      amount: 3000,
+      available_on: 1700001000,
+      created: 1700000950,
+      currency: 'usd',
+      description: 'Manual pay-in',
+      fee: 0,
+      net: 3000,
+      reporting_category: 'topup',
+      status: 'available',
+      type: 'topup',
+      source: {
+        id: 'tu_1',
+        object: 'topup',
+        description: 'Manual pay-in'
+      }
+    },
+    {
+      id: 'txn_financing_in',
+      amount: 250000,
+      available_on: 1700001200,
+      created: 1700001100,
+      currency: 'usd',
+      description: 'Stripe Capital funding',
+      fee: 0,
+      net: 250000,
+      reporting_category: 'adjustment',
+      status: 'available',
+      type: 'advance_funding',
+      source: 'src_financing_in'
+    },
+    {
+      id: 'txn_financing_out',
+      amount: -1200,
+      available_on: 1700001300,
+      created: 1700001250,
+      currency: 'usd',
+      description: 'Stripe Capital repayment',
+      fee: 0,
+      net: -1200,
+      reporting_category: 'adjustment',
+      status: 'available',
+      type: 'anticipation_repayment',
+      source: 'src_financing_out'
+    }
+  ];
+
   return {
     invoices: {
       list: mock.fn(() => ({
@@ -108,6 +199,16 @@ function createDashboardStripeMock() {
           }
         ]
       }))
+    },
+    balanceTransactions: {
+      list: mock.fn(({ expand } = {}) => ({
+        autoPagingToArray: async ({ limit }) => {
+          const records = Array.isArray(expand) && expand.includes('data.source')
+            ? recentBalanceTransactions
+            : recentBalanceTransactions;
+          return records.slice(0, limit);
+        }
+      }))
     }
   };
 }
@@ -157,6 +258,35 @@ test('stripe dashboard route serves event summaries and preserves the requested 
   assert.equal(res.body.events.length, 1);
   assert.equal(res.body.events[0].id, 'evt_1');
   assert.equal(stripeClient.events.list.mock.calls[0].arguments[0].limit, 8);
+});
+
+test('stripe dashboard route serves Stripe cashflow summaries and counterparties', async () => {
+  const stripeClient = createDashboardStripeMock();
+  const handler = createStripeDashboardHandler({ stripeClient });
+  const req = { method: 'GET', query: { route: 'cashflow', limit: '5' } };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.transactions.length, 5);
+  assert.equal(res.body.transactions[0].label, 'Portal User');
+  assert.equal(res.body.transactions[0].group, 'customer_payment');
+  assert.equal(res.body.transactions[1].group, 'payout');
+  assert.equal(res.body.transactions[4].group, 'financing');
+  assert.deepEqual(res.body.summary.inflow, { USD: 263000 });
+  assert.deepEqual(res.body.summary.outflow, { USD: 8200 });
+  assert.deepEqual(res.body.summary.fees, { USD: 320 });
+  assert.deepEqual(res.body.summary.net, { USD: 254480 });
+  assert.deepEqual(res.body.summary.payouts, { USD: 7000 });
+  assert.deepEqual(res.body.summary.payins, { USD: 3000 });
+  assert.deepEqual(res.body.summary.financingIn, { USD: 250000 });
+  assert.deepEqual(res.body.summary.financingOut, { USD: 1200 });
+  assert.equal(stripeClient.balanceTransactions.list.mock.calls.length, 2);
+  assert.deepEqual(
+    stripeClient.balanceTransactions.list.mock.calls[0].arguments[0].expand,
+    ['data.source']
+  );
 });
 
 test('stripe dashboard route rejects unknown endpoints', async () => {

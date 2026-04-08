@@ -107,6 +107,431 @@ function summarizeBalances(entries) {
   }, {});
 }
 
+function addCurrencyTotal(totals, currency, amount) {
+  const normalizedCurrency = String(currency || '').trim().toUpperCase() || 'USD';
+  const numericAmount = Number(amount);
+
+  if (!normalizedCurrency || !Number.isFinite(numericAmount) || numericAmount === 0) {
+    return;
+  }
+
+  totals[normalizedCurrency] = (totals[normalizedCurrency] || 0) + numericAmount;
+}
+
+function compactCurrencyTotals(totals = {}) {
+  return Object.fromEntries(
+    Object.entries(totals).filter(([, amount]) => Number.isFinite(amount) && amount !== 0)
+  );
+}
+
+function humanizeStripeLabel(value) {
+  const normalized = String(value || '').trim().replace(/[_-]+/g, ' ');
+  if (!normalized) {
+    return 'Stripe activity';
+  }
+
+  return normalized
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function pickFirstNonEmpty(...values) {
+  for (const value of values) {
+    const normalized = String(value || '').trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return '';
+}
+
+function toIsoTimestamp(seconds) {
+  const milliseconds = toMilliseconds(seconds);
+  if (!milliseconds) {
+    return null;
+  }
+  return new Date(milliseconds).toISOString();
+}
+
+function resolveStripeReferenceId(value) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'object' && typeof value.id === 'string') {
+    return value.id;
+  }
+
+  return '';
+}
+
+function describeBalanceTransactionSource(transaction) {
+  const source = transaction?.source;
+  const sourceId = resolveStripeReferenceId(source || transaction?.source);
+  const fallbackLabel = pickFirstNonEmpty(
+    transaction?.description,
+    humanizeStripeLabel(transaction?.reporting_category || transaction?.type)
+  );
+
+  if (!source || typeof source !== 'object') {
+    return {
+      label: fallbackLabel || 'Stripe activity',
+      detail: sourceId ? `Source ${sourceId}` : '',
+      sourceId,
+      sourceObject: '',
+      counterpartyType: '',
+      customerId: '',
+      customerName: '',
+      customerEmail: '',
+    };
+  }
+
+  const sourceObject = String(source.object || '').trim();
+
+  if (sourceObject === 'charge') {
+    const customerId = resolveStripeReferenceId(source.customer);
+    const customerName = pickFirstNonEmpty(source.customer?.name, source.billing_details?.name);
+    const customerEmail = pickFirstNonEmpty(
+      source.customer?.email,
+      source.billing_details?.email,
+      source.receipt_email
+    );
+    const invoiceId = resolveStripeReferenceId(source.invoice);
+    const paymentMethodType = pickFirstNonEmpty(source.payment_method_details?.type);
+    const label = pickFirstNonEmpty(
+      customerName,
+      customerEmail,
+      source.description,
+      transaction?.description,
+      'Customer payment'
+    );
+    const detailParts = [];
+
+    if (customerName && customerEmail && label !== customerEmail) {
+      detailParts.push(customerEmail);
+    }
+    if (invoiceId) {
+      detailParts.push(`Invoice ${invoiceId}`);
+    }
+    if (paymentMethodType) {
+      detailParts.push(humanizeStripeLabel(paymentMethodType));
+    }
+    if (sourceId) {
+      detailParts.push(`Charge ${sourceId}`);
+    }
+
+    return {
+      label,
+      detail: detailParts.join(' • '),
+      sourceId,
+      sourceObject,
+      counterpartyType: 'customer',
+      customerId,
+      customerName,
+      customerEmail,
+    };
+  }
+
+  if (sourceObject === 'payout') {
+    const arrivalDate = toIsoTimestamp(source.arrival_date);
+    const destination = resolveStripeReferenceId(source.destination);
+    const label = pickFirstNonEmpty(
+      source.description,
+      source.statement_descriptor,
+      'Bank payout'
+    );
+    const detailParts = [];
+
+    if (destination) {
+      detailParts.push(`Destination ${destination}`);
+    }
+    if (source.method) {
+      detailParts.push(humanizeStripeLabel(source.method));
+    }
+    if (arrivalDate) {
+      detailParts.push(`Arrival ${arrivalDate}`);
+    }
+    if (sourceId) {
+      detailParts.push(`Payout ${sourceId}`);
+    }
+
+    return {
+      label,
+      detail: detailParts.join(' • '),
+      sourceId,
+      sourceObject,
+      counterpartyType: 'bank',
+      customerId: '',
+      customerName: '',
+      customerEmail: '',
+    };
+  }
+
+  if (sourceObject === 'topup') {
+    const label = pickFirstNonEmpty(source.description, transaction?.description, 'Pay in to Stripe');
+    const detailParts = [];
+
+    if (source.statement_descriptor) {
+      detailParts.push(source.statement_descriptor);
+    }
+    if (sourceId) {
+      detailParts.push(`Top up ${sourceId}`);
+    }
+
+    return {
+      label,
+      detail: detailParts.join(' • '),
+      sourceId,
+      sourceObject,
+      counterpartyType: 'bank',
+      customerId: '',
+      customerName: '',
+      customerEmail: '',
+    };
+  }
+
+  if (sourceObject === 'refund') {
+    const chargeId = resolveStripeReferenceId(source.charge);
+    const label = pickFirstNonEmpty(transaction?.description, source.description, 'Customer refund');
+    const detailParts = [];
+
+    if (source.reason) {
+      detailParts.push(humanizeStripeLabel(source.reason));
+    }
+    if (chargeId) {
+      detailParts.push(`Charge ${chargeId}`);
+    }
+    if (sourceId) {
+      detailParts.push(`Refund ${sourceId}`);
+    }
+
+    return {
+      label,
+      detail: detailParts.join(' • '),
+      sourceId,
+      sourceObject,
+      counterpartyType: 'customer',
+      customerId: '',
+      customerName: '',
+      customerEmail: '',
+    };
+  }
+
+  const label = pickFirstNonEmpty(
+    source.description,
+    transaction?.description,
+    humanizeStripeLabel(sourceObject),
+    humanizeStripeLabel(transaction?.reporting_category || transaction?.type)
+  );
+  const detailParts = [];
+
+  if (sourceId) {
+    detailParts.push(`${humanizeStripeLabel(sourceObject)} ${sourceId}`);
+  }
+
+  return {
+    label,
+    detail: detailParts.join(' • '),
+    sourceId,
+    sourceObject,
+    counterpartyType: '',
+    customerId: '',
+    customerName: '',
+    customerEmail: '',
+  };
+}
+
+function classifyBalanceTransaction(transaction, sourceSummary) {
+  const type = String(transaction?.type || '').trim().toLowerCase();
+  const reportingCategory = String(transaction?.reporting_category || '').trim().toLowerCase();
+  const descriptor = [
+    transaction?.description,
+    sourceSummary?.label,
+    sourceSummary?.detail,
+    sourceSummary?.sourceObject,
+    type,
+    reportingCategory,
+  ].join(' ').toLowerCase();
+
+  if (
+    ['advance', 'advance_funding', 'anticipation_repayment'].includes(type)
+    || /\b(capital|financing|loan|repay|paydown|advance)\b/.test(descriptor)
+  ) {
+    return 'financing';
+  }
+
+  if (type.includes('payout') || reportingCategory === 'payout' || sourceSummary?.sourceObject === 'payout') {
+    return 'payout';
+  }
+
+  if (
+    type === 'topup'
+    || type === 'contribution'
+    || reportingCategory === 'topup'
+    || /\b(top[\s-]?up|pay[\s-]?in)\b/.test(descriptor)
+  ) {
+    return 'payin';
+  }
+
+  if (type.includes('refund') || reportingCategory.includes('refund') || sourceSummary?.sourceObject === 'refund') {
+    return 'refund';
+  }
+
+  if (type.includes('fee') || reportingCategory.includes('fee')) {
+    return 'fee';
+  }
+
+  if (
+    type === 'charge'
+    || type === 'payment'
+    || reportingCategory.includes('charge')
+    || reportingCategory.includes('payment')
+    || sourceSummary?.counterpartyType === 'customer'
+  ) {
+    return 'customer_payment';
+  }
+
+  return Number(transaction?.net) >= 0 ? 'inflow' : 'outflow';
+}
+
+function groupLabelFromType(group) {
+  const labels = {
+    customer_payment: 'Customer payment',
+    payout: 'Payout',
+    payin: 'Pay in',
+    financing: 'Financing',
+    refund: 'Refund',
+    fee: 'Stripe fee',
+    inflow: 'Inflow',
+    outflow: 'Outflow',
+  };
+
+  return labels[group] || humanizeStripeLabel(group);
+}
+
+function normalizeBalanceTransaction(transaction) {
+  const currency = String(transaction?.currency || 'usd').trim().toUpperCase() || 'USD';
+  const amount = typeof transaction?.amount === 'number' ? transaction.amount : 0;
+  const fee = typeof transaction?.fee === 'number' ? transaction.fee : 0;
+  const net = typeof transaction?.net === 'number' ? transaction.net : amount - fee;
+  const sourceSummary = describeBalanceTransactionSource(transaction);
+  const group = classifyBalanceTransaction(transaction, sourceSummary);
+  const typeLabel = humanizeStripeLabel(transaction?.type);
+  const reportingLabel = humanizeStripeLabel(transaction?.reporting_category || transaction?.type);
+  let label = sourceSummary.label || reportingLabel;
+
+  if (group === 'financing' && /stripe activity/i.test(label)) {
+    label = net >= 0 ? 'Stripe financing payout' : 'Stripe financing paydown';
+  }
+
+  if (group === 'fee' && (!label || /stripe activity/i.test(label))) {
+    label = 'Stripe fees';
+  }
+
+  return {
+    id: String(transaction?.id || '').trim(),
+    createdAt: toIsoTimestamp(transaction?.created),
+    availableOn: toIsoTimestamp(transaction?.available_on),
+    currency,
+    amount,
+    fee,
+    net,
+    type: String(transaction?.type || '').trim(),
+    typeLabel,
+    reportingCategory: String(transaction?.reporting_category || '').trim(),
+    reportingLabel,
+    status: String(transaction?.status || '').trim(),
+    sourceId: sourceSummary.sourceId,
+    sourceObject: sourceSummary.sourceObject,
+    label,
+    detail: sourceSummary.detail,
+    description: String(transaction?.description || '').trim(),
+    counterpartyType: sourceSummary.counterpartyType,
+    customerId: sourceSummary.customerId,
+    customerName: sourceSummary.customerName,
+    customerEmail: sourceSummary.customerEmail,
+    group,
+    groupLabel: groupLabelFromType(group),
+    direction: net > 0 ? 'inflow' : net < 0 ? 'outflow' : 'flat',
+  };
+}
+
+function summarizeCashflowTransactions(transactions = []) {
+  const normalizedTransactions = Array.isArray(transactions)
+    ? transactions.map(normalizeBalanceTransaction)
+    : [];
+  const summary = {
+    inflow: {},
+    outflow: {},
+    fees: {},
+    net: {},
+    payouts: {},
+    payins: {},
+    financingIn: {},
+    financingOut: {},
+    customerPayments: {},
+    refunds: {},
+  };
+
+  normalizedTransactions.forEach(transaction => {
+    const currency = transaction.currency || 'USD';
+
+    addCurrencyTotal(summary.net, currency, transaction.net);
+
+    if (transaction.amount > 0) {
+      addCurrencyTotal(summary.inflow, currency, transaction.amount);
+    }
+    if (transaction.amount < 0) {
+      addCurrencyTotal(summary.outflow, currency, Math.abs(transaction.amount));
+    }
+    if (transaction.fee > 0) {
+      addCurrencyTotal(summary.fees, currency, transaction.fee);
+    }
+    if (transaction.group === 'fee' && transaction.fee === 0 && transaction.net < 0) {
+      addCurrencyTotal(summary.fees, currency, Math.abs(transaction.net));
+    }
+    if (transaction.group === 'payout') {
+      addCurrencyTotal(summary.payouts, currency, Math.abs(transaction.net || transaction.amount));
+    }
+    if (transaction.group === 'payin') {
+      addCurrencyTotal(summary.payins, currency, Math.abs(transaction.net || transaction.amount));
+    }
+    if (transaction.group === 'financing') {
+      if (transaction.net >= 0) {
+        addCurrencyTotal(summary.financingIn, currency, transaction.net || transaction.amount);
+      } else {
+        addCurrencyTotal(summary.financingOut, currency, Math.abs(transaction.net || transaction.amount));
+      }
+    }
+    if (transaction.group === 'customer_payment' && transaction.amount > 0) {
+      addCurrencyTotal(summary.customerPayments, currency, transaction.amount);
+    }
+    if (transaction.group === 'refund') {
+      addCurrencyTotal(summary.refunds, currency, Math.abs(transaction.net || transaction.amount));
+    }
+  });
+
+  return {
+    transactionCount: normalizedTransactions.length,
+    inflow: compactCurrencyTotals(summary.inflow),
+    outflow: compactCurrencyTotals(summary.outflow),
+    fees: compactCurrencyTotals(summary.fees),
+    net: compactCurrencyTotals(summary.net),
+    payouts: compactCurrencyTotals(summary.payouts),
+    payins: compactCurrencyTotals(summary.payins),
+    financingIn: compactCurrencyTotals(summary.financingIn),
+    financingOut: compactCurrencyTotals(summary.financingOut),
+    customerPayments: compactCurrencyTotals(summary.customerPayments),
+    refunds: compactCurrencyTotals(summary.refunds),
+  };
+}
+
 function toCurrencyAmount(value) {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -241,6 +666,39 @@ async function listMetrics(stripeClient, res, config = process.env) {
   });
 }
 
+async function listCashflow(req, stripeClient, res) {
+  const requestedLimit = Number.parseInt(req?.query?.limit, 10);
+  const detailLimit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(requestedLimit, 5), 50)
+    : 25;
+  const summaryLimit = 5000;
+
+  const [recentRawTransactions, summaryRawTransactions] = await Promise.all([
+    stripeClient.balanceTransactions.list({
+      limit: detailLimit,
+      expand: ['data.source']
+    }).autoPagingToArray({ limit: detailLimit }),
+    stripeClient.balanceTransactions.list({
+      limit: 100
+    }).autoPagingToArray({ limit: summaryLimit }),
+  ]);
+
+  const updatedAt = new Date().toISOString();
+
+  return res.status(200).json({
+    updatedAt,
+    detailLimit,
+    transactions: recentRawTransactions.map(normalizeBalanceTransaction),
+    summary: {
+      ...summarizeCashflowTransactions(summaryRawTransactions),
+      updatedAt,
+      detailLimit,
+      summaryLimit,
+      isTruncated: summaryRawTransactions.length >= summaryLimit,
+    }
+  });
+}
+
 async function listEvents(req, stripeClient, res, config = process.env) {
   const requestedLimit = Number.parseInt(req?.query?.limit, 10);
   const limit = Number.isNaN(requestedLimit) ? 5 : requestedLimit;
@@ -298,6 +756,9 @@ export function createStripeDashboardHandler({
       }
       if (route === 'metrics') {
         return await listMetrics(resolvedStripeClient, res, config);
+      }
+      if (route === 'cashflow') {
+        return await listCashflow(req, resolvedStripeClient, res);
       }
       if (route === 'events') {
         return await listEvents(req, resolvedStripeClient, res, config);
