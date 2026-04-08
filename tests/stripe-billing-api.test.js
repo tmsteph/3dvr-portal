@@ -705,6 +705,113 @@ describe('stripe billing checkout handler', () => {
     assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
   });
 
+  it('falls back to the generic Stripe plan-switcher when Stripe rejects a target price not in the portal configuration', async () => {
+    const auth = await createBillingAuth({
+      alias: 'existing@3dvr',
+      action: 'subscribe'
+    });
+    const customer = createPortalLinkedCustomer(auth);
+    const portalCreate = mock.fn(async payload => {
+      if (payload?.flow_data?.type === 'subscription_update_confirm') {
+        throw new Error(
+          'The item `si_sub_starter` cannot be updated to price `price_builder` because the configuration '
+          + '`bpc_test` does not include the price in its `features[subscription_update][products]`.'
+        );
+      }
+
+      return {
+        id: 'bps_fallback',
+        url: 'https://billing.stripe.com/fallback-session'
+      };
+    });
+    const stripe = createMockStripe({
+      customers: {
+        search: mock.fn(async ({ query }) => ({
+          data: query.includes(auth.pub) ? [customer] : []
+        }))
+      },
+      subscriptions: {
+        list: mock.fn(async () => ({
+          data: [
+            createSubscription({
+              id: 'sub_starter',
+              customer: customer.id,
+              plan: 'starter',
+              priceId: 'price_starter'
+            })
+          ]
+        }))
+      },
+      billingPortal: {
+        sessions: {
+          create: portalCreate
+        }
+      }
+    });
+
+    const handler = createStripeCheckoutHandler({
+      stripeClient: stripe,
+      config: baseConfig
+    });
+
+    const req = {
+      method: 'POST',
+      body: buildAuthedBody(auth, {
+        action: 'subscribe',
+        plan: 'builder',
+        billingEmail: customer.email
+      })
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.flow, 'portal_update_select');
+    assert.equal(res.body.url, 'https://billing.stripe.com/fallback-session');
+    assert.equal(portalCreate.mock.calls.length, 2);
+    assert.deepEqual(portalCreate.mock.calls[0].arguments[0], {
+      customer: customer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return&plan=builder',
+      flow_data: {
+        type: 'subscription_update_confirm',
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            return_url: 'https://portal.3dvr.tech/billing/?manage=success&plan=builder'
+          }
+        },
+        subscription_update_confirm: {
+          subscription: 'sub_starter',
+          items: [
+            {
+              id: 'si_sub_starter',
+              price: 'price_builder',
+              quantity: 1
+            }
+          ]
+        }
+      }
+    });
+    assert.deepEqual(portalCreate.mock.calls[1].arguments[0], {
+      customer: customer.id,
+      return_url: 'https://portal.3dvr.tech/billing/?manage=return&plan=builder',
+      flow_data: {
+        type: 'subscription_update',
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            return_url: 'https://portal.3dvr.tech/billing/?manage=success&plan=builder'
+          }
+        },
+        subscription_update: {
+          subscription: 'sub_starter'
+        }
+      }
+    });
+    assert.equal(stripe.checkout.sessions.create.mock.calls.length, 0);
+  });
+
   it('continues checkout when syncing billing hints fails for a matched portal customer', async () => {
     const auth = await createBillingAuth({
       alias: 'existing@3dvr',
