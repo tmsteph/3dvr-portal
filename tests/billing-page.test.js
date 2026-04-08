@@ -21,6 +21,10 @@ describe('billing center', () => {
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Billing Center/);
+    assert.match(html, /Open start flow/);
+    assert.match(html, /New Customer Fast Path/);
+    assert.match(html, /Use the start flow if you want the clearest\s+first step/);
+    assert.match(html, /New customers can use the start flow first,\s+then return/);
     assert.match(html, /id="billing-email"/);
     assert.match(html, /id="manage-billing"[^>]+disabled[^>]+aria-disabled="true"/);
     assert.match(html, /Manage in Stripe/);
@@ -39,6 +43,7 @@ describe('billing center', () => {
     assert.match(html, /Live monthly billing for the Embedded lane is now available\./);
     assert.match(html, /Choose \$50/);
     assert.match(html, /Choose \$200/);
+    assert.match(html, /Use Start for the quickest route/);
     assert.match(html, /id="custom-submit"/);
     assert.match(html, /Already paying through Stripe\?/);
     assert.match(html, /rel="preload"[^>]+as="style"/);
@@ -46,7 +51,7 @@ describe('billing center', () => {
     assert.match(html, /<script[^>]+defer[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+defer[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/sea\.js"/);
     assert.match(html, /<script[^>]+defer[^>]+src="\/gun-init\.js"/);
-    assert.match(html, /<script[^>]+src="\.\/app\.js\?v=20260323-billing-fast-path"/);
+    assert.match(html, /<script[^>]+src="\.\/app\.js\?v=20260408-customer-journey"/);
     const embeddedIndex = html.indexOf('data-plan-card="embedded"');
     const embeddedActionIndex = html.indexOf('data-plan-action="embedded"');
     const builderIndex = html.indexOf('data-plan-card="builder"');

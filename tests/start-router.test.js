@@ -12,7 +12,11 @@ test('start router sends clarity-first answers to Life', () => {
   assert.equal(key, 'life');
   assert.equal(
     getRecommendation({ pain: 'scattered', goal: 'clarity', support: 'free' }).title,
-    'Start with daily direction'
+    'Start free in the portal'
+  );
+  assert.equal(
+    getRecommendation({ pain: 'scattered', goal: 'clarity', support: 'free' }).primaryLabel,
+    'Start free'
   );
 });
 
@@ -30,7 +34,7 @@ test('start router sends accountability answers to Cell', () => {
   );
   assert.equal(
     getRecommendation({ pain: 'alone', goal: 'community', support: 'community' }).primaryLabel,
-    'Open support group'
+    'Continue with $5 plan'
   );
 });
 

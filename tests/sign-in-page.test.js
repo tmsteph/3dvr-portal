@@ -30,6 +30,7 @@ describe('sign-in page', () => {
     assert.match(html, /Create your portal account to continue/);
     assert.match(html, /Continue to billing/);
     assert.match(html, /Billing needs an account so Stripe stays linked to one portal identity/);
+    assert.match(html, /embedded:\s*'\$200 Embedded Plan'/);
   });
 
   it('persists the current portal pub when billing sign-in completes', async () => {
