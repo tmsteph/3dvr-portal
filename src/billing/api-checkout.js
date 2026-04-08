@@ -31,6 +31,68 @@ function readBody(req) {
   return req?.body && typeof req.body === 'object' ? req.body : {};
 }
 
+function isMissingPortalUpdatePriceError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('features[subscription_update][products]')
+    || (message.includes('does not include the price') && message.includes('subscription_update'));
+}
+
+async function createSubscriptionUpdatePortalSession({
+  stripeClient,
+  subscription,
+  targetPriceId,
+  returnUrl,
+  successUrl,
+  targetPlan = ''
+}) {
+  if (!targetPriceId) {
+    return {
+      portalSession: await stripeClient.billingPortal.sessions.create(
+        buildSubscriptionUpdateSelectionFlow({
+          subscription,
+          returnUrl,
+          successUrl
+        })
+      ),
+      usedSelectionFlow: true
+    };
+  }
+
+  try {
+    return {
+      portalSession: await stripeClient.billingPortal.sessions.create(
+        buildSubscriptionUpdateFlow({
+          subscription,
+          nextPriceId: targetPriceId,
+          returnUrl,
+          successUrl
+        })
+      ),
+      usedSelectionFlow: false
+    };
+  } catch (error) {
+    if (!isMissingPortalUpdatePriceError(error)) {
+      throw error;
+    }
+
+    console.warn('Stripe portal update price is missing from the billing portal configuration; falling back to selection flow.', {
+      plan: targetPlan || '',
+      subscriptionId: String(subscription?.id || '').trim()
+    });
+
+    return {
+      portalSession: await stripeClient.billingPortal.sessions.create(
+        buildSubscriptionUpdateSelectionFlow({
+          subscription,
+          returnUrl,
+          successUrl
+        })
+      ),
+      usedSelectionFlow: true
+    };
+  }
+}
+
 export function createStripeCheckoutHandler(options = {}) {
   const config = options.config || process.env;
   const stripeClient = options.stripeClient || makeStripeClient(config);
@@ -237,20 +299,14 @@ export function createStripeCheckoutHandler(options = {}) {
         }
 
         const legacyTargetPriceId = resolveConfiguredPriceId(plan, config);
-        const portalSession = await stripeClient.billingPortal.sessions.create(
-          legacyTargetPriceId
-            ? buildSubscriptionUpdateFlow({
-                subscription: legacyResolution.current,
-                nextPriceId: legacyTargetPriceId,
-                returnUrl: billingUrls.portalReturnUrl,
-                successUrl: billingUrls.portalSuccessUrl
-              })
-            : buildSubscriptionUpdateSelectionFlow({
-                subscription: legacyResolution.current,
-                returnUrl: billingUrls.portalReturnUrl,
-                successUrl: billingUrls.portalSuccessUrl
-              })
-        );
+        const legacyUpdateSession = await createSubscriptionUpdatePortalSession({
+          stripeClient,
+          subscription: legacyResolution.current,
+          targetPriceId: legacyTargetPriceId,
+          returnUrl: billingUrls.portalReturnUrl,
+          successUrl: billingUrls.portalSuccessUrl,
+          targetPlan: plan
+        });
 
         return res.status(200).json({
           ...buildStatusPayload({
@@ -266,9 +322,9 @@ export function createStripeCheckoutHandler(options = {}) {
             legacyBillingManagementAvailable: true,
             autoLinkedLegacy
           }),
-          flow: legacyTargetPriceId ? 'legacy_portal_update' : 'legacy_portal_update_select',
+          flow: legacyUpdateSession.usedSelectionFlow ? 'legacy_portal_update_select' : 'legacy_portal_update',
           targetPlan: getBillingPlan(plan)?.label || plan,
-          url: portalSession.url
+          url: legacyUpdateSession.portalSession.url
         });
       }
 
@@ -468,26 +524,20 @@ export function createStripeCheckoutHandler(options = {}) {
         }
 
         const targetPriceId = resolveConfiguredPriceId(plan, config);
-        const portalSession = await stripeClient.billingPortal.sessions.create(
-          targetPriceId
-            ? buildSubscriptionUpdateFlow({
-                subscription: current,
-                nextPriceId: targetPriceId,
-                returnUrl: billingUrls.portalReturnUrl,
-                successUrl: billingUrls.portalSuccessUrl
-              })
-            : buildSubscriptionUpdateSelectionFlow({
-                subscription: current,
-                returnUrl: billingUrls.portalReturnUrl,
-                successUrl: billingUrls.portalSuccessUrl
-              })
-        );
+        const updateSession = await createSubscriptionUpdatePortalSession({
+          stripeClient,
+          subscription: current,
+          targetPriceId,
+          returnUrl: billingUrls.portalReturnUrl,
+          successUrl: billingUrls.portalSuccessUrl,
+          targetPlan: plan
+        });
 
         return res.status(200).json({
           ...buildStatusPayload({ customer, current, active, duplicates, statusSource, hasInvoiceHistory, autoLinkedLegacy }),
-          flow: targetPriceId ? 'portal_update' : 'portal_update_select',
+          flow: updateSession.usedSelectionFlow ? 'portal_update_select' : 'portal_update',
           targetPlan: getBillingPlan(plan)?.label || plan,
-          url: portalSession.url
+          url: updateSession.portalSession.url
         });
       }
 
