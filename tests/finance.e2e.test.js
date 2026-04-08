@@ -274,4 +274,52 @@ describe('finance live stripe metrics', () => {
       await browser.close();
     }
   });
+
+  it('fits the finance pages within a narrow mobile viewport without horizontal overflow', async t => {
+    const browser = await launchBrowserForTest(t, browserTarget);
+    if (!browser) {
+      return;
+    }
+
+    try {
+      const context = await browser.newContext({
+        serviceWorkers: 'block',
+        viewport: { width: 360, height: 780 },
+        isMobile: true,
+        deviceScaleFactor: 2,
+      });
+      const page = await context.newPage();
+      await page.route('**/*', route => {
+        const url = new URL(route.request().url());
+        if (url.hostname !== '127.0.0.1') {
+          return route.abort('blockedbyclient');
+        }
+        return route.continue();
+      });
+
+      for (const pathname of ['/finance/index.html', '/finance/stripe.html']) {
+        await page.goto(`${baseUrl}${pathname}`, { waitUntil: 'domcontentloaded' });
+        await page.waitForFunction(() => {
+          return document.getElementById('stripe-cashflow-status')?.textContent?.trim().length > 0;
+        });
+
+        const dimensions = await page.evaluate(() => ({
+          innerWidth: window.innerWidth,
+          bodyScrollWidth: document.body.scrollWidth,
+          docScrollWidth: document.documentElement.scrollWidth,
+        }));
+
+        assert.ok(
+          dimensions.bodyScrollWidth <= dimensions.innerWidth + 1,
+          `body overflowed mobile viewport on ${pathname}`
+        );
+        assert.ok(
+          dimensions.docScrollWidth <= dimensions.innerWidth + 1,
+          `document overflowed mobile viewport on ${pathname}`
+        );
+      }
+    } finally {
+      await browser.close();
+    }
+  });
 });
