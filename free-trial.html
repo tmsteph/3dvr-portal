@@ -91,10 +91,28 @@
     .lead,
     .aside p,
     .step-copy,
+    .form-intro,
     .secure-note,
     .message {
       color: var(--muted);
       line-height: 1.65;
+    }
+
+    .signup-card {
+      margin-top: 20px;
+      padding: 20px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+
+    .signup-card h2 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+    }
+
+    .form-intro {
+      margin: 0;
     }
 
     .journey {
@@ -231,6 +249,19 @@
         <a href="/index.html">← Back to portal</a>
         <a href="https://3dvr.tech/subscribe/">View plans</a>
       </div>
+      <div class="signup-card">
+        <h2>Start with your email</h2>
+        <p class="form-intro">Share your email first and we’ll send your free-plan next step back into the
+          portal. No credit card required.</p>
+        <form id="trialForm">
+          <label for="email">Email for your free-plan next steps
+            <input type="email" id="email" placeholder="you@example.com" required />
+          </label>
+          <button type="submit">Send free-plan link</button>
+          <div class="message" id="message"></div>
+          <div class="secure-note">This secure page is part of the 3dvr.tech portal flow.</div>
+        </form>
+      </div>
       <span class="eyebrow">Free path</span>
       <h1>Get organized and take your next step</h1>
       <p class="lead">Share your email, then continue into one portal account for a free setup flow that helps you sort what matters and choose the right starting point. No credit card required.</p>
@@ -258,15 +289,6 @@
           </div>
         </div>
       </div>
-
-      <form id="trialForm">
-        <label for="email">Email for your free-plan next steps
-          <input type="email" id="email" placeholder="you@example.com" required />
-        </label>
-        <button type="submit">Send free-plan link</button>
-        <div class="message" id="message"></div>
-        <div class="secure-note">This secure page is part of the 3dvr.tech portal flow.</div>
-      </form>
     </section>
 
     <aside class="aside">
