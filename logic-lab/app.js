@@ -78,6 +78,7 @@
     checklistList: document.getElementById('checklist-list'),
     drillList: document.getElementById('drill-list'),
     sessionList: document.getElementById('session-list'),
+    jumpLinks: Array.from(document.querySelectorAll('[data-jump-target]')),
     metricDrillCount: document.getElementById('metric-drill-count'),
     metricSessionCount: document.getElementById('metric-session-count'),
     metricChecklistCount: document.getElementById('metric-checklist-count'),
@@ -451,6 +452,24 @@
     });
     refs.copyPrompt.addEventListener('click', () => {
       copyText(refs.promptOutput.value, 'Prompt copied to the clipboard.');
+    });
+
+    refs.jumpLinks.forEach(link => {
+      link.addEventListener('click', event => {
+        const targetId = normalizeText(link.getAttribute('data-jump-target'));
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) {
+          return;
+        }
+
+        event.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.setTimeout(() => {
+          if (typeof target.focus === 'function') {
+            target.focus({ preventScroll: true });
+          }
+        }, 220);
+      });
     });
   }
 
