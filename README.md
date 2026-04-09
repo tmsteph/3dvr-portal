@@ -68,6 +68,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Calendar Hub](https://3dvr-portal.vercel.app/calendar/)
 - [Contacts](https://3dvr-portal.vercel.app/contacts/)
 - [Life](https://3dvr-portal.vercel.app/life/)
+- [Logic Lab](https://3dvr-portal.vercel.app/logic-lab/)
 
 Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
 
