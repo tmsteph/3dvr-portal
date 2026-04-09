@@ -130,6 +130,135 @@ async function notifyTeam(newUserEmail, { transporter, config } = {}) {
   }
 }
 
+function resolveInvoiceLinePlan(line, config = process.env) {
+  const priceId = String(line?.price?.id || '').trim();
+  const priceMap = {
+    [String(config?.STRIPE_PRICE_STARTER_ID || config?.STRIPE_PRICE_SUPPORTER_ID || '').trim()]: 'starter',
+    [String(config?.STRIPE_PRICE_PRO_ID || config?.STRIPE_PRICE_FOUNDER_ID || '').trim()]: 'pro',
+    [String(config?.STRIPE_PRICE_BUILDER_ID || config?.STRIPE_PRICE_STUDIO_ID || '').trim()]: 'builder',
+    [String(config?.STRIPE_PRICE_EMBEDDED_ID || config?.STRIPE_PRICE_EXECUTION_ID || config?.STRIPE_PRICE_200_ID || '').trim()]: 'embedded'
+  };
+
+  if (priceId && priceMap[priceId]) {
+    return normalizeBillingPlan(priceMap[priceId]);
+  }
+
+  const nickname = String(line?.price?.nickname || line?.description || '').trim().toLowerCase();
+  if (nickname.includes('embedded') || nickname.includes('execution')) {
+    return 'embedded';
+  }
+  if (nickname.includes('builder') || nickname.includes('studio') || nickname.includes('partner')) {
+    return 'builder';
+  }
+  if (nickname.includes('founder') || nickname.includes('pro')) {
+    return 'pro';
+  }
+  if (nickname.includes('starter') || nickname.includes('supporter') || nickname.includes('family')) {
+    return 'starter';
+  }
+
+  return '';
+}
+
+function readSubscriptionUpdateDetails(invoice = {}, config = process.env) {
+  const lines = Array.isArray(invoice?.lines?.data) ? invoice.lines.data : [];
+  const chargeToday = formatCurrencyAmount(invoice?.amount_paid, invoice?.currency);
+  const positiveLine = lines
+    .filter(line => Number(line?.amount) > 0)
+    .sort((left, right) => Number(right?.amount || 0) - Number(left?.amount || 0))[0] || null;
+  const targetPlan = resolveInvoiceLinePlan(positiveLine, config);
+  const targetLabel = getBillingPlan(targetPlan)?.label || 'Updated subscription';
+  const lineSummary = lines
+    .map(line => {
+      const amount = formatCurrencyAmount(line?.amount, invoice?.currency);
+      const description = String(line?.description || '').trim();
+      return amount && description ? `${amount}: ${description}` : '';
+    })
+    .filter(Boolean);
+
+  return {
+    targetPlan,
+    targetLabel,
+    chargeToday,
+    lineSummary
+  };
+}
+
+async function sendSubscriptionUpdateEmail(email, details = {}, { transporter, config } = {}) {
+  const gmailUser = String(config?.GMAIL_USER || '').trim();
+  if (!email || !gmailUser) {
+    return;
+  }
+
+  const targetLabel = String(details.targetLabel || 'your subscription').trim();
+  const chargeToday = String(details.chargeToday || '').trim() || 'the prorated amount shown in Stripe';
+  const lineSummary = Array.isArray(details.lineSummary) ? details.lineSummary.filter(Boolean) : [];
+  const textLines = lineSummary.length
+    ? `\n\nStripe invoice details:\n- ${lineSummary.join('\n- ')}`
+    : '';
+  const htmlLines = lineSummary.length
+    ? `<ul>${lineSummary.map(line => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`
+    : '';
+
+  try {
+    await sendMailSafely(transporter, {
+      from: `"Thomas @ 3DVR.Tech" <${gmailUser}>`,
+      to: email,
+      subject: `Plan updated: ${targetLabel}`,
+      text: `Hey there — Stripe confirmed your plan change to ${targetLabel}.\nAmount charged today: ${chargeToday}.${textLines}\n\nThanks,\nThomas`,
+      html: `
+        <div style="font-family: sans-serif; font-size: 16px; line-height: 1.5;">
+          <h2 style="color: #333;">Plan updated</h2>
+          <p>Stripe confirmed your plan change to <strong>${escapeHtml(targetLabel)}</strong>.</p>
+          <p><strong>Amount charged today:</strong> ${escapeHtml(chargeToday)}</p>
+          ${htmlLines}
+          <p style="margin-top: 30px;">Thanks,<br>Thomas<br>Founder, 3DVR.Tech</p>
+        </div>
+      `
+    });
+  } catch (error) {
+    console.error(`Failed to send subscription update email to ${email}:`, error?.message || error);
+  }
+}
+
+async function notifyTeamOfSubscriptionUpdate(email, details = {}, { transporter, config } = {}) {
+  const gmailUser = String(config?.GMAIL_USER || '').trim();
+  if (!email || !gmailUser) {
+    return;
+  }
+
+  const team = [
+    'tmsteph1290@gmail.com',
+    'abrandon055@gmail.com',
+    'gamboaesai@gmail.com',
+    'mark.wells3050@gmail.com',
+    'davidmartinezr@hotmail.com'
+  ];
+  const targetLabel = String(details.targetLabel || 'Updated subscription').trim();
+  const chargeToday = String(details.chargeToday || '').trim() || 'unknown amount';
+  const lineSummary = Array.isArray(details.lineSummary) ? details.lineSummary.filter(Boolean) : [];
+  const htmlLines = lineSummary.length
+    ? `<ul>${lineSummary.map(line => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`
+    : '';
+
+  try {
+    await sendMailSafely(transporter, {
+      from: `"3DVR.Tech Subscription Notifier" <${gmailUser}>`,
+      to: gmailUser,
+      bcc: team,
+      subject: `Subscription update: ${email} -> ${targetLabel} (${chargeToday})`,
+      html: `
+        <p><strong>${escapeHtml(email)}</strong> changed plans.</p>
+        <p><strong>New plan:</strong> ${escapeHtml(targetLabel)}</p>
+        <p><strong>Amount charged today:</strong> ${escapeHtml(chargeToday)}</p>
+        ${htmlLines}
+      `
+    });
+  } catch (error) {
+    console.error('Failed to notify team of subscription update:', error?.message || error);
+  }
+}
+
 function formatCurrencyAmount(amountCents, currency = 'usd') {
   const normalizedCurrency = String(currency || 'usd').trim().toUpperCase() || 'USD';
   const normalizedAmountCents = Number(amountCents);
@@ -253,6 +382,41 @@ function readCheckoutPlan(session = {}) {
   return '';
 }
 
+async function syncSubscriptionPlanMetadata(subscription, { stripeClient, config } = {}) {
+  const subscriptionId = String(subscription?.id || '').trim();
+  if (!subscriptionId || !stripeClient?.subscriptions?.update) {
+    return;
+  }
+
+  const resolvedPlan = resolveManagedBillingPlanFromSubscription(subscription, config);
+  if (!resolvedPlan) {
+    return;
+  }
+
+  const existingMetadata = subscription?.metadata && typeof subscription.metadata === 'object'
+    ? subscription.metadata
+    : {};
+  const existingPlan = normalizeBillingPlan(existingMetadata.plan || '');
+  if (existingPlan === resolvedPlan) {
+    return;
+  }
+
+  try {
+    await stripeClient.subscriptions.update(subscriptionId, {
+      metadata: {
+        ...existingMetadata,
+        plan: resolvedPlan
+      }
+    });
+  } catch (error) {
+    console.warn('Failed to sync Stripe subscription plan metadata', {
+      subscriptionId,
+      resolvedPlan,
+      error: error?.message || error
+    });
+  }
+}
+
 async function autoReplaceLegacySubscriptions(event, { stripeClient, config } = {}) {
   if (!stripeClient) {
     return { cleaned: false, canceledCount: 0, cancelledSubscriptionIds: [] };
@@ -371,6 +535,13 @@ export function createStripeWebhookHandler(options = {}) {
       config: runtimeConfig
     });
 
+    if (['customer.subscription.created', 'customer.subscription.updated'].includes(event.type)) {
+      await syncSubscriptionPlanMetadata(event.data?.object || {}, {
+        stripeClient,
+        config: runtimeConfig
+      });
+    }
+
     await logStripeEvent(event, {
       receivedAt: new Date().toISOString(),
       canceledCount: cleanupResult.canceledCount || 0,
@@ -403,6 +574,18 @@ export function createStripeWebhookHandler(options = {}) {
         }
       } else {
         console.warn('No email found in session.customer_details');
+      }
+    }
+
+    if (event.type === 'invoice.payment_succeeded') {
+      const invoice = event.data?.object || {};
+      const email = String(invoice.customer_email || '').trim();
+      const billingReason = String(invoice.billing_reason || '').trim().toLowerCase();
+
+      if (email && billingReason === 'subscription_update') {
+        const updateDetails = readSubscriptionUpdateDetails(invoice, runtimeConfig);
+        await sendSubscriptionUpdateEmail(email, updateDetails, { transporter, config: runtimeConfig });
+        await notifyTeamOfSubscriptionUpdate(email, updateDetails, { transporter, config: runtimeConfig });
       }
     }
 

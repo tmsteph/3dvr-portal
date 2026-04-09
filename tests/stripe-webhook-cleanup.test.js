@@ -9,6 +9,7 @@ const baseConfig = {
   STRIPE_PRICE_STARTER_ID: 'price_starter',
   STRIPE_PRICE_PRO_ID: 'price_pro',
   STRIPE_PRICE_BUILDER_ID: 'price_builder',
+  STRIPE_PRICE_EMBEDDED_ID: 'price_embedded',
   PORTAL_ORIGIN: 'https://portal.3dvr.tech'
 };
 
@@ -189,6 +190,30 @@ function createStripeState({
       list: mock.fn(async ({ customer } = {}) => ({
         data: (subscriptionsStore.get(customer) || []).map(cloneSubscription)
       })),
+      update: mock.fn(async (subscriptionId, patch = {}) => {
+        for (const [customerId, subscriptions] of subscriptionsStore.entries()) {
+          const index = subscriptions.findIndex(subscription => subscription.id === subscriptionId);
+          if (index === -1) {
+            continue;
+          }
+
+          const existing = subscriptions[index];
+          const updated = {
+            ...existing,
+            ...patch,
+            metadata: {
+              ...(existing.metadata || {}),
+              ...(patch.metadata || {})
+            }
+          };
+          subscriptionsStore.set(customerId, subscriptions.map((subscription, subscriptionIndex) => {
+            return subscriptionIndex === index ? updated : subscription;
+          }));
+          return cloneSubscription(updated);
+        }
+
+        throw new Error('not found');
+      }),
       cancel: mock.fn(async subscriptionId => {
         for (const [customerId, subscriptions] of subscriptionsStore.entries()) {
           const nextSubscriptions = subscriptions.map(subscription => {
@@ -370,6 +395,86 @@ test('stripe webhook cleanup keeps the updated subscription and cancels older ma
   assert.equal(state.stripe.subscriptions.cancel.mock.calls[0].arguments[0], 'sub_old_builder');
 });
 
+test('stripe webhook syncs subscription metadata to the managed plan on updates', async () => {
+  const state = createStripeState({
+    customers: [
+      createCustomer({
+        id: 'cus_new',
+        email: 'member@example.com'
+      })
+    ],
+    subscriptionsByCustomer: {
+      cus_new: [
+        createSubscription({
+          id: 'sub_embedded',
+          customer: 'cus_new',
+          plan: 'embedded',
+          priceId: 'price_embedded',
+          created: 2,
+          metadata: {
+            plan: 'pro',
+            billing_email: 'member@example.com',
+            portal_alias: 'member@3dvr',
+            portal_pub: 'pub_member'
+          }
+        })
+      ]
+    }
+  });
+
+  const handler = createStripeWebhookHandler({
+    stripeClient: state.stripe,
+    config: {
+      ...baseConfig,
+      STRIPE_LOG_EMAIL: ''
+    },
+    transporter: null,
+    readRawBody: async () => Buffer.from('{}'),
+    constructEvent: () => ({
+      id: 'evt_subscription_updated_embedded',
+      type: 'customer.subscription.updated',
+      created: 1700000000,
+      data: {
+        object: createSubscription({
+          id: 'sub_embedded',
+          customer: 'cus_new',
+          plan: 'embedded',
+          priceId: 'price_embedded',
+          created: 2,
+          metadata: {
+            plan: 'pro',
+            billing_email: 'member@example.com',
+            portal_alias: 'member@3dvr',
+            portal_pub: 'pub_member'
+          }
+        })
+      }
+    })
+  });
+
+  const req = {
+    method: 'POST',
+    headers: {
+      'stripe-signature': 'sig_test'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.stripe.subscriptions.update.mock.calls.length, 1);
+  assert.equal(state.stripe.subscriptions.update.mock.calls[0].arguments[0], 'sub_embedded');
+  assert.deepEqual(state.stripe.subscriptions.update.mock.calls[0].arguments[1], {
+    metadata: {
+      plan: 'embedded',
+      billing_email: 'member@example.com',
+      portal_alias: 'member@3dvr',
+      portal_pub: 'pub_member'
+    }
+  });
+});
+
 test('stripe webhook sends one-time payment emails for payment-mode checkout sessions', async () => {
   const transporter = {
     sendMail: mock.fn(async payload => payload)
@@ -439,4 +544,82 @@ test('stripe webhook sends one-time payment emails for payment-mode checkout ses
   assert.match(transporter.sendMail.mock.calls[1].arguments[0].html, /Reason:<\/strong> Custom project deposit/);
   assert.doesNotMatch(transporter.sendMail.mock.calls[0].arguments[0].subject, /Welcome to 3DVR\.Tech/);
   assert.doesNotMatch(transporter.sendMail.mock.calls[1].arguments[0].subject, /New Subscriber:/);
+});
+
+test('stripe webhook sends subscription update emails for prorated plan changes', async () => {
+  const transporter = {
+    sendMail: mock.fn(async payload => payload)
+  };
+  const handler = createStripeWebhookHandler({
+    stripeClient: createStripeState().stripe,
+    config: {
+      ...baseConfig,
+      GMAIL_USER: 'billing@3dvr.tech',
+      STRIPE_LOG_EMAIL: ''
+    },
+    transporter,
+    readRawBody: async () => Buffer.from('{}'),
+    constructEvent: () => ({
+      id: 'evt_invoice_subscription_update',
+      type: 'invoice.payment_succeeded',
+      created: 1700000000,
+      data: {
+        object: {
+          id: 'in_subscription_update',
+          billing_reason: 'subscription_update',
+          amount_paid: 6855,
+          currency: 'usd',
+          customer_email: 'client@example.com',
+          lines: {
+            data: [
+              {
+                amount: -2285,
+                description: 'Unused time on 3DVR Builder Plan after 09 Apr 2026',
+                price: {
+                  id: 'price_builder'
+                }
+              },
+              {
+                amount: 9140,
+                description: 'Remaining time on 3DVR Embedded Plan after 09 Apr 2026',
+                price: {
+                  id: 'price_embedded'
+                }
+              }
+            ]
+          }
+        }
+      }
+    })
+  });
+
+  const req = {
+    method: 'POST',
+    headers: {
+      'stripe-signature': 'sig_test'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    received: true,
+    cleanup: {
+      canceledCount: 0,
+      cancelledSubscriptionIds: []
+    }
+  });
+  assert.equal(transporter.sendMail.mock.calls.length, 2);
+  assert.deepEqual(transporter.sendMail.mock.calls.map(call => call.arguments[0].subject), [
+    'Plan updated: Embedded Plan',
+    'Subscription update: client@example.com -> Embedded Plan ($68.55)'
+  ]);
+  assert.match(transporter.sendMail.mock.calls[0].arguments[0].text, /\$68\.55/);
+  assert.match(transporter.sendMail.mock.calls[0].arguments[0].text, /Embedded Plan/);
+  assert.match(transporter.sendMail.mock.calls[0].arguments[0].text, /Unused time on 3DVR Builder Plan/);
+  assert.match(transporter.sendMail.mock.calls[1].arguments[0].html, /New plan:<\/strong> Embedded Plan/);
+  assert.match(transporter.sendMail.mock.calls[1].arguments[0].html, /Amount charged today:<\/strong> \$68\.55/);
+  assert.doesNotMatch(transporter.sendMail.mock.calls[0].arguments[0].subject, /Welcome to 3DVR\.Tech/);
 });
