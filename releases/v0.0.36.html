@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3dvr Portal – Release v0.0.35 (Week of January 12, 2026)</title>
+  <title>3dvr Portal – Release v0.0.36 (Late January 2026)</title>
   <style>
     body {
       margin: 0 auto;
@@ -66,11 +66,6 @@
       align-items: center;
       gap: 8px;
     }
-    .release-nav-link.is-disabled {
-      opacity: 0.4;
-      pointer-events: none;
-      cursor: default;
-    }
   </style>
 
   <script defer src="/_vercel/insights/script.js"></script>
@@ -78,46 +73,50 @@
 <body>
   <p><a class="back-link" href="index.html">← Back to releases</a></p>
   <nav class="release-nav" aria-label="Release navigation">
-    <a class="release-nav-link" href="v0.0.34.html">← Previous release</a>
-    <a class="release-nav-link" href="v0.0.36.html">Next release →</a>
+    <a class="release-nav-link" href="v0.0.35.html">← Previous release</a>
+    <a class="release-nav-link" href="v0.0.37.html">Next release →</a>
   </nav>
-  <h1>Release v0.0.35</h1>
-  <div class="tag">Week of January 12, 2026</div>
+  <h1>Release v0.0.36</h1>
+  <div class="tag">Late January 2026</div>
   <p class="release-summary">
-    Weekly release checkpoint with a cross-site review of portal, 3dvr.tech, and tmsteph.com changes alongside
-    release hub upkeep.
+    Experimental app routing, a lighter local dev workflow, editable social planning, and a dedicated sales pitch page
+    tighten the portal’s day-to-day operating surface.
   </p>
 
   <div class="section">
     <h2>Overview</h2>
     <p>
-      This week focuses on the cadence and clarity of the release process while confirming the latest updates across
-      the portal, 3dvr.tech, and tmsteph.com. The release hub now highlights the newest milestone, and each release
-      page is linked forward and backward to make browsing the weekly history seamless.
+      This release picks up after the January release-hub checkpoint and backfills a cluster of practical portal work:
+      the home page gets clearer boundaries for experimental apps, local development stops depending on a heavier
+      Vercel dev loop, and the social planning workspace becomes something you can actually edit instead of just read.
     </p>
   </div>
 
   <div class="section">
-    <h2>Portal updates</h2>
+    <h2>Portal home and developer workflow</h2>
     <ul>
-      <li>Published the v0.0.35 milestone so the portal release hub stays current.</li>
-      <li>Linked v0.0.34 to the newest weekly notes for easier navigation through recent history.</li>
+      <li>Group experimental apps more deliberately and add a homepage toggle so the dock is easier to scan.</li>
+      <li>Replace the Vercel-first dev loop with a local static server and add a cleaner <code>npm start</code> flow.</li>
+      <li>Persist usernames more reliably so signed-in people do not fall back to stray guest placeholders.</li>
     </ul>
   </div>
 
   <div class="section">
-    <h2>3dvr.tech review</h2>
+    <h2>Social planning becomes editable</h2>
     <ul>
-      <li>Reviewed recent 3dvr.tech commits and PRs for portal-impacting changes.</li>
-      <li>No portal-facing updates were ready to merge into the release notes this week.</li>
+      <li>Add editing controls to the social command center and respect hidden-state panels during edit flows.</li>
+      <li>Make social media goals editable instead of fixed copy.</li>
+      <li>Bring in image upload and thumbnail preview support to make planning assets easier to review.</li>
+      <li>Soften the visual palette so the workspace feels more usable over longer sessions.</li>
     </ul>
   </div>
 
   <div class="section">
-    <h2>tmsteph.com review</h2>
+    <h2>Sales pitch packaging</h2>
     <ul>
-      <li>Checked the latest tmsteph.com updates and PR activity for cross-site highlights.</li>
-      <li>No new changes required release note coverage this week.</li>
+      <li>Move the sales pitch into its own dedicated page instead of burying it inside broader sales copy.</li>
+      <li>Add a shareable anchor and script so the pitch can be linked directly.</li>
+      <li>Expand the pitch vision section to make the sales story more explicit and reusable.</li>
     </ul>
   </div>
 

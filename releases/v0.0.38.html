@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.38 (Late March 2026)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.37.html">← Previous release</a>
+    <a class="release-nav-link" href="v0.0.39.html">Next release →</a>
+  </nav>
+  <h1>Release v0.0.38</h1>
+  <div class="tag">Late March 2026</div>
+  <p class="release-summary">
+    Billing recovery work, roadmap and CRM alignment, live worksheet sync, Email Operator, Cell, and Life OS turn the
+    portal into a more coherent operating workspace.
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      Late March is about operational coherence. Billing fixes get less fragile, the roadmap shifts from abstract plan
+      to live worksheet, CRM and billing status start lining up more closely, and several new workspaces land that make
+      the portal feel more like a daily system than a loose bundle of pages.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Billing, roadmap, and account alignment</h2>
+    <ul>
+      <li>Fix legacy subscriber handling, cancellation clarity, alias-linked subscription lookup, and multi-email account edges.</li>
+      <li>Refresh the March-April roadmap into a live worksheet with bubble and entry-list inputs plus shared sync.</li>
+      <li>Align CRM roadmap flows with live billing status so the portal’s growth path tracks real account state more closely.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>New portal workspaces</h2>
+    <ul>
+      <li>Add the <a href="../email-operator/index.html">Email Operator</a> so approval-first outreach has a dedicated shell.</li>
+      <li>Add the <a href="../cell/index.html">Cell</a> app and wire it into Gun so community support has a shared data path.</li>
+      <li>Add the <a href="../life/index.html">Life OS / Life</a> workspace and align the free path around life organization messaging.</li>
+      <li>Restore GPT-5 options in the web builder and tighten the portal’s focus rule and PR workflow docs.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>CRM and workflow reliability</h2>
+    <ul>
+      <li>Improve CRM and contacts mobile workflow with Playwright UX coverage.</li>
+      <li>Route add-to-contacts behavior more cleanly for signed-in users and preferred spaces.</li>
+      <li>Default new leads into warmer stages and tighten sales hub alignment with CRM and billing workflow.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>

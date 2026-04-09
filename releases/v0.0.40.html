@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3dvr Portal – Release v0.0.35 (Week of January 12, 2026)</title>
+  <title>3dvr Portal – Release v0.0.40 (Week of April 6, 2026)</title>
   <style>
     body {
       margin: 0 auto;
@@ -78,46 +78,49 @@
 <body>
   <p><a class="back-link" href="index.html">← Back to releases</a></p>
   <nav class="release-nav" aria-label="Release navigation">
-    <a class="release-nav-link" href="v0.0.34.html">← Previous release</a>
-    <a class="release-nav-link" href="v0.0.36.html">Next release →</a>
+    <a class="release-nav-link" href="v0.0.39.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
   </nav>
-  <h1>Release v0.0.35</h1>
-  <div class="tag">Week of January 12, 2026</div>
+  <h1>Release v0.0.40</h1>
+  <div class="tag">Week of April 6, 2026</div>
   <p class="release-summary">
-    Weekly release checkpoint with a cross-site review of portal, 3dvr.tech, and tmsteph.com changes alongside
-    release hub upkeep.
+    OAuth identity, calendar standalone prep, live Stripe finance visibility, customer journey simplification, and the
+    new Logic Lab define the current portal surface.
   </p>
 
   <div class="section">
     <h2>Overview</h2>
     <p>
-      This week focuses on the cadence and clarity of the release process while confirming the latest updates across
-      the portal, 3dvr.tech, and tmsteph.com. The release hub now highlights the newest milestone, and each release
-      page is linked forward and backward to make browsing the weekly history seamless.
+      This release ties together core account, finance, and portal-entry work while adding one new training workspace.
+      Identity handling is stronger, calendar is better prepared for standalone deployment, finance surfaces more real
+      Stripe visibility, and the front door becomes more explicit about where a new user should go next.
     </p>
   </div>
 
   <div class="section">
-    <h2>Portal updates</h2>
+    <h2>Identity and account linking</h2>
     <ul>
-      <li>Published the v0.0.35 milestone so the portal release hub stays current.</li>
-      <li>Linked v0.0.34 to the newest weekly notes for easier navigation through recent history.</li>
+      <li>Add portal OAuth identity and provider integrations so account state can move more cleanly across apps.</li>
+      <li>Clarify customer handoff language and keep billing plan-switch handling from drifting out of sync with the portal.</li>
+      <li>Move free-trial email capture higher in the flow so the entry path is easier to start.</li>
     </ul>
   </div>
 
   <div class="section">
-    <h2>3dvr.tech review</h2>
+    <h2>Calendar and portal home</h2>
     <ul>
-      <li>Reviewed recent 3dvr.tech commits and PRs for portal-impacting changes.</li>
-      <li>No portal-facing updates were ready to merge into the release notes this week.</li>
+      <li>Refine the calendar hub layout, reduce visual harshness, and promote it more clearly from the portal home.</li>
+      <li>Prepare calendar for standalone subdomain PWA usage and fix the related wildcard and proxy rewrites.</li>
+      <li>Promote core business workspaces on the homepage and simplify the customer journey messaging.</li>
     </ul>
   </div>
 
   <div class="section">
-    <h2>tmsteph.com review</h2>
+    <h2>Finance and reasoning tools</h2>
     <ul>
-      <li>Checked the latest tmsteph.com updates and PR activity for cross-site highlights.</li>
-      <li>No new changes required release note coverage this week.</li>
+      <li>Add live Stripe MRR and cashflow visibility to finance, then tighten the mobile layout for that workspace.</li>
+      <li>Consolidate calendar provider APIs and keep browser coverage around these flows in place.</li>
+      <li>Add the new <a href="../logic-lab/index.html">Logic Lab</a> so the portal can train bots with explicit philosophy and logic drills.</li>
     </ul>
   </div>
 
