@@ -17,6 +17,11 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Meetings, follow-ups, and synced schedules\./);
     assert.match(html, /Finance/);
     assert.match(html, /Billing/);
+    assert.match(html, /href="start\/#paid-lanes"/);
+    assert.match(html, /href="free-trial\.html"/);
+    assert.match(html, /href="sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dstarter"/);
+    assert.match(html, /href="sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dpro"/);
+    assert.match(html, /href="sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dbuilder"/);
     assert.match(html, /Get started/);
     assert.match(html, /Family &amp; Friends/);
     assert.match(html, /Builder/);
@@ -31,6 +36,10 @@ describe('portal customer journey pages', () => {
     assert.match(html, /App dock/);
     assert.match(html, /data-app-list/);
     assert.match(html, /shortcut-grid/);
+    assert.doesNotMatch(html, /https:\/\/3dvr\.tech\/subscribe\/free-plan\.html/);
+    assert.doesNotMatch(html, /https:\/\/3dvr\.tech\/subscribe\/family-friends\.html/);
+    assert.doesNotMatch(html, /https:\/\/3dvr\.tech\/subscribe\/founder-plan\.html/);
+    assert.doesNotMatch(html, /https:\/\/3dvr\.tech\/subscribe\/builder-plan\.html/);
   });
 
   it('keeps the portal homepage calm on very narrow mobile screens', async () => {
