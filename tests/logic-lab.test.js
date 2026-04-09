@@ -30,6 +30,9 @@ describe('logic lab app', () => {
     assert.match(html, /id="prompt-output"/);
     assert.match(html, /id="drill-list"/);
     assert.match(html, /id="session-list"/);
+    assert.match(html, /href="#drills-title"/);
+    assert.match(html, /data-jump-target="drills-title"/);
+    assert.match(html, /Open drill queue/);
     assert.match(html, /Stored under <code>3dvr-portal\/philosophyLogic\/sessions<\/code> in Gun/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="\.\.\/auth-identity\.js"/);
@@ -48,6 +51,7 @@ describe('logic lab app', () => {
     assert.match(css, /\.drill-list/);
     assert.match(css, /\.session-list/);
     assert.match(css, /\.output-card/);
+    assert.match(css, /\.logic-metric-card--link/);
   });
 
   it('includes client logic for scaffolds, prompts, and Gun-backed session sync', async () => {
@@ -61,6 +65,8 @@ describe('logic lab app', () => {
     assert.match(js, /buildReasoningScaffold/);
     assert.match(js, /buildTrainingPrompt/);
     assert.match(js, /copyText/);
+    assert.match(js, /data-jump-target/);
+    assert.match(js, /scrollIntoView/);
     assert.match(js, /portalRoot\.get\('philosophyLogic'\)\.get\('sessions'\)/);
     assert.match(js, /sessionsNode\.get\(sessionId\)\.put\(session/);
     assert.match(js, /Saved locally and synced to Gun\./);

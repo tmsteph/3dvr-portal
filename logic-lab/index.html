@@ -76,11 +76,17 @@
         <h2 id="metric-discipline-count">4</h2>
         <p class="logic-metric-card__detail">Logic, epistemology, ethics, and agency.</p>
       </article>
-      <article class="logic-metric-card logic-metric-card--accent">
+      <a
+        class="logic-metric-card logic-metric-card--accent logic-metric-card--link"
+        href="#drills-title"
+        data-jump-target="drills-title"
+        aria-label="Open the drill queue"
+      >
         <p class="logic-metric-card__eyebrow">Practice drills</p>
         <h2 id="metric-drill-count">0</h2>
         <p class="logic-metric-card__detail">Use these to pressure-test a model before trusting it.</p>
-      </article>
+        <p class="logic-metric-card__detail logic-metric-card__hint">Open drill queue</p>
+      </a>
       <article class="logic-metric-card">
         <p class="logic-metric-card__eyebrow">Saved sessions</p>
         <h2 id="metric-session-count">0</h2>
@@ -213,7 +219,7 @@
           <div class="logic-panel__header">
             <div>
               <p class="logic-panel__eyebrow">Practice</p>
-              <h3 id="drills-title">Drill queue</h3>
+              <h3 id="drills-title" tabindex="-1">Drill queue</h3>
             </div>
           </div>
           <div id="drill-list" class="drill-list" role="list"></div>
