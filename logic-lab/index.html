@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Philosophy &amp; Logic Lab | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="Train bots to reason with logic, epistemology, ethics, and agency drills inside the portal."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="../auth-identity.js"></script>
+  <script src="../score.js"></script>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body class="logic-body">
+  <a class="logic-skip" href="#main">Skip to philosophy and logic lab</a>
+  <nav class="logic-nav" aria-label="Portal navigation">
+    <a href="../index.html">Portal</a>
+    <a href="../openai-app/index.html">OpenAI Workbench</a>
+    <a href="../sales/index.html">Sales</a>
+    <a href="../life/index.html">Life</a>
+    <a href="../start/index.html">Start</a>
+  </nav>
+
+  <main id="main" class="logic-shell">
+    <header class="logic-hero">
+      <div class="logic-hero__copy">
+        <p class="logic-hero__eyebrow">Agent training workspace</p>
+        <h1 class="logic-hero__title">Philosophy &amp; Logic Lab</h1>
+        <p class="logic-hero__lead">
+          Teach bots to define terms, separate facts from values, expose hidden premises, and lower confidence when the
+          case is weak.
+        </p>
+        <div class="logic-hero__actions">
+          <a class="logic-button logic-button--primary" href="#reasoning-form">Build a reasoning deck</a>
+          <a class="logic-button logic-button--ghost" href="../openai-app/index.html">Open Workbench</a>
+        </div>
+        <div class="logic-status-row" aria-live="polite">
+          <span id="connection-badge" class="logic-status-badge">Connecting to Gun</span>
+          <span id="identity-badge" class="logic-status-badge logic-status-badge--neutral">Resolving author</span>
+          <span id="save-badge" class="logic-status-badge logic-status-badge--neutral">Draft mode</span>
+        </div>
+      </div>
+
+      <aside class="logic-principles" aria-labelledby="logic-principles-title">
+        <p class="logic-principles__eyebrow">Reasoning loop</p>
+        <h2 id="logic-principles-title">Discipline before output.</h2>
+        <ol class="logic-principles__list">
+          <li>Define the claim.</li>
+          <li>List premises and evidence.</li>
+          <li>Check validity and soundness.</li>
+          <li>Stress test with objections.</li>
+          <li>Revise and state confidence.</li>
+        </ol>
+        <p class="logic-principles__note">
+          Stored under <code>3dvr-portal/philosophyLogic/sessions</code> in Gun so the deck can travel across devices.
+        </p>
+      </aside>
+    </header>
+
+    <section class="logic-metrics" aria-label="Lab metrics">
+      <article class="logic-metric-card">
+        <p class="logic-metric-card__eyebrow">Disciplines</p>
+        <h2 id="metric-discipline-count">4</h2>
+        <p class="logic-metric-card__detail">Logic, epistemology, ethics, and agency.</p>
+      </article>
+      <article class="logic-metric-card logic-metric-card--accent">
+        <p class="logic-metric-card__eyebrow">Practice drills</p>
+        <h2 id="metric-drill-count">0</h2>
+        <p class="logic-metric-card__detail">Use these to pressure-test a model before trusting it.</p>
+      </article>
+      <article class="logic-metric-card">
+        <p class="logic-metric-card__eyebrow">Saved sessions</p>
+        <h2 id="metric-session-count">0</h2>
+        <p class="logic-metric-card__detail">Recent decks saved locally first, then synced to Gun.</p>
+      </article>
+      <article class="logic-metric-card">
+        <p class="logic-metric-card__eyebrow">Checklist load</p>
+        <h2 id="metric-checklist-count">0</h2>
+        <p id="metric-checklist-label" class="logic-metric-card__detail">Pick a lens to see the active checklist.</p>
+      </article>
+    </section>
+
+    <section class="logic-layout" aria-labelledby="logic-layout-title">
+      <h2 id="logic-layout-title" class="logic-section-title">Reasoning desk</h2>
+
+      <aside class="logic-panel logic-panel--curriculum" aria-labelledby="discipline-title">
+        <div class="logic-panel__header">
+          <div>
+            <p class="logic-panel__eyebrow">Curriculum</p>
+            <h3 id="discipline-title">Choose the lens</h3>
+          </div>
+        </div>
+        <div id="discipline-grid" class="discipline-grid" role="list"></div>
+        <article class="logic-summary-card" aria-labelledby="lens-summary-title">
+          <p class="logic-summary-card__eyebrow">Focus</p>
+          <h3 id="lens-summary-title">Logic</h3>
+          <p id="lens-summary-body" class="logic-summary-card__body">
+            Define the terms, isolate the premises, and check whether the conclusion follows.
+          </p>
+          <ul id="checklist-list" class="checklist-list"></ul>
+        </article>
+      </aside>
+
+      <section class="logic-panel logic-panel--workspace" aria-labelledby="workspace-title">
+        <div class="logic-panel__header">
+          <div>
+            <p class="logic-panel__eyebrow">Builder</p>
+            <h3 id="workspace-title">Turn a claim into a training artifact</h3>
+          </div>
+        </div>
+
+        <form id="reasoning-form" class="reasoning-form">
+          <label class="logic-field">
+            <span class="logic-field__label">Question or claim</span>
+            <input
+              id="claim-input"
+              name="claim"
+              type="text"
+              placeholder="Example: A useful AI tutor should explain why an argument fails."
+              autocomplete="off"
+            >
+          </label>
+
+          <div class="logic-field-grid">
+            <label class="logic-field">
+              <span class="logic-field__label">Primary lens</span>
+              <select id="lens-select" name="lens">
+                <option value="logic">Logic</option>
+                <option value="epistemology">Epistemology</option>
+                <option value="ethics">Ethics</option>
+                <option value="agency">Agency</option>
+              </select>
+            </label>
+
+            <label class="logic-field">
+              <span class="logic-field__label">Depth</span>
+              <select id="depth-select" name="depth">
+                <option value="quick">Quick pass</option>
+                <option value="balanced">Balanced</option>
+                <option value="deep">Deep review</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="logic-field">
+            <span class="logic-field__label">What should the bot get better at?</span>
+            <textarea
+              id="goal-input"
+              name="goal"
+              rows="3"
+              placeholder="Example: Distinguish validity from truth and say when evidence is missing."
+            ></textarea>
+          </label>
+
+          <label class="logic-field">
+            <span class="logic-field__label">Context or constraints</span>
+            <textarea
+              id="notes-input"
+              name="notes"
+              rows="5"
+              placeholder="Add edge cases, domain constraints, or business rules the model should respect."
+            ></textarea>
+          </label>
+
+          <div class="logic-action-row">
+            <button id="build-scaffold" class="logic-button logic-button--primary" type="submit">Build scaffold</button>
+            <button id="save-session" class="logic-button logic-button--secondary" type="button">Save session</button>
+            <button id="copy-scaffold" class="logic-button logic-button--ghost" type="button">Copy scaffold</button>
+            <button id="copy-prompt" class="logic-button logic-button--ghost" type="button">Copy prompt</button>
+          </div>
+        </form>
+
+        <div class="output-grid">
+          <article class="output-card">
+            <div class="output-card__header">
+              <div>
+                <p class="logic-panel__eyebrow">Reasoning deck</p>
+                <h3>Scaffold</h3>
+              </div>
+            </div>
+            <label class="logic-field logic-field--stacked" for="scaffold-output">Reasoning scaffold</label>
+            <textarea id="scaffold-output" class="logic-output" rows="18" readonly></textarea>
+          </article>
+
+          <article class="output-card">
+            <div class="output-card__header">
+              <div>
+                <p class="logic-panel__eyebrow">Prompt deck</p>
+                <h3>Training prompt</h3>
+              </div>
+            </div>
+            <label class="logic-field logic-field--stacked" for="prompt-output">Prompt output</label>
+            <textarea id="prompt-output" class="logic-output logic-output--prompt" rows="18" readonly></textarea>
+          </article>
+        </div>
+      </section>
+
+      <aside class="logic-panel logic-panel--support" aria-labelledby="drills-title">
+        <section class="support-card">
+          <div class="logic-panel__header">
+            <div>
+              <p class="logic-panel__eyebrow">Practice</p>
+              <h3 id="drills-title">Drill queue</h3>
+            </div>
+          </div>
+          <div id="drill-list" class="drill-list" role="list"></div>
+        </section>
+
+        <section class="support-card" aria-labelledby="sessions-title">
+          <div class="logic-panel__header">
+            <div>
+              <p class="logic-panel__eyebrow">History</p>
+              <h3 id="sessions-title">Recent sessions</h3>
+            </div>
+          </div>
+          <div id="session-list" class="session-list" role="list"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>
