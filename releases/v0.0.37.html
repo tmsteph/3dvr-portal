@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.37 (Mid February 2026)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.36.html">← Previous release</a>
+    <a class="release-nav-link" href="v0.0.38.html">Next release →</a>
+  </nav>
+  <h1>Release v0.0.37</h1>
+  <div class="tag">Mid February 2026</div>
+  <p class="release-summary">
+    Jetpack Corridor gets a serious gameplay pass while Playwright smoke checks and Money Autopilot push the portal
+    toward something that can test, automate, and publish with more confidence.
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      Mid-February folds together three different threads of work: the arcade gets a stronger mobile-first Jetpack
+      experience, the portal finally gains automated browser smoke checks, and Money AI evolves from a single page into
+      an automation loop with secure tokens, publishing routes, and cron support.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Jetpack and game polish</h2>
+    <ul>
+      <li>Integrate Jetpack Corridor into the games hub and keep mobile navigation workable with a collapsible top nav.</li>
+      <li>Refactor the game into modules, harden boot and fallback loading, and tune obstacles and start flow.</li>
+      <li>Improve the mobile HUD, joystick strafe, vertical climb, and touch-driven turn behavior.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Testing and runtime stability</h2>
+    <ul>
+      <li>Add automated Playwright smoke checks for local and CI verification.</li>
+      <li>Fix cross-platform scheduler and test stability issues so browser coverage is more reliable.</li>
+      <li>Keep the sales homepage links aligned with the new dedicated pitch page.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Money automation stack</h2>
+    <ul>
+      <li>Add the Money Autopilot loop with Gun sync, secure trigger support, publishing paths, and market discovery.</li>
+      <li>Introduce per-user autopilot tokens, plan rate limits, and stronger token-secret fallback handling.</li>
+      <li>Wire checkout CTAs and cron scheduling while fitting within Hobby-plan runtime limits.</li>
+      <li>Tighten signal relevance and keyword sanitization so the automation loop stays closer to real demand.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech – Open source for everyone.</p>
+</body>
+</html>
