@@ -6,6 +6,8 @@ test('calendar hub presents a clear hero, month-first workspace, and side rail',
   const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
 
   assert.match(html, /<header class="calendar-header">/);
+  assert.match(html, /<div class="calendar-header__actions" aria-label="Calendar shortcuts">/);
+  assert.match(html, /Jump to month view/);
   assert.match(html, /<div class="calendar-header__highlights" aria-label="Calendar highlights">/);
   assert.match(html, /Local first/);
   assert.match(html, /Fast capture/);
@@ -47,4 +49,14 @@ test('calendar runtime updates the quick summary strip from event and connection
   assert.match(js, /function updateCalendarQuickStats\(events = state\.localEvents\)/);
   assert.match(js, /state\.connections\.has\(provider\)/);
   assert.match(js, /getEventsForSelectedDate\(events\)/);
+});
+
+test('calendar stylesheet keeps the month view reachable on smaller screens', async () => {
+  const css = await readFile(new URL('../calendar/calendar.css', import.meta.url), 'utf8');
+
+  assert.match(css, /\.calendar-header__action \{/);
+  assert.match(css, /\.calendar-view \{[\s\S]*scroll-margin-top: 20px;/);
+  assert.match(css, /@media \(max-width: 720px\) \{[\s\S]*?\.calendar-header__highlights \{[\s\S]*?overflow-x: auto;/);
+  assert.match(css, /@media \(max-width: 720px\) \{[\s\S]*?\.calendar-quickstats \{[\s\S]*?overflow-x: auto;/);
+  assert.match(css, /@media \(max-width: 540px\) \{[\s\S]*?\.calendar-header__action \{[\s\S]*?width: 100%;/);
 });

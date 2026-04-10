@@ -56,6 +56,34 @@ body {
   max-width: 720px;
 }
 
+.calendar-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.calendar-header__action {
+  align-items: center;
+  background: rgba(67, 109, 147, 0.16);
+  border: 1px solid rgba(132, 156, 188, 0.22);
+  border-radius: 999px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.16);
+  color: var(--calendar-text-soft);
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 10px 16px;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.calendar-header__action:hover {
+  background: rgba(67, 109, 147, 0.28);
+  border-color: rgba(156, 192, 224, 0.32);
+  transform: translateY(-1px);
+}
+
 .calendar-header__highlights {
   display: grid;
   gap: 14px;
@@ -456,6 +484,7 @@ button:focus-visible {
   gap: 16px;
   min-height: 100%;
   padding: 26px;
+  scroll-margin-top: 20px;
 }
 
 .calendar-view__header {
@@ -932,7 +961,21 @@ button:focus-visible {
   }
 
   .calendar-header__highlights {
-    grid-template-columns: 1fr;
+    display: flex;
+    gap: 12px;
+    grid-template-columns: none;
+    margin-right: -2px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .calendar-highlight {
+    flex: 0 0 min(240px, 82vw);
+    min-width: min(240px, 82vw);
+    scroll-snap-align: start;
   }
 
   .calendar-shell {
@@ -944,7 +987,21 @@ button:focus-visible {
   }
 
   .calendar-quickstats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    gap: 12px;
+    grid-template-columns: none;
+    margin-right: -2px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .calendar-stat {
+    flex: 0 0 min(220px, 72vw);
+    min-height: auto;
+    scroll-snap-align: start;
   }
 
   .calendar-workspace {
@@ -1028,11 +1085,21 @@ button:focus-visible {
     font-size: 0.95rem;
   }
 
+  .calendar-header__actions {
+    width: 100%;
+  }
+
+  .calendar-header__action {
+    justify-content: center;
+    width: 100%;
+  }
+
   .calendar-quickstats {
-    grid-template-columns: 1fr;
+    margin-right: -4px;
   }
 
   .calendar-stat {
+    flex-basis: min(208px, 78vw);
     min-height: 0;
   }
 
