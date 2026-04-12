@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Pocket Workstation | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="Turn your phone into a builder console with synced notes, commands, projects, and a lightweight AI helper."
+  />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="../score.js"></script>
+  <script src="../auth-identity.js"></script>
+  <link rel="stylesheet" href="../styles/global.css" />
+  <link rel="stylesheet" href="./styles.css" />
+  <meta name="theme-color" content="#07111b" />
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="theme-dark pocket-workstation-page">
+  <a class="skip-link" href="#workstationMain">Skip to Pocket Workstation</a>
+  <div class="workstation-shell">
+    <header class="workstation-hero">
+      <div class="workstation-hero__copy">
+        <p class="workstation-eyebrow">3dvr Pocket Workstation v0.1</p>
+        <h1>Turn your phone into a builder console.</h1>
+        <p class="workstation-lede">
+          One portable workspace for notes, commands, projects, and guided next steps. Built for Android,
+          usable on iPhone, and ready on desktop right now.
+        </p>
+        <div class="workstation-actions">
+          <a class="cta primary" href="#dashboard-title">Open dashboard</a>
+          <a class="cta ghost" href="../sign-in.html?redirect=%2Fpocket-workstation%2F">Sign in for sync</a>
+        </div>
+        <div class="workstation-links" aria-label="Pocket Workstation sections">
+          <a href="#notes-title">Notes</a>
+          <a href="#commands-title">Commands</a>
+          <a href="#projects-title">Projects</a>
+          <a href="#helper-title">AI helper</a>
+        </div>
+      </div>
+      <aside class="workstation-meta">
+        <div class="meta-card">
+          <p class="meta-label">Universal layer</p>
+          <ul>
+            <li>Android: Termux and local power.</li>
+            <li>iPhone: PWA and guided control.</li>
+            <li>Desktop: full dashboard view.</li>
+          </ul>
+        </div>
+        <div class="meta-card">
+          <p class="meta-label">Shared Gun paths</p>
+          <ul>
+            <li><code>3dvr-portal/pocketWorkstation/users/&lt;identity&gt;/notes</code></li>
+            <li><code>3dvr-portal/pocketWorkstation/users/&lt;identity&gt;/commands</code></li>
+            <li><code>3dvr-portal/pocketWorkstation/users/&lt;identity&gt;/projects</code></li>
+          </ul>
+        </div>
+      </aside>
+    </header>
+
+    <main id="workstationMain" class="workstation-main">
+      <section class="summary-grid" aria-labelledby="dashboard-title">
+        <article class="summary-card summary-card--wide">
+          <p class="section-label">Dashboard</p>
+          <h2 id="dashboard-title">Keep the builder brain in one place.</h2>
+          <p>
+            This first version keeps the MVP tight: account identity, synced notes, reusable commands,
+            project tracking, and a lightweight helper that turns intent into concrete next steps.
+          </p>
+          <div class="identity-row">
+            <div>
+              <span class="identity-row__label">Current identity</span>
+              <strong id="identity-label">Resolving identity…</strong>
+            </div>
+            <div>
+              <span class="identity-row__label">Sync status</span>
+              <strong id="sync-status">Connecting…</strong>
+            </div>
+          </div>
+        </article>
+        <article class="summary-card">
+          <span class="summary-card__count" id="notes-count">0</span>
+          <span class="summary-card__label">Notes</span>
+          <p>Capture ideas, deployment details, and live context fast.</p>
+        </article>
+        <article class="summary-card">
+          <span class="summary-card__count" id="commands-count">0</span>
+          <span class="summary-card__label">Commands</span>
+          <p>Keep your reusable workflows nearby on every device.</p>
+        </article>
+        <article class="summary-card">
+          <span class="summary-card__count" id="projects-count">0</span>
+          <span class="summary-card__label">Projects</span>
+          <p>Track what is active, blocked, or ready to ship.</p>
+        </article>
+      </section>
+
+      <section class="workstation-grid">
+        <article class="panel-card" aria-labelledby="notes-title">
+          <div class="panel-card__header">
+            <div>
+              <p class="section-label">/notes</p>
+              <h2 id="notes-title">Notes</h2>
+            </div>
+            <p class="panel-meta">Quick capture for ideas, server details, launch notes, and reminders.</p>
+          </div>
+          <form id="note-form" class="stack-form">
+            <label for="note-title-input">Title</label>
+            <input id="note-title-input" name="title" type="text" placeholder="Launch checklist" required />
+            <label for="note-body-input">Note</label>
+            <textarea id="note-body-input" name="body" rows="5" placeholder="What matters right now?" required></textarea>
+            <button class="cta primary" type="submit">Save note</button>
+          </form>
+          <p id="note-status" class="status-text" role="status" aria-live="polite"></p>
+          <div id="note-list" class="record-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel-card" aria-labelledby="commands-title">
+          <div class="panel-card__header">
+            <div>
+              <p class="section-label">/commands</p>
+              <h2 id="commands-title">Commands</h2>
+            </div>
+            <p class="panel-meta">Save the things you should not have to retype from memory.</p>
+          </div>
+          <form id="command-form" class="stack-form">
+            <label for="command-name-input">Name</label>
+            <input id="command-name-input" name="name" type="text" placeholder="Deploy website" required />
+            <label for="command-text-input">Command</label>
+            <textarea
+              id="command-text-input"
+              name="command"
+              rows="4"
+              placeholder="git add . && git commit -m &quot;update&quot; && git push"
+              required
+            ></textarea>
+            <label for="command-context-input">Context</label>
+            <input id="command-context-input" name="context" type="text" placeholder="Vercel deploy, Laravel, SSH, backups..." />
+            <button class="cta primary" type="submit">Save command</button>
+          </form>
+          <p id="command-status" class="status-text" role="status" aria-live="polite"></p>
+          <div id="command-list" class="record-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel-card" aria-labelledby="projects-title">
+          <div class="panel-card__header">
+            <div>
+              <p class="section-label">/projects</p>
+              <h2 id="projects-title">Projects</h2>
+            </div>
+            <p class="panel-meta">Track what you are building and what the next move is.</p>
+          </div>
+          <form id="project-form" class="stack-form">
+            <label for="project-name-input">Project</label>
+            <input id="project-name-input" name="name" type="text" placeholder="Pocket Workstation landing page" required />
+            <label for="project-status-input">Status</label>
+            <select id="project-status-input" name="status">
+              <option value="active">Active</option>
+              <option value="blocked">Blocked</option>
+              <option value="ready">Ready to ship</option>
+            </select>
+            <label for="project-next-step-input">Next step</label>
+            <textarea id="project-next-step-input" name="nextStep" rows="4" placeholder="Deploy preview and verify the CTA flow." required></textarea>
+            <button class="cta primary" type="submit">Save project</button>
+          </form>
+          <p id="project-status-text" class="status-text" role="status" aria-live="polite"></p>
+          <div id="project-list" class="record-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel-card" aria-labelledby="helper-title">
+          <div class="panel-card__header">
+            <div>
+              <p class="section-label">AI helper</p>
+              <h2 id="helper-title">What do you want to do?</h2>
+            </div>
+            <p class="panel-meta">Lightweight guidance first: steps, commands, and explanations without blocking the flow.</p>
+          </div>
+          <form id="helper-form" class="stack-form">
+            <label for="helper-input">Intent</label>
+            <textarea id="helper-input" rows="4" placeholder="Deploy my Laravel app" required></textarea>
+            <button class="cta primary" type="submit">Generate next steps</button>
+          </form>
+          <div id="helper-output" class="helper-output" aria-live="polite">
+            <p class="helper-output__placeholder">Ask for a deploy, SSH, project setup, or note workflow.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="roadmap-strip" aria-labelledby="modes-title">
+        <div>
+          <p class="section-label">Modes</p>
+          <h2 id="modes-title">Ship the universal layer first.</h2>
+        </div>
+        <div class="roadmap-grid">
+          <article>
+            <h3>Android</h3>
+            <p>Termux install flow and synced command pulls come next.</p>
+            <code>curl -s https://3dvr.tech/install | bash</code>
+          </article>
+          <article>
+            <h3>iPhone</h3>
+            <p>PWA control panel first. Shortcuts and remote helpers later.</p>
+          </article>
+          <article>
+            <h3>Desktop</h3>
+            <p>Same dashboard, bigger screen, deeper project control.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
