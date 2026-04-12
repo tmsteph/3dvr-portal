@@ -38,7 +38,7 @@ describe('pocket workstation app', () => {
     assert.match(html, /Current identity/);
     assert.match(html, /Shared Gun paths/);
     assert.match(html, /3dvr-portal\/pocketWorkstation\/users\/&lt;identity&gt;\/notes/);
-    assert.match(html, /curl -s https:\/\/3dvr\.tech\/install \| bash/);
+    assert.match(html, /curl -Ls https:\/\/3dvr\.tech\/install \| bash/);
     assert.match(html, /<script[^>]+src="\.\.\/auth-identity\.js"/);
     assert.match(html, /<script[^>]+src="\.\.\/score\.js"/);
     assert.match(html, /<script[^>]+src="\.\/app\.js"/);
