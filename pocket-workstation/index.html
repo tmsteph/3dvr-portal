@@ -97,6 +97,33 @@
         </article>
       </section>
 
+      <section class="pairing-card" aria-labelledby="connect-title">
+        <div class="pairing-copy">
+          <p class="section-label">Termux connect</p>
+          <h2 id="connect-title">Link this browser to your `3dvr connect` code.</h2>
+          <p>
+            Run <code>3dvr connect</code> in Termux, then enter the code here. If you are already signed in on this device,
+            this links the CLI without typing your alias into the terminal.
+          </p>
+        </div>
+        <form id="pairing-form" class="pairing-form">
+          <label for="pairing-code-input">Connection code</label>
+          <input
+            id="pairing-code-input"
+            name="pairCode"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="6"
+            placeholder="AB12CD"
+            required
+          />
+          <button class="cta primary" type="submit">Link this device</button>
+        </form>
+        <p id="pairing-status" class="status-text" role="status" aria-live="polite"></p>
+      </section>
+
       <section class="workstation-grid">
         <article class="panel-card" aria-labelledby="notes-title">
           <div class="panel-card__header">

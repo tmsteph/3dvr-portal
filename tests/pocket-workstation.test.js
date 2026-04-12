@@ -27,6 +27,10 @@ describe('pocket workstation app', () => {
     assert.match(html, /id="commands-title"/);
     assert.match(html, /id="projects-title"/);
     assert.match(html, /id="helper-title"/);
+    assert.match(html, /id="connect-title"/);
+    assert.match(html, /id="pairing-form"/);
+    assert.match(html, /id="pairing-code-input"/);
+    assert.match(html, /Link this browser to your `3dvr connect` code\./);
     assert.match(html, /id="note-form"/);
     assert.match(html, /id="command-form"/);
     assert.match(html, /id="project-form"/);
@@ -47,6 +51,8 @@ describe('pocket workstation app', () => {
     const css = await readFile(cssUrl, 'utf8');
     assert.match(css, /\.workstation-hero/);
     assert.match(css, /\.summary-grid/);
+    assert.match(css, /\.pairing-card/);
+    assert.match(css, /\.pairing-form/);
     assert.match(css, /\.workstation-grid/);
     assert.match(css, /\.record-list/);
     assert.match(css, /\.roadmap-grid/);
@@ -58,7 +64,11 @@ describe('pocket workstation app', () => {
 
     const js = await readFile(appUrl, 'utf8');
     assert.match(js, /APP_ROOT_PATH = \['3dvr-portal', 'pocketWorkstation', 'users'\]/);
+    assert.match(js, /PAIRING_PATH = \['3dvr-portal', 'pocketWorkstation', 'pairing'\]/);
     assert.match(js, /window\.ScoreSystem && typeof window\.ScoreSystem\.ensureGun === 'function'/);
+    assert.match(js, /getPairingCodeFromUrl/);
+    assert.match(js, /linkPairingCode/);
+    assert.match(js, /pairingNode\.get\(normalizedCode\)\.put/);
     assert.match(js, /resolveIdentity/);
     assert.match(js, /buildHelperResult/);
     assert.match(js, /renderHelper/);
