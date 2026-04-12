@@ -5,6 +5,7 @@
 
   const STORAGE_KEY = '3dvr-pocket-workstation.identity';
   const APP_ROOT_PATH = ['3dvr-portal', 'pocketWorkstation', 'users'];
+  const PAIRING_PATH = ['3dvr-portal', 'pocketWorkstation', 'pairing'];
 
   const refs = {
     identityLabel: document.getElementById('identity-label'),
@@ -12,6 +13,9 @@
     notesCount: document.getElementById('notes-count'),
     commandsCount: document.getElementById('commands-count'),
     projectsCount: document.getElementById('projects-count'),
+    pairingForm: document.getElementById('pairing-form'),
+    pairingCodeInput: document.getElementById('pairing-code-input'),
+    pairingStatus: document.getElementById('pairing-status'),
     noteForm: document.getElementById('note-form'),
     noteStatus: document.getElementById('note-status'),
     noteList: document.getElementById('note-list'),
@@ -49,6 +53,10 @@
   function createId(prefix) {
     const base = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
     return prefix ? `${prefix}-${base}` : base;
+  }
+
+  function normalizeCode(value) {
+    return normalizeText(value).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   }
 
   function createLocalGunSubscriptionStub() {
@@ -173,6 +181,15 @@
       label: `Guest ${guestId.slice(-6)}`,
       mode: 'guest',
     };
+  }
+
+  function getPairingCodeFromUrl() {
+    try {
+      const url = new URL(window.location.href);
+      return normalizeCode(url.searchParams.get('pairCode') || '');
+    } catch (_error) {
+      return '';
+    }
   }
 
   function recordToCard(record, type) {
@@ -351,6 +368,7 @@
   );
 
   const portalRoot = getNodeFromPath(gunContext.gun, ['3dvr-portal']);
+  const pairingNode = getNodeFromPath(gunContext.gun, PAIRING_PATH);
   state.identity = resolveIdentity();
 
   function getUserNode(type) {
@@ -388,11 +406,51 @@
     });
   }
 
+  function buildSignInRedirect(code) {
+    return `../sign-in.html?redirect=${encodeURIComponent(`/pocket-workstation/?pairCode=${encodeURIComponent(code)}#connect-title`)}`;
+  }
+
+  function linkPairingCode(code) {
+    const normalizedCode = normalizeCode(code);
+    if (!normalizedCode) {
+      refs.pairingStatus.textContent = 'Enter the 6-character code shown in Termux.';
+      return;
+    }
+
+    if (state.identity.mode !== 'signed-in') {
+      refs.pairingStatus.innerHTML = `Sign in first, then come back to link this code. <a href="${escapeHtml(buildSignInRedirect(normalizedCode))}">Sign in</a>`;
+      return;
+    }
+
+    refs.pairingStatus.textContent = 'Linking this browser to the Termux session…';
+    pairingNode.get(normalizedCode).put({
+      code: normalizedCode,
+      alias: state.identity.label,
+      identityKey: state.identity.key,
+      pairedAt: Date.now(),
+      source: 'portal-pocket-workstation',
+    }, ack => {
+      if (ack && ack.err) {
+        refs.pairingStatus.textContent = 'Could not link the code yet. Retry when Gun is reachable.';
+        return;
+      }
+      refs.pairingStatus.textContent = `Linked code ${normalizedCode}. Return to Termux and the CLI should finish automatically.`;
+    });
+  }
+
   function init() {
     refs.identityLabel.textContent = state.identity.mode === 'signed-in'
       ? `Signed in as ${state.identity.label}`
       : `Guest workspace for ${state.identity.label}`;
     refs.syncStatus.textContent = gunContext.isStub ? 'Offline mode' : 'Connected to Gun';
+
+    const pairingCode = getPairingCodeFromUrl();
+    if (pairingCode && refs.pairingCodeInput) {
+      refs.pairingCodeInput.value = pairingCode;
+      refs.pairingStatus.textContent = state.identity.mode === 'signed-in'
+        ? `Ready to link code ${pairingCode}.`
+        : 'Sign in on this device first, then link the code.';
+    }
 
     renderRecords('notes');
     renderRecords('commands');
@@ -432,6 +490,13 @@
       refs.helperForm.addEventListener('submit', event => {
         event.preventDefault();
         renderHelper(refs.helperInput.value);
+      });
+    }
+
+    if (refs.pairingForm) {
+      refs.pairingForm.addEventListener('submit', event => {
+        event.preventDefault();
+        linkPairingCode(refs.pairingCodeInput.value);
       });
     }
   }
