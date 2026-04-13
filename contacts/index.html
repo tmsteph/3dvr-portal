@@ -473,6 +473,7 @@ import {
 import {
   CONTACT_IMPORT_ACCEPT,
   buildImportMatchKeys,
+  buildContactCrmRecord,
   mergeCommaSeparatedValues,
   parseContactFileText,
   pickDeviceContacts,
@@ -2848,25 +2849,26 @@ function addContactToCrm(id){
 
   const now = nowISO();
   const crmId = contact.crmId || contact.id || createId();
-  const payload = {
-    id: crmId,
+  const payload = buildContactCrmRecord(contact, {
+    now,
+    recordId: crmId,
     contactId: contact.id || crmId,
-    name: contact.name || '',
-    email: contact.email || '',
-    phone: contact.phone || '',
-    company: contact.company || '',
-    role: contact.role || '',
-    tags: contact.tags || '',
+    source: contact.source || 'Contacts workspace',
     status: contact.status || '',
+    tags: mergeCommaSeparatedValues(contact.tags, 'source/contacts-workspace'),
     nextFollowUp: contact.nextFollowUp || '',
     notes: contact.notes || '',
     lastContacted: contact.lastContacted || '',
     activityCount: typeof contact.activityCount === 'number' ? contact.activityCount : 0,
-    source: contact.source || 'Contacts workspace',
     created: contact.created || now,
-    updated: now,
-    syncedFromContactsAt: now
-  };
+  });
+  if(!payload){
+    setButtonState('Add to CRM', false);
+    alert('This contact needs a name, email, or phone number before it can be linked to CRM.');
+    return;
+  }
+  payload.updated = now;
+  payload.syncedFromContactsAt = now;
 
   let settled = false;
   const timer = setTimeout(() => {

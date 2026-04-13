@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildContactCrmRecord,
   buildImportMatchKeys,
   buildImportedCrmRecord,
   normalizePickedContacts,
@@ -101,4 +102,37 @@ test('builds CRM import records and matching keys for dedupe', () => {
   assert.ok(keys.includes('phone:5551002000'));
   assert.ok(keys.includes('name:taylor prospect'));
   assert.ok(keys.includes('name-company:taylor prospect::prospect studio'));
+});
+
+test('builds canonical CRM records when linking a contact into the CRM workspace', () => {
+  const record = buildContactCrmRecord({
+    id: 'contact-42',
+    name: 'Jordan Friend',
+    email: 'jordan@example.com',
+    phone: '(555) 999-1000',
+    company: 'Builder Coop',
+    tags: 'friend, outreach',
+    status: 'Friend',
+    notes: 'Met after a local meetup.',
+    created: '2026-04-04T03:30:00.000Z',
+    lastContacted: '2026-04-03',
+    activityCount: 3,
+    source: 'Contacts workspace',
+  }, {
+    now: '2026-04-05T01:00:00.000Z',
+    recordId: 'crm-42',
+    contactId: 'contact-42',
+  });
+
+  assert.equal(record.id, 'crm-42');
+  assert.equal(record.recordType, 'person');
+  assert.equal(record.contactId, 'contact-42');
+  assert.equal(record.status, 'Warm - Awareness');
+  assert.equal(record.warmth, 'warm');
+  assert.equal(record.lastSignal, 'Linked from contacts workspace');
+  assert.equal(record.nextBestAction, 'Review the contact and draft the next outreach.');
+  assert.match(record.tags, /source\/contacts-workspace/);
+  assert.match(record.tags, /friend/);
+  assert.equal(record.activityCount, 3);
+  assert.equal(record.lastContacted, '2026-04-03');
 });
