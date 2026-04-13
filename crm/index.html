@@ -128,6 +128,43 @@
       </div>
     </section>
 
+    <section id="crmPrimaryActions" class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-4">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">CRM workspace</p>
+          <h2 class="text-xl font-semibold">Add the next lead or find the right record fast.</h2>
+          <p class="text-sm text-gray-300">Keep the main moves at the top. The workflow lanes can stay underneath.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button id="openCrmCreate" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">Add CRM contact</button>
+          <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded text-sm text-center border border-white/10">Search contacts</a>
+        </div>
+      </div>
+      <div class="grid gap-3 md:grid-cols-[1fr,240px] md:items-end">
+        <div>
+          <label for="filter" class="block text-sm text-gray-300">Search CRM</label>
+          <input id="filter" type="search" placeholder="Filter by name, group, problem, tags, or notes" class="w-full p-2 rounded text-black" />
+        </div>
+        <div>
+          <label for="personWorkflowFilter" class="block text-sm text-gray-300">Person workflow</label>
+          <select id="personWorkflowFilter" class="w-full p-2 rounded text-black">
+            <option value="">All people</option>
+            <option value="linked">Linked to contacts</option>
+            <option value="unlinked">Not linked to contacts</option>
+            <option value="overdue">Follow-up overdue</option>
+            <option value="none">No follow-up date</option>
+            <option value="week">Follow-up due this week</option>
+            <option value="stale-14">Stale (14+ days)</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button id="filterAllRecords" type="button" class="px-3 py-1.5 rounded text-sm bg-sky-600 text-white">All records</button>
+        <button id="filterWarmLeads" type="button" class="px-3 py-1.5 rounded text-sm bg-white/10 text-gray-200">Warm leads</button>
+        <p class="text-xs text-gray-400 self-center">Tip: press <kbd class="rounded border border-white/20 px-1 py-0.5">/</kbd> to jump to search.</p>
+      </div>
+    </section>
+
     <section class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-4">
       <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
@@ -229,7 +266,7 @@
           <p id="crmImportStatus" class="hidden rounded-lg border px-3 py-2 text-xs" role="status" aria-live="polite"></p>
         </div>
         <div class="grid gap-2 sm:grid-cols-2">
-          <button id="openCrmCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Full lead form</button>
+          <span class="bg-white/10 text-white px-3 py-2 rounded text-sm text-center border border-white/10">Use top button for full lead form</span>
           <button id="openGroupCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">New group</button>
           <button id="openProblemCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Log problem</button>
           <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm text-center">Open contacts</a>
@@ -261,32 +298,6 @@
       </div>
 
       <div class="space-y-6">
-        <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-3">
-          <div class="flex flex-wrap gap-2">
-            <button id="filterAllRecords" type="button" class="px-3 py-1.5 rounded text-sm bg-sky-600 text-white">All records</button>
-            <button id="filterWarmLeads" type="button" class="px-3 py-1.5 rounded text-sm bg-white/10 text-gray-200">Warm leads</button>
-          </div>
-          <div class="grid gap-3 md:grid-cols-[1fr,240px] md:items-end">
-            <div>
-              <label for="filter" class="block text-sm text-gray-300">Search workspace</label>
-              <input id="filter" type="search" placeholder="Filter by name, group, problem, tags, or notes" class="w-full p-2 rounded text-black" />
-            </div>
-            <div>
-              <label for="personWorkflowFilter" class="block text-sm text-gray-300">Person workflow</label>
-              <select id="personWorkflowFilter" class="w-full p-2 rounded text-black">
-                <option value="">All people</option>
-                <option value="linked">Linked to contacts</option>
-                <option value="unlinked">Not linked to contacts</option>
-                <option value="overdue">Follow-up overdue</option>
-                <option value="none">No follow-up date</option>
-                <option value="week">Follow-up due this week</option>
-                <option value="stale-14">Stale (14+ days)</option>
-              </select>
-            </div>
-          </div>
-          <p class="text-xs text-gray-400">Tip: press <kbd class="rounded border border-white/20 px-1 py-0.5">/</kbd> to jump to search.</p>
-        </div>
-
         <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-5">
           <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
             <h2 class="text-xl font-semibold">Pipeline</h2>

@@ -166,26 +166,32 @@
 
     <!-- Right column -->
     <section class="grid gap-6">
-      <!-- Add Contact -->
-      <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <!-- Primary actions -->
+      <div id="contactsPrimaryActions" class="bg-gray-800/60 rounded-xl p-4 border border-white/10 space-y-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 class="text-lg font-semibold">Add Contact</h2>
-            <p class="text-sm text-gray-300">Capture new relationships without leaving your list.</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.28em] text-teal-300">Contacts workspace</p>
+            <h2 class="text-lg font-semibold">Add and find contacts fast.</h2>
+            <p class="text-sm text-gray-300">Start with the main move, then use the deeper filters only when you need them.</p>
           </div>
           <button id="openCreateContact" type="button" class="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded text-sm font-medium">
-            New contact
+            Add contact
           </button>
+        </div>
+        <div class="grid gap-3 md:grid-cols-[1fr,220px] md:items-end">
+          <div>
+            <label class="text-sm text-gray-300" for="search">Search contacts</label>
+            <input id="search" placeholder="Name, email, company, tags…" class="w-full p-2 rounded text-black" />
+          </div>
+          <a href="https://portal.3dvr.tech/crm/index.html" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded text-sm font-medium text-center border border-white/10">
+            Search CRM
+          </a>
         </div>
       </div>
 
       <!-- Filters -->
       <div class="bg-gray-800/60 rounded-xl p-4 border border-white/10">
-        <div class="grid grid-cols-2 gap-2 md:grid-cols-[1fr,180px,180px,180px,180px] items-end">
-          <div class="col-span-2 md:col-span-1">
-            <label class="text-sm text-gray-300">Search</label>
-            <input id="search" placeholder="Name, email, company, tags…" class="w-full p-2 rounded text-black" />
-          </div>
+        <div class="grid grid-cols-2 gap-2 md:grid-cols-[180px,180px,180px,180px] items-end">
           <div>
             <label class="text-sm text-gray-300">Status</label>
             <select id="filterStatus" class="w-full p-2 rounded text-black">
@@ -212,7 +218,7 @@
               <option value="unlinked">Not linked</option>
             </select>
           </div>
-          <div>
+          <div class="col-span-2 md:col-span-1">
             <label class="text-sm text-gray-300">Sort</label>
             <select id="sortOrder" class="w-full p-2 rounded text-black">
               <option value="name-first">Name (first → last)</option>
