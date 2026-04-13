@@ -11,6 +11,10 @@ async function read(relativePath) {
 
 test('CRM page exposes workflow filters and import controls for fast lead retrieval', async () => {
   const html = await read('crm/index.html');
+  assert.match(html, /id="crmPrimaryActions"/);
+  assert.match(html, /Add CRM contact/);
+  assert.match(html, /Search contacts/);
+  assert.match(html, /Search CRM/);
   assert.match(html, /id="filterAllRecords"/);
   assert.match(html, /id="filterWarmLeads"/);
   assert.match(html, /id="personWorkflowFilter"/);
@@ -48,6 +52,10 @@ test('CRM page exposes workflow filters and import controls for fast lead retrie
   assert.match(html, /value="unlinked"/);
   assert.match(html, /value="overdue"/);
   assert.match(html, /value="stale-14"/);
+  assert.ok(
+    html.indexOf('id="crmPrimaryActions"') < html.indexOf("Today's Sales Moves"),
+    'expected CRM primary actions to appear before sales moves'
+  );
 });
 
 test('CRM app includes keyboard search shortcut, workflow filters, and import wiring', async () => {
@@ -96,6 +104,10 @@ test('CRM and Contacts preserve space-aware link context', async () => {
 
 test('Contacts app wires shared import helpers and status messaging', async () => {
   const html = await read('contacts/index.html');
+  assert.match(html, /id="contactsPrimaryActions"/);
+  assert.match(html, /Add contact/);
+  assert.match(html, /Search contacts/);
+  assert.match(html, /Search CRM/);
   assert.match(html, /CONTACT_IMPORT_ACCEPT/);
   assert.match(html, /buildContactCrmRecord/);
   assert.match(html, /bulkImport\.accept = CONTACT_IMPORT_ACCEPT/);
@@ -107,4 +119,8 @@ test('Contacts app wires shared import helpers and status messaging', async () =
   assert.match(html, /function importContactsIntoWorkspace\(records, \{ sourceLabel = 'Phone import' \} = \{\}\)/);
   assert.match(html, /function importProviderContacts\(provider\)/);
   assert.match(html, /runtime\.listContacts/);
+  assert.ok(
+    html.indexOf('id="contactsPrimaryActions"') < html.indexOf('id="filterStatus"'),
+    'expected contacts primary actions to appear before secondary filters'
+  );
 });
