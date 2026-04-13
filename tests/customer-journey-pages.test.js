@@ -59,6 +59,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Create or use one portal account/);
     assert.match(html, /Start with daily direction/);
     assert.match(html, /Send free-plan link/);
+    assert.match(html, /Start here/);
+    assert.match(html, /Use the email you want attached to your portal account/);
     assert.match(html, /Sign in or create account/);
     assert.match(html, /Open billing center/);
     assert.match(html, /Open start flow/);
