@@ -159,6 +159,45 @@
       font-weight: 600;
     }
 
+    .email-field {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      margin-top: 4px;
+      border-radius: 16px;
+      background: rgba(125, 211, 252, 0.08);
+      border: 1px solid rgba(125, 211, 252, 0.26);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    .email-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.98rem;
+      color: var(--text);
+      font-weight: 800;
+    }
+
+    .email-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.16);
+      color: var(--accent-strong);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .email-hint {
+      margin: 0;
+      font-size: 0.86rem;
+      color: #d8e7f7;
+    }
+
     input[type="email"] {
       padding: 14px 16px;
       border-radius: 12px;
@@ -167,7 +206,13 @@
       font-size: 1rem;
       background: #ffffff;
       color: #08111f;
-      margin-top: 8px;
+      margin-top: 0;
+      box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18);
+    }
+
+    input[type="email"]:focus {
+      outline: 3px solid rgba(125, 211, 252, 0.34);
+      outline-offset: 2px;
     }
 
     button {
@@ -254,7 +299,9 @@
         <p class="form-intro">Share your email first and we’ll send your free-plan next step back into the
           portal. No credit card required.</p>
         <form id="trialForm">
-          <label for="email">Email for your free-plan next steps
+          <label for="email" class="email-field">
+            <span class="email-label">Email for your free-plan next steps <span class="email-badge">Start here</span></span>
+            <span class="email-hint">Use the email you want attached to your portal account so your free path stays easy to find later.</span>
             <input type="email" id="email" placeholder="you@example.com" required />
           </label>
           <button type="submit">Send free-plan link</button>
