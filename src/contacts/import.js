@@ -165,6 +165,62 @@ export function buildImportedCrmRecord(raw = {}, options = {}) {
   };
 }
 
+const CRM_CONTACT_LINK_TAG = 'source/contacts-workspace';
+const SUPPORTED_CRM_STATUSES = new Set([
+  'Warm - Awareness',
+  'Warm - Discovery',
+  'Warm - Invited',
+  'Warm - Follow-up',
+  'Lead',
+  'Prospect',
+  'Active',
+  'Negotiating',
+  'Won',
+  'Lost',
+]);
+
+function normalizeLinkedCrmStatus(value = '') {
+  const normalized = normalizeText(value);
+  return SUPPORTED_CRM_STATUSES.has(normalized) ? normalized : 'Warm - Awareness';
+}
+
+function deriveWarmthFromStatus(status = '') {
+  const normalized = normalizeText(status).toLowerCase();
+  if (normalized === 'active' || normalized === 'negotiating' || normalized === 'won') {
+    return 'hot';
+  }
+  if (normalized === 'lead' || normalized === 'prospect' || normalized === 'lost') {
+    return 'cold';
+  }
+  return 'warm';
+}
+
+export function buildContactCrmRecord(raw = {}, options = {}) {
+  const imported = normalizeImportedContact(raw, options);
+  if (!imported) return null;
+
+  const status = normalizeLinkedCrmStatus(options.status || imported.status);
+  const tags = mergeCommaSeparatedValues(imported.tags, options.tags || CRM_CONTACT_LINK_TAG);
+
+  return buildImportedCrmRecord(imported, {
+    ...options,
+    status,
+    warmth: normalizeText(options.warmth) || deriveWarmthFromStatus(status),
+    tags,
+    nextFollowUp: normalizeText(options.nextFollowUp) || imported.nextFollowUp,
+    notes: normalizeText(options.notes) || imported.notes,
+    created: normalizeText(options.created) || imported.created,
+    lastContacted: normalizeText(options.lastContacted) || imported.lastContacted,
+    activityCount: Number.isFinite(Number(options.activityCount))
+      ? Number(options.activityCount)
+      : imported.activityCount,
+    nextBestAction: normalizeText(options.nextBestAction) || 'Review the contact and draft the next outreach.',
+    lastSignal: normalizeText(options.lastSignal) || 'Linked from contacts workspace',
+    source: normalizeText(options.source) || imported.source || 'Contacts workspace',
+    contactId: normalizeText(options.contactId) || imported.id,
+  });
+}
+
 function decodeQuotedPrintable(value = '') {
   const source = String(value || '').replace(/=\r?\n/g, '');
   const bytes = [];

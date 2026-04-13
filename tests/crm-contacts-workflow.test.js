@@ -97,10 +97,12 @@ test('CRM and Contacts preserve space-aware link context', async () => {
 test('Contacts app wires shared import helpers and status messaging', async () => {
   const html = await read('contacts/index.html');
   assert.match(html, /CONTACT_IMPORT_ACCEPT/);
+  assert.match(html, /buildContactCrmRecord/);
   assert.match(html, /bulkImport\.accept = CONTACT_IMPORT_ACCEPT/);
   assert.match(html, /supportsDeviceContactPicker\(window\.navigator\)/);
   assert.match(html, /pickDeviceContacts\(/);
   assert.match(html, /parseContactFileText\(/);
+  assert.match(html, /source\/contacts-workspace/);
   assert.match(html, /function setContactsImportStatus\(message = '', tone = 'info'\)/);
   assert.match(html, /function importContactsIntoWorkspace\(records, \{ sourceLabel = 'Phone import' \} = \{\}\)/);
   assert.match(html, /function importProviderContacts\(provider\)/);
