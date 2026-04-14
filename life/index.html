@@ -347,7 +347,7 @@
 
     .metric-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -427,6 +427,44 @@
       margin-bottom: 8px;
     }
 
+    .entry-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .entry-fact {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .entry-stack {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .entry-block {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .entry-block strong {
+      margin-bottom: 4px;
+      font-size: 0.82rem;
+      letter-spacing: 0.02em;
+      color: var(--blue);
+    }
+
     .entry-copy {
       color: var(--text);
       line-height: 1.55;
@@ -485,7 +523,7 @@
     <header class="topbar">
       <div class="topbar__brand">
         <strong>Life</strong>
-        <span>Find your passions and organize your life with a free starter flow.</span>
+        <span>Clarity, alignment, and one real next move inside the portal.</span>
       </div>
       <nav class="topbar__links" aria-label="Life navigation">
         <a href="../index.html">Home</a>
@@ -498,10 +536,10 @@
 
     <section class="hero">
       <span class="eyebrow">Life OS</span>
-      <h1>See your life clearly, then move it forward.</h1>
+      <h1>Clarity first. Then action.</h1>
       <p class="lead">
-        Life is the simple check-in loop for 3dvr. Track how you feel, what happened today, what matters tomorrow, and how the big parts of life are moving.
-        The data stays inside the portal on Gun so it can sync across browsers and pair with your other apps.
+        Life OS is the builder-facing check-in loop for 3dvr. Track mood, alignment, avoidance, mission, and the one task that would actually move life forward.
+        The data stays inside the portal on Gun so it can sync across browsers and still fit the rest of your operating system.
       </p>
       <div class="hero-actions">
         <a class="button button--primary" href="#checkin">Start a check-in</a>
@@ -510,16 +548,16 @@
       </div>
       <div class="hero-stats" aria-label="Life overview">
         <div class="stat">
-          <span>Daily focus</span>
-          <strong>1 check-in</strong>
+          <span>Daily reset</span>
+          <strong>Clarity + action</strong>
         </div>
         <div class="stat">
-          <span>Weekly rhythm</span>
-          <strong>1 reflection</strong>
+          <span>Inner signal</span>
+          <strong>Mood + alignment</strong>
         </div>
         <div class="stat">
-          <span>Life areas</span>
-          <strong>5 simple categories</strong>
+          <span>Builder scope</span>
+          <strong>Mission in the loop</strong>
         </div>
       </div>
     </section>
@@ -528,9 +566,9 @@
       <article class="card" id="checkin">
         <div class="card__body">
           <span class="eyebrow">Daily check-in</span>
-          <h2 class="section-title" id="lifeTitle">What changed today?</h2>
+          <h2 class="section-title" id="lifeTitle">What is true today?</h2>
           <p class="section-copy">
-            Keep this lightweight. You can add one note a day, or come back later for a fuller weekly reflection.
+            Keep this lightweight and honest. Name the signal, name the avoidance, and pick the one task that actually matters.
           </p>
 
           <form id="lifeForm" class="form-grid">
@@ -546,14 +584,35 @@
               </label>
             </div>
 
+            <label for="alignmentScore">
+              Alignment
+              <output id="alignmentValue" for="alignmentScore">7</output>
+              <input id="alignmentScore" name="alignmentScore" type="range" min="1" max="10" step="1" value="7" />
+            </label>
+
             <label for="todayText">
               What happened today?
               <textarea id="todayText" name="todayText" placeholder="A short summary of the day."></textarea>
             </label>
 
+            <label for="avoidanceText">
+              What am I avoiding?
+              <textarea id="avoidanceText" name="avoidanceText" placeholder="The thing I keep circling around instead of facing."></textarea>
+            </label>
+
+            <label for="trueTaskText">
+              One true task
+              <input id="trueTaskText" name="trueTaskText" type="text" placeholder="The one thing that would actually move life forward." />
+            </label>
+
             <label for="tomorrowText">
               What matters tomorrow?
               <textarea id="tomorrowText" name="tomorrowText" placeholder="The one thing to protect next."></textarea>
+            </label>
+
+            <label for="visionText">
+              Who am I becoming / what am I building?
+              <textarea id="visionText" name="visionText" placeholder="The direction, life, or system I am trying to build on purpose."></textarea>
             </label>
 
             <div class="category-grid" aria-label="Life categories">
@@ -574,8 +633,8 @@
                 <input id="relationshipsScore" name="relationshipsScore" type="range" min="1" max="10" step="1" value="7" />
               </div>
               <div class="category-card">
-                <div class="category-head"><span>Projects</span><output id="projectsValue" for="projectsScore">7</output></div>
-                <input id="projectsScore" name="projectsScore" type="range" min="1" max="10" step="1" value="7" />
+                <div class="category-head"><span>Mission</span><output id="missionValue" for="missionScore">7</output></div>
+                <input id="missionScore" name="missionScore" type="range" min="1" max="10" step="1" value="7" />
               </div>
             </div>
 
@@ -603,6 +662,10 @@
                 <strong id="averageMood">--</strong>
               </div>
               <div class="metric">
+                <span>Average alignment</span>
+                <strong id="averageAlignment">--</strong>
+              </div>
+              <div class="metric">
                 <span>7-day trend</span>
                 <strong id="trendLabel">--</strong>
               </div>
@@ -619,6 +682,14 @@
             <span class="eyebrow">Category balance</span>
             <h3 class="section-title">How the big areas are moving</h3>
             <div class="bars" id="categoryBars" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card__body">
+            <span class="eyebrow">Vision</span>
+            <h3 class="section-title">Current vision</h3>
+            <p class="section-copy" id="currentVision">No vision saved yet. Use the check-in form when you want to name what you are building.</p>
           </div>
         </section>
 

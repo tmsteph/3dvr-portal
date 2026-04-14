@@ -3,7 +3,7 @@ const categoryDefs = [
   { key: 'body', label: 'Body' },
   { key: 'money', label: 'Money' },
   { key: 'relationships', label: 'Relationships' },
-  { key: 'projects', label: 'Projects' }
+  { key: 'mission', label: 'Mission' }
 ];
 
 const STORAGE_KEY = 'portal-life-checkins';
@@ -162,7 +162,11 @@ function normalizeEntry(entry, fallbackId = makeId()) {
   const categories = {};
 
   for (const category of categoryDefs) {
-    categories[category.key] = clampScore(source.categories && source.categories[category.key]);
+    const rawValue = source.categories && (
+      source.categories[category.key]
+      ?? (category.key === 'mission' ? source.categories.projects : undefined)
+    );
+    categories[category.key] = clampScore(rawValue);
   }
 
   return {
@@ -170,8 +174,12 @@ function normalizeEntry(entry, fallbackId = makeId()) {
     createdAt: source.createdAt || new Date().toISOString(),
     date: source.date || toDateInputValue(),
     mood: clampScore(source.mood),
+    alignment: clampScore(source.alignment),
     today: String(source.today || '').trim(),
+    avoidance: String(source.avoidance || '').trim(),
+    trueTask: String(source.trueTask || '').trim(),
     tomorrow: String(source.tomorrow || '').trim(),
+    vision: String(source.vision || '').trim(),
     weeklyReflection: String(source.weeklyReflection || source.reflection || '').trim(),
     categories,
     author: String(source.author || '').trim()
@@ -179,7 +187,7 @@ function normalizeEntry(entry, fallbackId = makeId()) {
 }
 
 function summarizeEntry(entry) {
-  return entry.today || entry.tomorrow || entry.weeklyReflection || 'No written note yet.';
+  return entry.trueTask || entry.today || entry.tomorrow || entry.weeklyReflection || 'No written note yet.';
 }
 
 function average(values) {
@@ -242,15 +250,19 @@ function getFormDraft() {
   return {
     date: readValue('lifeDate'),
     mood: clampScore(readValue('moodScore')),
+    alignment: clampScore(readValue('alignmentScore')),
     today: readValue('todayText').trim(),
+    avoidance: readValue('avoidanceText').trim(),
+    trueTask: readValue('trueTaskText').trim(),
     tomorrow: readValue('tomorrowText').trim(),
+    vision: readValue('visionText').trim(),
     weeklyReflection: readValue('weeklyText').trim(),
     categories: {
       mind: clampScore(readValue('mindScore')),
       body: clampScore(readValue('bodyScore')),
       money: clampScore(readValue('moneyScore')),
       relationships: clampScore(readValue('relationshipsScore')),
-      projects: clampScore(readValue('projectsScore'))
+      mission: clampScore(readValue('missionScore'))
     }
   };
 }
@@ -259,12 +271,19 @@ function applyDraft(draft) {
   const source = draft && typeof draft === 'object' ? draft : {};
   setValue('lifeDate', source.date || toDateInputValue());
   setValue('moodScore', clampScore(source.mood || 7));
+  setValue('alignmentScore', clampScore(source.alignment || 7));
   setValue('todayText', source.today || '');
+  setValue('avoidanceText', source.avoidance || '');
+  setValue('trueTaskText', source.trueTask || '');
   setValue('tomorrowText', source.tomorrow || '');
+  setValue('visionText', source.vision || '');
   setValue('weeklyText', source.weeklyReflection || '');
 
   for (const category of categoryDefs) {
-    const nextValue = source.categories && source.categories[category.key] ? source.categories[category.key] : 7;
+    const nextValue = source.categories && (
+      source.categories[category.key]
+      ?? (category.key === 'mission' ? source.categories.projects : undefined)
+    );
     setValue(`${category.key}Score`, clampScore(nextValue));
   }
 }
@@ -364,21 +383,40 @@ function renderEntryList(entries) {
 
   list.innerHTML = entries.map((entry) => `
     <li class="entry-item">
-      <strong>${toReadableDate(entry.date)} · Mood ${entry.mood}/10</strong>
+      <strong>${toReadableDate(entry.date)} · Mood ${entry.mood}/10 · Alignment ${entry.alignment}/10</strong>
       <div class="entry-meta">${categoryDefs.map((category) => `${category.label} ${entry.categories[category.key]}/10`).join(' · ')}</div>
+      <div class="entry-facts">
+        <span class="entry-fact">Mission ${entry.categories.mission}/10</span>
+        ${entry.trueTask ? `<span class="entry-fact">True task named</span>` : ''}
+        ${entry.avoidance ? `<span class="entry-fact">Avoidance logged</span>` : ''}
+      </div>
       <p class="entry-copy">${escapeHtml(summarizeEntry(entry))}</p>
+      ${(entry.avoidance || entry.trueTask) ? `
+        <div class="entry-stack">
+          ${entry.trueTask ? `<div class="entry-block"><strong>One true task</strong><p class="entry-copy">${escapeHtml(entry.trueTask)}</p></div>` : ''}
+          ${entry.avoidance ? `<div class="entry-block"><strong>Avoidance</strong><p class="entry-copy">${escapeHtml(entry.avoidance)}</p></div>` : ''}
+        </div>
+      ` : ''}
     </li>
   `).join('');
 }
 
 function renderSummary(entries) {
   const averageMood = document.getElementById('averageMood');
+  const averageAlignment = document.getElementById('averageAlignment');
   const trendLabel = document.getElementById('trendLabel');
   const streakValue = document.getElementById('streakValue');
   const latestReflection = document.getElementById('latestReflection');
+  const currentVision = document.getElementById('currentVision');
 
   if (averageMood) {
     averageMood.textContent = entries.length ? `${average(entries.map((entry) => entry.mood)).toFixed(1)} / 10` : '--';
+  }
+
+  if (averageAlignment) {
+    averageAlignment.textContent = entries.length
+      ? `${average(entries.map((entry) => entry.alignment)).toFixed(1)} / 10`
+      : '--';
   }
 
   if (trendLabel) {
@@ -393,6 +431,13 @@ function renderSummary(entries) {
   if (latestReflection) {
     const weekly = entries.find((entry) => entry.weeklyReflection);
     latestReflection.textContent = weekly ? weekly.weeklyReflection : 'No reflections yet. Save one when you want to review the week.';
+  }
+
+  if (currentVision) {
+    const visionEntry = entries.find((entry) => entry.vision);
+    currentVision.textContent = visionEntry
+      ? visionEntry.vision
+      : 'No vision saved yet. Use the check-in form when you want to name what you are building.';
   }
 }
 
@@ -506,6 +551,8 @@ function initializeForm() {
       persistDraftFromForm();
     });
   }
+
+  updateSliderValue('alignmentScore', 'alignmentValue');
 
   for (const input of document.querySelectorAll('#lifeForm input, #lifeForm textarea')) {
     input.addEventListener('input', persistDraftFromForm);
