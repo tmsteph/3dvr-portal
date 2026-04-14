@@ -51,6 +51,8 @@
         <a href="https://3dvr.tech">Home</a>
         <a href="start/">Start</a>
         <a href="start/#paid-lanes">Plans</a>
+        <a href="#systemLayers">System</a>
+        <a href="#app-hub-title">Apps</a>
         <a href="share.html">Share</a>
         <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">GitHub</a>
       </nav>
@@ -65,13 +67,33 @@
         </div>
         <div class="hero-panel">
           <div class="hero-main">
-            <span class="hero-eyebrow">Portal workspace</span>
-            <h1 id="landing-title">Get in, get moving.</h1>
-            <p class="hero-tagline">Pick one lane and keep the rest out of the way.</p>
+            <span class="hero-eyebrow">Portal. Browser. OS.</span>
+            <h1 id="landing-title">One system. Any device.</h1>
+            <p class="hero-tagline">
+              Start in your browser. Grow into your own operating system. Keep the same identity,
+              apps, subscriptions, and support lane as the control gets deeper.
+            </p>
             <div class="hero-actions">
               <a href="crm/index.html" class="cta primary">Open CRM</a>
               <a href="sales/index.html" class="cta ghost">Open Sales</a>
               <a href="web-builder-app/index.html" class="cta ghost">Open Web Builder</a>
+            </div>
+            <div class="system-strip" id="systemLayers" aria-label="3dvr system layers">
+              <span class="system-strip__label">System layers</span>
+              <div class="system-ribbon">
+                <a class="system-pill" href="notes/">
+                  <strong>Portal</strong>
+                  <span>Cloud workspace for identity, notes, CRM, billing, messaging, and AI.</span>
+                </a>
+                <a class="system-pill" href="home/">
+                  <strong>Browser</strong>
+                  <span>Launcher, multi-panel workspace, media tools, and in-browser runtime experiments.</span>
+                </a>
+                <a class="system-pill" href="pocket-workstation/index.html">
+                  <strong>OS</strong>
+                  <span>Pocket Workstation, Debian tools, and TommyOS direction for deeper device control.</span>
+                </a>
+              </div>
             </div>
             <div class="workspace-strip" aria-label="Core workspaces">
               <span class="workspace-strip__label">Core workspaces</span>
@@ -149,9 +171,9 @@
       <section class="app-hub" aria-labelledby="app-hub-title">
         <div class="app-hub__header">
           <div class="app-hub__intro">
-            <span class="eyebrow">Launchpad</span>
+            <span class="eyebrow">Command center</span>
             <h2 id="app-hub-title">App dock</h2>
-            <p>Need something else? Search or scroll the full toolset.</p>
+            <p>Same account, same apps, deeper levels of control. Search the dock or jump into the lane you need.</p>
           </div>
           <div class="app-toolbar" aria-label="App list controls">
             <div
@@ -188,6 +210,24 @@
           </div>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
+        <div class="launcher-lanes" aria-label="Suggested launcher lanes">
+          <!-- Keep this map close to the dock so future app layers can expand without changing the overall launcher structure. -->
+          <a href="crm/index.html" class="launcher-lane">
+            <span class="launcher-lane__eyebrow">Portal lane</span>
+            <strong>Run the business workspace</strong>
+            <span>CRM, Contacts, Billing, Calendar, Finance, and Notes on one account.</span>
+          </a>
+          <a href="home/" class="launcher-lane">
+            <span class="launcher-lane__eyebrow">Browser lane</span>
+            <strong>Open the workspace runtime</strong>
+            <span>Home, OpenAI Workbench, Debian Browser Lab, and media experiments live here.</span>
+          </a>
+          <a href="pocket-workstation/index.html" class="launcher-lane">
+            <span class="launcher-lane__eyebrow">OS lane</span>
+            <strong>Move toward device control</strong>
+            <span>Pocket Workstation, Personal Debian Server, Local Models, and Mini DaedalOS point deeper.</span>
+          </a>
+        </div>
         <div class="app-grid" data-app-list>
           <a href="start/" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🧭</span>

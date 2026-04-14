@@ -5,11 +5,19 @@ import { readFile } from 'node:fs/promises';
 describe('portal customer journey pages', () => {
   it('gives the portal home a clear concrete entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-    assert.match(html, /Get in, get moving\./);
-    assert.match(html, /Pick one lane and keep the rest out of the way\./);
+    assert.match(html, /One system\. Any device\./);
+    assert.match(html, /Start in your browser\. Grow into your own operating system\./);
+    assert.match(html, /same identity,/i);
     assert.match(html, /Open CRM/);
     assert.match(html, /Open Sales/);
     assert.match(html, /Open Web Builder/);
+    assert.match(html, /System layers/);
+    assert.match(html, /Portal/);
+    assert.match(html, /Browser/);
+    assert.match(html, /OS/);
+    assert.match(html, /Cloud workspace for identity, notes, CRM, billing, messaging, and AI\./);
+    assert.match(html, /Launcher, multi-panel workspace, media tools, and in-browser runtime experiments\./);
+    assert.match(html, /TommyOS direction for deeper device control\./);
     assert.match(html, /Core workspaces/);
     assert.match(html, /Contacts/);
     assert.match(html, /Messenger/);
@@ -34,6 +42,12 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Start Here: tools and paid help for a project, offer, or business\./);
     assert.match(html, /Search the dock/);
     assert.match(html, /App dock/);
+    assert.match(html, /Command center/);
+    assert.match(html, /Same account, same apps, deeper levels of control\./);
+    assert.match(html, /Suggested launcher lanes/);
+    assert.match(html, /Run the business workspace/);
+    assert.match(html, /Open the workspace runtime/);
+    assert.match(html, /Move toward device control/);
     assert.match(html, /data-app-list/);
     assert.match(html, /shortcut-grid/);
     assert.doesNotMatch(html, /https:\/\/3dvr\.tech\/subscribe\/free-plan\.html/);
