@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.41 (Week of April 13, 2026)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1,
+    h2,
+    h3 {
+      color: #58a6ff;
+    }
+    a {
+      color: #58a6ff;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.40.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.41</h1>
+  <div class="tag">Week of April 13, 2026</div>
+  <p class="release-summary">
+    Pocket Workstation lands, Life becomes Life OS, CRM and billing handoff get tighter, the portal home becomes a
+    command center, and the companion 3dvr-agent outreach stack starts taking shape.
+  </p>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      This week is about turning 3DVR into a more practical operating system. The portal gets a new portable workspace,
+      stronger follow-up between contacts, CRM, billing, and support flows, a more direct command-center front door,
+      and a lightweight issue launcher across pages. In parallel, the committed
+      <code>3dvr-agent</code> work starts shaping a local outreach pipeline for crawl, enrich, tracking, and message
+      iteration.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Portable workspaces and operator surfaces</h2>
+    <ul>
+      <li>Add the new <a href="../pocket-workstation/index.html">Pocket Workstation</a> app and pairing flow so the portal has a clearer lightweight mobile desk.</li>
+      <li>Make the portal launcher feel more like a command center with stronger layout, hierarchy, and app-entry cues.</li>
+      <li>Add a GitHub issue launcher across portal pages so bugs and follow-up are easier to capture from the live surface.</li>
+      <li>Bring the calendar month view forward on mobile and make the Logic Lab drill card easier to activate.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Customer journey, CRM, and billing</h2>
+    <ul>
+      <li>Move the free-trial email field higher and tighten homepage billing handoff so the entry path is more explicit.</li>
+      <li>Simplify the portal customer journey and keep Stripe plan-switch handling aligned with portal origin rules.</li>
+      <li>Normalize contacts into CRM handoff records and move primary CRM and contacts actions to the top of those pages.</li>
+      <li>Send email notifications for Stripe subscription updates so billing changes create a clearer operator trail.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Life OS and companion agent work</h2>
+    <ul>
+      <li>Refocus the Life app into Life OS with a clearer daily operating shape and updated tests around that flow.</li>
+      <li>Keep finance visibility, billing, and outreach work tied to revenue-first operations instead of generic productivity.</li>
+      <li>On committed <code>3dvr-agent</code> history this week, add a local sales agent system plus crawl, enrich, tracking, and A/B outreach message scripts.</li>
+      <li>Treat the agent repo as companion operator tooling: it sharpens outreach execution while the portal keeps becoming the shared front door and workflow desk.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech – Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
