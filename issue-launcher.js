@@ -1,6 +1,13 @@
 (() => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   if (document.querySelector('[data-issue-launcher-root]')) return;
+  if (
+    document.documentElement?.dataset.issueLauncher === 'off' ||
+    document.body?.dataset.issueLauncher === 'off' ||
+    document.querySelector('meta[name="portal:issue-launcher"][content="off"]')
+  ) {
+    return;
+  }
 
   const REPO_OWNER = 'tmsteph';
   const REPO_NAME = '3dvr-portal';
@@ -23,6 +30,7 @@
       `Issue type: ${issueType}`,
       '',
       'Page context',
+      `- Page: ${currentTitle}`,
       `- Title: ${currentTitle}`,
       `- Path: ${currentPath}`,
       `- URL: ${currentUrl}`,
@@ -44,12 +52,14 @@
   style.textContent = `
     .portal-issue-launcher {
       position: fixed;
-      right: max(1rem, env(safe-area-inset-right));
-      bottom: max(1rem, env(safe-area-inset-bottom));
+      left: 50%;
+      bottom: max(0.75rem, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(28rem, calc(100vw - 1.5rem));
       z-index: 1200;
       display: grid;
       gap: 0.75rem;
-      justify-items: end;
+      justify-items: stretch;
       pointer-events: none;
     }
 
@@ -60,17 +70,16 @@
 
     .portal-issue-launcher__button {
       border: 1px solid rgba(56, 189, 248, 0.35);
-      border-radius: 999px;
-      padding: 0.8rem 1.1rem;
+      border-radius: 1rem;
+      padding: 0.75rem 0.95rem 0.85rem;
       background: rgba(15, 23, 42, 0.92);
       color: #e2e8f0;
       box-shadow: 0 18px 48px rgba(2, 6, 23, 0.45);
       font: inherit;
-      font-weight: 700;
-      letter-spacing: 0.01em;
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       backdrop-filter: blur(14px);
+      text-align: left;
     }
 
     .portal-issue-launcher__button:hover,
@@ -82,13 +91,31 @@
     }
 
     .portal-issue-launcher__button-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
+      display: grid;
+      gap: 0.18rem;
+    }
+
+    .portal-issue-launcher__button-eyebrow {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #67e8f9;
+    }
+
+    .portal-issue-launcher__button-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .portal-issue-launcher__button-meta {
+      font-size: 0.75rem;
+      color: #94a3b8;
     }
 
     .portal-issue-launcher__panel {
-      width: min(92vw, 380px);
+      width: 100%;
       padding: 1rem;
       border-radius: 1rem;
       border: 1px solid rgba(148, 163, 184, 0.28);
@@ -220,14 +247,8 @@
 
     @media (max-width: 640px) {
       .portal-issue-launcher {
-        left: 1rem;
-        right: 1rem;
-        justify-items: stretch;
-      }
-
-      .portal-issue-launcher__button {
-        width: 100%;
-        justify-content: center;
+        width: calc(100vw - 1rem);
+        bottom: max(0.5rem, env(safe-area-inset-bottom));
       }
 
       .portal-issue-launcher__panel {
@@ -254,7 +275,13 @@
   button.className = 'portal-issue-launcher__button';
   button.setAttribute('aria-expanded', 'false');
   button.setAttribute('aria-controls', 'portalIssueLauncherPanel');
-  button.innerHTML = '<span class="portal-issue-launcher__button-label">Report portal issue</span>';
+  button.innerHTML = `
+    <span class="portal-issue-launcher__button-label">
+      <span class="portal-issue-launcher__button-eyebrow">Page feedback</span>
+      <span class="portal-issue-launcher__button-title">Report portal issue</span>
+      <span class="portal-issue-launcher__button-meta">${currentTitle}</span>
+    </span>
+  `;
 
   const panel = document.createElement('div');
   panel.id = 'portalIssueLauncherPanel';
@@ -276,6 +303,10 @@
       <div class="portal-issue-launcher__field">
         <label for="portalIssueTitle">Title</label>
         <input id="portalIssueTitle" name="title" type="text" maxlength="120" />
+      </div>
+      <div class="portal-issue-launcher__field">
+        <label for="portalIssuePage">Page</label>
+        <input id="portalIssuePage" name="page" type="text" readonly />
       </div>
       <div class="portal-issue-launcher__field">
         <label for="portalIssueSummary">What happened?</label>
@@ -304,6 +335,7 @@
   const form = panel.querySelector('form');
   const typeInput = form.querySelector('#portalIssueType');
   const titleInput = form.querySelector('#portalIssueTitle');
+  const pageInput = form.querySelector('#portalIssuePage');
   const summaryInput = form.querySelector('#portalIssueSummary');
   const expectedInput = form.querySelector('#portalIssueExpected');
   const closeButton = panel.querySelector('[data-issue-close]');
@@ -318,6 +350,7 @@
 
   const defaultTitle = `[portal] ${currentTitle}`;
   titleInput.value = defaultTitle;
+  pageInput.value = `${currentTitle} — ${currentPath}`;
 
   const openPanel = () => {
     panel.hidden = false;
