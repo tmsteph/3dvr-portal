@@ -28,7 +28,11 @@ test('issue launcher ships a GitHub issue helper for the portal repo', async () 
   assert.match(source, /3dvr-portal/);
   assert.match(source, /issues\/new/);
   assert.match(source, /Report portal issue/);
+  assert.match(source, /Page feedback/);
   assert.match(source, /Create an issue from this page/);
+  assert.match(source, /Page context/);
+  assert.match(source, /- Path:/);
+  assert.match(source, /- URL:/);
   assert.match(source, /Current page:/);
 });
 
@@ -39,6 +43,12 @@ test('portal html pages include the shared issue launcher', async () => {
   for (const fileUrl of htmlFiles) {
     const html = await readFile(fileUrl, 'utf8');
     const relativePath = path.relative(new URL('../', import.meta.url).pathname, fileUrl.pathname);
+    const issueLauncherDisabled = /data-issue-launcher="off"|<meta[^>]+name="portal:issue-launcher"[^>]+content="off"/.test(html);
+
+    if (issueLauncherDisabled) {
+      continue;
+    }
+
     assert.match(
       html,
       /<script[^>]+src="\/issue-launcher\.js"[^>]*><\/script>/,
