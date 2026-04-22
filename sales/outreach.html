@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outreach CRM | 3dvr Sales</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script defer type="module" src="/sales/outreach.js"></script>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans">
+  <header class="bg-gradient-to-br from-slate-950 via-emerald-950 to-amber-900 text-white">
+    <div class="max-w-7xl mx-auto px-6 py-8 space-y-4">
+      <nav class="text-xs uppercase tracking-[0.3em] text-amber-200 flex items-center gap-2">
+        <a href="index.html" class="text-amber-100 hover:text-white">Sales Directory</a>
+        <span aria-hidden="true">/</span>
+        <span>Outreach CRM</span>
+      </nav>
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div class="space-y-3">
+          <p class="text-xs uppercase tracking-[0.3em] text-amber-200">Customer memory • Gun-backed</p>
+          <h1 class="text-3xl font-bold">Outreach CRM</h1>
+          <p class="max-w-3xl text-sm text-slate-200">
+            Keep customer profiles, potential messages, screenshots, and sent touches in one shared Gun workspace.
+            This is the bridge between the local agent and the portal.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a
+            href="../crm/index.html"
+            class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-50"
+          >Full CRM</a>
+          <a
+            href="scoreboard.html"
+            class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+          >Profitability Desk</a>
+          <a
+            href="training/"
+            class="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+          >Reach-Out Desk</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-10 space-y-8">
+    <section class="grid gap-4 md:grid-cols-3">
+      <article class="rounded-2xl border border-white/5 bg-slate-900/80 p-5 shadow-lg">
+        <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Profiles</p>
+        <p class="mt-3 text-3xl font-semibold text-emerald-200" data-count="profiles">0</p>
+        <p class="mt-2 text-sm text-slate-300">Customer records from the shared CRM node.</p>
+      </article>
+      <article class="rounded-2xl border border-white/5 bg-slate-900/80 p-5 shadow-lg">
+        <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Potential messages</p>
+        <p class="mt-3 text-3xl font-semibold text-amber-200" data-count="artifacts">0</p>
+        <p class="mt-2 text-sm text-slate-300">Agent drafts and screenshots from the outreach artifact node.</p>
+      </article>
+      <article class="rounded-2xl border border-white/5 bg-slate-900/80 p-5 shadow-lg">
+        <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Sent messages</p>
+        <p class="mt-3 text-3xl font-semibold text-blue-200" data-count="sent">0</p>
+        <p class="mt-2 text-sm text-slate-300">Logged touches from the shared CRM touch log.</p>
+      </article>
+    </section>
+
+    <section class="grid gap-6 xl:grid-cols-[0.95fr,1.15fr,0.9fr]">
+      <article class="rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-lg space-y-5">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-emerald-300">Customer profiles</p>
+          <h2 class="mt-2 text-xl font-semibold">Who are we talking to?</h2>
+          <p id="profileStatus" class="mt-2 text-sm text-slate-300">Loading customer profiles from Gun…</p>
+        </div>
+
+        <form id="profileForm" class="rounded-xl border border-white/5 bg-slate-950/70 p-4 space-y-3">
+          <div>
+            <label for="profileName" class="block text-sm text-slate-300">Customer or business name</label>
+            <input id="profileName" type="text" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" placeholder="Dark Horse Coffee Roasters" />
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label for="profileEmail" class="block text-sm text-slate-300">Email</label>
+              <input id="profileEmail" type="email" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" placeholder="owner@example.com" />
+            </div>
+            <div>
+              <label for="profileWebsite" class="block text-sm text-slate-300">Website</label>
+              <input id="profileWebsite" type="url" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" placeholder="https://example.com" />
+            </div>
+          </div>
+          <div>
+            <label for="profileNotes" class="block text-sm text-slate-300">Profile notes</label>
+            <textarea id="profileNotes" rows="4" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" placeholder="What they sell, what you noticed, why they might care."></textarea>
+          </div>
+          <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
+            Save profile
+          </button>
+          <p id="profileSaveStatus" class="text-xs text-slate-400"></p>
+        </form>
+
+        <div id="profileList" class="space-y-3"></div>
+      </article>
+
+      <article class="rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-lg space-y-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.3em] text-amber-300">Potential messages</p>
+            <h2 class="mt-2 text-xl font-semibold">Drafts and screenshots from the agent</h2>
+            <p id="artifactStatus" class="mt-2 text-sm text-slate-300">Loading saved outreach artifacts…</p>
+          </div>
+          <a
+            href="../email-operator/index.html"
+            class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+          >Email Operator</a>
+        </div>
+        <form id="artifactForm" class="rounded-xl border border-white/5 bg-slate-950/70 p-4 space-y-3">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label for="artifactLeadName" class="block text-sm text-slate-300">Lead name</label>
+              <input id="artifactLeadName" type="text" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" placeholder="Dark Horse Coffee Roasters" />
+            </div>
+            <div>
+              <label for="artifactFiles" class="block text-sm text-slate-300">Screenshots</label>
+              <input id="artifactFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-200" />
+            </div>
+          </div>
+          <div>
+            <label for="artifactDraft" class="block text-sm text-slate-300">Potential message</label>
+            <textarea id="artifactDraft" rows="6" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" placeholder="Store the draft before it gets sent."></textarea>
+          </div>
+          <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200">
+            Save potential message
+          </button>
+          <p id="artifactSaveStatus" class="text-xs text-slate-400"></p>
+        </form>
+        <div id="artifactList" class="space-y-4"></div>
+      </article>
+
+      <article class="rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-lg space-y-5">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-blue-300">Messages sent</p>
+          <h2 class="mt-2 text-xl font-semibold">Log the actual touch</h2>
+          <p id="sentStatus" class="mt-2 text-sm text-slate-300">Loading sent-message history…</p>
+        </div>
+
+        <form id="sentForm" class="rounded-xl border border-white/5 bg-slate-950/70 p-4 space-y-3">
+          <input id="sentArtifactId" type="hidden" />
+          <div>
+            <label for="sentLeadName" class="block text-sm text-slate-300">Lead name</label>
+            <input id="sentLeadName" type="text" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" placeholder="Dark Horse Coffee Roasters" />
+          </div>
+          <div>
+            <label for="sentChannel" class="block text-sm text-slate-300">Channel</label>
+            <select id="sentChannel" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white">
+              <option value="email">Email</option>
+              <option value="contact-form">Contact form</option>
+              <option value="instagram">Instagram</option>
+              <option value="phone">Phone</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label for="sentMessage" class="block text-sm text-slate-300">Message sent</label>
+            <textarea id="sentMessage" rows="7" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" placeholder="Paste or load the exact message here."></textarea>
+          </div>
+          <div>
+            <label for="sentFollowUp" class="block text-sm text-slate-300">Next follow-up</label>
+            <input id="sentFollowUp" type="date" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" />
+          </div>
+          <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-blue-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-blue-300">
+            Log sent message
+          </button>
+          <p id="sentSaveStatus" class="text-xs text-slate-400"></p>
+        </form>
+
+        <div id="sentList" class="space-y-3"></div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
