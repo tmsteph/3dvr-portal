@@ -7,6 +7,8 @@ const state = {
   artifacts: new Map(),
   sent: new Map(),
   activeProfileId: '',
+  pendingArtifactId: new URLSearchParams(window.location.search).get('artifact') || '',
+  pendingArtifactLoaded: false,
 };
 
 const elements = {
@@ -344,6 +346,7 @@ function renderAll() {
   renderProfiles();
   renderArtifacts();
   renderSent();
+  loadPendingArtifact();
 }
 
 function saveProfile(event) {
@@ -483,6 +486,21 @@ function loadMessageFromArtifact(artifactId) {
   elements.sentLeadName.value = artifact.leadName || '';
   elements.sentMessage.value = artifact.draftText || '';
   elements.sentMessage.focus();
+}
+
+function loadPendingArtifact() {
+  if (state.pendingArtifactLoaded || !state.pendingArtifactId) {
+    return;
+  }
+
+  const artifact = state.artifacts.get(state.pendingArtifactId);
+  if (!artifact) {
+    return;
+  }
+
+  state.pendingArtifactLoaded = true;
+  loadMessageFromArtifact(state.pendingArtifactId);
+  elements.artifactSaveStatus.textContent = `Loaded handoff for ${artifact.leadName}.`;
 }
 
 function saveSentMessage(event) {
