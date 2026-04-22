@@ -27,6 +27,8 @@ test('outreach CRM connects profiles, potential messages, and sent touches throu
   assert.match(outreachJs, /const OUTREACH_ARTIFACT_NODE_PATH = \['3dvr', 'crm', 'outreach-artifacts'\]/);
   assert.match(outreachJs, /touchType: 'outreach-sent'/);
   assert.match(outreachJs, /artifactId/);
+  assert.match(outreachJs, /pendingArtifactId/);
+  assert.match(outreachJs, /new URLSearchParams\(window\.location\.search\)\.get\('artifact'\)/);
   assert.match(outreachJs, /attachmentsJson/);
   assert.match(outreachJs, /readAsDataURL/);
   assert.match(outreachJs, /data:\$\{mime\};base64/);
