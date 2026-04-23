@@ -48,18 +48,18 @@
 <body>
   <div class="card">
     <h1>3dvr.tech — Ninja Meeting</h1>
-    <p class="sub">One simple link. Names visible. Mobile‑ready.</p>
+    <p class="sub">One simple link. Names visible. Extra lean for mobile and low-bandwidth calls.</p>
 
     <div class="actions">
-      <!-- Potato mode: ultra-lean bandwidth with visible labels -->
+      <!-- Default portal room: ultra-lean bandwidth with visible labels -->
       <a class="button" target="_blank" rel="noopener"
-        href="https://vdo.ninja/?room=3dvrtech&push&labelsuggestion&clearnames&codec=h264&vb=90&ab=32&fps=6&scale=144p&stereo=0&buffer=100&showlabels">
-        🥔 Weekly Meeting Link
+        href="https://vdo.ninja/?room=3dvrtech&push&labelsuggestion&clearnames&codec=h264&trb=200,100&ab=32&dtx&fps=6&scale=144p&buffer=20&showlabels">
+        🎥 Portal Video Link
       </a>
-      <!-- Saved link from last week -->
+      <!-- Previous room preset -->
       <a class="button secondary" target="_blank" rel="noopener"
         href="https://vdo.ninja/?room=3dvrtech&label&showlabels&codec=h264&vb=220&ab=24&fps=10&scale=144p&stereo=0&buffer=200">
-        🕒 Last Week's Link
+        🕒 Previous Preset
       </a>
       <!-- Higher bandwidth option -->
       <a class="button secondary" target="_blank" rel="noopener"
@@ -82,9 +82,9 @@
         <li>When prompted, enter your display name — it will show under your video for everyone.</li>
         <li>Use headphones to avoid echo. Close other apps on mobile for best performance.</li>
         <li>Need louder playback on mobile? Tap the menu ⋮ → <em>Audio Output</em> and select <strong>Speaker</strong>.</li>
-        <li>Potato Mode leans way down on bandwidth (90 kbps video, 32 kbps audio, 6 fps, 144p) with a 100ms buffer for lower delay.</li>
-        <li>The weekly link also sets <code>push</code>, <code>labelsuggestion</code>, and <code>clearnames</code> so everyone joins with fresh names and label prompts.</li>
-        <li>Last week's link is saved above if you want the smoother 200ms buffer instead of Potato Mode.</li>
+        <li>The default portal link uses <code>push</code>, <code>labelsuggestion</code>, and <code>clearnames</code> so everyone joins with fresh names and label prompts.</li>
+        <li>It now uses <code>trb=200,100</code>, <code>dtx</code>, <code>fps=6</code>, <code>scale=144p</code>, and a <code>buffer=20</code> target to stay light on mobile.</li>
+        <li>The previous preset is saved above if you want the room with the smoother 200ms buffer instead.</li>
         <li>Need more clarity? Switch to <em>Standard Quality</em> (240p/15fps/500kbps) — buffer stays at 100ms.</li>
         <li>Use <em>Director Mode</em> if you want to manage participants or record streams.</li>
       </ul>
