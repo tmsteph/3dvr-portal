@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr.tech Smart Meeting Launcher</title>
+  <meta
+    name="description"
+    content="Build and launch the right VDO.Ninja room profile for mobile, weak data, and fast fallback handoffs."
+  />
+  <link rel="icon" href="https://3dvr.tech/favicon.ico" />
+  <style>
+    :root {
+      --bg: #07131d;
+      --bg-soft: #0d1c2b;
+      --panel: rgba(14, 28, 43, 0.92);
+      --panel-2: rgba(20, 39, 59, 0.94);
+      --line: rgba(140, 196, 255, 0.18);
+      --text: #f4f8fc;
+      --muted: #b9c9d9;
+      --blue: #8cc4ff;
+      --gold: #e8c36a;
+      --good: #8fe3b0;
+      --warn: #ffd37b;
+      --danger: #ff9c9c;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(140, 196, 255, 0.12), transparent 26%),
+        radial-gradient(circle at top left, rgba(232, 195, 106, 0.08), transparent 24%),
+        linear-gradient(180deg, #051019, #0a1824 42%, #08141f 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .shell {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero,
+    .panel,
+    .tier {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero,
+    .panel,
+    .tier {
+      padding: 22px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+      border: 1px solid rgba(232, 195, 106, 0.24);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 0.86rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p,
+    .sub,
+    .mini,
+    .footer-note {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .hero p {
+      max-width: 72ch;
+      font-size: 1rem;
+    }
+
+    .grid,
+    .form-grid,
+    .check-grid,
+    .tier-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid {
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+    }
+
+    .form-grid,
+    .check-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tier-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .panel {
+      display: grid;
+      gap: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid rgba(140, 196, 255, 0.16);
+      border-radius: 14px;
+      padding: 13px 14px;
+      font: inherit;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(140, 196, 255, 0.5);
+      box-shadow: 0 0 0 4px rgba(140, 196, 255, 0.12);
+    }
+
+    .check {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 12px;
+      color: var(--muted);
+    }
+
+    .check input {
+      width: auto;
+      margin-top: 2px;
+      accent-color: var(--blue);
+    }
+
+    .tier {
+      display: grid;
+      gap: 12px;
+      background: linear-gradient(180deg, rgba(18, 35, 53, 0.94), rgba(11, 24, 36, 0.96));
+    }
+
+    .tier header {
+      display: grid;
+      gap: 6px;
+    }
+
+    .pill {
+      display: inline-flex;
+      width: fit-content;
+      font-size: 0.78rem;
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+    }
+
+    .pill.good { color: var(--good); border-color: rgba(143, 227, 176, 0.26); }
+    .pill.warn { color: var(--warn); border-color: rgba(255, 211, 123, 0.26); }
+    .pill.danger { color: var(--danger); border-color: rgba(255, 156, 156, 0.26); }
+
+    ul.meta {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .button,
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease;
+      text-decoration: none;
+    }
+
+    .button:hover,
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--blue), #b1d8ff);
+      color: #08131d;
+      font-weight: 700;
+    }
+
+    .secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .url-box {
+      display: grid;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .status {
+      min-height: 1.2em;
+      color: var(--gold);
+      font-size: 0.92rem;
+    }
+
+    .hint-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid,
+      .tier-grid,
+      .form-grid,
+      .check-grid {
+        grid-template-columns: 1fr;
+      }
+
+      body {
+        padding: 14px;
+      }
+
+      .hero,
+      .panel,
+      .tier {
+        padding: 18px;
+      }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">3dvr.tech • VDO.Ninja launcher</div>
+      <h1>Smart Meeting Launcher</h1>
+      <p>
+        Build a room link fast, choose the compression level, and launch the safest version for the connection you have right
+        now. This page keeps the simple portal video room intact and gives you a stronger fallback tool when the room gets rough.
+      </p>
+      <div class="actions">
+        <a class="button secondary" href="/portal.3dvr.tech/video/index.html">Back To Fast Video Link</a>
+        <a class="button secondary" href="/meeting-notes/">Attendance &amp; Notes</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div>
+          <h2>Room Setup</h2>
+          <p class="sub">Set the room, keep the toggles you want, and choose the manual default.</p>
+        </div>
+
+        <div class="form-grid">
+          <div class="field full">
+            <label for="room">Room name</label>
+            <input id="room" type="text" value="3dvrtech" autocomplete="off" />
+          </div>
+
+          <div class="field">
+            <label for="mode">Manual profile</label>
+            <select id="mode">
+              <option value="normal">Normal</option>
+              <option value="low" selected>Low bandwidth</option>
+              <option value="survival">Survival</option>
+              <option value="audio">Audio only</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="codec">Codec</label>
+            <select id="codec">
+              <option value="h264" selected>H.264</option>
+              <option value="vp9">VP9</option>
+              <option value="">Default</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label>Feature toggles</label>
+          <div class="check-grid">
+            <label class="check"><input id="push" type="checkbox" checked /> <span><strong>Push mode</strong><br>Optimized for joining as a sender.</span></label>
+            <label class="check"><input id="showlabels" type="checkbox" checked /> <span><strong>Show labels</strong><br>Display names in the room.</span></label>
+            <label class="check"><input id="labelsuggestion" type="checkbox" checked /> <span><strong>Name suggestion prompt</strong><br>Helpful for fast joining.</span></label>
+            <label class="check"><input id="clearnames" type="checkbox" checked /> <span><strong>Clear names</strong><br>Encourage fresh entry names.</span></label>
+            <label class="check"><input id="dtx" type="checkbox" checked /> <span><strong>DTX</strong><br>Lower audio use during silence.</span></label>
+            <label class="check"><input id="stereo0" type="checkbox" checked /> <span><strong>Force mono audio</strong><br>Good for weak connections.</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div>
+          <h2>Recommended usage</h2>
+          <p class="sub">Keep all four links ready. In real life, the fastest fix is usually dropping one tier.</p>
+        </div>
+
+        <div class="tier-grid">
+          <article class="tier">
+            <header>
+              <span class="pill good">Everyday</span>
+              <h3>Normal</h3>
+            </header>
+            <ul class="meta">
+              <li>Good Wi-Fi or stable desktop internet.</li>
+              <li>Better motion and image clarity.</li>
+              <li>Still capped lower than a default open room.</li>
+            </ul>
+          </article>
+
+          <article class="tier">
+            <header>
+              <span class="pill warn">Recommended</span>
+              <h3>Low bandwidth</h3>
+            </header>
+            <ul class="meta">
+              <li>Best default for travel and mixed devices.</li>
+              <li>Harder caps on incoming and outgoing media.</li>
+              <li>Usually the best 3dvr room baseline.</li>
+            </ul>
+          </article>
+
+          <article class="tier">
+            <header>
+              <span class="pill danger">Emergency</span>
+              <h3>Survival / Audio</h3>
+            </header>
+            <ul class="meta">
+              <li>Use when the room is falling apart.</li>
+              <li>Tiny video or fully audio only.</li>
+              <li>Best chance of staying connected.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div>
+        <h2>Your Current Link</h2>
+        <p class="sub">This updates live from the profile and toggles above.</p>
+      </div>
+
+      <div class="url-box">
+        <textarea id="output" readonly></textarea>
+        <div class="actions">
+          <button class="primary" type="button" id="smartJoin">Smart Join</button>
+          <button class="secondary" type="button" id="monitorCurrent">Monitor Current Profile</button>
+          <button class="secondary" type="button" id="openCurrent">Open current link</button>
+          <button class="secondary" type="button" id="copyCurrent">Copy current link</button>
+        </div>
+        <div class="status" id="status"></div>
+        <p class="mini" id="decision"></p>
+        <p class="mini" id="adaptiveStatus"></p>
+        <div class="actions" id="downgradeActions" style="display:none;">
+          <button class="primary" type="button" id="openDowngrade">Open recommended downgrade</button>
+          <button class="secondary" type="button" id="copyDowngrade">Copy downgrade link</button>
+        </div>
+        <label class="check" style="margin-top: 8px;">
+          <input id="autoDowngrade" type="checkbox" />
+          <span><strong>Auto-open downgrade</strong><br>Only use this when you want the page to rescue the room aggressively.</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div>
+        <h2>Connection Hints</h2>
+        <p class="sub">This launcher uses browser hints instead of third-party upload/download tests.</p>
+      </div>
+      <ul class="hint-list" id="hintList"></ul>
+      <p class="footer-note">
+        This makes the page more dependable on locked-down networks and avoids popup-blocker problems caused by delayed launches.
+      </p>
+    </section>
+
+    <section class="panel">
+      <div>
+        <h2>All Four Launch Options</h2>
+        <p class="sub">Open or copy the exact tier you want without changing the manual selector.</p>
+      </div>
+      <div class="tier-grid" id="launchers"></div>
+      <p class="footer-note">
+        Tip: if a guest has trouble, first drop from <strong>Normal</strong> to <strong>Low bandwidth</strong>. If that still
+        fails, use <strong>Survival</strong> or <strong>Audio only</strong>.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const room = document.getElementById('room');
+    const mode = document.getElementById('mode');
+    const codec = document.getElementById('codec');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+    const decision = document.getElementById('decision');
+    const adaptiveStatus = document.getElementById('adaptiveStatus');
+    const downgradeActions = document.getElementById('downgradeActions');
+    const openDowngrade = document.getElementById('openDowngrade');
+    const copyDowngrade = document.getElementById('copyDowngrade');
+    const autoDowngrade = document.getElementById('autoDowngrade');
+    const launchers = document.getElementById('launchers');
+    const hintList = document.getElementById('hintList');
+
+    let recommendedDowngradeLink = '';
+    let recommendedDowngradeProfile = '';
+    let lastAutoDowngradeAt = 0;
+    let adaptiveTimer = null;
+    let connectionListenerAttached = false;
+
+    const toggles = {
+      push: document.getElementById('push'),
+      showlabels: document.getElementById('showlabels'),
+      labelsuggestion: document.getElementById('labelsuggestion'),
+      clearnames: document.getElementById('clearnames'),
+      dtx: document.getElementById('dtx'),
+      stereo0: document.getElementById('stereo0')
+    };
+
+    const profiles = {
+      normal: {
+        label: 'Normal',
+        tag: 'Everyday',
+        pillClass: 'good',
+        description: 'Good balance for stable Wi-Fi and laptop use.',
+        params: {
+          trb: '300,150',
+          vb: '180',
+          ab: '32',
+          fps: '8',
+          scale: '180p',
+          buffer: '18'
+        }
+      },
+      low: {
+        label: 'Low bandwidth',
+        tag: 'Recommended',
+        pillClass: 'warn',
+        description: 'Strong compression for travel, mobile data, and mixed devices.',
+        params: {
+          trb: '200,100',
+          vb: '80',
+          ab: '32',
+          fps: '6',
+          scale: '144p',
+          buffer: '20'
+        }
+      },
+      survival: {
+        label: 'Survival',
+        tag: 'Emergency',
+        pillClass: 'danger',
+        description: 'Tiny video and aggressive media caps for unstable connections.',
+        params: {
+          trb: '90,50',
+          vb: '40',
+          ab: '24',
+          fps: '3',
+          scale: '96p',
+          buffer: '30'
+        }
+      },
+      audio: {
+        label: 'Audio only',
+        tag: 'Fallback',
+        pillClass: 'danger',
+        description: 'Best chance of staying connected when video needs to disappear.',
+        params: {
+          novideo: true,
+          ab: '16',
+          buffer: '40'
+        }
+      }
+    };
+
+    function sanitizeRoom(value) {
+      return value.trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9_-]/g, '') || '3dvrtech';
+    }
+
+    function buildBaseParams() {
+      const params = new URLSearchParams();
+      params.set('room', sanitizeRoom(room.value || '3dvrtech'));
+
+      if (toggles.push.checked) params.set('push', '');
+      if (toggles.showlabels.checked) params.set('showlabels', '');
+      if (toggles.labelsuggestion.checked) params.set('labelsuggestion', '');
+      if (toggles.clearnames.checked) params.set('clearnames', '');
+      if (toggles.dtx.checked) params.set('dtx', '');
+      if (toggles.stereo0.checked) params.set('stereo', '0');
+      if (codec.value) params.set('codec', codec.value);
+
+      return params;
+    }
+
+    function toQueryString(params) {
+      return params.toString().replace(/=(&|$)/g, '$1');
+    }
+
+    function buildLink(profileKey) {
+      const profile = profiles[profileKey];
+      const params = buildBaseParams();
+
+      Object.entries(profile.params).forEach(([key, value]) => {
+        if (value === true) {
+          params.set(key, '');
+        } else {
+          params.set(key, value);
+        }
+      });
+
+      return `https://vdo.ninja/?${toQueryString(params)}`;
+    }
+
+    function setStatus(message) {
+      status.textContent = message;
+      clearTimeout(setStatus.timer);
+      setStatus.timer = setTimeout(() => {
+        status.textContent = '';
+      }, 1800);
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const helper = document.createElement('textarea');
+        helper.value = text;
+        helper.setAttribute('readonly', '');
+        helper.style.position = 'absolute';
+        helper.style.left = '-9999px';
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand('copy');
+        helper.remove();
+      }
+      setStatus('Copied link.');
+    }
+
+    function renderCards() {
+      launchers.innerHTML = '';
+
+      Object.entries(profiles).forEach(([key, profile]) => {
+        const href = buildLink(key);
+        const card = document.createElement('article');
+        card.className = 'tier';
+        card.innerHTML = `
+          <header>
+            <span class="pill ${profile.pillClass}">${profile.tag}</span>
+            <h3>${profile.label}</h3>
+          </header>
+          <p class="mini">${profile.description}</p>
+          <textarea readonly>${href}</textarea>
+          <div class="actions">
+            <a class="button primary" href="${href}" target="_blank" rel="noopener noreferrer">Open</a>
+            <button class="secondary" type="button" data-copy-url="${href}">Copy</button>
+          </div>
+        `;
+        launchers.appendChild(card);
+      });
+
+      launchers.querySelectorAll('[data-copy-url]').forEach((button) => {
+        button.addEventListener('click', () => copyText(button.getAttribute('data-copy-url') || ''));
+      });
+    }
+
+    function getConnectionInfo() {
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+      return {
+        effectiveType: connection && connection.effectiveType ? connection.effectiveType : '',
+        downlink: connection && typeof connection.downlink === 'number' ? connection.downlink : null,
+        rtt: connection && typeof connection.rtt === 'number' ? connection.rtt : null,
+        saveData: Boolean(connection && connection.saveData),
+        available: Boolean(connection)
+      };
+    }
+
+    function isMobileDevice() {
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+        || window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function pickSmartProfile() {
+      const info = getConnectionInfo();
+      const mobile = isMobileDevice();
+      const reducedData = window.matchMedia('(prefers-reduced-data: reduce)').matches;
+      const weak = info.saveData
+        || reducedData
+        || info.effectiveType === 'slow-2g'
+        || info.effectiveType === '2g'
+        || info.effectiveType === '3g'
+        || (typeof info.downlink === 'number' && info.downlink < 1.2)
+        || (typeof info.rtt === 'number' && info.rtt > 450);
+      const severe = info.saveData
+        || reducedData
+        || info.effectiveType === 'slow-2g'
+        || info.effectiveType === '2g'
+        || (typeof info.downlink === 'number' && info.downlink < 0.35)
+        || (typeof info.rtt === 'number' && info.rtt > 800);
+      const strong = !mobile
+        && !info.saveData
+        && !reducedData
+        && (info.effectiveType === '4g' || info.effectiveType === '')
+        && (info.downlink === null || info.downlink >= 5)
+        && (info.rtt === null || info.rtt < 180);
+
+      let chosen = 'low';
+      if (severe) {
+        chosen = mobile ? 'audio' : 'survival';
+      } else if (weak) {
+        chosen = mobile ? 'survival' : 'low';
+      } else if (strong) {
+        chosen = 'normal';
+      } else {
+        chosen = mobile ? 'low' : 'normal';
+      }
+
+      return { chosen, mobile, info, reducedData };
+    }
+
+    function renderConnectionHints(result) {
+      const items = [];
+      if (result.mobile) items.push('Mobile-sized device detected.');
+      if (result.reducedData) items.push('Reduced-data preference detected.');
+      if (result.info.saveData) items.push('Browser save-data mode is enabled.');
+      if (result.info.effectiveType) items.push(`Connection hint: ${result.info.effectiveType}.`);
+      if (typeof result.info.downlink === 'number') items.push(`Reported downlink: ${result.info.downlink} Mb/s.`);
+      if (typeof result.info.rtt === 'number') items.push(`Reported RTT: ${result.info.rtt} ms.`);
+      if (!items.length) items.push('No browser network hints available. The launcher falls back to a safe default.');
+      hintList.innerHTML = items.map((item) => `<li>${item}</li>`).join('');
+    }
+
+    function describeManualSelection(profileKey) {
+      return `Manual mode: ${profiles[profileKey].label}. Use Smart Join to let the launcher pick a safer tier from browser hints.`;
+    }
+
+    function describeSmartDecision(result) {
+      const bits = [];
+      if (result.mobile) bits.push('mobile device');
+      if (result.info.effectiveType) bits.push(`connection ${result.info.effectiveType}`);
+      if (typeof result.info.downlink === 'number') bits.push(`downlink ${result.info.downlink} Mb/s`);
+      if (typeof result.info.rtt === 'number') bits.push(`RTT ${result.info.rtt} ms`);
+      if (result.info.saveData) bits.push('save-data enabled');
+      if (result.reducedData) bits.push('prefers reduced data');
+      return `Smart Join picked ${profiles[result.chosen].label}: ${bits.join(' • ') || 'safe default with no network hints'}.`;
+    }
+
+    function nextLowerProfile(current) {
+      if (current === 'normal') return 'low';
+      if (current === 'low') return 'survival';
+      if (current === 'survival') return 'audio';
+      return 'audio';
+    }
+
+    function setDowngradeRecommendation(profileKey) {
+      recommendedDowngradeProfile = profileKey;
+      recommendedDowngradeLink = buildLink(profileKey);
+      downgradeActions.style.display = 'flex';
+    }
+
+    function clearDowngradeRecommendation() {
+      recommendedDowngradeProfile = '';
+      recommendedDowngradeLink = '';
+      downgradeActions.style.display = 'none';
+    }
+
+    function maybeAutoOpenDowngrade(profileKey) {
+      if (!autoDowngrade.checked) return;
+      const now = Date.now();
+      if (now - lastAutoDowngradeAt < 60000) return;
+      lastAutoDowngradeAt = now;
+      window.open(buildLink(profileKey), '_blank', 'noopener,noreferrer');
+    }
+
+    function runAdaptiveCheck() {
+      const result = pickSmartProfile();
+      const rank = { normal: 3, low: 2, survival: 1, audio: 0 };
+      const recommended = result.chosen;
+      const current = mode.value;
+
+      renderConnectionHints(result);
+      if (rank[recommended] < rank[current]) {
+        setDowngradeRecommendation(recommended);
+        adaptiveStatus.textContent = `Adaptive downgrade ready: switch from ${profiles[current].label} to ${profiles[recommended].label}.`;
+        maybeAutoOpenDowngrade(recommended);
+      } else {
+        clearDowngradeRecommendation();
+        adaptiveStatus.textContent = `Adaptive monitor: staying on ${profiles[current].label}.`;
+      }
+    }
+
+    function stopAdaptiveMonitor() {
+      if (adaptiveTimer) {
+        clearInterval(adaptiveTimer);
+        adaptiveTimer = null;
+      }
+    }
+
+    function startAdaptiveMonitor() {
+      stopAdaptiveMonitor();
+      runAdaptiveCheck();
+      adaptiveStatus.textContent = 'Adaptive monitor running. It re-checks browser connection hints every 20 seconds.';
+      adaptiveTimer = setInterval(runAdaptiveCheck, 20000);
+
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (connection && !connectionListenerAttached) {
+        connection.addEventListener('change', runAdaptiveCheck);
+        connectionListenerAttached = true;
+      }
+    }
+
+    function renderCurrent() {
+      output.value = buildLink(mode.value);
+      decision.textContent = describeManualSelection(mode.value);
+      renderConnectionHints(pickSmartProfile());
+      renderCards();
+    }
+
+    document.getElementById('smartJoin').addEventListener('click', () => {
+      const result = pickSmartProfile();
+      const launchWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
+      mode.value = result.chosen;
+      output.value = buildLink(result.chosen);
+      decision.textContent = describeSmartDecision(result);
+      renderCurrent();
+      startAdaptiveMonitor();
+
+      if (launchWindow) {
+        launchWindow.location.replace(output.value);
+        setStatus(`Launching ${profiles[result.chosen].label}...`);
+      } else {
+        window.location.href = output.value;
+      }
+    });
+
+    document.getElementById('monitorCurrent').addEventListener('click', () => {
+      startAdaptiveMonitor();
+      setStatus('Adaptive monitor started.');
+    });
+
+    document.getElementById('openCurrent').addEventListener('click', () => {
+      window.open(output.value, '_blank', 'noopener,noreferrer');
+    });
+
+    document.getElementById('copyCurrent').addEventListener('click', () => {
+      copyText(output.value);
+    });
+
+    openDowngrade.addEventListener('click', () => {
+      if (!recommendedDowngradeLink) return;
+      mode.value = recommendedDowngradeProfile;
+      output.value = recommendedDowngradeLink;
+      window.open(recommendedDowngradeLink, '_blank', 'noopener,noreferrer');
+      setStatus(`Opened ${profiles[recommendedDowngradeProfile].label}.`);
+      renderCurrent();
+    });
+
+    copyDowngrade.addEventListener('click', () => {
+      if (!recommendedDowngradeLink) return;
+      copyText(recommendedDowngradeLink);
+    });
+
+    [room, mode, codec, ...Object.values(toggles)].forEach((element) => {
+      element.addEventListener('input', renderCurrent);
+      element.addEventListener('change', renderCurrent);
+    });
+
+    renderCurrent();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
