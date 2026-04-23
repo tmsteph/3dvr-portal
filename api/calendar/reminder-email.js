@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Operator-Token');
 }
 
 function normalizeText(value) {
@@ -102,9 +102,16 @@ function resolveTeamRecipients(config = process.env) {
 }
 
 function resolvePortalOrigin(config = process.env) {
-  const origin = normalizeText(config.PORTAL_PUBLIC_ORIGIN);
+  const origin = normalizeText(config.PORTAL_PUBLIC_ORIGIN || config.PORTAL_ORIGIN);
   if (!origin) return 'https://3dvr-portal.vercel.app';
   return origin.endsWith('/') ? origin.slice(0, -1) : origin;
+}
+
+function resolveOperatorAlertToken(config = process.env) {
+  return normalizeText(
+    config.AGENT_OPERATOR_EMAIL_TOKEN
+    || config.THREEDVR_AUTOPILOT_EMAIL_TOKEN
+  );
 }
 
 function resolveMailCredentials(config = process.env) {
@@ -250,6 +257,67 @@ function buildAdminResetRequestAckHtml({ resetUrl }) {
       <p>We sent your request to the admin team.</p>
       <p>When temporary credentials are ready, you will get another email.</p>
       <p>You can also follow up from the recovery page: <a href="${resetUrl}">${resetUrl}</a></p>
+    </div>
+  `;
+}
+
+function getRequestHeader(req, key) {
+  const headers = req?.headers || {};
+  const target = String(key || '').toLowerCase();
+  for (const [headerKey, value] of Object.entries(headers)) {
+    if (String(headerKey).toLowerCase() === target) {
+      return typeof value === 'string' ? value : Array.isArray(value) ? value[0] : '';
+    }
+  }
+  return '';
+}
+
+function parseOperatorAlertToken(req) {
+  const authorization = normalizeText(getRequestHeader(req, 'authorization'));
+  if (authorization) {
+    const match = authorization.match(/^Bearer\s+(.+)$/i);
+    if (match) return normalizeText(match[1]);
+  }
+  return normalizeText(
+    getRequestHeader(req, 'x-operator-token')
+    || req.body?.token
+  );
+}
+
+function normalizeStringList(value) {
+  const list = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/\r?\n|,/)
+      : [];
+
+  return list
+    .map(item => normalizeText(item))
+    .filter(Boolean);
+}
+
+function buildOperatorAlertHtml({ summary, actionItems, commands, metadata }) {
+  const summaryText = formatMessage(summary || 'No summary provided.');
+  const actions = actionItems.length
+    ? `<ul>${actionItems.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+    : '<p style="margin: 0 0 12px;">No action items.</p>';
+  const commandList = commands.length
+    ? `<ul>${commands.map(item => `<li><code>${escapeHtml(item)}</code></li>`).join('')}</ul>`
+    : '';
+  const metadataEntries = Object.entries(metadata || {})
+    .filter(([, value]) => normalizeText(value))
+    .map(([key, value]) => `<li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</li>`)
+    .join('');
+
+  return `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2 style="margin-bottom: 12px;">3DVR operator alert</h2>
+      <p style="margin: 0 0 12px;">${summaryText}</p>
+      <h3 style="margin: 20px 0 8px;">Action items</h3>
+      ${actions}
+      ${commandList ? `<h3 style="margin: 20px 0 8px;">Useful commands</h3>${commandList}` : ''}
+      ${metadataEntries ? `<h3 style="margin: 20px 0 8px;">Run metadata</h3><ul>${metadataEntries}</ul>` : ''}
+      <p style="margin: 20px 0 0; color: #555;">Triggered by 3dvr-agent through the portal mail relay.</p>
     </div>
   `;
 }
@@ -472,6 +540,96 @@ export function createAccountRecoveryEmailHandler(options = {}) {
   };
 }
 
+export function createOperatorAlertEmailHandler(options = {}) {
+  const {
+    config = process.env,
+    mailTransport
+  } = options;
+
+  function getTransport() {
+    return mailTransport || createTransport(config);
+  }
+
+  return async function operatorAlertEmailHandler(req, res) {
+    setCorsHeaders(res);
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const expectedToken = resolveOperatorAlertToken(config);
+    const providedToken = parseOperatorAlertToken(req);
+    if (!expectedToken || providedToken !== expectedToken) {
+      return res.status(401).json({ error: 'Unauthorized operator alert trigger.' });
+    }
+
+    const to = normalizeRecipientList(req.body?.to);
+    const subject = normalizeText(req.body?.subject);
+    const summary = normalizeText(req.body?.summary);
+    const text = normalizeText(req.body?.text);
+    const actionItems = normalizeStringList(req.body?.actionItems);
+    const commands = normalizeStringList(req.body?.commands);
+    const metadata = req.body?.metadata && typeof req.body.metadata === 'object'
+      ? req.body.metadata
+      : {};
+
+    if (!to.length) {
+      return res.status(400).json({ error: 'At least one operator alert recipient is required.' });
+    }
+
+    if (!subject) {
+      return res.status(400).json({ error: 'An operator alert subject is required.' });
+    }
+
+    if (!summary && !text) {
+      return res.status(400).json({ error: 'A summary or text body is required.' });
+    }
+
+    let transport;
+    try {
+      transport = getTransport();
+    } catch (error) {
+      return res.status(503).json({
+        error: error.message || 'Operator alert email is not configured on this deployment.'
+      });
+    }
+
+    const sender = resolveMailCredentials(config).user || 'no-reply@3dvr.tech';
+    const from = `"3DVR Operator" <${sender}>`;
+    const plainText = text || [
+      summary,
+      '',
+      actionItems.length ? `Action items:\n- ${actionItems.join('\n- ')}` : '',
+      commands.length ? `Useful commands:\n- ${commands.join('\n- ')}` : '',
+    ].filter(Boolean).join('\n');
+
+    try {
+      await transport.sendMail({
+        from,
+        to,
+        subject,
+        text: plainText,
+        html: buildOperatorAlertHtml({
+          summary: summary || text,
+          actionItems,
+          commands,
+          metadata
+        })
+      });
+
+      return res.status(200).json({ success: true, mode: 'operator-alert' });
+    } catch (error) {
+      return res.status(500).json({
+        error: error.message || 'Unable to send operator alert email.'
+      });
+    }
+  };
+}
+
 export function createUnifiedEmailHandler(options = {}) {
   const {
     config = process.env,
@@ -480,6 +638,7 @@ export function createUnifiedEmailHandler(options = {}) {
 
   const calendarHandler = createCalendarReminderEmailHandler({ config, mailTransport });
   const accountRecoveryHandler = createAccountRecoveryEmailHandler({ config, mailTransport });
+  const operatorAlertHandler = createOperatorAlertEmailHandler({ config, mailTransport });
 
   return async function unifiedEmailHandler(req, res) {
     setCorsHeaders(res);
@@ -495,6 +654,9 @@ export function createUnifiedEmailHandler(options = {}) {
     const mode = normalizeText(req.body?.mode).toLowerCase();
     if (mode === 'lookup' || mode === 'admin-reset-request' || mode === 'admin-reset-issued') {
       return accountRecoveryHandler(req, res);
+    }
+    if (mode === 'operator-alert') {
+      return operatorAlertHandler(req, res);
     }
 
     return calendarHandler(req, res);
