@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Alive System | Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="../score.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="topbar" aria-label="Alive System navigation">
+      <a href="../">3dvr Portal</a>
+      <div>
+        <a href="../life/">Life</a>
+        <a href="../crm/">CRM</a>
+        <a href="../web-builder-app/">Builder</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="tag">3dvr portal prototype</div>
+      <h1>⚡ 3dvr Alive System</h1>
+      <p class="sub">
+        Turn boredom, urges, and scattered energy into movement, building, and real-world connection.
+        This page tracks your state, gives you fast redirects, and syncs through the portal Gun relay.
+      </p>
+      <div class="kpi">
+        <div class="pill">
+          <span class="label">Today's check-ins</span>
+          <strong id="kpiCheckins">0</strong>
+        </div>
+        <div class="pill">
+          <span class="label">Social interactions</span>
+          <strong id="kpiSocial">0</strong>
+        </div>
+        <div class="pill">
+          <span class="label">Urge redirects</span>
+          <strong id="kpiRedirects">0</strong>
+        </div>
+      </div>
+      <p class="sync-note" id="syncStatus" role="status" aria-live="polite">Connecting to Gun...</p>
+    </section>
+
+    <div class="grid">
+      <section class="card span-7">
+        <h2>Morning activation</h2>
+        <p class="small">Build energy first instead of scrolling for it.</p>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="sunlight" /> Sunlight</label>
+          <label class="check"><input type="checkbox" id="breathwork" /> Breathwork</label>
+          <label class="check"><input type="checkbox" id="movement" /> Movement</label>
+          <label class="check"><input type="checkbox" id="smallWin" /> Small win</label>
+        </div>
+        <div class="row action-row">
+          <button class="gold" type="button" id="saveMorning">Save morning ritual</button>
+          <button class="ghost" type="button" id="prefillMorning">Mark all done</button>
+        </div>
+        <div class="status" id="morningStatus">No ritual logged yet.</div>
+      </section>
+
+      <section class="card span-5">
+        <h2>State check-in</h2>
+        <label>Energy <span id="energyValue">5</span>/10
+          <input type="range" min="1" max="10" value="5" id="energy" />
+        </label>
+        <label>Focus <span id="focusValue">5</span>/10
+          <input type="range" min="1" max="10" value="5" id="focus" />
+        </label>
+        <label>Urge / boredom <span id="urgeValue">5</span>/10
+          <input type="range" min="1" max="10" value="5" id="urge" />
+        </label>
+        <button class="primary" type="button" id="saveCheckin">Save check-in</button>
+      </section>
+
+      <section class="card span-6">
+        <h2>I need dopamine right now</h2>
+        <p class="small">Use the urge as a redirect, not a dead end.</p>
+        <div class="actions">
+          <button class="danger" type="button" data-redirect="pushups" data-message="Do 10-20 pushups and reset your body.">💪 Pushups reset</button>
+          <button class="mint" type="button" data-redirect="build" data-message="Open a project and fix one small thing.">🛠 Build something</button>
+          <button class="gold" type="button" data-redirect="outreach" data-message="Send one message or follow up with one lead.">📬 Send outreach</button>
+          <button class="primary" type="button" data-redirect="social" data-message="Talk to one person, even briefly, in real life.">🌍 Real-world interaction</button>
+        </div>
+        <div class="status" id="redirectStatus">Choose an action when you feel flat, restless, or overstimulated.</div>
+      </section>
+
+      <section class="card span-6">
+        <h2>Social aliveness</h2>
+        <p class="small">Small interactions count. The goal is to be more present and open.</p>
+        <label>How many real interactions today?
+          <input type="range" min="0" max="10" value="0" id="socialCount" />
+          <span id="socialCountValue">0</span>/10
+        </label>
+        <label>Quick note
+          <input
+            type="text"
+            id="socialNote"
+            placeholder="Example: complimented cashier, made eye contact, short conversation"
+          />
+        </label>
+        <div class="row">
+          <button class="primary" type="button" id="saveSocial">Save social log</button>
+          <button class="ghost" type="button" data-social-note="Made eye contact and smiled.">Quick: eye contact</button>
+          <button class="ghost" type="button" data-social-note="Started a short conversation.">Quick: small talk</button>
+        </div>
+      </section>
+
+      <section class="card span-8">
+        <h2>Recent activity</h2>
+        <ul id="log"></ul>
+      </section>
+
+      <section class="card span-4">
+        <h2>3dvr hooks</h2>
+        <p class="small">
+          Alive System writes to the portal relay now. Use these buttons to jump into the real work surfaces.
+        </p>
+        <div class="row">
+          <button class="ghost" type="button" data-hook="../web-builder-app/">Build route</button>
+          <button class="ghost" type="button" data-hook="../crm/">CRM route</button>
+          <button class="ghost" type="button" data-hook="../life/">Life page</button>
+        </div>
+        <div class="status" id="hookStatus">Suggested hooks appear here.</div>
+        <p class="footer-note">
+          Stored under <code>3dvr-portal/alive-system</code> in Gun with a browser cache for offline recovery.
+        </p>
+      </section>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -69,6 +69,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Calendar Hub](https://3dvr-portal.vercel.app/calendar/)
 - [Contacts](https://3dvr-portal.vercel.app/contacts/)
 - [Life](https://3dvr-portal.vercel.app/life/)
+- [Alive System](https://3dvr-portal.vercel.app/alive-system/)
 - [Logic Lab](https://3dvr-portal.vercel.app/logic-lab/)
 
 Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
@@ -83,6 +84,7 @@ Brave shields can block realtime sync. Click the 🛡️ icon and either turn Sh
 - Store collaborative data under `3dvr-portal/<app>` nodes first, with legacy nodes read and written second so older clients continue to sync.
 - Keep the portal node as the source of truth, and avoid device-local only storage for anything that should follow a user between browsers.
 - Ensure guest or SEA identities are initialized (via `ScoreSystem.ensureGuestIdentity`) before writing so contributions are properly attributed across apps.
+- Alive System state syncs through `gun.get('3dvr-portal').get('alive-system')`, with per-author dashboard state and append-only activity entries for redirects, check-ins, morning rituals, and social logs.
 
 ### Run Locally
 
