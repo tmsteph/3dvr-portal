@@ -261,6 +261,19 @@ function buildAdminResetRequestAckHtml({ resetUrl }) {
   `;
 }
 
+function buildLeadOutreachHtml({ headline, message, senderName, senderEmail }) {
+  const fromLabel = normalizeText(senderName) || 'Thomas @ 3DVR';
+  const replyLabel = normalizeEmail(senderEmail);
+
+  return `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <p>${formatMessage(headline || 'Quick note from 3DVR')}</p>
+      <p>${formatMessage(message)}</p>
+      <p style="margin-top: 20px;">${escapeHtml(fromLabel)}${replyLabel ? `<br><a href="mailto:${replyLabel}">${escapeHtml(replyLabel)}</a>` : ''}</p>
+    </div>
+  `;
+}
+
 function getRequestHeader(req, key) {
   const headers = req?.headers || {};
   const target = String(key || '').toLowerCase();
@@ -630,6 +643,89 @@ export function createOperatorAlertEmailHandler(options = {}) {
   };
 }
 
+export function createLeadOutreachEmailHandler(options = {}) {
+  const {
+    config = process.env,
+    mailTransport
+  } = options;
+
+  function getTransport() {
+    return mailTransport || createTransport(config);
+  }
+
+  return async function leadOutreachEmailHandler(req, res) {
+    setCorsHeaders(res);
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const expectedToken = resolveOperatorAlertToken(config);
+    const providedToken = parseOperatorAlertToken(req);
+    if (!expectedToken || providedToken !== expectedToken) {
+      return res.status(401).json({ error: 'Unauthorized lead outreach trigger.' });
+    }
+
+    const to = normalizeRecipientList(req.body?.to);
+    const subject = normalizeText(req.body?.subject);
+    const text = normalizeText(req.body?.text);
+    const headline = normalizeText(req.body?.headline);
+    const senderName = normalizeText(req.body?.senderName || 'Thomas @ 3DVR');
+    const senderEmail = normalizeEmail(req.body?.senderEmail || resolveMailCredentials(config).user);
+
+    if (!to.length) {
+      return res.status(400).json({ error: 'At least one outreach recipient is required.' });
+    }
+
+    if (!subject) {
+      return res.status(400).json({ error: 'An outreach subject is required.' });
+    }
+
+    if (!text) {
+      return res.status(400).json({ error: 'An outreach text body is required.' });
+    }
+
+    let transport;
+    try {
+      transport = getTransport();
+    } catch (error) {
+      return res.status(503).json({
+        error: error.message || 'Lead outreach email is not configured on this deployment.'
+      });
+    }
+
+    const sender = resolveMailCredentials(config).user || 'no-reply@3dvr.tech';
+    const from = `"${senderName || 'Thomas @ 3DVR'}" <${sender}>`;
+    const replyTo = senderEmail || undefined;
+
+    try {
+      await transport.sendMail({
+        from,
+        to,
+        replyTo,
+        subject,
+        text,
+        html: buildLeadOutreachHtml({
+          headline,
+          message: text,
+          senderName,
+          senderEmail
+        })
+      });
+
+      return res.status(200).json({ success: true, mode: 'lead-outreach' });
+    } catch (error) {
+      return res.status(500).json({
+        error: error.message || 'Unable to send lead outreach email.'
+      });
+    }
+  };
+}
+
 export function createUnifiedEmailHandler(options = {}) {
   const {
     config = process.env,
@@ -639,6 +735,7 @@ export function createUnifiedEmailHandler(options = {}) {
   const calendarHandler = createCalendarReminderEmailHandler({ config, mailTransport });
   const accountRecoveryHandler = createAccountRecoveryEmailHandler({ config, mailTransport });
   const operatorAlertHandler = createOperatorAlertEmailHandler({ config, mailTransport });
+  const leadOutreachHandler = createLeadOutreachEmailHandler({ config, mailTransport });
 
   return async function unifiedEmailHandler(req, res) {
     setCorsHeaders(res);
@@ -657,6 +754,9 @@ export function createUnifiedEmailHandler(options = {}) {
     }
     if (mode === 'operator-alert') {
       return operatorAlertHandler(req, res);
+    }
+    if (mode === 'lead-outreach') {
+      return leadOutreachHandler(req, res);
     }
 
     return calendarHandler(req, res);
