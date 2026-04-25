@@ -345,11 +345,13 @@ describe('account recovery email api', () => {
       body: {
         mode: 'lead-outreach',
         to: ['tmsteph1290@gmail.com'],
-        subject: 'Quick idea for your site',
+        subject: 'Re: Quick idea for your site',
         headline: 'Quick note from 3DVR',
         text: 'I noticed one small customer-flow issue worth tightening.',
         senderName: 'Thomas @ 3DVR',
-        senderEmail: '3dvr.tech@gmail.com'
+        senderEmail: '3dvr.tech@gmail.com',
+        inReplyTo: '<reply-message@example.com>',
+        references: '<thread-root@example.com> <reply-message@example.com>'
       }
     };
     const res = createMockRes();
@@ -361,8 +363,10 @@ describe('account recovery email api', () => {
     assert.equal(mail.sendMail.mock.calls.length, 1);
     const sent = mail.sendMail.mock.calls[0].arguments[0];
     assert.deepEqual(sent.to, ['tmsteph1290@gmail.com']);
-    assert.equal(sent.subject, 'Quick idea for your site');
+    assert.equal(sent.subject, 'Re: Quick idea for your site');
     assert.equal(sent.replyTo, '3dvr.tech@gmail.com');
+    assert.equal(sent.inReplyTo, '<reply-message@example.com>');
+    assert.equal(sent.references, '<thread-root@example.com> <reply-message@example.com>');
     assert.match(sent.html, /Quick note from 3DVR/i);
     assert.match(sent.text, /customer-flow issue/i);
   });
