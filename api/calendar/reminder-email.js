@@ -676,6 +676,8 @@ export function createLeadOutreachEmailHandler(options = {}) {
     const headline = normalizeText(req.body?.headline);
     const senderName = normalizeText(req.body?.senderName || 'Thomas @ 3DVR');
     const senderEmail = normalizeEmail(req.body?.senderEmail || resolveMailCredentials(config).user);
+    const inReplyTo = normalizeText(req.body?.inReplyTo);
+    const references = normalizeText(req.body?.references);
 
     if (!to.length) {
       return res.status(400).json({ error: 'At least one outreach recipient is required.' });
@@ -707,6 +709,8 @@ export function createLeadOutreachEmailHandler(options = {}) {
         from,
         to,
         replyTo,
+        inReplyTo: inReplyTo || undefined,
+        references: references || undefined,
         subject,
         text,
         html: buildLeadOutreachHtml({
