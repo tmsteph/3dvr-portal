@@ -304,4 +304,66 @@ describe('account recovery email api', () => {
     assert.match(sent.html, /3DVR operator alert/i);
     assert.match(sent.text, /New leads are ready for review/i);
   });
+
+  it('rejects lead outreach without the shared token', async () => {
+    const mail = createMailTransport();
+    const handler = createUnifiedEmailHandler({
+      config: baseConfig,
+      mailTransport: mail
+    });
+
+    const req = {
+      method: 'POST',
+      headers: {},
+      body: {
+        mode: 'lead-outreach',
+        to: 'tmsteph1290@gmail.com',
+        subject: 'Quick idea for your site',
+        text: 'I noticed one small customer-flow issue worth tightening.'
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.equal(mail.sendMail.mock.calls.length, 0);
+  });
+
+  it('sends lead outreach through the unified mail route', async () => {
+    const mail = createMailTransport();
+    const handler = createUnifiedEmailHandler({
+      config: baseConfig,
+      mailTransport: mail
+    });
+
+    const req = {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer operator-secret'
+      },
+      body: {
+        mode: 'lead-outreach',
+        to: ['tmsteph1290@gmail.com'],
+        subject: 'Quick idea for your site',
+        headline: 'Quick note from 3DVR',
+        text: 'I noticed one small customer-flow issue worth tightening.',
+        senderName: 'Thomas @ 3DVR',
+        senderEmail: '3dvr.tech@gmail.com'
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.mode, 'lead-outreach');
+    assert.equal(mail.sendMail.mock.calls.length, 1);
+    const sent = mail.sendMail.mock.calls[0].arguments[0];
+    assert.deepEqual(sent.to, ['tmsteph1290@gmail.com']);
+    assert.equal(sent.subject, 'Quick idea for your site');
+    assert.equal(sent.replyTo, '3dvr.tech@gmail.com');
+    assert.match(sent.html, /Quick note from 3DVR/i);
+    assert.match(sent.text, /customer-flow issue/i);
+  });
 });
