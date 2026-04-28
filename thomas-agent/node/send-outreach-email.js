@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { getOAuthAccessToken } = require('./oauth-connection');
 
 const DEFAULT_TRANSPORT = normalizeText(
   process.env.THREEDVR_OUTREACH_EMAIL_TRANSPORT
@@ -91,10 +92,37 @@ async function sendViaPortal(options) {
 }
 
 async function sendViaGmail(options) {
-  const user = normalizeEmail(process.env.GMAIL_USER);
+  const authMode = normalizeText(process.env.THREEDVR_GMAIL_AUTH).toLowerCase();
+  const configuredUser = normalizeEmail(process.env.GMAIL_USER);
   const pass = normalizeText(process.env.GMAIL_APP_PASSWORD);
+
+  if (authMode === 'oauth' || !pass) {
+    const connection = await getOAuthAccessToken('google');
+    const user = connection.email || configuredUser;
+    if (!(user && connection.accessToken)) {
+      throw new Error('Google OAuth connection is missing an email or access token.');
+    }
+    const transport = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user,
+        accessToken: connection.accessToken,
+      },
+    });
+
+    await transport.sendMail({
+      from: `"Thomas @ 3dvr.tech" <${user}>`,
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+    });
+    return;
+  }
+
+  const user = configuredUser;
   if (!(user && pass)) {
-    throw new Error('GMAIL_USER and GMAIL_APP_PASSWORD are required for Gmail outreach email.');
+    throw new Error('GMAIL_USER and GMAIL_APP_PASSWORD or a Google OAuth connection are required for Gmail outreach email.');
   }
 
   const transport = nodemailer.createTransport({

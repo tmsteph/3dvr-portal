@@ -33,6 +33,12 @@ Inbox:
 3dvr inbox reply         preview reply helpers
 3dvr inbox send-test     send inbox test email
 
+Auth:
+3dvr auth login [google|microsoft]
+3dvr auth import [file]
+3dvr auth status [google|microsoft]
+3dvr auth logout [google|microsoft]
+
 Agent:
 3dvr agent status|start|stop|logs|restart
 
@@ -94,6 +100,23 @@ send_inbox_test() {
   subject="${THREEDVR_INBOX_TEST_SUBJECT:-3DVR inbox copy test}"
   text="${THREEDVR_INBOX_TEST_TEXT:-Testing the updated auto-reply copy. Reply with Test and the inbox daemon should respond with the short test-specific message.}"
   node "$ROOT/node/send-outreach-email.js" --to "$to" --subject "$subject" --text "$text"
+}
+
+auth_login() {
+  provider="${1:-google}"
+  case "$provider" in
+    gmail) provider="google" ;;
+    outlook|office365|m365) provider="microsoft" ;;
+  esac
+  case "$provider" in
+    google|microsoft) ;;
+    *) echo "Use: 3dvr auth login google|microsoft"; exit 1 ;;
+  esac
+
+  url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=mail&returnTo=/profile.html#profile-oauth"
+  echo "Opening $provider OAuth in the portal."
+  echo "After approving access, copy the JSON shown by the portal and run: 3dvr auth import"
+  open_url "$url"
 }
 
 project_root() {
@@ -162,6 +185,18 @@ case "$cmd" in
       *) usage; exit 1 ;;
     esac
     ;;
+  auth)
+    sub="${1:-status}"
+    shift || true
+    case "$sub" in
+      login) auth_login "${1:-google}" ;;
+      import) exec node "$ROOT/node/oauth-connection.js" import "$@" ;;
+      status) exec node "$ROOT/node/oauth-connection.js" status "${1:-google}" ;;
+      refresh) exec node "$ROOT/node/oauth-connection.js" refresh "${1:-google}" ;;
+      logout|remove) exec node "$ROOT/node/oauth-connection.js" logout "${1:-google}" ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
   agent)
     sub="${1:-status}"
     case "$sub" in
@@ -193,7 +228,7 @@ case "$cmd" in
     case "$sub" in
       all) env | grep -E '^(THREEDVR_|GMAIL_USER=)' | sort || true ;;
       portal) echo "THREEDVR_PORTAL_URL=${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}" ;;
-      email) echo "GMAIL_USER=${GMAIL_USER:-unset}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+set}" ;;
+      email) echo "GMAIL_USER=${GMAIL_USER:-unset}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+set}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-auto}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
       relay) echo "THREEDVR_AUTOPILOT_EMAIL_ENDPOINT=${THREEDVR_AUTOPILOT_EMAIL_ENDPOINT:-unset}"; echo "THREEDVR_AUTOPILOT_EMAIL_TOKEN=${THREEDVR_AUTOPILOT_EMAIL_TOKEN:+set}" ;;
       *) usage; exit 1 ;;
     esac

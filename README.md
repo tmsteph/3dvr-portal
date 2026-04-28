@@ -16,6 +16,7 @@ export PATH="$(pwd)/thomas-agent/scripts:$PATH"
 3dvr next
 3dvr contacted
 3dvr inbox check
+3dvr auth status
 3dvr status
 3dvr portal
 ```
@@ -128,6 +129,16 @@ export GMAIL_USER="3dvr.tech@gmail.com"
 export GMAIL_APP_PASSWORD="your_app_password"
 ```
 
+Optional Gmail OAuth instead of an app password:
+
+```sh
+3dvr auth login google
+3dvr auth import
+export THREEDVR_GMAIL_AUTH="oauth"
+```
+
+The portal owns the Google/Microsoft client secrets. The CLI stores the approved provider connection in `~/.3dvr/oauth.json` and asks the portal to refresh short-lived access tokens. This supports Gmail now and keeps the same command shape ready for future Outlook integration.
+
 ### Autonomous Operator
 
 Run one unattended cycle:
@@ -217,6 +228,13 @@ export GMAIL_USER="3dvr.tech@gmail.com"
 export GMAIL_APP_PASSWORD="your_app_password"
 export THREEDVR_AUTOPILOT_EMAIL_ENDPOINT="https://portal.3dvr.tech/api/calendar/reminder-email"
 export THREEDVR_AUTOPILOT_EMAIL_TOKEN="shared_operator_token"
+```
+
+Or use the saved Gmail OAuth connection:
+
+```sh
+3dvr auth status google
+export THREEDVR_GMAIL_AUTH="oauth"
 ```
 
 Optional paced auto-replies for leads already marked `contacted`:

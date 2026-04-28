@@ -2,6 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { ImapFlow } = require('imapflow');
+const { getOAuthAccessToken } = require('./oauth-connection');
 
 const ROOT = path.join(__dirname, '..');
 const STATE_DIR = process.env.THREEDVR_AUTOPILOT_STATE_DIR || path.join(ROOT, 'state');
@@ -113,6 +114,7 @@ function usage() {
 
 Environment:
   GMAIL_USER / GMAIL_APP_PASSWORD               required for Gmail IMAP access
+  THREEDVR_GMAIL_AUTH                           oauth to force saved Google OAuth
   THREEDVR_INBOX_IMAP_HOST                      default imap.gmail.com
   THREEDVR_INBOX_IMAP_PORT                      default 993
   THREEDVR_INBOX_IMAP_TLS                       default true
@@ -238,20 +240,37 @@ function summarizeMessage(message) {
 }
 
 async function loadUnreadMessages(limit) {
-  const user = normalizeEmail(process.env.GMAIL_USER);
+  const authMode = normalizeText(process.env.THREEDVR_GMAIL_AUTH).toLowerCase();
+  const configuredUser = normalizeEmail(process.env.GMAIL_USER);
   const pass = normalizeText(process.env.GMAIL_APP_PASSWORD);
-  if (!(user && pass)) {
-    throw new Error('GMAIL_USER and GMAIL_APP_PASSWORD are required for inbox monitoring.');
+  let user = configuredUser;
+  let auth;
+
+  if (authMode === 'oauth' || !pass) {
+    const connection = await getOAuthAccessToken('google');
+    user = connection.email || configuredUser;
+    if (!(user && connection.accessToken)) {
+      throw new Error('Google OAuth connection is missing an email or access token.');
+    }
+    auth = {
+      user,
+      accessToken: connection.accessToken,
+    };
+  } else {
+    if (!(user && pass)) {
+      throw new Error('GMAIL_USER and GMAIL_APP_PASSWORD or a Google OAuth connection are required for inbox monitoring.');
+    }
+    auth = {
+      user,
+      pass,
+    };
   }
 
   const client = new ImapFlow({
     host: DEFAULT_IMAP_HOST,
     port: DEFAULT_IMAP_PORT,
     secure: DEFAULT_IMAP_TLS,
-    auth: {
-      user,
-      pass,
-    },
+    auth,
     logger: false,
   });
 
@@ -295,7 +314,7 @@ async function loadUnreadMessages(limit) {
 
   return rows
     .map(summarizeMessage)
-    .filter((row) => row.fromEmail && row.fromEmail !== normalizeEmail(process.env.GMAIL_USER));
+    .filter((row) => row.fromEmail && row.fromEmail !== user);
 }
 
 function parseCsvRow(line) {

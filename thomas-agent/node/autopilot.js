@@ -54,8 +54,7 @@ const DEFAULT_CODEX_REPO = process.env.THREEDVR_AUTOPILOT_CODEX_REPO || path.joi
 
 function splitList(value) {
   return String(value || '')
-    .split(/[,
-;]+/)
+    .split(/[,\n;]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }
