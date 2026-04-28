@@ -506,47 +506,157 @@ function countThreadAutoReplies(state, message) {
   )).length;
 }
 
-function chooseReplyLines(message, repeatCount) {
-  const preview = normalizeText(message.preview).replace(/\s+/g, ' ');
-  const isTest = /^test\b/i.test(preview) || /\bautomation test\b/i.test(message.subject);
+function compactMessageText(message) {
+  return `${normalizeText(message.subject)} ${normalizeText(message.preview)}`
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-  if (isTest) {
-    return repeatCount > 0
-      ? ['Got it, this test reply came through too.']
-      : ['Got it, this test reply came through and the automation is responding.'];
+function stableVariantIndex(message, repeatCount, length) {
+  if (length <= 1) return 0;
+  const seed = `${message.messageId || ''}|${message.subject || ''}|${message.fromEmail || ''}|${repeatCount}`;
+  let hash = 0;
+  for (const char of seed) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return hash % length;
+}
+
+function detectReplyIntent(message) {
+  const text = compactMessageText(message).toLowerCase();
+  const preview = normalizeText(message.preview).replace(/\s+/g, ' ');
+
+  if (/^test\b/i.test(preview) || /\b(automation test|inbox test|copy test)\b/i.test(message.subject)) {
+    return 'test';
+  }
+  if (/\b(no thanks|not interested|unsubscribe|stop|remove me|don'?t contact)\b/.test(text)) {
+    return 'decline';
+  }
+  if (/\b(price|pricing|cost|quote|estimate|budget|how much)\b/.test(text)) {
+    return 'pricing';
+  }
+  if (/\b(call|meeting|meet|schedule|calendar|available|availability|tomorrow|next week)\b/.test(text)) {
+    return 'schedule';
+  }
+  if (/\b(website|site|page|landing page|redesign|booking|seo|portfolio|store)\b/.test(text)) {
+    return 'website';
+  }
+  if (/\b(yes|interested|sounds good|tell me more|send|sure|okay|ok|great|let'?s|lets)\b/.test(text)) {
+    return 'interested';
+  }
+  if (/\?/.test(text) || /\b(what|how|when|where|why|can you|could you)\b/.test(text)) {
+    return 'question';
+  }
+  return 'general';
+}
+
+function leadLabel(lead) {
+  return normalizeText(lead?.name) || 'your business';
+}
+
+function pickReplyVariant(message, repeatCount, variants) {
+  return variants[stableVariantIndex(message, repeatCount, variants.length)];
+}
+
+function chooseReplyLines(message, lead, repeatCount) {
+  const intent = detectReplyIntent(message);
+  const name = leadLabel(lead);
+
+  if (intent === 'test') {
+    const first = [
+      ['Test received. The inbox monitor caught this reply and kept the thread intact.'],
+      ['Got this test reply. Auto-reply routing is working on this thread.'],
+      ['Received this test. The reply loop is live and using the portal email relay.'],
+    ];
+    const followups = [
+      ['Got this follow-up test too. The thread matching is still working.'],
+      ['Second test received. This reply stayed on the same conversation.'],
+      ['This test came through as another reply, not a new lead.'],
+    ];
+    return pickReplyVariant(message, repeatCount, repeatCount > 0 ? followups : first);
   }
 
-  if (repeatCount === 0) {
+  if (intent === 'decline') {
     return [
-      'Thanks for getting back to me.',
-      'What would you like help with first?',
+      'Understood. I will not keep nudging this thread.',
+      'If something changes later, send over the site or project you want to revisit.',
     ];
   }
 
-  const variants = [
-    ['I saw this follow-up too.', 'Send me the main detail and I will keep the next step simple.'],
-    ['Got your follow-up.', 'What is the one thing you want handled first?'],
-    ['I am tracking this thread.', 'A quick note on the priority is enough to point me in the right direction.'],
+  if (repeatCount > 0) {
+    const followups = [
+      ['Saw your follow-up too.', 'Send the main detail you want handled first and I will keep the next step simple.'],
+      ['Got your follow-up.', 'The fastest path is to pick one target: website, booking flow, or lead follow-up.'],
+      ['I am tracking this thread.', `For ${name}, the next useful detail is the page or offer you want improved first.`],
+    ];
+    return pickReplyVariant(message, repeatCount, followups);
+  }
+
+  if (intent === 'pricing') {
+    return [
+      'Quick answer: it depends on how much of the site or funnel you want handled.',
+      'Send the page you care about most and the outcome you want from it. I can suggest the smallest useful scope from there.',
+    ];
+  }
+
+  if (intent === 'schedule') {
+    return [
+      'A quick call can work.',
+      'Send two times that are good for you and the best email to use. I will keep the agenda focused on the fastest next step.',
+    ];
+  }
+
+  if (intent === 'website') {
+    return [
+      `For ${name}, I would start with the page that either gets traffic or should be converting better.`,
+      'Send the URL you want looked at first and I will suggest the simplest improvement path.',
+    ];
+  }
+
+  if (intent === 'interested') {
+    return [
+      'That works.',
+      'Send me the site or page you want handled first, and I will map the simplest next step.',
+    ];
+  }
+
+  if (intent === 'question') {
+    return [
+      'Good question.',
+      'Send the site or offer you are thinking about and I will answer with the most practical next step.',
+    ];
+  }
+
+  const general = [
+    ['Got your note.', 'What is the main thing you want help with first?'],
+    ['I saw your reply.', 'Send the site, page, or offer you want to improve and I will keep the next step practical.'],
+    [`For ${name}, the cleanest next step is to pick one priority.`, 'Website, booking flow, or follow-up system are usually the best starting points.'],
   ];
-  return variants[(repeatCount - 1) % variants.length];
+  return pickReplyVariant(message, repeatCount, general);
 }
 
 function buildReplyHeadline(message, state) {
   const repeatCount = countThreadAutoReplies(state, message);
-  const preview = normalizeText(message.preview).replace(/\s+/g, ' ');
-  if (/^test\b/i.test(preview) || /\bautomation test\b/i.test(message.subject)) {
+  const intent = detectReplyIntent(message);
+  if (intent === 'test') {
     return repeatCount > 0 ? 'Test follow-up received.' : 'Test reply received.';
   }
-  return repeatCount > 0 ? 'Got your follow-up.' : 'Thanks for getting back to me.';
+  if (intent === 'decline') return 'Understood.';
+  if (intent === 'pricing') return 'A simple scope is the best place to start.';
+  if (intent === 'schedule') return 'A quick call can work.';
+  if (intent === 'website') return 'Start with the highest-impact page.';
+  if (intent === 'interested') return 'Good next step.';
+  if (intent === 'question') return 'Good question.';
+  return repeatCount > 0 ? 'Got your follow-up.' : 'Got your note.';
 }
 
 function buildReplyText(lead, message, state) {
-  const greeting = firstName(lead?.name, message.fromEmail);
+  const greeting = firstName(message.from, message.fromEmail);
   const repeatCount = countThreadAutoReplies(state, message);
   return [
     `Hi ${greeting},`,
     '',
-    ...chooseReplyLines(message, repeatCount),
+    ...chooseReplyLines(message, lead, repeatCount),
   ].join('\n');
 }
 
@@ -778,7 +888,17 @@ async function main() {
   saveState(state);
 }
 
-main().catch((error) => {
-  console.error(error.message || error);
-  process.exit(1);
-});
+module.exports = {
+  buildReplyHeadline,
+  buildReplySubject,
+  buildReplyText,
+  chooseReplyLines,
+  detectReplyIntent,
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message || error);
+    process.exit(1);
+  });
+}

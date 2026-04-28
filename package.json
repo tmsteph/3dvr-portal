@@ -7,7 +7,7 @@
     "3dvr": "thomas-agent/scripts/3dvr"
   },
   "scripts": {
-    "test": "node --check thomas-agent/node/send-outreach-email.js && node --check thomas-agent/node/autopilot.js && node --check thomas-agent/node/inbox-monitor.js && node --check thomas-agent/node/oauth-connection.js && bash -n thomas-agent/scripts/3dvr"
+    "test": "node --check thomas-agent/node/send-outreach-email.js && node --check thomas-agent/node/autopilot.js && node --check thomas-agent/node/inbox-monitor.js && node --check thomas-agent/node/oauth-connection.js && bash -n thomas-agent/scripts/3dvr && node --test test/*.test.js"
   },
   "repository": {
     "type": "git",
