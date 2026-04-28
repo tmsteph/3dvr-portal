@@ -21,10 +21,14 @@ usage() {
   cat <<'USAGE'
 3dvr CLI v1
 
+Welcome to 3dvr.
+Use this cockpit to find leads, send outreach, watch replies, and keep the background agent moving.
+
 3dvr                     guided menu
 3dvr next                next best lead action
 3dvr status              agent + inbox + leads status
 3dvr portal              open portal
+3dvr doctor              check local setup
 
 Leads:
 3dvr lead find           crawl/find new leads
@@ -56,6 +60,12 @@ Projects:
 
 Settings:
 3dvr settings [portal|email|relay]
+
+Daily flow:
+3dvr next
+3dvr contacted
+3dvr inbox check
+3dvr status
 USAGE
 }
 
@@ -63,15 +73,15 @@ menu() {
   cat <<'MENU'
 Welcome to 3dvr
 
-What do you want to do?
+What needs attention?
 
-1) Continue outreach
-2) Check inbox
-3) See agent status
-4) Start/stop background worker
-5) Open portal
-6) Work on a project
-7) Settings
+1) Continue outreach          Show the next lead and opener
+2) Check inbox                Look for replies that need attention
+3) See agent status           Leads, inbox worker, outreach worker
+4) Start/stop background      Manage the local worker
+5) Connect email              Gmail now, Outlook later
+6) Open portal                Continue in the browser
+7) Settings                   Show local config
 
 Choose:
 MENU
@@ -81,11 +91,27 @@ MENU
     2) exec "$0" inbox check ;;
     3) exec "$0" status ;;
     4) exec "$0" agent status ;;
-    5) exec "$0" portal ;;
-    6) exec "$0" project list ;;
+    5) exec "$0" auth status ;;
+    6) exec "$0" portal ;;
     7) exec "$0" settings ;;
     *) usage ;;
   esac
+}
+
+print_section() {
+  printf '\n%s\n' "$1"
+  printf '%s\n' "----------------------------------------"
+}
+
+print_next_steps() {
+  cat <<'STEPS'
+
+Useful next commands:
+  3dvr next          show the next best lead action
+  3dvr inbox check   check unread replies
+  3dvr auth status   check email connection
+  3dvr agent start   start background workers
+STEPS
 }
 
 current_lead_name() {
@@ -124,7 +150,13 @@ auth_login() {
 
   url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=mail&returnTo=/profile.html#profile-oauth"
   echo "Opening $provider OAuth in the portal."
-  echo "After approving access, copy the JSON shown by the portal and run: 3dvr auth import"
+  echo
+  echo "After approving access:"
+  echo "1. Copy the JSON shown by the portal."
+  echo "2. Run: 3dvr auth import"
+  echo "3. Paste the JSON and press Ctrl-D."
+  echo
+  echo "If the portal says OAuth is not configured, production needs the provider env vars first."
   open_url "$url"
 }
 
@@ -151,13 +183,31 @@ case "$cmd" in
     exec "$SCRIPT_DIR/ask-track" contact "$name"
     ;;
   status)
+    print_section "3dvr status"
     "$SCRIPT_DIR/ask-status"
+    print_section "Email auth"
+    node "$ROOT/node/oauth-connection.js" status google || true
     echo
+    print_section "Background workers"
     "$SCRIPT_DIR/ask-inbox-daemon" status || true
     echo
     "$SCRIPT_DIR/ask-autopilot-daemon" status || true
+    print_next_steps
     ;;
   portal) open_url "$PORTAL_URL" ;;
+  doctor)
+    print_section "3dvr doctor"
+    printf 'CLI: %s\n' "$SOURCE"
+    printf 'Agent root: %s\n' "$ROOT"
+    printf 'Portal: %s\n' "$PORTAL_URL"
+    printf 'Leads file: %s\n' "$LEADS_FILE"
+    [ -f "$LEADS_FILE" ] && printf 'Leads file status: found\n' || printf 'Leads file status: missing\n'
+    printf 'Node: %s\n' "$(node --version 2>/dev/null || printf 'missing')"
+    printf 'npm: %s\n' "$(npm --version 2>/dev/null || printf 'missing')"
+    print_section "Email auth"
+    node "$ROOT/node/oauth-connection.js" status google || true
+    print_next_steps
+    ;;
   start) exec "$0" agent start ;;
   stop) exec "$0" agent stop ;;
   logs) exec "$0" agent logs ;;
@@ -181,11 +231,17 @@ case "$cmd" in
     shift || true
     case "$sub" in
       menu)
-        echo "Inbox"
-        echo "3dvr inbox check"
-        echo "3dvr inbox watch"
-        echo "3dvr inbox reply"
-        echo "3dvr inbox send-test"
+        cat <<'INBOX'
+Inbox
+
+3dvr inbox check       Check unread replies once
+3dvr inbox watch       Run the inbox monitor once
+3dvr inbox reply       Preview reply helpers
+3dvr inbox send-test   Send a test email to the configured test address
+
+Tip:
+  Use `3dvr agent start` when you want the inbox watcher running in the background.
+INBOX
         ;;
       check) exec "$SCRIPT_DIR/ask-inbox" "$@" ;;
       watch) exec "$SCRIPT_DIR/ask-inbox-daemon" run-now "$@" ;;
@@ -209,10 +265,10 @@ case "$cmd" in
   agent)
     sub="${1:-status}"
     case "$sub" in
-      status) "$SCRIPT_DIR/ask-inbox-daemon" status; "$SCRIPT_DIR/ask-autopilot-daemon" status || true ;;
-      start) "$SCRIPT_DIR/ask-inbox-daemon" start; "$SCRIPT_DIR/ask-autopilot-daemon" start ;;
-      stop) "$SCRIPT_DIR/ask-inbox-daemon" stop; "$SCRIPT_DIR/ask-autopilot-daemon" stop ;;
-      logs) "$SCRIPT_DIR/ask-inbox-daemon" logs; echo; "$SCRIPT_DIR/ask-autopilot-daemon" logs ;;
+      status) print_section "Inbox worker"; "$SCRIPT_DIR/ask-inbox-daemon" status; print_section "Outreach worker"; "$SCRIPT_DIR/ask-autopilot-daemon" status || true ;;
+      start) echo "Starting inbox and outreach workers..."; "$SCRIPT_DIR/ask-inbox-daemon" start; "$SCRIPT_DIR/ask-autopilot-daemon" start; echo "Run `3dvr status` to verify." ;;
+      stop) echo "Stopping inbox and outreach workers..."; "$SCRIPT_DIR/ask-inbox-daemon" stop; "$SCRIPT_DIR/ask-autopilot-daemon" stop ;;
+      logs) print_section "Inbox logs"; "$SCRIPT_DIR/ask-inbox-daemon" logs; print_section "Outreach logs"; "$SCRIPT_DIR/ask-autopilot-daemon" logs ;;
       restart) "$0" agent stop || true; "$0" agent start ;;
       *) usage; exit 1 ;;
     esac
@@ -221,24 +277,24 @@ case "$cmd" in
     sub="${1:-list}"
     target="${2:-}"
     case "$sub" in
-      list) printf '%s\n' "3dvr-portal" "3dvr-web" "3dvr-agent" "tmsteph-redesign-2025" ;;
+      list) printf '%s\n' "Projects:" "  portal   3dvr-portal" "  web      3dvr-web" "  agent    3dvr-agent" "  tmsteph  tmsteph-redesign-2025" ;;
       open)
         path="$(project_root "$target" || true)"
         [ -n "$path" ] || { echo "Use: 3dvr project open portal|web|agent|tmsteph"; exit 1; }
         echo "$path"
         ;;
-      new) echo "Create the repo/project, then add it to 3dvr project list." ;;
-      deploy) echo "Use the target repo deploy flow. Portal/web deploys should be verified live." ;;
+      new) echo "Create the repo/project, then add it to 3dvr project list when it becomes part of the core workspace." ;;
+      deploy) echo "Use the target repo deploy flow. Portal/web deploys should be verified live after deployment." ;;
       *) usage; exit 1 ;;
     esac
     ;;
   settings)
     sub="${1:-all}"
     case "$sub" in
-      all) env | grep -E '^(THREEDVR_|GMAIL_USER=)' | sort || true ;;
-      portal) echo "THREEDVR_PORTAL_URL=${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}" ;;
-      email) echo "GMAIL_USER=${GMAIL_USER:-unset}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+set}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-auto}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
-      relay) echo "THREEDVR_AUTOPILOT_EMAIL_ENDPOINT=${THREEDVR_AUTOPILOT_EMAIL_ENDPOINT:-unset}"; echo "THREEDVR_AUTOPILOT_EMAIL_TOKEN=${THREEDVR_AUTOPILOT_EMAIL_TOKEN:+set}" ;;
+      all) print_section "3dvr settings"; env | grep -E '^(THREEDVR_|GMAIL_USER=)' | sort || true; print_next_steps ;;
+      portal) echo "Portal URL: ${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}" ;;
+      email) print_section "Email settings"; echo "GMAIL_USER=${GMAIL_USER:-unset}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+set}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-auto}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
+      relay) print_section "Portal relay"; echo "THREEDVR_AUTOPILOT_EMAIL_ENDPOINT=${THREEDVR_AUTOPILOT_EMAIL_ENDPOINT:-unset}"; echo "THREEDVR_AUTOPILOT_EMAIL_TOKEN=${THREEDVR_AUTOPILOT_EMAIL_TOKEN:+set}" ;;
       *) usage; exit 1 ;;
     esac
     ;;

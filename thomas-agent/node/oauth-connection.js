@@ -202,14 +202,29 @@ function readStdin() {
 }
 
 function printStatus(status) {
-  console.log(`Provider: ${status.provider}`);
-  console.log(`Configured: ${status.configured ? 'yes' : 'no'}`);
+  console.log(`${status.provider} email connection`);
+  console.log('----------------------------------------');
+  if (!status.configured) {
+    console.log('Status: not connected');
+    console.log(`Connection file: ${status.file}`);
+    console.log('');
+    console.log('Next step:');
+    console.log(`  3dvr auth login ${status.provider}`);
+    console.log('');
+    console.log('After browser approval, run:');
+    console.log('  3dvr auth import');
+    return;
+  }
+
+  console.log('Status: connected');
   if (status.email) console.log(`Email: ${status.email}`);
   if (status.displayName) console.log(`Name: ${status.displayName}`);
   if (status.scopeKey) console.log(`Scope: ${status.scopeKey}`);
-  if (status.expiresAt) console.log(`Expires: ${status.expiresAt}`);
-  if (status.configured) console.log(`Needs refresh: ${status.needsRefresh ? 'yes' : 'no'}`);
-  console.log(`File: ${status.file}`);
+  if (status.expiresAt) console.log(`Access token expires: ${status.expiresAt}`);
+  console.log(`Needs refresh: ${status.needsRefresh ? 'yes' : 'no'}`);
+  console.log(`Connection file: ${status.file}`);
+  console.log('');
+  console.log('Tokens are stored locally and are not printed here.');
 }
 
 async function cli(argv) {
@@ -225,23 +240,31 @@ async function cli(argv) {
     const filePath = normalizeText(argv[3]);
     const raw = filePath ? fs.readFileSync(filePath, 'utf8') : readStdin();
     const saved = extractConnection(raw);
-    console.log(`Imported ${saved.provider} OAuth connection${saved.email ? ` for ${saved.email}` : ''}.`);
+    console.log(`Imported ${saved.provider} email connection${saved.email ? ` for ${saved.email}` : ''}.`);
+    console.log('');
+    console.log('Next step:');
+    console.log(`  THREEDVR_GMAIL_AUTH=oauth 3dvr inbox check`);
+    console.log('');
+    console.log('Or make OAuth the default for this shell:');
+    console.log('  export THREEDVR_GMAIL_AUTH=oauth');
     return;
   }
 
   if (command === 'refresh') {
     const refreshed = await refreshOAuthAccessToken(loadOAuthConnection(provider) || { provider });
-    console.log(`Refreshed ${refreshed.provider} OAuth access token${refreshed.email ? ` for ${refreshed.email}` : ''}.`);
+    console.log(`Refreshed ${refreshed.provider} email access${refreshed.email ? ` for ${refreshed.email}` : ''}.`);
+    console.log('Access token updated locally. Token value was not printed.');
     return;
   }
 
   if (command === 'logout' || command === 'remove') {
     removeOAuthConnection(provider);
-    console.log(`Removed ${provider} OAuth connection.`);
+    console.log(`Removed ${provider} email connection.`);
+    console.log(`Run \`3dvr auth login ${provider}\` to connect it again.`);
     return;
   }
 
-  console.error('Usage: node oauth-connection.js status|import [file]|refresh [provider]|logout [provider]');
+  console.error('Usage: 3dvr auth status|import [file]|refresh [provider]|logout [provider]');
   process.exit(1);
 }
 
