@@ -215,12 +215,14 @@ function parseFlowCookie(req) {
 }
 
 function buildCallbackResultPage(result = {}, returnPath = DEFAULT_RETURN_PATH) {
-  const serialized = JSON.stringify({
+  const payload = {
     ...result,
     returnTo: sanitizeReturnPath(returnPath),
     updatedAt: Date.now(),
-  }).replace(/</g, '\\u003c');
+  };
+  const serialized = JSON.stringify(payload).replace(/</g, '\\u003c');
   const redirectTarget = JSON.stringify(sanitizeReturnPath(returnPath));
+  const isCli = normalizeIntent(payload.intent) === 'cli';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -239,7 +241,7 @@ function buildCallbackResultPage(result = {}, returnPath = DEFAULT_RETURN_PATH) 
       font-family: "Segoe UI", sans-serif;
     }
     .card {
-      width: min(100%, 420px);
+      width: min(100%, ${isCli ? '720px' : '420px'});
       padding: 24px;
       border-radius: 20px;
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -249,19 +251,44 @@ function buildCallbackResultPage(result = {}, returnPath = DEFAULT_RETURN_PATH) 
     a {
       color: #9bd0ff;
     }
+    textarea {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 220px;
+      margin: 12px 0;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.28);
+      color: #f8fbff;
+      font: 0.85rem ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+    code {
+      color: #d7ecff;
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1 style="margin:0 0 12px;font-size:1.25rem;">Returning to 3DVR Portal…</h1>
-    <p style="margin:0 0 12px;line-height:1.6;">Your OAuth result is being stored in this browser and you’ll be redirected automatically.</p>
-    <p style="margin:0;"><a href=${redirectTarget}>Continue manually</a></p>
+    <h1 style="margin:0 0 12px;font-size:1.25rem;">${isCli ? '3DVR CLI OAuth Ready' : 'Returning to 3DVR Portal...'}</h1>
+    ${isCli
+      ? '<p style="margin:0 0 12px;line-height:1.6;">Copy this result, then run <code>3dvr auth import</code> in your terminal and paste it when prompted.</p><textarea id="oauth-result" readonly></textarea><p style="margin:0;"><a href=' + redirectTarget + '>Open portal</a></p>'
+      : '<p style="margin:0 0 12px;line-height:1.6;">Your OAuth result is being stored in this browser and you will be redirected automatically.</p><p style="margin:0;"><a href=' + redirectTarget + '>Continue manually</a></p>'}
   </div>
   <script>
     try {
-      localStorage.setItem('portal.oauth.result', ${serialized});
+      const oauthResult = ${serialized};
+      localStorage.setItem('portal.oauth.result', JSON.stringify(oauthResult));
+      const textarea = document.getElementById('oauth-result');
+      if (textarea) {
+        textarea.value = JSON.stringify(oauthResult, null, 2);
+        textarea.focus();
+        textarea.select();
+      }
     } catch (_err) {}
-    window.location.replace(${redirectTarget});
+    if (${JSON.stringify(!isCli)}) {
+      window.location.replace(${redirectTarget});
+    }
   </script>
 </body>
 </html>`;
@@ -288,6 +315,7 @@ function createGoogleProvider(config = process.env) {
       signin: true,
       contacts: true,
       calendar: true,
+      mail: true,
     },
     buildAuthorizationUrl({ state, verifier, scopeKey, redirectUri }) {
       const scopes = new Set(['openid', 'email', 'profile']);
@@ -296,6 +324,9 @@ function createGoogleProvider(config = process.env) {
       }
       if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar') {
         scopes.add('https://www.googleapis.com/auth/calendar');
+      }
+      if (scopeKey === 'mail' || scopeKey === 'gmail') {
+        scopes.add('https://mail.google.com/');
       }
       const params = new URLSearchParams({
         client_id: config.GOOGLE_OAUTH_CLIENT_ID,
@@ -331,6 +362,23 @@ function createGoogleProvider(config = process.env) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload.error_description || payload.error || 'Unable to exchange Google OAuth code.');
+      }
+      return payload;
+    },
+    async refreshAccessToken({ refreshToken, fetchImpl }) {
+      const response = await fetchImpl('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: config.GOOGLE_OAUTH_CLIENT_ID,
+          client_secret: config.GOOGLE_OAUTH_CLIENT_SECRET,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error_description || payload.error || 'Unable to refresh Google OAuth token.');
       }
       return payload;
     },
@@ -415,6 +463,7 @@ function createMicrosoftProvider(config = process.env) {
       signin: true,
       contacts: true,
       calendar: true,
+      mail: true,
     },
     buildAuthorizationUrl({ state, verifier, scopeKey, redirectUri }) {
       const scopes = new Set(['openid', 'profile', 'email', 'offline_access', 'User.Read']);
@@ -423,6 +472,10 @@ function createMicrosoftProvider(config = process.env) {
       }
       if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar') {
         scopes.add('Calendars.ReadWrite');
+      }
+      if (scopeKey === 'mail' || scopeKey === 'outlook') {
+        scopes.add('Mail.ReadWrite');
+        scopes.add('Mail.Send');
       }
       const params = new URLSearchParams({
         client_id: config.MICROSOFT_OAUTH_CLIENT_ID,
@@ -453,6 +506,23 @@ function createMicrosoftProvider(config = process.env) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload.error_description || payload.error || 'Unable to exchange Microsoft OAuth code.');
+      }
+      return payload;
+    },
+    async refreshAccessToken({ refreshToken, fetchImpl }) {
+      const response = await fetchImpl(`${base}/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: config.MICROSOFT_OAUTH_CLIENT_ID,
+          client_secret: config.MICROSOFT_OAUTH_CLIENT_SECRET,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error_description || payload.error?.message || payload.error || 'Unable to refresh Microsoft OAuth token.');
       }
       return payload;
     },
@@ -553,6 +623,7 @@ function createAppleProvider(config = process.env) {
       signin: true,
       contacts: false,
       calendar: false,
+      mail: false,
     },
     buildAuthorizationUrl({ state, nonce, redirectUri }) {
       const params = new URLSearchParams({
@@ -624,6 +695,16 @@ function buildPublicProviderConfig(providerName, provider) {
   };
 }
 
+function isScopeSupported(provider, scopeKey = 'identity') {
+  const normalized = normalizeScopeKey(scopeKey);
+  if (normalized === 'identity') return Boolean(provider.supports.signin);
+  if (normalized === 'contacts') return Boolean(provider.supports.contacts);
+  if (normalized === 'calendar') return Boolean(provider.supports.calendar);
+  if (normalized === 'contacts-calendar') return Boolean(provider.supports.contacts && provider.supports.calendar);
+  if (normalized === 'mail' || normalized === 'gmail' || normalized === 'outlook') return Boolean(provider.supports.mail);
+  return false;
+}
+
 function buildConnectionRecord(providerName, tokens = {}, identity = {}, scopeKey = 'identity') {
   const accessToken = normalizeOAuthText(tokens.access_token);
   if (!accessToken) {
@@ -668,7 +749,7 @@ async function handleStart(req, res, providerName, provider) {
     return sendHtml(res, 200, html);
   }
 
-  if (scopeKey !== 'identity' && !provider.supports.contacts && !provider.supports.calendar) {
+  if (!isScopeSupported(provider, scopeKey)) {
     const html = buildCallbackResultPage({
       ok: false,
       provider: providerName,
@@ -808,6 +889,46 @@ async function handleCallback(req, res, providerName, provider, body, fetchImpl)
   }
 }
 
+async function handleRefreshToken(res, providerName, provider, body, fetchImpl) {
+  if (!provider.configured) {
+    return jsonError(res, 503, `${provider.label} OAuth is not configured on this deployment yet.`);
+  }
+  if (typeof provider.refreshAccessToken !== 'function') {
+    return jsonError(res, 400, `${provider.label} OAuth cannot refresh tokens in this portal yet.`);
+  }
+
+  const refreshToken = normalizeOAuthText(body.refreshToken || body.refresh_token);
+  const scopeKey = normalizeScopeKey(body.scopeKey || body.scope_key || 'identity');
+  if (!refreshToken) {
+    return jsonError(res, 400, 'Refresh token is required.');
+  }
+  if (!isScopeSupported(provider, scopeKey)) {
+    return jsonError(res, 400, `${provider.label} OAuth does not support ${scopeKey} scope in this portal yet.`);
+  }
+
+  try {
+    const tokens = await provider.refreshAccessToken({ refreshToken, fetchImpl });
+    const accessToken = normalizeOAuthText(tokens.access_token);
+    if (!accessToken) {
+      return jsonError(res, 502, `${provider.label} did not return an access token.`);
+    }
+    const expiresIn = Math.max(0, Number(tokens.expires_in) || 0);
+    return res.status(200).json({
+      ok: true,
+      provider: providerName,
+      accessToken,
+      refreshToken: normalizeOAuthText(tokens.refresh_token) || refreshToken,
+      scope: normalizeOAuthText(tokens.scope),
+      scopeKey,
+      expiresAt: expiresIn ? Date.now() + (expiresIn * 1000) : 0,
+      refreshedAt: Date.now(),
+      source: 'oauth-refresh',
+    });
+  } catch (err) {
+    return jsonError(res, 502, err?.message || `Unable to refresh ${provider.label} OAuth token.`);
+  }
+}
+
 async function handleListContacts(res, providerName, provider, body, fetchImpl) {
   if (!provider.supports.contacts) {
     return jsonError(res, 400, `${provider.label} does not expose contacts import in this portal yet.`);
@@ -862,6 +983,10 @@ export function createOAuthProviderHandler({ config = process.env, fetchImpl = f
 
     if ((req.method === 'GET' || req.method === 'POST') && isCallbackAttempt) {
       return handleCallback(req, res, providerName, provider, body, fetchImpl);
+    }
+
+    if (req.method === 'POST' && action === 'refresh') {
+      return handleRefreshToken(res, providerName, provider, body, fetchImpl);
     }
 
     if (req.method === 'POST' && action === 'listcontacts') {
