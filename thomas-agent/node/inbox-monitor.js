@@ -55,9 +55,11 @@ const DEFAULT_LLAMA_CLI = normalizeText(
 );
 const DEFAULT_LLM_MODEL = normalizeText(process.env.THREEDVR_INBOX_LLM_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini');
 const DEFAULT_LLM_TEMPERATURE = parseNumber(process.env.THREEDVR_INBOX_LLM_TEMPERATURE, 0.95);
+const DEFAULT_LOCAL_LLM_TEMPERATURE = parseNumber(process.env.THREEDVR_INBOX_LOCAL_TEMPERATURE, 0.35);
 const DEFAULT_LLM_MAX_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LLM_MAX_TOKENS, 220);
-const DEFAULT_LOCAL_LLM_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LOCAL_TOKENS, 260);
-const DEFAULT_LOCAL_LLM_CONTEXT = parseInteger(process.env.THREEDVR_INBOX_LOCAL_CONTEXT, 4096);
+const DEFAULT_LOCAL_LLM_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LOCAL_TOKENS, 160);
+const DEFAULT_LOCAL_LLM_CONTEXT = parseInteger(process.env.THREEDVR_INBOX_LOCAL_CONTEXT, 2048);
+const DEFAULT_LOCAL_LLM_TIMEOUT_MS = parseInteger(process.env.THREEDVR_INBOX_LOCAL_TIMEOUT_MS, 120000);
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -729,8 +731,9 @@ function buildReplyPrompt(lead, message, state) {
       'Use the voice of a real founder: direct, practical, warm, not corporate.',
       'The recipient already replied to outreach, so answer like a human continuing the thread.',
       'Be more adaptive than a template. Use the sender message and inferred intent.',
+      '3DVR helps with practical website/product work: reviewing pages, clarifying offers, improving CTAs, building small fixes, and operating outreach. If more context is needed, ask for the URL, goal, or page that matters most.',
       'Do not mention AI, automation, prompts, systems, or internal tools unless the user is explicitly testing automation.',
-      'Do not invent prices, guarantees, meetings already booked, or capabilities not stated.',
+      'Do not invent prices, guarantees, meetings already booked, integrations, or platform features not stated here.',
       'Do not include signatures; the portal adds sender identity separately.',
       'Return only JSON: {"headline":"...","text":"..."}',
     ].join('\n'),
@@ -752,14 +755,25 @@ function buildReplyPrompt(lead, message, state) {
 }
 
 function buildLocalPrompt(lead, message, state) {
-  const prompt = buildReplyPrompt(lead, message, state);
+  const repeatCount = countThreadAutoReplies(state, message);
+  const senderFirstName = firstName(message.from, message.fromEmail);
+  const intent = detectReplyIntent(message);
+  const leadName = leadLabel(lead);
   return [
-    prompt.system,
-    '',
-    'Context JSON:',
-    prompt.user,
-    '',
-    'Write the JSON now. Do not include markdown. Do not include commentary.',
+    'Write one short Gmail reply for Thomas at 3DVR.',
+    'Return only JSON: {"headline":"...","text":"..."}',
+    'Voice: direct, practical, warm, not corporate.',
+    'Facts: 3DVR helps with website/product work: review pages, clarify offers, improve CTAs, build small fixes, and run outreach.',
+    'Do not invent prices, guarantees, integrations, platform features, or meetings.',
+    'Do not include a signature.',
+    `Sender: ${senderFirstName || message.fromEmail || 'there'}`,
+    `Lead: ${leadName}`,
+    `Lead site: ${lead?.link || ''}`,
+    `Subject: ${message.subject || ''}`,
+    `Message: ${message.preview || ''}`,
+    `Intent: ${intent}`,
+    `Previous auto replies in this thread: ${repeatCount}`,
+    'Reply shape: 2 to 4 short lines. Ask for one concrete next detail if needed.',
   ].join('\n');
 }
 
@@ -826,8 +840,13 @@ async function callLocalLlama(prompt, {
     '-p', prompt,
     '-n', String(DEFAULT_LOCAL_LLM_TOKENS),
     '--ctx-size', String(DEFAULT_LOCAL_LLM_CONTEXT),
-    '--temp', String(DEFAULT_LLM_TEMPERATURE),
-  ]);
+    '--temp', String(DEFAULT_LOCAL_LLM_TEMPERATURE),
+    '--single-turn',
+    '--simple-io',
+    '--no-display-prompt',
+    '--no-show-timings',
+    '--no-warmup',
+  ], { timeoutMs: DEFAULT_LOCAL_LLM_TIMEOUT_MS });
 }
 
 async function buildLocalReplyDraft(lead, message, state, options = {}) {
@@ -899,8 +918,10 @@ async function buildReplyDraft(lead, message, state, options = {}) {
     ? []
     : normalizedMode === 'openai' || normalizedMode === 'llm'
       ? [['openai', buildLlmReplyDraft]]
-      : normalizedMode === 'local'
+      : normalizedMode === 'local' && !DEFAULT_REPLY_MODE.endsWith('-strict')
         ? [['local', buildLocalReplyDraft], ['openai', buildLlmReplyDraft]]
+        : normalizedMode === 'local'
+          ? [['local', buildLocalReplyDraft]]
         : [['local', buildLocalReplyDraft], ['openai', buildLlmReplyDraft]];
 
   for (const [source, builder] of attempts) {

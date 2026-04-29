@@ -118,8 +118,8 @@ test('uses mocked local model replies', async () => {
   const draft = await buildLocalReplyDraft({ name: 'Acme Studio', link: 'https://example.com' }, input, { messages: {} }, {
     commandExistsImpl: () => true,
     fileExistsImpl: () => true,
-    runCommandImpl: async (command, args) => {
-      calls.push({ command, args });
+    runCommandImpl: async (command, args, options) => {
+      calls.push({ command, args, options });
       return JSON.stringify({
         headline: 'I can look at the booking page.',
         text: 'Hi Jordan,\\n\\nSend the booking URL and what you want visitors to do next. I will start there.',
@@ -131,6 +131,15 @@ test('uses mocked local model replies', async () => {
   assert.equal(draft.headline, 'I can look at the booking page.');
   assert.match(draft.text, /booking URL/);
   assert.equal(calls.length, 1);
+  assert.ok(calls[0].args.includes('--single-turn'));
+  assert.ok(calls[0].args.includes('--simple-io'));
+  assert.ok(calls[0].args.includes('--no-display-prompt'));
+  assert.ok(calls[0].args.includes('--no-show-timings'));
+  assert.ok(calls[0].args.includes('--no-warmup'));
+  assert.equal(calls[0].args[calls[0].args.indexOf('--temp') + 1], '0.35');
+  assert.equal(calls[0].args[calls[0].args.indexOf('-n') + 1], '160');
+  assert.equal(calls[0].args[calls[0].args.indexOf('--ctx-size') + 1], '2048');
+  assert.equal(calls[0].options.timeoutMs, 120000);
 });
 
 test('falls back to template reply when LLM is unavailable', async () => {
