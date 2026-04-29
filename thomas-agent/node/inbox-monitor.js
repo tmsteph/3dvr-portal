@@ -42,6 +42,10 @@ const DEFAULT_REPLY_SENDER_EMAIL = normalizeEmail(
   || process.env.GMAIL_USER
   || '3dvr.tech@gmail.com'
 );
+const DEFAULT_REPLY_MODE = normalizeText(process.env.THREEDVR_INBOX_REPLY_MODE || 'llm').toLowerCase();
+const DEFAULT_LLM_MODEL = normalizeText(process.env.THREEDVR_INBOX_LLM_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini');
+const DEFAULT_LLM_TEMPERATURE = parseNumber(process.env.THREEDVR_INBOX_LLM_TEMPERATURE, 0.95);
+const DEFAULT_LLM_MAX_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LLM_MAX_TOKENS, 220);
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -55,6 +59,11 @@ function normalizeEmail(value) {
 
 function parseInteger(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseNumber(value, fallback) {
+  const parsed = Number.parseFloat(String(value || ''));
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
@@ -131,7 +140,12 @@ Environment:
   THREEDVR_INBOX_AUTO_REPLY_MIN_GAP_MINUTES     minimum gap between automated replies
   THREEDVR_INBOX_AUTO_REPLY_DELAY_MODE          adaptive | random
   THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME         default Thomas @ 3DVR
-  THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL        default 3dvr.tech@gmail.com`);
+  THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL        default 3dvr.tech@gmail.com
+  THREEDVR_INBOX_REPLY_MODE                     llm | template, default llm
+  OPENAI_API_KEY                                required for LLM replies
+  THREEDVR_INBOX_LLM_MODEL                      default gpt-4o-mini
+  THREEDVR_INBOX_LLM_TEMPERATURE                default 0.95
+  THREEDVR_INBOX_LLM_MAX_TOKENS                 default 220`);
 }
 
 function parseArgs(argv) {
@@ -660,6 +674,136 @@ function buildReplyText(lead, message, state) {
   ].join('\n');
 }
 
+function sanitizeLlmReplyText(value) {
+  const lines = String(value || '')
+    .replace(/\r/g, '')
+    .split('\n')
+    .map((line) => line.trimEnd());
+  const trimmed = lines.join('\n').trim();
+  return trimmed
+    .replace(/\b(api[_ -]?key|token|password|secret)\b\s*[:=]\s*\S+/gi, '[redacted]')
+    .slice(0, 1200);
+}
+
+function parseLlmJson(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced ? fenced[1].trim() : text;
+  try {
+    return JSON.parse(candidate);
+  } catch (_err) {
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start === -1 || end === -1 || end <= start) return null;
+    try {
+      return JSON.parse(candidate.slice(start, end + 1));
+    } catch (_innerErr) {
+      return null;
+    }
+  }
+}
+
+function buildLlmReplyPrompt(lead, message, state) {
+  const repeatCount = countThreadAutoReplies(state, message);
+  const senderFirstName = firstName(message.from, message.fromEmail);
+  const intent = detectReplyIntent(message);
+  const leadName = leadLabel(lead);
+  return {
+    system: [
+      'You write short, natural Gmail replies for Thomas at 3DVR.',
+      'Use the voice of a real founder: direct, practical, warm, not corporate.',
+      'The recipient already replied to outreach, so answer like a human continuing the thread.',
+      'Be more adaptive than a template. Use the sender message and inferred intent.',
+      'Do not mention AI, automation, prompts, systems, or internal tools unless the user is explicitly testing automation.',
+      'Do not invent prices, guarantees, meetings already booked, or capabilities not stated.',
+      'Do not include signatures; the portal adds sender identity separately.',
+      'Return only JSON: {"headline":"...","text":"..."}',
+    ].join('\n'),
+    user: JSON.stringify({
+      business: '3DVR',
+      senderName: senderFirstName,
+      senderEmail: message.fromEmail,
+      leadName,
+      leadContact: lead?.contact || '',
+      leadSite: lead?.link || '',
+      subject: message.subject,
+      preview: message.preview,
+      intent,
+      repeatCount,
+      threadHint: repeatCount > 0 ? 'This thread already received an automated reply. Do not repeat the earlier opener.' : 'First automated reply in this thread.',
+      desiredShape: '2 to 5 short lines. Ask for one concrete next detail or answer the obvious question.',
+    }),
+  };
+}
+
+async function callOpenAIChatCompletion(messages, { fetchImpl = fetch } = {}) {
+  const apiKey = normalizeText(process.env.OPENAI_API_KEY);
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is not set.');
+  }
+  const response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: DEFAULT_LLM_MODEL,
+      temperature: DEFAULT_LLM_TEMPERATURE,
+      max_tokens: DEFAULT_LLM_MAX_TOKENS,
+      response_format: { type: 'json_object' },
+      messages,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `OpenAI reply generation failed: ${response.status}`);
+  }
+  const content = normalizeText(payload?.choices?.[0]?.message?.content);
+  if (!content) {
+    throw new Error('OpenAI reply generation returned no content.');
+  }
+  return content;
+}
+
+async function buildLlmReplyDraft(lead, message, state, options = {}) {
+  const prompt = buildLlmReplyPrompt(lead, message, state);
+  const raw = await callOpenAIChatCompletion([
+    { role: 'system', content: prompt.system },
+    { role: 'user', content: prompt.user },
+  ], options);
+  const parsed = parseLlmJson(raw);
+  if (!parsed) {
+    throw new Error('OpenAI reply generation returned invalid JSON.');
+  }
+  const headline = normalizeText(parsed.headline) || buildReplyHeadline(message, state);
+  const text = sanitizeLlmReplyText(parsed.text);
+  if (!text) {
+    throw new Error('OpenAI reply generation returned an empty reply.');
+  }
+  return { headline, text, source: 'llm' };
+}
+
+async function buildReplyDraft(lead, message, state, options = {}) {
+  if (DEFAULT_REPLY_MODE !== 'template') {
+    try {
+      return await buildLlmReplyDraft(lead, message, state, options);
+    } catch (error) {
+      if (DEFAULT_REPLY_MODE === 'llm-strict') {
+        throw error;
+      }
+      console.warn(`LLM reply fallback: ${error.message || error}`);
+    }
+  }
+
+  return {
+    headline: buildReplyHeadline(message, state),
+    text: buildReplyText(lead, message, state),
+    source: 'template',
+  };
+}
+
 function buildReferences(message) {
   const parts = [];
   if (message.references) {
@@ -726,6 +870,7 @@ async function sendLeadReply(message, lead, state) {
   if (!DEFAULT_PORTAL_EMAIL_TOKEN) {
     return { ok: false, reason: 'portal email token not configured' };
   }
+  const draft = await buildReplyDraft(lead, message, state);
 
   const response = await fetch(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
     method: 'POST',
@@ -737,12 +882,16 @@ async function sendLeadReply(message, lead, state) {
       mode: 'lead-outreach',
       to: [message.replyToEmail || message.fromEmail],
       subject: buildReplySubject(message.subject),
-      headline: buildReplyHeadline(message, state),
-      text: buildReplyText(lead, message, state),
+      headline: draft.headline,
+      text: draft.text,
       senderName: DEFAULT_REPLY_SENDER_NAME,
       senderEmail: DEFAULT_REPLY_SENDER_EMAIL,
       inReplyTo: message.messageId,
       references: buildReferences(message),
+      metadata: {
+        replySource: draft.source,
+        replyMode: DEFAULT_REPLY_MODE,
+      },
     }),
   });
 
@@ -760,6 +909,7 @@ async function sendLeadReply(message, lead, state) {
     status: response.status,
     to: message.replyToEmail || message.fromEmail,
     subject: buildReplySubject(message.subject),
+    replySource: draft.source,
   };
 }
 
@@ -860,14 +1010,17 @@ async function main() {
     if (!canSendAutoReply(state)) {
       console.log('Auto-reply waiting for the minimum gap window.');
     } else if (options.dryRun) {
-      autoReplyCandidates.forEach(({ message, lead, meta }) => {
+      for (const { message, lead, meta } of autoReplyCandidates) {
+        const draft = await buildReplyDraft(lead, message, state);
         console.log('\nDry run auto-reply preview:\n');
         console.log(`Lead: ${lead.name}`);
         console.log(`Due at: ${meta.dueAt}`);
         console.log(`To: ${message.replyToEmail || message.fromEmail}`);
         console.log(`Subject: ${buildReplySubject(message.subject)}`);
-        console.log(buildReplyText(lead, message, state));
-      });
+        console.log(`Reply source: ${draft.source}`);
+        console.log(`Headline: ${draft.headline}`);
+        console.log(draft.text);
+      }
     } else {
       for (const { message, lead, meta } of autoReplyCandidates) {
         if (!canSendAutoReply(state)) break;
@@ -878,7 +1031,7 @@ async function main() {
         }
         meta.autoRepliedAt = new Date().toISOString();
         state.lastAutoReplyAt = meta.autoRepliedAt;
-        console.log(`Auto-replied to ${lead.name || message.from} -> ${result.to}`);
+        console.log(`Auto-replied to ${lead.name || message.from} -> ${result.to} (${result.replySource})`);
       }
     }
   }
@@ -892,6 +1045,8 @@ module.exports = {
   buildReplyHeadline,
   buildReplySubject,
   buildReplyText,
+  buildLlmReplyDraft,
+  buildReplyDraft,
   chooseReplyLines,
   detectReplyIntent,
 };

@@ -247,7 +247,18 @@ export THREEDVR_INBOX_AUTO_REPLY_MAX_DELAY_MINUTES=0
 export THREEDVR_INBOX_AUTO_REPLY_MIN_GAP_MINUTES=0
 ```
 
-This only replies to matched `mailto:` leads already in the pipeline as `contacted`, keeps the `Thomas @ 3DVR` identity explicit, and uses the configured delay window before sending.
+Auto-replies use LLM-written copy by default when `OPENAI_API_KEY` is set. If the model call fails or the key is missing, the inbox monitor falls back to the built-in template copy unless strict mode is enabled.
+
+```sh
+export OPENAI_API_KEY="sk-..."
+export THREEDVR_INBOX_REPLY_MODE="llm"          # default: LLM first, template fallback
+export THREEDVR_INBOX_REPLY_MODE="llm-strict"   # fail instead of falling back
+export THREEDVR_INBOX_REPLY_MODE="template"     # no model calls
+export THREEDVR_INBOX_LLM_MODEL="gpt-4o-mini"
+export THREEDVR_INBOX_LLM_TEMPERATURE=0.95
+```
+
+This only replies to matched `mailto:` leads already in the pipeline as `contacted`, keeps the `Thomas @ 3DVR` identity explicit, and uses the configured delay window before sending. Run `ask-inbox --dry-run` first to preview the exact reply text and whether it came from `llm` or `template`.
 
 If you keep the shared token in a private file, `ask-autopilot` will read it automatically from:
 

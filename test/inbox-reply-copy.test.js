@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  buildLlmReplyDraft,
+  buildReplyDraft,
   buildReplyHeadline,
   buildReplyText,
   detectReplyIntent,
@@ -72,4 +74,50 @@ test('handles no-thanks replies without pushing for a sale', () => {
   assert.equal(detectReplyIntent(input), 'decline');
   assert.equal(buildReplyHeadline(input, { messages: {} }), 'Understood.');
   assert.match(text, /will not keep nudging/i);
+});
+
+test('uses mocked LLM replies when OpenAI is configured', async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = 'test_key';
+  const input = message({ preview: 'Sure, can you look at my booking page?' });
+  const calls = [];
+  const draft = await buildLlmReplyDraft({ name: 'Acme Studio', link: 'https://example.com' }, input, { messages: {} }, {
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        async json() {
+          return {
+            choices: [{
+              message: {
+                content: JSON.stringify({
+                  headline: 'I can look at the booking page.',
+                  text: 'Hi Jordan,\\n\\nSend the booking URL and the one action you want visitors to take. I will start there.',
+                }),
+              },
+            }],
+          };
+        },
+      };
+    },
+  });
+  process.env.OPENAI_API_KEY = previousKey || '';
+
+  assert.equal(draft.source, 'llm');
+  assert.equal(draft.headline, 'I can look at the booking page.');
+  assert.match(draft.text, /booking URL/);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /chat\/completions/);
+  assert.equal(JSON.parse(calls[0].options.body).response_format.type, 'json_object');
+});
+
+test('falls back to template reply when LLM is unavailable', async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  const input = message({ preview: 'How much does this cost?' });
+  const draft = await buildReplyDraft({ name: 'Acme Studio' }, input, { messages: {} });
+  process.env.OPENAI_API_KEY = previousKey || '';
+
+  assert.equal(draft.source, 'template');
+  assert.match(draft.text, /depends on how much/i);
 });
