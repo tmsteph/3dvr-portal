@@ -247,18 +247,21 @@ export THREEDVR_INBOX_AUTO_REPLY_MAX_DELAY_MINUTES=0
 export THREEDVR_INBOX_AUTO_REPLY_MIN_GAP_MINUTES=0
 ```
 
-Auto-replies use LLM-written copy by default when `OPENAI_API_KEY` is set. If the model call fails or the key is missing, the inbox monitor falls back to the built-in template copy unless strict mode is enabled.
+Auto-replies use LLM-written copy by default. The inbox monitor tries the local Qwen model first, then OpenAI if configured, then the built-in template copy unless strict mode is enabled.
 
 ```sh
-export OPENAI_API_KEY="sk-..."
-export THREEDVR_INBOX_REPLY_MODE="llm"          # default: LLM first, template fallback
-export THREEDVR_INBOX_REPLY_MODE="llm-strict"   # fail instead of falling back
-export THREEDVR_INBOX_REPLY_MODE="template"     # no model calls
+export THREEDVR_INBOX_REPLY_MODE="local"          # default: local Qwen, then OpenAI, then template
+export THREEDVR_INBOX_REPLY_MODE="local-strict"   # local Qwen only
+export THREEDVR_INBOX_REPLY_MODE="openai"         # OpenAI, then template
+export THREEDVR_INBOX_REPLY_MODE="template"       # no model calls
+export THREEDVR_INBOX_LLAMA_CLI="$HOME/llama.cpp/build/bin/llama-cli"
+export THREEDVR_INBOX_LOCAL_MODEL="$HOME/.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-1.5B-Instruct-GGUF/snapshots/f86cb2c1fa58255f8052cc32aeede1b7482d4361/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+export OPENAI_API_KEY="sk-..."                    # optional fallback
 export THREEDVR_INBOX_LLM_MODEL="gpt-4o-mini"
 export THREEDVR_INBOX_LLM_TEMPERATURE=0.95
 ```
 
-This only replies to matched `mailto:` leads already in the pipeline as `contacted`, keeps the `Thomas @ 3DVR` identity explicit, and uses the configured delay window before sending. Run `ask-inbox --dry-run` first to preview the exact reply text and whether it came from `llm` or `template`.
+This only replies to matched `mailto:` leads already in the pipeline as `contacted`, keeps the `Thomas @ 3DVR` identity explicit, and uses the configured delay window before sending. Run `ask-inbox --dry-run` first to preview the exact reply text and whether it came from `local`, `openai`, or `template`.
 
 If you keep the shared token in a private file, `ask-autopilot` will read it automatically from:
 

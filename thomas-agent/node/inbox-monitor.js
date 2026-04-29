@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawn } = require('child_process');
 const { ImapFlow } = require('imapflow');
 const { getOAuthAccessToken } = require('./oauth-connection');
 
@@ -42,10 +43,21 @@ const DEFAULT_REPLY_SENDER_EMAIL = normalizeEmail(
   || process.env.GMAIL_USER
   || '3dvr.tech@gmail.com'
 );
-const DEFAULT_REPLY_MODE = normalizeText(process.env.THREEDVR_INBOX_REPLY_MODE || 'llm').toLowerCase();
+const DEFAULT_REPLY_MODE = normalizeText(process.env.THREEDVR_INBOX_REPLY_MODE || 'local').toLowerCase();
+const DEFAULT_LOCAL_MODEL = normalizeText(
+  process.env.THREEDVR_INBOX_LOCAL_MODEL
+  || path.join(os.homedir(), '.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-1.5B-Instruct-GGUF/snapshots/f86cb2c1fa58255f8052cc32aeede1b7482d4361/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf')
+);
+const DEFAULT_LLAMA_CLI = normalizeText(
+  process.env.THREEDVR_INBOX_LLAMA_CLI
+  || process.env.LLAMA_CLI
+  || path.join(os.homedir(), 'llama.cpp/build/bin/llama-cli')
+);
 const DEFAULT_LLM_MODEL = normalizeText(process.env.THREEDVR_INBOX_LLM_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini');
 const DEFAULT_LLM_TEMPERATURE = parseNumber(process.env.THREEDVR_INBOX_LLM_TEMPERATURE, 0.95);
 const DEFAULT_LLM_MAX_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LLM_MAX_TOKENS, 220);
+const DEFAULT_LOCAL_LLM_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LOCAL_TOKENS, 260);
+const DEFAULT_LOCAL_LLM_CONTEXT = parseInteger(process.env.THREEDVR_INBOX_LOCAL_CONTEXT, 4096);
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -141,8 +153,10 @@ Environment:
   THREEDVR_INBOX_AUTO_REPLY_DELAY_MODE          adaptive | random
   THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME         default Thomas @ 3DVR
   THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL        default 3dvr.tech@gmail.com
-  THREEDVR_INBOX_REPLY_MODE                     llm | template, default llm
-  OPENAI_API_KEY                                required for LLM replies
+  THREEDVR_INBOX_REPLY_MODE                     local | openai | llm | template, default local
+  THREEDVR_INBOX_LLAMA_CLI                      local llama-cli path
+  THREEDVR_INBOX_LOCAL_MODEL                    local GGUF model path
+  OPENAI_API_KEY                                used for OpenAI fallback
   THREEDVR_INBOX_LLM_MODEL                      default gpt-4o-mini
   THREEDVR_INBOX_LLM_TEMPERATURE                default 0.95
   THREEDVR_INBOX_LLM_MAX_TOKENS                 default 220`);
@@ -704,7 +718,7 @@ function parseLlmJson(raw) {
   }
 }
 
-function buildLlmReplyPrompt(lead, message, state) {
+function buildReplyPrompt(lead, message, state) {
   const repeatCount = countThreadAutoReplies(state, message);
   const senderFirstName = firstName(message.from, message.fromEmail);
   const intent = detectReplyIntent(message);
@@ -735,6 +749,99 @@ function buildLlmReplyPrompt(lead, message, state) {
       desiredShape: '2 to 5 short lines. Ask for one concrete next detail or answer the obvious question.',
     }),
   };
+}
+
+function buildLocalPrompt(lead, message, state) {
+  const prompt = buildReplyPrompt(lead, message, state);
+  return [
+    prompt.system,
+    '',
+    'Context JSON:',
+    prompt.user,
+    '',
+    'Write the JSON now. Do not include markdown. Do not include commentary.',
+  ].join('\n');
+}
+
+function commandExists(filePath) {
+  try {
+    return Boolean(filePath && fs.existsSync(filePath) && fs.statSync(filePath).mode & 0o111);
+  } catch {
+    return false;
+  }
+}
+
+function runCommand(command, args, { input = '', timeoutMs = 45000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM');
+      reject(new Error(`Local model timed out after ${Math.round(timeoutMs / 1000)}s.`));
+    }, timeoutMs);
+
+    child.stdout.on('data', chunk => {
+      stdout += chunk.toString('utf8');
+    });
+    child.stderr.on('data', chunk => {
+      stderr += chunk.toString('utf8');
+    });
+    child.on('error', error => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on('close', code => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        reject(new Error(stderr.trim() || `Local model exited with code ${code}.`));
+        return;
+      }
+      resolve(stdout);
+    });
+
+    if (input) {
+      child.stdin.write(input);
+    }
+    child.stdin.end();
+  });
+}
+
+async function callLocalLlama(prompt, {
+  runCommandImpl = runCommand,
+  commandExistsImpl = commandExists,
+  fileExistsImpl = fs.existsSync,
+} = {}) {
+  if (!commandExistsImpl(DEFAULT_LLAMA_CLI)) {
+    throw new Error(`llama-cli not found at ${DEFAULT_LLAMA_CLI}`);
+  }
+  if (!DEFAULT_LOCAL_MODEL || !fileExistsImpl(DEFAULT_LOCAL_MODEL)) {
+    throw new Error(`local model not found at ${DEFAULT_LOCAL_MODEL}`);
+  }
+
+  return runCommandImpl(DEFAULT_LLAMA_CLI, [
+    '-m', DEFAULT_LOCAL_MODEL,
+    '-p', prompt,
+    '-n', String(DEFAULT_LOCAL_LLM_TOKENS),
+    '--ctx-size', String(DEFAULT_LOCAL_LLM_CONTEXT),
+    '--temp', String(DEFAULT_LLM_TEMPERATURE),
+  ]);
+}
+
+async function buildLocalReplyDraft(lead, message, state, options = {}) {
+  const raw = await callLocalLlama(buildLocalPrompt(lead, message, state), options);
+  const parsed = parseLlmJson(raw);
+  if (!parsed) {
+    throw new Error('Local model returned invalid JSON.');
+  }
+  const headline = normalizeText(parsed.headline) || buildReplyHeadline(message, state);
+  const text = sanitizeLlmReplyText(parsed.text);
+  if (!text) {
+    throw new Error('Local model returned an empty reply.');
+  }
+  return { headline, text, source: 'local' };
 }
 
 async function callOpenAIChatCompletion(messages, { fetchImpl = fetch } = {}) {
@@ -768,7 +875,7 @@ async function callOpenAIChatCompletion(messages, { fetchImpl = fetch } = {}) {
 }
 
 async function buildLlmReplyDraft(lead, message, state, options = {}) {
-  const prompt = buildLlmReplyPrompt(lead, message, state);
+  const prompt = buildReplyPrompt(lead, message, state);
   const raw = await callOpenAIChatCompletion([
     { role: 'system', content: prompt.system },
     { role: 'user', content: prompt.user },
@@ -782,18 +889,28 @@ async function buildLlmReplyDraft(lead, message, state, options = {}) {
   if (!text) {
     throw new Error('OpenAI reply generation returned an empty reply.');
   }
-  return { headline, text, source: 'llm' };
+  return { headline, text, source: 'openai' };
 }
 
 async function buildReplyDraft(lead, message, state, options = {}) {
-  if (DEFAULT_REPLY_MODE !== 'template') {
+  const allowTemplateFallback = !DEFAULT_REPLY_MODE.endsWith('-strict');
+  const normalizedMode = DEFAULT_REPLY_MODE.replace(/-strict$/, '');
+  const attempts = normalizedMode === 'template'
+    ? []
+    : normalizedMode === 'openai' || normalizedMode === 'llm'
+      ? [['openai', buildLlmReplyDraft]]
+      : normalizedMode === 'local'
+        ? [['local', buildLocalReplyDraft], ['openai', buildLlmReplyDraft]]
+        : [['local', buildLocalReplyDraft], ['openai', buildLlmReplyDraft]];
+
+  for (const [source, builder] of attempts) {
     try {
-      return await buildLlmReplyDraft(lead, message, state, options);
+      return await builder(lead, message, state, options);
     } catch (error) {
-      if (DEFAULT_REPLY_MODE === 'llm-strict') {
+      if (!allowTemplateFallback && source === attempts[attempts.length - 1]?.[0]) {
         throw error;
       }
-      console.warn(`LLM reply fallback: ${error.message || error}`);
+      console.warn(`${source} reply fallback: ${error.message || error}`);
     }
   }
 
@@ -1045,6 +1162,7 @@ module.exports = {
   buildReplyHeadline,
   buildReplySubject,
   buildReplyText,
+  buildLocalReplyDraft,
   buildLlmReplyDraft,
   buildReplyDraft,
   chooseReplyLines,

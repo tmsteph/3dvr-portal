@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  buildLocalReplyDraft,
   buildLlmReplyDraft,
   buildReplyDraft,
   buildReplyHeadline,
@@ -103,12 +104,33 @@ test('uses mocked LLM replies when OpenAI is configured', async () => {
   });
   process.env.OPENAI_API_KEY = previousKey || '';
 
-  assert.equal(draft.source, 'llm');
+  assert.equal(draft.source, 'openai');
   assert.equal(draft.headline, 'I can look at the booking page.');
   assert.match(draft.text, /booking URL/);
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /chat\/completions/);
   assert.equal(JSON.parse(calls[0].options.body).response_format.type, 'json_object');
+});
+
+test('uses mocked local model replies', async () => {
+  const input = message({ preview: 'Sure, can you look at my booking page?' });
+  const calls = [];
+  const draft = await buildLocalReplyDraft({ name: 'Acme Studio', link: 'https://example.com' }, input, { messages: {} }, {
+    commandExistsImpl: () => true,
+    fileExistsImpl: () => true,
+    runCommandImpl: async (command, args) => {
+      calls.push({ command, args });
+      return JSON.stringify({
+        headline: 'I can look at the booking page.',
+        text: 'Hi Jordan,\\n\\nSend the booking URL and what you want visitors to do next. I will start there.',
+      });
+    },
+  });
+
+  assert.equal(draft.source, 'local');
+  assert.equal(draft.headline, 'I can look at the booking page.');
+  assert.match(draft.text, /booking URL/);
+  assert.equal(calls.length, 1);
 });
 
 test('falls back to template reply when LLM is unavailable', async () => {
