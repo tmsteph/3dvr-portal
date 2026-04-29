@@ -243,10 +243,10 @@ async function cli(argv) {
     console.log(`Imported ${saved.provider} email connection${saved.email ? ` for ${saved.email}` : ''}.`);
     console.log('');
     console.log('Next step:');
-    console.log(`  THREEDVR_GMAIL_AUTH=oauth 3dvr inbox check`);
+    console.log('  3dvr email status');
+    console.log('  3dvr inbox check');
     console.log('');
-    console.log('Or make OAuth the default for this shell:');
-    console.log('  export THREEDVR_GMAIL_AUTH=oauth');
+    console.log('OAuth is used automatically when no Gmail app password is configured.');
     return;
   }
 

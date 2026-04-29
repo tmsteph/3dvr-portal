@@ -6,6 +6,13 @@
   "bin": {
     "3dvr": "thomas-agent/scripts/3dvr"
   },
+  "files": [
+    "README.md",
+    "thomas-agent"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "test": "node --check thomas-agent/node/send-outreach-email.js && node --check thomas-agent/node/autopilot.js && node --check thomas-agent/node/inbox-monitor.js && node --check thomas-agent/node/oauth-connection.js && bash -n thomas-agent/scripts/3dvr && node --test test/*.test.js"
   },
@@ -13,7 +20,14 @@
     "type": "git",
     "url": "git+https://github.com/tmsteph/3dvr-agent.git"
   },
-  "keywords": [],
+  "keywords": [
+    "3dvr",
+    "cli",
+    "oauth",
+    "gmail",
+    "outreach",
+    "local-first"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {

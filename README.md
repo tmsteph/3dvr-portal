@@ -6,30 +6,104 @@ A local command-line system for:
 
 ## Sales Engine
 
+### Install
+
+From npm package:
+
+```sh
+npm install -g 3dvr-agent
+3dvr setup
+```
+
+From a local checkout:
+
+```sh
 cd /data/data/com.termux/files/home/3dvr-agent
+npm install
+npm link
+3dvr setup
+```
+
+Verify the install:
+
+```sh
+3dvr doctor
+```
+
+If you are not using `npm link`, add the scripts directory to your shell:
+
+```sh
 export PATH="$(pwd)/thomas-agent/scripts:$PATH"
+```
 
 ### 3dvr CLI
 
 ```sh
 3dvr
+3dvr setup
+3dvr connect
 3dvr next
 3dvr contacted
 3dvr inbox check
-3dvr auth status
+3dvr email status
 3dvr status
 3dvr portal
 ```
 
 Run `3dvr` with no arguments for the guided cockpit menu.
 
+### OAuth-first email setup
+
+3dvr should use portal OAuth for Gmail and future Outlook support. Do not set Gmail app passwords for normal use.
+
+```sh
+3dvr connect
+```
+
+Approve Gmail in the portal. The portal will show a connection JSON payload for the CLI.
+
+Import it:
+
+```sh
+3dvr auth import
+```
+
+Paste the JSON and press `Ctrl-D`, then verify:
+
+```sh
+3dvr email status
+3dvr inbox check
+```
+
+Outlook keeps the same command shape for the future provider path:
+
+```sh
+3dvr auth login microsoft
+```
+
+The portal owns Google/Microsoft client secrets. The CLI stores the approved provider connection in
+`~/.3dvr/oauth.json` and asks the portal to refresh short-lived access tokens. Tokens are not printed by status
+commands.
+
 ### Workflow
 
-ask-crawl --location "La Mesa, CA" --category professional --limit 10 --radius-km 8
-ask-enrich
-ask-track new
-ask-next
-ask-send --enrich --mark "Lead Name"
+```sh
+3dvr lead find
+3dvr lead enrich
+3dvr next
+3dvr outreach message
+3dvr contacted
+3dvr inbox check
+```
+
+The older `lead` commands still work. For new users, prefer the clearer outreach aliases:
+
+```sh
+3dvr outreach find
+3dvr outreach next
+3dvr outreach message
+3dvr outreach sent
+```
 
 ### Main sales page
 
@@ -113,7 +187,15 @@ Send directly instead of opening a draft:
 ask-send --auto --mark "Dark Horse Coffee Roasters"
 ```
 
-This only works for direct email leads and requires:
+This only works for direct email leads. Use Gmail OAuth for local sending:
+
+```sh
+3dvr connect
+3dvr auth import
+export THREEDVR_OUTREACH_EMAIL_TRANSPORT="gmail"
+```
+
+Portal relay is still supported for private/operator deployments where the portal owns sending:
 
 ```sh
 export THREEDVR_OUTREACH_EMAIL_TRANSPORT="portal"
@@ -121,23 +203,13 @@ export THREEDVR_OUTREACH_EMAIL_ENDPOINT="https://portal.3dvr.tech/api/calendar/r
 export THREEDVR_OUTREACH_EMAIL_TOKEN="shared_operator_token"
 ```
 
-Optional Gmail fallback:
+Legacy Gmail app-password fallback is available only when explicitly configured:
 
 ```sh
-export THREEDVR_OUTREACH_EMAIL_TRANSPORT="auto"
+export THREEDVR_OUTREACH_EMAIL_TRANSPORT="gmail"
 export GMAIL_USER="3dvr.tech@gmail.com"
 export GMAIL_APP_PASSWORD="your_app_password"
 ```
-
-Optional Gmail OAuth instead of an app password:
-
-```sh
-3dvr auth login google
-3dvr auth import
-export THREEDVR_GMAIL_AUTH="oauth"
-```
-
-The portal owns the Google/Microsoft client secrets. The CLI stores the approved provider connection in `~/.3dvr/oauth.json` and asks the portal to refresh short-lived access tokens. This supports Gmail now and keeps the same command shape ready for future Outlook integration.
 
 ### Autonomous Operator
 
@@ -190,12 +262,13 @@ export THREEDVR_AUTOPILOT_AUTO_SEND="true"
 export THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT=1
 ```
 
-Portal relay is preferred. Local Gmail stays available as an optional fallback:
+For local installs, use OAuth Gmail instead of app passwords:
 
 ```sh
-export THREEDVR_AUTOPILOT_EMAIL_TRANSPORT="auto"
-export GMAIL_USER="3dvr.tech@gmail.com"
-export GMAIL_APP_PASSWORD="your_app_password"
+3dvr connect
+3dvr auth import
+export THREEDVR_AUTOPILOT_EMAIL_TRANSPORT="gmail"
+export THREEDVR_GMAIL_AUTH="oauth"
 ```
 
 ### Inbox Monitoring
@@ -221,20 +294,20 @@ ask-inbox-daemon status
 ask-inbox-daemon logs
 ```
 
-The inbox watcher uses Gmail IMAP and the same portal relay token used by autopilot:
+The inbox watcher uses Gmail IMAP. Connect Gmail with portal OAuth first:
+
+```sh
+3dvr connect
+3dvr auth import
+3dvr email status
+3dvr inbox check
+```
+
+Legacy app-password IMAP is still available if explicitly configured:
 
 ```sh
 export GMAIL_USER="3dvr.tech@gmail.com"
 export GMAIL_APP_PASSWORD="your_app_password"
-export THREEDVR_AUTOPILOT_EMAIL_ENDPOINT="https://portal.3dvr.tech/api/calendar/reminder-email"
-export THREEDVR_AUTOPILOT_EMAIL_TOKEN="shared_operator_token"
-```
-
-Or use the saved Gmail OAuth connection:
-
-```sh
-3dvr auth status google
-export THREEDVR_GMAIL_AUTH="oauth"
 ```
 
 Optional paced auto-replies for leads already marked `contacted`:

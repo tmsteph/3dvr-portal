@@ -136,8 +136,9 @@ function usage() {
   ask-inbox [--dry-run] [--limit 10]
 
 Environment:
-  GMAIL_USER / GMAIL_APP_PASSWORD               required for Gmail IMAP access
+  3dvr connect                                  recommended Gmail OAuth setup
   THREEDVR_GMAIL_AUTH                           oauth to force saved Google OAuth
+  GMAIL_USER / GMAIL_APP_PASSWORD               legacy fallback for Gmail IMAP access
   THREEDVR_INBOX_IMAP_HOST                      default imap.gmail.com
   THREEDVR_INBOX_IMAP_PORT                      default 993
   THREEDVR_INBOX_IMAP_TLS                       default true

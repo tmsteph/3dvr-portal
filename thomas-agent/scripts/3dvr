@@ -29,6 +29,9 @@ Use this cockpit to find leads, send outreach, watch replies, and keep the backg
 3dvr status              agent + inbox + leads status
 3dvr portal              open portal
 3dvr doctor              check local setup
+3dvr setup               first-run setup checklist
+3dvr install             install/update instructions
+3dvr connect [gmail]     connect email with portal OAuth
 
 Leads:
 3dvr lead find           crawl/find new leads
@@ -40,6 +43,12 @@ Leads:
 3dvr lead followup       show follow-ups due
 3dvr lead list           list leads
 
+Outreach aliases:
+3dvr outreach find       same as 3dvr lead find
+3dvr outreach next       same as 3dvr next
+3dvr outreach message    same as 3dvr lead message
+3dvr outreach sent       same as 3dvr contacted
+
 Inbox:
 3dvr inbox check         check unread/replies
 3dvr inbox watch         run inbox monitor once
@@ -47,10 +56,17 @@ Inbox:
 3dvr inbox send-test     send inbox test email
 
 Auth:
+OAuth-first email setup. Do not set Gmail app passwords for normal use.
 3dvr auth login [google|microsoft]
 3dvr auth import [file]
 3dvr auth status [google|microsoft]
 3dvr auth logout [google|microsoft]
+
+Email aliases:
+3dvr email connect       same as 3dvr auth login google
+3dvr email status        same as 3dvr auth status google
+3dvr email check         same as 3dvr inbox check
+3dvr email test          same as 3dvr inbox send-test
 
 Agent:
 3dvr agent status|start|stop|logs|restart
@@ -109,9 +125,59 @@ print_next_steps() {
 Useful next commands:
   3dvr next          show the next best lead action
   3dvr inbox check   check unread replies
-  3dvr auth status   check email connection
+  3dvr connect       connect Gmail with portal OAuth
   3dvr agent start   start background workers
 STEPS
+}
+
+install_instructions() {
+  cat <<'INSTALL'
+Install 3dvr CLI
+----------------------------------------
+From npm package:
+  npm install -g 3dvr-agent
+
+From this checkout:
+  npm install
+  npm link
+
+Verify:
+  3dvr doctor
+  3dvr setup
+
+Email auth is OAuth-first. Do not set Gmail app passwords for normal use.
+Connect Gmail through the portal:
+  3dvr connect
+  3dvr auth import
+  3dvr email status
+INSTALL
+}
+
+setup_checklist() {
+  print_section "3dvr setup"
+  printf 'Agent root: %s\n' "$ROOT"
+  printf 'Portal: %s\n' "$PORTAL_URL"
+  printf 'CLI on PATH: %s\n' "$(command -v 3dvr 2>/dev/null || printf 'not found')"
+  printf 'Node: %s\n' "$(node --version 2>/dev/null || printf 'missing')"
+  printf 'npm: %s\n' "$(npm --version 2>/dev/null || printf 'missing')"
+
+  print_section "Email connection"
+  node "$ROOT/node/oauth-connection.js" status google || true
+
+  cat <<'SETUP'
+
+Recommended first run:
+  1. 3dvr connect
+  2. Approve Gmail in the portal
+  3. 3dvr auth import
+  4. 3dvr inbox check
+  5. 3dvr agent start
+
+Notes:
+  - Gmail uses portal OAuth, not app passwords.
+  - Outlook will use the same `3dvr auth login microsoft` shape when mail support is enabled.
+  - Local tokens stay in ~/.3dvr/oauth.json and are not printed by status commands.
+SETUP
 }
 
 current_lead_name() {
@@ -140,7 +206,7 @@ send_inbox_test() {
 auth_login() {
   provider="${1:-google}"
   case "$provider" in
-    gmail) provider="google" ;;
+    email|mail|gmail) provider="google" ;;
     outlook|office365|m365) provider="microsoft" ;;
   esac
   case "$provider" in
@@ -150,6 +216,8 @@ auth_login() {
 
   url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=mail&returnTo=/profile.html#profile-oauth"
   echo "Opening $provider OAuth in the portal."
+  echo
+  echo "OAuth is the normal email setup. No Gmail app password is needed."
   echo
   echo "After approving access:"
   echo "1. Copy the JSON shown by the portal."
@@ -176,6 +244,9 @@ shift || true
 case "$cmd" in
   "") menu ;;
   help|-h|--help) usage ;;
+  install) install_instructions ;;
+  setup|onboard) setup_checklist ;;
+  connect) auth_login "${1:-google}" ;;
   next) exec "$SCRIPT_DIR/ask-next" ;;
   contacted)
     name="$(current_lead_name || true)"
@@ -211,7 +282,7 @@ case "$cmd" in
   start) exec "$0" agent start ;;
   stop) exec "$0" agent stop ;;
   logs) exec "$0" agent logs ;;
-  lead)
+  lead|leads|outreach)
     sub="${1:-next}"
     shift || true
     case "$sub" in
@@ -219,8 +290,9 @@ case "$cmd" in
       enrich) exec "$SCRIPT_DIR/ask-enrich" "$@" ;;
       next) exec "$SCRIPT_DIR/ask-next" "$@" ;;
       open) exec "$SCRIPT_DIR/ask-send" "$@" ;;
+      send) exec "$SCRIPT_DIR/ask-send" "$@" ;;
       message) exec "$SCRIPT_DIR/ask-message" "$@" ;;
-      contacted) exec "$0" contacted ;;
+      contacted|sent) exec "$0" contacted ;;
       followup) exec "$SCRIPT_DIR/ask-track" followup ;;
       list) exec "$SCRIPT_DIR/ask-track" new ;;
       *) usage; exit 1 ;;
@@ -247,6 +319,21 @@ INBOX
       watch) exec "$SCRIPT_DIR/ask-inbox-daemon" run-now "$@" ;;
       reply) exec "$SCRIPT_DIR/ask-reply" "$@" ;;
       send-test) send_inbox_test ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  email|mail)
+    sub="${1:-status}"
+    shift || true
+    case "$sub" in
+      connect|login) auth_login "${1:-google}" ;;
+      import) exec node "$ROOT/node/oauth-connection.js" import "$@" ;;
+      status) exec node "$ROOT/node/oauth-connection.js" status "${1:-google}" ;;
+      refresh) exec node "$ROOT/node/oauth-connection.js" refresh "${1:-google}" ;;
+      logout|remove) exec node "$ROOT/node/oauth-connection.js" logout "${1:-google}" ;;
+      check) exec "$SCRIPT_DIR/ask-inbox" "$@" ;;
+      watch) exec "$SCRIPT_DIR/ask-inbox-daemon" run-now "$@" ;;
+      test|send-test) send_inbox_test ;;
       *) usage; exit 1 ;;
     esac
     ;;
@@ -293,7 +380,7 @@ INBOX
     case "$sub" in
       all) print_section "3dvr settings"; env | grep -E '^(THREEDVR_|GMAIL_USER=)' | sort || true; print_next_steps ;;
       portal) echo "Portal URL: ${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}" ;;
-      email) print_section "Email settings"; echo "GMAIL_USER=${GMAIL_USER:-unset}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+set}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-auto}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
+      email) print_section "Email settings"; echo "GMAIL_USER=${GMAIL_USER:-set by OAuth connection if unset}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+legacy fallback set}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-oauth-first}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
       relay) print_section "Portal relay"; echo "THREEDVR_AUTOPILOT_EMAIL_ENDPOINT=${THREEDVR_AUTOPILOT_EMAIL_ENDPOINT:-unset}"; echo "THREEDVR_AUTOPILOT_EMAIL_TOKEN=${THREEDVR_AUTOPILOT_EMAIL_TOKEN:+set}" ;;
       *) usage; exit 1 ;;
     esac
