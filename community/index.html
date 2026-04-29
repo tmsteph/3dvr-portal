@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3DVR Community System</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <link rel="stylesheet" href="../styles/global.css" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script defer src="./app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="community-page theme-dark">
+  <a class="skip-link" href="#communityMain">Skip to community workspace</a>
+  <div class="community-shell">
+    <header class="community-hero" aria-labelledby="communityTitle">
+      <nav class="community-nav" aria-label="Community navigation">
+        <a href="../index.html">Portal</a>
+        <a href="../cell/index.html">Cell</a>
+        <a href="../contacts/index.html">Contacts</a>
+        <a href="../projects/index.html">Projects</a>
+      </nav>
+      <div class="hero-grid">
+        <section class="hero-panel">
+          <p class="eyebrow">3DVR Community System v0.1</p>
+          <h1 id="communityTitle">A support layer for builders.</h1>
+          <p class="hero-copy">
+            Not social media. A calm builder network where people can clarify their vision, find a small circle,
+            run weekly check-ins, and keep momentum without getting pulled back into conformity.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#circleForm">Create a circle</a>
+            <a class="button secondary" href="#checkinForm">Do weekly check-in</a>
+          </div>
+        </section>
+        <aside class="system-card" aria-labelledby="systemLayersTitle">
+          <h2 id="systemLayersTitle">Three layers</h2>
+          <ol>
+            <li><strong>Personal Space</strong><span>Goals, notes, and projects stay grounded.</span></li>
+            <li><strong>Small Circles</strong><span>3-6 people, honest check-ins, direct help.</span></li>
+            <li><strong>Public Builder Layer</strong><span>Progress, collaboration, and open invitations.</span></li>
+          </ol>
+        </aside>
+      </div>
+    </header>
+
+    <main id="communityMain" class="community-main">
+      <section class="card profile-card" aria-labelledby="profileTitle">
+        <div>
+          <p class="eyebrow">Personal space</p>
+          <h2 id="profileTitle">Builder profile</h2>
+          <p>
+            Save the simple version of who you are, what you are building, and how people can help.
+          </p>
+        </div>
+        <form id="profileForm" class="stacked-form">
+          <label>
+            Name
+            <input id="profileName" name="name" autocomplete="name" placeholder="Thomas" />
+          </label>
+          <label>
+            Current goal
+            <textarea id="profileGoal" name="goal" rows="3" placeholder="What are you trying to build or become?"></textarea>
+          </label>
+          <label>
+            Role
+            <select id="profileRole" name="role">
+              <option>Builder</option>
+              <option>Guide</option>
+              <option>Connector</option>
+            </select>
+          </label>
+          <button class="button primary" type="submit">Save profile</button>
+        </form>
+      </section>
+
+      <section class="grid-two">
+        <article class="card" aria-labelledby="circleTitle">
+          <p class="eyebrow">Small circles</p>
+          <h2 id="circleTitle">Create or join a circle</h2>
+          <p>
+            Keep circles intentionally small. The goal is honest support, not another noisy group chat.
+          </p>
+          <form id="circleForm" class="stacked-form">
+            <label>
+              Circle name
+              <input id="circleName" name="circleName" required placeholder="Saturday Builders" />
+            </label>
+            <label>
+              Focus
+              <input id="circleFocus" name="circleFocus" placeholder="Websites, health, outreach, creative work..." />
+            </label>
+            <button class="button primary" type="submit">Create circle</button>
+          </form>
+          <div class="mini-list" id="circleList" aria-live="polite"></div>
+        </article>
+
+        <article class="card" aria-labelledby="checkinTitle">
+          <p class="eyebrow">Weekly flow</p>
+          <h2 id="checkinTitle">Weekly check-in</h2>
+          <p>Answer the three questions. Keep it specific enough that someone can actually help.</p>
+          <form id="checkinForm" class="stacked-form">
+            <label>
+              What did I build this week?
+              <textarea id="checkinBuild" required rows="3"></textarea>
+            </label>
+            <label>
+              Where did I get stuck?
+              <textarea id="checkinStuck" rows="3"></textarea>
+            </label>
+            <label>
+              What do I need?
+              <textarea id="checkinNeed" rows="3"></textarea>
+            </label>
+            <button class="button primary" type="submit">Submit check-in</button>
+          </form>
+        </article>
+      </section>
+
+      <section class="grid-two">
+        <article class="card" aria-labelledby="threadTitle">
+          <p class="eyebrow">Focused threads</p>
+          <h2 id="threadTitle">Post a builder thread</h2>
+          <p>
+            Threads are for one focused topic: a blocker, offer, project update, or collaboration request.
+          </p>
+          <form id="threadForm" class="stacked-form">
+            <label>
+              Topic
+              <input id="threadTopic" required placeholder="Need feedback on my homepage offer" />
+            </label>
+            <label>
+              Message
+              <textarea id="threadMessage" required rows="4"></textarea>
+            </label>
+            <button class="button primary" type="submit">Post thread</button>
+          </form>
+        </article>
+
+        <aside class="card blueprint-card" aria-labelledby="blueprintTitle">
+          <p class="eyebrow">Operating rule</p>
+          <h2 id="blueprintTitle">What makes this different</h2>
+          <ul>
+            <li>People are supported in building their vision, not dragged back to default settings.</li>
+            <li>Small circles replace random unsupportive environments.</li>
+            <li>Public sharing is progress-first, not dopamine-first.</li>
+            <li>Every check-in should produce one next move, one ask, or one useful connection.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section class="card feed-card" aria-labelledby="feedTitle">
+        <div class="feed-header">
+          <div>
+            <p class="eyebrow">Live builder layer</p>
+            <h2 id="feedTitle">Community feed</h2>
+          </div>
+          <p id="syncStatus" role="status" aria-live="polite">Connecting to Gun...</p>
+        </div>
+        <div id="communityFeed" class="feed-list" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
