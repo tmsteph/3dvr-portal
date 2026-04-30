@@ -16,6 +16,8 @@ source "$SCRIPT_DIR/lib/platform.sh"
 
 LEADS_FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
 PORTAL_URL="${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}"
+STATE_DIR="${THREEDVR_STATE_DIR:-$HOME/.3dvr}"
+SESSION_FILE="${THREEDVR_SESSION_FILE:-$STATE_DIR/session.env}"
 
 usage() {
   cat <<'USAGE'
@@ -80,6 +82,7 @@ Settings:
 Daily flow:
 3dvr next
 3dvr contacted
+3dvr sent-next
 3dvr inbox check
 3dvr status
 USAGE
@@ -98,8 +101,10 @@ What needs attention?
 5) Connect email              Gmail now, Outlook later
 6) Open portal                Continue in the browser
 7) Settings                   Show local config
+8) Mark sent + next           Mark the last shown lead, then load the next one
 
-Type a number, a command like "next" or "inbox check", or "q" to quit.
+Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`.
+If you already drafted the last lead on mobile, press 8.
 MENU
 }
 
@@ -113,6 +118,7 @@ run_menu_choice() {
     5) "$0" connect ;;
     6) "$0" portal ;;
     7) "$0" settings ;;
+    8) "$0" sent-next ;;
     q|quit|exit) return 2 ;;
     help|-h|--help) usage ;;
     3dvr\ *) run_menu_choice "${choice#3dvr }" ;;
@@ -234,6 +240,51 @@ current_lead_name() {
   ' "$LEADS_FILE" | sort -t'|' -k1,1r -k2,2nr -k3,3nr | head -n1 | cut -d'|' -f4-
 }
 
+ensure_state_dir() {
+  mkdir -p "$STATE_DIR"
+}
+
+save_last_lead() {
+  name="$1"
+  [ -n "$name" ] || return 0
+  ensure_state_dir
+  printf 'LAST_LEAD_NAME=%q\n' "$name" > "$SESSION_FILE"
+}
+
+load_last_lead() {
+  [ -f "$SESSION_FILE" ] || return 1
+  LAST_LEAD_NAME=""
+  # shellcheck disable=SC1090
+  . "$SESSION_FILE"
+  [ -n "${LAST_LEAD_NAME:-}" ] || return 1
+  printf '%s\n' "$LAST_LEAD_NAME"
+}
+
+clear_last_lead() {
+  rm -f "$SESSION_FILE"
+}
+
+pick_active_lead_name() {
+  load_last_lead || current_lead_name
+}
+
+mark_contacted() {
+  name="$(pick_active_lead_name || true)"
+  [ -n "$name" ] || { echo "No active lead to mark contacted."; exit 1; }
+  "$SCRIPT_DIR/ask-track" contact "$name"
+  clear_last_lead
+}
+
+show_next_lead() {
+  name="$(current_lead_name || true)"
+  if [ -n "$name" ]; then
+    save_last_lead "$name"
+  else
+    clear_last_lead
+  fi
+  exec "$SCRIPT_DIR/ask-next"
+}
+
 send_inbox_test() {
   to="${THREEDVR_INBOX_TEST_EMAIL:-tmsteph1290@gmail.com}"
   subject="${THREEDVR_INBOX_TEST_SUBJECT:-3DVR inbox copy test}"
@@ -285,11 +336,12 @@ case "$cmd" in
   install) install_instructions ;;
   setup|onboard) setup_checklist ;;
   connect) auth_login "${1:-google}" ;;
-  next) exec "$SCRIPT_DIR/ask-next" ;;
-  contacted)
-    name="$(current_lead_name || true)"
-    [ -n "$name" ] || { echo "No current new lead."; exit 1; }
-    exec "$SCRIPT_DIR/ask-track" contact "$name"
+  next) show_next_lead ;;
+  contacted) mark_contacted ;;
+  sent-next)
+    mark_contacted
+    echo
+    show_next_lead
     ;;
   status)
     print_section "3dvr status"

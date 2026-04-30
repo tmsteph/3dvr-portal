@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { execFile, spawn } = require('node:child_process');
+const { mkdtemp, readFile, rm, writeFile } = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 
 const cli = path.join(__dirname, '..', 'thomas-agent', 'scripts', '3dvr');
@@ -83,7 +85,35 @@ test('install command gives npm and OAuth-first setup path', async () => {
 test('guided menu accepts commands and stays open until quit', async () => {
   const { stdout } = await runCliInteractive('help\nq\n');
 
-  assert.match(stdout, /Type a number, a command like "next" or "inbox check", or "q" to quit/);
+  assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`\./);
   assert.match(stdout, /3dvr CLI v1/);
   assert.ok((stdout.match(/Welcome to 3dvr/g) || []).length >= 2);
+});
+
+test('sent-next marks the last shown lead and advances to the next one', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  const sessionFile = path.join(tmp, 'session.env');
+  const openLog = path.join(tmp, 'open.log');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nAlpha Studio,https://alpha.example,mailto:alpha@example.com,new,20,test,now\nBeta Studio,https://beta.example,mailto:beta@example.com,new,10,test,now\n',
+  );
+
+  try {
+    const { stdout } = await runCliInteractive('1\n8\nq\n', {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_SESSION_FILE: sessionFile,
+      THREEDVR_OPEN_URL_LOG: openLog,
+    });
+    const leadsText = await readFile(leads, 'utf8');
+
+    assert.match(stdout, /Name: Alpha Studio/);
+    assert.match(stdout, /Contacted: Alpha Studio/);
+    assert.match(stdout, /Name: Beta Studio/);
+    assert.match(leadsText, /Alpha Studio,https:\/\/alpha\.example,mailto:alpha@example\.com,contacted/);
+    assert.match(leadsText, /Beta Studio,https:\/\/beta\.example,mailto:beta@example\.com,new/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
 });

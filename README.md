@@ -44,13 +44,14 @@ export PATH="$(pwd)/thomas-agent/scripts:$PATH"
 3dvr connect
 3dvr next
 3dvr contacted
+3dvr sent-next
 3dvr inbox check
 3dvr email status
 3dvr status
 3dvr portal
 ```
 
-Run `3dvr` with no arguments for the guided cockpit menu.
+Run `3dvr` with no arguments for the guided cockpit menu. The menu accepts both numbers and normal commands, so you can stay inside the TUI and type `next`, `contacted`, `sent-next`, or `inbox check` directly.
 
 ### OAuth-first email setup
 
@@ -93,8 +94,11 @@ commands.
 3dvr next
 3dvr outreach message
 3dvr contacted
+3dvr sent-next
 3dvr inbox check
 ```
+
+On mobile, `3dvr sent-next` is the fast path after you finish a draft. It marks the last shown lead as contacted and immediately loads the next one without making you retype the lead name.
 
 The older `lead` commands still work. For new users, prefer the clearer outreach aliases:
 
