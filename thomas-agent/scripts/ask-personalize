@@ -12,4 +12,13 @@ case "$site $contact" in
   *event*|*cater*) hint="events or catering flow" ;;
 esac
 
-echo "Hey—I took a quick look at the $name site and noticed one small $hint thing that might be worth tightening for customers. Want me to send a quick note?"
+cat <<MESSAGE
+Hi $name team,
+
+I was looking at your site and noticed one small $hint detail that could make the next step clearer for visitors.
+
+If it would be useful, I can send over the specific note. If not, no problem.
+
+Thomas
+3DVR
+MESSAGE

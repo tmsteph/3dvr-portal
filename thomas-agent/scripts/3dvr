@@ -85,7 +85,7 @@ Daily flow:
 USAGE
 }
 
-menu() {
+menu_header() {
   cat <<'MENU'
 Welcome to 3dvr
 
@@ -99,19 +99,57 @@ What needs attention?
 6) Open portal                Continue in the browser
 7) Settings                   Show local config
 
-Choose:
+Type a number, a command like "next" or "inbox check", or "q" to quit.
 MENU
-  read -r choice
+}
+
+run_menu_choice() {
+  choice="$1"
   case "$choice" in
-    1) exec "$0" next ;;
-    2) exec "$0" inbox check ;;
-    3) exec "$0" status ;;
-    4) exec "$0" agent status ;;
-    5) exec "$0" auth status ;;
-    6) exec "$0" portal ;;
-    7) exec "$0" settings ;;
-    *) usage ;;
+    1) "$0" next ;;
+    2) "$0" inbox check ;;
+    3) "$0" status ;;
+    4) "$0" agent status ;;
+    5) "$0" connect ;;
+    6) "$0" portal ;;
+    7) "$0" settings ;;
+    q|quit|exit) return 2 ;;
+    help|-h|--help) usage ;;
+    3dvr\ *) run_menu_choice "${choice#3dvr }" ;;
+    *)
+      # shellcheck disable=SC2206
+      parts=($choice)
+      if [ "${#parts[@]}" -eq 0 ]; then
+        return 0
+      fi
+      "$0" "${parts[@]}"
+      ;;
   esac
+}
+
+menu() {
+  while true; do
+    menu_header
+    printf '\nChoose: '
+    if ! read -r choice; then
+      printf '\n'
+      return 0
+    fi
+    choice="$(printf '%s' "$choice" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$choice" ] || continue
+    printf '\n'
+    set +e
+    run_menu_choice "$choice"
+    status=$?
+    set -e
+    if [ "$status" -eq 2 ]; then
+      return 0
+    fi
+    if [ "$status" -ne 0 ]; then
+      printf '\nCommand failed. Type "help" to see available commands.\n'
+    fi
+    printf '\n'
+  done
 }
 
 print_section() {

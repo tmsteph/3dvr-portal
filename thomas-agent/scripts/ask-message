@@ -13,19 +13,55 @@ get_lead() {
 }
 
 msg_a() {
-  echo 'Hey—I took a quick look at your site and noticed one small thing in the customer flow that might be worth tightening. Want me to send a quick note?'
+  cat <<'MESSAGE'
+Hi,
+
+I was looking at your site and noticed one small customer-flow detail that could make the next step clearer.
+
+If it would be useful, I can send over the specific note. If not, no problem.
+
+Thomas
+3DVR
+MESSAGE
 }
 
 msg_b() {
-  echo 'Hey, I was checking out your site and had one practical mobile/customer-flow note. Nothing huge, but it looked worth sharing. Want me to send it over?'
+  cat <<'MESSAGE'
+Hi,
+
+I noticed one practical mobile/customer-flow detail on your site that may be worth tightening.
+
+I can send the quick note if helpful. If now is not useful, no worries.
+
+Thomas
+3DVR
+MESSAGE
 }
 
 msg_c() {
-  echo 'Hey—I had a quick idea for making one part of your site easier for customers to act on. Want me to share?'
+  cat <<'MESSAGE'
+Hi,
+
+One part of your site looked like it could be a little easier for customers to act on.
+
+I can send the note over if you want it. If not, no problem.
+
+Thomas
+3DVR
+MESSAGE
 }
 
 msg_offer() {
-  echo "I help small service businesses get clearer online, follow up faster, and launch useful improvements without getting buried in tools. The quick entry point is Launch in 3 Days at \$20/month; active businesses usually fit Builder at \$50/month. Context: $LAUNCH_URL"
+  cat <<MESSAGE
+Hi,
+
+I help small service businesses make their websites clearer and easier for customers to act on.
+
+The simplest starting point is a short review, one practical fix, and a clear next step. Details are here if useful: $LAUNCH_URL
+
+Thomas
+3DVR
+MESSAGE
 }
 
 msg_lead() {
@@ -33,7 +69,16 @@ msg_lead() {
   if [ -n "$line" ]; then
     name="$(printf '%s' "$line" | awk -F, '{print $1}')"
     link="$(printf '%s' "$line" | awk -F, '{print $2}')"
-    echo "Hey—I took a quick look at ${name}'s site (${link}) and saw a couple ways it could be clearer and easier for customers to act on. Want me to share?"
+    cat <<MESSAGE
+Hi ${name} team,
+
+I was looking at your site (${link}) and noticed one small place where the next step for visitors could be clearer.
+
+If it would be useful, I can send over the specific note. If not, no problem.
+
+Thomas
+3DVR
+MESSAGE
   else
     msg_a
   fi
@@ -53,21 +98,32 @@ msg_smart() {
 
   case "$haystack" in
     *menu*|*restaurant*|*cafe*|*coffee*|*food*|*bar*|*grill*)
-      echo "Hey—I took a quick look at the ${name} site and noticed one small menu/contact-flow thing that might be worth tightening on mobile. Want me to send a quick note?"
+      hint="menu or contact-flow"
       ;;
     *shop*|*store*|*product*|*cart*|*checkout*)
-      echo "Hey—I took a quick look at the ${name} site and noticed one small browse/buy flow thing that might be worth tightening. Want me to share?"
+      hint="browse or checkout-flow"
       ;;
     *book*|*appointment*|*schedule*|*booking*)
-      echo "Hey—I took a quick look at the ${name} site and noticed one small booking/contact flow thing that could be clearer. Want me to send a quick note?"
+      hint="booking or contact-flow"
       ;;
     *law*|*legal*|*attorney*|*dental*|*clinic*|*health*|*realestate*|*mortgage*)
-      echo "Hey—I took a quick look at the ${name} site and noticed one small trust/contact-flow thing that might be worth tightening. Want me to share?"
+      hint="trust or contact-flow"
       ;;
     *)
-      echo "Hey—I took a quick look at the ${name} site (${link}) and noticed one small customer-flow thing that might be worth tightening. Want me to share?"
+      hint="customer-flow"
       ;;
   esac
+
+  cat <<MESSAGE
+Hi ${name} team,
+
+I was looking at your site (${link}) and noticed one small ${hint} detail that could make the next step clearer for visitors.
+
+If it would be useful, I can send over the specific note. If not, no problem.
+
+Thomas
+3DVR
+MESSAGE
 }
 
 case "$mode" in
