@@ -126,7 +126,7 @@ case "$target" in
     ;;
 esac
 
-subject="Small site note for $name"
+subject="Question for $name"
 encoded_subject="$(url_encode "$subject")"
 encoded_body="$(url_encode "$message")"
 

@@ -6,18 +6,21 @@ contact="$3"
 hint="site"
 
 case "$site $contact" in
-  *menu*|*Menu*) hint="menu or contact flow" ;;
-  *book*|*reserv*|*order*) hint="booking or ordering flow" ;;
-  *contact*|*about*) hint="contact flow" ;;
-  *event*|*cater*) hint="events or catering flow" ;;
+  *menu*|*Menu*) hint="website, menu, booking, or customer follow-up" ;;
+  *book*|*reserv*|*order*) hint="website, booking, ordering, or customer follow-up" ;;
+  *contact*|*about*) hint="website, contact, or lead follow-up" ;;
+  *event*|*cater*) hint="website, events, catering, or customer follow-up" ;;
+  *) hint="website, booking, lead follow-up, or customer-flow" ;;
 esac
 
 cat <<MESSAGE
 Hi $name team,
 
-I was looking at your site and noticed one small $hint detail that could make the next step clearer for visitors.
+I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
-If it would be useful, I can send over the specific note. If not, no problem.
+Are you running into any $hint problems right now?
+
+If not, no problem. I just wanted to introduce myself.
 
 Thomas
 3DVR

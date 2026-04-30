@@ -16,9 +16,11 @@ msg_a() {
   cat <<'MESSAGE'
 Hi,
 
-I was looking at your site and noticed one small customer-flow detail that could make the next step clearer.
+I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
-If it would be useful, I can send over the specific note. If not, no problem.
+Are you running into any website, booking, lead follow-up, or customer-flow problems right now?
+
+If not, no problem. I just wanted to introduce myself.
 
 Thomas
 3DVR
@@ -29,9 +31,11 @@ msg_b() {
   cat <<'MESSAGE'
 Hi,
 
-I noticed one practical mobile/customer-flow detail on your site that may be worth tightening.
+I'm Thomas with 3DVR. We help small businesses turn more website visits into clear next steps.
 
-I can send the quick note if helpful. If now is not useful, no worries.
+Is there anything about your website, booking/contact flow, or follow-up process that feels harder than it should be right now?
+
+If not, no problem. I just wanted to introduce myself.
 
 Thomas
 3DVR
@@ -42,9 +46,11 @@ msg_c() {
   cat <<'MESSAGE'
 Hi,
 
-One part of your site looked like it could be a little easier for customers to act on.
+I'm Thomas with 3DVR. We help small businesses make their online customer flow clearer and easier to manage.
 
-I can send the note over if you want it. If not, no problem.
+Are you dealing with any website, lead follow-up, booking, or customer communication problems right now?
+
+If not, no problem. I just wanted to introduce myself.
 
 Thomas
 3DVR
@@ -55,9 +61,9 @@ msg_offer() {
   cat <<MESSAGE
 Hi,
 
-I help small service businesses make their websites clearer and easier for customers to act on.
+I'm Thomas with 3DVR. We help small service businesses make websites, follow-up, and customer workflows easier to run.
 
-The simplest starting point is a short review, one practical fix, and a clear next step. Details are here if useful: $LAUNCH_URL
+If you are trying to clean up your website or customer flow, the simplest starting point is here: $LAUNCH_URL
 
 Thomas
 3DVR
@@ -68,13 +74,14 @@ msg_lead() {
   line="$(get_lead)"
   if [ -n "$line" ]; then
     name="$(printf '%s' "$line" | awk -F, '{print $1}')"
-    link="$(printf '%s' "$line" | awk -F, '{print $2}')"
     cat <<MESSAGE
 Hi ${name} team,
 
-I was looking at your site (${link}) and noticed one small place where the next step for visitors could be clearer.
+I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
-If it would be useful, I can send over the specific note. If not, no problem.
+Are you running into any website, booking, lead follow-up, or customer-flow problems right now?
+
+If not, no problem. I just wanted to introduce myself.
 
 Thomas
 3DVR
@@ -98,28 +105,30 @@ msg_smart() {
 
   case "$haystack" in
     *menu*|*restaurant*|*cafe*|*coffee*|*food*|*bar*|*grill*)
-      hint="menu or contact-flow"
+      problems="website, menu, booking, or customer follow-up"
       ;;
     *shop*|*store*|*product*|*cart*|*checkout*)
-      hint="browse or checkout-flow"
+      problems="website, checkout, product, or customer follow-up"
       ;;
     *book*|*appointment*|*schedule*|*booking*)
-      hint="booking or contact-flow"
+      problems="website, booking, contact, or lead follow-up"
       ;;
     *law*|*legal*|*attorney*|*dental*|*clinic*|*health*|*realestate*|*mortgage*)
-      hint="trust or contact-flow"
+      problems="website, trust, booking/contact, or follow-up"
       ;;
     *)
-      hint="customer-flow"
+      problems="website, booking, lead follow-up, or customer-flow"
       ;;
   esac
 
   cat <<MESSAGE
 Hi ${name} team,
 
-I was looking at your site (${link}) and noticed one small ${hint} detail that could make the next step clearer for visitors.
+I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
-If it would be useful, I can send over the specific note. If not, no problem.
+Are you running into any ${problems} problems right now?
+
+If not, no problem. I just wanted to introduce myself.
 
 Thomas
 3DVR

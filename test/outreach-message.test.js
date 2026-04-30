@@ -28,13 +28,15 @@ function run(command, args, env = {}) {
   });
 }
 
-test('default outreach message is permission-based and not price-forward', async () => {
+test('default outreach message is problem-led and not price-forward', async () => {
   const { stdout } = await run(askMessage, ['a']);
 
-  assert.match(stdout, /If it would be useful, I can send over the specific note/);
-  assert.match(stdout, /If not, no problem/);
+  assert.match(stdout, /I'm Thomas with 3DVR/);
+  assert.match(stdout, /Are you running into any .* problems right now/);
+  assert.match(stdout, /I just wanted to introduce myself/);
   assert.doesNotMatch(stdout, /\$20|\$50|month|Launch in 3 Days/i);
   assert.doesNotMatch(stdout, /Hey[,\u2014-]/);
+  assert.doesNotMatch(stdout, /noticed|looking at|looked at|specific note|small .*detail/i);
 });
 
 test('ask-send uses a softer subject and first-touch body', async () => {
@@ -50,10 +52,12 @@ test('ask-send uses a softer subject and first-touch body', async () => {
       THREEDVR_LEADS_FILE: leads,
     });
 
-    assert.match(stdout, /Small site note for Acme Studio/);
+    assert.match(stdout, /Question for Acme Studio/);
     assert.match(stdout, /Hi Acme Studio team/);
-    assert.match(stdout, /If it would be useful, I can send over the specific note/);
+    assert.match(stdout, /I'm Thomas with 3DVR/);
+    assert.match(stdout, /Are you running into any .* problems right now/);
     assert.doesNotMatch(stdout, /Quick idea for/);
+    assert.doesNotMatch(stdout, /noticed|looking at|specific note/i);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
