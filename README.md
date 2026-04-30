@@ -8,6 +8,23 @@ A local command-line system for:
 
 ### Install
 
+One-command install on Debian, Termux, WSL, or macOS:
+
+```sh
+curl -Ls https://raw.githubusercontent.com/tmsteph/3dvr-agent/main/install.sh | bash
+```
+
+The installer clones or updates the repo at `~/.3dvr/agent`, installs Node dependencies, creates
+`~/.3dvr/config/env`, and links `3dvr` into `~/.local/bin` or `$PREFIX/bin` on Termux.
+
+After install:
+
+```sh
+3dvr setup
+3dvr doctor
+3dvr connect
+```
+
 From npm package:
 
 ```sh
@@ -18,9 +35,9 @@ npm install -g 3dvr-agent
 From a local checkout:
 
 ```sh
-cd /data/data/com.termux/files/home/3dvr-agent
-npm install
-npm link
+git clone https://github.com/tmsteph/3dvr-agent.git
+cd 3dvr-agent
+./install.sh
 3dvr setup
 ```
 
@@ -34,6 +51,15 @@ If you are not using `npm link`, add the scripts directory to your shell:
 
 ```sh
 export PATH="$(pwd)/thomas-agent/scripts:$PATH"
+```
+
+Installer configuration:
+
+```sh
+THREEDVR_HOME="$HOME/.3dvr" ./install.sh
+THREEDVR_AGENT_DIR="$HOME/3dvr-agent" ./install.sh
+THREEDVR_BIN_DIR="$HOME/.local/bin" ./install.sh
+THREEDVR_AGENT_REPO="https://github.com/tmsteph/3dvr-agent.git" ./install.sh
 ```
 
 ### 3dvr CLI
