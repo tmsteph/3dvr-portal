@@ -179,7 +179,19 @@ Send with browser/email integration:
 ask-send --enrich "Dark Horse Coffee Roasters"
 ```
 
-If an email is found, `ask-send` opens a prefilled `mailto:` draft. If a form or contact page is found, it copies the message and opens the page in the browser. Add `--mark` when you want it to mark the lead contacted after opening.
+If an email is found, `ask-send` opens a prefilled draft and copies the full email block (`To`, `Subject`, and message) to the clipboard as a fallback. The default draft mode is `mailto:`. For Gmail, use:
+
+```sh
+ask-send --gmail-draft "Dark Horse Coffee Roasters"
+```
+
+You can also make Gmail the default:
+
+```sh
+export THREEDVR_EMAIL_DRAFT_MODE="gmail"
+```
+
+If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. Add `--mark` when you want it to mark the lead contacted after opening.
 
 Send directly instead of opening a draft:
 

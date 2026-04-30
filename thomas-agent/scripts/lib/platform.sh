@@ -19,6 +19,11 @@ detect_platform() {
 
 open_url() {
   url="$1"
+  if [ -n "${THREEDVR_OPEN_URL_LOG:-}" ]; then
+    printf '%s\n' "$url" >> "$THREEDVR_OPEN_URL_LOG"
+    return 0
+  fi
+
   platform="$(detect_platform)"
   case "$platform" in
     termux)
@@ -48,6 +53,11 @@ open_url() {
 
 copy_text() {
   text="$1"
+  if [ -n "${THREEDVR_CLIPBOARD_LOG:-}" ]; then
+    printf '%s' "$text" > "$THREEDVR_CLIPBOARD_LOG"
+    return 0
+  fi
+
   platform="$(detect_platform)"
   case "$platform" in
     termux)

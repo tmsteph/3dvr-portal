@@ -10,14 +10,16 @@ mark_after_send="no"
 dry_run="no"
 enrich_first="no"
 auto_send="no"
+draft_mode="${THREEDVR_EMAIL_DRAFT_MODE:-mailto}"
 target_name=""
 
 usage() {
-  echo 'Usage: ask-send [--offer] [--mark] [--enrich] [--auto] [--dry-run] ["Business Name"]'
+  echo 'Usage: ask-send [--offer] [--mark] [--enrich] [--auto] [--gmail-draft|--mailto-draft] [--dry-run] ["Business Name"]'
   echo
   echo 'Examples:'
   echo '  ask-send'
   echo '  ask-send --dry-run'
+  echo '  ask-send --gmail-draft "Dark Horse Coffee Roasters"'
   echo '  ask-send --enrich "Dark Horse Coffee Roasters"'
   echo '  ask-send --offer "Scrimshaw Coffee"'
   echo '  ask-send --mark "Scrimshaw Coffee"'
@@ -31,6 +33,8 @@ while [ "$#" -gt 0 ]; do
     --dry-run) dry_run="yes" ;;
     --enrich) enrich_first="yes" ;;
     --auto) auto_send="yes" ;;
+    --gmail-draft) draft_mode="gmail" ;;
+    --mailto-draft) draft_mode="mailto" ;;
     -h|--help)
       usage
       exit 0
@@ -129,6 +133,29 @@ esac
 subject="Question for $name"
 encoded_subject="$(url_encode "$subject")"
 encoded_body="$(url_encode "$message")"
+encoded_email="$(url_encode "$email")"
+draft_text="$(cat <<MESSAGE
+To: $email
+Subject: $subject
+
+$message
+MESSAGE
+)"
+
+draft_url() {
+  case "$draft_mode" in
+    gmail|gmail-web)
+      printf 'https://mail.google.com/mail/?view=cm&fs=1&to=%s&su=%s&body=%s\n' "$encoded_email" "$encoded_subject" "$encoded_body"
+      ;;
+    mailto|"")
+      printf 'mailto:%s?subject=%s&body=%s\n' "$email" "$encoded_subject" "$encoded_body"
+      ;;
+    *)
+      echo "Unknown draft mode: $draft_mode" >&2
+      return 1
+      ;;
+  esac
+}
 
 echo "OUTREACH READY"
 echo "Name: $name"
@@ -136,6 +163,7 @@ echo "Site: $link"
 echo "Contact: $contact"
 echo "Mode: $mode"
 echo "Subject: $subject"
+[ -n "$email" ] && echo "Draft mode: $draft_mode"
 echo
 echo "$message"
 echo
@@ -145,12 +173,12 @@ if [ "$dry_run" = "yes" ]; then
 elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
   node "$ROOT/node/send-outreach-email.js" --to "$email" --subject "$subject" --text "$message"
 elif [ -n "$email" ]; then
-  mailto_url="mailto:$email?subject=$encoded_subject&body=$encoded_body"
-  copy_text "$message"
-  echo "Copied message to clipboard."
+  compose_url="$(draft_url)" || exit 1
+  copy_text "$draft_text"
+  echo "Copied full email draft to clipboard."
   echo "Opening email draft:"
-  echo "$mailto_url"
-  open_url "$mailto_url"
+  echo "$compose_url"
+  open_url "$compose_url"
 elif [ "$auto_send" = "yes" ]; then
   echo "Automatic send only works for direct email leads."
   exit 1
