@@ -4,6 +4,7 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/platform.sh"
 FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
 LAUNCH_URL="https://3dvr.tech/launch-in-3-days.html"
+OPEN_LEAD_PAGE="${THREEDVR_OPEN_LEAD_PAGE:-0}"
 
 pick_priority() {
   awk -F, '
@@ -67,5 +68,10 @@ echo
 echo "STEP 7: Then get the next lead"
 echo "ask-next"
 echo
-echo "Opening page now..."
-open_url "$target"
+if [ "$OPEN_LEAD_PAGE" = "1" ] || [ "$OPEN_LEAD_PAGE" = "yes" ] || [ "$OPEN_LEAD_PAGE" = "true" ]; then
+  echo "Opening page now..."
+  open_url "$target"
+else
+  echo "Skipping automatic page open. If you want it later, run:"
+  echo "open_url \"$target\""
+fi
