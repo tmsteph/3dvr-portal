@@ -118,8 +118,8 @@ MENU
   cat <<'MENU'
 What needs attention?
 
-1) Show lead card             Open the current lead summary
-2) Continue outreach          Show the next lead and opener
+1) Continue outreach          Show the next lead and opener
+2) Show lead card             Open the current lead summary
 3) Mark contacted             Save the current lead as contacted
 4) Check inbox                Look for replies that need attention
 5) See agent status           Leads, inbox worker, outreach worker
@@ -137,8 +137,8 @@ MENU
 run_menu_choice() {
   choice="$1"
   case "$choice" in
-    1) "$0" lead card ;;
-    2) "$0" next ;;
+    1) "$0" next ;;
+    2) "$0" lead card ;;
     3) "$0" contacted ;;
     4) "$0" inbox check ;;
     5) "$0" status ;;

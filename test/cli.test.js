@@ -91,6 +91,27 @@ test('guided menu accepts commands and stays open until quit', async () => {
   assert.ok((stdout.match(/Welcome to 3dvr/g) || []).length >= 2);
 });
 
+test('menu option 1 shows the next lead result', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nAcme Studio,https://acme.example,mailto:owner@acme.example,new,22,test,now\n',
+  );
+
+  try {
+    const { stdout } = await runCliInteractive('1\nq\n', {
+      THREEDVR_LEADS_FILE: leads,
+    });
+
+    assert.match(stdout, /NEXT LEAD/);
+    assert.match(stdout, /Name: Acme Studio/);
+    assert.match(stdout, /STEP 2: Send this opener/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test('menu accepts direct ask-track commands', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
   const leads = path.join(tmp, 'leads.csv');
@@ -121,7 +142,7 @@ test('lead card shows the current lead summary in the menu', async () => {
   );
 
   try {
-    const { stdout } = await runCliInteractive('1\nq\n', {
+    const { stdout } = await runCliInteractive('2\nq\n', {
       THREEDVR_LEADS_FILE: leads,
     });
 
@@ -152,9 +173,9 @@ test('sent-next marks the last shown lead and advances to the next one', async (
     });
     const leadsText = await readFile(leads, 'utf8');
 
-    assert.match(stdout, /Name: Alpha Studio/);
+    assert.match(stdout, /Lead: Alpha Studio \| status: new \| score: 20/);
     assert.match(stdout, /Contacted: Alpha Studio/);
-    assert.match(stdout, /Name: Beta Studio/);
+    assert.match(stdout, /Lead: Beta Studio \| status: new \| score: 10/);
     assert.match(leadsText, /Alpha Studio,https:\/\/alpha\.example,mailto:alpha@example\.com,contacted/);
     assert.match(leadsText, /Beta Studio,https:\/\/beta\.example,mailto:beta@example\.com,new/);
   } finally {
