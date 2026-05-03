@@ -129,7 +129,7 @@ What needs attention?
 9) Settings                   Show local config
 0) Mark sent + next           Mark the last shown lead, then load the next one
 
-Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`, `crm`.
+Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`, `crm`, or direct `ask-*` commands.
 If you already drafted the last lead on mobile, press 0.
 MENU
 }
@@ -150,6 +150,17 @@ run_menu_choice() {
     q|quit|exit) return 2 ;;
     help|-h|--help) usage ;;
     crm) "$0" lead card ;;
+    ask-*)
+      # shellcheck disable=SC2206,SC2086
+      eval "set -- $choice"
+      cmd="$1"
+      shift
+      if [ -x "$SCRIPT_DIR/$cmd" ]; then
+        exec "$SCRIPT_DIR/$cmd" "$@"
+      fi
+      echo "Unknown command: $cmd"
+      return 1
+      ;;
     3dvr\ *) run_menu_choice "${choice#3dvr }" ;;
     *)
       # shellcheck disable=SC2206

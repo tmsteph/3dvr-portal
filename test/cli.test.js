@@ -86,9 +86,30 @@ test('guided menu accepts commands and stays open until quit', async () => {
   const { stdout } = await runCliInteractive('help\nq\n');
 
   assert.match(stdout, /CRM focus:/);
-  assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`, `crm`\./);
+  assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`, `crm`, or direct `ask-\*` commands\./);
   assert.match(stdout, /3dvr CLI v1/);
   assert.ok((stdout.match(/Welcome to 3dvr/g) || []).length >= 2);
+});
+
+test('menu accepts direct ask-track commands', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nCasa By Craft,https://casa.example,mailto:hello@casa.example,new,11,test,now\n',
+  );
+
+  try {
+    const { stdout } = await runCliInteractive('ask-track contact "Casa By Craft"\nq\n', {
+      THREEDVR_LEADS_FILE: leads,
+    });
+    const leadsText = await readFile(leads, 'utf8');
+
+    assert.match(stdout, /Contacted: Casa By Craft/);
+    assert.match(leadsText, /Casa By Craft,https:\/\/casa\.example,mailto:hello@casa\.example,contacted/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
 });
 
 test('lead card shows the current lead summary in the menu', async () => {
