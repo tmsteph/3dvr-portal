@@ -182,3 +182,25 @@ test('sent-next marks the last shown lead and advances to the next one', async (
     await rm(tmp, { recursive: true, force: true });
   }
 });
+
+test('ask-next skips automatic page opening by default', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nBlueprint Homes,https://blueprinthomes.com/,mailto:hello@blueprinthomes.com,new,25,test,now\n',
+  );
+
+  try {
+    const { stdout } = await runCli(['next'], {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_OPEN_LEAD_PAGE: '0',
+    });
+
+    assert.match(stdout, /NEXT LEAD/);
+    assert.match(stdout, /Skipping automatic page open\./);
+    assert.match(stdout, /open_url "mailto:hello@blueprinthomes.com"/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
