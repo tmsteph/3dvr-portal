@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.42 (Week of April 20, 2026)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .overview-lead { margin: 0 0 18px; }
+    .overview-highlights {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .overview-highlights li + li { margin-top: 10px; }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .release-summary-intro { margin: 0 0 14px; }
+    .release-summary-list {
+      margin: 0;
+      padding-left: 20px;
+      color: #c9d1d9;
+    }
+    .release-summary-list li + li { margin-top: 8px; }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.41.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.42</h1>
+  <div class="tag">Week of April 20, 2026</div>
+  <div class="release-summary">
+    <p class="release-summary-intro">This staged weekly release sets up the next agent-facing cut:</p>
+    <ul class="release-summary-list">
+      <li><strong><a href="https://github.com/tmsteph/3dvr-agent"><code>3dvr-agent</code></a>:</strong> the pre-release notes are now drafted and aligned with the portal cadence.</li>
+      <li><strong>Release hub:</strong> the portal release index now carries the next weekly entry for the staged rollout.</li>
+      <li><strong>Versioning:</strong> the agent package version is aligned to the pre-release candidate <code>1.0.1-beta.1</code>.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p class="overview-lead">
+      This update is intentionally small and release-focused. It records the next staged agent cut without changing the portal user experience.
+    </p>
+    <ul class="overview-highlights">
+      <li>The agent repo now has a pre-release draft that matches the weekly portal cadence.</li>
+      <li>The portal release hub now includes a new top-of-list entry for the next weekly milestone.</li>
+      <li>The agent package version is aligned to the new pre-release identifier so downstream tooling can see the staged state.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Release staging</h2>
+    <ul>
+      <li>Add the agent release draft with candidate version <code>1.0.1-beta.1</code>.</li>
+      <li>Update the portal release hub to show <code>v0.0.42</code> as the newest weekly entry.</li>
+      <li>Keep the release page navigation linked forward from <code>v0.0.41</code> to this new page.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>What changed in the agent</h2>
+    <ul>
+      <li>Outbound drafting prefers the local Qwen/llama stack.</li>
+      <li>Autonomous sending only marks leads contacted after a successful send.</li>
+      <li>Crawl can fall back from Overpass to search seeding when map queries fail.</li>
+      <li>Release notes now exist as a pre-release draft in the agent repo.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech – Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
