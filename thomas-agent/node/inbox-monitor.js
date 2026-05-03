@@ -383,6 +383,73 @@ function loadContactedLeadMap() {
   return map;
 }
 
+function loadLeadMap() {
+  const rows = readLeads(LEADS_FILE);
+  const map = new Map();
+  rows.forEach((row) => {
+    const email = extractLeadEmail(row);
+    if (!email) return;
+    map.set(email, row);
+  });
+  return map;
+}
+
+function updateLeadStatusByEmail(filePath, email, status) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !fs.existsSync(filePath)) return false;
+  const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
+  if (lines.length < 2) return false;
+
+  const updated = [lines[0]];
+  let changed = false;
+
+  for (let index = 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!line) continue;
+    const [name = '', link = '', contact = '', currentStatus = '', date = '', variant = ''] = line.split(',');
+    const rowEmail = extractLeadEmail({ contact });
+    if (rowEmail && rowEmail === normalizedEmail) {
+      updated.push([name, link, contact, status, date, variant].join(','));
+      changed = true;
+    } else {
+      updated.push(line);
+    }
+  }
+
+  if (changed) {
+    fs.writeFileSync(filePath, `${updated.join('\n')}\n`);
+  }
+
+  return changed;
+}
+
+function looksLikeBounce(message) {
+  const from = normalizeText(message.from).toLowerCase();
+  const subject = normalizeText(message.subject).toLowerCase();
+  const preview = normalizeText(message.preview).toLowerCase();
+  return (
+    /mailer-daemon|postmaster|no-reply|noreply/.test(from)
+    || /delivery status notification|undeliverable|mail delivery subsystem|returned mail|delivery failed|message blocked|recipient address rejected|address not found/.test(subject)
+    || /delivery status notification|undeliverable|mail delivery subsystem|returned to sender|recipient address rejected|address not found|user unknown|mailbox unavailable/.test(preview)
+  );
+}
+
+function extractBounceEmails(message) {
+  const chunks = [
+    message.subject,
+    message.preview,
+  ].filter(Boolean);
+  const text = chunks.join('\n');
+  const emails = new Set();
+
+  for (const match of text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)) {
+    const email = normalizeEmail(match[0]);
+    if (email) emails.add(email);
+  }
+
+  return [...emails];
+}
+
 function computeDelayBounds() {
   const minMinutes = Math.max(0, DEFAULT_AUTO_REPLY_MIN_DELAY_MINUTES);
   const maxMinutes = Math.max(minMinutes, DEFAULT_AUTO_REPLY_MAX_DELAY_MINUTES);
@@ -503,6 +570,34 @@ function buildAlert(messages) {
     subject: `[3dvr-agent] inbox attention: ${summary}`,
     summary,
     actionItems,
+    text: lines.join('\n'),
+  };
+}
+
+function buildBounceAlert(message, matchedEmails) {
+  const summary = matchedEmails.length === 1
+    ? `Delivery failure for ${matchedEmails[0]}`
+    : `Delivery failure for ${matchedEmails.length} addresses`;
+  const lines = [
+    summary,
+    '',
+    `From: ${message.from}`,
+    `Subject: ${message.subject}`,
+    message.replyTo ? `Reply-To: ${message.replyTo}` : '',
+    message.preview ? `Preview: ${message.preview}` : '',
+    '',
+    'Matched lead addresses:',
+    ...matchedEmails.map((email) => `- ${email}`),
+    '',
+    'Useful commands:',
+    '- ask-inbox',
+    '- ask-track view',
+  ].filter(Boolean);
+
+  return {
+    subject: `[3dvr-agent] delivery failure: ${summary}`,
+    summary,
+    actionItems: matchedEmails.map((email) => `Failed lead address: ${email}`),
     text: lines.join('\n'),
   };
 }
@@ -1052,6 +1147,32 @@ async function sendLeadReply(message, lead, state) {
   };
 }
 
+async function handleBounceMessages(messages, state) {
+  const leadMap = loadLeadMap();
+  const bounceMessages = messages.filter(looksLikeBounce);
+  const failures = [];
+
+  for (const message of bounceMessages) {
+    const matchedEmails = extractBounceEmails(message)
+      .map((email) => email.toLowerCase())
+      .filter((email) => leadMap.has(email));
+    if (!matchedEmails.length) continue;
+
+    for (const email of matchedEmails) {
+      if (updateLeadStatusByEmail(LEADS_FILE, email, 'failed')) {
+        failures.push(email);
+      }
+    }
+  }
+
+  if (!failures.length) {
+    return null;
+  }
+
+  const alert = buildBounceAlert(bounceMessages[0], failures);
+  return sendPortalAlert(alert);
+}
+
 function canSendAutoReply(state) {
   const gapMs = Math.max(0, DEFAULT_AUTO_REPLY_MIN_GAP_MINUTES) * 60 * 1000;
   if (!gapMs) return true;
@@ -1175,6 +1296,11 @@ async function main() {
     }
   }
 
+  const bounceResult = await handleBounceMessages(unread, state);
+  if (bounceResult?.ok) {
+    console.log(`Alerted ${bounceResult.to} about delivery failure(s).`);
+  }
+
   state.seen = pruneObjectEntries(state.seen, 500);
   state.messages = pruneObjectEntries(state.messages, 500);
   saveState(state);
@@ -1182,6 +1308,7 @@ async function main() {
 
 module.exports = {
   buildReplyHeadline,
+  buildBounceAlert,
   buildReplySubject,
   buildReplyText,
   buildLocalReplyDraft,
@@ -1189,6 +1316,9 @@ module.exports = {
   buildReplyDraft,
   chooseReplyLines,
   detectReplyIntent,
+  extractBounceEmails,
+  looksLikeBounce,
+  updateLeadStatusByEmail,
 };
 
 if (require.main === module) {

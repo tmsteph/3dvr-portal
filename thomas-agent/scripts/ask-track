@@ -10,6 +10,7 @@ case "$1" in
   contact) awk -F, -v name="$2" -v v="$3" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="contacted"; if(v!="") $6=v}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Contacted: $2 ($3)" ;;
   nurture) awk -F, -v name="$2" -v v="$3" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="nurture"; if(v!="") $6=v}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Nurture: $2 ($3)" ;;
   reply) awk -F, -v name="$2" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="replied"}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Replied: $2" ;;
+  failed) awk -F, -v name="$2" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="failed"}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Failed: $2" ;;
   close) awk -F, -v name="$2" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="closed"}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Closed: $2" ;;
   new) awk -F, '
     function priority(link, contact) {
@@ -27,5 +28,5 @@ case "$1" in
   followup) awk -F, 'NR==1{next} $4=="contacted"{print "[x]",$1,"->",($3!=""?$3:$2),"variant:",($6!=""?$6:"-")}' "$FILE" ;;
   nurture-list) awk -F, 'NR==1{next} $4=="nurture"{print "[~]",$1,"->",($3!=""?$3:$2),"note:",($6!=""?$6:"-")}' "$FILE" ;;
   view) awk -F, 'BEGIN{OFS=","} NR==1{print;next} {print $1,$4,$6}' "$FILE" ;;
-  *) echo 'ask-track add "Name" "Link" | ask-track contact "Name" [variant] | ask-track nurture "Name" [note] | ask-track reply "Name" | ask-track close "Name" | ask-track new | ask-track followup | ask-track nurture-list | ask-track view' ;;
+  *) echo 'ask-track add "Name" "Link" | ask-track contact "Name" [variant] | ask-track nurture "Name" [note] | ask-track reply "Name" | ask-track failed "Name" | ask-track close "Name" | ask-track new | ask-track followup | ask-track nurture-list | ask-track view' ;;
 esac
