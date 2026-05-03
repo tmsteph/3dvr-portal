@@ -6,6 +6,7 @@ const DEFAULT_CATEGORY = process.env.THREEDVR_LEAD_CATEGORY || 'service';
 const DEFAULT_LIMIT = Number(process.env.THREEDVR_LEAD_LIMIT || 25);
 const DEFAULT_RADIUS_KM = Number(process.env.THREEDVR_LEAD_RADIUS_KM || 8);
 const DEFAULT_TIMEOUT_MS = Number(process.env.THREEDVR_LEAD_TIMEOUT_MS || 7000);
+const DEFAULT_SOURCE = String(process.env.THREEDVR_LEAD_SOURCE || 'overpass').trim().toLowerCase();
 const LEADS_FILE = process.env.THREEDVR_LEADS_FILE
   || path.join(__dirname, '..', 'leads.csv');
 const OVERPASS_ENDPOINTS = Object.freeze([
@@ -60,12 +61,13 @@ const CATEGORY_PRESETS = Object.freeze({
 
 function usage() {
   console.log(`Usage:
-  ask-crawl [--location "San Diego, CA"] [--category coffee|food|service|professional|health] [--limit 25] [--radius-km 8] [--dry-run] [--include-chains]
+  ask-crawl [--location "San Diego, CA"] [--category coffee|food|service|professional|health] [--limit 25] [--radius-km 8] [--dry-run] [--include-chains] [--source overpass|search|auto]
 
 Examples:
   ask-crawl --location "San Diego, CA" --category service --limit 30
   ask-crawl --location "La Mesa, CA" --category professional --limit 20
   ask-crawl --category coffee --limit 15 --radius-km 5
+  ask-crawl --source search --location "San Diego, CA" --category professional --limit 20
 
 Environment:
   THREEDVR_LEAD_LOCATION  default location
@@ -73,6 +75,7 @@ Environment:
   THREEDVR_LEAD_LIMIT     default limit
   THREEDVR_LEAD_RADIUS_KM default radius
   THREEDVR_LEAD_TIMEOUT_MS per-endpoint timeout in milliseconds
+  THREEDVR_LEAD_SOURCE    overpass | search | auto
   THREEDVR_LEADS_FILE     output CSV path`);
 }
 
@@ -82,6 +85,7 @@ function parseArgs(argv) {
     category: DEFAULT_CATEGORY,
     limit: DEFAULT_LIMIT,
     radiusKm: DEFAULT_RADIUS_KM,
+    source: DEFAULT_SOURCE,
     dryRun: false,
     includeChains: false,
   };
@@ -97,6 +101,8 @@ function parseArgs(argv) {
       options.limit = Number(argv[++index] || DEFAULT_LIMIT);
     } else if (arg === '--radius-km' || arg === '--radius') {
       options.radiusKm = Number(argv[++index] || DEFAULT_RADIUS_KM);
+    } else if (arg === '--source') {
+      options.source = String(argv[++index] || DEFAULT_SOURCE).trim().toLowerCase();
     } else if (arg === '--dry-run') {
       options.dryRun = true;
     } else if (arg === '--include-chains') {
@@ -116,6 +122,9 @@ function parseArgs(argv) {
   options.radiusKm = Number.isFinite(options.radiusKm)
     ? Math.max(1, Math.min(Number(options.radiusKm), 40))
     : DEFAULT_RADIUS_KM;
+  if (!['overpass', 'search', 'auto'].includes(options.source)) {
+    throw new Error(`Unsupported source "${options.source}". Use overpass, search, or auto.`);
+  }
 
   return options;
 }
@@ -126,6 +135,16 @@ function cleanCsvField(value) {
     .replace(/,/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function stripHtml(value) {
+  return String(value || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&#64;|&commat;/g, '@')
+    .replace(/\s+/g, ' ');
 }
 
 function normalizeUrl(value) {
@@ -279,6 +298,65 @@ Try again in a minute, or narrow the search:
   ask-crawl --location "La Mesa, CA" --category professional --limit 10 --radius-km 5`);
 }
 
+function buildSearchQueries(location, category) {
+  const base = String(location || '').trim();
+  const queries = [
+    `${category} ${base}`,
+    `${base} ${category}`,
+    `${category} in ${base}`,
+  ];
+  return [...new Set(queries.filter(Boolean))];
+}
+
+function parseDuckDuckGoResults(html) {
+  const results = [];
+  const seen = new Set();
+  const matches = [...String(html || '').matchAll(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
+
+  for (const match of matches) {
+    const href = match[1] || '';
+    const title = cleanCsvField(stripHtml(match[2] || ''));
+    if (!href || !title) continue;
+    const url = href.startsWith('//') ? `https:${href}` : href;
+    if (!/^https?:\/\//i.test(url)) continue;
+    const key = `${title.toLowerCase()}|${url.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push({ name: title, link: normalizeUrl(url), contact: normalizeUrl(url), status: 'new', date: new Date().toISOString().slice(0, 10), variant: 'search-seed' });
+  }
+
+  return results;
+}
+
+async function fetchSearchSeeds(location, category, limit) {
+  const queries = buildSearchQueries(location, category);
+  const seeds = [];
+  const seen = new Set();
+
+  for (const query of queries) {
+    const url = new URL('https://html.duckduckgo.com/html/');
+    url.searchParams.set('q', query);
+    const response = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': '3dvr-agent/1.0 (lead research; 3dvr.tech)',
+        Accept: 'text/html,application/xhtml+xml',
+      },
+    }, DEFAULT_TIMEOUT_MS);
+    if (!response.ok) continue;
+    const html = await response.text();
+    for (const lead of parseDuckDuckGoResults(html)) {
+      const key = `${lead.name.toLowerCase().trim()}|${lead.link.toLowerCase().trim()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      seeds.push(lead);
+      if (seeds.length >= limit) return seeds;
+    }
+  }
+
+  return seeds;
+}
+
 function readExistingKeys(filePath) {
   if (!fs.existsSync(filePath)) {
     return new Set();
@@ -361,11 +439,25 @@ async function main() {
   const place = await geocodeLocation(options.location);
   const bbox = bboxFromRadius(place.lat, place.lon, options.radiusKm);
   const query = buildOverpassQuery(options.category, bbox, options.limit);
-  const elements = await fetchOverpass(query);
+  let leads = [];
+  let sourceUsed = 'overpass';
+  try {
+    if (options.source === 'search') {
+      sourceUsed = 'search';
+      leads = await fetchSearchSeeds(options.location, options.category, options.limit);
+    } else {
+      const elements = await fetchOverpass(query);
+      leads = elements.map((element) => leadFromElement(element, options.category)).filter(Boolean);
+    }
+  } catch (error) {
+    if (options.source === 'auto') {
+      sourceUsed = 'search';
+      leads = await fetchSearchSeeds(options.location, options.category, options.limit);
+    } else {
+      throw error;
+    }
+  }
   const existingKeys = readExistingKeys(LEADS_FILE);
-  const leads = elements
-    .map((element) => leadFromElement(element, options.category))
-    .filter(Boolean);
   const uniqueLeads = dedupeLeads(leads, existingKeys, options.limit, {
     includeChains: options.includeChains,
   });
@@ -376,6 +468,7 @@ async function main() {
 
   console.log(`Location: ${place.label}`);
   console.log(`Radius: ${options.radiusKm}km`);
+  console.log(`Source: ${sourceUsed}`);
   console.log(`Found usable leads: ${uniqueLeads.length}`);
   console.log(`Output: ${options.dryRun ? 'dry run only' : LEADS_FILE}`);
   for (const lead of uniqueLeads) {
@@ -383,7 +476,7 @@ async function main() {
   }
 
   if (!uniqueLeads.length) {
-    console.log('Try a broader category or nearby city, for example: ask-crawl --location "San Diego, CA" --category professional');
+    console.log('Try a broader category, a nearby city, or ask-crawl --source search --location "San Diego, CA" --category professional');
   }
 }
 

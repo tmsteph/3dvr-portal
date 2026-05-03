@@ -1,3 +1,6 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const nodemailer = require('nodemailer');
 const { getOAuthAccessToken } = require('./oauth-connection');
 
@@ -15,6 +18,9 @@ const DEFAULT_PORTAL_EMAIL_TOKEN = normalizeText(
   process.env.THREEDVR_OUTREACH_EMAIL_TOKEN
   || process.env.THREEDVR_AUTOPILOT_EMAIL_TOKEN
   || process.env.AGENT_OPERATOR_EMAIL_TOKEN
+  || readOptionalFile(process.env.THREEDVR_OUTREACH_EMAIL_TOKEN_FILE)
+  || readOptionalFile(process.env.THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE)
+  || readOptionalFile(path.join(os.homedir(), '.3dvr-agent-operator-email-token'))
 );
 
 function normalizeText(value) {
@@ -25,6 +31,15 @@ function normalizeEmail(value) {
   const email = normalizeText(value).toLowerCase();
   if (!email) return '';
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
+}
+
+function readOptionalFile(filePath) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return '';
+    return normalizeText(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return '';
+  }
 }
 
 function usage() {
