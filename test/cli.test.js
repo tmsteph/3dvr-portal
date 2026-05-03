@@ -85,9 +85,32 @@ test('install command gives npm and OAuth-first setup path', async () => {
 test('guided menu accepts commands and stays open until quit', async () => {
   const { stdout } = await runCliInteractive('help\nq\n');
 
-  assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`\./);
+  assert.match(stdout, /CRM focus:/);
+  assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`, `crm`\./);
   assert.match(stdout, /3dvr CLI v1/);
   assert.ok((stdout.match(/Welcome to 3dvr/g) || []).length >= 2);
+});
+
+test('lead card shows the current lead summary in the menu', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nAcme Studio,https://acme.example,mailto:owner@acme.example,new,22,test,now\n',
+  );
+
+  try {
+    const { stdout } = await runCliInteractive('1\nq\n', {
+      THREEDVR_LEADS_FILE: leads,
+    });
+
+    assert.match(stdout, /Lead: Acme Studio \| status: new \| score: 22/);
+    assert.match(stdout, /Site: https:\/\/acme\.example/);
+    assert.match(stdout, /Contact: mailto:owner@acme\.example/);
+    assert.match(stdout, /Quick actions:/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
 });
 
 test('sent-next marks the last shown lead and advances to the next one', async () => {
@@ -101,7 +124,7 @@ test('sent-next marks the last shown lead and advances to the next one', async (
   );
 
   try {
-    const { stdout } = await runCliInteractive('1\n8\nq\n', {
+    const { stdout } = await runCliInteractive('2\n0\nq\n', {
       THREEDVR_LEADS_FILE: leads,
       THREEDVR_SESSION_FILE: sessionFile,
       THREEDVR_OPEN_URL_LOG: openLog,
