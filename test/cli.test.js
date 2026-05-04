@@ -68,6 +68,7 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr connect \[gmail\]\s+connect email with portal OAuth/);
   assert.match(stdout, /3dvr outreach next\s+same as 3dvr next/);
   assert.match(stdout, /3dvr outreach sent\s+same as 3dvr contacted/);
+  assert.match(stdout, /3dvr send-auto\s+auto-send the next direct-email lead and mark it contacted/);
   assert.match(stdout, /3dvr email connect\s+same as 3dvr auth login google/);
   assert.match(stdout, /Do not set Gmail app passwords/i);
 });
@@ -86,7 +87,7 @@ test('guided menu accepts commands and stays open until quit', async () => {
   const { stdout } = await runCliInteractive('help\nq\n');
 
   assert.match(stdout, /CRM focus:/);
-  assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`, `crm`, or direct `ask-\*` commands\./);
+  assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `inbox check`, `status`, `crm`, or direct `ask-\*` commands\./);
   assert.match(stdout, /3dvr CLI v1/);
   assert.ok((stdout.match(/Welcome to 3dvr/g) || []).length >= 2);
 });

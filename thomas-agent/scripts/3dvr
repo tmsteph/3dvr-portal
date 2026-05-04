@@ -57,6 +57,7 @@ Leads:
 3dvr lead open           open current lead
 3dvr lead message        generate outreach message
 3dvr lead contacted      mark current lead contacted
+3dvr lead auto-send      auto-send the next direct-email lead
 3dvr lead followup       show follow-ups due
 3dvr lead list           list leads
 
@@ -65,6 +66,7 @@ Outreach aliases:
 3dvr outreach next       same as 3dvr next
 3dvr outreach message    same as 3dvr lead message
 3dvr outreach sent       same as 3dvr contacted
+3dvr outreach auto-send   same as 3dvr lead auto-send
 
 Inbox:
 3dvr inbox check         check unread/replies
@@ -84,6 +86,7 @@ Email aliases:
 3dvr email status        same as 3dvr auth status google
 3dvr email check         same as 3dvr inbox check
 3dvr email test          same as 3dvr inbox send-test
+3dvr send-auto           auto-send the next direct-email lead and mark it contacted
 
 Agent:
 3dvr agent status|start|stop|logs|restart
@@ -128,9 +131,11 @@ What needs attention?
 8) Open portal                Continue in the browser
 9) Settings                   Show local config
 0) Mark sent + next           Mark the last shown lead, then load the next one
+10) Auto-send next            Send the next direct-email lead and mark it contacted
 
-Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `inbox check`, `status`, `crm`, or direct `ask-*` commands.
+Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `inbox check`, `status`, `crm`, or direct `ask-*` commands.
 If you already drafted the last lead on mobile, press 0.
+If you want the cockpit to send the next direct-email lead for you, press 10.
 MENU
 }
 
@@ -147,6 +152,7 @@ run_menu_choice() {
     8) "$0" portal ;;
     9) "$0" settings ;;
     0) "$0" sent-next ;;
+    10) "$0" send-auto ;;
     q|quit|exit) return 2 ;;
     help|-h|--help) usage ;;
     crm) "$0" lead card ;;
@@ -403,6 +409,9 @@ case "$cmd" in
     echo
     show_next_lead
     ;;
+  send-auto)
+    exec "$SCRIPT_DIR/ask-send" --auto --mark
+    ;;
   status)
     print_section "3dvr status"
     "$SCRIPT_DIR/ask-status"
@@ -463,6 +472,7 @@ case "$cmd" in
       send) exec "$SCRIPT_DIR/ask-send" "$@" ;;
       message) exec "$SCRIPT_DIR/ask-message" "$@" ;;
       contacted|sent) exec "$0" contacted ;;
+      auto-send|send-auto) exec "$0" send-auto ;;
       followup) exec "$SCRIPT_DIR/ask-track" followup ;;
       list) exec "$SCRIPT_DIR/ask-track" new ;;
       *) usage; exit 1 ;;
