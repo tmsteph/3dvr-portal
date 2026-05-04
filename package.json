@@ -1,6 +1,6 @@
 {
   "name": "3dvr-agent",
-  "version": "1.0.1-beta.1",
+  "version": "1.0.1-beta.2",
   "description": "A local command-line system for: - building apps with AI - finding and closing real-world customers",
   "main": "index.js",
   "bin": {

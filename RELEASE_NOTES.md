@@ -1,10 +1,11 @@
 # 3dvr-agent Pre-Release Draft
 
-Candidate: `1.0.1-beta.1`
+Candidate: `1.0.1-beta.2`
 
 Prepared against portal cadence:
 - Portal release hub follows weekly milestones.
-- Latest portal release index: `v0.0.41` for the week of April 13, 2026.
+- Latest portal release index: `v0.0.42` for the week of April 20, 2026.
+- This agent pre-release targets the week of May 4, 2026.
 
 ## Summary
 
@@ -24,4 +25,4 @@ This release strengthens autonomous outreach and lead discovery for the 3dvr sal
 
 ## Release Notes
 
-Use this draft when tagging the next agent pre-release or syncing it into the portal release hub as a staged rollout.
+Use this draft when tagging the next agent pre-release or syncing it into the portal release hub as a staged rollout for May 2026.
