@@ -69,6 +69,7 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr outreach next\s+same as 3dvr next/);
   assert.match(stdout, /3dvr outreach sent\s+same as 3dvr contacted/);
   assert.match(stdout, /3dvr send-auto\s+auto-send the next direct-email lead and mark it contacted/);
+  assert.match(stdout, /3dvr lead send-current\s+auto-send the currently loaded lead/);
   assert.match(stdout, /3dvr email connect\s+same as 3dvr auth login google/);
   assert.match(stdout, /Do not set Gmail app passwords/i);
 });
