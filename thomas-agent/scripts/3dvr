@@ -304,6 +304,15 @@ current_lead_summary() {
   status="$(printf '%s' "$line" | awk -F, '{print $4}')"
   score="$(printf '%s' "$line" | awk -F, '{print $5}')"
   printf 'Lead: %s | status: %s | score: %s\n' "$name" "$status" "$score"
+  if printf '%s' "$contact" | grep -q '^mailto:'; then
+    printf 'Category: Email-ready\n'
+  elif printf '%s' "$contact" | grep -q '^https\?://'; then
+    printf 'Category: Web-contact\n'
+  elif printf '%s' "$link" | grep -q '^https\?://'; then
+    printf 'Category: Site-only\n'
+  else
+    printf 'Category: Unreachable\n'
+  fi
   printf 'Site: %s\n' "${link:-n/a}"
   printf 'Contact: %s\n' "${contact:-n/a}"
 }

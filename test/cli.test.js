@@ -170,9 +170,30 @@ test('lead card shows the current lead summary in the menu', async () => {
     });
 
     assert.match(stdout, /Lead: Acme Studio \| status: new \| score: 22/);
+    assert.match(stdout, /Category: Email-ready/);
     assert.match(stdout, /Site: https:\/\/acme\.example/);
     assert.match(stdout, /Contact: mailto:owner@acme\.example/);
     assert.match(stdout, /Quick actions:/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('status shows lead contact categories', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nMail Lead,https://mail.example,mailto:lead@mail.example,new,20,test,now\nWeb Lead,https://web.example,https://web.example/contact,new,10,test,now\n',
+  );
+
+  try {
+    const { stdout } = await runCli(['status'], {
+      THREEDVR_LEADS_FILE: leads,
+    });
+
+    assert.match(stdout, /email-ready:\s+1/);
+    assert.match(stdout, /web-contact:\s+1/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
