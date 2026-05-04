@@ -15,12 +15,15 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the retroactive milestones through v0.0.42', async () => {
+  it('updates the release index with the retroactive milestones through v0.0.43', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Latest Release/);
+    assert.match(html, /href="v0\.0\.43\.html">v0\.0\.43</);
+    assert.match(html, /Week of May 4, 2026/);
+    assert.match(html, /1\.0\.1-beta\.2/);
     assert.match(html, /href="v0\.0\.42\.html">v0\.0\.42</);
     assert.match(html, /Week of April 20, 2026/);
     assert.match(html, /pre-release notes/i);
@@ -43,6 +46,7 @@ describe('release hub backfill', () => {
 
   it('ships the new milestone pages with coherent navigation and summaries', async () => {
     const releases = [
+      ['v0.0.43.html', /Week of May 4, 2026/, /1\.0\.1-beta\.2/, /aria-disabled="true"/],
       ['v0.0.42.html', /Week of April 20, 2026/, /pre-release notes/i, /aria-disabled="true"/],
       ['v0.0.36.html', /Late January 2026/, /social planning/i, /href="v0\.0\.37\.html"/],
       ['v0.0.37.html', /Mid February 2026/, /Money Autopilot/i, /href="v0\.0\.38\.html"/],

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal – Release v0.0.43 (Week of May 4, 2026)</title>
+  <style>
+    body {
+      margin: 0 auto;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.65;
+      padding: 20px;
+      max-width: 900px;
+    }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #161b22;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+    }
+    .overview-lead { margin: 0 0 18px; }
+    .overview-highlights {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .overview-highlights li + li { margin-top: 10px; }
+    .tag {
+      background: #1f6feb;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .release-summary {
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: #9ba3b4;
+    }
+    .release-summary-intro { margin: 0 0 14px; }
+    .release-summary-list {
+      margin: 0;
+      padding-left: 20px;
+      color: #c9d1d9;
+    }
+    .release-summary-list li + li { margin-top: 8px; }
+    .back-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .release-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 20px 0 40px;
+    }
+    .release-nav-link {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .release-nav-link.is-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+  </style>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">← Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.42.html">← Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release →</span>
+  </nav>
+  <h1>Release v0.0.43</h1>
+  <div class="tag">Week of May 4, 2026</div>
+  <div class="release-summary">
+    <p class="release-summary-intro">This weekly release centers on the new May agent beta and inbox hardening:</p>
+    <ul class="release-summary-list">
+      <li><strong><a href="https://github.com/tmsteph/3dvr-agent"><code>3dvr-agent</code></a>:</strong> the May beta is tagged as <code>1.0.1-beta.2</code> and aligned to the new weekly cut.</li>
+      <li><strong>Inbox monitoring:</strong> delivery failures now get detected, surfaced, and marked as failed leads.</li>
+      <li><strong>Portal cadence:</strong> the weekly release hub now includes the new May 4, 2026 entry.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p class="overview-lead">
+      This release keeps the portal and agent aligned on the same weekly rhythm while tightening failure handling for outbound email.
+    </p>
+    <ul class="overview-highlights">
+      <li>The agent release moves from the April pre-release to a new May beta tag.</li>
+      <li>The inbox monitor now watches for bounce mail and updates leads that fail delivery.</li>
+      <li>The release hub keeps the portal cadence visible for the current week.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Agent release</h2>
+    <ul>
+      <li>Bump the agent package version to <code>1.0.1-beta.2</code>.</li>
+      <li>Tag and publish the new beta for the week of May 4, 2026.</li>
+      <li>Keep the release notes explicit about the May rollout.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Delivery monitoring</h2>
+    <ul>
+      <li>Detect bounce mail in the inbox monitor.</li>
+      <li>Mark leads as <code>failed</code> when their delivery bounces.</li>
+      <li>Alert the operator with the bounced address so the bad contact does not stay in rotation.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech – Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
