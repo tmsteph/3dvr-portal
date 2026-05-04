@@ -93,6 +93,27 @@ test('guided menu accepts commands and stays open until quit', async () => {
   assert.ok((stdout.match(/Welcome to 3dvr/g) || []).length >= 2);
 });
 
+test('menu shows the active lead on the auto-send slot', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  const sessionFile = path.join(tmp, 'session.env');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nCurrent Lead,https://current.example,mailto:current@example.com,new,30,test,now\n',
+  );
+
+  try {
+    const { stdout } = await runCliInteractive('q\n', {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_SESSION_FILE: sessionFile,
+    });
+
+    assert.match(stdout, /10\) Auto-send current\s+Send the current lead: Current Lead, or the next queue item if none is loaded/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test('menu option 1 shows the next lead result', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
   const leads = path.join(tmp, 'leads.csv');

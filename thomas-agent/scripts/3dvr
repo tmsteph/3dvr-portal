@@ -110,35 +110,35 @@ USAGE
 
 menu_header() {
   lead_summary="$(current_lead_summary 2>/dev/null || true)"
-  cat <<'MENU'
-Welcome to 3dvr
-
-CRM focus:
-MENU
+  active_lead_name="$(pick_active_lead_name 2>/dev/null || true)"
+  if [ -n "$active_lead_name" ]; then
+    auto_send_line="10) Auto-send current         Send the current lead: $active_lead_name, or the next queue item if none is loaded"
+  else
+    auto_send_line="10) Auto-send current         Send the current lead, or the next queue item if none is loaded"
+  fi
+  printf '%s\n' 'Welcome to 3dvr'
+  printf '\n%s\n' 'CRM focus:'
   if [ -n "$lead_summary" ]; then
     printf '%s\n\n' "$lead_summary"
   else
     printf '%s\n\n' 'No active lead. Use 2 to load the next lead.'
   fi
-  cat <<'MENU'
-What needs attention?
-
-1) Continue outreach          Show the next lead and opener
-2) Show lead card             Open the current lead summary
-3) Mark contacted             Save the current lead as contacted
-4) Check inbox                Look for replies that need attention
-5) See agent status           Leads, inbox worker, outreach worker
-6) Start/stop background      Manage the local worker
-7) Connect email              Gmail now, Outlook later
-8) Open portal                Continue in the browser
-9) Settings                   Show local config
-0) Mark sent + next           Mark the last shown lead, then load the next one
-10) Auto-send current         Send the current lead, or the next queue item if none is loaded
-
-Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `inbox check`, `status`, `crm`, or direct `ask-*` commands.
-If you already drafted the last lead on mobile, press 0.
-If you want the cockpit to send the loaded lead for you, press 10.
-MENU
+  printf '%s\n' 'What needs attention?'
+  printf '\n'
+  printf '%s\n' '1) Continue outreach          Show the next lead and opener'
+  printf '%s\n' '2) Show lead card             Open the current lead summary'
+  printf '%s\n' '3) Mark contacted             Save the current lead as contacted'
+  printf '%s\n' '4) Check inbox                Look for replies that need attention'
+  printf '%s\n' '5) See agent status           Leads, inbox worker, outreach worker'
+  printf '%s\n' '6) Start/stop background      Manage the local worker'
+  printf '%s\n' '7) Connect email              Gmail now, Outlook later'
+  printf '%s\n' '8) Open portal                Continue in the browser'
+  printf '%s\n' '9) Settings                   Show local config'
+  printf '%s\n' '0) Mark sent + next           Mark the last shown lead, then load the next one'
+  printf '%s\n' "$auto_send_line"
+  printf '\n%s\n' 'Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `inbox check`, `status`, `crm`, or direct `ask-*` commands.'
+  printf '%s\n' 'If you already drafted the last lead on mobile, press 0.'
+  printf '%s\n' 'If you want the cockpit to send the loaded lead for you, press 10.'
 }
 
 run_menu_choice() {
