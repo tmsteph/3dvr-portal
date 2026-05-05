@@ -129,6 +129,7 @@ test('menu option 1 shows the next lead result', async () => {
 
     assert.match(stdout, /NEXT LEAD/);
     assert.match(stdout, /Name: Acme Studio/);
+    assert.match(stdout, /Route: email/);
     assert.match(stdout, /STEP 2: Send this opener/);
   } finally {
     await rm(tmp, { recursive: true, force: true });

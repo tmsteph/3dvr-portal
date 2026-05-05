@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { applyRouteToVariant, routeFromContact } = require('./lead-route');
 
 const LEADS_FILE = process.env.THREEDVR_LEADS_FILE || path.join(__dirname, '..', 'leads.csv');
 const OUTPUT_LABEL = process.env.THREEDVR_ENRICH_OUTPUT_LABEL || LEADS_FILE;
@@ -222,6 +223,12 @@ function chooseContactPage(links) {
     .sort((a, b) => b.score - a.score)[0]?.url || '';
 }
 
+function normalizeRouteFromSource(source) {
+  if (source === 'contact-page-unverified') return 'contact-page';
+  if (source === 'skip-no-url') return 'site';
+  return source || 'site';
+}
+
 async function enrichLead(row) {
   const baseUrl = normalizeUrl(row.link || row.contact);
   if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) {
@@ -265,6 +272,14 @@ async function enrichLead(row) {
   return { contact: row.contact || baseUrl, source: 'site', detail: home.url };
 }
 
+function classifyRoute(result, row) {
+  return routeFromContact({
+    contact: result.contact || row.contact || '',
+    link: row.link || '',
+    variant: row.variant || '',
+  });
+}
+
 function shouldEnrich(row, options) {
   if (options.name && row.name !== options.name) return false;
   if (!row.link && !row.contact) return false;
@@ -298,10 +313,19 @@ async function main() {
 
     try {
       const result = await enrichLead(row);
-      if (result.contact && result.contact !== row.contact) {
+      const route = classifyRoute(result, row);
+      const sourceRoute = normalizeRouteFromSource(result.source);
+      const nextRoute = sourceRoute === 'site' && route ? route : (sourceRoute || route);
+      const nextVariant = applyRouteToVariant(row.variant, nextRoute);
+      const contactChanged = result.contact && result.contact !== row.contact;
+      const variantChanged = nextVariant !== row.variant;
+
+      if (contactChanged || variantChanged) {
         console.log(`${row.name}: ${row.contact || '-'} -> ${result.contact} (${result.source})`);
-        row.contact = result.contact;
-        row.variant = row.variant ? `${row.variant}+${result.source}` : result.source;
+        if (contactChanged) {
+          row.contact = result.contact;
+        }
+        row.variant = nextVariant;
         changed += 1;
       } else {
         console.log(`${row.name}: kept ${row.contact || result.contact || '-'} (${result.source})`);

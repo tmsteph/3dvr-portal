@@ -58,6 +58,7 @@ test('ask-send uses a softer subject and first-touch body', async () => {
     });
 
     assert.match(stdout, /Question for Acme Studio/);
+    assert.match(stdout, /Route: email/);
     assert.match(stdout, /Hi Acme Studio team/);
     assert.match(stdout, /I'm Thomas with 3DVR/);
     assert.match(stdout, /Are you running into any .* problems right now/);
@@ -89,6 +90,7 @@ test('ask-send can open a Gmail draft and copy the full email', async () => {
 
     assert.match(stdout, /Draft mode: gmail/);
     assert.match(stdout, /Copied full email draft to clipboard/);
+    assert.match(stdout, /Route: email/);
     assert.match(opened, /^https:\/\/mail\.google\.com\/mail\/\?view=cm&fs=1&to=owner%40example\.com&su=Question%20for%20Acme%20Studio&body=/);
     assert.match(copied, /To: owner@example\.com/);
     assert.match(copied, /Subject: Question for Acme Studio/);
@@ -191,4 +193,33 @@ test('auto outreach mode falls back to template when OpenAI is unavailable', asy
   assert.equal(draft.source, 'template');
   assert.match(draft.text, /Hi Acme Studio team/);
   assert.match(draft.text, /I'm Thomas with 3DVR/);
+});
+
+test('ask-send prints form routes and opens the contact page', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
+  const leads = path.join(tmp, 'leads.csv');
+  const openLog = path.join(tmp, 'open.log');
+  const clipboardLog = path.join(tmp, 'clipboard.txt');
+  await writeFile(
+    leads,
+    'name,link,contact,status,date,variant\nAcme Studio,https://example.com,https://example.com/contact,new,2026-05-05,route=form\n',
+  );
+
+  try {
+    const { stdout } = await run(askSend, ['Acme Studio'], {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_OPEN_URL_LOG: openLog,
+      THREEDVR_CLIPBOARD_LOG: clipboardLog,
+    });
+    const opened = await readFile(openLog, 'utf8');
+    const copied = await readFile(clipboardLog, 'utf8');
+
+    assert.match(stdout, /Route: form/);
+    assert.match(stdout, /Copied message to clipboard/);
+    assert.match(stdout, /Opening contact page:/);
+    assert.match(opened, /^https:\/\/example\.com\/contact\s*$/);
+    assert.match(copied, /I'm Thomas with 3DVR/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
 });

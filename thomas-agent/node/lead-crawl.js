@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { applyRouteToVariant, routeFromContact } = require('./lead-route');
 
 const DEFAULT_LOCATION = process.env.THREEDVR_LEAD_LOCATION || 'San Diego, CA';
 const DEFAULT_CATEGORY = process.env.THREEDVR_LEAD_CATEGORY || 'service';
@@ -178,13 +179,15 @@ function leadFromElement(element, category) {
     return null;
   }
 
+  const route = routeFromContact({ contact, link });
+
   return {
     name,
     link: cleanCsvField(link),
     contact: cleanCsvField(contact),
     status: 'new',
     date: new Date().toISOString().slice(0, 10),
-    variant: `osm-${category}`,
+    variant: applyRouteToVariant(`osm-${category}`, route),
   };
 }
 
