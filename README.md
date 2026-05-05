@@ -221,7 +221,7 @@ You can also make Gmail the default:
 export THREEDVR_EMAIL_DRAFT_MODE="gmail"
 ```
 
-If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. Add `--mark` when you want it to mark the lead contacted after opening.
+If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. `ask-enrich` also improves email discovery before falling back to a form or contact page. Add `--mark` when you want it to mark the lead contacted after opening. Use `ask-enrich --prefer-form` only when you explicitly want to refresh a lead toward a form route.
 
 Send directly instead of opening a draft:
 

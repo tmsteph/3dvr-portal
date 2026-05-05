@@ -6,13 +6,23 @@ const LEADS_FILE = process.env.THREEDVR_LEADS_FILE || path.join(__dirname, '..',
 const OUTPUT_LABEL = process.env.THREEDVR_ENRICH_OUTPUT_LABEL || LEADS_FILE;
 const DEFAULT_LIMIT = Number(process.env.THREEDVR_ENRICH_LIMIT || 25);
 const DEFAULT_TIMEOUT_MS = Number(process.env.THREEDVR_ENRICH_TIMEOUT_MS || 9000);
+const DEFAULT_MAX_PAGES = Number(process.env.THREEDVR_ENRICH_MAX_PAGES || 4);
 
 const CONTACT_PATH_PATTERN = /(contact|about|connect|booking|book|appointments?|consult|estimate|quote|start|hire|support)/i;
-const SKIP_EMAIL_PATTERN = /(example\.com|domain\.com|sentry\.io|wixpress\.com|squarespace\.com|schema\.org|wordpress\.org|your@email)/i;
+const CONTACT_PAGE_HINTS = [
+  '/contact',
+  '/contact-us',
+  '/about',
+  '/booking',
+  '/estimate',
+  '/quote',
+  '/consultation',
+];
+const SKIP_EMAIL_PATTERN = /(sentry\.io|wixpress\.com|squarespace\.com|schema\.org|wordpress\.org|your@email|noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster|webmaster|administrator)/i;
 
 function usage() {
   console.log(`Usage:
-  ask-enrich [--name "Business Name"] [--limit 25] [--refresh] [--dry-run]
+  ask-enrich [--name "Business Name"] [--limit 25] [--refresh] [--prefer-form] [--dry-run]
 
 Examples:
   ask-enrich
@@ -30,6 +40,7 @@ function parseArgs(argv) {
     name: '',
     limit: DEFAULT_LIMIT,
     refresh: false,
+    preferForm: false,
     dryRun: false,
     help: false,
   };
@@ -42,6 +53,8 @@ function parseArgs(argv) {
       options.limit = Number(argv[++index] || DEFAULT_LIMIT);
     } else if (arg === '--refresh') {
       options.refresh = true;
+    } else if (arg === '--prefer-form') {
+      options.preferForm = true;
     } else if (arg === '--dry-run') {
       options.dryRun = true;
     } else if (arg === '-h' || arg === '--help') {
@@ -60,6 +73,10 @@ function parseArgs(argv) {
 
 function parseCsvLine(line) {
   return line.split(',');
+}
+
+function normalizeText(value) {
+  return String(value || '').trim();
 }
 
 function cleanCsvField(value) {
@@ -111,6 +128,37 @@ function normalizeUrl(value, base) {
   }
 }
 
+function decodeHtmlEntities(value) {
+  return String(value || '')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&#64;|&commat;/gi, '@')
+    .replace(/&#46;|&period;/gi, '.');
+}
+
+function decodeObfuscatedText(value) {
+  let text = decodeHtmlEntities(value);
+
+  try {
+    text = decodeURIComponent(text);
+  } catch {
+    // Leave the original text intact when it is not valid percent-encoded input.
+  }
+
+  return text
+    .replace(/\u200b|\u200c|\u200d|\ufeff/g, '')
+    .replace(/\s*\[\s*at\s*\]\s*/gi, '@')
+    .replace(/\s*\(\s*at\s*\)\s*/gi, '@')
+    .replace(/\s+at\s+/gi, '@')
+    .replace(/\s*\[\s*dot\s*\]\s*/gi, '.')
+    .replace(/\s*\(\s*dot\s*\)\s*/gi, '.')
+    .replace(/\s+dot\s+/gi, '.');
+}
+
 function sameHost(url, base) {
   try {
     return new URL(url).hostname.replace(/^www\./, '') === new URL(base).hostname.replace(/^www\./, '');
@@ -129,23 +177,83 @@ function stripHtml(value) {
     .replace(/\s+/g, ' ');
 }
 
-function extractEmails(html) {
-  const decoded = String(html || '')
-    .replace(/&#64;|&commat;|\s+\[at\]\s+|\s+\(at\)\s+/gi, '@')
-    .replace(/\s+\[dot\]\s+|\s+\(dot\)\s+/gi, '.');
+function isPlaceholderEmail(email) {
+  const lower = normalizeEmailCandidate(email);
+  if (!lower || SKIP_EMAIL_PATTERN.test(lower)) return true;
+  const [local = '', domain = ''] = lower.split('@');
+  if (!local || !domain) return true;
+  if (/^(example|sample|test|placeholder|yourname|youremail|info|hello|contact|support|sales|team|admin|office|noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster|webmaster|administrator)$/i.test(local)) return true;
+  if (/^(sentry\.io|wixpress\.com|squarespace\.com|schema\.org|wordpress\.org)$/i.test(domain)) return true;
+  if (/^(assets?|cdn|static|analytics?|tracking|pixels?)$/i.test(local)) return true;
+  return false;
+}
+
+function emailDomainMatches(emailDomain, siteHost) {
+  const left = normalizeText(emailDomain).toLowerCase().replace(/^www\./, '');
+  const right = normalizeText(siteHost).toLowerCase().replace(/^www\./, '');
+  if (!left || !right) return false;
+  if (left === right) return true;
+  return right.endsWith(`.${left}`) || left.endsWith(`.${right}`);
+}
+
+function emailScore(email, baseUrl = '') {
+  const lower = normalizeEmailCandidate(email);
+  if (isPlaceholderEmail(lower)) return Number.NEGATIVE_INFINITY;
+
+  let score = 0;
+  const host = siteHost(baseUrl);
+  const domain = lower.split('@')[1] || '';
+  const local = lower.split('@')[0] || '';
+
+  score += 10;
+  if (host && emailDomainMatches(domain, host)) score += 100;
+  if (/^mailto:/.test(lower)) score += 20;
+  if (/^(info|hello|contact|support|sales|team|office|bookings?|appointments?|events?)$/.test(local)) score += 5;
+  if (/^(owner|director|founder|ceo|hello)$/i.test(local)) score += 3;
+
+  return score;
+}
+
+function siteHost(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function normalizeEmailCandidate(email) {
+  return normalizeText(email)
+    .toLowerCase()
+    .replace(/^mailto:/i, '')
+    .split('?')[0]
+    .replace(/^['"]|['"]$/g, '');
+}
+
+function rankEmails(emails, baseUrl = '') {
+  const unique = [...new Set(emails.map(normalizeEmailCandidate).filter(Boolean))];
+  return unique
+    .filter((email) => !isPlaceholderEmail(email))
+    .sort((left, right) => {
+      const scoreDiff = emailScore(right, baseUrl) - emailScore(left, baseUrl);
+      if (scoreDiff !== 0) return scoreDiff;
+      return left.localeCompare(right);
+    });
+}
+
+function extractEmails(html, baseUrl = '') {
+  const decoded = decodeObfuscatedText(stripHtml(html));
   const emails = decoded.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
-  return [...new Set(emails.map((email) => email.toLowerCase()))]
-    .filter((email) => !SKIP_EMAIL_PATTERN.test(email));
+  return rankEmails(emails, baseUrl);
 }
 
 function extractMailto(html) {
   const matches = [...String(html || '').matchAll(/href=["']\s*(mailto:[^"']+)["']/gi)];
-  for (const match of matches) {
-    const value = match[1].trim();
-    const email = value.replace(/^mailto:/i, '').split('?')[0].toLowerCase();
-    if (email && !SKIP_EMAIL_PATTERN.test(email)) return `mailto:${email}`;
-  }
-  return '';
+  const emails = matches
+    .map((match) => normalizeEmailCandidate(decodeObfuscatedText(match[1])))
+    .filter((email) => email && !isPlaceholderEmail(email));
+  const ranked = rankEmails(emails);
+  return ranked[0] ? `mailto:${ranked[0]}` : '';
 }
 
 function extractLinks(html, base) {
@@ -180,11 +288,11 @@ function extractForms(html, pageUrl) {
   return '';
 }
 
-async function fetchWithTimeout(url, timeoutMs = DEFAULT_TIMEOUT_MS) {
+async function fetchWithTimeout(url, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, {
+    const response = await fetchImpl(url, {
       redirect: 'follow',
       signal: controller.signal,
       headers: {
@@ -223,47 +331,136 @@ function chooseContactPage(links) {
     .sort((a, b) => b.score - a.score)[0]?.url || '';
 }
 
+function collectCandidatePages(html, baseUrl, maxPages = DEFAULT_MAX_PAGES) {
+  const limit = Number.isFinite(Number(maxPages)) ? Math.max(1, Math.trunc(Number(maxPages))) : DEFAULT_MAX_PAGES;
+  const candidateUrls = [];
+  const seen = new Set();
+
+  function add(url) {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    candidateUrls.push(url);
+  }
+
+  add(baseUrl);
+
+  const linkedPages = extractLinks(html, baseUrl)
+    .filter((url) => CONTACT_PATH_PATTERN.test(url))
+    .sort((left, right) => scoreContactLink(right) - scoreContactLink(left));
+
+  for (const url of linkedPages) add(url);
+
+  for (const pathName of CONTACT_PAGE_HINTS) {
+    add(new URL(pathName, baseUrl).toString());
+  }
+
+  return candidateUrls.slice(0, limit);
+}
+
+function bestPageRoute(page) {
+  if (page.mailto) {
+    return {
+      contact: page.mailto,
+      source: 'email',
+      detail: page.url,
+      score: 1000 + emailScore(page.mailto, page.url),
+    };
+  }
+
+  if (page.emails.length) {
+    const contact = `mailto:${page.emails[0]}`;
+    return {
+      contact,
+      source: 'email',
+      detail: page.url,
+      score: 1000 + emailScore(contact, page.url),
+    };
+  }
+
+  if (page.form) {
+    return { contact: page.url, source: 'form', detail: page.form, score: 500 };
+  }
+
+  if (page.url) {
+    return { contact: page.url, source: 'contact-page', detail: page.url, score: 100 };
+  }
+
+  return { contact: '', source: 'site', detail: '', score: 0 };
+}
+
+function routePriority(route) {
+  switch (routeFromSource(route)) {
+    case 'email':
+      return 3;
+    case 'form':
+      return 2;
+    case 'contact-page':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function routeScore(route, contact = '', baseUrl = '') {
+  switch (routeFromSource(route)) {
+    case 'email':
+      return 1000 + emailScore(contact, baseUrl);
+    case 'form':
+      return 500;
+    case 'contact-page':
+      return 100;
+    default:
+      return 0;
+  }
+}
+
+function routeFromSource(source) {
+  if (source === 'contact-page-unverified') return 'contact-page';
+  if (source === 'skip-no-url') return 'site';
+  return source || 'site';
+}
+
 function normalizeRouteFromSource(source) {
   if (source === 'contact-page-unverified') return 'contact-page';
   if (source === 'skip-no-url') return 'site';
   return source || 'site';
 }
 
-async function enrichLead(row) {
+async function enrichLead(row, options = {}) {
   const baseUrl = normalizeUrl(row.link || row.contact);
   if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) {
     return { contact: row.contact, source: 'skip-no-url', detail: '' };
   }
 
-  const pages = [];
-  const home = await fetchWithTimeout(baseUrl);
-  pages.push(home);
+  const maxPages = Number.isFinite(Number(options.maxPages)) ? Math.max(1, Math.trunc(Number(options.maxPages))) : DEFAULT_MAX_PAGES;
+  const fetchImpl = options.fetchImpl || fetch;
+  const home = await fetchWithTimeout(baseUrl, options.timeoutMs || DEFAULT_TIMEOUT_MS, fetchImpl);
+  const candidateUrls = collectCandidatePages(home.html, home.url, maxPages);
+  let bestResult = { contact: row.contact || baseUrl, source: 'site', detail: home.url, score: 0 };
 
-  const mailto = extractMailto(home.html);
-  if (mailto) return { contact: mailto, source: 'email', detail: home.url };
-
-  const homeEmails = extractEmails(home.html);
-  if (homeEmails.length) return { contact: `mailto:${homeEmails[0]}`, source: 'email', detail: home.url };
-
-  const links = extractLinks(home.html, home.url);
-  const contactPage = chooseContactPage(links);
-  if (contactPage) {
+  for (const url of candidateUrls) {
     try {
-      const page = await fetchWithTimeout(contactPage);
-      pages.push(page);
-      const pageMailto = extractMailto(page.html);
-      if (pageMailto) return { contact: pageMailto, source: 'email', detail: page.url };
-
-      const pageEmails = extractEmails(page.html);
-      if (pageEmails.length) return { contact: `mailto:${pageEmails[0]}`, source: 'email', detail: page.url };
-
-      const pageForm = extractForms(page.html, page.url);
-      if (pageForm) return { contact: page.url, source: 'form', detail: pageForm };
-
-      return { contact: page.url, source: 'contact-page', detail: page.url };
+      const page = url === home.url ? home : await fetchWithTimeout(url, options.timeoutMs || DEFAULT_TIMEOUT_MS, fetchImpl);
+      const candidate = {
+        url: page.url,
+        mailto: extractMailto(page.html),
+        emails: extractEmails(page.html, home.url),
+        form: extractForms(page.html, page.url),
+      };
+      const result = bestPageRoute(candidate);
+      if (result.score > bestResult.score) {
+        bestResult = result;
+      }
     } catch (error) {
-      return { contact: contactPage, source: 'contact-page-unverified', detail: error.message };
+      const result = { contact: url, source: 'contact-page-unverified', detail: error.message, score: 0 };
+      if (result.score > bestResult.score) {
+        bestResult = result;
+      }
     }
+  }
+
+  if (bestResult.source !== 'site') {
+    return bestResult;
   }
 
   const homeForm = extractForms(home.html, home.url);
@@ -278,6 +475,46 @@ function classifyRoute(result, row) {
     link: row.link || '',
     variant: row.variant || '',
   });
+}
+
+function currentRouteStrength(row) {
+  const route = routeFromContact({
+    contact: row.contact || '',
+    link: row.link || '',
+    variant: row.variant || '',
+  });
+  return routeScore(route, row.contact || '', row.link || row.contact || '');
+}
+
+function decideEnrichmentUpdate(row, result, options = {}) {
+  const route = classifyRoute(result, row);
+  const sourceRoute = normalizeRouteFromSource(result.source);
+  const nextRoute = sourceRoute === 'site' && route ? route : (sourceRoute || route);
+  const currentStrength = currentRouteStrength(row);
+  const nextStrength = routeScore(nextRoute, result.contact || '', row.link || result.contact || '');
+  const allowDowngrade = Boolean(options.refresh && options.preferForm);
+  const shouldReplaceContact = Boolean(result.contact) && (
+    nextStrength > currentStrength ||
+    allowDowngrade ||
+    !row.contact
+  );
+  const currentRoute = routeFromContact({
+    contact: row.contact || '',
+    link: row.link || '',
+    variant: row.variant || '',
+  });
+  const nextVariant = applyRouteToVariant(row.variant, shouldReplaceContact ? nextRoute : currentRoute);
+
+  return {
+    route,
+    sourceRoute,
+    nextRoute,
+    currentRoute,
+    currentStrength,
+    nextStrength,
+    shouldReplaceContact,
+    nextVariant,
+  };
 }
 
 function shouldEnrich(row, options) {
@@ -312,16 +549,13 @@ async function main() {
     checked += 1;
 
     try {
-      const result = await enrichLead(row);
-      const route = classifyRoute(result, row);
-      const sourceRoute = normalizeRouteFromSource(result.source);
-      const nextRoute = sourceRoute === 'site' && route ? route : (sourceRoute || route);
-      const nextVariant = applyRouteToVariant(row.variant, nextRoute);
-      const contactChanged = result.contact && result.contact !== row.contact;
+      const result = await enrichLead(row, { maxPages: options.maxPages });
+      const { shouldReplaceContact, nextVariant } = decideEnrichmentUpdate(row, result, options);
+      const contactChanged = shouldReplaceContact && result.contact !== row.contact;
       const variantChanged = nextVariant !== row.variant;
 
       if (contactChanged || variantChanged) {
-        console.log(`${row.name}: ${row.contact || '-'} -> ${result.contact} (${result.source})`);
+        console.log(`${row.name}: ${row.contact || '-'} -> ${shouldReplaceContact ? result.contact : row.contact} (${result.source})`);
         if (contactChanged) {
           row.contact = result.contact;
         }
@@ -344,7 +578,38 @@ async function main() {
   console.log(`Output: ${options.dryRun ? 'dry run only' : OUTPUT_LABEL}`);
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exit(1);
-});
+module.exports = {
+  CONTACT_PAGE_HINTS,
+  DEFAULT_MAX_PAGES,
+  decodeHtmlEntities,
+  decodeObfuscatedText,
+  emailDomainMatches,
+  emailScore,
+  extractEmails,
+  extractForms,
+  extractLinks,
+  extractMailto,
+  isPlaceholderEmail,
+  normalizeEmailCandidate,
+  normalizeRouteFromSource,
+  normalizeText,
+  enrichLead,
+  collectCandidatePages,
+  currentRouteStrength,
+  decideEnrichmentUpdate,
+  classifyRoute,
+  shouldEnrich,
+  routePriority,
+  bestPageRoute,
+  rankEmails,
+  readRows,
+  writeRows,
+  parseArgs,
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exit(1);
+  });
+}
