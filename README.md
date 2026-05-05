@@ -225,6 +225,8 @@ export THREEDVR_EMAIL_DRAFT_MODE="gmail"
 
 If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. `ask-enrich` also improves email discovery before falling back to a form or contact page. Add `--mark` when you want it to mark the lead contacted after opening. Use `ask-send --form "Dark Horse Coffee Roasters"` or `ask-form "Dark Horse Coffee Roasters"` when you want Playwright to fill a form instead of just opening the page. Use `ask-enrich --prefer-form` only when you explicitly want to refresh a lead toward a form route.
 
+`ask-form` starts with `generic-html-form` and will switch to builder-specific adapters for WordPress Contact Form 7, Wix, and Squarespace when the page markup matches.
+
 Send directly instead of opening a draft:
 
 ```sh

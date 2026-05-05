@@ -8,6 +8,7 @@ const {
   fillContactForm,
   pickLead,
   planFieldAssignments,
+  selectAdapter,
   routeLabelForLead,
 } = require('../thomas-agent/node/contact-form-fill');
 
@@ -37,7 +38,7 @@ function makeElement(descriptor) {
   };
 }
 
-function makeFakePage(descriptors) {
+function makeFakePage(descriptors, html = '<form><input type="text" name="name" /></form>') {
   const fields = descriptors.map((descriptor, index) => ({
     ...descriptor,
     index,
@@ -48,6 +49,9 @@ function makeFakePage(descriptors) {
   return {
     fields,
     controls,
+    async content() {
+      return html;
+    },
     async goto() {},
     async screenshot({ path: screenshotPath }) {
       writeFileSync(screenshotPath, 'screenshot');
@@ -88,6 +92,13 @@ function makeFakePage(descriptors) {
     },
   };
 }
+
+test('selectAdapter picks builder-specific adapters before the generic form adapter', () => {
+  assert.equal(selectAdapter({ html: '<div class="wpcf7">Contact form</div>' }).id, 'wordpress-contact-form-7');
+  assert.equal(selectAdapter({ html: '<div data-hook="form"></div><div class="wix-form">Form</div>' }).id, 'wix-contact-form');
+  assert.equal(selectAdapter({ html: '<div class="sqs-block-form">Form</div>' }).id, 'squarespace-form');
+  assert.equal(selectAdapter({ html: '<form><input name="name"></form>' }).id, 'generic-html-form');
+});
 
 test('pickLead prefers form routes over direct email', () => {
   const rows = [
@@ -135,6 +146,7 @@ test('fillContactForm fills fields and saves a screenshot in review mode', async
         targetUrl: 'file:///tmp/acme-contact.html',
         screenshotPath,
         leadSiteUrl: 'file:///tmp/acme.html',
+        adapter: selectAdapter({ html: '<form><input name="name"></form>' }),
       },
     );
 

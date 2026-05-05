@@ -1,18 +1,22 @@
-const fs = require('node:fs');
-const fsPromises = require('node:fs/promises');
 const { execFileSync } = require('node:child_process');
-const os = require('node:os');
 const path = require('node:path');
 
 const { buildOutreachDraft } = require('./outreach-draft');
 const { readRows } = require('./lead-enrich');
 const { routeFromContact, routeLabel } = require('./lead-route');
+const {
+  DEFAULT_MAX_WAIT_MS,
+  buildScreenshotPath,
+  normalizeLeadUrl,
+  planFieldAssignments,
+  siteUrlForLead,
+} = require('./contact-form-core');
+const { ADAPTERS, selectAdapter } = require('./form-adapters');
 
 const DEFAULT_NAME = 'Thomas';
 const DEFAULT_COMPANY = '3DVR';
 const DEFAULT_EMAIL = process.env.THREEDVR_OUTREACH_EMAIL || '3dvr.tech@gmail.com';
 const DEFAULT_PHONE = process.env.THREEDVR_OUTREACH_PHONE || '';
-const DEFAULT_MAX_WAIT_MS = Number(process.env.THREEDVR_FORM_MAX_WAIT_MS || 15000);
 
 function loadPlaywright() {
   try {
@@ -83,25 +87,6 @@ function parseArgs(argv) {
   return options;
 }
 
-function cleanCsvField(value) {
-  return String(value || '')
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/,/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function normalizeLeadUrl(value) {
-  const text = normalizeText(value);
-  if (!text) return '';
-  if (/^(https?:\/\/|file:\/\/|data:)/i.test(text)) return text;
-  return '';
-}
-
-function siteUrlForLead(lead) {
-  return normalizeLeadUrl(lead.contact) || normalizeLeadUrl(lead.link);
-}
-
 function routeLabelForLead(lead) {
   return routeLabel(routeFromContact({ contact: lead.contact || '', link: lead.link || '', variant: lead.variant || '' }));
 }
@@ -117,7 +102,6 @@ function pickLead(rows, name = '') {
     .map((row, index) => ({
       row,
       index,
-      route: routeLabelForLead(row),
       priority: (() => {
         const route = routeLabelForLead(row);
         if (route === 'form') return 40;
@@ -132,174 +116,17 @@ function pickLead(rows, name = '') {
   return ranked[0]?.row || null;
 }
 
-function buildOutreachMessage(lead, options = {}) {
-  const mode = options.offer ? 'offer' : 'opener';
-  if (mode === 'offer') {
-    return Promise.resolve(`${lead.name ? `Hi ${lead.name} team,\n\n` : ''}I'm Thomas with 3DVR. We help small businesses clean up websites and follow-up systems so the next step is clearer.\n\nIs there anything in your current process that feels harder than it should right now?\n\nThomas\n3DVR`);
+async function buildLeadMessage(lead, options = {}) {
+  if (options.offer) {
+    return `${lead.name ? `Hi ${lead.name} team,\n\n` : ''}I'm Thomas with 3DVR. We help small businesses clean up websites and follow-up systems so the next step is clearer.\n\nIs there anything in your current process that feels harder than it should right now?\n\nThomas\n3DVR`;
   }
 
-  return buildOutreachDraft({
+  const draft = await buildOutreachDraft({
     name: lead.name,
     site: lead.link,
     contact: lead.contact,
-  }).then((draft) => draft.text);
-}
-
-function textForDescriptor(descriptor) {
-  return [
-    descriptor.labelText,
-    descriptor.ariaLabel,
-    descriptor.placeholder,
-    descriptor.name,
-    descriptor.id,
-    descriptor.autocomplete,
-    descriptor.type,
-    descriptor.tag,
-  ].filter(Boolean).join(' ').toLowerCase();
-}
-
-function scoreDescriptorForTarget(descriptor, target) {
-  if (descriptor.disabled) return Number.NEGATIVE_INFINITY;
-  if (descriptor.readonly && target !== 'message') return Number.NEGATIVE_INFINITY;
-
-  const text = textForDescriptor(descriptor);
-  let score = 0;
-
-  if (/password|file|credit card|card number|card|payment|login|sign in|account/i.test(text)) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  if (target === 'name') {
-    if (/first name|last name|surname|family name/i.test(text)) return 0;
-    if (/full name|your name|contact name|name/i.test(text)) score += 60;
-    if (/autocomplete name/.test(text) || descriptor.autocomplete === 'name') score += 30;
-    if (descriptor.tag === 'input' || descriptor.tag === 'textarea') score += 10;
-  } else if (target === 'email') {
-    if (/email|e-mail/i.test(text)) score += 60;
-    if (descriptor.type === 'email' || descriptor.autocomplete === 'email') score += 35;
-    if (/placeholder/.test(text)) score += 5;
-  } else if (target === 'company') {
-    if (/company|business|organization|organisation|firm|company name/i.test(text)) score += 60;
-    if (descriptor.autocomplete === 'organization') score += 25;
-  } else if (target === 'phone') {
-    if (/phone|telephone|mobile|cell|tel/i.test(text)) score += 60;
-    if (descriptor.type === 'tel' || descriptor.autocomplete === 'tel') score += 35;
-  } else if (target === 'message') {
-    if (/message|comments?|enquir|inquir|details?|how can we help|tell us/i.test(text)) score += 70;
-    if (descriptor.tag === 'textarea') score += 35;
-    if (/textarea/.test(text)) score += 20;
-  } else if (target === 'submit') {
-    if (/send|submit|contact|request|book|continue|apply|next|send message/i.test(text)) score += 80;
-    if (descriptor.type === 'submit') score += 30;
-  }
-
-  if (/^input/.test(descriptor.tag) && target === 'message') score -= 10;
-  if (/first name|last name/i.test(text) && target !== 'name') score -= 20;
-  if (descriptor.required) score += 5;
-  return score;
-}
-
-function inspectDescriptorFromElement(element, index) {
-  const labelText = element.labels ? Array.from(element.labels).map((label) => label.textContent || '').join(' ').trim() : '';
-  return {
-    index,
-    tag: String(element.tagName || '').toLowerCase(),
-    type: String(element.getAttribute?.('type') || '').toLowerCase(),
-    name: String(element.getAttribute?.('name') || ''),
-    id: String(element.getAttribute?.('id') || ''),
-    placeholder: String(element.getAttribute?.('placeholder') || ''),
-    autocomplete: String(element.getAttribute?.('autocomplete') || ''),
-    ariaLabel: String(element.getAttribute?.('aria-label') || ''),
-    labelText,
-    required: Boolean(element.required || element.hasAttribute?.('required')),
-    disabled: Boolean(element.disabled || element.hasAttribute?.('disabled')),
-    readonly: Boolean(element.readOnly || element.hasAttribute?.('readonly')),
-  };
-}
-
-async function inspectFormFields(page) {
-  return page.locator('input, textarea, select').evaluateAll((elements) => elements.map((element, index) => ({
-    index,
-    tag: String(element.tagName || '').toLowerCase(),
-    type: String(element.getAttribute('type') || '').toLowerCase(),
-    name: String(element.getAttribute('name') || ''),
-    id: String(element.getAttribute('id') || ''),
-    placeholder: String(element.getAttribute('placeholder') || ''),
-    autocomplete: String(element.getAttribute('autocomplete') || ''),
-    ariaLabel: String(element.getAttribute('aria-label') || ''),
-    labelText: element.labels ? Array.from(element.labels).map((label) => label.textContent || '').join(' ').trim() : '',
-    required: Boolean(element.required || element.hasAttribute('required')),
-    disabled: Boolean(element.disabled || element.hasAttribute('disabled')),
-    readonly: Boolean(element.readOnly || element.hasAttribute('readonly')),
-  })));
-}
-
-function planFieldAssignments(fields, lead, message) {
-  const targets = [
-    { key: 'name', value: DEFAULT_NAME },
-    { key: 'email', value: DEFAULT_EMAIL },
-    { key: 'company', value: DEFAULT_COMPANY },
-    { key: 'phone', value: DEFAULT_PHONE },
-    { key: 'message', value: message },
-  ];
-
-  const assignments = [];
-  const usedIndexes = new Set();
-
-  for (const target of targets) {
-    if (!target.value) continue;
-    let best = null;
-
-    for (const field of fields) {
-      if (usedIndexes.has(field.index)) continue;
-      const score = scoreDescriptorForTarget(field, target.key);
-      if (score <= 0) continue;
-      if (!best || score > best.score) {
-        best = { ...field, score };
-      }
-    }
-
-    if (best) {
-      usedIndexes.add(best.index);
-      assignments.push({
-        index: best.index,
-        role: target.key,
-        value: target.value,
-        label: best.labelText || best.ariaLabel || best.placeholder || best.name || best.id || best.tag,
-      });
-    }
-  }
-
-  const unmatchedRequired = fields.filter((field) => field.required && !usedIndexes.has(field.index));
-
-  return {
-    assignments,
-    unmatchedRequired,
-  };
-}
-
-function planSubmitControl(fields) {
-  let best = null;
-  for (const field of fields) {
-    const score = scoreDescriptorForTarget(field, 'submit');
-    if (score <= 0) continue;
-    if (!best || score > best.score) {
-      best = { ...field, score };
-    }
-  }
-  return best;
-}
-
-function hasDangerFields(fields) {
-  return fields.some((field) => /password|file|credit card|card number|payment|login|sign in|account/i.test(textForDescriptor(field)));
-}
-
-function sameHost(left, right) {
-  try {
-    return new URL(left).host === new URL(right).host;
-  } catch {
-    return false;
-  }
+  });
+  return draft.text;
 }
 
 async function fillContactForm(page, lead, message, options = {}) {
@@ -312,94 +139,29 @@ async function fillContactForm(page, lead, message, options = {}) {
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
   }
 
-  const fields = await inspectFormFields(page);
-  const formCount = await page.locator('form').count();
-  if (formCount === 0) {
-    throw new Error(`No form found on ${targetUrl}`);
+  const html = typeof page.content === 'function' ? await page.content() : '';
+  const adapter = options.adapter || selectAdapter({ pageUrl: targetUrl, html, lead });
+  if (!adapter) {
+    throw new Error(`No supported form adapter found for ${targetUrl}`);
   }
 
-  const plan = planFieldAssignments(fields, lead, message);
-  const fieldLocator = page.locator('input, textarea, select');
-  const filled = [];
-
-  for (const assignment of plan.assignments) {
-    const locator = fieldLocator.nth(assignment.index);
-    await locator.fill(assignment.value);
-    filled.push(assignment);
-  }
-
-  const screenshotPath = options.screenshotPath || await fsPromises.mkdtemp(path.join(os.tmpdir(), '3dvr-form-'))
-    .then((dir) => path.join(dir, `${cleanCsvField(lead.name || 'lead').toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'lead'}.png`));
-
-  if (typeof page.screenshot === 'function') {
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-  }
-
-  const result = {
-    route: 'form',
-    targetUrl,
-    screenshotPath,
-    filled,
-    submitted: false,
-    blocked: '',
-    unmatchedRequired: plan.unmatchedRequired,
-  };
-
-  if (!options.submit) {
-    return result;
-  }
-
-  if (hasDangerFields(fields)) {
-    result.blocked = 'dangerous fields present';
-    throw new Error('Refusing to submit: password, payment, or file-upload fields are present.');
-  }
-
-  if (plan.unmatchedRequired.length > 0) {
-    result.blocked = 'unmatched required fields';
-    throw new Error(`Refusing to submit: required fields remain unknown (${plan.unmatchedRequired.map((field) => field.labelText || field.name || field.id || field.index).join(', ')})`);
-  }
-
-  if (options.leadSiteUrl && !sameHost(targetUrl, options.leadSiteUrl)) {
-    result.blocked = 'third-party host';
-    throw new Error(`Refusing to submit a third-party form at ${targetUrl}. Review it manually first.`);
-  }
-
-  const submitFields = await page.locator('button, input[type="submit"], input[type="button"]').evaluateAll((elements) => elements.map((element, index) => ({
-    index,
-    tag: String(element.tagName || '').toLowerCase(),
-    type: String(element.getAttribute('type') || '').toLowerCase(),
-    text: String(element.textContent || element.getAttribute('value') || '').trim(),
-    ariaLabel: String(element.getAttribute('aria-label') || ''),
-    name: String(element.getAttribute('name') || ''),
-    id: String(element.getAttribute('id') || ''),
-    labelText: element.labels ? Array.from(element.labels).map((label) => label.textContent || '').join(' ').trim() : '',
-    disabled: Boolean(element.disabled || element.hasAttribute('disabled')),
-  })));
-
-  const submitPlan = planSubmitControl(submitFields);
-  if (!submitPlan) {
-    throw new Error(`Could not find a safe submit control on ${targetUrl}`);
-  }
-
-  await page.locator('button, input[type="submit"], input[type="button"]').nth(submitPlan.index).click();
-  if (typeof page.waitForLoadState === 'function') {
-    await page.waitForLoadState('networkidle', { timeout: DEFAULT_MAX_WAIT_MS }).catch(() => {});
-  }
-  result.submitted = true;
-  return result;
-}
-
-async function buildLeadMessage(lead, options = {}) {
-  if (options.offer) {
-    return `${lead.name ? `Hi ${lead.name} team,\n\n` : ''}I'm Thomas with 3DVR. We help small businesses clean up websites and follow-up systems so the next step is clearer.\n\nIs there anything in your current process that feels harder than it should right now?\n\nThomas\n3DVR`;
-  }
-
-  const draft = await buildOutreachDraft({
-    name: lead.name,
-    site: lead.link,
-    contact: lead.contact,
+  const result = await adapter.fill({
+    page,
+    lead,
+    message,
+    options: {
+      ...options,
+      targetUrl,
+      leadSiteUrl: lead.link || lead.contact || '',
+      maxWaitMs: DEFAULT_MAX_WAIT_MS,
+      submit: Boolean(options.submit),
+    },
   });
-  return draft.text;
+
+  return {
+    ...result,
+    adapterId: result.adapterId || adapter.id,
+  };
 }
 
 async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
@@ -422,20 +184,26 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
     throw new Error(`Lead "${lead.name}" does not include a page URL to open.`);
   }
 
-  const browserTool = runtime.playwright || loadPlaywright();
-  const executablePath = runtime.executablePath || process.env.THREEDVR_PLAYWRIGHT_EXECUTABLE_PATH || '';
-  const browser = runtime.browser || (runtime.page ? null : await browserTool.chromium.launch({
-    headless: runtime.headless !== undefined ? runtime.headless : true,
-    executablePath: executablePath || undefined,
-  }));
-  const context = runtime.context || (runtime.page ? null : await browser.newContext());
-  const page = runtime.page || await context.newPage();
+  let browser = runtime.browser || null;
+  let context = runtime.context || null;
+  let page = runtime.page || null;
+
+  if (!page) {
+    const browserTool = runtime.playwright || loadPlaywright();
+    const executablePath = runtime.executablePath || process.env.THREEDVR_PLAYWRIGHT_EXECUTABLE_PATH || '';
+    browser = browser || await browserTool.chromium.launch({
+      headless: runtime.headless !== undefined ? runtime.headless : true,
+      executablePath: executablePath || undefined,
+    });
+    context = context || await browser.newContext();
+    page = await context.newPage();
+  }
 
   const result = await fillContactForm(page, lead, message, {
     submit: options.submit && !options.dryRun,
-    leadSiteUrl: lead.link || lead.contact || '',
     targetUrl: pageUrl,
     screenshotPath: runtime.screenshotPath,
+    adapter: runtime.adapter,
   });
 
   const route = routeLabelForLead({ ...lead, contact: result.targetUrl });
@@ -445,6 +213,7 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
   console.log(`Site: ${lead.link}`);
   console.log(`Contact: ${lead.contact}`);
   console.log(`Route: ${result.route}`);
+  console.log(`Adapter: ${result.adapterId || 'generic-html-form'}`);
   console.log(`Target: ${result.targetUrl}`);
   console.log(`Mode: ${options.submit && !options.dryRun ? 'submit' : 'review'}`);
   console.log();
@@ -477,22 +246,20 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
 }
 
 module.exports = {
+  ADAPTERS,
   buildLeadMessage,
+  buildScreenshotPath,
   fillContactForm,
-  hasDangerFields,
-  inspectDescriptorFromElement,
-  inspectFormFields,
   loadPlaywright,
   normalizeLeadUrl,
+  normalizeText,
   parseArgs,
   pickLead,
   planFieldAssignments,
-  planSubmitControl,
   routeLabelForLead,
   runFormCommand,
-  scoreDescriptorForTarget,
+  selectAdapter,
   siteUrlForLead,
-  textForDescriptor,
 };
 
 if (require.main === module) {
