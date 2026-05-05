@@ -151,6 +151,8 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-form → open a contact page in Playwright, fill the form, and stop before submit unless `--submit` is explicit
 - ask-artifact → store outreach drafts and screenshots in Gun for later reuse
 - ask-yolo → use a local llama.cpp server to draft a file edit, preview it, and optionally apply/commit/push
+- ask-yolo-app → generate an app page inside the shared `3dvr-site` repo
+- ask-yolo-new-site → generate a brand-new site repo and push it to GitHub
 - ask-sales → outreach messages
 - ask-reply → reply messages
 - ask-post → simple posts
@@ -268,6 +270,18 @@ ask-yolo --apply --commit README.md "Add the ask-form command"
 ```
 
 By default, `ask-yolo` writes a `.yolo-new` preview file and prints a diff. It only overwrites the target file with `--apply`, only commits with `--commit`, and only pushes with `--push`.
+
+Generate a site page in the shared `3dvr-site` repo:
+
+```sh
+ask-yolo-app dark-horse "A dark, modern coffee shop landing page"
+```
+
+Generate a brand-new site repo:
+
+```sh
+ask-yolo-new-site dark-horse "A clean coffee shop website"
+```
 
 ### Autonomous Operator
 
