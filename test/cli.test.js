@@ -71,7 +71,11 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr send-auto\s+auto-send the next direct-email lead and mark it contacted/);
   assert.match(stdout, /3dvr lead send-current\s+auto-send the currently loaded lead/);
   assert.match(stdout, /3dvr yolo\s+local llama\.cpp file-edit helper/);
+  assert.match(stdout, /3dvr yolo-app\s+generate a page inside the 3dvr-site repo/);
+  assert.match(stdout, /3dvr yolo-new-site\s+generate a new site repo and push it to GitHub/);
   assert.match(stdout, /3dvr dev yolo\s+same as 3dvr yolo/);
+  assert.match(stdout, /3dvr dev yolo-app\s+same as 3dvr yolo-app/);
+  assert.match(stdout, /3dvr dev yolo-new-site\s+same as 3dvr yolo-new-site/);
   assert.match(stdout, /3dvr email connect\s+same as 3dvr auth login google/);
   assert.match(stdout, /Do not set Gmail app passwords/i);
 });
