@@ -153,6 +153,10 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-yolo → use a local llama.cpp server to draft a file edit, preview it, and optionally apply/commit/push
 - ask-yolo-app → generate an app page inside the shared `3dvr-site` repo
 - ask-yolo-new-site → generate a brand-new site repo and push it to GitHub
+- ask-self-yolo-agent → guarded self-edit helper with README section support
+- ask-self-yolo-loop → repeat the guarded self-edit helper
+- ask-self-update-agent → commit, push, and reinstall the agent repo
+- ask-rollback-agent → git reset --hard helper for the current repo
 - ask-sales → outreach messages
 - ask-reply → reply messages
 - ask-post → simple posts
@@ -281,6 +285,15 @@ Generate a brand-new site repo:
 
 ```sh
 ask-yolo-new-site dark-horse "A clean coffee shop website"
+```
+
+The older self-modifying workflows are also available:
+
+```sh
+ask-self-yolo-agent "Improve the README installation section"
+ask-self-yolo-loop "Improve the README installation section" 3
+ask-self-update-agent
+ask-rollback-agent HEAD~1
 ```
 
 ### Autonomous Operator

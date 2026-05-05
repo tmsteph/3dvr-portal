@@ -94,6 +94,10 @@ Email aliases:
 3dvr yolo                local llama.cpp file-edit helper
 3dvr yolo-app            generate a page inside the 3dvr-site repo
 3dvr yolo-new-site       generate a new site repo and push it to GitHub
+3dvr self-yolo-agent     guarded self-edit helper for the agent repo
+3dvr self-yolo-loop      repeat the guarded self-edit helper
+3dvr self-update-agent   commit, push, and reinstall the agent repo
+3dvr rollback-agent      git reset --hard helper for the current repo
 
 Agent:
 3dvr agent status|start|stop|logs|restart
@@ -105,6 +109,10 @@ Dev:
 3dvr dev yolo            same as 3dvr yolo
 3dvr dev yolo-app        same as 3dvr yolo-app
 3dvr dev yolo-new-site   same as 3dvr yolo-new-site
+3dvr dev self-yolo-agent same as 3dvr self-yolo-agent
+3dvr dev self-yolo-loop  same as 3dvr self-yolo-loop
+3dvr dev self-update-agent same as 3dvr self-update-agent
+3dvr dev rollback-agent  same as 3dvr rollback-agent
 
 Settings:
 3dvr settings [portal|email|relay]
@@ -516,6 +524,18 @@ case "$cmd" in
   yolo-new-site|yolo-site)
     exec "$SCRIPT_DIR/ask-yolo-new-site" "$@"
     ;;
+  self-yolo-agent)
+    exec "$SCRIPT_DIR/ask-self-yolo-agent" "$@"
+    ;;
+  self-yolo-loop)
+    exec "$SCRIPT_DIR/ask-self-yolo-loop" "$@"
+    ;;
+  self-update-agent)
+    exec "$SCRIPT_DIR/ask-self-update-agent" "$@"
+    ;;
+  rollback-agent)
+    exec "$SCRIPT_DIR/ask-rollback-agent" "$@"
+    ;;
   dev)
     sub="${1:-help}"
     shift || true
@@ -523,6 +543,10 @@ case "$cmd" in
       yolo) exec "$SCRIPT_DIR/ask-yolo" "$@" ;;
       yolo-app) exec "$SCRIPT_DIR/ask-yolo-app" "$@" ;;
       yolo-new-site|yolo-site) exec "$SCRIPT_DIR/ask-yolo-new-site" "$@" ;;
+      self-yolo-agent) exec "$SCRIPT_DIR/ask-self-yolo-agent" "$@" ;;
+      self-yolo-loop) exec "$SCRIPT_DIR/ask-self-yolo-loop" "$@" ;;
+      self-update-agent) exec "$SCRIPT_DIR/ask-self-update-agent" "$@" ;;
+      rollback-agent) exec "$SCRIPT_DIR/ask-rollback-agent" "$@" ;;
       *) usage; exit 1 ;;
     esac
     ;;
