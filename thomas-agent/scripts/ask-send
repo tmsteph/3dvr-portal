@@ -11,17 +11,19 @@ mark_after_send="no"
 dry_run="no"
 enrich_first="no"
 auto_send="no"
+form_mode="no"
 draft_mode="${THREEDVR_EMAIL_DRAFT_MODE:-mailto}"
 target_name=""
 
 usage() {
-  echo 'Usage: ask-send [--offer] [--mark] [--enrich] [--auto] [--gmail-draft|--mailto-draft] [--dry-run] ["Business Name"]'
+  echo 'Usage: ask-send [--offer] [--mark] [--enrich] [--auto] [--form] [--gmail-draft|--mailto-draft] [--dry-run] ["Business Name"]'
   echo
   echo 'Examples:'
   echo '  ask-send'
   echo '  ask-send --dry-run'
   echo '  ask-send --gmail-draft "Dark Horse Coffee Roasters"'
   echo '  ask-send --enrich "Dark Horse Coffee Roasters"'
+  echo '  ask-send --form "Dark Horse Coffee Roasters"'
   echo '  ask-send --offer "Scrimshaw Coffee"'
   echo '  ask-send --mark "Scrimshaw Coffee"'
   echo '  ask-send --auto --mark "Dark Horse Coffee Roasters"'
@@ -34,6 +36,7 @@ while [ "$#" -gt 0 ]; do
     --dry-run) dry_run="yes" ;;
     --enrich) enrich_first="yes" ;;
     --auto) auto_send="yes" ;;
+    --form) form_mode="yes" ;;
     --gmail-draft) draft_mode="gmail" ;;
     --mailto-draft) draft_mode="mailto" ;;
     -h|--help)
@@ -55,6 +58,15 @@ if [ ! -f "$FILE" ]; then
   echo "No leads file found at $FILE"
   echo "Run: ask-crawl && ask-enrich"
   exit 1
+fi
+
+if [ "$form_mode" = "yes" ]; then
+  form_args=()
+  [ "$dry_run" = "yes" ] && form_args+=(--dry-run)
+  [ "$mark_after_send" = "yes" ] && form_args+=(--mark)
+  [ "$mode" = "offer" ] && form_args+=(--offer)
+  [ -n "$target_name" ] && form_args+=("$target_name")
+  exec "$SCRIPT_DIR/ask-form" "${form_args[@]}"
 fi
 
 if [ "$enrich_first" = "yes" ]; then

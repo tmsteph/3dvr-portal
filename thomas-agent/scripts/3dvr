@@ -59,6 +59,7 @@ Leads:
 3dvr lead contacted      mark current lead contacted
 3dvr lead auto-send      auto-send the next direct-email lead
 3dvr lead send-current    auto-send the currently loaded lead
+3dvr lead form           open and fill a contact form for the current lead
 3dvr lead followup       show follow-ups due
 3dvr lead list           list leads
 
@@ -69,6 +70,7 @@ Outreach aliases:
 3dvr outreach sent       same as 3dvr contacted
 3dvr outreach auto-send   same as 3dvr lead auto-send
 3dvr outreach send-current same as 3dvr lead send-current
+3dvr outreach form        same as 3dvr lead form
 
 Inbox:
 3dvr inbox check         check unread/replies
@@ -136,7 +138,7 @@ menu_header() {
   printf '%s\n' '9) Settings                   Show local config'
   printf '%s\n' '0) Mark sent + next           Mark the last shown lead, then load the next one'
   printf '%s\n' "$auto_send_line"
-  printf '\n%s\n' 'Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `inbox check`, `status`, `crm`, or direct `ask-*` commands.'
+  printf '\n%s\n' 'Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `ask-form`, `inbox check`, `status`, `crm`, or direct `ask-*` commands.'
   printf '%s\n' 'If you already drafted the last lead on mobile, press 0.'
   printf '%s\n' 'If you want the cockpit to send the loaded lead for you, press 10.'
 }
@@ -487,6 +489,7 @@ case "$cmd" in
       next) exec "$SCRIPT_DIR/ask-next" "$@" ;;
       open) exec "$SCRIPT_DIR/ask-send" "$@" ;;
       send) exec "$SCRIPT_DIR/ask-send" "$@" ;;
+      form) exec "$SCRIPT_DIR/ask-form" "$@" ;;
       message) exec "$SCRIPT_DIR/ask-message" "$@" ;;
       contacted|sent) exec "$0" contacted ;;
       auto-send|send-auto) exec "$0" send-auto ;;

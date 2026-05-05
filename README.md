@@ -148,6 +148,7 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-next → next lead + ready opener + launch-page follow-up
 - ask-message → outreach message variants and launch-page follow-up
 - ask-send → copy opener, open email/contact page, optionally enrich first, optionally send direct email, and optionally mark contacted
+- ask-form → open a contact page in Playwright, fill the form, and stop before submit unless `--submit` is explicit
 - ask-artifact → store outreach drafts and screenshots in Gun for later reuse
 - ask-sales → outreach messages
 - ask-reply → reply messages
@@ -221,7 +222,7 @@ You can also make Gmail the default:
 export THREEDVR_EMAIL_DRAFT_MODE="gmail"
 ```
 
-If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. `ask-enrich` also improves email discovery before falling back to a form or contact page. Add `--mark` when you want it to mark the lead contacted after opening. Use `ask-enrich --prefer-form` only when you explicitly want to refresh a lead toward a form route.
+If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. `ask-enrich` also improves email discovery before falling back to a form or contact page. Add `--mark` when you want it to mark the lead contacted after opening. Use `ask-send --form "Dark Horse Coffee Roasters"` or `ask-form "Dark Horse Coffee Roasters"` when you want Playwright to fill a form instead of just opening the page. Use `ask-enrich --prefer-form` only when you explicitly want to refresh a lead toward a form route.
 
 Send directly instead of opening a draft:
 
