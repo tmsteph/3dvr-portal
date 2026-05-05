@@ -91,12 +91,16 @@ Email aliases:
 3dvr email check         same as 3dvr inbox check
 3dvr email test          same as 3dvr inbox send-test
 3dvr send-auto           auto-send the next direct-email lead and mark it contacted
+3dvr yolo                local llama.cpp file-edit helper
 
 Agent:
 3dvr agent status|start|stop|logs|restart
 
 Projects:
 3dvr project list|open|new|deploy
+
+Dev:
+3dvr dev yolo            same as 3dvr yolo
 
 Settings:
 3dvr settings [portal|email|relay]
@@ -496,6 +500,17 @@ case "$cmd" in
       send-current|current-send) exec "$0" send-current ;;
       followup) exec "$SCRIPT_DIR/ask-track" followup ;;
       list) exec "$SCRIPT_DIR/ask-track" new ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  yolo)
+    exec "$SCRIPT_DIR/ask-yolo" "$@"
+    ;;
+  dev)
+    sub="${1:-help}"
+    shift || true
+    case "$sub" in
+      yolo) exec "$SCRIPT_DIR/ask-yolo" "$@" ;;
       *) usage; exit 1 ;;
     esac
     ;;
