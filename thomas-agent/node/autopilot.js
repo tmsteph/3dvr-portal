@@ -6,11 +6,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const nodemailer = require('nodemailer');
 
-const {
-  autopilotRunsNode,
-  autopilotStateNode,
-  slugify,
-} = require('./gun-db');
+const { routeFromContact } = require('./lead-route');
 
 const execFileAsync = promisify(execFile);
 
@@ -28,6 +24,7 @@ const DEFAULT_NOTIFY_NEW_LEADS = parseInteger(process.env.THREEDVR_AUTOPILOT_NOT
 const DEFAULT_ENRICH_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_ENRICH_LIMIT, 10);
 const DEFAULT_CRAWL_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_CRAWL_LIMIT, 10);
 const DEFAULT_RADIUS_KM = parseInteger(process.env.THREEDVR_AUTOPILOT_RADIUS_KM, 8);
+const DEFAULT_FORM_MODE = String(process.env.THREEDVR_AUTOPILOT_FORM_MODE || 'review').trim().toLowerCase();
 const DEFAULT_EMAIL_MODE = String(process.env.THREEDVR_AUTOPILOT_EMAIL_MODE || 'action').trim().toLowerCase();
 const DEFAULT_EMAIL_COOLDOWN_HOURS = parseInteger(process.env.THREEDVR_AUTOPILOT_EMAIL_COOLDOWN_HOURS, 12);
 const DEFAULT_EMAIL_TRANSPORT = String(process.env.THREEDVR_AUTOPILOT_EMAIL_TRANSPORT || 'portal').trim().toLowerCase();
@@ -107,6 +104,7 @@ Environment:
   THREEDVR_AUTOPILOT_ENRICH_LIMIT        max leads to enrich per run
   THREEDVR_AUTOPILOT_RADIUS_KM           crawl radius
   THREEDVR_AUTOPILOT_NOTIFY_EMAIL        escalation target
+  THREEDVR_AUTOPILOT_FORM_MODE           review | off
   THREEDVR_AUTOPILOT_EMAIL_MODE          action | always | never
   THREEDVR_AUTOPILOT_EMAIL_COOLDOWN_HOURS dedupe window for repeated emails
   THREEDVR_AUTOPILOT_EMAIL_TRANSPORT     portal | auto | gmail
@@ -207,7 +205,6 @@ function countStatuses(rows) {
     nurture: 0,
     replied: 0,
     closed: 0,
-    unenriched: 0,
   };
 
   for (const row of rows) {
@@ -215,12 +212,44 @@ function countStatuses(rows) {
     if (Object.prototype.hasOwnProperty.call(counts, status)) {
       counts[status] += 1;
     }
-    if (needsEnrichment(row)) {
-      counts.unenriched += 1;
-    }
   }
 
   return counts;
+}
+
+function countRouteBuckets(rows) {
+  const routeCounts = {
+    emailReady: 0,
+    formReady: 0,
+    pageOnly: 0,
+    unenriched: 0,
+  };
+
+  for (const row of rows) {
+    if (normalizeText(row.status).toLowerCase() !== 'new') continue;
+    const route = routeFromContact(row);
+    const contact = normalizeText(row.contact);
+    const link = normalizeText(row.link);
+    if (route === 'email') {
+      routeCounts.emailReady += 1;
+    } else if (route === 'form') {
+      routeCounts.formReady += 1;
+    } else if (route === 'contact-page') {
+      routeCounts.pageOnly += 1;
+    } else if (route === 'site' && !contact && !link) {
+      routeCounts.unenriched += 1;
+    } else {
+      routeCounts.pageOnly += 1;
+    }
+  }
+
+  routeCounts.unenriched = countUnenriched(rows);
+
+  return routeCounts;
+}
+
+function countUnenriched(rows) {
+  return rows.reduce((total, row) => total + (needsEnrichment(row) ? 1 : 0), 0);
 }
 
 function needsEnrichment(row) {
@@ -235,6 +264,15 @@ function needsEnrichment(row) {
 function topLeadNames(rows, status, limit = 3) {
   return rows
     .filter((row) => normalizeText(row.status).toLowerCase() === status)
+    .slice(0, limit)
+    .map((row) => row.name)
+    .filter(Boolean);
+}
+
+function topRouteLeadNames(rows, route, limit = 3) {
+  return rows
+    .filter((row) => normalizeText(row.status).toLowerCase() === 'new')
+    .filter((row) => routeFromContact(row) === route)
     .slice(0, limit)
     .map((row) => row.name)
     .filter(Boolean);
@@ -583,7 +621,11 @@ async function sendViaLocalGmail(email) {
 }
 
 function formatCounts(counts) {
-  return `new=${counts.new}, contacted=${counts.contacted}, nurture=${counts.nurture}, replied=${counts.replied}, closed=${counts.closed}, unenriched=${counts.unenriched}`;
+  return `new=${counts.new}, contacted=${counts.contacted}, nurture=${counts.nurture}, replied=${counts.replied}, closed=${counts.closed}`;
+}
+
+function formatRouteCounts(routeCounts) {
+  return `emailReady=${routeCounts.emailReady}, formReady=${routeCounts.formReady}, pageOnly=${routeCounts.pageOnly}, unenriched=${routeCounts.unenriched}`;
 }
 
 function buildActionItems(summary) {
@@ -596,6 +638,19 @@ function buildActionItems(summary) {
     const delivered = summary.autoSent.filter((entry) => entry.ok).map((entry) => entry.name);
     if (delivered.length) {
       actions.push(`Auto-sent first outreach to ${delivered.join(', ')}`);
+    }
+  }
+  if (summary.routeCounts?.formReady > 0) {
+    actions.push(`Review form leads: ${summary.topForm.join(', ') || `${summary.routeCounts.formReady} form lead(s)`}`);
+    if (summary.topForm[0]) {
+      actions.push(`ask-form "${summary.topForm[0]}"`);
+      actions.push(`ask-send "${summary.topForm[0]}"`);
+    }
+  }
+  if (summary.routeCounts?.pageOnly > 0) {
+    actions.push(`Review page-only leads: ${summary.topPageOnly.join(', ') || `${summary.routeCounts.pageOnly} page-only lead(s)`}`);
+    if (summary.topPageOnly[0]) {
+      actions.push(`ask-send "${summary.topPageOnly[0]}"`);
     }
   }
   if (summary.counts.new >= DEFAULT_NOTIFY_NEW_LEADS) {
@@ -626,6 +681,7 @@ function buildEmail(summary, actions) {
     `3dvr-agent autopilot run: ${summary.runId}`,
     '',
     `Counts: ${formatCounts(summary.counts)}`,
+    `Routes: ${formatRouteCounts(summary.routeCounts)}`,
     summary.combo ? `Lead source tested: ${summary.combo.location} / ${summary.combo.category}` : 'Lead source tested: none',
     summary.codex?.mode && summary.codex.mode !== 'off'
       ? `Codex: ${summary.codex.ok ? `${summary.codex.mode} ok` : `issue (${summary.codex.reason || 'unknown'})`}`
@@ -647,6 +703,12 @@ function buildEmail(summary, actions) {
   }
   if (summary.topReplied.length) {
     lines.push(`Warm leads: ${summary.topReplied.join(', ')}`);
+  }
+  if (summary.topForm.length) {
+    lines.push(`Form review leads: ${summary.topForm.join(', ')}`);
+  }
+  if (summary.topPageOnly.length) {
+    lines.push(`Page-only leads: ${summary.topPageOnly.join(', ')}`);
   }
   if (summary.autoSent?.length) {
     lines.push(`Auto-sent outreach: ${summary.autoSent.filter((entry) => entry.ok).map((entry) => entry.name).join(', ') || 'none'}`);
@@ -781,14 +843,23 @@ async function putGun(node, value) {
 }
 
 async function persistGunSummary(summary) {
+  const {
+    autopilotRunsNode,
+    autopilotStateNode,
+    slugify,
+  } = require('./gun-db');
   const runKey = `${Date.now()}-${slugify(summary.combo?.location || 'no-location')}-${slugify(summary.combo?.category || 'no-category')}`;
   const runsAck = await putGun(autopilotRunsNode().get(runKey), summary);
   const stateAck = await putGun(autopilotStateNode(), {
     lastRunAt: summary.ranAt,
     counts: summary.counts,
+    routeCounts: summary.routeCounts,
+    enrichmentNeeded: summary.enrichmentNeeded,
     actionRequired: summary.actionRequired,
     topNew: summary.topNew,
     topReplied: summary.topReplied,
+    topForm: summary.topForm,
+    topPageOnly: summary.topPageOnly,
     combo: summary.combo || null,
     openAiCosts: summary.openAiCosts,
     codex: summary.codex,
@@ -815,6 +886,8 @@ async function main() {
   const errors = [];
   const beforeRows = readLeads(LEADS_FILE);
   const beforeCounts = countStatuses(beforeRows);
+  const beforeRouteCounts = countRouteBuckets(beforeRows);
+  const beforeEnrichmentNeeded = countUnenriched(beforeRows);
   const combos = buildCombos(DEFAULT_LOCATIONS, DEFAULT_CATEGORIES);
   const combo = beforeCounts.new < DEFAULT_MIN_NEW_LEADS ? chooseCombo(combos, state.comboStats || {}) : null;
   const commands = [];
@@ -842,7 +915,7 @@ async function main() {
     updateComboStat(state, combo, { ok: true, leadsAdded });
   }
 
-  const enrichNeeded = countStatuses(afterCrawlRows).unenriched;
+  const enrichNeeded = countUnenriched(afterCrawlRows);
   let enrichResult = null;
   if (enrichNeeded > 0) {
     const enrichArgs = ['--limit', String(DEFAULT_ENRICH_LIMIT)];
@@ -876,8 +949,12 @@ async function main() {
 
   const finalRows = readLeads(LEADS_FILE);
   const counts = countStatuses(finalRows);
+  const routeCounts = countRouteBuckets(finalRows);
+  const enrichmentNeeded = countUnenriched(finalRows);
   const topNew = topLeadNames(finalRows, 'new');
   const topReplied = topLeadNames(finalRows, 'replied');
+  const topForm = topRouteLeadNames(finalRows, 'form');
+  const topPageOnly = topRouteLeadNames(finalRows, 'contact-page').concat(topRouteLeadNames(finalRows, 'site'));
 
   const codex = await readCodexSummary(options.statusProbe);
   let openAiCosts = { available: false, reason: 'cost checks disabled' };
@@ -898,16 +975,26 @@ async function main() {
   if (counts.contacted > 0) {
     commands.push('ask-track followup');
   }
+  if (routeCounts.formReady > 0 && topForm[0]) {
+    commands.push(`ask-form "${topForm[0]}"`);
+    commands.push(`ask-send "${topForm[0]}"`);
+  }
+  if (routeCounts.pageOnly > 0 && topPageOnly[0]) {
+    commands.push(`ask-send "${topPageOnly[0]}"`);
+  }
 
   const summary = {
     runId: new Date().toISOString().replace(/[:.]/g, '-'),
     ranAt: new Date().toISOString(),
     dryRun: options.dryRun,
     noEmail: options.noEmail,
+    formMode: DEFAULT_FORM_MODE,
     intervalMinutes: DEFAULT_INTERVAL_MINUTES,
     leadsFile: LEADS_FILE,
     counts,
     beforeCounts,
+    beforeRouteCounts,
+    beforeEnrichmentNeeded,
     combo,
     leadsAdded,
     crawlResult: crawlResult
@@ -918,8 +1005,12 @@ async function main() {
       : null,
     codex,
     openAiCosts,
+    routeCounts,
+    enrichmentNeeded,
     topNew,
     topReplied,
+    topForm,
+    topPageOnly,
     autoSent,
     commands: Array.from(new Set(commands)),
     errors,
@@ -955,6 +1046,7 @@ async function main() {
 
   console.log(`Autopilot run: ${summary.runId}`);
   console.log(`Counts: ${formatCounts(summary.counts)}`);
+  console.log(`Routes: ${formatRouteCounts(summary.routeCounts)}`);
   if (combo) {
     console.log(`Combo: ${combo.location} / ${combo.category} (${leadsAdded} lead(s) added)`);
   } else {
@@ -979,6 +1071,12 @@ async function main() {
       console.log(`Codex: ${summary.codex.reason}`);
     }
   }
+  if (summary.routeCounts.formReady > 0) {
+    console.log(`Form review needed: ${summary.routeCounts.formReady}`);
+  }
+  if (summary.routeCounts.pageOnly > 0) {
+    console.log(`Page-only review needed: ${summary.routeCounts.pageOnly}`);
+  }
   if (actions.length) {
     console.log('Action needed:');
     actions.forEach((action) => console.log(`- ${action}`));
@@ -995,7 +1093,22 @@ async function main() {
   setTimeout(() => process.exit(summary.errors.length ? 1 : 0), 50);
 }
 
-main().catch((error) => {
-  console.error(error.message || error);
-  process.exit(1);
-});
+module.exports = {
+  buildActionItems,
+  countRouteBuckets,
+  countStatuses,
+  countUnenriched,
+  formatCounts,
+  formatRouteCounts,
+  needsEnrichment,
+  pickAutoSendLeads,
+  topLeadNames,
+  topRouteLeadNames,
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message || error);
+    process.exit(1);
+  });
+}
