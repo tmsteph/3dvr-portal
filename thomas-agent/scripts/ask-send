@@ -2,6 +2,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/platform.sh"
+LEAD_ROUTE_JS="$ROOT/node/lead-route.js"
 
 FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
 cleanup_file=""
@@ -106,6 +107,7 @@ fi
 name="$(printf '%s' "$line" | awk -F, '{print $1}')"
 link="$(printf '%s' "$line" | awk -F, '{print $2}')"
 contact="$(printf '%s' "$line" | awk -F, '{print $3}')"
+variant="$(printf '%s' "$line" | awk -F, '{print $6}')"
 
 target="$contact"
 [ -z "$target" ] && target="$link"
@@ -149,6 +151,9 @@ case "$target" in
     ;;
 esac
 
+route="$(node "$LEAD_ROUTE_JS" --contact "$contact" --link "$link" --variant "$variant" 2>/dev/null || true)"
+[ -z "$route" ] && route="site"
+
 subject="Question for $name"
 encoded_subject="$(url_encode "$subject")"
 encoded_body="$(url_encode "$message")"
@@ -180,6 +185,7 @@ echo "OUTREACH READY"
 echo "Name: $name"
 echo "Site: $link"
 echo "Contact: $contact"
+echo "Route: $route"
 echo "Mode: $mode"
 echo "Subject: $subject"
 [ -n "$email" ] && echo "Draft mode: $draft_mode"
@@ -204,6 +210,7 @@ elif [ -n "$email" ]; then
   open_url "$compose_url"
 elif [ "$auto_send" = "yes" ]; then
   echo "Automatic send only works for direct email leads."
+  echo "Use: ask-send \"$name\""
   exit 1
 else
   copy_text "$message"

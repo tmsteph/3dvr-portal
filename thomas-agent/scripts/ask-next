@@ -5,6 +5,7 @@ source "$SCRIPT_DIR/lib/platform.sh"
 FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
 LAUNCH_URL="https://3dvr.tech/launch-in-3-days.html"
 OPEN_LEAD_PAGE="${THREEDVR_OPEN_LEAD_PAGE:-0}"
+LEAD_ROUTE_JS="$ROOT/node/lead-route.js"
 
 pick_priority() {
   awk -F, '
@@ -35,14 +36,18 @@ fi
 name="$(printf '%s' "$line" | awk -F, '{print $1}')"
 link="$(printf '%s' "$line" | awk -F, '{print $2}')"
 contact="$(printf '%s' "$line" | awk -F, '{print $3}')"
+variant="$(printf '%s' "$line" | awk -F, '{print $6}')"
 
 target="$contact"
 [ -z "$target" ] && target="$link"
+route="$(node "$LEAD_ROUTE_JS" --contact "$contact" --link "$link" --variant "$variant" 2>/dev/null || true)"
+[ -z "$route" ] && route="site"
 
 echo "NEXT LEAD"
 echo "Name: $name"
 echo "Site: $link"
 echo "Contact: $contact"
+echo "Route: $route"
 echo
 echo "STEP 1: Open this page"
 echo "open_url \"$target\""
