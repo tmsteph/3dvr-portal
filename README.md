@@ -299,7 +299,9 @@ The operator:
 ```text
 - refills the lead queue when new leads are low
 - enriches weak contact targets
+- counts email-ready, form-ready, page-only, and unenriched leads separately
 - auto-sends first-touch email for direct-email leads when enabled
+- queues `ask-form` and manual `ask-send` review commands for form leads
 - stores run snapshots in Gun and local state
 - emails you only when action is needed, errors happen, or spend guardrails trip
 ```
@@ -316,6 +318,7 @@ export THREEDVR_AUTOPILOT_EMAIL_MODE="action"
 export THREEDVR_AUTOPILOT_EMAIL_TRANSPORT="portal"
 export THREEDVR_AUTOPILOT_EMAIL_ENDPOINT="https://portal.3dvr.tech/api/calendar/reminder-email"
 export THREEDVR_AUTOPILOT_EMAIL_TOKEN="shared_operator_token"
+export THREEDVR_AUTOPILOT_FORM_MODE="review"
 export THREEDVR_AUTOPILOT_AUTO_SEND="true"
 export THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT=1
 ```
