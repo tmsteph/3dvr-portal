@@ -88,7 +88,7 @@ test('guided menu accepts commands and stays open until quit', async () => {
   const { stdout } = await runCliInteractive('help\nq\n');
 
   assert.match(stdout, /CRM focus:/);
-  assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `inbox check`, `status`, `crm`, or direct `ask-\*` commands\./);
+    assert.match(stdout, /Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `ask-form`, `inbox check`, `status`, `crm`, or direct `ask-\*` commands\./);
   assert.match(stdout, /3dvr CLI v1/);
   assert.ok((stdout.match(/Welcome to 3dvr/g) || []).length >= 2);
 });
