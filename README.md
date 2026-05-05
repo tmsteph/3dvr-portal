@@ -150,6 +150,7 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-send → copy opener, open email/contact page, optionally enrich first, optionally send direct email, and optionally mark contacted
 - ask-form → open a contact page in Playwright, fill the form, and stop before submit unless `--submit` is explicit
 - ask-artifact → store outreach drafts and screenshots in Gun for later reuse
+- ask-yolo → use a local llama.cpp server to draft a file edit, preview it, and optionally apply/commit/push
 - ask-sales → outreach messages
 - ask-reply → reply messages
 - ask-post → simple posts
@@ -253,6 +254,18 @@ export THREEDVR_OUTREACH_EMAIL_TRANSPORT="gmail"
 export GMAIL_USER="3dvr.tech@gmail.com"
 export GMAIL_APP_PASSWORD="your_app_password"
 ```
+
+### Local YOLO Edits
+
+Use `ask-yolo` when you want the local llama.cpp model to draft an edit to one file:
+
+```sh
+ask-yolo --file README.md "Clarify the install section"
+ask-yolo --apply thomas-agent/scripts/ask-next "Make the next-step wording shorter"
+ask-yolo --apply --commit README.md "Add the ask-form command"
+```
+
+By default, `ask-yolo` writes a `.yolo-new` preview file and prints a diff. It only overwrites the target file with `--apply`, only commits with `--commit`, and only pushes with `--push`.
 
 ### Autonomous Operator
 
