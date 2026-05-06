@@ -3,6 +3,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/platform.sh"
 LEAD_ROUTE_JS="$ROOT/node/lead-route.js"
+OUTREACH_LOG_JS="$ROOT/node/outreach-log.js"
 
 FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
 cleanup_file=""
@@ -14,6 +15,7 @@ auto_send="no"
 form_mode="no"
 draft_mode="${THREEDVR_EMAIL_DRAFT_MODE:-mailto}"
 target_name=""
+draft_source="unknown"
 
 usage() {
   echo 'Usage: ask-send [--offer] [--mark] [--enrich] [--auto] [--form] [--gmail-draft|--mailto-draft] [--dry-run] ["Business Name"]'
@@ -128,8 +130,9 @@ did_send="no"
 
 if [ "$mode" = "offer" ]; then
   message="$($SCRIPT_DIR/ask-message offer)"
+  draft_source="manual-offer"
 else
-  message="$(THREEDVR_OUTREACH_NAME="$name" THREEDVR_OUTREACH_SITE="$link" THREEDVR_OUTREACH_CONTACT="$contact" THREEDVR_OUTREACH_DRAFT_MODULE="$ROOT/node/outreach-draft.js" node - <<'NODE'
+  draft_json="$(THREEDVR_OUTREACH_NAME="$name" THREEDVR_OUTREACH_SITE="$link" THREEDVR_OUTREACH_CONTACT="$contact" THREEDVR_OUTREACH_DRAFT_MODULE="$ROOT/node/outreach-draft.js" node - <<'NODE'
 const { buildOutreachDraft } = require(process.env.THREEDVR_OUTREACH_DRAFT_MODULE);
 
 async function main() {
@@ -138,7 +141,7 @@ async function main() {
     site: process.env.THREEDVR_OUTREACH_SITE,
     contact: process.env.THREEDVR_OUTREACH_CONTACT,
   });
-  process.stdout.write(`${draft.text}\n`);
+  process.stdout.write(JSON.stringify(draft));
 }
 
 main().catch((error) => {
@@ -147,6 +150,8 @@ main().catch((error) => {
 });
 NODE
 )"
+  draft_source="$(node -e 'const draft = JSON.parse(process.argv[1] || "{}"); process.stdout.write(String(draft.source || "unknown"));' "$draft_json")"
+  message="$(node -e 'const draft = JSON.parse(process.argv[1] || "{}"); process.stdout.write(String(draft.text || ""));' "$draft_json")"
 fi
 
 email=""
@@ -210,6 +215,17 @@ if [ "$dry_run" = "yes" ]; then
 elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
   if node "$ROOT/node/send-outreach-email.js" --to "$email" --subject "$subject" --text "$message"; then
     did_send="yes"
+    THREEDVR_OUTREACH_LOG_KIND="email" \
+    THREEDVR_OUTREACH_LOG_STATUS="sent" \
+    THREEDVR_OUTREACH_LOG_SOURCE="$draft_source" \
+    THREEDVR_OUTREACH_LOG_NAME="$name" \
+    THREEDVR_OUTREACH_LOG_SITE="$link" \
+    THREEDVR_OUTREACH_LOG_CONTACT="$contact" \
+    THREEDVR_OUTREACH_LOG_ROUTE="$route" \
+    THREEDVR_OUTREACH_LOG_SUBJECT="$subject" \
+    THREEDVR_OUTREACH_LOG_BODY="$message" \
+    THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+    node "$OUTREACH_LOG_JS" append >/dev/null
   else
     exit 1
   fi

@@ -14,6 +14,7 @@ const {
   resolveBrowserExecutablePath,
   runFormCommand,
 } = require('../thomas-agent/node/contact-form-fill');
+const { readOutreachLog } = require('../thomas-agent/node/outreach-log');
 
 const askFormCli = path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-form');
 
@@ -102,6 +103,15 @@ function makeFakePage(descriptors, html = '<form><input type="text" name="name" 
       throw new Error(`Unexpected selector: ${selector}`);
     },
   };
+}
+
+function restoreEnv(name, value) {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
 }
 
 test('selectAdapter picks builder-specific adapters before the generic form adapter', () => {
@@ -197,6 +207,68 @@ test('fillContactForm fills fields and saves a screenshot in review mode', async
     assert.equal(page.fields[2].value, '3DVR');
     assert.equal(page.fields[3].value, 'Hello from Thomas');
   } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('runFormCommand logs successful submissions', async () => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-log-'));
+  const logPath = path.join(tmp, 'outreach-log.ndjson');
+  const leadsPath = path.join(tmp, 'leads.csv');
+  const screenshotPath = path.join(tmp, 'submitted.png');
+  const originalLogFile = process.env.THREEDVR_OUTREACH_LOG_FILE;
+  const originalLeadsFile = process.env.THREEDVR_LEADS_FILE;
+  process.env.THREEDVR_OUTREACH_LOG_FILE = logPath;
+  process.env.THREEDVR_LEADS_FILE = leadsPath;
+
+  writeFileSync(
+    leadsPath,
+    'name,link,contact,status,date,variant\nAcme Studio,https://example.com,https://example.com/contact,new,2026-05-06,route=form\n',
+  );
+
+  const page = makeFakePage([
+    { tag: 'input', type: 'text', labelText: 'Full name', name: 'name' },
+    { tag: 'input', type: 'email', labelText: 'Email address', name: 'email' },
+    { tag: 'input', type: 'text', labelText: 'Company', name: 'company' },
+    { tag: 'textarea', labelText: 'Message', name: 'message' },
+  ]);
+
+  try {
+    const result = await runFormCommand(['--submit', 'Acme Studio'], {
+      page,
+      adapter: {
+        id: 'generic-html-form',
+        async fill() {
+          writeFileSync(screenshotPath, 'submitted');
+          return {
+            adapterId: 'generic-html-form',
+            route: 'form',
+            targetUrl: 'https://example.com/contact',
+            screenshotPath,
+            filled: [{ role: 'message', label: 'Message' }],
+            submitted: true,
+          };
+        },
+      },
+      markLead: false,
+      screenshotPath,
+    });
+
+    const entries = readOutreachLog({ filePath: logPath });
+
+    assert.equal(result.submitted, true);
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].kind, 'form');
+    assert.equal(entries[0].status, 'submitted');
+    assert.equal(entries[0].source, 'template');
+    assert.equal(entries[0].name, 'Acme Studio');
+    assert.equal(entries[0].targetUrl, 'https://example.com/contact');
+    assert.equal(entries[0].submitted, true);
+    assert.equal(entries[0].screenshotPath, screenshotPath);
+    assert.match(entries[0].body, /I'm Thomas with 3DVR/);
+  } finally {
+    restoreEnv('THREEDVR_OUTREACH_LOG_FILE', originalLogFile);
+    restoreEnv('THREEDVR_LEADS_FILE', originalLeadsFile);
     rmSync(tmp, { recursive: true, force: true });
   }
 });

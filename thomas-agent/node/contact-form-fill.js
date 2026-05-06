@@ -4,6 +4,7 @@ const fs = require('node:fs');
 
 const { buildOutreachDraft } = require('./outreach-draft');
 const { readRows } = require('./lead-enrich');
+const { appendOutreachLog } = require('./outreach-log');
 const { routeFromContact, routeLabel } = require('./lead-route');
 const {
   DEFAULT_MAX_WAIT_MS,
@@ -144,9 +145,12 @@ function pickLead(rows, name = '') {
   return ranked[0]?.row || null;
 }
 
-async function buildLeadMessage(lead, options = {}) {
+async function buildLeadMessageDraft(lead, options = {}) {
   if (options.offer) {
-    return `${lead.name ? `Hi ${lead.name} team,\n\n` : ''}I'm Thomas with 3DVR. We help small businesses clean up websites and follow-up systems so the next step is clearer.\n\nIs there anything in your current process that feels harder than it should right now?\n\nThomas\n3DVR`;
+    return {
+      source: 'manual-offer',
+      text: `${lead.name ? `Hi ${lead.name} team,\n\n` : ''}I'm Thomas with 3DVR. We help small businesses clean up websites and follow-up systems so the next step is clearer.\n\nIs there anything in your current process that feels harder than it should right now?\n\nThomas\n3DVR`,
+    };
   }
 
   const draft = await buildOutreachDraft({
@@ -154,6 +158,11 @@ async function buildLeadMessage(lead, options = {}) {
     site: lead.link,
     contact: lead.contact,
   });
+  return draft;
+}
+
+async function buildLeadMessage(lead, options = {}) {
+  const draft = await buildLeadMessageDraft(lead, options);
   return draft.text;
 }
 
@@ -207,7 +216,8 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
     throw new Error('No usable lead found for form outreach.');
   }
 
-  const message = await buildLeadMessage(lead, { offer: options.offer });
+  const draft = await buildLeadMessageDraft(lead, { offer: options.offer });
+  const message = draft.text;
   const pageUrl = siteUrlForLead(lead);
   if (!pageUrl) {
     throw new Error(`Lead "${lead.name}" does not include a page URL to open.`);
@@ -275,6 +285,7 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
     screenshotPath: runtime.screenshotPath,
     adapter: runtime.adapter,
     allowThirdPartyForm: route === 'form',
+    draftSource: draft.source,
   });
 
   console.log('FORM READY');
@@ -304,6 +315,24 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
     execFileSync(track, ['contact', lead.name, 'route=form'], { stdio: 'inherit' });
   }
 
+  if (result.submitted) {
+    appendOutreachLog({
+      kind: 'form',
+      status: 'submitted',
+      source: draft.source || 'unknown',
+      name: lead.name,
+      site: lead.link,
+      contact: lead.contact,
+      route: result.route,
+      body: message,
+      adapter: result.adapterId || '',
+      targetUrl: result.targetUrl,
+      screenshotPath: result.screenshotPath,
+      submitted: true,
+      note: options.mark ? 'marked-contacted' : '',
+    });
+  }
+
   if (!runtime.browser && browser && typeof browser.close === 'function') {
     await browser.close();
   }
@@ -317,6 +346,7 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
 module.exports = {
   ADAPTERS,
   buildLeadMessage,
+  buildLeadMessageDraft,
   buildScreenshotPath,
   fillContactForm,
   loadPlaywright,

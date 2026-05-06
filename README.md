@@ -145,6 +145,7 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-crawl → find nearby businesses from OpenStreetMap/Overpass, dedupe them, and add them to `thomas-agent/leads.csv`
 - ask-enrich → find email addresses, contact forms, and contact pages
 - ask-track → manage pipeline, including `new`, `contact`, `nurture`, `reply`, `close`
+- ask-track sent → review recent sent outreach log entries
 - ask-next → next lead + ready opener + launch-page follow-up
 - ask-message → outreach message variants and launch-page follow-up
 - ask-send → copy opener, open email/contact page, optionally enrich first, optionally send direct email, and optionally mark contacted
@@ -230,6 +231,13 @@ export THREEDVR_EMAIL_DRAFT_MODE="gmail"
 ```
 
 If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. `ask-enrich` also improves email discovery before falling back to a form or contact page. Add `--mark` when you want it to mark the lead contacted after opening. Use `ask-send --form "Dark Horse Coffee Roasters"` or `ask-form "Dark Horse Coffee Roasters"` when you want Playwright to fill a form instead of just opening the page. Use `ask-enrich --prefer-form` only when you explicitly want to refresh a lead toward a form route.
+
+Every successful send writes a reviewable entry to `thomas-agent/outreach-log.ndjson` by default. Set `THREEDVR_OUTREACH_LOG_FILE` if you want the log somewhere else, then inspect recent entries with:
+
+```sh
+ask-track sent
+ask-track sent 10
+```
 
 `ask-form` starts with `generic-html-form` and will switch to builder-specific adapters for WordPress Contact Form 7, Wix, and Squarespace when the page markup matches. Submit mode uses a local Chromium binary when available and falls back to `xvfb-run` on headless Linux systems that need a display server.
 
