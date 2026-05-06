@@ -74,7 +74,7 @@ Outreach aliases:
 
 Inbox:
 3dvr inbox check         check unread/replies
-3dvr inbox watch         run inbox monitor once
+3dvr inbox watch         run inbox monitor once with reply previews
 3dvr inbox reply         preview inbox replies
 3dvr inbox send-test     send inbox test email
 

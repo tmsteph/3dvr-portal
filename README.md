@@ -167,6 +167,7 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-inbox → poll the 3DVR inbox for unread replies and alert the operator
 - ask-inbox --reply-preview → preview reply drafts for contacted leads with unread replies
 - ask-inbox-daemon → keep inbox monitoring running in the background
+- ask-inbox-daemon run-now → run one inbox cycle with reply previews enabled
 - ask-inbox --reply-preview → show reply drafts for unread messages from contacted leads
 
 ### Lead Crawling

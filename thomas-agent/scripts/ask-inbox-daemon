@@ -72,7 +72,7 @@ case "${1:-}" in
     ;;
   run-now)
     shift
-    exec "$SCRIPT_DIR/ask-inbox" "$@"
+    exec "$SCRIPT_DIR/ask-inbox" --reply-preview "$@"
     ;;
   logs)
     tail -n 40 "$LOG_FILE"

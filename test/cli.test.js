@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { execFile, spawn } = require('node:child_process');
-const { mkdtemp, readFile, rm, writeFile } = require('node:fs/promises');
+const { chmod, mkdir, mkdtemp, readFile, rm, writeFile } = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -68,6 +68,7 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr connect \[gmail\]\s+connect email with portal OAuth/);
   assert.match(stdout, /3dvr outreach next\s+same as 3dvr next/);
   assert.match(stdout, /3dvr outreach sent\s+same as 3dvr contacted/);
+  assert.match(stdout, /3dvr inbox watch\s+run inbox monitor once with reply previews/);
   assert.match(stdout, /3dvr send-auto\s+auto-send the next direct-email lead and mark it contacted/);
   assert.match(stdout, /3dvr lead send-current\s+auto-send the currently loaded lead/);
   assert.match(stdout, /3dvr yolo\s+local llama\.cpp patch-edit helper/);
@@ -254,4 +255,48 @@ test('ask-next skips automatic page opening by default', async () => {
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
+});
+
+test('inbox daemon run-now prepends reply preview mode', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-inbox-daemon-'));
+  const scriptDir = path.join(tmp, 'scripts');
+  await mkdir(scriptDir, { recursive: true });
+
+  const daemonScript = path.join(scriptDir, 'ask-inbox-daemon');
+  const inboxScript = path.join(scriptDir, 'ask-inbox');
+  const argsLog = path.join(tmp, 'args.log');
+  const daemonSource = await readFile(path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-inbox-daemon'), 'utf8');
+
+  await writeFile(daemonScript, daemonSource);
+  await writeFile(
+    inboxScript,
+    `#!/usr/bin/env bash
+printf '%s\n' "$@" > "${argsLog}"
+`,
+  );
+  await chmod(daemonScript, 0o755);
+  await chmod(inboxScript, 0o755);
+
+  await new Promise((resolve, reject) => {
+    execFile(daemonScript, ['run-now', '--limit', '3'], {
+      env: {
+        ...process.env,
+        PATH: `${scriptDir}:${process.env.PATH}`,
+      },
+    }, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+
+  const logged = await readFile(argsLog, 'utf8');
+
+  assert.match(logged, /--reply-preview/);
+  assert.match(logged, /--limit/);
+  assert.match(logged, /3/);
+
+  await rm(tmp, { recursive: true, force: true });
 });
