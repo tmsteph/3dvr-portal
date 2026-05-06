@@ -14,7 +14,7 @@ const {
   runSelfYoloLoop,
 } = require('../thomas-agent/node/self-yolo-workflows');
 
-test('buildPrompt handles README sections and full-file edits', () => {
+test('buildPrompt asks for JSON patches for README sections and file edits', () => {
   const sectionPrompt = buildPrompt({
     target: 'README.md',
     task: 'Improve the Installation section',
@@ -29,7 +29,8 @@ test('buildPrompt handles README sections and full-file edits', () => {
 
   assert.match(sectionPrompt, /editing exactly one section/i);
   assert.match(sectionPrompt, /Section name: Installation/);
-  assert.match(fullPrompt, /Return the FULL final contents of the file only/);
+  assert.match(sectionPrompt, /Return ONLY a JSON object with keys "search" and "replace"/);
+  assert.match(fullPrompt, /Return ONLY a JSON object with keys "search" and "replace"/);
   assert.match(fullPrompt, /Target file path: self_yolo\/cli.py/);
 });
 
@@ -71,7 +72,7 @@ test('runSelfYoloAgent can preview and cancel without touching the target', asyn
   try {
     const result = await runSelfYoloAgent(['--repo', repo, '--preview', 'README.md', 'Improve the Installation section'], {
       skipServer: true,
-      completion: '## Installation\nNew text that is long enough to satisfy the validation guard. It adds enough detail to be accepted.',
+      completion: '{"search":"Old text","replace":"New text that is long enough to satisfy the validation guard. It adds enough detail to be accepted."}',
       confirm: async () => false,
     });
 
