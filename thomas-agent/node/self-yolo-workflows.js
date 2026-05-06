@@ -6,7 +6,7 @@ const readline = require('node:readline/promises');
 const { spawnSync } = require('node:child_process');
 
 const {
-  cleanModelOutput,
+  applySearchReplacePatch,
   ensureServer,
   requestCompletion,
 } = require('./yolo-agent');
@@ -217,13 +217,13 @@ function buildPrompt({ target, task, original, sectionName }) {
     return `You are editing exactly one section of README.md.
 
 STRICT RULES:
-- Return ONLY the rewritten contents of this section.
-- Start with the exact heading line for this section.
-- Do not output any other section.
-- Do not output the whole README.
-- Do not output words like markdown or code fences.
+- Return ONLY a JSON object with keys "search" and "replace".
+- Choose one short exact substring from this section for "search".
+- Put the replacement text in "replace".
 - Do not explain.
+- Do not use markdown fences.
 - Keep valid markdown.
+- Make the smallest useful edit that satisfies the task.
 
 Task: ${task}
 
@@ -234,20 +234,23 @@ Current section contents begin below:
 ${original}
 -----END SECTION-----
 
-Return ONLY this section.
+Return ONLY the JSON object.
 `;
   }
 
   return `You are editing a real project file.
 
 STRICT RULES:
-- Return the FULL final contents of the file only.
+- Return ONLY a JSON object with keys "search" and "replace".
+- Choose one short exact substring from the current file for "search".
+- Put the replacement text in "replace".
 - Do not describe the file.
 - Do not explain your changes.
 - Do not output placeholders.
 - Do not use markdown fences.
 - Do not repeat sections.
 - Keep the file valid for its file type.
+- Make the smallest useful edit that satisfies the task.
 - Preserve the existing purpose unless the task explicitly changes it.
 
 Task: ${task}
@@ -259,7 +262,7 @@ Current file contents begin below:
 ${original}
 -----END FILE-----
 
-Now return ONLY the complete final file contents.
+Return ONLY the JSON object.
 `;
 }
 
@@ -316,7 +319,7 @@ function validateOutput({ original, output, targetPath, tmpPath }) {
   if (!output.trim()) {
     throw new Error('Failed: empty response');
   }
-  if (output.trim().length < Math.max(120, Math.floor(original.trim().length / 4))) {
+  if (output.trim().length < Math.max(40, Math.floor(original.trim().length / 4))) {
     throw new Error('Validation failed: output too small.');
   }
   if (output.trim() === original.trim()) {
@@ -399,12 +402,8 @@ Examples:
   say('self-yolo-agent', `prompt size: ${prompt.length} chars`);
   rule('self-yolo-agent', 'MODEL OUTPUT');
 
-  const stream = /\.html?$/i.test(target.relative);
-  const raw = await requestModelOutput({ options, prompt, stream }, runtime);
-  let out = cleanText(raw);
-  if (target.relative.endsWith('.md')) {
-    out = dedupeMarkdownSections(out);
-  }
+  const raw = await requestModelOutput({ options, prompt, stream: false }, runtime);
+  let out = applySearchReplacePatch(workingOriginal, raw);
   if (target.relative === 'README.md' && sectionName) {
     const pieces = [];
     if (sectionBefore) pieces.push(sectionBefore.trimEnd());

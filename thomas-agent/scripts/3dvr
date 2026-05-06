@@ -94,7 +94,7 @@ Email aliases:
 3dvr yolo                local llama.cpp patch-edit helper
 3dvr yolo-app            generate a page inside the 3dvr-site repo
 3dvr yolo-new-site       generate a new site repo and push it to GitHub
-3dvr self-yolo-agent     guarded self-edit helper for the agent repo
+3dvr self-yolo-agent     guarded patch-edit helper for the agent repo
 3dvr self-yolo-loop      repeat the guarded self-edit helper
 3dvr self-update-agent   commit, push, and reinstall the agent repo
 3dvr rollback-agent      git reset --hard helper for the current repo
