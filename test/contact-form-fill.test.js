@@ -339,6 +339,7 @@ test('ask-form submit mode can run through a real chromium browser under xvfb', 
     leadsPath,
     `name,link,contact,status,date,variant\nForm Lead,file://${htmlPath},file://${htmlPath},new,2026-05-06,route=form\n`,
   );
+  const logPath = path.join(tmp, 'outreach-log.ndjson');
 
   try {
     const output = execFileSync('xvfb-run', [
@@ -350,6 +351,7 @@ test('ask-form submit mode can run through a real chromium browser under xvfb', 
       env: {
         ...process.env,
         THREEDVR_LEADS_FILE: leadsPath,
+        THREEDVR_OUTREACH_LOG_FILE: logPath,
       },
       encoding: 'utf8',
     });
