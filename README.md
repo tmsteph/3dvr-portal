@@ -165,7 +165,9 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-autopilot → run one unattended operator cycle
 - ask-autopilot-daemon → keep the operator cycling in the background
 - ask-inbox → poll the 3DVR inbox for unread replies and alert the operator
+- ask-inbox --reply-preview → preview reply drafts for contacted leads with unread replies
 - ask-inbox-daemon → keep inbox monitoring running in the background
+- ask-inbox --reply-preview → show reply drafts for unread messages from contacted leads
 
 ### Lead Crawling
 
@@ -233,6 +235,8 @@ export THREEDVR_EMAIL_DRAFT_MODE="gmail"
 If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. `ask-enrich` also improves email discovery before falling back to a form or contact page. Add `--mark` when you want it to mark the lead contacted after opening. Use `ask-send --form "Dark Horse Coffee Roasters"` or `ask-form "Dark Horse Coffee Roasters"` when you want Playwright to fill a form instead of just opening the page. Use `ask-enrich --prefer-form` only when you explicitly want to refresh a lead toward a form route.
 
 Use `--template` when you want the deterministic template copy instead of model-generated outreach text.
+
+Direct email sends now probe the recipient domain before sending. If the address has no usable MX records, the lead is marked failed and the send stops instead of burning a send on an unsendable address.
 
 Every successful send writes a reviewable entry to `thomas-agent/outreach-log.ndjson` by default. Set `THREEDVR_OUTREACH_LOG_FILE` if you want the log somewhere else, then inspect recent entries with:
 

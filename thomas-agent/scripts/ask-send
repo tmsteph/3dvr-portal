@@ -129,6 +129,9 @@ target="$contact"
 [ -z "$target" ] && target="$link"
 
 did_send="no"
+probe_email() {
+  node "$ROOT/node/send-outreach-email.js" --probe --to "$1" --subject "$subject" --text "$message"
+}
 
 if [ "$mode" = "offer" ]; then
   message="$($SCRIPT_DIR/ask-message offer)"
@@ -217,10 +220,26 @@ echo
 if [ "$dry_run" = "yes" ]; then
   echo "Dry run: not opening or copying."
 elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
-  if node "$ROOT/node/send-outreach-email.js" --to "$email" --subject "$subject" --text "$message"; then
-    did_send="yes"
+  if probe_email "$email"; then
+    if node "$ROOT/node/send-outreach-email.js" --to "$email" --subject "$subject" --text "$message"; then
+      did_send="yes"
+      THREEDVR_OUTREACH_LOG_KIND="email" \
+      THREEDVR_OUTREACH_LOG_STATUS="sent" \
+      THREEDVR_OUTREACH_LOG_SOURCE="$draft_source" \
+      THREEDVR_OUTREACH_LOG_NAME="$name" \
+      THREEDVR_OUTREACH_LOG_SITE="$link" \
+      THREEDVR_OUTREACH_LOG_CONTACT="$contact" \
+      THREEDVR_OUTREACH_LOG_ROUTE="$route" \
+      THREEDVR_OUTREACH_LOG_SUBJECT="$subject" \
+      THREEDVR_OUTREACH_LOG_BODY="$message" \
+      THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+      node "$OUTREACH_LOG_JS" append >/dev/null
+    else
+      exit 1
+    fi
+  else
     THREEDVR_OUTREACH_LOG_KIND="email" \
-    THREEDVR_OUTREACH_LOG_STATUS="sent" \
+    THREEDVR_OUTREACH_LOG_STATUS="probe_failed" \
     THREEDVR_OUTREACH_LOG_SOURCE="$draft_source" \
     THREEDVR_OUTREACH_LOG_NAME="$name" \
     THREEDVR_OUTREACH_LOG_SITE="$link" \
@@ -229,8 +248,10 @@ elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
     THREEDVR_OUTREACH_LOG_SUBJECT="$subject" \
     THREEDVR_OUTREACH_LOG_BODY="$message" \
     THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+    THREEDVR_OUTREACH_LOG_NOTE="deliverability probe failed" \
     node "$OUTREACH_LOG_JS" append >/dev/null
-  else
+    echo "Email probe failed for $email"
+    "$SCRIPT_DIR/ask-track" failed "$name"
     exit 1
   fi
 elif [ -n "$email" ]; then

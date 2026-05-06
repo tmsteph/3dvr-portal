@@ -75,7 +75,7 @@ Outreach aliases:
 Inbox:
 3dvr inbox check         check unread/replies
 3dvr inbox watch         run inbox monitor once
-3dvr inbox reply         preview reply helpers
+3dvr inbox reply         preview inbox replies
 3dvr inbox send-test     send inbox test email
 
 Auth:
@@ -560,7 +560,7 @@ Inbox
 
 3dvr inbox check       Check unread replies once
 3dvr inbox watch       Run the inbox monitor once
-3dvr inbox reply       Preview reply helpers
+3dvr inbox reply       Preview inbox replies
 3dvr inbox send-test   Send a test email to the configured test address
 
 Tip:
@@ -569,7 +569,7 @@ INBOX
         ;;
       check) exec "$SCRIPT_DIR/ask-inbox" "$@" ;;
       watch) exec "$SCRIPT_DIR/ask-inbox-daemon" run-now "$@" ;;
-      reply) exec "$SCRIPT_DIR/ask-reply" "$@" ;;
+      reply) exec "$SCRIPT_DIR/ask-inbox" --reply-preview "$@" ;;
       send-test) send_inbox_test ;;
       *) usage; exit 1 ;;
     esac

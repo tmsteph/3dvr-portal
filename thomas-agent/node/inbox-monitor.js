@@ -133,7 +133,7 @@ function saveState(state) {
 
 function usage() {
   console.log(`Usage:
-  ask-inbox [--dry-run] [--limit 10]
+  ask-inbox [--dry-run] [--limit 10] [--reply-preview]
 
 Environment:
   3dvr connect                                  recommended Gmail OAuth setup
@@ -169,6 +169,7 @@ function parseArgs(argv) {
   const options = {
     dryRun: false,
     limit: DEFAULT_POLL_LIMIT,
+    replyPreview: false,
     help: false,
   };
 
@@ -178,6 +179,8 @@ function parseArgs(argv) {
       options.dryRun = true;
     } else if (arg === '--limit') {
       options.limit = parseInteger(argv[++index], DEFAULT_POLL_LIMIT);
+    } else if (arg === '--reply-preview') {
+      options.replyPreview = true;
     } else if (arg === '-h' || arg === '--help') {
       options.help = true;
     } else {
@@ -1199,6 +1202,35 @@ function pickAutoReplyCandidates(messages, leadMap, state) {
     .slice(0, Math.max(0, DEFAULT_AUTO_REPLY_LIMIT));
 }
 
+function pickReplyPreviewCandidates(messages, leadMap) {
+  return messages
+    .map((message) => {
+      const lead = leadMap.get(message.replyToEmail) || leadMap.get(message.fromEmail);
+      if (!lead) return null;
+      return { message, lead };
+    })
+    .filter(Boolean);
+}
+
+async function printReplyPreviews(messages, leadMap, state) {
+  const candidates = pickReplyPreviewCandidates(messages, leadMap);
+  if (!candidates.length) {
+    console.log('No contacted-lead replies to preview.');
+    return;
+  }
+
+  for (const { message, lead } of candidates) {
+    const draft = await buildReplyDraft(lead, message, state);
+    console.log('\nReply preview:\n');
+    console.log(`Lead: ${lead.name || message.from}`);
+    console.log(`To: ${message.replyToEmail || message.fromEmail}`);
+    console.log(`Subject: ${buildReplySubject(message.subject)}`);
+    console.log(`Reply source: ${draft.source}`);
+    console.log(`Headline: ${draft.headline}`);
+    console.log(draft.text);
+  }
+}
+
 function pruneObjectEntries(value, limit = 300) {
   return Object.fromEntries(
     Object.entries(value || {})
@@ -1265,6 +1297,10 @@ async function main() {
     console.log('No newly surfaced unread messages.');
   }
 
+  if (options.replyPreview) {
+    await printReplyPreviews(unread, contactedLeadMap, state);
+  }
+
   const autoReplyCandidates = pickAutoReplyCandidates(unread, contactedLeadMap, state);
   if (DEFAULT_AUTO_REPLY && autoReplyCandidates.length) {
     if (!canSendAutoReply(state)) {
@@ -1318,6 +1354,8 @@ module.exports = {
   detectReplyIntent,
   extractBounceEmails,
   looksLikeBounce,
+  pickReplyPreviewCandidates,
+  printReplyPreviews,
   updateLeadStatusByEmail,
 };
 

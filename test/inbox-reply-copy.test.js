@@ -7,6 +7,8 @@ const {
   buildReplyHeadline,
   buildReplyText,
   detectReplyIntent,
+  pickReplyPreviewCandidates,
+  printReplyPreviews,
 } = require('../thomas-agent/node/inbox-monitor');
 
 function message(overrides = {}) {
@@ -151,4 +153,38 @@ test('falls back to template reply when LLM is unavailable', async () => {
 
   assert.equal(draft.source, 'template');
   assert.match(draft.text, /depends on how much/i);
+});
+
+test('preview reply candidates include contacted leads and render reply drafts', async () => {
+  const previousMode = process.env.THREEDVR_INBOX_REPLY_MODE;
+  process.env.THREEDVR_INBOX_REPLY_MODE = 'template';
+
+  const leadMap = new Map([
+    ['lead@example.com', { name: 'Acme Studio', link: 'https://example.com', contact: 'mailto:lead@example.com' }],
+  ]);
+  const messages = [
+    message({ preview: 'Can you help with the booking page?', fromEmail: 'lead@example.com' }),
+    message({ preview: 'Unrelated message', fromEmail: 'other@example.com' }),
+  ];
+  const output = [];
+  const originalLog = console.log;
+
+  try {
+    console.log = (...args) => {
+      output.push(args.join(' '));
+    };
+
+    const candidates = pickReplyPreviewCandidates(messages, leadMap);
+    await printReplyPreviews(messages, leadMap, { messages: {} });
+
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].lead.name, 'Acme Studio');
+    assert.match(output.join('\n'), /Reply preview/);
+    assert.match(output.join('\n'), /Acme Studio/);
+    assert.match(output.join('\n'), /Headline:/);
+    assert.match(output.join('\n'), /Hi Jordan,/i);
+  } finally {
+    console.log = originalLog;
+    process.env.THREEDVR_INBOX_REPLY_MODE = previousMode || '';
+  }
 });

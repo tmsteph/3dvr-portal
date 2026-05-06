@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const dns = require('node:dns').promises;
 const nodemailer = require('nodemailer');
 const { getOAuthAccessToken } = require('./oauth-connection');
 
@@ -51,6 +52,7 @@ function parseArgs(argv) {
     to: '',
     subject: '',
     text: '',
+    probeOnly: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -61,6 +63,8 @@ function parseArgs(argv) {
       options.subject = argv[++index] || '';
     } else if (arg === '--text') {
       options.text = argv[++index] || '';
+    } else if (arg === '--probe') {
+      options.probeOnly = true;
     } else if (arg === '-h' || arg === '--help') {
       options.help = true;
     } else {
@@ -72,6 +76,47 @@ function parseArgs(argv) {
   options.subject = normalizeText(options.subject);
   options.text = String(options.text || '').trim();
   return options;
+}
+
+function normalizeDomain(value) {
+  return normalizeText(value).toLowerCase().replace(/^www\./, '');
+}
+
+async function probeRecipientAddress(to, { resolveMxImpl = dns.resolveMx } = {}) {
+  const email = normalizeEmail(to);
+  if (!email) {
+    return { ok: false, reason: 'Recipient email address is invalid.' };
+  }
+
+  const domain = normalizeDomain(email.split('@')[1] || '');
+  if (!domain) {
+    return { ok: false, reason: 'Recipient email domain is missing.' };
+  }
+
+  try {
+    const records = await resolveMxImpl(domain);
+    if (Array.isArray(records) && records.length > 0) {
+      return {
+        ok: true,
+        domain,
+        records,
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      domain,
+      reason: error?.code === 'ENOTFOUND'
+        ? `No MX records found for ${domain}.`
+        : error?.message || `Unable to resolve MX records for ${domain}.`,
+    };
+  }
+
+  return {
+    ok: false,
+    domain,
+    reason: `No MX records found for ${domain}.`,
+  };
 }
 
 async function sendViaPortal(options) {
@@ -104,6 +149,15 @@ async function sendViaPortal(options) {
   if (!response.ok) {
     throw new Error(payload?.error || `Portal outreach email failed: ${response.status}`);
   }
+}
+
+async function probeAndReport(options) {
+  const probe = await probeRecipientAddress(options.to);
+  if (!probe.ok) {
+    throw new Error(probe.reason || 'Recipient email probe failed.');
+  }
+
+  return probe;
 }
 
 async function sendViaGmail(options) {
@@ -168,9 +222,20 @@ async function main() {
     return;
   }
 
-  if (!(options.to && options.subject && options.text)) {
+  if (options.probeOnly && !options.to) {
     usage();
     process.exit(1);
+  }
+
+  if (!options.probeOnly && !(options.to && options.subject && options.text)) {
+    usage();
+    process.exit(1);
+  }
+
+  const probe = await probeAndReport(options);
+  if (options.probeOnly) {
+    console.log(`Probe OK for ${options.to} (${probe.domain})`);
+    return;
   }
 
   if (DEFAULT_TRANSPORT === 'gmail') {
@@ -189,7 +254,16 @@ async function main() {
   console.log(`Sent outreach email to ${options.to}`);
 }
 
-main().catch((error) => {
-  console.error(error.message || error);
-  process.exit(1);
-});
+module.exports = {
+  probeRecipientAddress,
+  probeAndReport,
+  sendViaGmail,
+  sendViaPortal,
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message || error);
+    process.exit(1);
+  });
+}

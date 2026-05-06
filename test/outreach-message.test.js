@@ -13,6 +13,9 @@ const {
   buildLlmOutreachDraft,
   buildOutreachDraft,
 } = require('../thomas-agent/node/outreach-draft');
+const {
+  probeRecipientAddress,
+} = require('../thomas-agent/node/send-outreach-email');
 
 function run(command, args, env = {}) {
   return new Promise((resolve, reject) => {
@@ -122,6 +125,25 @@ test('ask-send can open a Gmail draft and copy the full email', async () => {
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
+});
+
+test('probeRecipientAddress accepts mail domains with MX records and rejects invalid recipients', async () => {
+  const valid = await probeRecipientAddress('owner@example.com', {
+    resolveMxImpl: async () => ([{ exchange: 'mail.example.com', priority: 10 }]),
+  });
+  const invalid = await probeRecipientAddress('not-an-email', {
+    resolveMxImpl: async () => [],
+  });
+  const missing = await probeRecipientAddress('owner@missing.example', {
+    resolveMxImpl: async () => [],
+  });
+
+  assert.equal(valid.ok, true);
+  assert.equal(valid.domain, 'example.com');
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.reason, /invalid/i);
+  assert.equal(missing.ok, false);
+  assert.match(missing.reason, /No MX records/i);
 });
 
 test('uses mocked LLM outreach replies when OpenAI is configured', async () => {
