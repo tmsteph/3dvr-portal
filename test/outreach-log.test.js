@@ -7,6 +7,8 @@ const path = require('node:path');
 
 const {
   appendOutreachLog,
+  archiveGroupKey,
+  formatArchiveGroupHeading,
   formatOutreachLogEntry,
   parseLimit,
   readOutreachLog,
@@ -84,7 +86,67 @@ test('ask-track sent shows recent log entries and respects the limit', () => {
   }
 });
 
+test('ask-track sent grouped archives entries by route and source', () => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-outreach-grouped-'));
+  const logPath = path.join(tmp, 'outreach-log.ndjson');
+
+  try {
+    appendOutreachLog({
+      kind: 'email',
+      status: 'sent',
+      source: 'template',
+      name: 'Template Lead',
+      route: 'email',
+      body: 'Template body',
+    }, { filePath: logPath });
+    appendOutreachLog({
+      kind: 'email',
+      status: 'sent',
+      source: 'local',
+      name: 'Local Lead',
+      route: 'email',
+      body: 'Local body',
+    }, { filePath: logPath });
+    appendOutreachLog({
+      kind: 'form',
+      status: 'submitted',
+      source: 'template',
+      name: 'Form Lead',
+      route: 'form',
+      body: 'Form body',
+    }, { filePath: logPath });
+
+    const output = execFileSync(askTrack, ['sent', 'grouped'], {
+      env: {
+        ...process.env,
+        THREEDVR_OUTREACH_LOG_FILE: logPath,
+      },
+      encoding: 'utf8',
+    });
+
+    assert.match(output, /email \| email \| template \(1\)/);
+    assert.match(output, /email \| email \| local \(1\)/);
+    assert.match(output, /form \| form \| template \(1\)/);
+    assert.match(output, /Template body/);
+    assert.match(output, /Local body/);
+    assert.match(output, /Form body/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('parseLimit falls back when the input is not numeric', () => {
   assert.equal(parseLimit('15', 20), 15);
   assert.equal(parseLimit('nope', 20), 20);
+});
+
+test('archive helpers include kind, route, and source in the group key', () => {
+  assert.equal(
+    archiveGroupKey({ kind: 'email', route: 'email', source: 'template' }),
+    'email::email::template',
+  );
+  assert.equal(
+    formatArchiveGroupHeading({ kind: 'form', route: 'form', source: 'local' }, 2),
+    'form | form | local (2)',
+  );
 });

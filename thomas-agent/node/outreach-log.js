@@ -73,6 +73,21 @@ function formatOutreachLogEntry(entry = {}) {
   return pieces.join(' | ');
 }
 
+function archiveGroupKey(entry = {}) {
+  return [
+    entry.kind || 'email',
+    entry.route || 'unknown-route',
+    entry.source || 'unknown-source',
+  ].join('::');
+}
+
+function formatArchiveGroupHeading(entry = {}, count = 0) {
+  const kind = entry.kind || 'email';
+  const route = entry.route || 'unknown-route';
+  const source = entry.source || 'unknown-source';
+  return `${kind} | ${route} | ${source} (${count})`;
+}
+
 function printRecent(entries, limit = 20) {
   const recent = entries.slice(-Math.max(1, limit));
   for (const entry of recent) {
@@ -81,6 +96,31 @@ function printRecent(entries, limit = 20) {
       console.log(entry.body);
       console.log('');
     }
+  }
+}
+
+function printArchive(entries, limit = 20) {
+  const recent = entries.slice(-Math.max(1, limit));
+  const groups = new Map();
+
+  for (const entry of recent) {
+    const key = archiveGroupKey(entry);
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(entry);
+  }
+
+  for (const groupEntries of groups.values()) {
+    const first = groupEntries[0] || {};
+    console.log(formatArchiveGroupHeading(first, groupEntries.length));
+    for (const entry of groupEntries) {
+      console.log(`- ${formatOutreachLogEntry(entry)}`);
+      if (entry.body) {
+        console.log(entry.body);
+      }
+    }
+    console.log('');
   }
 }
 
@@ -117,12 +157,20 @@ function cli(argv = process.argv.slice(2)) {
   }
 
   const entries = readOutreachLog();
+  if (command === 'grouped' || command === 'archive') {
+    printArchive(entries, limit);
+    return;
+  }
+
   printRecent(entries, limit);
 }
 
 module.exports = {
   appendOutreachLog,
+  archiveGroupKey,
   formatOutreachLogEntry,
+  formatArchiveGroupHeading,
+  printArchive,
   printRecent,
   parseLimit,
   readOutreachLog,

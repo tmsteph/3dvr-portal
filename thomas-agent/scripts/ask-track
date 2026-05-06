@@ -30,7 +30,9 @@ case "$1" in
   nurture-list) awk -F, 'NR==1{next} $4=="nurture"{print "[~]",$1,"->",($3!=""?$3:$2),"note:",($6!=""?$6:"-")}' "$FILE" ;;
   view) awk -F, 'BEGIN{OFS=","} NR==1{print;next} {print $1,$4,$6}' "$FILE" ;;
   sent)
-    if [ -n "$2" ] && [ "$2" != "list" ]; then
+    if [ "$2" = "grouped" ] || [ "$2" = "archive" ]; then
+      node "$OUTREACH_LOG_JS" "$2" "${3:-20}"
+    elif [ -n "$2" ] && [ "$2" != "list" ]; then
       node "$OUTREACH_LOG_JS" list "$2"
     else
       node "$OUTREACH_LOG_JS" list "${3:-20}"

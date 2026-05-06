@@ -239,6 +239,7 @@ Every successful send writes a reviewable entry to `thomas-agent/outreach-log.nd
 ```sh
 ask-track sent
 ask-track sent 10
+ask-track sent grouped
 ```
 
 `ask-form` starts with `generic-html-form` and will switch to builder-specific adapters for WordPress Contact Form 7, Wix, and Squarespace when the page markup matches. Submit mode uses a local Chromium binary when available and falls back to `xvfb-run` on headless Linux systems that need a display server.
