@@ -5,14 +5,17 @@ const os = require('node:os');
 const path = require('node:path');
 
 const {
+  applySearchReplacePatch,
   buildEditPrompt,
   cleanModelOutput,
+  extractJsonCandidate,
   parseArgs,
   resolveTarget,
   runYolo,
 } = require('../thomas-agent/node/yolo-agent');
 
-const UPDATED_README = '# New Title\n\nNew body text that is long enough to validate. It includes enough context for the guard to accept it as a real replacement file.\n';
+const UPDATED_PATCH = '```json\n{"search":"Old Title","replace":"New Title"}\n```';
+const UPDATED_README = '# New Title\n\nOld body text that is long enough to validate.\n';
 
 test('parseArgs supports old file task shape and safe apply flags', () => {
   const options = parseArgs(['--apply', '--commit', 'README.md', 'Improve install docs']);
@@ -49,7 +52,17 @@ test('buildEditPrompt includes target path, task, and original contents', () => 
   assert.match(prompt, /Task: Make it clearer/);
   assert.match(prompt, /Target file path: README\.md/);
   assert.match(prompt, /# Title/);
-  assert.match(prompt, /Return ONLY the complete final file contents/);
+  assert.match(prompt, /Return ONLY a JSON object with keys "search" and "replace"/);
+});
+
+test('extractJsonCandidate strips fences and extracts the JSON object', () => {
+  assert.equal(extractJsonCandidate('noise\n```json\n{"search":"Old","replace":"New"}\n``` after'), '{"search":"Old","replace":"New"}');
+});
+
+test('applySearchReplacePatch applies a search/replace patch to the original file', () => {
+  const output = applySearchReplacePatch('# Old Title\n\nBody\n', UPDATED_PATCH);
+
+  assert.equal(output, '# New Title\n\nBody\n');
 });
 
 test('runYolo writes a preview file by default and does not replace target', async () => {
@@ -61,7 +74,7 @@ test('runYolo writes a preview file by default and does not replace target', asy
     const result = await runYolo(['--repo', repo, '--file', 'README.md', 'Update title'], {
       skipServer: true,
       printDiff: false,
-      completion: UPDATED_README,
+      completion: UPDATED_PATCH,
     });
 
     assert.equal(result.applied, false);
@@ -80,7 +93,7 @@ test('runYolo applies output only when --apply is passed', async () => {
   try {
     const result = await runYolo(['--repo', repo, '--apply', '--file', 'README.md', 'Update title'], {
       skipServer: true,
-      completion: UPDATED_README,
+      completion: UPDATED_PATCH,
     });
 
     assert.equal(result.applied, true);

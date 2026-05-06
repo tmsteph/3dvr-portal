@@ -91,7 +91,7 @@ Email aliases:
 3dvr email check         same as 3dvr inbox check
 3dvr email test          same as 3dvr inbox send-test
 3dvr send-auto           auto-send the next direct-email lead and mark it contacted
-3dvr yolo                local llama.cpp file-edit helper
+3dvr yolo                local llama.cpp patch-edit helper
 3dvr yolo-app            generate a page inside the 3dvr-site repo
 3dvr yolo-new-site       generate a new site repo and push it to GitHub
 3dvr self-yolo-agent     guarded self-edit helper for the agent repo

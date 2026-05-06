@@ -153,10 +153,13 @@ function buildEditPrompt({ task, relative, original }) {
   return `You are editing one real project file.
 
 STRICT RULES:
-- Return ONLY the complete final contents of the target file.
+- Return ONLY a JSON object with keys "search" and "replace".
+- Choose one short exact substring from the current file for "search".
+- Put the replacement text in "replace".
 - Do not explain your changes.
 - Do not include markdown fences.
 - Do not output placeholders.
+- Make the smallest useful edit that satisfies the task.
 - Preserve the file's purpose unless the task explicitly changes it.
 - Keep syntax valid for the file type.
 
@@ -169,7 +172,47 @@ Current file contents begin below:
 ${original}
 -----END FILE-----
 
-Return ONLY the complete final file contents.`;
+Return ONLY the JSON object.`;
+}
+
+function extractJsonCandidate(text) {
+  const cleaned = cleanModelOutput(text).trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start < 0 || end < start) {
+    throw new Error('Validation failed: model output did not contain JSON.');
+  }
+  return cleaned.slice(start, end + 1);
+}
+
+function applySearchReplacePatch(original, rawOutput) {
+  const candidate = extractJsonCandidate(rawOutput);
+  let patch;
+  try {
+    patch = JSON.parse(candidate);
+  } catch (error) {
+    throw new Error(`Validation failed: could not parse JSON patch.\n${candidate}`);
+  }
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    throw new Error('Validation failed: patch must be a JSON object.');
+  }
+  const search = typeof patch.search === 'string' ? patch.search : '';
+  const replace = typeof patch.replace === 'string' ? patch.replace : '';
+  if (!search.trim()) {
+    throw new Error('Validation failed: patch is missing search text.');
+  }
+  if (!Object.prototype.hasOwnProperty.call(patch, 'replace')) {
+    throw new Error('Validation failed: patch is missing replace text.');
+  }
+  const index = original.indexOf(search);
+  if (index < 0) {
+    throw new Error(`Validation failed: search text not found: ${search}`);
+  }
+  const output = `${original.slice(0, index)}${replace}${original.slice(index + search.length)}`;
+  if (output.trim() === original.trim()) {
+    throw new Error('No meaningful changes produced.');
+  }
+  return output.trimEnd() + '\n';
 }
 
 async function healthCheck(serverUrl) {
@@ -227,8 +270,8 @@ async function requestCompletion({ serverUrl, prompt, stream = false }) {
     },
     body: JSON.stringify({
       prompt,
-      n_predict: 1800,
-      temperature: 0.2,
+      n_predict: 256,
+      temperature: 0.1,
       repeat_penalty: 1.25,
       stream,
     }),
@@ -278,7 +321,7 @@ async function validateOutput({ original, output, targetPath, tmpPath }) {
   if (!output.trim()) {
     throw new Error('Validation failed: empty model output.');
   }
-  if (output.trim().length < Math.max(80, Math.floor(original.trim().length / 5))) {
+  if (output.trim().length < Math.max(40, Math.floor(original.trim().length / 5))) {
     throw new Error('Validation failed: output is suspiciously small.');
   }
   if (output.trim() === original.trim()) {
@@ -342,8 +385,8 @@ async function runYolo(argv = process.argv.slice(2), runtime = {}) {
 
   const raw = runtime.completion !== undefined
     ? runtime.completion
-    : await requestCompletion({ serverUrl: options.serverUrl, prompt, stream: path.extname(target.targetPath).toLowerCase() === '.html' });
-  const output = cleanModelOutput(raw, target.targetPath);
+    : await requestCompletion({ serverUrl: options.serverUrl, prompt, stream: false });
+  const output = applySearchReplacePatch(original, raw);
   const tmpPath = `${target.targetPath}.yolo-new`;
   await fsPromises.writeFile(tmpPath, output, 'utf8');
   await validateOutput({
@@ -389,6 +432,8 @@ async function runYolo(argv = process.argv.slice(2), runtime = {}) {
 module.exports = {
   buildEditPrompt,
   cleanModelOutput,
+  applySearchReplacePatch,
+  extractJsonCandidate,
   ensureServer,
   parseArgs,
   requestCompletion,
