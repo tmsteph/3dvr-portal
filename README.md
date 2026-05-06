@@ -232,6 +232,8 @@ export THREEDVR_EMAIL_DRAFT_MODE="gmail"
 
 If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. `ask-enrich` also improves email discovery before falling back to a form or contact page. Add `--mark` when you want it to mark the lead contacted after opening. Use `ask-send --form "Dark Horse Coffee Roasters"` or `ask-form "Dark Horse Coffee Roasters"` when you want Playwright to fill a form instead of just opening the page. Use `ask-enrich --prefer-form` only when you explicitly want to refresh a lead toward a form route.
 
+Use `--template` when you want the deterministic template copy instead of model-generated outreach text.
+
 Every successful send writes a reviewable entry to `thomas-agent/outreach-log.ndjson` by default. Set `THREEDVR_OUTREACH_LOG_FILE` if you want the log somewhere else, then inspect recent entries with:
 
 ```sh

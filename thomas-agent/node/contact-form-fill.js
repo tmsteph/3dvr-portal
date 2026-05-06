@@ -63,7 +63,7 @@ function normalizeText(value) {
 
 function usage() {
   console.log(`Usage:
-  ask-form ["Business Name"] [--name "Business Name"] [--dry-run] [--submit] [--offer] [--mark]
+  ask-form ["Business Name"] [--name "Business Name"] [--dry-run] [--submit] [--offer] [--mark] [--template]
 
 Examples:
   ask-form "Dark Horse Coffee Roasters"
@@ -86,6 +86,7 @@ function parseArgs(argv) {
     submit: false,
     offer: false,
     mark: false,
+    template: false,
     help: false,
   };
 
@@ -101,6 +102,8 @@ function parseArgs(argv) {
       options.offer = true;
     } else if (arg === '--mark') {
       options.mark = true;
+    } else if (arg === '--template') {
+      options.template = true;
     } else if (arg === '-h' || arg === '--help') {
       options.help = true;
     } else if (!arg.startsWith('-') && !options.name) {
@@ -157,6 +160,8 @@ async function buildLeadMessageDraft(lead, options = {}) {
     name: lead.name,
     site: lead.link,
     contact: lead.contact,
+  }, {
+    mode: options.messageMode,
   });
   return draft;
 }
@@ -216,7 +221,10 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
     throw new Error('No usable lead found for form outreach.');
   }
 
-  const draft = await buildLeadMessageDraft(lead, { offer: options.offer });
+  const draft = await buildLeadMessageDraft(lead, {
+    offer: options.offer,
+    messageMode: options.template ? 'template' : undefined,
+  });
   const message = draft.text;
   const pageUrl = siteUrlForLead(lead);
   if (!pageUrl) {

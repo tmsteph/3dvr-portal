@@ -69,6 +69,30 @@ test('ask-send uses a softer subject and first-touch body', async () => {
   }
 });
 
+test('ask-send --template forces the deterministic template copy', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nAcme Studio,https://example.com,mailto:owner@example.com,new,10,test,now\n',
+  );
+
+  try {
+    const { stdout } = await run(askSend, ['--template', '--dry-run'], {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_OUTREACH_MESSAGE_MODE: 'local',
+    });
+
+    assert.match(stdout, /I'm Thomas with 3DVR/);
+    assert.match(stdout, /Are you running into any .* problems right now/);
+    assert.match(stdout, /Route: email/);
+    assert.doesNotMatch(stdout, /local model/i);
+    assert.doesNotMatch(stdout, /Hey Thomas/i);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test('ask-send can open a Gmail draft and copy the full email', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
   const leads = path.join(tmp, 'leads.csv');

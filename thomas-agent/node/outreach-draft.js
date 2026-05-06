@@ -271,7 +271,7 @@ async function buildLlmOutreachDraft(lead = {}, { fetchImpl = fetch } = {}) {
 }
 
 async function buildOutreachDraft(lead = {}, options = {}) {
-  const mode = currentMode();
+  const mode = normalizeText(options.mode || currentMode()).toLowerCase();
   if (mode === 'template') {
     return buildTemplateOutreachDraft(lead);
   }

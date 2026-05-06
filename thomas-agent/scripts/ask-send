@@ -14,11 +14,12 @@ enrich_first="no"
 auto_send="no"
 form_mode="no"
 draft_mode="${THREEDVR_EMAIL_DRAFT_MODE:-mailto}"
+message_mode="${THREEDVR_OUTREACH_MESSAGE_MODE:-auto}"
 target_name=""
 draft_source="unknown"
 
 usage() {
-  echo 'Usage: ask-send [--offer] [--mark] [--enrich] [--auto] [--form] [--gmail-draft|--mailto-draft] [--dry-run] ["Business Name"]'
+  echo 'Usage: ask-send [--offer] [--mark] [--enrich] [--auto] [--form] [--template] [--gmail-draft|--mailto-draft] [--dry-run] ["Business Name"]'
   echo
   echo 'Examples:'
   echo '  ask-send'
@@ -39,6 +40,7 @@ while [ "$#" -gt 0 ]; do
     --enrich) enrich_first="yes" ;;
     --auto) auto_send="yes" ;;
     --form) form_mode="yes" ;;
+    --template) message_mode="template" ;;
     --gmail-draft) draft_mode="gmail" ;;
     --mailto-draft) draft_mode="mailto" ;;
     -h|--help)
@@ -132,7 +134,7 @@ if [ "$mode" = "offer" ]; then
   message="$($SCRIPT_DIR/ask-message offer)"
   draft_source="manual-offer"
 else
-  draft_json="$(THREEDVR_OUTREACH_NAME="$name" THREEDVR_OUTREACH_SITE="$link" THREEDVR_OUTREACH_CONTACT="$contact" THREEDVR_OUTREACH_DRAFT_MODULE="$ROOT/node/outreach-draft.js" node - <<'NODE'
+  draft_json="$(THREEDVR_OUTREACH_MESSAGE_MODE="$message_mode" THREEDVR_OUTREACH_NAME="$name" THREEDVR_OUTREACH_SITE="$link" THREEDVR_OUTREACH_CONTACT="$contact" THREEDVR_OUTREACH_DRAFT_MODULE="$ROOT/node/outreach-draft.js" node - <<'NODE'
 const { buildOutreachDraft } = require(process.env.THREEDVR_OUTREACH_DRAFT_MODULE);
 
 async function main() {
@@ -140,6 +142,8 @@ async function main() {
     name: process.env.THREEDVR_OUTREACH_NAME,
     site: process.env.THREEDVR_OUTREACH_SITE,
     contact: process.env.THREEDVR_OUTREACH_CONTACT,
+  }, {
+    mode: process.env.THREEDVR_OUTREACH_MESSAGE_MODE,
   });
   process.stdout.write(JSON.stringify(draft));
 }
