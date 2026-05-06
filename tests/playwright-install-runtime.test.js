@@ -18,7 +18,7 @@ describe('playwright runtime installer helpers', () => {
     assert.deepEqual(parseBrowserTargets(''), ['chromium', 'firefox']);
     assert.deepEqual(parseBrowserTargets('chromium firefox chromium'), ['chromium', 'firefox']);
     assert.deepEqual(parseBrowserTargets('webkit'), ['webkit']);
-    assert.deepEqual(parseBrowserTargets('chrome safari'), ['chrome', 'webkit']);
+    assert.deepEqual(parseBrowserTargets('chrome safari'), ['chromium', 'webkit']);
     assert.deepEqual(parseBrowserTargetsForRuntime('chrome safari', ['chromium', 'firefox'], 'linux', 'arm64'), ['chromium', 'webkit']);
   });
 
@@ -56,9 +56,9 @@ describe('playwright runtime installer helpers', () => {
     assert.deepEqual(chrome, {
       id: 'chrome',
       browserType: 'chromium',
-      installTarget: 'chrome',
-      channel: 'chrome',
-      displayName: 'Chrome',
+      installTarget: 'chromium',
+      displayName: 'Chrome (Chromium fallback)',
+      usesFallback: true,
       requested: 'chrome',
     });
     assert.deepEqual(safari, {
@@ -72,7 +72,6 @@ describe('playwright runtime installer helpers', () => {
     assert.deepEqual(buildPlaywrightLaunchOptions(chrome), {
       headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=swiftshader'],
-      channel: 'chrome',
     });
     assert.deepEqual(buildPlaywrightLaunchOptions(safari), {
       headless: true,

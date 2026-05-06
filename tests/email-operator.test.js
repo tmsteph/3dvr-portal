@@ -39,9 +39,11 @@ describe('email operator hub', () => {
 
     const portalIndex = new URL('../index.html', baseDir);
     const portalHtml = await readFile(portalIndex, 'utf8');
-    const deployGuidesIndex = portalHtml.indexOf('>Deploy Guides<');
-    const emailIndex = portalHtml.indexOf('>Email Operator<');
-    const billingIndex = portalHtml.indexOf('>Billing<');
+    const appGridStart = portalHtml.indexOf('<div class="app-grid"');
+    const appGridHtml = appGridStart === -1 ? '' : portalHtml.slice(appGridStart);
+    const deployGuidesIndex = appGridHtml.indexOf('>Deploy Guides<');
+    const emailIndex = appGridHtml.indexOf('>Email Operator<');
+    const billingIndex = appGridHtml.indexOf('>Billing<');
     assert.ok(emailIndex !== -1, 'Email Operator app card should be listed on the portal');
     assert.ok(deployGuidesIndex !== -1, 'Deploy Guides app card should still be present');
     assert.ok(billingIndex !== -1, 'Billing app card should still be present');
