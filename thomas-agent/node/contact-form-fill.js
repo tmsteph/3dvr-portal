@@ -159,12 +159,13 @@ async function buildLeadMessage(lead, options = {}) {
 
 async function fillContactForm(page, lead, message, options = {}) {
   const targetUrl = options.targetUrl || siteUrlForLead(lead);
+  const maxWaitMs = options.maxWaitMs || DEFAULT_MAX_WAIT_MS;
   if (!targetUrl) {
     throw new Error(`No usable page URL for ${lead.name}. Use ask-send for direct email leads.`);
   }
 
   if (typeof page.goto === 'function') {
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: maxWaitMs });
   }
 
   const html = typeof page.content === 'function' ? await page.content() : '';
@@ -181,7 +182,7 @@ async function fillContactForm(page, lead, message, options = {}) {
       ...options,
       targetUrl,
       leadSiteUrl: lead.link || lead.contact || '',
-      maxWaitMs: DEFAULT_MAX_WAIT_MS,
+      maxWaitMs,
       submit: Boolean(options.submit),
     },
   });
@@ -273,6 +274,7 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
     targetUrl: pageUrl,
     screenshotPath: runtime.screenshotPath,
     adapter: runtime.adapter,
+    allowThirdPartyForm: route === 'form',
   });
 
   console.log('FORM READY');

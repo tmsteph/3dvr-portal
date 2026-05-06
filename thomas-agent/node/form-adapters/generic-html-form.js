@@ -29,12 +29,13 @@ function extractFormAction(html, pageUrl) {
 
 async function fill({ page, lead, message, options = {} }) {
   const targetUrl = options.targetUrl || siteUrlForLead(lead);
+  const maxWaitMs = options.maxWaitMs || 15000;
   if (!targetUrl) {
     throw new Error(`No usable page URL for ${lead.name}. Use ask-send for direct email leads.`);
   }
 
   if (typeof page.goto === 'function') {
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: maxWaitMs });
   }
 
   const html = typeof page.content === 'function' ? await page.content() : '';
@@ -50,7 +51,17 @@ async function fill({ page, lead, message, options = {} }) {
 
   for (const assignment of plan.assignments) {
     const locator = fieldLocator.nth(assignment.index);
-    await locator.fill(assignment.value);
+    if (assignment.kind === 'check' || /^(checkbox|radio)$/i.test(fields[assignment.index]?.type || '')) {
+      if (typeof locator.check === 'function') {
+        await locator.check();
+      } else if (typeof locator.click === 'function') {
+        await locator.click();
+      } else {
+        await locator.fill(assignment.value ? 'on' : '');
+      }
+    } else {
+      await locator.fill(assignment.value);
+    }
     filled.push(assignment);
   }
 
@@ -85,7 +96,7 @@ async function fill({ page, lead, message, options = {} }) {
     throw new Error(`Refusing to submit: required fields remain unknown (${plan.unmatchedRequired.map((field) => field.labelText || field.name || field.id || field.index).join(', ')})`);
   }
 
-  if (options.leadSiteUrl && !sameHost(targetUrl, options.leadSiteUrl)) {
+  if (options.leadSiteUrl && !sameHost(targetUrl, options.leadSiteUrl) && !options.allowThirdPartyForm) {
     result.blocked = 'third-party host';
     throw new Error(`Refusing to submit a third-party form at ${targetUrl}. Review it manually first.`);
   }
@@ -100,6 +111,10 @@ async function fill({ page, lead, message, options = {} }) {
     id: String(element.getAttribute('id') || ''),
     labelText: element.labels ? Array.from(element.labels).map((label) => label.textContent || '').join(' ').trim() : '',
     disabled: Boolean(element.disabled || element.hasAttribute('disabled')),
+    visible: !element.hidden
+      && element.getAttribute('type') !== 'hidden'
+      && element.getAttribute('aria-hidden') !== 'true'
+      && (typeof element.getClientRects !== 'function' || element.getClientRects().length > 0),
   })));
 
   const submitPlan = planSubmitControl(submitFields);
@@ -109,7 +124,7 @@ async function fill({ page, lead, message, options = {} }) {
 
   await page.locator('button, input[type="submit"], input[type="button"]').nth(submitPlan.index).click();
   if (typeof page.waitForLoadState === 'function') {
-    await page.waitForLoadState('networkidle', { timeout: options.maxWaitMs || 15000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: maxWaitMs }).catch(() => {});
   }
   result.submitted = true;
   return result;

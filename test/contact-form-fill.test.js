@@ -77,6 +77,12 @@ function makeFakePage(descriptors, html = '<form><input type="text" name="name" 
             fill: async (value) => {
               fields[index].value = value;
             },
+            check: async () => {
+              fields[index].checked = true;
+            },
+            click: async () => {
+              fields[index].clicked = true;
+            },
           }),
         };
       }
@@ -130,6 +136,32 @@ test('planFieldAssignments fills the high-confidence fields only', () => {
 
   assert.deepEqual(plan.assignments.map((item) => item.role), ['name', 'email', 'company', 'message']);
   assert.equal(plan.unmatchedRequired.length, 0);
+});
+
+test('planFieldAssignments ignores hidden fields when selecting targets', () => {
+  const fields = [
+    { index: 0, tag: 'input', type: 'hidden', labelText: 'Hidden email', name: 'email', visible: false },
+    { index: 1, tag: 'input', type: 'text', labelText: 'Full name', name: 'name', visible: true },
+    { index: 2, tag: 'textarea', type: '', labelText: 'Message', name: 'message', visible: true },
+  ];
+
+  const plan = planFieldAssignments(fields, { name: 'Acme Studio' }, 'Hello there');
+
+  assert.deepEqual(plan.assignments.map((item) => item.role), ['name', 'message']);
+});
+
+test('planFieldAssignments checks consent-style checkboxes when present', () => {
+  const fields = [
+    { index: 0, tag: 'input', type: 'text', labelText: 'Full name', name: 'name', visible: true },
+    { index: 1, tag: 'input', type: 'email', labelText: 'Email address', name: 'email', visible: true },
+    { index: 2, tag: 'input', type: 'checkbox', labelText: 'I agree to terms and privacy', name: 'consent', visible: true },
+  ];
+
+  const plan = planFieldAssignments(fields, { name: 'Acme Studio' }, 'Hello there');
+
+  assert.equal(plan.assignments[2].role, 'consent');
+  assert.equal(plan.assignments[2].kind, 'check');
+  assert.equal(plan.assignments[2].value, true);
 });
 
 test('fillContactForm fills fields and saves a screenshot in review mode', async () => {

@@ -44,9 +44,20 @@ function textForDescriptor(descriptor) {
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
+function elementIsVisible(element) {
+  if (element.hidden) return false;
+  if (element.getAttribute?.('type') === 'hidden') return false;
+  if (element.getAttribute?.('aria-hidden') === 'true') return false;
+  if (typeof element.getClientRects !== 'function') return true;
+  return element.getClientRects().length > 0;
+}
+
 function scoreDescriptorForTarget(descriptor, target) {
   if (descriptor.disabled) return Number.NEGATIVE_INFINITY;
   if (descriptor.readonly && target !== 'message') return Number.NEGATIVE_INFINITY;
+  if (/^(checkbox|radio)$/i.test(descriptor.type || '') && target !== 'consent' && target !== 'submit') {
+    return Number.NEGATIVE_INFINITY;
+  }
 
   const text = textForDescriptor(descriptor);
   let score = 0;
@@ -77,6 +88,9 @@ function scoreDescriptorForTarget(descriptor, target) {
   } else if (target === 'submit') {
     if (/send|submit|contact|request|book|continue|apply|next|send message/i.test(text)) score += 80;
     if (descriptor.type === 'submit') score += 30;
+  } else if (target === 'consent') {
+    if (/terms|consent|agree|opt in|optin|privacy|disclaimer/i.test(text)) score += 80;
+    if (/checkbox|radio/i.test(descriptor.type || '')) score += 20;
   }
 
   if (/^input/.test(descriptor.tag) && target === 'message') score -= 10;
@@ -100,6 +114,7 @@ function inspectDescriptorFromElement(element, index) {
     required: Boolean(element.required || element.hasAttribute?.('required')),
     disabled: Boolean(element.disabled || element.hasAttribute?.('disabled')),
     readonly: Boolean(element.readOnly || element.hasAttribute?.('readonly')),
+    visible: elementIsVisible(element),
   };
 }
 
@@ -117,6 +132,10 @@ async function inspectFormFields(page) {
     required: Boolean(element.required || element.hasAttribute('required')),
     disabled: Boolean(element.disabled || element.hasAttribute('disabled')),
     readonly: Boolean(element.readOnly || element.hasAttribute('readonly')),
+    visible: !element.hidden
+      && element.getAttribute('type') !== 'hidden'
+      && element.getAttribute('aria-hidden') !== 'true'
+      && (typeof element.getClientRects !== 'function' || element.getClientRects().length > 0),
   })));
 }
 
@@ -137,6 +156,7 @@ function planFieldAssignments(fields, lead, message) {
     let best = null;
 
     for (const field of fields) {
+      if (field.visible === false) continue;
       if (usedIndexes.has(field.index)) continue;
       const score = scoreDescriptorForTarget(field, target.key);
       if (score <= 0) continue;
@@ -156,7 +176,24 @@ function planFieldAssignments(fields, lead, message) {
     }
   }
 
-  const unmatchedRequired = fields.filter((field) => field.required && !usedIndexes.has(field.index));
+  for (const field of fields) {
+    if (field.visible === false) continue;
+    if (usedIndexes.has(field.index)) continue;
+    if (!/^(checkbox|radio)$/i.test(field.type || '')) continue;
+    const score = scoreDescriptorForTarget(field, 'consent');
+    if (score <= 0) continue;
+    assignments.push({
+      index: field.index,
+      role: 'consent',
+      kind: 'check',
+      value: true,
+      label: field.labelText || field.ariaLabel || field.placeholder || field.name || field.id || field.tag,
+    });
+    usedIndexes.add(field.index);
+    break;
+  }
+
+  const unmatchedRequired = fields.filter((field) => field.required && field.visible !== false && !usedIndexes.has(field.index));
 
   return {
     assignments,
@@ -167,6 +204,7 @@ function planFieldAssignments(fields, lead, message) {
 function planSubmitControl(fields) {
   let best = null;
   for (const field of fields) {
+    if (field.visible === false) continue;
     const score = scoreDescriptorForTarget(field, 'submit');
     if (score <= 0) continue;
     if (!best || score > best.score) {
@@ -177,12 +215,13 @@ function planSubmitControl(fields) {
 }
 
 function hasDangerFields(fields) {
-  return fields.some((field) => /password|file|credit card|card number|payment|login|sign in|account/i.test(textForDescriptor(field)));
+  return fields.some((field) => field.visible !== false && /password|file|credit card|card number|payment|login|sign in|account/i.test(textForDescriptor(field)));
 }
 
 function sameHost(left, right) {
   try {
-    return new URL(left).host === new URL(right).host;
+    const normalizeHost = (value) => new URL(value).hostname.replace(/^www\./, '').toLowerCase();
+    return normalizeHost(left) === normalizeHost(right);
   } catch {
     return false;
   }
