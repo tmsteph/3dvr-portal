@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { existsSync, readFileSync, mkdtempSync, writeFileSync, rmSync } = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const {
   fillContactForm,
@@ -10,7 +11,11 @@ const {
   planFieldAssignments,
   selectAdapter,
   routeLabelForLead,
+  resolveBrowserExecutablePath,
+  runFormCommand,
 } = require('../thomas-agent/node/contact-form-fill');
+
+const askFormCli = path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-form');
 
 function makeElement(descriptor) {
   const attrs = {
@@ -159,6 +164,95 @@ test('fillContactForm fills fields and saves a screenshot in review mode', async
     assert.equal(page.fields[1].value, '3dvr.tech@gmail.com');
     assert.equal(page.fields[2].value, '3DVR');
     assert.equal(page.fields[3].value, 'Hello from Thomas');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('runFormCommand dry-run previews the form route without launching a browser', async () => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-preview-'));
+  const leads = path.join(tmp, 'leads.csv');
+  writeFileSync(
+    leads,
+    'name,link,contact,status,date,variant\nForm Lead,https://form.example,https://form.example/contact,new,2026-05-06,route=form\n',
+  );
+
+  const originalLeadsFile = process.env.THREEDVR_LEADS_FILE;
+  process.env.THREEDVR_LEADS_FILE = leads;
+  const output = [];
+  const originalLog = console.log;
+
+  try {
+    console.log = (...args) => {
+      output.push(args.join(' '));
+    };
+
+    const result = await runFormCommand(['--dry-run', 'Form Lead'], {
+      skipServer: true,
+    });
+
+    assert.equal(result.preview, true);
+    assert.equal(result.route, 'form');
+    assert.match(output.join('\n'), /FORM PREVIEW/);
+    assert.match(output.join('\n'), /Mode: preview/);
+    assert.match(output.join('\n'), /Filled fields: none/);
+  } finally {
+    console.log = originalLog;
+    process.env.THREEDVR_LEADS_FILE = originalLeadsFile;
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('resolveBrowserExecutablePath auto-discovers a local chromium binary', () => {
+  assert.equal(resolveBrowserExecutablePath(), '/usr/bin/chromium');
+});
+
+test('ask-form submit mode can run through a real chromium browser under xvfb', () => {
+  const browserExecutablePath = resolveBrowserExecutablePath();
+  if (!browserExecutablePath) {
+    return;
+  }
+
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-real-'));
+  const htmlPath = path.join(tmp, 'contact.html');
+  const leadsPath = path.join(tmp, 'leads.csv');
+  writeFileSync(
+    htmlPath,
+    `<!doctype html>
+<html>
+  <body>
+    <form onsubmit="document.body.dataset.submitted='yes'; return false;">
+      <label>Full name <input name="name" type="text" /></label>
+      <label>Email address <input name="email" type="email" /></label>
+      <label>Company <input name="company" type="text" /></label>
+      <label>Message <textarea name="message"></textarea></label>
+      <button type="submit">Send</button>
+    </form>
+  </body>
+</html>`,
+  );
+  writeFileSync(
+    leadsPath,
+    `name,link,contact,status,date,variant\nForm Lead,file://${htmlPath},file://${htmlPath},new,2026-05-06,route=form\n`,
+  );
+
+  try {
+    const output = execFileSync('xvfb-run', [
+      '-a',
+      askFormCli,
+      '--submit',
+      'Form Lead',
+    ], {
+      env: {
+        ...process.env,
+        THREEDVR_LEADS_FILE: leadsPath,
+      },
+      encoding: 'utf8',
+    });
+
+    assert.match(output, /FORM READY/);
+    assert.match(output, /Submitted: yes/);
+    assert.match(output, /Adapter: generic-html-form/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

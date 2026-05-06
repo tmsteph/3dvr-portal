@@ -1,5 +1,6 @@
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const { buildOutreachDraft } = require('./outreach-draft');
 const { readRows } = require('./lead-enrich');
@@ -30,6 +31,31 @@ function loadPlaywright() {
   }
 }
 
+function resolveBrowserExecutablePath(runtime = {}) {
+  const explicit = runtime.executablePath
+    || process.env.THREEDVR_PLAYWRIGHT_EXECUTABLE_PATH
+    || process.env.PLAYWRIGHT_CHROMIUM_PATH
+    || '';
+  if (explicit) {
+    return explicit;
+  }
+
+  const candidates = [
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return '';
+}
+
 function normalizeText(value) {
   return String(value || '').trim();
 }
@@ -42,6 +68,8 @@ Examples:
   ask-form "Dark Horse Coffee Roasters"
   ask-form --dry-run "Dark Horse Coffee Roasters"
   ask-form --submit "Dark Horse Coffee Roasters"
+
+Dry run previews the form route and draft without launching a browser.
 
 Environment:
   THREEDVR_LEADS_FILE       leads CSV path
@@ -184,17 +212,58 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
     throw new Error(`Lead "${lead.name}" does not include a page URL to open.`);
   }
 
+  const route = routeLabelForLead({ ...lead, contact: pageUrl });
+  if (options.dryRun && !runtime.page && !runtime.browser && !runtime.context) {
+    console.log('FORM PREVIEW');
+    console.log(`Name: ${lead.name}`);
+    console.log(`Site: ${lead.link}`);
+    console.log(`Contact: ${lead.contact}`);
+    console.log(`Route: ${route}`);
+    console.log(`Adapter: preview`);
+    console.log(`Target: ${pageUrl}`);
+    console.log('Mode: preview');
+    console.log();
+    console.log(message);
+    console.log();
+    console.log('Filled fields: none');
+    console.log('Screenshot: not captured');
+    console.log('Submitted: no');
+    return {
+      adapterId: 'preview',
+      route,
+      targetUrl: pageUrl,
+      screenshotPath: '',
+      filled: [],
+      submitted: false,
+      preview: true,
+    };
+  }
+
   let browser = runtime.browser || null;
   let context = runtime.context || null;
   let page = runtime.page || null;
 
   if (!page) {
     const browserTool = runtime.playwright || loadPlaywright();
-    const executablePath = runtime.executablePath || process.env.THREEDVR_PLAYWRIGHT_EXECUTABLE_PATH || '';
-    browser = browser || await browserTool.chromium.launch({
-      headless: runtime.headless !== undefined ? runtime.headless : true,
-      executablePath: executablePath || undefined,
-    });
+    const executablePath = resolveBrowserExecutablePath(runtime);
+    const headlessEnv = process.env.THREEDVR_PLAYWRIGHT_HEADLESS;
+    const defaultHeadless = headlessEnv === undefined
+      ? true
+      : !/^(0|false|no|off)$/i.test(String(headlessEnv).trim());
+    try {
+      browser = browser || await browserTool.chromium.launch({
+        headless: runtime.headless !== undefined ? runtime.headless : defaultHeadless,
+        executablePath: executablePath || undefined,
+        args: runtime.args || ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+    } catch (error) {
+      throw new Error([
+        'Unable to launch a browser for ask-form.',
+        'Install the full `playwright` package and browser binaries, or use `ask-form --dry-run` for a preview-only run.',
+        executablePath ? `Configured executable path: ${executablePath}` : '',
+        error?.message ? `Underlying error: ${error.message}` : '',
+      ].filter(Boolean).join(' '));
+    }
     context = context || await browser.newContext();
     page = await context.newPage();
   }
@@ -205,8 +274,6 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
     screenshotPath: runtime.screenshotPath,
     adapter: runtime.adapter,
   });
-
-  const route = routeLabelForLead({ ...lead, contact: result.targetUrl });
 
   console.log('FORM READY');
   console.log(`Name: ${lead.name}`);
@@ -256,6 +323,7 @@ module.exports = {
   parseArgs,
   pickLead,
   planFieldAssignments,
+  resolveBrowserExecutablePath,
   routeLabelForLead,
   runFormCommand,
   selectAdapter,

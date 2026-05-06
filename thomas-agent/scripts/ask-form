@@ -1,5 +1,23 @@
 #!/usr/bin/env bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+submit_mode="no"
+dry_run="no"
+
+for arg in "$@"; do
+  case "$arg" in
+    --submit) submit_mode="yes" ;;
+    --dry-run) dry_run="yes" ;;
+  esac
+done
+
+if [ "$submit_mode" = "yes" ] && [ "$dry_run" != "yes" ] && [ -z "${THREEDVR_PLAYWRIGHT_HEADLESS:-}" ]; then
+  export THREEDVR_PLAYWRIGHT_HEADLESS=false
+fi
+
+if [ "$submit_mode" = "yes" ] && [ "$dry_run" != "yes" ] && [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1 && [ -z "${THREEDVR_SKIP_XVFB:-}" ]; then
+  export THREEDVR_SKIP_XVFB=1
+  exec xvfb-run -a node "$ROOT/node/contact-form-fill.js" "$@"
+fi
 
 node "$ROOT/node/contact-form-fill.js" "$@"
