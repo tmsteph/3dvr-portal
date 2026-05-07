@@ -78,7 +78,7 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr dev yolo-app\s+same as 3dvr yolo-app/);
   assert.match(stdout, /3dvr dev yolo-new-site\s+same as 3dvr yolo-new-site/);
   assert.match(stdout, /3dvr email connect\s+same as 3dvr auth login google/);
-  assert.match(stdout, /Do not set Gmail app passwords/i);
+  assert.match(stdout, /supports portal OAuth or a legacy Gmail app password/i);
 });
 
 test('install command gives npm and OAuth-first setup path', async () => {
@@ -88,7 +88,7 @@ test('install command gives npm and OAuth-first setup path', async () => {
   assert.match(stdout, /npm link/);
   assert.match(stdout, /3dvr setup/);
   assert.match(stdout, /3dvr connect/);
-  assert.match(stdout, /Email auth is OAuth-first/);
+  assert.match(stdout, /Email auth supports portal OAuth or a legacy Gmail app password/);
 });
 
 test('guided menu accepts commands and stays open until quit', async () => {

@@ -250,7 +250,7 @@ async function cli(argv) {
     console.log('  3dvr email status');
     console.log('  3dvr inbox check');
     console.log('');
-    console.log('OAuth is used automatically when no Gmail app password is configured.');
+    console.log('Portal OAuth is used when no Gmail app password is configured.');
     return;
   }
 

@@ -79,28 +79,32 @@ THREEDVR_AGENT_REPO="https://github.com/tmsteph/3dvr-agent.git" ./install.sh
 
 Run `3dvr` with no arguments for the guided cockpit menu. The menu accepts both numbers and normal commands, so you can stay inside the TUI and type `next`, `contacted`, `sent-next`, or `inbox check` directly.
 
-### OAuth-first email setup
+### Email Setup
 
-3dvr should use portal OAuth for Gmail and future Outlook support. Do not set Gmail app passwords for normal use.
+3dvr supports two email setups:
+
+1. Portal OAuth for the hosted/operator-managed path.
+1. A legacy Gmail app-password mailbox for local Termux use.
+
+Use portal OAuth when you want the browser-managed flow:
 
 ```sh
 3dvr connect
-```
-
-Approve Gmail in the portal. The portal will show a connection JSON payload for the CLI.
-
-Import it:
-
-```sh
 3dvr auth import
-```
-
-Paste the JSON and press `Ctrl-D`, then verify:
-
-```sh
 3dvr email status
 3dvr inbox check
 ```
+
+Use the legacy Termux mailbox when you already have `GMAIL_APP_PASSWORD` set and want the main `3dvr.tech@gmail.com`
+mailbox to work without OAuth:
+
+```sh
+export GMAIL_APP_PASSWORD="your_app_password"
+3dvr email status
+3dvr inbox check
+```
+
+The CLI defaults the sender mailbox to `3dvr.tech@gmail.com` when `GMAIL_USER` is unset.
 
 Outlook keeps the same command shape for the future provider path:
 
@@ -366,13 +370,20 @@ export THREEDVR_AUTOPILOT_AUTO_SEND="true"
 export THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT=1
 ```
 
-For local installs, use OAuth Gmail instead of app passwords:
+For local installs, either use portal OAuth or set a Gmail app password for the Termux mailbox:
 
 ```sh
 3dvr connect
 3dvr auth import
 export THREEDVR_AUTOPILOT_EMAIL_TRANSPORT="gmail"
 export THREEDVR_GMAIL_AUTH="oauth"
+```
+
+Legacy Termux mailbox:
+
+```sh
+export GMAIL_APP_PASSWORD="your_app_password"
+export THREEDVR_AUTOPILOT_EMAIL_TRANSPORT="gmail"
 ```
 
 ### Inbox Monitoring
@@ -398,7 +409,7 @@ ask-inbox-daemon status
 ask-inbox-daemon logs
 ```
 
-The inbox watcher uses Gmail IMAP. Connect Gmail with portal OAuth first:
+The inbox watcher uses Gmail IMAP. Connect Gmail with portal OAuth first, or set the legacy Gmail app password:
 
 ```sh
 3dvr connect
@@ -407,7 +418,7 @@ The inbox watcher uses Gmail IMAP. Connect Gmail with portal OAuth first:
 3dvr inbox check
 ```
 
-Legacy app-password IMAP is still available if explicitly configured:
+Legacy app-password IMAP is available if explicitly configured:
 
 ```sh
 export GMAIL_USER="3dvr.tech@gmail.com"
