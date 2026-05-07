@@ -92,8 +92,13 @@ fi
 
 pick_priority() {
   awk -F, '
+    function is_bad_contact(url) {
+      return url ~ /wp-content\/|wp-json\/|feed\/|cdn-cgi\/|contact-form-7\/includes\/css\/|[.\/](css|js|json|xml|txt|pdf|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|eot)([?#].*)?$/
+    }
+
     function priority(link, contact) {
       if (contact ~ /^mailto:/) return 4;
+      if (contact ~ /^https?:\/\// && is_bad_contact(contact)) return (link ~ /^https?:\/\// ? 2 : 0);
       if (contact ~ /^https?:\/\//) return 3;
       if (link ~ /^https?:\/\//) return 2;
       if (contact != "") return 1;
@@ -126,6 +131,13 @@ contact="$(printf '%s' "$line" | awk -F, '{print $3}')"
 variant="$(printf '%s' "$line" | awk -F, '{print $6}')"
 
 target="$contact"
+case "$target" in
+  http://*|https://*)
+    if printf '%s' "$target" | grep -Eqi 'wp-content/|wp-json/|feed/|cdn-cgi/|contact-form-7/includes/css/|(\.|/)(css|js|json|xml|txt|pdf|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|eot)([?#].*)?$'; then
+      target=""
+    fi
+    ;;
+esac
 [ -z "$target" ] && target="$link"
 
 did_send="no"

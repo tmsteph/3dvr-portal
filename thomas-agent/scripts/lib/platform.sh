@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
 
+load_3dvr_env() {
+  if [ -n "${THREEDVR_ENV_LOADED:-}" ]; then
+    return 0
+  fi
+
+  THREEDVR_HOME="${THREEDVR_HOME:-$HOME/.3dvr}"
+  THREEDVR_CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$THREEDVR_HOME/config/env}"
+
+  if [ -f "$THREEDVR_CONFIG_FILE" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$THREEDVR_CONFIG_FILE"
+    set +a
+  fi
+
+  THREEDVR_ENV_LOADED=1
+}
+
+load_3dvr_env
+
 detect_platform() {
   case "$(uname -s)" in
     Linux*)

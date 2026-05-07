@@ -19,6 +19,7 @@ const CONTACT_PAGE_HINTS = [
   '/consultation',
 ];
 const SKIP_EMAIL_PATTERN = /(sentry\.io|wixpress\.com|squarespace\.com|schema\.org|wordpress\.org|your@email|noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster|webmaster|administrator)/i;
+const SKIP_CONTACT_URL_PATTERN = /(?:\/wp-content\/|\/wp-json\/|\/feed\/|\/cdn-cgi\/|contact-form-7\/includes\/css\/|[./](?:css|js|json|xml|txt|pdf|jpe?g|png|gif|svg|webp|ico|woff2?|ttf|eot)(?:[?#]|$))/i;
 
 function usage() {
   console.log(`Usage:
@@ -167,6 +168,12 @@ function sameHost(url, base) {
   }
 }
 
+function isLikelyContactPageUrl(url) {
+  const value = String(url || '').trim();
+  if (!/^https?:\/\//i.test(value)) return false;
+  return !SKIP_CONTACT_URL_PATTERN.test(value);
+}
+
 function stripHtml(value) {
   return String(value || '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -265,6 +272,7 @@ function extractLinks(html, base) {
     const url = normalizeUrl(match[1], base);
     if (!url || seen.has(url) || !/^https?:\/\//i.test(url)) continue;
     if (!sameHost(url, base)) continue;
+    if (!isLikelyContactPageUrl(url)) continue;
     seen.add(url);
     links.push(url);
   }
@@ -326,7 +334,7 @@ function scoreContactLink(url) {
 
 function chooseContactPage(links) {
   return links
-    .map((url) => ({ url, score: CONTACT_PATH_PATTERN.test(url) ? scoreContactLink(url) : 0 }))
+    .map((url) => ({ url, score: isLikelyContactPageUrl(url) && CONTACT_PATH_PATTERN.test(url) ? scoreContactLink(url) : 0 }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score)[0]?.url || '';
 }
@@ -351,7 +359,8 @@ function collectCandidatePages(html, baseUrl, maxPages = DEFAULT_MAX_PAGES) {
   for (const url of linkedPages) add(url);
 
   for (const pathName of CONTACT_PAGE_HINTS) {
-    add(new URL(pathName, baseUrl).toString());
+    const hintUrl = new URL(pathName, baseUrl).toString();
+    if (isLikelyContactPageUrl(hintUrl)) add(hintUrl);
   }
 
   return candidateUrls.slice(0, limit);
@@ -521,7 +530,9 @@ function shouldEnrich(row, options) {
   if (options.name && row.name !== options.name) return false;
   if (!row.link && !row.contact) return false;
   if (options.refresh) return true;
-  return !row.contact || /^https?:\/\/[^/]+\/?$/i.test(row.contact);
+  return !row.contact
+    || /^https?:\/\/[^/]+\/?$/i.test(row.contact)
+    || (row.contact.startsWith('http') && !isLikelyContactPageUrl(row.contact));
 }
 
 async function main() {
