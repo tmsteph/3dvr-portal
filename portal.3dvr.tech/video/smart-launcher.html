@@ -333,6 +333,21 @@
           </div>
 
           <div class="field">
+            <label for="joinRole">Join role</label>
+            <select id="joinRole">
+              <option value="participant" selected>Participant</option>
+              <option value="director">Director</option>
+              <option value="front">Front camera test</option>
+              <option value="back">Back camera test</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="displayName">Display name</label>
+            <input id="displayName" type="text" value="" autocomplete="off" placeholder="Optional display name" />
+          </div>
+
+          <div class="field">
             <label for="mode">Manual profile</label>
             <select id="mode">
               <option value="normal">Normal</option>
@@ -355,7 +370,7 @@
         <div>
           <label>Feature toggles</label>
           <div class="check-grid">
-            <label class="check"><input id="push" type="checkbox" checked /> <span><strong>Push mode</strong><br>Optimized for joining as a sender.</span></label>
+            <label class="check"><input id="push" type="checkbox" /> <span><strong>Push mode</strong><br>Turn this on for sender-style joins. It is no longer the default for general room links.</span></label>
             <label class="check"><input id="showlabels" type="checkbox" checked /> <span><strong>Show labels</strong><br>Display names in the room.</span></label>
             <label class="check"><input id="labelsuggestion" type="checkbox" checked /> <span><strong>Name suggestion prompt</strong><br>Helpful for fast joining.</span></label>
             <label class="check"><input id="clearnames" type="checkbox" checked /> <span><strong>Clear names</strong><br>Encourage fresh entry names.</span></label>
@@ -424,6 +439,7 @@
           <button class="secondary" type="button" id="monitorCurrent">Monitor Current Profile</button>
           <button class="secondary" type="button" id="openCurrent">Open current link</button>
           <button class="secondary" type="button" id="copyCurrent">Copy current link</button>
+          <button class="secondary" type="button" id="resetDefaults">Reset to safe defaults</button>
         </div>
         <div class="status" id="status"></div>
         <p class="mini" id="decision"></p>
@@ -465,6 +481,8 @@
 
   <script>
     const room = document.getElementById('room');
+    const joinRole = document.getElementById('joinRole');
+    const displayName = document.getElementById('displayName');
     const mode = document.getElementById('mode');
     const codec = document.getElementById('codec');
     const output = document.getElementById('output');
@@ -477,12 +495,14 @@
     const autoDowngrade = document.getElementById('autoDowngrade');
     const launchers = document.getElementById('launchers');
     const hintList = document.getElementById('hintList');
+    const resetDefaults = document.getElementById('resetDefaults');
 
     let recommendedDowngradeLink = '';
     let recommendedDowngradeProfile = '';
     let lastAutoDowngradeAt = 0;
     let adaptiveTimer = null;
     let connectionListenerAttached = false;
+    const storageKey = '3dvr-smart-launcher-state-v1';
 
     const toggles = {
       push: document.getElementById('push'),
@@ -553,6 +573,88 @@
       return value.trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9_-]/g, '') || '3dvrtech';
     }
 
+    function sanitizeLabel(value) {
+      return value.trim().replace(/[^\w -]/g, '').slice(0, 40);
+    }
+
+    function defaultState() {
+      return {
+        room: '3dvrtech',
+        joinRole: 'participant',
+        displayName: '',
+        mode: 'low',
+        codec: 'h264',
+        autoDowngrade: false,
+        toggles: {
+          push: false,
+          showlabels: true,
+          labelsuggestion: true,
+          clearnames: true,
+          dtx: true,
+          stereo0: true
+        }
+      };
+    }
+
+    function readState() {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        return {
+          ...defaultState(),
+          ...parsed,
+          toggles: {
+            ...defaultState().toggles,
+            ...(parsed && parsed.toggles ? parsed.toggles : {})
+          }
+        };
+      } catch {
+        return defaultState();
+      }
+    }
+
+    function writeState() {
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify({
+          room: sanitizeRoom(room.value || '3dvrtech'),
+          joinRole: joinRole.value,
+          displayName: sanitizeLabel(displayName.value || ''),
+          mode: mode.value,
+          codec: codec.value,
+          autoDowngrade: autoDowngrade.checked,
+          toggles: Object.fromEntries(Object.entries(toggles).map(([key, element]) => [key, element.checked]))
+        }));
+      } catch {
+        // Ignore storage failures in locked-down browsing contexts.
+      }
+    }
+
+    function applyState(state) {
+      room.value = state.room;
+      joinRole.value = state.joinRole;
+      displayName.value = state.displayName;
+      mode.value = state.mode;
+      codec.value = state.codec;
+      autoDowngrade.checked = Boolean(state.autoDowngrade);
+      Object.entries(toggles).forEach(([key, element]) => {
+        element.checked = Boolean(state.toggles[key]);
+      });
+    }
+
+    function syncRoleDefaults(role, { forcePush = false } = {}) {
+      const isDirector = role === 'director';
+      const isLoopback = role === 'front' || role === 'back';
+      if (forcePush) {
+        toggles.push.checked = !isDirector;
+      }
+      toggles.labelsuggestion.checked = !isDirector;
+      toggles.clearnames.checked = !isDirector;
+      if (isLoopback && !displayName.value.trim()) {
+        displayName.value = role === 'front' ? 'fronttest' : 'backtest';
+      }
+    }
+
     function buildBaseParams() {
       const params = new URLSearchParams();
       params.set('room', sanitizeRoom(room.value || '3dvrtech'));
@@ -564,6 +666,8 @@
       if (toggles.dtx.checked) params.set('dtx', '');
       if (toggles.stereo0.checked) params.set('stereo', '0');
       if (codec.value) params.set('codec', codec.value);
+      const label = sanitizeLabel(displayName.value || '');
+      if (label) params.set('label', label);
 
       return params;
     }
@@ -575,6 +679,27 @@
     function buildLink(profileKey) {
       const profile = profiles[profileKey];
       const params = buildBaseParams();
+      const role = joinRole.value;
+
+      if (role === 'director') {
+        params.delete('push');
+        params.delete('labelsuggestion');
+        params.delete('clearnames');
+        params.set('director', '');
+        params.set('bitrate', '500');
+        params.set('scale', '240p');
+        params.set('fps', '15');
+        return `https://vdo.ninja/?${toQueryString(params)}`;
+      }
+
+      if (role === 'front' || role === 'back') {
+        params.set('webcam', '');
+        params.set('autostart', '');
+        if (!params.has('label')) {
+          params.set('label', role === 'front' ? 'fronttest' : 'backtest');
+        }
+        if (role === 'back') params.set('vdo', 'rear');
+      }
 
       Object.entries(profile.params).forEach(([key, value]) => {
         if (value === true) {
@@ -706,7 +831,15 @@
     }
 
     function describeManualSelection(profileKey) {
-      return `Manual mode: ${profiles[profileKey].label}. Use Smart Join to let the launcher pick a safer tier from browser hints.`;
+      const role = joinRole.value;
+      const roleLabel = role === 'participant'
+        ? 'Participant'
+        : role === 'director'
+          ? 'Director'
+          : role === 'front'
+            ? 'Front camera test'
+            : 'Back camera test';
+      return `Role: ${roleLabel}. Manual mode: ${profiles[profileKey].label}. Use Smart Join to let the launcher pick a safer tier from browser hints.`;
     }
 
     function describeSmartDecision(result) {
@@ -717,7 +850,7 @@
       if (typeof result.info.rtt === 'number') bits.push(`RTT ${result.info.rtt} ms`);
       if (result.info.saveData) bits.push('save-data enabled');
       if (result.reducedData) bits.push('prefers reduced data');
-      return `Smart Join picked ${profiles[result.chosen].label}: ${bits.join(' • ') || 'safe default with no network hints'}.`;
+      return `Smart Join picked ${profiles[result.chosen].label} for ${joinRole.value}: ${bits.join(' • ') || 'safe default with no network hints'}.`;
     }
 
     function nextLowerProfile(current) {
@@ -785,6 +918,7 @@
     }
 
     function renderCurrent() {
+      writeState();
       output.value = buildLink(mode.value);
       decision.textContent = describeManualSelection(mode.value);
       renderConnectionHints(pickSmartProfile());
@@ -821,6 +955,13 @@
       copyText(output.value);
     });
 
+    resetDefaults.addEventListener('click', () => {
+      applyState(defaultState());
+      syncRoleDefaults(joinRole.value, { forcePush: true });
+      renderCurrent();
+      setStatus('Safe defaults restored.');
+    });
+
     openDowngrade.addEventListener('click', () => {
       if (!recommendedDowngradeLink) return;
       mode.value = recommendedDowngradeProfile;
@@ -835,11 +976,18 @@
       copyText(recommendedDowngradeLink);
     });
 
-    [room, mode, codec, ...Object.values(toggles)].forEach((element) => {
+    joinRole.addEventListener('change', () => {
+      syncRoleDefaults(joinRole.value);
+      renderCurrent();
+    });
+
+    [room, displayName, mode, codec, autoDowngrade, ...Object.values(toggles)].forEach((element) => {
       element.addEventListener('input', renderCurrent);
       element.addEventListener('change', renderCurrent);
     });
 
+    applyState(readState());
+    syncRoleDefaults(joinRole.value);
     renderCurrent();
   </script>
   <script defer src="/issue-launcher.js"></script>
