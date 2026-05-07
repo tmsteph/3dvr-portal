@@ -63,6 +63,15 @@
       pointer-events: none;
     }
 
+    .portal-issue-launcher--footer {
+      position: relative;
+      left: auto;
+      bottom: auto;
+      transform: none;
+      width: min(28rem, calc(100vw - 1.5rem));
+      margin: 1rem auto max(0.75rem, env(safe-area-inset-bottom));
+    }
+
     .portal-issue-launcher__button,
     .portal-issue-launcher__panel {
       pointer-events: auto;
@@ -251,6 +260,11 @@
         bottom: max(0.5rem, env(safe-area-inset-bottom));
       }
 
+      .portal-issue-launcher--footer {
+        width: calc(100vw - 1rem);
+        margin-inline: auto;
+      }
+
       .portal-issue-launcher__panel {
         width: 100%;
       }
@@ -341,6 +355,22 @@
   const closeButton = panel.querySelector('[data-issue-close]');
   const status = panel.querySelector('.portal-issue-launcher__status');
 
+  function updateBodyPadding() {
+    const shouldPad = !root.classList.contains('portal-issue-launcher--footer');
+    const launcherHeight = Math.ceil(root.getBoundingClientRect().height || 0);
+    document.body.style.paddingBottom = shouldPad && launcherHeight
+      ? `${launcherHeight + 16}px`
+      : '';
+  }
+
+  function syncDockMode() {
+    const doc = document.documentElement;
+    const remaining = doc.scrollHeight - (window.scrollY + window.innerHeight);
+    const shouldDockAsFooter = remaining <= root.offsetHeight + 24;
+    root.classList.toggle('portal-issue-launcher--footer', shouldDockAsFooter);
+    updateBodyPadding();
+  }
+
   ISSUE_TYPES.forEach((issueType) => {
     const option = document.createElement('option');
     option.value = issueType.value;
@@ -373,9 +403,11 @@
   button.addEventListener('click', () => {
     if (panel.hidden) {
       openPanel();
+      syncDockMode();
       return;
     }
     closePanel();
+    syncDockMode();
   });
 
   closeButton.addEventListener('click', closePanel);
@@ -383,6 +415,7 @@
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !panel.hidden) {
       closePanel();
+      syncDockMode();
     }
   });
 
@@ -399,4 +432,9 @@
       window.location.href = issueUrl;
     }
   });
+
+  const syncDockModeSoon = () => requestAnimationFrame(syncDockMode);
+  window.addEventListener('scroll', syncDockModeSoon, { passive: true });
+  window.addEventListener('resize', syncDockModeSoon);
+  syncDockModeSoon();
 })();

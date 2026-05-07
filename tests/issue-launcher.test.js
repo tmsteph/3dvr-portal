@@ -34,6 +34,9 @@ test('issue launcher ships a GitHub issue helper for the portal repo', async () 
   assert.match(source, /- Path:/);
   assert.match(source, /- URL:/);
   assert.match(source, /Current page:/);
+  assert.match(source, /portal-issue-launcher--footer/);
+  assert.match(source, /remaining <= root\.offsetHeight \+ 24/);
+  assert.match(source, /window\.addEventListener\('scroll', syncDockModeSoon/);
 });
 
 test('portal html pages include the shared issue launcher', async () => {
