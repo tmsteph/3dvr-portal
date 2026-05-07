@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr.tech Meeting Ops</title>
+  <meta
+    name="description"
+    content="Generate host, guest, loopback, and fallback meeting links from one control token. Test and run 3dvr.tech meetings from a single operations page."
+  />
+  <link rel="icon" href="https://3dvr.tech/favicon.ico" />
+  <style>
+    :root {
+      --bg: #06111a;
+      --bg-soft: #0a1824;
+      --panel: rgba(12, 27, 40, 0.94);
+      --panel-2: rgba(17, 37, 55, 0.98);
+      --line: rgba(132, 191, 255, 0.18);
+      --text: #eff7ff;
+      --muted: #b6cadb;
+      --blue: #8ec6ff;
+      --gold: #e8c36a;
+      --good: #97e7b5;
+      --warn: #ffd37b;
+      --danger: #ff9b9b;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top right, rgba(142, 198, 255, 0.12), transparent 28%),
+        radial-gradient(circle at top left, rgba(232, 195, 106, 0.08), transparent 22%),
+        linear-gradient(180deg, #05101a, #0a1824 45%, #07131d 100%);
+      padding: 20px;
+    }
+
+    .shell {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel,
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero,
+    .panel {
+      padding: 22px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+      border: 1px solid rgba(232, 195, 106, 0.24);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 0.86rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: clamp(2.1rem, 5vw, 3.4rem);
+      line-height: 0.98;
+      letter-spacing: -0.04em;
+    }
+
+    .sub,
+    .mini,
+    .muted {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 18px;
+    }
+
+    .stack,
+    .form-grid,
+    .card-grid,
+    .checklist,
+    .link-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid rgba(140, 196, 255, 0.16);
+      border-radius: 14px;
+      padding: 13px 14px;
+      font: inherit;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 86px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(140, 196, 255, 0.5);
+      box-shadow: 0 0 0 4px rgba(140, 196, 255, 0.12);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .button,
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.14s ease, opacity 0.14s ease;
+    }
+
+    .button:hover,
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--blue), #b7dbff);
+      color: #08131d;
+      font-weight: 700;
+    }
+
+    .secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .card-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 18px;
+      display: grid;
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(18, 35, 53, 0.96), rgba(11, 24, 36, 0.98));
+    }
+
+    .pill {
+      display: inline-flex;
+      width: fit-content;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+    }
+
+    .pill.good { color: var(--good); border-color: rgba(151, 231, 181, 0.26); }
+    .pill.warn { color: var(--warn); border-color: rgba(255, 211, 123, 0.26); }
+    .pill.danger { color: var(--danger); border-color: rgba(255, 155, 155, 0.26); }
+
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .checklist li {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+    }
+
+    .link-stack textarea {
+      min-height: 74px;
+    }
+
+    .status {
+      min-height: 1.2em;
+      color: var(--gold);
+      font-size: 0.93rem;
+    }
+
+    @media (max-width: 920px) {
+      .grid,
+      .form-grid,
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+
+      body {
+        padding: 14px;
+      }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">3dvr.tech • Meeting system</div>
+      <h1>Meeting Ops</h1>
+      <p class="sub">
+        Run the whole meeting stack from one page: host links, guest links, two-tab tests, two-device loopback, crunched fallback,
+        and a control token that stays consistent across everyone in the room.
+      </p>
+      <div class="actions">
+        <a class="button secondary" href="/portal.3dvr.tech/video/index.html">Fast Video</a>
+        <a class="button secondary" href="/portal.3dvr.tech/video/smart-launcher.html">Smart Launcher</a>
+        <a class="button secondary" href="/meeting-notes/">Attendance &amp; Notes</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel stack">
+        <div>
+          <h2>Session Builder</h2>
+          <p class="sub">Start with one room and one control token. Everything else is derived from that.</p>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="room">Room name</label>
+            <input id="room" type="text" value="3dvrtech" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="control">Control token</label>
+            <input id="control" type="text" value="3dvrtech" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="hostName">Host label</label>
+            <input id="hostName" type="text" value="host" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="guestName">Guest label</label>
+            <input id="guestName" type="text" value="guest" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="meetingType">Workflow</label>
+            <select id="meetingType">
+              <option value="live" selected>Live meeting</option>
+              <option value="two-tab">Two-tab Chrome test</option>
+              <option value="loopback">Two-device loopback test</option>
+              <option value="travel">Travel / weak data</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="codec">Codec</label>
+            <select id="codec">
+              <option value="h264" selected>H.264</option>
+              <option value="vp9">VP9</option>
+              <option value="">Default</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" type="button" id="copyGuestPack">Copy guest pack</button>
+          <button class="secondary" type="button" id="copyHostPack">Copy host pack</button>
+          <button class="secondary" type="button" id="copyChecklist">Copy preflight checklist</button>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+
+      <div class="panel stack">
+        <div>
+          <h2>Recommended Runbook</h2>
+          <p class="sub">The page shifts emphasis by workflow so you know which links to open first.</p>
+        </div>
+        <div class="card-grid">
+          <article class="card">
+            <span class="pill good">Host</span>
+            <h3 id="hostTitle">Host with director view</h3>
+            <p class="mini" id="hostCopy">Best default for same-device control and group moderation.</p>
+          </article>
+          <article class="card">
+            <span class="pill warn">Guest</span>
+            <h3 id="guestTitle">Guest on low profile</h3>
+            <p class="mini" id="guestCopy">Start guests lower than the host. Upgrade later if the room is clean.</p>
+          </article>
+          <article class="card">
+            <span class="pill warn">Fallback</span>
+            <h3 id="fallbackTitle">Crunched recovery</h3>
+            <p class="mini" id="fallbackCopy">Use this when the room tears or mobile data gets rough.</p>
+          </article>
+          <article class="card">
+            <span class="pill danger">Reset</span>
+            <h3 id="resetTitle">Shared control token</h3>
+            <p class="mini" id="resetCopy">Host and guests should all share the same token so downgrade commands line up.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel stack">
+      <div>
+        <h2>Launch Pack</h2>
+        <p class="sub">These links are prefilled through the smart launcher so role, profile, and control token stay consistent.</p>
+      </div>
+      <div class="card-grid">
+        <article class="card link-stack">
+          <span class="pill good">Host</span>
+          <h3>Host / Director</h3>
+          <textarea id="hostLink" readonly></textarea>
+          <div class="actions">
+            <a class="button primary" id="openHostLink" target="_blank" rel="noopener noreferrer" href="#">Open</a>
+            <button class="secondary" type="button" data-copy-target="hostLink">Copy</button>
+          </div>
+        </article>
+        <article class="card link-stack">
+          <span class="pill warn">Guest</span>
+          <h3>Guest / Participant</h3>
+          <textarea id="guestLink" readonly></textarea>
+          <div class="actions">
+            <a class="button primary" id="openGuestLink" target="_blank" rel="noopener noreferrer" href="#">Open</a>
+            <button class="secondary" type="button" data-copy-target="guestLink">Copy</button>
+          </div>
+        </article>
+        <article class="card link-stack">
+          <span class="pill warn">Fallback</span>
+          <h3>Crunched Fallback</h3>
+          <textarea id="fallbackLink" readonly></textarea>
+          <div class="actions">
+            <a class="button secondary" id="openFallbackLink" target="_blank" rel="noopener noreferrer" href="#">Open</a>
+            <button class="secondary" type="button" data-copy-target="fallbackLink">Copy</button>
+          </div>
+        </article>
+        <article class="card link-stack">
+          <span class="pill good">Managed</span>
+          <h3>Test / Loopback Pack</h3>
+          <textarea id="testPack" readonly></textarea>
+          <div class="actions">
+            <button class="secondary" type="button" data-copy-target="testPack">Copy</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel stack">
+        <div>
+          <h2>Preflight</h2>
+          <p class="sub">Run this before a real meeting, especially on travel or mobile data.</p>
+        </div>
+        <ul class="checklist" id="preflightList">
+          <li>Open the host link first and confirm the control token matches the room.</li>
+          <li>Open one guest link and verify names show under the video tile.</li>
+          <li>Keep the crunched fallback ready in another tab before the meeting starts.</li>
+          <li>Use headphones and close background apps on mobile to reduce echo and throttling.</li>
+        </ul>
+      </div>
+      <div class="panel stack">
+        <div>
+          <h2>Failure Ladder</h2>
+          <p class="sub">Do not improvise under load. Follow the downgrade order.</p>
+        </div>
+        <ul class="checklist" id="failureList">
+          <li>Step 1: host stays on director, guests drop to low.</li>
+          <li>Step 2: open the crunched fallback link.</li>
+          <li>Step 3: use the shared control token to recommend reset.</li>
+          <li>Step 4: if the room is still unstable, switch the worst device to audio-only from the smart launcher.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const room = document.getElementById('room');
+    const control = document.getElementById('control');
+    const hostName = document.getElementById('hostName');
+    const guestName = document.getElementById('guestName');
+    const meetingType = document.getElementById('meetingType');
+    const codec = document.getElementById('codec');
+    const hostLink = document.getElementById('hostLink');
+    const guestLink = document.getElementById('guestLink');
+    const fallbackLink = document.getElementById('fallbackLink');
+    const testPack = document.getElementById('testPack');
+    const status = document.getElementById('status');
+
+    const hostTitle = document.getElementById('hostTitle');
+    const hostCopy = document.getElementById('hostCopy');
+    const guestTitle = document.getElementById('guestTitle');
+    const guestCopy = document.getElementById('guestCopy');
+    const fallbackTitle = document.getElementById('fallbackTitle');
+    const fallbackCopy = document.getElementById('fallbackCopy');
+    const resetTitle = document.getElementById('resetTitle');
+    const resetCopy = document.getElementById('resetCopy');
+    const preflightList = document.getElementById('preflightList');
+    const failureList = document.getElementById('failureList');
+
+    const hostHref = document.getElementById('openHostLink');
+    const guestHref = document.getElementById('openGuestLink');
+    const fallbackHref = document.getElementById('openFallbackLink');
+
+    function sanitizeKey(value, fallback) {
+      return (value || '')
+        .trim()
+        .replace(/\s+/g, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '') || fallback;
+    }
+
+    function sanitizeLabel(value, fallback) {
+      return (value || '')
+        .trim()
+        .replace(/[^\w -]/g, '')
+        .slice(0, 40) || fallback;
+    }
+
+    function buildLauncherUrl({ role, profile, name, controlMode, monitor = true, autoApply = false }) {
+      const params = new URLSearchParams();
+      params.set('room', sanitizeKey(room.value, '3dvrtech'));
+      params.set('role', role);
+      params.set('profile', profile);
+      params.set('control', sanitizeKey(control.value, sanitizeKey(room.value, '3dvrtech')));
+      params.set('controlMode', controlMode);
+      params.set('monitor', monitor ? '1' : '0');
+      params.set('autoApply', autoApply ? '1' : '0');
+      if (codec.value) params.set('codec', codec.value);
+      if (name) params.set('name', sanitizeLabel(name, 'guest'));
+      return `${window.location.origin}/portal.3dvr.tech/video/smart-launcher.html?${params.toString()}`;
+    }
+
+    function copyText(text, message) {
+      navigator.clipboard.writeText(text).then(() => {
+        status.textContent = message;
+      }).catch(() => {
+        const helper = document.createElement('textarea');
+        helper.value = text;
+        helper.setAttribute('readonly', '');
+        helper.style.position = 'absolute';
+        helper.style.left = '-9999px';
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand('copy');
+        helper.remove();
+        status.textContent = message;
+      });
+    }
+
+    function setWorkflowCopy(type) {
+      if (type === 'two-tab') {
+        hostTitle.textContent = 'Host with director tab';
+        hostCopy.textContent = 'Use director for the first tab so it does not fight for camera access.';
+        guestTitle.textContent = 'Guest with low participant tab';
+        guestCopy.textContent = 'Second tab joins as a participant on low profile.';
+        fallbackTitle.textContent = 'Crunched fallback ready';
+        fallbackCopy.textContent = 'If the second tab tears, reopen it on the fallback link before changing the host.';
+        resetTitle.textContent = 'Shared token still matters';
+        resetCopy.textContent = 'The same token lets the host recommend downgrade or reset even in loop tests.';
+        preflightList.innerHTML = [
+          'Open the host/director link in tab one.',
+          'Open the guest/participant link in tab two.',
+          'Confirm only the guest tab is competing for camera and mic.',
+          'Keep the fallback link ready before testing back/front camera roles.'
+        ].map((item) => `<li>${item}</li>`).join('');
+        return;
+      }
+
+      if (type === 'loopback') {
+        hostTitle.textContent = 'Director plus two camera devices';
+        hostCopy.textContent = 'Use director on the observing device and keep front/back senders separate.';
+        guestTitle.textContent = 'Front and back camera senders';
+        guestCopy.textContent = 'This flow is for two-device or two-browser loopback, not for one tab pretending to be all roles.';
+        fallbackTitle.textContent = 'Crunched sender';
+        fallbackCopy.textContent = 'If a mobile sender struggles, reopen that sender on the crunched profile first.';
+        resetTitle.textContent = 'One token across all devices';
+        resetCopy.textContent = 'Host and both senders should share the same control token.';
+        preflightList.innerHTML = [
+          'Open the director link on the observing device.',
+          'Open the front test sender link on one device.',
+          'Open the back test sender link on the second device or browser.',
+          'Verify names and camera orientation before a live meeting.'
+        ].map((item) => `<li>${item}</li>`).join('');
+        return;
+      }
+
+      if (type === 'travel') {
+        hostTitle.textContent = 'Host starts lower';
+        hostCopy.textContent = 'On travel or weak data, do not start at the highest quality tier.';
+        guestTitle.textContent = 'Guests start low by default';
+        guestCopy.textContent = 'Travel mode assumes the safest path first, not the prettiest one.';
+        fallbackTitle.textContent = 'Fallback is part of the plan';
+        fallbackCopy.textContent = 'Treat crunched video as a primary lane, not an emergency surprise.';
+        resetTitle.textContent = 'Reset fast when moving networks';
+        resetCopy.textContent = 'If cellular conditions change, use the shared token to recommend a reset immediately.';
+        preflightList.innerHTML = [
+          'Open the host link and verify it starts below standard quality.',
+          'Send guests only the guest pack, not raw VDO.Ninja links.',
+          'Keep headphones on and background apps closed on mobile.',
+          'Move to fallback before the room collapses, not after.'
+        ].map((item) => `<li>${item}</li>`).join('');
+        return;
+      }
+
+      hostTitle.textContent = 'Host with director view';
+      hostCopy.textContent = 'Best default for same-device control and group moderation.';
+      guestTitle.textContent = 'Guest on low profile';
+      guestCopy.textContent = 'Start guests lower than the host. Upgrade later if the room is clean.';
+      fallbackTitle.textContent = 'Crunched recovery';
+      fallbackCopy.textContent = 'Use this when the room tears or mobile data gets rough.';
+      resetTitle.textContent = 'Shared control token';
+      resetCopy.textContent = 'Host and guests should all share the same token so downgrade commands line up.';
+      preflightList.innerHTML = [
+        'Open the host link first and confirm the control token matches the room.',
+        'Open one guest link and verify names show under the video tile.',
+        'Keep the crunched fallback ready in another tab before the meeting starts.',
+        'Use headphones and close background apps on mobile to reduce echo and throttling.'
+      ].map((item) => `<li>${item}</li>`).join('');
+    }
+
+    function render() {
+      const type = meetingType.value;
+      const hostProfile = type === 'travel' ? 'low' : 'normal';
+      const guestProfile = 'low';
+      const fallbackProfile = type === 'travel' ? 'survival' : 'survival';
+
+      const host = buildLauncherUrl({
+        role: type === 'two-tab' ? 'director' : 'director',
+        profile: hostProfile,
+        name: sanitizeLabel(hostName.value, 'host'),
+        controlMode: 'host',
+        monitor: true
+      });
+      const guest = buildLauncherUrl({
+        role: 'participant',
+        profile: guestProfile,
+        name: sanitizeLabel(guestName.value, 'guest'),
+        controlMode: 'guest',
+        monitor: true
+      });
+      const fallback = buildLauncherUrl({
+        role: 'participant',
+        profile: fallbackProfile,
+        name: sanitizeLabel(guestName.value, 'guest'),
+        controlMode: 'guest',
+        monitor: true,
+        autoApply: false
+      });
+      const front = buildLauncherUrl({
+        role: 'front',
+        profile: 'low',
+        name: 'fronttest',
+        controlMode: 'guest',
+        monitor: true
+      });
+      const back = buildLauncherUrl({
+        role: 'back',
+        profile: 'low',
+        name: 'backtest',
+        controlMode: 'guest',
+        monitor: true
+      });
+
+      hostLink.value = host;
+      guestLink.value = guest;
+      fallbackLink.value = fallback;
+      hostHref.href = host;
+      guestHref.href = guest;
+      fallbackHref.href = fallback;
+      testPack.value = [
+        `Front camera test: ${front}`,
+        `Back camera test: ${back}`,
+        `Director: ${host}`
+      ].join('\n\n');
+
+      setWorkflowCopy(type);
+      failureList.innerHTML = [
+        'Step 1: host stays on director, guests drop to low.',
+        'Step 2: open the crunched fallback link.',
+        'Step 3: use the shared control token to recommend reset.',
+        'Step 4: if the room is still unstable, switch the worst device to audio-only from the smart launcher.'
+      ].map((item) => `<li>${item}</li>`).join('');
+    }
+
+    document.querySelectorAll('[data-copy-target]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = document.getElementById(button.getAttribute('data-copy-target'));
+        copyText(target.value, 'Copied link.');
+      });
+    });
+
+    document.getElementById('copyGuestPack').addEventListener('click', () => {
+      copyText([
+        `Guest link: ${guestLink.value}`,
+        `Fallback link: ${fallbackLink.value}`
+      ].join('\n\n'), 'Copied guest pack.');
+    });
+
+    document.getElementById('copyHostPack').addEventListener('click', () => {
+      copyText([
+        `Host link: ${hostLink.value}`,
+        `Guest link: ${guestLink.value}`,
+        `Fallback link: ${fallbackLink.value}`,
+        `Test pack:\n${testPack.value}`
+      ].join('\n\n'), 'Copied host pack.');
+    });
+
+    document.getElementById('copyChecklist').addEventListener('click', () => {
+      copyText(Array.from(preflightList.querySelectorAll('li')).map((item) => `- ${item.textContent}`).join('\n'), 'Copied preflight checklist.');
+    });
+
+    [room, control, hostName, guestName, meetingType, codec].forEach((element) => {
+      element.addEventListener('input', render);
+      element.addEventListener('change', render);
+    });
+
+    render();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
