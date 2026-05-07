@@ -254,6 +254,29 @@
       flex-wrap: wrap;
     }
 
+    .meeting-card__packs {
+      display: grid;
+      gap: 8px;
+    }
+
+    .meeting-card__packs summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .meeting-card__packs textarea {
+      width: 100%;
+      min-height: 94px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font: inherit;
+      resize: vertical;
+    }
+
     .tag {
       display: inline-flex;
       align-items: center;
@@ -305,6 +328,23 @@
             <label for="meetingDate">Date & time</label>
             <input class="input" id="meetingDate" name="datetime" type="datetime-local" required>
           </div>
+          <div class="field">
+            <label for="meetingWorkflow">Meeting workflow</label>
+            <select class="select" id="meetingWorkflow" name="workflow">
+              <option value="live" selected>Live meeting</option>
+              <option value="two-tab">Two-tab Chrome test</option>
+              <option value="loopback">Two-device loopback test</option>
+              <option value="travel">Travel / weak data</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="meetingRoom">Room token</label>
+            <input class="input" id="meetingRoom" name="room" type="text" placeholder="Defaults from the title">
+          </div>
+          <div class="field">
+            <label for="meetingControl">Control token</label>
+            <input class="input" id="meetingControl" name="control" type="text" placeholder="Defaults to the room token">
+          </div>
           <button class="button" type="submit">Add meeting</button>
         </form>
       </section>
@@ -320,7 +360,7 @@
 
   <script>
     const gun = window.gun;
-    // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, createdAt, updatedAt}
+    // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, workflow, room, control, createdAt, updatedAt}
     const meetingsNode = gun.get('meeting-notes').get('meetings');
 
     const meetingForm = document.getElementById('meetingForm');
@@ -362,6 +402,96 @@
       return url.toString();
     };
 
+    const sanitizeKey = (value, fallback) => {
+      return (value || '')
+        .trim()
+        .replace(/\s+/g, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '') || fallback;
+    };
+
+    const sanitizeLabel = (value, fallback) => {
+      return (value || '')
+        .trim()
+        .replace(/[^\w -]/g, '')
+        .slice(0, 40) || fallback;
+    };
+
+    const buildLauncherUrl = ({ room, control, role, profile, controlMode, name, workflow, codec = 'h264' }) => {
+      const url = new URL('/portal.3dvr.tech/video/smart-launcher.html', window.location.origin);
+      url.searchParams.set('room', sanitizeKey(room, '3dvrtech'));
+      url.searchParams.set('role', role);
+      url.searchParams.set('profile', profile);
+      url.searchParams.set('control', sanitizeKey(control, sanitizeKey(room, '3dvrtech')));
+      url.searchParams.set('controlMode', controlMode);
+      url.searchParams.set('monitor', '1');
+      url.searchParams.set('codec', codec);
+      url.searchParams.set('name', sanitizeLabel(name, role === 'director' ? 'host' : 'guest'));
+      if (workflow) url.searchParams.set('workflow', workflow);
+      return url.toString();
+    };
+
+    const buildOpsUrl = ({ room, control, workflow }) => {
+      const url = new URL('/portal.3dvr.tech/video/ops.html', window.location.origin);
+      url.searchParams.set('room', sanitizeKey(room, '3dvrtech'));
+      url.searchParams.set('control', sanitizeKey(control, sanitizeKey(room, '3dvrtech')));
+      url.searchParams.set('meetingType', workflow || 'live');
+      return url.toString();
+    };
+
+    const buildMeetingLinks = (meetingId, data) => {
+      const titleSlug = slugify(data?.title) || meetingId || 'meeting';
+      const roomToken = sanitizeKey(data?.room, titleSlug);
+      const controlToken = sanitizeKey(data?.control, roomToken);
+      const workflow = data?.workflow || 'live';
+      return {
+        workflow,
+        roomToken,
+        controlToken,
+        host: buildLauncherUrl({
+          room: roomToken,
+          control: controlToken,
+          role: 'director',
+          profile: workflow === 'travel' ? 'low' : 'normal',
+          controlMode: 'host',
+          name: 'host',
+          workflow
+        }),
+        guest: buildLauncherUrl({
+          room: roomToken,
+          control: controlToken,
+          role: 'participant',
+          profile: 'low',
+          controlMode: 'guest',
+          name: 'guest',
+          workflow
+        }),
+        fallback: buildLauncherUrl({
+          room: roomToken,
+          control: controlToken,
+          role: 'participant',
+          profile: 'survival',
+          controlMode: 'guest',
+          name: 'guest',
+          workflow
+        }),
+        ops: buildOpsUrl({
+          room: roomToken,
+          control: controlToken,
+          workflow
+        })
+      };
+    };
+
+    const copyText = async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (error) {
+        console.error('Failed to copy text', error);
+        return false;
+      }
+    };
+
     const updateEmptyStates = () => {
       emptyListCopy.hidden = meetingList.childElementCount > 0;
     };
@@ -377,6 +507,7 @@
         })
         .forEach(([id, data]) => {
           const meetingPageUrl = buildMeetingPageUrl(id);
+          const links = buildMeetingLinks(id, data);
 
           const card = document.createElement('article');
           card.className = 'meeting-card';
@@ -392,7 +523,7 @@
 
           const meta = document.createElement('p');
           meta.className = 'meeting-card__meta';
-          meta.textContent = `Created ${formatDate(data?.createdAt)}`;
+          meta.textContent = `Created ${formatDate(data?.createdAt)} • Workflow: ${links.workflow} • Room: ${links.roomToken}`;
 
           const actions = document.createElement('div');
           actions.className = 'meeting-card__actions';
@@ -422,6 +553,25 @@
                 copyButton.textContent = 'Copy link';
               }, 2000);
             }
+          });
+
+          const opsButton = document.createElement('a');
+          opsButton.className = 'button button-secondary';
+          opsButton.href = links.ops;
+          opsButton.textContent = 'Open ops pack';
+          opsButton.target = '_blank';
+          opsButton.rel = 'noopener';
+
+          const copyGuestPackButton = document.createElement('button');
+          copyGuestPackButton.className = 'button button-ghost';
+          copyGuestPackButton.type = 'button';
+          copyGuestPackButton.textContent = 'Copy guest pack';
+          copyGuestPackButton.addEventListener('click', async () => {
+            const ok = await copyText(`Guest link: ${links.guest}\n\nFallback link: ${links.fallback}`);
+            copyGuestPackButton.textContent = ok ? 'Guest pack copied' : 'Copy not available';
+            window.setTimeout(() => {
+              copyGuestPackButton.textContent = 'Copy guest pack';
+            }, 2000);
           });
 
           const deleteButton = document.createElement('button');
@@ -454,13 +604,29 @@
 
           actions.appendChild(openLink);
           actions.appendChild(copyButton);
+          actions.appendChild(opsButton);
+          actions.appendChild(copyGuestPackButton);
           actions.appendChild(editButton);
           actions.appendChild(deleteButton);
+
+          const packs = document.createElement('details');
+          packs.className = 'meeting-card__packs';
+          packs.innerHTML = `
+            <summary>Meeting links</summary>
+            <textarea readonly>Host: ${links.host}
+
+Guest: ${links.guest}
+
+Fallback: ${links.fallback}
+
+Ops: ${links.ops}</textarea>
+          `;
 
           card.appendChild(dateTag);
           card.appendChild(title);
           card.appendChild(meta);
           card.appendChild(actions);
+          card.appendChild(packs);
 
           meetingList.appendChild(card);
         });
@@ -473,10 +639,16 @@
       const formData = new FormData(meetingForm);
       const title = formData.get('title');
       const datetime = formData.get('datetime');
+      const workflow = formData.get('workflow');
+      const room = sanitizeKey(formData.get('room'), slugify(title) || 'meeting');
+      const control = sanitizeKey(formData.get('control'), room);
       const meetingId = ensureUniqueMeetingId(title);
       meetingsNode.get(meetingId).put({
         title,
         datetime,
+        workflow,
+        room,
+        control,
         createdAt: new Date().toISOString(),
       });
       meetingForm.reset();

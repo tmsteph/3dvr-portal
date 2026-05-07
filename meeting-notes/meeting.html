@@ -116,6 +116,40 @@
     .status-button:hover { border-color: var(--accent); color: var(--accent); }
 
     .empty-copy { margin: 0; color: var(--muted); }
+
+    .link-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      margin-bottom: 20px;
+    }
+
+    .link-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .link-card textarea {
+      width: 100%;
+      min-height: 94px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font: inherit;
+      resize: vertical;
+    }
+
+    .link-card__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
   </style>
 
   <script defer src="/_vercel/insights/script.js"></script>
@@ -141,6 +175,45 @@
   </header>
 
   <main class="panel">
+    <section>
+      <h2>Meeting links</h2>
+      <div class="link-grid">
+        <article class="link-card">
+          <div class="tag">Host</div>
+          <textarea id="hostLink" readonly></textarea>
+          <div class="link-card__actions">
+            <a class="button" id="openHostLink" target="_blank" rel="noopener noreferrer" href="#">Open host</a>
+            <button class="button button-secondary" type="button" id="copyHostLink">Copy host</button>
+          </div>
+        </article>
+        <article class="link-card">
+          <div class="tag">Guest</div>
+          <textarea id="guestLink" readonly></textarea>
+          <div class="link-card__actions">
+            <a class="button" id="openGuestLink" target="_blank" rel="noopener noreferrer" href="#">Open guest</a>
+            <button class="button button-secondary" type="button" id="copyGuestLink">Copy guest</button>
+          </div>
+        </article>
+        <article class="link-card">
+          <div class="tag">Fallback</div>
+          <textarea id="fallbackLink" readonly></textarea>
+          <div class="link-card__actions">
+            <a class="button" id="openFallbackLink" target="_blank" rel="noopener noreferrer" href="#">Open fallback</a>
+            <button class="button button-secondary" type="button" id="copyFallbackLink">Copy fallback</button>
+          </div>
+        </article>
+        <article class="link-card">
+          <div class="tag">Ops</div>
+          <textarea id="opsLink" readonly></textarea>
+          <div class="link-card__actions">
+            <a class="button" id="openOpsLink" target="_blank" rel="noopener noreferrer" href="#">Open ops</a>
+            <button class="button button-secondary" type="button" id="copyOpsLink">Copy ops</button>
+          </div>
+        </article>
+      </div>
+      <p class="empty-copy">Each meeting carries its own room token and control token so the video pack stays attached to the session.</p>
+    </section>
+
     <section>
       <h2>Notes</h2>
       <textarea id="notesField" class="notes-area" rows="10" placeholder="Share key decisions, action items, and follow-ups." aria-label="Meeting notes" disabled></textarea>
@@ -178,7 +251,7 @@
 
     const gun = window.gun;
     const meetingId = new URL(window.location.href).searchParams.get('meeting');
-    // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, createdAt, updatedAt}
+    // Gun graph: meeting-notes -> meetings -> {meetingId} -> {title, datetime, workflow, room, control, createdAt, updatedAt}
     // Gun graph: meeting-notes -> meetings -> {meetingId} -> notes -> {content, updatedAt}
     // Gun graph: meeting-notes -> meetings -> {meetingId} -> attendees -> {attendeeId} -> {name, status, updatedAt}
     const meetingNode = meetingId ? gun.get('meeting-notes').get('meetings').get(meetingId) : null;
@@ -194,6 +267,18 @@
     const attendanceList = document.getElementById('attendanceList');
     const attendanceEmpty = document.getElementById('attendanceEmpty');
     const copyLinkButton = document.getElementById('copyLink');
+    const hostLinkField = document.getElementById('hostLink');
+    const guestLinkField = document.getElementById('guestLink');
+    const fallbackLinkField = document.getElementById('fallbackLink');
+    const opsLinkField = document.getElementById('opsLink');
+    const openHostLink = document.getElementById('openHostLink');
+    const openGuestLink = document.getElementById('openGuestLink');
+    const openFallbackLink = document.getElementById('openFallbackLink');
+    const openOpsLink = document.getElementById('openOpsLink');
+    const copyHostLink = document.getElementById('copyHostLink');
+    const copyGuestLink = document.getElementById('copyGuestLink');
+    const copyFallbackLink = document.getElementById('copyFallbackLink');
+    const copyOpsLink = document.getElementById('copyOpsLink');
 
     let notesUpdateTimer = null;
     let lastNotesWriteAt = 0;
@@ -212,6 +297,113 @@
 
     const updateEmptyStates = () => {
       attendanceEmpty.hidden = attendanceList.childElementCount > 0;
+    };
+
+    const slugify = (value) => {
+      return (value || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+    };
+
+    const sanitizeKey = (value, fallback) => {
+      return (value || '')
+        .trim()
+        .replace(/\s+/g, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '') || fallback;
+    };
+
+    const sanitizeLabel = (value, fallback) => {
+      return (value || '')
+        .trim()
+        .replace(/[^\w -]/g, '')
+        .slice(0, 40) || fallback;
+    };
+
+    const buildLauncherUrl = ({ room, control, role, profile, controlMode, name, workflow, codec = 'h264' }) => {
+      const url = new URL('/portal.3dvr.tech/video/smart-launcher.html', window.location.origin);
+      url.searchParams.set('room', sanitizeKey(room, '3dvrtech'));
+      url.searchParams.set('role', role);
+      url.searchParams.set('profile', profile);
+      url.searchParams.set('control', sanitizeKey(control, sanitizeKey(room, '3dvrtech')));
+      url.searchParams.set('controlMode', controlMode);
+      url.searchParams.set('monitor', '1');
+      url.searchParams.set('codec', codec);
+      url.searchParams.set('name', sanitizeLabel(name, role === 'director' ? 'host' : 'guest'));
+      if (workflow) url.searchParams.set('workflow', workflow);
+      return url.toString();
+    };
+
+    const buildOpsUrl = ({ room, control, workflow }) => {
+      const url = new URL('/portal.3dvr.tech/video/ops.html', window.location.origin);
+      url.searchParams.set('room', sanitizeKey(room, '3dvrtech'));
+      url.searchParams.set('control', sanitizeKey(control, sanitizeKey(room, '3dvrtech')));
+      url.searchParams.set('meetingType', workflow || 'live');
+      return url.toString();
+    };
+
+    const renderMeetingLinks = (data) => {
+      const titleSlug = slugify(data?.title) || meetingId || 'meeting';
+      const roomToken = sanitizeKey(data?.room, titleSlug);
+      const controlToken = sanitizeKey(data?.control, roomToken);
+      const workflow = data?.workflow || 'live';
+      const host = buildLauncherUrl({
+        room: roomToken,
+        control: controlToken,
+        role: 'director',
+        profile: workflow === 'travel' ? 'low' : 'normal',
+        controlMode: 'host',
+        name: 'host',
+        workflow
+      });
+      const guest = buildLauncherUrl({
+        room: roomToken,
+        control: controlToken,
+        role: 'participant',
+        profile: 'low',
+        controlMode: 'guest',
+        name: 'guest',
+        workflow
+      });
+      const fallback = buildLauncherUrl({
+        room: roomToken,
+        control: controlToken,
+        role: 'participant',
+        profile: 'survival',
+        controlMode: 'guest',
+        name: 'guest',
+        workflow
+      });
+      const ops = buildOpsUrl({
+        room: roomToken,
+        control: controlToken,
+        workflow
+      });
+
+      hostLinkField.value = host;
+      guestLinkField.value = guest;
+      fallbackLinkField.value = fallback;
+      opsLinkField.value = ops;
+      openHostLink.href = host;
+      openGuestLink.href = guest;
+      openFallbackLink.href = fallback;
+      openOpsLink.href = ops;
+    };
+
+    const bindCopy = (button, field, label) => {
+      button.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(field.value);
+          button.textContent = `${label} copied`;
+        } catch (error) {
+          console.error(`Failed to copy ${label}`, error);
+          button.textContent = 'Copy not available';
+        }
+        window.setTimeout(() => {
+          button.textContent = `Copy ${label}`;
+        }, 2000);
+      });
     };
 
     const renderAttendee = (attendeeId, data) => {
@@ -312,6 +504,7 @@
         meetingTitle.textContent = displayTitle;
         meetingMeta.textContent = `Scheduled for ${formatDate(data.datetime)} (created ${formatDate(data.createdAt)})`;
         syncMeetingTitleInput(data.title);
+        renderMeetingLinks(data);
         notesField.disabled = false;
         attendeeSubmit.disabled = false;
         meetingTitleInput.disabled = false;
@@ -325,6 +518,7 @@
         meetingTitle.textContent = displayTitle;
         meetingMeta.textContent = `Scheduled for ${formatDate(data.datetime)} (created ${formatDate(data.createdAt)})`;
         syncMeetingTitleInput(data.title);
+        renderMeetingLinks(data);
         notesField.disabled = false;
         attendeeSubmit.disabled = false;
         meetingTitleInput.disabled = false;
@@ -398,6 +592,11 @@
       });
       attendeeForm.reset();
     });
+
+    bindCopy(copyHostLink, hostLinkField, 'host');
+    bindCopy(copyGuestLink, guestLinkField, 'guest');
+    bindCopy(copyFallbackLink, fallbackLinkField, 'fallback');
+    bindCopy(copyOpsLink, opsLinkField, 'ops');
   </script>
   <script defer src="/issue-launcher.js"></script>
 </body>
