@@ -43,6 +43,7 @@ const DEFAULT_REPLY_SENDER_EMAIL = normalizeEmail(
   || process.env.GMAIL_USER
   || '3dvr.tech@gmail.com'
 );
+const DEFAULT_REPLY_WEBSITE = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE || 'https://3dvr.tech');
 const DEFAULT_GMAIL_USER = normalizeEmail(process.env.GMAIL_USER) || '3dvr.tech@gmail.com';
 const DEFAULT_REPLY_MODE = normalizeText(process.env.THREEDVR_INBOX_REPLY_MODE || 'local').toLowerCase();
 const DEFAULT_LOCAL_MODEL = normalizeText(
@@ -619,6 +620,28 @@ function firstName(name, email) {
   return fallback.replace(/[._-]+/g, ' ').split(/\s+/)[0];
 }
 
+function replyContactFooter() {
+  const website = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE || DEFAULT_REPLY_WEBSITE || 'https://3dvr.tech');
+  const email = normalizeEmail(process.env.GMAIL_USER || DEFAULT_REPLY_SENDER_EMAIL || '3dvr.tech@gmail.com') || '3dvr.tech@gmail.com';
+  const phone = normalizeText(process.env.THREEDVR_OUTREACH_PHONE);
+  const lines = [
+    `Website: ${website}`,
+    `Email: ${email}`,
+  ];
+  if (phone) {
+    lines.push(`Phone: ${phone}`);
+  }
+  return lines.join(' | ');
+}
+
+function ensureReplyContactFooter(text) {
+  const body = normalizeText(text);
+  const footer = replyContactFooter();
+  if (!body) return footer;
+  if (body.includes(footer)) return body;
+  return `${body}\n\n${footer}`;
+}
+
 function normalizeThreadSubject(subject) {
   return formatSubject(subject).replace(/^(re|fwd?):\s*/i, '').toLowerCase();
 }
@@ -783,11 +806,11 @@ function buildReplyHeadline(message, state) {
 function buildReplyText(lead, message, state) {
   const greeting = firstName(message.from, message.fromEmail);
   const repeatCount = countThreadAutoReplies(state, message);
-  return [
+  return ensureReplyContactFooter([
     `Hi ${greeting},`,
     '',
     ...chooseReplyLines(message, lead, repeatCount),
-  ].join('\n');
+  ].join('\n'));
 }
 
 function sanitizeLlmReplyText(value) {
@@ -956,7 +979,7 @@ async function buildLocalReplyDraft(lead, message, state, options = {}) {
     throw new Error('Local model returned invalid JSON.');
   }
   const headline = normalizeText(parsed.headline) || buildReplyHeadline(message, state);
-  const text = sanitizeLlmReplyText(parsed.text);
+  const text = ensureReplyContactFooter(sanitizeLlmReplyText(parsed.text));
   if (!text) {
     throw new Error('Local model returned an empty reply.');
   }
@@ -1004,7 +1027,7 @@ async function buildLlmReplyDraft(lead, message, state, options = {}) {
     throw new Error('OpenAI reply generation returned invalid JSON.');
   }
   const headline = normalizeText(parsed.headline) || buildReplyHeadline(message, state);
-  const text = sanitizeLlmReplyText(parsed.text);
+  const text = ensureReplyContactFooter(sanitizeLlmReplyText(parsed.text));
   if (!text) {
     throw new Error('OpenAI reply generation returned an empty reply.');
   }
@@ -1037,7 +1060,7 @@ async function buildReplyDraft(lead, message, state, options = {}) {
 
   return {
     headline: buildReplyHeadline(message, state),
-    text: buildReplyText(lead, message, state),
+    text: ensureReplyContactFooter(buildReplyText(lead, message, state)),
     source: 'template',
   };
 }
@@ -1421,6 +1444,8 @@ module.exports = {
   buildBounceAlert,
   buildReplySubject,
   buildReplyText,
+  replyContactFooter,
+  ensureReplyContactFooter,
   buildLocalReplyDraft,
   buildLlmReplyDraft,
   buildReplyDraft,

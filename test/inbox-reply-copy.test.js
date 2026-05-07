@@ -6,6 +6,7 @@ const {
   buildReplyDraft,
   buildReplyHeadline,
   buildReplyText,
+  replyContactFooter,
   detectReplyIntent,
   pickReplyPreviewCandidates,
   printReplyPreviews,
@@ -40,6 +41,31 @@ test('detects test replies and produces explicit test copy', () => {
   assert.equal(detectReplyIntent(input), 'test');
   assert.equal(buildReplyHeadline(input, { messages: {} }), 'Test reply received.');
   assert.match(buildReplyText({ name: 'Thomas' }, input, { messages: {} }), /inbox monitor|reply loop|routing/i);
+});
+
+test('reply drafts include website, email, and phone contact details', () => {
+  const previousPhone = process.env.THREEDVR_OUTREACH_PHONE;
+  const previousWebsite = process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE;
+  const previousGmail = process.env.GMAIL_USER;
+  process.env.THREEDVR_OUTREACH_PHONE = '+18643602659';
+  process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE = 'https://3dvr.tech';
+  process.env.GMAIL_USER = '3dvr.tech@gmail.com';
+
+  try {
+    const input = message({ preview: 'Can you help with the booking page?' });
+    const text = buildReplyText({ name: 'Acme Studio' }, input, { messages: {} });
+
+    assert.match(replyContactFooter(), /Website: https:\/\/3dvr\.tech/);
+    assert.match(replyContactFooter(), /Email: 3dvr\.tech@gmail\.com/);
+    assert.match(replyContactFooter(), /Phone: \+18643602659/);
+    assert.match(text, /Website: https:\/\/3dvr\.tech/);
+    assert.match(text, /Email: 3dvr\.tech@gmail\.com/);
+    assert.match(text, /Phone: \+18643602659/);
+  } finally {
+    process.env.THREEDVR_OUTREACH_PHONE = previousPhone || '';
+    process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE = previousWebsite || '';
+    process.env.GMAIL_USER = previousGmail || '';
+  }
 });
 
 test('answers pricing replies with scope-first guidance', () => {
