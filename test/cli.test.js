@@ -266,6 +266,28 @@ test('ask-next skips automatic page opening by default', async () => {
   }
 });
 
+test('ask-next prefers explicit form routes over newer generic site leads', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,date,variant\nGeneric Site,https://generic.example,https://generic.example,new,2026-05-07,\nExplicit Form,https://form.example,https://form.example/contact,new,2026-05-01,route=form\n',
+  );
+
+  try {
+    const { stdout } = await runCli(['next'], {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_OPEN_LEAD_PAGE: '0',
+    });
+
+    assert.match(stdout, /Name: Explicit Form/);
+    assert.match(stdout, /Route: form/);
+    assert.match(stdout, /Quality: form-ready/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test('ask-next treats phone-only leads as manual outreach', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
   const leads = path.join(tmp, 'leads.csv');

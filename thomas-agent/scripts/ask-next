@@ -34,23 +34,36 @@ is_phone_number() {
 
 pick_priority() {
   awk -F, '
+    function route_from_variant(variant) {
+      if (variant ~ /route=email/) return "email";
+      if (variant ~ /route=form/) return "form";
+      if (variant ~ /route=contact-page/) return "contact-page";
+      if (variant ~ /route=site/) return "site";
+      return "";
+    }
+
     function is_bad_contact(url) {
       return url ~ /wp-content\/|wp-json\/|feed\/|cdn-cgi\/|contact-form-7\/includes\/css\/|[.\/](css|js|json|xml|txt|pdf|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|eot)([?#].*)?$/
     }
 
-    function priority(link, contact) {
-      if (contact ~ /^mailto:/) return 4;
-      if (contact ~ /^https?:\/\// && is_bad_contact(contact)) return (link ~ /^https?:\/\// ? 2 : 0);
-      if (contact ~ /^https?:\/\//) return 3;
-      if (link ~ /^https?:\/\//) return 2;
-      if (contact != "") return 1;
+    function priority(link, contact, variant) {
+      route = route_from_variant(variant);
+      if (route == "email") return 500;
+      if (route == "form") return 400;
+      if (route == "contact-page") return 350;
+      if (contact ~ /^mailto:/) return 300;
+      if (contact ~ /^[^\s@]+@[^\s@]+\.[^\s@]+$/ && contact !~ /^https?:\/\//) return 300;
+      if (contact ~ /^https?:\/\// && is_bad_contact(contact)) return (link ~ /^https?:\/\// ? 120 : 0);
+      if (contact ~ /^https?:\/\//) return 200;
+      if (link ~ /^https?:\/\//) return 100;
+      if (contact != "") return 50;
       return 0;
     }
 
     NR > 1 && $4 == "new" && ($2 != "" || $3 != "") {
-      print $5 "|" priority($2, $3) "|" NR "|" $0;
+      print priority($2, $3, $6) "|" $5 "|" NR "|" $0;
     }
-  ' "$FILE" | sort -t'|' -k1,1r -k2,2nr -k3,3nr | head -n1 | cut -d'|' -f4-
+  ' "$FILE" | sort -t'|' -k1,1nr -k2,2r -k3,3nr | head -n1 | cut -d'|' -f4-
 }
 
 line="$(pick_priority)"
@@ -102,6 +115,17 @@ echo "Site: $link"
 echo "Contact: $contact"
 echo "Route: $route"
 echo "Action: $action"
+case "$route" in
+  email) quality="direct email" ;;
+  form) quality="form-ready" ;;
+  contact-page) quality="contact page" ;;
+  site) quality="website-only" ;;
+  *) quality="review" ;;
+esac
+case "$open_kind" in
+  phone) quality="phone-first" ;;
+esac
+echo "Quality: $quality"
 echo
 case "$open_kind" in
   url)
