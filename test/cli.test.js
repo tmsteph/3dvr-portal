@@ -207,6 +207,14 @@ test('status shows lead contact categories', async () => {
   }
 });
 
+test('email status reports the legacy Gmail fallback when app password is present', async () => {
+  const { stdout } = await runCli(['email', 'status'], {
+    GMAIL_APP_PASSWORD: 'app-password-test',
+  });
+
+  assert.match(stdout, /Legacy Gmail app password: configured for 3dvr\.tech@gmail\.com/);
+});
+
 test('sent-next marks the last shown lead and advances to the next one', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
   const leads = path.join(tmp, 'leads.csv');

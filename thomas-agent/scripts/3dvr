@@ -632,7 +632,7 @@ INBOX
     case "$sub" in
       all) print_section "3dvr settings"; env | grep -E '^(THREEDVR_|GMAIL_USER=)' | sort || true; print_next_steps ;;
       portal) echo "Portal URL: ${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}" ;;
-      email) print_section "Email settings"; echo "GMAIL_USER=${GMAIL_USER:-set by OAuth connection if unset}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+legacy fallback set}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-oauth-first}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
+      email) print_section "Email settings"; echo "GMAIL_USER=${GMAIL_USER:-3dvr.tech@gmail.com (main mailbox default)}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+legacy fallback set}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-oauth-first}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
       relay) print_section "Portal relay"; echo "THREEDVR_AUTOPILOT_EMAIL_ENDPOINT=${THREEDVR_AUTOPILOT_EMAIL_ENDPOINT:-unset}"; echo "THREEDVR_AUTOPILOT_EMAIL_TOKEN=${THREEDVR_AUTOPILOT_EMAIL_TOKEN:+set}" ;;
       *) usage; exit 1 ;;
     esac

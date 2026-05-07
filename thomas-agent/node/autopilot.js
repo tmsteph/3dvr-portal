@@ -35,6 +35,7 @@ const DEFAULT_NOTIFY_EMAIL = normalizeEmail(
   || process.env.GMAIL_USER
   || '3dvr.tech@gmail.com'
 );
+const DEFAULT_GMAIL_USER = normalizeEmail(process.env.GMAIL_USER) || '3dvr.tech@gmail.com';
 const DEFAULT_PORTAL_EMAIL_ENDPOINT = normalizeText(
   process.env.THREEDVR_AUTOPILOT_EMAIL_ENDPOINT
   || 'https://portal.3dvr.tech/api/calendar/reminder-email'
@@ -527,7 +528,7 @@ async function readOpenAiCosts() {
 }
 
 function createMailTransport() {
-  const user = normalizeEmail(process.env.GMAIL_USER);
+  const user = DEFAULT_GMAIL_USER;
   const pass = normalizeText(process.env.GMAIL_APP_PASSWORD);
   if (!(user && pass)) return null;
   return nodemailer.createTransport({
@@ -606,7 +607,7 @@ async function sendViaLocalGmail(email) {
   }
 
   await transport.sendMail({
-    from: `"3dvr-agent" <${process.env.GMAIL_USER}>`,
+    from: `"3dvr-agent" <${DEFAULT_GMAIL_USER}>`,
     to: DEFAULT_NOTIFY_EMAIL,
     subject: email.subject,
     text: email.text,

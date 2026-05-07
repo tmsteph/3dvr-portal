@@ -43,6 +43,7 @@ const DEFAULT_REPLY_SENDER_EMAIL = normalizeEmail(
   || process.env.GMAIL_USER
   || '3dvr.tech@gmail.com'
 );
+const DEFAULT_GMAIL_USER = normalizeEmail(process.env.GMAIL_USER) || '3dvr.tech@gmail.com';
 const DEFAULT_REPLY_MODE = normalizeText(process.env.THREEDVR_INBOX_REPLY_MODE || 'local').toLowerCase();
 const DEFAULT_LOCAL_MODEL = normalizeText(
   process.env.THREEDVR_INBOX_LOCAL_MODEL
@@ -275,7 +276,7 @@ function summarizeMessage(message) {
 
 async function loadUnreadMessages(limit) {
   const authMode = normalizeText(process.env.THREEDVR_GMAIL_AUTH).toLowerCase();
-  const configuredUser = normalizeEmail(process.env.GMAIL_USER);
+  const configuredUser = DEFAULT_GMAIL_USER;
   const pass = normalizeText(process.env.GMAIL_APP_PASSWORD);
   let user = configuredUser;
   let auth;
@@ -291,8 +292,8 @@ async function loadUnreadMessages(limit) {
       accessToken: connection.accessToken,
     };
   } else {
-    if (!(user && pass)) {
-      throw new Error('GMAIL_USER and GMAIL_APP_PASSWORD or a Google OAuth connection are required for inbox monitoring.');
+    if (!pass) {
+      throw new Error('GMAIL_APP_PASSWORD or a Google OAuth connection are required for inbox monitoring.');
     }
     auth = {
       user,

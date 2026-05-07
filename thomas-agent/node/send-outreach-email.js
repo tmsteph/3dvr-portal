@@ -23,6 +23,7 @@ const DEFAULT_PORTAL_EMAIL_TOKEN = normalizeText(
   || readOptionalFile(process.env.THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE)
   || readOptionalFile(path.join(os.homedir(), '.3dvr-agent-operator-email-token'))
 );
+const DEFAULT_GMAIL_USER = normalizeEmail(process.env.GMAIL_USER) || '3dvr.tech@gmail.com';
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -127,7 +128,7 @@ async function sendViaPortal(options) {
     throw new Error('THREEDVR_OUTREACH_EMAIL_TOKEN is not configured.');
   }
 
-  const senderEmail = normalizeEmail(process.env.GMAIL_USER) || '3dvr.tech@gmail.com';
+  const senderEmail = DEFAULT_GMAIL_USER;
   const response = await fetch(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -162,7 +163,7 @@ async function probeAndReport(options) {
 
 async function sendViaGmail(options) {
   const authMode = normalizeText(process.env.THREEDVR_GMAIL_AUTH).toLowerCase();
-  const configuredUser = normalizeEmail(process.env.GMAIL_USER);
+  const configuredUser = DEFAULT_GMAIL_USER;
   const pass = normalizeText(process.env.GMAIL_APP_PASSWORD);
 
   if (authMode === 'oauth' || !pass) {
@@ -190,8 +191,8 @@ async function sendViaGmail(options) {
   }
 
   const user = configuredUser;
-  if (!(user && pass)) {
-    throw new Error('GMAIL_USER and GMAIL_APP_PASSWORD or a Google OAuth connection are required for Gmail outreach email.');
+  if (!pass) {
+    throw new Error('GMAIL_APP_PASSWORD or a Google OAuth connection is required for Gmail outreach email.');
   }
 
   const transport = nodemailer.createTransport({
