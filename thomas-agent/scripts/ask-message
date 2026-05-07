@@ -8,11 +8,13 @@ LAUNCH_URL="https://3dvr.tech/launch-in-3-days.html"
 mode="${1:-a}"
 target="$2"
 
-contact_line() {
-  if [ -n "${THREEDVR_OUTREACH_PHONE:-}" ]; then
-    printf 'You can call or text me at %s.\n' "$THREEDVR_OUTREACH_PHONE"
-  else
-    printf 'You can reply here if that is easier.\n'
+contact_footer() {
+  website="${THREEDVR_CONTACT_WEBSITE:-https://3dvr.tech}"
+  email="${GMAIL_USER:-3dvr.tech@gmail.com}"
+  phone="${THREEDVR_OUTREACH_PHONE:-}"
+  printf 'Website: %s\nEmail: %s\n' "$website" "$email"
+  if [ -n "$phone" ]; then
+    printf 'Phone: %s\n' "$phone"
   fi
 }
 
@@ -31,7 +33,7 @@ Are you running into any website, booking, lead follow-up, or customer-flow prob
 
 If not, no problem. I just wanted to introduce myself.
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR
@@ -48,7 +50,7 @@ Is there anything about your website, booking/contact flow, or follow-up process
 
 If not, no problem. I just wanted to introduce myself.
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR
@@ -65,7 +67,7 @@ Are you dealing with any website, lead follow-up, booking, or customer communica
 
 If not, no problem. I just wanted to introduce myself.
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR
@@ -80,7 +82,7 @@ I'm Thomas with 3DVR. We help small service businesses make websites, follow-up,
 
 If you are trying to clean up your website or customer flow, the simplest starting point is here: $LAUNCH_URL
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR
@@ -95,7 +97,7 @@ This is Thomas with 3DVR. We help small businesses clean up websites, follow-up 
 
 Would it be okay if I sent a quick text with a few examples that might fit your business?
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR
@@ -115,7 +117,7 @@ Are you running into any website, booking, lead follow-up, or customer-flow prob
 
 If not, no problem. I just wanted to introduce myself.
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR
@@ -164,7 +166,7 @@ Are you running into any ${problems} problems right now?
 
 If not, no problem. I just wanted to introduce myself.
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR

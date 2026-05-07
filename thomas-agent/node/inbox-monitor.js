@@ -4,6 +4,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { ImapFlow } = require('imapflow');
 const { getOAuthAccessToken } = require('./oauth-connection');
+const { appendContactFooter, buildContactFooter } = require('./contact-footer');
 
 const ROOT = path.join(__dirname, '..');
 const STATE_DIR = process.env.THREEDVR_AUTOPILOT_STATE_DIR || path.join(ROOT, 'state');
@@ -43,7 +44,6 @@ const DEFAULT_REPLY_SENDER_EMAIL = normalizeEmail(
   || process.env.GMAIL_USER
   || '3dvr.tech@gmail.com'
 );
-const DEFAULT_REPLY_WEBSITE = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE || 'https://3dvr.tech');
 const DEFAULT_GMAIL_USER = normalizeEmail(process.env.GMAIL_USER) || '3dvr.tech@gmail.com';
 const DEFAULT_REPLY_MODE = normalizeText(process.env.THREEDVR_INBOX_REPLY_MODE || 'local').toLowerCase();
 const DEFAULT_LOCAL_MODEL = normalizeText(
@@ -621,25 +621,19 @@ function firstName(name, email) {
 }
 
 function replyContactFooter() {
-  const website = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE || DEFAULT_REPLY_WEBSITE || 'https://3dvr.tech');
-  const email = normalizeEmail(process.env.GMAIL_USER || DEFAULT_REPLY_SENDER_EMAIL || '3dvr.tech@gmail.com') || '3dvr.tech@gmail.com';
-  const phone = normalizeText(process.env.THREEDVR_OUTREACH_PHONE);
-  const lines = [
-    `Website: ${website}`,
-    `Email: ${email}`,
-  ];
-  if (phone) {
-    lines.push(`Phone: ${phone}`);
-  }
-  return lines.join(' | ');
+  return buildContactFooter({
+    website: process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE || process.env.THREEDVR_CONTACT_WEBSITE || 'https://3dvr.tech',
+    email: process.env.GMAIL_USER || DEFAULT_REPLY_SENDER_EMAIL || '3dvr.tech@gmail.com',
+    phone: process.env.THREEDVR_OUTREACH_PHONE || '',
+  });
 }
 
 function ensureReplyContactFooter(text) {
-  const body = normalizeText(text);
-  const footer = replyContactFooter();
-  if (!body) return footer;
-  if (body.includes(footer)) return body;
-  return `${body}\n\n${footer}`;
+  return appendContactFooter(text, {
+    website: process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE || process.env.THREEDVR_CONTACT_WEBSITE || 'https://3dvr.tech',
+    email: process.env.GMAIL_USER || DEFAULT_REPLY_SENDER_EMAIL || '3dvr.tech@gmail.com',
+    phone: process.env.THREEDVR_OUTREACH_PHONE || '',
+  });
 }
 
 function normalizeThreadSubject(subject) {

@@ -7,11 +7,13 @@ contact="$3"
 
 hint="site"
 
-contact_line() {
-  if [ -n "${THREEDVR_OUTREACH_PHONE:-}" ]; then
-    printf 'You can call or text me at %s.\n' "$THREEDVR_OUTREACH_PHONE"
-  else
-    printf 'You can reply here if that is easier.\n'
+contact_footer() {
+  website="${THREEDVR_CONTACT_WEBSITE:-https://3dvr.tech}"
+  email="${GMAIL_USER:-3dvr.tech@gmail.com}"
+  phone="${THREEDVR_OUTREACH_PHONE:-}"
+  printf 'Website: %s\nEmail: %s\n' "$website" "$email"
+  if [ -n "$phone" ]; then
+    printf 'Phone: %s\n' "$phone"
   fi
 }
 
@@ -34,7 +36,7 @@ This is Thomas with 3DVR. I help small businesses clean up websites, follow-up s
 
 Would it be okay if I sent a quick text with a few examples of what we do?
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR
@@ -59,7 +61,7 @@ Are you running into any $hint problems right now?
 
 If not, no problem. I just wanted to introduce myself.
 
-$(contact_line)
+$(contact_footer)
 
 Thomas
 3DVR

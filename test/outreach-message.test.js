@@ -14,6 +14,7 @@ const {
   buildLlmOutreachDraft,
   buildOutreachDraft,
 } = require('../thomas-agent/node/outreach-draft');
+const { buildContactFooter } = require('../thomas-agent/node/contact-footer');
 const {
   probeRecipientAddress,
 } = require('../thomas-agent/node/send-outreach-email');
@@ -56,8 +57,12 @@ test('outreach messages can include a contact line when a phone is configured', 
     THREEDVR_OUTREACH_PHONE: '+18643602659',
   });
 
-  assert.match(defaultMessage, /You can call or text me at \+18643602659\./);
-  assert.match(phoneLead, /You can call or text me at \+18643602659\./);
+  assert.match(defaultMessage, /Website: https:\/\/3dvr\.tech/);
+  assert.match(defaultMessage, /Email: 3dvr\.tech@gmail\.com/);
+  assert.match(defaultMessage, /Phone: \+18643602659/);
+  assert.match(phoneLead, /Website: https:\/\/3dvr\.tech/);
+  assert.match(phoneLead, /Email: 3dvr\.tech@gmail\.com/);
+  assert.match(phoneLead, /Phone: \+18643602659/);
   assert.match(phoneLead, /Would it be okay if I sent a quick text with a few examples of what we do\?/i);
 });
 
@@ -69,13 +74,18 @@ test('phone outreach message is text-first and concise', async () => {
     THREEDVR_OUTREACH_PHONE: '+18643602659',
   });
 
+  assert.match(personalized, /Website: https:\/\/3dvr\.tech/);
+  assert.match(personalized, /Email: 3dvr\.tech@gmail\.com/);
+  assert.match(personalized, /Phone: \+18643602659/);
   assert.match(personalized, /Would it be okay if I sent a quick text with a few examples of what we do\?/i);
   assert.match(personalized, /This is Thomas with 3DVR/);
   assert.doesNotMatch(personalized, /running into any .* problems right now/i);
 
+  assert.match(phoneMessage, /Website: https:\/\/3dvr\.tech/);
+  assert.match(phoneMessage, /Email: 3dvr\.tech@gmail\.com/);
+  assert.match(phoneMessage, /Phone: \+18643602659/);
   assert.match(phoneMessage, /Would it be okay if I sent a quick text with a few examples that might fit your business\?/i);
   assert.match(phoneMessage, /This is Thomas with 3DVR/);
-  assert.match(phoneMessage, /You can call or text me at \+18643602659\./);
   assert.doesNotMatch(phoneMessage, /Launch in 3 Days/i);
 });
 
@@ -142,7 +152,13 @@ test('ask-send --template includes the configured contact line', async () => {
       THREEDVR_OUTREACH_PHONE: '+18643602659',
     });
 
-    assert.match(stdout, /You can call or text me at \+18643602659\./);
+    const footer = buildContactFooter({
+      website: 'https://3dvr.tech',
+      email: '3dvr.tech@gmail.com',
+      phone: '+18643602659',
+    });
+
+    assert.match(stdout, new RegExp(footer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(stdout, /Hi Acme Studio team/);
   } finally {
     await rm(tmp, { recursive: true, force: true });

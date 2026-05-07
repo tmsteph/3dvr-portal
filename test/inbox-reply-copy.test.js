@@ -11,6 +11,7 @@ const {
   pickReplyPreviewCandidates,
   printReplyPreviews,
 } = require('../thomas-agent/node/inbox-monitor');
+const { buildContactFooter } = require('../thomas-agent/node/contact-footer');
 
 function message(overrides = {}) {
   return {
@@ -54,13 +55,14 @@ test('reply drafts include website, email, and phone contact details', () => {
   try {
     const input = message({ preview: 'Can you help with the booking page?' });
     const text = buildReplyText({ name: 'Acme Studio' }, input, { messages: {} });
+    const footer = buildContactFooter({
+      website: 'https://3dvr.tech',
+      email: '3dvr.tech@gmail.com',
+      phone: '+18643602659',
+    });
 
-    assert.match(replyContactFooter(), /Website: https:\/\/3dvr\.tech/);
-    assert.match(replyContactFooter(), /Email: 3dvr\.tech@gmail\.com/);
-    assert.match(replyContactFooter(), /Phone: \+18643602659/);
-    assert.match(text, /Website: https:\/\/3dvr\.tech/);
-    assert.match(text, /Email: 3dvr\.tech@gmail\.com/);
-    assert.match(text, /Phone: \+18643602659/);
+    assert.equal(replyContactFooter(), footer);
+    assert.match(text, new RegExp(footer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   } finally {
     process.env.THREEDVR_OUTREACH_PHONE = previousPhone || '';
     process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE = previousWebsite || '';

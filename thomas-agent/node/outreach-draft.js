@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { appendContactFooter } = require('./contact-footer');
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -23,14 +24,6 @@ function defaultHint(site, contact) {
   if (/contact|about/.test(haystack)) return 'website, contact, or lead follow-up';
   if (/event|cater/.test(haystack)) return 'website, events, catering, or customer follow-up';
   return 'website, booking, lead follow-up, or customer-flow';
-}
-
-function contactLine() {
-  const phone = normalizeText(process.env.THREEDVR_OUTREACH_PHONE);
-  if (phone) {
-    return `You can call or text me at ${phone}.`;
-  }
-  return 'You can reply here if that is easier.';
 }
 
 function currentModel() {
@@ -96,7 +89,7 @@ function buildTemplateOutreachDraft(lead = {}) {
   const hint = defaultHint(lead.site, lead.contact);
   return {
     source: 'template',
-    text: `Hi ${name} team,\n\nI'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\n${contactLine()}\n\nThomas\n3DVR`,
+    text: appendContactFooter(`Hi ${name} team,\n\nI'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\nThomas\n3DVR`),
   };
 }
 
@@ -117,7 +110,7 @@ function buildPrompt(lead = {}) {
     '- No fake specifics about their site.',
     '- No pricing.',
     '- No hype, no exclamation marks, no markdown.',
-    '- If a contact phone number is configured, include a short contact line saying the recipient can call or text Thomas at that number.',
+    '- If a contact phone number is configured, include the same footer block used by the inbox replies.',
     '- Close with exactly:',
     'Thomas',
     '3DVR',
@@ -139,7 +132,7 @@ function buildLocalPrompt(lead = {}) {
     'Facts: 3DVR helps with website work, follow-up systems, clearer offers, and small workflow fixes.',
     'Do not invent prices, guarantees, integrations, or meetings.',
     'Do not include a signature beyond Thomas and 3DVR.',
-    'If a contact phone number is configured, include a short contact line saying the recipient can call or text Thomas at that number.',
+    'If a contact phone number is configured, include the same footer block used by the inbox replies.',
     `Lead: ${name}`,
     `Website: ${site || ''}`,
     `Contact: ${contact || ''}`,
@@ -233,7 +226,7 @@ async function buildLocalOutreachDraft(lead = {}, { runCommandImpl = runCommand,
   if (!parsed) {
     throw new Error('Local model returned invalid JSON.');
   }
-  const text = normalizeText(parsed.text);
+  const text = appendContactFooter(normalizeText(parsed.text));
   if (!text) {
     throw new Error('Local model returned empty text.');
   }
@@ -283,7 +276,7 @@ async function buildLlmOutreachDraft(lead = {}, { fetchImpl = fetch } = {}) {
 
   const content = payload?.choices?.[0]?.message?.content;
   const parsed = JSON.parse(String(content || '{}'));
-  const text = normalizeText(parsed?.text);
+  const text = appendContactFooter(normalizeText(parsed?.text));
   if (!text) {
     throw new Error('OpenAI outreach draft returned empty text.');
   }
