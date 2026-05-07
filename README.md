@@ -106,6 +106,32 @@ export GMAIL_APP_PASSWORD="your_app_password"
 
 The CLI defaults the sender mailbox to `3dvr.tech@gmail.com` when `GMAIL_USER` is unset.
 
+The local Termux setup uses `~/.3dvr/config/env` as the shared config file. The inbox and outreach
+wrappers load that file automatically, so you can keep the mailbox, portal, and outreach defaults in one place.
+
+### New User Setup
+
+Use this order for a fresh device:
+
+1. Run `3dvr setup` and check `~/.3dvr/config/env`.
+2. Set `THREEDVR_OUTREACH_PHONE` if you want phone-required forms to submit cleanly.
+3. Choose one mail path:
+   - portal OAuth with `3dvr connect`
+   - legacy Gmail app-password fallback with `GMAIL_APP_PASSWORD`
+4. Run `3dvr email status`.
+5. Run `3dvr inbox check`.
+6. Start the background workers with `3dvr agent start`.
+
+If the setup is for a fresh Termux user, add the phone number and mail fallback before doing outreach so form submission and reply monitoring both work on the first run.
+
+Required form defaults that have proven useful in real runs:
+
+```text
+THREEDVR_OUTREACH_PHONE   outbound phone number for phone-required forms
+GMAIL_USER                sender mailbox, defaults to 3dvr.tech@gmail.com
+GMAIL_APP_PASSWORD        legacy Gmail app-password for IMAP/send
+```
+
 Outlook keeps the same command shape for the future provider path:
 
 ```sh
@@ -139,6 +165,27 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 3dvr outreach sent
 ```
 
+### Lead Routing
+
+`ask-next` now reports both the route and the next action:
+
+```text
+Route: email / form / contact-page / site
+Action: email / form / open / review / unreachable
+```
+
+The action controls the recommended next command:
+
+```text
+email        ask-send
+form         ask-form --submit
+open         open the page and review it manually
+review       enrich or inspect before sending
+unreachable  skip until the lead is repaired
+```
+
+Phone-only leads are handled as manual call/text outreach, not as pages to open.
+
 ### Main sales page
 
 - Launch in 3 Days → https://3dvr.tech/launch-in-3-days.html
@@ -150,10 +197,11 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-enrich → find email addresses, contact forms, and contact pages
 - ask-track → manage pipeline, including `new`, `contact`, `nurture`, `reply`, `close`
 - ask-track sent → review recent sent outreach log entries
-- ask-next → next lead + ready opener + launch-page follow-up
+- ask-next → next lead + ready opener + launch-page follow-up, with phone-only leads shown as call/text targets
 - ask-message → outreach message variants and launch-page follow-up
 - ask-send → copy opener, open email/contact page, optionally enrich first, optionally send direct email, and optionally mark contacted
 - ask-form → open a contact page in Playwright, fill the form, and stop before submit unless `--submit` is explicit; submit mode auto-discovers local Chromium, uses `xvfb-run` on headless Linux when available, and falls back to `requestSubmit()` when no visible submit button is present
+- ask-form → open a contact page in Playwright, fill the form, and stop before submit unless `--submit` is explicit; submit mode auto-discovers local Chromium, uses `xvfb-run` on headless Linux when available, falls back to `requestSubmit()` when no visible submit button is present, and now handles split-name fields, consent checkboxes, and phone-required forms when `THREEDVR_OUTREACH_PHONE` is set
 - ask-artifact → store outreach drafts and screenshots in Gun for later reuse
 - ask-yolo → use a local llama.cpp server to draft a JSON search/replace patch, preview it, and optionally apply/commit/push
 - ask-yolo-app → generate an app page inside the shared `3dvr-site` repo
@@ -239,6 +287,13 @@ export THREEDVR_EMAIL_DRAFT_MODE="gmail"
 
 If a form or contact page is found, `ask-send` copies the message and opens the page in the browser. `ask-enrich` also improves email discovery before falling back to a form or contact page. Add `--mark` when you want it to mark the lead contacted after opening. Use `ask-send --form "Dark Horse Coffee Roasters"` or `ask-form "Dark Horse Coffee Roasters"` when you want Playwright to fill a form instead of just opening the page. Use `ask-enrich --prefer-form` only when you explicitly want to refresh a lead toward a form route.
 
+Real-run notes from the Termux device:
+
+- `ask-send --auto --mark` sends direct email through the legacy Gmail mailbox when the app password is set and `HOME` points at the Termux profile.
+- `ask-form --submit` can now handle one-name forms, split first/last name forms, consent checkboxes, and common contact-page builders.
+- `ask-inbox` and `ask-inbox-daemon` now load the shared config file too, so reply monitoring works from the same Termux env as outreach.
+- When a form requires a phone field, the runner needs `THREEDVR_OUTREACH_PHONE` or it will stop with a clear error instead of submitting half-filled data.
+
 Use `--template` when you want the deterministic template copy instead of model-generated outreach text.
 
 Direct email sends now probe the recipient domain before sending. If the address has no usable MX records, the lead is marked failed and the send stops instead of burning a send on an unsendable address.
@@ -249,7 +304,11 @@ Every successful send writes a reviewable entry to `thomas-agent/outreach-log.nd
 ask-track sent
 ask-track sent 10
 ask-track sent grouped
+ask-track failures
+ask-track failures 10
 ```
+
+Failed send and form runs now also write to the outreach log when the wrapper aborts, so the failure queue can be reviewed alongside the successes.
 
 `ask-form` starts with `generic-html-form` and will switch to builder-specific adapters for WordPress Contact Form 7, Wix, and Squarespace when the page markup matches. Submit mode uses a local Chromium binary when available, falls back to `xvfb-run` on headless Linux systems that need a display server, and will try `requestSubmit()` when a form has no safe visible submit button.
 

@@ -38,7 +38,10 @@ case "$1" in
       node "$OUTREACH_LOG_JS" list "${3:-20}"
     fi
     ;;
+  failures|faileds)
+    node "$OUTREACH_LOG_JS" failures "${2:-20}"
+    ;;
   *)
-    echo 'ask-track add "Name" "Link" | ask-track contact "Name" [variant] | ask-track nurture "Name" [note] | ask-track reply "Name" | ask-track failed "Name" | ask-track close "Name" | ask-track new | ask-track followup | ask-track nurture-list | ask-track view | ask-track sent [limit]'
+    echo 'ask-track add "Name" "Link" | ask-track contact "Name" [variant] | ask-track nurture "Name" [note] | ask-track reply "Name" | ask-track failed "Name" | ask-track close "Name" | ask-track new | ask-track followup | ask-track nurture-list | ask-track view | ask-track sent [limit] | ask-track failures [limit]'
     ;;
 esac

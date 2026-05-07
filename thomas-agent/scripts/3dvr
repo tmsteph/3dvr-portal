@@ -274,19 +274,37 @@ setup_checklist() {
   print_section "Email connection"
   node "$ROOT/node/oauth-connection.js" status google || true
 
+  print_section "Outreach defaults"
+  printf 'From email: %s\n' "${GMAIL_USER:-3dvr.tech@gmail.com}"
+  if [ -n "${GMAIL_APP_PASSWORD:-}" ]; then
+    printf 'Legacy Gmail app password: set\n'
+  else
+    printf 'Legacy Gmail app password: missing\n'
+  fi
+  if [ -n "${THREEDVR_OUTREACH_PHONE:-}" ]; then
+    printf 'Outbound phone: set\n'
+  else
+    printf 'Outbound phone: missing\n'
+  fi
+
   cat <<'SETUP'
 
 Recommended first run:
-  1. 3dvr connect
-  2. Approve Gmail in the portal
-  3. 3dvr auth import
-  4. 3dvr inbox check
-  5. 3dvr agent start
+  1. Verify config in ~/.3dvr/config/env
+  2. Set THREEDVR_OUTREACH_PHONE if you want phone-required forms to submit
+  3. Choose one email path:
+     - Portal OAuth: 3dvr connect -> approve in portal -> 3dvr auth import
+     - Legacy Gmail: set GMAIL_APP_PASSWORD in ~/.3dvr/config/env
+  4. Run 3dvr email status
+  5. Run 3dvr inbox check
+  6. Run 3dvr agent start
 
 Notes:
-  - Gmail uses portal OAuth, not app passwords.
+  - Gmail supports both portal OAuth and the legacy app-password fallback.
+  - The default sender mailbox is 3dvr.tech@gmail.com when GMAIL_USER is unset.
   - Outlook will use the same `3dvr auth login microsoft` shape when mail support is enabled.
   - Local tokens stay in ~/.3dvr/oauth.json and are not printed by status commands.
+  - Contact forms that require a phone number need THREEDVR_OUTREACH_PHONE.
 SETUP
 }
 
@@ -632,7 +650,7 @@ INBOX
     case "$sub" in
       all) print_section "3dvr settings"; env | grep -E '^(THREEDVR_|GMAIL_USER=|GMAIL_APP_PASSWORD=)' | sort || true; print_next_steps ;;
       portal) echo "Portal URL: ${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}" ;;
-      email) print_section "Email settings"; echo "GMAIL_USER=${GMAIL_USER:-3dvr.tech@gmail.com (main mailbox default)}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+legacy fallback set}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-oauth-first}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
+      email) print_section "Email settings"; echo "GMAIL_USER=${GMAIL_USER:-3dvr.tech@gmail.com (main mailbox default)}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+legacy fallback set}"; echo "THREEDVR_OUTREACH_PHONE=${THREEDVR_OUTREACH_PHONE:-missing}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-oauth-first}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
       relay) print_section "Portal relay"; echo "THREEDVR_AUTOPILOT_EMAIL_ENDPOINT=${THREEDVR_AUTOPILOT_EMAIL_ENDPOINT:-unset}"; echo "THREEDVR_AUTOPILOT_EMAIL_TOKEN=${THREEDVR_AUTOPILOT_EMAIL_TOKEN:+set}" ;;
       *) usage; exit 1 ;;
     esac

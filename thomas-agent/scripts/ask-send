@@ -247,6 +247,19 @@ elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
       THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
       node "$OUTREACH_LOG_JS" append >/dev/null
     else
+      THREEDVR_OUTREACH_LOG_KIND="email" \
+      THREEDVR_OUTREACH_LOG_STATUS="send_failed" \
+      THREEDVR_OUTREACH_LOG_SOURCE="$draft_source" \
+      THREEDVR_OUTREACH_LOG_NAME="$name" \
+      THREEDVR_OUTREACH_LOG_SITE="$link" \
+      THREEDVR_OUTREACH_LOG_CONTACT="$contact" \
+      THREEDVR_OUTREACH_LOG_ROUTE="$route" \
+      THREEDVR_OUTREACH_LOG_SUBJECT="$subject" \
+      THREEDVR_OUTREACH_LOG_BODY="$message" \
+      THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+      THREEDVR_OUTREACH_LOG_NOTE="send command failed" \
+      node "$OUTREACH_LOG_JS" append >/dev/null
+      "$SCRIPT_DIR/ask-track" failed "$name"
       exit 1
     fi
   else

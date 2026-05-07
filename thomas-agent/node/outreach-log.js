@@ -124,6 +124,31 @@ function printArchive(entries, limit = 20) {
   }
 }
 
+function isFailureEntry(entry = {}) {
+  const status = normalizeText(entry.status).toLowerCase();
+  return status && !['sent', 'submitted'].includes(status);
+}
+
+function printFailures(entries, limit = 20) {
+  const failures = entries.filter(isFailureEntry);
+  const recent = failures.slice(-Math.max(1, limit));
+  if (!recent.length) {
+    console.log('No failure entries found.');
+    return;
+  }
+
+  for (const entry of recent) {
+    console.log(formatOutreachLogEntry(entry));
+    if (entry.note) {
+      console.log(`note: ${entry.note}`);
+    }
+    if (entry.body) {
+      console.log(entry.body);
+    }
+    console.log('');
+  }
+}
+
 function parseLimit(value, fallback = 20) {
   const parsed = Number.parseInt(String(value || ''), 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -161,6 +186,10 @@ function cli(argv = process.argv.slice(2)) {
     printArchive(entries, limit);
     return;
   }
+  if (command === 'failures' || command === 'failed') {
+    printFailures(entries, limit);
+    return;
+  }
 
   printRecent(entries, limit);
 }
@@ -171,9 +200,11 @@ module.exports = {
   formatOutreachLogEntry,
   formatArchiveGroupHeading,
   printArchive,
+  printFailures,
   printRecent,
   parseLimit,
   readOutreachLog,
+  isFailureEntry,
   resolveLogFilePath,
 };
 

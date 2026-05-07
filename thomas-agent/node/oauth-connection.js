@@ -204,12 +204,14 @@ function readStdin() {
 function printStatus(status) {
   const legacyUser = normalizeEmail(process.env.GMAIL_USER) || '3dvr.tech@gmail.com';
   const legacyPass = normalizeText(process.env.GMAIL_APP_PASSWORD);
+  const outreachPhone = normalizeText(process.env.THREEDVR_OUTREACH_PHONE);
   console.log(`${status.provider} email connection`);
   console.log('----------------------------------------');
   if (!status.configured) {
     console.log('Status: not connected');
     console.log(`Connection file: ${status.file}`);
     console.log(`Legacy Gmail app password: ${legacyPass ? `configured for ${legacyUser}` : 'not configured'}`);
+    console.log(`Outbound phone: ${outreachPhone ? 'configured' : 'not configured'}`);
     console.log('');
     console.log('Next step:');
     console.log(`  3dvr auth login ${status.provider}`);
@@ -227,6 +229,7 @@ function printStatus(status) {
   console.log(`Needs refresh: ${status.needsRefresh ? 'yes' : 'no'}`);
   console.log(`Connection file: ${status.file}`);
   console.log(`Legacy Gmail app password: ${legacyPass ? `configured for ${legacyUser}` : 'not configured'}`);
+  console.log(`Outbound phone: ${outreachPhone ? 'configured' : 'not configured'}`);
   console.log('');
   console.log('Tokens are stored locally and are not printed here.');
 }

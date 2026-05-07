@@ -3,9 +3,12 @@ const os = require('node:os');
 const path = require('node:path');
 
 const DEFAULT_NAME = 'Thomas';
+const DEFAULT_FIRST_NAME = 'Thomas';
+const DEFAULT_LAST_NAME = 'Stephens';
 const DEFAULT_COMPANY = '3DVR';
 const DEFAULT_EMAIL = process.env.THREEDVR_OUTREACH_EMAIL || '3dvr.tech@gmail.com';
 const DEFAULT_PHONE = process.env.THREEDVR_OUTREACH_PHONE || '';
+const DEFAULT_NEW_CLIENT = 'Yes';
 const DEFAULT_MAX_WAIT_MS = Number(process.env.THREEDVR_FORM_MAX_WAIT_MS || 15000);
 
 function normalizeText(value) {
@@ -66,19 +69,46 @@ function scoreDescriptorForTarget(descriptor, target) {
     return Number.NEGATIVE_INFINITY;
   }
 
-  if (target === 'name') {
-    if (/first name|last name|surname|family name/i.test(text)) return 0;
+  if (descriptor.tag === 'select' && target !== 'consent' && target !== 'submit') {
+    const selectTargetHints = {
+      firstName: /first name|given name|forename|first/i,
+      lastName: /last name|surname|family name|last/i,
+      name: /full name|your name|contact name|name/i,
+      email: /email|e-mail/i,
+      company: /company|business|organization|organisation|firm|company name/i,
+      phone: /phone|telephone|mobile|cell|tel/i,
+      message: /message|comments?|enquir|inquir|details?|how can we help|tell us/i,
+      newClient: /new client|new customer|existing client|returning client|customer status/i,
+    };
+    if (!selectTargetHints[target]?.test(text)) {
+      return Number.NEGATIVE_INFINITY;
+    }
+  }
+
+  if (target === 'firstName') {
+    if (/phone|telephone|mobile|cell|fax/i.test(text)) return Number.NEGATIVE_INFINITY;
+    if (/first name|given name|forename|first/i.test(text)) score += 70;
+    if (/autocomplete given-name/.test(text) || descriptor.autocomplete === 'given-name' || descriptor.autocomplete === 'name') score += 30;
+  } else if (target === 'lastName') {
+    if (/phone|telephone|mobile|cell|fax/i.test(text)) return Number.NEGATIVE_INFINITY;
+    if (/last name|surname|family name|last/i.test(text)) score += 70;
+    if (/autocomplete family-name/.test(text) || descriptor.autocomplete === 'family-name') score += 30;
+  } else if (target === 'name') {
+    if (/first name|last name|surname|family name|phone|telephone|mobile|cell|fax/i.test(text)) return 0;
     if (/full name|your name|contact name|name/i.test(text)) score += 60;
     if (/autocomplete name/.test(text) || descriptor.autocomplete === 'name') score += 30;
-    if (descriptor.tag === 'input' || descriptor.tag === 'textarea') score += 10;
   } else if (target === 'email') {
+    if (/phone|telephone|mobile|cell|fax/i.test(text)) return 0;
     if (/email|e-mail/i.test(text)) score += 60;
     if (descriptor.type === 'email' || descriptor.autocomplete === 'email') score += 35;
     if (/placeholder/.test(text)) score += 5;
   } else if (target === 'company') {
+    if (!/company|business|organization|organisation|firm/i.test(text)) return 0;
+    if (/phone|telephone|mobile|cell|fax/i.test(text)) return 0;
     if (/company|business|organization|organisation|firm|company name/i.test(text)) score += 60;
     if (descriptor.autocomplete === 'organization') score += 25;
   } else if (target === 'phone') {
+    if (/email|e-mail/i.test(text)) return 0;
     if (/phone|telephone|mobile|cell|tel/i.test(text)) score += 60;
     if (descriptor.type === 'tel' || descriptor.autocomplete === 'tel') score += 35;
   } else if (target === 'message') {
@@ -91,11 +121,15 @@ function scoreDescriptorForTarget(descriptor, target) {
   } else if (target === 'consent') {
     if (/terms|consent|agree|opt in|optin|privacy|disclaimer/i.test(text)) score += 80;
     if (/checkbox|radio/i.test(descriptor.type || '')) score += 20;
+  } else if (target === 'newClient') {
+    if (/new client|new customer|existing client|returning client|customer status/i.test(text)) score += 80;
+    if (descriptor.tag === 'select') score += 25;
+    if (/checkbox|radio/i.test(descriptor.type || '')) score += 20;
   }
 
   if (/^input/.test(descriptor.tag) && target === 'message') score -= 10;
   if (/first name|last name/i.test(text) && target !== 'name') score -= 20;
-  if (descriptor.required) score += 5;
+  if (descriptor.required && score > 0) score += 5;
   return score;
 }
 
@@ -140,13 +174,25 @@ async function inspectFormFields(page) {
 }
 
 function planFieldAssignments(fields, lead, message) {
-  const targets = [
-    { key: 'name', value: DEFAULT_NAME },
+  const hasSplitNameFields = fields.some((field) => field.visible !== false && (scoreDescriptorForTarget(field, 'firstName') > 0 || scoreDescriptorForTarget(field, 'lastName') > 0));
+  const targets = [];
+
+  if (hasSplitNameFields) {
+    targets.push(
+      { key: 'firstName', value: DEFAULT_FIRST_NAME },
+      { key: 'lastName', value: DEFAULT_LAST_NAME },
+    );
+  } else {
+    targets.push({ key: 'name', value: DEFAULT_NAME });
+  }
+
+  targets.push(
     { key: 'email', value: DEFAULT_EMAIL },
     { key: 'company', value: DEFAULT_COMPANY },
     { key: 'phone', value: DEFAULT_PHONE },
     { key: 'message', value: message },
-  ];
+    { key: 'newClient', value: DEFAULT_NEW_CLIENT },
+  );
 
   const assignments = [];
   const usedIndexes = new Set();
@@ -238,6 +284,9 @@ module.exports = {
   DEFAULT_EMAIL,
   DEFAULT_MAX_WAIT_MS,
   DEFAULT_NAME,
+  DEFAULT_FIRST_NAME,
+  DEFAULT_LAST_NAME,
+  DEFAULT_NEW_CLIENT,
   DEFAULT_PHONE,
   buildScreenshotPath,
   cleanCsvField,

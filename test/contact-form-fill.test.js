@@ -95,6 +95,11 @@ function makeFakePage(descriptors, html = '<form><input type="text" name="name" 
             check: async () => {
               fields[index].checked = true;
             },
+            isChecked: async () => Boolean(fields[index].checked),
+            evaluate: async (callback) => callback({
+              checked: false,
+              dispatchEvent: () => {},
+            }),
             click: async () => {
               fields[index].clicked = true;
             },
@@ -149,16 +154,17 @@ test('pickLead prefers form routes over direct email', () => {
 
 test('planFieldAssignments fills the high-confidence fields only', () => {
   const fields = [
-    { index: 0, tag: 'input', type: 'text', labelText: 'Full name', name: 'name' },
-    { index: 1, tag: 'input', type: 'email', labelText: 'Email address', name: 'email' },
-    { index: 2, tag: 'input', type: 'text', labelText: 'Company', name: 'company' },
-    { index: 3, tag: 'textarea', type: '', labelText: 'Message', name: 'message' },
-    { index: 4, tag: 'input', type: 'tel', labelText: 'Phone', name: 'phone' },
+    { index: 0, tag: 'input', type: 'text', labelText: 'First name', name: 'first_name' },
+    { index: 1, tag: 'input', type: 'text', labelText: 'Last name', name: 'last_name' },
+    { index: 2, tag: 'input', type: 'email', labelText: 'Email address', name: 'email' },
+    { index: 3, tag: 'input', type: 'text', labelText: 'Company', name: 'company' },
+    { index: 4, tag: 'textarea', type: '', labelText: 'Message', name: 'message' },
+    { index: 5, tag: 'input', type: 'tel', labelText: 'Phone', name: 'phone' },
   ];
 
   const plan = planFieldAssignments(fields, { name: 'Acme Studio' }, 'Hello there');
 
-  assert.deepEqual(plan.assignments.map((item) => item.role), ['name', 'email', 'company', 'message']);
+  assert.deepEqual(plan.assignments.map((item) => item.role), ['firstName', 'lastName', 'email', 'company', 'message']);
   assert.equal(plan.unmatchedRequired.length, 0);
 });
 
@@ -186,6 +192,58 @@ test('planFieldAssignments checks consent-style checkboxes when present', () => 
   assert.equal(plan.assignments[2].role, 'consent');
   assert.equal(plan.assignments[2].kind, 'check');
   assert.equal(plan.assignments[2].value, true);
+});
+
+test('planFieldAssignments fills split-name and new-client fields', () => {
+  const fields = [
+    { index: 0, tag: 'input', type: 'text', labelText: 'First name', name: 'first_name', visible: true },
+    { index: 1, tag: 'input', type: 'text', labelText: 'Last name', name: 'last_name', visible: true },
+    { index: 2, tag: 'select', type: 'select-one', labelText: 'Are you a new client?', name: 'new_client', visible: true },
+    { index: 3, tag: 'input', type: 'email', labelText: 'Email address', name: 'email', visible: true },
+  ];
+
+  const plan = planFieldAssignments(fields, { name: 'Acme Studio' }, 'Hello there');
+
+  assert.deepEqual(plan.assignments.map((item) => item.role), ['firstName', 'lastName', 'email', 'newClient']);
+  assert.equal(plan.assignments[3].value, 'Yes');
+});
+
+test('planFieldAssignments uses a single name field when the form is not split', () => {
+  const fields = [
+    { index: 0, tag: 'input', type: 'text', labelText: 'Name', name: 'name', visible: true },
+    { index: 1, tag: 'input', type: 'email', labelText: 'Email', name: 'email', visible: true },
+    { index: 2, tag: 'textarea', type: '', labelText: 'Message', name: 'message', visible: true },
+  ];
+
+  const plan = planFieldAssignments(fields, { name: 'Acme Studio' }, 'Hello there');
+
+  assert.deepEqual(plan.assignments.map((item) => item.role), ['name', 'email', 'message']);
+});
+
+test('planFieldAssignments ignores hidden split-name noise', () => {
+  const fields = [
+    { index: 0, tag: 'input', type: 'text', labelText: 'First name', name: 'first_name', visible: false },
+    { index: 1, tag: 'input', type: 'text', labelText: 'Last name', name: 'last_name', visible: false },
+    { index: 2, tag: 'input', type: 'text', labelText: 'Name', name: 'name', visible: true },
+    { index: 3, tag: 'input', type: 'email', labelText: 'Email', name: 'email', visible: true },
+  ];
+
+  const plan = planFieldAssignments(fields, { name: 'Acme Studio' }, 'Hello there');
+
+  assert.deepEqual(plan.assignments.map((item) => item.role), ['name', 'email']);
+});
+
+test('planFieldAssignments does not map unrelated selects to text targets', () => {
+  const fields = [
+    { index: 0, tag: 'select', type: 'select-one', labelText: 'Lead Type', name: 'lead_type', visible: true },
+    { index: 1, tag: 'input', type: 'text', labelText: 'Full name', name: 'name', visible: true },
+    { index: 2, tag: 'textarea', type: '', labelText: 'Message', name: 'message', visible: true },
+  ];
+
+  const plan = planFieldAssignments(fields, { name: 'Acme Studio' }, 'Hello there');
+
+  assert.equal(plan.assignments.some((item) => item.label === 'Lead Type'), false);
+  assert.deepEqual(plan.assignments.map((item) => item.role), ['name', 'message']);
 });
 
 test('fillContactForm fills fields and saves a screenshot in review mode', async () => {
@@ -254,6 +312,54 @@ test('fillContactForm submits through requestSubmit when no visible submit contr
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('fillContactForm force-checks consent controls when click does not stick', async () => {
+  const page = makeFakePage([
+    { tag: 'input', type: 'text', labelText: 'Name', name: 'name' },
+    { tag: 'input', type: 'checkbox', labelText: 'I agree to terms and privacy', name: 'consent' },
+    { tag: 'input', type: 'email', labelText: 'Email', name: 'email' },
+    { tag: 'textarea', labelText: 'Message', name: 'message' },
+  ], '<form><input type="checkbox" name="consent" /></form>');
+
+  const result = await fillContactForm(
+    page,
+    { name: 'Acme Studio', link: 'https://example.com', contact: 'https://example.com/contact' },
+    'Hello from Thomas',
+    {
+      targetUrl: 'https://example.com/contact',
+      leadSiteUrl: 'https://example.com',
+      adapter: selectAdapter({ html: '<form><input name="consent" type="checkbox"></form>' }),
+    },
+  );
+
+  assert.equal(result.filled.some((item) => item.role === 'consent'), true);
+});
+
+test('fillContactForm explains when a required phone field has no configured default', async () => {
+  const page = makeFakePage([
+    { tag: 'input', type: 'text', labelText: 'First name', name: 'first_name' },
+    { tag: 'input', type: 'text', labelText: 'Last name', name: 'last_name' },
+    { tag: 'input', type: 'tel', labelText: 'Phone', name: 'phone', required: true },
+    { tag: 'input', type: 'email', labelText: 'Email', name: 'email' },
+    { tag: 'select', type: 'select-one', labelText: 'Are you a new client?', name: 'new_client' },
+    { tag: 'textarea', labelText: 'How can we help you?', name: 'message' },
+  ], '<form><input name="phone" required /></form>');
+
+  await assert.rejects(
+    fillContactForm(
+      page,
+      { name: 'Acme Studio', link: 'https://example.com', contact: 'https://example.com/contact' },
+      'Hello from Thomas',
+      {
+        targetUrl: 'https://example.com/contact',
+        leadSiteUrl: 'https://example.com',
+        submit: true,
+        adapter: selectAdapter({ html: '<form><input name="phone" required /></form>' }),
+      },
+    ),
+    /Set THREEDVR_OUTREACH_PHONE to complete phone-required forms\./,
+  );
 });
 
 test('runFormCommand logs successful submissions', async () => {

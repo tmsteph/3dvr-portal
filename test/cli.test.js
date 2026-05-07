@@ -258,8 +258,34 @@ test('ask-next skips automatic page opening by default', async () => {
     });
 
     assert.match(stdout, /NEXT LEAD/);
+    assert.match(stdout, /Action: email/);
     assert.match(stdout, /Skipping automatic page open\./);
     assert.match(stdout, /open_url "mailto:hello@blueprinthomes.com"/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('ask-next treats phone-only leads as manual outreach', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nCall Me LLC,,+18643602659,new,25,test,now\n',
+  );
+
+  try {
+    const { stdout } = await runCli(['next'], {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_OPEN_LEAD_PAGE: '0',
+    });
+
+    assert.match(stdout, /NEXT LEAD/);
+    assert.match(stdout, /Action: review/);
+    assert.match(stdout, /Call or text this number/);
+    assert.match(stdout, /\+18643602659/);
+    assert.doesNotMatch(stdout, /open_url "\+18643602659"/);
+    assert.match(stdout, /manual outreach first, then ask-track contact "Call Me LLC"/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }

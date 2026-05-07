@@ -7,6 +7,31 @@ LAUNCH_URL="https://3dvr.tech/launch-in-3-days.html"
 OPEN_LEAD_PAGE="${THREEDVR_OPEN_LEAD_PAGE:-0}"
 LEAD_ROUTE_JS="$ROOT/node/lead-route.js"
 
+is_http_url() {
+  case "$1" in
+    http://*|https://*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_mailto_url() {
+  case "$1" in
+    mailto:*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_phone_number() {
+  case "$1" in
+    +[0-9]*|[0-9]*)
+      printf '%s' "$1" | sed 's/[^0-9]//g' | grep -Eq '^[0-9]{7,}$'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 pick_priority() {
   awk -F, '
     function is_bad_contact(url) {
@@ -47,28 +72,96 @@ target="$contact"
 [ -z "$target" ] && target="$link"
 route="$(node "$LEAD_ROUTE_JS" --contact "$contact" --link "$link" --variant "$variant" 2>/dev/null || true)"
 [ -z "$route" ] && route="site"
+action="$(node "$LEAD_ROUTE_JS" --action --contact "$contact" --link "$link" --variant "$variant" 2>/dev/null || true)"
+[ -z "$action" ] && action="review"
+
+open_target=""
+open_kind="review"
+if is_http_url "$contact" || is_mailto_url "$contact"; then
+  open_target="$contact"
+  open_kind="url"
+elif is_http_url "$link" || is_mailto_url "$link"; then
+  open_target="$link"
+  open_kind="url"
+elif is_phone_number "$contact"; then
+  open_target="$contact"
+  open_kind="phone"
+elif is_phone_number "$link"; then
+  open_target="$link"
+  open_kind="phone"
+elif [ -n "$link" ]; then
+  open_target="$link"
+  open_kind="url"
+elif [ -n "$contact" ]; then
+  open_target="$contact"
+fi
 
 echo "NEXT LEAD"
 echo "Name: $name"
 echo "Site: $link"
 echo "Contact: $contact"
 echo "Route: $route"
+echo "Action: $action"
 echo
-echo "STEP 1: Open this page"
-echo "open_url \"$target\""
+case "$open_kind" in
+  url)
+    echo "STEP 1: Open this page"
+    echo "open_url \"$open_target\""
+    ;;
+  phone)
+    echo "STEP 1: Call or text this number"
+    echo "$open_target"
+    ;;
+  *)
+    echo "STEP 1: Review this lead in the portal"
+    ;;
+esac
 echo
-echo "STEP 2: Send this opener"
+case "$open_kind" in
+  phone)
+    echo "STEP 2: Use this call/text opener"
+    ;;
+  *)
+    echo "STEP 2: Send this opener"
+    ;;
+esac
 bash "$SCRIPT_DIR/ask-personalize" "$name" "$link" "$contact"
 echo
-echo "STEP 3: If they want context, send this"
-"$SCRIPT_DIR/ask-message" offer
+case "$open_kind" in
+  phone)
+    echo "STEP 3: If they want context, send this follow-up text"
+    ;;
+  *)
+    echo "STEP 3: If they want context, send this"
+    ;;
+esac
+"$SCRIPT_DIR/ask-message" $([ "$open_kind" = "phone" ] && printf '%s' phone || printf '%s' offer)
 echo
 echo "Landing page: $LAUNCH_URL"
 echo
 echo "STEP 4: To open/copy/send from the CLI, run this"
-echo "ask-send \"$name\""
-echo "ask-form \"$name\""
-echo "ask-send --enrich \"$name\""
+case "$action" in
+  email)
+    echo "ask-send \"$name\""
+    ;;
+  form)
+    echo "ask-form --submit \"$name\""
+    ;;
+  open)
+    echo "ask-send \"$name\""
+    ;;
+  review|unreachable)
+    if [ "$open_kind" = "phone" ]; then
+      echo "manual outreach first, then ask-track contact \"$name\""
+    else
+      echo "ask-send --enrich \"$name\""
+    fi
+    ;;
+  *)
+    echo "ask-send \"$name\""
+    echo "ask-form \"$name\""
+    ;;
+esac
 echo
 echo "STEP 5: If you create a custom draft and screenshots, hand them to the portal"
 echo "ask-artifact open \"$name\" --draft path/to/draft.txt --file path/to/screenshot.png"
@@ -84,5 +177,9 @@ if [ "$OPEN_LEAD_PAGE" = "1" ] || [ "$OPEN_LEAD_PAGE" = "yes" ] || [ "$OPEN_LEAD
   open_url "$target"
 else
   echo "Skipping automatic page open. If you want it later, run:"
-  echo "open_url \"$target\""
+  if [ "$open_kind" = "phone" ]; then
+    echo "call_or_text \"$open_target\""
+  else
+    echo "open_url \"$target\""
+  fi
 fi

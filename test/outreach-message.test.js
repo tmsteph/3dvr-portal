@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const askMessage = path.join(root, 'thomas-agent', 'scripts', 'ask-message');
+const askPersonalize = path.join(root, 'thomas-agent', 'scripts', 'ask-personalize');
 const askSend = path.join(root, 'thomas-agent', 'scripts', 'ask-send');
 const {
   buildLocalOutreachDraft,
@@ -45,6 +46,19 @@ test('default outreach message is problem-led and not price-forward', async () =
   assert.doesNotMatch(stdout, /\$20|\$50|month|Launch in 3 Days/i);
   assert.doesNotMatch(stdout, /Hey[,\u2014-]/);
   assert.doesNotMatch(stdout, /noticed|looking at|looked at|specific note|small .*detail/i);
+});
+
+test('phone outreach message is text-first and concise', async () => {
+  const { stdout: personalized } = await run(askPersonalize, ['Call Me LLC', '', '+18643602659']);
+  const { stdout: phoneMessage } = await run(askMessage, ['phone']);
+
+  assert.match(personalized, /Would it be okay if I sent a quick text with a few examples of what we do\?/i);
+  assert.match(personalized, /This is Thomas with 3DVR/);
+  assert.doesNotMatch(personalized, /running into any .* problems right now/i);
+
+  assert.match(phoneMessage, /Would it be okay if I sent a quick text with a few examples that might fit your business\?/i);
+  assert.match(phoneMessage, /This is Thomas with 3DVR/);
+  assert.doesNotMatch(phoneMessage, /Launch in 3 Days/i);
 });
 
 test('ask-send uses a softer subject and first-touch body', async () => {
@@ -219,6 +233,48 @@ test('uses mocked local model outreach replies', async () => {
   assert.ok(calls[0].args.includes('--single-turn'));
   assert.ok(calls[0].args.includes('--simple-io'));
   assert.equal(calls[0].args[calls[0].args.indexOf('--temp') + 1], '0.35');
+});
+
+test('local outreach mode falls back to template when the model returns invalid JSON', async () => {
+  const previousMode = process.env.THREEDVR_OUTREACH_MESSAGE_MODE;
+  process.env.THREEDVR_OUTREACH_MESSAGE_MODE = 'local';
+
+  const draft = await buildOutreachDraft({
+    name: 'Acme Studio',
+    site: 'https://example.com',
+    contact: 'mailto:owner@example.com',
+  }, {
+    commandExistsImpl: () => true,
+    fileExistsImpl: () => true,
+    runCommandImpl: async () => 'not json',
+  });
+
+  process.env.THREEDVR_OUTREACH_MESSAGE_MODE = previousMode || '';
+
+  assert.equal(draft.source, 'template');
+  assert.match(draft.text, /Hi Acme Studio team/);
+});
+
+test('local outreach mode falls back to template when the model text is off-brand', async () => {
+  const previousMode = process.env.THREEDVR_OUTREACH_MESSAGE_MODE;
+  process.env.THREEDVR_OUTREACH_MESSAGE_MODE = 'local';
+
+  const draft = await buildOutreachDraft({
+    name: 'Acme Studio',
+    site: 'https://example.com',
+    contact: 'mailto:owner@example.com',
+  }, {
+    commandExistsImpl: () => true,
+    fileExistsImpl: () => true,
+    runCommandImpl: async () => JSON.stringify({
+      text: 'Hey Thomas! Just wanted to check if you are looking for a way to streamline your website and improve your follow-up systems. Thanks! - Acme Studio',
+    }),
+  });
+
+  process.env.THREEDVR_OUTREACH_MESSAGE_MODE = previousMode || '';
+
+  assert.equal(draft.source, 'template');
+  assert.match(draft.text, /Hi Acme Studio team/);
 });
 
 test('auto outreach mode falls back to template when OpenAI is unavailable', async () => {

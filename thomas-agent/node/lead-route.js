@@ -1,4 +1,5 @@
 const ROUTES = new Set(['email', 'form', 'contact-page', 'site']);
+const ACTIONS = new Set(['email', 'form', 'open', 'review', 'unreachable']);
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -71,6 +72,45 @@ function routeLabel(route) {
   return normalizeRoute(route) || 'site';
 }
 
+function isLikelyAssetUrl(value) {
+  const text = normalizeText(value).toLowerCase();
+  if (!/^https?:\/\//.test(text)) return false;
+  return /wp-content\/|wp-json\/|feed\/|cdn-cgi\/|contact-form-7\/includes\/css\/|[.\/](css|js|json|xml|txt|pdf|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|eot)([?#].*)?$/.test(text);
+}
+
+function leadAction({ contact = '', link = '', variant = '' } = {}) {
+  const route = routeFromContact({ contact, link, variant });
+  const normalizedContact = normalizeText(contact);
+  const normalizedLink = normalizeText(link);
+
+  if (!normalizedContact && !normalizedLink) {
+    return 'unreachable';
+  }
+
+  if (route === 'email') {
+    return 'email';
+  }
+
+  if (route === 'form' || route === 'contact-page') {
+    if (normalizedContact && /^https?:\/\//i.test(normalizedContact) && isLikelyAssetUrl(normalizedContact)) {
+      return normalizedLink ? 'open' : 'review';
+    }
+    return 'form';
+  }
+
+  if (route === 'site') {
+    return normalizedLink ? 'open' : 'review';
+  }
+
+  return 'review';
+}
+
+function actionLabel(action) {
+  const value = normalizeText(action).toLowerCase();
+  if (ACTIONS.has(value)) return value;
+  return 'review';
+}
+
 function applyRouteToVariant(variant, route) {
   const normalizedRoute = normalizeRoute(route) || routeFromVariant(variant) || 'site';
   const preserved = splitVariantTokens(variant)
@@ -86,6 +126,7 @@ function cli(argv = process.argv.slice(2)) {
   let contact = '';
   let link = '';
   let variant = '';
+  let mode = 'route';
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -95,15 +136,19 @@ function cli(argv = process.argv.slice(2)) {
       link = argv[++index] || '';
     } else if (arg === '--variant') {
       variant = argv[++index] || '';
+    } else if (arg === '--action') {
+      mode = 'action';
     } else if (arg === '-h' || arg === '--help') {
-      console.log('Usage: node lead-route.js [--contact value] [--link value] [--variant value]');
+      console.log('Usage: node lead-route.js [--contact value] [--link value] [--variant value] [--action]');
       process.exit(0);
     } else {
       throw new Error(`Unknown option: ${arg}`);
     }
   }
 
-  console.log(routeFromContact({ contact, link, variant }));
+  console.log(mode === 'action'
+    ? leadAction({ contact, link, variant })
+    : routeFromContact({ contact, link, variant }));
 }
 
 module.exports = {
@@ -112,6 +157,8 @@ module.exports = {
   routeFromVariant,
   routeFromContact,
   routeLabel,
+  leadAction,
+  actionLabel,
   applyRouteToVariant,
 };
 

@@ -156,6 +156,17 @@ function parseLlmJson(raw) {
   }
 }
 
+function isAcceptableOutreachText(text) {
+  const value = normalizeText(text);
+  if (!value) return false;
+  if (value.split(/\s+/).length > 110) return false;
+  if (!/^Hi [^\n]{1,80} team,/i.test(value)) return false;
+  if (!/\bThomas\b[\s\S]*\b3DVR\b/i.test(value)) return false;
+  if (/^- /m.test(value)) return false;
+  if (/^Hey\s+Thomas/i.test(value)) return false;
+  return true;
+}
+
 async function runCommand(command, args, { input = '', timeoutMs = 45000 } = {}) {
   const { spawn } = require('child_process');
   return new Promise((resolve, reject) => {
@@ -215,6 +226,9 @@ async function buildLocalOutreachDraft(lead = {}, { runCommandImpl = runCommand,
   const text = normalizeText(parsed.text);
   if (!text) {
     throw new Error('Local model returned empty text.');
+  }
+  if (!isAcceptableOutreachText(text)) {
+    throw new Error('Local model returned unacceptable outreach text.');
   }
   return {
     source: 'local',
@@ -276,7 +290,11 @@ async function buildOutreachDraft(lead = {}, options = {}) {
     return buildTemplateOutreachDraft(lead);
   }
   if (mode === 'local') {
-    return buildLocalOutreachDraft(lead, options);
+    try {
+      return await buildLocalOutreachDraft(lead, options);
+    } catch {
+      return buildTemplateOutreachDraft(lead);
+    }
   }
   if (mode === 'openai' || mode === 'llm') {
     return buildLlmOutreachDraft(lead, options);

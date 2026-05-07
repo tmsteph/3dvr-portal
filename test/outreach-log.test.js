@@ -135,6 +135,46 @@ test('ask-track sent grouped archives entries by route and source', () => {
   }
 });
 
+test('ask-track failures shows non-success log entries', () => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-outreach-failures-'));
+  const logPath = path.join(tmp, 'outreach-log.ndjson');
+
+  try {
+    appendOutreachLog({
+      kind: 'email',
+      status: 'probe_failed',
+      source: 'template',
+      name: 'Probe Lead',
+      route: 'email',
+      note: 'deliverability probe failed',
+      body: 'Probe body',
+    }, { filePath: logPath });
+    appendOutreachLog({
+      kind: 'form',
+      status: 'send_failed',
+      source: 'local',
+      name: 'Form Lead',
+      route: 'form',
+      note: 'send command failed',
+      body: 'Form body',
+    }, { filePath: logPath });
+
+    const output = execFileSync(askTrack, ['failures', '1'], {
+      env: {
+        ...process.env,
+        THREEDVR_OUTREACH_LOG_FILE: logPath,
+      },
+      encoding: 'utf8',
+    });
+
+    assert.match(output, /Form Lead/);
+    assert.match(output, /send_failed/);
+    assert.doesNotMatch(output, /Probe Lead/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('parseLimit falls back when the input is not numeric', () => {
   assert.equal(parseLimit('15', 20), 15);
   assert.equal(parseLimit('nope', 20), 20);

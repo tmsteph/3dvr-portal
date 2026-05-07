@@ -70,6 +70,19 @@ Thomas
 MESSAGE
 }
 
+msg_phone() {
+  cat <<MESSAGE
+Hi,
+
+This is Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows.
+
+Would it be okay if I sent a quick text with a few examples that might fit your business?
+
+Thomas
+3DVR
+MESSAGE
+}
+
 msg_lead() {
   line="$(get_lead)"
   if [ -n "$line" ]; then
@@ -140,9 +153,10 @@ case "$mode" in
   b) msg_b ;;
   c) msg_c ;;
   offer) msg_offer ;;
+  phone|text) msg_phone ;;
   lead|personal) msg_lead ;;
   smart) msg_smart ;;
   *)
-    echo 'Usage: ask-message [a|b|c|offer|lead|smart] "Business Name"'
+    echo 'Usage: ask-message [a|b|c|offer|phone|text|lead|smart] "Business Name"'
     ;;
 esac

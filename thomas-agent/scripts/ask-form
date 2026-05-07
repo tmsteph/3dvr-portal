@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$SCRIPT_DIR/lib/platform.sh" ]; then
+  source "$SCRIPT_DIR/lib/platform.sh"
+fi
 submit_mode="no"
 dry_run="no"
+target_name=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --*) ;;
+    *) target_name="${target_name:+$target_name }$arg" ;;
+  esac
+done
 
 for arg in "$@"; do
   case "$arg" in
@@ -17,7 +28,20 @@ fi
 
 if [ "$submit_mode" = "yes" ] && [ "$dry_run" != "yes" ] && [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1 && [ -z "${THREEDVR_SKIP_XVFB:-}" ]; then
   export THREEDVR_SKIP_XVFB=1
-  exec xvfb-run -a node "$ROOT/node/contact-form-fill.js" "$@"
+  xvfb-run -a node "$ROOT/node/contact-form-fill.js" "$@"
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    if [ -n "$target_name" ]; then
+      "$SCRIPT_DIR/ask-track" failed "$target_name" || true
+    fi
+    exit "$status"
+  fi
+  exit 0
 fi
 
 node "$ROOT/node/contact-form-fill.js" "$@"
+status=$?
+if [ "$status" -ne 0 ] && [ -n "$target_name" ]; then
+  "$SCRIPT_DIR/ask-track" failed "$target_name" || true
+fi
+exit "$status"

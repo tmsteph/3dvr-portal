@@ -2,7 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  actionLabel,
   applyRouteToVariant,
+  leadAction,
   routeFromContact,
   routeFromVariant,
 } = require('../thomas-agent/node/lead-route');
@@ -18,6 +20,18 @@ test('routeFromContact classifies common lead routes', () => {
   assert.equal(routeFromContact({ contact: 'owner@example.com', link: 'https://example.com' }), 'email');
   assert.equal(routeFromContact({ contact: 'https://example.com/contact', link: 'https://example.com' }), 'contact-page');
   assert.equal(routeFromContact({ contact: 'https://example.com', link: 'https://example.com' }), 'site');
+});
+
+test('leadAction maps routes to next-step actions', () => {
+  assert.equal(leadAction({ contact: 'mailto:owner@example.com', link: 'https://example.com' }), 'email');
+  assert.equal(leadAction({ contact: 'https://example.com/contact', link: 'https://example.com' }), 'form');
+  assert.equal(leadAction({ contact: 'https://example.com', link: 'https://example.com' }), 'open');
+  assert.equal(leadAction({ contact: '', link: '' }), 'unreachable');
+});
+
+test('actionLabel normalizes action strings', () => {
+  assert.equal(actionLabel('EMAIL'), 'email');
+  assert.equal(actionLabel('whatever'), 'review');
 });
 
 test('applyRouteToVariant preserves other tags and replaces route tags', () => {
