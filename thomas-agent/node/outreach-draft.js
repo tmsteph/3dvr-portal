@@ -25,6 +25,14 @@ function defaultHint(site, contact) {
   return 'website, booking, lead follow-up, or customer-flow';
 }
 
+function contactLine() {
+  const phone = normalizeText(process.env.THREEDVR_OUTREACH_PHONE);
+  if (phone) {
+    return `You can call or text me at ${phone}.`;
+  }
+  return 'You can reply here if that is easier.';
+}
+
 function currentModel() {
   return normalizeText(process.env.THREEDVR_OUTREACH_LLM_MODEL || process.env.OPENAI_MODEL || 'gpt-5-mini');
 }
@@ -88,7 +96,7 @@ function buildTemplateOutreachDraft(lead = {}) {
   const hint = defaultHint(lead.site, lead.contact);
   return {
     source: 'template',
-    text: `Hi ${name} team,\n\nI'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\nThomas\n3DVR`,
+    text: `Hi ${name} team,\n\nI'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\n${contactLine()}\n\nThomas\n3DVR`,
   };
 }
 
@@ -109,6 +117,7 @@ function buildPrompt(lead = {}) {
     '- No fake specifics about their site.',
     '- No pricing.',
     '- No hype, no exclamation marks, no markdown.',
+    '- If a contact phone number is configured, include a short contact line saying the recipient can call or text Thomas at that number.',
     '- Close with exactly:',
     'Thomas',
     '3DVR',
@@ -130,6 +139,7 @@ function buildLocalPrompt(lead = {}) {
     'Facts: 3DVR helps with website work, follow-up systems, clearer offers, and small workflow fixes.',
     'Do not invent prices, guarantees, integrations, or meetings.',
     'Do not include a signature beyond Thomas and 3DVR.',
+    'If a contact phone number is configured, include a short contact line saying the recipient can call or text Thomas at that number.',
     `Lead: ${name}`,
     `Website: ${site || ''}`,
     `Contact: ${contact || ''}`,

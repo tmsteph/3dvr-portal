@@ -48,9 +48,26 @@ test('default outreach message is problem-led and not price-forward', async () =
   assert.doesNotMatch(stdout, /noticed|looking at|looked at|specific note|small .*detail/i);
 });
 
+test('outreach messages can include a contact line when a phone is configured', async () => {
+  const { stdout: defaultMessage } = await run(askMessage, ['a'], {
+    THREEDVR_OUTREACH_PHONE: '+18643602659',
+  });
+  const { stdout: phoneLead } = await run(askPersonalize, ['Call Me LLC', '', '+18643602659'], {
+    THREEDVR_OUTREACH_PHONE: '+18643602659',
+  });
+
+  assert.match(defaultMessage, /You can call or text me at \+18643602659\./);
+  assert.match(phoneLead, /You can call or text me at \+18643602659\./);
+  assert.match(phoneLead, /Would it be okay if I sent a quick text with a few examples of what we do\?/i);
+});
+
 test('phone outreach message is text-first and concise', async () => {
-  const { stdout: personalized } = await run(askPersonalize, ['Call Me LLC', '', '+18643602659']);
-  const { stdout: phoneMessage } = await run(askMessage, ['phone']);
+  const { stdout: personalized } = await run(askPersonalize, ['Call Me LLC', '', '+18643602659'], {
+    THREEDVR_OUTREACH_PHONE: '+18643602659',
+  });
+  const { stdout: phoneMessage } = await run(askMessage, ['phone'], {
+    THREEDVR_OUTREACH_PHONE: '+18643602659',
+  });
 
   assert.match(personalized, /Would it be okay if I sent a quick text with a few examples of what we do\?/i);
   assert.match(personalized, /This is Thomas with 3DVR/);
@@ -58,6 +75,7 @@ test('phone outreach message is text-first and concise', async () => {
 
   assert.match(phoneMessage, /Would it be okay if I sent a quick text with a few examples that might fit your business\?/i);
   assert.match(phoneMessage, /This is Thomas with 3DVR/);
+  assert.match(phoneMessage, /You can call or text me at \+18643602659\./);
   assert.doesNotMatch(phoneMessage, /Launch in 3 Days/i);
 });
 
@@ -105,6 +123,27 @@ test('ask-send --template forces the deterministic template copy', async () => {
     assert.match(stdout, /Route: email/);
     assert.doesNotMatch(stdout, /local model/i);
     assert.doesNotMatch(stdout, /Hey Thomas/i);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('ask-send --template includes the configured contact line', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated\nAcme Studio,https://example.com,mailto:owner@example.com,new,10,test,now\n',
+  );
+
+  try {
+    const { stdout } = await run(askSend, ['--template', '--dry-run'], {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_OUTREACH_PHONE: '+18643602659',
+    });
+
+    assert.match(stdout, /You can call or text me at \+18643602659\./);
+    assert.match(stdout, /Hi Acme Studio team/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }

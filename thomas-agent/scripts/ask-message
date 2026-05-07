@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/platform.sh"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
 LAUNCH_URL="https://3dvr.tech/launch-in-3-days.html"
 mode="${1:-a}"
 target="$2"
+
+contact_line() {
+  if [ -n "${THREEDVR_OUTREACH_PHONE:-}" ]; then
+    printf 'You can call or text me at %s.\n' "$THREEDVR_OUTREACH_PHONE"
+  else
+    printf 'You can reply here if that is easier.\n'
+  fi
+}
 
 get_lead() {
   [ -f "$FILE" ] || return 1
@@ -13,7 +22,7 @@ get_lead() {
 }
 
 msg_a() {
-  cat <<'MESSAGE'
+  cat <<MESSAGE
 Hi,
 
 I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
@@ -22,13 +31,15 @@ Are you running into any website, booking, lead follow-up, or customer-flow prob
 
 If not, no problem. I just wanted to introduce myself.
 
+$(contact_line)
+
 Thomas
 3DVR
 MESSAGE
 }
 
 msg_b() {
-  cat <<'MESSAGE'
+  cat <<MESSAGE
 Hi,
 
 I'm Thomas with 3DVR. We help small businesses turn more website visits into clear next steps.
@@ -37,13 +48,15 @@ Is there anything about your website, booking/contact flow, or follow-up process
 
 If not, no problem. I just wanted to introduce myself.
 
+$(contact_line)
+
 Thomas
 3DVR
 MESSAGE
 }
 
 msg_c() {
-  cat <<'MESSAGE'
+  cat <<MESSAGE
 Hi,
 
 I'm Thomas with 3DVR. We help small businesses make their online customer flow clearer and easier to manage.
@@ -51,6 +64,8 @@ I'm Thomas with 3DVR. We help small businesses make their online customer flow c
 Are you dealing with any website, lead follow-up, booking, or customer communication problems right now?
 
 If not, no problem. I just wanted to introduce myself.
+
+$(contact_line)
 
 Thomas
 3DVR
@@ -65,6 +80,8 @@ I'm Thomas with 3DVR. We help small service businesses make websites, follow-up,
 
 If you are trying to clean up your website or customer flow, the simplest starting point is here: $LAUNCH_URL
 
+$(contact_line)
+
 Thomas
 3DVR
 MESSAGE
@@ -77,6 +94,8 @@ Hi,
 This is Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows.
 
 Would it be okay if I sent a quick text with a few examples that might fit your business?
+
+$(contact_line)
 
 Thomas
 3DVR
@@ -95,6 +114,8 @@ I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up syst
 Are you running into any website, booking, lead follow-up, or customer-flow problems right now?
 
 If not, no problem. I just wanted to introduce myself.
+
+$(contact_line)
 
 Thomas
 3DVR
@@ -142,6 +163,8 @@ I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up syst
 Are you running into any ${problems} problems right now?
 
 If not, no problem. I just wanted to introduce myself.
+
+$(contact_line)
 
 Thomas
 3DVR

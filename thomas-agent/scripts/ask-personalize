@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/platform.sh"
 name="$1"
 site="$2"
 contact="$3"
 
 hint="site"
+
+contact_line() {
+  if [ -n "${THREEDVR_OUTREACH_PHONE:-}" ]; then
+    printf 'You can call or text me at %s.\n' "$THREEDVR_OUTREACH_PHONE"
+  else
+    printf 'You can reply here if that is easier.\n'
+  fi
+}
 
 is_phone_number() {
   case "$1" in
@@ -23,6 +33,8 @@ Hi $name,
 This is Thomas with 3DVR. I help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
 Would it be okay if I sent a quick text with a few examples of what we do?
+
+$(contact_line)
 
 Thomas
 3DVR
@@ -46,6 +58,8 @@ I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up syst
 Are you running into any $hint problems right now?
 
 If not, no problem. I just wanted to introduce myself.
+
+$(contact_line)
 
 Thomas
 3DVR
