@@ -39,6 +39,23 @@
     a.button:hover { transform: translateY(-1px); background: var(--accent-2); }
     a.secondary { background: transparent; color: var(--text); border: 1px solid #2a313a; }
     .tips { margin-top: 1rem; color: var(--muted); font-size: .95rem; }
+    .test-links {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 14px;
+      border: 1px solid #1c2127;
+      background: rgba(255,255,255,.03);
+    }
+    .test-links h2 {
+      margin: 0 0 .35rem;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+    .test-links p {
+      margin: 0 0 .85rem;
+      color: var(--muted);
+      font-size: .95rem;
+    }
     code { background: #12161b; color: var(--accent); padding: 0 .35rem; border-radius: 6px; }
     footer { margin-top: .75rem; text-align: center; color: var(--muted); font-size: .9rem; }
   </style>
@@ -51,18 +68,18 @@
     <p class="sub">One simple link. Names visible. Extra lean for mobile and low-bandwidth calls.</p>
 
     <div class="actions">
-      <!-- Default portal room: ultra-lean bandwidth with visible labels -->
+      <!-- Default portal room: low-bandwidth two-way room join -->
       <a class="button" target="_blank" rel="noopener"
-        href="https://vdo.ninja/?room=3dvrtech&push&labelsuggestion&clearnames&codec=h264&trb=200,100&ab=32&dtx&fps=6&scale=144p&buffer=20&showlabels">
+        href="https://vdo.ninja/?room=3dvrtech&label&showlabels&codec=h264&vb=220&ab=24&fps=10&scale=144p&stereo=0&buffer=200">
         🎥 Portal Video Link
       </a>
       <a class="button secondary" href="/portal.3dvr.tech/video/smart-launcher.html">
         🧠 Smart Launcher
       </a>
-      <!-- Previous room preset -->
+      <!-- Crunched room preset -->
       <a class="button secondary" target="_blank" rel="noopener"
-        href="https://vdo.ninja/?room=3dvrtech&label&showlabels&codec=h264&vb=220&ab=24&fps=10&scale=144p&stereo=0&buffer=200">
-        🕒 Previous Preset
+        href="https://vdo.ninja/?room=3dvrtech&label&showlabels&codec=h264&vb=120&ab=24&fps=4&scale=96p&stereo=0&buffer=30">
+        🕒 Crunched Video
       </a>
       <!-- Higher bandwidth option -->
       <a class="button secondary" target="_blank" rel="noopener"
@@ -85,14 +102,32 @@
         <li>When prompted, enter your display name — it will show under your video for everyone.</li>
         <li>Use headphones to avoid echo. Close other apps on mobile for best performance.</li>
         <li>Need louder playback on mobile? Tap the menu ⋮ → <em>Audio Output</em> and select <strong>Speaker</strong>.</li>
-        <li>The default portal link uses <code>push</code>, <code>labelsuggestion</code>, and <code>clearnames</code> so everyone joins with fresh names and label prompts.</li>
-        <li>It now uses <code>trb=200,100</code>, <code>dtx</code>, <code>fps=6</code>, <code>scale=144p</code>, and a <code>buffer=20</code> target to stay light on mobile.</li>
-        <li>The previous preset is saved above if you want the room with the smoother 200ms buffer instead.</li>
+        <li>The default portal link now uses a simpler two-way room join with <code>label</code>, <code>showlabels</code>, <code>144p</code>, and a smoother <code>buffer=200</code>.</li>
+        <li>Use <em>Crunched Video</em> for weak data: <code>96p</code>, <code>4fps</code>, very low video bitrate, and a small buffer.</li>
         <li>Use <em>Smart Launcher</em> when you want the portal to suggest safer room tiers from browser connection hints.</li>
         <li>Need more clarity? Switch to <em>Standard Quality</em> (240p/15fps/500kbps) — buffer stays at 100ms.</li>
         <li>Use <em>Director Mode</em> if you want to manage participants or record streams.</li>
       </ul>
       <div style="margin-top:.4rem">Admin note: avoid <code>&cleanoutput</code> or <code>&cleanviewer</code> if you want names visible.</div>
+    </div>
+
+    <div class="test-links">
+      <h2>Two-device loopback test</h2>
+      <p>Use these when you want one fast room for front camera, back camera, and a separate director view.</p>
+      <div class="actions">
+        <a class="button secondary" target="_blank" rel="noopener"
+          href="https://vdo.ninja/?room=3dvrlooptest20260507&label=fronttest&showlabels&codec=h264&vb=220&ab=24&fps=10&scale=144p&stereo=0&buffer=200&webcam&autostart">
+          📱 Front Cam Test
+        </a>
+        <a class="button secondary" target="_blank" rel="noopener"
+          href="https://vdo.ninja/?room=3dvrlooptest20260507&label=backtest&showlabels&codec=h264&vb=220&ab=24&fps=10&scale=144p&stereo=0&buffer=200&webcam&autostart&vdo=rear">
+          📷 Back Cam Test
+        </a>
+        <a class="button secondary" target="_blank" rel="noopener"
+          href="https://vdo.ninja/?director&room=3dvrlooptest20260507&bitrate=500&scale=240p&fps=15&codec=h264&stereo=0">
+          🧭 Loopback Director
+        </a>
+      </div>
     </div>
 
     <footer>
