@@ -7,6 +7,8 @@ const path = require('node:path');
 const {
   extractBounceEmails,
   looksLikeBounce,
+  classifyInboxMessages,
+  printInboxTriage,
   updateLeadStatusByEmail,
   buildBounceAlert,
 } = require('../thomas-agent/node/inbox-monitor');
@@ -52,5 +54,61 @@ test('marks a lead failed by email address', async () => {
     assert.match(text, /Bad Lead,https:\/\/bad\.example,mailto:bad@example\.com,failed,2026-05-03,opener/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('triages contacted replies separately from delivery noise', () => {
+  const leadMap = new Map([
+    ['lead@example.com', { name: 'Acme Studio', contact: 'mailto:lead@example.com' }],
+  ]);
+  const messages = [
+    {
+      messageId: 'reply-1',
+      from: 'Jordan Lead <lead@example.com>',
+      fromEmail: 'lead@example.com',
+      replyToEmail: 'lead@example.com',
+      subject: 'Re: website question',
+      preview: 'Can you take a look at the homepage?',
+    },
+    {
+      messageId: 'bounce-1',
+      from: 'Mail Delivery Subsystem <mailer-daemon@gmail.com>',
+      fromEmail: 'mailer-daemon@gmail.com',
+      replyToEmail: '',
+      subject: 'Delivery Status Notification (Failure)',
+      preview: 'Recipient address rejected: bad@example.com',
+    },
+    {
+      messageId: 'other-1',
+      from: 'Random Reader <reader@example.com>',
+      fromEmail: 'reader@example.com',
+      replyToEmail: '',
+      subject: 'Hello there',
+      preview: 'Just saying hi.',
+    },
+  ];
+  const output = [];
+  const originalLog = console.log;
+
+  try {
+    console.log = (...args) => {
+      output.push(args.join(' '));
+    };
+
+    const triage = classifyInboxMessages(messages, leadMap);
+    printInboxTriage(messages, leadMap);
+
+    assert.equal(triage.replyCandidates.length, 1);
+    assert.equal(triage.bounceCandidates.length, 1);
+    assert.equal(triage.otherUnread.length, 1);
+    assert.match(output.join('\n'), /Inbox triage/);
+    assert.match(output.join('\n'), /contacted replies: 1/);
+    assert.match(output.join('\n'), /delivery failures: 1/);
+    assert.match(output.join('\n'), /other unread: 1/);
+    assert.match(output.join('\n'), /Contacted-lead replies:/);
+    assert.match(output.join('\n'), /Delivery noise:/);
+    assert.match(output.join('\n'), /Other unread:/);
+  } finally {
+    console.log = originalLog;
   }
 });

@@ -220,6 +220,7 @@ Phone-only leads are handled as manual call/text outreach, not as pages to open.
 - ask-inbox --reply-preview → preview reply drafts for contacted leads with unread replies
 - ask-inbox-daemon → keep inbox monitoring running in the background
 - ask-inbox-daemon run-now → run one inbox cycle with reply previews enabled
+- ask-inbox → prints an inbox triage summary first, then separates contacted replies, delivery failures, and other unread mail
 - ask-inbox --reply-preview → show reply drafts for unread messages from contacted leads
 
 ### Lead Crawling
@@ -452,6 +453,8 @@ Poll the 3DVR inbox once:
 ```sh
 ask-inbox
 ```
+
+`ask-inbox` prints a triage summary first, then separates contacted-lead replies, delivery failures, and other unread mail.
 
 Preview the operator alert without sending it:
 

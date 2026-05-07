@@ -1213,6 +1213,77 @@ function pickReplyPreviewCandidates(messages, leadMap) {
     .filter(Boolean);
 }
 
+function classifyInboxMessages(messages, leadMap) {
+  const replyCandidates = pickReplyPreviewCandidates(messages, leadMap);
+  const replyIds = new Set(replyCandidates.map(({ message }) => message.messageId));
+  const bounceCandidates = messages
+    .filter((message) => looksLikeBounce(message))
+    .filter((message) => !replyIds.has(message.messageId));
+  const bounceIds = new Set(bounceCandidates.map((message) => message.messageId));
+  const otherUnread = messages.filter((message) => !replyIds.has(message.messageId) && !bounceIds.has(message.messageId));
+
+  return {
+    replyCandidates,
+    bounceCandidates,
+    otherUnread,
+  };
+}
+
+function buildInboxTriage(messages, leadMap) {
+  const { replyCandidates, bounceCandidates, otherUnread } = classifyInboxMessages(messages, leadMap);
+  return {
+    summary: {
+      total: messages.length,
+      replies: replyCandidates.length,
+      bounces: bounceCandidates.length,
+      other: otherUnread.length,
+    },
+    replyCandidates,
+    bounceCandidates,
+    otherUnread,
+  };
+}
+
+function printInboxTriage(messages, leadMap) {
+  const triage = buildInboxTriage(messages, leadMap);
+  console.log('\nInbox triage:');
+  console.log(`- contacted replies: ${triage.summary.replies}`);
+  console.log(`- delivery failures: ${triage.summary.bounces}`);
+  console.log(`- other unread: ${triage.summary.other}`);
+
+  if (triage.replyCandidates.length) {
+    console.log('\nContacted-lead replies:');
+    for (const { message, lead } of triage.replyCandidates.slice(0, 5)) {
+      console.log(`- ${lead.name || message.from} | ${message.subject}`);
+      if (message.preview) {
+        console.log(`  ${message.preview}`);
+      }
+    }
+  }
+
+  if (triage.bounceCandidates.length) {
+    console.log('\nDelivery noise:');
+    for (const message of triage.bounceCandidates.slice(0, 5)) {
+      console.log(`- ${message.from} | ${message.subject}`);
+      if (message.preview) {
+        console.log(`  ${message.preview}`);
+      }
+    }
+  }
+
+  if (triage.otherUnread.length) {
+    console.log('\nOther unread:');
+    for (const message of triage.otherUnread.slice(0, 5)) {
+      console.log(`- ${message.from} | ${message.subject}`);
+      if (message.preview) {
+        console.log(`  ${message.preview}`);
+      }
+    }
+  }
+
+  return triage;
+}
+
 async function printReplyPreviews(messages, leadMap, state) {
   const candidates = pickReplyPreviewCandidates(messages, leadMap);
   if (!candidates.length) {
@@ -1276,6 +1347,8 @@ async function main() {
   unread.forEach((message) => {
     console.log(`- ${message.from} | ${message.subject}`);
   });
+
+  printInboxTriage(unread, contactedLeadMap);
 
   const fresh = unread.filter((message) => !state.seen[message.messageId]);
   if (fresh.length) {
@@ -1352,6 +1425,9 @@ module.exports = {
   buildLlmReplyDraft,
   buildReplyDraft,
   chooseReplyLines,
+  classifyInboxMessages,
+  buildInboxTriage,
+  printInboxTriage,
   detectReplyIntent,
   extractBounceEmails,
   looksLikeBounce,
