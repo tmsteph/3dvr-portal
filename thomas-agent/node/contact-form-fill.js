@@ -71,6 +71,7 @@ Examples:
   ask-form --submit "Dark Horse Coffee Roasters"
 
 Dry run previews the form route and draft without launching a browser.
+Submit mode can also use requestSubmit() when a safe form has no visible submit button.
 
 Environment:
   THREEDVR_LEADS_FILE       leads CSV path
@@ -309,6 +310,9 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
   console.log();
   console.log(`Filled fields: ${result.filled.map((item) => `${item.role} -> ${item.label}`).join(', ') || 'none'}`);
   console.log(`Screenshot: ${result.screenshotPath}`);
+  if (result.submissionMethod) {
+    console.log(`Submission: ${result.submissionMethod}`);
+  }
   if (result.submitted) {
     console.log('Submitted: yes');
   } else {

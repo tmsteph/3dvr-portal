@@ -51,10 +51,14 @@ function makeFakePage(descriptors, html = '<form><input type="text" name="name" 
     value: descriptor.value || '',
   }));
   const controls = [];
+  const formState = {
+    submittedVia: '',
+  };
 
   return {
     fields,
     controls,
+    formState,
     async content() {
       return html;
     },
@@ -67,6 +71,16 @@ function makeFakePage(descriptors, html = '<form><input type="text" name="name" 
       if (selector === 'form') {
         return {
           count: async () => 1,
+          first: () => ({
+            evaluate: async (callback) => callback({
+              requestSubmit: () => {
+                formState.submittedVia = 'requestSubmit';
+              },
+              submit: () => {
+                formState.submittedVia = 'submit';
+              },
+            }),
+          }),
         };
       }
 
@@ -211,6 +225,37 @@ test('fillContactForm fills fields and saves a screenshot in review mode', async
   }
 });
 
+test('fillContactForm submits through requestSubmit when no visible submit control is present', async () => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-submit-fallback-'));
+  const screenshotPath = path.join(tmp, 'submitted.png');
+  const page = makeFakePage([
+    { tag: 'input', type: 'text', labelText: 'Full name', name: 'name' },
+    { tag: 'input', type: 'email', labelText: 'Email address', name: 'email' },
+    { tag: 'textarea', labelText: 'Message', name: 'message' },
+  ], '<form><input type="text" name="name" /><textarea name="message"></textarea></form>');
+
+  try {
+    const result = await fillContactForm(
+      page,
+      { name: 'Acme Studio', link: 'https://example.com', contact: 'https://example.com/contact' },
+      'Hello from Thomas',
+      {
+        targetUrl: 'https://example.com/contact',
+        screenshotPath,
+        leadSiteUrl: 'https://example.com',
+        submit: true,
+        adapter: selectAdapter({ html: '<form><input name="name"></form>' }),
+      },
+    );
+
+    assert.equal(result.submitted, true);
+    assert.equal(result.submissionMethod, 'requestSubmit');
+    assert.equal(page.formState.submittedVia, 'requestSubmit');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('runFormCommand logs successful submissions', async () => {
   const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-log-'));
   const logPath = path.join(tmp, 'outreach-log.ndjson');
@@ -315,6 +360,16 @@ test('ask-form submit mode can run through a real chromium browser under xvfb', 
   const browserExecutablePath = resolveBrowserExecutablePath();
   if (!browserExecutablePath) {
     return;
+  }
+
+  try {
+    require('playwright');
+  } catch {
+    try {
+      require('playwright-core');
+    } catch {
+      return;
+    }
   }
 
   const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-real-'));

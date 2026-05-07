@@ -118,16 +118,42 @@ async function fill({ page, lead, message, options = {} }) {
   })));
 
   const submitPlan = planSubmitControl(submitFields);
-  if (!submitPlan) {
-    throw new Error(`Could not find a safe submit control on ${targetUrl}`);
+  if (submitPlan) {
+    await page.locator('button, input[type="submit"], input[type="button"]').nth(submitPlan.index).click();
+    if (typeof page.waitForLoadState === 'function') {
+      await page.waitForLoadState('networkidle', { timeout: maxWaitMs }).catch(() => {});
+    }
+    result.submissionMethod = 'click';
+    result.submitted = true;
+    return result;
   }
 
-  await page.locator('button, input[type="submit"], input[type="button"]').nth(submitPlan.index).click();
-  if (typeof page.waitForLoadState === 'function') {
-    await page.waitForLoadState('networkidle', { timeout: maxWaitMs }).catch(() => {});
+  const formLocator = page.locator('form');
+  const submitFormCount = typeof formLocator.count === 'function' ? await formLocator.count() : 0;
+  if (typeof formLocator.first === 'function' && submitFormCount > 0) {
+    const submissionMethod = await formLocator.first().evaluate((form) => {
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+        return 'requestSubmit';
+      }
+      if (typeof form.submit === 'function') {
+        form.submit();
+        return 'submit';
+      }
+      return '';
+    }).catch(() => '');
+
+    if (submissionMethod) {
+      if (typeof page.waitForLoadState === 'function') {
+        await page.waitForLoadState('networkidle', { timeout: maxWaitMs }).catch(() => {});
+      }
+      result.submissionMethod = submissionMethod;
+      result.submitted = true;
+      return result;
+    }
   }
-  result.submitted = true;
-  return result;
+
+  throw new Error(`Could not find a safe submit control on ${targetUrl}`);
 }
 
 module.exports = {

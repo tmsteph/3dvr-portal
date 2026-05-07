@@ -153,7 +153,7 @@ The older `lead` commands still work. For new users, prefer the clearer outreach
 - ask-next → next lead + ready opener + launch-page follow-up
 - ask-message → outreach message variants and launch-page follow-up
 - ask-send → copy opener, open email/contact page, optionally enrich first, optionally send direct email, and optionally mark contacted
-- ask-form → open a contact page in Playwright, fill the form, and stop before submit unless `--submit` is explicit; auto-discovers local Chromium and uses `xvfb-run` for submit mode on headless Linux when available
+- ask-form → open a contact page in Playwright, fill the form, and stop before submit unless `--submit` is explicit; submit mode auto-discovers local Chromium, uses `xvfb-run` on headless Linux when available, and falls back to `requestSubmit()` when no visible submit button is present
 - ask-artifact → store outreach drafts and screenshots in Gun for later reuse
 - ask-yolo → use a local llama.cpp server to draft a JSON search/replace patch, preview it, and optionally apply/commit/push
 - ask-yolo-app → generate an app page inside the shared `3dvr-site` repo
@@ -251,7 +251,7 @@ ask-track sent 10
 ask-track sent grouped
 ```
 
-`ask-form` starts with `generic-html-form` and will switch to builder-specific adapters for WordPress Contact Form 7, Wix, and Squarespace when the page markup matches. Submit mode uses a local Chromium binary when available and falls back to `xvfb-run` on headless Linux systems that need a display server.
+`ask-form` starts with `generic-html-form` and will switch to builder-specific adapters for WordPress Contact Form 7, Wix, and Squarespace when the page markup matches. Submit mode uses a local Chromium binary when available, falls back to `xvfb-run` on headless Linux systems that need a display server, and will try `requestSubmit()` when a form has no safe visible submit button.
 
 Send directly instead of opening a draft:
 
