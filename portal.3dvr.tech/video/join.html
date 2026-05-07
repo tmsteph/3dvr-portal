@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr.tech Smart Join</title>
+  <meta
+    name="description"
+    content="Open the safest 3dvr.tech meeting link for this device. Smart Join uses browser network and device hints, and prefers Chrome on Android."
+  />
+  <link rel="icon" href="https://3dvr.tech/favicon.ico" />
+  <style>
+    :root {
+      --bg: #07131d;
+      --panel: rgba(14, 28, 43, 0.94);
+      --panel-2: rgba(20, 39, 59, 0.98);
+      --line: rgba(140, 196, 255, 0.18);
+      --text: #f4f8fc;
+      --muted: #b9c9d9;
+      --blue: #8cc4ff;
+      --gold: #e8c36a;
+      --good: #8fe3b0;
+      --warn: #ffd37b;
+      --danger: #ff9c9c;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(140, 196, 255, 0.12), transparent 26%),
+        radial-gradient(circle at top left, rgba(232, 195, 106, 0.08), transparent 24%),
+        linear-gradient(180deg, #051019, #0a1824 42%, #08141f 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 18px;
+      display: grid;
+      place-items: center;
+    }
+
+    .shell {
+      width: min(920px, 100%);
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      padding: 22px;
+    }
+
+    .hero { display: grid; gap: 14px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.3rem);
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+      border: 1px solid rgba(232, 195, 106, 0.24);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 0.86rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .sub, .mini, .hint-list { color: var(--muted); line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; }
+    .stack { display: grid; gap: 14px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .button, button {
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.14s ease;
+    }
+
+    .button:hover, button:hover { transform: translateY(-1px); }
+
+    .primary {
+      background: linear-gradient(135deg, var(--blue), #b1d8ff);
+      color: #08131d;
+      font-weight: 700;
+    }
+
+    .secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .pill {
+      display: inline-flex;
+      width: fit-content;
+      font-size: 0.8rem;
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+    }
+
+    .pill.good { color: var(--good); border-color: rgba(143, 227, 176, 0.26); }
+    .pill.warn { color: var(--warn); border-color: rgba(255, 211, 123, 0.26); }
+    .pill.danger { color: var(--danger); border-color: rgba(255, 156, 156, 0.26); }
+
+    .status {
+      min-height: 1.2em;
+      color: var(--gold);
+      font-size: 0.93rem;
+    }
+
+    .meta-list, .hint-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 96px;
+      resize: vertical;
+      border-radius: 14px;
+      padding: 12px;
+      border: 1px solid rgba(140, 196, 255, 0.16);
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      body { padding: 14px; }
+      .hero, .panel { padding: 18px; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">3dvr.tech • zero-decision join</div>
+      <h1>Smart Join</h1>
+      <p class="sub">
+        This page scores the device you are on, picks a safer meeting profile, and prefers opening that meeting in Chrome on Android.
+        If Chrome is missing, the fallback points to the Chrome install page.
+      </p>
+      <div class="actions">
+        <a class="button secondary" href="/portal.3dvr.tech/video/index.html">Fast Video</a>
+        <a class="button secondary" href="/portal.3dvr.tech/video/ops.html">Meeting Ops</a>
+        <a class="button secondary" href="/portal.3dvr.tech/video/smart-launcher.html">Smart Launcher</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel stack">
+        <div>
+          <h2>Your best link</h2>
+          <p class="sub">The primary action below uses Chrome handoff on Android. On desktop or in Chrome already, it opens the recommended link directly.</p>
+        </div>
+        <div class="card">
+          <span class="pill" id="recommendedPill">Recommended</span>
+          <h3 id="recommendedTitle">Checking this device…</h3>
+          <p class="mini" id="recommendedCopy">Gathering network, CPU, and browser hints.</p>
+          <div class="actions">
+            <a class="button primary" id="openRecommended" href="#" rel="noopener noreferrer">Open recommended meeting</a>
+            <button class="secondary" type="button" id="copyRecommended">Copy recommended link</button>
+            <a class="button secondary" id="chromeAction" href="#" rel="noopener noreferrer">Open in Chrome</a>
+          </div>
+          <div class="status" id="status"></div>
+        </div>
+        <textarea id="recommendedLink" readonly></textarea>
+      </div>
+
+      <div class="panel stack">
+        <div>
+          <h2>Device read</h2>
+          <p class="sub">This is what the browser reports. It is not perfect, but it is enough to choose a safer default tier.</p>
+        </div>
+        <ul class="hint-list" id="hintList"></ul>
+        <ul class="meta-list" id="metaList"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const recommendedPill = document.getElementById('recommendedPill');
+    const recommendedTitle = document.getElementById('recommendedTitle');
+    const recommendedCopy = document.getElementById('recommendedCopy');
+    const openRecommended = document.getElementById('openRecommended');
+    const copyRecommended = document.getElementById('copyRecommended');
+    const chromeAction = document.getElementById('chromeAction');
+    const recommendedLink = document.getElementById('recommendedLink');
+    const hintList = document.getElementById('hintList');
+    const metaList = document.getElementById('metaList');
+    const status = document.getElementById('status');
+
+    function sanitizeKey(value, fallback) {
+      return (value || '').trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9_-]/g, '') || fallback;
+    }
+
+    function sanitizeLabel(value, fallback) {
+      return (value || '').trim().replace(/[^\w -]/g, '').slice(0, 40) || fallback;
+    }
+
+    function getParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        room: sanitizeKey(params.get('room'), '3dvrtech'),
+        control: sanitizeKey(params.get('control'), sanitizeKey(params.get('room'), '3dvrtech')),
+        role: ['participant', 'director', 'front', 'back'].includes(params.get('role')) ? params.get('role') : 'participant',
+        name: sanitizeLabel(params.get('name'), 'guest'),
+        codec: params.get('codec') || 'h264'
+      };
+    }
+
+    function getConnectionInfo() {
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+      return {
+        effectiveType: connection && connection.effectiveType ? connection.effectiveType : '',
+        downlink: connection && typeof connection.downlink === 'number' ? connection.downlink : null,
+        rtt: connection && typeof connection.rtt === 'number' ? connection.rtt : null,
+        saveData: Boolean(connection && connection.saveData),
+        available: Boolean(connection)
+      };
+    }
+
+    function isAndroid() {
+      return /Android/i.test(navigator.userAgent || '');
+    }
+
+    function isChromeLike() {
+      const ua = navigator.userAgent || '';
+      return /Chrome|CriOS/i.test(ua) && !/EdgA?|OPR|SamsungBrowser|DuckDuckGo|Firefox/i.test(ua);
+    }
+
+    function isMobileDevice() {
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
+        || window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function getDeviceInfo() {
+      return {
+        cores: typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : null,
+        memory: typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null,
+        mobile: isMobileDevice(),
+        reducedData: window.matchMedia('(prefers-reduced-data: reduce)').matches,
+        reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      };
+    }
+
+    function pickSmartProfile() {
+      const connection = getConnectionInfo();
+      const device = getDeviceInfo();
+      const weakNetwork = connection.saveData
+        || device.reducedData
+        || connection.effectiveType === 'slow-2g'
+        || connection.effectiveType === '2g'
+        || connection.effectiveType === '3g'
+        || (typeof connection.downlink === 'number' && connection.downlink < 1.2)
+        || (typeof connection.rtt === 'number' && connection.rtt > 450);
+      const severeNetwork = connection.saveData
+        || device.reducedData
+        || connection.effectiveType === 'slow-2g'
+        || connection.effectiveType === '2g'
+        || (typeof connection.downlink === 'number' && connection.downlink < 0.35)
+        || (typeof connection.rtt === 'number' && connection.rtt > 800);
+      const weakDevice = (typeof device.cores === 'number' && device.cores <= 4)
+        || (typeof device.memory === 'number' && device.memory <= 4)
+        || device.reducedMotion;
+      const severeDevice = (typeof device.cores === 'number' && device.cores <= 2)
+        || (typeof device.memory === 'number' && device.memory <= 2);
+
+      let profile = 'normal';
+      let label = 'Normal';
+      let pillClass = 'good';
+      let copy = 'Stable network and device hints allow a fuller meeting profile.';
+
+      if (severeNetwork || severeDevice) {
+        profile = device.mobile ? 'audio' : 'survival';
+        label = profile === 'audio' ? 'Audio only' : 'Survival';
+        pillClass = 'danger';
+        copy = 'This device looks constrained enough that a heavily compressed profile is safer.';
+      } else if (weakNetwork || weakDevice || device.mobile) {
+        profile = 'low';
+        label = 'Low bandwidth';
+        pillClass = 'warn';
+        copy = 'This device or network looks mixed enough that low bandwidth is the safer starting point.';
+      }
+
+      return { profile, label, pillClass, copy, connection, device };
+    }
+
+    function buildSmartLauncherUrl(params, profile) {
+      const url = new URL('/portal.3dvr.tech/video/smart-launcher.html', window.location.origin);
+      url.searchParams.set('room', params.room);
+      url.searchParams.set('control', params.control);
+      url.searchParams.set('role', params.role);
+      url.searchParams.set('profile', profile);
+      url.searchParams.set('controlMode', params.role === 'director' ? 'host' : 'guest');
+      url.searchParams.set('monitor', '1');
+      url.searchParams.set('codec', params.codec);
+      url.searchParams.set('name', params.name);
+      return url.toString();
+    }
+
+    function buildChromeIntent(url) {
+      const parsed = new URL(url);
+      const fallback = `https://play.google.com/store/apps/details?id=com.android.chrome&referrer=${encodeURIComponent(url)}`;
+      return `intent://${parsed.host}${parsed.pathname}${parsed.search}#Intent;scheme=${parsed.protocol.replace(':', '')};package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
+    }
+
+    function renderHints(result) {
+      const connection = result.connection;
+      const device = result.device;
+      const hints = [];
+      const meta = [];
+
+      hints.push(`Recommended profile: ${result.label}.`);
+      if (connection.effectiveType) hints.push(`Connection type hint: ${connection.effectiveType}.`);
+      if (typeof connection.downlink === 'number') hints.push(`Reported downlink: ${connection.downlink} Mb/s.`);
+      if (typeof connection.rtt === 'number') hints.push(`Reported RTT: ${connection.rtt} ms.`);
+      if (connection.saveData) hints.push('Browser save-data mode is enabled.');
+      if (device.reducedData) hints.push('Reduced-data preference is enabled.');
+      if (device.reducedMotion) hints.push('Reduced-motion preference is enabled.');
+      if (!hints.length) hints.push('No browser hints available. Falling back to a safe default.');
+
+      meta.push(`Browser: ${isChromeLike() ? 'Chrome-like' : 'Non-Chrome or unknown'}.`);
+      meta.push(`Platform: ${isAndroid() ? 'Android' : device.mobile ? 'Mobile' : 'Desktop'}.`);
+      if (typeof device.cores === 'number') meta.push(`CPU cores reported: ${device.cores}.`);
+      if (typeof device.memory === 'number') meta.push(`Device memory reported: ${device.memory} GB.`);
+      meta.push(`Chrome handoff path: ${isAndroid() ? 'available' : 'not needed'}.`);
+
+      hintList.innerHTML = hints.map((item) => `<li>${item}</li>`).join('');
+      metaList.innerHTML = meta.map((item) => `<li>${item}</li>`).join('');
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const helper = document.createElement('textarea');
+        helper.value = text;
+        helper.setAttribute('readonly', '');
+        helper.style.position = 'absolute';
+        helper.style.left = '-9999px';
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand('copy');
+        helper.remove();
+      }
+      status.textContent = 'Copied recommended link.';
+    }
+
+    function render() {
+      const params = getParams();
+      const result = pickSmartProfile();
+      const launcherUrl = buildSmartLauncherUrl(params, result.profile);
+      const androidChromeIntent = buildChromeIntent(launcherUrl);
+      const primaryUrl = isAndroid() && !isChromeLike() ? androidChromeIntent : launcherUrl;
+
+      recommendedPill.textContent = result.label;
+      recommendedPill.className = `pill ${result.pillClass}`;
+      recommendedTitle.textContent = `${result.label} for this device`;
+      recommendedCopy.textContent = result.copy;
+      recommendedLink.value = launcherUrl;
+      openRecommended.href = primaryUrl;
+      chromeAction.href = isAndroid() ? androidChromeIntent : launcherUrl;
+      chromeAction.textContent = isAndroid()
+        ? (isChromeLike() ? 'Already in Chrome' : 'Open in Chrome')
+        : 'Open directly';
+
+      if (isAndroid() && !isChromeLike()) {
+        status.textContent = 'Primary action will try Chrome first. If Chrome is missing, Android should fall back to install.';
+      } else if (isChromeLike()) {
+        status.textContent = 'You are already in a Chrome-like browser. The primary action will open the recommended meeting directly.';
+      } else {
+        status.textContent = 'Desktop or non-Android browser detected. The primary action will open the recommended meeting directly.';
+      }
+
+      renderHints(result);
+    }
+
+    copyRecommended.addEventListener('click', () => {
+      copyText(recommendedLink.value);
+    });
+
+    render();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
