@@ -294,7 +294,10 @@ describe('billing center subscriber flows', () => {
       await page.waitForSelector('[data-plan-action="pro"]')
 
       await Promise.all([
-        page.waitForURL('**/sign-in.html?**', { timeout: 10000 }),
+        page.waitForFunction(() => {
+          const { pathname, search } = window.location
+          return pathname === '/sign-in.html' && search.includes('redirect=')
+        }, { timeout: 10000 }),
         page.click('[data-plan-action="pro"]')
       ])
 
