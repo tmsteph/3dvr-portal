@@ -20,6 +20,8 @@ Turn the portal video tools into a reliable meeting control layer that chooses a
 ## Phase 3
 
 - Add a shared control token so a host can issue a downgrade or reset recommendation to guests.
+- Carry the control token inside a managed launcher URL so support can send one link instead of hand-configuring each device.
+- Back the control channel with Gun when available and fall back to browser channels when it is not.
 - Let the launcher reopen the room in a safer tier without making the user rebuild the link.
 - Log profile transitions so support can tell whether a failure was network, browser, or user-flow related.
 

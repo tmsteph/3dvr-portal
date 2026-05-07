@@ -273,6 +273,14 @@
       font-size: 0.92rem;
     }
 
+    .status.good {
+      color: var(--good);
+    }
+
+    .status.warn {
+      color: var(--warn);
+    }
+
     .hint-list {
       list-style: none;
       padding: 0;
@@ -439,6 +447,7 @@
           <button class="secondary" type="button" id="monitorCurrent">Monitor Current Profile</button>
           <button class="secondary" type="button" id="openCurrent">Open current link</button>
           <button class="secondary" type="button" id="copyCurrent">Copy current link</button>
+          <button class="secondary" type="button" id="copyManagedLauncher">Copy managed launcher URL</button>
           <button class="secondary" type="button" id="resetDefaults">Reset to safe defaults</button>
         </div>
         <div class="status" id="status"></div>
@@ -468,6 +477,38 @@
 
     <section class="panel">
       <div>
+        <h2>Control Channel</h2>
+        <p class="sub">Use one token across participants so the launcher can recommend downgrades or reset everyone to a safer baseline.</p>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="controlToken">Control token</label>
+          <input id="controlToken" type="text" value="" autocomplete="off" placeholder="Defaults to the room name" />
+        </div>
+        <div class="field">
+          <label for="controlMode">Control mode</label>
+          <select id="controlMode">
+            <option value="guest" selected>Guest listener</option>
+            <option value="host">Host control</option>
+          </select>
+        </div>
+      </div>
+      <div class="check-grid">
+        <label class="check"><input id="monitorCommands" type="checkbox" checked /> <span><strong>Monitor control channel</strong><br>Listen for host downgrade and reset suggestions automatically.</span></label>
+        <label class="check"><input id="autoApplyCommands" type="checkbox" /> <span><strong>Auto-apply commands</strong><br>Use with care. This can reopen or reset the room without another click.</span></label>
+      </div>
+      <div class="actions">
+        <button class="secondary" type="button" id="startControl">Start control sync</button>
+        <button class="secondary" type="button" id="copyControlUrl">Copy control URL</button>
+        <button class="secondary" type="button" id="sendDowngrade">Recommend downgrade</button>
+        <button class="secondary" type="button" id="sendReset">Recommend reset</button>
+      </div>
+      <div class="status" id="controlStatus"></div>
+      <p class="mini" id="controlDecision"></p>
+    </section>
+
+    <section class="panel">
+      <div>
         <h2>All Four Launch Options</h2>
         <p class="sub">Open or copy the exact tier you want without changing the manual selector.</p>
       </div>
@@ -479,6 +520,8 @@
     </section>
   </main>
 
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script defer src="/gun-init.js"></script>
   <script>
     const room = document.getElementById('room');
     const joinRole = document.getElementById('joinRole');
@@ -496,6 +539,17 @@
     const launchers = document.getElementById('launchers');
     const hintList = document.getElementById('hintList');
     const resetDefaults = document.getElementById('resetDefaults');
+    const copyManagedLauncher = document.getElementById('copyManagedLauncher');
+    const controlToken = document.getElementById('controlToken');
+    const controlMode = document.getElementById('controlMode');
+    const monitorCommands = document.getElementById('monitorCommands');
+    const autoApplyCommands = document.getElementById('autoApplyCommands');
+    const startControl = document.getElementById('startControl');
+    const copyControlUrl = document.getElementById('copyControlUrl');
+    const sendDowngrade = document.getElementById('sendDowngrade');
+    const sendReset = document.getElementById('sendReset');
+    const controlStatus = document.getElementById('controlStatus');
+    const controlDecision = document.getElementById('controlDecision');
 
     let recommendedDowngradeLink = '';
     let recommendedDowngradeProfile = '';
@@ -503,6 +557,12 @@
     let adaptiveTimer = null;
     let connectionListenerAttached = false;
     const storageKey = '3dvr-smart-launcher-state-v1';
+    const controlEventKey = '3dvr-smart-launcher-control-event-v1';
+    const seenControlIds = new Set();
+    let lastControlTimestamp = 0;
+    let controlBroadcastChannel = null;
+    let controlNode = null;
+    let controlSubscribed = false;
 
     const toggles = {
       push: document.getElementById('push'),
@@ -585,6 +645,10 @@
         mode: 'low',
         codec: 'h264',
         autoDowngrade: false,
+        controlToken: '',
+        controlMode: 'guest',
+        monitorCommands: true,
+        autoApplyCommands: false,
         toggles: {
           push: false,
           showlabels: true,
@@ -623,6 +687,10 @@
           mode: mode.value,
           codec: codec.value,
           autoDowngrade: autoDowngrade.checked,
+          controlToken: sanitizeRoom(controlToken.value || ''),
+          controlMode: controlMode.value,
+          monitorCommands: monitorCommands.checked,
+          autoApplyCommands: autoApplyCommands.checked,
           toggles: Object.fromEntries(Object.entries(toggles).map(([key, element]) => [key, element.checked]))
         }));
       } catch {
@@ -637,6 +705,10 @@
       mode.value = state.mode;
       codec.value = state.codec;
       autoDowngrade.checked = Boolean(state.autoDowngrade);
+      controlToken.value = state.controlToken;
+      controlMode.value = state.controlMode;
+      monitorCommands.checked = Boolean(state.monitorCommands);
+      autoApplyCommands.checked = Boolean(state.autoApplyCommands);
       Object.entries(toggles).forEach(([key, element]) => {
         element.checked = Boolean(state.toggles[key]);
       });
@@ -652,6 +724,175 @@
       toggles.clearnames.checked = !isDirector;
       if (isLoopback && !displayName.value.trim()) {
         displayName.value = role === 'front' ? 'fronttest' : 'backtest';
+      }
+    }
+
+    function setControlStatus(message, tone = '') {
+      controlStatus.textContent = message;
+      controlStatus.className = `status${tone ? ` ${tone}` : ''}`;
+    }
+
+    function randomId() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+      }
+      return `control-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function getEffectiveControlToken() {
+      return sanitizeRoom(controlToken.value || room.value || '3dvrtech');
+    }
+
+    function getManagedLauncherUrl() {
+      const params = new URLSearchParams();
+      params.set('room', sanitizeRoom(room.value || '3dvrtech'));
+      params.set('role', joinRole.value);
+      params.set('profile', mode.value);
+      if (codec.value) params.set('codec', codec.value);
+      const label = sanitizeLabel(displayName.value || '');
+      if (label) params.set('name', label);
+      params.set('control', getEffectiveControlToken());
+      params.set('controlMode', controlMode.value);
+      if (monitorCommands.checked) params.set('monitor', '1');
+      if (autoApplyCommands.checked) params.set('autoApply', '1');
+      return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    }
+
+    function applyUrlState() {
+      const params = new URLSearchParams(window.location.search);
+      const nextRoom = sanitizeRoom(params.get('room') || '');
+      const nextRole = params.get('role');
+      const nextProfile = params.get('profile');
+      const nextCodec = params.get('codec');
+      const nextName = sanitizeLabel(params.get('name') || '');
+      const nextControl = sanitizeRoom(params.get('control') || '');
+      const nextControlMode = params.get('controlMode');
+
+      if (nextRoom) room.value = nextRoom;
+      if (nextRole && ['participant', 'director', 'front', 'back'].includes(nextRole)) joinRole.value = nextRole;
+      if (nextProfile && Object.prototype.hasOwnProperty.call(profiles, nextProfile)) mode.value = nextProfile;
+      if (typeof nextCodec === 'string') codec.value = nextCodec;
+      if (nextName) displayName.value = nextName;
+      if (nextControl) controlToken.value = nextControl;
+      if (nextControlMode && ['guest', 'host'].includes(nextControlMode)) controlMode.value = nextControlMode;
+      if (params.has('monitor')) monitorCommands.checked = params.get('monitor') !== '0';
+      if (params.has('autoApply')) autoApplyCommands.checked = params.get('autoApply') === '1';
+    }
+
+    function ensureControlTransport() {
+      if (!controlBroadcastChannel && typeof window.BroadcastChannel === 'function') {
+        controlBroadcastChannel = new window.BroadcastChannel('3dvr-smart-launcher-control');
+        controlBroadcastChannel.addEventListener('message', (event) => {
+          handleControlCommand(event.data, 'broadcast');
+        });
+      }
+
+      if (!controlNode && typeof window.Gun === 'function') {
+        try {
+          const gun = window.Gun({
+            peers: window.__GUN_PEERS__ || [],
+            radisk: false,
+            localStorage: false,
+            axe: true
+          });
+          controlNode = gun.get('portalVideoControl').get(getEffectiveControlToken()).get('latest');
+        } catch {
+          controlNode = null;
+        }
+      }
+    }
+
+    function subscribeControlChannel() {
+      ensureControlTransport();
+      if (controlSubscribed) return;
+      controlSubscribed = true;
+
+      if (controlNode) {
+        controlNode.on((payload) => handleControlCommand(payload, 'gun'));
+      }
+
+      window.addEventListener('storage', (event) => {
+        if (event.key !== controlEventKey || !event.newValue) return;
+        try {
+          handleControlCommand(JSON.parse(event.newValue), 'storage');
+        } catch {
+          // Ignore malformed external control payloads.
+        }
+      });
+    }
+
+    function publishControlCommand(type, payload = {}) {
+      const command = {
+        id: randomId(),
+        type,
+        room: sanitizeRoom(room.value || '3dvrtech'),
+        control: getEffectiveControlToken(),
+        source: sanitizeLabel(displayName.value || '') || controlMode.value || joinRole.value,
+        issuedAt: Date.now(),
+        payload
+      };
+
+      ensureControlTransport();
+
+      try {
+        window.localStorage.setItem(controlEventKey, JSON.stringify(command));
+      } catch {
+        // Ignore localStorage failures.
+      }
+
+      if (controlBroadcastChannel) {
+        controlBroadcastChannel.postMessage(command);
+      }
+
+      if (controlNode) {
+        controlNode.put(command);
+      }
+
+      setControlStatus(`Sent ${type} command on ${command.control}.`, 'good');
+      controlDecision.textContent = `Last command: ${type} from ${command.source}.`;
+    }
+
+    function handleControlCommand(command, source = 'unknown') {
+      if (!command || typeof command !== 'object' || !command.id) return;
+      if (command.control !== getEffectiveControlToken()) return;
+      if (seenControlIds.has(command.id)) return;
+      if (command.issuedAt && command.issuedAt <= lastControlTimestamp) return;
+
+      seenControlIds.add(command.id);
+      lastControlTimestamp = command.issuedAt || Date.now();
+
+      if (!monitorCommands.checked) {
+        setControlStatus(`Ignored ${command.type} command because monitoring is off.`, 'warn');
+        return;
+      }
+
+      if (command.type === 'downgrade') {
+        const targetProfile = command.payload && command.payload.profile && profiles[command.payload.profile]
+          ? command.payload.profile
+          : nextLowerProfile(mode.value);
+        setDowngradeRecommendation(targetProfile);
+        controlDecision.textContent = `Received downgrade recommendation from ${command.source || source}: switch to ${profiles[targetProfile].label}.`;
+        setControlStatus(`Control channel recommended ${profiles[targetProfile].label}.`, 'warn');
+        if (autoApplyCommands.checked) {
+          mode.value = targetProfile;
+          output.value = buildLink(targetProfile);
+          window.open(output.value, '_blank', 'noopener,noreferrer');
+          setStatus(`Auto-opened ${profiles[targetProfile].label}.`);
+          renderCurrent();
+        }
+        return;
+      }
+
+      if (command.type === 'reset') {
+        controlDecision.textContent = `Received reset recommendation from ${command.source || source}.`;
+        setControlStatus('Control channel recommended a reset to safe defaults.', 'warn');
+        if (autoApplyCommands.checked) {
+          applyState(defaultState());
+          applyUrlState();
+          syncRoleDefaults(joinRole.value, { forcePush: true });
+          renderCurrent();
+          setStatus('Auto-applied safe defaults.');
+        }
       }
     }
 
@@ -922,6 +1163,7 @@
       output.value = buildLink(mode.value);
       decision.textContent = describeManualSelection(mode.value);
       renderConnectionHints(pickSmartProfile());
+      controlDecision.textContent = `Control token: ${getEffectiveControlToken()} • Mode: ${controlMode.value} • Monitor: ${monitorCommands.checked ? 'on' : 'off'}.`;
       renderCards();
     }
 
@@ -955,6 +1197,10 @@
       copyText(output.value);
     });
 
+    copyManagedLauncher.addEventListener('click', () => {
+      copyText(getManagedLauncherUrl());
+    });
+
     resetDefaults.addEventListener('click', () => {
       applyState(defaultState());
       syncRoleDefaults(joinRole.value, { forcePush: true });
@@ -976,18 +1222,39 @@
       copyText(recommendedDowngradeLink);
     });
 
+    startControl.addEventListener('click', () => {
+      subscribeControlChannel();
+      setControlStatus(`Listening on control token ${getEffectiveControlToken()}.`, 'good');
+      renderCurrent();
+    });
+
+    copyControlUrl.addEventListener('click', () => {
+      copyText(getManagedLauncherUrl());
+    });
+
+    sendDowngrade.addEventListener('click', () => {
+      publishControlCommand('downgrade', { profile: nextLowerProfile(mode.value) });
+    });
+
+    sendReset.addEventListener('click', () => {
+      publishControlCommand('reset');
+    });
+
     joinRole.addEventListener('change', () => {
       syncRoleDefaults(joinRole.value);
       renderCurrent();
     });
 
-    [room, displayName, mode, codec, autoDowngrade, ...Object.values(toggles)].forEach((element) => {
+    [room, displayName, mode, codec, autoDowngrade, controlToken, controlMode, monitorCommands, autoApplyCommands, ...Object.values(toggles)].forEach((element) => {
       element.addEventListener('input', renderCurrent);
       element.addEventListener('change', renderCurrent);
     });
 
     applyState(readState());
+    applyUrlState();
     syncRoleDefaults(joinRole.value);
+    subscribeControlChannel();
+    setControlStatus(`Ready on control token ${getEffectiveControlToken()}.`, 'good');
     renderCurrent();
   </script>
   <script defer src="/issue-launcher.js"></script>
