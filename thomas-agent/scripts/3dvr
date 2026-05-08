@@ -478,6 +478,33 @@ meeting_urls() {
   printf '%s\n' "$meshcast_url"
 }
 
+meeting_open_target() {
+  explicit="${1:-auto}"
+  case "$explicit" in
+    join|smart|participant|ops|director|host|guest|fallback|crunch|meshcast|pack)
+      printf '%s\n' "$explicit"
+      return 0
+      ;;
+  esac
+
+  profile="$(sanitize_meeting_token "${THREEDVR_MEETING_PROFILE:-}" "")"
+  case "$profile" in
+    meshcast|crunch|crunched|audio|survival)
+      printf '%s\n' "meshcast"
+      ;;
+    low)
+      printf '%s\n' "join"
+      ;;
+    *)
+      if [ -n "${THREEDVR_MEETING_FORCE_MESHCAST:-}" ]; then
+        printf '%s\n' "meshcast"
+      else
+        printf '%s\n' "join"
+      fi
+      ;;
+  esac
+}
+
 meeting_pack() {
   room="${1:-}"
   control="${2:-}"
@@ -512,6 +539,9 @@ meeting_pack() {
   echo
   printf '%s\n' "Meshcast Meeting:"
   printf '%s\n' "$meshcast_url"
+  echo
+  printf '%s\n' "Recommended open:"
+  printf '%s\n' "3dvr meeting --open=$(meeting_open_target auto) \"$room\" \"$control\""
 }
 
 meeting_open() {
@@ -526,6 +556,7 @@ meeting_open() {
   fallback_url="$(printf '%s\n' "$urls" | sed -n '7p')"
   meshcast_url="$(printf '%s\n' "$urls" | sed -n '8p')"
 
+  mode="$(meeting_open_target "$mode")"
   case "$mode" in
     join|smart|participant) open_url "$participant_url" ;;
     ops) open_url "$ops_url" ;;
@@ -650,7 +681,7 @@ case "$cmd" in
     case "${1:-}" in
       --open)
         shift || true
-        meeting_open "join" "${1:-}" "${2:-}"
+        meeting_open "auto" "${1:-}" "${2:-}"
         ;;
       --open=*)
         open_target="${1#--open=}"
@@ -666,10 +697,10 @@ case "$cmd" in
 3dvr meeting [room] [control]
 3dvr meeting --pack [room] [control]
 3dvr meeting --open [room] [control]
-3dvr meeting --open=ops|meshcast|director|guest|fallback|pack [room] [control]
+3dvr meeting --open=auto|ops|meshcast|director|guest|fallback|pack [room] [control]
 
 Default output is the printable meeting pack.
-Use --open to launch the smart join page for this device.
+Use --open to launch the best page for this device.
 MEETING
         ;;
       *)

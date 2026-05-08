@@ -256,6 +256,23 @@ test('meeting open mode launches the smart join link', async () => {
   }
 });
 
+test('meeting open auto mode can prefer meshcast for low bandwidth profiles', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-meeting-'));
+  const openLog = path.join(tmp, 'open.log');
+
+  try {
+    await runCli(['meeting', '--open', 'Team Sync!', 'Control/Board'], {
+      THREEDVR_OPEN_URL_LOG: openLog,
+      THREEDVR_MEETING_PROFILE: 'meshcast',
+    });
+    const openText = (await readFile(openLog, 'utf8')).trim();
+
+    assert.match(openText, /\/portal\.3dvr\.tech\/video\/meshcast\.html$/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test('agent status includes the heartbeat section', async () => {
   const { stdout } = await runCli(['agent', 'status']);
 
