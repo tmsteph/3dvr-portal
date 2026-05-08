@@ -1,310 +1,269 @@
 # 3DVR Next Build Plan
 
-This plan is written for smaller agents. Keep tasks narrow, verify each change, and avoid turning the platform vision into a rewrite.
+This is the current small-agent execution plan for 3DVR. Keep each task narrow, preserve the existing Gun SEA identity path, and avoid adding new Vercel API routes unless the route budget has been checked first.
 
-Primary rule: `Sell first. Build second. Keep it simple.`
+Primary rule: sell first, build second, keep the system operable.
 
-## North Star
+## Current State
 
-3DVR is open personal computing: a browser-first, repairable operating layer for notes, tasks, meetings, contacts, agents, devices, and automation.
-
-The near-term product is not a website. It is a practical operating system centered on `portal.3dvr.tech`, backed by `api.3dvr.tech`, a DigitalOcean hub, and device helpers.
-
-## Target Architecture
+3DVR is moving from separate pages and scripts into a browser-first personal operating layer:
 
 ```text
-Phone / Desktop / Browser
-  -> PWA or app shell
-  -> portal.3dvr.tech
-  -> api.3dvr.tech
-  -> DigitalOcean hub
-  -> services, AI, realtime, automation
+portal.3dvr.tech
+  -> Gun SEA identity
+  -> Gun realtime graph
+  -> limited Vercel serverless API
+  -> DigitalOcean agent host
+  -> 3dvr-agent workers
 ```
 
-Suggested server layout:
+What is already done:
 
-```text
-/opt/3dvr/
-  portal/
-  api/
-  agent/
-  ai/
-  relay/
-  logs/
+- `3dvr-agent` runs on the DigitalOcean droplet at `167.172.193.194`.
+- The agent service starts inbox, outreach, and heartbeat workers.
+- The agent writes runtime heartbeats to Gun under `3dvr-portal/agentOps/<alias>/runtime`.
+- The portal admin panel has an Agent Operations surface with host settings, copyable server commands, and a runtime card.
+- `/api/session` is the single consolidated Vercel endpoint for health, session, and device hints.
+- Meeting pages now include smart join, ops packs, meshcast preset, loopback tests, and meeting-note video packs.
+
+Known constraints:
+
+- Vercel free tier route count is tight. Prefer extending `/api/session` or Gun-backed flows over adding endpoint files.
+- Auth already exists through Gun SEA. Do not introduce a second auth system without a migration card.
+- The DigitalOcean server is reachable as `root@167.172.193.194` using the Termux RSA key.
+- Do not commit runtime logs such as `thomas-agent/outreach-log.ndjson`.
+
+## Immediate Objective
+
+Make the agent controllable from the portal and useful for real operations.
+
+Success means an admin can open `portal.3dvr.tech/admin/`, see whether the DigitalOcean agent is alive, inspect recent outreach/reply/failure state, and run or copy the next operational command without SSH guesswork.
+
+## Work Packets
+
+Each packet is designed for one smaller agent. Do not combine packets unless explicitly assigned.
+
+### Packet A: Verify Live Portal Runtime Card
+
+Repo: `3dvr-portal`
+
+Goal: prove the admin page reads the Gun heartbeat written by the droplet.
+
+Files likely involved:
+
+- `admin/index.html`
+- `tests/admin-agent-ops.test.js`
+
+Steps:
+
+1. Open or inspect the live admin page after deploy.
+2. Confirm the runtime card has fields for host, status, last beat, inbox worker, outreach worker, and process info.
+3. If live production does not show the card, check branch/deploy source before changing code.
+4. Add auto-refresh only if the Gun subscription is not updating reliably.
+
+Acceptance:
+
+- Admin page shows a non-empty last heartbeat after `3dvr agent heartbeat` runs on the droplet.
+- Existing `admin-agent-ops` tests pass.
+- No new Vercel API route files are added.
+
+Suggested verification:
+
+```sh
+node --test tests/admin-agent-ops.test.js
+ssh -i /data/data/com.termux/files/home/.ssh/id_rsa root@167.172.193.194 '3dvr agent heartbeat'
 ```
 
-Core services:
+### Packet B: Agent Runtime Summary
 
-| Service | Purpose |
-| --- | --- |
-| portal | frontend and installed PWA |
-| api | auth, data, notifications, device pairing |
-| relay | realtime presence and control events |
-| agent | outreach, automation, scheduled jobs |
-| ai | local model gateway |
-| caddy or nginx | routing and SSL |
+Repo: `3dvr-agent`
 
-## Phase 1: DigitalOcean Hub
+Goal: make `3dvr status` and `3dvr agent status` include useful runtime details, not just tmux session existence.
 
-Goal: make the DO server a boring, secure deployment target.
+Files likely involved:
 
-Agent task cards:
+- `thomas-agent/node/agent-heartbeat.js`
+- `thomas-agent/scripts/3dvr`
+- `thomas-agent/scripts/ask-agent-heartbeat`
+- `test/agent-heartbeat.test.js`
+- `test/cli.test.js`
 
-1. Inventory current server state.
-   - Repo target: new doc in `RUNBOOKS/` or `3dvr-portal/ops/`.
-   - Commands to gather: OS version, open ports, installed Docker, Node, PM2, Caddy/Nginx, UFW, Fail2ban.
-   - Acceptance: a server inventory doc exists with unknowns clearly marked.
+Steps:
 
-2. Create bootstrap script.
-   - Install Docker, Docker Compose plugin, Git, Node LTS, PM2, Caddy or Nginx, UFW, Fail2ban.
-   - Do not embed secrets.
-   - Acceptance: script is idempotent enough to rerun safely and prints next manual steps.
+1. Read the latest heartbeat from Gun in status mode.
+2. Print owner, host, service state, last beat, inbox state, outreach state, and heartbeat session state.
+3. Keep one-shot commands exiting cleanly even though Gun opens sockets.
+4. Preserve `tmux` fallback behavior.
 
-3. Define `/opt/3dvr` layout.
-   - Create folders for `portal`, `api`, `agent`, `ai`, `relay`, `logs`.
-   - Add `.gitkeep` only where needed.
-   - Acceptance: layout doc and setup script agree.
+Acceptance:
 
-4. Add server health checks.
-   - Minimum: disk, memory, Docker daemon, reverse proxy, open ports.
-   - Acceptance: one command produces a readable health summary.
+- `3dvr agent heartbeat` writes a heartbeat and exits.
+- `3dvr agent status` shows worker status and last heartbeat.
+- Tests cover running and degraded heartbeat states.
 
-## Phase 2: Unified API
+Suggested verification:
 
-Goal: create `api.3dvr.tech` as the brainstem.
-
-Start simple. Use Fastify or Express. Prefer Fastify if starting fresh.
-
-Required endpoints:
-
-```text
-GET  /health
-POST /auth/session
-GET  /notes
-GET  /tasks
-GET  /contacts
-POST /chat
-POST /agent/run
-POST /device/pair
-POST /deploy/request
+```sh
+node --test test/agent-heartbeat.test.js test/cli.test.js
+bash -n thomas-agent/scripts/3dvr thomas-agent/scripts/ask-agent-heartbeat thomas-agent/scripts/ask-agent-heartbeat-daemon
 ```
 
-Agent task cards:
+### Packet C: Recent Runs Panel
 
-1. Create `3dvr-api` or add `api/` if the chosen repo already owns backend code.
-   - Acceptance: `npm test` and `npm run dev` work.
+Repo: `3dvr-portal`
 
-2. Add `/health`.
-   - Return service version, uptime, and dependency status placeholders.
-   - Acceptance: `curl /health` returns JSON and test coverage exists.
+Goal: show recent agent activity in the admin panel from existing Gun/log state.
 
-3. Add typed route stubs.
-   - Do not build full data models yet.
-   - Acceptance: each route returns a stable response shape and is covered by tests.
+Files likely involved:
 
-4. Add deployment notes for `api.3dvr.tech`.
-   - Include env vars, reverse proxy expectations, and local dev command.
-   - Acceptance: a new agent can boot the API locally from the README.
+- `admin/index.html`
+- `tests/admin-agent-ops.test.js`
 
-## Phase 3: Identity
+Data sources to inspect before editing:
 
-Goal: one account everywhere.
+- Gun node paths used by `3dvr-agent` in `thomas-agent/node/gun-db.js`
+- `3dvr-portal/agentOps/<alias>/runtime`
+- `3dvr` CRM/outreach paths already used by the agent
 
-Start with the simplest reliable option. Supabase Auth is acceptable. Auth.js is acceptable if the portal is already moving that way. Keycloak is later, not first.
+Steps:
 
-Agent task cards:
+1. Add a compact Recent Runs area below the runtime card.
+2. Show last lead processed, last send/form result, last failure, and last inbox check if data exists.
+3. If no remote data exists yet, show a real empty state.
+4. Do not invent local-only browser data as the source of truth.
 
-1. Audit current portal auth.
-   - Repo target: `3dvr-portal`.
-   - Acceptance: doc lists current auth entrypoints, storage keys, Gun identity paths, and billing assumptions.
+Acceptance:
 
-2. Choose first unified session boundary.
-   - Keep existing users working.
-   - Acceptance: decision doc says what owns login and what still depends on legacy Gun identity.
+- Admin panel renders recent runtime/activity without layout shift.
+- Tests assert the Recent Runs structure exists.
+- No secrets, message bodies, or raw email credentials are rendered.
 
-3. Add session status endpoint or portal session bridge.
-   - Acceptance: portal can ask `api.3dvr.tech` who the user is without breaking guest mode.
+### Packet D: Droplet Install Runbook
 
-## Phase 4: Data And Realtime
+Repo: `3dvr-portal`
 
-Goal: stop relying on one sync mechanism for every job.
+Goal: document the real DigitalOcean setup so another agent can rebuild it.
 
-Recommended split:
+Files likely involved:
 
-| Need | Tool |
-| --- | --- |
-| persistent data | Postgres or Supabase |
-| realtime presence | WebSocket or Gun |
-| offline cache | IndexedDB |
-| local-first behavior | service worker |
+- `ops/control-plane/home/RUNBOOKS/digitalocean-agent-host.md`
+- `ops/control-plane/home/RUNBOOKS/README.md`
 
-Agent task cards:
+Facts to include:
 
-1. Map current Gun nodes.
-   - Repo target: `3dvr-portal`.
-   - Acceptance: doc lists node paths for notes, meetings, contacts, CRM, billing hints, and video control.
+- Host: `167.172.193.194`
+- User: `root`
+- Agent path: `/opt/3dvr-agent`
+- CLI symlink: `/usr/local/bin/3dvr`
+- Service: `3dvr-agent.service`
+- Worker sessions: `3dvr-inbox`, `3dvr-autopilot`, `3dvr-heartbeat`
+- Config path: `/root/.3dvr/config/env`
 
-2. Pick one data model to migrate first.
-   - Recommended: notifications or device pairing, not billing.
-   - Acceptance: migration plan includes old path, new table/API shape, and fallback behavior.
+Acceptance:
 
-3. Add IndexedDB cache wrapper.
-   - Use it for one feature only.
-   - Acceptance: feature still works offline and syncs when online.
+- A new agent can SSH in, check service health, restart the service, view logs, and force a heartbeat using the doc.
+- The doc does not expose secrets or app passwords.
 
-## Phase 5: PWA And Notifications
+Suggested commands to document:
 
-Goal: make the portal useful from the phone without pretending PWA push is perfect.
-
-Notification layers:
-
-| Layer | Scope |
-| --- | --- |
-| in-app notification center | always available inside portal |
-| Web Push | Android, desktop, iOS Home Screen installs |
-| helper fallback | Android helper, desktop helper, email, SMS, Telegram, WhatsApp |
-
-Agent task cards:
-
-1. Build notification center UI.
-   - Repo target: `3dvr-portal`.
-   - Acceptance: user can see unread items in-app without enabling push.
-
-2. Add push subscription API.
-   - Repo target: API.
-   - Store browser subscriptions server-side.
-   - Acceptance: subscription can be created, listed for current user, and revoked.
-
-3. Add service worker push handler.
-   - Include notification click behavior.
-   - Acceptance: test covers service worker source and manual browser test is documented.
-
-4. Add fallback policy.
-   - Hub decides: in-app first, push if available, helper/email/SMS if needed.
-   - Acceptance: policy is encoded in code or a runbook, not just chat.
-
-## Phase 6: Device Layer
-
-Goal: make phones and desktops become paired computing nodes.
-
-Android goal:
-
-```text
-3dvr app or PWA
-  -> Termux
-  -> proot Debian
-  -> SSH
-  -> local models
-  -> storage and USB devices
+```sh
+ssh -i /data/data/com.termux/files/home/.ssh/id_rsa root@167.172.193.194
+systemctl status 3dvr-agent.service --no-pager
+3dvr agent status
+3dvr agent heartbeat
+journalctl -u 3dvr-agent.service -n 80 --no-pager
+tmux ls
 ```
 
-iPhone goal:
+### Packet E: Meeting System Smoke Test
 
-```text
-PWA
-  -> push where supported
-  -> cloud AI
-  -> remote terminal/control
+Repo: `3dvr-portal`
+
+Goal: verify the current meeting system still works as links and pages, especially after deployment.
+
+Files likely involved:
+
+- `portal.3dvr.tech/video/join.html`
+- `portal.3dvr.tech/video/meshcast.html`
+- `portal.3dvr.tech/video/ops.html`
+- `portal.3dvr.tech/video/smart-launcher.html`
+- `meeting-notes/index.html`
+- `meeting-notes/meeting.html`
+
+Steps:
+
+1. Verify every page exists in source and on live production.
+2. Confirm `meshcast.html` uses the working VDO.Ninja preset without `utm_source`.
+3. Confirm `join.html` can recommend a profile from device/network hints.
+4. Confirm meeting notes generate host, guest, fallback, and ops links.
+
+Acceptance:
+
+- Relevant tests pass.
+- Live URLs return 200 after deployment.
+- The generated VDO.Ninja links are clean and do not include tracking parameters.
+
+Suggested verification:
+
+```sh
+node --test tests/video-meshcast.test.js tests/video-smart-join.test.js tests/video-ops.test.js tests/smart-launcher.test.js tests/meeting-notes-video-pack.test.js
 ```
 
-Desktop goal:
+### Packet F: Outreach Quality Loop
 
-```text
-Creator Mode
-  -> OBS, Blender, coding, Docker, AI, media production
+Repo: `3dvr-agent`
+
+Goal: keep real outreach useful while the platform work continues.
+
+Files likely involved:
+
+- `thomas-agent/scripts/ask-next`
+- `thomas-agent/scripts/ask-send`
+- `thomas-agent/scripts/ask-form`
+- `thomas-agent/scripts/ask-track`
+- `thomas-agent/node/outreach-log.js`
+- `thomas-agent/node/inbox-monitor.js`
+
+Steps:
+
+1. Run a small batch of real leads from the server or Termux.
+2. Review sent/form messages for tone and contact footer.
+3. Check `ask-track failures`.
+4. Check inbox triage for replies and delivery failures.
+5. Patch only the failure class actually observed.
+
+Acceptance:
+
+- New sends/forms are logged.
+- Failures are categorized.
+- Replies are visible through inbox triage.
+- No duplicate outreach is sent to the same lead unless intentionally marked as follow-up.
+
+Suggested verification:
+
+```sh
+3dvr next
+ask-track failures
+3dvr inbox check
 ```
 
-Agent task cards:
+## Priority Order
 
-1. Device pairing spec.
-   - Define pairing token, device name, platform, capabilities, last seen.
-   - Acceptance: API contract and portal UI sketch exist.
+1. Packet A: verify portal runtime card live.
+2. Packet B: improve agent status output if needed.
+3. Packet D: write the droplet runbook.
+4. Packet C: show recent runs in the portal.
+5. Packet F: continue outreach quality checks.
+6. Packet E: smoke-test meeting links before the next live meeting.
 
-2. Android helper prototype.
-   - First version may be Termux script, not native app.
-   - Acceptance: paired device can report battery/platform/time and receive a test notification.
+## Rules For Smaller Agents
 
-3. Desktop helper prototype.
-   - First version may be Node CLI.
-   - Acceptance: paired desktop can report hostname/platform and open a URL command.
-
-4. Portal device dashboard.
-   - Acceptance: shows paired devices, status, capabilities, and last check-in.
-
-## Phase 7: 3dvr Agent Evolution
-
-Goal: move from outreach script to personal action system.
-
-Current loop:
-
-```text
-crawl -> enrich -> message -> track
-```
-
-Future loop:
-
-```text
-observe -> suggest -> automate -> coordinate -> deploy
-```
-
-Commands to grow toward:
-
-```text
-3dvr nearby
-3dvr leads
-3dvr post
-3dvr deploy
-3dvr sync
-3dvr ai
-3dvr meeting
-3dvr focus
-```
-
-Agent task cards:
-
-1. Preserve outreach reliability.
-   - Repo target: `3dvr-agent`.
-   - Acceptance: email, form, failure tracking, and inbox triage tests pass.
-
-2. Add `3dvr meeting`.
-   - Connect to portal meeting ops links.
-   - Acceptance: command can print host, guest, fallback, and smart join links for a room.
-
-3. Add `3dvr device`.
-   - Connect to device pairing API when available.
-   - Acceptance: command can pair, list, and ping devices.
-
-4. Add action queue.
-   - Agent suggestions become reviewable actions before execution.
-   - Acceptance: queue can hold `send`, `post`, `deploy`, `notify`, and `open-url` actions.
-
-## This Week
-
-1. Make production deploy current.
-   - Ensure `portal.3dvr.tech` is actually serving `main`.
-   - Verify `/portal.3dvr.tech/video/join.html`, `/meshcast.html`, `/ops.html`, and `/smart-launcher.html`.
-
-2. Create API skeleton.
-   - `GET /health` first.
-   - Add route stubs only after health is deployed.
-
-3. Document DO server inventory.
-   - Do not change firewall or proxy blindly.
-   - Capture current state first.
-
-4. Add in-app notification center shell.
-   - No push requirement yet.
-   - Store notifications locally or in Gun until API is ready.
-
-5. Add `3dvr meeting` command.
-   - It should print the same URLs the portal meeting system generates.
-
-## Agent Rules
-
-- Pick one task card.
-- State repo and files before editing.
-- Do not modify billing, auth, or deployment config unless the card requires it.
-- Add or update tests for each user-visible behavior.
+- Start by naming the packet you are working on.
+- State the repo and files before editing.
+- Use the repo's existing Gun SEA and `/api/session` patterns.
+- Do not add a new API endpoint file unless the task explicitly requires it.
+- Do not touch billing, Stripe, or auth migration code unless assigned.
+- Do not commit runtime logs, local env files, OAuth files, or app passwords.
 - Run the smallest relevant test set.
-- If live production is involved, verify the live URL after pushing.
-- Leave a short note in the final response: files changed, tests run, what remains.
+- If production behavior matters, verify the live URL or server command.
+- Final response must include files changed, tests run, and remaining risk.
