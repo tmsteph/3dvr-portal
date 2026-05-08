@@ -344,6 +344,42 @@
     font-size: 0.88rem;
   }
 
+  .agent-runtime-summary {
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: rgba(47, 128, 237, 0.06);
+    border: 1px solid rgba(47, 128, 237, 0.14);
+    color: var(--text-secondary);
+  }
+
+  .agent-runtime-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .agent-runtime-item {
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: rgba(15, 23, 42, 0.03);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+  }
+
+  .agent-runtime-label {
+    display: block;
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+
+  .agent-runtime-value {
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-word;
+  }
+
   @media (max-width: 640px) {
     body {
       padding: 16px;
@@ -470,8 +506,41 @@
               <button id="agent-copy-deploy" class="btn-primary" type="button">Copy deploy</button>
               <button id="agent-copy-restart" class="btn-outline" type="button">Copy restart</button>
               <button id="agent-copy-logs" class="btn-outline" type="button">Copy logs</button>
+              <button id="agent-copy-heartbeat" class="btn-outline" type="button">Copy heartbeat</button>
             </div>
             <pre id="agent-command-preview" class="agent-ops-code">Save host details to generate deploy commands.</pre>
+          </div>
+          <div class="agent-ops-panel" style="grid-column: 1 / -1;">
+            <h3>Live runtime</h3>
+            <div id="agent-runtime-status" class="agent-runtime-summary">
+              Waiting for the first heartbeat from the droplet...
+            </div>
+            <div class="agent-runtime-grid">
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Host</span>
+                <div id="agent-runtime-host" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Status</span>
+                <div id="agent-runtime-state" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Last beat</span>
+                <div id="agent-runtime-beat" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Inbox worker</span>
+                <div id="agent-runtime-inbox" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Outreach worker</span>
+                <div id="agent-runtime-outreach" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Process info</span>
+                <div id="agent-runtime-process" class="agent-runtime-value">--</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -676,6 +745,8 @@
   const requestRecords = {};
   let defaultRecord = {};
   let agentSessionSnapshot = null;
+  let agentRuntimeSnapshot = null;
+  let agentRuntimeSubscribed = false;
   let agentOpsConfig = readAgentOpsConfig();
   let agentOpsOwnerKey = '';
 
@@ -713,7 +784,15 @@
   const agentCopyDeployButton = document.getElementById('agent-copy-deploy');
   const agentCopyRestartButton = document.getElementById('agent-copy-restart');
   const agentCopyLogsButton = document.getElementById('agent-copy-logs');
+  const agentCopyHeartbeatButton = document.getElementById('agent-copy-heartbeat');
   const agentCommandPreview = document.getElementById('agent-command-preview');
+  const agentRuntimeStatus = document.getElementById('agent-runtime-status');
+  const agentRuntimeHost = document.getElementById('agent-runtime-host');
+  const agentRuntimeState = document.getElementById('agent-runtime-state');
+  const agentRuntimeBeat = document.getElementById('agent-runtime-beat');
+  const agentRuntimeInbox = document.getElementById('agent-runtime-inbox');
+  const agentRuntimeOutreach = document.getElementById('agent-runtime-outreach');
+  const agentRuntimeProcess = document.getElementById('agent-runtime-process');
   const leaderboardEl = document.getElementById('leaderboard');
   const stripeTableEl = document.getElementById('stripe-customer-table');
   const stripeStatusEl = document.getElementById('stripe-status');
@@ -805,6 +884,8 @@
     subscribeToData();
     ensureAgentOpsOwnerKey();
     loadAgentOpsConfig();
+    renderAgentRuntime();
+    subscribeAgentRuntime();
     refreshAgentSession();
   }
 
@@ -938,11 +1019,65 @@
       deploy: `${connect} ${shellQuote(`cd ${path} && git pull origin ${branch} && npm install && pm2 restart ${service}`)}`,
       restart: `${connect} ${shellQuote(`cd ${path} && pm2 restart ${service}`)}`,
       logs: `${connect} ${shellQuote(`journalctl -u ${service} -f`)}`,
+      heartbeat: `${connect} ${shellQuote(`cd ${path} && 3dvr agent heartbeat`)}`,
       status: `${connect} ${shellQuote(`systemctl status ${service} --no-pager`)}`,
       path,
       service,
       branch
     };
+  }
+
+  function formatAgentRuntimeValue(value, fallback = '--') {
+    const text = typeof value === 'string' ? value.trim() : '';
+    return text || fallback;
+  }
+
+  function formatAgentBeat(value) {
+    if (!value) return '--';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return formatAgentRuntimeValue(value);
+    return parsed.toLocaleString();
+  }
+
+  function renderAgentRuntime(runtime = agentRuntimeSnapshot || {}) {
+    const snapshot = runtime && typeof runtime === 'object' ? runtime : {};
+    const inbox = snapshot.inbox && typeof snapshot.inbox === 'object' ? snapshot.inbox : {};
+    const outreach = snapshot.outreach && typeof snapshot.outreach === 'object' ? snapshot.outreach : {};
+    const status = formatAgentRuntimeValue(snapshot.status, 'unknown');
+    const host = formatAgentRuntimeValue(snapshot.hostName);
+    const beatAt = formatAgentBeat(snapshot.lastBeatAt);
+    const startedAt = formatAgentBeat(snapshot.startedAt);
+    const pid = snapshot.pid ? String(snapshot.pid) : '--';
+    const service = formatAgentRuntimeValue(snapshot.service, '3dvr-agent');
+    const owner = formatAgentRuntimeValue(snapshot.ownerAlias, ensureAgentOpsOwnerKey());
+
+    if (agentRuntimeStatus) {
+      agentRuntimeStatus.innerText = snapshot.lastBeatAt
+        ? `Heartbeat received for ${owner}.`
+        : 'Waiting for the first heartbeat from the droplet...';
+    }
+    if (agentRuntimeHost) agentRuntimeHost.innerText = host;
+    if (agentRuntimeState) agentRuntimeState.innerText = status;
+    if (agentRuntimeBeat) agentRuntimeBeat.innerText = beatAt;
+    if (agentRuntimeInbox) {
+      agentRuntimeInbox.innerText = `${inbox.running ? 'running' : 'stopped'}${inbox.session ? ` (${inbox.session})` : ''}`;
+    }
+    if (agentRuntimeOutreach) {
+      agentRuntimeOutreach.innerText = `${outreach.running ? 'running' : 'stopped'}${outreach.session ? ` (${outreach.session})` : ''}`;
+    }
+    if (agentRuntimeProcess) {
+      agentRuntimeProcess.innerText = `${service} • pid ${pid} • started ${startedAt}`;
+    }
+  }
+
+  function subscribeAgentRuntime() {
+    if (agentRuntimeSubscribed) return;
+    agentRuntimeSubscribed = true;
+    const runtimeNode = agentOpsNodeForOwner().get('runtime');
+    runtimeNode.on(data => {
+      agentRuntimeSnapshot = data && typeof data === 'object' ? data : {};
+      renderAgentRuntime(agentRuntimeSnapshot);
+    });
   }
 
   function renderAgentOps() {
@@ -955,6 +1090,7 @@
       `Deploy:  ${commands.deploy}`,
       `Restart: ${commands.restart}`,
       `Logs:    ${commands.logs}`,
+      `Heartbeat: ${commands.heartbeat}`,
       `Status:  ${commands.status}`
     ].join('\n');
   }
@@ -2398,6 +2534,9 @@
   }
   if (agentCopyLogsButton) {
     agentCopyLogsButton.addEventListener('click', () => copyAgentCommand('logs'));
+  }
+  if (agentCopyHeartbeatButton) {
+    agentCopyHeartbeatButton.addEventListener('click', () => copyAgentCommand('heartbeat'));
   }
 
   if (recoveryButton) {
