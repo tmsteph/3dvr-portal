@@ -130,7 +130,9 @@ async function main() {
 }
 
 if (require.main === module) {
-  main().catch(error => {
+  main().then(() => {
+    process.exit(0);
+  }).catch(error => {
     console.error(`Failed to write agent heartbeat: ${error.message}`);
     process.exit(1);
   });
