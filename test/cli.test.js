@@ -215,6 +215,12 @@ test('email status reports the legacy Gmail fallback when app password is presen
   assert.match(stdout, /Legacy Gmail app password: configured for 3dvr\.tech@gmail\.com/);
 });
 
+test('track command proxies to ask-track', async () => {
+  const { stdout } = await runCli(['track', 'failures', '1']);
+
+  assert.match(stdout, /No failure entries found\.|failures/i);
+});
+
 test('agent status includes the heartbeat section', async () => {
   const { stdout } = await runCli(['agent', 'status']);
 

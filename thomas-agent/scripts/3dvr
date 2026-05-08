@@ -104,6 +104,7 @@ Agent:
 
 Projects:
 3dvr project list|open|new|deploy
+3dvr track [add|contact|nurture|reply|failed|close|new|followup|nurture-list|view|sent|failures]
 
 Dev:
 3dvr dev yolo            same as 3dvr yolo
@@ -534,6 +535,9 @@ case "$cmd" in
       list) exec "$SCRIPT_DIR/ask-track" new ;;
       *) usage; exit 1 ;;
     esac
+    ;;
+  track)
+    exec "$SCRIPT_DIR/ask-track" "$@"
     ;;
   yolo)
     exec "$SCRIPT_DIR/ask-yolo" "$@"
