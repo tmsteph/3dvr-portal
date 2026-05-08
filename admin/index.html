@@ -302,6 +302,48 @@
     display: none !important;
   }
 
+  .agent-ops-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 14px;
+  }
+
+  .agent-ops-panel {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    background: rgba(248, 250, 255, 0.96);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .agent-ops-panel h3 {
+    margin: 0;
+    font-size: 1.02rem;
+  }
+
+  .agent-ops-status {
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: rgba(47, 128, 237, 0.08);
+    border: 1px solid rgba(47, 128, 237, 0.16);
+    color: var(--text-secondary);
+  }
+
+  .agent-ops-code {
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #0f172a;
+    color: #e2e8f0;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.88rem;
+  }
+
   @media (max-width: 640px) {
     body {
       padding: 16px;
@@ -357,6 +399,79 @@
           <div class="card metric-card">
             <h3>Pending Admin Requests</h3>
             <div id="pending-count" class="metric-value">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="agent-ops-card">
+        <div class="actions" style="justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h2 style="margin: 0 0 4px;">Agent Operations</h2>
+            <p class="text-muted" style="margin: 0;">
+              Control the 3dvr-agent runtime, inspect the current portal session, and build deploy commands for the DigitalOcean host.
+            </p>
+          </div>
+          <button id="agent-refresh-session" class="btn-primary" type="button">Refresh portal session</button>
+        </div>
+        <div id="agent-session-status" class="agent-ops-status">Loading portal session and device recommendation...</div>
+        <div class="agent-ops-grid">
+          <div class="agent-ops-panel">
+            <h3>Portal session</h3>
+            <div class="form-group">
+              <label for="agent-session-alias">Current alias</label>
+              <input id="agent-session-alias" type="text" readonly />
+            </div>
+            <div class="form-group">
+              <label for="agent-session-profile">Recommended video profile</label>
+              <input id="agent-session-profile" type="text" readonly />
+            </div>
+            <div class="form-group">
+              <label for="agent-session-reason">Recommendation reason</label>
+              <textarea id="agent-session-reason" readonly></textarea>
+            </div>
+          </div>
+          <div class="agent-ops-panel">
+            <h3>DigitalOcean host</h3>
+            <p class="text-muted" style="margin: 0;">
+              Store the box details you want the portal to target. The buttons below build SSH commands from these values.
+            </p>
+            <div class="form-group">
+              <label for="agent-host">Host or IP</label>
+              <input id="agent-host" type="text" placeholder="nyc1.3dvr.tech or 203.0.113.10" />
+            </div>
+            <div class="form-group">
+              <label for="agent-user">SSH user</label>
+              <input id="agent-user" type="text" placeholder="root or deploy" />
+            </div>
+            <div class="form-group">
+              <label for="agent-port">SSH port</label>
+              <input id="agent-port" type="text" inputmode="numeric" placeholder="22" />
+            </div>
+            <div class="form-group">
+              <label for="agent-path">Agent path</label>
+              <input id="agent-path" type="text" placeholder="/opt/3dvr/agent" />
+            </div>
+            <div class="form-group">
+              <label for="agent-service">Service name</label>
+              <input id="agent-service" type="text" placeholder="3dvr-agent" />
+            </div>
+            <div class="form-group">
+              <label for="agent-branch">Deploy branch</label>
+              <input id="agent-branch" type="text" placeholder="main" />
+            </div>
+            <div class="actions">
+              <button id="agent-save-config" class="btn-outline" type="button">Save host</button>
+              <button id="agent-copy-ssh" class="btn-outline" type="button">Copy SSH</button>
+            </div>
+          </div>
+          <div class="agent-ops-panel">
+            <h3>Copyable commands</h3>
+            <div class="actions">
+              <button id="agent-copy-deploy" class="btn-primary" type="button">Copy deploy</button>
+              <button id="agent-copy-restart" class="btn-outline" type="button">Copy restart</button>
+              <button id="agent-copy-logs" class="btn-outline" type="button">Copy logs</button>
+            </div>
+            <pre id="agent-command-preview" class="agent-ops-code">Save host details to generate deploy commands.</pre>
           </div>
         </div>
       </div>
@@ -542,6 +657,7 @@
   const workbenchDefaults = workbenchRoot.get('defaults');
   const keyVaultNode = gun.get('ai').get('key-vault');
   let workbenchSecrets = null;
+  const agentOpsStorageKey = 'portal-agent-ops-config';
   // Stripe subscriber summaries live under finance/stripeCustomers to keep shared totals in GunJS.
   const stripeCustomersNode = portalRoot.get('finance').get('stripeCustomers');
   const accountRecoveryLog = portalRoot.get('accountRecovery');
@@ -558,6 +674,8 @@
   const adminRecords = {};
   const requestRecords = {};
   let defaultRecord = {};
+  let agentSessionSnapshot = null;
+  let agentOpsConfig = readAgentOpsConfig();
 
   let isAdmin = false;
   let isRootAdmin = false;
@@ -577,6 +695,23 @@
   const addAdminInput = document.getElementById('new-admin');
   const addAdminButton = document.getElementById('add-admin-button');
   const requestListEl = document.getElementById('request-list');
+  const agentRefreshSessionBtn = document.getElementById('agent-refresh-session');
+  const agentSessionStatus = document.getElementById('agent-session-status');
+  const agentSessionAlias = document.getElementById('agent-session-alias');
+  const agentSessionProfile = document.getElementById('agent-session-profile');
+  const agentSessionReason = document.getElementById('agent-session-reason');
+  const agentHostInput = document.getElementById('agent-host');
+  const agentUserInput = document.getElementById('agent-user');
+  const agentPortInput = document.getElementById('agent-port');
+  const agentPathInput = document.getElementById('agent-path');
+  const agentServiceInput = document.getElementById('agent-service');
+  const agentBranchInput = document.getElementById('agent-branch');
+  const agentSaveConfigButton = document.getElementById('agent-save-config');
+  const agentCopySshButton = document.getElementById('agent-copy-ssh');
+  const agentCopyDeployButton = document.getElementById('agent-copy-deploy');
+  const agentCopyRestartButton = document.getElementById('agent-copy-restart');
+  const agentCopyLogsButton = document.getElementById('agent-copy-logs');
+  const agentCommandPreview = document.getElementById('agent-command-preview');
   const leaderboardEl = document.getElementById('leaderboard');
   const stripeTableEl = document.getElementById('stripe-customer-table');
   const stripeStatusEl = document.getElementById('stripe-status');
@@ -666,6 +801,9 @@
       showElement(addAdminSection);
     }
     subscribeToData();
+    applyAgentOpsConfig(agentOpsConfig);
+    renderAgentOps();
+    refreshAgentSession();
   }
 
   function showRequestForm() {
@@ -684,6 +822,156 @@
         requestReason.disabled = true;
       }
     });
+  }
+
+  function readAgentOpsConfig() {
+    try {
+      const stored = localStorage.getItem(agentOpsStorageKey);
+      return stored ? JSON.parse(stored) || {} : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveAgentOpsConfig(config) {
+    const nextConfig = {
+      host: (config?.host || '').trim(),
+      user: (config?.user || '').trim(),
+      port: (config?.port || '').trim(),
+      path: (config?.path || '').trim(),
+      service: (config?.service || '').trim(),
+      branch: (config?.branch || '').trim()
+    };
+    localStorage.setItem(agentOpsStorageKey, JSON.stringify(nextConfig));
+    agentOpsConfig = nextConfig;
+    return nextConfig;
+  }
+
+  function applyAgentOpsConfig(config) {
+    const nextConfig = {
+      host: config?.host || '',
+      user: config?.user || '',
+      port: config?.port || '',
+      path: config?.path || '',
+      service: config?.service || '',
+      branch: config?.branch || ''
+    };
+
+    if (agentHostInput) agentHostInput.value = nextConfig.host;
+    if (agentUserInput) agentUserInput.value = nextConfig.user;
+    if (agentPortInput) agentPortInput.value = nextConfig.port;
+    if (agentPathInput) agentPathInput.value = nextConfig.path;
+    if (agentServiceInput) agentServiceInput.value = nextConfig.service;
+    if (agentBranchInput) agentBranchInput.value = nextConfig.branch;
+
+    return nextConfig;
+  }
+
+  function getAgentOpsFormValues() {
+    return {
+      host: agentHostInput?.value || '',
+      user: agentUserInput?.value || '',
+      port: agentPortInput?.value || '',
+      path: agentPathInput?.value || '',
+      service: agentServiceInput?.value || '',
+      branch: agentBranchInput?.value || ''
+    };
+  }
+
+  function shellQuote(value) {
+    return `'${String(value || '').replace(/'/g, `'\\''`)}'`;
+  }
+
+  function buildAgentCommandSet(config = {}) {
+    const host = (config.host || '').trim();
+    const userName = (config.user || 'root').trim() || 'root';
+    const port = (config.port || '22').trim() || '22';
+    const path = (config.path || '/opt/3dvr/agent').trim() || '/opt/3dvr/agent';
+    const service = (config.service || '3dvr-agent').trim() || '3dvr-agent';
+    const branch = (config.branch || 'main').trim() || 'main';
+    const sshTarget = `${userName}@${host || 'YOUR_DO_HOST'}`;
+    const sshPort = port && port !== '22' ? `-p ${port} ` : '';
+    const connect = `ssh ${sshPort}${sshTarget}`.trim();
+
+    return {
+      connect,
+      deploy: `${connect} ${shellQuote(`cd ${path} && git pull origin ${branch} && npm install && pm2 restart ${service}`)}`,
+      restart: `${connect} ${shellQuote(`cd ${path} && pm2 restart ${service}`)}`,
+      logs: `${connect} ${shellQuote(`journalctl -u ${service} -f`)}`,
+      status: `${connect} ${shellQuote(`systemctl status ${service} --no-pager`)}`,
+      path,
+      service,
+      branch
+    };
+  }
+
+  function renderAgentOps() {
+    if (!agentCommandPreview) return;
+    const config = saveAgentOpsConfig(getAgentOpsFormValues());
+    const commands = buildAgentCommandSet(config);
+    agentCommandPreview.innerText = [
+      `Connect: ${commands.connect}`,
+      `Deploy:  ${commands.deploy}`,
+      `Restart: ${commands.restart}`,
+      `Logs:    ${commands.logs}`,
+      `Status:  ${commands.status}`
+    ].join('\n');
+  }
+
+  async function refreshAgentSession() {
+    if (!agentSessionStatus) return;
+    agentSessionStatus.innerText = 'Refreshing portal session...';
+    try {
+      const response = await fetch('/api/session', { credentials: 'include' });
+      const payload = response.ok ? await response.json() : {};
+      agentSessionSnapshot = payload;
+      const identity = payload.identity || {};
+      const recommendation = payload.recommendation || {};
+      const device = payload.device || {};
+      const storedDevice = payload.storedDevice || {};
+      const reasonText = Array.isArray(recommendation.reasons) && recommendation.reasons.length
+        ? recommendation.reasons.join(', ')
+        : 'No special constraints reported.';
+      const aliasText = identity.alias || 'Not signed in';
+      const profileText = recommendation.label
+        ? `${recommendation.label} (${recommendation.profile})`
+        : 'Normal';
+
+      if (agentSessionAlias) {
+        agentSessionAlias.value = aliasText;
+      }
+      if (agentSessionProfile) {
+        agentSessionProfile.value = profileText;
+      }
+      if (agentSessionReason) {
+        agentSessionReason.value = reasonText;
+      }
+
+      agentSessionStatus.innerText = payload.ok
+        ? `Portal session loaded for ${aliasText}. Recommended profile: ${profileText}.`
+        : 'Portal session is unavailable right now.';
+      if (storedDevice?.profile || device?.effectiveType) {
+        agentSessionStatus.innerText += ` Device hint: ${storedDevice.profile || device.effectiveType || 'unknown'}.`;
+      }
+    } catch (error) {
+      agentSessionStatus.innerText = 'Could not reach /api/session yet. Check the portal route and try again.';
+    }
+  }
+
+  async function copyAgentCommand(kind) {
+    const commands = buildAgentCommandSet(agentOpsConfig);
+    const value = commands[kind];
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      if (agentSessionStatus) {
+        agentSessionStatus.innerText = `Copied ${kind} command to clipboard.`;
+      }
+    } catch (error) {
+      if (agentSessionStatus) {
+        agentSessionStatus.innerText = `Could not copy ${kind} command.`;
+      }
+    }
   }
 
   function subscribeToData() {
@@ -2011,6 +2299,44 @@
     addAdminInput.value = '';
     setStatus(`${displayName} promoted to admin.`);
   });
+
+  [
+    agentHostInput,
+    agentUserInput,
+    agentPortInput,
+    agentPathInput,
+    agentServiceInput,
+    agentBranchInput
+  ].forEach(input => {
+    if (!input) return;
+    input.addEventListener('input', renderAgentOps);
+  });
+
+  if (agentSaveConfigButton) {
+    agentSaveConfigButton.addEventListener('click', () => {
+      renderAgentOps();
+      if (agentSessionStatus) {
+        agentSessionStatus.innerText = 'Saved host details for this browser.';
+      }
+    });
+  }
+
+  if (agentRefreshSessionBtn) {
+    agentRefreshSessionBtn.addEventListener('click', refreshAgentSession);
+  }
+
+  if (agentCopySshButton) {
+    agentCopySshButton.addEventListener('click', () => copyAgentCommand('connect'));
+  }
+  if (agentCopyDeployButton) {
+    agentCopyDeployButton.addEventListener('click', () => copyAgentCommand('deploy'));
+  }
+  if (agentCopyRestartButton) {
+    agentCopyRestartButton.addEventListener('click', () => copyAgentCommand('restart'));
+  }
+  if (agentCopyLogsButton) {
+    agentCopyLogsButton.addEventListener('click', () => copyAgentCommand('logs'));
+  }
 
   if (recoveryButton) {
     recoveryButton.addEventListener('click', handleAccountRecovery);
