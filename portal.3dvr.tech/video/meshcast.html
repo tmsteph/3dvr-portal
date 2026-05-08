@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr.tech Meshcast Meeting</title>
+  <meta name="description" content="Open the working Meshcast VDO.Ninja preset for 3dvr.tech meetings." />
+  <link rel="icon" href="https://3dvr.tech/favicon.ico" />
+  <style>
+    :root {
+      --bg: #07131d;
+      --panel: rgba(14, 28, 43, 0.94);
+      --panel-2: rgba(20, 39, 59, 0.98);
+      --line: rgba(140, 196, 255, 0.18);
+      --text: #f4f8fc;
+      --muted: #b9c9d9;
+      --blue: #8cc4ff;
+      --gold: #e8c36a;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top right, rgba(140, 196, 255, 0.12), transparent 26%),
+        radial-gradient(circle at top left, rgba(232, 195, 106, 0.08), transparent 24%),
+        linear-gradient(180deg, #051019, #0a1824 42%, #08141f 100%);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    .shell {
+      width: min(920px, 100%);
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      padding: 22px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.3rem);
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+      border: 1px solid rgba(232, 195, 106, 0.24);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 0.86rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .sub, .mini { color: var(--muted); line-height: 1.6; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .button, button, a.button {
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.14s ease;
+    }
+    .button:hover, button:hover, a.button:hover { transform: translateY(-1px); }
+    .primary {
+      background: linear-gradient(135deg, var(--blue), #b1d8ff);
+      color: #08131d;
+      font-weight: 700;
+    }
+    .secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      border-radius: 14px;
+      padding: 12px;
+      border: 1px solid rgba(140, 196, 255, 0.16);
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+      line-height: 1.45;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .status {
+      min-height: 1.2em;
+      color: var(--gold);
+      font-size: 0.93rem;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      body { padding: 14px; }
+      .hero, .panel { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">3dvr.tech • meshcast preset</div>
+      <h1>Meshcast Meeting</h1>
+      <p class="sub">This is the working link you shared, packaged as a page so it is easier to launch and reuse.</p>
+      <div class="actions">
+        <a class="button primary" id="openLink" target="_blank" rel="noopener noreferrer" href="#">Open meeting</a>
+        <button class="secondary" type="button" id="copyLink">Copy link</button>
+        <a class="button secondary" href="/portal.3dvr.tech/video/join.html">Smart Join</a>
+        <a class="button secondary" href="/portal.3dvr.tech/video/index.html">Video Home</a>
+      </div>
+      <div class="status" id="status"></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Preset</h2>
+        <p class="mini">This keeps the working meshcast settings intact, including the low frame rate and audio settings that performed well.</p>
+        <textarea id="urlField" readonly></textarea>
+      </div>
+      <div class="panel">
+        <h2>Notes</h2>
+        <ul class="mini" style="margin:0; padding-left: 18px; display:grid; gap:8px;">
+          <li>This is a direct VDO.Ninja preset, not a generated launcher.</li>
+          <li>The trailing `utm_source` tracking text was removed.</li>
+          <li>Use Smart Join if you want the device to choose a safer fallback automatically.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const url = 'https://vdo.ninja/?room=3dvrtech&meshcast=&codec=h264&meshcastbitrate=80&meshcastaudiobitrate=24&fps=5&scale=180&stereo=0&buffer=20&showlabels=&clearnames=&labelsuggestion=&denoise=0&echocancellation=1&autogain=0&noap=&volumecontrol=';
+    const urlField = document.getElementById('urlField');
+    const openLink = document.getElementById('openLink');
+    const copyLink = document.getElementById('copyLink');
+    const status = document.getElementById('status');
+
+    urlField.value = url;
+    openLink.href = url;
+
+    copyLink.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(url);
+        status.textContent = 'Copied meshcast link.';
+      } catch {
+        const helper = document.createElement('textarea');
+        helper.value = url;
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand('copy');
+        helper.remove();
+        status.textContent = 'Copied meshcast link.';
+      }
+    });
+  </script>
+</body>
+</html>
