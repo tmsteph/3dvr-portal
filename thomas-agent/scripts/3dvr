@@ -105,6 +105,7 @@ Agent:
 Projects:
 3dvr project list|open|new|deploy
 3dvr track [add|contact|nurture|reply|failed|close|new|followup|nurture-list|view|sent|failures]
+3dvr meeting [room] [control]    build a meeting pack with smart join, ops, meshcast, and fallback links
 
 Dev:
 3dvr dev yolo            same as 3dvr yolo
@@ -236,6 +237,7 @@ print_next_steps() {
 Useful next commands:
   3dvr next          show the next best lead action
   3dvr inbox check   check unread replies
+  3dvr meeting       build a meeting pack with smart join and fallback links
   3dvr connect       connect Gmail with portal OAuth
   3dvr agent start   start background workers
 STEPS
@@ -431,6 +433,64 @@ auth_login() {
   open_url "$url"
 }
 
+sanitize_meeting_token() {
+  value="${1:-}"
+  fallback="${2:-3dvrtech}"
+  value="$(printf '%s' "$value" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]_-')"
+  [ -n "$value" ] || value="$fallback"
+  printf '%s\n' "$value"
+}
+
+build_meeting_url() {
+  page="$1"
+  room="$2"
+  control="$3"
+  role="$4"
+  name="$5"
+  profile="${6:-}"
+  codec="${7:-h264}"
+  url="${PORTAL_URL%/}/portal.3dvr.tech/video/$page"
+  query="room=$(sanitize_meeting_token "$room" 3dvrtech)&control=$(sanitize_meeting_token "$control" "$(sanitize_meeting_token "$room" 3dvrtech)")"
+  [ -n "$role" ] && query="$query&role=$(sanitize_meeting_token "$role" participant)"
+  [ -n "$name" ] && query="$query&name=$(sanitize_meeting_token "$name" guest)"
+  [ -n "$profile" ] && query="$query&profile=$(sanitize_meeting_token "$profile" low)"
+  [ -n "$codec" ] && query="$query&codec=$(sanitize_meeting_token "$codec" h264)"
+  printf '%s?%s\n' "$url" "$query"
+}
+
+meeting_pack() {
+  room="$(sanitize_meeting_token "${1:-}" 3dvrtech)"
+  control_input="${2:-$room}"
+  control="$(sanitize_meeting_token "$control_input" "$room")"
+  participant_url="$(build_meeting_url "join.html" "$room" "$control" "participant" "guest" "low" "h264")"
+  director_url="$(build_meeting_url "smart-launcher.html" "$room" "$control" "director" "host" "normal" "h264")"
+  guest_url="$(build_meeting_url "smart-launcher.html" "$room" "$control" "participant" "guest" "low" "h264")"
+  fallback_url="https://vdo.ninja/?room=$room&label&showlabels&codec=h264&vb=120&ab=24&fps=4&scale=96p&stereo=0&buffer=30"
+  ops_url="$(build_meeting_url "ops.html" "$room" "$control" "participant" "guest" "normal" "h264")"
+
+  print_section "Meeting pack"
+  printf 'Room: %s\n' "$room"
+  printf 'Control: %s\n' "$control"
+  echo
+  printf '%s\n' "Smart Join:"
+  printf '%s\n' "$participant_url"
+  echo
+  printf '%s\n' "Meeting Ops:"
+  printf '%s\n' "$ops_url"
+  echo
+  printf '%s\n' "Host / Director:"
+  printf '%s\n' "$director_url"
+  echo
+  printf '%s\n' "Guest / Participant:"
+  printf '%s\n' "$guest_url"
+  echo
+  printf '%s\n' "Fallback / Crunch:"
+  printf '%s\n' "$fallback_url"
+  echo
+  printf '%s\n' "Meshcast Meeting:"
+  printf '%s\n' "${PORTAL_URL%/}/portal.3dvr.tech/video/meshcast.html"
+}
+
 project_root() {
   case "${1:-list}" in
     portal) printf '%s\n' "/data/data/com.termux/files/home/3dvr-portal" ;;
@@ -538,6 +598,9 @@ case "$cmd" in
     ;;
   track)
     exec "$SCRIPT_DIR/ask-track" "$@"
+    ;;
+  meeting)
+    meeting_pack "${1:-}" "${2:-}"
     ;;
   yolo)
     exec "$SCRIPT_DIR/ask-yolo" "$@"

@@ -71,6 +71,7 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr inbox watch\s+run inbox monitor once with reply previews/);
   assert.match(stdout, /3dvr send-auto\s+auto-send the next direct-email lead and mark it contacted/);
   assert.match(stdout, /3dvr lead send-current\s+auto-send the currently loaded lead/);
+  assert.match(stdout, /3dvr meeting \[room\] \[control\]\s+build a meeting pack with smart join, ops, meshcast, and fallback links/);
   assert.match(stdout, /3dvr yolo\s+local llama\.cpp patch-edit helper/);
   assert.match(stdout, /3dvr yolo-app\s+generate a page inside the 3dvr-site repo/);
   assert.match(stdout, /3dvr yolo-new-site\s+generate a new site repo and push it to GitHub/);
@@ -219,6 +220,23 @@ test('track command proxies to ask-track', async () => {
   const { stdout } = await runCli(['track', 'failures', '1']);
 
   assert.match(stdout, /No failure entries found\.|failures/i);
+});
+
+test('meeting command prints a sanitized meeting pack', async () => {
+  const { stdout } = await runCli(['meeting', 'Team Sync!', 'Control/Board']);
+
+  assert.match(stdout, /Meeting pack/);
+  assert.match(stdout, /Room: teamsync/);
+  assert.match(stdout, /Control: controlboard/);
+  assert.match(stdout, /Smart Join:/);
+  assert.match(stdout, /Meeting Ops:/);
+  assert.match(stdout, /Host \/ Director:/);
+  assert.match(stdout, /Guest \/ Participant:/);
+  assert.match(stdout, /Fallback \/ Crunch:/);
+  assert.match(stdout, /Meshcast Meeting:/);
+  assert.match(stdout, /room=teamsync/);
+  assert.match(stdout, /control=controlboard/);
+  assert.match(stdout, /vdo\.ninja\/\?room=teamsync&label&showlabels&codec=h264&vb=120&ab=24&fps=4&scale=96p&stereo=0&buffer=30/);
 });
 
 test('agent status includes the heartbeat section', async () => {
