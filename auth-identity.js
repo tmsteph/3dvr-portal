@@ -116,7 +116,7 @@
     const nextUsername = identity.username || aliasToDisplay(nextAlias) || 'User';
     const nextVerifiedEmail = normalizeText(identity.verifiedEmail).toLowerCase();
     const hasStoredPassword = normalizeText(storage.getItem('password')).length > 0;
-    const nextSignedIn = hasStoredPassword || identity.authMethod === 'oauth';
+    const nextSignedIn = hasStoredPassword || identity.authMethod === 'oauth' || identity.authMethod === 'sea';
     const currentSignedIn = storage.getItem('signedIn') === 'true';
     const currentAlias = normalizeText(storage.getItem('alias'));
     const currentUsername = normalizeText(storage.getItem('username'));

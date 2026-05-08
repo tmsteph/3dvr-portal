@@ -152,6 +152,24 @@ describe('auth identity helper', () => {
     assert.equal(localStorage.getItem('verifiedEmail'), 'oauth@example.com');
   });
 
+  it('preserves signed-in mode for SEA identities without a stored password', () => {
+    const { api, localStorage } = loadAuthIdentity();
+
+    api.writeSharedIdentity({
+      signedIn: true,
+      alias: 'sea@3dvr',
+      username: 'SEA User',
+      authMethod: 'sea',
+      authProvider: 'gun',
+    });
+
+    const changed = api.syncStorageFromSharedIdentity(localStorage);
+    assert.equal(changed, true);
+    assert.equal(localStorage.getItem('signedIn'), 'true');
+    assert.equal(localStorage.getItem('authMethod'), 'sea');
+    assert.equal(localStorage.getItem('authProvider'), 'gun');
+  });
+
   it('clears shared identity cookies', () => {
     const { api } = loadAuthIdentity();
 
