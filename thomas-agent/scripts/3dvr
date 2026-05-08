@@ -624,7 +624,7 @@ INBOX
   agent)
     sub="${1:-status}"
     case "$sub" in
-      status) print_section "Inbox worker"; "$SCRIPT_DIR/ask-inbox-daemon" status; print_section "Outreach worker"; "$SCRIPT_DIR/ask-autopilot-daemon" status || true; print_section "Heartbeat"; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" status || true ;;
+      status) print_section "Inbox worker"; "$SCRIPT_DIR/ask-inbox-daemon" status || true; print_section "Outreach worker"; "$SCRIPT_DIR/ask-autopilot-daemon" status || true; print_section "Heartbeat"; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" status || true ;;
       start) echo "Starting inbox, outreach, and heartbeat workers..."; "$SCRIPT_DIR/ask-inbox-daemon" start; "$SCRIPT_DIR/ask-autopilot-daemon" start; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" start; echo "Run `3dvr status` to verify." ;;
       stop) echo "Stopping inbox, outreach, and heartbeat workers..."; "$SCRIPT_DIR/ask-inbox-daemon" stop; "$SCRIPT_DIR/ask-autopilot-daemon" stop; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" stop ;;
       logs) print_section "Inbox logs"; "$SCRIPT_DIR/ask-inbox-daemon" logs; print_section "Outreach logs"; "$SCRIPT_DIR/ask-autopilot-daemon" logs; print_section "Heartbeat logs"; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" logs ;;

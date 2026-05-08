@@ -215,6 +215,15 @@ test('email status reports the legacy Gmail fallback when app password is presen
   assert.match(stdout, /Legacy Gmail app password: configured for 3dvr\.tech@gmail\.com/);
 });
 
+test('agent status includes the heartbeat section', async () => {
+  const { stdout } = await runCli(['agent', 'status']);
+
+  assert.match(stdout, /Heartbeat/);
+  assert.match(stdout, /Heartbeat snapshot/);
+  assert.match(stdout, /Inbox worker/);
+  assert.match(stdout, /Outreach worker/);
+});
+
 test('sent-next marks the last shown lead and advances to the next one', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-cli-'));
   const leads = path.join(tmp, 'leads.csv');

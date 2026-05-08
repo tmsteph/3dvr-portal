@@ -70,8 +70,11 @@ case "${1:-}" in
       echo "Log: $LOG_FILE"
     else
       echo "Agent heartbeat is not running."
-      exit 1
     fi
+    echo
+    echo "Heartbeat snapshot"
+    echo "----------------------------------------"
+    "$SCRIPT_DIR/ask-agent-heartbeat" status || true
     ;;
   run-now)
     exec "$SCRIPT_DIR/ask-agent-heartbeat"
