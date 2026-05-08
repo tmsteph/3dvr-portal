@@ -165,13 +165,45 @@ async function fill({ page, lead, message, options = {} }) {
 
   const submitPlan = planSubmitControl(submitFields);
   if (submitPlan) {
-    await formSubmitLocator.nth(submitPlan.index).click();
-    if (typeof page.waitForLoadState === 'function') {
-      await page.waitForLoadState('networkidle', { timeout: maxWaitMs }).catch(() => {});
+    let clickSucceeded = false;
+    try {
+      await formSubmitLocator.nth(submitPlan.index).click({ force: true });
+      clickSucceeded = true;
+    } catch {
+      clickSucceeded = false;
     }
-    result.submissionMethod = 'click';
-    result.submitted = true;
-    return result;
+
+    if (clickSucceeded) {
+      if (typeof page.waitForLoadState === 'function') {
+        await page.waitForLoadState('networkidle', { timeout: maxWaitMs }).catch(() => {});
+      }
+      result.submissionMethod = 'click';
+      result.submitted = true;
+      return result;
+    }
+
+    if (typeof formLocator.first === 'function' && submitFormCount > 0) {
+      const submissionMethod = await formLocator.first().evaluate((form) => {
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+          return 'requestSubmit';
+        }
+        if (typeof form.submit === 'function') {
+          form.submit();
+          return 'submit';
+        }
+        return '';
+      }).catch(() => '');
+
+      if (submissionMethod) {
+        if (typeof page.waitForLoadState === 'function') {
+          await page.waitForLoadState('networkidle', { timeout: maxWaitMs }).catch(() => {});
+        }
+        result.submissionMethod = submissionMethod;
+        result.submitted = true;
+        return result;
+      }
+    }
   }
 
   if (typeof formLocator.first === 'function' && submitFormCount > 0) {
