@@ -4,7 +4,7 @@
   "description": "Main portal for 3dvr.tech with Stripe webhooks and email notifications",
   "type": "module",
   "scripts": {
-    "dev": "http-server -c-1 -p 3000",
+    "dev": "node scripts/dev-server.mjs",
     "start": "npm run dev",
     "test": "node --test",
     "env:check": "node scripts/env/check.mjs",
