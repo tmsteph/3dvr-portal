@@ -100,7 +100,7 @@ Email aliases:
 3dvr rollback-agent      git reset --hard helper for the current repo
 
 Agent:
-3dvr agent status|start|stop|logs|restart
+3dvr agent status|start|stop|logs|restart|heartbeat
 
 Projects:
 3dvr project list|open|new|deploy
@@ -147,7 +147,7 @@ menu_header() {
   printf '%s\n' '2) Show lead card             Open the current lead summary'
   printf '%s\n' '3) Mark contacted             Save the current lead as contacted'
   printf '%s\n' '4) Check inbox                Look for replies that need attention'
-  printf '%s\n' '5) See agent status           Leads, inbox worker, outreach worker'
+  printf '%s\n' '5) See agent status           Leads, inbox worker, outreach worker, heartbeat'
   printf '%s\n' '6) Start/stop background      Manage the local worker'
   printf '%s\n' '7) Connect email              Gmail now, Outlook later'
   printf '%s\n' '8) Open portal                Continue in the browser'
@@ -475,6 +475,8 @@ case "$cmd" in
     "$SCRIPT_DIR/ask-inbox-daemon" status || true
     echo
     "$SCRIPT_DIR/ask-autopilot-daemon" status || true
+    echo
+    "$SCRIPT_DIR/ask-agent-heartbeat-daemon" status || true
     print_next_steps
     ;;
   portal) open_url "$PORTAL_URL" ;;
@@ -622,11 +624,12 @@ INBOX
   agent)
     sub="${1:-status}"
     case "$sub" in
-      status) print_section "Inbox worker"; "$SCRIPT_DIR/ask-inbox-daemon" status; print_section "Outreach worker"; "$SCRIPT_DIR/ask-autopilot-daemon" status || true ;;
-      start) echo "Starting inbox and outreach workers..."; "$SCRIPT_DIR/ask-inbox-daemon" start; "$SCRIPT_DIR/ask-autopilot-daemon" start; echo "Run `3dvr status` to verify." ;;
-      stop) echo "Stopping inbox and outreach workers..."; "$SCRIPT_DIR/ask-inbox-daemon" stop; "$SCRIPT_DIR/ask-autopilot-daemon" stop ;;
-      logs) print_section "Inbox logs"; "$SCRIPT_DIR/ask-inbox-daemon" logs; print_section "Outreach logs"; "$SCRIPT_DIR/ask-autopilot-daemon" logs ;;
+      status) print_section "Inbox worker"; "$SCRIPT_DIR/ask-inbox-daemon" status; print_section "Outreach worker"; "$SCRIPT_DIR/ask-autopilot-daemon" status || true; print_section "Heartbeat"; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" status || true ;;
+      start) echo "Starting inbox, outreach, and heartbeat workers..."; "$SCRIPT_DIR/ask-inbox-daemon" start; "$SCRIPT_DIR/ask-autopilot-daemon" start; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" start; echo "Run `3dvr status` to verify." ;;
+      stop) echo "Stopping inbox, outreach, and heartbeat workers..."; "$SCRIPT_DIR/ask-inbox-daemon" stop; "$SCRIPT_DIR/ask-autopilot-daemon" stop; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" stop ;;
+      logs) print_section "Inbox logs"; "$SCRIPT_DIR/ask-inbox-daemon" logs; print_section "Outreach logs"; "$SCRIPT_DIR/ask-autopilot-daemon" logs; print_section "Heartbeat logs"; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" logs ;;
       restart) "$0" agent stop || true; "$0" agent start ;;
+      heartbeat) exec "$SCRIPT_DIR/ask-agent-heartbeat-daemon" run-now ;;
       *) usage; exit 1 ;;
     esac
     ;;
