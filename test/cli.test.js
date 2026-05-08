@@ -71,7 +71,7 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr inbox watch\s+run inbox monitor once with reply previews/);
   assert.match(stdout, /3dvr send-auto\s+auto-send the next direct-email lead and mark it contacted/);
   assert.match(stdout, /3dvr lead send-current\s+auto-send the currently loaded lead/);
-  assert.match(stdout, /3dvr meeting \[room\] \[control\]\s+build a meeting pack with smart join, ops, meshcast, and fallback links/);
+  assert.match(stdout, /3dvr meeting \[room\] \[control\]\s+build or open a meeting pack with smart join, ops, meshcast, and fallback links/);
   assert.match(stdout, /3dvr yolo\s+local llama\.cpp patch-edit helper/);
   assert.match(stdout, /3dvr yolo-app\s+generate a page inside the 3dvr-site repo/);
   assert.match(stdout, /3dvr yolo-new-site\s+generate a new site repo and push it to GitHub/);
@@ -237,6 +237,23 @@ test('meeting command prints a sanitized meeting pack', async () => {
   assert.match(stdout, /room=teamsync/);
   assert.match(stdout, /control=controlboard/);
   assert.match(stdout, /vdo\.ninja\/\?room=teamsync&label&showlabels&codec=h264&vb=120&ab=24&fps=4&scale=96p&stereo=0&buffer=30/);
+});
+
+test('meeting open mode launches the smart join link', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-meeting-'));
+  const openLog = path.join(tmp, 'open.log');
+
+  try {
+    const { stdout } = await runCli(['meeting', '--open', 'Team Sync!', 'Control/Board'], {
+      THREEDVR_OPEN_URL_LOG: openLog,
+    });
+    const openText = await readFile(openLog, 'utf8');
+
+    assert.equal(stdout.trim(), '');
+    assert.match(openText, /\/portal\.3dvr\.tech\/video\/join\.html\?room=teamsync&control=controlboard&role=participant&name=guest&profile=low&codec=h264/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
 });
 
 test('agent status includes the heartbeat section', async () => {
