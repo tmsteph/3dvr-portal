@@ -545,6 +545,42 @@
         </div>
       </div>
 
+      <div class="card" id="agent-runs-card">
+        <div class="actions" style="justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h2 style="margin: 0 0 4px;">Recent Autopilot Runs</h2>
+            <p class="text-muted" style="margin: 0;">
+              Read the latest run summaries the agent already writes to Gun.
+            </p>
+          </div>
+          <button id="agent-refresh-runs" class="btn-primary" type="button">Refresh runs</button>
+        </div>
+        <div id="agent-runs-status" class="agent-ops-status" style="margin-top: 14px;">
+          Waiting for the latest autopilot summary...
+        </div>
+        <div class="agent-runtime-grid" style="margin-top: 14px;">
+          <div class="agent-runtime-item">
+            <span class="agent-runtime-label">Last run</span>
+            <div id="agent-runs-last" class="agent-runtime-value">--</div>
+          </div>
+          <div class="agent-runtime-item">
+            <span class="agent-runtime-label">Counts</span>
+            <div id="agent-runs-counts" class="agent-runtime-value">--</div>
+          </div>
+          <div class="agent-runtime-item">
+            <span class="agent-runtime-label">Routes</span>
+            <div id="agent-runs-routes" class="agent-runtime-value">--</div>
+          </div>
+          <div class="agent-runtime-item">
+            <span class="agent-runtime-label">Active combo</span>
+            <div id="agent-runs-combo" class="agent-runtime-value">--</div>
+          </div>
+        </div>
+        <div id="agent-runs-list" class="list" aria-live="polite" style="margin-top: 14px;">
+          <div class="empty-state">Waiting for autopilot run history...</div>
+        </div>
+      </div>
+
       <div class="card" id="defaults-card">
         <h2>Workbench Shared Defaults</h2>
         <p class="text-muted">
@@ -724,6 +760,7 @@
   const userStats = portalRoot.get('userStats');
   const userDeletionLog = portalRoot.get('userDeletions');
   const agentOpsRoot = portalRoot.get('agentOps');
+  const autopilotRoot = gun.get('3dvr').get('ops').get('autopilot');
   const workbenchDefaults = workbenchRoot.get('defaults');
   const keyVaultNode = gun.get('ai').get('key-vault');
   let workbenchSecrets = null;
@@ -747,6 +784,9 @@
   let agentSessionSnapshot = null;
   let agentRuntimeSnapshot = null;
   let agentRuntimeSubscribed = false;
+  let agentAutopilotStateSnapshot = null;
+  let agentAutopilotRunRecords = {};
+  let agentAutopilotSubscribed = false;
   let agentOpsConfig = readAgentOpsConfig();
   let agentOpsOwnerKey = '';
 
@@ -793,6 +833,13 @@
   const agentRuntimeInbox = document.getElementById('agent-runtime-inbox');
   const agentRuntimeOutreach = document.getElementById('agent-runtime-outreach');
   const agentRuntimeProcess = document.getElementById('agent-runtime-process');
+  const agentRefreshRunsBtn = document.getElementById('agent-refresh-runs');
+  const agentRunsStatus = document.getElementById('agent-runs-status');
+  const agentRunsLast = document.getElementById('agent-runs-last');
+  const agentRunsCounts = document.getElementById('agent-runs-counts');
+  const agentRunsRoutes = document.getElementById('agent-runs-routes');
+  const agentRunsCombo = document.getElementById('agent-runs-combo');
+  const agentRunsList = document.getElementById('agent-runs-list');
   const leaderboardEl = document.getElementById('leaderboard');
   const stripeTableEl = document.getElementById('stripe-customer-table');
   const stripeStatusEl = document.getElementById('stripe-status');
@@ -886,6 +933,8 @@
     loadAgentOpsConfig();
     renderAgentRuntime();
     subscribeAgentRuntime();
+    renderAutopilotRuns();
+    subscribeAutopilotRuns();
     refreshAgentSession();
   }
 
@@ -1025,6 +1074,107 @@
       service,
       branch
     };
+  }
+
+  function summarizeCounts(counts = {}) {
+    const total = Number(counts.total || 0);
+    const newCount = Number(counts.new || 0);
+    const replied = Number(counts.replied || 0);
+    const contacted = Number(counts.contacted || 0);
+    return `new ${newCount}, contacted ${contacted}, replied ${replied}, total ${total}`;
+  }
+
+  function summarizeRoutes(routes = {}) {
+    const emailReady = Number(routes.emailReady || 0);
+    const formReady = Number(routes.formReady || 0);
+    const pageOnly = Number(routes.pageOnly || 0);
+    const unenriched = Number(routes.unenriched || 0);
+    return `email ${emailReady}, form ${formReady}, page ${pageOnly}, unenriched ${unenriched}`;
+  }
+
+  function formatAutopilotCombo(combo = {}) {
+    const location = combo.location || '';
+    const category = combo.category || '';
+    if (!location && !category) return '--';
+    return [location, category].filter(Boolean).join(' / ');
+  }
+
+  function formatAutopilotRunSummary(run = {}) {
+    const ranAt = run.ranAt || run.timestamp || run.createdAt || '';
+    const counts = summarizeCounts(run.counts || {});
+    const combo = formatAutopilotCombo(run.combo || {});
+    const actionCount = Array.isArray(run.actionItems) ? run.actionItems.length : Array.isArray(run.commands) ? run.commands.length : 0;
+    return {
+      title: run.runId || run.id || ranAt || 'Autopilot run',
+      subtitle: [ranAt, combo !== '--' ? combo : '', counts].filter(Boolean).join(' | '),
+      details: actionCount ? `${actionCount} action${actionCount === 1 ? '' : 's'}` : 'No queued actions',
+    };
+  }
+
+  function renderAutopilotRuns() {
+    if (!agentRunsList) return;
+
+    const state = agentAutopilotStateSnapshot || {};
+    const runs = Object.values(agentAutopilotRunRecords || {})
+      .filter(Boolean)
+      .sort((a, b) => String(b.ranAt || b.timestamp || '').localeCompare(String(a.ranAt || a.timestamp || '')))
+      .slice(0, 5);
+
+    if (agentRunsStatus) {
+      if (state.lastRunAt || runs.length) {
+        agentRunsStatus.innerText = state.lastRunAt
+          ? `Latest autopilot run: ${state.lastRunAt}`
+          : 'Autopilot run history loaded.';
+      } else {
+        agentRunsStatus.innerText = 'Waiting for the latest autopilot summary...';
+      }
+    }
+
+    if (agentRunsLast) agentRunsLast.innerText = state.lastRunAt || runs[0]?.ranAt || '--';
+    if (agentRunsCounts) agentRunsCounts.innerText = state.counts ? summarizeCounts(state.counts) : '--';
+    if (agentRunsRoutes) agentRunsRoutes.innerText = state.routeCounts ? summarizeRoutes(state.routeCounts) : '--';
+    if (agentRunsCombo) agentRunsCombo.innerText = state.combo ? formatAutopilotCombo(state.combo) : '--';
+
+    if (!runs.length) {
+      agentRunsList.innerHTML = '<div class="empty-state">Waiting for autopilot run history...</div>';
+      return;
+    }
+
+    agentRunsList.innerHTML = runs.map((run) => {
+      const summary = formatAutopilotRunSummary(run);
+      return `
+        <div class="list-item">
+          <div class="info">
+            <strong>${escapeHtml(summary.title)}</strong>
+            <span>${escapeHtml(summary.subtitle)}</span>
+          </div>
+          <span class="text-muted">${escapeHtml(summary.details)}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function subscribeAutopilotRuns() {
+    if (agentAutopilotSubscribed) return;
+    agentAutopilotSubscribed = true;
+
+    autopilotRoot.get('state').on((data) => {
+      agentAutopilotStateSnapshot = data && typeof data === 'object' ? data : {};
+      renderAutopilotRuns();
+    });
+
+    autopilotRoot.get('runs').map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        delete agentAutopilotRunRecords[key];
+      } else {
+        agentAutopilotRunRecords[key] = {
+          ...agentAutopilotRunRecords[key],
+          ...data,
+        };
+      }
+      renderAutopilotRuns();
+    });
   }
 
   function formatAgentRuntimeValue(value, fallback = '--') {
@@ -2537,6 +2687,9 @@
   }
   if (agentCopyHeartbeatButton) {
     agentCopyHeartbeatButton.addEventListener('click', () => copyAgentCommand('heartbeat'));
+  }
+  if (agentRefreshRunsBtn) {
+    agentRefreshRunsBtn.addEventListener('click', renderAutopilotRuns);
   }
 
   if (recoveryButton) {

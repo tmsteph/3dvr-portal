@@ -43,8 +43,16 @@ test('admin portal exposes an agent operations control surface', async () => {
   assert.match(html, /id="agent-runtime-inbox"/);
   assert.match(html, /id="agent-runtime-outreach"/);
   assert.match(html, /id="agent-runtime-process"/);
+  assert.match(html, /id="agent-runs-card"/);
+  assert.match(html, /id="agent-runs-status"/);
+  assert.match(html, /id="agent-runs-last"/);
+  assert.match(html, /id="agent-runs-counts"/);
+  assert.match(html, /id="agent-runs-routes"/);
+  assert.match(html, /id="agent-runs-combo"/);
+  assert.match(html, /id="agent-runs-list"/);
   assert.match(html, /portal-agent-ops-config/);
   assert.match(html, /portalRoot\.get\('agentOps'\)/);
+  assert.match(html, /gun\.get\('3dvr'\)\.get\('ops'\)\.get\('autopilot'\)/);
   assert.match(html, /function ensureAgentOpsOwnerKey\(\)/);
   assert.match(html, /function persistAgentOpsConfig\(config = \{\}\)/);
   assert.match(html, /fetch\('\/api\/session'/);
@@ -55,6 +63,8 @@ test('admin portal exposes an agent operations control surface', async () => {
   assert.match(html, /DigitalOcean host/);
   assert.match(html, /Saved host details to the portal account/);
   assert.match(html, /3dvr-agent/);
+  assert.match(html, /Recent Autopilot Runs/);
+  assert.match(html, /Read the latest run summaries the agent already writes to Gun/);
 });
 
 test('portal home links to the agent ops dashboard', async () => {
