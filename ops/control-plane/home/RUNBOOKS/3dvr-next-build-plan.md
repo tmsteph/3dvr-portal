@@ -43,6 +43,40 @@ Success means an admin can open `portal.3dvr.tech/admin/`, see whether the Digit
 
 Each packet is designed for one smaller agent. Do not combine packets unless explicitly assigned.
 
+### Packet 0: Merge And Deploy Gate
+
+Repo: `3dvr-portal`
+
+Goal: make sure completed portal work is actually on the branch that production deploys.
+
+Why this exists:
+
+- The agent ops and heartbeat UI currently exist on `feature/api-health-skeleton`.
+- Production may still serve `main` or another configured branch.
+- Smaller agents must not assume a pushed feature branch is live.
+
+Steps:
+
+1. Check the current local branch and remote sync state.
+2. Confirm whether the production deploy source is `main`, a feature branch, or a Vercel project setting.
+3. If the feature branch is ready, merge it into the deploy source branch using a normal non-destructive merge.
+4. Push with the Termux GitHub credential context when needed.
+5. Verify the live page contains the new runtime markers.
+
+Acceptance:
+
+- `https://portal.3dvr.tech/admin/` source includes `agent-runtime-status`, `Live runtime`, and `Copy heartbeat`.
+- The deployed branch contains the same commit as the reviewed feature work.
+- No billing, Stripe, or auth behavior changes are introduced during the merge.
+
+Suggested verification:
+
+```sh
+git status --short --branch
+HOME=/data/data/com.termux/files/home PATH=/data/data/com.termux/files/usr/bin:$PATH git push
+curl -fsSL https://portal.3dvr.tech/admin/ | rg 'agent-runtime-status|Live runtime|Copy heartbeat'
+```
+
 ### Packet A: Verify Live Portal Runtime Card
 
 Repo: `3dvr-portal`
@@ -249,6 +283,7 @@ ask-track failures
 
 ## Priority Order
 
+0. Packet 0: merge and deploy gate.
 1. Packet A: verify portal runtime card live.
 2. Packet B: improve agent status output if needed.
 3. Packet D: write the droplet runbook.
