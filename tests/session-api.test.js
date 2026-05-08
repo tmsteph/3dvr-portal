@@ -50,6 +50,7 @@ test('session handler returns current cookie-backed identity', async () => {
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.ok, true);
+  assert.equal(res.body.health, true);
   assert.equal(res.body.authenticated, true);
   assert.equal(res.body.identity.alias, 'pilot@3dvr');
   assert.equal(res.body.identity.authMethod, 'sea');
@@ -102,6 +103,55 @@ test('session handler verifies SEA auth and issues a shared cookie', async () =>
   assert.equal(res.body.identity.alias, 'pilot@3dvr');
   assert.equal(res.body.identity.scope, 'portal-session');
   assert.match(String(res.headers['Set-Cookie'] || ''), /portalIdentity=/);
+});
+
+test('session handler stores device hints from the signed portal cookie', async () => {
+  const handler = createSessionHandler({
+    config: {
+      PORTAL_ORIGIN: 'https://portal.3dvr.tech'
+    }
+  });
+  const req = {
+    method: 'POST',
+    headers: {
+      host: 'portal.3dvr.tech',
+      'user-agent': 'Mozilla/5.0 (Linux; Android 14; Pixel)',
+      cookie: 'portalIdentity=' + encodeURIComponent(JSON.stringify({
+        alias: 'pilot@3dvr',
+        username: 'Pilot',
+        signedIn: true,
+        authMethod: 'sea',
+        authProvider: 'gun',
+        updatedAt: Date.now()
+      }))
+    },
+    body: {
+      kind: 'device',
+      origin: 'https://portal.3dvr.tech',
+      device: {
+        userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel)',
+        platform: 'Android',
+        effectiveType: '3g',
+        downlink: 1.3,
+        rtt: 410,
+        cores: 4,
+        memory: 4,
+        touch: true,
+        saveData: false,
+        screenWidth: 1080,
+        screenHeight: 2400
+      }
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.recommendation.profile, 'low');
+  assert.equal(res.body.device.effectiveType, '3g');
+  assert.match(String(res.headers['Set-Cookie'] || ''), /portalDevice=/);
 });
 
 test('session handler rejects bad methods', async () => {
