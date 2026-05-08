@@ -36,11 +36,15 @@ test('admin portal exposes an agent operations control surface', async () => {
   assert.match(html, /id="agent-copy-restart"/);
   assert.match(html, /id="agent-copy-logs"/);
   assert.match(html, /portal-agent-ops-config/);
+  assert.match(html, /portalRoot\.get\('agentOps'\)/);
+  assert.match(html, /function ensureAgentOpsOwnerKey\(\)/);
+  assert.match(html, /function persistAgentOpsConfig\(config = \{\}\)/);
   assert.match(html, /fetch\('\/api\/session'/);
   assert.match(html, /Copy deploy/);
   assert.match(html, /Copy restart/);
   assert.match(html, /Copy logs/);
   assert.match(html, /DigitalOcean host/);
+  assert.match(html, /Saved host details to the portal account/);
   assert.match(html, /3dvr-agent/);
 });
 

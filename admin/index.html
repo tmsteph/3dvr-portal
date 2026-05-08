@@ -654,6 +654,7 @@
   const userIndex = portalRoot.get('userIndex');
   const userStats = portalRoot.get('userStats');
   const userDeletionLog = portalRoot.get('userDeletions');
+  const agentOpsRoot = portalRoot.get('agentOps');
   const workbenchDefaults = workbenchRoot.get('defaults');
   const keyVaultNode = gun.get('ai').get('key-vault');
   let workbenchSecrets = null;
@@ -676,6 +677,7 @@
   let defaultRecord = {};
   let agentSessionSnapshot = null;
   let agentOpsConfig = readAgentOpsConfig();
+  let agentOpsOwnerKey = '';
 
   let isAdmin = false;
   let isRootAdmin = false;
@@ -801,8 +803,8 @@
       showElement(addAdminSection);
     }
     subscribeToData();
-    applyAgentOpsConfig(agentOpsConfig);
-    renderAgentOps();
+    ensureAgentOpsOwnerKey();
+    loadAgentOpsConfig();
     refreshAgentSession();
   }
 
@@ -847,6 +849,17 @@
     return nextConfig;
   }
 
+  function ensureAgentOpsOwnerKey() {
+    if (agentOpsOwnerKey) return agentOpsOwnerKey;
+    const source = normalizeAlias(alias || username || ROOT_ADMIN_ALIAS) || ROOT_ADMIN_ALIAS;
+    agentOpsOwnerKey = source;
+    return agentOpsOwnerKey;
+  }
+
+  function agentOpsNodeForOwner() {
+    return agentOpsRoot.get(ensureAgentOpsOwnerKey());
+  }
+
   function applyAgentOpsConfig(config) {
     const nextConfig = {
       host: config?.host || '',
@@ -865,6 +878,33 @@
     if (agentBranchInput) agentBranchInput.value = nextConfig.branch;
 
     return nextConfig;
+  }
+
+  async function loadAgentOpsConfig() {
+    const fallback = agentOpsConfig || {};
+    if (!isAdmin) {
+      applyAgentOpsConfig(fallback);
+      renderAgentOps();
+      return;
+    }
+
+    const ownerNode = agentOpsNodeForOwner();
+    ownerNode.once(data => {
+      const nextConfig = data && typeof data === 'object' ? {
+        host: data.host || '',
+        user: data.user || '',
+        port: data.port || '',
+        path: data.path || '',
+        service: data.service || '',
+        branch: data.branch || ''
+      } : fallback;
+      agentOpsConfig = {
+        ...fallback,
+        ...nextConfig
+      };
+      applyAgentOpsConfig(agentOpsConfig);
+      renderAgentOps();
+    });
   }
 
   function getAgentOpsFormValues() {
@@ -907,7 +947,8 @@
 
   function renderAgentOps() {
     if (!agentCommandPreview) return;
-    const config = saveAgentOpsConfig(getAgentOpsFormValues());
+    const config = getAgentOpsFormValues();
+    saveAgentOpsConfig(config);
     const commands = buildAgentCommandSet(config);
     agentCommandPreview.innerText = [
       `Connect: ${commands.connect}`,
@@ -916,6 +957,20 @@
       `Logs:    ${commands.logs}`,
       `Status:  ${commands.status}`
     ].join('\n');
+  }
+
+  async function persistAgentOpsConfig(config = {}) {
+    const normalized = saveAgentOpsConfig(config);
+    const ownerNode = agentOpsNodeForOwner();
+    await new Promise(resolve => {
+      ownerNode.put({
+        ...normalized,
+        updatedAt: Date.now(),
+        updatedBy: alias || username || 'admin'
+      }, ack => resolve(ack || {}));
+    });
+    agentOpsConfig = normalized;
+    renderAgentOps();
   }
 
   async function refreshAgentSession() {
@@ -959,7 +1014,7 @@
   }
 
   async function copyAgentCommand(kind) {
-    const commands = buildAgentCommandSet(agentOpsConfig);
+    const commands = buildAgentCommandSet(getAgentOpsFormValues());
     const value = commands[kind];
     if (!value) return;
     try {
@@ -2314,10 +2369,17 @@
 
   if (agentSaveConfigButton) {
     agentSaveConfigButton.addEventListener('click', () => {
-      renderAgentOps();
-      if (agentSessionStatus) {
-        agentSessionStatus.innerText = 'Saved host details for this browser.';
-      }
+      persistAgentOpsConfig(getAgentOpsFormValues())
+        .then(() => {
+          if (agentSessionStatus) {
+            agentSessionStatus.innerText = 'Saved host details to the portal account.';
+          }
+        })
+        .catch(() => {
+          if (agentSessionStatus) {
+            agentSessionStatus.innerText = 'Could not save host details to the portal account.';
+          }
+        });
     });
   }
 
