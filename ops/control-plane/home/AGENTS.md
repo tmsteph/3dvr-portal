@@ -43,6 +43,7 @@
   - `RUNBOOKS/`
 - Treat these markdown files as the human-readable operating system for Thomas Stephens in this workspace.
 - When a standing assumption changes, update the relevant markdown file instead of relying on chat memory alone.
+- For 30-90 day 3DVR platform build work, use `RUNBOOKS/3dvr-next-build-plan.md` as the agent task breakdown.
 - Portable mirrors of this control plane should live in core repos so the context follows across devices:
   - `3dvr-portal/ops/control-plane/home/`
   - `3dvr-web/ops/control-plane/home/`
