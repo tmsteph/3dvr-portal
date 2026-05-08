@@ -234,9 +234,20 @@ test('meeting command prints a sanitized meeting pack', async () => {
   assert.match(stdout, /Guest \/ Participant:/);
   assert.match(stdout, /Fallback \/ Crunch:/);
   assert.match(stdout, /Meshcast Meeting:/);
+  assert.match(stdout, /WhatsApp quick copy:/);
+  assert.match(stdout, /Meeting: https:\/\/portal\.3dvr\.tech\/portal\.3dvr\.tech\/video\/join\.html\?room=teamsync&control=controlboard&role=participant&name=guest&profile=low&codec=h264/);
+  assert.match(stdout, /Fallback: https:\/\/vdo\.ninja\/\?room=teamsync&label&showlabels&codec=h264&vb=120&ab=24&fps=4&scale=96p&stereo=0&buffer=30/);
   assert.match(stdout, /room=teamsync/);
   assert.match(stdout, /control=controlboard/);
   assert.match(stdout, /vdo\.ninja\/\?room=teamsync&label&showlabels&codec=h264&vb=120&ab=24&fps=4&scale=96p&stereo=0&buffer=30/);
+});
+
+test('meeting whatsapp mode prints the compact share block', async () => {
+  const { stdout } = await runCli(['meeting', '--whatsapp', 'Team Sync!', 'Control/Board']);
+
+  assert.match(stdout, /^Meeting: https:\/\/portal\.3dvr\.tech\/portal\.3dvr\.tech\/video\/join\.html\?room=teamsync&control=controlboard&role=participant&name=guest&profile=low&codec=h264$/m);
+  assert.match(stdout, /^Fallback: https:\/\/vdo\.ninja\/\?room=teamsync&label&showlabels&codec=h264&vb=120&ab=24&fps=4&scale=96p&stereo=0&buffer=30$/m);
+  assert.match(stdout, /^Ops: https:\/\/portal\.3dvr\.tech\/portal\.3dvr\.tech\/video\/ops\.html\?room=teamsync&control=controlboard&role=participant&name=guest&profile=normal&codec=h264$/m);
 });
 
 test('meeting open mode launches the smart join link', async () => {

@@ -542,6 +542,24 @@ meeting_pack() {
   echo
   printf '%s\n' "Recommended open:"
   printf '%s\n' "3dvr meeting --open=$(meeting_open_target auto) \"$room\" \"$control\""
+  echo
+  printf '%s\n' "WhatsApp quick copy:"
+  printf '%s\n' "Meeting: $participant_url"
+  printf '%s\n' "Fallback: $fallback_url"
+  printf '%s\n' "Ops: $ops_url"
+}
+
+meeting_whatsapp() {
+  room="${1:-}"
+  control="${2:-}"
+  urls="$(meeting_urls "$room" "$control")"
+  participant_url="$(printf '%s\n' "$urls" | sed -n '3p')"
+  ops_url="$(printf '%s\n' "$urls" | sed -n '4p')"
+  fallback_url="$(printf '%s\n' "$urls" | sed -n '7p')"
+
+  printf '%s\n' "Meeting: $participant_url"
+  printf '%s\n' "Fallback: $fallback_url"
+  printf '%s\n' "Ops: $ops_url"
 }
 
 meeting_open() {
@@ -692,10 +710,15 @@ case "$cmd" in
         shift || true
         meeting_pack "${1:-}" "${2:-}"
         ;;
+      --whatsapp)
+        shift || true
+        meeting_whatsapp "${1:-}" "${2:-}"
+        ;;
       --help|-h|help)
         cat <<'MEETING'
 3dvr meeting [room] [control]
 3dvr meeting --pack [room] [control]
+3dvr meeting --whatsapp [room] [control]
 3dvr meeting --open [room] [control]
 3dvr meeting --open=auto|ops|meshcast|director|guest|fallback|pack [room] [control]
 
