@@ -18,6 +18,11 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Open a pull request for changes that should be merged, deployed, or remembered. Use the PR as the record of intent and tradeoffs.
 - Keep PRs tightly scoped and note any Stripe mode, portal-origin, or account-linking impact in the description.
 - When `3dvr-portal` depends on `3dvr-web`, link the paired branch or PR so preview environments stay coordinated.
+- Before assuming a publish or PR problem is model-related, check the environment and branch state first:
+  - In Termux or `proot`, make sure `gh` is reading the intended `HOME` and `PREFIX`.
+  - Confirm `gh auth status` under that environment before retrying any push or PR command.
+  - Verify the branch only contains the intended diff; stale history on the branch can fail CI for unrelated reasons.
+  - If a PR check is failing, inspect the exact smoke or workflow assertion before changing the feature code.
 
 ## Deployment Topology
 - Keep `3dvr-portal` and `3dvr-web` on the same branch matrix:
@@ -80,6 +85,7 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
   - Playwright or browser automation
   - Linux-native CLI dependencies that fail under Termux
   - Toolchains that expect a standard glibc userland
+- When `gh` works in Termux but not in `/root`, prefer the Termux auth context over the shell you happen to be in.
 
 ## Playwright On Termux
 - Do not run Playwright browser tests directly in native Termux with `node --test` because browsers are unsupported there.
