@@ -25,6 +25,24 @@ const MIME_TYPES = {
   '.webmanifest': 'application/manifest+json',
 };
 
+async function installExternalRoutes(context) {
+  await context.route('https://cdn.tailwindcss.com', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: 'window.tailwind = window.tailwind || {};',
+    });
+  });
+
+  await context.route('**/_vercel/insights/script.js', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: '',
+    });
+  });
+}
+
 describe('contacts score integration', () => {
   let server;
   let baseUrl;
@@ -66,6 +84,7 @@ describe('contacts score integration', () => {
 
     try {
       const context = await createPlaywrightContext(browser);
+      await installExternalRoutes(context);
       const page = await context.newPage();
       await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
       await page.waitForSelector('#floatingIdentityScore');
@@ -100,6 +119,7 @@ describe('contacts score integration', () => {
 
     try {
       const context = await createPlaywrightContext(browser);
+      await installExternalRoutes(context);
       const page = await context.newPage();
       await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'networkidle' });
       await page.waitForSelector('#floatingIdentityScore');
