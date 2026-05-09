@@ -161,6 +161,14 @@ async function installExternalRoutes(context) {
     });
   });
 
+  await context.route('https://cdn.tailwindcss.com', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: 'window.tailwind = window.tailwind || {};'
+    });
+  });
+
   await context.route('https://fonts.googleapis.com/**', async route => {
     await route.fulfill({
       status: 200,
