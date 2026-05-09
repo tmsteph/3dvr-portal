@@ -6,13 +6,28 @@ OUTREACH_LOG_JS="$ROOT/node/outreach-log.js"
 mkdir -p "$(dirname "$FILE")"
 [ ! -f "$FILE" ] && echo "name,link,contact,status,date,variant" > "$FILE"
 
+rewrite_leads_file() {
+  local status="$1"
+  local name="$2"
+  local variant="${3:-}"
+  local tmp_file
+
+  tmp_file="$(mktemp "${FILE}.tmp.XXXXXX")" || return 1
+  if awk -F, -v name="$name" -v v="$variant" -v status="$status" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4=status; if(v!="") $6=v}1' "$FILE" > "$tmp_file"; then
+    mv "$tmp_file" "$FILE"
+  else
+    rm -f "$tmp_file"
+    return 1
+  fi
+}
+
 case "$1" in
   add) echo "$2,$3,,$(printf '%s' new),$(date +%F)," >> "$FILE" && echo "Added: $2" ;;
-  contact) awk -F, -v name="$2" -v v="$3" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="contacted"; if(v!="") $6=v}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Contacted: $2 ($3)" ;;
-  nurture) awk -F, -v name="$2" -v v="$3" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="nurture"; if(v!="") $6=v}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Nurture: $2 ($3)" ;;
-  reply) awk -F, -v name="$2" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="replied"}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Replied: $2" ;;
-  failed) awk -F, -v name="$2" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="failed"}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Failed: $2" ;;
-  close) awk -F, -v name="$2" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4="closed"}1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE" && echo "Closed: $2" ;;
+  contact) rewrite_leads_file "contacted" "$2" "$3" && echo "Contacted: $2 ($3)" ;;
+  nurture) rewrite_leads_file "nurture" "$2" "$3" && echo "Nurture: $2 ($3)" ;;
+  reply) rewrite_leads_file "replied" "$2" && echo "Replied: $2" ;;
+  failed) rewrite_leads_file "failed" "$2" && echo "Failed: $2" ;;
+  close) rewrite_leads_file "closed" "$2" && echo "Closed: $2" ;;
   new) awk -F, '
     function priority(link, contact) {
       if (contact ~ /^mailto:/) return 4;
