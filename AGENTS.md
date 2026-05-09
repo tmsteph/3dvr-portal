@@ -23,6 +23,10 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
   - Confirm `gh auth status` under that environment before retrying any push or PR command.
   - Verify the branch only contains the intended diff; stale history on the branch can fail CI for unrelated reasons.
   - If a PR check is failing, inspect the exact smoke or workflow assertion before changing the feature code.
+- This repo's GitHub auth is usually in the Termux home, not `/root`.
+  - If `git push` from `/root` asks for a username or fails with `could not read Username`, rerun with `HOME=/data/data/com.termux/files/home PATH=/data/data/com.termux/files/usr/bin:$PATH` so Git picks up `~/.gitconfig` and the `gh auth git-credential` helper.
+  - Use that same Termux auth context before merging or pushing when the remote may have advanced after a GitHub app write.
+  - If a page was created remotely with the GitHub app and a local commit touched the same new path, fetch `origin/main` first and resolve any `add/add` conflict before pushing.
 
 ## Deployment Topology
 - Keep `3dvr-portal` and `3dvr-web` on the same branch matrix:
