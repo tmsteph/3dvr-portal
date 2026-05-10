@@ -509,6 +509,35 @@ export THREEDVR_INBOX_PUBLIC_AUTO_REPLY_LIMIT=1
 
 Public replies are deterministic template acknowledgements, not LLM-written replies. They ignore delivery failures and automated senders, and ask the sender for a concrete repo, website, file path, or task before routing the next agent step.
 
+### Multi-Device Agent Coordination
+
+3DVR treats devices as workers, not as the owner of the business state. A user may run an agent on Termux, a laptop, a VPS, or a provisioned 3DVR worker, while another user may only use the browser portal. The portal remains the main entry point and durable control plane; agents handle work that needs local tools, background processes, browser automation, filesystem access, or server-side execution.
+
+The agent writes lightweight coordination records to Gun under `3dvr-portal/agentOps`:
+
+```text
+agentOps/<owner>/devices/<deviceId>
+agentOps/<owner>/leases/<resource>
+agentOps/<owner>/handled/<actionId>
+```
+
+Use these records before any action that can have side effects across devices:
+
+```text
+heartbeat -> claim lease -> check handled record -> act -> mark handled -> release lease
+```
+
+Inbox auto-replies already use this pattern so two devices do not reply to the same message at the same time. Future lead crawling, form submission, and outreach sending should use the same `agent-ops` helpers instead of adding device-specific coordination logic.
+
+Useful settings:
+
+```sh
+export THREEDVR_AGENT_OWNER_ALIAS="user@example.com"
+export THREEDVR_AGENT_DEVICE_ID="termux-phone"
+export THREEDVR_AGENT_OPS_LEASE_TTL_MS=90000
+export THREEDVR_AGENT_OPS_REPLY_LEASE_TTL_MS=120000
+```
+
 ```sh
 export THREEDVR_INBOX_REPLY_MODE="local"          # default: local Qwen, then OpenAI, then template
 export THREEDVR_INBOX_REPLY_MODE="local-strict"   # local Qwen only

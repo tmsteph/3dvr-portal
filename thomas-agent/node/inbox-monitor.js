@@ -5,6 +5,13 @@ const { spawn } = require('child_process');
 const { ImapFlow } = require('imapflow');
 const { getOAuthAccessToken } = require('./oauth-connection');
 const { appendContactFooter, buildContactFooter } = require('./contact-footer');
+const {
+  claimLease,
+  isHandled,
+  markHandled,
+  releaseLease,
+  writeHeartbeat: writeAgentOpsHeartbeat,
+} = require('./agent-ops');
 
 const ROOT = path.join(__dirname, '..');
 const STATE_DIR = process.env.THREEDVR_AUTOPILOT_STATE_DIR || path.join(ROOT, 'state');
@@ -65,6 +72,7 @@ const DEFAULT_LLM_MAX_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LLM_MAX_T
 const DEFAULT_LOCAL_LLM_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LOCAL_TOKENS, 160);
 const DEFAULT_LOCAL_LLM_CONTEXT = parseInteger(process.env.THREEDVR_INBOX_LOCAL_CONTEXT, 2048);
 const DEFAULT_LOCAL_LLM_TIMEOUT_MS = parseInteger(process.env.THREEDVR_INBOX_LOCAL_TIMEOUT_MS, 120000);
+const DEFAULT_AGENT_OPS_REPLY_LEASE_TTL_MS = parseInteger(process.env.THREEDVR_AGENT_OPS_REPLY_LEASE_TTL_MS, 120000);
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -1278,6 +1286,78 @@ async function sendPublicAgentReply(message, state) {
   };
 }
 
+function actionIdForMessage(kind, message) {
+  return [
+    kind,
+    message.messageId || '',
+    message.fromEmail || '',
+    message.subject || '',
+  ].filter(Boolean).join('|');
+}
+
+async function sendCoordinatedReply(kind, message, sendImpl) {
+  const actionId = actionIdForMessage(kind, message);
+  let handled;
+  try {
+    handled = await isHandled(kind, actionId);
+  } catch (error) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `coordination unavailable: ${error.message || error}`,
+    };
+  }
+
+  if (handled.handled) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'already handled by another agent',
+      handledKey: handled.key,
+    };
+  }
+
+  let lease;
+  try {
+    lease = await claimLease(`reply:${actionId}`, {
+      ttlMs: DEFAULT_AGENT_OPS_REPLY_LEASE_TTL_MS,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `coordination unavailable: ${error.message || error}`,
+    };
+  }
+
+  if (!lease.acquired) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `reply lease held by ${lease.ownerDeviceId || 'another agent'}`,
+      lease,
+    };
+  }
+
+  try {
+    const result = await sendImpl();
+    if (result?.ok) {
+      await markHandled(kind, actionId, {
+        to: result.to || '',
+        subject: result.subject || buildReplySubject(message.subject),
+        replySource: result.replySource || '',
+      }).catch((error) => {
+        console.warn(`Unable to mark coordinated reply handled: ${error.message || error}`);
+      });
+    }
+    return result;
+  } finally {
+    await releaseLease(`reply:${actionId}`, lease.lease?.token).catch((error) => {
+      console.warn(`Unable to release coordinated reply lease: ${error.message || error}`);
+    });
+  }
+}
+
 async function handleBounceMessages(messages, state) {
   const leadMap = loadLeadMap();
   const bounceMessages = messages.filter(looksLikeBounce);
@@ -1490,6 +1570,16 @@ async function main() {
   }
 
   const state = loadState();
+  await writeAgentOpsHeartbeat('inbox-monitor', {
+    status: 'running',
+    metadata: {
+      mailbox: DEFAULT_MAILBOX,
+      publicAutoReply: DEFAULT_PUBLIC_AUTO_REPLY,
+      leadAutoReply: DEFAULT_AUTO_REPLY,
+    },
+  }).catch((error) => {
+    console.warn(`Agent ops heartbeat skipped: ${error.message || error}`);
+  });
   const unread = await loadUnreadMessages(options.limit);
   const contactedLeadMap = loadContactedLeadMap();
 
@@ -1559,7 +1649,11 @@ async function main() {
     } else {
       for (const { message, lead, meta } of autoReplyCandidates) {
         if (!canSendAutoReply(state)) break;
-        const result = await sendLeadReply(message, lead, state);
+        const result = await sendCoordinatedReply('inbox-lead-reply', message, () => sendLeadReply(message, lead, state));
+        if (result.skipped) {
+          console.log(`Skipped auto-reply to ${lead.name || message.from}: ${result.reason}`);
+          continue;
+        }
         if (!result.ok) {
           console.warn(result.reason || `Unable to auto-reply to ${lead.name || message.from}`);
           continue;
@@ -1589,7 +1683,11 @@ async function main() {
     } else {
       for (const { message, meta } of publicAgentAutoReplyCandidates) {
         if (!canSendAutoReply(state)) break;
-        const result = await sendPublicAgentReply(message, state);
+        const result = await sendCoordinatedReply('inbox-public-agent-reply', message, () => sendPublicAgentReply(message, state));
+        if (result.skipped) {
+          console.log(`Skipped public 3dvr-agent auto-reply from ${message.fromEmail}: ${result.reason}`);
+          continue;
+        }
         if (!result.ok) {
           console.warn(result.reason || `Unable to auto-reply to ${message.from}`);
           continue;
@@ -1618,6 +1716,7 @@ module.exports = {
   buildReplyText,
   buildPublicAgentReplyDraft,
   buildPublicAgentReplyText,
+  actionIdForMessage,
   replyContactFooter,
   ensureReplyContactFooter,
   buildLocalReplyDraft,
@@ -1636,6 +1735,7 @@ module.exports = {
   pickPublicAgentAutoReplyCandidates,
   pickReplyPreviewCandidates,
   printReplyPreviews,
+  sendCoordinatedReply,
   updateLeadStatusByEmail,
 };
 

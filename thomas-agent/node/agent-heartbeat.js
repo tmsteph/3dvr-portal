@@ -1,5 +1,6 @@
 const { execFileSync } = require('child_process');
 const os = require('os');
+const { writeHeartbeat: writeAgentOpsHeartbeat, onceGun, putGun } = require('./agent-ops');
 
 const OWNER_ALIAS = process.env.THREEDVR_AGENT_OWNER_ALIAS || 'tmsteph@3dvr';
 const INBOX_SESSION = process.env.THREEDVR_INBOX_TMUX_SESSION || '3dvr-inbox';
@@ -64,34 +65,6 @@ function summarizeRuntime(runtime = {}) {
   ].join('\n');
 }
 
-function putGun(node, payload) {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      reject(new Error('heartbeat write timeout'));
-    }, 2500);
-
-    node.put(payload, ack => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (ack && ack.err) {
-        reject(new Error(ack.err));
-        return;
-      }
-      resolve(ack || {});
-    });
-  });
-}
-
-function onceGun(node) {
-  return new Promise(resolve => {
-    node.once(data => resolve(data || null));
-  });
-}
-
 function getPortalAgentOpsNode() {
   return require('./gun-db').portalAgentOpsNode();
 }
@@ -99,6 +72,18 @@ function getPortalAgentOpsNode() {
 async function writeHeartbeat() {
   const snapshot = getRuntimeSnapshot();
   const node = getPortalAgentOpsNode().get(OWNER_ALIAS).get('runtime');
+  await writeAgentOpsHeartbeat('runtime', {
+    ownerAlias: OWNER_ALIAS,
+    deviceId: snapshot.hostName,
+    status: snapshot.status,
+    metadata: {
+      inbox: snapshot.inbox,
+      outreach: snapshot.outreach,
+      startedAt: snapshot.startedAt,
+    },
+  }).catch((error) => {
+    console.warn(`Agent ops heartbeat skipped: ${error.message || error}`);
+  });
   await putGun(node, snapshot);
   return snapshot;
 }
