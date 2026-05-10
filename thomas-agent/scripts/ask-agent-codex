@@ -68,6 +68,7 @@ case "${1:-status}" in
     require_codex
     codex exec \
       --cd "$REPO_ROOT" \
+      --skip-git-repo-check \
       --sandbox read-only \
       "$PROBE_PROMPT"
     ;;

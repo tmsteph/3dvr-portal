@@ -170,7 +170,7 @@ function buildPrompt(task, options, classification) {
 
 function backendCommand(backend, prompt, options) {
   if (backend === 'codex') {
-    return { command: 'codex', args: ['exec', prompt] };
+    return { command: 'codex', args: ['exec', '--cd', options.repo || DEFAULT_REPO, '--skip-git-repo-check', prompt] };
   }
   if (backend === 'openclaw') {
     return { command: 'openclaw', args: ['agent', '--message', prompt, '--thinking', options.thinking || DEFAULT_THINKING] };
