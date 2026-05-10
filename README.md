@@ -562,6 +562,31 @@ export THREEDVR_AGENT_TASK_CLAUDE_MODEL=claude-sonnet-4-20250514
 export THREEDVR_AGENT_TASK_TIMEOUT_MS=600000
 ```
 
+### Remote Task Worker
+
+Use the task queue when you want the phone, portal, or a lightweight local session to hand work to the server. The queue is stored under the same Gun-backed `agentOps` owner namespace as device heartbeats and leases.
+
+```sh
+# On the server:
+3dvr agent worker start
+3dvr agent worker status
+
+# From Termux, the portal shell, or another agent:
+3dvr agent queue enqueue --backend codex "Fix failing tests and open a PR"
+3dvr agent queue list
+3dvr agent queue status <task-id>
+```
+
+Queued tasks run through `3dvr agent task` on the worker. The worker adds `--execute` automatically, but it only adds `--unsafe` when the queued task explicitly includes `--unsafe`. This keeps server execution useful without making every phone command an unrestricted remote shell.
+
+Useful settings:
+
+```sh
+export THREEDVR_AGENT_WORKER_INTERVAL_SECONDS=20
+export THREEDVR_AGENT_WORKER_LIMIT=10
+export THREEDVR_AGENT_TASK_QUEUE_BACKEND=codex
+```
+
 ### Revenue Ops: Market Research and A/B Tests
 
 Use `3dvr revenue` to make the agent more systematic about finding markets, testing offers, and learning what produces replies.

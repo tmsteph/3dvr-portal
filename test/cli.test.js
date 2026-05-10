@@ -76,6 +76,8 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr yolo-app\s+generate a page inside the 3dvr-site repo/);
   assert.match(stdout, /3dvr yolo-new-site\s+generate a new site repo and push it to GitHub/);
   assert.match(stdout, /3dvr agent task\s+route a task to Codex, OpenClaw, Claude, OpenAI, or shell/);
+  assert.match(stdout, /3dvr agent queue\s+enqueue\/list remote server tasks/);
+  assert.match(stdout, /3dvr agent worker\s+run queued tasks on this machine/);
   assert.match(stdout, /3dvr revenue\s+market research, A\/B experiments, and revenue reports/);
   assert.match(stdout, /3dvr dev yolo\s+same as 3dvr yolo/);
   assert.match(stdout, /3dvr dev yolo-app\s+same as 3dvr yolo-app/);

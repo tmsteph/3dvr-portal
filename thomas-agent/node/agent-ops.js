@@ -218,6 +218,7 @@ module.exports = {
   DEFAULT_DEVICE_ID,
   COORDINATION_ENABLED,
   scopedKey,
+  ownerNode,
   writeHeartbeat,
   claimLease,
   releaseLease,
