@@ -11,6 +11,9 @@ const {
   printInboxTriage,
   updateLeadStatusByEmail,
   buildBounceAlert,
+  isPublicAgentMessage,
+  looksLikeAutomatedSender,
+  subjectMatchesPublicAgentGate,
 } = require('../thomas-agent/node/inbox-monitor');
 
 test('detects bounce mail and extracts candidate addresses', () => {
@@ -108,6 +111,57 @@ test('triages contacted replies separately from delivery noise', () => {
     assert.match(output.join('\n'), /Contacted-lead replies:/);
     assert.match(output.join('\n'), /Delivery noise:/);
     assert.match(output.join('\n'), /Other unread:/);
+  } finally {
+    console.log = originalLog;
+  }
+});
+
+test('triages subject-gated public 3dvr-agent requests separately', () => {
+  const messages = [
+    {
+      messageId: 'public-1',
+      from: 'New Sender <new@example.com>',
+      fromEmail: 'new@example.com',
+      replyToEmail: '',
+      subject: 'Need help from 3dvr-agent',
+      preview: 'Can you look at my site?',
+    },
+    {
+      messageId: 'other-1',
+      from: 'Random Reader <reader@example.com>',
+      fromEmail: 'reader@example.com',
+      replyToEmail: '',
+      subject: 'Hello there',
+      preview: 'Just saying hi.',
+    },
+    {
+      messageId: 'auto-1',
+      from: 'Notifications <notifications@example.com>',
+      fromEmail: 'notifications@example.com',
+      replyToEmail: '',
+      subject: '3dvr-agent system notice',
+      preview: 'Automated mail.',
+    },
+  ];
+  const output = [];
+  const originalLog = console.log;
+
+  try {
+    console.log = (...args) => {
+      output.push(args.join(' '));
+    };
+
+    const triage = classifyInboxMessages(messages, new Map());
+    printInboxTriage(messages, new Map());
+
+    assert.equal(subjectMatchesPublicAgentGate(messages[0]), true);
+    assert.equal(isPublicAgentMessage(messages[0]), true);
+    assert.equal(looksLikeAutomatedSender(messages[2]), true);
+    assert.equal(isPublicAgentMessage(messages[2]), false);
+    assert.equal(triage.publicAgentCandidates.length, 1);
+    assert.equal(triage.otherUnread.length, 2);
+    assert.match(output.join('\n'), /public 3dvr-agent requests: 1/);
+    assert.match(output.join('\n'), /Public 3dvr-agent requests:/);
   } finally {
     console.log = originalLog;
   }

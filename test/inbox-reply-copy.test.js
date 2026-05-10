@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const {
   buildLocalReplyDraft,
   buildLlmReplyDraft,
+  buildPublicAgentReplyDraft,
+  buildPublicAgentReplyText,
   buildReplyDraft,
   buildReplyHeadline,
   buildReplyText,
@@ -214,5 +216,30 @@ test('preview reply candidates include contacted leads and render reply drafts',
   } finally {
     console.log = originalLog;
     process.env.THREEDVR_INBOX_REPLY_MODE = previousMode || '';
+  }
+});
+
+test('public 3dvr-agent replies ask for a concrete target and include contact details', () => {
+  const previousPhone = process.env.THREEDVR_OUTREACH_PHONE;
+  process.env.THREEDVR_OUTREACH_PHONE = '+18643602659';
+  const input = message({
+    from: 'Alex Request <alex@example.com>',
+    fromEmail: 'alex@example.com',
+    subject: '3dvr-agent help',
+    preview: 'Can the agent look at my website?',
+  });
+
+  try {
+    const draft = buildPublicAgentReplyDraft(input, { messages: {} });
+    const text = buildPublicAgentReplyText(input, { messages: {} });
+
+    assert.equal(draft.source, 'public-template');
+    assert.equal(draft.headline, '3DVR agent request received.');
+    assert.match(text, /Hi Alex,/);
+    assert.match(text, /repo, website, file path, or exact task/i);
+    assert.match(text, /3dvr.tech@gmail.com/);
+    assert.match(text, /\+18643602659/);
+  } finally {
+    process.env.THREEDVR_OUTREACH_PHONE = previousPhone || '';
   }
 });
