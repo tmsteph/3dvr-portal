@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { existsSync, readFileSync, mkdtempSync, writeFileSync, rmSync } = require('node:fs');
+const { existsSync, mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync } = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
@@ -456,6 +456,41 @@ test('runFormCommand dry-run previews the form route without launching a browser
     process.env.THREEDVR_LEADS_FILE = originalLeadsFile;
     rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('ask-form prefers the system node binary when PATH contains a broken node wrapper', () => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-node-'));
+  const binDir = path.join(tmp, 'bin');
+  const leads = path.join(tmp, 'leads.csv');
+  const fakeNodeMarker = path.join(tmp, 'fake-node-invoked');
+  const fakeNode = path.join(binDir, 'node');
+  writeFileSync(
+    leads,
+    'name,link,contact,status,date,variant\nForm Lead,https://form.example,https://form.example/contact,new,2026-05-06,route=form\n',
+  );
+  mkdirSync(binDir, { recursive: true });
+  writeFileSync(
+    fakeNode,
+    `#!/usr/bin/env bash
+touch "${fakeNodeMarker}"
+echo "fake node should not run" >&2
+exit 99
+`,
+    { mode: 0o755 },
+  );
+
+  const output = execFileSync(askFormCli, ['--dry-run', 'Form Lead'], {
+    env: {
+      ...process.env,
+      PATH: `${binDir}:${process.env.PATH}`,
+      THREEDVR_LEADS_FILE: leads,
+    },
+    encoding: 'utf8',
+  });
+
+  assert.match(output, /FORM PREVIEW/);
+  assert.equal(existsSync(fakeNodeMarker), false);
+  rmSync(tmp, { recursive: true, force: true });
 });
 
 test('resolveBrowserExecutablePath auto-discovers a local chromium binary', () => {
