@@ -7,6 +7,7 @@ STATE_DIR="${THREEDVR_AUTOPILOT_STATE_DIR:-$ROOT/state}"
 PID_FILE="$STATE_DIR/agent-worker.pid"
 LOG_FILE="$STATE_DIR/agent-worker.log"
 TMUX_SESSION="${THREEDVR_AGENT_WORKER_TMUX_SESSION:-3dvr-worker}"
+INTERVAL_SECONDS="${THREEDVR_AGENT_WORKER_INTERVAL_SECONDS:-20}"
 
 mkdir -p "$STATE_DIR"
 
@@ -27,11 +28,12 @@ case "${1:-}" in
       echo "Agent worker already running in tmux session $TMUX_SESSION."
       exit 0
     fi
+    worker_loop="cd \"$ROOT\" && while true; do \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$LOG_FILE\" 2>&1; sleep \"$INTERVAL_SECONDS\"; done"
     if command -v tmux >/dev/null 2>&1; then
-      tmux new-session -d -s "$TMUX_SESSION" "cd \"$ROOT\" && \"$SCRIPT_DIR/ask-agent-queue\" loop >>\"$LOG_FILE\" 2>&1"
+      tmux new-session -d -s "$TMUX_SESSION" "$worker_loop"
       echo "Started agent worker in tmux session $TMUX_SESSION. Log: $LOG_FILE"
     else
-      setsid "$SCRIPT_DIR/ask-agent-queue" loop >>"$LOG_FILE" 2>&1 &
+      setsid sh -c "$worker_loop" >/dev/null 2>&1 &
       echo "$!" > "$PID_FILE"
       echo "Started agent worker (pid $!). Log: $LOG_FILE"
     fi
