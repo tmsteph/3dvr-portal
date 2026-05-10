@@ -309,7 +309,11 @@ module.exports = {
 };
 
 if (require.main === module) {
-  cli().catch((error) => {
+  cli().then(() => {
+    if ((process.argv[2] || 'help') !== 'loop') {
+      process.exit(0);
+    }
+  }).catch((error) => {
     console.error(error.message || error);
     process.exit(1);
   });
