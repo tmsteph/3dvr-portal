@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$ROOT/.." && pwd)"
+
+PACKAGE="${THREEDVR_CODEX_NPM_PACKAGE:-@openai/codex}"
+VERSION="${THREEDVR_CODEX_NPM_VERSION:-0.128.0}"
+PROBE_PROMPT="${THREEDVR_CODEX_PROBE_PROMPT:-Reply with exactly: codex-ready}"
+
+usage() {
+  cat <<USAGE
+Usage: ask-agent-codex status|install|login-api|probe
+
+Commands:
+  status      Show Codex binary, version, and login status without running a task.
+  install     Install the Codex CLI with npm. Defaults to ${PACKAGE}@${VERSION}.
+  login-api   Login Codex from OPENAI_API_KEY using 'codex login --with-api-key'.
+  probe       Run a tiny read-only Codex exec probe against this repo.
+
+Environment:
+  THREEDVR_CODEX_NPM_PACKAGE    default ${PACKAGE}
+  THREEDVR_CODEX_NPM_VERSION    default ${VERSION}
+  THREEDVR_CODEX_PROBE_PROMPT   default '${PROBE_PROMPT}'
+USAGE
+}
+
+require_codex() {
+  if ! command -v codex >/dev/null 2>&1; then
+    echo "codex is not installed. Run: ask-agent-codex install" >&2
+    exit 1
+  fi
+}
+
+case "${1:-status}" in
+  status)
+    if command -v codex >/dev/null 2>&1; then
+      echo "codex path: $(command -v codex)"
+      codex --version || true
+      codex login status || true
+    else
+      echo "codex path: missing"
+      echo "Install with: ask-agent-codex install"
+      exit 1
+    fi
+    ;;
+  install)
+    if ! command -v npm >/dev/null 2>&1; then
+      echo "npm is required to install ${PACKAGE}." >&2
+      exit 1
+    fi
+    echo "Installing ${PACKAGE}@${VERSION}..."
+    npm install -g "${PACKAGE}@${VERSION}"
+    command -v codex
+    codex --version
+    ;;
+  login-api)
+    require_codex
+    if [ -z "${OPENAI_API_KEY:-}" ]; then
+      echo "OPENAI_API_KEY is required for login-api." >&2
+      exit 1
+    fi
+    printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
+    codex login status
+    ;;
+  probe)
+    require_codex
+    codex exec \
+      --cd "$REPO_ROOT" \
+      --sandbox read-only \
+      --ask-for-approval never \
+      "$PROBE_PROMPT"
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

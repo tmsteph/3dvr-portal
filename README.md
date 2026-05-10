@@ -567,6 +567,11 @@ export THREEDVR_AGENT_TASK_TIMEOUT_MS=600000
 Use the task queue when you want the phone, portal, or a lightweight local session to hand work to the server. The queue is stored under the same Gun-backed `agentOps` owner namespace as device heartbeats and leases.
 
 ```sh
+# On any worker host, verify the Codex executor first:
+3dvr agent codex status
+3dvr agent codex install
+3dvr agent codex probe
+
 # On the server:
 3dvr agent worker start
 3dvr agent worker status
