@@ -21,9 +21,24 @@ rewrite_leads_file() {
   fi
 }
 
+rewrite_lead_variant() {
+  local name="$1"
+  local variant="$2"
+  local tmp_file
+
+  tmp_file="$(mktemp "${FILE}.tmp.XXXXXX")" || return 1
+  if awk -F, -v name="$name" -v v="$variant" 'BEGIN{OFS=","} NR==1{variant_col=6; for(i=1;i<=NF;i++){if($i=="variant") variant_col=i} print;next} $1==name{$variant_col=v}1' "$FILE" > "$tmp_file"; then
+    mv "$tmp_file" "$FILE"
+  else
+    rm -f "$tmp_file"
+    return 1
+  fi
+}
+
 case "$1" in
   add) echo "$2,$3,,$(printf '%s' new),$(date +%F)," >> "$FILE" && echo "Added: $2" ;;
   contact) rewrite_leads_file "contacted" "$2" "$3" && echo "Contacted: $2 ($3)" ;;
+  variant) rewrite_lead_variant "$2" "$3" && echo "Variant: $2 ($3)" ;;
   nurture) rewrite_leads_file "nurture" "$2" "$3" && echo "Nurture: $2 ($3)" ;;
   reply) rewrite_leads_file "replied" "$2" && echo "Replied: $2" ;;
   failed) rewrite_leads_file "failed" "$2" && echo "Failed: $2" ;;
@@ -57,6 +72,6 @@ case "$1" in
     node "$OUTREACH_LOG_JS" failures "${2:-20}"
     ;;
   *)
-    echo 'ask-track add "Name" "Link" | ask-track contact "Name" [variant] | ask-track nurture "Name" [note] | ask-track reply "Name" | ask-track failed "Name" | ask-track close "Name" | ask-track new | ask-track followup | ask-track nurture-list | ask-track view | ask-track sent [limit] | ask-track failures [limit]'
+    echo 'ask-track add "Name" "Link" | ask-track contact "Name" [variant] | ask-track variant "Name" [variant] | ask-track nurture "Name" [note] | ask-track reply "Name" | ask-track failed "Name" | ask-track close "Name" | ask-track new | ask-track followup | ask-track nurture-list | ask-track view | ask-track sent [limit] | ask-track failures [limit]'
     ;;
 esac

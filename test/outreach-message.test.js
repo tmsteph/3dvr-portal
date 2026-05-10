@@ -165,6 +165,26 @@ test('ask-send --template includes the configured contact line', async () => {
   }
 });
 
+test('ask-send --template uses a/b/c lead variants when present', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,score,source,updated,variant\nVariant Studio,https://example.com,mailto:owner@example.com,new,10,test,now,b\n',
+  );
+
+  try {
+    const { stdout } = await run(askSend, ['--template', '--dry-run'], {
+      THREEDVR_LEADS_FILE: leads,
+    });
+
+    assert.match(stdout, /turn more website visits into clear next steps/);
+    assert.match(stdout, /Variant Studio/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test('ask-send can open a Gmail draft and copy the full email', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
   const leads = path.join(tmp, 'leads.csv');

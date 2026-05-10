@@ -99,6 +99,7 @@ Email aliases:
 3dvr self-update-agent   commit, push, and reinstall the agent repo
 3dvr rollback-agent      git reset --hard helper for the current repo
 3dvr agent task          route a task to Codex, OpenClaw, Claude, OpenAI, or shell
+3dvr revenue             market research, A/B experiments, and revenue reports
 
 Agent:
 3dvr agent status|start|stop|logs|restart|heartbeat|task
@@ -695,6 +696,9 @@ case "$cmd" in
     ;;
   track)
     exec "$SCRIPT_DIR/ask-track" "$@"
+    ;;
+  revenue|market|experiments)
+    exec "$SCRIPT_DIR/ask-revenue" "$@"
     ;;
   meeting)
     case "${1:-}" in

@@ -31,6 +31,8 @@ test('appendOutreachLog normalizes records and readOutreachLog returns them', ()
       route: 'email',
       subject: 'Question for Acme Studio',
       body: 'Hello there',
+      experiment: 'exp-1',
+      variant: 'a',
       transport: 'portal',
       mode: 'opener',
     }, { filePath: logPath });
@@ -41,6 +43,8 @@ test('appendOutreachLog normalizes records and readOutreachLog returns them', ()
     assert.equal(entries[0].name, 'Acme Studio');
     assert.equal(entries[0].subject, 'Question for Acme Studio');
     assert.equal(entries[0].body, 'Hello there');
+    assert.equal(entries[0].experiment, 'exp-1');
+    assert.equal(entries[0].variant, 'a');
     assert.equal(written.status, 'sent');
     assert.match(formatOutreachLogEntry(written), /Acme Studio/);
   } finally {
@@ -195,6 +199,31 @@ test('ask-track failed updates the lead status with a stable temp file', () => {
 
     assert.match(output, /Failed: Bad Lead/);
     assert.match(leadsText, /Bad Lead,https:\/\/bad\.example,mailto:bad@example\.com,failed,2026-05-06,opener/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('ask-track variant updates the lead variant without changing status', () => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-outreach-variant-'));
+  const leadsPath = path.join(tmp, 'leads.csv');
+  writeFileSync(
+    leadsPath,
+    'name,link,contact,status,date,variant\nVariant Lead,https://variant.example,mailto:v@example.com,new,2026-05-06,\n',
+  );
+
+  try {
+    const output = execFileSync(askTrack, ['variant', 'Variant Lead', 'b'], {
+      env: {
+        ...process.env,
+        THREEDVR_LEADS_FILE: leadsPath,
+      },
+      encoding: 'utf8',
+    });
+    const leadsText = readFileSync(leadsPath, 'utf8');
+
+    assert.match(output, /Variant: Variant Lead \(b\)/);
+    assert.match(leadsText, /Variant Lead,https:\/\/variant\.example,mailto:v@example\.com,new,2026-05-06,b/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

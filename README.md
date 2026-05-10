@@ -562,6 +562,28 @@ export THREEDVR_AGENT_TASK_CLAUDE_MODEL=claude-sonnet-4-20250514
 export THREEDVR_AGENT_TASK_TIMEOUT_MS=600000
 ```
 
+### Revenue Ops: Market Research and A/B Tests
+
+Use `3dvr revenue` to make the agent more systematic about finding markets, testing offers, and learning what produces replies.
+
+```sh
+3dvr revenue research --market "independent restaurants" --location "San Diego"
+3dvr revenue experiment --name "restaurant opener" --market "restaurants" --goal "increase qualified replies" --save
+export THREEDVR_OUTREACH_EXPERIMENT_ID="2026-05-10-restaurant-opener"
+3dvr lead auto-send
+3dvr revenue report
+```
+
+The revenue layer is intentionally lightweight: experiments are NDJSON records, variants use the existing lead `variant` column, and sends are measured from the outreach log. If a lead variant is `a`, `b`, or `c` and template mode is enabled, `ask-send` uses the matching `ask-message` variant and logs the experiment/variant metadata for later reporting.
+
+```sh
+export THREEDVR_OUTREACH_MESSAGE_MODE=template
+export THREEDVR_OUTREACH_EXPERIMENT_ID="restaurant-opener"
+3dvr track variant "Example Lead" a
+3dvr lead send-current
+3dvr revenue report
+```
+
 ```sh
 export THREEDVR_INBOX_REPLY_MODE="local"          # default: local Qwen, then OpenAI, then template
 export THREEDVR_INBOX_REPLY_MODE="local-strict"   # local Qwen only
