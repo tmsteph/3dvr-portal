@@ -538,6 +538,30 @@ export THREEDVR_AGENT_OPS_LEASE_TTL_MS=90000
 export THREEDVR_AGENT_OPS_REPLY_LEASE_TTL_MS=120000
 ```
 
+### Task Orchestration
+
+Use `3dvr agent task` to route future work through a single guardrail layer before it reaches Codex, OpenClaw, Claude, OpenAI, or a shell. The command prints the exact message and backend dispatch by default, then dry-runs unless `--execute` is present.
+
+```sh
+3dvr agent task "Plan the next sales experiment"
+3dvr agent task --backend codex --execute "Fix failing tests and open a PR"
+3dvr agent task --backend openclaw --execute "Research this inbox request and draft next steps"
+3dvr agent task --backend openai --execute "Summarize this customer problem"
+3dvr agent task --backend claude --execute "Review this proposal for risk"
+3dvr agent task --backend shell --execute --unsafe "npm test"
+```
+
+High-risk tasks such as sending messages, pushing/merging code, deploying, deleting files, or moving money require `--unsafe` in addition to `--execute`. This is intentional: the future agent can make money only if it is allowed to operate, but irreversible external side effects still need an explicit policy gate. The orchestrator also claims a Gun task lease while executing so self-run devices and provisioned 3DVR workers do not duplicate the same work.
+
+Useful settings:
+
+```sh
+export THREEDVR_AGENT_TASK_BACKEND=auto
+export THREEDVR_AGENT_TASK_OPENAI_MODEL=gpt-5
+export THREEDVR_AGENT_TASK_CLAUDE_MODEL=claude-sonnet-4-20250514
+export THREEDVR_AGENT_TASK_TIMEOUT_MS=600000
+```
+
 ```sh
 export THREEDVR_INBOX_REPLY_MODE="local"          # default: local Qwen, then OpenAI, then template
 export THREEDVR_INBOX_REPLY_MODE="local-strict"   # local Qwen only

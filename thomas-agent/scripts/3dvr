@@ -98,9 +98,10 @@ Email aliases:
 3dvr self-yolo-loop      repeat the guarded self-edit helper
 3dvr self-update-agent   commit, push, and reinstall the agent repo
 3dvr rollback-agent      git reset --hard helper for the current repo
+3dvr agent task          route a task to Codex, OpenClaw, Claude, OpenAI, or shell
 
 Agent:
-3dvr agent status|start|stop|logs|restart|heartbeat
+3dvr agent status|start|stop|logs|restart|heartbeat|task
 
 Projects:
 3dvr project list|open|new|deploy
@@ -826,6 +827,10 @@ INBOX
       logs) print_section "Inbox logs"; "$SCRIPT_DIR/ask-inbox-daemon" logs; print_section "Outreach logs"; "$SCRIPT_DIR/ask-autopilot-daemon" logs; print_section "Heartbeat logs"; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" logs ;;
       restart) "$0" agent stop || true; "$0" agent start ;;
       heartbeat) exec "$SCRIPT_DIR/ask-agent-heartbeat-daemon" run-now ;;
+      task)
+        shift || true
+        exec "$SCRIPT_DIR/ask-agent-task" "$@"
+        ;;
       *) usage; exit 1 ;;
     esac
     ;;
