@@ -38,6 +38,9 @@ const DEFAULT_AUTO_REPLY_MIN_DELAY_MINUTES = parseInteger(process.env.THREEDVR_I
 const DEFAULT_AUTO_REPLY_MAX_DELAY_MINUTES = parseInteger(process.env.THREEDVR_INBOX_AUTO_REPLY_MAX_DELAY_MINUTES, 0);
 const DEFAULT_AUTO_REPLY_MIN_GAP_MINUTES = parseInteger(process.env.THREEDVR_INBOX_AUTO_REPLY_MIN_GAP_MINUTES, 0);
 const DEFAULT_AUTO_REPLY_DELAY_MODE = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_DELAY_MODE || 'adaptive').toLowerCase();
+const DEFAULT_PUBLIC_AUTO_REPLY = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY || '').trim());
+const DEFAULT_PUBLIC_AUTO_REPLY_SUBJECT_TOKEN = normalizeText(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY_SUBJECT || '3dvr-agent').toLowerCase();
+const DEFAULT_PUBLIC_AUTO_REPLY_LIMIT = parseInteger(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY_LIMIT, DEFAULT_AUTO_REPLY_LIMIT);
 const DEFAULT_REPLY_SENDER_NAME = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME || 'Thomas @ 3DVR');
 const DEFAULT_REPLY_SENDER_EMAIL = normalizeEmail(
   process.env.THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL
@@ -156,6 +159,9 @@ Environment:
   THREEDVR_INBOX_AUTO_REPLY_MAX_DELAY_MINUTES   upper bound before auto-reply
   THREEDVR_INBOX_AUTO_REPLY_MIN_GAP_MINUTES     minimum gap between automated replies
   THREEDVR_INBOX_AUTO_REPLY_DELAY_MODE          adaptive | random
+  THREEDVR_INBOX_PUBLIC_AUTO_REPLY              true to reply to public subject-gated requests
+  THREEDVR_INBOX_PUBLIC_AUTO_REPLY_SUBJECT      required subject token, default 3dvr-agent
+  THREEDVR_INBOX_PUBLIC_AUTO_REPLY_LIMIT        max public automated replies per run
   THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME         default Thomas @ 3DVR
   THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL        default 3dvr.tech@gmail.com
   THREEDVR_INBOX_REPLY_MODE                     local | openai | llm | template, default local
@@ -507,12 +513,15 @@ function chooseDelayMinutes(message, lead) {
   return adaptiveDelayMinutes(message, lead);
 }
 
-function upsertMessageState(state, message, lead) {
+function upsertMessageState(state, message, lead, options = {}) {
   const existing = state.messages[message.messageId] || {};
   if (!existing.firstSeenAt) {
     existing.firstSeenAt = new Date().toISOString();
   }
-  if (!existing.dueAt && DEFAULT_AUTO_REPLY && lead) {
+  const shouldScheduleReply = lead
+    ? DEFAULT_AUTO_REPLY
+    : Boolean(options.publicAgent && DEFAULT_PUBLIC_AUTO_REPLY);
+  if (!existing.dueAt && shouldScheduleReply) {
     const delayMinutes = chooseDelayMinutes(message, lead);
     const dueAt = new Date(Date.now() + delayMinutes * 60 * 1000);
     existing.dueAt = dueAt.toISOString();
@@ -521,6 +530,9 @@ function upsertMessageState(state, message, lead) {
   existing.subject = message.subject;
   existing.fromEmail = message.fromEmail;
   existing.leadName = lead?.name || existing.leadName || '';
+  if (options.publicAgent) {
+    existing.publicAgent = true;
+  }
   state.messages[message.messageId] = existing;
   return existing;
 }
@@ -610,6 +622,24 @@ function buildBounceAlert(message, matchedEmails) {
 function buildReplySubject(subject) {
   const normalized = formatSubject(subject);
   return /^re:/i.test(normalized) ? normalized : `Re: ${normalized}`;
+}
+
+function subjectMatchesPublicAgentGate(message, token = DEFAULT_PUBLIC_AUTO_REPLY_SUBJECT_TOKEN) {
+  const needle = normalizeText(token).toLowerCase();
+  if (!needle) return false;
+  return normalizeText(message?.subject).toLowerCase().includes(needle);
+}
+
+function looksLikeAutomatedSender(message) {
+  const from = `${normalizeText(message?.from)} ${normalizeText(message?.fromEmail)}`.toLowerCase();
+  return /mailer-daemon|postmaster|no-reply|noreply|notification|notifications|bounce/.test(from);
+}
+
+function isPublicAgentMessage(message) {
+  if (!subjectMatchesPublicAgentGate(message)) return false;
+  if (looksLikeBounce(message)) return false;
+  if (looksLikeAutomatedSender(message)) return false;
+  return Boolean(normalizeEmail(message?.replyToEmail) || normalizeEmail(message?.fromEmail));
 }
 
 function firstName(name, email) {
@@ -805,6 +835,35 @@ function buildReplyText(lead, message, state) {
     '',
     ...chooseReplyLines(message, lead, repeatCount),
   ].join('\n'));
+}
+
+function buildPublicAgentReplyText(message, state = { messages: {} }) {
+  const greeting = firstName(message.from, message.fromEmail);
+  const repeatCount = countThreadAutoReplies(state, message);
+  const lines = repeatCount > 0
+    ? [
+      `Hi ${greeting},`,
+      '',
+      'Got your follow-up.',
+      'Send the repo, website, file path, or exact task you want handled, plus the outcome you want. I will use that to route the next agent step.',
+    ]
+    : [
+      `Hi ${greeting},`,
+      '',
+      'I received your 3dvr-agent request.',
+      'Send the repo, website, file path, or exact task you want handled, plus the outcome you want. I will use that to route the next agent step.',
+    ];
+  return ensureReplyContactFooter(lines.join('\n'));
+}
+
+function buildPublicAgentReplyDraft(message, state = { messages: {} }) {
+  return {
+    headline: countThreadAutoReplies(state, message) > 0
+      ? '3DVR agent follow-up received.'
+      : '3DVR agent request received.',
+    text: buildPublicAgentReplyText(message, state),
+    source: 'public-template',
+  };
 }
 
 function sanitizeLlmReplyText(value) {
@@ -1168,6 +1227,57 @@ async function sendLeadReply(message, lead, state) {
   };
 }
 
+async function sendPublicAgentReply(message, state) {
+  if (!DEFAULT_PORTAL_EMAIL_ENDPOINT) {
+    return { ok: false, reason: 'portal email endpoint not configured' };
+  }
+  if (!DEFAULT_PORTAL_EMAIL_TOKEN) {
+    return { ok: false, reason: 'portal email token not configured' };
+  }
+  const draft = buildPublicAgentReplyDraft(message, state);
+
+  const response = await fetch(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
+    },
+    body: JSON.stringify({
+      mode: 'lead-outreach',
+      to: [message.replyToEmail || message.fromEmail],
+      subject: buildReplySubject(message.subject),
+      headline: draft.headline,
+      text: draft.text,
+      senderName: DEFAULT_REPLY_SENDER_NAME,
+      senderEmail: DEFAULT_REPLY_SENDER_EMAIL,
+      inReplyTo: message.messageId,
+      references: buildReferences(message),
+      metadata: {
+        replySource: draft.source,
+        replyMode: 'public-agent',
+        publicAgentSubjectToken: DEFAULT_PUBLIC_AUTO_REPLY_SUBJECT_TOKEN,
+      },
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    return {
+      ok: false,
+      reason: payload?.error || `portal public agent reply failed: ${response.status}`,
+      status: response.status,
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    to: message.replyToEmail || message.fromEmail,
+    subject: buildReplySubject(message.subject),
+    replySource: draft.source,
+  };
+}
+
 async function handleBounceMessages(messages, state) {
   const leadMap = loadLeadMap();
   const bounceMessages = messages.filter(looksLikeBounce);
@@ -1220,6 +1330,24 @@ function pickAutoReplyCandidates(messages, leadMap, state) {
     .slice(0, Math.max(0, DEFAULT_AUTO_REPLY_LIMIT));
 }
 
+function pickPublicAgentAutoReplyCandidates(messages, leadMap, state) {
+  if (!DEFAULT_PUBLIC_AUTO_REPLY) return [];
+
+  return messages
+    .map((message) => {
+      const existingLead = leadMap.get(message.replyToEmail) || leadMap.get(message.fromEmail);
+      if (existingLead) return null;
+      if (!isPublicAgentMessage(message)) return null;
+      const meta = state.messages[message.messageId];
+      if (!meta || !meta.dueAt || meta.autoRepliedAt) return null;
+      const dueAt = new Date(meta.dueAt).getTime();
+      if (!Number.isFinite(dueAt) || dueAt > Date.now()) return null;
+      return { message, meta };
+    })
+    .filter(Boolean)
+    .slice(0, Math.max(0, DEFAULT_PUBLIC_AUTO_REPLY_LIMIT));
+}
+
 function pickReplyPreviewCandidates(messages, leadMap) {
   return messages
     .map((message) => {
@@ -1233,29 +1361,36 @@ function pickReplyPreviewCandidates(messages, leadMap) {
 function classifyInboxMessages(messages, leadMap) {
   const replyCandidates = pickReplyPreviewCandidates(messages, leadMap);
   const replyIds = new Set(replyCandidates.map(({ message }) => message.messageId));
+  const publicAgentCandidates = messages
+    .filter((message) => !replyIds.has(message.messageId))
+    .filter((message) => isPublicAgentMessage(message));
+  const publicAgentIds = new Set(publicAgentCandidates.map((message) => message.messageId));
   const bounceCandidates = messages
     .filter((message) => looksLikeBounce(message))
-    .filter((message) => !replyIds.has(message.messageId));
+    .filter((message) => !replyIds.has(message.messageId) && !publicAgentIds.has(message.messageId));
   const bounceIds = new Set(bounceCandidates.map((message) => message.messageId));
-  const otherUnread = messages.filter((message) => !replyIds.has(message.messageId) && !bounceIds.has(message.messageId));
+  const otherUnread = messages.filter((message) => !replyIds.has(message.messageId) && !publicAgentIds.has(message.messageId) && !bounceIds.has(message.messageId));
 
   return {
     replyCandidates,
+    publicAgentCandidates,
     bounceCandidates,
     otherUnread,
   };
 }
 
 function buildInboxTriage(messages, leadMap) {
-  const { replyCandidates, bounceCandidates, otherUnread } = classifyInboxMessages(messages, leadMap);
+  const { replyCandidates, publicAgentCandidates, bounceCandidates, otherUnread } = classifyInboxMessages(messages, leadMap);
   return {
     summary: {
       total: messages.length,
       replies: replyCandidates.length,
+      publicAgent: publicAgentCandidates.length,
       bounces: bounceCandidates.length,
       other: otherUnread.length,
     },
     replyCandidates,
+    publicAgentCandidates,
     bounceCandidates,
     otherUnread,
   };
@@ -1265,6 +1400,7 @@ function printInboxTriage(messages, leadMap) {
   const triage = buildInboxTriage(messages, leadMap);
   console.log('\nInbox triage:');
   console.log(`- contacted replies: ${triage.summary.replies}`);
+  console.log(`- public 3dvr-agent requests: ${triage.summary.publicAgent}`);
   console.log(`- delivery failures: ${triage.summary.bounces}`);
   console.log(`- other unread: ${triage.summary.other}`);
 
@@ -1272,6 +1408,16 @@ function printInboxTriage(messages, leadMap) {
     console.log('\nContacted-lead replies:');
     for (const { message, lead } of triage.replyCandidates.slice(0, 5)) {
       console.log(`- ${lead.name || message.from} | ${message.subject}`);
+      if (message.preview) {
+        console.log(`  ${message.preview}`);
+      }
+    }
+  }
+
+  if (triage.publicAgentCandidates.length) {
+    console.log('\nPublic 3dvr-agent requests:');
+    for (const message of triage.publicAgentCandidates.slice(0, 5)) {
+      console.log(`- ${message.from} | ${message.subject}`);
       if (message.preview) {
         console.log(`  ${message.preview}`);
       }
@@ -1349,7 +1495,9 @@ async function main() {
 
   unread.forEach((message) => {
     const lead = contactedLeadMap.get(message.replyToEmail) || contactedLeadMap.get(message.fromEmail);
-    upsertMessageState(state, message, lead);
+    upsertMessageState(state, message, lead, {
+      publicAgent: !lead && isPublicAgentMessage(message),
+    });
   });
   backfillPendingAutoReplies(state, contactedLeadMap);
 
@@ -1423,6 +1571,36 @@ async function main() {
     }
   }
 
+  const publicAgentAutoReplyCandidates = pickPublicAgentAutoReplyCandidates(unread, contactedLeadMap, state);
+  if (DEFAULT_PUBLIC_AUTO_REPLY && publicAgentAutoReplyCandidates.length) {
+    if (!canSendAutoReply(state)) {
+      console.log('Public 3dvr-agent auto-reply waiting for the minimum gap window.');
+    } else if (options.dryRun) {
+      for (const { message, meta } of publicAgentAutoReplyCandidates) {
+        const draft = buildPublicAgentReplyDraft(message, state);
+        console.log('\nDry run public 3dvr-agent auto-reply preview:\n');
+        console.log(`Due at: ${meta.dueAt}`);
+        console.log(`To: ${message.replyToEmail || message.fromEmail}`);
+        console.log(`Subject: ${buildReplySubject(message.subject)}`);
+        console.log(`Reply source: ${draft.source}`);
+        console.log(`Headline: ${draft.headline}`);
+        console.log(draft.text);
+      }
+    } else {
+      for (const { message, meta } of publicAgentAutoReplyCandidates) {
+        if (!canSendAutoReply(state)) break;
+        const result = await sendPublicAgentReply(message, state);
+        if (!result.ok) {
+          console.warn(result.reason || `Unable to auto-reply to ${message.from}`);
+          continue;
+        }
+        meta.autoRepliedAt = new Date().toISOString();
+        state.lastAutoReplyAt = meta.autoRepliedAt;
+        console.log(`Auto-replied to public 3dvr-agent request from ${message.fromEmail} -> ${result.to} (${result.replySource})`);
+      }
+    }
+  }
+
   const bounceResult = await handleBounceMessages(unread, state);
   if (bounceResult?.ok) {
     console.log(`Alerted ${bounceResult.to} about delivery failure(s).`);
@@ -1438,6 +1616,8 @@ module.exports = {
   buildBounceAlert,
   buildReplySubject,
   buildReplyText,
+  buildPublicAgentReplyDraft,
+  buildPublicAgentReplyText,
   replyContactFooter,
   ensureReplyContactFooter,
   buildLocalReplyDraft,
@@ -1448,8 +1628,12 @@ module.exports = {
   buildInboxTriage,
   printInboxTriage,
   detectReplyIntent,
+  isPublicAgentMessage,
+  looksLikeAutomatedSender,
+  subjectMatchesPublicAgentGate,
   extractBounceEmails,
   looksLikeBounce,
+  pickPublicAgentAutoReplyCandidates,
   pickReplyPreviewCandidates,
   printReplyPreviews,
   updateLeadStatusByEmail,

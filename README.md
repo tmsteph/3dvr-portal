@@ -499,6 +499,16 @@ export THREEDVR_INBOX_AUTO_REPLY_MIN_GAP_MINUTES=0
 
 Auto-replies use LLM-written copy by default. The inbox monitor tries the local Qwen model first, then OpenAI if configured, then the built-in template copy unless strict mode is enabled.
 
+Optional public auto-replies for anyone who emails the mailbox with `3dvr-agent` in the subject:
+
+```sh
+export THREEDVR_INBOX_PUBLIC_AUTO_REPLY="true"
+export THREEDVR_INBOX_PUBLIC_AUTO_REPLY_SUBJECT="3dvr-agent"
+export THREEDVR_INBOX_PUBLIC_AUTO_REPLY_LIMIT=1
+```
+
+Public replies are deterministic template acknowledgements, not LLM-written replies. They ignore delivery failures and automated senders, and ask the sender for a concrete repo, website, file path, or task before routing the next agent step.
+
 ```sh
 export THREEDVR_INBOX_REPLY_MODE="local"          # default: local Qwen, then OpenAI, then template
 export THREEDVR_INBOX_REPLY_MODE="local-strict"   # local Qwen only
