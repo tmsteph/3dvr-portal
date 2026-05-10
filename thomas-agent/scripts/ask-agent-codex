@@ -69,7 +69,7 @@ case "${1:-status}" in
     codex exec \
       --cd "$REPO_ROOT" \
       --sandbox read-only \
-      --ask-for-approval never \
+      -a never \
       "$PROBE_PROMPT"
     ;;
   -h|--help|help)
