@@ -22,8 +22,11 @@ describe('space jetpack game route', () => {
     assert.match(js, /createDestructibleLogo/);
     assert.match(js, /const word = '3dvr\.tech'/);
     assert.match(js, /const vertical = Number\(controls\.up\) - Number\(controls\.down\)/);
+    assert.match(js, /logoBounds\.getCenter/);
+    assert.match(js, /yawQuaternion\.setFromAxisAngle/);
     assert.match(js, /startGame\(\);/);
     assert.match(js, /player\.velocity\.multiplyScalar\(0\.965\)/);
+    assert.doesNotMatch(js, /player\.group\.rotation\.z = -strafe/);
     assert.match(js, /createAsteroids/);
     assert.match(js, /createCoinTrails/);
     assert.match(js, /Raycaster/);

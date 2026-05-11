@@ -85,6 +85,7 @@ const coins = createCoinTrails();
 const asteroids = createAsteroids();
 const lasers = [];
 const tempVector = new THREE.Vector3();
+const yawQuaternion = new THREE.Quaternion();
 
 scene.add(stars, logo, player.group, coins.group, asteroids.group);
 scene.add(new THREE.HemisphereLight(0x9eefff, 0x080918, 1.55));
@@ -186,20 +187,19 @@ function createPlayer() {
   });
 
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 1.35, 18), bodyMaterial);
-  body.rotation.z = Math.PI / 2;
   group.add(body);
 
   const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.42, 18, 14), bodyMaterial);
-  helmet.position.set(0.72, 0.16, 0);
+  helmet.position.set(0, 0.9, 0);
   group.add(helmet);
 
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.62), glowMaterial);
-  visor.position.set(1.06, 0.18, 0);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.16, 0.12), glowMaterial);
+  visor.position.set(0, 0.92, 0.42);
   group.add(visor);
 
-  [-0.32, 0.32].forEach(z => {
-    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.78, 0.24), glowMaterial);
-    pack.position.set(-0.45, -0.08, z);
+  [-0.28, 0.28].forEach(x => {
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.78, 0.34), glowMaterial);
+    pack.position.set(x, -0.06, -0.42);
     group.add(pack);
   });
 
@@ -293,6 +293,12 @@ function createDestructibleLogo() {
   });
 
   state.logoBlocks = group.children.length;
+  const logoBounds = new THREE.Box3().setFromObject(group);
+  const logoCenter = logoBounds.getCenter(new THREE.Vector3());
+  group.children.forEach(block => {
+    block.position.x -= logoCenter.x;
+    block.userData.basePosition.x -= logoCenter.x;
+  });
   group.rotation.y = -0.08;
   return group;
 }
@@ -435,7 +441,8 @@ function updatePlayer(delta) {
   player.group.rotation.x = clamp(player.group.rotation.x + pitch * delta * 1.15, -0.7, 0.7);
   tempVector.set(strafe * speed, vertical * speed, 0);
   tempVector.multiplyScalar(delta);
-  tempVector.applyQuaternion(player.group.quaternion);
+  yawQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.group.rotation.y);
+  tempVector.applyQuaternion(yawQuaternion);
   if (hasMoveInput) {
     player.velocity.add(tempVector);
   }
@@ -444,7 +451,6 @@ function updatePlayer(delta) {
   player.group.position.x = clamp(player.group.position.x, -WORLD.bounds, WORLD.bounds);
   player.group.position.y = clamp(player.group.position.y, -16, WORLD.bounds);
   player.group.position.z = clamp(player.group.position.z, -WORLD.bounds, WORLD.bounds);
-  player.group.rotation.z = -strafe * 0.28;
   state.fuel = clamp(state.fuel + (hasMoveInput ? -5 : 9) * delta, 0, 100);
 }
 
