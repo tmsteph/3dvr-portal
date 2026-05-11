@@ -284,7 +284,7 @@
     color: var(--text-secondary);
   }
 
-  input, textarea {
+  input, textarea, select {
     border-radius: 10px;
     border: 1px solid rgba(15, 23, 42, 0.12);
     padding: 10px 12px;
@@ -378,6 +378,40 @@
     font-weight: 600;
     color: var(--text);
     word-break: break-word;
+  }
+
+  .agent-task-form {
+    display: grid;
+    gap: 12px;
+  }
+
+  .agent-task-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .agent-task-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .agent-task-item {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  .agent-task-item strong,
+  .agent-task-item span {
+    display: block;
+  }
+
+  .agent-task-item span {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 4px;
   }
 
   @media (max-width: 640px) {
@@ -539,6 +573,53 @@
               <div class="agent-runtime-item">
                 <span class="agent-runtime-label">Process info</span>
                 <div id="agent-runtime-process" class="agent-runtime-value">--</div>
+              </div>
+            </div>
+          </div>
+          <div class="agent-ops-panel" style="grid-column: 1 / -1;">
+            <h3>Ask 3DVR Agent</h3>
+            <p class="text-muted" style="margin: 0;">
+              Queue a task for the managed DigitalOcean worker without adding another Vercel API call. High-risk work stays approval-gated.
+            </p>
+            <div class="agent-task-form">
+              <div class="form-group">
+                <label for="agent-task-input">Task</label>
+                <textarea id="agent-task-input" placeholder="Ask the server agent to research, draft, or update something safe."></textarea>
+              </div>
+              <div class="agent-task-row">
+                <div class="form-group">
+                  <label for="agent-task-risk">Risk</label>
+                  <select id="agent-task-risk">
+                    <option value="draft">Draft</option>
+                    <option value="read_only">Read only</option>
+                    <option value="workspace_write">Workspace write</option>
+                    <option value="external_write">External write</option>
+                    <option value="money">Money</option>
+                    <option value="credential">Credential</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="agent-task-backend">Backend</label>
+                  <select id="agent-task-backend">
+                    <option value="codex">Codex</option>
+                    <option value="auto">Auto</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="claude">Claude</option>
+                    <option value="openclaw">OpenClaw</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="agent-task-requires">Requires</label>
+                  <input id="agent-task-requires" type="text" value="codex,node" />
+                </div>
+              </div>
+              <div class="actions">
+                <button id="agent-task-submit" class="btn-primary" type="button">Queue task</button>
+                <button id="agent-task-refresh" class="btn-outline" type="button">Refresh tasks</button>
+              </div>
+              <div id="agent-task-status" class="agent-ops-status">Waiting for a task.</div>
+              <div id="agent-task-list" class="agent-task-list">
+                <div class="empty-state">No managed agent tasks loaded yet.</div>
               </div>
             </div>
           </div>
@@ -774,6 +855,8 @@
   const username = localStorage.getItem('username');
 
   const ROOT_ADMIN_ALIAS = 'tmsteph@3dvr';
+  const MANAGED_AGENT_OWNER_ALIAS = '3dvr-managed';
+  const APPROVAL_REQUIRED_RISKS = ['external_write', 'money', 'credential'];
 
   const userRecords = {};
   const pointsRecords = {};
@@ -784,6 +867,8 @@
   let agentSessionSnapshot = null;
   let agentRuntimeSnapshot = null;
   let agentRuntimeSubscribed = false;
+  let agentTaskRecords = {};
+  let agentTaskSubscribed = false;
   let agentAutopilotStateSnapshot = null;
   let agentAutopilotRunRecords = {};
   let agentAutopilotSubscribed = false;
@@ -833,6 +918,14 @@
   const agentRuntimeInbox = document.getElementById('agent-runtime-inbox');
   const agentRuntimeOutreach = document.getElementById('agent-runtime-outreach');
   const agentRuntimeProcess = document.getElementById('agent-runtime-process');
+  const agentTaskInput = document.getElementById('agent-task-input');
+  const agentTaskRisk = document.getElementById('agent-task-risk');
+  const agentTaskBackend = document.getElementById('agent-task-backend');
+  const agentTaskRequires = document.getElementById('agent-task-requires');
+  const agentTaskSubmit = document.getElementById('agent-task-submit');
+  const agentTaskRefresh = document.getElementById('agent-task-refresh');
+  const agentTaskStatus = document.getElementById('agent-task-status');
+  const agentTaskList = document.getElementById('agent-task-list');
   const agentRefreshRunsBtn = document.getElementById('agent-refresh-runs');
   const agentRunsStatus = document.getElementById('agent-runs-status');
   const agentRunsLast = document.getElementById('agent-runs-last');
@@ -933,6 +1026,8 @@
     loadAgentOpsConfig();
     renderAgentRuntime();
     subscribeAgentRuntime();
+    renderAgentTasks();
+    subscribeAgentTasks();
     renderAutopilotRuns();
     subscribeAutopilotRuns();
     refreshAgentSession();
@@ -988,6 +1083,10 @@
 
   function agentOpsNodeForOwner() {
     return agentOpsRoot.get(ensureAgentOpsOwnerKey());
+  }
+
+  function managedAgentQueueNode() {
+    return agentOpsRoot.get(MANAGED_AGENT_OWNER_ALIAS).get('taskQueue');
   }
 
   function applyAgentOpsConfig(config) {
@@ -1227,6 +1326,171 @@
     runtimeNode.on(data => {
       agentRuntimeSnapshot = data && typeof data === 'object' ? data : {};
       renderAgentRuntime(agentRuntimeSnapshot);
+    });
+  }
+
+  function normalizeCsv(value) {
+    return [...new Set(String(value || '').split(',')
+      .map(item => item.trim().toLowerCase())
+      .filter(Boolean))]
+      .join(',');
+  }
+
+  function buildPortalTenant() {
+    const identity = agentSessionSnapshot?.identity || {};
+    const provider = identity.authProvider || 'portal';
+    const subject = identity.pub || identity.alias || alias || username || 'guest';
+    const tenantId = `${provider}:${subject}`;
+    return {
+      tenantId,
+      tenantAlias: identity.alias || alias || username || tenantId,
+      tenantPlan: 'free'
+    };
+  }
+
+  function makeAgentTaskId(task, now = Date.now()) {
+    const seed = `${task}\n${now}\n${Math.random().toString(16).slice(2)}`;
+    let hash = 0;
+    for (let index = 0; index < seed.length; index += 1) {
+      hash = ((hash << 5) - hash + seed.charCodeAt(index)) | 0;
+    }
+    return `remote-task-${Math.abs(hash).toString(16)}-${now.toString(36)}`;
+  }
+
+  function buildAgentTaskRecord() {
+    const task = (agentTaskInput?.value || '').trim();
+    if (!task) {
+      throw new Error('Enter a task for the agent.');
+    }
+
+    const now = Date.now();
+    const riskClass = agentTaskRisk?.value || 'draft';
+    const backend = agentTaskBackend?.value || 'codex';
+    const requiredCapabilities = normalizeCsv(agentTaskRequires?.value || backend);
+    const tenant = buildPortalTenant();
+    const approvalStatus = APPROVAL_REQUIRED_RISKS.includes(riskClass) ? 'required' : 'not_required';
+
+    return {
+      id: makeAgentTaskId(task, now),
+      task,
+      tenantId: tenant.tenantId,
+      tenantAlias: tenant.tenantAlias,
+      tenantPlan: tenant.tenantPlan,
+      backend,
+      repo: '',
+      model: '',
+      thinking: '',
+      unsafe: false,
+      riskClass,
+      approvalStatus,
+      requiredCapabilities,
+      maxRuntimeMs: 0,
+      status: 'queued',
+      requestedBy: 'portal-admin',
+      createdAt: new Date(now).toISOString(),
+      updatedAt: new Date(now).toISOString(),
+      resultSummary: '',
+      error: '',
+      workerDeviceId: ''
+    };
+  }
+
+  function writeGun(node, payload) {
+    return new Promise((resolve, reject) => {
+      node.put(payload, ack => {
+        if (ack?.err) {
+          reject(new Error(ack.err));
+          return;
+        }
+        resolve(ack || {});
+      });
+    });
+  }
+
+  async function enqueueAgentTask() {
+    if (!isAdmin) {
+      if (agentTaskStatus) agentTaskStatus.innerText = 'Admins only.';
+      return;
+    }
+
+    let record;
+    try {
+      record = buildAgentTaskRecord();
+    } catch (error) {
+      if (agentTaskStatus) agentTaskStatus.innerText = error.message || 'Unable to build task.';
+      return;
+    }
+
+    if (agentTaskSubmit) agentTaskSubmit.disabled = true;
+    if (agentTaskStatus) agentTaskStatus.innerText = `Queueing ${record.id} for ${MANAGED_AGENT_OWNER_ALIAS}...`;
+
+    const summary = {
+      id: record.id,
+      status: record.status,
+      task: record.task,
+      tenantId: record.tenantId,
+      tenantAlias: record.tenantAlias,
+      tenantPlan: record.tenantPlan,
+      riskClass: record.riskClass,
+      approvalStatus: record.approvalStatus,
+      requiredCapabilities: record.requiredCapabilities,
+      updatedAt: record.updatedAt
+    };
+
+    try {
+      const queue = managedAgentQueueNode();
+      await writeGun(queue.get('tasks').get(record.id), record);
+      await writeGun(queue.get('latest').get(record.id), summary);
+      agentTaskRecords[record.id] = summary;
+      if (agentTaskInput) agentTaskInput.value = '';
+      if (agentTaskStatus) {
+        agentTaskStatus.innerText = record.approvalStatus === 'required'
+          ? `Queued ${record.id}, waiting for approval because risk is ${record.riskClass}.`
+          : `Queued ${record.id}. The DigitalOcean worker can claim it when available.`;
+      }
+      renderAgentTasks();
+    } catch (error) {
+      if (agentTaskStatus) agentTaskStatus.innerText = `Could not queue task: ${error.message || error}`;
+    } finally {
+      if (agentTaskSubmit) agentTaskSubmit.disabled = false;
+    }
+  }
+
+  function renderAgentTasks() {
+    if (!agentTaskList) return;
+    const tasks = Object.values(agentTaskRecords)
+      .filter(Boolean)
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+      .slice(0, 8);
+
+    if (!tasks.length) {
+      agentTaskList.innerHTML = '<div class="empty-state">No managed agent tasks loaded yet.</div>';
+      return;
+    }
+
+    agentTaskList.innerHTML = tasks.map(task => `
+      <div class="agent-task-item">
+        <strong>${escapeHtml(task.task || task.id || 'Agent task')}</strong>
+        <span>${escapeHtml(task.status || 'queued')} | ${escapeHtml(task.riskClass || 'draft')} | ${escapeHtml(task.approvalStatus || 'not_required')}</span>
+        <span>${escapeHtml(task.id || '')} | ${escapeHtml(task.updatedAt || '')}</span>
+      </div>
+    `).join('');
+  }
+
+  function subscribeAgentTasks() {
+    if (agentTaskSubscribed) return;
+    agentTaskSubscribed = true;
+    managedAgentQueueNode().get('latest').map().on((data, key) => {
+      if (!key) return;
+      if (!data) {
+        delete agentTaskRecords[key];
+      } else {
+        agentTaskRecords[key] = {
+          ...agentTaskRecords[key],
+          ...data
+        };
+      }
+      renderAgentTasks();
     });
   }
 
@@ -2690,6 +2954,12 @@
   }
   if (agentRefreshRunsBtn) {
     agentRefreshRunsBtn.addEventListener('click', renderAutopilotRuns);
+  }
+  if (agentTaskSubmit) {
+    agentTaskSubmit.addEventListener('click', enqueueAgentTask);
+  }
+  if (agentTaskRefresh) {
+    agentTaskRefresh.addEventListener('click', renderAgentTasks);
   }
 
   if (recoveryButton) {

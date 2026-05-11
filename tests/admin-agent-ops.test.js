@@ -43,6 +43,14 @@ test('admin portal exposes an agent operations control surface', async () => {
   assert.match(html, /id="agent-runtime-inbox"/);
   assert.match(html, /id="agent-runtime-outreach"/);
   assert.match(html, /id="agent-runtime-process"/);
+  assert.match(html, /id="agent-task-input"/);
+  assert.match(html, /id="agent-task-risk"/);
+  assert.match(html, /id="agent-task-backend"/);
+  assert.match(html, /id="agent-task-requires"/);
+  assert.match(html, /id="agent-task-submit"/);
+  assert.match(html, /id="agent-task-refresh"/);
+  assert.match(html, /id="agent-task-status"/);
+  assert.match(html, /id="agent-task-list"/);
   assert.match(html, /id="agent-runs-card"/);
   assert.match(html, /id="agent-runs-status"/);
   assert.match(html, /id="agent-runs-last"/);
@@ -52,6 +60,10 @@ test('admin portal exposes an agent operations control surface', async () => {
   assert.match(html, /id="agent-runs-list"/);
   assert.match(html, /portal-agent-ops-config/);
   assert.match(html, /portalRoot\.get\('agentOps'\)/);
+  assert.match(html, /MANAGED_AGENT_OWNER_ALIAS = '3dvr-managed'/);
+  assert.match(html, /function managedAgentQueueNode\(\)/);
+  assert.match(html, /function enqueueAgentTask\(\)/);
+  assert.match(html, /managedAgentQueueNode\(\)\.get\('latest'\)/);
   assert.match(html, /gun\.get\('3dvr'\)\.get\('ops'\)\.get\('autopilot'\)/);
   assert.match(html, /function ensureAgentOpsOwnerKey\(\)/);
   assert.match(html, /function persistAgentOpsConfig\(config = \{\}\)/);
@@ -61,6 +73,8 @@ test('admin portal exposes an agent operations control surface', async () => {
   assert.match(html, /Copy logs/);
   assert.match(html, /Copy heartbeat/);
   assert.match(html, /DigitalOcean host/);
+  assert.match(html, /Ask 3DVR Agent/);
+  assert.match(html, /Queue task/);
   assert.match(html, /Saved host details to the portal account/);
   assert.match(html, /3dvr-agent/);
   assert.match(html, /Recent Autopilot Runs/);
