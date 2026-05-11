@@ -78,12 +78,38 @@ test('help exposes install, setup, connect, and email aliases', async () => {
   assert.match(stdout, /3dvr agent task\s+route a task to Codex, OpenClaw, Claude, OpenAI, or shell/);
   assert.match(stdout, /3dvr agent queue\s+enqueue\/list remote server tasks/);
   assert.match(stdout, /3dvr agent worker\s+run queued tasks on this machine/);
+  assert.match(stdout, /3dvr server handoff\s+set up this machine for a DigitalOcean dev server/);
+  assert.match(stdout, /3dvr server doctor\s+test the configured dev server SSH connection/);
   assert.match(stdout, /3dvr revenue\s+market research, A\/B experiments, and revenue reports/);
   assert.match(stdout, /3dvr dev yolo\s+same as 3dvr yolo/);
   assert.match(stdout, /3dvr dev yolo-app\s+same as 3dvr yolo-app/);
   assert.match(stdout, /3dvr dev yolo-new-site\s+same as 3dvr yolo-new-site/);
   assert.match(stdout, /3dvr email connect\s+same as 3dvr auth login google/);
   assert.match(stdout, /supports portal OAuth or a legacy Gmail app password/i);
+});
+
+test('server handoff creates a key, ssh config, and Termux authorization command', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-server-'));
+
+  try {
+    const { stdout } = await runCli(['server', 'handoff', '--host', '203.0.113.10', '--user', 'root', '--yes'], {
+      HOME: tmp,
+    });
+    const config = await readFile(path.join(tmp, '.ssh', 'config'), 'utf8');
+    const publicKey = await readFile(path.join(tmp, '.ssh', 'id_ed25519_do_dev.pub'), 'utf8');
+
+    assert.match(config, /Host do-dev/);
+    assert.match(config, /HostName 203\.0\.113\.10/);
+    assert.match(config, /User root/);
+    assert.match(config, /IdentityFile .*id_ed25519_do_dev/);
+    assert.match(publicKey, /^ssh-ed25519 /);
+    assert.match(stdout, /Next: run this in Termux/);
+    assert.match(stdout, /ssh root@203\.0\.113\.10/);
+    assert.match(stdout, /3dvr server doctor --alias do-dev/);
+    assert.match(stdout, /Local SSH config parses successfully/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
 });
 
 test('install command gives npm and OAuth-first setup path', async () => {

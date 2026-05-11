@@ -102,6 +102,8 @@ Email aliases:
 3dvr agent queue         enqueue/list remote server tasks
 3dvr agent worker        run queued tasks on this machine
 3dvr agent codex         install, auth-check, or probe the Codex CLI executor
+3dvr server handoff      set up this machine for a DigitalOcean dev server
+3dvr server doctor       test the configured dev server SSH connection
 3dvr revenue             market research, A/B experiments, and revenue reports
 
 Agent:
@@ -851,6 +853,16 @@ INBOX
         exec "$SCRIPT_DIR/ask-agent-codex" "${1:-status}" "${@:2}"
         ;;
       *) usage; exit 1 ;;
+    esac
+    ;;
+  server|servers)
+    sub="${1:-help}"
+    shift || true
+    case "$sub" in
+      handoff|setup) exec "$SCRIPT_DIR/ask-server" handoff "$@" ;;
+      doctor|check|status) exec "$SCRIPT_DIR/ask-server" doctor "$@" ;;
+      help|-h|--help) exec "$SCRIPT_DIR/ask-server" help ;;
+      *) exec "$SCRIPT_DIR/ask-server" "$sub" "$@" ;;
     esac
     ;;
   project)

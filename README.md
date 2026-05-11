@@ -75,9 +75,33 @@ THREEDVR_AGENT_REPO="https://github.com/tmsteph/3dvr-agent.git" ./install.sh
 3dvr email status
 3dvr status
 3dvr portal
+3dvr server handoff --host DROPLET_IP
+3dvr server doctor
 ```
 
 Run `3dvr` with no arguments for the guided cockpit menu. The menu accepts both numbers and normal commands, so you can stay inside the TUI and type `next`, `contacted`, `sent-next`, or `inbox check` directly.
+
+### DigitalOcean Dev Server Handoff
+
+Use this when Termux can already SSH into the droplet and this workstation needs to become the main development machine:
+
+```sh
+3dvr server handoff --host DROPLET_IP --user root --yes
+```
+
+The command creates a workstation SSH key if needed, writes `~/.ssh/config`, and prints the one Termux command that authorizes this machine on the droplet. After running the printed command from Termux:
+
+```sh
+3dvr server doctor
+ssh do-dev
+```
+
+Use a custom alias if you want a more specific name:
+
+```sh
+3dvr server handoff --host DROPLET_IP --user root --alias 3dvr-do --yes
+3dvr server doctor --alias 3dvr-do
+```
 
 ### Email Setup
 
