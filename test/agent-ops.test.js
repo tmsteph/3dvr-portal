@@ -129,6 +129,8 @@ test('agent ops can release a held lease and write device heartbeat', async () =
     deviceId: 'do-worker',
     now: 3000,
     status: 'running',
+    capabilities: ['codex', 'static-hosting'],
+    maxConcurrency: 1,
     force: true,
     metadata: { mailbox: 'INBOX' },
   });
@@ -136,5 +138,7 @@ test('agent ops can release a held lease and write device heartbeat', async () =
   assert.equal(released.released, true);
   assert.equal(heartbeat.ok, true);
   assert.equal(heartbeat.payload.deviceId, 'do-worker');
+  assert.equal(heartbeat.payload.capabilities, 'codex,static-hosting');
+  assert.equal(heartbeat.payload.maxConcurrency, 1);
   assert.deepEqual(heartbeat.payload.metadata, { mailbox: 'INBOX' });
 });

@@ -111,6 +111,8 @@ async function writeHeartbeat(service = 'agent', options = {}) {
     pid: process.pid,
     status: options.status || 'running',
     lastBeatAt: nowIso(now),
+    capabilities: Array.isArray(options.capabilities) ? options.capabilities.join(',') : normalizeText(options.capabilities),
+    maxConcurrency: parseInteger(options.maxConcurrency, 1),
     metadata: options.metadata || {},
   };
 
@@ -217,6 +219,7 @@ module.exports = {
   DEFAULT_OWNER_ALIAS,
   DEFAULT_DEVICE_ID,
   COORDINATION_ENABLED,
+  deviceId,
   scopedKey,
   ownerNode,
   writeHeartbeat,

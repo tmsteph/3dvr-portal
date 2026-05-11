@@ -578,11 +578,23 @@ Use the task queue when you want the phone, portal, or a lightweight local sessi
 
 # From Termux, the portal shell, or another agent:
 3dvr agent queue enqueue --backend codex "Fix failing tests and open a PR"
+3dvr agent queue enqueue --tenant-id google:123 --tenant-alias user@example.com --tenant-plan builder --risk workspace_write --requires codex,node --backend codex "Update my landing page"
 3dvr agent queue list
 3dvr agent queue status <task-id>
 ```
 
 Queued tasks run through `3dvr agent task` on the worker. The worker adds `--execute` automatically, but it only adds `--unsafe` when the queued task explicitly includes `--unsafe`. This keeps server execution useful without making every phone command an unrestricted remote shell.
+
+Portal-created tasks can carry tenant and scheduler metadata:
+
+- `--tenant-id`: stable identity key such as an OAuth provider and subject.
+- `--tenant-alias`: display alias such as a verified email.
+- `--tenant-plan`: quota tier such as `free`, `builder`, `pro`, or `enterprise`.
+- `--risk`: one of `read_only`, `draft`, `workspace_write`, `external_write`, `money`, or `credential`.
+- `--requires`: comma-separated worker capabilities such as `codex,node,static-hosting`.
+- `--approval-status`: `not_required`, `required`, or `approved`.
+
+Workers advertise their own capabilities and risk policy before claiming tasks. A worker only claims queued tasks when its capabilities include the task requirements, its risk policy allows the task risk class, and the task is not waiting on approval. Use `--unsafe` only when a high-risk task has explicit approval; that records `approvalStatus=approved` and passes `--unsafe` to the executor.
 
 Useful settings:
 
@@ -590,6 +602,8 @@ Useful settings:
 export THREEDVR_AGENT_WORKER_INTERVAL_SECONDS=20
 export THREEDVR_AGENT_WORKER_LIMIT=10
 export THREEDVR_AGENT_TASK_QUEUE_BACKEND=codex
+export THREEDVR_AGENT_WORKER_CAPABILITIES=codex,node,static-hosting
+export THREEDVR_AGENT_WORKER_RISK_CLASSES=read_only,draft,workspace_write
 ```
 
 ### Revenue Ops: Market Research and A/B Tests

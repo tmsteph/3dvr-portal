@@ -1,6 +1,8 @@
 const crypto = require('node:crypto');
 const {
+  DEFAULT_OWNER_ALIAS,
   claimLease,
+  deviceId,
   ownerNode,
   putGun,
   releaseLease,
@@ -12,6 +14,11 @@ const DEFAULT_BACKEND = process.env.THREEDVR_AGENT_TASK_QUEUE_BACKEND || process
 const DEFAULT_WORKER_INTERVAL_SECONDS = parseInteger(process.env.THREEDVR_AGENT_WORKER_INTERVAL_SECONDS, 20);
 const DEFAULT_TASK_LIMIT = parseInteger(process.env.THREEDVR_AGENT_WORKER_LIMIT, 10);
 const DEFAULT_LEASE_TTL_MS = parseInteger(process.env.THREEDVR_AGENT_WORKER_LEASE_TTL_MS, 30 * 60 * 1000);
+const DEFAULT_TENANT_PLAN = process.env.THREEDVR_AGENT_TENANT_PLAN || 'free';
+const DEFAULT_WORKER_CAPABILITIES = process.env.THREEDVR_AGENT_WORKER_CAPABILITIES || 'node,auto,codex,openai,claude,openclaw,shell';
+const DEFAULT_WORKER_RISK_CLASSES = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES || 'read_only,draft,workspace_write';
+const VALID_RISK_CLASSES = new Set(['read_only', 'draft', 'workspace_write', 'external_write', 'money', 'credential']);
+const APPROVAL_REQUIRED_RISKS = new Set(['external_write', 'money', 'credential']);
 
 function parseInteger(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
@@ -20,6 +27,20 @@ function parseInteger(value, fallback) {
 
 function normalizeText(value) {
   return String(value || '').trim();
+}
+
+function normalizeCsv(value) {
+  const values = Array.isArray(value)
+    ? value
+    : String(value || '').split(',');
+  return [...new Set(values
+    .map(item => normalizeText(item).toLowerCase())
+    .filter(Boolean))]
+    .join(',');
+}
+
+function csvToList(value) {
+  return normalizeCsv(value).split(',').filter(Boolean);
 }
 
 function nowIso(now = Date.now()) {
@@ -39,15 +60,44 @@ function makeTaskId(task, now = Date.now()) {
   return scopedKey('remote-task', seed);
 }
 
+function normalizeRiskClass(value) {
+  const risk = normalizeText(value).toLowerCase() || 'draft';
+  return VALID_RISK_CLASSES.has(risk) ? risk : 'draft';
+}
+
+function defaultApprovalStatus(record = {}) {
+  if (normalizeText(record.approvalStatus)) return normalizeText(record.approvalStatus);
+  if (record.unsafe) return 'approved';
+  return APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass)) ? 'required' : 'not_required';
+}
+
+function normalizeTenantRecord(record = {}) {
+  const tenantId = normalizeText(record.tenantId) || normalizeText(record.ownerAlias) || DEFAULT_OWNER_ALIAS;
+  return {
+    tenantId,
+    tenantAlias: normalizeText(record.tenantAlias) || normalizeText(record.requestedBy) || tenantId,
+    tenantPlan: normalizeText(record.tenantPlan) || DEFAULT_TENANT_PLAN,
+  };
+}
+
 function normalizeTaskRecord(record = {}) {
+  const tenant = normalizeTenantRecord(record);
+  const riskClass = normalizeRiskClass(record.riskClass);
   return {
     id: normalizeText(record.id),
     task: normalizeText(record.task),
+    tenantId: tenant.tenantId,
+    tenantAlias: tenant.tenantAlias,
+    tenantPlan: tenant.tenantPlan,
     backend: normalizeText(record.backend) || DEFAULT_BACKEND,
     repo: normalizeText(record.repo),
     model: normalizeText(record.model),
     thinking: normalizeText(record.thinking),
     unsafe: Boolean(record.unsafe),
+    riskClass,
+    approvalStatus: defaultApprovalStatus({ ...record, riskClass }),
+    requiredCapabilities: normalizeCsv(record.requiredCapabilities || record.requires || record.backend || DEFAULT_BACKEND),
+    maxRuntimeMs: parseInteger(record.maxRuntimeMs, 0),
     status: normalizeText(record.status) || 'queued',
     createdAt: normalizeText(record.createdAt) || nowIso(),
     updatedAt: normalizeText(record.updatedAt) || nowIso(),
@@ -66,11 +116,19 @@ async function enqueueTask(task, options = {}) {
   const record = normalizeTaskRecord({
     id,
     task: text,
+    tenantId: options.tenantId,
+    tenantAlias: options.tenantAlias,
+    tenantPlan: options.tenantPlan,
+    ownerAlias: options.ownerAlias,
     backend: options.backend || DEFAULT_BACKEND,
     repo: options.repo,
     model: options.model,
     thinking: options.thinking,
     unsafe: options.unsafe,
+    riskClass: options.riskClass || options.risk,
+    approvalStatus: options.approvalStatus,
+    requiredCapabilities: options.requiredCapabilities || options.requires,
+    maxRuntimeMs: options.maxRuntimeMs,
     status: 'queued',
     createdAt: nowIso(now),
     updatedAt: nowIso(now),
@@ -81,6 +139,12 @@ async function enqueueTask(task, options = {}) {
     id,
     status: record.status,
     task: record.task,
+    tenantId: record.tenantId,
+    tenantAlias: record.tenantAlias,
+    tenantPlan: record.tenantPlan,
+    riskClass: record.riskClass,
+    approvalStatus: record.approvalStatus,
+    requiredCapabilities: record.requiredCapabilities,
     updatedAt: record.updatedAt,
   }, options);
   return record;
@@ -126,6 +190,12 @@ async function updateTask(id, patch = {}, options = {}) {
     id,
     status: updated.status,
     task: updated.task,
+    tenantId: updated.tenantId,
+    tenantAlias: updated.tenantAlias,
+    tenantPlan: updated.tenantPlan,
+    riskClass: updated.riskClass,
+    approvalStatus: updated.approvalStatus,
+    requiredCapabilities: updated.requiredCapabilities,
     updatedAt: updated.updatedAt,
   }, options);
   return updated;
@@ -141,7 +211,54 @@ function buildTaskArgs(record = {}, workerOptions = {}) {
   return args;
 }
 
+function workerProfile(options = {}) {
+  return {
+    workerId: deviceId(options),
+    capabilities: csvToList(options.workerCapabilities || options.capabilities || DEFAULT_WORKER_CAPABILITIES),
+    riskClasses: csvToList(options.workerRiskClasses || options.riskClasses || DEFAULT_WORKER_RISK_CLASSES),
+    maxConcurrency: parseInteger(options.maxConcurrency, 1),
+    backend: options.backend || DEFAULT_BACKEND,
+  };
+}
+
+function canWorkerRunTask(record = {}, options = {}) {
+  const profile = workerProfile(options);
+  const required = csvToList(record.requiredCapabilities || record.backend || DEFAULT_BACKEND);
+  const missingCapabilities = required.filter(capability => !profile.capabilities.includes(capability));
+  if (missingCapabilities.length) {
+    return {
+      ok: false,
+      reason: `missing capabilities: ${missingCapabilities.join(',')}`,
+      profile,
+    };
+  }
+
+  const riskClass = normalizeRiskClass(record.riskClass);
+  if (!profile.riskClasses.includes(riskClass)) {
+    return {
+      ok: false,
+      reason: `risk class not allowed: ${riskClass}`,
+      profile,
+    };
+  }
+
+  if (record.approvalStatus === 'required') {
+    return {
+      ok: false,
+      reason: `approval required for ${riskClass}`,
+      profile,
+    };
+  }
+
+  return { ok: true, profile };
+}
+
 async function runQueuedTask(record, options = {}) {
+  const runnable = canWorkerRunTask(record, options);
+  if (!runnable.ok) {
+    return { ok: false, skipped: true, reason: runnable.reason };
+  }
+
   const lease = await claimLease(`remote-task:${record.id}`, {
     ...options,
     ttlMs: options.leaseTtlMs || DEFAULT_LEASE_TTL_MS,
@@ -153,6 +270,7 @@ async function runQueuedTask(record, options = {}) {
   await updateTask(record.id, {
     status: 'running',
     workerDeviceId: lease.lease?.deviceId || '',
+    workerCapabilities: normalizeCsv(runnable.profile.capabilities),
     startedAt: nowIso(),
   }, options);
 
@@ -190,16 +308,25 @@ function summarizeTaskResult(result = {}) {
 }
 
 async function runWorkerOnce(options = {}) {
+  const profile = workerProfile(options);
   await writeHeartbeat('task-worker', {
     ...options,
     status: 'running',
+    capabilities: profile.capabilities,
+    maxConcurrency: profile.maxConcurrency,
     metadata: {
       limit: options.limit || DEFAULT_TASK_LIMIT,
       backend: options.backend || DEFAULT_BACKEND,
+      capabilities: profile.capabilities,
+      riskClasses: profile.riskClasses,
+      maxConcurrency: profile.maxConcurrency,
     },
   }).catch(() => {});
   const tasks = await listTasks(options);
-  const queued = tasks.filter(task => task.status === 'queued').slice(0, options.limit || DEFAULT_TASK_LIMIT);
+  const queued = tasks
+    .filter(task => task.status === 'queued')
+    .filter(task => canWorkerRunTask(task, options).ok)
+    .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
   for (const summary of queued) {
     const record = await readTask(summary.id, options);
@@ -233,6 +360,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     unsafe: false,
     json: false,
     intervalSeconds: DEFAULT_WORKER_INTERVAL_SECONDS,
+    limit: DEFAULT_TASK_LIMIT,
   };
   const positional = [];
   for (let index = 1; index < argv.length; index += 1) {
@@ -242,6 +370,16 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--model') options.model = argv[++index] || '';
     else if (arg === '--thinking') options.thinking = argv[++index] || '';
     else if (arg === '--id') options.id = argv[++index] || '';
+    else if (arg === '--tenant-id') options.tenantId = argv[++index] || '';
+    else if (arg === '--tenant-alias') options.tenantAlias = argv[++index] || '';
+    else if (arg === '--tenant-plan') options.tenantPlan = argv[++index] || '';
+    else if (arg === '--risk') options.riskClass = argv[++index] || '';
+    else if (arg === '--approval-status') options.approvalStatus = argv[++index] || '';
+    else if (arg === '--requires') options.requiredCapabilities = argv[++index] || '';
+    else if (arg === '--max-runtime-ms') options.maxRuntimeMs = parseInteger(argv[++index], 0);
+    else if (arg === '--worker-capabilities') options.workerCapabilities = argv[++index] || '';
+    else if (arg === '--worker-risk-classes') options.workerRiskClasses = argv[++index] || '';
+    else if (arg === '--limit') options.limit = parseInteger(argv[++index], DEFAULT_TASK_LIMIT);
     else if (arg === '--unsafe') options.unsafe = true;
     else if (arg === '--json') options.json = true;
     else if (arg === '--interval-seconds') options.intervalSeconds = parseInteger(argv[++index], DEFAULT_WORKER_INTERVAL_SECONDS);
@@ -286,7 +424,11 @@ function formatTask(record) {
   return [
     `Task: ${record.id}`,
     `Status: ${record.status}`,
+    `Tenant: ${record.tenantId}${record.tenantAlias && record.tenantAlias !== record.tenantId ? ` (${record.tenantAlias})` : ''}`,
     `Backend: ${record.backend}`,
+    `Risk: ${record.riskClass}`,
+    `Approval: ${record.approvalStatus}`,
+    `Requires: ${record.requiredCapabilities}`,
     `Task: ${record.task}`,
     record.resultSummary ? `Result: ${record.resultSummary}` : '',
     record.error ? `Error: ${record.error}` : '',
@@ -295,10 +437,13 @@ function formatTask(record) {
 
 module.exports = {
   buildTaskArgs,
+  canWorkerRunTask,
+  csvToList,
   enqueueTask,
   formatTask,
   listTasks,
   normalizeTaskRecord,
+  normalizeTenantRecord,
   parseArgs,
   readTask,
   runQueuedTask,
@@ -306,6 +451,7 @@ module.exports = {
   runWorkerOnce,
   summarizeTaskResult,
   updateTask,
+  workerProfile,
 };
 
 if (require.main === module) {
