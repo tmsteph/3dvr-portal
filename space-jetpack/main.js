@@ -48,8 +48,10 @@ const dom = {
   logo: document.getElementById('hud-logo'),
   asteroids: document.getElementById('hud-asteroids'),
   shoot: document.getElementById('shoot-btn'),
+  reset: document.getElementById('reset-btn'),
   menuToggle: document.getElementById('menu-toggle'),
   gameNav: document.getElementById('game-nav'),
+  controls: document.getElementById('controls'),
 };
 
 const input = createInputController({
@@ -283,6 +285,7 @@ function createDestructibleLogo() {
         cube.userData.kind = 'logoBlock';
         cube.userData.health = WORLD.logoBlockHealth;
         cube.userData.fullHealth = WORLD.logoBlockHealth;
+        cube.userData.originalMaterial = cube.material;
         cube.userData.damagedMaterial = damagedMaterial;
         cube.userData.basePosition = cube.position.clone();
         cube.userData.spin = new THREE.Vector3(
@@ -327,6 +330,8 @@ function createCoinTrails() {
     coin.rotation.y = Math.PI / 2;
     coin.userData.kind = 'coin';
     coin.userData.phase = index * 0.42;
+    coin.userData.startPosition = coin.position.clone();
+    coin.userData.startRotation = coin.rotation.clone();
     group.add(coin);
   }
 
@@ -347,7 +352,11 @@ function createAsteroids() {
     asteroid.scale.setScalar(0.8 + Math.random() * 1.4);
     asteroid.userData.kind = 'asteroid';
     asteroid.userData.health = asteroid.scale.x > 1.5 ? 2 : 1;
+    asteroid.userData.fullHealth = asteroid.userData.health;
     asteroid.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 2.2, (Math.random() - 0.5) * 1.4, (Math.random() - 0.5) * 2.2);
+    asteroid.userData.startPosition = asteroid.position.clone();
+    asteroid.userData.startRotation = asteroid.rotation.clone();
+    asteroid.userData.startVelocity = asteroid.userData.velocity.clone();
     asteroid.userData.spin = new THREE.Vector3(Math.random() * 0.8, Math.random() * 0.8, Math.random() * 0.8);
     group.add(asteroid);
   }
@@ -364,6 +373,55 @@ function startGame() {
     input.attach();
     state.inputAttached = true;
   }
+}
+
+function resetRun() {
+  state.phase = 'playing';
+  state.score = 0;
+  state.fuel = 100;
+  state.coins = 0;
+  state.asteroids = 0;
+  state.logoDestroyed = 0;
+  state.shootCooldown = 0;
+  state.laserTimer = 0;
+
+  Object.keys(controls).forEach(key => {
+    controls[key] = false;
+  });
+
+  player.group.position.set(0, 5, 38);
+  player.group.rotation.set(0, 0, 0);
+  player.velocity.set(0, 0, 0);
+
+  logo.children.forEach(block => {
+    block.visible = true;
+    block.material = block.userData.originalMaterial;
+    block.userData.health = block.userData.fullHealth;
+    block.position.copy(block.userData.basePosition);
+  });
+
+  coins.group.children.forEach(coin => {
+    coin.visible = true;
+    coin.position.copy(coin.userData.startPosition);
+    coin.rotation.copy(coin.userData.startRotation);
+  });
+
+  asteroids.group.children.forEach(asteroid => {
+    asteroid.visible = true;
+    asteroid.position.copy(asteroid.userData.startPosition);
+    asteroid.rotation.copy(asteroid.userData.startRotation);
+    asteroid.userData.health = asteroid.userData.fullHealth;
+    asteroid.userData.velocity.copy(asteroid.userData.startVelocity);
+  });
+
+  lasers.splice(0).forEach(laser => {
+    scene.remove(laser);
+  });
+
+  if (dom.overlay) {
+    dom.overlay.hidden = true;
+  }
+  updateHud();
 }
 
 function updateHud() {
@@ -626,11 +684,14 @@ if (dom.menuToggle && dom.gameNav) {
     });
   });
 }
+dom.controls?.addEventListener('selectstart', event => event.preventDefault());
+dom.controls?.addEventListener('contextmenu', event => event.preventDefault());
 renderer.domElement.addEventListener('pointerdown', shootLaser);
 dom.shoot?.addEventListener('pointerdown', event => {
   event.preventDefault();
   shootLaser();
 });
+dom.reset?.addEventListener('click', resetRun);
 dom.overlayAction?.addEventListener('click', startGame);
 
 document.body.classList.add('ready');

@@ -23,10 +23,16 @@ body {
   color: var(--text);
   font-family: "Trebuchet MS", system-ui, sans-serif;
   touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 canvas {
   display: block;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 #loading {
@@ -53,6 +59,9 @@ body.ready #loading {
 #overlay {
   position: fixed;
   z-index: 20;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 #menu-toggle {
@@ -64,6 +73,7 @@ body.ready #loading {
   border-radius: 999px;
   background: var(--panel);
   color: var(--text);
+  z-index: 42;
 }
 
 .top-buttons {
@@ -72,6 +82,7 @@ body.ready #loading {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  z-index: 40;
 }
 
 .top-buttons a {
@@ -249,6 +260,9 @@ body.ready #loading {
 #controls button,
 #action-buttons {
   pointer-events: auto;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 .control-pad {
@@ -311,6 +325,10 @@ body.ready #loading {
 .control-btn {
   min-width: 66px;
   min-height: 48px;
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 .control-btn.shoot {
@@ -377,6 +395,7 @@ body.ready #loading {
     background: rgba(5, 12, 26, 0.9);
     box-shadow: 0 18px 55px rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(14px);
+    z-index: 41;
   }
 
   body.menu-open .top-buttons a {
