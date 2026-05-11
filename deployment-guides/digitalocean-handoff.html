@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DigitalOcean SSH Handoff | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">DigitalOcean</div>
+      <h1 class="guide-title">Move droplet access from Termux to this dev machine</h1>
+      <p class="guide-description">
+        Use this page as a local checklist and command builder. Do not paste private SSH keys into the portal.
+      </p>
+    </div>
+
+    <section class="guide-section">
+      <h2>Connection details</h2>
+      <form class="guide-form" id="handoff-form">
+        <div class="field">
+          <label for="alias">Local SSH alias</label>
+          <input class="control" id="alias" name="alias" value="do-dev" autocomplete="off">
+          <p class="field-note">This becomes the short command, for example <span class="inline-code">ssh do-dev</span>.</p>
+        </div>
+        <div class="field">
+          <label for="host">Droplet IP or hostname</label>
+          <input class="control" id="host" name="host" placeholder="203.0.113.10" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="user">Server user</label>
+          <input class="control" id="user" name="user" value="root" autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="key">SSH key filename on this machine</label>
+          <input class="control" id="key" name="key" value="id_ed25519_do_dev" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="workstation">This Debian machine IP on your local network</label>
+          <input class="control" id="workstation" name="workstation" placeholder="192.168.1.50" autocomplete="off">
+          <p class="field-note">Only needed if you choose to copy the existing Termux key over local Wi-Fi.</p>
+        </div>
+        <div class="option-row" aria-label="Handoff method">
+          <label class="option-pill">
+            <input type="radio" name="method" value="new-key" checked>
+            Create a new workstation key
+          </label>
+          <label class="option-pill">
+            <input type="radio" name="method" value="copy-key">
+            Copy the Termux key
+          </label>
+        </div>
+      </form>
+    </section>
+
+    <section class="guide-section">
+      <h2>Recommended path</h2>
+      <ol class="guide-list">
+        <li>Create a fresh SSH key on this Debian machine.</li>
+        <li>From Termux, SSH into the droplet and add the new public key to <span class="inline-code">~/.ssh/authorized_keys</span>.</li>
+        <li>Add the SSH config block here so future work uses <span class="inline-code">ssh do-dev</span>.</li>
+      </ol>
+    </section>
+
+    <section class="guide-section">
+      <h2>Generated commands</h2>
+      <div class="status-block">
+        <strong>Run on this Debian machine</strong>
+        <pre id="local-commands"></pre>
+      </div>
+      <div class="status-block" style="margin-top: 12px;">
+        <strong>Run in Termux</strong>
+        <pre id="termux-commands"></pre>
+      </div>
+      <div class="actions-row" style="margin-top: 12px;">
+        <button class="primary-button" type="button" data-copy-target="local-commands">Copy Debian commands</button>
+        <button class="muted-button" type="button" data-copy-target="termux-commands">Copy Termux commands</button>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h2>Sanity checks after connection</h2>
+      <ul class="guide-list">
+        <li><span class="inline-code">ssh do-dev 'hostname; whoami; uptime'</span></li>
+        <li><span class="inline-code">ssh do-dev 'lsb_release -a 2&gt;/dev/null || cat /etc/os-release'</span></li>
+        <li><span class="inline-code">ssh do-dev 'docker ps 2&gt;/dev/null || true; systemctl --type=service --state=running | head'</span></li>
+      </ul>
+    </section>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="./index.html">Back to guides</a>
+      <a href="./self-hosted/">Self-hosted stack</a>
+      <a href="/index.html">Return to Portal</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('handoff-form');
+    const localCommands = document.getElementById('local-commands');
+    const termuxCommands = document.getElementById('termux-commands');
+
+    function shellQuote(value) {
+      return `'${String(value).replace(/'/g, "'\\''")}'`;
+    }
+
+    function cleanPathName(value) {
+      return String(value || 'id_ed25519_do_dev').replace(/[^A-Za-z0-9._-]/g, '_');
+    }
+
+    function values() {
+      const data = new FormData(form);
+      return {
+        alias: String(data.get('alias') || 'do-dev').trim() || 'do-dev',
+        host: String(data.get('host') || 'YOUR_DROPLET_IP').trim() || 'YOUR_DROPLET_IP',
+        user: String(data.get('user') || 'root').trim() || 'root',
+        key: cleanPathName(data.get('key')),
+        workstation: String(data.get('workstation') || 'THIS_DEBIAN_MACHINE_IP').trim() || 'THIS_DEBIAN_MACHINE_IP',
+        method: String(data.get('method') || 'new-key')
+      };
+    }
+
+    function render() {
+      const v = values();
+      const keyPath = `~/.ssh/${v.key}`;
+      const configBlock = [
+        `Host ${v.alias}`,
+        `  HostName ${v.host}`,
+        `  User ${v.user}`,
+        `  IdentityFile ${keyPath}`,
+        '  IdentitiesOnly yes'
+      ].join('\n');
+
+      if (v.method === 'copy-key') {
+        localCommands.textContent = [
+          'mkdir -p ~/.ssh',
+          'chmod 700 ~/.ssh',
+          `chmod 600 ${keyPath}`,
+          `chmod 644 ${keyPath}.pub 2>/dev/null || true`,
+          `cat >> ~/.ssh/config <<'EOF'\n${configBlock}\nEOF`,
+          `ssh ${v.alias}`
+        ].join('\n');
+
+        termuxCommands.textContent = [
+          `scp ~/.ssh/id_ed25519 tmsteph@${v.workstation}:/home/tmsteph/.ssh/${v.key}`,
+          `scp ~/.ssh/id_ed25519.pub tmsteph@${v.workstation}:/home/tmsteph/.ssh/${v.key}.pub`,
+          `ssh ${v.user}@${v.host}`
+        ].join('\n');
+        return;
+      }
+
+      localCommands.textContent = [
+        'mkdir -p ~/.ssh',
+        'chmod 700 ~/.ssh',
+        `ssh-keygen -t ed25519 -f ${keyPath} -C ${shellQuote(`${v.alias}-workstation`)}`,
+        `cat ${keyPath}.pub`,
+        `cat >> ~/.ssh/config <<'EOF'\n${configBlock}\nEOF`,
+        `ssh ${v.alias}`
+      ].join('\n');
+
+      termuxCommands.textContent = [
+        `ssh ${v.user}@${v.host}`,
+        'mkdir -p ~/.ssh && chmod 700 ~/.ssh',
+        "cat >> ~/.ssh/authorized_keys <<'EOF'",
+        'PASTE_THE_PUBLIC_KEY_FROM_DEBIAN_HERE',
+        'EOF',
+        'chmod 600 ~/.ssh/authorized_keys'
+      ].join('\n');
+    }
+
+    form.addEventListener('input', render);
+    form.addEventListener('change', render);
+    document.querySelectorAll('[data-copy-target]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const target = document.getElementById(button.dataset.copyTarget);
+        await navigator.clipboard.writeText(target.textContent);
+        button.textContent = 'Copied';
+        setTimeout(render, 900);
+      });
+    });
+    render();
+  </script>
+</body>
+</html>
