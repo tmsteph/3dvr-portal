@@ -10,12 +10,16 @@ describe('space jetpack game route', () => {
     const hub = await readFile(new URL('../games.html', import.meta.url), 'utf8');
 
     assert.match(html, /3DVR Space Jetpack/);
+    assert.match(html, /giant 3dvr\.tech logo/);
     assert.match(html, /shoot-btn/);
     assert.match(html, /joystick-zone/);
     assert.match(html, /cdnjs\.cloudflare\.com\/ajax\/libs\/three\.js\/r128\/three\.min\.js/);
     assert.match(html, /type="module" src="main\.js"/);
     assert.match(js, /createInputController/);
     assert.match(js, /createDestructibleLogo/);
+    assert.match(js, /const word = '3dvr\.tech'/);
+    assert.match(js, /verticalThrust = thrusting \? 10 : 0/);
+    assert.match(js, /player\.velocity\.multiplyScalar\(0\.965\)/);
     assert.match(js, /createAsteroids/);
     assert.match(js, /createCoinTrails/);
     assert.match(js, /Raycaster/);

@@ -132,7 +132,7 @@ function drawCanvasFallback(context, width, height) {
 
   context.save();
   context.translate(width * 0.5, height * 0.42 + Math.sin(time) * 8);
-  context.font = `900 ${Math.max(64, width * 0.12)}px Trebuchet MS, sans-serif`;
+  context.font = `900 ${Math.max(48, width * 0.09)}px Trebuchet MS, sans-serif`;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   context.lineWidth = Math.max(4, width * 0.008);
@@ -140,8 +140,8 @@ function drawCanvasFallback(context, width, height) {
   context.fillStyle = 'rgba(245, 251, 255, 0.92)';
   context.shadowColor = 'rgba(101, 242, 255, 0.5)';
   context.shadowBlur = 24;
-  context.strokeText('3DVR', 0, 0);
-  context.fillText('3DVR', 0, 0);
+  context.strokeText('3dvr.tech', 0, 0);
+  context.fillText('3dvr.tech', 0, 0);
   context.restore();
 
   for (let index = 0; index < 12; index += 1) {
@@ -240,16 +240,23 @@ function createDestructibleLogo() {
     roughness: 0.24,
     metalness: 0.32,
   });
-  const geometry = new THREE.BoxGeometry(1.75, 1.75, 1.1);
+  const geometry = new THREE.BoxGeometry(1.08, 1.08, 0.92);
   const patterns = {
     '3': ['111', '001', '111', '001', '111'],
-    D: ['110', '101', '101', '101', '110'],
-    V: ['101', '101', '101', '101', '010'],
-    R: ['110', '101', '110', '101', '101'],
+    d: ['001', '001', '111', '101', '111'],
+    v: ['101', '101', '101', '101', '010'],
+    r: ['110', '101', '100', '100', '100'],
+    '.': ['000', '000', '000', '000', '010'],
+    t: ['010', '111', '010', '010', '011'],
+    e: ['111', '100', '111', '100', '111'],
+    c: ['111', '100', '100', '100', '111'],
+    h: ['101', '101', '111', '101', '101'],
   };
-  let offset = -16;
+  const word = '3dvr.tech';
+  let offset = -23;
 
-  Object.entries(patterns).forEach(([letter, rows]) => {
+  [...word].forEach(letter => {
+    const rows = patterns[letter];
     rows.forEach((row, y) => {
       [...row].forEach((cell, x) => {
         if (cell !== '1') {
@@ -257,7 +264,7 @@ function createDestructibleLogo() {
         }
 
         const cube = new THREE.Mesh(geometry, material.clone());
-        cube.position.set(offset + x * 2, 10 - y * 2, -18);
+        cube.position.set(offset + x * 1.25, 10 - y * 1.25, -18);
         cube.userData.kind = 'logoBlock';
         cube.userData.health = WORLD.logoBlockHealth;
         cube.userData.fullHealth = WORLD.logoBlockHealth;
@@ -271,7 +278,7 @@ function createDestructibleLogo() {
         group.add(cube);
       });
     });
-    offset += letter === '3' ? 7 : 8;
+    offset += letter === '.' ? 2.35 : 4.45;
   });
 
   state.logoBlocks = group.children.length;
@@ -409,14 +416,19 @@ function updatePlayer(delta) {
   const forward = Number(controls.forward) - Number(controls.backward) + controls.moveY;
   const turn = Number(controls.left) - Number(controls.right) - controls.moveX * 0.6;
   const strafe = Number(controls.strafeRight) - Number(controls.strafeLeft) + controls.moveX;
-  const speed = thrusting ? 32 : 18;
+  const hasMoveInput = Math.abs(forward) > 0.01 || Math.abs(strafe) > 0.01 || thrusting;
+  const speed = thrusting ? 34 : 19;
+  const verticalThrust = thrusting ? 10 : 0;
 
   player.group.rotation.y += turn * delta * 1.8;
-  tempVector.set(strafe * speed * delta, (thrusting ? 13 : -5) * delta, -forward * speed * delta);
+  tempVector.set(strafe * speed, verticalThrust, -forward * speed);
+  tempVector.multiplyScalar(delta);
   tempVector.applyQuaternion(player.group.quaternion);
-  player.velocity.add(tempVector);
-  player.velocity.multiplyScalar(0.88);
-  player.group.position.add(player.velocity.clone().multiplyScalar(delta * 8));
+  if (hasMoveInput) {
+    player.velocity.add(tempVector);
+  }
+  player.velocity.multiplyScalar(0.965);
+  player.group.position.add(player.velocity.clone().multiplyScalar(delta * 5.8));
   player.group.position.x = clamp(player.group.position.x, -WORLD.bounds, WORLD.bounds);
   player.group.position.y = clamp(player.group.position.y, -16, WORLD.bounds);
   player.group.position.z = clamp(player.group.position.z, -WORLD.bounds, WORLD.bounds);
