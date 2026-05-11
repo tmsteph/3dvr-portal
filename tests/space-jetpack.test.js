@@ -12,13 +12,17 @@ describe('space jetpack game route', () => {
     assert.match(html, /3DVR Space Jetpack/);
     assert.match(html, /giant 3dvr\.tech logo/);
     assert.match(html, /shoot-btn/);
-    assert.match(html, /joystick-zone/);
+    assert.match(html, /data-control="up"/);
+    assert.match(html, /data-control="down"/);
+    assert.match(html, /data-look="left"/);
+    assert.match(html, /id="overlay" hidden/);
     assert.match(html, /cdnjs\.cloudflare\.com\/ajax\/libs\/three\.js\/r128\/three\.min\.js/);
     assert.match(html, /type="module" src="main\.js"/);
     assert.match(js, /createInputController/);
     assert.match(js, /createDestructibleLogo/);
     assert.match(js, /const word = '3dvr\.tech'/);
-    assert.match(js, /verticalThrust = thrusting \? 10 : 0/);
+    assert.match(js, /const vertical = Number\(controls\.up\) - Number\(controls\.down\)/);
+    assert.match(js, /startGame\(\);/);
     assert.match(js, /player\.velocity\.multiplyScalar\(0\.965\)/);
     assert.match(js, /createAsteroids/);
     assert.match(js, /createCoinTrails/);
@@ -27,7 +31,7 @@ describe('space jetpack game route', () => {
     assert.match(js, /dataset\.webglFallback/);
     assert.match(js, /logoBlock/);
     assert.match(js, /asteroid/);
-    assert.match(css, /#joystick-zone/);
+    assert.match(css, /\.control-pad__grid/);
     assert.match(css, /\.control-btn\.shoot/);
     assert.match(hub, /space-jetpack\//);
     assert.doesNotMatch(js, /GLTFLoader/);

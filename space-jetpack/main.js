@@ -10,7 +10,7 @@ const WORLD = {
 };
 
 const state = {
-  phase: 'ready',
+  phase: 'playing',
   score: 0,
   fuel: 100,
   coins: 0,
@@ -21,6 +21,17 @@ const state = {
   shootCooldown: 0,
   laserTimer: 0,
   lastTime: 0,
+};
+
+const controls = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+  lookLeft: false,
+  lookRight: false,
+  lookUp: false,
+  lookDown: false,
 };
 
 const dom = {
@@ -131,7 +142,7 @@ function drawCanvasFallback(context, width, height) {
   }
 
   context.save();
-  context.translate(width * 0.5, height * 0.42 + Math.sin(time) * 8);
+  context.translate(width * 0.5, height * 0.45 + Math.sin(time) * 6);
   context.font = `900 ${Math.max(48, width * 0.09)}px Trebuchet MS, sans-serif`;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
@@ -159,9 +170,9 @@ function drawCanvasFallback(context, width, height) {
   context.shadowBlur = 0;
   context.fillStyle = 'rgba(245, 251, 255, 0.92)';
   context.beginPath();
-  context.arc(width * 0.5, height * 0.76, 13, 0, Math.PI * 2);
+  context.arc(width * 0.5, height * 0.72, 13, 0, Math.PI * 2);
   context.fill();
-  context.fillRect(width * 0.5 - 8, height * 0.76 + 8, 16, 30);
+  context.fillRect(width * 0.5 - 8, height * 0.72 + 8, 16, 30);
 }
 
 function createPlayer() {
@@ -192,7 +203,7 @@ function createPlayer() {
     group.add(pack);
   });
 
-  group.position.set(0, 5, 34);
+  group.position.set(0, 5, 38);
   return {
     group,
     velocity: new THREE.Vector3(0, 0, 0),
@@ -264,7 +275,7 @@ function createDestructibleLogo() {
         }
 
         const cube = new THREE.Mesh(geometry, material.clone());
-        cube.position.set(offset + x * 1.25, 10 - y * 1.25, -18);
+        cube.position.set(offset + x * 1.25, 7.4 - y * 1.25, -18);
         cube.userData.kind = 'logoBlock';
         cube.userData.health = WORLD.logoBlockHealth;
         cube.userData.fullHealth = WORLD.logoBlockHealth;
@@ -336,7 +347,9 @@ function createAsteroids() {
 
 function startGame() {
   state.phase = 'playing';
-  dom.overlay.hidden = true;
+  if (dom.overlay) {
+    dom.overlay.hidden = true;
+  }
   if (!state.inputAttached) {
     input.attach();
     state.inputAttached = true;
@@ -411,17 +424,16 @@ function damageTarget(target) {
 }
 
 function updatePlayer(delta) {
-  const controls = input.state;
-  const thrusting = controls.thrust && state.fuel > 0;
-  const forward = Number(controls.forward) - Number(controls.backward) + controls.moveY;
-  const turn = Number(controls.left) - Number(controls.right) - controls.moveX * 0.6;
-  const strafe = Number(controls.strafeRight) - Number(controls.strafeLeft) + controls.moveX;
-  const hasMoveInput = Math.abs(forward) > 0.01 || Math.abs(strafe) > 0.01 || thrusting;
-  const speed = thrusting ? 34 : 19;
-  const verticalThrust = thrusting ? 10 : 0;
+  const vertical = Number(controls.up) - Number(controls.down);
+  const strafe = Number(controls.right) - Number(controls.left);
+  const pan = Number(controls.lookLeft) - Number(controls.lookRight);
+  const pitch = Number(controls.lookUp) - Number(controls.lookDown);
+  const hasMoveInput = Math.abs(vertical) > 0.01 || Math.abs(strafe) > 0.01;
+  const speed = 19;
 
-  player.group.rotation.y += turn * delta * 1.8;
-  tempVector.set(strafe * speed, verticalThrust, -forward * speed);
+  player.group.rotation.y += pan * delta * 1.75;
+  player.group.rotation.x = clamp(player.group.rotation.x + pitch * delta * 1.15, -0.7, 0.7);
+  tempVector.set(strafe * speed, vertical * speed, 0);
   tempVector.multiplyScalar(delta);
   tempVector.applyQuaternion(player.group.quaternion);
   if (hasMoveInput) {
@@ -433,7 +445,7 @@ function updatePlayer(delta) {
   player.group.position.y = clamp(player.group.position.y, -16, WORLD.bounds);
   player.group.position.z = clamp(player.group.position.z, -WORLD.bounds, WORLD.bounds);
   player.group.rotation.z = -strafe * 0.28;
-  state.fuel = clamp(state.fuel + (thrusting ? -18 : 8) * delta, 0, 100);
+  state.fuel = clamp(state.fuel + (hasMoveInput ? -5 : 9) * delta, 0, 100);
 }
 
 function updateObjects(delta, elapsed) {
@@ -494,9 +506,10 @@ function updateObjects(delta, elapsed) {
 }
 
 function updateCamera() {
-  const cameraOffset = new THREE.Vector3(0, 7, 17).applyQuaternion(player.group.quaternion);
+  const cameraOffset = new THREE.Vector3(0, 4.6, 19).applyQuaternion(player.group.quaternion);
+  const lookAhead = new THREE.Vector3(0, 0.4, -34).applyQuaternion(player.group.quaternion);
   camera.position.lerp(player.group.position.clone().add(cameraOffset), 0.12);
-  camera.lookAt(player.group.position);
+  camera.lookAt(player.group.position.clone().add(lookAhead));
 }
 
 function animate(now = 0) {
@@ -512,7 +525,7 @@ function animate(now = 0) {
     updateHud();
   } else {
     logo.rotation.y = Math.sin(elapsed * 0.24) * 0.14;
-    camera.position.lerp(new THREE.Vector3(0, 17, 54), 0.08);
+    camera.position.lerp(new THREE.Vector3(0, 12, 56), 0.08);
     camera.lookAt(logo.position);
   }
 
@@ -528,19 +541,72 @@ function resize() {
 
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', event => {
+  const keyMap = {
+    KeyW: 'up',
+    ArrowUp: 'up',
+    KeyS: 'down',
+    ArrowDown: 'down',
+    KeyA: 'left',
+    KeyD: 'right',
+    KeyJ: 'lookLeft',
+    KeyL: 'lookRight',
+    KeyI: 'lookUp',
+    KeyK: 'lookDown',
+  };
+  const control = keyMap[event.code];
+  if (control) {
+    event.preventDefault();
+    controls[control] = true;
+  }
   if (event.code === 'Enter' || event.code === 'KeyF') {
     event.preventDefault();
     shootLaser();
   }
+});
+window.addEventListener('keyup', event => {
+  const keyMap = {
+    KeyW: 'up',
+    ArrowUp: 'up',
+    KeyS: 'down',
+    ArrowDown: 'down',
+    KeyA: 'left',
+    KeyD: 'right',
+    KeyJ: 'lookLeft',
+    KeyL: 'lookRight',
+    KeyI: 'lookUp',
+    KeyK: 'lookDown',
+  };
+  const control = keyMap[event.code];
+  if (control) {
+    event.preventDefault();
+    controls[control] = false;
+  }
+});
+document.querySelectorAll('[data-control], [data-look]').forEach(button => {
+  const control = button.dataset.control || `look${button.dataset.look[0].toUpperCase()}${button.dataset.look.slice(1)}`;
+  const setActive = event => {
+    event.preventDefault();
+    controls[control] = true;
+    button.setPointerCapture?.(event.pointerId);
+  };
+  const clearActive = event => {
+    event.preventDefault();
+    controls[control] = false;
+  };
+  button.addEventListener('pointerdown', setActive);
+  button.addEventListener('pointerup', clearActive);
+  button.addEventListener('pointercancel', clearActive);
+  button.addEventListener('lostpointercapture', clearActive);
 });
 renderer.domElement.addEventListener('pointerdown', shootLaser);
 dom.shoot?.addEventListener('pointerdown', event => {
   event.preventDefault();
   shootLaser();
 });
-dom.overlayAction.addEventListener('click', startGame);
+dom.overlayAction?.addEventListener('click', startGame);
 
 document.body.classList.add('ready');
+startGame();
 updateHud();
 resize();
 requestAnimationFrame(animate);

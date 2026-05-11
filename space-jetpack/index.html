@@ -55,7 +55,7 @@
     </div>
   </aside>
 
-  <section id="overlay">
+  <section id="overlay" hidden>
     <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
       <h1 id="overlay-title">3DVR Space Jetpack</h1>
       <p id="overlay-message">
@@ -66,17 +66,24 @@
   </section>
 
   <p id="instruction-chip">
-    WASD/Arrows steer. Space/Fly boosts. Enter, tap Shoot, or click the world to fire.
+    Move with WASD or the arrows. Pan the view, then shoot asteroids and logo blocks.
   </p>
 
   <div id="controls" aria-label="Touch controls">
-    <div id="joystick-zone" aria-hidden="true">
-      <div id="joystick-base">
-        <div id="joystick-knob"></div>
+    <div class="control-pad" aria-label="Move">
+      <span>Move</span>
+      <div class="control-pad__grid">
+        <button class="control-btn" type="button" data-control="up" aria-label="Move up">↑</button>
+        <button class="control-btn" type="button" data-control="left" aria-label="Move left">←</button>
+        <button class="control-btn" type="button" data-control="down" aria-label="Move down">↓</button>
+        <button class="control-btn" type="button" data-control="right" aria-label="Move right">→</button>
       </div>
     </div>
     <div id="action-buttons">
-      <button id="fly-btn" class="control-btn fly" type="button" aria-label="Use jetpack">Fly</button>
+      <button class="control-btn small" type="button" data-look="left" aria-label="Pan left">Pan ←</button>
+      <button class="control-btn small" type="button" data-look="right" aria-label="Pan right">Pan →</button>
+      <button class="control-btn small" type="button" data-look="up" aria-label="View up">View ↑</button>
+      <button class="control-btn small" type="button" data-look="down" aria-label="View down">View ↓</button>
       <button id="shoot-btn" class="control-btn shoot" type="button" aria-label="Shoot laser">Shoot</button>
       <button id="pause-btn" class="control-btn small" type="button" aria-label="Pause run">Pause</button>
     </div>

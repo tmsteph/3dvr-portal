@@ -246,47 +246,60 @@ body.ready #loading {
   pointer-events: none;
 }
 
-#joystick-zone,
+#controls button,
 #action-buttons {
   pointer-events: auto;
 }
 
-#joystick-zone {
-  width: 142px;
-  height: 142px;
+.control-pad {
   display: grid;
-  place-items: center;
+  gap: 8px;
+  pointer-events: auto;
 }
 
-#joystick-base {
-  position: relative;
-  width: 110px;
-  height: 110px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: rgba(5, 12, 26, 0.44);
-  backdrop-filter: blur(12px);
+.control-pad span {
+  color: var(--muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.68rem;
 }
 
-#joystick-knob {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 42px;
-  height: 42px;
-  margin: -21px 0 0 -21px;
-  border-radius: 50%;
-  background: var(--cyan);
-  box-shadow: 0 0 26px rgba(101, 242, 255, 0.42);
+.control-pad__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  grid-template-areas:
+    ". up ."
+    "left down right";
+  gap: 8px;
+}
+
+[data-control="up"] {
+  grid-area: up;
+}
+
+[data-control="left"] {
+  grid-area: left;
+}
+
+[data-control="down"] {
+  grid-area: down;
+}
+
+[data-control="right"] {
+  grid-area: right;
 }
 
 #action-buttons {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
   gap: 10px;
+  width: min(300px, 46vw);
 }
 
 .control-btn {
-  min-width: 74px;
+  min-width: 66px;
   min-height: 48px;
 }
 
@@ -312,5 +325,26 @@ body.ready #loading {
 
   #instruction-chip {
     display: none;
+  }
+
+  #controls {
+    bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .control-pad__grid {
+    grid-template-columns: repeat(3, 46px);
+    gap: 6px;
+  }
+
+  .control-btn {
+    min-width: 46px;
+    min-height: 44px;
+    padding: 0 8px;
+    font-size: 0.76rem;
+  }
+
+  #action-buttons {
+    width: min(214px, 52vw);
+    gap: 6px;
   }
 }
