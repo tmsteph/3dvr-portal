@@ -618,8 +618,21 @@
           console.error('Failed to record user profile metadata', err);
         })
         .then(() => {
-          window.location.href = 'index.html';
+          window.location.href = getSafeRedirectPath();
         });
+    }
+
+    function getSafeRedirectPath() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get('next') || '';
+        if (next.startsWith('/') && !next.startsWith('//') && !next.includes('://')) {
+          return next;
+        }
+      } catch (err) {
+        console.warn('Unable to read sign-in redirect target', err);
+      }
+      return 'index.html';
     }
 
     function clearGuestSession() {
