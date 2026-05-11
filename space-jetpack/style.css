@@ -269,9 +269,15 @@ body.ready #loading {
   display: grid;
   grid-template-columns: repeat(3, 52px);
   grid-template-areas:
-    ". up ."
-    "left down right";
+    ". forward ."
+    "left up right"
+    ". down ."
+    ". back .";
   gap: 8px;
+}
+
+[data-control="forward"] {
+  grid-area: forward;
 }
 
 [data-control="up"] {
@@ -288,6 +294,10 @@ body.ready #loading {
 
 [data-control="right"] {
   grid-area: right;
+}
+
+[data-control="back"] {
+  grid-area: back;
 }
 
 #action-buttons {
@@ -314,13 +324,96 @@ body.ready #loading {
 }
 
 @media (max-width: 720px) {
-  .top-buttons a:not(:first-child):not(:nth-child(2)) {
+  #menu-toggle {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 0.76rem;
+  }
+
+  .top-buttons {
+    top: max(8px, env(safe-area-inset-top));
+    left: max(8px, env(safe-area-inset-left));
+    right: 78px;
+    width: auto;
+    max-width: calc(100vw - 94px);
+    margin: 0;
+    padding: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .top-buttons a {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 34px;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+
+  .top-buttons a:not(:first-child) {
     display: none;
   }
 
+  body.menu-open .top-buttons {
+    top: 50px;
+    right: max(8px, env(safe-area-inset-right));
+    left: auto;
+    width: min(190px, calc(100vw - 16px));
+    max-width: min(190px, calc(100vw - 16px));
+    padding: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: rgba(5, 12, 26, 0.9);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(14px);
+  }
+
+  body.menu-open .top-buttons a {
+    display: inline-flex;
+    width: 100%;
+  }
+
   #hud {
-    top: 62px;
-    padding: 12px;
+    top: 50px;
+    left: 8px;
+    width: min(250px, calc(100vw - 16px));
+    padding: 9px 10px;
+    border-radius: 16px;
+  }
+
+  .hud-title,
+  .hud-item-label,
+  .hud-meter-label {
+    font-size: 0.56rem;
+    letter-spacing: 0.12em;
+  }
+
+  .hud-value {
+    font-size: 1.25rem;
+  }
+
+  .hud-grid {
+    display: none;
+  }
+
+  .hud-meter {
+    margin-top: 7px;
+  }
+
+  .meter-track {
+    height: 7px;
+    margin-top: 5px;
   }
 
   #instruction-chip {
@@ -332,7 +425,7 @@ body.ready #loading {
   }
 
   .control-pad__grid {
-    grid-template-columns: repeat(3, 46px);
+    grid-template-columns: repeat(3, 44px);
     gap: 6px;
   }
 

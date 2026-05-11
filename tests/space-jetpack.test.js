@@ -14,6 +14,8 @@ describe('space jetpack game route', () => {
     assert.match(html, /shoot-btn/);
     assert.match(html, /data-control="up"/);
     assert.match(html, /data-control="down"/);
+    assert.match(html, /data-control="forward"/);
+    assert.match(html, /data-control="back"/);
     assert.match(html, /data-look="left"/);
     assert.match(html, /id="overlay" hidden/);
     assert.match(html, /cdnjs\.cloudflare\.com\/ajax\/libs\/three\.js\/r128\/three\.min\.js/);
@@ -22,6 +24,8 @@ describe('space jetpack game route', () => {
     assert.match(js, /createDestructibleLogo/);
     assert.match(js, /const word = '3dvr\.tech'/);
     assert.match(js, /const vertical = Number\(controls\.up\) - Number\(controls\.down\)/);
+    assert.match(js, /const depth = Number\(controls\.back\) - Number\(controls\.forward\)/);
+    assert.match(js, /KeyE: 'forward'/);
     assert.match(js, /logoBounds\.getCenter/);
     assert.match(js, /yawQuaternion\.setFromAxisAngle/);
     assert.match(js, /startGame\(\);/);

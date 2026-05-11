@@ -28,6 +28,8 @@ const controls = {
   down: false,
   left: false,
   right: false,
+  forward: false,
+  back: false,
   lookLeft: false,
   lookRight: false,
   lookUp: false,
@@ -46,6 +48,8 @@ const dom = {
   logo: document.getElementById('hud-logo'),
   asteroids: document.getElementById('hud-asteroids'),
   shoot: document.getElementById('shoot-btn'),
+  menuToggle: document.getElementById('menu-toggle'),
+  gameNav: document.getElementById('game-nav'),
 };
 
 const input = createInputController({
@@ -432,14 +436,15 @@ function damageTarget(target) {
 function updatePlayer(delta) {
   const vertical = Number(controls.up) - Number(controls.down);
   const strafe = Number(controls.right) - Number(controls.left);
+  const depth = Number(controls.back) - Number(controls.forward);
   const pan = Number(controls.lookLeft) - Number(controls.lookRight);
   const pitch = Number(controls.lookUp) - Number(controls.lookDown);
-  const hasMoveInput = Math.abs(vertical) > 0.01 || Math.abs(strafe) > 0.01;
+  const hasMoveInput = Math.abs(vertical) > 0.01 || Math.abs(strafe) > 0.01 || Math.abs(depth) > 0.01;
   const speed = 19;
 
   player.group.rotation.y += pan * delta * 1.75;
   player.group.rotation.x = clamp(player.group.rotation.x + pitch * delta * 1.15, -0.7, 0.7);
-  tempVector.set(strafe * speed, vertical * speed, 0);
+  tempVector.set(strafe * speed, vertical * speed, depth * speed);
   tempVector.multiplyScalar(delta);
   yawQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.group.rotation.y);
   tempVector.applyQuaternion(yawQuaternion);
@@ -554,6 +559,8 @@ window.addEventListener('keydown', event => {
     ArrowDown: 'down',
     KeyA: 'left',
     KeyD: 'right',
+    KeyQ: 'back',
+    KeyE: 'forward',
     KeyJ: 'lookLeft',
     KeyL: 'lookRight',
     KeyI: 'lookUp',
@@ -577,6 +584,8 @@ window.addEventListener('keyup', event => {
     ArrowDown: 'down',
     KeyA: 'left',
     KeyD: 'right',
+    KeyQ: 'back',
+    KeyE: 'forward',
     KeyJ: 'lookLeft',
     KeyL: 'lookRight',
     KeyI: 'lookUp',
@@ -604,6 +613,19 @@ document.querySelectorAll('[data-control], [data-look]').forEach(button => {
   button.addEventListener('pointercancel', clearActive);
   button.addEventListener('lostpointercapture', clearActive);
 });
+if (dom.menuToggle && dom.gameNav) {
+  dom.menuToggle.addEventListener('click', () => {
+    const isOpen = document.body.classList.toggle('menu-open');
+    dom.menuToggle.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  dom.gameNav.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      document.body.classList.remove('menu-open');
+      dom.menuToggle.setAttribute('aria-expanded', 'false');
+    });
+  });
+}
 renderer.domElement.addEventListener('pointerdown', shootLaser);
 dom.shoot?.addEventListener('pointerdown', event => {
   event.preventDefault();
