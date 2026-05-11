@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3DVR Clipboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/auth-identity.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <link rel="stylesheet" href="/styles/global.css" />
+  <link rel="stylesheet" href="./styles.css" />
+  <meta name="theme-color" content="#101820" />
+</head>
+<body class="clipboard-page">
+  <a class="skip-link" href="#clipboard-main">Skip to clipboard</a>
+  <header class="clipboard-topbar">
+    <a class="portal-link" href="/">3DVR Portal</a>
+    <nav aria-label="Clipboard navigation">
+      <a href="/sign-in.html" data-auth-link>Sign in</a>
+      <a href="/profile.html">Profile</a>
+    </nav>
+  </header>
+
+  <main id="clipboard-main" class="clipboard-shell">
+    <section class="clipboard-header" aria-labelledby="clipboard-title">
+      <div>
+        <span class="eyebrow">Private Sync</span>
+        <h1 id="clipboard-title">Device Clipboard</h1>
+        <p>Save commands, tokens, URLs, and short notes to retrieve from another signed-in device.</p>
+      </div>
+      <div class="session-panel" aria-live="polite">
+        <span class="session-label">Session</span>
+        <strong data-session-label>Checking sign-in</strong>
+      </div>
+    </section>
+
+    <section class="auth-gate" data-auth-gate hidden>
+      <h2>Sign in to use your clipboard</h2>
+      <p>This clipboard is tied to your portal account. Public and guest clipboards are disabled so saved content does not leak across users.</p>
+      <a class="button button-primary" href="/sign-in.html" data-auth-link>Sign in or create account</a>
+    </section>
+
+    <section class="clipboard-workspace" data-clipboard-workspace hidden>
+      <form class="entry-form" data-entry-form>
+        <label for="clipboard-text">Clipboard content</label>
+        <textarea
+          id="clipboard-text"
+          data-entry-text
+          rows="9"
+          maxlength="12000"
+          placeholder="Paste a command, SSH key snippet, URL, or note"
+          spellcheck="false"
+        ></textarea>
+        <div class="form-footer">
+          <p data-entry-count>0 / 12000</p>
+          <div class="form-actions">
+            <button class="button" type="button" data-read-clipboard>Paste from device</button>
+            <button class="button button-primary" type="submit">Save encrypted</button>
+          </div>
+        </div>
+      </form>
+
+      <section class="entries-panel" aria-labelledby="entries-title">
+        <div class="entries-heading">
+          <div>
+            <span class="eyebrow">Your Items</span>
+            <h2 id="entries-title">Saved clipboard</h2>
+          </div>
+          <button class="button" type="button" data-refresh>Refresh</button>
+        </div>
+        <p class="status-line" data-status>Waiting for encrypted entries.</p>
+        <div class="entries-list" data-entries-list></div>
+      </section>
+    </section>
+  </main>
+
+  <template id="clipboard-entry-template">
+    <article class="clipboard-entry">
+      <div class="entry-main">
+        <h3 data-entry-title></h3>
+        <p data-entry-meta></p>
+        <pre data-entry-preview></pre>
+      </div>
+      <div class="entry-actions">
+        <button class="button button-primary" type="button" data-copy-entry>Copy</button>
+        <button class="button button-danger" type="button" data-delete-entry>Delete</button>
+      </div>
+    </article>
+  </template>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>

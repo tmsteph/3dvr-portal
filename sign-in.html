@@ -661,7 +661,7 @@
 
     function resolvePostSignInDestination() {
       const params = new URLSearchParams(window.location.search);
-      return sanitizeRedirectDestination(params.get('redirect') || '');
+      return sanitizeRedirectDestination(params.get('redirect') || params.get('next') || '');
     }
 
     function describeRedirectTarget(destination = DEFAULT_POST_SIGN_IN_DESTINATION) {
