@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Space Jetpack</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body data-issue-launcher="off">
+  <button id="menu-toggle" type="button" aria-controls="game-nav" aria-expanded="false">Menu</button>
+
+  <nav id="game-nav" class="top-buttons" aria-label="Game links">
+    <a href="../index.html">Portal</a>
+    <a href="../games.html">Game Hub</a>
+    <a href="../jetpack/">Jetpack Corridor</a>
+    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">Subscribe</a>
+  </nav>
+
+  <div id="loading" role="status" aria-live="polite">Building Space...</div>
+
+  <aside id="hud" aria-live="polite">
+    <div class="hud-header">
+      <span class="hud-title">Space Score</span>
+      <strong id="hud-score" class="hud-value">0</strong>
+    </div>
+    <div class="hud-grid">
+      <div class="hud-item">
+        <span class="hud-item-label">3DVR Hull</span>
+        <strong id="hud-logo" class="hud-item-value">100%</strong>
+      </div>
+      <div class="hud-item">
+        <span class="hud-item-label">Asteroids</span>
+        <strong id="hud-asteroids" class="hud-item-value">0</strong>
+      </div>
+    </div>
+    <div class="hud-meter">
+      <div class="hud-meter-label">
+        <span>Fuel</span>
+        <span id="hud-fuel">100%</span>
+      </div>
+      <div class="meter-track">
+        <div id="fuel-meter-fill" class="meter-fill fuel"></div>
+      </div>
+    </div>
+    <div class="hud-meter">
+      <div class="hud-meter-label">
+        <span>Coins</span>
+        <span id="hud-coins">0/36</span>
+      </div>
+      <div class="meter-track">
+        <div id="coin-meter-fill" class="meter-fill distance"></div>
+      </div>
+    </div>
+  </aside>
+
+  <section id="overlay">
+    <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+      <h1 id="overlay-title">3DVR Space Jetpack</h1>
+      <p id="overlay-message">
+        Fly around the giant 3DVR logo, collect coin trails, blast asteroids, and chip away at the logo blocks.
+      </p>
+      <button id="overlay-action" type="button">Launch</button>
+    </div>
+  </section>
+
+  <p id="instruction-chip">
+    WASD/Arrows steer. Space/Fly boosts. Enter, tap Shoot, or click the world to fire.
+  </p>
+
+  <div id="controls" aria-label="Touch controls">
+    <div id="joystick-zone" aria-hidden="true">
+      <div id="joystick-base">
+        <div id="joystick-knob"></div>
+      </div>
+    </div>
+    <div id="action-buttons">
+      <button id="fly-btn" class="control-btn fly" type="button" aria-label="Use jetpack">Fly</button>
+      <button id="shoot-btn" class="control-btn shoot" type="button" aria-label="Shoot laser">Shoot</button>
+      <button id="pause-btn" class="control-btn small" type="button" aria-label="Pause run">Pause</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script type="module" src="main.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

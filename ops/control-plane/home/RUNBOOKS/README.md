@@ -9,3 +9,4 @@ This folder holds repeatable procedures Codex can use to operate the workspace.
 - `3dvr-segment-angles.md`: default landing-page and pitch angles for the first three paid wedges
 - `3dvr-interview-outreach.md`: research script, outreach copy, and CRM tag set for market validation
 - `3dvr-next-build-plan.md`: 30-90 day agent-ready build plan for the portal, API, DO hub, notifications, device layer, and 3dvr-agent
+- `digitalocean-agent-host.md`: live droplet host details, service commands, and recovery flow for `3dvr-agent`
