@@ -317,8 +317,8 @@ async function runWorkerOnce(options = {}) {
     metadata: {
       limit: options.limit || DEFAULT_TASK_LIMIT,
       backend: options.backend || DEFAULT_BACKEND,
-      capabilities: profile.capabilities,
-      riskClasses: profile.riskClasses,
+      capabilities: normalizeCsv(profile.capabilities),
+      riskClasses: normalizeCsv(profile.riskClasses),
       maxConcurrency: profile.maxConcurrency,
     },
   }).catch(() => {});
