@@ -18,7 +18,7 @@ describe('clipboard app', () => {
     assert.match(app, /localStorage\.getItem\('signedIn'\) === 'true'/);
     assert.match(app, /SEA\.encrypt/);
     assert.match(app, /SEA\.decrypt/);
-    assert.match(app, /portalClipboard/);
+    assert.match(app, /privateClipboards/);
     assert.match(app, /Public and guest clipboards are disabled|showAuthGate/);
     assert.match(app, /redirect=\$\{encodeURIComponent\('\/clipboard\/'\)\}/);
     assert.match(signIn, /params\.get\('redirect'\) \|\| params\.get\('next'\)/);

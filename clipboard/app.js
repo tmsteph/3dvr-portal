@@ -1,6 +1,8 @@
 const MAX_LENGTH = 12000;
-const CLIPBOARD_NODE = 'portalClipboard';
+const CLIPBOARD_ROOT_NODE = 'privateClipboards';
 const ENCRYPTION_CONTEXT = '3dvr-portal-clipboard-v1';
+const PREFERRED_PEERS = ['wss://gun-relay-3dvr.fly.dev/gun'];
+const DISABLED_PEERS = new Set(['wss://relay.3dvr.tech/gun']);
 
 const state = {
   gun: null,
@@ -11,6 +13,9 @@ const state = {
   secret: '',
   entries: new Map(),
   root: null,
+  subscriptionsStarted: false,
+  relayConnected: false,
+  relayReady: Promise.resolve(false),
 };
 
 const els = {
@@ -70,10 +75,7 @@ function createGunContext() {
   }
 
   const gun = Gun({
-    peers: window.__GUN_PEERS__ || [
-      'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
-    ],
+    peers: resolveGunPeers(),
     axe: true
   });
 
@@ -82,6 +84,62 @@ function createGunContext() {
     user: typeof gun.user === 'function' ? gun.user() : createLocalGunNodeStub(),
     isStub: false
   };
+}
+
+function resolveGunPeers() {
+  const configured = Array.isArray(window.__GUN_PEERS__) ? window.__GUN_PEERS__ : [];
+  return Array.from(new Set([...PREFERRED_PEERS, ...configured]))
+    .map(peer => normalizeText(peer))
+    .filter(peer => peer && !DISABLED_PEERS.has(peer));
+}
+
+function watchRelay(gun) {
+  if (!gun || gun.__isGunStub || typeof gun.on !== 'function') {
+    state.relayReady = Promise.resolve(false);
+    return;
+  }
+
+  state.relayReady = new Promise(resolve => {
+    let settled = false;
+    const markReady = peer => {
+      state.relayConnected = true;
+      const peerLabel = normalizeText(peer && (peer.url || peer.id)) || 'relay';
+      setStatus(`Sync relay connected through ${peerLabel}.`);
+      if (!settled) {
+        settled = true;
+        resolve(true);
+      }
+    };
+
+    try {
+      gun.on('hi', markReady);
+      gun.on('bye', () => {
+        state.relayConnected = false;
+        setStatus('Sync relay disconnected. In Brave, lower Shields for portal.3dvr.tech if this does not reconnect.');
+      });
+    } catch (err) {
+      console.warn('Unable to watch Gun relay state', err);
+    }
+
+    setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(false);
+      }
+    }, 9000);
+  });
+}
+
+async function waitForRelay(message = 'Connecting to sync relay...') {
+  if (state.relayConnected) {
+    return true;
+  }
+  setStatus(message);
+  const ready = await state.relayReady;
+  if (!ready) {
+    setStatus('Sync relay is not connected. In Brave, turn Shields off for portal.3dvr.tech and retry.');
+  }
+  return ready;
 }
 
 function normalizeText(value) {
@@ -150,7 +208,7 @@ function showWorkspace(label) {
   }
 }
 
-function authenticateUser() {
+function authenticateUser(attempt = 0) {
   return new Promise((resolve, reject) => {
     if (!state.user || state.user.__isGunStub) {
       reject(new Error('Gun is unavailable'));
@@ -165,6 +223,12 @@ function authenticateUser() {
     try {
       state.user.auth(state.alias, state.password, ack => {
         if (ack && ack.err) {
+          if (/already being created or authenticated/i.test(String(ack.err)) && attempt < 8) {
+            setTimeout(() => {
+              authenticateUser(attempt + 1).then(resolve).catch(reject);
+            }, 500);
+            return;
+          }
           reject(new Error(ack.err));
           return;
         }
@@ -257,11 +321,40 @@ function entryNode(id) {
   return state.root.get(id);
 }
 
+async function ensureClipboardReady() {
+  if (state.root) {
+    return true;
+  }
+
+  const relayReady = await waitForRelay('Connecting to sync relay before opening your private clipboard...');
+  if (!relayReady) {
+    return false;
+  }
+
+  state.root = state.gun
+    .get('3dvr-portal')
+    .get(CLIPBOARD_ROOT_NODE)
+    .get(userClipboardKey(state.alias));
+  if (!state.subscriptionsStarted) {
+    state.subscriptionsStarted = true;
+    subscribeEntries();
+  }
+  return true;
+}
+
 function currentDeviceLabel() {
   const platform = navigator.userAgentData && navigator.userAgentData.platform
     ? navigator.userAgentData.platform
     : navigator.platform;
   return normalizeText(platform) || 'browser';
+}
+
+function userClipboardKey(alias) {
+  return normalizeText(alias)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    || 'unknown_user';
 }
 
 async function saveEntry(event) {
@@ -273,6 +366,11 @@ async function saveEntry(event) {
   }
   if (text.length > MAX_LENGTH) {
     setStatus(`Clipboard item is too long. Keep it under ${MAX_LENGTH} characters.`);
+    return;
+  }
+
+  const ready = await ensureClipboardReady();
+  if (!ready) {
     return;
   }
 
@@ -298,7 +396,7 @@ async function saveEntry(event) {
       }
       els.text.value = '';
       updateCount();
-      setStatus('Encrypted clipboard item saved.');
+      setStatus('Encrypted clipboard item saved and sent to the sync relay.');
     });
   } catch (err) {
     console.error('Clipboard save failed', err);
@@ -410,24 +508,24 @@ async function boot() {
   const context = createGunContext();
   state.gun = context.gun;
   state.user = context.user;
+  try {
+    if (state.user && typeof state.user.recall === 'function') {
+      state.user.recall({ sessionStorage: true, localStorage: true });
+    }
+  } catch (err) {
+    console.warn('Unable to recall clipboard user session', err);
+  }
+  watchRelay(state.gun);
 
   if (context.isStub) {
     showAuthGate('Sync unavailable');
     return;
   }
 
-  try {
-    await authenticateUser();
-  } catch (err) {
-    console.warn('Clipboard authentication failed', err);
-    showAuthGate('Sign in again');
-    return;
-  }
-
-  state.root = state.user.get(CLIPBOARD_NODE);
   showWorkspace(`Signed in as ${state.username}`);
-  setStatus('Loading encrypted clipboard entries...');
-  subscribeEntries();
+  if (await ensureClipboardReady()) {
+    setStatus('Loading encrypted clipboard entries...');
+  }
 }
 
 els.form.addEventListener('submit', saveEntry);

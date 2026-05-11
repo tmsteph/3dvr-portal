@@ -617,13 +617,13 @@
       };
     }
 
+    const PREFERRED_GUN_PEERS = ['wss://gun-relay-3dvr.fly.dev/gun'];
+    const DISABLED_GUN_PEERS = new Set(['wss://relay.3dvr.tech/gun']);
+
     const gunContext = ensureGunContext(
       () => (typeof Gun === 'function'
         ? Gun({
-          peers: window.__GUN_PEERS__ || [
-            'wss://relay.3dvr.tech/gun',
-            'wss://gun-relay-3dvr.fly.dev/gun'
-          ]
+          peers: resolveGunPeers()
         })
         : null),
       'sign-in'
@@ -689,6 +689,59 @@
 
     const postSignInDestination = resolvePostSignInDestination();
     const redirectContext = describeRedirectTarget(postSignInDestination);
+    let gunRelayConnected = gunIsStub;
+    let resolveGunRelayReady;
+    const gunRelayReady = new Promise(resolve => {
+      resolveGunRelayReady = resolve;
+    });
+
+    function resolveGunPeers() {
+      const configured = Array.isArray(window.__GUN_PEERS__) ? window.__GUN_PEERS__ : [];
+      return Array.from(new Set([...PREFERRED_GUN_PEERS, ...configured]))
+        .map(peer => String(peer || '').trim())
+        .filter(peer => peer && !DISABLED_GUN_PEERS.has(peer));
+    }
+
+    function watchGunRelay() {
+      if (gunIsStub || !gun || typeof gun.on !== 'function') {
+        resolveGunRelayReady(true);
+        return;
+      }
+
+      let settled = false;
+      const markReady = () => {
+        gunRelayConnected = true;
+        if (!settled) {
+          settled = true;
+          resolveGunRelayReady(true);
+        }
+      };
+
+      try {
+        gun.on('hi', markReady);
+        gun.on('bye', () => {
+          gunRelayConnected = false;
+        });
+      } catch (err) {
+        console.warn('Unable to watch Gun relay state during sign-in', err);
+      }
+
+      setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          resolveGunRelayReady(false);
+        }
+      }, 9000);
+    }
+
+    function waitForGunRelay() {
+      if (gunRelayConnected) {
+        return Promise.resolve(true);
+      }
+      return gunRelayReady;
+    }
+
+    watchGunRelay();
 
     function applyRedirectContext() {
       const authTitle = document.getElementById('auth-title');
@@ -942,7 +995,7 @@
       });
     }
 
-    function signIn() {
+    async function signIn() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
       const recoveryEmailInput = document.getElementById('recovery-email');
@@ -968,6 +1021,12 @@
       if (gunIsStub) {
         console.warn('Gun.js unavailable; storing credentials locally.');
         finishLogin(username, alias, password, recoveryEmail);
+        return;
+      }
+
+      const relayReady = await waitForGunRelay();
+      if (!relayReady) {
+        alert('The sync relay is not connected yet. In Brave, turn Shields off for portal.3dvr.tech, then try signing in again.');
         return;
       }
 
