@@ -11,13 +11,10 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Open CRM/);
     assert.match(html, /Open Sales/);
     assert.match(html, /Open Web Builder/);
-    assert.match(html, /System layers/);
-    assert.match(html, /Portal/);
-    assert.match(html, /Browser/);
-    assert.match(html, /OS/);
-    assert.match(html, /Cloud workspace for identity, notes, CRM, billing, messaging, and AI\./);
-    assert.match(html, /Launcher, multi-panel workspace, media tools, and in-browser runtime experiments\./);
-    assert.match(html, /TommyOS direction for deeper device control\./);
+    assert.doesNotMatch(html, /System layers/);
+    assert.doesNotMatch(html, /Cloud workspace for identity, notes, CRM, billing, messaging, and AI\./);
+    assert.doesNotMatch(html, /Launcher, multi-panel workspace, media tools, and in-browser runtime experiments\./);
+    assert.doesNotMatch(html, /TommyOS direction for deeper device control\./);
     assert.match(html, /Core workspaces/);
     assert.match(html, /Contacts/);
     assert.match(html, /Messenger/);
