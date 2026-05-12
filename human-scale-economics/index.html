@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Human-Scale Economics | 3dvr.tech</title>
+  <style>
+    :root {
+      --bg: #07140f;
+      --bg-soft: #0e2419;
+      --card: rgba(255, 255, 255, 0.075);
+      --card-strong: rgba(255, 255, 255, 0.12);
+      --text: #f3f0df;
+      --muted: #c9c2a7;
+      --gold: #f4c95d;
+      --green: #79d68b;
+      --blue: #7fc7ff;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      --radius: 28px;
+      --max: 1120px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(121, 214, 139, 0.16), transparent 32rem),
+        radial-gradient(circle at 85% 20%, rgba(127, 199, 255, 0.14), transparent 28rem),
+        linear-gradient(135deg, #04110c, var(--bg));
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: clip;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .wrap {
+      width: min(var(--max), calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: rgba(7, 20, 15, 0.78);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    nav {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 850;
+      letter-spacing: -0.04em;
+      font-size: 1.15rem;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--gold), var(--green));
+      color: #06110d;
+      box-shadow: 0 12px 30px rgba(244, 201, 93, 0.22);
+    }
+
+    .navlinks {
+      display: flex;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .navlinks a:hover {
+      color: var(--text);
+    }
+
+    .hero {
+      padding: 96px 0 72px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 38px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(244, 201, 93, 0.12);
+      color: var(--gold);
+      border: 1px solid rgba(244, 201, 93, 0.22);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    h1 {
+      margin: 24px 0 18px;
+      font-size: clamp(2.55rem, 8vw, 5.8rem);
+      line-height: 0.93;
+      letter-spacing: -0.08em;
+      max-width: 850px;
+    }
+
+    .lead {
+      font-size: clamp(1.1rem, 2vw, 1.35rem);
+      color: var(--muted);
+      max-width: 720px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 32px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      font-weight: 800;
+      transition: 160ms ease;
+    }
+
+    .btn.primary {
+      background: var(--gold);
+      color: #07140f;
+      border-color: transparent;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .orb-card {
+      position: relative;
+      min-height: 440px;
+      padding: 28px;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+        radial-gradient(circle at 50% 20%, rgba(244, 201, 93, 0.18), transparent 20rem);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .sun {
+      width: 180px;
+      height: 180px;
+      border-radius: 999px;
+      background: radial-gradient(circle, #ffe6a3, var(--gold) 42%, rgba(244, 201, 93, 0.12) 70%);
+      box-shadow: 0 0 80px rgba(244, 201, 93, 0.4);
+      margin: 24px auto 36px;
+    }
+
+    .orbit {
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 22px;
+      padding: 16px;
+      margin: 12px 0;
+      background: rgba(0, 0, 0, 0.12);
+    }
+
+    .orbit strong {
+      color: var(--green);
+    }
+
+    section {
+      padding: 64px 0;
+    }
+
+    .section-head {
+      margin-bottom: 28px;
+    }
+
+    h2 {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1;
+      letter-spacing: -0.06em;
+      margin: 0 0 14px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      max-width: 760px;
+      font-size: 1.08rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .card {
+      padding: 24px;
+      border-radius: var(--radius);
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 12px 42px rgba(0, 0, 0, 0.18);
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 1.35rem;
+      letter-spacing: -0.03em;
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+    }
+
+    .icon {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: var(--card-strong);
+      margin-bottom: 16px;
+      font-size: 1.4rem;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .step {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      min-height: 150px;
+    }
+
+    .step small {
+      color: var(--gold);
+      font-weight: 900;
+    }
+
+    .step h3 {
+      margin: 8px 0;
+      line-height: 1.1;
+    }
+
+    .step p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .quote {
+      padding: 42px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(244, 201, 93, 0.15), rgba(121, 214, 139, 0.12));
+      border: 1px solid rgba(244, 201, 93, 0.2);
+      font-size: clamp(1.5rem, 4vw, 3rem);
+      line-height: 1.12;
+      letter-spacing: -0.05em;
+      font-weight: 850;
+    }
+
+    .stack-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .pill {
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      font-weight: 650;
+    }
+
+    footer {
+      padding: 56px 0 72px;
+      color: var(--muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    @media (max-width: 880px) {
+      .hero,
+      .grid.two,
+      .grid.three,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .navlinks {
+        display: none;
+      }
+
+      .hero {
+        padding-top: 62px;
+      }
+
+      .orb-card {
+        min-height: unset;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      html {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="wrap">
+      <a class="brand" href="#top" aria-label="Human-Scale Economics home">
+        <span class="mark">✺</span>
+        <span>Human-Scale Economics</span>
+      </a>
+      <div class="navlinks" aria-label="Page navigation">
+        <a href="../">Portal</a>
+        <a href="#idea">Idea</a>
+        <a href="#model">Model</a>
+        <a href="#ai">AI</a>
+        <a href="#actions">Actions</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div>
+        <span class="eyebrow">🌱 Money is a tool. Life is the goal.</span>
+        <h1>Build wealth without losing the forest.</h1>
+        <p class="lead">
+          What if AI, open-source tools, small businesses, and shared infrastructure could make life easier, not more artificial? This is a practical vision for economics rooted in nature, technology, ownership, and cooperation.
+        </p>
+        <div class="actions">
+          <a class="btn primary" href="#actions">Start building</a>
+          <a class="btn" href="#model">See the model</a>
+        </div>
+      </div>
+
+      <aside class="orb-card" aria-label="Economy model card">
+        <div class="sun" aria-hidden="true"></div>
+        <div class="orbit"><strong>Nature</strong> provides the real source: energy, food, materials, land, life.</div>
+        <div class="orbit"><strong>Technology</strong> multiplies human capability when designed carefully.</div>
+        <div class="orbit"><strong>Money</strong> is the accounting layer: useful, powerful, but not the final truth.</div>
+      </aside>
+    </section>
+
+    <section id="idea" class="wrap">
+      <div class="section-head">
+        <h2>The core idea</h2>
+        <p>
+          Money can expand, but real wealth is still physical, biological, social, and spiritual. A better economy should help people meet needs, create meaning, and spend more time living well.
+        </p>
+      </div>
+
+      <div class="grid three">
+        <article class="card">
+          <div class="icon">🧾</div>
+          <h3>Money is a ledger</h3>
+          <p>Currency, credit, and prices help coordinate activity. But they are abstractions: claims on reality, not reality itself.</p>
+        </article>
+        <article class="card">
+          <div class="icon">⚡</div>
+          <h3>Energy is the base</h3>
+          <p>Food, computation, transport, housing, and industry all require energy. Economics ultimately touches physics.</p>
+        </article>
+        <article class="card">
+          <div class="icon">🛠️</div>
+          <h3>Tools create abundance</h3>
+          <p>Software, machines, AI, and open knowledge can reduce waste and multiply human effort when ownership is shared.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="model" class="wrap">
+      <div class="section-head">
+        <h2>A cooperative business network</h2>
+        <p>
+          Instead of one giant company trying to own everything, imagine many small efficient businesses that specialize, purchase from each other, and share common infrastructure.
+        </p>
+      </div>
+
+      <div class="flow" aria-label="Economic flow">
+        <div class="step">
+          <small>01</small>
+          <h3>Local needs</h3>
+          <p>People need websites, food, repair, education, care, transport, housing, and tools.</p>
+        </div>
+        <div class="step">
+          <small>02</small>
+          <h3>Small teams</h3>
+          <p>Each team becomes excellent at one service and keeps overhead low.</p>
+        </div>
+        <div class="step">
+          <small>03</small>
+          <h3>Shared tech</h3>
+          <p>Open-source software, AI agents, hosting, CRM, payments, and automation reduce friction.</p>
+        </div>
+        <div class="step">
+          <small>04</small>
+          <h3>Internal trade</h3>
+          <p>Businesses buy from each other, refer customers, and keep value circulating.</p>
+        </div>
+        <div class="step">
+          <small>05</small>
+          <h3>Shared wealth</h3>
+          <p>The network gets stronger as tools, reputation, education, and trust compound.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="ai" class="wrap">
+      <div class="section-head">
+        <h2>Where AI fits</h2>
+        <p>
+          AI can help run repetitive tasks, but it is not magic. It has real costs: data centers, electricity, chips, water, cooling, and maintenance. The question is not just "Can AI make money?" It is "Who owns the AI, and what life does it serve?"
+        </p>
+      </div>
+
+      <div class="grid two">
+        <article class="card">
+          <div class="icon">🤖</div>
+          <h3>Good uses of AI</h3>
+          <ul>
+            <li>Automate boring admin work</li>
+            <li>Help small businesses compete</li>
+            <li>Teach skills affordably</li>
+            <li>Coordinate teams and projects</li>
+            <li>Improve accessibility</li>
+            <li>Reduce waste through better planning</li>
+          </ul>
+        </article>
+        <article class="card">
+          <div class="icon">🌎</div>
+          <h3>Guardrails</h3>
+          <ul>
+            <li>Prefer open and local-first tools where possible</li>
+            <li>Use efficient models for simple work</li>
+            <li>Run infrastructure on cleaner energy over time</li>
+            <li>Share ownership and opportunity</li>
+            <li>Design for human health, not addiction</li>
+            <li>Keep humans in meaningful roles</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <div class="quote">
+        The goal is not infinite money. The goal is enough real wealth, shared tools, healthy communities, and freedom to live more human lives.
+      </div>
+    </section>
+
+    <section id="actions" class="wrap">
+      <div class="section-head">
+        <h2>What we can build now</h2>
+        <p>
+          Start small, useful, and real. Build tools that help people make money, save time, learn skills, and reconnect with life outside the screen.
+        </p>
+      </div>
+
+      <div class="grid three">
+        <article class="card">
+          <div class="icon">💻</div>
+          <h3>Builder portal</h3>
+          <p>A simple hub for websites, projects, notes, CRM, AI help, outreach, subscriptions, and learning.</p>
+        </article>
+        <article class="card">
+          <div class="icon">🤝</div>
+          <h3>Service circle</h3>
+          <p>A network of small businesses that trade services, share customers, and help each other grow.</p>
+        </article>
+        <article class="card">
+          <div class="icon">☀️</div>
+          <h3>Nature-first tech</h3>
+          <p>Portable workstations, repairable devices, low-power computing, solar experiments, and sensory-friendly design.</p>
+        </article>
+      </div>
+
+      <div class="stack-list" aria-label="Project tags">
+        <span class="pill">Open source</span>
+        <span class="pill">Small business</span>
+        <span class="pill">AI agents</span>
+        <span class="pill">Local-first tools</span>
+        <span class="pill">Repairable hardware</span>
+        <span class="pill">Human health</span>
+        <span class="pill">Solar + compute</span>
+        <span class="pill">Community wealth</span>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <strong>3dvr.tech idea seed:</strong> use technology to reduce coercive work, help people build, and create a more alive civilization.
+    </div>
+  </footer>
+</body>
+</html>
