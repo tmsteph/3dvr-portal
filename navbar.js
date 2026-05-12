@@ -20,7 +20,19 @@ function clearSharedIdentityCookie() {
   }
 }
 
+function hideUnreadyHomepageSections() {
+  const systemLayers = document.getElementById('systemLayers');
+  if (systemLayers) {
+    systemLayers.remove();
+  }
+  document.querySelectorAll('a[href="#systemLayers"]').forEach(link => {
+    link.remove();
+  });
+}
+
 function createNavbar() {
+  hideUnreadyHomepageSections();
+
   if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
     window.ScoreSystem.recallUserSession(user);
   } else {
