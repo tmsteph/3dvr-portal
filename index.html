@@ -37,15 +37,18 @@
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="landing-shell">
     <div class="top-nav top-nav--collapsed">
-      <button
-        class="top-nav__toggle"
-        type="button"
-        aria-expanded="false"
-        aria-controls="landingQuickLinks"
-      >
-        <span class="top-nav__toggle-icon" aria-hidden="true"></span>
-        <span class="top-nav__toggle-text">Menu</span>
-      </button>
+      <div class="top-nav__primary">
+        <button
+          class="top-nav__toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="landingQuickLinks"
+        >
+          <span class="top-nav__toggle-icon" aria-hidden="true"></span>
+          <span class="top-nav__toggle-text">Menu</span>
+        </button>
+        <button type="button" class="top-nav__search" data-app-search-trigger>Search apps</button>
+      </div>
       <nav class="top-buttons" id="landingQuickLinks" aria-label="3DVR quick links">
         <a href="https://3dvr.tech">🏠 3DVR Home</a>
         <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
@@ -154,6 +157,11 @@
             <span class="app-card__icon" aria-hidden="true">🖥️</span>
             <span class="app-card__title">Home</span>
             <span class="app-card__meta">Launch the desktop workspace for portal navigation.</span>
+          </a>
+          <a href="human-scale-economics/" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🌱</span>
+            <span class="app-card__title">Human Economics</span>
+            <span class="app-card__meta">Explore wealth, AI, small business, nature, and shared ownership.</span>
           </a>
           <a href="job-tracker/index.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🧭</span>
@@ -805,6 +813,7 @@
     const experimentalToggle = document.querySelector(
       '[data-experimental-toggle]'
     );
+    const appHub = document.querySelector('.app-hub');
     const appGrid = document.querySelector('.app-grid');
     let appCards = Array.from(document.querySelectorAll('.app-card'));
     const appSearchEmpty = document.getElementById('appSearchEmpty');
@@ -844,6 +853,7 @@
     const updateAppFilter = (value = '') => {
       const query = value.trim().toLowerCase();
       let visibleCount = 0;
+      appHub?.classList.toggle('app-hub--filtering', Boolean(query));
 
       if (!query) {
         appCards.forEach((card) => {
@@ -915,11 +925,12 @@
       const stickyTop = toPixels(styles.top);
       const marginBottom = toPixels(styles.marginBottom);
       const desiredGap = 16;
-      const searchRect = searchContainer.getBoundingClientRect();
+      let searchRect = searchContainer.getBoundingClientRect();
 
       if (searchRect.top < stickyTop) {
-        const adjust = stickyTop - searchRect.top;
+        const adjust = searchRect.top - stickyTop;
         window.scrollBy({ top: adjust, behavior: 'auto' });
+        searchRect = searchContainer.getBoundingClientRect();
       }
 
       const firstVisibleCard = getFirstVisibleCard();
@@ -927,9 +938,19 @@
 
       const cardRect = firstVisibleCard.getBoundingClientRect();
       const desiredTop = searchRect.bottom + marginBottom + desiredGap;
+      const excessiveGap = cardRect.top - desiredTop;
+
+      if (excessiveGap > desiredGap) {
+        const availableScroll = Math.max(searchRect.top - stickyTop, 0);
+        const adjust = Math.min(excessiveGap, availableScroll);
+        if (adjust > 0) {
+          window.scrollBy({ top: adjust, behavior: 'auto' });
+        }
+        return;
+      }
 
       if (cardRect.top < desiredTop) {
-        const adjust = desiredTop - cardRect.top;
+        const adjust = cardRect.top - desiredTop;
         window.scrollBy({ top: adjust, behavior: 'auto' });
       }
     };
@@ -996,7 +1017,7 @@
 
       window.scrollTo({
         top: targetTop,
-        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        behavior: prefersReducedMotion || alignSearch ? 'auto' : 'smooth',
       });
       hasScrolledToApps = true;
 
@@ -1025,16 +1046,28 @@
 
     const focusSearch = ({ scroll = false, alignSearch = false } = {}) => {
       if (!searchInput || isAuthModalVisible()) return;
-      if (document.activeElement !== searchInput) {
+
+      if (scroll) {
+        scrollAppsIntoView({ alignSearch });
+      }
+
+      const focusInput = () => {
+        if (document.activeElement === searchInput) return;
         try {
           searchInput.focus({ preventScroll: true });
         } catch (err) {
           searchInput.focus();
         }
-      }
-      searchInput.select();
+        searchInput.select();
+        if (scroll) {
+          window.requestAnimationFrame(ensureSearchAndCardsVisible);
+        }
+      };
+
       if (scroll) {
-        scrollAppsIntoView({ alignSearch });
+        window.requestAnimationFrame(focusInput);
+      } else {
+        focusInput();
       }
     };
 
@@ -1050,6 +1083,8 @@
 
       if (!hasScrolledToApps) {
         scrollAppsIntoView({ alignSearch: true });
+      } else {
+        window.requestAnimationFrame(ensureSearchAndCardsVisible);
       }
     };
 

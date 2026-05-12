@@ -41,6 +41,13 @@ body.landing {
   margin-bottom: 2.5rem;
 }
 
+.top-nav__primary {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
 .top-nav__toggle {
   display: none;
   align-items: center;
@@ -70,7 +77,41 @@ body.landing {
   box-shadow: var(--top-button-shadow-hover);
 }
 
+.top-nav__search {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  background: rgba(34, 211, 238, 0.14);
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-base),
+    background var(--transition-base),
+    border-color var(--transition-base),
+    color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.top-nav__search:hover,
+.top-nav__search:focus-visible {
+  transform: translateY(-2px);
+  background: rgba(56, 189, 248, 0.24);
+  border-color: rgba(56, 189, 248, 0.75);
+  color: var(--color-text);
+  box-shadow: var(--top-button-shadow-hover);
+}
+
 .top-nav__toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.35);
+}
+
+.top-nav__search:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.35);
 }
@@ -838,6 +879,11 @@ footer a {
     align-items: stretch;
   }
 
+  .top-nav__primary {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
+
   .top-nav__toggle {
     display: inline-flex;
   }
@@ -906,16 +952,34 @@ footer a {
   }
 
   .app-hub__header {
-    gap: 1.25rem;
+    gap: 0.9rem;
   }
 
   .app-search {
     width: 100%;
-    padding: 1.1rem 1.25rem;
+    gap: 0.45rem;
+    padding: 0.85rem 1rem;
   }
 
   .app-search__hint {
-    width: 100%;
+    display: none;
+  }
+
+  .app-hub__controls {
+    margin-top: 0.75rem;
+  }
+
+  .app-hub--filtering .app-hub__controls {
+    display: none;
+  }
+
+  .app-grid {
+    gap: 1rem;
+    margin-top: 0.85rem;
+  }
+
+  .app-hub--filtering .app-grid {
+    margin-top: 0.65rem;
   }
 
   .auth-modal {
