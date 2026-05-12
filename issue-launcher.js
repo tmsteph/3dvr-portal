@@ -352,7 +352,10 @@
   `;
 
   root.append(button, panel);
-  document.body.appendChild(root);
+  const mountTarget = shouldFloatLauncher
+    ? document.body
+    : document.querySelector('footer') || document.body;
+  mountTarget.appendChild(root);
 
   const form = panel.querySelector('form');
   const typeInput = form.querySelector('#portalIssueType');
