@@ -22,6 +22,12 @@
   const currentUrl = window.location.href;
   const currentPath = window.location.pathname + window.location.search + window.location.hash;
   const currentTitle = document.title || currentPath || 'Portal page';
+  const launcherPreference =
+    document.documentElement?.dataset.issueLauncher ||
+    document.body?.dataset.issueLauncher ||
+    document.querySelector('meta[name="portal:issue-launcher"]')?.getAttribute('content') ||
+    '';
+  const shouldFloatLauncher = launcherPreference === 'floating';
 
   const encode = (value) => encodeURIComponent(value).replace(/%20/g, '+');
 
@@ -280,7 +286,9 @@
   document.head.appendChild(style);
 
   const root = document.createElement('section');
-  root.className = 'portal-issue-launcher';
+  root.className = shouldFloatLauncher
+    ? 'portal-issue-launcher'
+    : 'portal-issue-launcher portal-issue-launcher--footer';
   root.dataset.issueLauncherRoot = 'true';
   root.setAttribute('aria-label', 'Portal GitHub issue launcher');
 
@@ -356,6 +364,10 @@
   const status = panel.querySelector('.portal-issue-launcher__status');
 
   function updateBodyPadding() {
+    if (!shouldFloatLauncher) {
+      document.body.style.paddingBottom = '';
+      return;
+    }
     const shouldPad = !root.classList.contains('portal-issue-launcher--footer');
     const launcherHeight = Math.ceil(root.getBoundingClientRect().height || 0);
     document.body.style.paddingBottom = shouldPad && launcherHeight
@@ -364,6 +376,11 @@
   }
 
   function syncDockMode() {
+    if (!shouldFloatLauncher) {
+      root.classList.add('portal-issue-launcher--footer');
+      updateBodyPadding();
+      return;
+    }
     const doc = document.documentElement;
     const remaining = doc.scrollHeight - (window.scrollY + window.innerHeight);
     const shouldDockAsFooter = remaining <= root.offsetHeight + 24;
