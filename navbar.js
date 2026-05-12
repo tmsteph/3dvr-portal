@@ -28,6 +28,9 @@ function hideUnreadyHomepageSections() {
   document.querySelectorAll('a[href="#systemLayers"]').forEach(link => {
     link.remove();
   });
+  document.querySelectorAll('.launcher-lanes').forEach(section => {
+    section.remove();
+  });
 }
 
 function createNavbar() {
