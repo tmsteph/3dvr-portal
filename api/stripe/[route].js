@@ -6,10 +6,24 @@ import { createStripeStatusHandler } from '../../src/billing/api-status.js';
 const SAMPLE_STOREFRONT_PRODUCTS = Object.freeze({
   'compact-desk-dock': Object.freeze({
     name: 'Compact Desk Dock',
-    description: 'A sample dropship product page for testing single-product demand.',
+    description: 'A low-profile docking stand for a cleaner laptop workspace.',
     unitAmount: 7900,
     currency: 'usd',
     image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+  }),
+  'magnetic-cable-kit': Object.freeze({
+    name: 'Magnetic Cable Kit',
+    description: 'Reusable magnetic clips and cable ties for a cleaner desk, nightstand, or travel bag.',
+    unitAmount: 2900,
+    currency: 'usd',
+    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80',
+  }),
+  'travel-tech-pouch': Object.freeze({
+    name: 'Travel Tech Pouch',
+    description: 'A compact organizer for chargers, adapters, earbuds, and everyday carry tech.',
+    unitAmount: 4900,
+    currency: 'usd',
+    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=1200&q=80',
   }),
 });
 

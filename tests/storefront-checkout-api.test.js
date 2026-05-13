@@ -37,7 +37,39 @@ describe('storefront checkout API', () => {
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.stripeConfigured, true);
-    assert.deepEqual(res.body.products, ['compact-desk-dock']);
+    assert.deepEqual(res.body.products, ['compact-desk-dock', 'magnetic-cable-kit', 'travel-tech-pouch']);
+  });
+
+  it('creates checkout for the cable kit product', async () => {
+    const create = mock.fn(async () => ({
+      id: 'cs_test_cable',
+      url: 'https://checkout.stripe.com/c/pay/cs_test_cable',
+    }));
+    const handler = createStripeDashboardHandler({
+      config: { STRIPE_SECRET_KEY: 'sk_test_sample', PORTAL_ORIGIN: 'https://portal.3dvr.tech' },
+      stripeClient: { checkout: { sessions: { create } } },
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'POST',
+      headers: {
+        host: 'portal.3dvr.tech',
+        'x-forwarded-proto': 'https',
+      },
+      query: { route: 'storefront-checkout' },
+      body: {
+        orderId: 'order_kit',
+        productId: 'magnetic-cable-kit',
+        quantity: 1,
+      },
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    const payload = create.mock.calls[0].arguments[0];
+    assert.equal(payload.metadata.product_id, 'magnetic-cable-kit');
+    assert.equal(payload.line_items[0].price_data.product_data.name, 'Magnetic Cable Kit');
+    assert.equal(payload.line_items[0].price_data.unit_amount, 2900);
   });
 
   it('creates a one-time Stripe Checkout session for the sample product', async () => {
