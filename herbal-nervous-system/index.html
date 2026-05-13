@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3dvr Herbal Nervous System Toolkit</title>
+  <style>
+    :root {
+      --bg: #101612;
+      --panel: #18231d;
+      --panel-2: #223128;
+      --text: #f4ead2;
+      --muted: #cdbf9c;
+      --gold: #d9a441;
+      --green: #7fb77e;
+      --red: #d56f55;
+      --blue: #7fb7c9;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(127, 183, 126, 0.18), transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(217, 164, 65, 0.12), transparent 35%),
+        linear-gradient(180deg, #0c120f, var(--bg));
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: clip;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    header {
+      min-height: 72vh;
+      display: grid;
+      place-items: center;
+      padding: 4rem 1.25rem;
+      text-align: center;
+    }
+
+    .hero {
+      max-width: 900px;
+      padding: 2rem;
+      border: 1px solid rgba(217, 164, 65, 0.25);
+      background: rgba(24, 35, 29, 0.72);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius);
+      box-shadow: 0 24px 70px var(--shadow);
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 7vw, 5.8rem);
+      line-height: 0.95;
+      margin: 0 0 1rem;
+      color: var(--gold);
+      letter-spacing: -0.06em;
+    }
+
+    .subtitle {
+      font-size: clamp(1.1rem, 2.4vw, 1.45rem);
+      color: var(--muted);
+      max-width: 720px;
+      margin: 0 auto 2rem;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.65rem;
+      margin-top: 1.5rem;
+    }
+
+    .pill {
+      border: 1px solid rgba(244, 234, 210, 0.18);
+      background: rgba(244, 234, 210, 0.07);
+      color: var(--text);
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.95rem;
+    }
+
+    main {
+      width: min(1120px, 92vw);
+      margin: 0 auto;
+      padding-bottom: 5rem;
+    }
+
+    section {
+      margin: 4rem 0;
+    }
+
+    h2 {
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 1.05;
+      margin: 0 0 1rem;
+      color: var(--gold);
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 1.1rem;
+      max-width: 780px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .card {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid rgba(244, 234, 210, 0.12);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: 0 14px 36px var(--shadow);
+    }
+
+    .card h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1.35rem;
+    }
+
+    .tag {
+      display: inline-block;
+      margin: 0.25rem 0.25rem 0.5rem 0;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      background: rgba(127, 183, 126, 0.14);
+      color: #dff1d8;
+    }
+
+    .stim {
+      border-top: 4px solid var(--red);
+    }
+
+    .balanced {
+      border-top: 4px solid var(--gold);
+    }
+
+    .calm {
+      border-top: 4px solid var(--blue);
+    }
+
+    .spectrum {
+      margin-top: 1.5rem;
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      border: 1px solid rgba(244, 234, 210, 0.12);
+    }
+
+    .bar {
+      height: 18px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--blue), var(--green), var(--gold), var(--red));
+      margin: 1rem 0;
+    }
+
+    .scale {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .blend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .recipe {
+      background: rgba(217, 164, 65, 0.08);
+      border: 1px solid rgba(217, 164, 65, 0.2);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .notice {
+      border-left: 5px solid var(--gold);
+      background: rgba(217, 164, 65, 0.08);
+      padding: 1rem 1.25rem;
+      border-radius: 18px;
+      color: var(--muted);
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      padding: 3rem 1rem;
+      border-top: 1px solid rgba(244, 234, 210, 0.1);
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      background: var(--gold);
+      color: #201609;
+      padding: 0.9rem 1.15rem;
+      border-radius: 999px;
+      font-weight: 800;
+      box-shadow: 0 10px 25px var(--shadow);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .builder-output {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 18px;
+      background: rgba(0, 0, 0, 0.22);
+      color: var(--text);
+      min-height: 80px;
+    }
+
+    label {
+      display: block;
+      margin: 0.55rem 0;
+    }
+
+    input {
+      margin-right: 0.5rem;
+    }
+
+    @media (max-width: 680px) {
+      header {
+        min-height: auto;
+        padding-top: 3rem;
+      }
+
+      .hero {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="hero">
+      <h1>Herbal Nervous System Toolkit</h1>
+      <p class="subtitle">
+        A 3dvr-style field guide for experimenting with cloves, tulsi, ginger,
+        cinnamon, calming herbs, and clean stimulating plants without turning
+        your body into a chaotic lab.
+      </p>
+      <div class="pill-row">
+        <span class="pill">calm focus</span>
+        <span class="pill">warming spices</span>
+        <span class="pill">travel friendly</span>
+        <span class="pill">sensory aware</span>
+        <span class="pill">low-tech wellness</span>
+        <span class="pill"><a href="../">portal</a></span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>The basic idea</h2>
+      <p class="lead">
+        Herbs can be thought of like nervous system tools. Some downshift the
+        body, some warm and energize it, and some help create balanced alertness.
+        The goal is not to take everything at once. The goal is to learn what
+        each plant does for you.
+      </p>
+
+      <div class="spectrum">
+        <strong>Stimulation spectrum</strong>
+        <div class="bar"></div>
+        <div class="scale">
+          <span>calming</span>
+          <span>balanced</span>
+          <span>warming</span>
+          <span>stimulating</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Current tincture stack</h2>
+      <p class="lead">
+        Your current stack leans calming and grounding, with clove adding warmth
+        and sharpness.
+      </p>
+
+      <div class="grid">
+        <article class="card balanced">
+          <h3>Clove</h3>
+          <span class="tag">warming</span><span class="tag">digestive</span><span class="tag">aromatic</span>
+          <p>Sharp, spicy, antimicrobial-feeling, and strongly aromatic. Better treated as a potent accent than a casual megadose herb.</p>
+        </article>
+
+        <article class="card calm">
+          <h3>Kava</h3>
+          <span class="tag">relaxing</span><span class="tag">social ease</span><span class="tag">body calm</span>
+          <p>One of the stronger calming herbs. Best separated from alcohol, sedatives, and reckless high-dose experimentation.</p>
+        </article>
+
+        <article class="card calm">
+          <h3>Lemon Balm</h3>
+          <span class="tag">gentle</span><span class="tag">mood</span><span class="tag">sleep</span>
+          <p>Soft, friendly, and often clear-headed. Good for evening or anxious overstimulation.</p>
+        </article>
+
+        <article class="card calm">
+          <h3>Ashwagandha</h3>
+          <span class="tag">adaptogen</span><span class="tag">grounding</span><span class="tag">recovery</span>
+          <p>Can feel stabilizing for some and emotionally flattening for others. Track mood, motivation, and sleep.</p>
+        </article>
+
+        <article class="card balanced">
+          <h3>Tulsi / Holy Basil</h3>
+          <span class="tag">calm alert</span><span class="tag">spiritual</span><span class="tag">tea-friendly</span>
+          <p>Often feels like clean, bright calm. A great daytime herb for long screen sessions or meditation.</p>
+        </article>
+
+        <article class="card calm">
+          <h3>Lavender</h3>
+          <span class="tag">soothing</span><span class="tag">sleep</span><span class="tag">sensory</span>
+          <p>Aroma-forward and deeply calming for many people. Useful for decompression and sleep rituals.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>More stimulating herbs and spices</h2>
+      <p class="lead">
+        These are better for morning, work blocks, cold days, sluggish digestion,
+        and "I need to wake up without coffee panic."
+      </p>
+
+      <div class="grid">
+        <article class="card stim">
+          <h3>Ginger</h3>
+          <span class="tag">warming</span><span class="tag">digestion</span><span class="tag">circulation</span>
+          <p>Physical activation, warmth, nausea support, and digestive movement. Great in tea.</p>
+        </article>
+
+        <article class="card stim">
+          <h3>Cinnamon</h3>
+          <span class="tag">cozy</span><span class="tag">warming</span><span class="tag">blood sugar</span>
+          <p>Gentler than ginger but still warming. Pairs well with clove, cacao, tea, and morning blends.</p>
+        </article>
+
+        <article class="card balanced">
+          <h3>Rosemary</h3>
+          <span class="tag">mental clarity</span><span class="tag">memory</span><span class="tag">aroma</span>
+          <p>One of the best study desk herbs. The smell alone can feel clarifying.</p>
+        </article>
+
+        <article class="card balanced">
+          <h3>Peppermint</h3>
+          <span class="tag">cooling</span><span class="tag">refreshing</span><span class="tag">focus</span>
+          <p>Cooling but stimulating. Good for screen fatigue, travel, and mental fog.</p>
+        </article>
+
+        <article class="card stim">
+          <h3>Rhodiola</h3>
+          <span class="tag">drive</span><span class="tag">stamina</span><span class="tag">adaptogen</span>
+          <p>More directly energizing. Best earlier in the day; can be too much for sensitive nervous systems.</p>
+        </article>
+
+        <article class="card stim">
+          <h3>Green Tea / Mate</h3>
+          <span class="tag">caffeine</span><span class="tag">focus</span><span class="tag">ritual</span>
+          <p>More classic stimulation. Green tea is often smoother because of L-theanine.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Build a simple blend</h2>
+      <p class="lead">Pick a goal and generate a gentle starter blend idea.</p>
+
+      <div class="blend">
+        <div class="recipe">
+          <label><input type="radio" name="goal" value="focus" checked> Calm focus</label>
+          <label><input type="radio" name="goal" value="warmth"> Warm digestion</label>
+          <label><input type="radio" name="goal" value="sleep"> Evening downshift</label>
+          <label><input type="radio" name="goal" value="travel"> Travel support</label>
+          <button type="button" onclick="makeBlend()">Make blend</button>
+        </div>
+
+        <div class="builder-output" id="output">
+          Tulsi + rosemary + green tea. Calm, bright, work-friendly.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Experiment like an engineer</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>One change at a time</h3>
+          <p>Try not to add five new tinctures at once. Change one variable, observe, then adjust.</p>
+        </article>
+        <article class="card">
+          <h3>Track timing</h3>
+          <p>Morning herbs and evening herbs are different tools. Rhodiola at night is not the same experiment as tulsi tea at noon.</p>
+        </article>
+        <article class="card">
+          <h3>Watch the stack</h3>
+          <p>Kava, lemon balm, lavender, ashwagandha, and tulsi can all downshift stress. Too much can become foggy.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Safety notes</h2>
+      <div class="notice">
+        This is educational, not medical advice. Be cautious with concentrated
+        tinctures and essential oils. Avoid combining kava with alcohol or
+        sedatives. Use extra caution if you take prescriptions, have liver
+        issues, bleeding/clotting concerns, thyroid issues, bipolar/mania risk,
+        are pregnant, or are giving herbs to children.
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Built for 3dvr.tech - healthier computing, healthier humans, better rituals.
+  </footer>
+
+  <script>
+    function makeBlend() {
+      const goal = document.querySelector('input[name="goal"]:checked').value;
+      const output = document.getElementById('output');
+
+      const blends = {
+        focus: "Tulsi + rosemary + green tea. Calm, bright, work-friendly. Best earlier in the day.",
+        warmth: "Ginger + cinnamon + tiny clove accent. Warming, digestive, good for cold mornings or sluggish meals.",
+        sleep: "Lemon balm + lavender. Optional tulsi if you want calm without heaviness. Avoid stimulating herbs late.",
+        travel: "Ginger + peppermint + clove accent. Good travel flavor profile: fresh, warming, digestive, compact."
+      };
+
+      output.textContent = blends[goal];
+    }
+  </script>
+</body>
+</html>
