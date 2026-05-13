@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { createStorefrontCheckoutHandler } from '../api/storefront/checkout.js';
+import { createStripeDashboardHandler } from '../api/stripe/[route].js';
 
 function createMockRes() {
   return {
@@ -27,13 +27,13 @@ function createMockRes() {
 
 describe('storefront checkout API', () => {
   it('reports checkout configuration on GET', async () => {
-    const handler = createStorefrontCheckoutHandler({
-      config: { STRIPE_SECRET_KEY: 'sk_test_sample' },
+    const handler = createStripeDashboardHandler({
+      config: { STRIPE_SECRET_KEY: 'sk_test_sample', PORTAL_ORIGIN: 'https://portal.3dvr.tech' },
       stripeClient: { checkout: { sessions: { create: mock.fn() } } },
     });
     const res = createMockRes();
 
-    await handler({ method: 'GET', headers: {} }, res);
+    await handler({ method: 'GET', headers: {}, query: { route: 'storefront-checkout' } }, res);
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.stripeConfigured, true);
@@ -45,8 +45,8 @@ describe('storefront checkout API', () => {
       id: 'cs_test_storefront',
       url: 'https://checkout.stripe.com/c/pay/cs_test_storefront',
     }));
-    const handler = createStorefrontCheckoutHandler({
-      config: { STRIPE_SECRET_KEY: 'sk_test_sample' },
+    const handler = createStripeDashboardHandler({
+      config: { STRIPE_SECRET_KEY: 'sk_test_sample', PORTAL_ORIGIN: 'https://portal.3dvr.tech' },
       stripeClient: { checkout: { sessions: { create } } },
     });
     const res = createMockRes();
@@ -57,6 +57,7 @@ describe('storefront checkout API', () => {
         host: 'portal.3dvr.tech',
         'x-forwarded-proto': 'https',
       },
+      query: { route: 'storefront-checkout' },
       body: {
         orderId: 'order_123',
         productId: 'compact-desk-dock',
@@ -82,8 +83,8 @@ describe('storefront checkout API', () => {
 
   it('rejects unknown products before creating checkout', async () => {
     const create = mock.fn();
-    const handler = createStorefrontCheckoutHandler({
-      config: { STRIPE_SECRET_KEY: 'sk_test_sample' },
+    const handler = createStripeDashboardHandler({
+      config: { STRIPE_SECRET_KEY: 'sk_test_sample', PORTAL_ORIGIN: 'https://portal.3dvr.tech' },
       stripeClient: { checkout: { sessions: { create } } },
     });
     const res = createMockRes();
@@ -91,6 +92,7 @@ describe('storefront checkout API', () => {
     await handler({
       method: 'POST',
       headers: {},
+      query: { route: 'storefront-checkout' },
       body: {
         orderId: 'order_123',
         productId: 'missing',
