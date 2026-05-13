@@ -3,25 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Compact Desk Dock</title>
+  <title>Desk Essentials Co.</title>
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 </head>
 <body>
   <main class="storefront">
-    <section class="product-hero" aria-labelledby="productTitle">
+    <section class="product-hero" aria-labelledby="storeTitle">
       <div class="product-media">
-        <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80" alt="Compact desk setup with laptop and accessories" />
+        <img id="productImage" src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80" alt="Compact desk setup with laptop and accessories" />
       </div>
       <div class="product-copy">
-        <p class="eyebrow">Dropship sample storefront</p>
-        <h1 id="productTitle">Compact Desk Dock</h1>
-        <p class="lede">A focused single-product page built to capture paid orders, hand them to Stripe, and leave Victor with a clear manual vendor fulfillment queue.</p>
+        <p class="eyebrow">Desk Essentials Co.</p>
+        <h1 id="storeTitle">Small upgrades for a cleaner workspace.</h1>
+        <p class="lede">Choose from practical desk and travel accessories built for everyday work, charging, and carry.</p>
         <div class="price-row">
-          <strong>$79</strong>
-          <span>Ships from vendor after order review</span>
+          <strong id="productPrice">$79</strong>
+          <span id="productSummary">Compact support for a cleaner laptop setup</span>
         </div>
         <form id="orderForm" class="order-form">
+          <fieldset class="product-picker">
+            <legend>Choose a product</legend>
+            <label class="product-option">
+              <input type="radio" name="productId" value="compact-desk-dock" checked />
+              <span>
+                <strong>Compact Desk Dock</strong>
+                <small>$79 · Low-profile laptop docking stand</small>
+              </span>
+            </label>
+            <label class="product-option">
+              <input type="radio" name="productId" value="magnetic-cable-kit" />
+              <span>
+                <strong>Magnetic Cable Kit</strong>
+                <small>$29 · Clips and ties for clean cable routing</small>
+              </span>
+            </label>
+            <label class="product-option">
+              <input type="radio" name="productId" value="travel-tech-pouch" />
+              <span>
+                <strong>Travel Tech Pouch</strong>
+                <small>$49 · Compact organizer for chargers and adapters</small>
+              </span>
+            </label>
+          </fieldset>
           <label>
             Name
             <input id="customerName" name="customerName" autocomplete="name" required />
@@ -40,7 +64,7 @@
               <option value="5">5</option>
             </select>
           </label>
-          <button id="checkoutButton" type="submit">Checkout with Stripe</button>
+          <button id="checkoutButton" type="submit">Secure checkout</button>
           <p id="status" class="status" role="status" aria-live="polite"></p>
         </form>
       </div>
@@ -48,16 +72,16 @@
 
     <section class="details" aria-label="Product details">
       <article>
-        <h2>Simple Order Capture</h2>
-        <p>Each checkout attempt creates a Gun order intent with the product, quantity, customer contact, and current status.</p>
+        <h2>Work-Ready Gear</h2>
+        <p>Useful accessories for desks, laptop bags, nightstands, and small workspaces.</p>
       </article>
       <article>
-        <h2>Hosted Payment</h2>
-        <p>Stripe Checkout collects payment and shipping information so the storefront does not handle card data.</p>
+        <h2>Simple Checkout</h2>
+        <p>Choose your item, confirm quantity, and complete shipping and payment in a secure checkout.</p>
       </article>
       <article>
-        <h2>Manual Fulfillment</h2>
-        <p>Victor can review successful orders, place the vendor order, and update the order status as the workflow matures.</p>
+        <h2>Tracked Shipping</h2>
+        <p>Orders are reviewed and sent to the best available fulfillment partner.</p>
       </article>
     </section>
   </main>
