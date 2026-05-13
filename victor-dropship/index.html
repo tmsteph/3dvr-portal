@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compact Desk Dock</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+</head>
+<body>
+  <main class="storefront">
+    <section class="product-hero" aria-labelledby="productTitle">
+      <div class="product-media">
+        <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80" alt="Compact desk setup with laptop and accessories" />
+      </div>
+      <div class="product-copy">
+        <p class="eyebrow">Dropship sample storefront</p>
+        <h1 id="productTitle">Compact Desk Dock</h1>
+        <p class="lede">A focused single-product page built to capture paid orders, hand them to Stripe, and leave Victor with a clear manual vendor fulfillment queue.</p>
+        <div class="price-row">
+          <strong>$79</strong>
+          <span>Ships from vendor after order review</span>
+        </div>
+        <form id="orderForm" class="order-form">
+          <label>
+            Name
+            <input id="customerName" name="customerName" autocomplete="name" required />
+          </label>
+          <label>
+            Email
+            <input id="customerEmail" name="customerEmail" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            Quantity
+            <select id="quantity" name="quantity">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+          <button id="checkoutButton" type="submit">Checkout with Stripe</button>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="details" aria-label="Product details">
+      <article>
+        <h2>Simple Order Capture</h2>
+        <p>Each checkout attempt creates a Gun order intent with the product, quantity, customer contact, and current status.</p>
+      </article>
+      <article>
+        <h2>Hosted Payment</h2>
+        <p>Stripe Checkout collects payment and shipping information so the storefront does not handle card data.</p>
+      </article>
+      <article>
+        <h2>Manual Fulfillment</h2>
+        <p>Victor can review successful orders, place the vendor order, and update the order status as the workflow matures.</p>
+      </article>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
