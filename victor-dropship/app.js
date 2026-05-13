@@ -49,7 +49,7 @@ function readFormPayload() {
 }
 
 async function createCheckout(orderId, payload) {
-  const response = await fetch('/api/storefront/checkout', {
+  const response = await fetch('/api/stripe/storefront-checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
