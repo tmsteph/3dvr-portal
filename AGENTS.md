@@ -28,6 +28,31 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
   - Use that same Termux auth context before merging or pushing when the remote may have advanced after a GitHub app write.
   - If a page was created remotely with the GitHub app and a local commit touched the same new path, fetch `origin/main` first and resolve any `add/add` conflict before pushing.
 
+## Push And Merge With Termux GitHub Auth
+- Check auth without printing secrets:
+  - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh auth status`
+- If plain `git push` from `/root` fails, use the Termux `gh` token through an in-memory Git credential helper:
+  ```sh
+  GITHUB_TOKEN="$(HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh auth token)"
+  export GITHUB_TOKEN
+  git -c credential.helper= \
+    -c credential.helper='!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f' \
+    push origin BRANCH_NAME
+  unset GITHUB_TOKEN
+  ```
+- Before pushing a shared branch, fetch and check divergence:
+  - `git fetch origin --prune`
+  - `git rev-list --left-right --count origin/BRANCH_NAME...HEAD`
+  - Fast-forward push only when the left count is `0`; otherwise merge or rebase intentionally.
+- Preferred portal merge flow:
+  - Push a branch, open a PR with Termux `gh`, and let GitHub record the merge.
+  - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh pr create --repo tmsteph/3dvr-portal --base main --head BRANCH_NAME --title "..." --body "..."`
+  - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh pr merge PR_NUMBER --repo tmsteph/3dvr-portal --merge --auto --delete-branch=false`
+- If GitHub says the PR is conflicting, resolve it in a temporary clean worktree based on the PR branch:
+  - `git worktree add --detach /tmp/3dvr-portal-merge origin/BRANCH_NAME`
+  - `cd /tmp/3dvr-portal-merge && git merge origin/main`
+  - Resolve conflicts, run focused tests, push `HEAD:BRANCH_NAME`, then retry `gh pr merge`.
+
 ## Deployment Topology
 - Keep `3dvr-portal` and `3dvr-web` on the same branch matrix:
   - `main` -> `portal.3dvr.tech` and `3dvr.tech`
