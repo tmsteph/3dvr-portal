@@ -70,6 +70,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Contacts](https://3dvr-portal.vercel.app/contacts/)
 - [Life](https://3dvr-portal.vercel.app/life/)
 - [Alive System](https://3dvr-portal.vercel.app/alive-system/)
+- [Attention Visualized](https://3dvr-portal.vercel.app/attention-visualized/)
 - [Logic Lab](https://3dvr-portal.vercel.app/logic-lab/)
 
 Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
