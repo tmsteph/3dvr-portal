@@ -38,15 +38,18 @@
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="landing-shell">
     <div class="top-nav top-nav--collapsed">
-      <button
-        class="top-nav__toggle"
-        type="button"
-        aria-expanded="false"
-        aria-controls="landingQuickLinks"
-      >
-        <span class="top-nav__toggle-icon" aria-hidden="true"></span>
-        <span class="top-nav__toggle-text">Menu</span>
-      </button>
+      <div class="top-nav__primary">
+        <button
+          class="top-nav__toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="landingQuickLinks"
+        >
+          <span class="top-nav__toggle-icon" aria-hidden="true"></span>
+          <span class="top-nav__toggle-text">Menu</span>
+        </button>
+        <button type="button" class="top-nav__search" data-app-search-trigger>Search apps</button>
+      </div>
       <nav class="top-buttons" id="landingQuickLinks" aria-label="3DVR quick links">
         <a href="https://3dvr.tech">Home</a>
         <a href="start/">Start</a>
@@ -66,11 +69,11 @@
         </div>
         <div class="hero-panel">
           <div class="hero-main">
-            <span class="hero-eyebrow">Portal. Browser. OS.</span>
-            <h1 id="landing-title">One system. Any device.</h1>
+            <span class="hero-eyebrow">Apps. Tools. People.</span>
+            <h1 id="landing-title">One portal. Fast access.</h1>
             <p class="hero-tagline">
-              Start in your browser. Grow into your own operating system. Keep the same identity,
-              apps, subscriptions, and support lane as the control gets deeper.
+              Find the apps, contacts, notes, websites, subscriptions, and support tools you need
+              without digging through unfinished system layers.
             </p>
             <div class="hero-actions">
               <a href="crm/index.html" class="cta primary">Open CRM</a>
@@ -202,24 +205,6 @@
           </div>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
-        <div class="launcher-lanes" aria-label="Suggested launcher lanes">
-          <!-- Keep this map close to the dock so future app layers can expand without changing the overall launcher structure. -->
-          <a href="crm/index.html" class="launcher-lane">
-            <span class="launcher-lane__eyebrow">Portal lane</span>
-            <strong>Run the business workspace</strong>
-            <span>CRM, Contacts, Billing, Calendar, Finance, and Notes on one account.</span>
-          </a>
-          <a href="home/" class="launcher-lane">
-            <span class="launcher-lane__eyebrow">Browser lane</span>
-            <strong>Open the workspace runtime</strong>
-            <span>Home, OpenAI Workbench, Debian Browser Lab, and media experiments live here.</span>
-          </a>
-          <a href="pocket-workstation/index.html" class="launcher-lane">
-            <span class="launcher-lane__eyebrow">OS lane</span>
-            <strong>Move toward device control</strong>
-            <span>Pocket Workstation, Personal Debian Server, Local Models, and Mini DaedalOS point deeper.</span>
-          </a>
-        </div>
         <div class="app-grid" data-app-list>
           <a href="start/" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🧭</span>
@@ -260,6 +245,11 @@
             <span class="app-card__icon" aria-hidden="true">💬</span>
             <span class="app-card__title">Chat</span>
             <span class="app-card__meta">Stay in the loop, route notifications, and ship ideas faster.</span>
+          </a>
+          <a href="clipboard/" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">📋</span>
+            <span class="app-card__title">Clipboard</span>
+            <span class="app-card__meta">Move commands and snippets between signed-in devices.</span>
           </a>
           <a href="contacts/index.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">📇</span>
@@ -305,6 +295,16 @@
             <span class="app-card__icon" aria-hidden="true">🖥️</span>
             <span class="app-card__title">Home</span>
             <span class="app-card__meta">Launch the desktop workspace for portal navigation.</span>
+          </a>
+          <a href="human-scale-economics/" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🌱</span>
+            <span class="app-card__title">Human Economics</span>
+            <span class="app-card__meta">Explore wealth, AI, small business, nature, and shared ownership.</span>
+          </a>
+          <a href="human-scale-tech/" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🧩</span>
+            <span class="app-card__title">Human-Scale Tech</span>
+            <span class="app-card__meta">Plan the trusted, open, healthy technology ecosystem behind 3DVR.</span>
           </a>
           <a href="job-tracker/index.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🧭</span>
@@ -429,6 +429,11 @@
             <span class="app-card__icon" aria-hidden="true">🌿</span>
             <span class="app-card__title">Wellness</span>
             <span class="app-card__meta">Explore mindfulness, nutrition, and lifestyle resources.</span>
+          </a>
+          <a href="herbal-nervous-system/" class="app-card">
+            <span class="app-card__icon" aria-hidden="true">🌿</span>
+            <span class="app-card__title">Herbal Toolkit</span>
+            <span class="app-card__meta">Map herbs, cloves, tulsi, ginger, and calming blends for nervous system rituals.</span>
           </a>
           <a href="debian-browser/index.html" class="app-card" data-app-tier="experimental">
             <span class="app-card__badge">Experimental</span>
@@ -973,6 +978,7 @@
     const experimentalToggle = document.querySelector(
       '[data-experimental-toggle]'
     );
+    const appHub = document.querySelector('.app-hub');
     const appGrid = document.querySelector('[data-app-list]');
     let appCards = appGrid
       ? Array.from(appGrid.querySelectorAll('.app-card'))
@@ -1014,6 +1020,7 @@
     const updateAppFilter = (value = '') => {
       const query = value.trim().toLowerCase();
       let visibleCount = 0;
+      appHub?.classList.toggle('app-hub--filtering', Boolean(query));
 
       if (!query) {
         appCards.forEach((card) => {
@@ -1085,11 +1092,12 @@
       const stickyTop = toPixels(styles.top);
       const marginBottom = toPixels(styles.marginBottom);
       const desiredGap = 16;
-      const searchRect = searchContainer.getBoundingClientRect();
+      let searchRect = searchContainer.getBoundingClientRect();
 
       if (searchRect.top < stickyTop) {
-        const adjust = stickyTop - searchRect.top;
+        const adjust = searchRect.top - stickyTop;
         window.scrollBy({ top: adjust, behavior: 'auto' });
+        searchRect = searchContainer.getBoundingClientRect();
       }
 
       const firstVisibleCard = getFirstVisibleCard();
@@ -1097,9 +1105,19 @@
 
       const cardRect = firstVisibleCard.getBoundingClientRect();
       const desiredTop = searchRect.bottom + marginBottom + desiredGap;
+      const excessiveGap = cardRect.top - desiredTop;
+
+      if (excessiveGap > desiredGap) {
+        const availableScroll = Math.max(searchRect.top - stickyTop, 0);
+        const adjust = Math.min(excessiveGap, availableScroll);
+        if (adjust > 0) {
+          window.scrollBy({ top: adjust, behavior: 'auto' });
+        }
+        return;
+      }
 
       if (cardRect.top < desiredTop) {
-        const adjust = desiredTop - cardRect.top;
+        const adjust = cardRect.top - desiredTop;
         window.scrollBy({ top: adjust, behavior: 'auto' });
       }
     };
@@ -1166,7 +1184,7 @@
 
       window.scrollTo({
         top: targetTop,
-        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        behavior: prefersReducedMotion || alignSearch ? 'auto' : 'smooth',
       });
       hasScrolledToApps = true;
 
@@ -1195,16 +1213,28 @@
 
     const focusSearch = ({ scroll = false, alignSearch = false } = {}) => {
       if (!searchInput || isAuthModalVisible()) return;
-      if (document.activeElement !== searchInput) {
+
+      if (scroll) {
+        scrollAppsIntoView({ alignSearch });
+      }
+
+      const focusInput = () => {
+        if (document.activeElement === searchInput) return;
         try {
           searchInput.focus({ preventScroll: true });
         } catch (err) {
           searchInput.focus();
         }
-      }
-      searchInput.select();
+        searchInput.select();
+        if (scroll) {
+          window.requestAnimationFrame(ensureSearchAndCardsVisible);
+        }
+      };
+
       if (scroll) {
-        scrollAppsIntoView({ alignSearch });
+        window.requestAnimationFrame(focusInput);
+      } else {
+        focusInput();
       }
     };
 
@@ -1220,6 +1250,8 @@
 
       if (!hasScrolledToApps) {
         scrollAppsIntoView({ alignSearch: true });
+      } else {
+        window.requestAnimationFrame(ensureSearchAndCardsVisible);
       }
     };
 

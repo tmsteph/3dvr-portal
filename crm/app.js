@@ -29,7 +29,6 @@ import {
 } from '../src/oauth/shared.js';
 
 const gun = Gun(window.__GUN_PEERS__ || [
-  'wss://relay.3dvr.tech/gun',
   'wss://gun-relay-3dvr.fly.dev/gun',
 ]);
 const user = gun.user();

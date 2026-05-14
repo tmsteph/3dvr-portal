@@ -8,6 +8,7 @@
   <script src="/gun-init.js"></script>
   <script src="/pwa-install.js" defer></script>
   <link rel="stylesheet" href="../style.css?v=notes-refresh-20240204">
+  <link rel="stylesheet" href="./styles.css?v=notes-ux-20260514">
   <link rel="stylesheet" href="/styles/install-banner.css">
   <link rel="manifest" href="/app-manifests/notes.webmanifest">
   <meta name="theme-color" content="#0e1116">
@@ -56,7 +57,7 @@
       <div class="sidebar-section">
         <div class="section-heading">
           <span>Pages</span>
-          <button class="primary-button" id="new-note-button" disabled>+ New Page</button>
+          <button class="primary-button" id="new-note-button">+ New Page</button>
         </div>
         <input type="search" id="note-search" class="sidebar-input" placeholder="Search pages..." aria-label="Search notes">
         <ul id="notes" class="notes-list" aria-label="Notes"></ul>
@@ -67,9 +68,25 @@
 
     <main class="notes-editor" aria-live="polite">
       <button id="sidebar-toggle" class="sidebar-toggle icon-button" type="button" aria-label="Show workspace" aria-controls="notes-sidebar" aria-expanded="false">☰</button>
+      <div class="notes-actionbar" aria-label="Notes workspace status">
+        <div class="notes-context">
+          <span id="active-space-label" class="notes-context__space">Quick Notes</span>
+          <strong id="active-note-label" class="notes-context__note">No page selected</strong>
+        </div>
+        <div class="notes-actionbar__actions">
+          <span id="notes-sync-status" class="notes-sync-status" aria-live="polite">Sync ready</span>
+          <span id="notes-save-status" class="notes-save-status" aria-live="polite">Ready</span>
+          <button id="actionbar-open-sidebar" class="secondary-button" type="button">Spaces</button>
+          <button id="actionbar-new-note" class="primary-button" type="button">New page</button>
+        </div>
+      </div>
       <div id="empty-state" class="empty-state">
-        <h2>Select a note to get started</h2>
-        <p>Create or choose a page from the sidebar.</p>
+        <h2>Capture the next useful thought</h2>
+        <p>Open an existing page from the sidebar or start a fresh page in Quick Notes.</p>
+        <div class="empty-state__actions">
+          <button id="empty-new-note" class="primary-button" type="button">New page</button>
+          <button id="empty-open-sidebar" class="secondary-button" type="button">Browse spaces</button>
+        </div>
       </div>
 
       <div id="editor-wrapper" class="editor-wrapper hidden" aria-label="Note editor">
@@ -209,7 +226,6 @@
       () => (typeof Gun === 'function'
         ? Gun({
             peers: window.__GUN_PEERS__ || [
-              'wss://relay.3dvr.tech/gun',
               'wss://gun-relay-3dvr.fly.dev/gun'
             ],
             axe: true
@@ -322,6 +338,12 @@
     const noteMetaEl = document.getElementById('note-meta');
     const emptyStateEl = document.getElementById('empty-state');
     const editorWrapperEl = document.getElementById('editor-wrapper');
+    const activeSpaceLabelEl = document.getElementById('active-space-label');
+    const activeNoteLabelEl = document.getElementById('active-note-label');
+    const notesSyncStatusEl = document.getElementById('notes-sync-status');
+    const notesSaveStatusEl = document.getElementById('notes-save-status');
+    const actionbarOpenSidebarButton = document.getElementById('actionbar-open-sidebar');
+    const actionbarNewNoteButton = document.getElementById('actionbar-new-note');
     const slashMenuEl = document.getElementById('slash-menu');
     const slashOptionsEl = document.getElementById('slash-options');
     const insertImageButton = document.getElementById('insert-image-button');
@@ -352,6 +374,27 @@
     const folderCache = new Map();
     const noteElements = new Map();
     const noteCache = new Map();
+
+    function setSaveStatus(message) {
+      if (notesSaveStatusEl) {
+        notesSaveStatusEl.textContent = message;
+      }
+    }
+
+    function updateWorkspaceSummary() {
+      const activeFolder = currentFolder ? folderCache.get(currentFolder) : null;
+      const activeNote = currentNoteId ? noteCache.get(currentNoteId) : null;
+      if (activeSpaceLabelEl) {
+        activeSpaceLabelEl.textContent = activeFolder?.name || DEFAULT_FOLDER_NAME;
+      }
+      if (activeNoteLabelEl) {
+        activeNoteLabelEl.textContent = activeNote?.title?.trim() || (currentNoteId ? 'Untitled' : 'No page selected');
+      }
+      if (notesSyncStatusEl) {
+        notesSyncStatusEl.textContent = gunContext.isStub ? 'Offline mode' : 'Sync ready';
+        notesSyncStatusEl.dataset.state = gunContext.isStub ? 'offline' : 'ready';
+      }
+    }
 
     const slashOptionData = [
       { id: 'text', label: 'Text', description: 'Start with plain paragraphs', action: () => applyBlock('paragraph') },
@@ -412,6 +455,14 @@
         setSidebarExpanded(false);
       });
     }
+
+    [actionbarOpenSidebarButton].forEach((button) => {
+      if (button) {
+        button.addEventListener('click', () => {
+          setSidebarExpanded(true);
+        });
+      }
+    });
 
     window.addEventListener('resize', () => {
       updateNavbarHeight();
@@ -542,7 +593,7 @@
       }
       li.querySelector('.folder-name').textContent = name;
       li.classList.toggle('active', currentFolder === id);
-      if (!currentFolder) {
+      if (!currentFolder && normalizedName === normalizeFolderName(DEFAULT_FOLDER_NAME)) {
         selectFolder(id);
       }
     }
@@ -635,6 +686,10 @@
         onPrimaryAck: (ack) => {
           if (ack && ack.err) {
             console.error('Failed to create space', ack.err);
+            if (gunContext.isStub || currentNoteId) {
+              setSaveStatus(gunContext.isStub ? 'Offline draft' : 'Sync unavailable');
+              return;
+            }
             flashEmptyState('Unable to create a space right now. Try again.');
           }
         }
@@ -723,17 +778,17 @@
       if (currentNoteId && noteCache.get(currentNoteId)?.folder !== id) {
         closeEditor();
       }
+      updateWorkspaceSummary();
     }
 
     function ensureFolderSelected() {
       if (currentFolder) {
         return currentFolder;
       }
-      const iterator = folderElements.keys();
-      const first = iterator.next();
-      if (!first.done) {
-        selectFolder(first.value);
-        return first.value;
+      const defaultFolderId = findFolderByNormalizedName(normalizeFolderName(DEFAULT_FOLDER_NAME));
+      if (defaultFolderId) {
+        selectFolder(defaultFolderId);
+        return defaultFolderId;
       }
       const id = createFolder(DEFAULT_FOLDER_NAME, DEFAULT_FOLDER_ID);
       selectFolder(id);
@@ -755,11 +810,12 @@
       });
     }
 
-    newNoteButton.addEventListener('click', () => {
+    function createNewNote() {
       const activeFolder = ensureFolderSelected();
       if (!activeFolder) {
         return;
       }
+      setSaveStatus('Creating page...');
       const id = generateId();
       const now = Date.now();
       const payload = {
@@ -769,18 +825,43 @@
         createdAt: now,
         updatedAt: now
       };
+      const optimisticNote = { ...payload, id };
+      noteSourceRefs.set(id, primaryNoteSource);
+      noteCache.set(id, optimisticNote);
+      ensureNoteListItem(id, optimisticNote);
+      openNote(id);
+      setSaveStatus(gunContext.isStub ? 'Offline draft' : 'Page created');
+      setTimeout(() => noteTitleEl.focus(), 120);
       putToSources(noteSources, id, payload, {
         onPrimaryAck: (ack) => {
           if (ack && ack.err) {
             console.error('Failed to create note', ack.err);
+            setSaveStatus(gunContext.isStub ? 'Offline draft' : 'Sync unavailable');
             return;
           }
-          openNote(id);
-          setTimeout(() => noteTitleEl.focus(), 120);
+          setSaveStatus('Page created');
         }
       });
-      noteSourceRefs.set(id, primaryNoteSource);
+    }
+
+    [newNoteButton, actionbarNewNoteButton].forEach((button) => {
+      if (button) {
+        button.addEventListener('click', createNewNote);
+      }
     });
+
+    function bindEmptyStateActions() {
+      const emptyNewNoteButton = document.getElementById('empty-new-note');
+      const emptyOpenSidebarButton = document.getElementById('empty-open-sidebar');
+      if (emptyNewNoteButton) {
+        emptyNewNoteButton.onclick = createNewNote;
+      }
+      if (emptyOpenSidebarButton) {
+        emptyOpenSidebarButton.onclick = () => setSidebarExpanded(true);
+      }
+    }
+
+    bindEmptyStateActions();
 
     noteSearchInput.addEventListener('input', () => {
       filterNotes();
@@ -844,6 +925,7 @@
         updateEditorMeta(merged);
       }
       filterNotes();
+      updateWorkspaceSummary();
     }
 
     noteSources.forEach((source) => {
@@ -925,6 +1007,7 @@
       li.dataset.title = titleEl.textContent.toLowerCase();
       li.dataset.contentPreview = getContentPreview(note.content || '');
       li.classList.toggle('active', currentNoteId === id);
+      updateWorkspaceSummary();
     }
 
     function filterNotes() {
@@ -979,6 +1062,8 @@
         noteContentEl.innerHTML = note.content || '';
       }
       updateEditorMeta(note);
+      updateWorkspaceSummary();
+      setSaveStatus('Ready');
     }
 
     function attachNoteListener(id) {
@@ -1026,6 +1111,8 @@
       noteMetaEl.textContent = '';
       hideSlashMenu();
       noteElements.forEach((li) => li.classList.remove('active'));
+      updateWorkspaceSummary();
+      setSaveStatus('Ready');
     }
 
     function clearNotesSelection() {
@@ -1121,6 +1208,8 @@
       putToSources(noteSources, currentNoteId, { title: value, updatedAt: now });
       ensureNoteListItem(currentNoteId, cached);
       filterNotes();
+      updateWorkspaceSummary();
+      setSaveStatus(gunContext.isStub ? 'Offline draft' : 'Saved to sync queue');
     });
 
     noteTitleEl.addEventListener('input', () => {
@@ -1132,6 +1221,8 @@
       noteCache.set(currentNoteId, cached);
       ensureNoteListItem(currentNoteId, cached);
       filterNotes();
+      updateWorkspaceSummary();
+      setSaveStatus('Editing...');
     });
 
     noteContentEl.addEventListener('keydown', (event) => {
@@ -1215,9 +1306,11 @@
       if (saveTimer) {
         clearTimeout(saveTimer);
       }
+      setSaveStatus('Editing...');
       saveTimer = setTimeout(() => {
         const html = noteContentEl.innerHTML;
         suppressContentUpdate = true;
+        setSaveStatus('Saving...');
         const now = Date.now();
         putFieldToSources(noteSources, currentNoteId, 'content', html);
         putFieldToSources(noteSources, currentNoteId, 'updatedAt', now);
@@ -1228,6 +1321,8 @@
         ensureNoteListItem(currentNoteId, cached);
         updateEditorMeta(cached);
         filterNotes();
+        updateWorkspaceSummary();
+        setSaveStatus(gunContext.isStub ? 'Offline draft' : 'Saved to sync queue');
         setTimeout(() => {
           suppressContentUpdate = false;
         }, 150);
@@ -1553,13 +1648,16 @@
 
     function flashEmptyState(message) {
       emptyStateEl.classList.remove('hidden');
-      emptyStateEl.innerHTML = `<h2>${message}</h2><p>Create a space to organize your notes like Notion.</p>`;
+      emptyStateEl.innerHTML = `<h2>${message}</h2><p>Create a space to organize your notes.</p>`;
       setTimeout(() => {
         if (!currentNoteId) {
           emptyStateEl.innerHTML = defaultEmptyMessage;
+          bindEmptyStateActions();
         }
       }, 2500);
     }
+
+    updateWorkspaceSummary();
   </script>
   <script defer src="/issue-launcher.js"></script>
 </body>

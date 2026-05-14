@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Desk Essentials Co.</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+</head>
+<body>
+  <main class="storefront">
+    <section class="product-hero" aria-labelledby="storeTitle">
+      <div class="product-media">
+        <img id="productImage" src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80" alt="Compact desk setup with laptop and accessories" />
+      </div>
+      <div class="product-copy">
+        <p class="eyebrow">Desk Essentials Co.</p>
+        <h1 id="storeTitle">Small upgrades for a cleaner workspace.</h1>
+        <p class="lede">Choose from practical desk and travel accessories built for everyday work, charging, and carry.</p>
+        <div class="price-row">
+          <strong id="productPrice">$79</strong>
+          <span id="productSummary">Compact support for a cleaner laptop setup</span>
+        </div>
+        <form id="orderForm" class="order-form">
+          <fieldset class="product-picker">
+            <legend>Choose a product</legend>
+            <label class="product-option">
+              <input type="radio" name="productId" value="compact-desk-dock" checked />
+              <span>
+                <strong>Compact Desk Dock</strong>
+                <small>$79 · Low-profile laptop docking stand</small>
+              </span>
+            </label>
+            <label class="product-option">
+              <input type="radio" name="productId" value="magnetic-cable-kit" />
+              <span>
+                <strong>Magnetic Cable Kit</strong>
+                <small>$29 · Clips and ties for clean cable routing</small>
+              </span>
+            </label>
+            <label class="product-option">
+              <input type="radio" name="productId" value="travel-tech-pouch" />
+              <span>
+                <strong>Travel Tech Pouch</strong>
+                <small>$49 · Compact organizer for chargers and adapters</small>
+              </span>
+            </label>
+          </fieldset>
+          <label>
+            Name
+            <input id="customerName" name="customerName" autocomplete="name" required />
+          </label>
+          <label>
+            Email
+            <input id="customerEmail" name="customerEmail" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            Quantity
+            <select id="quantity" name="quantity">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+          <button id="checkoutButton" type="submit">Secure checkout</button>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="details" aria-label="Product details">
+      <article>
+        <h2>Work-Ready Gear</h2>
+        <p>Useful accessories for desks, laptop bags, nightstands, and small workspaces.</p>
+      </article>
+      <article>
+        <h2>Simple Checkout</h2>
+        <p>Choose your item, confirm quantity, and complete shipping and payment in a secure checkout.</p>
+      </article>
+      <article>
+        <h2>Tracked Shipping</h2>
+        <p>Orders are reviewed and sent to the best available fulfillment partner.</p>
+      </article>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

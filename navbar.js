@@ -20,7 +20,46 @@ function clearSharedIdentityCookie() {
   }
 }
 
+function hideUnreadyHomepageSections() {
+  const systemLayers = document.getElementById('systemLayers');
+  if (systemLayers) {
+    systemLayers.remove();
+  }
+  document.querySelectorAll('a[href="#systemLayers"]').forEach(link => {
+    link.remove();
+  });
+  document.querySelectorAll('.launcher-lanes').forEach(section => {
+    section.remove();
+  });
+}
+
+function ensureHomepageSearchShortcuts() {
+  const topButtons = document.querySelector('.top-buttons');
+  if (topButtons && !topButtons.querySelector('[data-home-search-shortcut]')) {
+    const searchLink = document.createElement('a');
+    searchLink.href = '#appSearch';
+    searchLink.dataset.appSearchTrigger = 'true';
+    searchLink.dataset.homeSearchShortcut = 'true';
+    searchLink.textContent = 'Search apps';
+    topButtons.insertAdjacentElement('afterbegin', searchLink);
+  }
+
+  const heroActions = document.querySelector('.hero-actions');
+  if (heroActions && !heroActions.querySelector('[data-home-search-shortcut]')) {
+    const searchAction = document.createElement('a');
+    searchAction.href = '#appSearch';
+    searchAction.className = 'cta primary';
+    searchAction.dataset.appSearchTrigger = 'true';
+    searchAction.dataset.homeSearchShortcut = 'true';
+    searchAction.textContent = 'Search apps';
+    heroActions.insertAdjacentElement('afterbegin', searchAction);
+  }
+}
+
 function createNavbar() {
+  ensureHomepageSearchShortcuts();
+  hideUnreadyHomepageSections();
+
   if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
     window.ScoreSystem.recallUserSession(user);
   } else {
@@ -196,4 +235,5 @@ function createNavbar() {
   }
 }
 
+ensureHomepageSearchShortcuts();
 window.addEventListener('load', createNavbar);

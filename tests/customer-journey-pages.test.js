@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises';
 describe('portal customer journey pages', () => {
   it('gives the portal home a clear concrete entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-    assert.match(html, /One system\. Any device\./);
-    assert.match(html, /Start in your browser\. Grow into your own operating system\./);
-    assert.match(html, /same identity,/i);
+    assert.match(html, /One portal\. Fast access\./);
+    assert.match(html, /Find the apps, contacts, notes, websites, subscriptions, and support tools you need/);
+    assert.doesNotMatch(html, /Grow into your own operating system/);
     assert.match(html, /Open CRM/);
     assert.match(html, /Open Sales/);
     assert.match(html, /Open Web Builder/);
@@ -41,10 +41,10 @@ describe('portal customer journey pages', () => {
     assert.match(html, /App dock/);
     assert.match(html, /Command center/);
     assert.match(html, /Same account, same apps, deeper levels of control\./);
-    assert.match(html, /Suggested launcher lanes/);
-    assert.match(html, /Run the business workspace/);
-    assert.match(html, /Open the workspace runtime/);
-    assert.match(html, /Move toward device control/);
+    assert.doesNotMatch(html, /Suggested launcher lanes/);
+    assert.doesNotMatch(html, /Run the business workspace/);
+    assert.doesNotMatch(html, /Open the workspace runtime/);
+    assert.doesNotMatch(html, /Move toward device control/);
     assert.match(html, /data-app-list/);
     assert.match(html, /shortcut-grid/);
     assert.doesNotMatch(html, /https:\/\/3dvr\.tech\/subscribe\/free-plan\.html/);
