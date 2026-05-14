@@ -74,8 +74,10 @@
       left: auto;
       bottom: auto;
       transform: none;
-      width: min(28rem, calc(100vw - 1.5rem));
-      margin: 1rem auto max(0.75rem, env(safe-area-inset-bottom));
+      width: auto;
+      max-width: min(28rem, calc(100vw - 1.5rem));
+      margin: 0.75rem auto max(0.5rem, env(safe-area-inset-bottom));
+      justify-items: center;
     }
 
     .portal-issue-launcher__button,
@@ -127,6 +129,42 @@
     .portal-issue-launcher__button-meta {
       font-size: 0.75rem;
       color: #94a3b8;
+    }
+
+    .portal-issue-launcher--footer .portal-issue-launcher__button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-color: rgba(148, 163, 184, 0.26);
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      background: transparent;
+      color: inherit;
+      box-shadow: none;
+      backdrop-filter: none;
+      text-align: center;
+    }
+
+    .portal-issue-launcher--footer .portal-issue-launcher__button:hover,
+    .portal-issue-launcher--footer .portal-issue-launcher__button:focus-visible {
+      transform: none;
+      border-color: rgba(56, 189, 248, 0.5);
+      box-shadow: none;
+    }
+
+    .portal-issue-launcher--footer .portal-issue-launcher__button-label {
+      display: inline-flex;
+    }
+
+    .portal-issue-launcher--footer .portal-issue-launcher__button-eyebrow,
+    .portal-issue-launcher--footer .portal-issue-launcher__button-meta {
+      display: none;
+    }
+
+    .portal-issue-launcher--footer .portal-issue-launcher__button-title {
+      color: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
     }
 
     .portal-issue-launcher__panel {
@@ -267,7 +305,8 @@
       }
 
       .portal-issue-launcher--footer {
-        width: calc(100vw - 1rem);
+        width: auto;
+        max-width: calc(100vw - 1rem);
         margin-inline: auto;
       }
 
@@ -352,7 +391,10 @@
   `;
 
   root.append(button, panel);
-  document.body.appendChild(root);
+  const mountTarget = shouldFloatLauncher
+    ? document.body
+    : document.querySelector('footer') || document.body;
+  mountTarget.appendChild(root);
 
   const form = panel.querySelector('form');
   const typeInput = form.querySelector('#portalIssueType');
