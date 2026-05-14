@@ -63,6 +63,25 @@
 - Do not switch branches, create worktrees, or rewrite history unless explicitly asked.
 - If you temporarily run `vercel link`, clean up `.vercel/` and any incidental `.gitignore` changes afterward unless the user wants them kept.
 
+## Push And Merge With Termux GitHub Auth
+- GitHub auth usually lives under `/data/data/com.termux/files/home`, even when the active shell is `/root`.
+- Check auth without printing secrets:
+  - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh auth status`
+- If `git push` asks for a username or fails with `could not read Username`, use the Termux token through an in-memory credential helper:
+  ```sh
+  GITHUB_TOKEN="$(HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh auth token)"
+  export GITHUB_TOKEN
+  git -c credential.helper= \
+    -c credential.helper='!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f' \
+    push origin BRANCH_NAME
+  unset GITHUB_TOKEN
+  ```
+- Fetch before pushing and verify divergence with `git rev-list --left-right --count origin/BRANCH_NAME...HEAD`.
+- For protected or PR-first repos, use Termux `gh` to open and merge the PR:
+  - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh pr create --repo OWNER/REPO --base main --head BRANCH_NAME --title "..." --body "..."`
+  - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh pr merge PR_NUMBER --repo OWNER/REPO --merge --auto --delete-branch=false`
+- If a PR conflicts, resolve it in a temporary clean worktree, push the resolved branch, and then retry the merge. Do not force-push over remote work unless the user explicitly asks.
+
 ## Deployments And Secrets
 - Never print secrets, tokens, API keys, or live credentials back to the user.
 - If you need to inspect live env vars, minimize exposure and clean temporary files afterward.
