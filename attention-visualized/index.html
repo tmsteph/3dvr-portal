@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attention Visualized | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="/app-manifests/attention-visualized.webmanifest">
+  <meta name="theme-color" content="#09111f">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="attention-page">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <main id="mainContent" class="attention-shell">
+    <section class="attention-hero" aria-labelledby="attention-title">
+      <div class="attention-hero__copy">
+        <span class="attention-kicker">Open-source AI school</span>
+        <h1 id="attention-title">Attention Is All You Need, explained for builders</h1>
+        <p>
+          A browser-first lab for seeing how tokens look at each other, how softmax turns similarity
+          into weights, and why transformers changed modern AI.
+        </p>
+        <div class="attention-actions">
+          <a class="attention-button attention-button--primary" href="#lab-title">Open the lab</a>
+          <a class="attention-button" href="/index.html">Back to portal</a>
+        </div>
+      </div>
+      <div class="network-preview" aria-hidden="true">
+        <span class="network-token network-token--query">sat</span>
+        <span class="network-token network-token--strong">cat</span>
+        <span class="network-token network-token--mid">mat</span>
+        <span class="network-token network-token--weak">the</span>
+        <span class="network-line network-line--strong"></span>
+        <span class="network-line network-line--mid"></span>
+        <span class="network-line network-line--weak"></span>
+      </div>
+    </section>
+
+    <section class="lesson-band" aria-labelledby="why-title">
+      <div class="section-heading">
+        <span class="attention-kicker">Part 1</span>
+        <h2 id="why-title">Why transformers matter</h2>
+        <p>
+          Old sequence models read text mostly in order. Attention lets every token compare itself
+          with every other token, so context can move through the whole sentence at once.
+        </p>
+      </div>
+      <div class="concept-grid">
+        <article class="concept-card">
+          <strong>RNN bottleneck</strong>
+          <span>Context had to squeeze through step-by-step memory.</span>
+        </article>
+        <article class="concept-card">
+          <strong>Attention shift</strong>
+          <span>Each token gets a spotlight and chooses what matters.</span>
+        </article>
+        <article class="concept-card">
+          <strong>Parallel building</strong>
+          <span>Many token comparisons can run together on modern hardware.</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="lab-panel" aria-labelledby="lab-title">
+      <div class="section-heading">
+        <span class="attention-kicker">Part 2</span>
+        <h2 id="lab-title">Self-attention visualization</h2>
+        <p>
+          Edit the sentence, pick a focus token, and change the temperature. The canvas shows which
+          tokens are being attended to, while the heatmap shows the full attention matrix.
+        </p>
+      </div>
+
+      <div class="control-grid">
+        <label class="control-field" for="tokenInput">
+          <span>Token input</span>
+          <input id="tokenInput" type="text" value="The cat sat on the mat" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="control-field" for="focusToken">
+          <span>Focus token</span>
+          <select id="focusToken"></select>
+        </label>
+        <label class="control-field" for="temperature">
+          <span>Temperature <output id="temperatureValue" for="temperature">1.00</output></span>
+          <input id="temperature" type="range" min="0.35" max="2.5" value="1" step="0.05">
+        </label>
+        <label class="control-field" for="headMix">
+          <span>Head flavor <output id="headMixValue" for="headMix">syntax</output></span>
+          <input id="headMix" type="range" min="0" max="2" value="0" step="1">
+        </label>
+      </div>
+
+      <div class="lab-layout">
+        <article class="visual-card">
+          <div class="visual-card__header">
+            <h3>Attention lines</h3>
+            <span id="focusSummary">sat attends most to cat</span>
+          </div>
+          <canvas id="attentionCanvas" width="900" height="420" aria-label="Canvas showing attention links between tokens"></canvas>
+        </article>
+        <article class="visual-card">
+          <div class="visual-card__header">
+            <h3>Attention heatmap</h3>
+            <span>Rows are queries, columns are keys.</span>
+          </div>
+          <div id="heatmap" class="heatmap" role="table" aria-label="Attention weights heatmap"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="formula-panel" aria-labelledby="formula-title">
+      <div class="section-heading">
+        <span class="attention-kicker">Part 3</span>
+        <h2 id="formula-title">The formula, without the fog</h2>
+        <p>
+          Attention(Q, K, V) = softmax((QK^T) / sqrt(d_k))V. Q asks a question, K describes what a
+          token can match, and V is the information that gets blended into the result.
+        </p>
+      </div>
+      <div class="formula-flow">
+        <article><strong>Query</strong><span>What am I looking for?</span></article>
+        <article><strong>Key</strong><span>What do I offer to match?</span></article>
+        <article><strong>Value</strong><span>What information do I pass along?</span></article>
+        <article><strong>Softmax</strong><span>Turn scores into attention weights.</span></article>
+      </div>
+    </section>
+
+    <section class="code-panel" aria-labelledby="code-title">
+      <div class="section-heading">
+        <span class="attention-kicker">Part 4</span>
+        <h2 id="code-title">Tiny attention in JavaScript</h2>
+        <p>Every number in the lab is generated in the browser from small deterministic embeddings.</p>
+      </div>
+      <pre><code>const tokens = ["the", "cat", "sat"];
+const embeddings = [
+  [0.1, 0.8],
+  [0.7, 0.2],
+  [0.6, 0.9]
+];
+
+const scores = dot(query, key) / Math.sqrt(query.length);
+const weights = softmax(scores);
+const output = weightedSum(weights, values);</code></pre>
+    </section>
+
+    <section class="reflection-panel" aria-labelledby="reflection-title">
+      <div class="section-heading">
+        <span class="attention-kicker">Part 5</span>
+        <h2 id="reflection-title">Attention as human focus</h2>
+        <p>
+          The parallel is useful if we keep it grounded: people also allocate focus, ignore noise,
+          and connect memory with context. That does not make a model conscious. It does give us a
+          practical metaphor for learning how pattern systems work.
+        </p>
+      </div>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
