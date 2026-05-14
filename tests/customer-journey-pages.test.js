@@ -12,6 +12,9 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Open Sales/);
     assert.match(html, /Open Web Builder/);
     assert.doesNotMatch(html, /System layers/);
+    assert.doesNotMatch(html, /Cloud workspace for identity, notes, CRM, billing, messaging, and AI\./);
+    assert.doesNotMatch(html, /Launcher, multi-panel workspace, media tools, and in-browser runtime experiments\./);
+    assert.doesNotMatch(html, /TommyOS direction for deeper device control\./);
     assert.match(html, /Core workspaces/);
     assert.match(html, /Contacts/);
     assert.match(html, /Messenger/);

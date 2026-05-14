@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect Device | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+  <script src="/auth-identity.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">Device Access</div>
+      <h1 class="guide-title">Connect a new device to the DigitalOcean workstation</h1>
+      <p class="guide-description">
+        Use the portal as the starting point on any laptop or phone. Install the agent, create a local SSH key,
+        connect it to the server, and jump into the persistent workspace.
+      </p>
+    </div>
+
+    <section class="guide-section">
+      <h2>Account</h2>
+      <p class="field-note" id="identity-status">Checking portal sign-in...</p>
+      <div class="actions-row" style="margin-top: 12px;">
+        <a class="primary-button" href="/sign-in.html">Sign in</a>
+        <a class="muted-button" href="/admin/">Open admin</a>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h2>New device setup</h2>
+      <form class="guide-form" id="device-form">
+        <div class="field">
+          <label for="platform">Device type</label>
+          <select class="control" id="platform" name="platform">
+            <option value="debian">Debian / Ubuntu / Linux</option>
+            <option value="termux">Android Termux</option>
+            <option value="mac">macOS</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="alias">SSH alias</label>
+          <input class="control" id="alias" name="alias" value="do-dev" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="host">DigitalOcean host</label>
+          <input class="control" id="host" name="host" value="167.172.193.194" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="user">Server user</label>
+          <input class="control" id="user" name="user" value="root" autocomplete="username">
+        </div>
+      </form>
+    </section>
+
+    <section class="guide-section">
+      <h2>Run on the new device</h2>
+      <div class="status-block">
+        <pre id="bootstrap-command"></pre>
+      </div>
+      <div class="actions-row" style="margin-top: 12px;">
+        <button class="primary-button" type="button" id="copy-bootstrap">Copy command</button>
+        <button class="muted-button" type="button" id="download-bootstrap">Download script</button>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h2>Approve from an existing session</h2>
+      <ol class="guide-list">
+        <li>Run the setup command on the new device.</li>
+        <li>Copy the public key or the approval command it prints.</li>
+        <li>Run that approval command from a device that already has <span class="inline-code">ssh do-dev</span>.</li>
+      </ol>
+      <div class="status-block" style="margin-top: 12px;">
+        <pre id="approve-template"></pre>
+      </div>
+      <div class="actions-row" style="margin-top: 12px;">
+        <button class="muted-button" type="button" id="copy-approve">Copy approval template</button>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h2>Get to work</h2>
+      <div class="status-block">
+        <pre>ssh do-dev
+work</pre>
+      </div>
+    </section>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="./index.html">Back to guides</a>
+      <a href="/admin/">Admin portal</a>
+      <a href="/index.html">Return to Portal</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('device-form');
+    const identityStatus = document.getElementById('identity-status');
+    const bootstrapCommand = document.getElementById('bootstrap-command');
+    const approveTemplate = document.getElementById('approve-template');
+
+    function clean(value, fallback) {
+      return String(value || fallback || '').trim() || fallback;
+    }
+
+    function shellQuote(value) {
+      return `'${String(value).replace(/'/g, "'\\''")}'`;
+    }
+
+    function values() {
+      const data = new FormData(form);
+      return {
+        platform: clean(data.get('platform'), 'debian'),
+        alias: clean(data.get('alias'), 'do-dev'),
+        host: clean(data.get('host'), '167.172.193.194'),
+        user: clean(data.get('user'), 'root')
+      };
+    }
+
+    function installPrefix(platform) {
+      if (platform === 'termux') {
+        return 'pkg update -y && pkg install -y git nodejs openssh && ';
+      }
+      if (platform === 'mac') {
+        return 'command -v git >/dev/null || xcode-select --install; ';
+      }
+      return 'sudo apt-get update && sudo apt-get install -y git nodejs npm openssh-client curl && ';
+    }
+
+    function fallbackBootstrap(v) {
+      const keyPath = '$HOME/.ssh/id_ed25519_3dvr';
+      return [
+        'mkdir -p "$HOME/.ssh"',
+        'chmod 700 "$HOME/.ssh"',
+        `test -f "${keyPath}" || ssh-keygen -t ed25519 -f "${keyPath}" -C "$(hostname)-3dvr" -N ""`,
+        `grep -Eq '^[[:space:]]*Host[[:space:]]+${v.alias}([[:space:]]|$)' "$HOME/.ssh/config" 2>/dev/null || cat >> "$HOME/.ssh/config" <<'EOF'`,
+        `Host ${v.alias}`,
+        `  HostName ${v.host}`,
+        `  User ${v.user}`,
+        `  IdentityFile ~/.ssh/id_ed25519_3dvr`,
+        '  IdentitiesOnly yes',
+        'EOF',
+        'chmod 600 "$HOME/.ssh/config"',
+        'printf "\\nPublic key:\\n"',
+        'cat "$HOME/.ssh/id_ed25519_3dvr.pub"',
+        'printf "\\nApprove it from an existing session with:\\n"',
+        `printf '%s\\n' ${shellQuote(`ssh ${v.alias} '3dvr device approve "PASTE_PUBLIC_KEY_FROM_NEW_DEVICE" || 3dvr-onboard-device "PASTE_PUBLIC_KEY_FROM_NEW_DEVICE"'`)}`,
+        'printf "\\nThen run: ssh ' + v.alias + '\\n"'
+      ].join(' && ');
+    }
+
+    function render() {
+      const v = values();
+      const fallback = fallbackBootstrap(v);
+      const command = `${installPrefix(v.platform)}curl -Ls https://raw.githubusercontent.com/tmsteph/3dvr-agent/main/install.sh | bash && export PATH="$HOME/.local/bin:$HOME/bin:$PATH" && if 3dvr device help >/dev/null 2>&1; then 3dvr device bootstrap --host ${shellQuote(v.host)} --user ${shellQuote(v.user)} --alias ${shellQuote(v.alias)}; else ${fallback}; fi`;
+      bootstrapCommand.textContent = command;
+      approveTemplate.textContent = `ssh ${v.alias}\n3dvr device approve "PASTE_PUBLIC_KEY_FROM_NEW_DEVICE"`;
+    }
+
+    function downloadScript() {
+      const script = `#!/usr/bin/env bash\nset -euo pipefail\n${bootstrapCommand.textContent}\n`;
+      const blob = new Blob([script], { type: 'text/x-shellscript' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = '3dvr-connect-device.sh';
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copyText(element, button) {
+      await navigator.clipboard.writeText(element.textContent);
+      const original = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(() => { button.textContent = original; }, 900);
+    }
+
+    const identity = window.AuthIdentity?.readSharedIdentity?.();
+    if (identity?.signedIn) {
+      identityStatus.textContent = `Signed in as ${identity.alias}.`;
+    } else {
+      identityStatus.textContent = 'Sign in first so the portal can keep this flow tied to your 3DVR account.';
+    }
+
+    form.addEventListener('input', render);
+    form.addEventListener('change', render);
+    document.getElementById('copy-bootstrap').addEventListener('click', event => copyText(bootstrapCommand, event.currentTarget));
+    document.getElementById('copy-approve').addEventListener('click', event => copyText(approveTemplate, event.currentTarget));
+    document.getElementById('download-bootstrap').addEventListener('click', downloadScript);
+    render();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

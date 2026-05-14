@@ -439,7 +439,6 @@ body.landing {
   margin-top: 0.2rem;
 }
 
-.system-strip,
 .plan-strip {
   display: grid;
   gap: 0.6rem;
@@ -452,7 +451,6 @@ body.landing {
   margin-top: 0.15rem;
 }
 
-.system-strip__label,
 .workspace-strip__label {
   font-size: 0.76rem;
   font-weight: 700;
@@ -461,14 +459,12 @@ body.landing {
   color: rgba(226, 232, 240, 0.72);
 }
 
-.system-ribbon,
 .workspace-ribbon {
   display: grid;
   gap: 0.65rem;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.system-pill,
 .workspace-pill {
   display: grid;
   gap: 0.28rem;
@@ -488,7 +484,6 @@ body.landing {
     box-shadow var(--transition-base);
 }
 
-.system-pill:hover,
 .workspace-pill:hover {
   transform: translateY(-2px);
   border-color: rgba(56, 189, 248, 0.52);
@@ -498,13 +493,11 @@ body.landing {
   box-shadow: 0 24px 52px rgba(4, 9, 20, 0.3);
 }
 
-.system-pill strong,
 .workspace-pill strong {
   font-size: 0.98rem;
   color: rgba(226, 232, 240, 0.98);
 }
 
-.system-pill span,
 .workspace-pill span {
   font-size: 0.82rem;
   line-height: 1.45;
