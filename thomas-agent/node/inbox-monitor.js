@@ -73,6 +73,7 @@ const DEFAULT_LOCAL_LLM_TOKENS = parseInteger(process.env.THREEDVR_INBOX_LOCAL_T
 const DEFAULT_LOCAL_LLM_CONTEXT = parseInteger(process.env.THREEDVR_INBOX_LOCAL_CONTEXT, 2048);
 const DEFAULT_LOCAL_LLM_TIMEOUT_MS = parseInteger(process.env.THREEDVR_INBOX_LOCAL_TIMEOUT_MS, 120000);
 const DEFAULT_AGENT_OPS_REPLY_LEASE_TTL_MS = parseInteger(process.env.THREEDVR_AGENT_OPS_REPLY_LEASE_TTL_MS, 120000);
+const DEFAULT_PORTAL_EMAIL_TIMEOUT_MS = parseInteger(process.env.THREEDVR_PORTAL_EMAIL_TIMEOUT_MS, 15000);
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -100,6 +101,28 @@ function readOptionalFile(filePath) {
     return normalizeText(fs.readFileSync(filePath, 'utf8'));
   } catch {
     return '';
+  }
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_PORTAL_EMAIL_TIMEOUT_MS) {
+  if (typeof AbortController === 'undefined') {
+    return fetch(url, options);
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: options.signal || controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`portal email request timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -1148,26 +1171,31 @@ async function sendPortalAlert(alert) {
     return { ok: false, reason: 'notify email not configured' };
   }
 
-  const response = await fetch(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
-    },
-    body: JSON.stringify({
-      mode: 'operator-alert',
-      to: [DEFAULT_NOTIFY_EMAIL],
-      subject: alert.subject,
-      summary: alert.summary,
-      text: alert.text,
-      actionItems: alert.actionItems,
-      commands: ['ask-inbox', 'ask-next'],
-      metadata: {
-        mailbox: DEFAULT_MAILBOX,
-        unreadMessages: String(alert.actionItems.length),
+  let response;
+  try {
+    response = await fetchWithTimeout(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        mode: 'operator-alert',
+        to: [DEFAULT_NOTIFY_EMAIL],
+        subject: alert.subject,
+        summary: alert.summary,
+        text: alert.text,
+        actionItems: alert.actionItems,
+        commands: ['ask-inbox', 'ask-next'],
+        metadata: {
+          mailbox: DEFAULT_MAILBOX,
+          unreadMessages: String(alert.actionItems.length),
+        },
+      }),
+    });
+  } catch (error) {
+    return { ok: false, reason: error.message || String(error) };
+  }
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -1194,28 +1222,33 @@ async function sendLeadReply(message, lead, state) {
   }
   const draft = await buildReplyDraft(lead, message, state);
 
-  const response = await fetch(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
-    },
-    body: JSON.stringify({
-      mode: 'lead-outreach',
-      to: [message.replyToEmail || message.fromEmail],
-      subject: buildReplySubject(message.subject),
-      headline: draft.headline,
-      text: draft.text,
-      senderName: DEFAULT_REPLY_SENDER_NAME,
-      senderEmail: DEFAULT_REPLY_SENDER_EMAIL,
-      inReplyTo: message.messageId,
-      references: buildReferences(message),
-      metadata: {
-        replySource: draft.source,
-        replyMode: DEFAULT_REPLY_MODE,
+  let response;
+  try {
+    response = await fetchWithTimeout(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        mode: 'lead-outreach',
+        to: [message.replyToEmail || message.fromEmail],
+        subject: buildReplySubject(message.subject),
+        headline: draft.headline,
+        text: draft.text,
+        senderName: DEFAULT_REPLY_SENDER_NAME,
+        senderEmail: DEFAULT_REPLY_SENDER_EMAIL,
+        inReplyTo: message.messageId,
+        references: buildReferences(message),
+        metadata: {
+          replySource: draft.source,
+          replyMode: DEFAULT_REPLY_MODE,
+        },
+      }),
+    });
+  } catch (error) {
+    return { ok: false, reason: error.message || String(error) };
+  }
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -1244,29 +1277,34 @@ async function sendPublicAgentReply(message, state) {
   }
   const draft = buildPublicAgentReplyDraft(message, state);
 
-  const response = await fetch(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
-    },
-    body: JSON.stringify({
-      mode: 'lead-outreach',
-      to: [message.replyToEmail || message.fromEmail],
-      subject: buildReplySubject(message.subject),
-      headline: draft.headline,
-      text: draft.text,
-      senderName: DEFAULT_REPLY_SENDER_NAME,
-      senderEmail: DEFAULT_REPLY_SENDER_EMAIL,
-      inReplyTo: message.messageId,
-      references: buildReferences(message),
-      metadata: {
-        replySource: draft.source,
-        replyMode: 'public-agent',
-        publicAgentSubjectToken: DEFAULT_PUBLIC_AUTO_REPLY_SUBJECT_TOKEN,
+  let response;
+  try {
+    response = await fetchWithTimeout(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        mode: 'lead-outreach',
+        to: [message.replyToEmail || message.fromEmail],
+        subject: buildReplySubject(message.subject),
+        headline: draft.headline,
+        text: draft.text,
+        senderName: DEFAULT_REPLY_SENDER_NAME,
+        senderEmail: DEFAULT_REPLY_SENDER_EMAIL,
+        inReplyTo: message.messageId,
+        references: buildReferences(message),
+        metadata: {
+          replySource: draft.source,
+          replyMode: 'public-agent',
+          publicAgentSubjectToken: DEFAULT_PUBLIC_AUTO_REPLY_SUBJECT_TOKEN,
+        },
+      }),
+    });
+  } catch (error) {
+    return { ok: false, reason: error.message || String(error) };
+  }
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -1702,6 +1740,8 @@ async function main() {
   const bounceResult = await handleBounceMessages(unread, state);
   if (bounceResult?.ok) {
     console.log(`Alerted ${bounceResult.to} about delivery failure(s).`);
+  } else if (bounceResult) {
+    console.warn(`Delivery failure alert skipped: ${bounceResult.reason || 'unknown error'}`);
   }
 
   state.seen = pruneObjectEntries(state.seen, 500);
@@ -1740,8 +1780,10 @@ module.exports = {
 };
 
 if (require.main === module) {
-  main().catch((error) => {
-    console.error(error.message || error);
-    process.exit(1);
-  });
+  main()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error.message || error);
+      process.exit(1);
+    });
 }

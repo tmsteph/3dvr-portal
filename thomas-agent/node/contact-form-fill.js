@@ -291,6 +291,7 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
   const result = await fillContactForm(page, lead, message, {
     submit: options.submit && !options.dryRun,
     targetUrl: pageUrl,
+    pageAlreadyLoaded: true,
     screenshotPath: runtime.screenshotPath,
     adapter: runtime.adapter,
     allowThirdPartyForm: route === 'form',

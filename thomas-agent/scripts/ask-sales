@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MODE="${1:-general}"
-shift 2>/dev/null || true
 
 case "$MODE" in
+  status|summary|publish|help|-h|--help)
+    cd "$ROOT"
+    exec node "$ROOT/node/sales-summary.js" "$@"
+    ;;
+  loop)
+    shift || true
+    cd "$ROOT"
+    "$SCRIPT_DIR/ask-autopilot" "$@"
+    exec node "$ROOT/node/sales-summary.js" publish
+    ;;
   website)
     printf '%s\n' \
     "Hey, I help small businesses get websites cleaned up and launched for \$20/month." \
@@ -70,6 +82,7 @@ case "$MODE" in
     "Should we start this week?"
     ;;
   custom)
+    shift || true
     TOPIC="${*:-your project}"
     printf '%s\n' \
     "Hey, I help small businesses with ${TOPIC} for \$20/month." \
@@ -83,7 +96,7 @@ case "$MODE" in
     "Want to get started this week?" \
     "Should I send details?"
     ;;
-  all|general|*)
+  *)
     printf '%s\n' \
     "Hey, I help small businesses with websites and tech for \$20/month." \
     "Need help getting your website cleaned up or launched this week?" \

@@ -14,4 +14,5 @@ if [ -f "$CONFIG_FILE" ]; then
   set +a
 fi
 
+cd "$ROOT"
 exec node "$ROOT/node/agent-heartbeat.js" "${1:-}"

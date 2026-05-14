@@ -102,8 +102,11 @@ Email aliases:
 3dvr agent queue         enqueue/list remote server tasks
 3dvr agent worker        run queued tasks on this machine
 3dvr agent codex         install, auth-check, or probe the Codex CLI executor
+3dvr device bootstrap    prepare a new laptop/phone for the DigitalOcean server
+3dvr device approve      authorize a new device public key on the server
 3dvr server handoff      set up this machine for a DigitalOcean dev server
 3dvr server doctor       test the configured dev server SSH connection
+3dvr sales               summarize, publish, or run the sales loop
 3dvr revenue             market research, A/B experiments, and revenue reports
 
 Agent:
@@ -702,6 +705,9 @@ case "$cmd" in
   track)
     exec "$SCRIPT_DIR/ask-track" "$@"
     ;;
+  sales)
+    exec "$SCRIPT_DIR/ask-sales" "${1:-status}" "${@:2}"
+    ;;
   revenue|market|experiments)
     exec "$SCRIPT_DIR/ask-revenue" "$@"
     ;;
@@ -854,6 +860,11 @@ INBOX
         ;;
       *) usage; exit 1 ;;
     esac
+    ;;
+  device)
+    sub="${1:-help}"
+    shift || true
+    exec "$SCRIPT_DIR/ask-device" "$sub" "$@"
     ;;
   server|servers)
     sub="${1:-help}"

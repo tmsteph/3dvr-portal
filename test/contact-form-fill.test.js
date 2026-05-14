@@ -283,6 +283,58 @@ test('fillContactForm fills fields and saves a screenshot in review mode', async
   }
 });
 
+test('fillContactForm does not navigate twice when page is already loaded', async () => {
+  const page = makeFakePage([
+    { tag: 'input', type: 'text', labelText: 'Full name', name: 'name' },
+    { tag: 'input', type: 'email', labelText: 'Email address', name: 'email' },
+    { tag: 'textarea', labelText: 'Message', name: 'message' },
+  ], '<form><input name="name" /></form>');
+  let gotoCount = 0;
+  page.goto = async () => {
+    gotoCount += 1;
+  };
+
+  const result = await fillContactForm(
+    page,
+    { name: 'Acme Studio', link: 'https://example.com', contact: 'https://example.com/contact' },
+    'Hello from Thomas',
+    {
+      targetUrl: 'https://example.com/contact',
+      leadSiteUrl: 'https://example.com',
+      pageAlreadyLoaded: true,
+      adapter: selectAdapter({ html: '<form><input name="name"></form>' }),
+    },
+  );
+
+  assert.equal(result.filled.length, 3);
+  assert.equal(gotoCount, 1);
+});
+
+test('fillContactForm keeps going when screenshot capture fails', async () => {
+  const page = makeFakePage([
+    { tag: 'input', type: 'text', labelText: 'Full name', name: 'name' },
+    { tag: 'input', type: 'email', labelText: 'Email address', name: 'email' },
+    { tag: 'textarea', labelText: 'Message', name: 'message' },
+  ], '<form><input name="name" /></form>');
+  page.screenshot = async () => {
+    throw new Error('screenshot unavailable');
+  };
+
+  const result = await fillContactForm(
+    page,
+    { name: 'Acme Studio', link: 'https://example.com', contact: 'https://example.com/contact' },
+    'Hello from Thomas',
+    {
+      targetUrl: 'https://example.com/contact',
+      leadSiteUrl: 'https://example.com',
+      adapter: selectAdapter({ html: '<form><input name="name"></form>' }),
+    },
+  );
+
+  assert.equal(result.filled.length, 3);
+  assert.equal(result.submitted, false);
+});
+
 test('fillContactForm submits through requestSubmit when no visible submit control is present', async () => {
   const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-submit-fallback-'));
   const screenshotPath = path.join(tmp, 'submitted.png');

@@ -35,14 +35,27 @@ exit 1
     THREEDVR_AGENT_OWNER_ALIAS: process.env.THREEDVR_AGENT_OWNER_ALIAS,
     THREEDVR_INBOX_TMUX_SESSION: process.env.THREEDVR_INBOX_TMUX_SESSION,
     THREEDVR_AUTOPILOT_TMUX_SESSION: process.env.THREEDVR_AUTOPILOT_TMUX_SESSION,
+    THREEDVR_LEADS_FILE: process.env.THREEDVR_LEADS_FILE,
+    THREEDVR_OUTREACH_LOG_FILE: process.env.THREEDVR_OUTREACH_LOG_FILE,
+    THREEDVR_INBOX_STATE_FILE: process.env.THREEDVR_INBOX_STATE_FILE,
     FAKE_TMUX_RUNNING_SESSIONS: process.env.FAKE_TMUX_RUNNING_SESSIONS,
   };
 
   try {
+    const leadsFile = path.join(tmp, 'leads.csv');
+    const outreachLogFile = path.join(tmp, 'outreach.ndjson');
+    const inboxStateFile = path.join(tmp, 'inbox.json');
+    await writeFile(leadsFile, 'name,link,contact,status,date,variant\nLead,https://lead.example,mailto:lead@example.com,new,2026-05-14,\n');
+    await writeFile(outreachLogFile, '');
+    await writeFile(inboxStateFile, '{}');
+
     process.env.PATH = `${binDir}:${process.env.PATH}`;
     process.env.THREEDVR_AGENT_OWNER_ALIAS = 'ops@3dvr';
     process.env.THREEDVR_INBOX_TMUX_SESSION = 'beat-inbox';
     process.env.THREEDVR_AUTOPILOT_TMUX_SESSION = 'beat-outreach';
+    process.env.THREEDVR_LEADS_FILE = leadsFile;
+    process.env.THREEDVR_OUTREACH_LOG_FILE = outreachLogFile;
+    process.env.THREEDVR_INBOX_STATE_FILE = inboxStateFile;
     process.env.FAKE_TMUX_RUNNING_SESSIONS = 'beat-inbox,beat-outreach';
 
     const heartbeat = loadHeartbeatModule();
@@ -53,6 +66,8 @@ exit 1
     assert.equal(running.status, 'running');
     assert.equal(running.inbox.running, true);
     assert.equal(running.outreach.running, true);
+    assert.equal(running.sales.ownerAlias, 'ops@3dvr');
+    assert.equal(running.sales.leads.statusCounts.new, 1);
     assert.match(running.startedAt, /^\d{4}-\d{2}-\d{2}T/);
     assert.match(running.lastBeatAt, /^\d{4}-\d{2}-\d{2}T/);
 
@@ -61,6 +76,7 @@ exit 1
     assert.match(runningSummary, /Status: running/);
     assert.match(runningSummary, /Inbox: running \(beat-inbox\)/);
     assert.match(runningSummary, /Outreach: running \(beat-outreach\)/);
+    assert.match(runningSummary, /Sales: new=1, contacted=0, replied=0, failed=0, manual=0, today=0/);
 
     process.env.FAKE_TMUX_RUNNING_SESSIONS = 'beat-inbox';
     const degraded = heartbeat.getRuntimeSnapshot();
@@ -76,6 +92,9 @@ exit 1
     process.env.THREEDVR_AGENT_OWNER_ALIAS = originalEnv.THREEDVR_AGENT_OWNER_ALIAS;
     process.env.THREEDVR_INBOX_TMUX_SESSION = originalEnv.THREEDVR_INBOX_TMUX_SESSION;
     process.env.THREEDVR_AUTOPILOT_TMUX_SESSION = originalEnv.THREEDVR_AUTOPILOT_TMUX_SESSION;
+    process.env.THREEDVR_LEADS_FILE = originalEnv.THREEDVR_LEADS_FILE;
+    process.env.THREEDVR_OUTREACH_LOG_FILE = originalEnv.THREEDVR_OUTREACH_LOG_FILE;
+    process.env.THREEDVR_INBOX_STATE_FILE = originalEnv.THREEDVR_INBOX_STATE_FILE;
     process.env.FAKE_TMUX_RUNNING_SESSIONS = originalEnv.FAKE_TMUX_RUNNING_SESSIONS;
     await rm(tmp, { recursive: true, force: true });
   }

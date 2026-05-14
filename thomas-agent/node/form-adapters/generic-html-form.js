@@ -35,7 +35,7 @@ async function fill({ page, lead, message, options = {} }) {
     throw new Error(`No usable page URL for ${lead.name}. Use ask-send for direct email leads.`);
   }
 
-  if (typeof page.goto === 'function') {
+  if (!options.pageAlreadyLoaded && typeof page.goto === 'function') {
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: maxWaitMs });
   }
 
@@ -97,7 +97,9 @@ async function fill({ page, lead, message, options = {} }) {
 
   const screenshotPath = await buildScreenshotPath(lead.name, options.screenshotPath);
   if (typeof page.screenshot === 'function') {
-    await page.screenshot({ path: screenshotPath, fullPage: true });
+    await page.screenshot({ path: screenshotPath, fullPage: true }).catch(async () => {
+      await page.screenshot({ path: screenshotPath, fullPage: false }).catch(() => {});
+    });
   }
 
   const result = {
