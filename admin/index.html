@@ -385,6 +385,12 @@
     gap: 12px;
   }
 
+  .agent-workbench-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+  }
+
   .agent-task-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -576,6 +582,111 @@
               </div>
             </div>
           </div>
+          <div class="agent-ops-panel" style="grid-column: 1 / -1;">
+            <div class="actions" style="justify-content: space-between; align-items: flex-start;">
+              <div>
+                <h3>Sales Loop</h3>
+                <p class="text-muted" style="margin: 4px 0 0;">
+                  Live lead, outreach, inbox, and failure state from the DigitalOcean agent.
+                </p>
+              </div>
+              <span id="agent-sales-generated" class="text-muted">--</span>
+            </div>
+            <div id="agent-sales-status" class="agent-runtime-summary">
+              Waiting for the agent to publish sales loop state...
+            </div>
+            <div class="agent-runtime-grid">
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">New leads</span>
+                <div id="agent-sales-new" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Contacted</span>
+                <div id="agent-sales-contacted" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Replies</span>
+                <div id="agent-sales-replied" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Failures</span>
+                <div id="agent-sales-failed" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Today</span>
+                <div id="agent-sales-today" class="agent-runtime-value">--</div>
+              </div>
+              <div class="agent-runtime-item">
+                <span class="agent-runtime-label">Manual review</span>
+                <div id="agent-sales-manual" class="agent-runtime-value">--</div>
+              </div>
+            </div>
+            <div class="agent-workbench-buttons" aria-label="Sales loop actions">
+              <button class="btn-outline" type="button" data-agent-action="salesStatus">Sales status</button>
+              <button class="btn-outline" type="button" data-agent-action="runSalesLoop">Run review loop</button>
+              <button class="btn-outline" type="button" data-agent-action="checkInbox">Check inbox</button>
+              <button class="btn-outline" type="button" data-agent-action="reviewManual">Review manual leads</button>
+              <button class="btn-outline" type="button" data-agent-action="showContacted">Contacted list</button>
+              <button class="btn-outline" type="button" data-agent-action="showFailures">Failure list</button>
+              <button class="btn-outline" type="button" data-agent-action="publishSales">Publish summary</button>
+            </div>
+            <div class="agent-task-row">
+              <div>
+                <h4 style="margin: 0 0 8px;">Recent outreach</h4>
+                <div id="agent-sales-recent" class="agent-task-list">
+                  <div class="empty-state">No recent outreach loaded yet.</div>
+                </div>
+              </div>
+              <div>
+                <h4 style="margin: 0 0 8px;">Recent failures</h4>
+                <div id="agent-sales-failures" class="agent-task-list">
+                  <div class="empty-state">No failures loaded yet.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="agent-ops-panel" style="grid-column: 1 / -1;">
+            <h3>Server Workbench</h3>
+            <p class="text-muted" style="margin: 0;">
+              Run common DigitalOcean workspace actions through the managed worker. Commands are queued, logged, and visible in recent tasks.
+            </p>
+            <div class="agent-workbench-buttons" aria-label="Server workbench actions">
+              <button class="btn-outline" type="button" data-agent-action="status">Agent status</button>
+              <button class="btn-outline" type="button" data-agent-action="heartbeat">Refresh heartbeat</button>
+              <button class="btn-outline" type="button" data-agent-action="pullPortal">Pull portal</button>
+              <button class="btn-outline" type="button" data-agent-action="testPortal">Test portal guide</button>
+              <button class="btn-outline" type="button" data-agent-action="pullAgent">Pull agent</button>
+              <button class="btn-outline" type="button" data-agent-action="restartAgent">Restart agent</button>
+            </div>
+            <div class="form-group">
+              <label for="agent-terminal-input">Terminal command</label>
+              <textarea id="agent-terminal-input" placeholder="pwd && git status --short --branch"></textarea>
+            </div>
+            <div class="agent-task-row">
+              <div class="form-group">
+                <label for="agent-terminal-risk">Command risk</label>
+                <select id="agent-terminal-risk">
+                  <option value="read_only">Read only</option>
+                  <option value="workspace_write">Workspace write</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="agent-terminal-dir">Working directory</label>
+                <select id="agent-terminal-dir">
+                  <option value="/root/workspaces/3dvr-portal">3dvr-portal</option>
+                  <option value="/root/workspaces/3dvr-agent">3dvr-agent</option>
+                  <option value="/root/workspaces/3dvr-web">3dvr-web</option>
+                  <option value="/opt/3dvr-agent">runtime agent</option>
+                  <option value="/root">ops</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="agent-terminal-submit" class="btn-primary" type="button">Queue command</button>
+              <button id="agent-terminal-work" class="btn-outline" type="button">Copy SSH work</button>
+            </div>
+          </div>
+
           <div class="agent-ops-panel" style="grid-column: 1 / -1;">
             <h3>Ask 3DVR Agent</h3>
             <p class="text-muted" style="margin: 0;">
@@ -867,6 +978,8 @@
   let agentSessionSnapshot = null;
   let agentRuntimeSnapshot = null;
   let agentRuntimeSubscribed = false;
+  let agentSalesSnapshot = null;
+  let agentSalesSubscribed = false;
   let agentTaskRecords = {};
   let agentTaskSubscribed = false;
   let agentAutopilotStateSnapshot = null;
@@ -918,6 +1031,21 @@
   const agentRuntimeInbox = document.getElementById('agent-runtime-inbox');
   const agentRuntimeOutreach = document.getElementById('agent-runtime-outreach');
   const agentRuntimeProcess = document.getElementById('agent-runtime-process');
+  const agentSalesStatus = document.getElementById('agent-sales-status');
+  const agentSalesGenerated = document.getElementById('agent-sales-generated');
+  const agentSalesNew = document.getElementById('agent-sales-new');
+  const agentSalesContacted = document.getElementById('agent-sales-contacted');
+  const agentSalesReplied = document.getElementById('agent-sales-replied');
+  const agentSalesFailed = document.getElementById('agent-sales-failed');
+  const agentSalesToday = document.getElementById('agent-sales-today');
+  const agentSalesManual = document.getElementById('agent-sales-manual');
+  const agentSalesRecent = document.getElementById('agent-sales-recent');
+  const agentSalesFailures = document.getElementById('agent-sales-failures');
+  const agentTerminalInput = document.getElementById('agent-terminal-input');
+  const agentTerminalRisk = document.getElementById('agent-terminal-risk');
+  const agentTerminalDir = document.getElementById('agent-terminal-dir');
+  const agentTerminalSubmit = document.getElementById('agent-terminal-submit');
+  const agentTerminalWork = document.getElementById('agent-terminal-work');
   const agentTaskInput = document.getElementById('agent-task-input');
   const agentTaskRisk = document.getElementById('agent-task-risk');
   const agentTaskBackend = document.getElementById('agent-task-backend');
@@ -933,6 +1061,7 @@
   const agentRunsRoutes = document.getElementById('agent-runs-routes');
   const agentRunsCombo = document.getElementById('agent-runs-combo');
   const agentRunsList = document.getElementById('agent-runs-list');
+  const agentActionButtons = Array.from(document.querySelectorAll('[data-agent-action]'));
   const leaderboardEl = document.getElementById('leaderboard');
   const stripeTableEl = document.getElementById('stripe-customer-table');
   const stripeStatusEl = document.getElementById('stripe-status');
@@ -1026,6 +1155,8 @@
     loadAgentOpsConfig();
     renderAgentRuntime();
     subscribeAgentRuntime();
+    renderAgentSales();
+    subscribeAgentSales();
     renderAgentTasks();
     subscribeAgentTasks();
     renderAutopilotRuns();
@@ -1288,10 +1419,84 @@
     return parsed.toLocaleString();
   }
 
+  function listFromGunCollection(value) {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (!value || typeof value !== 'object') return [];
+    return Object.keys(value)
+      .filter(key => /^item_\d+$/.test(key))
+      .sort((left, right) => Number(left.replace('item_', '')) - Number(right.replace('item_', '')))
+      .map(key => value[key])
+      .filter(Boolean);
+  }
+
+  function setAgentSalesValue(element, value, fallback = '--') {
+    if (!element) return;
+    const text = value === undefined || value === null || value === '' ? fallback : String(value);
+    element.innerText = text;
+  }
+
+  function renderSalesEntryList(element, entries, emptyText) {
+    if (!element) return;
+    const rows = listFromGunCollection(entries).slice(0, 5);
+    if (!rows.length) {
+      element.innerHTML = `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
+      return;
+    }
+
+    element.innerHTML = rows.map(entry => {
+      const title = entry.name || entry.subject || entry.route || 'Sales activity';
+      const meta = [
+        entry.timestamp || '',
+        entry.status || '',
+        entry.kind || '',
+        entry.route ? `route=${entry.route}` : '',
+        entry.source ? `source=${entry.source}` : '',
+      ].filter(Boolean).join(' | ');
+      const note = entry.note || entry.subject || '';
+      return `
+        <div class="agent-task-item">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(meta || 'No metadata')}</span>
+          ${note ? `<span>${escapeHtml(note)}</span>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderAgentSales(sales = {}) {
+    const snapshot = sales && typeof sales === 'object' ? sales : {};
+    const leads = snapshot.leads && typeof snapshot.leads === 'object' ? snapshot.leads : {};
+    const outreach = snapshot.outreach && typeof snapshot.outreach === 'object' ? snapshot.outreach : {};
+    const inbox = snapshot.inbox && typeof snapshot.inbox === 'object' ? snapshot.inbox : {};
+    const statusCounts = leads.statusCounts && typeof leads.statusCounts === 'object' ? leads.statusCounts : {};
+
+    if (agentSalesStatus) {
+      if (snapshot.generatedAt) {
+        const pending = inbox.pendingAutoReplies || 0;
+        agentSalesStatus.innerText = `Sales state loaded. Inbox has ${inbox.messageCount || 0} tracked message(s), ${pending} pending auto-repl${pending === 1 ? 'y' : 'ies'}.`;
+      } else if (snapshot.error) {
+        agentSalesStatus.innerText = `Sales state error: ${snapshot.error}`;
+      } else {
+        agentSalesStatus.innerText = 'Waiting for the agent to publish sales loop state...';
+      }
+    }
+
+    setAgentSalesValue(agentSalesGenerated, snapshot.generatedAt ? formatAgentBeat(snapshot.generatedAt) : '--');
+    setAgentSalesValue(agentSalesNew, statusCounts.new);
+    setAgentSalesValue(agentSalesContacted, statusCounts.contacted);
+    setAgentSalesValue(agentSalesReplied, statusCounts.replied);
+    setAgentSalesValue(agentSalesFailed, statusCounts.failed);
+    setAgentSalesValue(agentSalesToday, outreach.contactedToday);
+    setAgentSalesValue(agentSalesManual, leads.manualReview);
+    renderSalesEntryList(agentSalesRecent, outreach.recent, 'No recent outreach loaded yet.');
+    renderSalesEntryList(agentSalesFailures, outreach.failures, 'No failures loaded yet.');
+  }
+
   function renderAgentRuntime(runtime = agentRuntimeSnapshot || {}) {
     const snapshot = runtime && typeof runtime === 'object' ? runtime : {};
     const inbox = snapshot.inbox && typeof snapshot.inbox === 'object' ? snapshot.inbox : {};
     const outreach = snapshot.outreach && typeof snapshot.outreach === 'object' ? snapshot.outreach : {};
+    const sales = snapshot.sales && typeof snapshot.sales === 'object' ? snapshot.sales : agentSalesSnapshot;
     const status = formatAgentRuntimeValue(snapshot.status, 'unknown');
     const host = formatAgentRuntimeValue(snapshot.hostName);
     const beatAt = formatAgentBeat(snapshot.lastBeatAt);
@@ -1317,15 +1522,76 @@
     if (agentRuntimeProcess) {
       agentRuntimeProcess.innerText = `${service} • pid ${pid} • started ${startedAt}`;
     }
+    renderAgentSales(sales);
   }
 
   function subscribeAgentRuntime() {
     if (agentRuntimeSubscribed) return;
     agentRuntimeSubscribed = true;
     const runtimeNode = agentOpsNodeForOwner().get('runtime');
+    const runtimeSalesNode = runtimeNode.get('sales');
     runtimeNode.on(data => {
       agentRuntimeSnapshot = data && typeof data === 'object' ? data : {};
       renderAgentRuntime(agentRuntimeSnapshot);
+    });
+    runtimeSalesNode.on(data => {
+      agentSalesSnapshot = {
+        ...(agentSalesSnapshot || {}),
+        ...(data && typeof data === 'object' ? data : {})
+      };
+      renderAgentSales(agentSalesSnapshot);
+    });
+    runtimeSalesNode.get('leads').on(data => {
+      agentSalesSnapshot = {
+        ...(agentSalesSnapshot || {}),
+        leads: data && typeof data === 'object' ? data : {}
+      };
+      renderAgentSales(agentSalesSnapshot);
+    });
+    runtimeSalesNode.get('leads').get('statusCounts').on(data => {
+      const leads = agentSalesSnapshot?.leads && typeof agentSalesSnapshot.leads === 'object' ? agentSalesSnapshot.leads : {};
+      agentSalesSnapshot = {
+        ...(agentSalesSnapshot || {}),
+        leads: {
+          ...leads,
+          statusCounts: data && typeof data === 'object' ? data : {}
+        }
+      };
+      renderAgentSales(agentSalesSnapshot);
+    });
+    runtimeSalesNode.get('leads').get('routeCounts').on(data => {
+      const leads = agentSalesSnapshot?.leads && typeof agentSalesSnapshot.leads === 'object' ? agentSalesSnapshot.leads : {};
+      agentSalesSnapshot = {
+        ...(agentSalesSnapshot || {}),
+        leads: {
+          ...leads,
+          routeCounts: data && typeof data === 'object' ? data : {}
+        }
+      };
+      renderAgentSales(agentSalesSnapshot);
+    });
+    runtimeSalesNode.get('outreach').on(data => {
+      agentSalesSnapshot = {
+        ...(agentSalesSnapshot || {}),
+        outreach: data && typeof data === 'object' ? data : {}
+      };
+      renderAgentSales(agentSalesSnapshot);
+    });
+    runtimeSalesNode.get('inbox').on(data => {
+      agentSalesSnapshot = {
+        ...(agentSalesSnapshot || {}),
+        inbox: data && typeof data === 'object' ? data : {}
+      };
+      renderAgentSales(agentSalesSnapshot);
+    });
+  }
+
+  function subscribeAgentSales() {
+    if (agentSalesSubscribed) return;
+    agentSalesSubscribed = true;
+    agentOpsNodeForOwner().get('sales').on(data => {
+      agentSalesSnapshot = data && typeof data === 'object' ? data : {};
+      renderAgentSales(agentSalesSnapshot);
     });
   }
 
@@ -1357,16 +1623,84 @@
     return `remote-task-${Math.abs(hash).toString(16)}-${now.toString(36)}`;
   }
 
-  function buildAgentTaskRecord() {
-    const task = (agentTaskInput?.value || '').trim();
+  const SERVER_WORKBENCH_ACTIONS = {
+    status: {
+      label: 'Agent status',
+      command: '3dvr agent status',
+      riskClass: 'read_only'
+    },
+    heartbeat: {
+      label: 'Refresh heartbeat',
+      command: '3dvr agent heartbeat',
+      riskClass: 'read_only'
+    },
+    pullPortal: {
+      label: 'Pull portal',
+      command: 'cd /root/workspaces/3dvr-portal && git pull --ff-only && git status --short --branch',
+      riskClass: 'workspace_write'
+    },
+    testPortal: {
+      label: 'Test portal guide',
+      command: 'cd /root/workspaces/3dvr-portal && node --test tests/connect-device-guide.test.js',
+      riskClass: 'read_only'
+    },
+    pullAgent: {
+      label: 'Pull agent',
+      command: 'cd /root/workspaces/3dvr-agent && git pull --ff-only && npm install --omit=dev && git status --short --branch',
+      riskClass: 'workspace_write'
+    },
+    restartAgent: {
+      label: 'Restart agent',
+      command: 'systemctl restart 3dvr-agent.service && sleep 3 && 3dvr agent status',
+      riskClass: 'workspace_write'
+    },
+    salesStatus: {
+      label: 'Sales status',
+      command: '3dvr sales status',
+      riskClass: 'read_only'
+    },
+    runSalesLoop: {
+      label: 'Run review loop',
+      command: 'cd /opt/3dvr-agent/thomas-agent && THREEDVR_AUTOPILOT_AUTO_SEND=0 /opt/3dvr-agent/thomas-agent/scripts/ask-autopilot --no-email && /opt/3dvr-agent/thomas-agent/scripts/ask-sales publish',
+      riskClass: 'workspace_write'
+    },
+    checkInbox: {
+      label: 'Check inbox',
+      command: 'cd /opt/3dvr-agent/thomas-agent && /opt/3dvr-agent/thomas-agent/scripts/ask-inbox --limit 10 && /opt/3dvr-agent/thomas-agent/scripts/ask-sales publish',
+      riskClass: 'workspace_write'
+    },
+    reviewManual: {
+      label: 'Review manual leads',
+      command: '3dvr track new && printf "\\nFailures:\\n" && 3dvr track failures 20',
+      riskClass: 'read_only'
+    },
+    showContacted: {
+      label: 'Contacted list',
+      command: '3dvr track sent 20',
+      riskClass: 'read_only'
+    },
+    showFailures: {
+      label: 'Failure list',
+      command: '3dvr track failures 20',
+      riskClass: 'read_only'
+    },
+    publishSales: {
+      label: 'Publish summary',
+      command: '3dvr sales publish',
+      riskClass: 'workspace_write'
+    }
+  };
+
+  function buildAgentTaskRecord(overrides = {}) {
+    const task = (overrides.task || agentTaskInput?.value || '').trim();
     if (!task) {
       throw new Error('Enter a task for the agent.');
     }
 
     const now = Date.now();
-    const riskClass = agentTaskRisk?.value || 'draft';
-    const backend = agentTaskBackend?.value || 'codex';
-    const requiredCapabilities = normalizeCsv(agentTaskRequires?.value || backend);
+    const riskClass = overrides.riskClass || agentTaskRisk?.value || 'draft';
+    const backend = overrides.backend || agentTaskBackend?.value || 'codex';
+    const requiredCapabilities = normalizeCsv(overrides.requiredCapabilities || agentTaskRequires?.value || backend);
     const tenant = buildPortalTenant();
     const approvalStatus = APPROVAL_REQUIRED_RISKS.includes(riskClass) ? 'required' : 'not_required';
 
@@ -1377,16 +1711,16 @@
       tenantAlias: tenant.tenantAlias,
       tenantPlan: tenant.tenantPlan,
       backend,
-      repo: '',
-      model: '',
-      thinking: '',
-      unsafe: false,
+      repo: overrides.repo || '',
+      model: overrides.model || '',
+      thinking: overrides.thinking || '',
+      unsafe: Boolean(overrides.unsafe),
       riskClass,
       approvalStatus,
       requiredCapabilities,
       maxRuntimeMs: 0,
       status: 'queued',
-      requestedBy: 'portal-admin',
+      requestedBy: overrides.requestedBy || 'portal-admin',
       createdAt: new Date(now).toISOString(),
       updatedAt: new Date(now).toISOString(),
       resultSummary: '',
@@ -1407,7 +1741,7 @@
     });
   }
 
-  async function enqueueAgentTask() {
+  async function enqueueAgentTask(overrides = {}) {
     if (!isAdmin) {
       if (agentTaskStatus) agentTaskStatus.innerText = 'Admins only.';
       return;
@@ -1415,7 +1749,7 @@
 
     let record;
     try {
-      record = buildAgentTaskRecord();
+      record = buildAgentTaskRecord(overrides);
     } catch (error) {
       if (agentTaskStatus) agentTaskStatus.innerText = error.message || 'Unable to build task.';
       return;
@@ -1442,7 +1776,7 @@
       await writeGun(queue.get('tasks').get(record.id), record);
       await writeGun(queue.get('latest').get(record.id), summary);
       agentTaskRecords[record.id] = summary;
-      if (agentTaskInput) agentTaskInput.value = '';
+      if (!overrides.preserveInput && agentTaskInput) agentTaskInput.value = '';
       if (agentTaskStatus) {
         agentTaskStatus.innerText = record.approvalStatus === 'required'
           ? `Queued ${record.id}, waiting for approval because risk is ${record.riskClass}.`
@@ -1454,6 +1788,49 @@
     } finally {
       if (agentTaskSubmit) agentTaskSubmit.disabled = false;
     }
+  }
+
+  function buildTerminalCommand() {
+    const command = (agentTerminalInput?.value || '').trim();
+    if (!command) {
+      throw new Error('Enter a terminal command.');
+    }
+    const directory = agentTerminalDir?.value || '/root/workspaces/3dvr-portal';
+    return `cd ${shellQuote(directory)} && ${command}`;
+  }
+
+  async function enqueueTerminalCommand() {
+    let task;
+    try {
+      task = buildTerminalCommand();
+    } catch (error) {
+      if (agentTaskStatus) agentTaskStatus.innerText = error.message || 'Enter a terminal command.';
+      return;
+    }
+
+    await enqueueAgentTask({
+      task,
+      backend: 'shell',
+      riskClass: agentTerminalRisk?.value || 'read_only',
+      requiredCapabilities: 'shell,node',
+      unsafe: true,
+      requestedBy: 'portal-terminal',
+      preserveInput: true
+    });
+  }
+
+  async function enqueueWorkbenchAction(actionKey) {
+    const action = SERVER_WORKBENCH_ACTIONS[actionKey];
+    if (!action) return;
+    await enqueueAgentTask({
+      task: action.command,
+      backend: 'shell',
+      riskClass: action.riskClass || 'read_only',
+      requiredCapabilities: 'shell,node',
+      unsafe: true,
+      requestedBy: `portal-workbench:${actionKey}`,
+      preserveInput: true
+    });
   }
 
   function renderAgentTasks() {
@@ -1567,14 +1944,18 @@
     const commands = buildAgentCommandSet(getAgentOpsFormValues());
     const value = commands[kind];
     if (!value) return;
+    await copyText(value, `${kind} command`);
+  }
+
+  async function copyText(value, label = 'text') {
     try {
       await navigator.clipboard.writeText(value);
       if (agentSessionStatus) {
-        agentSessionStatus.innerText = `Copied ${kind} command to clipboard.`;
+        agentSessionStatus.innerText = `Copied ${label} to clipboard.`;
       }
     } catch (error) {
       if (agentSessionStatus) {
-        agentSessionStatus.innerText = `Could not copy ${kind} command.`;
+        agentSessionStatus.innerText = `Could not copy ${label}.`;
       }
     }
   }
@@ -2956,11 +3337,20 @@
     agentRefreshRunsBtn.addEventListener('click', renderAutopilotRuns);
   }
   if (agentTaskSubmit) {
-    agentTaskSubmit.addEventListener('click', enqueueAgentTask);
+    agentTaskSubmit.addEventListener('click', () => enqueueAgentTask());
   }
   if (agentTaskRefresh) {
     agentTaskRefresh.addEventListener('click', renderAgentTasks);
   }
+  if (agentTerminalSubmit) {
+    agentTerminalSubmit.addEventListener('click', enqueueTerminalCommand);
+  }
+  if (agentTerminalWork) {
+    agentTerminalWork.addEventListener('click', () => copyText('ssh do-dev\nwork'));
+  }
+  agentActionButtons.forEach(button => {
+    button.addEventListener('click', () => enqueueWorkbenchAction(button.dataset.agentAction));
+  });
 
   if (recoveryButton) {
     recoveryButton.addEventListener('click', handleAccountRecovery);
