@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Education Suite: Web Design Lab | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="/app-manifests/education-suite.webmanifest">
+  <meta name="theme-color" content="#f6f8fb">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="suite-page">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <main id="mainContent" class="suite-shell">
+    <nav class="suite-topbar" aria-label="Education suite navigation">
+      <a href="/index.html">Portal</a>
+      <a href="#web-design-lab">Web design</a>
+      <a href="#suite-roadmap">Roadmap</a>
+    </nav>
+
+    <section id="web-design-lab" class="lab-workspace" aria-labelledby="suite-title">
+      <div class="lab-intro">
+        <span class="suite-kicker">3DVR Education Suite</span>
+        <h1 id="suite-title">Interactive web design lab</h1>
+        <p>
+          Change the layout, spacing, type scale, radius, and palette. The preview updates live,
+          and the CSS panel shows the system choices behind the design.
+        </p>
+      </div>
+
+      <div class="builder-grid">
+        <aside class="control-panel" aria-label="Web design controls">
+          <div class="control-group">
+            <h2>Layout</h2>
+            <div class="segmented-control" role="group" aria-label="Preview layout">
+              <button type="button" data-layout="landing" aria-pressed="true">Landing</button>
+              <button type="button" data-layout="dashboard" aria-pressed="false">Dashboard</button>
+              <button type="button" data-layout="gallery" aria-pressed="false">Gallery</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <h2>Palette</h2>
+            <div class="swatch-row" role="group" aria-label="Preview palette">
+              <button type="button" class="swatch swatch--harbor" data-theme="harbor" aria-pressed="true"><span>Harbor</span></button>
+              <button type="button" class="swatch swatch--orchard" data-theme="orchard" aria-pressed="false"><span>Orchard</span></button>
+              <button type="button" class="swatch swatch--signal" data-theme="signal" aria-pressed="false"><span>Signal</span></button>
+            </div>
+          </div>
+
+          <label class="slider-field" for="spacingRange">
+            <span>Spacing <output id="spacingValue" for="spacingRange">24px</output></span>
+            <input id="spacingRange" type="range" min="12" max="44" value="24" step="2">
+          </label>
+
+          <label class="slider-field" for="radiusRange">
+            <span>Radius <output id="radiusValue" for="radiusRange">8px</output></span>
+            <input id="radiusRange" type="range" min="0" max="8" value="8" step="1">
+          </label>
+
+          <label class="slider-field" for="typeRange">
+            <span>Type scale <output id="typeValue" for="typeRange">1.00</output></span>
+            <input id="typeRange" type="range" min="0.9" max="1.2" value="1" step="0.05">
+          </label>
+
+          <label class="copy-field" for="headlineInput">
+            <span>Headline</span>
+            <input id="headlineInput" type="text" value="Build clearer pages faster" autocomplete="off">
+          </label>
+
+          <label class="copy-field" for="bodyInput">
+            <span>Supporting copy</span>
+            <textarea id="bodyInput" rows="4">A strong page gives people orientation, one useful action, and enough structure to understand what comes next.</textarea>
+          </label>
+        </aside>
+
+        <section class="preview-panel" aria-labelledby="preview-title">
+          <div class="panel-heading">
+            <div>
+              <span class="suite-kicker">Live preview</span>
+              <h2 id="preview-title">Browser-rendered site surface</h2>
+            </div>
+            <span id="contrastBadge" class="contrast-badge">AA contrast</span>
+          </div>
+
+          <div id="sitePreview" class="site-preview site-preview--landing theme-harbor" aria-label="Generated web design preview">
+            <header class="mock-nav">
+              <strong>Northstar Studio</strong>
+              <nav aria-label="Preview navigation">
+                <a href="#preview-title">Work</a>
+                <a href="#preview-title">Process</a>
+                <a href="#preview-title">Contact</a>
+              </nav>
+            </header>
+            <section class="mock-hero">
+              <div class="mock-copy">
+                <span class="mock-eyebrow">Design system practice</span>
+                <h3 id="previewHeadline">Build clearer pages faster</h3>
+                <p id="previewBody">A strong page gives people orientation, one useful action, and enough structure to understand what comes next.</p>
+                <button type="button">Start the audit</button>
+              </div>
+              <div class="mock-visual" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </section>
+            <section class="mock-cards" aria-label="Preview content cards">
+              <article>
+                <strong>Hierarchy</strong>
+                <span>Put the most important decision first.</span>
+              </article>
+              <article>
+                <strong>Rhythm</strong>
+                <span>Use spacing to group related ideas.</span>
+              </article>
+              <article>
+                <strong>Feedback</strong>
+                <span>Make actions and states visible.</span>
+              </article>
+            </section>
+          </div>
+        </section>
+
+        <section class="inspector-panel" aria-labelledby="inspector-title">
+          <div class="panel-heading">
+            <div>
+              <span class="suite-kicker">Inspector</span>
+              <h2 id="inspector-title">CSS output</h2>
+            </div>
+            <button id="copyCss" class="plain-button" type="button">Copy CSS</button>
+          </div>
+          <pre><code id="cssOutput"></code></pre>
+          <div class="lesson-stack" aria-label="Web design lesson checkpoints">
+            <article>
+              <strong>1. Structure</strong>
+              <span>Use semantic regions before styling the page.</span>
+            </article>
+            <article>
+              <strong>2. Layout</strong>
+              <span>Choose grid, flex, and spacing from the content shape.</span>
+            </article>
+            <article>
+              <strong>3. Responsive rules</strong>
+              <span>Collapse columns when reading becomes cramped.</span>
+            </article>
+            <article>
+              <strong>4. Accessibility</strong>
+              <span>Check contrast, focus states, labels, and tap targets.</span>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="suite-roadmap" class="roadmap-section" aria-labelledby="roadmap-title">
+      <div class="section-heading">
+        <span class="suite-kicker">Plan for the full suite</span>
+        <h2 id="roadmap-title">Browser-first computer science path</h2>
+        <p>
+          The suite should run locally in the browser whenever possible, then call cloud servers for
+          heavier execution, shared grading, AI review, persistent projects, or safe sandboxing.
+        </p>
+      </div>
+      <div class="roadmap-grid">
+        <article>
+          <span>Phase 1</span>
+          <h3>Interactive web design</h3>
+          <p>HTML structure, CSS layout, responsive design, accessibility, page audits, and live previews.</p>
+          <strong>Runtime: browser DOM, CSS, local storage.</strong>
+        </article>
+        <article>
+          <span>Phase 2</span>
+          <h3>Python in the browser</h3>
+          <p>Variables, functions, files, data cleaning, notebooks, and small automations.</p>
+          <strong>Runtime: Pyodide locally, cloud workers for packages and long jobs.</strong>
+        </article>
+        <article>
+          <span>Phase 3</span>
+          <h3>Programming languages</h3>
+          <p>JavaScript, Python, shell, C basics, TypeScript, and language tradeoffs through tiny projects.</p>
+          <strong>Runtime: WebAssembly compilers where practical, container runners when needed.</strong>
+        </article>
+        <article>
+          <span>Phase 4</span>
+          <h3>Databases</h3>
+          <p>Tables, indexes, SQL, document stores, sync, migrations, privacy, and backups.</p>
+          <strong>Runtime: SQLite in WASM, IndexedDB, optional hosted Postgres labs.</strong>
+        </article>
+        <article>
+          <span>Phase 5</span>
+          <h3>Cloud systems</h3>
+          <p>APIs, queues, auth, deployments, logs, observability, serverless limits, and cost controls.</p>
+          <strong>Runtime: portal API routes, ephemeral sandboxes, GitHub-backed project history.</strong>
+        </article>
+        <article>
+          <span>Phase 6</span>
+          <h3>Capstone builder track</h3>
+          <p>Ship a complete browser app with design, code, data, deployment, docs, and a demo video.</p>
+          <strong>Runtime: local-first app shell with cloud sync and review hooks.</strong>
+        </article>
+      </div>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
