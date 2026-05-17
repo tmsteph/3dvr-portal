@@ -21,6 +21,9 @@ describe('billing center', () => {
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Billing Center/);
+    assert.match(html, /One portal account\. One billing center\./);
+    assert.match(html, /Choose a lane, switch tiers, cancel renewal, or manage Stripe\./);
+    assert.doesNotMatch(html, /New here\? Start with one portal account, then choose a lane/);
     assert.doesNotMatch(html, /Open start flow/);
     assert.doesNotMatch(html, /OpenAI API billing/);
     assert.match(html, /New Customer Fast Path/);
