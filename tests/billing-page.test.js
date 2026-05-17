@@ -21,10 +21,11 @@ describe('billing center', () => {
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Billing Center/);
-    assert.match(html, /Open start flow/);
+    assert.doesNotMatch(html, /Open start flow/);
+    assert.doesNotMatch(html, /OpenAI API billing/);
     assert.match(html, /New Customer Fast Path/);
-    assert.match(html, /Use the start flow if you want the clearest\s+first step/);
-    assert.match(html, /New customers can use the start flow first,\s+then return/);
+    assert.doesNotMatch(html, /Use the start flow if you want the clearest\s+first step/);
+    assert.doesNotMatch(html, /New customers can use the start flow first,\s+then return/);
     assert.match(html, /id="billing-email"/);
     assert.match(html, /id="manage-billing"[^>]+disabled[^>]+aria-disabled="true"/);
     assert.match(html, /Manage in Stripe/);
