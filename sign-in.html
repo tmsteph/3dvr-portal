@@ -493,14 +493,13 @@
             <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
           </div>
           <div class="recovery-panel">
-            <label for="recovery-email">Recovery email</label>
+            <label for="recovery-email">Recovery email (optional)</label>
             <input
               type="email"
               id="recovery-email"
               name="recovery-email"
               placeholder="you@example.com"
               autocomplete="email"
-              required
             >
             <button id="send-recovery-code" type="button" class="secondary-button">Send verification code</button>
             <div class="recovery-actions">
@@ -516,7 +515,7 @@
               <button id="verify-recovery-code" type="button" class="secondary-button">Verify</button>
             </div>
             <p id="recovery-status" class="recovery-status" role="status" aria-live="polite">
-              Verify this email so you can recover the account later.
+              Optional for now. Verify this email if you want account recovery enabled.
             </p>
           </div>
           <div class="oauth-panel" aria-labelledby="oauth-options-title">
@@ -900,7 +899,7 @@
     function setRecoveryStatus(message = '', tone = 'info') {
       const statusEl = document.getElementById('recovery-status');
       if (!statusEl) return;
-      statusEl.textContent = message || 'Verify this email so you can recover the account later.';
+      statusEl.textContent = message || 'Optional for now. Verify this email if you want account recovery enabled.';
       statusEl.style.color = tone === 'error'
         ? '#ffb4b4'
         : tone === 'success'
@@ -1188,15 +1187,16 @@
         alert("Please enter both username and password.");
         return;
       }
-      if (!rawRecoveryEmail || !recoveryEmail) {
+      if (rawRecoveryEmail && !recoveryEmail) {
         alert('Enter a valid recovery email.');
-        setRecoveryStatus('A valid recovery email is required for password accounts.', 'error');
+        setRecoveryStatus('Enter a valid recovery email, or leave it blank for now.', 'error');
         return;
       }
-      if (!isRecoveryEmailVerified(recoveryEmail)) {
-        alert('Verify your recovery email before continuing.');
-        setRecoveryStatus('Verify this recovery email before signing in or signing up.', 'error');
-        return;
+      const verifiedRecoveryEmail = recoveryEmail && isRecoveryEmailVerified(recoveryEmail)
+        ? recoveryEmail
+        : '';
+      if (recoveryEmail && !verifiedRecoveryEmail) {
+        setRecoveryStatus('Continuing without account recovery. Verify this email later to enable recovery.', 'info');
       }
 
       const alias = username + "@3dvr";
@@ -1204,7 +1204,7 @@
 
       if (gunIsStub) {
         console.warn('Gun.js unavailable; storing credentials locally.');
-        finishLogin(username, alias, password, recoveryEmail);
+        finishLogin(username, alias, password, verifiedRecoveryEmail);
         return;
       }
 
@@ -1240,7 +1240,7 @@
                   alert("⚠️ Auth failed after creating account. Please try again.");
                 } else {
                   console.log("✅ Authenticated after account creation.");
-                  finishLogin(username, alias, password, recoveryEmail);
+                  finishLogin(username, alias, password, verifiedRecoveryEmail);
                 }
               });
             }, 500);
@@ -1248,7 +1248,7 @@
 
         } else {
           console.log("✅ Logged in existing user.");
-          finishLogin(username, alias, password, recoveryEmail);
+          finishLogin(username, alias, password, verifiedRecoveryEmail);
         }
       });
     }
