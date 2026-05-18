@@ -1,3 +1,4 @@
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
 
 function setCorsHeaders(res) {
@@ -111,6 +112,15 @@ function resolveOperatorAlertToken(config = process.env) {
   return normalizeText(
     config.AGENT_OPERATOR_EMAIL_TOKEN
     || config.THREEDVR_AUTOPILOT_EMAIL_TOKEN
+  );
+}
+
+function resolveRecoveryVerificationSecret(config = process.env) {
+  return normalizeText(
+    config.ACCOUNT_RECOVERY_VERIFICATION_SECRET
+    || config.AGENT_OPERATOR_EMAIL_TOKEN
+    || config.THREEDVR_AUTOPILOT_EMAIL_TOKEN
+    || config.GMAIL_APP_PASSWORD
   );
 }
 
@@ -259,6 +269,90 @@ function buildAdminResetRequestAckHtml({ resetUrl }) {
       <p>You can also follow up from the recovery page: <a href="${resetUrl}">${resetUrl}</a></p>
     </div>
   `;
+}
+
+function buildRecoveryVerificationHtml({ code, expiresMinutes }) {
+  return `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2 style="margin-bottom: 12px;">Verify your 3DVR recovery email</h2>
+      <p>Enter this code on the 3DVR sign-in page before creating or updating a password account.</p>
+      <p style="font-size: 28px; letter-spacing: 0.18em; font-weight: 700; margin: 18px 0;">${escapeHtml(code)}</p>
+      <p>This code expires in ${escapeHtml(String(expiresMinutes))} minutes.</p>
+      <p style="margin: 0; color: #555;">If you did not request this, you can ignore this email.</p>
+    </div>
+  `;
+}
+
+function signRecoveryVerificationPayload(payload, secret) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = createHmac('sha256', secret).update(body).digest('base64url');
+  return `${body}.${signature}`;
+}
+
+function safeEqualText(left = '', right = '') {
+  const leftBuffer = Buffer.from(String(left));
+  const rightBuffer = Buffer.from(String(right));
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function parseRecoveryVerificationToken(verificationId = '', secret = '') {
+  const [body = '', signature = ''] = String(verificationId || '').split('.');
+  if (!body || !signature || !secret) {
+    return null;
+  }
+  const expectedSignature = createHmac('sha256', secret).update(body).digest('base64url');
+  if (!safeEqualText(signature, expectedSignature)) {
+    return null;
+  }
+  try {
+    return JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+  } catch (_error) {
+    return null;
+  }
+}
+
+function createRecoveryVerification({ email, config = process.env } = {}) {
+  const normalizedEmail = normalizeEmail(email);
+  const secret = resolveRecoveryVerificationSecret(config);
+  if (!normalizedEmail || !secret) {
+    return null;
+  }
+
+  const code = String(randomInt(0, 1000000)).padStart(6, '0');
+  const expiresAt = Date.now() + 10 * 60 * 1000;
+  const nonce = randomBytes(12).toString('base64url');
+  const codeHash = createHmac('sha256', secret)
+    .update(`${normalizedEmail}:${code}:${expiresAt}:${nonce}`)
+    .digest('base64url');
+
+  return {
+    code,
+    expiresAt,
+    expiresMinutes: 10,
+    verificationId: signRecoveryVerificationPayload({
+      email: normalizedEmail,
+      codeHash,
+      expiresAt,
+      nonce
+    }, secret)
+  };
+}
+
+function confirmRecoveryVerification({ email, code, verificationId, config = process.env } = {}) {
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedCode = normalizeText(code).replace(/\D/g, '');
+  const secret = resolveRecoveryVerificationSecret(config);
+  const payload = parseRecoveryVerificationToken(verificationId, secret);
+  if (!normalizedEmail || normalizedCode.length !== 6 || !payload) {
+    return false;
+  }
+  if (payload.email !== normalizedEmail || Number(payload.expiresAt || 0) < Date.now()) {
+    return false;
+  }
+  const expectedHash = createHmac('sha256', secret)
+    .update(`${normalizedEmail}:${normalizedCode}:${payload.expiresAt}:${payload.nonce}`)
+    .digest('base64url');
+  return safeEqualText(payload.codeHash, expectedHash);
 }
 
 function buildLeadOutreachHtml({ headline, message, senderName, senderEmail }) {
@@ -421,14 +515,18 @@ export function createAccountRecoveryEmailHandler(options = {}) {
     const username = normalizeText(req.body?.username);
     const temporaryPassword = normalizeText(req.body?.temporaryPassword);
     const issuedBy = normalizeText(req.body?.issuedBy);
+    const code = normalizeText(req.body?.code);
+    const verificationId = normalizeText(req.body?.verificationId);
 
     if (
       mode !== 'lookup'
       && mode !== 'admin-reset-request'
       && mode !== 'admin-reset-issued'
+      && mode !== 'recovery-verification'
+      && mode !== 'confirm-recovery-email'
     ) {
       return res.status(400).json({
-        error: 'Unsupported recovery mode. Use lookup, admin-reset-request, or admin-reset-issued.'
+        error: 'Unsupported recovery mode. Use lookup, recovery-verification, confirm-recovery-email, admin-reset-request, or admin-reset-issued.'
       });
     }
 
@@ -443,6 +541,25 @@ export function createAccountRecoveryEmailHandler(options = {}) {
     if (mode === 'admin-reset-issued' && (!alias || !username || temporaryPassword.length < 6)) {
       return res.status(400).json({
         error: 'Alias, username, and a temporary password (6+ chars) are required.'
+      });
+    }
+
+    if (mode === 'confirm-recovery-email') {
+      const verified = confirmRecoveryVerification({
+        email,
+        code,
+        verificationId,
+        config
+      });
+      if (!verified) {
+        return res.status(400).json({
+          error: 'Recovery email verification failed or expired.'
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        mode,
+        email
       });
     }
 
@@ -471,6 +588,31 @@ export function createAccountRecoveryEmailHandler(options = {}) {
     const from = `"3DVR Portal Accounts" <${sender}>`;
 
     try {
+      if (mode === 'recovery-verification') {
+        const verification = createRecoveryVerification({ email, config });
+        if (!verification) {
+          return res.status(503).json(createRecoveryUnavailableBody(config));
+        }
+
+        await transport.sendMail({
+          from,
+          to: email,
+          subject: 'Verify your 3DVR recovery email',
+          html: buildRecoveryVerificationHtml({
+            code: verification.code,
+            expiresMinutes: verification.expiresMinutes
+          })
+        });
+
+        return res.status(200).json({
+          success: true,
+          mode,
+          email,
+          verificationId: verification.verificationId,
+          expiresAt: verification.expiresAt
+        });
+      }
+
       if (mode === 'lookup') {
         await transport.sendMail({
           from,
@@ -753,7 +895,13 @@ export function createUnifiedEmailHandler(options = {}) {
     }
 
     const mode = normalizeText(req.body?.mode).toLowerCase();
-    if (mode === 'lookup' || mode === 'admin-reset-request' || mode === 'admin-reset-issued') {
+    if (
+      mode === 'lookup'
+      || mode === 'recovery-verification'
+      || mode === 'confirm-recovery-email'
+      || mode === 'admin-reset-request'
+      || mode === 'admin-reset-issued'
+    ) {
       return accountRecoveryHandler(req, res);
     }
     if (mode === 'operator-alert') {

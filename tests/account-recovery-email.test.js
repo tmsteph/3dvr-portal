@@ -130,6 +130,92 @@ describe('account recovery email api', () => {
     assert.equal(res.body.alias, 'Pilot@3dvr');
   });
 
+  it('sends and confirms recovery email verification codes', async () => {
+    const mail = createMailTransport();
+    const handler = createAccountRecoveryEmailHandler({
+      config: {
+        ...baseConfig,
+        ACCOUNT_RECOVERY_VERIFICATION_SECRET: 'verification-secret'
+      },
+      mailTransport: mail
+    });
+
+    const sendReq = {
+      method: 'POST',
+      body: {
+        mode: 'recovery-verification',
+        email: 'User@example.com'
+      }
+    };
+    const sendRes = createMockRes();
+
+    await handler(sendReq, sendRes);
+
+    assert.equal(sendRes.statusCode, 200);
+    assert.equal(sendRes.body.mode, 'recovery-verification');
+    assert.equal(sendRes.body.email, 'user@example.com');
+    assert.match(sendRes.body.verificationId, /\./);
+    assert.equal(mail.sendMail.mock.calls.length, 1);
+
+    const sentHtml = mail.sendMail.mock.calls[0].arguments[0].html;
+    const code = sentHtml.match(/([0-9]{6})/)?.[1];
+    assert.match(code, /^[0-9]{6}$/);
+
+    const confirmReq = {
+      method: 'POST',
+      body: {
+        mode: 'confirm-recovery-email',
+        email: 'user@example.com',
+        code,
+        verificationId: sendRes.body.verificationId
+      }
+    };
+    const confirmRes = createMockRes();
+
+    await handler(confirmReq, confirmRes);
+
+    assert.equal(confirmRes.statusCode, 200);
+    assert.deepEqual(confirmRes.body, {
+      success: true,
+      mode: 'confirm-recovery-email',
+      email: 'user@example.com'
+    });
+  });
+
+  it('rejects invalid recovery email verification codes', async () => {
+    const mail = createMailTransport();
+    const handler = createAccountRecoveryEmailHandler({
+      config: {
+        ...baseConfig,
+        ACCOUNT_RECOVERY_VERIFICATION_SECRET: 'verification-secret'
+      },
+      mailTransport: mail
+    });
+
+    const sendRes = createMockRes();
+    await handler({
+      method: 'POST',
+      body: {
+        mode: 'recovery-verification',
+        email: 'user@example.com'
+      }
+    }, sendRes);
+
+    const confirmRes = createMockRes();
+    await handler({
+      method: 'POST',
+      body: {
+        mode: 'confirm-recovery-email',
+        email: 'user@example.com',
+        code: '000000',
+        verificationId: sendRes.body.verificationId
+      }
+    }, confirmRes);
+
+    assert.equal(confirmRes.statusCode, 400);
+    assert.equal(confirmRes.body.error, 'Recovery email verification failed or expired.');
+  });
+
   it('sends admin-reset-request notifications to team and requester', async () => {
     const mail = createMailTransport();
     const handler = createAccountRecoveryEmailHandler({
