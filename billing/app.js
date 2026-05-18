@@ -50,6 +50,31 @@ const PLAN_LABELS = {
   custom: 'Custom project'
 }
 
+const PLAN_ALIASES = {
+  starter: 'starter',
+  supporter: 'starter',
+  family: 'starter',
+  familyfriends: 'starter',
+  'family-friends': 'starter',
+  family_and_friends: 'starter',
+  '5': 'starter',
+  pro: 'pro',
+  founder: 'pro',
+  '20': 'pro',
+  builder: 'builder',
+  studio: 'builder',
+  partner: 'builder',
+  '50': 'builder',
+  embedded: 'embedded',
+  execution: 'embedded',
+  '200': 'embedded',
+  custom: 'custom',
+  one_time: 'custom',
+  'one-time': 'custom',
+  quoted: 'custom',
+  free: 'free'
+}
+
 const CANCEL_LABELS = {
   starter: 'Stop $5 billing',
   pro: 'Stop $20 billing',
@@ -448,7 +473,16 @@ function refreshSignInLink(plan = '') {
 
 function selectedPlanFromUrl() {
   const params = new URLSearchParams(window.location.search)
-  return String(params.get('plan') || '').trim().toLowerCase()
+  return normalizePlanKey(params.get('plan'))
+}
+
+function normalizePlanKey(value = '') {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+
+  return PLAN_ALIASES[normalized] || ''
 }
 
 function labelForPlan(plan = '') {
@@ -473,7 +507,13 @@ function highlightPlan(plan = '', options = {}) {
   state.selectedPlan = plan
   planCards.forEach(card => {
     const targetPlan = card.dataset.planCard || ''
-    card.classList.toggle('is-selected', Boolean(plan) && targetPlan === plan)
+    const selected = Boolean(plan) && targetPlan === plan
+    card.classList.toggle('is-selected', selected)
+    if (selected) {
+      card.setAttribute('aria-current', 'true')
+    } else {
+      card.removeAttribute('aria-current')
+    }
   })
 
   if (updateUrl) {
