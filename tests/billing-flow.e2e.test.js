@@ -312,6 +312,36 @@ describe('billing center subscriber flows', () => {
     }
   }, { timeout: 45000 })
 
+  it('auto-selects incoming plan links on the billing page', async t => {
+    const browser = await launchBrowser(t)
+    if (!browser) {
+      return
+    }
+
+    try {
+      const context = await createContext(browser)
+      await installGunRoutes(context)
+      await installExternalRoutes(context)
+      await installBillingRoutes(context, {
+        statusResponse: createFreeStatus()
+      })
+      const page = await context.newPage()
+
+      await page.goto(`${baseUrl}/billing/?plan=family-friends`, { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('[data-plan-card="starter"].is-selected')
+
+      const selectedLabel = (await page.textContent('#selected-plan-label')).trim()
+      const selectedCard = await page.getAttribute('[data-plan-card="starter"]', 'aria-current')
+      const signInHref = await page.getAttribute('#sign-in-link', 'href')
+
+      assert.equal(selectedLabel, 'Selected: Family & Friends')
+      assert.equal(selectedCard, 'true')
+      assert.match(signInHref, /redirect=%2Fbilling%2F%3Fplan%3Dstarter/)
+    } finally {
+      await browser.close()
+    }
+  }, { timeout: 45000 })
+
   it('disables unavailable paid plans and keeps manage billing out of the dead-end state', async t => {
     const browser = await launchBrowser(t)
     if (!browser) {
