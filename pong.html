@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="portal:issue-launcher" content="off">
 <title>3DVR - Pong</title>
 <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 <script src="gun-init.js"></script>
@@ -12,41 +13,169 @@
 <style>
 body {
   margin: 0;
-  background: #e9f0f5;
-  color: #222;
+  background:
+    radial-gradient(circle at 20% -10%, rgba(102, 194, 176, 0.28), transparent 34rem),
+    linear-gradient(180deg, #07111f, #030712 72%);
+  color: #f8fafc;
   font-family: 'Poppins', sans-serif;
-  padding: 20px;
   min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.game-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 0.75rem) 1rem calc(env(safe-area-inset-bottom, 0px) + 0.85rem);
+  box-sizing: border-box;
+}
+
+.top-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.top-buttons a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.36rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.72);
+  color: rgba(226, 232, 240, 0.92);
+  text-decoration: none;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.game-title {
+  text-align: center;
 }
 
 h1 {
-  text-align: center;
-  color: #333;
-  font-size: 2.4rem;
-  margin-top: 0;
+  color: #f8fafc;
+  font-size: clamp(1.5rem, 4vw, 2.4rem);
+  margin: 0;
+}
+
+.game-title p {
+  margin: 0.3rem auto 0;
+  max-width: 34rem;
+  color: rgba(203, 213, 225, 0.76);
+  font-size: 0.92rem;
+}
+
+.arena {
+  min-height: 0;
+  display: grid;
+  place-items: center;
 }
 
 canvas {
-  background: #ffffff;
-  border-radius: 12px;
-  border: 3px solid #66c2b0;
+  width: min(760px, calc(100vw - 2rem));
+  height: min(500px, calc(100dvh - 15rem));
+  min-height: 280px;
+  background: rgba(248, 250, 252, 0.96);
+  border-radius: 18px;
+  border: 2px solid rgba(102, 194, 176, 0.86);
   display: block;
-  margin: auto;
-  margin-top: 20px;
+  box-shadow: 0 24px 60px rgba(8, 145, 178, 0.28);
+  touch-action: none;
 }
 
 #message {
   text-align: center;
-  font-size: 1.3rem;
-  margin-top: 20px;
-  color: #444;
+  min-height: 1.4rem;
+  font-size: 1rem;
+  color: rgba(165, 243, 252, 0.96);
+}
+
+.touch-controls {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  width: min(420px, calc(100vw - 1.5rem));
+  margin: 0 auto;
+}
+
+.touch-controls button {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(94, 234, 212, 0.42);
+  background: rgba(15, 23, 42, 0.76);
+  color: rgba(165, 243, 252, 0.96);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  touch-action: none;
 }
 
 footer {
-  margin-top: 50px;
   text-align: center;
   font-size: 0.8rem;
-  color: #888;
+  color: rgba(148, 163, 184, 0.78);
+}
+
+@media (max-width: 640px) {
+  .game-page {
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    gap: 0.55rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .top-buttons {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .top-buttons a {
+    width: auto !important;
+    flex: 0 1 auto;
+    padding: 0.32rem 0.54rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.03em;
+  }
+
+  .top-buttons a:nth-child(n + 3) {
+    display: none;
+  }
+
+  .game-title p {
+    display: none;
+  }
+
+  canvas {
+    width: calc(100vw - 1.5rem);
+    height: calc(100dvh - 13.75rem);
+    min-height: 300px;
+    border-radius: 14px;
+  }
+
+  #message {
+    display: none;
+  }
+
+  .touch-controls {
+    display: grid;
+  }
+
+  footer {
+    display: none;
+  }
 }
 </style>
 
@@ -54,21 +183,34 @@ footer {
 </head>
 <body>
 
-<div class="top-buttons">
-  <a href="index.html">🏠 Portal</a>
-  <a href="games.html">🎮 Game Hub</a>
-  <a href="https://3dvr.tech/#subscribe" target="_blank">⭐ Subscribe</a>
-  <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
-</div>
+<main class="game-page">
+  <div class="top-buttons">
+    <a href="index.html">🏠 Portal</a>
+    <a href="games.html">🎮 Hub</a>
+    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
+    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
+  </div>
 
-<h1>🏓 Pong</h1>
+  <header class="game-title">
+    <h1>🏓 Pong</h1>
+    <p>Move the left paddle, beat the AI, and bank portal score when you land a point.</p>
+  </header>
 
-<canvas id="pong" width="600" height="400"></canvas>
-<div id="message"></div>
+  <section class="arena" aria-label="Pong arena">
+    <canvas id="pong" width="600" height="400"></canvas>
+  </section>
 
-<footer>
-  Built with ❤️ by <strong>3DVR.tech</strong>
-</footer>
+  <div id="message" role="status" aria-live="polite"></div>
+
+  <div class="touch-controls" role="group" aria-label="Touch paddle controls">
+    <button type="button" data-move="up">Up</button>
+    <button type="button" data-move="down">Down</button>
+  </div>
+
+  <footer>
+    Built with 3DVR.tech
+  </footer>
+</main>
 
 <script>
 const gun = Gun(window.__GUN_PEERS__ || [
@@ -83,7 +225,8 @@ const scoreManager = window.ScoreSystem
 
 const canvas = document.getElementById('pong');
 const ctx = canvas.getContext('2d');
-const paddleWidth = 10, paddleHeight = 100;
+let paddleWidth = 10;
+let paddleHeight = 100;
 const player = { x: 0, y: canvas.height/2 - paddleHeight/2, width: paddleWidth, height: paddleHeight, dy: 0 };
 const ai = { x: canvas.width - paddleWidth, y: canvas.height/2 - paddleHeight/2, width: paddleWidth, height: paddleHeight, dy: 0 };
 const ball = { x: canvas.width/2, y: canvas.height/2, radius: 7, speed: 5, dx: 5, dy: 5 };
@@ -91,6 +234,40 @@ const ball = { x: canvas.width/2, y: canvas.height/2, radius: 7, speed: 5, dx: 5
 let playerScore = 0;
 let aiScore = 0;
 let lastTouchY = null;
+
+function resizeGame() {
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(320, Math.round(rect.width));
+  const height = Math.max(280, Math.round(rect.height));
+  const previousWidth = canvas.width || width;
+  const previousHeight = canvas.height || height;
+  const xRatio = width / previousWidth;
+  const yRatio = height / previousHeight;
+
+  canvas.width = width;
+  canvas.height = height;
+  paddleWidth = Math.max(8, Math.round(width * 0.018));
+  paddleHeight = Math.max(76, Math.round(height * 0.23));
+
+  player.width = paddleWidth;
+  player.height = paddleHeight;
+  player.x = 0;
+  player.y = Math.min(height - paddleHeight, Math.max(0, player.y * yRatio));
+
+  ai.width = paddleWidth;
+  ai.height = paddleHeight;
+  ai.x = width - paddleWidth;
+  ai.y = Math.min(height - paddleHeight, Math.max(0, ai.y * yRatio));
+
+  ball.radius = Math.max(6, Math.round(Math.min(width, height) * 0.018));
+  ball.x = Math.min(width - ball.radius, Math.max(ball.radius, ball.x * xRatio));
+  ball.y = Math.min(height - ball.radius, Math.max(ball.radius, ball.y * yRatio));
+  ball.dx = Math.sign(ball.dx || 1) * Math.max(4, width * 0.008);
+  ball.dy = Math.sign(ball.dy || 1) * Math.max(4, height * 0.01);
+}
+
+resizeGame();
+window.addEventListener('resize', resizeGame);
 
 function drawRect(x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -138,8 +315,9 @@ function update() {
     winGame();
   }
 
-  if (ball.dy > 0) ai.y += 4;
-  else ai.y -= 4;
+  const aiStep = Math.max(4, canvas.height * 0.01);
+  if (ball.dy > 0) ai.y += aiStep;
+  else ai.y -= aiStep;
 
   player.y += player.dy;
   if (player.y < 0) player.y = 0;
@@ -168,27 +346,51 @@ function loop() {
 }
 
 window.addEventListener('keydown', e => {
-  if (e.key === 'ArrowUp') player.dy = -7;
-  else if (e.key === 'ArrowDown') player.dy = 7;
+  const speed = Math.max(7, canvas.height * 0.018);
+  if (e.key === 'ArrowUp') player.dy = -speed;
+  else if (e.key === 'ArrowDown') player.dy = speed;
 });
 window.addEventListener('keyup', e => {
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') player.dy = 0;
 });
 
+function movePaddleFromClientY(clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleY = canvas.height / rect.height;
+  player.y = Math.min(
+    canvas.height - player.height,
+    Math.max(0, (clientY - rect.top) * scaleY - player.height / 2)
+  );
+}
+
 canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
   lastTouchY = e.touches[0].clientY;
+  movePaddleFromClientY(lastTouchY);
 });
 canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
   const touchY = e.touches[0].clientY;
-  const deltaY = touchY - lastTouchY;
-
-  if (Math.abs(deltaY) > 5) {
-    player.dy = deltaY > 0 ? 7 : -7;
-  }
   lastTouchY = touchY;
+  movePaddleFromClientY(touchY);
 });
 canvas.addEventListener('touchend', () => {
   player.dy = 0;
+});
+
+document.querySelectorAll('.touch-controls button').forEach(button => {
+  const direction = button.dataset.move === 'up' ? -1 : 1;
+  const setMoving = active => {
+    player.dy = active ? direction * Math.max(7, canvas.height * 0.018) : 0;
+  };
+  button.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    setMoving(true);
+  });
+  button.addEventListener('pointerup', () => setMoving(false));
+  button.addEventListener('pointercancel', () => setMoving(false));
+  button.addEventListener('lostpointercapture', () => setMoving(false));
 });
 
 function winGame() {
@@ -203,7 +405,5 @@ function winGame() {
 
 loop();
 </script>
-
-  <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
