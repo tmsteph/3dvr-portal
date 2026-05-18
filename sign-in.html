@@ -808,6 +808,11 @@
 
     watchGunRelay();
 
+    function isGuestUpgradeContext() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('upgrade') === 'guest' || localStorage.getItem('guest') === 'true';
+    }
+
     function applyRedirectContext() {
       const authTitle = document.getElementById('auth-title');
       const authDescription = document.getElementById('auth-description');
@@ -823,7 +828,9 @@
         return;
       }
 
-      if (!redirectContext.isBilling && redirectContext.destination === DEFAULT_POST_SIGN_IN_DESTINATION) {
+      const shouldUpgradeGuest = isGuestUpgradeContext();
+
+      if (!shouldUpgradeGuest && !redirectContext.isBilling && redirectContext.destination === DEFAULT_POST_SIGN_IN_DESTINATION) {
         redirectPanel.hidden = true;
         return;
       }
@@ -850,6 +857,28 @@
         }
         if (guestNote && guestButton) {
           guestNote.innerHTML = 'Billing needs an account so Stripe stays linked to one portal identity. <button id="guest-button" type="button" onclick="continueAsGuest()">Back to portal home</button>';
+        }
+        return;
+      }
+
+      if (shouldUpgradeGuest) {
+        const guestName = (localStorage.getItem('guestDisplayName') || '').trim();
+        if (authTitle) {
+          authTitle.textContent = 'Save your guest progress';
+        }
+        if (authDescription) {
+          authDescription.textContent = 'Create a portal account and we will move this guest session into it after sign-in.';
+        }
+        redirectEyebrow.textContent = 'Guest session';
+        redirectTitle.textContent = guestName
+          ? `Keep ${guestName}'s points and progress.`
+          : 'Keep your guest points and progress.';
+        redirectBody.textContent = 'Use a username and password below. Your current guest score moves into the account, then this browser returns to where you were.';
+        if (authSubmit) {
+          authSubmit.textContent = 'Create account and keep progress';
+        }
+        if (guestNote) {
+          guestNote.innerHTML = 'Need more time? <button id="guest-button" type="button" onclick="continueAsGuest()">Stay in guest mode</button>';
         }
         return;
       }

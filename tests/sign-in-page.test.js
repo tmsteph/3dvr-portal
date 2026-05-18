@@ -73,4 +73,14 @@ describe('sign-in page', () => {
     assert.match(html, /Continuing without account recovery/);
     assert.match(html, /recoveryEmailVerifiedAt/);
   });
+
+  it('explains guest account upgrades and keeps guest progress', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /function isGuestUpgradeContext\(\)/);
+    assert.match(html, /params\.get\('upgrade'\) === 'guest'/);
+    assert.match(html, /Save your guest progress/);
+    assert.match(html, /Create account and keep progress/);
+    assert.match(html, /migrateGuestProgress\(\)/);
+    assert.match(html, /Stay in guest mode/);
+  });
 });

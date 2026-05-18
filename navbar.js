@@ -20,6 +20,15 @@ function clearSharedIdentityCookie() {
   }
 }
 
+function currentUpgradeRedirect() {
+  const path = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
+  return path || '/index.html';
+}
+
+function guestUpgradeHref() {
+  return `/sign-in.html?upgrade=guest&redirect=${encodeURIComponent(currentUpgradeRedirect())}`;
+}
+
 function hideUnreadyHomepageSections() {
   const systemLayers = document.getElementById('systemLayers');
   if (systemLayers) {
@@ -95,6 +104,11 @@ function createNavbar() {
   button.innerText = 'Sign Out';
 
   button.addEventListener('click', () => {
+    if (isGuest) {
+      window.location.href = guestUpgradeHref();
+      return;
+    }
+
     try {
       user.leave();
     } catch (err) {
@@ -137,6 +151,14 @@ function createNavbar() {
   const isGuest = !isSignedIn && localStorage.getItem('guest') === 'true';
   let latestDisplayName = '';
   let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
+
+  if (isGuest) {
+    stats.href = guestUpgradeHref();
+    stats.setAttribute('aria-label', 'Create an account and keep your guest progress');
+    stats.title = 'Create an account and keep your guest progress';
+    button.innerText = 'Create account';
+    button.setAttribute('aria-label', 'Create an account and keep guest progress');
+  }
 
   function updateNameDisplay() {
     if (latestDisplayName) {
