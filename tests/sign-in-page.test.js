@@ -54,6 +54,10 @@ describe('sign-in page', () => {
     assert.match(html, /PortalOAuth\.writeAuthSession/);
     assert.match(html, /PortalOAuth\.storeConnectionFromResult/);
     assert.match(html, /PortalOAuth\.begin\(provider,/);
+    assert.ok(
+      html.indexOf('id="auth-submit"') < html.indexOf('class="oauth-panel"'),
+      'password submit should appear before the OAuth panel'
+    );
   });
 
   it('keeps recovery email optional while offering verification', async () => {
