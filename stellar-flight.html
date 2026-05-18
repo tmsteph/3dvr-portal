@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="portal:issue-launcher" content="off">
   <title>Stellar Drift - Endless Flight</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
@@ -27,7 +28,7 @@
   }
 
   body.touch-enabled {
-    --control-safe-zone: 18rem;
+    --control-safe-zone: 15rem;
   }
 
   canvas {
@@ -679,18 +680,25 @@
   }
 
   @media (max-width: 640px) {
+    body.touch-enabled {
+      --control-safe-zone: 9rem;
+    }
+
     .touch-actions {
-      right: calc(env(safe-area-inset-right, 0px) + 1rem);
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem + 220px + 1.5rem);
-      grid-template-columns: minmax(150px, 1fr);
+      left: calc(env(safe-area-inset-left, 0px) + 0.75rem);
+      right: calc(env(safe-area-inset-right, 0px) + 4.75rem);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.85rem);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.4rem;
     }
 
     .touch-action.wide {
-      grid-column: span 1;
+      grid-column: span 2;
     }
 
     body.touch-enabled .status {
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem + 220px + 8rem);
+      bottom: auto;
+      top: calc(var(--safe-top) + 0.15rem);
     }
 
     .mission-status {
@@ -854,9 +862,11 @@
 
   @media (max-width: 540px) {
     .overlay {
-      top: calc(5.5rem + env(safe-area-inset-top, 0px));
+      top: calc(4.6rem + env(safe-area-inset-top, 0px));
       width: min(360px, calc(100% - 1.25rem));
       padding: 0.85rem 0.9rem 0.85rem;
+      max-height: 34vh;
+      overflow: auto;
     }
 
     .overlay h1 {
@@ -870,6 +880,10 @@
       line-height: 1.55;
     }
 
+    .hint {
+      display: none;
+    }
+
     .overlay-toggle {
       top: auto;
       bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 0.75rem);
@@ -877,35 +891,41 @@
     }
 
     .status {
-      top: calc(var(--safe-top) + 0.25rem);
-      right: var(--safe-right);
-      left: auto;
-      bottom: auto;
-      transform: none;
-      font-size: 0.78rem;
-      padding: 0.75rem 1rem;
+      display: none;
     }
 
     body.touch-enabled .status {
-      left: auto;
-      right: var(--safe-right);
-      top: calc(var(--safe-top) + 0.25rem);
-      bottom: auto;
+      display: none;
     }
 
     .score-panel {
-      left: var(--safe-left);
-      right: var(--safe-right);
+      left: calc(env(safe-area-inset-left, 0px) + 0.65rem);
+      right: auto;
       transform: none;
-      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 8.75rem);
+      top: calc(var(--safe-top) + 2.45rem);
+      bottom: auto;
       min-width: auto;
-      width: calc(100% - var(--safe-left) - var(--safe-right));
-      max-width: 320px;
-      margin: 0 auto;
+      width: min(168px, calc(50vw - 0.75rem));
+      max-width: none;
+      margin: 0;
+      gap: 0.28rem;
+      padding: 0.55rem 0.65rem;
+      border-radius: 12px;
+      text-align: left;
+    }
+
+    .score-panel-title,
+    .score-row-label {
+      font-size: 0.58rem;
+      letter-spacing: 0.11em;
+    }
+
+    .score-row-value {
+      font-size: 0.76rem;
     }
 
     .score-panel-row-total .score-row-value {
-      font-size: 1.22rem;
+      font-size: 1rem;
     }
 
     .score-indicator {
@@ -921,12 +941,7 @@
     }
 
     .hud {
-      left: var(--safe-left);
-      transform: none;
-      bottom: calc(var(--safe-bottom) + var(--control-safe-zone));
-      width: min(240px, 78vw);
-      padding: 0.85rem 1rem;
-      font-size: 0.78rem;
+      display: none;
     }
 
     .hud-gauge span {
@@ -939,35 +954,94 @@
     }
 
     .top-buttons {
-      flex-direction: column;
+      top: calc(env(safe-area-inset-top, 0px) + 0.6rem);
+      left: calc(env(safe-area-inset-left, 0px) + 0.65rem);
+      transform: none;
+      flex-direction: row;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.35rem;
+      width: max-content;
+      max-width: 11.25rem;
     }
 
     .top-buttons a {
-      width: min(220px, 90vw);
+      width: auto;
+      padding: 0.32rem 0.55rem;
+      font-size: 0.66rem;
+      letter-spacing: 0.04em;
     }
 
     .control-toggle {
-      top: calc(var(--safe-top) + 2.75rem);
-      right: var(--safe-right);
-      font-size: 0.75rem;
+      top: calc(env(safe-area-inset-top, 0px) + 0.6rem);
+      right: calc(env(safe-area-inset-right, 0px) + 0.65rem);
+      padding: 0.36rem 0.62rem;
+      font-size: 0.66rem;
+      letter-spacing: 0.06em;
+      max-width: 10rem;
     }
 
     .touch-gesture-hint {
-      top: calc(5.5rem + env(safe-area-inset-top, 0px));
-      right: var(--safe-right);
-      font-size: 0.72rem;
+      display: none;
     }
 
     .touch-actions {
-      bottom: calc(var(--safe-bottom) + 220px + 1.5rem);
+      right: calc(env(safe-area-inset-right, 0px) + 4.6rem);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+    }
+
+    .touch-action {
+      min-height: 38px;
+      padding: 0.45rem 0.35rem;
+      border-radius: 11px;
+      font-size: 0.66rem;
+      letter-spacing: 0.04em;
+      box-shadow: 0 10px 18px rgba(13, 148, 136, 0.26);
+    }
+
+    .touch-throttle {
+      right: calc(env(safe-area-inset-right, 0px) + 0.65rem);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+      gap: 0.45rem;
+    }
+
+    .throttle-track {
+      width: 54px;
+      height: 166px;
+    }
+
+    .throttle-thumb {
+      width: 46px;
+      height: 46px;
+    }
+
+    .throttle-scale {
+      display: none;
     }
 
     .mission-status {
-      top: calc(var(--safe-top) + 5rem);
-      max-width: min(320px, 88vw);
-      padding: 0.75rem 0.9rem 0.85rem;
+      top: calc(var(--safe-top) + 2.45rem);
+      left: auto;
+      right: calc(env(safe-area-inset-right, 0px) + 0.65rem);
+      transform: none;
+      width: min(172px, calc(50vw - 0.75rem));
+      max-width: none;
+      padding: 0.6rem 0.7rem;
+      border-radius: 12px;
+    }
+
+    .mission-status span {
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.15rem;
+    }
+
+    .mission-status strong {
+      font-size: 0.86rem;
+      letter-spacing: 0.05em;
+    }
+
+    .mission-status .mission-tip {
+      display: none;
     }
   }
   </style>
@@ -976,7 +1050,7 @@
 </head>
 <body class="theme-dark">
   <div class="top-buttons">
-    <a href="games.html">🎮 Back to Hub</a>
+    <a href="games.html">🎮 Hub</a>
     <a href="index.html">🏠 Portal</a>
   </div>
 
@@ -987,7 +1061,7 @@
     aria-pressed="false"
     aria-label="Toggle touch controls"
   >
-    Touch Controls: Off
+    Touch: Off
   </button>
 
   <button class="overlay-toggle" id="overlayToggle" type="button" aria-hidden="true">Show Flight Controls</button>
@@ -996,9 +1070,8 @@
     <button class="overlay-close" id="overlayClose" type="button">Hide</button>
     <h1>Stellar Drift</h1>
     <p id="primaryInstructions">
-      Glide through procedurally scattered stars and luminous worlds. Click anywhere to engage flight controls,
-      then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost and left-click or
-      press <strong>F</strong> to fire a laser burst.
+      Fly through stars and luminous worlds. Click to fly, look with your mouse, use <strong>WASD</strong> to steer,
+      hold <strong>Shift</strong> to boost, and fire with left-click or <strong>F</strong>.
     </p>
     <div class="hint" id="secondaryInstructions">
       Press <strong>R</strong> if you ever want to re-center your ship. Pointer lock keeps the cursor inside the
@@ -1032,13 +1105,13 @@
     </div>
     <div class="touch-actions" role="group" aria-label="Flight quick actions">
       <button class="touch-action" type="button" data-action="boost" aria-pressed="false">Boost</button>
-      <button class="touch-action" type="button" data-action="fire" aria-pressed="false">Fire 🔆</button>
+      <button class="touch-action" type="button" data-action="fire" aria-pressed="false">Fire</button>
       <button class="touch-action" type="button" data-action="pause" aria-pressed="false">Pause</button>
-      <button class="touch-action" type="button" data-action="ascend" aria-pressed="false">Ascend</button>
-      <button class="touch-action" type="button" data-action="descend" aria-pressed="false">Descend</button>
-      <button class="touch-action" type="button" data-action="strafe-left" aria-pressed="false">Strafe ◀</button>
-      <button class="touch-action" type="button" data-action="strafe-right" aria-pressed="false">Strafe ▶</button>
-      <button class="touch-action wide" type="button" data-action="recenter">Re-center</button>
+      <button class="touch-action" type="button" data-action="ascend" aria-pressed="false">Up</button>
+      <button class="touch-action" type="button" data-action="descend" aria-pressed="false">Down</button>
+      <button class="touch-action" type="button" data-action="strafe-left" aria-pressed="false">Left</button>
+      <button class="touch-action" type="button" data-action="strafe-right" aria-pressed="false">Right</button>
+      <button class="touch-action wide" type="button" data-action="recenter">Center</button>
     </div>
   </div>
 
@@ -1090,6 +1163,17 @@
     <div class="reticle-ring"></div>
     <div class="reticle-dot"></div>
   </div>
+
+  <script>
+    if (window.matchMedia('(max-width: 540px)').matches) {
+      document.querySelector('.overlay')?.classList.add('overlay-hidden');
+      const compactOverlayToggle = document.getElementById('overlayToggle');
+      if (compactOverlayToggle) {
+        compactOverlayToggle.classList.add('overlay-toggle-visible');
+        compactOverlayToggle.setAttribute('aria-hidden', 'false');
+      }
+    }
+  </script>
 
   <script
     src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"
@@ -2075,6 +2159,10 @@
     }
   }
 
+  if (window.matchMedia('(max-width: 540px)').matches) {
+    setOverlayVisible(false);
+  }
+
   function setThrottleValue(value) {
     throttleValue = Math.max(-1, Math.min(1, value));
     moveInput.y = -throttleValue;
@@ -2153,7 +2241,7 @@
     }
     if (controlModeToggle) {
       controlModeToggle.setAttribute('aria-pressed', useTouch ? 'true' : 'false');
-      controlModeToggle.textContent = useTouch ? 'Touch Controls: On' : 'Touch Controls: Off';
+      controlModeToggle.textContent = useTouch ? 'Touch: On' : 'Touch: Off';
     }
     if (!useTouch) {
       clearTouchInputs();
