@@ -398,6 +398,50 @@ describe('contacts identity flows', () => {
     try {
       const context = await createContext(browser);
       await installExternalRoutes(context);
+      const recoveryCode = '123456';
+      const verificationId = 'contacts-recovery-verification';
+      await context.route('**/api/calendar/reminder-email', async route => {
+        const requestBody = route.request().postDataJSON?.() || JSON.parse(route.request().postData() || '{}');
+        const email = String(requestBody.email || '').toLowerCase();
+
+        if (requestBody.mode === 'recovery-verification') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json; charset=utf-8',
+            body: JSON.stringify({
+              success: true,
+              mode: 'recovery-verification',
+              email,
+              verificationId,
+              expiresAt: Date.now() + 600000,
+            }),
+          });
+          return;
+        }
+
+        if (
+          requestBody.mode === 'confirm-recovery-email' &&
+          requestBody.code === recoveryCode &&
+          requestBody.verificationId === verificationId
+        ) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json; charset=utf-8',
+            body: JSON.stringify({
+              success: true,
+              mode: 'confirm-recovery-email',
+              email,
+            }),
+          });
+          return;
+        }
+
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json; charset=utf-8',
+          body: JSON.stringify({ error: 'bad recovery verification' }),
+        });
+      });
       const page = await context.newPage();
       const username = `playwright${Date.now()}`;
       const password = `Test!${Math.random().toString(36).slice(2, 8)}`;
@@ -406,6 +450,12 @@ describe('contacts identity flows', () => {
       await page.waitForSelector('#username');
       await page.fill('#username', username);
       await page.fill('#password', password);
+      await page.fill('#recovery-email', `${username}@example.com`);
+      await page.click('#send-recovery-code');
+      await page.waitForSelector('text=Check your email for the 6-digit verification code.');
+      await page.fill('#recovery-code', recoveryCode);
+      await page.click('#verify-recovery-code');
+      await page.waitForSelector('text=Recovery email verified.');
 
       await Promise.all([
         page.waitForURL('**/index.html', { timeout: 30000 }),
