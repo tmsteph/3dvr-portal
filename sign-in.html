@@ -269,6 +269,49 @@
       line-height: 1.5;
     }
 
+    .recovery-panel {
+      display: grid;
+      gap: 10px;
+    }
+
+    .recovery-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .secondary-button {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(9, 20, 38, 0.9);
+      color: var(--text-primary);
+      font-weight: 650;
+      cursor: pointer;
+      transition: border 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .secondary-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(240, 199, 94, 0.36);
+    }
+
+    .secondary-button[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .recovery-status {
+      min-height: 1.1rem;
+      margin: 0;
+      font-size: 0.82rem;
+      color: rgba(248, 251, 255, 0.72);
+      line-height: 1.5;
+    }
+
     .primary-button {
       width: 100%;
       padding: 15px 18px;
@@ -449,15 +492,32 @@
             <label for="password">Password</label>
             <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
           </div>
-          <div>
-            <label for="recovery-email">Recovery email (optional)</label>
+          <div class="recovery-panel">
+            <label for="recovery-email">Recovery email</label>
             <input
               type="email"
               id="recovery-email"
               name="recovery-email"
               placeholder="you@example.com"
               autocomplete="email"
+              required
             >
+            <button id="send-recovery-code" type="button" class="secondary-button">Send verification code</button>
+            <div class="recovery-actions">
+              <input
+                type="text"
+                id="recovery-code"
+                name="recovery-code"
+                placeholder="6-digit code"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
+              >
+              <button id="verify-recovery-code" type="button" class="secondary-button">Verify</button>
+            </div>
+            <p id="recovery-status" class="recovery-status" role="status" aria-live="polite">
+              Verify this email so you can recover the account later.
+            </p>
           </div>
           <div class="oauth-panel" aria-labelledby="oauth-options-title">
             <div class="oauth-divider" id="oauth-options-title">Or continue with OAuth</div>
@@ -632,6 +692,12 @@
     const user = gunContext.user;
     const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
     const gunIsStub = !!gunContext.isStub;
+    const recoveryVerificationState = {
+      email: '',
+      verificationId: '',
+      verifiedEmail: '',
+      expiresAt: 0
+    };
     const DEFAULT_POST_SIGN_IN_DESTINATION = 'index.html';
     const BILLING_PLAN_LABELS = {
       starter: '$5 Family & Friends',
@@ -813,6 +879,118 @@
         : tone === 'success'
         ? '#b8f1c5'
         : 'rgba(248, 251, 255, 0.72)';
+    }
+
+    function normalizeRecoveryEmailInput(value = '') {
+      if (
+        window.AccountRecovery
+        && typeof window.AccountRecovery.normalizeEmail === 'function'
+      ) {
+        return window.AccountRecovery.normalizeEmail(value);
+      }
+      const normalized = String(value || '').trim().toLowerCase();
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : '';
+    }
+
+    function currentRecoveryEmail() {
+      const input = document.getElementById('recovery-email');
+      return normalizeRecoveryEmailInput(input ? input.value : '');
+    }
+
+    function setRecoveryStatus(message = '', tone = 'info') {
+      const statusEl = document.getElementById('recovery-status');
+      if (!statusEl) return;
+      statusEl.textContent = message || 'Verify this email so you can recover the account later.';
+      statusEl.style.color = tone === 'error'
+        ? '#ffb4b4'
+        : tone === 'success'
+        ? '#b8f1c5'
+        : 'rgba(248, 251, 255, 0.72)';
+    }
+
+    function resetRecoveryVerification() {
+      recoveryVerificationState.email = '';
+      recoveryVerificationState.verificationId = '';
+      recoveryVerificationState.verifiedEmail = '';
+      recoveryVerificationState.expiresAt = 0;
+      setRecoveryStatus();
+    }
+
+    function isRecoveryEmailVerified(email = currentRecoveryEmail()) {
+      return Boolean(email && recoveryVerificationState.verifiedEmail === email);
+    }
+
+    async function postRecoveryEmail(payload = {}) {
+      const response = await fetch('/api/calendar/reminder-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.error || 'Unable to verify recovery email.');
+      }
+      return body;
+    }
+
+    async function sendRecoveryVerificationCode() {
+      const email = currentRecoveryEmail();
+      const button = document.getElementById('send-recovery-code');
+      if (!email) {
+        setRecoveryStatus('Enter a valid recovery email first.', 'error');
+        return;
+      }
+      if (button) button.disabled = true;
+      setRecoveryStatus('Sending verification code...', 'info');
+      try {
+        const body = await postRecoveryEmail({
+          mode: 'recovery-verification',
+          email
+        });
+        recoveryVerificationState.email = email;
+        recoveryVerificationState.verificationId = body.verificationId || '';
+        recoveryVerificationState.verifiedEmail = '';
+        recoveryVerificationState.expiresAt = Number(body.expiresAt || 0);
+        setRecoveryStatus('Check your email for the 6-digit verification code.', 'success');
+        document.getElementById('recovery-code')?.focus();
+      } catch (error) {
+        resetRecoveryVerification();
+        setRecoveryStatus(error.message || 'Unable to send verification code.', 'error');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function verifyRecoveryCode() {
+      const email = currentRecoveryEmail();
+      const codeInput = document.getElementById('recovery-code');
+      const code = String(codeInput ? codeInput.value : '').trim();
+      const button = document.getElementById('verify-recovery-code');
+      if (!email || !recoveryVerificationState.verificationId || recoveryVerificationState.email !== email) {
+        setRecoveryStatus('Send a verification code to this email first.', 'error');
+        return;
+      }
+      if (!/^\d{6}$/.test(code)) {
+        setRecoveryStatus('Enter the 6-digit verification code.', 'error');
+        return;
+      }
+      if (button) button.disabled = true;
+      setRecoveryStatus('Verifying recovery email...', 'info');
+      try {
+        await postRecoveryEmail({
+          mode: 'confirm-recovery-email',
+          email,
+          code,
+          verificationId: recoveryVerificationState.verificationId
+        });
+        recoveryVerificationState.verifiedEmail = email;
+        setRecoveryStatus('Recovery email verified.', 'success');
+      } catch (error) {
+        recoveryVerificationState.verifiedEmail = '';
+        setRecoveryStatus(error.message || 'Recovery email verification failed.', 'error');
+      } finally {
+        if (button) button.disabled = false;
+      }
     }
 
     function onceGun(node) {
@@ -1010,8 +1188,14 @@
         alert("Please enter both username and password.");
         return;
       }
-      if (rawRecoveryEmail && !recoveryEmail) {
-        alert('Enter a valid recovery email or leave the field empty.');
+      if (!rawRecoveryEmail || !recoveryEmail) {
+        alert('Enter a valid recovery email.');
+        setRecoveryStatus('A valid recovery email is required for password accounts.', 'error');
+        return;
+      }
+      if (!isRecoveryEmailVerified(recoveryEmail)) {
+        alert('Verify your recovery email before continuing.');
+        setRecoveryStatus('Verify this recovery email before signing in or signing up.', 'error');
         return;
       }
 
@@ -1221,6 +1405,9 @@
 
           if (normalizedRecoveryEmail) {
             nextRecord.recoveryEmail = normalizedRecoveryEmail;
+            nextRecord.recoveryEmailVerifiedAt = data && data.recoveryEmail === normalizedRecoveryEmail && data.recoveryEmailVerifiedAt
+              ? data.recoveryEmailVerifiedAt
+              : Date.now();
           }
 
           node.put(nextRecord);
@@ -1271,6 +1458,18 @@
         button.addEventListener('click', () => startOauth(button.dataset.provider || ''));
       });
       const usernameInput = document.getElementById('username');
+      const recoveryEmailInput = document.getElementById('recovery-email');
+      const sendRecoveryButton = document.getElementById('send-recovery-code');
+      const verifyRecoveryButton = document.getElementById('verify-recovery-code');
+      if (recoveryEmailInput) {
+        recoveryEmailInput.addEventListener('input', resetRecoveryVerification);
+      }
+      if (sendRecoveryButton) {
+        sendRecoveryButton.addEventListener('click', sendRecoveryVerificationCode);
+      }
+      if (verifyRecoveryButton) {
+        verifyRecoveryButton.addEventListener('click', verifyRecoveryCode);
+      }
       if (usernameInput) {
         try {
           usernameInput.focus({ preventScroll: true });
