@@ -56,17 +56,17 @@ describe('sign-in page', () => {
     assert.match(html, /PortalOAuth\.begin\(provider,/);
   });
 
-  it('requires verified recovery email before password sign-in or sign-up', async () => {
+  it('keeps recovery email optional while offering verification', async () => {
     const html = await readFile(signInUrl, 'utf8');
-    assert.match(html, /<label for="recovery-email">Recovery email<\/label>/);
-    assert.match(html, /id="recovery-email"[\s\S]*required/);
+    assert.match(html, /<label for="recovery-email">Recovery email \(optional\)<\/label>/);
+    assert.doesNotMatch(html, /id="recovery-email"[\s\S]*required/);
     assert.match(html, /id="send-recovery-code"/);
     assert.match(html, /id="recovery-code"/);
     assert.match(html, /id="verify-recovery-code"/);
     assert.match(html, /mode:\s*'recovery-verification'/);
     assert.match(html, /mode:\s*'confirm-recovery-email'/);
-    assert.match(html, /isRecoveryEmailVerified\(recoveryEmail\)/);
+    assert.match(html, /const verifiedRecoveryEmail = recoveryEmail && isRecoveryEmailVerified\(recoveryEmail\)/);
+    assert.match(html, /Continuing without account recovery/);
     assert.match(html, /recoveryEmailVerifiedAt/);
-    assert.doesNotMatch(html, /Recovery email \(optional\)/);
   });
 });
