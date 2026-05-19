@@ -28,6 +28,16 @@ describe('phone holder system app', () => {
     assert.match(html, /3DVR Phone Holder System \| 3DVR Portal/);
     assert.match(html, /Stop holding the phone\. Start docking it\./);
     assert.match(html, /The 3DVR Nomad Clip/);
+    assert.match(html, /grip, stand, tripod, and extender/);
+    assert.match(html, /id="roadmap"/);
+    assert.match(html, /off-the-shelf base platform/);
+    assert.match(html, /Joby TelePod Mobile/);
+    assert.match(html, /Ulanzi MT70/);
+    assert.match(html, /Target geometry/);
+    assert.match(html, /Future workstation features/);
+    assert.match(html, /joystick-style phone controls/);
+    assert.match(html, /Control handle direction/);
+    assert.match(html, /The phone becomes the brain/);
     assert.match(html, /id="modes"/);
     assert.match(html, /id="path"/);
     assert.match(html, /class="device-render"/);
