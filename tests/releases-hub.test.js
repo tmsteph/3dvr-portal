@@ -24,6 +24,7 @@ describe('release hub backfill', () => {
     assert.match(html, /href="v0\.0\.46\.html">v0\.0\.46</);
     assert.match(html, /Week of May 18, 2026/);
     assert.match(html, /Guest identity cleanup/);
+    assert.match(html, /3dvr home grid/);
     assert.match(html, /href="v0\.0\.45\.html">v0\.0\.45</);
     assert.match(html, /Week of May 11, 2026/);
     assert.match(html, /billing plan selection/);
@@ -54,7 +55,7 @@ describe('release hub backfill', () => {
 
   it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
-      ['v0.0.46.html', /Week of May 18, 2026/, /Pure Gun media/i, /pull\/603/],
+      ['v0.0.46.html', /Week of May 18, 2026/, /Pure Gun media/i, /3dvr-web\/pull\/185/],
       ['v0.0.45.html', /Week of May 11, 2026/, /plan autoselect/i, /pull\/579/],
       ['v0.0.44.html', /Week of May 4, 2026/, /Video operations/i, /commit\/67c1e8f/],
       ['v0.0.43.html', /Week of May 4, 2026/, /1\.0\.1-beta\.2/, /href="v0\.0\.44\.html"/],
