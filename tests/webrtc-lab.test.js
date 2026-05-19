@@ -6,6 +6,7 @@ import { constants } from 'node:fs';
 const appDir = new URL('../webrtc-lab/', import.meta.url);
 const gunVideoDir = new URL('../gun-video-lab/', import.meta.url);
 const gunClipDir = new URL('../gun-clip-lab/', import.meta.url);
+const gunLiveDir = new URL('../gun-live-room/', import.meta.url);
 
 async function fileExists(path) {
   try {
@@ -157,5 +158,58 @@ describe('Gun Clip Lab app', () => {
     assert.ok(gunClipIndex < wellnessIndex, 'Gun Clip Lab should render before Wellness');
     assert.match(readme, /\[Gun Clip Lab\]\(https:\/\/3dvr-portal\.vercel\.app\/gun-clip-lab\/\)/);
     assert.match(videoHome, /href="\/gun-clip-lab\/"/);
+  });
+});
+
+describe('Gun Live Room app', () => {
+  it('ships a pure Gun live audio/video room experiment', async () => {
+    const indexUrl = new URL('index.html', gunLiveDir);
+    const stylesUrl = new URL('styles.css', gunLiveDir);
+    const appUrl = new URL('app.js', gunLiveDir);
+    const readmeUrl = new URL('README.md', gunLiveDir);
+
+    assert.equal(await fileExists(indexUrl), true, 'Gun Live Room index should exist');
+    assert.equal(await fileExists(stylesUrl), true, 'Gun Live Room styles should exist');
+    assert.equal(await fileExists(appUrl), true, 'Gun Live Room app script should exist');
+    assert.equal(await fileExists(readmeUrl), true, 'Gun Live Room README should exist');
+
+    const html = await readFile(indexUrl, 'utf8');
+    const js = await readFile(appUrl, 'utf8');
+    const readme = await readFile(readmeUrl, 'utf8');
+
+    assert.match(html, /3DVR Gun Live Room \| Portal/);
+    assert.match(html, /Pure Gun Room/);
+    assert.match(html, /Zoom-style, without WebRTC media/);
+    assert.match(html, /id="start-media"/);
+    assert.match(html, /id="start-live"/);
+    assert.match(html, /id="live-grid"/);
+    assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
+    assert.match(js, /ROOM_ROOT = '3dvr-gun-live-room'/);
+    assert.match(js, /canvas\.toDataURL\('image\/jpeg', quality\)/);
+    assert.match(js, /new MediaRecorder\(audioStream\)/);
+    assert.match(js, /audioRecorder\.start\(AUDIO_SLICE_MS\)/);
+    assert.match(js, /framesNode\.get\(localId\)\.put/);
+    assert.match(js, /audioNode\.get\(localId\)\.put/);
+    assert.doesNotMatch(js, /RTCPeerConnection/);
+    assert.match(readme, /without WebRTC media tracks/);
+    assert.match(readme, /3dvr-gun-live-room\/<room>\/audio\/<participantId>/);
+  });
+
+  it('registers the Gun Live Room beside the pure Gun experiments', async () => {
+    const portalHtml = await readFile(new URL('../index.html', appDir), 'utf8');
+    const readme = await readFile(new URL('../README.md', appDir), 'utf8');
+    const videoHome = await readFile(new URL('../portal.3dvr.tech/video/index.html', appDir), 'utf8');
+
+    const gunClipIndex = portalHtml.indexOf('>Gun Clip Lab<');
+    const gunLiveIndex = portalHtml.indexOf('>Gun Live Room<');
+    const wellnessIndex = portalHtml.indexOf('>Wellness<');
+
+    assert.ok(gunLiveIndex !== -1, 'Gun Live Room app card should be listed on the portal');
+    assert.ok(gunClipIndex !== -1, 'Gun Clip Lab app card should still be listed');
+    assert.ok(wellnessIndex !== -1, 'Wellness app card should still be listed');
+    assert.ok(gunClipIndex < gunLiveIndex, 'Gun Live Room should render after Gun Clip Lab');
+    assert.ok(gunLiveIndex < wellnessIndex, 'Gun Live Room should render before Wellness');
+    assert.match(readme, /\[Gun Live Room\]\(https:\/\/3dvr-portal\.vercel\.app\/gun-live-room\/\)/);
+    assert.match(videoHome, /href="\/gun-live-room\/"/);
   });
 });

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Gun Live Room | Portal</title>
+  <meta
+    name="description"
+    content="A pure Gun audio/video room experiment using synced image frames and audio chunks."
+  >
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <link rel="stylesheet" href="../style.css?v=gun-live-room">
+  <link rel="stylesheet" href="./styles.css?v=20260519">
+</head>
+<body class="gun-live-page">
+  <header class="live-header">
+    <nav class="live-nav" aria-label="Gun Live Room navigation">
+      <a href="../index.html">Portal</a>
+      <a href="/gun-video-lab/">Gun Video Lab</a>
+      <a href="/gun-clip-lab/">Gun AV Clip Lab</a>
+      <a href="/portal.3dvr.tech/video/">Video Home</a>
+    </nav>
+    <section class="hero-grid">
+      <div>
+        <p class="eyebrow">Pure Gun Room</p>
+        <h1>Zoom-style, without WebRTC media.</h1>
+        <p>
+          A rough live room where Gun carries small camera frames and short microphone chunks.
+          It keeps the proven clip lab intact and tests the pure Gun path directly.
+        </p>
+      </div>
+      <aside class="lab-note">
+        <strong>Experimental</strong>
+        <span>Expect latency and browser autoplay limits. This is for proving the transport, not replacing a real SFU.</span>
+      </aside>
+    </section>
+  </header>
+
+  <main class="live-shell">
+    <section class="room-panel" aria-labelledby="room-title">
+      <div>
+        <p class="eyebrow">Room</p>
+        <h2 id="room-title">Start a Gun room</h2>
+      </div>
+      <form id="room-form" class="room-form">
+        <label for="display-name">Name</label>
+        <input id="display-name" name="displayName" type="text" maxlength="40" autocomplete="name">
+        <label for="room-id">Room</label>
+        <div class="room-row">
+          <input id="room-id" name="roomId" type="text" maxlength="80" required>
+          <button type="button" id="random-room">Random</button>
+        </div>
+        <div class="settings-grid">
+          <label for="frame-rate">FPS</label>
+          <input id="frame-rate" name="frameRate" type="number" min="0.2" max="3" step="0.2" value="1">
+          <label for="quality">Quality</label>
+          <input id="quality" name="quality" type="number" min="0.15" max="0.7" step="0.05" value="0.32">
+        </div>
+        <div class="button-row">
+          <button type="submit" class="primary">Join room</button>
+          <button type="button" id="copy-link">Copy link</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="controls-panel" aria-label="Live controls">
+      <button type="button" id="start-media" class="primary">Start camera and mic</button>
+      <button type="button" id="start-live" disabled>Go live through Gun</button>
+      <button type="button" id="toggle-mic" disabled>Mute mic</button>
+      <button type="button" id="toggle-camera" disabled>Hide camera</button>
+      <button type="button" id="stop-live" disabled>Stop live</button>
+      <p id="status-line" class="status-line" role="status">Join a room, then start camera and mic.</p>
+    </section>
+
+    <section class="live-grid" id="live-grid" aria-label="Gun live tiles">
+      <article class="live-tile local-tile">
+        <video id="local-video" autoplay muted playsinline></video>
+        <canvas id="capture-canvas" width="160" height="90" hidden></canvas>
+        <div class="tile-label">
+          <strong id="local-label">You</strong>
+          <span id="local-state">Offline</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="metrics-panel" aria-labelledby="metrics-title">
+      <div>
+        <p class="eyebrow">Transport</p>
+        <h2 id="metrics-title">Gun live stats</h2>
+      </div>
+      <dl>
+        <div><dt>Frames sent</dt><dd id="frames-sent">0</dd></div>
+        <div><dt>Frames received</dt><dd id="frames-received">0</dd></div>
+        <div><dt>Audio chunks sent</dt><dd id="audio-sent">0</dd></div>
+        <div><dt>Audio chunks received</dt><dd id="audio-received">0</dd></div>
+      </dl>
+    </section>
+
+    <section class="debug-panel" aria-labelledby="debug-title">
+      <div>
+        <p class="eyebrow">Events</p>
+        <h2 id="debug-title">Room log</h2>
+      </div>
+      <ol id="event-log" aria-live="polite"></ol>
+    </section>
+  </main>
+
+  <footer class="live-footer">
+    <p>Pure Gun live rooms send tiny frames and short audio chunks through the graph. Use the clip lab when you need a more reliable audio/video handoff.</p>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
