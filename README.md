@@ -70,6 +70,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Notes](https://3dvr-portal.vercel.app/notes/)
 - [Pocket Workstation](https://3dvr-portal.vercel.app/pocket-workstation/)
 - [Phone Holder System](https://3dvr-portal.vercel.app/phone-holder-system/)
+- [Nomad Clip Field Test](https://3dvr-portal.vercel.app/nomad-clip-field-test/)
 - [Open Source](https://3dvr-portal.vercel.app/open-source/)
 - [WebRTC Lab](https://3dvr-portal.vercel.app/webrtc-lab/)
 - [Gun Video Lab](https://3dvr-portal.vercel.app/gun-video-lab/)
