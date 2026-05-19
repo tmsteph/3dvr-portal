@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.45 (Week of May 11, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.44.html">Previous release</a>
+    <a class="release-nav-link" href="v0.0.46.html">Next release</a>
+  </nav>
+  <h1>Release v0.0.45</h1>
+  <div class="tag">Week of May 11, 2026</div>
+  <div class="release-summary">
+    <p>This backfilled weekly release is mostly product cleanup: fewer confusing entry points, clearer billing, and sharper portal apps.</p>
+    <ul class="release-summary-list">
+      <li><strong>Portal surface:</strong> issue launcher, footer, homepage lanes, and app search were simplified so the homepage had less clutter.</li>
+      <li><strong>Storefronts:</strong> Victor sample storefront work moved from internal sample toward customer-facing products.</li>
+      <li><strong>Learning and positioning:</strong> human-scale technology, attention visualization, and education suite pages expanded the public learning layer.</li>
+      <li><strong>Billing and auth:</strong> plan autoselect, recovery email, recovery tests, and OAuth placement all made account setup less awkward.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Merged PRs</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/562">#562 Make the issue launcher footer-friendly by default</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/563">#563 Move the footer feedback control inside the page footer</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/564">#564 Compact the footer issue launcher button</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/565">#565 Hide homepage system layers</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/566">#566 Hide homepage launcher lanes</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/567">#567 Add homepage app search shortcut</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/568">#568 Add Victor dropship sample storefront</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/569">#569 Fix Vercel function count</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/570">#570 Update Victor storefront for customer-facing products</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/571">#571 Add human-scale technology guide</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/572">#572 Tighten notes account UX</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/573">#573 Add agent sales command center</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/574">#574 Document Termux GitHub push workflow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/575">#575 Add attention visualized lesson</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/576">#576 Add education suite web design lab</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/577">#577 Remove portal billing explainer copy</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/578">#578 Simplify billing hero copy</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/579">#579 Auto-select billing plans from links</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/580">#580 Add verified recovery email to signup</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/581">#581 Add recovery sign-in end-to-end coverage</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/582">#582 Make recovery email optional</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/583">#583 Move OAuth below submit</a></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Issue Pulse</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/407">#407 Trial duration</a> and <a href="https://github.com/tmsteph/3dvr-portal/issues/406">#406 Welcome email</a> stayed relevant to signup expectations.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/524">#524 Contacts and CRM join contacts</a> remained the main CRM cleanup thread.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/361">#361 Stripe available balance</a> stayed open for finance visibility.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

@@ -15,14 +15,22 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the retroactive milestones through v0.0.43', async () => {
+  it('updates the release index with the weekly milestones through v0.0.46', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Latest Release/);
-    assert.match(html, /href="v0\.0\.43\.html">v0\.0\.43</);
+    assert.match(html, /href="v0\.0\.46\.html">v0\.0\.46</);
+    assert.match(html, /Week of May 18, 2026/);
+    assert.match(html, /Guest identity cleanup/);
+    assert.match(html, /href="v0\.0\.45\.html">v0\.0\.45</);
+    assert.match(html, /Week of May 11, 2026/);
+    assert.match(html, /billing plan selection/);
+    assert.match(html, /href="v0\.0\.44\.html">v0\.0\.44</);
     assert.match(html, /Week of May 4, 2026/);
+    assert.match(html, /Video meeting operations/);
+    assert.match(html, /href="v0\.0\.43\.html">v0\.0\.43</);
     assert.match(html, /1\.0\.1-beta\.2/);
     assert.match(html, /href="v0\.0\.42\.html">v0\.0\.42</);
     assert.match(html, /Week of April 20, 2026/);
@@ -44,9 +52,12 @@ describe('release hub backfill', () => {
     assert.match(html, /href="v0\.0\.36\.html"/);
   });
 
-  it('ships the new milestone pages with coherent navigation and summaries', async () => {
+  it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
-      ['v0.0.43.html', /Week of May 4, 2026/, /1\.0\.1-beta\.2/, /aria-disabled="true"/],
+      ['v0.0.46.html', /Week of May 18, 2026/, /Pure Gun media/i, /pull\/603/],
+      ['v0.0.45.html', /Week of May 11, 2026/, /plan autoselect/i, /pull\/579/],
+      ['v0.0.44.html', /Week of May 4, 2026/, /Video operations/i, /commit\/67c1e8f/],
+      ['v0.0.43.html', /Week of May 4, 2026/, /1\.0\.1-beta\.2/, /href="v0\.0\.44\.html"/],
       ['v0.0.42.html', /Week of April 20, 2026/, /pre-release notes/i, /aria-disabled="true"/],
       ['v0.0.36.html', /Late January 2026/, /social planning/i, /href="v0\.0\.37\.html"/],
       ['v0.0.37.html', /Mid February 2026/, /Money Autopilot/i, /href="v0\.0\.38\.html"/],
