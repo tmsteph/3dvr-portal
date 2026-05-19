@@ -28,6 +28,7 @@ describe('release hub backfill', () => {
     assert.match(html, /href="v0\.0\.45\.html">v0\.0\.45</);
     assert.match(html, /Week of May 11, 2026/);
     assert.match(html, /billing plan selection/);
+    assert.match(html, /agent worker scaling/);
     assert.match(html, /href="v0\.0\.44\.html">v0\.0\.44</);
     assert.match(html, /Week of May 4, 2026/);
     assert.match(html, /Video meeting operations/);
@@ -56,8 +57,8 @@ describe('release hub backfill', () => {
   it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
       ['v0.0.46.html', /Week of May 18, 2026/, /Pure Gun media/i, /3dvr-web\/pull\/185/],
-      ['v0.0.45.html', /Week of May 11, 2026/, /plan autoselect/i, /pull\/579/],
-      ['v0.0.44.html', /Week of May 4, 2026/, /Video operations/i, /commit\/67c1e8f/],
+      ['v0.0.45.html', /Week of May 11, 2026/, /tenant-aware task scheduling/i, /3dvr-agent\/commit\/ec7c967/],
+      ['v0.0.44.html', /Week of May 4, 2026/, /3dvr-agent outreach phases/i, /3dvr-agent\/pull\/49/],
       ['v0.0.43.html', /Week of May 4, 2026/, /1\.0\.1-beta\.2/, /href="v0\.0\.44\.html"/],
       ['v0.0.42.html', /Week of April 20, 2026/, /pre-release notes/i, /aria-disabled="true"/],
       ['v0.0.36.html', /Late January 2026/, /social planning/i, /href="v0\.0\.37\.html"/],
