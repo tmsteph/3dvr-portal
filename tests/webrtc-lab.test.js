@@ -122,7 +122,8 @@ describe('Gun Clip Lab app', () => {
     const readme = await readFile(readmeUrl, 'utf8');
 
     assert.match(html, /3DVR Gun Clip Lab \| Portal/);
-    assert.match(html, /Gun Clip Store/);
+    assert.match(html, /Gun AV Clip Store/);
+    assert.match(html, /Record audio and video into Gun/);
     assert.match(html, /id="camera-record"/);
     assert.match(html, /id="screen-record"/);
     assert.match(html, /id="clip-player"/);
@@ -130,10 +131,13 @@ describe('Gun Clip Lab app', () => {
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/sea\.js"><\/script>/);
     assert.match(js, /ROOM_ROOT = '3dvr-gun-clip-lab'/);
     assert.match(js, /new MediaRecorder\(media\)/);
+    assert.match(js, /getUserMedia\(\{ video: true, audio: true \}\)/);
+    assert.match(js, /getDisplayMedia\(\{ video: true, audio: true \}\)/);
     assert.match(js, /reader\.readAsDataURL\(blob\)/);
     assert.match(js, /data:video\/webm/);
     assert.match(js, /clipNode\.put/);
     assert.match(readme, /examples\/basic\/video\.html/);
+    assert.match(readme, /audio\/video clips/);
     assert.match(readme, /3dvr-gun-clip-lab\/<room>\/latestClip/);
   });
 
