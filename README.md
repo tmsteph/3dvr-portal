@@ -58,6 +58,10 @@ The portal is live and hosted at:
 
 You can sign up, join the chat, and start contributing right now — no downloads or installs required.
 
+Planning docs:
+
+- [Guest account migration plan](docs/guest-account-migration-plan.md)
+
 ### Install individual apps
 
 Most of the portal experiences now ship with their own installable manifests, so you can add just the tools you need as standalones on your device:
