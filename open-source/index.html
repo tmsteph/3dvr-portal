@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Source Field Guide | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="A 3DVR field guide to open source software, Linux, browsers, creative tools, hardware, and Open Source Ecology."
+  >
+  <link rel="stylesheet" href="../style.css?v=open-source-field-guide">
+  <link rel="stylesheet" href="./styles.css?v=20260519">
+</head>
+<body class="open-source-page">
+  <nav class="opensource-nav" aria-label="Open source navigation">
+    <a href="../index.html">Portal</a>
+    <a href="#software">Software</a>
+    <a href="#creative">Creative</a>
+    <a href="#hardware">Hardware</a>
+    <a href="#ecology">Ecology</a>
+  </nav>
+
+  <header class="open-hero">
+    <section class="hero-copy" aria-labelledby="open-source-title">
+      <p class="eyebrow">3DVR Field Guide</p>
+      <h1 id="open-source-title">Open source is shared infrastructure.</h1>
+      <p>
+        It is not just free apps. It is a way to publish the recipe, inspect the tool, repair the system,
+        teach the next person, and keep civilization from depending on black boxes.
+      </p>
+      <div class="hero-actions">
+        <a class="action primary" href="#map">Explore the map</a>
+        <a class="action" href="#gaps">See gaps</a>
+      </div>
+    </section>
+
+    <section class="system-board" aria-label="Open source system map">
+      <div class="node node-os">Linux</div>
+      <div class="node node-browser">Browsers</div>
+      <div class="node node-art">Art</div>
+      <div class="node node-hardware">Hardware</div>
+      <div class="node node-ecology">Ecology</div>
+      <div class="node node-cad">CAD</div>
+      <div class="center-node">Commons</div>
+    </section>
+  </header>
+
+  <main>
+    <section class="principles" id="map" aria-labelledby="map-title">
+      <div class="section-intro">
+        <p class="eyebrow">Mental Model</p>
+        <h2 id="map-title">The source is the recipe.</h2>
+        <p>
+          When the source is open, people can study it, fix it, fork it, translate it, package it,
+          audit it, and adapt it to places the original team never imagined.
+        </p>
+      </div>
+      <div class="cards three-up">
+        <article class="guide-card">
+          <span class="kicker">Freedom</span>
+          <h3>Use and study</h3>
+          <p>People can run the tool and inspect how it works instead of trusting marketing claims.</p>
+        </article>
+        <article class="guide-card">
+          <span class="kicker">Repair</span>
+          <h3>Fix and share</h3>
+          <p>A bug can be patched by the community, not only by a vendor with a business reason to care.</p>
+        </article>
+        <article class="guide-card">
+          <span class="kicker">Resilience</span>
+          <h3>Fork and preserve</h3>
+          <p>If a project changes direction, the knowledge can keep living in another branch or community.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="stack-section" id="software" aria-labelledby="software-title">
+      <div class="section-intro">
+        <p class="eyebrow">Software Stack</p>
+        <h2 id="software-title">Debian, Linux, and browsers are the everyday layer.</h2>
+        <p>
+          Debian shows how a long-running volunteer operating system can become a foundation for servers,
+          desktops, embedded systems, and derivative distributions. Linux is the kernel layer underneath
+          much of modern infrastructure. Open browsers keep the web inspectable and portable.
+        </p>
+      </div>
+      <div class="resource-grid">
+        <a class="resource-card" href="https://www.debian.org/" target="_blank" rel="noopener">
+          <strong>Debian</strong>
+          <span>Universal operating system; a stable base for learning Linux and servers.</span>
+        </a>
+        <a class="resource-card" href="https://kernel.org/" target="_blank" rel="noopener">
+          <strong>Linux kernel</strong>
+          <span>The open kernel layer powering desktops, servers, phones, appliances, and clouds.</span>
+        </a>
+        <a class="resource-card" href="https://www.mozilla.org/firefox/" target="_blank" rel="noopener">
+          <strong>Firefox</strong>
+          <span>A browser path that keeps the web from becoming a single-engine monoculture.</span>
+        </a>
+        <a class="resource-card" href="https://www.chromium.org/chromium-projects/" target="_blank" rel="noopener">
+          <strong>Chromium</strong>
+          <span>The open browser project behind many Chromium-family browsers.</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="stack-section" id="creative" aria-labelledby="creative-title">
+      <div class="section-intro">
+        <p class="eyebrow">Creation Tools</p>
+        <h2 id="creative-title">Artists need serious open tools too.</h2>
+        <p>
+          The creative stack is already strong in places: Krita for painting, Blender for 3D, FreeCAD for
+          parametric design, and Ardour for audio production. The mission is not just “free alternatives.”
+          It is professional tools that respect ownership, learning, and long-term access.
+        </p>
+      </div>
+      <div class="cards tool-grid">
+        <a class="guide-card tool-card" href="https://krita.org/en/" target="_blank" rel="noopener">
+          <span class="kicker">Painting</span>
+          <h3>Krita</h3>
+          <p>Digital painting and 2D art without locking artists into a rented toolchain.</p>
+        </a>
+        <a class="guide-card tool-card" href="https://www.blender.org/" target="_blank" rel="noopener">
+          <span class="kicker">3D</span>
+          <h3>Blender</h3>
+          <p>Modeling, animation, rendering, compositing, video, scripting, and a deep add-on ecosystem.</p>
+        </a>
+        <a class="guide-card tool-card" href="https://www.freecad.org/" target="_blank" rel="noopener">
+          <span class="kicker">CAD</span>
+          <h3>FreeCAD</h3>
+          <p>Parametric CAD for repair parts, product prototypes, fixtures, and open hardware drawings.</p>
+        </a>
+        <a class="guide-card tool-card" href="https://ardour.org/" target="_blank" rel="noopener">
+          <span class="kicker">Audio</span>
+          <h3>Ardour</h3>
+          <p>A real open-source DAW path for recording, editing, mixing, and mastering audio and MIDI.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="gap-panel" id="gaps" aria-labelledby="gaps-title">
+      <div>
+        <p class="eyebrow">Where 3DVR Can Care</p>
+        <h2 id="gaps-title">Some categories still need a better open default.</h2>
+      </div>
+      <div class="gap-list">
+        <article>
+          <strong>DAW</strong>
+          <span>Open audio exists, but musicians still need smoother onboarding, plugin trust, templates, and hardware bundles.</span>
+        </article>
+        <article>
+          <strong>CAD</strong>
+          <span>Open CAD needs better product-design workflows, manufacturing handoff, and beginner-to-builder education.</span>
+        </article>
+        <article>
+          <strong>Phones</strong>
+          <span>Open mobile needs better daily-driver reliability, repairability, radio transparency, app compatibility, and UX polish.</span>
+        </article>
+        <article>
+          <strong>Creative computers</strong>
+          <span>Artists need machines shipped with Linux, pen/tablet support, color workflow, audio, 3D, and export paths already tuned.</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="stack-section" id="hardware" aria-labelledby="hardware-title">
+      <div class="section-intro">
+        <p class="eyebrow">Hardware</p>
+        <h2 id="hardware-title">Open hardware is harder, but it matters.</h2>
+        <p>
+          Software can be copied nearly for free. Hardware has supply chains, chips, tooling, certification,
+          firmware, repairs, and inventory. That is why openness in hardware often arrives in layers:
+          repair docs, schematics, open firmware, replaceable modules, Linux support, and community ports.
+        </p>
+      </div>
+      <div class="resource-grid">
+        <a class="resource-card" href="https://frame.work/" target="_blank" rel="noopener">
+          <strong>Framework</strong>
+          <span>Repairable laptops and modular thinking; useful model for user-serviceable computers.</span>
+        </a>
+        <a class="resource-card" href="https://support.system76.com/articles/open-firmware-systems/" target="_blank" rel="noopener">
+          <strong>System76 Open Firmware</strong>
+          <span>Coreboot and open embedded controller work on supported systems.</span>
+        </a>
+        <a class="resource-card" href="https://pine64.org/devices/pinephone/" target="_blank" rel="noopener">
+          <strong>PINE64 PinePhone</strong>
+          <span>A community Linux phone platform for open mobile operating systems.</span>
+        </a>
+        <a class="resource-card" href="https://www.fairphone.com/" target="_blank" rel="noopener">
+          <strong>Fairphone</strong>
+          <span>Repairability and ethical supply-chain pressure, even when the full stack is not open.</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="ecology-section" id="ecology" aria-labelledby="ecology-title">
+      <div class="section-intro">
+        <p class="eyebrow">Beyond Computers</p>
+        <h2 id="ecology-title">Open source ecology turns tools into civilization patterns.</h2>
+        <p>
+          Open Source Ecology asks what happens when farming, housing, machines, energy, and fabrication
+          are documented as shared designs instead of closed products. The idea is bigger than software:
+          people should be able to learn how their world is made.
+        </p>
+      </div>
+      <div class="ecology-grid">
+        <a class="ecology-card" href="https://www.opensourceecology.org/" target="_blank" rel="noopener">
+          <strong>Open Source Ecology</strong>
+          <span>Open blueprints for machines, housing, fabrication, and a more collaborative productive economy.</span>
+        </a>
+        <a class="ecology-card" href="https://wiki.opensourceecology.org/" target="_blank" rel="noopener">
+          <strong>OSE Wiki</strong>
+          <span>Documentation, prototypes, and development notes for the Global Village Construction Set idea.</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="practice-section" aria-labelledby="practice-title">
+      <div class="section-intro">
+        <p class="eyebrow">3DVR Practice</p>
+        <h2 id="practice-title">Use open source like a craft path.</h2>
+      </div>
+      <ol class="practice-list">
+        <li><strong>Install one open tool.</strong><span>Debian, Krita, Blender, FreeCAD, or Ardour.</span></li>
+        <li><strong>Make one thing.</strong><span>A note, sketch, model, repair part, sample pack, or local server.</span></li>
+        <li><strong>Document the recipe.</strong><span>Write the steps so another person can repeat the work.</span></li>
+        <li><strong>Share upstream when ready.</strong><span>File a bug, improve docs, publish a template, or fund maintainers.</span></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="opensource-footer">
+    <p>Open source is how 3DVR connects learning, repair, software, hardware, and ecological resilience.</p>
+  </footer>
+</body>
+</html>
