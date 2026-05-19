@@ -1377,6 +1377,83 @@
       });
     }
 
+    function sanitizeGunRecord(record) {
+      if (!record || typeof record !== 'object') {
+        return null;
+      }
+      const cleaned = { ...record };
+      delete cleaned._;
+      return cleaned;
+    }
+
+    function copyGunCollection(source, target, { fields = [], nestedFields = [] } = {}) {
+      return new Promise(resolve => {
+        if (!source || typeof source.once !== 'function' || !target || typeof target.get !== 'function') {
+          resolve(0);
+          return;
+        }
+
+        let copied = 0;
+        let resolved = false;
+
+        function finish() {
+          if (resolved) return;
+          resolved = true;
+          resolve(copied);
+        }
+
+        try {
+          source.once(snapshot => {
+            const records = snapshot && typeof snapshot === 'object' ? Object.entries(snapshot) : [];
+            records.forEach(([id, record]) => {
+              if (!id || id === '_') return;
+              const cleaned = sanitizeGunRecord(record);
+              if (!cleaned) return;
+
+              const targetRecord = target.get(id);
+              const payload = {};
+              fields.forEach(field => {
+                if (Object.prototype.hasOwnProperty.call(cleaned, field)) {
+                  payload[field] = cleaned[field];
+                }
+              });
+              if (Object.keys(payload).length > 0) {
+                targetRecord.put(payload);
+              }
+              nestedFields.forEach(field => {
+                if (Object.prototype.hasOwnProperty.call(cleaned, field)) {
+                  targetRecord.get(field).put(cleaned[field]);
+                }
+              });
+              copied += 1;
+            });
+            finish();
+          });
+        } catch (err) {
+          console.warn('Unable to copy guest collection', err);
+          finish();
+        }
+
+        setTimeout(finish, 1500);
+      });
+    }
+
+    function migrateGuestNotes(guestProfile) {
+      if (!guestProfile || typeof guestProfile.get !== 'function' || !user || typeof user.get !== 'function') {
+        return Promise.resolve();
+      }
+
+      const folderFields = ['name', 'createdAt', 'updatedAt'];
+      const noteFields = ['title', 'folder', 'createdAt', 'updatedAt'];
+      return Promise.all([
+        copyGunCollection(guestProfile.get('noteFolders'), user.get('noteFolders'), { fields: folderFields }),
+        copyGunCollection(guestProfile.get('notes'), user.get('notes'), {
+          fields: noteFields,
+          nestedFields: ['content']
+        })
+      ]);
+    }
+
     function migrateGuestProgress() {
       return new Promise(resolve => {
         const guestId = localStorage.getItem('guestId');
@@ -1387,7 +1464,7 @@
         }
 
         const guestProfile = gun.get('3dvr-guests').get(guestId);
-        guestProfile.once(snapshot => {
+        guestProfile.once(async snapshot => {
           const guestName = snapshot && typeof snapshot.username === 'string'
             ? snapshot.username.trim()
             : '';
@@ -1407,6 +1484,11 @@
             });
           }
 
+          try {
+            await migrateGuestNotes(guestProfile);
+          } catch (err) {
+            console.warn('Unable to migrate guest notes', err);
+          }
           clearGuestSession();
           resolve();
         });

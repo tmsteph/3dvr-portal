@@ -81,6 +81,9 @@ describe('sign-in page', () => {
     assert.match(html, /Save your guest progress/);
     assert.match(html, /Create account and keep progress/);
     assert.match(html, /migrateGuestProgress\(\)/);
+    assert.match(html, /function migrateGuestNotes\(guestProfile\)/);
+    assert.match(html, /guestProfile\.get\('notes'\)/);
+    assert.match(html, /user\.get\('notes'\)/);
     assert.match(html, /Stay in guest mode/);
   });
 });
