@@ -80,10 +80,22 @@ describe('sign-in page', () => {
     assert.match(html, /params\.get\('upgrade'\) === 'guest'/);
     assert.match(html, /Save your guest progress/);
     assert.match(html, /Create account and keep progress/);
-    assert.match(html, /migrateGuestProgress\(\)/);
+    assert.match(html, /migrateGuestProgress\(\{ isNewAccount, alias, userPubKey: userPub \}\)/);
     assert.match(html, /function migrateGuestNotes\(guestProfile\)/);
     assert.match(html, /guestProfile\.get\('notes'\)/);
     assert.match(html, /user\.get\('notes'\)/);
     assert.match(html, /Stay in guest mode/);
+  });
+
+  it('runs the guest data fast path only for newly created accounts', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /finishLogin\(username, alias, password, verifiedRecoveryEmail, \{ isNewAccount: true \}\)/);
+    assert.match(html, /finishLogin\(username, alias, password, verifiedRecoveryEmail, \{ isNewAccount: false \}\)/);
+    assert.match(html, /function migrateNewGuestAccountData\(guestProfile, \{ guestId, alias \}\)/);
+    assert.match(html, /guestProfile\.get\('contacts'\)/);
+    assert.match(html, /user\.get\('contacts'\)/);
+    assert.match(html, /pocketWorkstation'\)\.get\('users'\)/);
+    assert.match(html, /guestAccountMigrations/);
+    assert.match(html, /guestIdentityLinks/);
   });
 });

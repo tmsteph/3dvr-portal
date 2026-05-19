@@ -1233,7 +1233,7 @@
 
       if (gunIsStub) {
         console.warn('Gun.js unavailable; storing credentials locally.');
-        finishLogin(username, alias, password, verifiedRecoveryEmail);
+        finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: true });
         return;
       }
 
@@ -1269,7 +1269,7 @@
                   alert("⚠️ Auth failed after creating account. Please try again.");
                 } else {
                   console.log("✅ Authenticated after account creation.");
-                  finishLogin(username, alias, password, verifiedRecoveryEmail);
+                  finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: true });
                 }
               });
             }, 500);
@@ -1277,12 +1277,12 @@
 
         } else {
           console.log("✅ Logged in existing user.");
-          finishLogin(username, alias, password, verifiedRecoveryEmail);
+          finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: false });
         }
       });
     }
 
-    function finishLogin(username, alias, password, recoveryEmail = '') {
+    function finishLogin(username, alias, password, recoveryEmail = '', { isNewAccount = false } = {}) {
       localStorage.setItem('signedIn', 'true');
       localStorage.setItem('username', username);
       localStorage.setItem('alias', alias);
@@ -1307,7 +1307,7 @@
         user.get('username').put(username);
       }
       localStorage.removeItem('guest');
-      migrateGuestProgress()
+      migrateGuestProgress({ isNewAccount, alias, userPubKey: userPub })
         .catch(err => {
           console.error('Guest migration failed', err);
         })
@@ -1386,7 +1386,7 @@
       return cleaned;
     }
 
-    function copyGunCollection(source, target, { fields = [], nestedFields = [] } = {}) {
+    function copyGunCollection(source, target, { fields = [], nestedFields = [], copyAllFields = false, metadata = null } = {}) {
       return new Promise(resolve => {
         if (!source || typeof source.once !== 'function' || !target || typeof target.get !== 'function') {
           resolve(0);
@@ -1411,12 +1411,16 @@
               if (!cleaned) return;
 
               const targetRecord = target.get(id);
-              const payload = {};
+              const payload = copyAllFields ? { ...cleaned } : {};
+              delete payload._;
               fields.forEach(field => {
                 if (Object.prototype.hasOwnProperty.call(cleaned, field)) {
                   payload[field] = cleaned[field];
                 }
               });
+              if (metadata && Object.keys(payload).length > 0) {
+                Object.assign(payload, metadata);
+              }
               if (Object.keys(payload).length > 0) {
                 targetRecord.put(payload);
               }
@@ -1438,6 +1442,14 @@
       });
     }
 
+    function migrationMetadata(namespace, guestId) {
+      return {
+        migratedFromGuestId: guestId,
+        migratedAt: Date.now(),
+        migrationNamespace: namespace
+      };
+    }
+
     function migrateGuestNotes(guestProfile) {
       if (!guestProfile || typeof guestProfile.get !== 'function' || !user || typeof user.get !== 'function') {
         return Promise.resolve();
@@ -1454,7 +1466,53 @@
       ]);
     }
 
-    function migrateGuestProgress() {
+    function migrateNewGuestAccountData(guestProfile, { guestId, alias }) {
+      if (!guestProfile || typeof guestProfile.get !== 'function' || !user || typeof user.get !== 'function') {
+        return Promise.resolve();
+      }
+
+      const tasks = [];
+      const contactsMetadata = migrationMetadata('contacts', guestId);
+      const guestContacts = guestProfile.get('contacts');
+      tasks.push(copyGunCollection(guestContacts, user.get('contacts'), {
+        copyAllFields: true,
+        metadata: contactsMetadata
+      }));
+      tasks.push(copyGunCollection(guestContacts.get('contacts'), user.get('contacts'), {
+        copyAllFields: true,
+        metadata: contactsMetadata
+      }));
+
+      const normalizedAlias = String(alias || '').trim().toLowerCase();
+      if (normalizedAlias && portalRoot && typeof portalRoot.get === 'function') {
+        const pocketRoot = portalRoot.get('pocketWorkstation').get('users');
+        const pocketSource = pocketRoot.get(guestId);
+        const pocketTarget = pocketRoot.get(`alias-${normalizedAlias}`);
+        ['notes', 'commands', 'projects'].forEach(type => {
+          tasks.push(copyGunCollection(pocketSource.get(type), pocketTarget.get(type), {
+            copyAllFields: true,
+            metadata: migrationMetadata(`pocketWorkstation.${type}`, guestId)
+          }));
+        });
+
+        portalRoot.get('guestAccountMigrations').get(normalizedAlias).get(guestId).put({
+          guestId,
+          alias: normalizedAlias,
+          mode: 'new-account-fast-path',
+          migratedAt: Date.now()
+        });
+        portalRoot.get('guestIdentityLinks').get(guestId).put({
+          guestId,
+          alias: normalizedAlias,
+          linkedAt: Date.now(),
+          reason: 'new-account-fast-path'
+        });
+      }
+
+      return Promise.all(tasks);
+    }
+
+    function migrateGuestProgress({ isNewAccount = false, alias = '' } = {}) {
       return new Promise(resolve => {
         const guestId = localStorage.getItem('guestId');
         if (!guestId) {
@@ -1488,6 +1546,13 @@
             await migrateGuestNotes(guestProfile);
           } catch (err) {
             console.warn('Unable to migrate guest notes', err);
+          }
+          if (isNewAccount) {
+            try {
+              await migrateNewGuestAccountData(guestProfile, { guestId, alias });
+            } catch (err) {
+              console.warn('Unable to run new-account guest migration', err);
+            }
           }
           clearGuestSession();
           resolve();
