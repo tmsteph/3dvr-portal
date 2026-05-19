@@ -6,6 +6,7 @@
   <title>📝 3DVR Notes</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
   <script src="/pwa-install.js" defer></script>
   <link rel="stylesheet" href="../style.css?v=notes-refresh-20240204">
   <link rel="stylesheet" href="./styles.css?v=notes-ux-20260514">
@@ -236,15 +237,84 @@
 
     const gun = gunContext.gun;
 
+    if (window.AuthIdentity && typeof window.AuthIdentity.syncStorageFromSharedIdentity === 'function') {
+      try {
+        window.AuthIdentity.syncStorageFromSharedIdentity();
+      } catch (err) {
+        console.warn('Failed to sync shared identity before loading notes', err);
+      }
+    }
+
     const portalRoot = gun && typeof gun.get === 'function'
       ? gun.get('3dvr-portal')
       : createLocalGunNodeStub();
 
-    // Notes now live under 3dvr-portal/notes with folders in 3dvr-portal/noteFolders to align with
-    // the unified portal workspace graph. Legacy simple-notes/simple-folders nodes are still observed
-    // so older clients remain compatible while the data migrates forward.
-    const foldersPrimary = portalRoot.get('noteFolders');
-    const notesPrimary = portalRoot.get('notes');
+    function normalizeIdentityKey(value = '') {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function ensureGuestIdentity() {
+      const legacyId = localStorage.getItem('userId');
+      if (legacyId && !localStorage.getItem('guestId')) {
+        localStorage.setItem('guestId', legacyId);
+      }
+      let guestId = localStorage.getItem('guestId');
+      if (!guestId) {
+        guestId = `guest_${Math.random().toString(36).slice(2, 11)}`;
+        localStorage.setItem('guestId', guestId);
+      }
+      localStorage.setItem('guest', 'true');
+      if (!localStorage.getItem('guestDisplayName')) {
+        localStorage.setItem('guestDisplayName', 'Guest');
+      }
+      return guestId;
+    }
+
+    function resolveNotesWorkspace() {
+      const signedIn = localStorage.getItem('signedIn') === 'true';
+      const alias = normalizeIdentityKey(localStorage.getItem('alias'));
+      const userPub = normalizeIdentityKey(localStorage.getItem('userPubKey'));
+      const activeUser = gunContext.user;
+      const userHasSession = Boolean(activeUser && activeUser.is && typeof activeUser.get === 'function');
+
+      if (signedIn && userHasSession) {
+        return {
+          mode: 'user',
+          key: userPub || alias || 'gun-user',
+          folders: activeUser.get('noteFolders'),
+          notes: activeUser.get('notes')
+        };
+      }
+
+      if (signedIn && (userPub || alias)) {
+        const userKey = userPub || alias;
+        const userRoot = portalRoot.get('notesUsers').get(userKey);
+        return {
+          mode: 'user',
+          key: userKey,
+          folders: userRoot.get('noteFolders'),
+          notes: userRoot.get('notes')
+        };
+      }
+
+      const guestId = ensureGuestIdentity();
+      const guestRoot = gun.get('3dvr-guests').get(guestId);
+      return {
+        mode: 'guest',
+        key: guestId,
+        folders: guestRoot.get('noteFolders'),
+        notes: guestRoot.get('notes')
+      };
+    }
+
+    const notesWorkspace = resolveNotesWorkspace();
+    const foldersPrimary = notesWorkspace.folders;
+    const notesPrimary = notesWorkspace.notes;
+
+    // Keep the old shared note paths as read-only legacy sources so existing data can mirror forward
+    // without continuing to write new personal notes into a shared bucket.
+    const foldersSharedLegacy = portalRoot.get('noteFolders');
+    const notesSharedLegacy = portalRoot.get('notes');
 
     const foldersLegacy = gun && typeof gun.get === 'function'
       ? gun.get('simple-folders')
@@ -258,8 +328,10 @@
       return sources.filter((source, index) => source && sources.indexOf(source) === index);
     }
 
-    const folderSources = uniqueSources([foldersPrimary, foldersLegacy]);
-    const noteSources = uniqueSources([notesPrimary, notesLegacy]);
+    const folderSources = uniqueSources([foldersPrimary]);
+    const noteSources = uniqueSources([notesPrimary]);
+    const folderReadSources = uniqueSources([foldersPrimary, foldersSharedLegacy, foldersLegacy]);
+    const noteReadSources = uniqueSources([notesPrimary, notesSharedLegacy, notesLegacy]);
 
     const primaryFolderSource = folderSources[0];
     const primaryNoteSource = noteSources[0];
@@ -325,6 +397,10 @@
           ref.put(null);
         }
       });
+    }
+
+    function sourcesForExistingRecord(refs, writeSources, id) {
+      return uniqueSources([refs.get(id), ...writeSources]);
     }
 
     const folderList = document.getElementById('folders');
@@ -598,7 +674,7 @@
       }
     }
 
-    folderSources.forEach((source) => {
+    folderReadSources.forEach((source) => {
       if (!source || typeof source.map !== 'function') {
         return;
       }
@@ -652,7 +728,7 @@
       }, 750);
     }
 
-    folderSources.forEach(registerFolderSnapshot);
+    folderReadSources.forEach(registerFolderSnapshot);
     if (pendingFolderSnapshots === 0) {
       maybeSeedDefaultFolder();
     }
@@ -741,7 +817,7 @@
       deleteBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         if (confirm('Delete this space and its notes?')) {
-          removeFromSources(folderSources, id, {
+          removeFromSources(sourcesForExistingRecord(folderSourceRefs, folderSources, id), id, {
             onPrimaryAck: (ack) => {
               if (ack && ack.err) {
                 console.error('Failed to delete space', ack.err);
@@ -798,7 +874,7 @@
     function removeNotesInFolder(folderId) {
       noteCache.forEach((note, id) => {
         if (note.folder === folderId) {
-          removeFromSources(noteSources, id, {
+          removeFromSources(sourcesForExistingRecord(noteSourceRefs, noteSources, id), id, {
             onPrimaryAck: (ack) => {
               if (ack && ack.err) {
                 console.error('Failed to delete note', ack.err);
@@ -928,7 +1004,7 @@
       updateWorkspaceSummary();
     }
 
-    noteSources.forEach((source) => {
+    noteReadSources.forEach((source) => {
       if (!source || typeof source.map !== 'function') {
         return;
       }
@@ -976,7 +1052,7 @@
         deleteBtn.addEventListener('click', (event) => {
           event.stopPropagation();
           if (confirm('Delete this note?')) {
-            removeFromSources(noteSources, id, {
+            removeFromSources(sourcesForExistingRecord(noteSourceRefs, noteSources, id), id, {
               onPrimaryAck: (ack) => {
                 if (ack && ack.err) {
                   console.error('Failed to delete note', ack.err);
