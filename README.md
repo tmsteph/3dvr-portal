@@ -75,6 +75,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Gun Video Lab](https://3dvr-portal.vercel.app/gun-video-lab/)
 - [Gun Clip Lab](https://3dvr-portal.vercel.app/gun-clip-lab/)
 - [Gun Live Room](https://3dvr-portal.vercel.app/gun-live-room/)
+- [Gun Chunk Stream](https://3dvr-portal.vercel.app/gun-chunk-stream/)
 - [Chat](https://3dvr-portal.vercel.app/chat/)
 - [Calendar Hub](https://3dvr-portal.vercel.app/calendar/)
 - [Contacts](https://3dvr-portal.vercel.app/contacts/)

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Gun Chunk Stream | Portal</title>
+  <meta
+    name="description"
+    content="A pure Gun test that records local WebM chunks and uploads them while recording."
+  >
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <link rel="stylesheet" href="../style.css?v=gun-chunk-stream">
+  <link rel="stylesheet" href="./styles.css?v=20260519">
+</head>
+<body class="chunk-page">
+  <header class="chunk-header">
+    <nav class="chunk-nav" aria-label="Gun Chunk Stream navigation">
+      <a href="../index.html">Portal</a>
+      <a href="/gun-live-room/">Gun Live Room</a>
+      <a href="/gun-clip-lab/">Gun AV Clip Lab</a>
+      <a href="/portal.3dvr.tech/video/">Video Home</a>
+    </nav>
+    <section class="hero-grid">
+      <div>
+        <p class="eyebrow">Pure Gun Chunk Stream</p>
+        <h1>Record locally, upload while recording.</h1>
+        <p>
+          This test records audio and video in the browser, emits short WebM chunks, and syncs those chunks
+          through Gun while recording continues.
+        </p>
+      </div>
+      <aside class="lab-note">
+        <strong>Different from live frames</strong>
+        <span>MediaRecorder does the local encoding first. Gun only carries finished WebM chunks.</span>
+      </aside>
+    </section>
+  </header>
+
+  <main class="chunk-shell">
+    <section class="setup-panel" aria-labelledby="setup-title">
+      <div>
+        <p class="eyebrow">Room</p>
+        <h2 id="setup-title">Chunk room</h2>
+      </div>
+      <form id="room-form" class="room-form">
+        <label for="display-name">Name</label>
+        <input id="display-name" name="displayName" type="text" maxlength="40" autocomplete="name">
+        <label for="room-id">Room</label>
+        <div class="room-row">
+          <input id="room-id" name="roomId" type="text" maxlength="80" required>
+          <button type="button" id="random-room">Random</button>
+        </div>
+        <label for="camera-select">Camera</label>
+        <select id="camera-select" name="cameraSelect">
+          <option value="">Default camera</option>
+        </select>
+        <label for="mic-select">Microphone</label>
+        <select id="mic-select" name="micSelect">
+          <option value="">Default microphone</option>
+        </select>
+        <label for="chunk-size">Chunk length</label>
+        <select id="chunk-size" name="chunkSize">
+          <option value="1000">1 second</option>
+          <option value="2000" selected>2 seconds</option>
+          <option value="4000">4 seconds</option>
+        </select>
+        <div class="button-row">
+          <button type="submit" class="primary">Join room</button>
+          <button type="button" id="copy-link">Copy link</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="controls-panel" aria-label="Chunk controls">
+      <button type="button" id="start-preview" class="primary">Start camera and mic</button>
+      <button type="button" id="start-stream" disabled>Record and upload chunks</button>
+      <button type="button" id="stop-stream" disabled>Stop recording</button>
+      <p id="status-line" class="status-line" role="status">Join a room, then start camera and mic.</p>
+    </section>
+
+    <section class="chunk-grid" id="chunk-grid" aria-label="Gun chunk streams">
+      <article class="chunk-tile local-tile">
+        <video id="local-video" autoplay muted playsinline></video>
+        <div class="tile-label">
+          <strong id="local-label">You</strong>
+          <span id="local-state">Offline</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="metrics-panel" aria-labelledby="metrics-title">
+      <div>
+        <p class="eyebrow">Chunks</p>
+        <h2 id="metrics-title">Upload stats</h2>
+      </div>
+      <dl>
+        <div><dt>Chunks sent</dt><dd id="chunks-sent">0</dd></div>
+        <div><dt>Chunks received</dt><dd id="chunks-received">0</dd></div>
+        <div><dt>Last chunk</dt><dd id="last-size">0 KB</dd></div>
+        <div><dt>Mode</dt><dd id="playback-mode">MediaSource</dd></div>
+      </dl>
+    </section>
+
+    <section class="debug-panel" aria-labelledby="debug-title">
+      <div>
+        <p class="eyebrow">Events</p>
+        <h2 id="debug-title">Chunk log</h2>
+      </div>
+      <ol id="event-log" aria-live="polite"></ol>
+    </section>
+  </main>
+
+  <footer class="chunk-footer">
+    <p>Gun Chunk Stream is still experimental, but should be smoother than sending individual image frames because the browser encodes local audio/video before each upload.</p>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
