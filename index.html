@@ -12,12 +12,18 @@
   <link rel="stylesheet" href="styles/global.css">
   <link rel="stylesheet" href="index-style.css">
   <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
   <meta name="theme-color" content="#0e1116">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+  <script>
+    const hidePortalBoot = () => document.documentElement.classList.add('app-ready');
+    window.addEventListener('load', hidePortalBoot, { once: true });
+    window.setTimeout(hidePortalBoot, 3600);
+  </script>
   <script>
     const prNumber = '{{PR_NUMBER}}';
     const relayUrl = '{{WSS_RELAY_URL}}';
@@ -36,6 +42,16 @@
 </head>
 <body class="landing theme-dark">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <div class="app-boot" aria-hidden="true">
+    <div class="app-boot__mark">
+      <img src="/brand/portal-logo.svg" alt="">
+    </div>
+    <div class="app-boot__text">
+      <strong>3DVR Portal</strong>
+      <span>Opening your workspace</span>
+    </div>
+    <div class="app-boot__bar"><span></span></div>
+  </div>
   <div class="landing-shell">
     <div class="top-nav top-nav--collapsed">
       <div class="top-nav__primary">
