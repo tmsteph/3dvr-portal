@@ -307,6 +307,7 @@ main {
 
 .section-grid,
 .prototype-panel,
+.roadmap-panel,
 .build-path {
   display: grid;
   gap: 1.25rem;
@@ -335,6 +336,7 @@ main {
 
 .concept-card,
 .prototype-panel,
+.roadmap-panel,
 .steps li {
   border: 1px solid var(--holder-line);
   border-radius: 8px;
@@ -383,6 +385,74 @@ main {
 }
 
 .feature-list span {
+  color: var(--holder-muted);
+}
+
+.roadmap-panel {
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.comparison-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--holder-line);
+  border-radius: 8px;
+}
+
+.comparison-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  background: #fbfaf7;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 0.8rem;
+  border-bottom: 1px solid var(--holder-line);
+  border-right: 1px solid var(--holder-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.comparison-table th {
+  color: var(--holder-charcoal);
+  font-size: 0.84rem;
+}
+
+.comparison-table td {
+  color: var(--holder-muted);
+}
+
+.comparison-table a {
+  color: var(--holder-blue);
+}
+
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.material-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.material-strip div {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 1px solid var(--holder-line);
+  border-radius: 8px;
+  background: #fbfaf7;
+}
+
+.material-strip strong {
+  color: var(--holder-blue);
+}
+
+.material-strip span {
   color: var(--holder-muted);
 }
 
@@ -453,7 +523,9 @@ main {
   }
 
   .three-up,
-  .mode-grid {
+  .mode-grid,
+  .roadmap-grid,
+  .material-strip {
     grid-template-columns: 1fr;
   }
 }
