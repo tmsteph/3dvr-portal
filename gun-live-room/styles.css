@@ -169,7 +169,8 @@ label {
   font-weight: 850;
 }
 
-input {
+input,
+select {
   width: 100%;
   min-height: 42px;
   padding: 0.66rem 0.75rem;

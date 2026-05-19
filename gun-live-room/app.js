@@ -7,6 +7,8 @@
     frameRate: document.getElementById('frame-rate'),
     quality: document.getElementById('quality'),
     copyLink: document.getElementById('copy-link'),
+    cameraSelect: document.getElementById('camera-select'),
+    micSelect: document.getElementById('mic-select'),
     startMedia: document.getElementById('start-media'),
     startLive: document.getElementById('start-live'),
     stopLive: document.getElementById('stop-live'),
@@ -29,6 +31,8 @@
   const FRAME_WIDTH = 160;
   const FRAME_HEIGHT = 90;
   const AUDIO_SLICE_MS = 1500;
+  const CAMERA_PREF_KEY = 'gunLiveRoomCameraId';
+  const MIC_PREF_KEY = 'gunLiveRoomMicId';
 
   let gun = null;
   let roomNode = null;
@@ -117,22 +121,99 @@
     return gun;
   }
 
+  function readTabPreference(key) {
+    try {
+      return sessionStorage.getItem(key) || '';
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  function writeTabPreference(key, value) {
+    try {
+      if (value) {
+        sessionStorage.setItem(key, value);
+      } else {
+        sessionStorage.removeItem(key);
+      }
+    } catch (_error) {
+      // Ignore private-mode storage failures.
+    }
+  }
+
+  function setSelectOptions(select, devices, fallbackLabel) {
+    const selected = select.value || readTabPreference(select === refs.cameraSelect ? CAMERA_PREF_KEY : MIC_PREF_KEY);
+    select.textContent = '';
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = fallbackLabel;
+    select.append(defaultOption);
+    devices.forEach((device, index) => {
+      const option = document.createElement('option');
+      option.value = device.deviceId;
+      option.textContent = device.label || `${fallbackLabel.replace('Default ', '')} ${index + 1}`;
+      select.append(option);
+    });
+    select.value = Array.from(select.options).some(option => option.value === selected) ? selected : '';
+  }
+
+  async function refreshDevices() {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') return;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      setSelectOptions(
+        refs.cameraSelect,
+        devices.filter(device => device.kind === 'videoinput'),
+        'Default camera'
+      );
+      setSelectOptions(
+        refs.micSelect,
+        devices.filter(device => device.kind === 'audioinput'),
+        'Default microphone'
+      );
+    } catch (error) {
+      console.warn('Could not enumerate media devices', error);
+    }
+  }
+
+  function selectedVideoConstraint() {
+    const deviceId = refs.cameraSelect.value;
+    return {
+      width: { ideal: 320 },
+      height: { ideal: 180 },
+      frameRate: { ideal: 8, max: 12 },
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+    };
+  }
+
+  function selectedAudioConstraint() {
+    const deviceId = refs.micSelect.value;
+    return {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+    };
+  }
+
+  function stopLocalTracks() {
+    if (!localStream) return;
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+    refs.localVideo.srcObject = null;
+  }
+
   async function startMedia() {
-    if (localStream) return localStream;
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       throw new Error('This browser does not expose camera/mic access.');
     }
+    if (localStream) {
+      stopLive();
+      stopLocalTracks();
+    }
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 320 },
-        height: { ideal: 180 },
-        frameRate: { ideal: 8, max: 12 }
-      },
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
+      video: selectedVideoConstraint(),
+      audio: selectedAudioConstraint()
     });
     refs.localVideo.srcObject = localStream;
     refs.startMedia.disabled = true;
@@ -141,6 +222,7 @@
     refs.toggleCamera.disabled = false;
     refs.localState.textContent = 'Camera and mic ready';
     setStatus('Camera and mic ready.');
+    await refreshDevices();
     return localStream;
   }
 
@@ -363,7 +445,7 @@
     stopLive();
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     if (participantsNode) participantsNode.get(localId).put(null);
-    if (localStream) localStream.getTracks().forEach(track => track.stop());
+    stopLocalTracks();
   }
 
   refs.roomId.value = resolveInitialRoom();
@@ -377,6 +459,18 @@
   refs.randomRoom.addEventListener('click', () => {
     refs.roomId.value = createId('room').replace(/^room_/, 'gun-live-');
   });
+  refs.cameraSelect.value = readTabPreference(CAMERA_PREF_KEY);
+  refs.micSelect.value = readTabPreference(MIC_PREF_KEY);
+  refs.cameraSelect.addEventListener('change', () => {
+    writeTabPreference(CAMERA_PREF_KEY, refs.cameraSelect.value);
+    refs.startMedia.disabled = false;
+    setStatus('Camera selection changed. Start camera and mic again to apply it.');
+  });
+  refs.micSelect.addEventListener('change', () => {
+    writeTabPreference(MIC_PREF_KEY, refs.micSelect.value);
+    refs.startMedia.disabled = false;
+    setStatus('Microphone selection changed. Start camera and mic again to apply it.');
+  });
   refs.roomForm.addEventListener('submit', joinRoom);
   refs.copyLink.addEventListener('click', copyLink);
   refs.startMedia.addEventListener('click', () => startMedia().catch(error => setStatus(error.message || 'Unable to start media.')));
@@ -384,5 +478,9 @@
   refs.stopLive.addEventListener('click', stopLive);
   refs.toggleMic.addEventListener('click', toggleMic);
   refs.toggleCamera.addEventListener('click', toggleCamera);
+  refreshDevices();
+  if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === 'function') {
+    navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
+  }
   window.addEventListener('beforeunload', leave);
 }());
