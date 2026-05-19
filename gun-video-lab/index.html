@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Gun Video Lab | Portal</title>
+  <meta
+    name="description"
+    content="A tiny proof of concept that streams low-rate camera frames directly through Gun."
+  >
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <link rel="stylesheet" href="../style.css?v=gun-video-lab">
+  <link rel="stylesheet" href="./styles.css?v=20260519">
+</head>
+<body class="gun-video-page">
+  <header class="lab-header">
+    <nav class="lab-nav" aria-label="Gun Video Lab navigation">
+      <a href="../index.html">Portal</a>
+      <a href="/webrtc-lab/">WebRTC Lab</a>
+      <a href="/portal.3dvr.tech/video/">Video Home</a>
+    </nav>
+    <section class="hero-grid">
+      <div>
+        <p class="eyebrow">Gun Frame Stream</p>
+        <h1>Video as tiny synced Gun frames.</h1>
+        <p>
+          This experiment does not use WebRTC media tracks. It captures small JPEG frames from your camera,
+          writes the newest frame to Gun, and lets other browsers watch that shared frame key.
+        </p>
+      </div>
+      <aside class="lab-note">
+        <strong>Deliberately tiny</strong>
+        <span>Use low resolution and low FPS. This is a resilience experiment, not normal video conferencing.</span>
+      </aside>
+    </section>
+  </header>
+
+  <main class="lab-shell">
+    <section class="room-panel" aria-labelledby="room-title">
+      <div>
+        <p class="eyebrow">Room</p>
+        <h2 id="room-title">Publish or watch</h2>
+      </div>
+      <form id="room-form" class="room-form">
+        <label for="display-name">Name</label>
+        <input id="display-name" name="displayName" type="text" maxlength="40" autocomplete="name">
+        <label for="room-id">Room</label>
+        <div class="room-row">
+          <input id="room-id" name="roomId" type="text" maxlength="80" required>
+          <button type="button" id="random-room">Random</button>
+        </div>
+        <div class="settings-grid">
+          <label for="frame-rate">FPS</label>
+          <input id="frame-rate" name="frameRate" type="number" min="0.2" max="3" step="0.2" value="1">
+          <label for="quality">Quality</label>
+          <input id="quality" name="quality" type="number" min="0.15" max="0.75" step="0.05" value="0.35">
+        </div>
+        <div class="button-row">
+          <button type="submit" class="primary">Join room</button>
+          <button type="button" id="copy-link">Copy link</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="controls-panel" aria-label="Stream controls">
+      <button type="button" id="start-camera" class="primary">Start camera</button>
+      <button type="button" id="start-stream" disabled>Publish frames</button>
+      <button type="button" id="stop-stream" disabled>Stop publishing</button>
+      <button type="button" id="clear-frame">Clear my frame</button>
+      <p id="status-line" class="status-line" role="status">Join a room, then start your camera.</p>
+    </section>
+
+    <section class="stream-grid" aria-label="Gun frame streams">
+      <article class="stream-tile">
+        <video id="local-video" autoplay muted playsinline></video>
+        <canvas id="capture-canvas" width="160" height="90" hidden></canvas>
+        <div class="tile-label">
+          <strong id="local-label">You</strong>
+          <span id="local-state">Camera off</span>
+        </div>
+      </article>
+      <article class="stream-tile">
+        <img id="remote-frame" alt="Latest remote Gun frame">
+        <div class="tile-label">
+          <strong id="remote-label">Room frame</strong>
+          <span id="remote-state">Waiting</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="metrics-panel" aria-labelledby="metrics-title">
+      <div>
+        <p class="eyebrow">Metrics</p>
+        <h2 id="metrics-title">Frame sync</h2>
+      </div>
+      <dl>
+        <div><dt>Frames sent</dt><dd id="frames-sent">0</dd></div>
+        <div><dt>Frames received</dt><dd id="frames-received">0</dd></div>
+        <div><dt>Last frame size</dt><dd id="frame-size">0 KB</dd></div>
+        <div><dt>Frame age</dt><dd id="frame-age">-</dd></div>
+      </dl>
+    </section>
+
+    <section class="debug-panel" aria-labelledby="debug-title">
+      <div>
+        <p class="eyebrow">Events</p>
+        <h2 id="debug-title">Gun frame log</h2>
+      </div>
+      <ol id="event-log" aria-live="polite"></ol>
+    </section>
+  </main>
+
+  <footer class="lab-footer">
+    <p>Gun frame streaming is useful for experiments, thumbnails, snapshots, and harsh-network fallback ideas. Real meetings still need WebRTC or an SFU.</p>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
