@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR WebRTC Lab | Portal</title>
+  <meta
+    name="description"
+    content="A native WebRTC proof-of-concept for 3DVR video rooms with Gun-backed signaling."
+  >
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <link rel="stylesheet" href="../style.css?v=webrtc-lab">
+  <link rel="stylesheet" href="./styles.css?v=20260519">
+</head>
+<body class="webrtc-page">
+  <header class="lab-header">
+    <nav class="lab-nav" aria-label="WebRTC Lab navigation">
+      <a href="../index.html">Portal</a>
+      <a href="/portal.3dvr.tech/video/">Video Home</a>
+      <a href="/meeting-notes/">Meeting Notes</a>
+    </nav>
+    <section class="hero-grid">
+      <div>
+        <p class="eyebrow">Native WebRTC POC</p>
+        <h1>Simple video rooms without vdo.ninja.</h1>
+        <p>
+          A small browser-to-browser conferencing experiment. Gun relays the room signals; WebRTC carries
+          the audio and video directly between participants.
+        </p>
+      </div>
+      <aside class="lab-note">
+        <strong>Proof of concept</strong>
+        <span>This is mesh WebRTC, not a production SFU. It is best for two or three people while we test reliability.</span>
+      </aside>
+    </section>
+  </header>
+
+  <main class="lab-shell">
+    <section class="room-panel" aria-labelledby="room-title">
+      <div>
+        <p class="eyebrow">Room</p>
+        <h2 id="room-title">Start or join a room</h2>
+      </div>
+      <form id="room-form" class="room-form">
+        <label for="display-name">Name</label>
+        <input id="display-name" name="displayName" type="text" maxlength="40" autocomplete="name">
+        <label for="room-id">Room</label>
+        <div class="room-row">
+          <input id="room-id" name="roomId" type="text" maxlength="80" required>
+          <button type="button" id="random-room">Random</button>
+        </div>
+        <div class="button-row">
+          <button type="submit" class="primary">Join room</button>
+          <button type="button" id="copy-link">Copy link</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="controls-panel" aria-label="Media controls">
+      <button type="button" id="start-camera" class="primary">Start camera</button>
+      <button type="button" id="toggle-mic" disabled>Mute mic</button>
+      <button type="button" id="toggle-camera" disabled>Hide camera</button>
+      <button type="button" id="leave-room" disabled>Leave</button>
+      <p id="status-line" class="status-line" role="status">Choose a room and start your camera.</p>
+    </section>
+
+    <section class="video-grid" id="video-grid" aria-label="Video tiles">
+      <article class="video-tile local-tile">
+        <video id="local-video" autoplay muted playsinline></video>
+        <div class="tile-label">
+          <strong id="local-label">You</strong>
+          <span id="local-state">Camera off</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="debug-panel" aria-labelledby="debug-title">
+      <div>
+        <p class="eyebrow">Signals</p>
+        <h2 id="debug-title">Connection log</h2>
+      </div>
+      <ol id="event-log" aria-live="polite"></ol>
+    </section>
+  </main>
+
+  <footer class="lab-footer">
+    <p>Built as a 3DVR WebRTC proof of concept. Use HTTPS or localhost so browser camera permissions work.</p>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
