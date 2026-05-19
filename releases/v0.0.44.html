@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.44 (Week of May 4, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.43.html">Previous release</a>
+    <a class="release-nav-link" href="v0.0.45.html">Next release</a>
+  </nav>
+  <h1>Release v0.0.44</h1>
+  <div class="tag">Week of May 4, 2026</div>
+  <div class="release-summary">
+    <p>This backfilled weekly release covers the operational work that landed after v0.0.43.</p>
+    <ul class="release-summary-list">
+      <li><strong>Video operations:</strong> smart join flows, meeting ops, meshcast presets, and video packs moved closer to a usable portal meeting surface.</li>
+      <li><strong>Agent operations:</strong> admin control surfaces, heartbeat checks, Gun host configuration, and DigitalOcean notes made the agent runtime easier to operate.</li>
+      <li><strong>Reliability:</strong> portal health checks, Playwright stabilization, Gun relay selection, and private clipboard work improved the day-to-day build loop.</li>
+      <li><strong>Experiments:</strong> <a href="../garden-planet/">Garden Planet</a>, expansion path work, and Space Jetpack tests kept the prototype layer moving.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Merged PRs</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/558">#558 Garden Planet landing page</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/559">#559 Stabilize portal tests</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/560">#560 Add portal health route and stabilize the dev server</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/561">#561 Stabilize Playwright suites</a></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Commit Trail</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/commit/b353458">b353458</a> added loopback video room links.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/commit/67c1e8f">67c1e8f</a> introduced the smart video launcher control flow.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/commit/a9d33d8">a9d33d8</a> added the admin agent operations control surface.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/commit/6655e28">6655e28</a> configured the portal Gun host.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/commit/4d47508">4d47508</a> documented the DigitalOcean operations path.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/commit/186a5dc">186a5dc</a> added the private device clipboard.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Issue Pulse</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/542">#542 3DVR Portal</a> stayed the umbrella issue for portal direction.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/417">#417 Gun relay down</a> remained the reliability context for relay and Gun-host decisions.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/553">#553 3DVR Community System</a> started to frame the shared portal/community surface.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

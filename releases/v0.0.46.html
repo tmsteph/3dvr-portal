@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.46 (Week of May 18, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.45.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.46</h1>
+  <div class="tag">Week of May 18, 2026</div>
+  <div class="release-summary">
+    <p>This weekly release captures the fast prototype sprint around guest identity, pure Gun media tests, mobile games, and the Nomad Clip hardware direction.</p>
+    <ul class="release-summary-list">
+      <li><strong>Guest identity:</strong> upgrade flow work, scoped notes, a migration plan, a new-account fast path, and simpler guest entry points made guest data safer.</li>
+      <li><strong>Pure Gun media:</strong> WebRTC and Gun labs explored frames, clips, live rooms, device selection, and local chunk streaming.</li>
+      <li><strong>Mobile playability:</strong> Stellar Drift, Ski, and Pong were adjusted for smaller screens and less crowded controls.</li>
+      <li><strong>3DVR direction:</strong> the open-source guide, phone-holder concept app, Nomad Clip roadmap, and field-test page pulled hardware and software into one story.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Merged PRs</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/584">#584 Improve Stellar Drift mobile layout</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/585">#585 Improve Ski game mobile layout</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/586">#586 Improve Pong mobile layout</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/587">#587 Add guest account upgrade flow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/588">#588 Scope notes to guest and user identities</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/589">#589 Add phone holder concept app</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/590">#590 Add guest migration planning doc</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/591">#591 Add open-source field guide</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/592">#592 Add new-account guest migration fast path</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/593">#593 Simplify guest entry points</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/594">#594 Add WebRTC lab</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/595">#595 Add Gun video frame lab</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/596">#596 Add Gun clip lab</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/597">#597 Clarify audio and video clip capture</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/598">#598 Add Gun live room</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/599">#599 Add device selectors to Gun live room</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/600">#600 Add Gun chunk stream lab</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/601">#601 Add ordered buffering and visible chunk ledger</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/602">#602 Add Nomad Clip prototype roadmap</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/603">#603 Add Nomad Clip field test page</a></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Issue Pulse</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/367">#367 Recovery feature</a> stayed connected to account durability and guest-to-user questions.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/405">#405 Web builder own app</a> remained relevant as more standalone apps landed in the portal.</li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/issues/513">#513 Calendar UI</a>, <a href="https://github.com/tmsteph/3dvr-portal/issues/542">#542 Portal</a>, and <a href="https://github.com/tmsteph/3dvr-portal/issues/553">#553 Community System</a> stayed open for larger system design.</li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
