@@ -6,7 +6,7 @@
   <title>3DVR Gun Clip Lab | Portal</title>
   <meta
     name="description"
-    content="A Gun video proof of concept based on the Gun repo MediaRecorder example."
+    content="A Gun audio and video proof of concept based on the Gun repo MediaRecorder example."
   >
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
@@ -24,16 +24,16 @@
     </nav>
     <section class="hero-grid">
       <div>
-        <p class="eyebrow">Gun Clip Store</p>
-        <h1>Record a tiny clip into Gun.</h1>
+        <p class="eyebrow">Gun AV Clip Store</p>
+        <h1>Record audio and video into Gun.</h1>
         <p>
           This keeps the frame-stream lab intact and adds the other Gun video style: a short MediaRecorder
-          WebM clip stored as a data URL, optionally encrypted with SEA.
+          WebM clip with audio and video stored as a data URL, optionally encrypted with SEA.
         </p>
       </div>
       <aside class="lab-note">
         <strong>Based on Gun examples</strong>
-        <span>Mirrors the Gun repo video demo shape: MediaRecorder, FileReader data URL, then `gun.get(...).put(...)`.</span>
+        <span>Mirrors the Gun repo video demo shape: MediaRecorder captures audio/video, FileReader makes a data URL, then `gun.get(...).put(...)` stores it.</span>
       </aside>
     </section>
   </header>
@@ -66,14 +66,14 @@
       <button type="button" id="screen-record">Record screen</button>
       <button type="button" id="stop-record" disabled>Stop recording</button>
       <button type="button" id="clear-clip">Clear room clip</button>
-      <p id="status-line" class="status-line" role="status">Join a room, then record a short clip.</p>
+      <p id="status-line" class="status-line" role="status">Join a room, then record a short audio/video clip.</p>
     </section>
 
     <section class="player-panel" aria-labelledby="player-title">
       <div class="panel-heading">
         <div>
           <p class="eyebrow">Playback</p>
-          <h2 id="player-title">Latest Gun clip</h2>
+          <h2 id="player-title">Latest Gun audio/video clip</h2>
         </div>
         <span id="clip-meta">No clip yet</span>
       </div>
@@ -96,7 +96,7 @@
   </main>
 
   <footer class="clip-footer">
-    <p>This is a store-and-replay experiment, not a live meeting stack. Keep clips short.</p>
+    <p>This is a store-and-replay audio/video experiment, not a live meeting stack. Keep clips short.</p>
   </footer>
 
   <script src="./app.js"></script>
