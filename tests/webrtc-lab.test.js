@@ -7,6 +7,7 @@ const appDir = new URL('../webrtc-lab/', import.meta.url);
 const gunVideoDir = new URL('../gun-video-lab/', import.meta.url);
 const gunClipDir = new URL('../gun-clip-lab/', import.meta.url);
 const gunLiveDir = new URL('../gun-live-room/', import.meta.url);
+const gunChunkDir = new URL('../gun-chunk-stream/', import.meta.url);
 
 async function fileExists(path) {
   try {
@@ -216,5 +217,58 @@ describe('Gun Live Room app', () => {
     assert.ok(gunLiveIndex < wellnessIndex, 'Gun Live Room should render before Wellness');
     assert.match(readme, /\[Gun Live Room\]\(https:\/\/3dvr-portal\.vercel\.app\/gun-live-room\/\)/);
     assert.match(videoHome, /href="\/gun-live-room\/"/);
+  });
+});
+
+describe('Gun Chunk Stream app', () => {
+  it('ships a pure Gun simultaneous local-recording chunk stream', async () => {
+    const indexUrl = new URL('index.html', gunChunkDir);
+    const stylesUrl = new URL('styles.css', gunChunkDir);
+    const appUrl = new URL('app.js', gunChunkDir);
+    const readmeUrl = new URL('README.md', gunChunkDir);
+
+    assert.equal(await fileExists(indexUrl), true, 'Gun Chunk Stream index should exist');
+    assert.equal(await fileExists(stylesUrl), true, 'Gun Chunk Stream styles should exist');
+    assert.equal(await fileExists(appUrl), true, 'Gun Chunk Stream app script should exist');
+    assert.equal(await fileExists(readmeUrl), true, 'Gun Chunk Stream README should exist');
+
+    const html = await readFile(indexUrl, 'utf8');
+    const js = await readFile(appUrl, 'utf8');
+    const readme = await readFile(readmeUrl, 'utf8');
+
+    assert.match(html, /3DVR Gun Chunk Stream \| Portal/);
+    assert.match(html, /Record locally, upload while recording/);
+    assert.match(html, /id="chunk-size"/);
+    assert.match(html, /id="start-stream"/);
+    assert.match(html, /id="chunk-grid"/);
+    assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
+    assert.match(js, /ROOM_ROOT = '3dvr-gun-chunk-stream'/);
+    assert.match(js, /recorder\.start\(sliceMs\)/);
+    assert.match(js, /new MediaRecorder\(localStream/);
+    assert.match(js, /reader\.readAsDataURL\(blob\)/);
+    assert.match(js, /chunksNode\.get\(`\$\{localId\}_\$\{sequence\}`\)\.put/);
+    assert.match(js, /new MediaSource\(\)/);
+    assert.match(js, /appendBuffer/);
+    assert.doesNotMatch(js, /RTCPeerConnection/);
+    assert.match(readme, /MediaRecorder\.start\(timeslice\)/);
+    assert.match(readme, /3dvr-gun-chunk-stream\/<room>\/chunks\/<participantId_sequence>/);
+  });
+
+  it('registers the Gun Chunk Stream beside the other pure Gun experiments', async () => {
+    const portalHtml = await readFile(new URL('../index.html', appDir), 'utf8');
+    const readme = await readFile(new URL('../README.md', appDir), 'utf8');
+    const videoHome = await readFile(new URL('../portal.3dvr.tech/video/index.html', appDir), 'utf8');
+
+    const gunLiveIndex = portalHtml.indexOf('>Gun Live Room<');
+    const gunChunkIndex = portalHtml.indexOf('>Gun Chunk Stream<');
+    const wellnessIndex = portalHtml.indexOf('>Wellness<');
+
+    assert.ok(gunChunkIndex !== -1, 'Gun Chunk Stream app card should be listed on the portal');
+    assert.ok(gunLiveIndex !== -1, 'Gun Live Room app card should still be listed');
+    assert.ok(wellnessIndex !== -1, 'Wellness app card should still be listed');
+    assert.ok(gunLiveIndex < gunChunkIndex, 'Gun Chunk Stream should render after Gun Live Room');
+    assert.ok(gunChunkIndex < wellnessIndex, 'Gun Chunk Stream should render before Wellness');
+    assert.match(readme, /\[Gun Chunk Stream\]\(https:\/\/3dvr-portal\.vercel\.app\/gun-chunk-stream\/\)/);
+    assert.match(videoHome, /href="\/gun-chunk-stream\/"/);
   });
 });
