@@ -20,6 +20,7 @@
     chunksReceived: document.getElementById('chunks-received'),
     lastSize: document.getElementById('last-size'),
     playbackMode: document.getElementById('playback-mode'),
+    chunkList: document.getElementById('chunk-list'),
     eventLog: document.getElementById('event-log')
   };
 
@@ -79,6 +80,18 @@
     item.textContent = `${new Date().toLocaleTimeString()} ${message}`;
     refs.eventLog.prepend(item);
     while (refs.eventLog.children.length > 50) refs.eventLog.lastElementChild.remove();
+  }
+
+  function logChunk(chunk) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = chunk.dataUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = `${chunk.name || 'Guest'} chunk ${chunk.sequence || '?'} (${Math.round(chunk.dataUrl.length / 1024)} KB)`;
+    item.append(link);
+    refs.chunkList.prepend(item);
+    while (refs.chunkList.children.length > 24) refs.chunkList.lastElementChild.remove();
   }
 
   function setStatus(message) {
@@ -305,13 +318,27 @@
     label.append(title, state);
     tile.append(video, label);
     refs.chunkGrid.appendChild(tile);
-    const player = { video, title, state, queue: [], appending: false, sourceBuffer: null, mediaSource: null, fallback: false };
+    const player = {
+      video,
+      title,
+      state,
+      pending: new Map(),
+      nextSequence: 1,
+      sourceBuffer: null,
+      mediaSource: null,
+      fallback: false
+    };
 
     if (window.MediaSource && MediaSource.isTypeSupported(mimeType)) {
       player.mediaSource = new MediaSource();
       video.src = URL.createObjectURL(player.mediaSource);
       player.mediaSource.addEventListener('sourceopen', () => {
         player.sourceBuffer = player.mediaSource.addSourceBuffer(mimeType);
+        try {
+          player.sourceBuffer.mode = 'sequence';
+        } catch (_error) {
+          // Some browsers expose a readonly mode for this codec.
+        }
         player.sourceBuffer.addEventListener('updateend', () => appendNext(player));
         appendNext(player);
       }, { once: true });
@@ -325,17 +352,18 @@
   }
 
   function appendNext(player) {
-    if (player.fallback || player.appending || !player.sourceBuffer || player.sourceBuffer.updating) return;
-    const next = player.queue.shift();
+    if (player.fallback || !player.sourceBuffer || player.sourceBuffer.updating) return;
+    const next = player.pending.get(player.nextSequence);
     if (!next) return;
-    player.appending = true;
+    player.pending.delete(player.nextSequence);
+    player.nextSequence += 1;
     try {
       player.sourceBuffer.appendBuffer(next);
     } catch (error) {
       console.warn('Append failed', error);
       player.state.textContent = 'Append failed';
-    } finally {
-      player.appending = false;
+      player.pending.set(player.nextSequence - 1, next);
+      player.nextSequence -= 1;
     }
   }
 
@@ -348,6 +376,7 @@
     chunksReceived += 1;
     refs.chunksReceived.textContent = String(chunksReceived);
     refs.lastSize.textContent = `${Math.round(chunk.dataUrl.length / 1024)} KB`;
+    logChunk(chunk);
 
     if (player.fallback) {
       player.video.src = chunk.dataUrl;
@@ -355,7 +384,7 @@
     }
 
     const buffer = await fetch(chunk.dataUrl).then(response => response.arrayBuffer());
-    player.queue.push(buffer);
+    player.pending.set(Number(chunk.sequence || 1), buffer);
     appendNext(player);
     player.video.play().catch(() => {
       player.state.textContent = 'Tap to play';

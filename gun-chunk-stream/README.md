@@ -8,5 +8,7 @@ This app records locally and uploads while recording:
 - Each chunk is converted to a data URL.
 - Gun stores chunks at `3dvr-gun-chunk-stream/<room>/chunks/<participantId_sequence>`.
 - Receivers append chunks into a `MediaSource` video player when supported.
+- Receivers buffer chunks by sequence before playback because Gun map data can arrive out of order.
+- The chunk log shows direct links to received chunks so you can confirm data is arriving even when playback is blocked.
 
 This should be smoother than the pure frame/audio live room because the browser encodes synchronized audio and video locally first. It is still experimental: WebM chunk playback support varies by mobile browser, and Gun is still carrying large base64 payloads through the graph.
