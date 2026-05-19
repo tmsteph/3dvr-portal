@@ -241,6 +241,7 @@ describe('Gun Chunk Stream app', () => {
     assert.match(html, /id="chunk-size"/);
     assert.match(html, /id="start-stream"/);
     assert.match(html, /id="chunk-grid"/);
+    assert.match(html, /id="chunk-list"/);
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
     assert.match(js, /ROOM_ROOT = '3dvr-gun-chunk-stream'/);
     assert.match(js, /recorder\.start\(sliceMs\)/);
@@ -248,6 +249,9 @@ describe('Gun Chunk Stream app', () => {
     assert.match(js, /reader\.readAsDataURL\(blob\)/);
     assert.match(js, /chunksNode\.get\(`\$\{localId\}_\$\{sequence\}`\)\.put/);
     assert.match(js, /new MediaSource\(\)/);
+    assert.match(js, /pending: new Map\(\)/);
+    assert.match(js, /nextSequence: 1/);
+    assert.match(js, /player\.pending\.set\(Number\(chunk\.sequence \|\| 1\), buffer\)/);
     assert.match(js, /appendBuffer/);
     assert.doesNotMatch(js, /RTCPeerConnection/);
     assert.match(readme, /MediaRecorder\.start\(timeslice\)/);
