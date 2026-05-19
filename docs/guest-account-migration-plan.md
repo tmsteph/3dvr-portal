@@ -36,8 +36,28 @@ The first guest upgrade pass migrates:
 - Guest display name.
 - Guest score.
 - Guest Notes folders/pages.
+- Guest Contacts and Pocket Workstation records when the guest creates a brand-new SEA account.
 
 That is useful, but it is not a general account migration layer.
+
+## New Account Fast Path
+
+Alias-keyed copy is reasonable when the guest is creating a brand-new account because there should be no
+existing user data to reconcile. The sign-in page now distinguishes account creation from existing-account
+login and runs a narrow fast path only for new accounts.
+
+Current new-account fast path:
+
+- Copies guest contacts from `3dvr-guests/<guestId>/contacts` into `gun.user().get('contacts')`.
+- Copies legacy guest contacts from `3dvr-guests/<guestId>/contacts/contacts` into the same user contacts root.
+- Copies Pocket Workstation guest records from
+  `3dvr-portal/pocketWorkstation/users/<guestId>/{notes,commands,projects}` into
+  `3dvr-portal/pocketWorkstation/users/alias-<alias>/{notes,commands,projects}`.
+- Records a migration marker under `3dvr-portal/guestAccountMigrations/<alias>/<guestId>`.
+- Records a guest identity link under `3dvr-portal/guestIdentityLinks/<guestId>`.
+
+This path does not run for existing-account sign-ins. Existing accounts still need namespace-specific merge
+rules so guest data does not overwrite real account data.
 
 ## Desired Architecture
 
@@ -140,7 +160,7 @@ This table needs a code audit before implementation. Some apps may still write t
 - Audit all apps for Gun write paths.
 - Document each namespace, source path, target path, and merge policy.
 - Add `guest-migration.js`.
-- Move current score/name/Notes migration out of `sign-in.html` into the shared helper.
+- Move current score/name/Notes/new-account fast-path migration out of `sign-in.html` into the shared helper.
 - Add unit tests with stub Gun nodes.
 
 ### Phase 2: App Storage Scoping
