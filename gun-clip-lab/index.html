@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Gun Clip Lab | Portal</title>
+  <meta
+    name="description"
+    content="A Gun video proof of concept based on the Gun repo MediaRecorder example."
+  >
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <link rel="stylesheet" href="../style.css?v=gun-clip-lab">
+  <link rel="stylesheet" href="./styles.css?v=20260519">
+</head>
+<body class="gun-clip-page">
+  <header class="clip-header">
+    <nav class="clip-nav" aria-label="Gun Clip Lab navigation">
+      <a href="../index.html">Portal</a>
+      <a href="/gun-video-lab/">Gun Video Lab</a>
+      <a href="/webrtc-lab/">WebRTC Lab</a>
+      <a href="/portal.3dvr.tech/video/">Video Home</a>
+    </nav>
+    <section class="hero-grid">
+      <div>
+        <p class="eyebrow">Gun Clip Store</p>
+        <h1>Record a tiny clip into Gun.</h1>
+        <p>
+          This keeps the frame-stream lab intact and adds the other Gun video style: a short MediaRecorder
+          WebM clip stored as a data URL, optionally encrypted with SEA.
+        </p>
+      </div>
+      <aside class="lab-note">
+        <strong>Based on Gun examples</strong>
+        <span>Mirrors the Gun repo video demo shape: MediaRecorder, FileReader data URL, then `gun.get(...).put(...)`.</span>
+      </aside>
+    </section>
+  </header>
+
+  <main class="clip-shell">
+    <section class="setup-panel" aria-labelledby="setup-title">
+      <div>
+        <p class="eyebrow">Room</p>
+        <h2 id="setup-title">Choose a clip lane</h2>
+      </div>
+      <form id="room-form" class="room-form">
+        <label for="room-id">Room</label>
+        <div class="room-row">
+          <input id="room-id" name="roomId" type="text" maxlength="80" required>
+          <button type="button" id="random-room">Random</button>
+        </div>
+        <label for="display-name">Name</label>
+        <input id="display-name" name="displayName" type="text" maxlength="40" autocomplete="name">
+        <label for="clip-passphrase">Optional passphrase</label>
+        <input id="clip-passphrase" name="clipPassphrase" type="password" autocomplete="off">
+        <div class="button-row">
+          <button type="submit" class="primary">Join room</button>
+          <button type="button" id="copy-link">Copy link</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="record-panel" aria-label="Recording controls">
+      <button type="button" id="camera-record" class="primary">Record camera</button>
+      <button type="button" id="screen-record">Record screen</button>
+      <button type="button" id="stop-record" disabled>Stop recording</button>
+      <button type="button" id="clear-clip">Clear room clip</button>
+      <p id="status-line" class="status-line" role="status">Join a room, then record a short clip.</p>
+    </section>
+
+    <section class="player-panel" aria-labelledby="player-title">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Playback</p>
+          <h2 id="player-title">Latest Gun clip</h2>
+        </div>
+        <span id="clip-meta">No clip yet</span>
+      </div>
+      <video id="clip-player" controls playsinline></video>
+    </section>
+
+    <section class="details-panel" aria-labelledby="details-title">
+      <div>
+        <p class="eyebrow">Events</p>
+        <h2 id="details-title">Clip log</h2>
+      </div>
+      <dl>
+        <div><dt>Clips saved</dt><dd id="clips-saved">0</dd></div>
+        <div><dt>Clips received</dt><dd id="clips-received">0</dd></div>
+        <div><dt>Last size</dt><dd id="clip-size">0 KB</dd></div>
+        <div><dt>Storage key</dt><dd id="storage-key">-</dd></div>
+      </dl>
+      <ol id="event-log" aria-live="polite"></ol>
+    </section>
+  </main>
+
+  <footer class="clip-footer">
+    <p>This is a store-and-replay experiment, not a live meeting stack. Keep clips short.</p>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
