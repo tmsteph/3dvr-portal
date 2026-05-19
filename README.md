@@ -65,6 +65,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Tasks](https://3dvr-portal.vercel.app/tasks.html)
 - [Notes](https://3dvr-portal.vercel.app/notes/)
 - [Pocket Workstation](https://3dvr-portal.vercel.app/pocket-workstation/)
+- [Phone Holder System](https://3dvr-portal.vercel.app/phone-holder-system/)
 - [Chat](https://3dvr-portal.vercel.app/chat/)
 - [Calendar Hub](https://3dvr-portal.vercel.app/calendar/)
 - [Contacts](https://3dvr-portal.vercel.app/contacts/)
