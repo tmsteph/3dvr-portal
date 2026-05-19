@@ -810,7 +810,7 @@
 
     function isGuestUpgradeContext() {
       const params = new URLSearchParams(window.location.search);
-      return params.get('upgrade') === 'guest' || localStorage.getItem('guest') === 'true';
+      return params.get('upgrade') === 'guest';
     }
 
     function applyRedirectContext() {
