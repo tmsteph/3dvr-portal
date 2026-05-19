@@ -78,6 +78,7 @@ describe('sign-in page', () => {
     const html = await readFile(signInUrl, 'utf8');
     assert.match(html, /function isGuestUpgradeContext\(\)/);
     assert.match(html, /params\.get\('upgrade'\) === 'guest'/);
+    assert.doesNotMatch(html, /localStorage\.getItem\('guest'\) === 'true';/);
     assert.match(html, /Save your guest progress/);
     assert.match(html, /Create account and keep progress/);
     assert.match(html, /migrateGuestProgress\(\{ isNewAccount, alias, userPubKey: userPub \}\)/);

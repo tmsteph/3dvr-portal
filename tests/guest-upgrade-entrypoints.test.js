@@ -5,21 +5,22 @@ import { readFile } from 'node:fs/promises';
 const navbarUrl = new URL('../navbar.js', import.meta.url);
 const indexUrl = new URL('../index.html', import.meta.url);
 
-describe('guest upgrade entrypoints', () => {
-  it('turns the floating guest identity action into account creation', async () => {
+describe('guest account entrypoints', () => {
+  it('keeps the floating guest identity action as sign out instead of account creation', async () => {
     const source = await readFile(navbarUrl, 'utf8');
-    assert.match(source, /function guestUpgradeHref\(\)/);
-    assert.match(source, /upgrade=guest/);
-    assert.match(source, /Create account/);
-    assert.match(source, /Create an account and keep guest progress/);
-    assert.match(source, /if \(isGuest\) \{\s*window\.location\.href = guestUpgradeHref\(\);/);
+    assert.doesNotMatch(source, /function guestUpgradeHref\(\)/);
+    assert.doesNotMatch(source, /upgrade=guest/);
+    assert.doesNotMatch(source, /Create an account and keep guest progress/);
+    assert.match(source, /button\.innerText = 'Sign Out'/);
+    assert.match(source, /button\.setAttribute\('aria-label', 'Sign out of guest mode'\)/);
   });
 
-  it('sends the homepage auth modal through the upgrade-aware sign-in link', async () => {
+  it('sends the homepage auth modal to normal sign-in without the guest upgrade flag', async () => {
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /onclick="startAccountFromHere\(\)"/);
     assert.match(html, /function startAccountFromHere\(\)/);
-    assert.match(html, /upgradeParam = localStorage\.getItem\('guest'\) === 'true' \? '&upgrade=guest' : ''/);
+    assert.doesNotMatch(html, /upgradeParam/);
+    assert.doesNotMatch(html, /&upgrade=guest/);
     assert.match(html, /\/sign-in\.html\?redirect=/);
   });
 });

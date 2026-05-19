@@ -20,15 +20,6 @@ function clearSharedIdentityCookie() {
   }
 }
 
-function currentUpgradeRedirect() {
-  const path = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
-  return path || '/index.html';
-}
-
-function guestUpgradeHref() {
-  return `/sign-in.html?upgrade=guest&redirect=${encodeURIComponent(currentUpgradeRedirect())}`;
-}
-
 function hideUnreadyHomepageSections() {
   const systemLayers = document.getElementById('systemLayers');
   if (systemLayers) {
@@ -104,15 +95,12 @@ function createNavbar() {
   button.innerText = 'Sign Out';
 
   button.addEventListener('click', () => {
-    if (isGuest) {
-      window.location.href = guestUpgradeHref();
-      return;
-    }
-
-    try {
-      user.leave();
-    } catch (err) {
-      console.warn('Error signing out', err);
+    if (!isGuest) {
+      try {
+        user.leave();
+      } catch (err) {
+        console.warn('Error signing out', err);
+      }
     }
     if (window.ScoreSystem) {
       window.ScoreSystem.resetManager();
@@ -153,11 +141,11 @@ function createNavbar() {
   let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
 
   if (isGuest) {
-    stats.href = guestUpgradeHref();
-    stats.setAttribute('aria-label', 'Create an account and keep your guest progress');
-    stats.title = 'Create an account and keep your guest progress';
-    button.innerText = 'Create account';
-    button.setAttribute('aria-label', 'Create an account and keep guest progress');
+    stats.href = 'profile.html#profile';
+    stats.setAttribute('aria-label', 'View your guest profile details');
+    stats.title = 'View your guest profile';
+    button.innerText = 'Sign Out';
+    button.setAttribute('aria-label', 'Sign out of guest mode');
   }
 
   function updateNameDisplay() {

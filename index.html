@@ -751,8 +751,7 @@
 
     function startAccountFromHere() {
       const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
-      const upgradeParam = localStorage.getItem('guest') === 'true' ? '&upgrade=guest' : '';
-      window.location.href = `/sign-in.html?redirect=${encodeURIComponent(currentPath || '/index.html')}${upgradeParam}`;
+      window.location.href = `/sign-in.html?redirect=${encodeURIComponent(currentPath || '/index.html')}`;
     }
   </script>
 
