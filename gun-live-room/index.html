@@ -65,6 +65,14 @@
     </section>
 
     <section class="controls-panel" aria-label="Live controls">
+      <label for="camera-select">Camera</label>
+      <select id="camera-select" name="cameraSelect">
+        <option value="">Default camera</option>
+      </select>
+      <label for="mic-select">Microphone</label>
+      <select id="mic-select" name="micSelect">
+        <option value="">Default microphone</option>
+      </select>
       <button type="button" id="start-media" class="primary">Start camera and mic</button>
       <button type="button" id="start-live" disabled>Go live through Gun</button>
       <button type="button" id="toggle-mic" disabled>Mute mic</button>

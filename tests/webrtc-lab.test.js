@@ -182,9 +182,14 @@ describe('Gun Live Room app', () => {
     assert.match(html, /Zoom-style, without WebRTC media/);
     assert.match(html, /id="start-media"/);
     assert.match(html, /id="start-live"/);
+    assert.match(html, /id="camera-select"/);
+    assert.match(html, /id="mic-select"/);
     assert.match(html, /id="live-grid"/);
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
     assert.match(js, /ROOM_ROOT = '3dvr-gun-live-room'/);
+    assert.match(js, /enumerateDevices/);
+    assert.match(js, /deviceId: \{ exact: deviceId \}/);
+    assert.match(js, /sessionStorage\.setItem/);
     assert.match(js, /canvas\.toDataURL\('image\/jpeg', quality\)/);
     assert.match(js, /new MediaRecorder\(audioStream\)/);
     assert.match(js, /audioRecorder\.start\(AUDIO_SLICE_MS\)/);

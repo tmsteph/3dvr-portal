@@ -14,4 +14,6 @@ The live room publishes:
 - Short microphone chunks to `3dvr-gun-live-room/<room>/audio/<participantId>`.
 - Presence to `3dvr-gun-live-room/<room>/participants/<participantId>`.
 
+Each browser tab can choose its own camera and microphone before starting. Browsers usually reveal friendly device names only after the first permission grant, so start once, then switch devices if needed.
+
 This is intentionally experimental. Audio can be choppy, autoplay can require a page tap, and Gun relays are not a media SFU. It is useful for testing whether the pure Gun transport can carry a rough live audio/video room at all.
