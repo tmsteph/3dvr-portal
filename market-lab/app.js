@@ -1,4 +1,6 @@
 const STORAGE_KEY = '3dvr.marketLab.experiments.v1';
+const SOURCE_STORAGE_KEY = '3dvr.marketLab.currentSource.v1';
+const DEFAULT_SOURCE = 'direct';
 
 const DEFAULT_EXPERIMENTS = [
   {
@@ -14,6 +16,7 @@ const DEFAULT_EXPERIMENTS = [
     replies: 0,
     callsBooked: 0,
     signups: 0,
+    clicksBySource: {},
     notes: ''
   },
   {
@@ -29,6 +32,7 @@ const DEFAULT_EXPERIMENTS = [
     replies: 0,
     callsBooked: 0,
     signups: 0,
+    clicksBySource: {},
     notes: ''
   },
   {
@@ -44,6 +48,7 @@ const DEFAULT_EXPERIMENTS = [
     replies: 0,
     callsBooked: 0,
     signups: 0,
+    clicksBySource: {},
     notes: ''
   }
 ];
@@ -88,9 +93,17 @@ const dashboard = document.getElementById('experimentDashboard');
 const leadingExperimentName = document.getElementById('leadingExperimentName');
 const leadingExperimentDetail = document.getElementById('leadingExperimentDetail');
 const resetButton = document.getElementById('resetExperiments');
+const sourceInput = document.getElementById('sourceInput');
+const applySourceButton = document.getElementById('applySource');
+
+let currentSource = loadCurrentSource();
+sourceInput.value = currentSource;
 
 function cloneDefaults() {
-  return DEFAULT_EXPERIMENTS.map((experiment) => ({ ...experiment }));
+  return DEFAULT_EXPERIMENTS.map((experiment) => ({
+    ...experiment,
+    clicksBySource: { ...experiment.clicksBySource }
+  }));
 }
 
 function mergeStoredData(stored) {
@@ -107,6 +120,7 @@ function mergeStoredData(stored) {
       replies: normalizeCount(match.replies),
       callsBooked: normalizeCount(match.callsBooked),
       signups: normalizeCount(match.signups),
+      clicksBySource: normalizeSourceMap(match.clicksBySource),
       notes: normalizeText(match.notes)
     };
   });
@@ -119,6 +133,39 @@ function normalizeText(value) {
 function normalizeCount(value) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
+}
+
+function normalizeSourceLabel(value) {
+  const normalized = normalizeText(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || DEFAULT_SOURCE;
+}
+
+function normalizeSourceMap(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+
+  return Object.entries(value).reduce((map, [source, count]) => {
+    const key = normalizeSourceLabel(source);
+    map[key] = (map[key] || 0) + normalizeCount(count);
+    return map;
+  }, {});
+}
+
+function loadCurrentSource() {
+  const params = new URLSearchParams(window.location.search);
+  const querySource = params.get('source') || params.get('utm_source') || params.get('ref');
+  const storedSource = window.localStorage.getItem(SOURCE_STORAGE_KEY);
+  return normalizeSourceLabel(querySource || storedSource || DEFAULT_SOURCE);
+}
+
+function saveCurrentSource(value) {
+  currentSource = normalizeSourceLabel(value);
+  sourceInput.value = currentSource;
+  window.localStorage.setItem(SOURCE_STORAGE_KEY, currentSource);
 }
 
 function scoreExperiment(experiment) {
@@ -144,11 +191,17 @@ function updateExperiment(id, updater) {
 function incrementMetric(id, key) {
   updateExperiment(id, (experiment) => ({
     ...experiment,
-    [key]: normalizeCount(experiment[key]) + 1
+    [key]: normalizeCount(experiment[key]) + 1,
+    clicksBySource: key === 'clicks'
+      ? {
+          ...experiment.clicksBySource,
+          [currentSource]: normalizeCount(experiment.clicksBySource?.[currentSource]) + 1
+        }
+      : experiment.clicksBySource
   }));
 
   // Later: send real analytics and CRM events here.
-  // Example payload: { experimentId: id, event: key, source: 'market-lab', createdAt: Date.now() }
+  // Example payload: { experimentId: id, event: key, source: currentSource, createdAt: Date.now() }
 }
 
 function updateNotes(id, value) {
@@ -182,7 +235,7 @@ function renderMockups() {
       </div>
       <p>${escapeHtml(experiment.explanation)}</p>
       <button class="cta-button" type="button" data-cta-click="${escapeHtml(experiment.id)}">
-        ${escapeHtml(experiment.cta)}
+        ${escapeHtml(experiment.cta)} <span class="source-button-label">(${escapeHtml(currentSource)})</span>
       </button>
     </article>
   `).join('');
@@ -191,6 +244,7 @@ function renderMockups() {
 function renderDashboard() {
   dashboard.innerHTML = experiments.map((experiment) => {
     const score = scoreExperiment(experiment);
+    const sourcePills = renderSourcePills(experiment.clicksBySource);
     const metrics = METRICS.map((metric) => `
       <div class="metric">
         <span>${escapeHtml(metric.label)}</span>
@@ -214,6 +268,10 @@ function renderDashboard() {
           <div class="score">Winner score: ${score}</div>
         </div>
         <div class="metrics">${metrics}</div>
+        <div class="source-list">
+          <b>CTA clicks by source</b>
+          <div class="source-pills">${sourcePills}</div>
+        </div>
         <div class="notes-wrap">
           <label for="notes-${escapeHtml(experiment.id)}">Notes</label>
           <textarea id="notes-${escapeHtml(experiment.id)}" data-notes-id="${escapeHtml(experiment.id)}" placeholder="What happened when this angle met reality?">${escapeHtml(experiment.notes)}</textarea>
@@ -227,6 +285,20 @@ function render() {
   renderLeader();
   renderMockups();
   renderDashboard();
+}
+
+function renderSourcePills(clicksBySource = {}) {
+  const entries = Object.entries(clicksBySource)
+    .filter(([, count]) => normalizeCount(count) > 0)
+    .sort((a, b) => normalizeCount(b[1]) - normalizeCount(a[1]));
+
+  if (!entries.length) {
+    return '<span class="source-pill">No source clicks yet</span>';
+  }
+
+  return entries.map(([source, count]) => `
+    <span class="source-pill">${escapeHtml(source)}: ${normalizeCount(count)}</span>
+  `).join('');
 }
 
 function escapeHtml(value) {
@@ -277,6 +349,19 @@ resetButton.addEventListener('click', () => {
   storage.reset();
   experiments = cloneDefaults();
   render();
+});
+
+applySourceButton.addEventListener('click', () => {
+  saveCurrentSource(sourceInput.value);
+  render();
+});
+
+sourceInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    saveCurrentSource(sourceInput.value);
+    render();
+  }
 });
 
 render();
