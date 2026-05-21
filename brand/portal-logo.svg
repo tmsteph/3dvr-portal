@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">3DVR Portal logo</title>
-  <desc id="desc">A layered portal mark with the letters 3DVR.</desc>
+  <title id="title">3dvr portal logo</title>
+  <desc id="desc">A layered portal mark with the words 3dvr portal.</desc>
   <defs>
     <linearGradient id="portal-bg" x1="80" x2="432" y1="70" y2="442" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0f172a"/>
@@ -21,6 +21,6 @@
   <path d="M154 256c0-56.33 45.67-102 102-102s102 45.67 102 102-45.67 102-102 102-102-45.67-102-102Z" fill="none" stroke="url(#portal-line)" stroke-width="18"/>
   <path d="M128 255.5h256M256 128v256" stroke="#e0f2fe" stroke-width="16" stroke-linecap="round" opacity="0.62"/>
   <path d="M184 298c20.83 21.33 44.83 32 72 32s51.17-10.67 72-32" fill="none" stroke="#f8fafc" stroke-width="18" stroke-linecap="round"/>
-  <text x="256" y="267" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="86" font-weight="900" fill="#f8fafc" letter-spacing="-6">3D</text>
-  <text x="256" y="322" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="800" fill="#bae6fd" letter-spacing="4">VR</text>
+  <text x="256" y="274" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="76" font-weight="900" fill="#f8fafc" letter-spacing="-3">3dvr</text>
+  <text x="256" y="324" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="40" font-weight="800" fill="#bae6fd" letter-spacing="1">portal</text>
 </svg>
