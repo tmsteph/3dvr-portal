@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Capture | 3dvr portal</title>
+  <meta
+    name="description"
+    content="Low-energy voice and text capture for turning fast conversations into CRM records, proposals, and 3dvr-agent tasks."
+  />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0d1117" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <nav class="topbar" aria-label="Memory capture navigation">
+        <a href="../">Portal</a>
+        <a href="../crm/">CRM</a>
+        <a href="../admin/#agent-ops-card">Agent Ops</a>
+      </nav>
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Low-energy logging</p>
+          <h1>Brain dump first. Organize later.</h1>
+          <p class="lead">
+            Capture a conversation in seconds, then let the portal turn it into a CRM lead, proposal idea, touch log, or agent task.
+          </p>
+        </div>
+        <aside class="status-card" aria-live="polite">
+          <span>System</span>
+          <strong id="syncStatus">Connecting to Gun...</strong>
+          <p id="lastAction">Ready for a fast capture.</p>
+        </aside>
+      </div>
+    </header>
+
+    <main>
+      <section class="capture-layout" aria-labelledby="capture-title">
+        <article class="panel capture-panel">
+          <div class="section-head">
+            <p class="eyebrow">Capture</p>
+            <h2 id="capture-title">What just happened?</h2>
+          </div>
+
+          <div class="control-strip" aria-label="Fast capture controls">
+            <button id="dictateButton" class="action-button primary" type="button">Start dictation</button>
+            <button id="recordButton" class="action-button" type="button">Record audio note</button>
+            <button id="clearButton" class="action-button subtle" type="button">Clear</button>
+          </div>
+
+          <label class="field">
+            <span>Fast dump</span>
+            <textarea
+              id="captureText"
+              rows="11"
+              placeholder="Example: Met Victor through Mark. Wants to start Alibaba reselling. Seems overwhelmed by setup and product sourcing. Interested in low-cost help. Waiting on first product."
+            ></textarea>
+          </label>
+
+          <div id="audioPreview" class="audio-preview" hidden></div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Source</span>
+              <input id="sourceInput" type="text" value="memory-capture" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Mode</span>
+              <select id="captureMode">
+                <option value="conversation">Conversation</option>
+                <option value="lead">Lead</option>
+                <option value="proposal">Proposal</option>
+                <option value="project">Project</option>
+                <option value="reflection">Reflection</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="button-grid">
+            <button id="saveCaptureButton" class="action-button primary" type="button">Save capture</button>
+            <button id="crmButton" class="action-button" type="button">Create CRM lead</button>
+            <button id="proposalButton" class="action-button" type="button">Create proposal</button>
+            <button id="agentButton" class="action-button" type="button">Queue agent cleanup</button>
+          </div>
+        </article>
+
+        <aside class="panel">
+          <div class="section-head">
+            <p class="eyebrow">AI-shaped preview</p>
+            <h2>Inferred structure</h2>
+          </div>
+          <dl class="inference-list" id="inferenceList"></dl>
+          <div class="link-stack">
+            <a id="crmDraftLink" href="../crm/?draft=1&source=memory-capture">Open CRM draft</a>
+            <a href="../sales/">Open sales hub</a>
+            <a href="../admin/#agent-ops-card">Open agent queue</a>
+          </div>
+        </aside>
+      </section>
+
+      <section class="panel" aria-labelledby="pipeline-title">
+        <div class="section-head row">
+          <div>
+            <p class="eyebrow">Pipeline</p>
+            <h2 id="pipeline-title">What this app connects to</h2>
+          </div>
+          <button id="refreshButton" class="action-button subtle" type="button">Refresh</button>
+        </div>
+        <div class="pipeline-grid">
+          <article>
+            <strong>Raw memory</strong>
+            <p>Saved under <code>3dvr-portal/memoryCapture/captures</code> with a local fallback.</p>
+          </article>
+          <article>
+            <strong>CRM + touch log</strong>
+            <p>Creates leads in <code>3dvr-crm</code> and activity notes in <code>3dvr-portal/crm-touch-log</code>.</p>
+          </article>
+          <article>
+            <strong>Proposals</strong>
+            <p>Tracks scope ideas under <code>3dvr-portal/proposals</code> before they become formal deals.</p>
+          </article>
+          <article>
+            <strong>DigitalOcean agent</strong>
+            <p>Queues cleanup work in <code>agentOps/3dvr-managed/taskQueue</code> for 3dvr-agent or Codex.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="recent-title">
+        <div class="section-head">
+          <p class="eyebrow">Recent</p>
+          <h2 id="recent-title">Recent captures</h2>
+        </div>
+        <div id="recentList" class="recent-list">
+          <p class="empty">No captures yet.</p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="proposals-title">
+        <div class="section-head">
+          <p class="eyebrow">Sales process</p>
+          <h2 id="proposals-title">Proposal tracker</h2>
+        </div>
+        <div id="proposalList" class="recent-list">
+          <p class="empty">No proposals tracked yet.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js" defer></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
