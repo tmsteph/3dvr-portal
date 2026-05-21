@@ -140,6 +140,51 @@
       color: var(--muted);
     }
 
+    .source-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: end;
+      margin: 0 0 3rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-warm);
+    }
+
+    .source-panel label {
+      display: grid;
+      gap: 0.35rem;
+      color: var(--quiet);
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .source-panel input {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #111827;
+      color: var(--text);
+      padding: 0.65rem 0.75rem;
+      font: inherit;
+      font-size: 1rem;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .source-help {
+      margin: 0.65rem 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
     section {
       margin: 3rem 0;
     }
@@ -319,6 +364,41 @@
       padding: 0.75rem;
     }
 
+    .source-list {
+      display: grid;
+      gap: 0.45rem;
+      padding: 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .source-list b {
+      color: var(--quiet);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .source-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+
+    .source-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.28rem 0.52rem;
+      border: 1px solid rgba(246, 211, 101, 0.26);
+      border-radius: 999px;
+      background: rgba(246, 211, 101, 0.08);
+      color: #fde68a;
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+
     .tool-row {
       display: flex;
       justify-content: flex-end;
@@ -360,6 +440,7 @@
 
     @media (max-width: 920px) {
       .hero,
+      .source-panel,
       .mockup-grid,
       .dashboard-grid,
       .architecture {
@@ -406,6 +487,20 @@
     </header>
 
     <main>
+      <section class="source-panel" aria-labelledby="source-title">
+        <div>
+          <label for="sourceInput">
+            <span id="source-title">Current source label</span>
+            <input id="sourceInput" type="text" autocomplete="off" placeholder="direct, instagram, email, outreach..." />
+          </label>
+          <p class="source-help">
+            Add source labels to test posts and outreach links. Example:
+            <code>/market-lab/?source=instagram</code>
+          </p>
+        </div>
+        <button class="ghost-button" type="button" id="applySource">Apply source</button>
+      </section>
+
       <section aria-labelledby="mockups-title">
         <h2 id="mockups-title">Landing-page mockups</h2>
         <p class="section-lead">Use these cards as lightweight offers. Each CTA click increments that experiment.</p>

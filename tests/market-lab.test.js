@@ -15,10 +15,12 @@ describe('Market Lab', () => {
     assert.match(html, /Landing-page mockups/);
     assert.match(html, /Experiment dashboard/);
     assert.match(html, /Current leader/);
+    assert.match(html, /Current source label/);
+    assert.match(html, /\?source=instagram/);
     assert.match(html, /app\.js/);
   });
 
-  it('defines the initial experiments, local storage adapter, metrics, and winner formula', async () => {
+  it('defines the initial experiments, local storage adapter, source labels, metrics, and winner formula', async () => {
     const js = await readFile(appUrl, 'utf8');
 
     assert.match(js, /Launch Your Idea/);
@@ -28,6 +30,9 @@ describe('Market Lab', () => {
     assert.match(js, /Open Future Computing/);
     assert.match(js, /Open-source computing for real humans\./);
     assert.match(js, /window\.localStorage/);
+    assert.match(js, /utm_source/);
+    assert.match(js, /SOURCE_STORAGE_KEY/);
+    assert.match(js, /clicksBySource/);
     assert.match(js, /Gun\.js, Supabase, or a portal API/);
     assert.match(js, /experiment\.replies \* 3/);
     assert.match(js, /experiment\.callsBooked \* 5/);
