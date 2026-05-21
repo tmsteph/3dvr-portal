@@ -20,9 +20,22 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
   <script>
-    const hidePortalBoot = () => document.documentElement.classList.add('app-ready');
-    window.addEventListener('load', hidePortalBoot, { once: true });
-    window.setTimeout(hidePortalBoot, 3600);
+    (() => {
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true ||
+        document.referrer.startsWith('android-app://');
+
+      if (!isStandalone) {
+        document.documentElement.classList.add('app-ready');
+        return;
+      }
+
+      document.documentElement.classList.add('app-boot-enabled');
+      const hidePortalBoot = () => document.documentElement.classList.add('app-ready');
+      window.addEventListener('load', hidePortalBoot, { once: true });
+      window.setTimeout(hidePortalBoot, 3600);
+    })();
   </script>
   <script>
     const prNumber = '{{PR_NUMBER}}';
