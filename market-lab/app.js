@@ -1,6 +1,14 @@
 const STORAGE_KEY = '3dvr.marketLab.experiments.v1';
 const SOURCE_STORAGE_KEY = '3dvr.marketLab.currentSource.v1';
 const DEFAULT_SOURCE = 'direct';
+const GUN_ROOT_KEY = '3dvr-portal';
+const GUN_SECTION_KEY = 'market-lab';
+const GUN_STATE_KEY = 'state';
+const CLIENT_ID_KEY = '3dvr.marketLab.clientId.v1';
+const DEFAULT_GUN_PEERS = [
+  'https://gun-manhattan.herokuapp.com/gun',
+  'https://gun-us.herokuapp.com/gun'
+];
 
 const DEFAULT_EXPERIMENTS = [
   {
@@ -11,6 +19,11 @@ const DEFAULT_EXPERIMENTS = [
     cta: 'Book a free brainstorming call.',
     headline: 'Finally launch the idea you keep carrying around.',
     explanation: 'Turn a rough idea into a first page, offer, or working next step with direct 3DVR help.',
+    landingPath: 'launch-your-idea/',
+    segment: 'Entrepreneurs, creators, and side hustlers',
+    pain: 'Idea is stuck in notes instead of shipping',
+    offer: 'Free brainstorming call',
+    nextBestAction: 'Ask what idea they keep circling, what would count as launched, and what small page or offer could go live first.',
     status: 'Testing',
     clicks: 0,
     replies: 0,
@@ -27,6 +40,11 @@ const DEFAULT_EXPERIMENTS = [
     cta: 'Get tech support.',
     headline: 'A calm personal tech department for everyday problems.',
     explanation: 'Get practical help with sites, accounts, devices, software, and small systems without hiring a full team.',
+    landingPath: 'personal-tech-department/',
+    segment: 'Small businesses, older adults, and busy professionals',
+    pain: 'Tech tasks keep interrupting the real work',
+    offer: '$20/month personal tech department',
+    nextBestAction: 'Ask what tech task keeps costing them time and whether a calm monthly support lane would help.',
     status: 'Testing',
     clicks: 0,
     replies: 0,
@@ -43,6 +61,11 @@ const DEFAULT_EXPERIMENTS = [
     cta: 'Join the builder community.',
     headline: 'Open-source computing should feel human.',
     explanation: 'Build toward local-first tools, humane interfaces, Linux-friendly workflows, and portable digital independence.',
+    landingPath: 'open-future-computing/',
+    segment: 'Linux, open-source, makers, and digital nomads',
+    pain: 'Modern computing feels closed, extractive, or too hard to own',
+    offer: 'Builder community invitation',
+    nextBestAction: 'Ask which open computing problem they care about most and whether they want to follow or help build the 3DVR stack.',
     status: 'Testing',
     clicks: 0,
     replies: 0,
@@ -61,32 +84,33 @@ const METRICS = [
 ];
 
 const storage = {
-  load() {
+  loadPayload() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return cloneDefaults();
-      return mergeStoredData(JSON.parse(raw));
+      if (!raw) return { experiments: cloneDefaults(), updatedAt: 0 };
+      const parsed = JSON.parse(raw);
+      return normalizePayload(parsed);
     } catch (error) {
       console.warn('Market Lab could not load local data; using defaults.', error);
-      return cloneDefaults();
+      return { experiments: cloneDefaults(), updatedAt: 0 };
     }
   },
-  save(experiments) {
+  save(payload) {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(experiments));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (error) {
       console.warn('Market Lab could not save local data.', error);
     }
-
-    // Later: write the same normalized payload to Gun.js, Supabase, or a portal API here.
-    // Suggested path: 3dvr-portal/market-lab/experiments/{experimentId}
   },
   reset() {
     window.localStorage.removeItem(STORAGE_KEY);
   }
 };
 
-let experiments = storage.load();
+const localPayload = storage.loadPayload();
+let experiments = localPayload.experiments;
+let lastSavedAt = localPayload.updatedAt;
+let applyingRemote = false;
 
 const mockupGrid = document.getElementById('mockupGrid');
 const dashboard = document.getElementById('experimentDashboard');
@@ -95,6 +119,8 @@ const leadingExperimentDetail = document.getElementById('leadingExperimentDetail
 const resetButton = document.getElementById('resetExperiments');
 const sourceInput = document.getElementById('sourceInput');
 const applySourceButton = document.getElementById('applySource');
+const syncStatus = document.getElementById('syncStatus');
+const marketLabGun = createGunBackup();
 
 let currentSource = loadCurrentSource();
 sourceInput.value = currentSource;
@@ -116,6 +142,11 @@ function mergeStoredData(stored) {
     return {
       ...base,
       status: normalizeText(match.status) || base.status,
+      landingPath: normalizeText(match.landingPath) || base.landingPath,
+      segment: normalizeText(match.segment) || base.segment,
+      pain: normalizeText(match.pain) || base.pain,
+      offer: normalizeText(match.offer) || base.offer,
+      nextBestAction: normalizeText(match.nextBestAction) || base.nextBestAction,
       clicks: normalizeCount(match.clicks),
       replies: normalizeCount(match.replies),
       callsBooked: normalizeCount(match.callsBooked),
@@ -126,11 +157,50 @@ function mergeStoredData(stored) {
   });
 }
 
+function normalizePayload(value) {
+  if (Array.isArray(value)) {
+    return { experiments: mergeStoredData(value), updatedAt: 0 };
+  }
+
+  if (!value || typeof value !== 'object') {
+    return { experiments: cloneDefaults(), updatedAt: 0 };
+  }
+
+  const rawExperiments = Array.isArray(value.experiments) ? value.experiments : [];
+  return {
+    experiments: mergeStoredData(rawExperiments),
+    updatedAt: normalizeTimestamp(value.updatedAt)
+  };
+}
+
+function normalizeRemotePayload(value) {
+  if (!value || typeof value !== 'object') return null;
+
+  try {
+    const experimentsValue = typeof value.experiments === 'string'
+      ? JSON.parse(value.experiments)
+      : value.experiments;
+
+    return normalizePayload({
+      experiments: experimentsValue,
+      updatedAt: value.updatedAt
+    });
+  } catch (error) {
+    console.warn('Market Lab could not parse Gun backup payload.', error);
+    return null;
+  }
+}
+
 function normalizeText(value) {
   return typeof value === 'string' ? value : '';
 }
 
 function normalizeCount(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
+}
+
+function normalizeTimestamp(value) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
 }
@@ -168,6 +238,133 @@ function saveCurrentSource(value) {
   window.localStorage.setItem(SOURCE_STORAGE_KEY, currentSource);
 }
 
+function createClientId() {
+  const existing = window.localStorage.getItem(CLIENT_ID_KEY);
+  if (existing) return existing;
+
+  const id = `market-lab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  window.localStorage.setItem(CLIENT_ID_KEY, id);
+  return id;
+}
+
+function createGunBackup() {
+  if (typeof Gun !== 'function') {
+    return { enabled: false, clientId: createClientId(), stateNode: null, eventsNode: null };
+  }
+
+  try {
+    const gun = Gun(window.__GUN_PEERS__ || DEFAULT_GUN_PEERS);
+    const root = gun.get(GUN_ROOT_KEY).get(GUN_SECTION_KEY);
+    return {
+      enabled: true,
+      clientId: createClientId(),
+      stateNode: root.get(GUN_STATE_KEY),
+      eventsNode: root.get('events')
+    };
+  } catch (error) {
+    console.warn('Market Lab could not start Gun backup.', error);
+    return { enabled: false, clientId: createClientId(), stateNode: null, eventsNode: null };
+  }
+}
+
+function setSyncStatus(message) {
+  if (syncStatus) {
+    syncStatus.textContent = message;
+  }
+}
+
+function buildPayload(updatedAt = Date.now()) {
+  return {
+    schemaVersion: 1,
+    updatedAt,
+    updatedBy: marketLabGun.clientId,
+    experiments
+  };
+}
+
+function persistExperiments({ sync = true } = {}) {
+  const updatedAt = Date.now();
+  lastSavedAt = updatedAt;
+  const payload = buildPayload(updatedAt);
+  storage.save(payload);
+
+  if (sync && !applyingRemote) {
+    backupToGun(payload);
+  }
+}
+
+function backupToGun(payload) {
+  if (!marketLabGun.enabled || !marketLabGun.stateNode) {
+    setSyncStatus('Gun backup: local only');
+    return;
+  }
+
+  try {
+    marketLabGun.stateNode.put({
+      schemaVersion: payload.schemaVersion,
+      updatedAt: payload.updatedAt,
+      updatedBy: payload.updatedBy,
+      experiments: JSON.stringify(payload.experiments)
+    }, (ack) => {
+      if (ack && ack.err) {
+        console.warn('Market Lab Gun backup failed.', ack.err);
+        setSyncStatus('Gun backup: retrying locally');
+        return;
+      }
+      setSyncStatus('Gun backup: synced');
+    });
+  } catch (error) {
+    console.warn('Market Lab could not write Gun backup.', error);
+    setSyncStatus('Gun backup: local only');
+  }
+}
+
+function backupEventToGun(id, eventName) {
+  if (!marketLabGun.enabled || !marketLabGun.eventsNode) return;
+
+  const createdAt = Date.now();
+  const eventId = `${createdAt}-${marketLabGun.clientId}-${id}-${eventName}`;
+
+  try {
+    marketLabGun.eventsNode.get(eventId).put({
+      id: eventId,
+      experimentId: id,
+      event: eventName,
+      source: currentSource,
+      createdAt
+    });
+  } catch (error) {
+    console.warn('Market Lab could not write Gun event.', error);
+  }
+}
+
+function startGunBackup() {
+  if (!marketLabGun.enabled || !marketLabGun.stateNode) {
+    setSyncStatus('Gun backup: local only');
+    return;
+  }
+
+  setSyncStatus('Gun backup: connecting...');
+
+  marketLabGun.stateNode.on((data) => {
+    const remote = normalizeRemotePayload(data);
+    if (!remote || remote.updatedAt <= lastSavedAt) return;
+
+    applyingRemote = true;
+    experiments = remote.experiments;
+    lastSavedAt = remote.updatedAt;
+    storage.save({
+      schemaVersion: 1,
+      updatedAt: remote.updatedAt,
+      updatedBy: data.updatedBy || 'gun',
+      experiments
+    });
+    render();
+    setSyncStatus('Gun backup: synced from peer');
+    applyingRemote = false;
+  });
+}
+
 function scoreExperiment(experiment) {
   return experiment.clicks
     + experiment.replies * 3
@@ -176,7 +373,7 @@ function scoreExperiment(experiment) {
 }
 
 function saveAndRender() {
-  storage.save(experiments);
+  persistExperiments();
   render();
 }
 
@@ -200,8 +397,9 @@ function incrementMetric(id, key) {
       : experiment.clicksBySource
   }));
 
-  // Later: send real analytics and CRM events here.
-  // Example payload: { experimentId: id, event: key, source: currentSource, createdAt: Date.now() }
+  backupEventToGun(id, key);
+
+  // Later: forward this same payload to analytics, booked-call forms, and CRM activity history.
 }
 
 function updateNotes(id, value) {
@@ -234,9 +432,17 @@ function renderMockups() {
         <h3>${escapeHtml(experiment.headline)}</h3>
       </div>
       <p>${escapeHtml(experiment.explanation)}</p>
-      <button class="cta-button" type="button" data-cta-click="${escapeHtml(experiment.id)}">
-        ${escapeHtml(experiment.cta)} <span class="source-button-label">(${escapeHtml(currentSource)})</span>
-      </button>
+      <div class="link-grid">
+        <a class="lab-link primary" href="${escapeHtml(getLandingHref(experiment))}">
+          Test page
+        </a>
+        <a class="lab-link" href="${escapeHtml(getCrmHref(experiment))}">
+          CRM draft
+        </a>
+        <a class="lab-link" href="${escapeHtml(getContactsHref(experiment))}">
+          Contacts
+        </a>
+      </div>
     </article>
   `).join('');
 }
@@ -272,6 +478,11 @@ function renderDashboard() {
           <b>CTA clicks by source</b>
           <div class="source-pills">${sourcePills}</div>
         </div>
+        <div class="link-grid">
+          <a class="lab-link primary" href="${escapeHtml(getLandingHref(experiment))}">Open landing page</a>
+          <a class="lab-link" href="${escapeHtml(getCrmHref(experiment))}">Open CRM draft</a>
+          <a class="lab-link" href="${escapeHtml(getContactsHref(experiment))}">Open contacts</a>
+        </div>
         <div class="notes-wrap">
           <label for="notes-${escapeHtml(experiment.id)}">Notes</label>
           <textarea id="notes-${escapeHtml(experiment.id)}" data-notes-id="${escapeHtml(experiment.id)}" placeholder="What happened when this angle met reality?">${escapeHtml(experiment.notes)}</textarea>
@@ -279,6 +490,41 @@ function renderDashboard() {
       </article>
     `;
   }).join('');
+}
+
+function getLandingHref(experiment) {
+  const path = normalizeText(experiment.landingPath) || `${experiment.id}/`;
+  const params = new URLSearchParams({ source: currentSource });
+  return `${path}?${params.toString()}`;
+}
+
+function getCrmHref(experiment) {
+  const params = new URLSearchParams({
+    draft: '1',
+    type: 'person',
+    status: 'Warm - Awareness',
+    segment: experiment.segment || experiment.audience,
+    pain: experiment.pain || experiment.message,
+    pilot: 'Conversation',
+    offer: experiment.offer || experiment.cta,
+    signal: experiment.message,
+    experiment: experiment.name,
+    nextBestAction: experiment.nextBestAction || experiment.cta,
+    source: `market-lab/${currentSource}`,
+    tags: `source/market-lab,experiment/${experiment.id},angle/${normalizeSourceLabel(experiment.name)}`
+  });
+
+  return `../crm/index.html?${params.toString()}`;
+}
+
+function getContactsHref(experiment) {
+  const params = new URLSearchParams({
+    source: `market-lab/${currentSource}`,
+    tags: `source/market-lab,experiment/${experiment.id}`,
+    notes: `${experiment.name}: ${experiment.message} ${experiment.nextBestAction || ''}`.trim()
+  });
+
+  return `../contacts/index.html?${params.toString()}`;
 }
 
 function render() {
@@ -314,9 +560,6 @@ document.addEventListener('click', (event) => {
   const ctaButton = event.target.closest('[data-cta-click]');
   if (ctaButton) {
     incrementMetric(ctaButton.dataset.ctaClick, 'clicks');
-
-    // Later: replace this with a real form, booking flow, or CRM handoff.
-    return;
   }
 
   const metricButton = event.target.closest('[data-metric-id][data-metric-key]');
@@ -340,7 +583,7 @@ document.addEventListener('input', (event) => {
     experiments = experiments.map((experiment) => (
       experiment.id === id ? { ...experiment, notes: draft } : experiment
     ));
-    storage.save(experiments);
+    persistExperiments();
     renderLeader();
   }
 });
@@ -348,6 +591,7 @@ document.addEventListener('input', (event) => {
 resetButton.addEventListener('click', () => {
   storage.reset();
   experiments = cloneDefaults();
+  persistExperiments();
   render();
 });
 
@@ -365,3 +609,4 @@ sourceInput.addEventListener('keydown', (event) => {
 });
 
 render();
+startGunBackup();

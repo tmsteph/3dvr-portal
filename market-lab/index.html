@@ -49,6 +49,7 @@
     a { color: inherit; }
 
     button,
+    input,
     textarea {
       font: inherit;
     }
@@ -183,6 +184,19 @@
       font-weight: 500;
       letter-spacing: 0;
       text-transform: none;
+    }
+
+    .sync-status {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 0.85rem;
+      padding: 0.28rem 0.55rem;
+      border: 1px solid rgba(94, 234, 212, 0.24);
+      border-radius: 999px;
+      color: #b7fff2;
+      background: rgba(94, 234, 212, 0.08);
+      font-size: 0.82rem;
+      font-weight: 800;
     }
 
     section {
@@ -399,6 +413,33 @@
       font-weight: 800;
     }
 
+    .link-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.65rem;
+    }
+
+    .lab-link {
+      display: inline-flex;
+      min-height: 40px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.045);
+      font-size: 0.9rem;
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .lab-link.primary {
+      border-color: rgba(94, 234, 212, 0.32);
+      color: #b7fff2;
+      background: rgba(94, 234, 212, 0.08);
+    }
+
     .tool-row {
       display: flex;
       justify-content: flex-end;
@@ -443,6 +484,7 @@
       .source-panel,
       .mockup-grid,
       .dashboard-grid,
+      .link-grid,
       .architecture {
         grid-template-columns: 1fr;
       }
@@ -497,13 +539,14 @@
             Add source labels to test posts and outreach links. Example:
             <code>/market-lab/?source=instagram</code>
           </p>
+          <p class="sync-status" id="syncStatus">Gun backup: connecting...</p>
         </div>
         <button class="ghost-button" type="button" id="applySource">Apply source</button>
       </section>
 
       <section aria-labelledby="mockups-title">
-        <h2 id="mockups-title">Landing-page mockups</h2>
-        <p class="section-lead">Use these cards as lightweight offers. Each CTA click increments that experiment.</p>
+        <h2 id="mockups-title">Landing pages to test</h2>
+        <p class="section-lead">Use these as real links in CRM, contacts, posts, texts, and calls. CTA clicks increment the experiment and can open a CRM conversation draft.</p>
         <div class="mockup-grid" id="mockupGrid"></div>
       </section>
 
@@ -512,7 +555,7 @@
         <p class="section-lead">Track the small signals that matter before building a heavier funnel.</p>
         <div class="dashboard-grid" id="experimentDashboard"></div>
         <div class="tool-row">
-          <button class="ghost-button" type="button" id="resetExperiments">Reset local data</button>
+          <button class="ghost-button" type="button" id="resetExperiments">Reset lab data</button>
         </div>
       </section>
 
@@ -521,21 +564,23 @@
         <div class="architecture">
           <article class="architecture-card">
             <h3>Local first</h3>
-            <p>Browser localStorage is the source of truth for this MVP, so the lab works without accounts or backend setup.</p>
+            <p>Browser localStorage keeps the lab usable even when the network or Gun peers are unavailable.</p>
           </article>
           <article class="architecture-card">
-            <h3>Sync later</h3>
-            <p>The storage adapter in <code>app.js</code> is where Gun.js, Supabase, or a portal API can be added.</p>
+            <h3>Gun backed</h3>
+            <p>The same normalized experiment payload is backed up to Gun at <code>3dvr-portal/market-lab/state</code>.</p>
           </article>
           <article class="architecture-card">
-            <h3>CRM later</h3>
-            <p>CTA handlers are the handoff point for real analytics events, CRM records, form submits, and booked-call data.</p>
+            <h3>Conversation ready</h3>
+            <p>Each angle has CRM and contacts links so a real person can move straight into follow-up.</p>
           </article>
         </div>
       </section>
     </main>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
   <script src="app.js" defer></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
