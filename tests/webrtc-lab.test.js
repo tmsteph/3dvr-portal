@@ -198,6 +198,9 @@ describe('Gun Live Room app', () => {
     assert.match(html, /id="mic-select"/);
     assert.match(html, /id="live-grid"/);
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260522-v2">/);
+    assert.match(html, /id="build-version">Gun Live v2\.1</);
+    assert.match(html, /<script src="\.\/app\.js\?v=20260522-v2"><\/script>/);
     assert.match(js, /ROOM_ROOT = '3dvr-gun-live-room'/);
     assert.match(js, /enumerateDevices/);
     assert.match(js, /deviceId: \{ exact: deviceId \}/);
