@@ -26,7 +26,8 @@
         <h1>Simple video rooms without vdo.ninja.</h1>
         <p>
           A small browser-to-browser conferencing experiment. Gun relays the room signals; WebRTC carries
-          the audio and video directly between participants.
+          the audio and video directly between participants. Joining now starts media before signaling so
+          peers negotiate with real tracks.
         </p>
       </div>
       <aside class="lab-note">
@@ -63,6 +64,20 @@
       <button type="button" id="toggle-camera" disabled>Hide camera</button>
       <button type="button" id="leave-room" disabled>Leave</button>
       <p id="status-line" class="status-line" role="status">Choose a room and start your camera.</p>
+      <dl class="room-stats" aria-label="Room diagnostics">
+        <div>
+          <dt>Your peer</dt>
+          <dd id="local-peer-id">Not joined</dd>
+        </div>
+        <div>
+          <dt>Peers seen</dt>
+          <dd id="peer-count">0</dd>
+        </div>
+        <div>
+          <dt>Signals handled</dt>
+          <dd id="signal-count">0</dd>
+        </div>
+      </dl>
     </section>
 
     <section class="video-grid" id="video-grid" aria-label="Video tiles">

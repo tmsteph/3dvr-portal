@@ -195,6 +195,35 @@ input {
   font-size: 0.92rem;
 }
 
+.room-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0.45rem 0 0;
+}
+
+.room-stats div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.55rem;
+  border: 1px solid var(--rtc-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.room-stats dt {
+  color: var(--rtc-muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.room-stats dd {
+  margin: 0;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
 .video-grid {
   grid-row: span 2;
   display: grid;
@@ -292,6 +321,10 @@ input {
   }
 
   .video-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .room-stats {
     grid-template-columns: 1fr;
   }
 }

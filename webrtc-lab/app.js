@@ -14,6 +14,9 @@
     localLabel: document.getElementById('local-label'),
     localState: document.getElementById('local-state'),
     videoGrid: document.getElementById('video-grid'),
+    localPeerId: document.getElementById('local-peer-id'),
+    peerCount: document.getElementById('peer-count'),
+    signalCount: document.getElementById('signal-count'),
     eventLog: document.getElementById('event-log')
   };
 
@@ -21,8 +24,9 @@
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
   ];
-  const ROOM_ROOT = '3dvr-webrtc-lab';
+  const ROOM_ROOT = '3dvr-webrtc-lab-v2';
   const SIGNAL_TTL_MS = 1000 * 60 * 20;
+  const PEER_SESSION_KEY = 'webrtcLabParticipantId';
 
   let gun = null;
   let roomNode = null;
@@ -34,6 +38,7 @@
   let localStream = null;
   let joined = false;
   let heartbeatTimer = null;
+  let signalsHandled = 0;
   const peers = new Map();
   const seenSignals = new Set();
 
@@ -52,10 +57,10 @@
 
   function getOrCreateLocalId() {
     try {
-      const stored = localStorage.getItem('webrtcLabParticipantId');
+      const stored = sessionStorage.getItem(PEER_SESSION_KEY);
       if (stored) return stored;
       const next = createId('peer');
-      localStorage.setItem('webrtcLabParticipantId', next);
+      sessionStorage.setItem(PEER_SESSION_KEY, next);
       return next;
     } catch (_error) {
       return createId('peer');
@@ -74,6 +79,12 @@
   function setStatus(message) {
     refs.statusLine.textContent = message;
     logEvent(message);
+  }
+
+  function updateDiagnostics() {
+    refs.localPeerId.textContent = joined ? localId.replace(/^peer_/, '') : 'Not joined';
+    refs.peerCount.textContent = String(peers.size);
+    refs.signalCount.textContent = String(signalsHandled);
   }
 
   function resolveInitialRoom() {
@@ -133,9 +144,21 @@
     refs.toggleCamera.disabled = false;
     refs.localState.textContent = 'Camera on';
     setStatus('Camera ready.');
-    peers.forEach(peer => {
-      localStream.getTracks().forEach(track => peer.connection.addTrack(track, localStream));
+    peers.forEach((peer, remoteId) => {
+      const senders = peer.connection.getSenders();
+      localStream.getTracks().forEach(track => {
+        if (!senders.some(sender => sender.track && sender.track.id === track.id)) {
+          peer.connection.addTrack(track, localStream);
+        }
+      });
+      if (joined && shouldInitiateOffer(remoteId)) {
+        makeOffer(remoteId, peer.name).catch(error => {
+          console.error('Renegotiation failed', error);
+          setStatus(`Renegotiation failed: ${error.message || error}`);
+        });
+      }
     });
+    announcePresence('media-ready');
     return localStream;
   }
 
@@ -161,10 +184,19 @@
       tile: createRemoteTile(remoteId, remoteName)
     };
     peers.set(remoteId, peer);
+    updateDiagnostics();
 
     if (localStream) {
       localStream.getTracks().forEach(track => connection.addTrack(track, localStream));
     }
+
+    connection.onnegotiationneeded = () => {
+      if (!joined || !shouldInitiateOffer(remoteId)) return;
+      makeOffer(remoteId, peer.name).catch(error => {
+        console.error('Negotiation failed', error);
+        setStatus(`Negotiation failed: ${error.message || error}`);
+      });
+    };
 
     connection.ontrack = event => {
       event.streams[0].getTracks().forEach(track => peer.stream.addTrack(track));
@@ -210,14 +242,22 @@
 
   async function makeOffer(remoteId, remoteName) {
     const peer = createPeer(remoteId, remoteName);
-    const offer = await peer.connection.createOffer();
-    await peer.connection.setLocalDescription(offer);
-    sendSignal(remoteId, 'offer', peer.connection.localDescription);
-    logEvent(`Offer sent to ${remoteName || remoteId}.`);
+    if (peer.makingOffer || peer.connection.signalingState !== 'stable') return;
+    peer.makingOffer = true;
+    if (!localStream) await startCamera();
+    try {
+      const offer = await peer.connection.createOffer();
+      await peer.connection.setLocalDescription(offer);
+      sendSignal(remoteId, 'offer', peer.connection.localDescription);
+      logEvent(`Offer sent to ${remoteName || remoteId}.`);
+    } finally {
+      peer.makingOffer = false;
+    }
   }
 
   async function handleOffer(signal) {
     const peer = createPeer(signal.from, signal.fromName);
+    if (!localStream) await startCamera();
     await peer.connection.setRemoteDescription(new RTCSessionDescription(signal.payload));
     const answer = await peer.connection.createAnswer();
     await peer.connection.setLocalDescription(answer);
@@ -241,6 +281,17 @@
     }
   }
 
+  function serializePayload(payload) {
+    if (!payload) return '';
+    const value = typeof payload.toJSON === 'function' ? payload.toJSON() : payload;
+    return JSON.stringify(value);
+  }
+
+  function parsePayload(signal) {
+    if (signal.payloadJson) return JSON.parse(signal.payloadJson);
+    return signal.payload || null;
+  }
+
   function sendSignal(to, type, payload) {
     if (!signalsNode) return;
     const id = createId('signal');
@@ -251,18 +302,23 @@
       fromName: localName,
       to,
       type,
-      payload,
+      payloadJson: serializePayload(payload),
       createdAt: Date.now()
     });
   }
 
   function handleSignal(signal, id) {
     if (!signal || id === '_' || seenSignals.has(id)) return;
-    if (signal.to !== localId || signal.from === localId) return;
+    if (signal.from === localId) return;
+    if (signal.to !== localId && signal.to !== '*') return;
     if (Date.now() - Number(signal.createdAt || 0) > SIGNAL_TTL_MS) return;
     seenSignals.add(id);
+    signalsHandled += 1;
+    updateDiagnostics();
     Promise.resolve()
       .then(() => {
+        signal.payload = parsePayload(signal);
+        if (signal.type === 'announce') return handleAnnounce(signal);
         if (signal.type === 'offer') return handleOffer(signal);
         if (signal.type === 'answer') return handleAnswer(signal);
         if (signal.type === 'candidate') return handleCandidate(signal);
@@ -279,9 +335,39 @@
     participantsNode.get(localId).put({
       id: localId,
       name: localName,
+      hasMedia: Boolean(localStream),
       joinedAt: Date.now(),
       lastSeen: Date.now()
     });
+  }
+
+  function announcePresence(reason = 'announce') {
+    publishPresence();
+    sendSignal('*', 'announce', {
+      reason,
+      hasMedia: Boolean(localStream)
+    });
+  }
+
+  function shouldInitiateOffer(remoteId) {
+    return String(localId) < String(remoteId);
+  }
+
+  function connectToParticipant(remoteId, remoteName) {
+    if (!remoteId || remoteId === localId) return;
+    createPeer(remoteId, remoteName);
+    if (shouldInitiateOffer(remoteId)) {
+      makeOffer(remoteId, remoteName).catch(error => {
+        console.error('Offer failed', error);
+        setStatus(`Offer failed: ${error.message || error}`);
+      });
+    }
+  }
+
+  function handleAnnounce(signal) {
+    if (!joined) return null;
+    connectToParticipant(signal.from, signal.fromName);
+    return null;
   }
 
   function watchParticipants() {
@@ -289,17 +375,16 @@
       if (!joined || !participant || id === '_' || id === localId) return;
       const lastSeen = Number(participant.lastSeen || 0);
       if (Date.now() - lastSeen > 45000) return;
-      if (!peers.has(id) && localId < id) {
-        makeOffer(id, participant.name).catch(error => {
-          console.error('Offer failed', error);
-          setStatus(`Offer failed: ${error.message || error}`);
-        });
-      }
+      connectToParticipant(id, participant.name);
     });
   }
 
   async function joinRoom(event) {
     if (event) event.preventDefault();
+    if (!localStream) {
+      setStatus('Starting camera before room signaling.');
+      await startCamera();
+    }
     roomId = normalizeRoom(refs.roomId.value) || resolveInitialRoom();
     refs.roomId.value = roomId;
     localName = String(refs.displayName.value || '').trim() || `Guest ${localId.slice(-4)}`;
@@ -311,11 +396,12 @@
     updateRoomUrl();
     joined = true;
     refs.leaveRoom.disabled = false;
-    publishPresence();
-    heartbeatTimer = setInterval(publishPresence, 10000);
+    updateDiagnostics();
     signalsNode.map().on(handleSignal);
     watchParticipants();
-    setStatus(`Joined room ${roomId}. Start camera if it is not already on.`);
+    announcePresence('join');
+    heartbeatTimer = setInterval(() => announcePresence('heartbeat'), 10000);
+    setStatus(`Joined room ${roomId}. Waiting for peers.`);
   }
 
   function leaveRoom() {
@@ -332,6 +418,7 @@
       peer.tile.tile.remove();
     });
     peers.clear();
+    updateDiagnostics();
     refs.leaveRoom.disabled = true;
     setStatus('Left room.');
   }
@@ -386,6 +473,7 @@
     refs.toggleMic.addEventListener('click', toggleMic);
     refs.toggleCamera.addEventListener('click', toggleCamera);
     refs.leaveRoom.addEventListener('click', leaveRoom);
+    updateDiagnostics();
     window.addEventListener('beforeunload', () => {
       leaveRoom();
       stopLocalStream();

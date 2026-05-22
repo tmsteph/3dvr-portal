@@ -41,10 +41,19 @@ describe('WebRTC Lab app', () => {
     assert.match(html, /<script src="\.\/app\.js"><\/script>/);
     assert.match(js, /new RTCPeerConnection\(\{ iceServers: ICE_SERVERS \}\)/);
     assert.match(js, /navigator\.mediaDevices\.getUserMedia/);
-    assert.match(js, /ROOM_ROOT = '3dvr-webrtc-lab'/);
+    assert.match(js, /ROOM_ROOT = '3dvr-webrtc-lab-v2'/);
+    assert.match(js, /PEER_SESSION_KEY = 'webrtcLabParticipantId'/);
+    assert.match(js, /sessionStorage\.setItem\(PEER_SESSION_KEY, next\)/);
+    assert.match(js, /connection\.onnegotiationneeded/);
+    assert.match(js, /payloadJson: serializePayload\(payload\)/);
+    assert.match(js, /if \(signal\.type === 'announce'\) return handleAnnounce\(signal\)/);
+    assert.match(js, /await startCamera\(\)/);
     assert.match(js, /signalsNode\.map\(\)\.on\(handleSignal\)/);
     assert.match(js, /participantsNode\.map\(\)\.on/);
+    assert.match(html, /id="peer-count"/);
+    assert.match(html, /id="signal-count"/);
     assert.match(readme, /Mesh WebRTC/);
+    assert.match(readme, /3dvr-webrtc-lab-v2\/<room>/);
   });
 
   it('registers the lab in the portal and existing video hub', async () => {
