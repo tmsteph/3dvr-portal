@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
   <link rel="stylesheet" href="../style.css?v=webrtc-lab">
-  <link rel="stylesheet" href="./styles.css?v=20260522-v3">
+  <link rel="stylesheet" href="./styles.css?v=20260522-v4">
 </head>
 <body class="webrtc-page">
   <header class="lab-header">
@@ -28,7 +28,7 @@
           A small browser-to-browser conferencing experiment. Gun relays the room signals; WebRTC carries
           the audio and video directly between participants. Joining now starts media before signaling so
           peers negotiate with real tracks. The default profile now favors weak mobile links with
-          lower video resolution and bitrate.
+          lower video resolution and bitrate, and the lab can use a TURN relay when configured.
         </p>
       </div>
       <aside class="lab-note">
@@ -79,12 +79,16 @@
           <dd id="signal-count">0</dd>
         </div>
         <div>
+          <dt>Relay</dt>
+          <dd id="turn-status">STUN only</dd>
+        </div>
+        <div>
           <dt>Video</dt>
           <dd id="video-profile">180p / 10fps</dd>
         </div>
         <div>
           <dt>Build</dt>
-          <dd id="build-version">WebRTC v2.2</dd>
+          <dd id="build-version">WebRTC v2.3</dd>
         </div>
       </dl>
     </section>
@@ -112,6 +116,6 @@
     <p>Built as a 3DVR WebRTC proof of concept. Use HTTPS or localhost so browser camera permissions work.</p>
   </footer>
 
-  <script src="./app.js?v=20260522-v3"></script>
+  <script src="./app.js?v=20260522-v4"></script>
 </body>
 </html>

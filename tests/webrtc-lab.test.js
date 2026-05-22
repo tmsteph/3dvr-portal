@@ -8,6 +8,7 @@ const gunVideoDir = new URL('../gun-video-lab/', import.meta.url);
 const gunClipDir = new URL('../gun-clip-lab/', import.meta.url);
 const gunLiveDir = new URL('../gun-live-room/', import.meta.url);
 const gunChunkDir = new URL('../gun-chunk-stream/', import.meta.url);
+const turnOpsDir = new URL('../ops/turn/', import.meta.url);
 
 async function fileExists(path) {
   try {
@@ -38,11 +39,14 @@ describe('WebRTC Lab app', () => {
     assert.match(html, /Native WebRTC POC/);
     assert.match(html, /id="local-video"/);
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260522-v3">/);
+    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260522-v4">/);
+    assert.match(html, /id="turn-status">STUN only</);
     assert.match(html, /id="video-profile">180p \/ 10fps</);
-    assert.match(html, /id="build-version">WebRTC v2\.2</);
-    assert.match(html, /<script src="\.\/app\.js\?v=20260522-v3"><\/script>/);
-    assert.match(js, /new RTCPeerConnection\(\{ iceServers: ICE_SERVERS \}\)/);
+    assert.match(html, /id="build-version">WebRTC v2\.3</);
+    assert.match(html, /<script src="\.\/app\.js\?v=20260522-v4"><\/script>/);
+    assert.match(js, /fetch\('\/api\/session\?route=turn-credentials', \{ cache: 'no-store' \}\)/);
+    assert.match(js, /new RTCPeerConnection\(connectionConfig\)/);
+    assert.match(js, /connectionConfig\.iceTransportPolicy = 'relay'/);
     assert.match(js, /navigator\.mediaDevices\.getUserMedia/);
     assert.match(js, /LOW_BANDWIDTH_VIDEO = Object\.freeze/);
     assert.match(js, /width: \{ ideal: LOW_BANDWIDTH_VIDEO\.width \}/);
@@ -59,6 +63,8 @@ describe('WebRTC Lab app', () => {
     assert.match(js, /participantsNode\.map\(\)\.on/);
     assert.match(html, /id="peer-count"/);
     assert.match(html, /id="signal-count"/);
+    assert.match(readme, /\/api\/session\?route=turn-credentials/);
+    assert.match(readme, /\?relay=1/);
     assert.match(readme, /320 x 180 video at about 10 fps/);
     assert.match(readme, /near 240 kbps/);
     assert.match(readme, /Mesh WebRTC/);
@@ -75,6 +81,27 @@ describe('WebRTC Lab app', () => {
     assert.match(readme, /\[WebRTC Lab\]\(https:\/\/3dvr-portal\.vercel\.app\/webrtc-lab\/\)/);
     assert.match(videoHome, /href="\/webrtc-lab\/"/);
     assert.match(videoHome, /Native WebRTC Lab/);
+  });
+
+  it('documents the coturn relay setup for WebRTC testing', async () => {
+    const readmeUrl = new URL('README.md', turnOpsDir);
+    const composeUrl = new URL('docker-compose.yml', turnOpsDir);
+    const configUrl = new URL('turnserver.conf.example', turnOpsDir);
+
+    assert.equal(await fileExists(readmeUrl), true, 'TURN relay README should exist');
+    assert.equal(await fileExists(composeUrl), true, 'TURN docker compose should exist');
+    assert.equal(await fileExists(configUrl), true, 'TURN coturn config example should exist');
+
+    const readme = await readFile(readmeUrl, 'utf8');
+    const compose = await readFile(composeUrl, 'utf8');
+    const config = await readFile(configUrl, 'utf8');
+
+    assert.match(readme, /TURN_STATIC_AUTH_SECRET/);
+    assert.match(readme, /TURN_URLS=/);
+    assert.match(readme, /\?relay=1/);
+    assert.match(compose, /coturn\/coturn:latest/);
+    assert.match(config, /use-auth-secret/);
+    assert.match(config, /static-auth-secret=replace_me_with_same_value_as_TURN_STATIC_AUTH_SECRET/);
   });
 });
 

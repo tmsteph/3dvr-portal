@@ -17,12 +17,12 @@
     localPeerId: document.getElementById('local-peer-id'),
     peerCount: document.getElementById('peer-count'),
     signalCount: document.getElementById('signal-count'),
+    turnStatus: document.getElementById('turn-status'),
     eventLog: document.getElementById('event-log')
   };
 
-  const ICE_SERVERS = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+  const DEFAULT_ICE_SERVERS = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
   ];
   const ROOM_ROOT = '3dvr-webrtc-lab-v2';
   const SIGNAL_TTL_MS = 1000 * 60 * 20;
@@ -45,6 +45,9 @@
   let joined = false;
   let heartbeatTimer = null;
   let signalsHandled = 0;
+  let iceServers = DEFAULT_ICE_SERVERS;
+  let iceServersLoaded = false;
+  let turnStatus = 'STUN only';
   const peers = new Map();
   const seenSignals = new Set();
 
@@ -91,6 +94,7 @@
     refs.localPeerId.textContent = joined ? localId.replace(/^peer_/, '') : 'Not joined';
     refs.peerCount.textContent = String(peers.size);
     refs.signalCount.textContent = String(signalsHandled);
+    refs.turnStatus.textContent = turnStatus;
   }
 
   function resolveInitialRoom() {
@@ -125,6 +129,60 @@
       axe: true
     });
     return gun;
+  }
+
+  function shouldForceRelayOnly() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('relay') === '1' || params.get('ice') === 'relay';
+  }
+
+  function normalizeIceServers(servers) {
+    if (!Array.isArray(servers)) return [];
+    return servers
+      .map(server => {
+        if (!server || typeof server !== 'object') return null;
+        const urls = Array.isArray(server.urls)
+          ? server.urls.filter(url => typeof url === 'string' && url.trim())
+          : (typeof server.urls === 'string' && server.urls.trim() ? [server.urls.trim()] : []);
+        if (!urls.length) return null;
+
+        const normalized = { urls };
+        if (typeof server.username === 'string') normalized.username = server.username;
+        if (typeof server.credential === 'string') normalized.credential = server.credential;
+        return normalized;
+      })
+      .filter(Boolean);
+  }
+
+  async function loadIceServers() {
+    if (iceServersLoaded) return iceServers;
+    iceServersLoaded = true;
+
+    try {
+      const response = await fetch('/api/session?route=turn-credentials', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`TURN credentials returned ${response.status}`);
+      }
+
+      const data = await response.json();
+      const nextServers = normalizeIceServers(data.iceServers);
+      if (nextServers.length) {
+        iceServers = nextServers;
+      }
+
+      turnStatus = data.configured
+        ? (shouldForceRelayOnly() ? 'TURN relay-only' : 'TURN ready')
+        : 'STUN only';
+      updateDiagnostics();
+      logEvent(data.configured ? 'TURN relay credentials loaded.' : 'Using STUN only.');
+    } catch (error) {
+      console.warn('TURN credential load failed', error);
+      turnStatus = 'STUN only';
+      updateDiagnostics();
+      logEvent('TURN credentials unavailable; using STUN only.');
+    }
+
+    return iceServers;
   }
 
   async function startCamera() {
@@ -176,7 +234,11 @@
 
   function createPeer(remoteId, remoteName = 'Guest') {
     if (peers.has(remoteId)) return peers.get(remoteId);
-    const connection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const connectionConfig = { iceServers };
+    if (shouldForceRelayOnly()) {
+      connectionConfig.iceTransportPolicy = 'relay';
+    }
+    const connection = new RTCPeerConnection(connectionConfig);
     const peer = {
       id: remoteId,
       name: remoteName || 'Guest',
@@ -441,6 +503,7 @@
     localName = String(refs.displayName.value || '').trim() || `Guest ${localId.slice(-4)}`;
     refs.localLabel.textContent = `${localName} (you)`;
     ensureGun();
+    await loadIceServers();
     roomNode = gun.get(ROOM_ROOT).get(roomId);
     participantsNode = roomNode.get('participants');
     signalsNode = roomNode.get('signals');

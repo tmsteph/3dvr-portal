@@ -1,5 +1,6 @@
 import { verifySignedSeaPayload, resolveSeaAuthMaxAgeMs } from '../src/auth/sea.js';
 import { chooseDeviceProfile, normalizeDeviceHints } from '../src/device/profile.js';
+import { buildTurnCredentialPayload } from '../src/webrtc/turn-credentials.js';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -127,6 +128,24 @@ function getRequestOrigin(req) {
   return host ? `${protocol}://${host}` : '';
 }
 
+function getRequestUrl(req) {
+  try {
+    return new URL(req?.url || '/api/session', getRequestOrigin(req) || 'http://localhost');
+  } catch (_error) {
+    return new URL('/api/session', 'http://localhost');
+  }
+}
+
+function isTurnCredentialRequest(req) {
+  const requestUrl = getRequestUrl(req);
+  const route = normalizeText(
+    requestUrl.searchParams.get('route') ||
+    requestUrl.searchParams.get('mode') ||
+    requestUrl.searchParams.get('kind')
+  );
+  return route === 'turn-credentials';
+}
+
 function resolveDeviceHints(req, body = {}) {
   const source = body?.device && typeof body.device === 'object' ? body.device : {};
   return normalizeDeviceHints({
@@ -218,6 +237,11 @@ export function createSessionHandler(options = {}) {
 
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
+    }
+
+    if (req.method === 'GET' && isTurnCredentialRequest(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json(buildTurnCredentialPayload({ config }));
     }
 
     if (req.method === 'GET') {
