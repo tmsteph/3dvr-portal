@@ -62,7 +62,8 @@ body {
 @media (hover: hover) and (pointer: fine) {
   html,
   body {
-    overscroll-behavior: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: auto;
   }
 }
 
