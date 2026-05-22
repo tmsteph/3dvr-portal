@@ -38,7 +38,9 @@ describe('WebRTC Lab app', () => {
     assert.match(html, /Native WebRTC POC/);
     assert.match(html, /id="local-video"/);
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
-    assert.match(html, /<script src="\.\/app\.js"><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260522-v2">/);
+    assert.match(html, /id="build-version">WebRTC v2\.1</);
+    assert.match(html, /<script src="\.\/app\.js\?v=20260522-v2"><\/script>/);
     assert.match(js, /new RTCPeerConnection\(\{ iceServers: ICE_SERVERS \}\)/);
     assert.match(js, /navigator\.mediaDevices\.getUserMedia/);
     assert.match(js, /ROOM_ROOT = '3dvr-webrtc-lab-v2'/);
