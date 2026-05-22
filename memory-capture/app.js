@@ -7,6 +7,15 @@ const CRM_NODE = '3dvr-crm';
 const TOUCH_LOG_NODE = 'crm-touch-log';
 const MANAGED_AGENT_OWNER_ALIAS = '3dvr-managed';
 const DEFAULT_SOURCE = 'memory-capture';
+const PROPOSAL_STAGES = [
+  { id: 'idea', label: 'Idea' },
+  { id: 'draft', label: 'Draft' },
+  { id: 'sent', label: 'Sent' },
+  { id: 'follow-up', label: 'Follow-up' },
+  { id: 'won', label: 'Won' },
+  { id: 'lost', label: 'Lost' }
+];
+const OPEN_PROPOSAL_STAGES = ['idea', 'draft', 'sent', 'follow-up'];
 const DEFAULT_PEERS = [
   'wss://relay.3dvr.tech/gun',
   'wss://gun-relay-3dvr.fly.dev/gun'
@@ -50,6 +59,10 @@ const els = {
   inferenceList: document.getElementById('inferenceList'),
   recentList: document.getElementById('recentList'),
   proposalList: document.getElementById('proposalList'),
+  proposalOpenCount: document.getElementById('proposalOpenCount'),
+  proposalSentCount: document.getElementById('proposalSentCount'),
+  proposalWonCount: document.getElementById('proposalWonCount'),
+  proposalValue: document.getElementById('proposalValue'),
   crmDraftLink: document.getElementById('crmDraftLink'),
   audioPreview: document.getElementById('audioPreview')
 };
@@ -76,6 +89,37 @@ function slug(value) {
 function makeId(prefix, seed = '') {
   const random = Math.random().toString(36).slice(2, 8);
   return `${prefix}-${slug(seed)}-${Date.now().toString(36)}-${random}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function formatDateInput(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function estimateProposalValue(offer = '') {
+  const explicit = String(offer).match(/\$([0-9][0-9,]*(?:\.\d{1,2})?)/);
+  if (explicit?.[1]) return Number(explicit[1].replace(/,/g, ''));
+  if (/custom|interactive|walkthrough|spatial|render/i.test(offer)) return 500;
+  if (/builder|\$50/i.test(offer)) return 50;
+  if (/\$20|founder|launch/i.test(offer)) return 20;
+  if (/\$5|starter|family/i.test(offer)) return 5;
+  return 0;
+}
+
+function normalizeProposalStage(status) {
+  const normalized = slug(status || 'idea');
+  return PROPOSAL_STAGES.some(stage => stage.id === normalized) ? normalized : 'idea';
+}
+
+function formatMoney(value) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return '$0';
+  return `$${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
 function safe(value) {
@@ -384,6 +428,7 @@ function buildProposal(capture) {
   const now = new Date().toISOString();
   const inference = capture.inference;
   const id = capture.proposalId || makeId('proposal', inference.name);
+  const estimatedValue = estimateProposalValue(inference.offerAmount);
   return {
     id,
     title: `${inference.name} proposal`,
@@ -393,9 +438,10 @@ function buildProposal(capture) {
     offer: inference.offerAmount,
     scope: inference.primaryPain,
     nextBestAction: inference.nextBestAction,
-    price: '',
+    price: estimatedValue ? String(estimatedValue) : '',
+    estimatedValue,
     sentAt: '',
-    followUpAt: '',
+    followUpAt: formatDateInput(addDays(new Date(), 3)),
     tags: inference.tags,
     notes: capture.rawText,
     createdAt: now,
@@ -512,22 +558,109 @@ function renderRecent() {
 function renderProposals() {
   const proposals = Object.values(state.proposals || {})
     .filter(Boolean)
-    .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))
-    .slice(0, 8);
+    .map(proposal => ({
+      ...proposal,
+      status: normalizeProposalStage(proposal.status),
+      estimatedValue: Number(proposal.estimatedValue || proposal.price || 0) || estimateProposalValue(proposal.offer)
+    }))
+    .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
 
   if (!els.proposalList) return;
+
+  const openCount = proposals.filter(proposal => OPEN_PROPOSAL_STAGES.includes(proposal.status)).length;
+  const sentCount = proposals.filter(proposal => proposal.status === 'sent' || proposal.status === 'follow-up').length;
+  const wonCount = proposals.filter(proposal => proposal.status === 'won').length;
+  const estimatedValue = proposals
+    .filter(proposal => proposal.status !== 'lost')
+    .reduce((total, proposal) => total + (Number(proposal.estimatedValue) || 0), 0);
+
+  if (els.proposalOpenCount) els.proposalOpenCount.textContent = String(openCount);
+  if (els.proposalSentCount) els.proposalSentCount.textContent = String(sentCount);
+  if (els.proposalWonCount) els.proposalWonCount.textContent = String(wonCount);
+  if (els.proposalValue) els.proposalValue.textContent = formatMoney(estimatedValue);
+
   if (!proposals.length) {
     els.proposalList.innerHTML = '<p class="empty">No proposals tracked yet.</p>';
     return;
   }
 
-  els.proposalList.innerHTML = proposals.map(proposal => `
-    <article class="recent-card">
-      <strong>${safe(proposal.title || 'Proposal')}</strong>
-      <p>${safe(proposal.scope || proposal.nextBestAction || '')}</p>
-      <span>${safe(proposal.status || 'idea')} | ${safe(proposal.offer || 'offer TBD')}</span>
-    </article>
+  const byStage = PROPOSAL_STAGES.map(stage => ({
+    ...stage,
+    proposals: proposals.filter(proposal => proposal.status === stage.id).slice(0, 12)
+  }));
+
+  els.proposalList.innerHTML = byStage.map(stage => `
+    <section class="proposal-column" aria-label="${safe(stage.label)} proposals">
+      <div class="proposal-column__head">
+        <strong>${safe(stage.label)}</strong>
+        <span>${stage.proposals.length}</span>
+      </div>
+      <div class="proposal-column__cards">
+        ${stage.proposals.length ? stage.proposals.map(renderProposalCard).join('') : '<p class="empty proposal-empty">No proposals.</p>'}
+      </div>
+    </section>
   `).join('');
+}
+
+function renderProposalCard(proposal) {
+  const crmHref = proposal.linkedCrmRecordId ? `../crm/?record=${encodeURIComponent(proposal.linkedCrmRecordId)}` : '../crm/';
+  const followUp = proposal.followUpAt ? `Follow up ${proposal.followUpAt}` : 'Follow-up date unset';
+  const value = Number(proposal.estimatedValue || proposal.price || 0);
+  return `
+    <article class="proposal-card" data-proposal-id="${safe(proposal.id)}">
+      <div class="proposal-card__top">
+        <strong>${safe(proposal.title || 'Proposal')}</strong>
+        <span>${safe(formatMoney(value))}</span>
+      </div>
+      <p>${safe(proposal.scope || proposal.nextBestAction || 'Scope needs a quick pass.')}</p>
+      <dl class="proposal-meta">
+        <div>
+          <dt>Offer</dt>
+          <dd>${safe(proposal.offer || 'TBD')}</dd>
+        </div>
+        <div>
+          <dt>Next</dt>
+          <dd>${safe(proposal.nextBestAction || followUp)}</dd>
+        </div>
+      </dl>
+      <div class="proposal-card__footer">
+        <span>${safe(followUp)}</span>
+        <a href="${crmHref}">CRM</a>
+      </div>
+      <div class="proposal-actions" aria-label="Update proposal stage">
+        ${proposal.status !== 'draft' ? `<button type="button" data-proposal-stage="draft" data-proposal-id="${safe(proposal.id)}">Draft</button>` : ''}
+        ${proposal.status !== 'sent' ? `<button type="button" data-proposal-stage="sent" data-proposal-id="${safe(proposal.id)}">Sent</button>` : ''}
+        ${proposal.status !== 'follow-up' ? `<button type="button" data-proposal-stage="follow-up" data-proposal-id="${safe(proposal.id)}">Follow-up</button>` : ''}
+        ${proposal.status !== 'won' ? `<button type="button" data-proposal-stage="won" data-proposal-id="${safe(proposal.id)}">Won</button>` : ''}
+        ${proposal.status !== 'lost' ? `<button type="button" data-proposal-stage="lost" data-proposal-id="${safe(proposal.id)}">Lost</button>` : ''}
+      </div>
+    </article>
+  `;
+}
+
+async function updateProposalStage(id, status) {
+  const proposal = state.proposals[id];
+  if (!proposal) {
+    throw new Error('Proposal not found.');
+  }
+
+  const now = new Date().toISOString();
+  const normalizedStatus = normalizeProposalStage(status);
+  const patch = {
+    ...proposal,
+    status: normalizedStatus,
+    sentAt: normalizedStatus === 'sent' && !proposal.sentAt ? now : proposal.sentAt || '',
+    followUpAt: normalizedStatus === 'follow-up' && !proposal.followUpAt
+      ? formatDateInput(addDays(new Date(), 2))
+      : proposal.followUpAt || '',
+    closedAt: normalizedStatus === 'won' || normalizedStatus === 'lost' ? now : proposal.closedAt || '',
+    updatedAt: now
+  };
+
+  state.proposals[id] = patch;
+  renderProposals();
+  await putGun(proposalRoot.get(id), patch);
+  setStatus('Proposal updated', `${patch.title || 'Proposal'} moved to ${normalizedStatus}.`);
 }
 
 function subscribeCaptures() {
@@ -651,6 +784,12 @@ els.crmButton.addEventListener('click', () => createCrmLead().catch(error => set
 els.proposalButton.addEventListener('click', () => createProposal().catch(error => setStatus('Proposal failed', error.message)));
 els.agentButton.addEventListener('click', () => queueAgentTask().catch(error => setStatus('Agent queue failed', error.message)));
 els.refreshButton.addEventListener('click', renderRecent);
+els.proposalList?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-proposal-stage]');
+  if (!button) return;
+  updateProposalStage(button.dataset.proposalId, button.dataset.proposalStage)
+    .catch(error => setStatus('Proposal update failed', error.message));
+});
 els.dictateButton.addEventListener('click', () => {
   if (!state.recognition) return;
   if (state.dictating) {

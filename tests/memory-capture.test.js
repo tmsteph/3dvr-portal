@@ -19,7 +19,11 @@ describe('Memory Capture app', () => {
     assert.match(html, /Create CRM lead/);
     assert.match(html, /Create proposal/);
     assert.match(html, /Queue agent cleanup/);
-    assert.match(html, /Proposal tracker/);
+    assert.match(html, /Proposal board/);
+    assert.match(html, /proposalOpenCount/);
+    assert.match(html, /proposalSentCount/);
+    assert.match(html, /proposalWonCount/);
+    assert.match(html, /proposalValue/);
     assert.match(html, /3dvr-portal\/memoryCapture\/captures/);
     assert.match(html, /agentOps\/3dvr-managed\/taskQueue/);
     assert.match(html, /app\.js/);
@@ -39,6 +43,10 @@ describe('Memory Capture app', () => {
     assert.match(js, /buildProposal/);
     assert.match(js, /renderProposals/);
     assert.match(js, /subscribeProposals/);
+    assert.match(js, /PROPOSAL_STAGES/);
+    assert.match(js, /updateProposalStage/);
+    assert.match(js, /data-proposal-stage/);
+    assert.match(js, /estimateProposalValue/);
     assert.match(js, /buildAgentTask/);
     assert.match(js, /taskQueue/);
     assert.match(js, /requiredCapabilities: 'codex,crm,gun'/);
@@ -59,6 +67,9 @@ describe('Memory Capture app', () => {
     const css = await readFile(styleUrl, 'utf8');
 
     assert.match(css, /--bg: #0d1117/);
+    assert.match(css, /\.proposal-board/);
+    assert.match(css, /\.proposal-stats/);
+    assert.match(css, /\.proposal-actions/);
     assert.match(css, /@media \(max-width: 980px\)/);
     assert.match(css, /@media \(max-width: 680px\)/);
     assert.match(css, /grid-template-columns: 1fr/);
