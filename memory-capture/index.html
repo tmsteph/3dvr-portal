@@ -141,11 +141,34 @@
       </section>
 
       <section class="panel" aria-labelledby="proposals-title">
-        <div class="section-head">
-          <p class="eyebrow">Sales process</p>
-          <h2 id="proposals-title">Proposal tracker</h2>
+        <div class="section-head row">
+          <div>
+            <p class="eyebrow">Sales process</p>
+            <h2 id="proposals-title">Proposal board</h2>
+            <p class="section-note">
+              Keep rough scope ideas moving until they become sent proposals, follow-ups, or closed work.
+            </p>
+          </div>
         </div>
-        <div id="proposalList" class="recent-list">
+        <div class="proposal-stats" aria-label="Proposal totals">
+          <div>
+            <span>Open</span>
+            <strong id="proposalOpenCount">0</strong>
+          </div>
+          <div>
+            <span>Sent</span>
+            <strong id="proposalSentCount">0</strong>
+          </div>
+          <div>
+            <span>Won</span>
+            <strong id="proposalWonCount">0</strong>
+          </div>
+          <div>
+            <span>Est. value</span>
+            <strong id="proposalValue">$0</strong>
+          </div>
+        </div>
+        <div id="proposalList" class="proposal-board">
           <p class="empty">No proposals tracked yet.</p>
         </div>
       </section>
