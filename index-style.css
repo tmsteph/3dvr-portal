@@ -1242,6 +1242,10 @@ footer a {
     display: inline-flex;
   }
 
+  .top-nav .top-buttons a.top-buttons__search-shortcut {
+    display: none;
+  }
+
   .top-nav .top-buttons {
     margin-bottom: 0;
   }
@@ -1252,6 +1256,10 @@ footer a {
 }
 
 @media (min-width: 721px) {
+  .top-nav__primary {
+    display: none;
+  }
+
   .top-nav--collapsed .top-buttons,
   .top-nav--expanded .top-buttons {
     display: flex;
