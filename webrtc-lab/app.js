@@ -27,6 +27,12 @@
   const ROOM_ROOT = '3dvr-webrtc-lab-v2';
   const SIGNAL_TTL_MS = 1000 * 60 * 20;
   const PEER_SESSION_KEY = 'webrtcLabParticipantId';
+  const LOW_BANDWIDTH_VIDEO = Object.freeze({
+    width: 320,
+    height: 180,
+    frameRate: 10,
+    maxBitrate: 240000
+  });
 
   let gun = null;
   let roomNode = null;
@@ -128,9 +134,9 @@
     }
     localStream = await navigator.mediaDevices.getUserMedia({
       video: {
-        width: { ideal: 640 },
-        height: { ideal: 360 },
-        frameRate: { ideal: 15, max: 24 }
+        width: { ideal: LOW_BANDWIDTH_VIDEO.width },
+        height: { ideal: LOW_BANDWIDTH_VIDEO.height },
+        frameRate: { ideal: LOW_BANDWIDTH_VIDEO.frameRate, max: 12 }
       },
       audio: {
         echoCancellation: true,
@@ -145,12 +151,7 @@
     refs.localState.textContent = 'Camera on';
     setStatus('Camera ready.');
     peers.forEach((peer, remoteId) => {
-      const senders = peer.connection.getSenders();
-      localStream.getTracks().forEach(track => {
-        if (!senders.some(sender => sender.track && sender.track.id === track.id)) {
-          peer.connection.addTrack(track, localStream);
-        }
-      });
+      addLocalTracksToConnection(peer.connection);
       if (joined && shouldInitiateOffer(remoteId)) {
         makeOffer(remoteId, peer.name).catch(error => {
           console.error('Renegotiation failed', error);
@@ -186,9 +187,7 @@
     peers.set(remoteId, peer);
     updateDiagnostics();
 
-    if (localStream) {
-      localStream.getTracks().forEach(track => connection.addTrack(track, localStream));
-    }
+    addLocalTracksToConnection(connection);
 
     connection.onnegotiationneeded = () => {
       if (!joined || !shouldInitiateOffer(remoteId)) return;
@@ -238,6 +237,58 @@
     tile.append(video, label);
     refs.videoGrid.appendChild(tile);
     return { tile, video, state, title };
+  }
+
+  function addLocalTracksToConnection(connection) {
+    if (!localStream) return;
+    const senders = connection.getSenders();
+    localStream.getTracks().forEach(track => {
+      const existing = senders.find(sender => sender.track && sender.track.id === track.id);
+      const sender = existing || addTrackToConnection(connection, track);
+      if (track.kind === 'video') configureVideoSender(sender);
+    });
+  }
+
+  function addTrackToConnection(connection, track) {
+    if (
+      track.kind === 'video' &&
+      typeof connection.addTransceiver === 'function'
+    ) {
+      const transceiver = connection.addTransceiver(track, {
+        streams: [localStream],
+        sendEncodings: [{
+          maxBitrate: LOW_BANDWIDTH_VIDEO.maxBitrate,
+          maxFramerate: LOW_BANDWIDTH_VIDEO.frameRate
+        }]
+      });
+      return transceiver.sender;
+    }
+    return connection.addTrack(track, localStream);
+  }
+
+  function configureVideoSender(sender) {
+    if (
+      !sender ||
+      !sender.track ||
+      sender.track.kind !== 'video' ||
+      typeof sender.getParameters !== 'function' ||
+      typeof sender.setParameters !== 'function'
+    ) {
+      return;
+    }
+
+    const parameters = sender.getParameters();
+    const encodings = parameters.encodings && parameters.encodings.length
+      ? parameters.encodings
+      : [{}];
+    parameters.encodings = encodings.map(encoding => ({
+      ...encoding,
+      maxBitrate: LOW_BANDWIDTH_VIDEO.maxBitrate,
+      maxFramerate: LOW_BANDWIDTH_VIDEO.frameRate
+    }));
+    sender.setParameters(parameters).catch(error => {
+      console.warn('Unable to apply low-bandwidth video sender settings', error);
+    });
   }
 
   async function makeOffer(remoteId, remoteName) {

@@ -38,11 +38,16 @@ describe('WebRTC Lab app', () => {
     assert.match(html, /Native WebRTC POC/);
     assert.match(html, /id="local-video"/);
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260522-v2">/);
-    assert.match(html, /id="build-version">WebRTC v2\.1</);
-    assert.match(html, /<script src="\.\/app\.js\?v=20260522-v2"><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260522-v3">/);
+    assert.match(html, /id="video-profile">180p \/ 10fps</);
+    assert.match(html, /id="build-version">WebRTC v2\.2</);
+    assert.match(html, /<script src="\.\/app\.js\?v=20260522-v3"><\/script>/);
     assert.match(js, /new RTCPeerConnection\(\{ iceServers: ICE_SERVERS \}\)/);
     assert.match(js, /navigator\.mediaDevices\.getUserMedia/);
+    assert.match(js, /LOW_BANDWIDTH_VIDEO = Object\.freeze/);
+    assert.match(js, /width: \{ ideal: LOW_BANDWIDTH_VIDEO\.width \}/);
+    assert.match(js, /maxBitrate: LOW_BANDWIDTH_VIDEO\.maxBitrate/);
+    assert.match(js, /addTransceiver\(track/);
     assert.match(js, /ROOM_ROOT = '3dvr-webrtc-lab-v2'/);
     assert.match(js, /PEER_SESSION_KEY = 'webrtcLabParticipantId'/);
     assert.match(js, /sessionStorage\.setItem\(PEER_SESSION_KEY, next\)/);
@@ -54,6 +59,8 @@ describe('WebRTC Lab app', () => {
     assert.match(js, /participantsNode\.map\(\)\.on/);
     assert.match(html, /id="peer-count"/);
     assert.match(html, /id="signal-count"/);
+    assert.match(readme, /320 x 180 video at about 10 fps/);
+    assert.match(readme, /near 240 kbps/);
     assert.match(readme, /Mesh WebRTC/);
     assert.match(readme, /3dvr-webrtc-lab-v2\/<room>/);
   });

@@ -13,4 +13,7 @@ The v2 room root uses tab-scoped peer IDs, starts media before signaling, sends 
 announcements, and stores offer/answer/candidate payloads as JSON strings so Gun does not have to
 serialize browser-native WebRTC objects.
 
+The default camera profile is intentionally low bandwidth: it asks for 320 x 180 video at about 10 fps
+and caps the video sender near 240 kbps for weak mobile links.
+
 It is intentionally not a production replacement for a Selective Forwarding Unit. Mesh WebRTC is useful for two or three people while testing connection behavior, but larger meetings need an SFU or other managed media layer.
