@@ -1,158 +1,224 @@
 (() => {
+  const THREE_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
   const TAU = Math.PI * 2;
-  const BASE_SPEED = 0.011;
-  const MAX_SPEED = 0.095;
-  const MIN_SIZE = 72;
-  const WIND_FORCE = 0.0018;
+  const BASE_CLOCKWISE_SPIN = -TAU / 5200;
+  const DRAG_WIND_FACTOR = 0.00065;
+  const MAX_EXTRA_SPIN = 0.035;
+  const SPIN_DECAY = 0.985;
+  const FLIP_DECAY = 0.945;
+  const MIN_FLIP_VELOCITY = 0.0025;
+  const ROOT_SELECTOR = '[data-portal-swirl-logo]';
+  const CANVAS_SELECTOR = '[data-portal-swirl-canvas]';
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const lerp = (from, to, amount) => from + (to - from) * amount;
 
-  const setupPortalSwirlLogo = (root) => {
-    const canvas = root.querySelector('[data-portal-swirl-canvas]');
-    if (!canvas) return null;
+  function loadThree() {
+    if (window.THREE) return Promise.resolve(window.THREE);
 
-    const context = canvas.getContext('2d');
-    if (!context) return null;
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-portal-three-loader]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(window.THREE), { once: true });
+        existing.addEventListener('error', () => reject(new Error('Unable to load Three.js.')), { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = THREE_CDN_URL;
+      script.async = true;
+      script.dataset.portalThreeLoader = 'true';
+      script.addEventListener('load', () => resolve(window.THREE), { once: true });
+      script.addEventListener('error', () => reject(new Error('Unable to load Three.js.')), { once: true });
+      document.head.appendChild(script);
+    });
+  }
+
+  function makeFaceTexture(THREE, mirrored = false) {
+    const textureCanvas = document.createElement('canvas');
+    const size = 1024;
+    textureCanvas.width = size;
+    textureCanvas.height = size;
+    const context = textureCanvas.getContext('2d');
+    const center = size / 2;
+    const radius = size * 0.45;
+
+    const shell = context.createRadialGradient(size * 0.34, size * 0.24, 60, center, center, size * 0.66);
+    shell.addColorStop(0, '#e0f7ff');
+    shell.addColorStop(0.18, '#38bdf8');
+    shell.addColorStop(0.56, '#0f766e');
+    shell.addColorStop(1, '#07111f');
+    context.fillStyle = shell;
+    context.fillRect(0, 0, size, size);
+
+    context.save();
+    context.translate(center, center);
+    for (let arm = 0; arm < 7; arm += 1) {
+      context.save();
+      context.rotate((arm / 7) * TAU);
+      const gradient = context.createLinearGradient(0, 0, radius, radius * 0.32);
+      gradient.addColorStop(0, 'rgba(248, 250, 252, 0.92)');
+      gradient.addColorStop(0.48, 'rgba(125, 211, 252, 0.72)');
+      gradient.addColorStop(1, 'rgba(251, 191, 36, 0.52)');
+      context.strokeStyle = gradient;
+      context.lineWidth = 46;
+      context.lineCap = 'round';
+      context.beginPath();
+      for (let index = 0; index <= 88; index += 1) {
+        const progress = index / 88;
+        const angle = progress * TAU * 1.04;
+        const r = radius * (0.13 + progress * 0.72);
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r * 0.72;
+        if (index === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      }
+      context.stroke();
+      context.restore();
+    }
+    context.restore();
+
+    context.beginPath();
+    context.arc(center, center, radius * 0.97, 0, TAU);
+    context.strokeStyle = '#d8fff7';
+    context.lineWidth = 30;
+    context.stroke();
+
+    context.beginPath();
+    context.arc(center, center, radius * 0.74, 0, TAU);
+    context.strokeStyle = 'rgba(254, 215, 170, 0.74)';
+    context.lineWidth = 12;
+    context.stroke();
+
+    context.beginPath();
+    context.arc(center, center, radius * 0.36, 0, TAU);
+    context.fillStyle = 'rgba(2, 6, 23, 0.72)';
+    context.fill();
+    context.strokeStyle = 'rgba(186, 230, 253, 0.38)';
+    context.lineWidth = 8;
+    context.stroke();
+
+    context.save();
+    context.translate(center, center);
+    if (mirrored) context.scale(-1, 1);
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    context.shadowBlur = 28;
+    context.fillStyle = '#ffffff';
+    context.font = '900 142px Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    context.fillText('3dvr', 0, -22);
+    context.fillStyle = '#ccfbf1';
+    context.font = '850 82px Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    context.fillText('portal', 0, 104);
+    context.restore();
+
+    const texture = new THREE.CanvasTexture(textureCanvas);
+    texture.anisotropy = 8;
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+  function createPortalToken(THREE) {
+    const group = new THREE.Group();
+    const sideMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0f8f8f,
+      metalness: 0.68,
+      roughness: 0.26,
+    });
+    const frontMaterial = new THREE.MeshStandardMaterial({
+      map: makeFaceTexture(THREE, false),
+      metalness: 0.4,
+      roughness: 0.22,
+    });
+    const backMaterial = new THREE.MeshStandardMaterial({
+      map: makeFaceTexture(THREE, true),
+      metalness: 0.42,
+      roughness: 0.26,
+    });
+
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.45, 1.45, 0.34, 128, 1, false),
+      [sideMaterial, frontMaterial, backMaterial],
+    );
+    body.rotation.x = Math.PI / 2;
+    group.add(body);
+
+    const rimMaterial = new THREE.MeshStandardMaterial({
+      color: 0xfed7aa,
+      metalness: 0.82,
+      roughness: 0.18,
+    });
+    const frontRim = new THREE.Mesh(new THREE.TorusGeometry(1.47, 0.04, 16, 128), rimMaterial);
+    frontRim.position.z = 0.185;
+    group.add(frontRim);
+
+    const backRim = frontRim.clone();
+    backRim.position.z = -0.185;
+    group.add(backRim);
+
+    return group;
+  }
+
+  function setupPortalLogo(root) {
+    const canvas = root.querySelector(CANVAS_SELECTOR);
+    if (!canvas) return null;
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const state = {
       ready: false,
+      mode: 'initializing',
       dragging: false,
-      spin: 0,
-      spinVelocity: reducedMotion ? BASE_SPEED * 0.35 : BASE_SPEED,
-      tiltX: 0,
-      tiltY: 0,
-      twist: 0,
-      targetTiltX: 0,
-      targetTiltY: 0,
-      targetTwist: 0,
       lastX: 0,
       lastY: 0,
-      dpr: 1,
-      size: MIN_SIZE,
+      dragDX: 0,
+      dragDY: 0,
+      lastTimestamp: 0,
+      spinZ: 0,
+      extraSpinZ: 0,
+      targetX: 0,
+      targetY: 0,
+      targetZ: 0,
+      currentX: 0,
+      currentY: 0,
+      currentZ: 0,
+      flipX: 0,
+      flipY: 0,
+      flipVelocityX: 0,
+      flipVelocityY: 0,
+      renderer: null,
+      scene: null,
+      camera: null,
+      token: null,
+      fallbackContext: null,
+      frame: 0,
     };
+
+    const getRect = () => root.getBoundingClientRect();
 
     const resize = () => {
-      const rect = root.getBoundingClientRect();
-      const measured = Math.min(rect.width || MIN_SIZE, rect.height || rect.width || MIN_SIZE);
-      const size = Math.max(MIN_SIZE, measured);
+      const rect = getRect();
+      const width = Math.max(1, Math.floor(rect.width));
+      const height = Math.max(1, Math.floor(rect.height));
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      if (state.size === size && state.dpr === dpr) return;
 
-      state.size = size;
-      state.dpr = dpr;
-      canvas.width = Math.round(size * dpr);
-      canvas.height = Math.round(size * dpr);
-      canvas.style.width = `${size}px`;
-      canvas.style.height = `${size}px`;
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-
-    const drawSwirlArm = (radius, armIndex, arms) => {
-      context.beginPath();
-      for (let index = 0; index <= 92; index += 1) {
-        const progress = index / 92;
-        const curl = 1.18 + state.twist * 0.42;
-        const angle = state.spin + armIndex * (TAU / arms) + progress * TAU * curl;
-        const wave = Math.sin(progress * TAU * 1.2 + state.spin * 0.7) * radius * 0.018;
-        const r = radius * (0.11 + progress * 0.77) + wave;
-        const x = Math.cos(angle) * r;
-        const y = Math.sin(angle) * r;
-        if (index === 0) {
-          context.moveTo(x, y);
-        } else {
-          context.lineTo(x, y);
-        }
+      if (state.renderer && state.camera) {
+        state.renderer.setPixelRatio(dpr);
+        state.renderer.setSize(width, height, false);
+        state.camera.aspect = width / height;
+        state.camera.updateProjectionMatrix();
+        return;
       }
 
-      const gradient = context.createLinearGradient(-radius, -radius * 0.35, radius, radius * 0.35);
-      gradient.addColorStop(0, 'rgba(45, 212, 191, 0.25)');
-      gradient.addColorStop(0.5, 'rgba(125, 211, 252, 0.96)');
-      gradient.addColorStop(1, 'rgba(251, 191, 36, 0.66)');
-      context.strokeStyle = gradient;
-      context.lineWidth = Math.max(5, radius * 0.09);
-      context.lineCap = 'round';
-      context.stroke();
-    };
-
-    const draw = () => {
-      resize();
-
-      const size = state.size;
-      const center = size / 2;
-      const radius = size * 0.42;
-      const tiltDepthX = Math.cos(state.tiltX) * 0.18 + 0.82;
-      const tiltDepthY = Math.cos(state.tiltY) * 0.2 + 0.8;
-
-      context.clearRect(0, 0, size, size);
-
-      context.save();
-      context.translate(center, center);
-      context.rotate(state.tiltY * 0.18);
-      context.scale(tiltDepthY, tiltDepthX);
-
-      const shell = context.createRadialGradient(-radius * 0.32, -radius * 0.38, radius * 0.16, 0, 0, radius * 1.12);
-      shell.addColorStop(0, 'rgba(248, 250, 252, 0.2)');
-      shell.addColorStop(0.32, 'rgba(14, 165, 233, 0.2)');
-      shell.addColorStop(0.72, 'rgba(15, 23, 42, 0.98)');
-      shell.addColorStop(1, 'rgba(4, 10, 21, 1)');
-
-      context.beginPath();
-      context.arc(0, 0, radius, 0, TAU);
-      context.fillStyle = shell;
-      context.fill();
-
-      context.lineWidth = Math.max(2, radius * 0.035);
-      context.strokeStyle = 'rgba(186, 230, 253, 0.22)';
-      context.stroke();
-
-      context.save();
-      context.rotate(state.spin * 0.45);
-      for (let armIndex = 0; armIndex < 6; armIndex += 1) {
-        drawSwirlArm(radius, armIndex, 6);
+      if (state.fallbackContext) {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        state.fallbackContext.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
-      context.restore();
-
-      context.beginPath();
-      context.arc(0, 0, radius * 0.28, 0, TAU);
-      context.fillStyle = 'rgba(2, 6, 23, 0.82)';
-      context.fill();
-      context.strokeStyle = 'rgba(251, 191, 36, 0.38)';
-      context.lineWidth = Math.max(1.5, radius * 0.018);
-      context.stroke();
-
-      context.fillStyle = 'rgba(248, 250, 252, 0.96)';
-      context.font = `800 ${Math.max(17, radius * 0.17)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      context.fillText('3dvr', 0, -radius * 0.035);
-
-      context.fillStyle = 'rgba(186, 230, 253, 0.72)';
-      context.font = `700 ${Math.max(9, radius * 0.072)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-      context.fillText('portal', 0, radius * 0.135);
-      context.restore();
     };
 
-    const animate = () => {
-      const restingSpeed = reducedMotion ? BASE_SPEED * 0.35 : BASE_SPEED;
-      if (!state.dragging) {
-        state.spinVelocity = lerp(state.spinVelocity, restingSpeed, 0.026);
-        state.targetTiltX = lerp(state.targetTiltX, 0, 0.052);
-        state.targetTiltY = lerp(state.targetTiltY, 0, 0.052);
-        state.targetTwist = lerp(state.targetTwist, 0, 0.045);
-      }
-
-      state.tiltX = lerp(state.tiltX, state.targetTiltX, 0.16);
-      state.tiltY = lerp(state.tiltY, state.targetTiltY, 0.16);
-      state.twist = lerp(state.twist, state.targetTwist, 0.14);
-      state.spin += state.spinVelocity;
-      draw();
-      window.requestAnimationFrame(animate);
-    };
-
-    const pointerPosition = (event) => {
-      const rect = root.getBoundingClientRect();
+    const getPointer = (event) => {
+      const rect = getRect();
       return {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
@@ -160,127 +226,315 @@
       };
     };
 
-    const windFromPointer = (event) => {
-      const point = pointerPosition(event);
-      const dx = point.x - state.lastX;
-      const dy = point.y - state.lastY;
-      const centerX = point.rect.width / 2;
-      const centerY = point.rect.height / 2;
-      const distance = Math.hypot(dx, dy);
-      const directionBias = dx * 0.00045 + Math.abs(dy) * 0.00022;
-
-      state.spinVelocity = clamp(
-        state.spinVelocity + distance * WIND_FORCE + directionBias,
-        BASE_SPEED * 0.3,
-        MAX_SPEED,
-      );
-      state.targetTiltY = clamp((point.x - centerX) / centerX, -1, 1) * 0.9;
-      state.targetTiltX = clamp((centerY - point.y) / centerY, -1, 1) * 0.75;
-      state.targetTwist = clamp(state.targetTwist + (dx - dy) * 0.012, -1.2, 1.2);
-      state.lastX = point.x;
-      state.lastY = point.y;
+    const capturePointer = (event) => {
+      if (event.pointerId == null || !root.setPointerCapture) return;
+      try {
+        root.setPointerCapture(event.pointerId);
+      } catch {
+        // Synthetic smoke-test events and older browsers can reject capture.
+      }
     };
-
-    root.addEventListener('pointerdown', (event) => {
-      const point = pointerPosition(event);
-      state.dragging = true;
-      state.lastX = point.x;
-      state.lastY = point.y;
-      state.spinVelocity = clamp(state.spinVelocity + BASE_SPEED * 1.5, BASE_SPEED, MAX_SPEED);
-      root.setPointerCapture?.(event.pointerId);
-      event.preventDefault();
-    });
-
-    root.addEventListener('pointermove', (event) => {
-      if (!state.dragging) return;
-      windFromPointer(event);
-      event.preventDefault();
-    });
 
     const releasePointer = (event) => {
-      if (!state.dragging) return;
-      state.dragging = false;
-      root.releasePointerCapture?.(event.pointerId);
+      if (event.pointerId == null || !root.releasePointerCapture) return;
+      try {
+        root.releasePointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture is optional; release behavior should never block settling.
+      }
     };
 
-    root.addEventListener('pointerup', releasePointer);
-    root.addEventListener('pointercancel', releasePointer);
-    root.addEventListener('pointerleave', () => {
-      state.dragging = false;
-    });
+    const setTiltFromPointer = (event, dx = 0, dy = 0) => {
+      const point = getPointer(event);
+      const centerX = point.rect.width / 2;
+      const centerY = point.rect.height / 2;
+      state.targetY = clamp((point.x - centerX) / centerX, -1, 1) * 0.58;
+      state.targetX = clamp((centerY - point.y) / centerY, -1, 1) * 0.44;
+      state.targetZ = clamp((dx - dy) * 0.004, -0.18, 0.18);
+    };
 
-    root.addEventListener('mousedown', (event) => {
-      const point = pointerPosition(event);
+    const startDrag = (event) => {
+      const point = getPointer(event);
       state.dragging = true;
       state.lastX = point.x;
       state.lastY = point.y;
-      state.spinVelocity = clamp(state.spinVelocity + BASE_SPEED * 1.5, BASE_SPEED, MAX_SPEED);
+      state.dragDX = 0;
+      state.dragDY = 0;
+      capturePointer(event);
       event.preventDefault();
-    });
+    };
 
-    window.addEventListener('mousemove', (event) => {
+    const drag = (event) => {
       if (!state.dragging) return;
-      windFromPointer(event);
-    });
-
-    window.addEventListener('mouseup', () => {
-      state.dragging = false;
-    });
-
-    root.addEventListener('touchstart', (event) => {
-      const touch = event.touches[0];
-      if (!touch) return;
-      const point = pointerPosition(touch);
-      state.dragging = true;
+      const point = getPointer(event);
+      const dx = point.x - state.lastX;
+      const dy = point.y - state.lastY;
+      const distance = Math.hypot(dx, dy);
       state.lastX = point.x;
       state.lastY = point.y;
-      state.spinVelocity = clamp(state.spinVelocity + BASE_SPEED * 1.5, BASE_SPEED, MAX_SPEED);
+      state.dragDX = dx;
+      state.dragDY = dy;
+      state.extraSpinZ = clamp(state.extraSpinZ - distance * DRAG_WIND_FACTOR, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+      setTiltFromPointer(event, dx, dy);
       event.preventDefault();
-    }, { passive: false });
+    };
 
-    root.addEventListener('touchmove', (event) => {
-      const touch = event.touches[0];
-      if (!state.dragging || !touch) return;
-      windFromPointer(touch);
-      event.preventDefault();
-    }, { passive: false });
-
-    root.addEventListener('touchend', () => {
+    const endDrag = (event = {}) => {
+      if (!state.dragging) return;
       state.dragging = false;
-    });
+      releasePointer(event);
 
-    root.addEventListener('keydown', (event) => {
-      if (event.key === 'ArrowRight' || event.key === ' ') {
-        state.spinVelocity = clamp(state.spinVelocity + BASE_SPEED * 2, BASE_SPEED, MAX_SPEED);
-        state.targetTwist = clamp(state.targetTwist + 0.22, -1.2, 1.2);
-        event.preventDefault();
-      }
-      if (event.key === 'ArrowLeft') {
-        state.spinVelocity = clamp(state.spinVelocity + BASE_SPEED, BASE_SPEED, MAX_SPEED);
-        state.targetTwist = clamp(state.targetTwist - 0.22, -1.2, 1.2);
-        event.preventDefault();
-      }
-      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-        const direction = event.key === 'ArrowUp' ? 1 : -1;
-        state.targetTiltX = clamp(state.targetTiltX + direction * 0.22, -1, 1);
-        event.preventDefault();
-      }
-    });
+      const horizontal = clamp(state.dragDX * 0.035, -0.62, 0.62);
+      const vertical = clamp(-state.dragDY * 0.03, -0.52, 0.52);
+      state.flipVelocityY += horizontal;
+      state.flipVelocityX += vertical;
+      state.extraSpinZ = clamp(state.extraSpinZ - Math.hypot(state.dragDX, state.dragDY) * 0.0018, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+    };
 
-    window.addEventListener('resize', resize);
-    root.classList.add('portal-swirl-logo--ready');
-    state.ready = true;
-    animate();
+    const setupInteraction = () => {
+      window.addEventListener('resize', resize);
+      root.addEventListener('pointerdown', startDrag);
+      root.addEventListener('pointermove', drag);
+      root.addEventListener('pointerup', endDrag);
+      root.addEventListener('pointercancel', endDrag);
+      root.addEventListener('lostpointercapture', endDrag);
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+
+      root.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight' || event.key === ' ') {
+          state.extraSpinZ = clamp(state.extraSpinZ - 0.012, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+          state.flipVelocityY += 0.34;
+          event.preventDefault();
+        } else if (event.key === 'ArrowLeft') {
+          state.extraSpinZ = clamp(state.extraSpinZ - 0.008, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+          state.flipVelocityY -= 0.34;
+          event.preventDefault();
+        } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          state.flipVelocityX += event.key === 'ArrowUp' ? 0.28 : -0.28;
+          event.preventDefault();
+        }
+      });
+    };
+
+    const drawFallback = () => {
+      const context = state.fallbackContext;
+      if (!context) return;
+
+      const rect = getRect();
+      const width = Math.max(1, rect.width);
+      const height = Math.max(1, rect.height);
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const size = Math.min(width, height);
+      const radius = size * 0.42;
+      const tiltScaleX = Math.max(0.2, Math.cos(state.currentY + state.flipY) * 0.24 + 0.76);
+      const tiltScaleY = Math.max(0.52, Math.cos(state.currentX + state.flipX) * 0.2 + 0.78);
+
+      context.clearRect(0, 0, width, height);
+      context.save();
+      context.translate(centerX, centerY);
+      context.rotate(state.spinZ + state.currentZ);
+      context.scale(tiltScaleX, tiltScaleY);
+
+      const faceGradient = context.createRadialGradient(-radius * 0.35, -radius * 0.42, radius * 0.06, 0, 0, radius);
+      faceGradient.addColorStop(0, '#e0f7ff');
+      faceGradient.addColorStop(0.22, '#38bdf8');
+      faceGradient.addColorStop(0.62, '#0f766e');
+      faceGradient.addColorStop(1, '#07111f');
+      context.beginPath();
+      context.arc(0, 0, radius, 0, TAU);
+      context.fillStyle = faceGradient;
+      context.fill();
+
+      for (let arm = 0; arm < 7; arm += 1) {
+        context.save();
+        context.rotate((arm / 7) * TAU + state.spinZ * 0.7);
+        context.beginPath();
+        for (let index = 0; index <= 58; index += 1) {
+          const progress = index / 58;
+          const angle = progress * TAU * 1.05;
+          const r = radius * (0.12 + progress * 0.72);
+          const x = Math.cos(angle) * r;
+          const y = Math.sin(angle) * r * 0.72;
+          if (index === 0) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        }
+        context.strokeStyle = 'rgba(186, 230, 253, 0.62)';
+        context.lineWidth = Math.max(4, radius * 0.085);
+        context.lineCap = 'round';
+        context.stroke();
+        context.restore();
+      }
+
+      context.lineWidth = Math.max(7, size * 0.04);
+      context.strokeStyle = '#d8fff7';
+      context.beginPath();
+      context.arc(0, 0, radius, 0, TAU);
+      context.stroke();
+
+      context.lineWidth = Math.max(3, size * 0.012);
+      context.strokeStyle = 'rgba(254, 215, 170, 0.74)';
+      context.beginPath();
+      context.arc(0, 0, radius * 0.74, 0, TAU);
+      context.stroke();
+
+      context.beginPath();
+      context.arc(0, 0, radius * 0.36, 0, TAU);
+      context.fillStyle = 'rgba(2, 6, 23, 0.72)';
+      context.fill();
+
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.shadowColor = 'rgba(0, 0, 0, 0.45)';
+      context.shadowBlur = size * 0.03;
+      context.fillStyle = '#ffffff';
+      context.font = `900 ${Math.max(18, size * 0.15)}px Inter, system-ui, sans-serif`;
+      context.fillText('3dvr', 0, -size * 0.02);
+      context.fillStyle = '#ccfbf1';
+      context.font = `800 ${Math.max(11, size * 0.085)}px Inter, system-ui, sans-serif`;
+      context.fillText('portal', 0, size * 0.12);
+      context.restore();
+    };
+
+    const render = () => {
+      const rotationX = state.currentX + state.flipX;
+      const rotationY = state.currentY + state.flipY;
+      const rotationZ = state.spinZ + state.currentZ;
+
+      if (state.renderer && state.scene && state.camera && state.token) {
+        state.token.rotation.set(rotationX, rotationY, rotationZ);
+        state.renderer.render(state.scene, state.camera);
+        return;
+      }
+
+      drawFallback();
+    };
+
+    const animate = (timestamp = 0) => {
+      state.frame = window.requestAnimationFrame(animate);
+      const rawElapsed = state.lastTimestamp ? Math.min(timestamp - state.lastTimestamp, 250) : 16.67;
+      const spinElapsed = Math.min(rawElapsed, 64);
+      state.lastTimestamp = timestamp;
+      const frames = rawElapsed / 16.67;
+      const targetSettle = 1 - Math.pow(0.88, frames);
+      const currentSettle = 1 - Math.pow(0.78, frames);
+
+      if (!state.dragging) {
+        state.targetX = lerp(state.targetX, 0, targetSettle);
+        state.targetY = lerp(state.targetY, 0, targetSettle);
+        state.targetZ = lerp(state.targetZ, 0, targetSettle);
+        state.extraSpinZ *= Math.pow(SPIN_DECAY, frames);
+      }
+
+      state.currentX = lerp(state.currentX, state.targetX, currentSettle);
+      state.currentY = lerp(state.currentY, state.targetY, currentSettle);
+      state.currentZ = lerp(state.currentZ, state.targetZ, currentSettle);
+      state.flipX += state.flipVelocityX * frames;
+      state.flipY += state.flipVelocityY * frames;
+      state.flipVelocityX *= Math.pow(FLIP_DECAY, frames);
+      state.flipVelocityY *= Math.pow(FLIP_DECAY, frames);
+
+      if (Math.abs(state.flipVelocityX) < MIN_FLIP_VELOCITY) {
+        state.flipVelocityX = 0;
+        state.flipX = lerp(state.flipX, 0, 0.1);
+      }
+      if (Math.abs(state.flipVelocityY) < MIN_FLIP_VELOCITY) {
+        state.flipVelocityY = 0;
+        state.flipY = lerp(state.flipY, 0, 0.1);
+      }
+
+      const baseSpin = reducedMotion ? BASE_CLOCKWISE_SPIN * 0.28 : BASE_CLOCKWISE_SPIN;
+      state.spinZ += (baseSpin + state.extraSpinZ) * spinElapsed;
+      render();
+    };
+
+    const markReady = (mode) => {
+      state.ready = true;
+      state.mode = mode;
+      root.dataset.logoReady = 'true';
+      window.__portalSwirlLogo = {
+        ready: true,
+        mode,
+        getState: () => ({
+          mode: state.mode,
+          dragging: state.dragging,
+          spinZ: state.spinZ,
+          extraSpinZ: state.extraSpinZ,
+          targetX: state.targetX,
+          targetY: state.targetY,
+          targetZ: state.targetZ,
+          currentX: state.currentX,
+          currentY: state.currentY,
+          currentZ: state.currentZ,
+          flipX: state.flipX,
+          flipY: state.flipY,
+          flipVelocityX: state.flipVelocityX,
+          flipVelocityY: state.flipVelocityY,
+        }),
+      };
+    };
+
+    const initFallback = (error) => {
+      console.warn('3dvr portal Three.js logo fallback active:', error);
+      state.fallbackContext = canvas.getContext('2d');
+      if (!state.fallbackContext) {
+        window.__portalSwirlLogo = { ready: false };
+        return;
+      }
+      resize();
+      setupInteraction();
+      markReady('canvas-fallback');
+      animate();
+    };
+
+    const initThree = async () => {
+      try {
+        const THREE = await loadThree();
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+        });
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+        camera.position.set(0, 0, 5);
+
+        const token = createPortalToken(THREE);
+        scene.add(token);
+        scene.add(new THREE.AmbientLight(0xe2fff8, 0.72));
+
+        const key = new THREE.DirectionalLight(0xffffff, 1.35);
+        key.position.set(2.5, 2.8, 4.5);
+        scene.add(key);
+
+        const fill = new THREE.DirectionalLight(0x99f6e4, 0.62);
+        fill.position.set(-3, -1.5, 2);
+        scene.add(fill);
+
+        state.renderer = renderer;
+        state.scene = scene;
+        state.camera = camera;
+        state.token = token;
+
+        resize();
+        setupInteraction();
+        markReady('webgl');
+        animate();
+      } catch (error) {
+        initFallback(error);
+      }
+    };
+
+    initThree();
     return state;
-  };
+  }
 
   const init = () => {
-    const roots = Array.from(document.querySelectorAll('[data-portal-swirl-logo]'));
-    const states = roots.map(setupPortalSwirlLogo).filter(Boolean);
-    window.__portalSwirlLogo = {
-      ready: states.length > 0,
-      getState: () => states[0] ? { ...states[0] } : null,
-    };
+    const root = document.querySelector(ROOT_SELECTOR);
+    if (!root) return;
+    setupPortalLogo(root);
   };
 
   if (document.readyState === 'loading') {
