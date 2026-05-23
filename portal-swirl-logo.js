@@ -1,7 +1,7 @@
 (() => {
   const THREE_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
   const TAU = Math.PI * 2;
-  const BASE_SURFACE_SPIN = -TAU / 5200;
+  const BASE_FACE_SPIN = -TAU / 5200;
   const DRAG_WIND_FACTOR = 0.00065;
   const MAX_EXTRA_SPIN = 0.035;
   const SPIN_DECAY = 0.985;
@@ -53,6 +53,7 @@
 
     context.save();
     context.translate(center, center);
+    if (mirrored) context.scale(-1, 1);
     for (let arm = 0; arm < 7; arm += 1) {
       context.save();
       context.rotate((arm / 7) * TAU);
@@ -98,6 +99,22 @@
     context.lineWidth = 8;
     context.stroke();
 
+    const texture = new THREE.CanvasTexture(textureCanvas);
+    texture.center.set(0.5, 0.5);
+    texture.anisotropy = 8;
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+  function makeTextTexture(THREE, mirrored = false) {
+    const textureCanvas = document.createElement('canvas');
+    const size = 1024;
+    textureCanvas.width = size;
+    textureCanvas.height = size;
+    const context = textureCanvas.getContext('2d');
+    const center = size / 2;
+
+    context.clearRect(0, 0, size, size);
     context.save();
     context.translate(center, center);
     if (mirrored) context.scale(-1, 1);
@@ -121,18 +138,20 @@
 
   function createPortalToken(THREE) {
     const group = new THREE.Group();
+    const frontFaceTexture = makeFaceTexture(THREE, false);
+    const backFaceTexture = makeFaceTexture(THREE, true);
     const sideMaterial = new THREE.MeshStandardMaterial({
       color: 0x0f8f8f,
       metalness: 0.68,
       roughness: 0.26,
     });
     const frontMaterial = new THREE.MeshStandardMaterial({
-      map: makeFaceTexture(THREE, false),
+      map: frontFaceTexture,
       metalness: 0.4,
       roughness: 0.22,
     });
     const backMaterial = new THREE.MeshStandardMaterial({
-      map: makeFaceTexture(THREE, true),
+      map: backFaceTexture,
       metalness: 0.42,
       roughness: 0.26,
     });
@@ -157,6 +176,32 @@
     backRim.position.z = -0.185;
     group.add(backRim);
 
+    const textGeometry = new THREE.PlaneGeometry(2.22, 2.22);
+    const frontText = new THREE.Mesh(
+      textGeometry,
+      new THREE.MeshBasicMaterial({
+        map: makeTextTexture(THREE, false),
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    frontText.position.z = 0.225;
+    group.add(frontText);
+
+    const backText = new THREE.Mesh(
+      textGeometry,
+      new THREE.MeshBasicMaterial({
+        map: makeTextTexture(THREE, true),
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    backText.position.z = -0.225;
+    backText.rotation.y = Math.PI;
+    group.add(backText);
+
+    group.userData.faceTextures = [frontFaceTexture, backFaceTexture];
+
     return group;
   }
 
@@ -174,8 +219,8 @@
       dragDX: 0,
       dragDY: 0,
       lastTimestamp: 0,
-      spinY: 0,
-      extraSurfaceSpin: 0,
+      faceSpin: 0,
+      extraFaceSpin: 0,
       targetX: 0,
       targetY: 0,
       targetZ: 0,
@@ -274,7 +319,7 @@
       state.lastY = point.y;
       state.dragDX = dx;
       state.dragDY = dy;
-      state.extraSurfaceSpin = clamp(state.extraSurfaceSpin - distance * DRAG_WIND_FACTOR, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+      state.extraFaceSpin = clamp(state.extraFaceSpin - distance * DRAG_WIND_FACTOR, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
       setTiltFromPointer(event, dx, dy);
       event.preventDefault();
     };
@@ -288,7 +333,7 @@
       const vertical = clamp(-state.dragDY * 0.03, -0.52, 0.52);
       state.flipVelocityY += horizontal;
       state.flipVelocityX += vertical;
-      state.extraSurfaceSpin = clamp(state.extraSurfaceSpin - Math.hypot(state.dragDX, state.dragDY) * 0.0018, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+      state.extraFaceSpin = clamp(state.extraFaceSpin - Math.hypot(state.dragDX, state.dragDY) * 0.0018, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
     };
 
     const setupInteraction = () => {
@@ -303,11 +348,11 @@
 
       root.addEventListener('keydown', (event) => {
         if (event.key === 'ArrowRight' || event.key === ' ') {
-          state.extraSurfaceSpin = clamp(state.extraSurfaceSpin - 0.012, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+          state.extraFaceSpin = clamp(state.extraFaceSpin - 0.012, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
           state.flipVelocityY += 0.34;
           event.preventDefault();
         } else if (event.key === 'ArrowLeft') {
-          state.extraSurfaceSpin = clamp(state.extraSurfaceSpin - 0.008, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+          state.extraFaceSpin = clamp(state.extraFaceSpin - 0.008, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
           state.flipVelocityY -= 0.34;
           event.preventDefault();
         } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
@@ -328,7 +373,7 @@
       const centerY = height / 2;
       const size = Math.min(width, height);
       const radius = size * 0.42;
-      const surfaceY = state.spinY + state.currentY + state.flipY;
+      const surfaceY = state.currentY + state.flipY;
       const tiltScaleX = Math.max(0.2, Math.abs(Math.cos(surfaceY)) * 0.76 + 0.24);
       const tiltScaleY = Math.max(0.52, Math.cos(state.currentX + state.flipX) * 0.2 + 0.78);
 
@@ -350,7 +395,7 @@
 
       for (let arm = 0; arm < 7; arm += 1) {
         context.save();
-        context.rotate((arm / 7) * TAU);
+        context.rotate((arm / 7) * TAU + state.faceSpin * 0.7);
         context.beginPath();
         for (let index = 0; index <= 58; index += 1) {
           const progress = index / 58;
@@ -400,11 +445,14 @@
 
     const render = () => {
       const rotationX = state.currentX + state.flipX;
-      const rotationY = state.spinY + state.currentY + state.flipY;
+      const rotationY = state.currentY + state.flipY;
       const rotationZ = state.currentZ;
 
       if (state.renderer && state.scene && state.camera && state.token) {
         state.token.rotation.set(rotationX, rotationY, rotationZ);
+        for (const texture of state.token.userData.faceTextures || []) {
+          texture.rotation = state.faceSpin;
+        }
         state.renderer.render(state.scene, state.camera);
         return;
       }
@@ -425,7 +473,7 @@
         state.targetX = lerp(state.targetX, 0, targetSettle);
         state.targetY = lerp(state.targetY, 0, targetSettle);
         state.targetZ = lerp(state.targetZ, 0, targetSettle);
-        state.extraSurfaceSpin *= Math.pow(SPIN_DECAY, frames);
+        state.extraFaceSpin *= Math.pow(SPIN_DECAY, frames);
       }
 
       state.currentX = lerp(state.currentX, state.targetX, currentSettle);
@@ -445,8 +493,8 @@
         state.flipY = lerp(state.flipY, 0, 0.1);
       }
 
-      const baseSpin = reducedMotion ? BASE_SURFACE_SPIN * 0.28 : BASE_SURFACE_SPIN;
-      state.spinY += (baseSpin + state.extraSurfaceSpin) * spinElapsed;
+      const baseSpin = reducedMotion ? BASE_FACE_SPIN * 0.28 : BASE_FACE_SPIN;
+      state.faceSpin += (baseSpin + state.extraFaceSpin) * spinElapsed;
       render();
     };
 
@@ -460,8 +508,8 @@
         getState: () => ({
           mode: state.mode,
           dragging: state.dragging,
-          spinY: state.spinY,
-          extraSurfaceSpin: state.extraSurfaceSpin,
+          faceSpin: state.faceSpin,
+          extraFaceSpin: state.extraFaceSpin,
           targetX: state.targetX,
           targetY: state.targetY,
           targetZ: state.targetZ,
