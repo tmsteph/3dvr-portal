@@ -1,7 +1,7 @@
 (() => {
   const THREE_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
   const TAU = Math.PI * 2;
-  const BASE_CLOCKWISE_SPIN = -TAU / 5200;
+  const BASE_SURFACE_SPIN = -TAU / 5200;
   const DRAG_WIND_FACTOR = 0.00065;
   const MAX_EXTRA_SPIN = 0.035;
   const SPIN_DECAY = 0.985;
@@ -174,8 +174,8 @@
       dragDX: 0,
       dragDY: 0,
       lastTimestamp: 0,
-      spinZ: 0,
-      extraSpinZ: 0,
+      spinY: 0,
+      extraSurfaceSpin: 0,
       targetX: 0,
       targetY: 0,
       targetZ: 0,
@@ -274,7 +274,7 @@
       state.lastY = point.y;
       state.dragDX = dx;
       state.dragDY = dy;
-      state.extraSpinZ = clamp(state.extraSpinZ - distance * DRAG_WIND_FACTOR, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+      state.extraSurfaceSpin = clamp(state.extraSurfaceSpin - distance * DRAG_WIND_FACTOR, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
       setTiltFromPointer(event, dx, dy);
       event.preventDefault();
     };
@@ -288,7 +288,7 @@
       const vertical = clamp(-state.dragDY * 0.03, -0.52, 0.52);
       state.flipVelocityY += horizontal;
       state.flipVelocityX += vertical;
-      state.extraSpinZ = clamp(state.extraSpinZ - Math.hypot(state.dragDX, state.dragDY) * 0.0018, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+      state.extraSurfaceSpin = clamp(state.extraSurfaceSpin - Math.hypot(state.dragDX, state.dragDY) * 0.0018, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
     };
 
     const setupInteraction = () => {
@@ -303,11 +303,11 @@
 
       root.addEventListener('keydown', (event) => {
         if (event.key === 'ArrowRight' || event.key === ' ') {
-          state.extraSpinZ = clamp(state.extraSpinZ - 0.012, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+          state.extraSurfaceSpin = clamp(state.extraSurfaceSpin - 0.012, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
           state.flipVelocityY += 0.34;
           event.preventDefault();
         } else if (event.key === 'ArrowLeft') {
-          state.extraSpinZ = clamp(state.extraSpinZ - 0.008, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+          state.extraSurfaceSpin = clamp(state.extraSurfaceSpin - 0.008, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
           state.flipVelocityY -= 0.34;
           event.preventDefault();
         } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
@@ -328,13 +328,14 @@
       const centerY = height / 2;
       const size = Math.min(width, height);
       const radius = size * 0.42;
-      const tiltScaleX = Math.max(0.2, Math.cos(state.currentY + state.flipY) * 0.24 + 0.76);
+      const surfaceY = state.spinY + state.currentY + state.flipY;
+      const tiltScaleX = Math.max(0.2, Math.abs(Math.cos(surfaceY)) * 0.76 + 0.24);
       const tiltScaleY = Math.max(0.52, Math.cos(state.currentX + state.flipX) * 0.2 + 0.78);
 
       context.clearRect(0, 0, width, height);
       context.save();
       context.translate(centerX, centerY);
-      context.rotate(state.spinZ + state.currentZ);
+      context.rotate(state.currentZ);
       context.scale(tiltScaleX, tiltScaleY);
 
       const faceGradient = context.createRadialGradient(-radius * 0.35, -radius * 0.42, radius * 0.06, 0, 0, radius);
@@ -349,7 +350,7 @@
 
       for (let arm = 0; arm < 7; arm += 1) {
         context.save();
-        context.rotate((arm / 7) * TAU + state.spinZ * 0.7);
+        context.rotate((arm / 7) * TAU);
         context.beginPath();
         for (let index = 0; index <= 58; index += 1) {
           const progress = index / 58;
@@ -399,8 +400,8 @@
 
     const render = () => {
       const rotationX = state.currentX + state.flipX;
-      const rotationY = state.currentY + state.flipY;
-      const rotationZ = state.spinZ + state.currentZ;
+      const rotationY = state.spinY + state.currentY + state.flipY;
+      const rotationZ = state.currentZ;
 
       if (state.renderer && state.scene && state.camera && state.token) {
         state.token.rotation.set(rotationX, rotationY, rotationZ);
@@ -424,7 +425,7 @@
         state.targetX = lerp(state.targetX, 0, targetSettle);
         state.targetY = lerp(state.targetY, 0, targetSettle);
         state.targetZ = lerp(state.targetZ, 0, targetSettle);
-        state.extraSpinZ *= Math.pow(SPIN_DECAY, frames);
+        state.extraSurfaceSpin *= Math.pow(SPIN_DECAY, frames);
       }
 
       state.currentX = lerp(state.currentX, state.targetX, currentSettle);
@@ -444,8 +445,8 @@
         state.flipY = lerp(state.flipY, 0, 0.1);
       }
 
-      const baseSpin = reducedMotion ? BASE_CLOCKWISE_SPIN * 0.28 : BASE_CLOCKWISE_SPIN;
-      state.spinZ += (baseSpin + state.extraSpinZ) * spinElapsed;
+      const baseSpin = reducedMotion ? BASE_SURFACE_SPIN * 0.28 : BASE_SURFACE_SPIN;
+      state.spinY += (baseSpin + state.extraSurfaceSpin) * spinElapsed;
       render();
     };
 
@@ -459,8 +460,8 @@
         getState: () => ({
           mode: state.mode,
           dragging: state.dragging,
-          spinZ: state.spinZ,
-          extraSpinZ: state.extraSpinZ,
+          spinY: state.spinY,
+          extraSurfaceSpin: state.extraSurfaceSpin,
           targetX: state.targetX,
           targetY: state.targetY,
           targetZ: state.targetZ,
