@@ -11,6 +11,7 @@
   <script src="/pwa-install.js" defer></script>
   <link rel="stylesheet" href="styles/global.css">
   <link rel="stylesheet" href="index-style.css">
+  <script src="portal-swirl-logo.js" defer></script>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
   <meta name="theme-color" content="#0e1116">
@@ -98,6 +99,22 @@
         </div>
         <div class="hero-panel">
           <div class="hero-main">
+            <div class="portal-swirl-brand">
+              <div
+                class="portal-swirl-logo"
+                data-portal-swirl-logo
+                role="img"
+                tabindex="0"
+                aria-label="Interactive 3dvr portal swirl logo. Drag or touch to wind it up, tilt it, and twist the spin."
+              >
+                <canvas class="portal-swirl-logo__canvas" data-portal-swirl-canvas></canvas>
+                <span class="portal-swirl-logo__fallback" aria-hidden="true">
+                  <span>3dvr</span>
+                  <span>portal</span>
+                </span>
+              </div>
+              <strong class="portal-swirl-brand__name">3dvr portal</strong>
+            </div>
             <span class="hero-eyebrow">Apps. Tools. People.</span>
             <h1 id="landing-title">One portal. Fast access.</h1>
             <p class="hero-tagline">

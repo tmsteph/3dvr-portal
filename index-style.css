@@ -346,6 +346,91 @@ body.landing {
   text-align: left;
 }
 
+.portal-swirl-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: fit-content;
+  margin-bottom: 0.1rem;
+}
+
+.portal-swirl-logo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(5.4rem, 15vw, 8.2rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  isolation: isolate;
+  touch-action: none;
+  cursor: grab;
+  background:
+    radial-gradient(circle at 32% 25%, rgba(248, 250, 252, 0.2), transparent 22%),
+    radial-gradient(circle at 62% 68%, rgba(251, 191, 36, 0.18), transparent 26%),
+    #06111f;
+  box-shadow:
+    0 24px 55px rgba(8, 13, 29, 0.42),
+    inset 0 0 0 1px rgba(186, 230, 253, 0.16);
+}
+
+.portal-swirl-logo::after {
+  content: '';
+  position: absolute;
+  inset: 0.4rem;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.3), transparent 70%);
+  filter: blur(18px);
+  opacity: 0.72;
+}
+
+.portal-swirl-logo:active {
+  cursor: grabbing;
+}
+
+.portal-swirl-logo:focus-visible {
+  outline: 3px solid rgba(56, 189, 248, 0.45);
+  outline-offset: 5px;
+}
+
+.portal-swirl-logo__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.portal-swirl-logo__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 0;
+  align-content: center;
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+.portal-swirl-logo__fallback span:last-child {
+  color: rgba(186, 230, 253, 0.72);
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.portal-swirl-logo--ready .portal-swirl-logo__fallback {
+  opacity: 0;
+}
+
+.portal-swirl-brand__name {
+  color: rgba(248, 250, 252, 0.92);
+  font-size: clamp(1.08rem, 2.4vw, 1.35rem);
+  letter-spacing: 0.01em;
+}
+
 .hero-shortcuts {
   display: grid;
   gap: 0.85rem;
@@ -1295,6 +1380,11 @@ footer a {
 @media (max-width: 640px) {
   .landing-shell {
     padding: 4.5rem 1rem 3rem;
+  }
+
+  .portal-swirl-brand {
+    width: 100%;
+    justify-content: center;
   }
 
   .hero-eyebrow {
