@@ -27,8 +27,11 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /CylinderGeometry/);
     assert.match(swirlScript, /TorusGeometry/);
     assert.match(swirlScript, /CanvasTexture/);
-    assert.match(swirlScript, /BASE_CLOCKWISE_SPIN/);
-    assert.match(swirlScript, /extraSpinZ/);
+    assert.match(swirlScript, /BASE_SURFACE_SPIN/);
+    assert.match(swirlScript, /extraSurfaceSpin/);
+    assert.match(swirlScript, /const rotationY = state\.spinY \+ state\.currentY \+ state\.flipY/);
+    assert.match(swirlScript, /const rotationZ = state\.currentZ/);
+    assert.doesNotMatch(swirlScript, /context\.rotate\(state\.spinY \+/);
     assert.match(swirlScript, /flipVelocityX/);
     assert.match(swirlScript, /flipVelocityY/);
     assert.match(swirlScript, /state\.targetY = clamp\(\(point\.x - centerX\) \/ centerX/);
