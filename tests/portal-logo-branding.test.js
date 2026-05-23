@@ -38,8 +38,13 @@ describe('portal logo branding', () => {
     assert.doesNotMatch(swirlScript, /state\.token\.rotation\.set\(rotationX, rotationY, state\.faceSpin/);
     assert.match(swirlScript, /flipVelocityX/);
     assert.match(swirlScript, /flipVelocityY/);
-    assert.match(swirlScript, /state\.targetY = clamp\(\(point\.x - centerX\) \/ centerX/);
-    assert.match(swirlScript, /state\.flipVelocityY \+= horizontal/);
+    assert.match(swirlScript, /TILT_Y_LIMIT/);
+    assert.match(swirlScript, /TILT_X_LIMIT/);
+    assert.match(swirlScript, /FLIP_ENERGY_THRESHOLD/);
+    assert.match(swirlScript, /FLIP_STREAK_WINDOW/);
+    assert.match(swirlScript, /state\.targetY = clamp\(\(point\.x - centerX\) \/ centerX, -1, 1\) \* TILT_Y_LIMIT/);
+    assert.match(swirlScript, /const axis = absX >= absY \? 'y' : 'x'/);
+    assert.match(swirlScript, /state\.flipVelocityY \+= direction \* FLIP_IMPULSE_Y \* impulseScale/);
     assert.match(swirlScript, /window\.__portalSwirlLogo/);
   });
 });
