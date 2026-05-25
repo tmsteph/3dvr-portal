@@ -16,4 +16,8 @@ serialize browser-native WebRTC objects.
 The default camera profile is intentionally low bandwidth: it asks for 320 x 180 video at about 10 fps
 and caps the video sender near 240 kbps for weak mobile links.
 
+When `/api/session?route=turn-credentials` is configured with `TURN_URLS` and `TURN_STATIC_AUTH_SECRET`, the lab
+loads short-lived TURN credentials before joining a room. Add `?relay=1` or `?ice=relay` to the room
+URL to force relay-only ICE while testing the TURN server.
+
 It is intentionally not a production replacement for a Selective Forwarding Unit. Mesh WebRTC is useful for two or three people while testing connection behavior, but larger meetings need an SFU or other managed media layer.
