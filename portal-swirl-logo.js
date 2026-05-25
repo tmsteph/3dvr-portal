@@ -7,8 +7,8 @@
   const SPIN_DECAY = 0.99;
   const FLIP_DECAY = 0.965;
   const MIN_FLIP_VELOCITY = 0.0025;
-  const TILT_X_LIMIT = 0.14;
-  const TILT_Y_LIMIT = 0.18;
+  const TILT_X_LIMIT = 0.18;
+  const TILT_Y_LIMIT = 0.24;
   const TWIST_LIMIT = 0.045;
   const TWIST_FACTOR = 0.0012;
   const FLIP_DISTANCE_THRESHOLD = 42;
