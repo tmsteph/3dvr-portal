@@ -39,8 +39,8 @@ describe('portal logo branding', () => {
     assert.doesNotMatch(swirlScript, /state\.token\.rotation\.set\(rotationX, rotationY, state\.faceSpin/);
     assert.match(swirlScript, /flipVelocityX/);
     assert.match(swirlScript, /flipVelocityY/);
-    assert.match(swirlScript, /TILT_Y_LIMIT/);
-    assert.match(swirlScript, /TILT_X_LIMIT/);
+    assert.match(swirlScript, /TILT_Y_LIMIT = 0\.24/);
+    assert.match(swirlScript, /TILT_X_LIMIT = 0\.18/);
     assert.match(swirlScript, /FLIP_STREAK_REQUIRED = 4/);
     assert.match(swirlScript, /FLIP_STREAK_WINDOW/);
     assert.match(swirlScript, /FLIP_SPIN_BOOST/);
