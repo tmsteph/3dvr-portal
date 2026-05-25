@@ -3,9 +3,9 @@
   const TAU = Math.PI * 2;
   const BASE_FACE_SPIN = -TAU / 5200;
   const DRAG_WIND_FACTOR = 0.00065;
-  const MAX_EXTRA_SPIN = 0.035;
-  const SPIN_DECAY = 0.985;
-  const FLIP_DECAY = 0.945;
+  const MAX_EXTRA_SPIN = 0.055;
+  const SPIN_DECAY = 0.99;
+  const FLIP_DECAY = 0.965;
   const MIN_FLIP_VELOCITY = 0.0025;
   const TILT_X_LIMIT = 0.14;
   const TILT_Y_LIMIT = 0.18;
@@ -19,6 +19,19 @@
   const MAX_FLIP_ENERGY = 1.15;
   const FLIP_IMPULSE_X = 0.22;
   const FLIP_IMPULSE_Y = 0.26;
+  const FLIP_CROSS_IMPULSE = 0.055;
+  const FLIP_SPIN_BOOST = 0.026;
+  const TARGET_SETTLE_BASE = 0.94;
+  const CURRENT_SETTLE_BASE = 0.86;
+  const FLIP_HOME_EASE = 0.045;
+  const DRAG_WOBBLE_FACTOR = 0.0009;
+  const DRAG_TWIST_WOBBLE_FACTOR = 0.00042;
+  const DRAG_WOBBLE_STREAK_GAIN = 0.32;
+  const FLIP_WOBBLE_IMPULSE = 0.075;
+  const WOBBLE_SPRING = 0.12;
+  const WOBBLE_DECAY = 0.89;
+  const MAX_WOBBLE = 0.18;
+  const MAX_WOBBLE_Z = 0.09;
   const ROOT_SELECTOR = '[data-portal-swirl-logo]';
   const CANVAS_SELECTOR = '[data-portal-swirl-canvas]';
 
@@ -250,6 +263,12 @@
       flipStreakCount: 0,
       flipStreakEnergy: 0,
       lastFlipGestureAt: 0,
+      wobbleX: 0,
+      wobbleY: 0,
+      wobbleZ: 0,
+      wobbleVelocityX: 0,
+      wobbleVelocityY: 0,
+      wobbleVelocityZ: 0,
       renderer: null,
       scene: null,
       camera: null,
@@ -346,11 +365,24 @@
       if (state.flipStreakCount < FLIP_STREAK_REQUIRED) return;
 
       const impulseScale = 1 + clamp(state.flipStreakEnergy, 0, MAX_FLIP_ENERGY) * 0.35;
+      const wobbleSign = Math.sin(now * 0.017 + (axis === 'y' ? 0 : 1.7)) >= 0 ? 1 : -1;
       if (axis === 'y') {
         state.flipVelocityY += direction * FLIP_IMPULSE_Y * impulseScale;
+        state.flipVelocityX += wobbleSign * FLIP_CROSS_IMPULSE * impulseScale;
+        state.wobbleVelocityX += wobbleSign * FLIP_WOBBLE_IMPULSE * impulseScale;
+        state.wobbleVelocityY += direction * FLIP_WOBBLE_IMPULSE * 0.55 * impulseScale;
       } else {
         state.flipVelocityX += direction * FLIP_IMPULSE_X * impulseScale;
+        state.flipVelocityY += wobbleSign * FLIP_CROSS_IMPULSE * impulseScale;
+        state.wobbleVelocityY += wobbleSign * FLIP_WOBBLE_IMPULSE * impulseScale;
+        state.wobbleVelocityX += direction * FLIP_WOBBLE_IMPULSE * 0.55 * impulseScale;
       }
+      state.wobbleVelocityZ += wobbleSign * FLIP_WOBBLE_IMPULSE * 0.5 * impulseScale;
+      state.extraFaceSpin = clamp(
+        state.extraFaceSpin - FLIP_SPIN_BOOST * impulseScale,
+        -MAX_EXTRA_SPIN,
+        MAX_EXTRA_SPIN,
+      );
       state.flipStreakCount = 0;
       state.flipStreakEnergy = 0;
     };
@@ -391,6 +423,10 @@
       state.gestureDX += dx;
       state.gestureDY += dy;
       state.extraFaceSpin = clamp(state.extraFaceSpin - distance * DRAG_WIND_FACTOR, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+      const wobbleMultiplier = 1 + Math.min(state.flipStreakCount, 3) * DRAG_WOBBLE_STREAK_GAIN;
+      state.wobbleVelocityY += dx * DRAG_WOBBLE_FACTOR * wobbleMultiplier;
+      state.wobbleVelocityX += dy * DRAG_WOBBLE_FACTOR * wobbleMultiplier;
+      state.wobbleVelocityZ += (dx - dy) * DRAG_TWIST_WOBBLE_FACTOR * wobbleMultiplier;
       setTiltFromPointer(event, dx, dy);
       event.preventDefault();
     };
@@ -441,14 +477,14 @@
       const centerY = height / 2;
       const size = Math.min(width, height);
       const radius = size * 0.42;
-      const surfaceY = state.currentY + state.flipY;
+      const surfaceY = state.currentY + state.flipY + state.wobbleY;
       const tiltScaleX = Math.max(0.2, Math.abs(Math.cos(surfaceY)) * 0.76 + 0.24);
-      const tiltScaleY = Math.max(0.52, Math.cos(state.currentX + state.flipX) * 0.2 + 0.78);
+      const tiltScaleY = Math.max(0.52, Math.cos(state.currentX + state.flipX + state.wobbleX) * 0.2 + 0.78);
 
       context.clearRect(0, 0, width, height);
       context.save();
       context.translate(centerX, centerY);
-      context.rotate(state.currentZ);
+      context.rotate(state.currentZ + state.wobbleZ);
       context.scale(tiltScaleX, tiltScaleY);
 
       const faceGradient = context.createRadialGradient(-radius * 0.35, -radius * 0.42, radius * 0.06, 0, 0, radius);
@@ -512,9 +548,9 @@
     };
 
     const render = () => {
-      const rotationX = state.currentX + state.flipX;
-      const rotationY = state.currentY + state.flipY;
-      const rotationZ = state.currentZ;
+      const rotationX = state.currentX + state.flipX + state.wobbleX;
+      const rotationY = state.currentY + state.flipY + state.wobbleY;
+      const rotationZ = state.currentZ + state.wobbleZ;
 
       if (state.renderer && state.scene && state.camera && state.token) {
         state.token.rotation.set(rotationX, rotationY, rotationZ);
@@ -534,8 +570,8 @@
       const spinElapsed = Math.min(rawElapsed, 64);
       state.lastTimestamp = timestamp;
       const frames = rawElapsed / 16.67;
-      const targetSettle = 1 - Math.pow(0.88, frames);
-      const currentSettle = 1 - Math.pow(0.78, frames);
+      const targetSettle = 1 - Math.pow(TARGET_SETTLE_BASE, frames);
+      const currentSettle = 1 - Math.pow(CURRENT_SETTLE_BASE, frames);
 
       if (!state.dragging) {
         state.targetX = lerp(state.targetX, 0, targetSettle);
@@ -551,14 +587,23 @@
       state.flipY += state.flipVelocityY * frames;
       state.flipVelocityX *= Math.pow(FLIP_DECAY, frames);
       state.flipVelocityY *= Math.pow(FLIP_DECAY, frames);
+      state.wobbleVelocityX += -state.wobbleX * WOBBLE_SPRING * frames;
+      state.wobbleVelocityY += -state.wobbleY * WOBBLE_SPRING * frames;
+      state.wobbleVelocityZ += -state.wobbleZ * WOBBLE_SPRING * frames;
+      state.wobbleVelocityX *= Math.pow(WOBBLE_DECAY, frames);
+      state.wobbleVelocityY *= Math.pow(WOBBLE_DECAY, frames);
+      state.wobbleVelocityZ *= Math.pow(WOBBLE_DECAY, frames);
+      state.wobbleX = clamp(state.wobbleX + state.wobbleVelocityX * frames, -MAX_WOBBLE, MAX_WOBBLE);
+      state.wobbleY = clamp(state.wobbleY + state.wobbleVelocityY * frames, -MAX_WOBBLE, MAX_WOBBLE);
+      state.wobbleZ = clamp(state.wobbleZ + state.wobbleVelocityZ * frames, -MAX_WOBBLE_Z, MAX_WOBBLE_Z);
 
       if (Math.abs(state.flipVelocityX) < MIN_FLIP_VELOCITY) {
         state.flipVelocityX = 0;
-        state.flipX = lerp(state.flipX, 0, 0.1);
+        state.flipX = lerp(state.flipX, 0, FLIP_HOME_EASE);
       }
       if (Math.abs(state.flipVelocityY) < MIN_FLIP_VELOCITY) {
         state.flipVelocityY = 0;
-        state.flipY = lerp(state.flipY, 0, 0.1);
+        state.flipY = lerp(state.flipY, 0, FLIP_HOME_EASE);
       }
 
       const baseSpin = reducedMotion ? BASE_FACE_SPIN * 0.28 : BASE_FACE_SPIN;
@@ -590,6 +635,9 @@
           flipVelocityY: state.flipVelocityY,
           flipStreakCount: state.flipStreakCount,
           flipStreakEnergy: state.flipStreakEnergy,
+          wobbleX: state.wobbleX,
+          wobbleY: state.wobbleY,
+          wobbleZ: state.wobbleZ,
         }),
       };
     };
