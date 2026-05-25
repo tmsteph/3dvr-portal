@@ -40,11 +40,16 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /flipVelocityY/);
     assert.match(swirlScript, /TILT_Y_LIMIT/);
     assert.match(swirlScript, /TILT_X_LIMIT/);
-    assert.match(swirlScript, /FLIP_ENERGY_THRESHOLD/);
+    assert.match(swirlScript, /FLIP_STREAK_REQUIRED = 4/);
     assert.match(swirlScript, /FLIP_STREAK_WINDOW/);
     assert.match(swirlScript, /state\.targetY = clamp\(\(point\.x - centerX\) \/ centerX, -1, 1\) \* TILT_Y_LIMIT/);
+    assert.match(swirlScript, /state\.targetX = clamp\(\(point\.y - centerY\) \/ centerY, -1, 1\) \* TILT_X_LIMIT/);
     assert.match(swirlScript, /const axis = absX >= absY \? 'y' : 'x'/);
+    assert.match(swirlScript, /if \(state\.flipStreakCount < FLIP_STREAK_REQUIRED\) return/);
+    assert.match(swirlScript, /registerFlipGesture\('x', event\.key === 'ArrowUp' \? -1 : 1/);
     assert.match(swirlScript, /state\.flipVelocityY \+= direction \* FLIP_IMPULSE_Y \* impulseScale/);
+    assert.match(css, /width: clamp\(7\.4rem, 19vw, 10rem\)/);
+    assert.match(css, /width: clamp\(8\.4rem, 38vw, 10\.2rem\)/);
     assert.match(swirlScript, /window\.__portalSwirlLogo/);
   });
 });

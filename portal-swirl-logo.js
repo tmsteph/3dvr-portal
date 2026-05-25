@@ -7,18 +7,18 @@
   const SPIN_DECAY = 0.985;
   const FLIP_DECAY = 0.945;
   const MIN_FLIP_VELOCITY = 0.0025;
-  const TILT_X_LIMIT = 0.22;
-  const TILT_Y_LIMIT = 0.28;
-  const TWIST_LIMIT = 0.08;
-  const TWIST_FACTOR = 0.002;
-  const FLIP_DISTANCE_THRESHOLD = 28;
-  const FLIP_DISTANCE_FULL_CHARGE = 75;
-  const FLIP_ENERGY_THRESHOLD = 1;
-  const FLIP_ENERGY_DECAY = 0.45;
-  const FLIP_STREAK_WINDOW = 1400;
-  const MAX_FLIP_ENERGY = 1.65;
-  const FLIP_IMPULSE_X = 0.32;
-  const FLIP_IMPULSE_Y = 0.38;
+  const TILT_X_LIMIT = 0.14;
+  const TILT_Y_LIMIT = 0.18;
+  const TWIST_LIMIT = 0.045;
+  const TWIST_FACTOR = 0.0012;
+  const FLIP_DISTANCE_THRESHOLD = 42;
+  const FLIP_DISTANCE_FULL_CHARGE = 110;
+  const FLIP_STREAK_REQUIRED = 4;
+  const FLIP_ENERGY_DECAY = 0.4;
+  const FLIP_STREAK_WINDOW = 1800;
+  const MAX_FLIP_ENERGY = 1.15;
+  const FLIP_IMPULSE_X = 0.22;
+  const FLIP_IMPULSE_Y = 0.26;
   const ROOT_SELECTOR = '[data-portal-swirl-logo]';
   const CANVAS_SELECTOR = '[data-portal-swirl-canvas]';
 
@@ -247,6 +247,7 @@
       flipVelocityY: 0,
       flipStreakAxis: '',
       flipStreakDirection: 0,
+      flipStreakCount: 0,
       flipStreakEnergy: 0,
       lastFlipGestureAt: 0,
       renderer: null,
@@ -312,19 +313,14 @@
       const centerX = point.rect.width / 2;
       const centerY = point.rect.height / 2;
       state.targetY = clamp((point.x - centerX) / centerX, -1, 1) * TILT_Y_LIMIT;
-      state.targetX = clamp((centerY - point.y) / centerY, -1, 1) * TILT_X_LIMIT;
+      state.targetX = clamp((point.y - centerY) / centerY, -1, 1) * TILT_X_LIMIT;
       state.targetZ = clamp((dx - dy) * TWIST_FACTOR, -TWIST_LIMIT, TWIST_LIMIT);
     };
 
-    const addDirectionalFlipImpulse = () => {
-      const absX = Math.abs(state.gestureDX);
-      const absY = Math.abs(state.gestureDY);
-      const axis = absX >= absY ? 'y' : 'x';
-      const distance = Math.max(absX, absY);
-      const direction = axis === 'y' ? Math.sign(state.gestureDX) : Math.sign(-state.gestureDY);
-
+    const registerFlipGesture = (axis, direction, distance) => {
       if (!direction || distance < FLIP_DISTANCE_THRESHOLD) {
         state.flipStreakEnergy *= FLIP_ENERGY_DECAY;
+        state.flipStreakCount = 0;
         return;
       }
 
@@ -336,25 +332,37 @@
       const energyGain = clamp(
         (distance - FLIP_DISTANCE_THRESHOLD) / FLIP_DISTANCE_FULL_CHARGE,
         0.16,
-        1,
+        0.36,
       );
 
       state.flipStreakEnergy = sameGesture
         ? clamp(state.flipStreakEnergy + energyGain, 0, MAX_FLIP_ENERGY)
         : energyGain;
+      state.flipStreakCount = sameGesture ? state.flipStreakCount + 1 : 1;
       state.flipStreakAxis = axis;
       state.flipStreakDirection = direction;
       state.lastFlipGestureAt = now;
 
-      if (state.flipStreakEnergy < FLIP_ENERGY_THRESHOLD) return;
+      if (state.flipStreakCount < FLIP_STREAK_REQUIRED) return;
 
-      const impulseScale = clamp(state.flipStreakEnergy, 1, MAX_FLIP_ENERGY);
+      const impulseScale = 1 + clamp(state.flipStreakEnergy, 0, MAX_FLIP_ENERGY) * 0.35;
       if (axis === 'y') {
         state.flipVelocityY += direction * FLIP_IMPULSE_Y * impulseScale;
       } else {
         state.flipVelocityX += direction * FLIP_IMPULSE_X * impulseScale;
       }
-      state.flipStreakEnergy *= FLIP_ENERGY_DECAY;
+      state.flipStreakCount = 0;
+      state.flipStreakEnergy = 0;
+    };
+
+    const addDirectionalFlipImpulse = () => {
+      const absX = Math.abs(state.gestureDX);
+      const absY = Math.abs(state.gestureDY);
+      const axis = absX >= absY ? 'y' : 'x';
+      const distance = Math.max(absX, absY);
+      const direction = axis === 'y' ? Math.sign(state.gestureDX) : Math.sign(state.gestureDY);
+
+      registerFlipGesture(axis, direction, distance);
     };
 
     const startDrag = (event) => {
@@ -409,14 +417,14 @@
       root.addEventListener('keydown', (event) => {
         if (event.key === 'ArrowRight' || event.key === ' ') {
           state.extraFaceSpin = clamp(state.extraFaceSpin - 0.012, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
-          state.flipVelocityY += 0.18;
+          registerFlipGesture('y', 1, FLIP_DISTANCE_FULL_CHARGE);
           event.preventDefault();
         } else if (event.key === 'ArrowLeft') {
           state.extraFaceSpin = clamp(state.extraFaceSpin - 0.008, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
-          state.flipVelocityY -= 0.18;
+          registerFlipGesture('y', -1, FLIP_DISTANCE_FULL_CHARGE);
           event.preventDefault();
         } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-          state.flipVelocityX += event.key === 'ArrowUp' ? 0.14 : -0.14;
+          registerFlipGesture('x', event.key === 'ArrowUp' ? -1 : 1, FLIP_DISTANCE_FULL_CHARGE);
           event.preventDefault();
         }
       });
@@ -580,6 +588,7 @@
           flipY: state.flipY,
           flipVelocityX: state.flipVelocityX,
           flipVelocityY: state.flipVelocityY,
+          flipStreakCount: state.flipStreakCount,
           flipStreakEnergy: state.flipStreakEnergy,
         }),
       };

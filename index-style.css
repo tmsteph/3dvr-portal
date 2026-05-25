@@ -357,7 +357,7 @@ body.landing {
   position: relative;
   display: grid;
   place-items: center;
-  width: clamp(6.8rem, 18vw, 9.6rem);
+  width: clamp(7.4rem, 19vw, 10rem);
   aspect-ratio: 1;
   border-radius: 50%;
   isolation: isolate;
@@ -1384,6 +1384,10 @@ footer a {
   .portal-swirl-brand {
     width: 100%;
     justify-content: center;
+  }
+
+  .portal-swirl-logo {
+    width: clamp(8.4rem, 38vw, 10.2rem);
   }
 
   .hero-eyebrow {
