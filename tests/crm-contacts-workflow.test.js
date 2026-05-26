@@ -11,10 +11,19 @@ async function read(relativePath) {
 
 test('CRM page exposes workflow filters and import controls for fast lead retrieval', async () => {
   const html = await read('crm/index.html');
+  assert.match(html, /id="quickConversationCapture"/);
+  assert.match(html, /id="quickConversationForm"/);
+  assert.match(html, /id="quickConversationNote"/);
+  assert.match(html, /id="quickConversationPerson"/);
+  assert.match(html, /id="quickConversationChannel"/);
+  assert.match(html, /id="quickConversationNextStep"/);
+  assert.match(html, /Drop the note\. Keep moving\./);
   assert.match(html, /id="crmPrimaryActions"/);
-  assert.match(html, /Add CRM contact/);
-  assert.match(html, /Search contacts/);
-  assert.match(html, /Search CRM/);
+  assert.match(html, /Add person/);
+  assert.match(html, /Open contacts/);
+  assert.match(html, /Search people and saved notes/);
+  assert.match(html, /id="crmAdvancedTools"/);
+  assert.match(html, /id="crmSalesMovesPanel"/);
   assert.match(html, /id="filterAllRecords"/);
   assert.match(html, /id="filterWarmLeads"/);
   assert.match(html, /id="personWorkflowFilter"/);
@@ -60,6 +69,12 @@ test('CRM page exposes workflow filters and import controls for fast lead retrie
 
 test('CRM app includes keyboard search shortcut, workflow filters, and import wiring', async () => {
   const js = await read('crm/app.js');
+  assert.match(js, /handleQuickConversationSubmit/);
+  assert.match(js, /findQuickConversationRecord/);
+  assert.match(js, /appendConversationNote/);
+  assert.match(js, /source: 'Quick capture'/);
+  assert.match(js, /touchType: getQuickConversationTouchType\(channel\)/);
+  assert.match(js, /quickConversationForm\?\.addEventListener\('submit', handleQuickConversationSubmit\)/);
   assert.match(js, /personWorkflowFilter\?\.addEventListener\('change', applyFilter\)/);
   assert.match(js, /event\.key === '\/' && !isTypingContext/);
   assert.match(js, /data-contact-id=/);

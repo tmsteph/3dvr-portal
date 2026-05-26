@@ -58,7 +58,7 @@ describe('Memory Capture app', () => {
 
     assert.match(portalHtml, /href="memory-capture\/"/);
     assert.match(portalHtml, /<span class="app-card__title">Memory Capture<\/span>/);
-    assert.match(portalHtml, /Brain dump conversations into CRM leads, proposals, and 3dvr-agent cleanup tasks/);
+    assert.match(portalHtml, /Brain dump conversations into people notes, proposals, and 3dvr-agent cleanup tasks/);
     assert.match(salesHtml, /href="..\/memory-capture\/"/);
     assert.match(salesHtml, /Memory Capture/);
   });

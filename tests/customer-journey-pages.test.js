@@ -8,7 +8,7 @@ describe('portal customer journey pages', () => {
     assert.match(html, /One portal\. Fast access\./);
     assert.match(html, /Find the apps, contacts, notes, websites, subscriptions, and support tools you need/);
     assert.doesNotMatch(html, /Grow into your own operating system/);
-    assert.match(html, /Open CRM/);
+    assert.match(html, /Open People Log/);
     assert.match(html, /Open Sales/);
     assert.match(html, /Open Web Builder/);
     assert.doesNotMatch(html, /System layers/);

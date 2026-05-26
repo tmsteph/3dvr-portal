@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>3DVR CRM</title>
+  <title>People Log | 3dvr portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="https://fav.farm/🧠" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -19,16 +19,16 @@
   <header class="bg-gray-950/70 border-b border-white/10">
     <div class="max-w-5xl mx-auto px-4 py-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="text-xs font-semibold tracking-[0.32em] text-teal-400 uppercase">Sales toolkit</p>
-        <h1 class="text-3xl font-bold">3DVR CRM</h1>
-        <p class="text-sm text-gray-300">Turn warm leads into the next human move without losing the shared portal context.</p>
-        <p class="text-xs text-gray-400 mt-2">This workspace is shared so the whole team can see who has been contacted and when.</p>
+        <p class="text-xs font-semibold tracking-[0.32em] text-teal-400 uppercase">People log</p>
+        <h1 class="text-3xl font-bold">Quick conversations</h1>
+        <p class="text-sm text-gray-300">Save who you talked to, what happened, and the next small step.</p>
+        <p class="text-xs text-gray-400 mt-2">Messy notes are fine. The goal is to get it out of your head quickly.</p>
       </div>
       <nav class="flex flex-wrap gap-2 text-sm">
-        <a href="../sales/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Sales home</a>
-        <a href="../sales/outreach.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Outreach CRM</a>
-        <a href="../sales/training/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Training playbook</a>
-        <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts workspace</a>
+        <a href="../sales/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Sales</a>
+        <a href="../sales/outreach.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Outreach</a>
+        <a href="../sales/training/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Training</a>
+        <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts</a>
         <a href="../cell/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Cell</a>
       </nav>
     </div>
@@ -56,6 +56,54 @@
   </a>
 
   <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <section id="quickConversationCapture" class="rounded-3xl border border-teal-400/20 bg-gradient-to-br from-gray-800/85 to-gray-950/90 p-5 shadow-2xl shadow-black/20">
+      <div class="grid gap-5 lg:grid-cols-[0.75fr,1.25fr] lg:items-start">
+        <div class="space-y-2">
+          <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">Quick capture</p>
+          <h2 class="text-2xl font-semibold">Drop the note. Keep moving.</h2>
+          <p class="text-sm text-gray-300">
+            Use this after a work chat, text, call, or random idea. Add the person if you remember. Add one next step if there is one.
+          </p>
+        </div>
+        <form id="quickConversationForm" class="grid gap-3">
+          <label for="quickConversationNote" class="sr-only">Conversation note</label>
+          <textarea
+            id="quickConversationNote"
+            rows="4"
+            class="w-full rounded-2xl border border-white/10 bg-white text-gray-950 p-4 text-base leading-relaxed"
+            placeholder="Example: Talked to Victor. He still wants the Alibaba store. Ask him to send one product link tomorrow."
+          ></textarea>
+          <div class="grid gap-3 md:grid-cols-[1fr,0.7fr]">
+            <div>
+              <label for="quickConversationPerson" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Who</label>
+              <input id="quickConversationPerson" type="text" class="w-full p-3 rounded-xl text-black" placeholder="Optional name" autocomplete="name" />
+            </div>
+            <div>
+              <label for="quickConversationChannel" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Kind</label>
+              <select id="quickConversationChannel" class="w-full p-3 rounded-xl text-black">
+                <option value="conversation">Conversation</option>
+                <option value="message">Text / DM</option>
+                <option value="call">Call</option>
+                <option value="email">Email</option>
+                <option value="group-chat">Group chat</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid gap-3 md:grid-cols-[1fr,auto] md:items-end">
+            <div>
+              <label for="quickConversationNextStep" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Next step</label>
+              <input id="quickConversationNextStep" type="text" class="w-full p-3 rounded-xl text-black" placeholder="Optional: ask for product link, send examples, follow up Friday..." />
+            </div>
+            <button type="submit" class="rounded-xl bg-teal-500 px-5 py-3 font-semibold text-gray-950 hover:bg-teal-400">Save note</button>
+          </div>
+          <p id="quickConversationStatus" class="hidden rounded-xl border px-3 py-2 text-sm" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <details id="crmAdvancedTools" class="rounded-2xl border border-white/10 bg-gray-900/55 p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-gray-200">More tools, drafts, and sales helpers</summary>
+      <div class="mt-4 space-y-8">
     <section class="grid gap-4 lg:grid-cols-[1fr,320px]">
       <div class="bg-gray-800/60 border border-white/10 rounded-xl p-5 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -128,26 +176,28 @@
         </div>
       </div>
     </section>
+      </div>
+    </details>
 
     <section id="crmPrimaryActions" class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-4">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">CRM workspace</p>
-          <h2 class="text-xl font-semibold">Add the next lead or find the right record fast.</h2>
-          <p class="text-sm text-gray-300">Keep the main moves at the top. The workflow lanes can stay underneath.</p>
+          <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">Find someone</p>
+          <h2 class="text-xl font-semibold">Search people and saved notes.</h2>
+          <p class="text-sm text-gray-300">Use the quick capture first. Search here when you need to find or clean something up.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button id="openCrmCreate" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">Add CRM contact</button>
-          <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded text-sm text-center border border-white/10">Search contacts</a>
+          <button id="openCrmCreate" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">Add person</button>
+          <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded text-sm text-center border border-white/10">Open contacts</a>
         </div>
       </div>
       <div class="grid gap-3 md:grid-cols-[1fr,240px] md:items-end">
         <div>
-          <label for="filter" class="block text-sm text-gray-300">Search CRM</label>
-          <input id="filter" type="search" placeholder="Filter by name, group, problem, tags, or notes" class="w-full p-2 rounded text-black" />
+          <label for="filter" class="block text-sm text-gray-300">Search</label>
+          <input id="filter" type="search" placeholder="Search names, notes, next steps, phone, email..." class="w-full p-2 rounded text-black" />
         </div>
         <div>
-          <label for="personWorkflowFilter" class="block text-sm text-gray-300">Person workflow</label>
+          <label for="personWorkflowFilter" class="block text-sm text-gray-300">Simple filter</label>
           <select id="personWorkflowFilter" class="w-full p-2 rounded text-black">
             <option value="">All people</option>
             <option value="linked">Linked to contacts</option>
@@ -166,7 +216,9 @@
       </div>
     </section>
 
-    <section class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-4">
+    <details id="crmSalesMovesPanel" class="rounded-2xl border border-white/10 bg-gray-900/55 p-4">
+      <summary class="cursor-pointer text-sm font-semibold text-gray-200">Today's reminders and sales queue</summary>
+    <section class="mt-4 bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-4">
       <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
           <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">Today's Sales Moves</p>
@@ -218,13 +270,14 @@
         </article>
       </div>
     </section>
+    </details>
 
     <section class="grid gap-6 lg:grid-cols-[360px,1fr]">
       <div id="crm-capture" class="bg-gray-800/60 border border-white/10 rounded-2xl p-5 space-y-4">
         <div class="space-y-2">
-          <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">Capture lane</p>
-          <h2 class="text-xl font-semibold">Add the next real lead fast.</h2>
-          <p class="text-sm text-gray-300">The list stays compact. Use the detail view for edits, follow-up, and contact sync.</p>
+          <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">Add a person</p>
+          <h2 class="text-xl font-semibold">Use this only when you know the basics.</h2>
+          <p class="text-sm text-gray-300">For normal day-to-day notes, use Quick capture at the top.</p>
         </div>
         <form id="quickLeadForm" class="grid gap-3">
           <input id="quickLeadName" type="text" placeholder="Lead name" class="w-full p-2 rounded text-black" />
@@ -267,7 +320,7 @@
           <p id="crmImportStatus" class="hidden rounded-lg border px-3 py-2 text-xs" role="status" aria-live="polite"></p>
         </div>
         <div class="grid gap-2 sm:grid-cols-2">
-          <span class="bg-white/10 text-white px-3 py-2 rounded text-sm text-center border border-white/10">Use top button for full lead form</span>
+          <span class="bg-white/10 text-white px-3 py-2 rounded text-sm text-center border border-white/10">Use Quick capture for messy notes</span>
           <button id="openGroupCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">New group</button>
           <button id="openProblemCreate" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm">Log problem</button>
           <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-sm text-center">Open contacts</a>
@@ -301,12 +354,12 @@
       <div class="space-y-6">
         <div class="bg-gray-800/60 border border-white/10 rounded-2xl p-5">
           <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
-            <h2 class="text-xl font-semibold">Pipeline</h2>
+            <h2 class="text-xl font-semibold">Saved people and notes</h2>
             <span class="text-xs uppercase tracking-[0.32em] text-gray-400">Live</span>
           </div>
           <div id="crmDuplicateSummary" class="hidden bg-amber-900/40 border border-amber-500/30 rounded-lg p-3 text-sm text-amber-100 mb-4"></div>
           <div id="contactList" class="space-y-3"></div>
-          <div id="emptyState" class="text-sm text-gray-400 hidden">No records yet. Add a group, lead, or problem to get started.</div>
+          <div id="emptyState" class="text-sm text-gray-400 hidden">No notes yet. Save a quick conversation to get started.</div>
         </div>
       </div>
     </section>
