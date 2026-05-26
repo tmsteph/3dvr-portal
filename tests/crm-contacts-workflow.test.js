@@ -18,6 +18,10 @@ test('CRM page exposes workflow filters and import controls for fast lead retrie
   assert.match(html, /id="quickConversationChannel"/);
   assert.match(html, /id="quickConversationNextStep"/);
   assert.match(html, /Drop the note\. Keep moving\./);
+  assert.match(html, /overflow-x: hidden/);
+  assert.match(html, /overflow-wrap: anywhere/);
+  assert.match(html, /#crmFloatingIdentity/);
+  assert.match(html, /\.crm-card \.truncate/);
   assert.match(html, /id="crmPrimaryActions"/);
   assert.match(html, /Add person/);
   assert.match(html, /Open contacts/);

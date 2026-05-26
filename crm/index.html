@@ -14,6 +14,97 @@
   <script src="../oauth.js"></script>
   <script type="module" src="./app.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    body,
+    main,
+    section,
+    article,
+    form,
+    input,
+    select,
+    textarea,
+    button,
+    a {
+      min-width: 0;
+    }
+
+    #contactList,
+    #crmDuplicateSummary,
+    #crmDetailCard,
+    #crmCreateOverlay > div,
+    .crm-card {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    #contactList .crm-card a,
+    #contactList .crm-card p,
+    #contactList .crm-card span,
+    #crmDetailCard p,
+    #crmDetailCard span,
+    #crmDetailCard a {
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+
+      #quickConversationCapture,
+      #crmPrimaryActions,
+      #crmSalesMovesPanel,
+      #crmAdvancedTools,
+      #crm-capture,
+      #contactList + div,
+      .crm-card {
+        border-radius: 1rem;
+      }
+
+      #crmFloatingIdentity {
+        max-width: calc(100vw - 2rem);
+        right: 1rem;
+      }
+
+      #crmCreateOverlay,
+      #crmDetailOverlay {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+
+      #crmCreateOverlay > div,
+      #crmDetailCard {
+        padding: 1rem;
+      }
+
+      [class*="tracking-"] {
+        letter-spacing: 0.12em;
+      }
+
+      button,
+      a,
+      summary,
+      label {
+        max-width: 100%;
+        white-space: normal;
+      }
+
+      .crm-card .truncate,
+      #crmDetailName {
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+      }
+    }
+  </style>
 </head>
 <body class="bg-gray-900 text-white font-sans min-h-screen">
   <header class="bg-gray-950/70 border-b border-white/10">
