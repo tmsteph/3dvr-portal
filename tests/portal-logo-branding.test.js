@@ -31,6 +31,11 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /extraFaceSpin/);
     assert.match(swirlScript, /MAX_EXTRA_SPIN = 0\.105/);
     assert.match(swirlScript, /makeTextTexture/);
+    assert.match(
+      swirlScript,
+      /const backText = new THREE\.Mesh\(\s*textGeometry,\s*new THREE\.MeshBasicMaterial\(\{\s*map: makeTextTexture\(THREE, false\),/,
+    );
+    assert.doesNotMatch(swirlScript, /map: makeTextTexture\(THREE, true\)/);
     assert.match(swirlScript, /texture\.rotation = state\.faceSpin/);
     assert.match(swirlScript, /const rotationX = state\.currentX \+ state\.flipX \+ state\.wobbleX/);
     assert.match(swirlScript, /const rotationY = state\.currentY \+ state\.flipY \+ state\.wobbleY/);

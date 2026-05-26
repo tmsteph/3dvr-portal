@@ -224,7 +224,7 @@
     const backText = new THREE.Mesh(
       textGeometry,
       new THREE.MeshBasicMaterial({
-        map: makeTextTexture(THREE, true),
+        map: makeTextTexture(THREE, false),
         transparent: true,
         depthWrite: false,
       }),
