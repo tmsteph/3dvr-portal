@@ -27,7 +27,9 @@
   const TARGET_SETTLE_BASE = 0.94;
   const CURRENT_SETTLE_BASE = 0.86;
   const FLIP_HOME_EASE = 0.075;
+  const UPRIGHT_TEXT_HOME_EASE = 0.12;
   const GOOD_FACE_STEP = Math.PI;
+  const UPRIGHT_TEXT_STEP = TAU;
   const DRAG_WOBBLE_FACTOR = 0.0009;
   const DRAG_TWIST_WOBBLE_FACTOR = 0.00042;
   const DRAG_WOBBLE_STREAK_GAIN = 0.32;
@@ -42,6 +44,7 @@
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const lerp = (from, to, amount) => from + (to - from) * amount;
   const nearestGoodFaceAngle = (angle) => Math.round(angle / GOOD_FACE_STEP) * GOOD_FACE_STEP;
+  const nearestUprightTextAngle = (angle) => Math.round(angle / UPRIGHT_TEXT_STEP) * UPRIGHT_TEXT_STEP;
 
   function loadThree() {
     if (window.THREE) return Promise.resolve(window.THREE);
@@ -653,7 +656,7 @@
 
       if (Math.abs(state.flipVelocityX) < MIN_FLIP_VELOCITY) {
         state.flipVelocityX = 0;
-        state.flipX = lerp(state.flipX, nearestGoodFaceAngle(state.flipX), FLIP_HOME_EASE);
+        state.flipX = lerp(state.flipX, nearestUprightTextAngle(state.flipX), UPRIGHT_TEXT_HOME_EASE);
       }
       if (Math.abs(state.flipVelocityY) < MIN_FLIP_VELOCITY) {
         state.flipVelocityY = 0;
