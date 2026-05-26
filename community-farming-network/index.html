@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Community Farming Network | 3dvr portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+  <script defer src="./app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav" aria-label="Community Farming Network navigation">
+      <a href="../index.html">Portal</a>
+      <a href="../community/">Community</a>
+      <a href="../contacts/">Contacts</a>
+      <a href="../projects/">Projects</a>
+    </nav>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="hero-copy">
+        <p class="eyebrow">3DVR local resilience project</p>
+        <h1 id="pageTitle">Community Farming Network</h1>
+        <p>
+          A neighborhood coordination layer for growing food, sharing harvests, trading labor,
+          and making unused land useful without turning it into another noisy social feed.
+          Use it to grow and share food and labor across the neighborhood.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#shareForm">Log food or labor</a>
+          <a class="button secondary" href="#networkBoard">View network board</a>
+        </div>
+      </div>
+      <aside class="season-card" aria-labelledby="seasonTitle">
+        <p class="eyebrow">Operating idea</p>
+        <h2 id="seasonTitle">Food, skills, tools, and time should move locally.</h2>
+        <ol>
+          <li><strong>Grow</strong><span>Map yards, patios, gardens, and raised beds.</span></li>
+          <li><strong>Share</strong><span>Post surplus harvests before they go to waste.</span></li>
+          <li><strong>Help</strong><span>Trade labor for planting, watering, compost, and repairs.</span></li>
+        </ol>
+      </aside>
+    </section>
+  </header>
+
+  <main>
+    <section class="panel intro-grid" aria-labelledby="networkPurpose">
+      <div>
+        <p class="eyebrow">Why it belongs in the portal</p>
+        <h2 id="networkPurpose">A practical community layer.</h2>
+        <p>
+          The portal already tracks people, projects, notes, and community circles. This adds a
+          local food and labor graph: who can grow, who needs food, who has tools, and who can help.
+        </p>
+      </div>
+      <div class="principles">
+        <article>
+          <span>1</span>
+          <h3>Low-friction offers</h3>
+          <p>Post what exists today: tomatoes, seedlings, compost, a mower, or two hours of help.</p>
+        </article>
+        <article>
+          <span>2</span>
+          <h3>Neighborhood trust</h3>
+          <p>Start with known people, small circles, and clear handoffs before scaling outward.</p>
+        </article>
+        <article>
+          <span>3</span>
+          <h3>Visible next steps</h3>
+          <p>Every post should make the next move obvious: pick up, request help, join a work day.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="workspace-grid">
+      <form id="shareForm" class="panel form-panel" aria-labelledby="shareTitle">
+        <div>
+          <p class="eyebrow">Quick log</p>
+          <h2 id="shareTitle">Add food, land, labor, or tools.</h2>
+          <p>Keep it simple. A rough note is enough to start coordinating.</p>
+        </div>
+        <label>
+          Type
+          <select id="entryType" required>
+            <option value="harvest">Harvest share</option>
+            <option value="garden">Growing space</option>
+            <option value="labor">Labor request</option>
+            <option value="resource">Tool or resource</option>
+          </select>
+        </label>
+        <label>
+          Title
+          <input id="entryTitle" required placeholder="Extra basil, raised bed help, compost pile..." />
+        </label>
+        <div class="field-row">
+          <label>
+            Neighborhood
+            <input id="entryNeighborhood" placeholder="Street, block, town, or circle" />
+          </label>
+          <label>
+            Timing
+            <input id="entryTiming" placeholder="Today, Saturday morning, this season..." />
+          </label>
+        </div>
+        <label>
+          Details
+          <textarea id="entryDetails" rows="4" placeholder="What is available or needed? How should someone respond?"></textarea>
+        </label>
+        <button class="button primary" type="submit">Save to network</button>
+        <p id="syncStatus" class="sync-status" role="status" aria-live="polite">Connecting to Gun...</p>
+      </form>
+
+      <aside class="panel map-panel" aria-labelledby="starterMapTitle">
+        <p class="eyebrow">Starter map</p>
+        <h2 id="starterMapTitle">Four lanes to test first.</h2>
+        <div class="lane-list">
+          <article>
+            <strong>Backyard growers</strong>
+            <span>People with soil, sun, water, and a willingness to plant more.</span>
+          </article>
+          <article>
+            <strong>Harvest pickups</strong>
+            <span>Simple claims for excess produce, herbs, eggs, seedlings, or prepared food.</span>
+          </article>
+          <article>
+            <strong>Work days</strong>
+            <span>Small crews for raised beds, watering, weeding, compost, fences, and cleanup.</span>
+          </article>
+          <article>
+            <strong>Shared kit</strong>
+            <span>Tools, seeds, soil, starts, jars, buckets, and transport help.</span>
+          </article>
+        </div>
+      </aside>
+    </section>
+
+    <section id="networkBoard" class="panel board-panel" aria-labelledby="boardTitle">
+      <div class="board-head">
+        <div>
+          <p class="eyebrow">Live board</p>
+          <h2 id="boardTitle">Neighborhood food and labor posts</h2>
+        </div>
+        <div class="filters" aria-label="Filter board">
+          <button type="button" class="filter active" data-filter="all">All</button>
+          <button type="button" class="filter" data-filter="harvest">Harvest</button>
+          <button type="button" class="filter" data-filter="garden">Gardens</button>
+          <button type="button" class="filter" data-filter="labor">Labor</button>
+          <button type="button" class="filter" data-filter="resource">Tools</button>
+        </div>
+      </div>
+      <div id="entryList" class="entry-list" aria-live="polite"></div>
+    </section>
+
+    <section class="panel next-panel" aria-labelledby="nextTitle">
+      <p class="eyebrow">Next build steps</p>
+      <h2 id="nextTitle">How this can grow from project page to real network.</h2>
+      <div class="next-grid">
+        <article>
+          <h3>1. Tie posts to contacts</h3>
+          <p>Connect offers and requests to the People Log so neighbors, volunteers, and growers do not disappear.</p>
+        </article>
+        <article>
+          <h3>2. Add simple location privacy</h3>
+          <p>Use neighborhood labels first. Exact addresses should only be shared after a person opts in.</p>
+        </article>
+        <article>
+          <h3>3. Create work-day flows</h3>
+          <p>Turn labor requests into small scheduled events with tools, people, tasks, and follow-up notes.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
