@@ -56,6 +56,11 @@ describe('WebRTC Lab app', () => {
     assert.match(js, /PEER_SESSION_KEY = 'webrtcLabParticipantId'/);
     assert.match(js, /sessionStorage\.setItem\(PEER_SESSION_KEY, next\)/);
     assert.match(js, /connection\.onnegotiationneeded/);
+    assert.match(js, /signalQueue: Promise\.resolve\(\)/);
+    assert.match(js, /queuePeerSignal\(peer, async \(\) =>/);
+    assert.match(js, /peer\.connection\.signalingState !== 'have-local-offer'/);
+    assert.match(js, /peer\.connection\.signalingState !== 'have-remote-offer'/);
+    assert.match(js, /Ignored stale answer/);
     assert.match(js, /payloadJson: serializePayload\(payload\)/);
     assert.match(js, /if \(signal\.type === 'announce'\) return handleAnnounce\(signal\)/);
     assert.match(js, /await startCamera\(\)/);

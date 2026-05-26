@@ -244,7 +244,8 @@
       name: remoteName || 'Guest',
       connection,
       stream: new MediaStream(),
-      tile: createRemoteTile(remoteId, remoteName)
+      tile: createRemoteTile(remoteId, remoteName),
+      signalQueue: Promise.resolve()
     };
     peers.set(remoteId, peer);
     updateDiagnostics();
@@ -370,19 +371,52 @@
 
   async function handleOffer(signal) {
     const peer = createPeer(signal.from, signal.fromName);
-    if (!localStream) await startCamera();
-    await peer.connection.setRemoteDescription(new RTCSessionDescription(signal.payload));
-    const answer = await peer.connection.createAnswer();
-    await peer.connection.setLocalDescription(answer);
-    sendSignal(signal.from, 'answer', peer.connection.localDescription);
-    logEvent(`Answer sent to ${signal.fromName || signal.from}.`);
+    return queuePeerSignal(peer, async () => {
+      if (!localStream) await startCamera();
+
+      const offerCollision = peer.makingOffer || peer.connection.signalingState !== 'stable';
+      if (offerCollision && shouldInitiateOffer(signal.from)) {
+        logEvent(`Ignored collided offer from ${signal.fromName || signal.from}.`);
+        return;
+      }
+
+      if (offerCollision && typeof peer.connection.setLocalDescription === 'function') {
+        try {
+          await peer.connection.setLocalDescription({ type: 'rollback' });
+        } catch (error) {
+          console.warn('Offer rollback failed', error);
+        }
+      }
+
+      if (peer.connection.signalingState !== 'stable') {
+        logEvent(`Skipped offer from ${signal.fromName || signal.from}; state is ${peer.connection.signalingState}.`);
+        return;
+      }
+
+      await peer.connection.setRemoteDescription(new RTCSessionDescription(signal.payload));
+      if (peer.connection.signalingState !== 'have-remote-offer') {
+        logEvent(`Skipped answer for ${signal.fromName || signal.from}; state is ${peer.connection.signalingState}.`);
+        return;
+      }
+
+      const answer = await peer.connection.createAnswer();
+      await peer.connection.setLocalDescription(answer);
+      sendSignal(signal.from, 'answer', peer.connection.localDescription);
+      logEvent(`Answer sent to ${signal.fromName || signal.from}.`);
+    });
   }
 
   async function handleAnswer(signal) {
     const peer = peers.get(signal.from);
     if (!peer) return;
-    await peer.connection.setRemoteDescription(new RTCSessionDescription(signal.payload));
-    logEvent(`Answer received from ${signal.fromName || signal.from}.`);
+    return queuePeerSignal(peer, async () => {
+      if (peer.connection.signalingState !== 'have-local-offer') {
+        logEvent(`Ignored stale answer from ${signal.fromName || signal.from}; state is ${peer.connection.signalingState}.`);
+        return;
+      }
+      await peer.connection.setRemoteDescription(new RTCSessionDescription(signal.payload));
+      logEvent(`Answer received from ${signal.fromName || signal.from}.`);
+    });
   }
 
   async function handleCandidate(signal) {
@@ -403,6 +437,16 @@
   function parsePayload(signal) {
     if (signal.payloadJson) return JSON.parse(signal.payloadJson);
     return signal.payload || null;
+  }
+
+  function queuePeerSignal(peer, task) {
+    const run = peer.signalQueue
+      .catch(() => {})
+      .then(task);
+    peer.signalQueue = run.catch(error => {
+      console.warn('Queued peer signal failed', error);
+    });
+    return run;
   }
 
   function sendSignal(to, type, payload) {
