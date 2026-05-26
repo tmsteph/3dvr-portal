@@ -3,10 +3,10 @@
   const TAU = Math.PI * 2;
   const BASE_FACE_SPIN = -TAU / 5200;
   const DRAG_WIND_FACTOR = 0.00065;
-  const MAX_EXTRA_SPIN = 0.055;
+  const MAX_EXTRA_SPIN = 0.105;
   const SPIN_DECAY = 0.99;
   const FLIP_DECAY = 0.965;
-  const MIN_FLIP_VELOCITY = 0.0025;
+  const MIN_FLIP_VELOCITY = 0.005;
   const TILT_X_LIMIT = 0.18;
   const TILT_Y_LIMIT = 0.24;
   const TWIST_LIMIT = 0.045;
@@ -16,6 +16,9 @@
   const FLIP_STREAK_REQUIRED = 4;
   const FLIP_ENERGY_DECAY = 0.4;
   const FLIP_STREAK_WINDOW = 1800;
+  const SWIPE_STREAK_MAX = 5;
+  const SWIPE_TILT_GAIN = 0.12;
+  const SWIPE_SPIN_GAIN = 0.24;
   const MAX_FLIP_ENERGY = 1.15;
   const FLIP_IMPULSE_X = 0.22;
   const FLIP_IMPULSE_Y = 0.26;
@@ -23,7 +26,8 @@
   const FLIP_SPIN_BOOST = 0.026;
   const TARGET_SETTLE_BASE = 0.94;
   const CURRENT_SETTLE_BASE = 0.86;
-  const FLIP_HOME_EASE = 0.045;
+  const FLIP_HOME_EASE = 0.075;
+  const GOOD_FACE_STEP = Math.PI;
   const DRAG_WOBBLE_FACTOR = 0.0009;
   const DRAG_TWIST_WOBBLE_FACTOR = 0.00042;
   const DRAG_WOBBLE_STREAK_GAIN = 0.32;
@@ -37,6 +41,7 @@
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const lerp = (from, to, amount) => from + (to - from) * amount;
+  const nearestGoodFaceAngle = (angle) => Math.round(angle / GOOD_FACE_STEP) * GOOD_FACE_STEP;
 
   function loadThree() {
     if (window.THREE) return Promise.resolve(window.THREE);
@@ -263,6 +268,10 @@
       flipStreakCount: 0,
       flipStreakEnergy: 0,
       lastFlipGestureAt: 0,
+      swipeStreakAxis: '',
+      swipeStreakDirection: 0,
+      swipeStreakCount: 0,
+      lastSwipeAt: 0,
       wobbleX: 0,
       wobbleY: 0,
       wobbleZ: 0,
@@ -327,12 +336,53 @@
       }
     };
 
+    const getGesture = () => {
+      const absX = Math.abs(state.gestureDX);
+      const absY = Math.abs(state.gestureDY);
+      const axis = absX >= absY ? 'y' : 'x';
+      const distance = Math.max(absX, absY);
+      const direction = axis === 'y' ? Math.sign(state.gestureDX) : Math.sign(state.gestureDY);
+
+      return { axis, direction, distance };
+    };
+
+    const getActiveSwipeStreakCount = () => {
+      const { axis, direction, distance } = getGesture();
+      if (!direction || distance < 8) return state.swipeStreakCount;
+
+      return state.swipeStreakAxis === axis && state.swipeStreakDirection === direction
+        ? state.swipeStreakCount
+        : 0;
+    };
+
+    const getSwipeBoost = () => 1 + Math.min(getActiveSwipeStreakCount(), SWIPE_STREAK_MAX) * SWIPE_TILT_GAIN;
+    const getSpinBoost = () => 1 + Math.min(getActiveSwipeStreakCount(), SWIPE_STREAK_MAX) * SWIPE_SPIN_GAIN;
+
+    const updateSwipeStreak = ({ axis, direction, distance }) => {
+      if (!direction || distance < FLIP_DISTANCE_THRESHOLD) {
+        state.swipeStreakCount = 0;
+        return;
+      }
+
+      const now = window.performance?.now?.() ?? Date.now();
+      const sameSwipe =
+        state.swipeStreakAxis === axis &&
+        state.swipeStreakDirection === direction &&
+        now - state.lastSwipeAt < FLIP_STREAK_WINDOW;
+
+      state.swipeStreakAxis = axis;
+      state.swipeStreakDirection = direction;
+      state.swipeStreakCount = sameSwipe ? Math.min(state.swipeStreakCount + 1, SWIPE_STREAK_MAX) : 1;
+      state.lastSwipeAt = now;
+    };
+
     const setTiltFromPointer = (event, dx = 0, dy = 0) => {
       const point = getPointer(event);
       const centerX = point.rect.width / 2;
       const centerY = point.rect.height / 2;
-      state.targetY = clamp((point.x - centerX) / centerX, -1, 1) * TILT_Y_LIMIT;
-      state.targetX = clamp((point.y - centerY) / centerY, -1, 1) * TILT_X_LIMIT;
+      const tiltBoost = getSwipeBoost();
+      state.targetY = clamp((point.x - centerX) / centerX, -1, 1) * TILT_Y_LIMIT * tiltBoost;
+      state.targetX = clamp((point.y - centerY) / centerY, -1, 1) * TILT_X_LIMIT * tiltBoost;
       state.targetZ = clamp((dx - dy) * TWIST_FACTOR, -TWIST_LIMIT, TWIST_LIMIT);
     };
 
@@ -387,13 +437,7 @@
       state.flipStreakEnergy = 0;
     };
 
-    const addDirectionalFlipImpulse = () => {
-      const absX = Math.abs(state.gestureDX);
-      const absY = Math.abs(state.gestureDY);
-      const axis = absX >= absY ? 'y' : 'x';
-      const distance = Math.max(absX, absY);
-      const direction = axis === 'y' ? Math.sign(state.gestureDX) : Math.sign(state.gestureDY);
-
+    const addDirectionalFlipImpulse = ({ axis, direction, distance }) => {
       registerFlipGesture(axis, direction, distance);
     };
 
@@ -422,7 +466,11 @@
       state.dragDY = dy;
       state.gestureDX += dx;
       state.gestureDY += dy;
-      state.extraFaceSpin = clamp(state.extraFaceSpin - distance * DRAG_WIND_FACTOR, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+      state.extraFaceSpin = clamp(
+        state.extraFaceSpin - distance * DRAG_WIND_FACTOR * getSpinBoost(),
+        -MAX_EXTRA_SPIN,
+        MAX_EXTRA_SPIN,
+      );
       const wobbleMultiplier = 1 + Math.min(state.flipStreakCount, 3) * DRAG_WOBBLE_STREAK_GAIN;
       state.wobbleVelocityY += dx * DRAG_WOBBLE_FACTOR * wobbleMultiplier;
       state.wobbleVelocityX += dy * DRAG_WOBBLE_FACTOR * wobbleMultiplier;
@@ -436,8 +484,14 @@
       state.dragging = false;
       releasePointer(event);
 
-      addDirectionalFlipImpulse();
-      state.extraFaceSpin = clamp(state.extraFaceSpin - Math.hypot(state.dragDX, state.dragDY) * 0.0018, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+      const gesture = getGesture();
+      updateSwipeStreak(gesture);
+      addDirectionalFlipImpulse(gesture);
+      state.extraFaceSpin = clamp(
+        state.extraFaceSpin - Math.hypot(state.dragDX, state.dragDY) * 0.0018 * getSpinBoost(),
+        -MAX_EXTRA_SPIN,
+        MAX_EXTRA_SPIN,
+      );
     };
 
     const setupInteraction = () => {
@@ -599,11 +653,11 @@
 
       if (Math.abs(state.flipVelocityX) < MIN_FLIP_VELOCITY) {
         state.flipVelocityX = 0;
-        state.flipX = lerp(state.flipX, 0, FLIP_HOME_EASE);
+        state.flipX = lerp(state.flipX, nearestGoodFaceAngle(state.flipX), FLIP_HOME_EASE);
       }
       if (Math.abs(state.flipVelocityY) < MIN_FLIP_VELOCITY) {
         state.flipVelocityY = 0;
-        state.flipY = lerp(state.flipY, 0, FLIP_HOME_EASE);
+        state.flipY = lerp(state.flipY, nearestGoodFaceAngle(state.flipY), FLIP_HOME_EASE);
       }
 
       const baseSpin = reducedMotion ? BASE_FACE_SPIN * 0.28 : BASE_FACE_SPIN;
@@ -633,6 +687,9 @@
           flipY: state.flipY,
           flipVelocityX: state.flipVelocityX,
           flipVelocityY: state.flipVelocityY,
+          swipeStreakCount: state.swipeStreakCount,
+          swipeStreakAxis: state.swipeStreakAxis,
+          swipeStreakDirection: state.swipeStreakDirection,
           flipStreakCount: state.flipStreakCount,
           flipStreakEnergy: state.flipStreakEnergy,
           wobbleX: state.wobbleX,
