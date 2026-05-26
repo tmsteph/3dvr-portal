@@ -1,0 +1,377 @@
+:root {
+  --bg: #07110c;
+  --panel: rgba(14, 34, 23, 0.86);
+  --panel-strong: rgba(18, 45, 30, 0.96);
+  --text: #f4f1df;
+  --muted: #c9c1a8;
+  --line: rgba(222, 238, 203, 0.16);
+  --soil: #9a6b3d;
+  --leaf: #8ed36d;
+  --mint: #b6e8b4;
+  --gold: #e6c15d;
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    linear-gradient(120deg, rgba(7, 17, 12, 0.92), rgba(7, 17, 12, 0.72)),
+    url("https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1800&q=80") center/cover fixed;
+  line-height: 1.55;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 80%);
+}
+
+a {
+  color: inherit;
+}
+
+.site-header,
+main {
+  width: min(1160px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.site-header {
+  padding: 22px 0 0;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.nav a,
+.button,
+.filter {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: var(--text);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.07);
+  font: inherit;
+  font-weight: 800;
+}
+
+.hero,
+.workspace-grid,
+.intro-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  gap: 18px;
+}
+
+.hero {
+  align-items: stretch;
+}
+
+.hero-copy,
+.panel,
+.season-card {
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.hero-copy {
+  min-height: 440px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(26px, 5vw, 58px);
+}
+
+.season-card,
+.panel {
+  padding: 24px;
+}
+
+.season-card {
+  background: var(--panel-strong);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 10ch;
+  margin-bottom: 18px;
+  font-size: clamp(3rem, 9vw, 6.7rem);
+  line-height: 0.88;
+  letter-spacing: -0.07em;
+}
+
+h2 {
+  margin-bottom: 10px;
+  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+h3 {
+  margin-bottom: 8px;
+}
+
+.hero-copy p,
+.panel p,
+.season-card span,
+.entry-card p,
+.lane-list span {
+  color: var(--muted);
+}
+
+.hero-copy > p:not(.eyebrow) {
+  max-width: 62ch;
+  font-size: clamp(1.06rem, 2vw, 1.24rem);
+}
+
+.hero-actions,
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero-actions {
+  margin-top: 24px;
+}
+
+.button,
+.filter {
+  cursor: pointer;
+}
+
+.button.primary,
+.filter.active {
+  border-color: transparent;
+  color: #09120b;
+  background: linear-gradient(135deg, var(--leaf), var(--gold));
+}
+
+main {
+  display: grid;
+  gap: 18px;
+  padding: 18px 0 64px;
+}
+
+.season-card ol {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.season-card strong,
+.season-card span {
+  display: block;
+}
+
+.principles,
+.next-grid,
+.lane-list,
+.entry-list {
+  display: grid;
+  gap: 12px;
+}
+
+.principles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.principles article,
+.lane-list article,
+.entry-card,
+.next-grid article {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.principles span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  color: #07110c;
+  background: var(--leaf);
+  font-weight: 900;
+}
+
+.form-panel {
+  display: grid;
+  gap: 14px;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  padding: 12px 14px;
+  color: var(--text);
+  background: rgba(3, 12, 8, 0.78);
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sync-status {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.board-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.entry-card {
+  display: grid;
+  gap: 8px;
+}
+
+.entry-card__top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.entry-type {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #07110c;
+  background: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.entry-meta span {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.next-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 860px) {
+  .hero,
+  .workspace-grid,
+  .intro-grid,
+  .principles,
+  .next-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-copy {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .site-header,
+  main {
+    width: min(100% - 20px, 1160px);
+  }
+
+  .hero-copy,
+  .panel,
+  .season-card {
+    border-radius: 18px;
+    padding: 18px;
+  }
+
+  .field-row,
+  .board-head {
+    grid-template-columns: 1fr;
+  }
+
+  .board-head,
+  .entry-card__top {
+    display: grid;
+  }
+
+  h1 {
+    letter-spacing: -0.04em;
+  }
+}
