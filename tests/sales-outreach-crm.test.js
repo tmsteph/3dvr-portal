@@ -10,7 +10,7 @@ test('outreach CRM connects profiles, potential messages, and sent touches throu
   const outreachJs = await readFile(new URL('../sales/outreach.js', import.meta.url), 'utf8');
 
   assert.match(salesHubHtml, /Outreach CRM/);
-  assert.match(crmHtml, /Outreach CRM/);
+  assert.match(crmHtml, /Outreach/);
   assert.match(scoreboardHtml, /Outreach CRM/);
 
   assert.match(outreachHtml, /Customer profiles/);

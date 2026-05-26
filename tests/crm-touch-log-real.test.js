@@ -6,6 +6,8 @@ test('crm touch logging keeps explicit outcomes and reply metadata', async () =>
   const appJs = await readFile(new URL('../crm/app.js', import.meta.url), 'utf8');
 
   assert.match(appJs, /const TOUCH_TYPE_OPTIONS = Object\.freeze/);
+  assert.match(appJs, /conversation/);
+  assert.match(appJs, /message/);
   assert.match(appJs, /drafted/);
   assert.match(appJs, /reply-received/);
   assert.match(appJs, /follow-up-scheduled/);

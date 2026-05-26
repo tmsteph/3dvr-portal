@@ -137,6 +137,8 @@ const DRAFT_TYPE_OPTIONS = Object.freeze([
   }),
 ]);
 const TOUCH_TYPE_OPTIONS = Object.freeze([
+  Object.freeze({ value: 'conversation', label: 'Conversation' }),
+  Object.freeze({ value: 'message', label: 'Message' }),
   Object.freeze({ value: 'drafted', label: 'Drafted' }),
   Object.freeze({ value: 'outreach-sent', label: 'Outreach sent' }),
   Object.freeze({ value: 'reply-received', label: 'Reply received' }),
@@ -160,6 +162,12 @@ const elements = {
   visibleCount: document.getElementById('visibleCount'),
   emptyState: document.getElementById('emptyState'),
   duplicateSummary: document.getElementById('crmDuplicateSummary'),
+  quickConversationForm: document.getElementById('quickConversationForm'),
+  quickConversationNote: document.getElementById('quickConversationNote'),
+  quickConversationPerson: document.getElementById('quickConversationPerson'),
+  quickConversationChannel: document.getElementById('quickConversationChannel'),
+  quickConversationNextStep: document.getElementById('quickConversationNextStep'),
+  quickConversationStatus: document.getElementById('quickConversationStatus'),
   quickLeadForm: document.getElementById('quickLeadForm'),
   quickLeadName: document.getElementById('quickLeadName'),
   quickLeadEmail: document.getElementById('quickLeadEmail'),
@@ -456,6 +464,101 @@ function mergeImportedNotes(existingValue = '', importedValue = '') {
   if (!existing) return imported;
   if (existing.includes(imported)) return existing;
   return `${existing}\n\nImported note:\n${imported}`;
+}
+
+function getQuickConversationChannelLabel(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'message') return 'Text / DM';
+  if (normalized === 'call') return 'Call';
+  if (normalized === 'email') return 'Email';
+  if (normalized === 'group-chat') return 'Group chat';
+  return 'Conversation';
+}
+
+function getQuickConversationTouchType(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'message' || normalized === 'email' || normalized === 'group-chat'
+    ? 'message'
+    : 'conversation';
+}
+
+function appendConversationNote(existingValue = '', {
+  timestamp = new Date().toISOString(),
+  channelLabel = 'Conversation',
+  note = '',
+  nextStep = '',
+} = {}) {
+  const existing = String(existingValue || '').trim();
+  const pieces = [
+    `[${channelLabel} ${new Date(timestamp).toLocaleString()}]`,
+    String(note || '').trim(),
+    nextStep ? `Next: ${String(nextStep).trim()}` : '',
+  ].filter(Boolean);
+  const entry = pieces.join('\n');
+  if (!entry) return existing;
+  return existing ? `${existing}\n\n${entry}` : entry;
+}
+
+function getQuickConversationPeople() {
+  return Object.values(crmIndex)
+    .map(sanitizeCrmRecord)
+    .filter(record => record.recordType === 'person' && String(record.id || '').trim());
+}
+
+function deriveQuickConversationName(note = '') {
+  const firstLine = String(note || '').trim().split(/\n+/)[0] || '';
+  const relationshipMatch = firstLine.match(/\b(?:talked to|spoke with|met|texted|messaged|called|emailed|saw|heard from)\s+([A-Za-z][A-Za-z'’-]{1,32})/i);
+  if (relationshipMatch) {
+    const raw = relationshipMatch[1];
+    return `${raw.slice(0, 1).toUpperCase()}${raw.slice(1)}`;
+  }
+  const nameMatch = firstLine.match(/\b([A-Z][A-Za-z'’-]{1,32})(?:\b|:)/);
+  if (nameMatch) return nameMatch[1];
+  const fallback = firstLine.split(/\s+/).slice(0, 5).join(' ').replace(/[^\w\s'’-]/g, '').trim();
+  return fallback || `Quick note ${new Date().toLocaleString()}`;
+}
+
+function findQuickConversationRecord(personValue = '', note = '') {
+  const people = getQuickConversationPeople();
+  const explicit = String(personValue || '').trim().toLowerCase();
+  if (explicit) {
+    const exact = people.find(record => {
+      const name = String(record.name || '').trim().toLowerCase();
+      const email = normaliseEmail(record.email);
+      return name === explicit || email === explicit;
+    });
+    if (exact) return exact;
+  }
+
+  const haystack = `${personValue} ${note}`.toLowerCase();
+  if (!haystack.trim()) return null;
+  return people
+    .slice()
+    .sort((a, b) => String(b.name || '').length - String(a.name || '').length)
+    .find(record => {
+      const name = String(record.name || '').trim().toLowerCase();
+      if (!name) return false;
+      const firstName = name.split(/\s+/)[0];
+      return haystack.includes(name) || (firstName.length > 2 && haystack.includes(firstName));
+    }) || null;
+}
+
+function showQuickConversationStatus(message = '', tone = 'info') {
+  if (!elements.quickConversationStatus) return;
+  const copy = String(message || '').trim();
+  if (!copy) {
+    elements.quickConversationStatus.className = 'hidden rounded-xl border px-3 py-2 text-sm';
+    elements.quickConversationStatus.textContent = '';
+    return;
+  }
+  const palettes = {
+    info: 'border-sky-500/30 bg-sky-950/40 text-sky-100',
+    success: 'border-emerald-500/30 bg-emerald-950/40 text-emerald-100',
+    warn: 'border-amber-500/30 bg-amber-950/40 text-amber-100',
+    error: 'border-rose-500/30 bg-rose-950/40 text-rose-100',
+  };
+  elements.quickConversationStatus.className = `rounded-xl border px-3 py-2 text-sm ${palettes[tone] || palettes.info}`;
+  elements.quickConversationStatus.textContent = copy;
 }
 
 function showImportStatus(message = '', tone = 'info') {
@@ -1450,7 +1553,7 @@ function updateCounts(total, visible) {
   if (elements.visibleCount) elements.visibleCount.textContent = String(visible);
   if (!elements.emptyState) return;
   if (total === 0) {
-    elements.emptyState.textContent = 'No records yet. Add a group, lead, or problem to get started.';
+    elements.emptyState.textContent = 'No notes yet. Save a quick conversation to get started.';
     elements.emptyState.classList.remove('hidden');
   } else if (visible === 0) {
     elements.emptyState.textContent = 'No records match this filter yet.';
@@ -1587,13 +1690,13 @@ function renderList() {
 
   const sections = [];
   if (state.board.groups.length) {
-    sections.push(renderSection('Groups', 'Accounts first. Keep the people nested under the right group.', state.board.groups.map(renderGroupCluster).join('')));
+    sections.push(renderSection('Companies and groups', 'People connected to the same business, family, team, or project.', state.board.groups.map(renderGroupCluster).join('')));
   }
   if (state.board.standalonePeople.length) {
-    sections.push(renderSection('Ungrouped leads', 'People you have not attached to a group yet.', state.board.standalonePeople.map(record => renderPersonCard(record)).join('')));
+    sections.push(renderSection('People', 'Recent conversations that are not attached to a group yet.', state.board.standalonePeople.map(record => renderPersonCard(record)).join('')));
   }
   if (state.board.problems.length) {
-    sections.push(renderSection('Problems', 'Track the pains that connect back to groups and people.', state.board.problems.map(renderProblemCard).join('')));
+    sections.push(renderSection('Repeated themes', 'Things people keep asking for or struggling with.', state.board.problems.map(renderProblemCard).join('')));
   }
 
   elements.list.innerHTML = sections.join('');
@@ -2685,6 +2788,69 @@ async function handleCreateSubmit(event) {
   }
 }
 
+async function handleQuickConversationSubmit(event) {
+  event.preventDefault();
+  const note = String(elements.quickConversationNote?.value || '').trim();
+  const personValue = String(elements.quickConversationPerson?.value || '').trim();
+  const nextStep = String(elements.quickConversationNextStep?.value || '').trim();
+
+  if (!note && !personValue && !nextStep) {
+    showQuickConversationStatus('Add a quick note first.', 'warn');
+    elements.quickConversationNote?.focus();
+    return;
+  }
+
+  const channel = String(elements.quickConversationChannel?.value || 'conversation').trim();
+  const channelLabel = getQuickConversationChannelLabel(channel);
+  const now = new Date().toISOString();
+  const existing = findQuickConversationRecord(personValue, note);
+  const name = existing?.name || personValue || deriveQuickConversationName(note || nextStep);
+  const body = note || nextStep || `Logged ${channelLabel.toLowerCase()} with ${name}.`;
+  const savedRecord = pruneRecordForType({
+    ...(existing || {}),
+    id: existing?.id || generateId(),
+    recordType: 'person',
+    name,
+    tags: mergeCommaSeparatedValues(existing?.tags, 'quick-capture'),
+    status: existing?.status || DEFAULT_PERSON_STATUS,
+    warmth: existing?.warmth || 'warm',
+    lastSignal: channelLabel,
+    nextBestAction: nextStep || existing?.nextBestAction || '',
+    notes: appendConversationNote(existing?.notes, {
+      timestamp: now,
+      channelLabel,
+      note: body,
+      nextStep,
+    }),
+    source: existing?.source || 'Quick capture',
+    created: existing?.created || now,
+    updated: now,
+    lastContacted: now,
+    activityCount: toActivityCount(existing?.activityCount) + 1,
+    contactId: existing?.contactId || '',
+  });
+
+  try {
+    await putCrmRecord(savedRecord);
+    appendTouchLogEntry(savedRecord, {
+      touchType: getQuickConversationTouchType(channel),
+      note: body,
+      source: 'Quick capture',
+      statusAfter: savedRecord.status || DEFAULT_PERSON_STATUS,
+      timestamp: now,
+    });
+    state.focusId = savedRecord.id;
+    state.focusApplied = false;
+    elements.quickConversationForm?.reset();
+    elements.quickConversationNote?.focus();
+    showQuickConversationStatus(`Saved ${existing ? 'another note for' : 'a note for'} ${savedRecord.name}.`, 'success');
+    if (scoreManager) scoreManager.increment(existing ? 1 : 5);
+  } catch (err) {
+    console.error('Unable to save quick conversation', err);
+    showQuickConversationStatus('Could not save this note right now.', 'error');
+  }
+}
+
 async function handleQuickLeadSubmit(event) {
   event.preventDefault();
   const name = String(elements.quickLeadName?.value || '').trim();
@@ -2920,6 +3086,7 @@ async function handleAction(action, recordId) {
 
 function attachEvents() {
   elements.form?.addEventListener('submit', handleCreateSubmit);
+  elements.quickConversationForm?.addEventListener('submit', handleQuickConversationSubmit);
   elements.quickLeadForm?.addEventListener('submit', handleQuickLeadSubmit);
   elements.filterInput?.addEventListener('input', applyFilter);
   elements.personWorkflowFilter?.addEventListener('change', applyFilter);
