@@ -19,6 +19,17 @@
   const SWIPE_STREAK_MAX = 5;
   const SWIPE_TILT_GAIN = 0.12;
   const SWIPE_SPIN_GAIN = 0.24;
+  const TOUCH_RAMP_WINDOW = 2400;
+  const TOUCH_RAMP_MAX = 6;
+  const FIRST_TOUCH_SPIN_SCALE = 0.38;
+  const TOUCH_SPIN_GAIN = 0.26;
+  const FIRST_TOUCH_WOBBLE_SCALE = 0.48;
+  const TOUCH_WOBBLE_GAIN = 0.32;
+  const FIRST_TOUCH_FLIP_SCALE = 0.74;
+  const TOUCH_FLIP_GAIN = 0.16;
+  const TOUCH_INSTABILITY_IMPULSE = 0.012;
+  const TOUCH_INSTABILITY_DECAY = 0.985;
+  const MAX_TOUCH_INSTABILITY = 0.075;
   const MAX_FLIP_ENERGY = 1.15;
   const FLIP_IMPULSE_X = 0.22;
   const FLIP_IMPULSE_Y = 0.26;
@@ -275,6 +286,9 @@
       swipeStreakDirection: 0,
       swipeStreakCount: 0,
       lastSwipeAt: 0,
+      touchRampCount: 0,
+      lastTouchRampAt: 0,
+      touchInstability: 0,
       wobbleX: 0,
       wobbleY: 0,
       wobbleZ: 0,
@@ -360,6 +374,11 @@
 
     const getSwipeBoost = () => 1 + Math.min(getActiveSwipeStreakCount(), SWIPE_STREAK_MAX) * SWIPE_TILT_GAIN;
     const getSpinBoost = () => 1 + Math.min(getActiveSwipeStreakCount(), SWIPE_STREAK_MAX) * SWIPE_SPIN_GAIN;
+    const getTouchRampLevel = () => Math.max(0, state.touchRampCount - 1);
+    const getTouchSpinScale = () => FIRST_TOUCH_SPIN_SCALE + getTouchRampLevel() * TOUCH_SPIN_GAIN;
+    const getTouchWobbleScale = () => FIRST_TOUCH_WOBBLE_SCALE + getTouchRampLevel() * TOUCH_WOBBLE_GAIN;
+    const getTouchFlipScale = () =>
+      state.touchRampCount > 0 ? FIRST_TOUCH_FLIP_SCALE + getTouchRampLevel() * TOUCH_FLIP_GAIN : 1;
 
     const updateSwipeStreak = ({ axis, direction, distance }) => {
       if (!direction || distance < FLIP_DISTANCE_THRESHOLD) {
@@ -377,6 +396,27 @@
       state.swipeStreakDirection = direction;
       state.swipeStreakCount = sameSwipe ? Math.min(state.swipeStreakCount + 1, SWIPE_STREAK_MAX) : 1;
       state.lastSwipeAt = now;
+    };
+
+    const updateTouchRamp = () => {
+      const now = window.performance?.now?.() ?? Date.now();
+      const recentTouch = state.lastTouchRampAt > 0 && now - state.lastTouchRampAt < TOUCH_RAMP_WINDOW;
+      state.touchRampCount = recentTouch ? Math.min(state.touchRampCount + 1, TOUCH_RAMP_MAX) : 1;
+      state.lastTouchRampAt = now;
+
+      const rampLevel = getTouchRampLevel();
+      if (rampLevel <= 0) return;
+
+      const jitterSign = Math.sin(now * 0.019) >= 0 ? 1 : -1;
+      const instabilityImpulse = rampLevel * TOUCH_INSTABILITY_IMPULSE;
+      state.touchInstability = clamp(
+        state.touchInstability + instabilityImpulse,
+        0,
+        MAX_TOUCH_INSTABILITY,
+      );
+      state.wobbleVelocityX += jitterSign * instabilityImpulse;
+      state.wobbleVelocityY -= jitterSign * instabilityImpulse * 0.74;
+      state.wobbleVelocityZ += jitterSign * instabilityImpulse * 0.42;
     };
 
     const setTiltFromPointer = (event, dx = 0, dy = 0) => {
@@ -417,7 +457,7 @@
 
       if (state.flipStreakCount < FLIP_STREAK_REQUIRED) return;
 
-      const impulseScale = 1 + clamp(state.flipStreakEnergy, 0, MAX_FLIP_ENERGY) * 0.35;
+      const impulseScale = (1 + clamp(state.flipStreakEnergy, 0, MAX_FLIP_ENERGY) * 0.35) * getTouchFlipScale();
       const wobbleSign = Math.sin(now * 0.017 + (axis === 'y' ? 0 : 1.7)) >= 0 ? 1 : -1;
       if (axis === 'y') {
         state.flipVelocityY += direction * FLIP_IMPULSE_Y * impulseScale;
@@ -453,6 +493,7 @@
       state.dragDY = 0;
       state.gestureDX = 0;
       state.gestureDY = 0;
+      updateTouchRamp();
       capturePointer(event);
       event.preventDefault();
     };
@@ -469,15 +510,19 @@
       state.dragDY = dy;
       state.gestureDX += dx;
       state.gestureDY += dy;
+      const touchSpinScale = getTouchSpinScale();
       state.extraFaceSpin = clamp(
-        state.extraFaceSpin - distance * DRAG_WIND_FACTOR * getSpinBoost(),
+        state.extraFaceSpin - distance * DRAG_WIND_FACTOR * getSpinBoost() * touchSpinScale,
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
-      const wobbleMultiplier = 1 + Math.min(state.flipStreakCount, 3) * DRAG_WOBBLE_STREAK_GAIN;
+      const wobbleMultiplier =
+        (1 + Math.min(state.flipStreakCount, 3) * DRAG_WOBBLE_STREAK_GAIN) * getTouchWobbleScale();
       state.wobbleVelocityY += dx * DRAG_WOBBLE_FACTOR * wobbleMultiplier;
       state.wobbleVelocityX += dy * DRAG_WOBBLE_FACTOR * wobbleMultiplier;
       state.wobbleVelocityZ += (dx - dy) * DRAG_TWIST_WOBBLE_FACTOR * wobbleMultiplier;
+      state.wobbleVelocityX += state.touchInstability * Math.sign(dy || dx || 1) * 0.12;
+      state.wobbleVelocityZ += state.touchInstability * Math.sign(dx - dy || 1) * 0.08;
       setTiltFromPointer(event, dx, dy);
       event.preventDefault();
     };
@@ -491,7 +536,8 @@
       updateSwipeStreak(gesture);
       addDirectionalFlipImpulse(gesture);
       state.extraFaceSpin = clamp(
-        state.extraFaceSpin - Math.hypot(state.dragDX, state.dragDY) * 0.0018 * getSpinBoost(),
+        state.extraFaceSpin -
+          Math.hypot(state.dragDX, state.dragDY) * 0.0018 * getSpinBoost() * getTouchSpinScale(),
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
@@ -647,6 +693,7 @@
       state.wobbleVelocityX += -state.wobbleX * WOBBLE_SPRING * frames;
       state.wobbleVelocityY += -state.wobbleY * WOBBLE_SPRING * frames;
       state.wobbleVelocityZ += -state.wobbleZ * WOBBLE_SPRING * frames;
+      state.touchInstability *= Math.pow(TOUCH_INSTABILITY_DECAY, frames);
       state.wobbleVelocityX *= Math.pow(WOBBLE_DECAY, frames);
       state.wobbleVelocityY *= Math.pow(WOBBLE_DECAY, frames);
       state.wobbleVelocityZ *= Math.pow(WOBBLE_DECAY, frames);
@@ -693,6 +740,8 @@
           swipeStreakCount: state.swipeStreakCount,
           swipeStreakAxis: state.swipeStreakAxis,
           swipeStreakDirection: state.swipeStreakDirection,
+          touchRampCount: state.touchRampCount,
+          touchInstability: state.touchInstability,
           flipStreakCount: state.flipStreakCount,
           flipStreakEnergy: state.flipStreakEnergy,
           wobbleX: state.wobbleX,
