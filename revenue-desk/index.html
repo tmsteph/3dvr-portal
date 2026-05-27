@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Revenue Desk | 3dvr portal</title>
+  <meta
+    name="description"
+    content="The 3DVR founder operating desk for daily revenue moves, proposal follow-up, MRR tracking, and agent-assisted sales cleanup."
+  />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0d1117" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <nav class="topbar" aria-label="Revenue desk navigation">
+        <a href="../">Portal</a>
+        <a href="../memory-capture/">Memory Capture</a>
+        <a href="../crm/">People Log</a>
+        <a href="../billing/">Billing</a>
+        <a href="../sales/">Sales</a>
+        <a href="../admin/#agent-ops-card">Agent Ops</a>
+        <a href="../docs/path-to-profitability.md">Profitability Plan</a>
+      </nav>
+
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Founder operating desk</p>
+          <h1>Run the company from one revenue move.</h1>
+          <p class="lead">
+            Use this desk to keep 3dvr.tech focused on cash, customers, follow-up, and proof. Sell first.
+            Build second. Keep it simple.
+          </p>
+          <div class="hero-actions" aria-label="Primary revenue actions">
+            <a class="button primary" href="../memory-capture/">Log conversation</a>
+            <a class="button" href="../crm/">Open People Log</a>
+            <a class="button" href="../billing/">Open Billing</a>
+          </div>
+        </div>
+
+        <aside class="status-card" aria-live="polite">
+          <span>Company rule</span>
+          <strong>One lead. One offer. One ask.</strong>
+          <p id="syncStatus">Gun sync: connecting to 3dvr-portal/revenue-desk/state.</p>
+        </aside>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel command-panel" aria-labelledby="command-title">
+        <div class="section-head">
+          <p class="eyebrow">Today</p>
+          <h2 id="command-title">Do the next sales move before opening another lab.</h2>
+          <p>
+            Pick one warm lead, move one proposal, or ask one customer for the missing input that turns interest into
+            delivery.
+          </p>
+        </div>
+
+        <div class="command-grid">
+          <article>
+            <span>01</span>
+            <strong>Capture</strong>
+            <p>Brain dump a real conversation before it fades.</p>
+            <a href="../memory-capture/">Open Memory Capture</a>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>Follow up</strong>
+            <p>Open People Log and send one tiny ask.</p>
+            <a href="../crm/">Open People Log</a>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>Close</strong>
+            <p>Route a ready person into the correct billing lane.</p>
+            <a href="../billing/">Open Billing</a>
+          </article>
+          <article>
+            <span>04</span>
+            <strong>Delegate</strong>
+            <p>Queue a daily cleanup task for the managed agent path.</p>
+            <button id="agentBriefButton" type="button">Queue agent daily brief</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="dashboard-grid" aria-label="Revenue dashboard">
+        <article class="panel" aria-labelledby="snapshot-title">
+          <div class="section-head">
+            <p class="eyebrow">Revenue snapshot</p>
+            <h2 id="snapshot-title">Manual numbers until Stripe sync is the default.</h2>
+            <p>
+              Track the weekly CEO view: MRR by plan plus custom sprint revenue. This saves locally and backs up to
+              <code>3dvr-portal/revenue-desk/state</code>.
+            </p>
+          </div>
+
+          <form id="revenueForm" class="revenue-form">
+            <label>
+              <span>$5 customers</span>
+              <input data-plan-input="starter" type="number" min="0" step="1" inputmode="numeric" />
+            </label>
+            <label>
+              <span>$20 customers</span>
+              <input data-plan-input="pro" type="number" min="0" step="1" inputmode="numeric" />
+            </label>
+            <label>
+              <span>$50 customers</span>
+              <input data-plan-input="builder" type="number" min="0" step="1" inputmode="numeric" />
+            </label>
+            <label>
+              <span>$200 teams</span>
+              <input data-plan-input="embedded" type="number" min="0" step="1" inputmode="numeric" />
+            </label>
+            <label>
+              <span>Custom sprint revenue</span>
+              <input id="customSprintRevenue" type="number" min="0" step="25" inputmode="decimal" />
+            </label>
+            <button class="button primary" type="submit">Save revenue snapshot</button>
+          </form>
+
+          <div class="metric-grid" aria-label="Revenue metrics">
+            <div>
+              <span>MRR</span>
+              <strong id="mrrValue">$0</strong>
+            </div>
+            <div>
+              <span>Project revenue</span>
+              <strong id="projectRevenueValue">$0</strong>
+            </div>
+            <div>
+              <span>Monthly engine</span>
+              <strong id="monthlyEngineValue">$0</strong>
+            </div>
+            <div>
+              <span>Milestone</span>
+              <strong id="milestoneValue">First signal</strong>
+            </div>
+          </div>
+        </article>
+
+        <aside class="panel" aria-labelledby="brief-title">
+          <div class="section-head">
+            <p class="eyebrow">Daily brief</p>
+            <h2 id="brief-title">What needs motion?</h2>
+            <p>Built from the proposal board, recent captures, and local revenue state.</p>
+          </div>
+          <div id="dailyBriefList" class="brief-list">
+            <p class="empty">Add a proposal or revenue snapshot to create the first daily brief.</p>
+          </div>
+          <div class="link-stack">
+            <a href="../sales/scoreboard.html">Open profitability scoreboard</a>
+            <a href="../sales/research.html">Open market research</a>
+            <a href="../docs/path-to-profitability.md">Read CEO plan</a>
+          </div>
+        </aside>
+      </section>
+
+      <section class="panel" aria-labelledby="proposal-title">
+        <div class="section-head row">
+          <div>
+            <p class="eyebrow">Pipeline</p>
+            <h2 id="proposal-title">Proposal pipeline</h2>
+            <p>
+              Keep every possible deal tied to an amount, stage, next step, and follow-up date. Proposal records are
+              written to <code>3dvr-portal/proposals</code> so Memory Capture can see them too.
+            </p>
+          </div>
+          <a class="button" href="../memory-capture/">Create from capture</a>
+        </div>
+
+        <form id="proposalForm" class="proposal-form">
+          <label>
+            <span>Person or business</span>
+            <input id="proposalPerson" type="text" autocomplete="off" placeholder="Victor / Brenda / local vendor" />
+          </label>
+          <label>
+            <span>Offer</span>
+            <input id="proposalOffer" type="text" autocomplete="off" placeholder="$20 launch, $50 builder, custom sprint" />
+          </label>
+          <label>
+            <span>Amount</span>
+            <input id="proposalAmount" type="number" min="0" step="5" inputmode="decimal" />
+          </label>
+          <label>
+            <span>Stage</span>
+            <select id="proposalStage">
+              <option value="idea">Idea</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="follow-up">Follow-up</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost / later</option>
+            </select>
+          </label>
+          <label>
+            <span>Follow-up date</span>
+            <input id="proposalFollowUp" type="date" />
+          </label>
+          <label class="wide">
+            <span>One next step</span>
+            <input id="proposalNextStep" type="text" autocomplete="off" placeholder="Ask for one product link." />
+          </label>
+          <button class="button primary" type="submit">Add proposal</button>
+        </form>
+
+        <div class="pipeline-stats" aria-label="Proposal totals">
+          <div>
+            <span>Open</span>
+            <strong id="openProposalCount">0</strong>
+          </div>
+          <div>
+            <span>Sent / follow-up</span>
+            <strong id="sentProposalCount">0</strong>
+          </div>
+          <div>
+            <span>Won</span>
+            <strong id="wonProposalCount">0</strong>
+          </div>
+          <div>
+            <span>Open value</span>
+            <strong id="openProposalValue">$0</strong>
+          </div>
+        </div>
+
+        <div id="proposalBoard" class="proposal-board">
+          <p class="empty">No proposals yet. Add the first warm lead or create one from Memory Capture.</p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="ceo-title">
+        <div class="section-head">
+          <p class="eyebrow">CEO rhythm</p>
+          <h2 id="ceo-title">Review this every week.</h2>
+        </div>
+        <div class="question-grid">
+          <article><strong>Who paid?</strong><p>Update MRR and project revenue.</p></article>
+          <article><strong>Who almost paid?</strong><p>Move the proposal stage and ask one direct question.</p></article>
+          <article><strong>Who needs follow-up?</strong><p>Use People Log or Memory Capture before the lead cools.</p></article>
+          <article><strong>What proof did we create?</strong><p>Save screenshots, links, releases, or customer outcomes.</p></article>
+          <article><strong>What should we stop building?</strong><p>Hide or pause anything that does not help revenue right now.</p></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
