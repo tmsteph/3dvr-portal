@@ -163,7 +163,9 @@ h2 {
 .metric-grid span,
 .pipeline-stats span,
 label span,
-.command-grid span {
+.command-grid span,
+.money-priority-card span,
+.money-draft-head span {
   color: var(--quiet);
   font-size: 0.74rem;
   font-weight: 900;
@@ -182,7 +184,9 @@ label span,
 .command-grid p,
 .question-grid p,
 .brief-list p,
-.proposal-card p {
+.proposal-card p,
+.money-priority-card p,
+.money-opportunity-card p {
   color: var(--muted);
 }
 
@@ -290,6 +294,82 @@ code {
 .app-space small {
   color: var(--muted);
   line-height: 1.45;
+}
+
+.money-now {
+  scroll-margin-top: 1rem;
+}
+
+.money-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(300px, 1.1fr);
+  gap: 0.85rem;
+}
+
+.money-priority-card,
+.money-draft-card,
+.money-opportunity-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.95rem;
+}
+
+.money-priority-card {
+  display: grid;
+  align-content: center;
+  min-height: 100%;
+}
+
+.money-priority-card strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  line-height: 1.08;
+}
+
+.money-draft-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.money-draft-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.money-draft-card textarea {
+  width: 100%;
+  min-height: 138px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0f1622;
+  color: var(--text);
+  padding: 0.85rem;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.money-opportunity-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.money-opportunity-card strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.money-opportunity-card small {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--quiet);
+  font-weight: 800;
 }
 
 .command-grid article,
@@ -497,7 +577,7 @@ select {
   bottom: calc(0.75rem + env(safe-area-inset-bottom));
   z-index: 20;
   display: none;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.4rem;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -518,6 +598,7 @@ select {
   .hero-grid,
   .dashboard-grid,
   .app-home-grid,
+  .money-grid,
   .command-grid,
   .question-grid {
     grid-template-columns: 1fr;
@@ -578,6 +659,7 @@ select {
   .metric-grid,
   .pipeline-stats,
   .revenue-form,
+  .money-opportunity-list,
   .proposal-meta {
     grid-template-columns: 1fr;
   }

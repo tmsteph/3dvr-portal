@@ -19,7 +19,9 @@
     <header class="hero">
       <nav class="topbar" aria-label="Revenue desk navigation">
         <a href="../">Portal</a>
+        <a href="#money-now">Money Now</a>
         <a href="../sales/marketing.html">Marketing</a>
+        <a href="../money-ai/">Money AI</a>
         <a href="../memory-capture/">Memory Capture</a>
         <a href="../crm/">People Log</a>
         <a href="../billing/">Billing</a>
@@ -36,6 +38,7 @@
             agent prepare the cleanup.
           </p>
           <div class="hero-actions" aria-label="Primary revenue actions">
+            <a class="button primary" href="#money-now">Money now</a>
             <a class="button primary" href="../memory-capture/">Log conversation</a>
             <a class="button" href="../crm/">Open People Log</a>
             <a class="button" href="../sales/marketing.html">Open Marketing</a>
@@ -86,12 +89,58 @@
               <span>Market Lab</span>
               <small>Landing tests and CTA signal tracking.</small>
             </a>
+            <a class="app-space" href="../money-ai/">
+              <span>Money AI</span>
+              <small>Demand scans, offer ideas, and ad drafts.</small>
+            </a>
             <a class="app-space" href="../billing/">
               <span>Billing</span>
               <small>Plans, customer upgrades, and checkout paths.</small>
             </a>
           </div>
         </aside>
+      </section>
+
+      <section id="money-now" class="panel money-now" aria-labelledby="money-now-title">
+        <div class="section-head row">
+          <div>
+            <p class="eyebrow">Money now</p>
+            <h2 id="money-now-title">One action that can turn into cash.</h2>
+            <p>
+              Uses proposals, Memory Capture, Stripe metrics, and the existing Money AI loop to keep the next paid
+              move obvious on your phone.
+            </p>
+          </div>
+          <div class="hero-actions">
+            <button id="runMoneyLoopButton" class="button primary" type="button">Run Money AI</button>
+            <a class="button" href="../money-ai/">Open Money AI</a>
+          </div>
+        </div>
+
+        <div class="money-grid">
+          <article class="money-priority-card">
+            <span>Fastest paid move</span>
+            <strong id="moneyMoveTitle">Find one warm lead.</strong>
+            <p id="moneyMoveBody">
+              Capture a real conversation first. Revenue Desk will turn it into a proposal, follow-up, or paid ask.
+            </p>
+          </article>
+
+          <article class="money-draft-card">
+            <div class="money-draft-head">
+              <span>Message draft</span>
+              <button id="copyMoneyDraftButton" class="button" type="button">Copy</button>
+            </div>
+            <textarea id="moneyDraft" readonly rows="5">Hey, I am opening a few simple 3dvr.tech launch and tech support slots this week. Want me to look at one thing and send a clear next step?</textarea>
+            <p id="moneyLoopStatus" class="automation-status" role="status" aria-live="polite">
+              Money AI can scan demand and save opportunities to <code>3dvr-portal/money-ai</code>.
+            </p>
+          </article>
+        </div>
+
+        <div id="moneyOpportunityList" class="money-opportunity-list" aria-label="Money AI opportunities">
+          <p class="empty">Run Money AI or open the Money AI app to bring the freshest offer ideas back here.</p>
+        </div>
       </section>
 
       <section class="dashboard-grid" aria-label="Revenue dashboard">
@@ -288,6 +337,7 @@
 
   <nav class="mobile-dock" aria-label="Mobile revenue actions">
     <a href="../memory-capture/">Capture</a>
+    <a href="#money-now">Money</a>
     <a href="../crm/">People</a>
     <a href="../sales/marketing.html">Marketing</a>
     <button type="button" data-agent-brief-button>Brief</button>

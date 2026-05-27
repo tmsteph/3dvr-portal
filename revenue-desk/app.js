@@ -2,6 +2,8 @@ import { formatSyncTimestamp } from '../finance/stripe-sync.js';
 
 const REVENUE_STORAGE_KEY = '3dvr.revenueDesk.snapshot.v1';
 const PROPOSAL_STORAGE_KEY = '3dvr.revenueDesk.proposals.v1';
+const MONEY_LOOP_STORAGE_KEY = '3dvr.revenueDesk.moneyLoop.v1';
+const MONEY_AI_TOKEN_STORAGE_KEY = 'money-ai:user-token';
 const ROOT_KEY = '3dvr-portal';
 const REVENUE_NODE = 'revenue-desk';
 const PROPOSALS_NODE = 'proposals';
@@ -43,6 +45,8 @@ const state = {
     updatedAt: '',
     loaded: false
   },
+  moneyLoop: loadMoneyLoop(),
+  moneyLoopInFlight: false,
   stripeRefreshInFlight: false
 };
 
@@ -55,6 +59,7 @@ const touchLogRoot = portalRoot ? portalRoot.get(TOUCH_LOG_NODE) : null;
 const stripeMetricsRoot = portalRoot
   ? portalRoot.get('finance').get('stripe').get('metrics').get('latest')
   : null;
+const moneyAiRoot = portalRoot ? portalRoot.get('money-ai') : null;
 const agentQueueRoot = portalRoot
   ? portalRoot.get('agentOps').get(AGENT_OWNER_ALIAS).get('taskQueue')
   : null;
@@ -72,6 +77,13 @@ const els = {
   projectRevenueValue: document.getElementById('projectRevenueValue'),
   monthlyEngineValue: document.getElementById('monthlyEngineValue'),
   milestoneValue: document.getElementById('milestoneValue'),
+  moneyMoveTitle: document.getElementById('moneyMoveTitle'),
+  moneyMoveBody: document.getElementById('moneyMoveBody'),
+  moneyDraft: document.getElementById('moneyDraft'),
+  copyMoneyDraftButton: document.getElementById('copyMoneyDraftButton'),
+  runMoneyLoopButton: document.getElementById('runMoneyLoopButton'),
+  moneyLoopStatus: document.getElementById('moneyLoopStatus'),
+  moneyOpportunityList: document.getElementById('moneyOpportunityList'),
   nextMoveBody: document.getElementById('nextMoveBody'),
   automationStatus: document.getElementById('automationStatus'),
   dailyBriefList: document.getElementById('dailyBriefList'),
@@ -201,6 +213,66 @@ function getLatestCapture() {
     })[0] || null;
 }
 
+function firstName(value, fallback = 'there') {
+  return normalizeText(value).split(/\s+/)[0] || fallback;
+}
+
+function planFromOffer(offer) {
+  const text = normalizeText(offer).toLowerCase();
+  if (text.includes('200') || text.includes('enterprise') || text.includes('embedded')) return 'embedded';
+  if (text.includes('50') || text.includes('builder')) return 'builder';
+  if (text.includes('20') || text.includes('launch') || text.includes('founder')) return 'pro';
+  if (text.includes('5') || text.includes('friend') || text.includes('starter')) return 'starter';
+  return '';
+}
+
+function billingPlanUrl(plan = 'starter') {
+  const safePlan = normalizeText(plan) || 'starter';
+  return `${window.location.origin}/billing/?plan=${encodeURIComponent(safePlan)}`;
+}
+
+function billingLineForOffer(offer, fallbackPlan = '') {
+  const plan = planFromOffer(offer) || fallbackPlan;
+  return plan ? `\n\nStart here if you want to make it official: ${billingPlanUrl(plan)}` : '';
+}
+
+function getMoneyOpportunities() {
+  return (state.moneyLoop.opportunities || [])
+    .filter(item => item && typeof item === 'object')
+    .sort((a, b) => {
+      const scoreDiff = normalizeCount(b.score) - normalizeCount(a.score);
+      if (scoreDiff) return scoreDiff;
+      return String(b.savedAt || b.generatedAt || '').localeCompare(String(a.savedAt || a.generatedAt || ''));
+    });
+}
+
+function normalizeMoneyOpportunity(value, fallbackRunId = '') {
+  if (!value || typeof value !== 'object') return null;
+  const title = normalizeText(value.title || value.topOpportunity);
+  if (!title) return null;
+  const derivedId = [fallbackRunId, slug(title)].filter(Boolean).join('-');
+  const id = normalizeText(value.id || value.opportunityId || derivedId || makeId('money-opportunity', title));
+  return {
+    id,
+    runId: normalizeText(value.runId || fallbackRunId),
+    title,
+    audience: normalizeText(value.audience || value.market),
+    solution: normalizeText(value.solution || value.mvp || value.problem),
+    suggestedPrice: normalizeText(value.suggestedPrice || value.pricingAnchor),
+    score: normalizeCount(value.score || value.topOpportunityScore),
+    savedAt: normalizeText(value.savedAt || value.generatedAt || value.updatedAt)
+  };
+}
+
+function upsertMoneyOpportunities(opportunities = [], fallbackRunId = '') {
+  const byId = new Map(getMoneyOpportunities().map(item => [item.id, item]));
+  opportunities.forEach(item => {
+    const clean = normalizeMoneyOpportunity(item, fallbackRunId);
+    if (clean?.id) byId.set(clean.id, { ...byId.get(clean.id), ...clean });
+  });
+  state.moneyLoop.opportunities = Array.from(byId.values()).slice(0, 24);
+}
+
 function estimateProposalValueFromOffer(offer) {
   const text = normalizeText(offer).toLowerCase();
   if (text.includes('200')) return 200;
@@ -255,6 +327,29 @@ function loadLocalProposals() {
     if (clean?.id) output[clean.id] = clean;
     return output;
   }, {});
+}
+
+function loadMoneyLoop() {
+  const stored = loadJson(MONEY_LOOP_STORAGE_KEY, {});
+  const opportunities = Array.isArray(stored?.opportunities)
+    ? stored.opportunities.filter(item => item && typeof item === 'object').slice(0, 12)
+    : [];
+
+  return {
+    latestRun: stored?.latestRun && typeof stored.latestRun === 'object' ? stored.latestRun : null,
+    opportunities,
+    status: stored?.status && typeof stored.status === 'object' ? stored.status : null,
+    updatedAt: normalizeText(stored?.updatedAt)
+  };
+}
+
+function saveMoneyLoop() {
+  saveJson(MONEY_LOOP_STORAGE_KEY, {
+    latestRun: state.moneyLoop.latestRun,
+    opportunities: getMoneyOpportunities().slice(0, 12),
+    status: state.moneyLoop.status,
+    updatedAt: state.moneyLoop.updatedAt
+  });
 }
 
 function persistLocalProposals() {
@@ -509,6 +604,276 @@ async function queueAgentDailyBrief() {
   }
 }
 
+function buildProposalMoneyDraft(proposal) {
+  const name = firstName(proposal.person || proposal.title);
+  const offer = normalizeText(proposal.offer) || 'the 3dvr.tech setup';
+  const nextStep = normalizeText(proposal.nextBestAction) || 'send me the one thing you want to move forward first';
+  return [
+    `Hey ${name}, quick next step on ${offer}: ${nextStep}`,
+    '',
+    `If you want, I can turn that into a simple starting point and we can keep it small.${billingLineForOffer(offer)}`
+  ].join('\n');
+}
+
+function buildCaptureMoneyDraft(capture) {
+  const inference = capture?.inference || {};
+  const name = firstName(inference.name);
+  const nextStep = normalizeText(inference.nextBestAction) || 'send me one detail so I can point you to the clearest next step';
+  const offer = normalizeText(inference.offerAmount);
+  return [
+    `Hey ${name}, good talking earlier.`,
+    '',
+    `The easiest next step is: ${nextStep}`,
+    offer
+      ? `I think ${offer} is probably the smallest useful starting lane.${billingLineForOffer(offer)}`
+      : `I can keep the first step simple and low-pressure.${billingLineForOffer('', 'starter')}`
+  ].join('\n');
+}
+
+function buildWarmNetworkDraft() {
+  return [
+    'Hey, I am opening a few simple 3dvr.tech launch and tech support slots this week.',
+    '',
+    `If you or someone you know needs a clearer site, tech help, or follow-up system, send me one thing that feels stuck and I will send back a simple next step.\n\nStarter lane: ${billingPlanUrl('starter')}`
+  ].join('\n');
+}
+
+function buildMoneyAction() {
+  const proposals = getProposals();
+  const open = proposals.filter(proposal => OPEN_STAGES.includes(proposal.status));
+  const due = open.filter(proposal => isDue(proposal.followUpAt))
+    .sort((a, b) => normalizeMoney(b.estimatedValue) - normalizeMoney(a.estimatedValue));
+  const topOpen = open.slice()
+    .sort((a, b) => normalizeMoney(b.estimatedValue) - normalizeMoney(a.estimatedValue))[0];
+  const latestCapture = getLatestCapture();
+  const topOpportunity = getMoneyOpportunities()[0];
+  const liveMrr = getStripeMrrDollars() || calculateMrr();
+
+  if (due.length) {
+    const proposal = due[0];
+    return {
+      title: `Follow up with ${proposal.person || proposal.title}`,
+      body: `${proposal.offer || 'Proposal'} is due now. Ask one tiny next question and keep the thread alive.`,
+      draft: buildProposalMoneyDraft(proposal)
+    };
+  }
+
+  if (latestCapture?.inference?.nextBestAction) {
+    return {
+      title: `Use latest capture: ${latestCapture.inference.name || 'warm lead'}`,
+      body: latestCapture.inference.nextBestAction,
+      draft: buildCaptureMoneyDraft(latestCapture)
+    };
+  }
+
+  if (topOpen) {
+    return {
+      title: `Move ${topOpen.person || topOpen.title}`,
+      body: topOpen.nextBestAction || 'Ask one tiny next question before this cools off.',
+      draft: buildProposalMoneyDraft(topOpen)
+    };
+  }
+
+  if (topOpportunity) {
+    return {
+      title: topOpportunity.title,
+      body: topOpportunity.solution || `Test this with ${topOpportunity.audience || 'one warm audience'} today.`,
+      draft: [
+        `I am testing a small 3dvr.tech offer around ${topOpportunity.title}.`,
+        '',
+        'Would this be useful enough for you or someone you know to try this week?'
+      ].join('\n')
+    };
+  }
+
+  if (liveMrr < 100) {
+    return {
+      title: 'Ask three warm people',
+      body: 'The fastest path to first reliable signal is not more code. It is three simple paid asks.',
+      draft: buildWarmNetworkDraft()
+    };
+  }
+
+  return {
+    title: 'Protect paid customers',
+    body: 'Send one visible result to an active customer, then ask what would make the next month more useful.',
+    draft: [
+      'Hey, I shipped a small update for you today.',
+      '',
+      'What is the one thing that would make 3dvr.tech more useful for you this week?'
+    ].join('\n')
+  };
+}
+
+function renderMoneyOpportunities() {
+  if (!els.moneyOpportunityList) return;
+  const opportunities = getMoneyOpportunities().slice(0, 3);
+  if (!opportunities.length) {
+    els.moneyOpportunityList.innerHTML = '<p class="empty">Run Money AI or open the Money AI app to bring the freshest offer ideas back here.</p>';
+    return;
+  }
+
+  els.moneyOpportunityList.innerHTML = opportunities.map(item => `
+    <article class="money-opportunity-card">
+      <strong>${safe(item.title)}</strong>
+      <p>${safe(item.solution || 'Turn this into a small offer and test one CTA.')}</p>
+      <small>${safe([item.audience, item.suggestedPrice, item.score ? `score ${item.score}` : ''].filter(Boolean).join(' • '))}</small>
+    </article>
+  `).join('');
+}
+
+function renderMoneyNow() {
+  const action = buildMoneyAction();
+  if (els.moneyMoveTitle) els.moneyMoveTitle.textContent = action.title;
+  if (els.moneyMoveBody) els.moneyMoveBody.textContent = action.body;
+  if (els.moneyDraft) els.moneyDraft.value = action.draft;
+  renderMoneyOpportunities();
+}
+
+async function copyMoneyDraft() {
+  const draft = normalizeText(els.moneyDraft?.value);
+  if (!draft) return;
+
+  try {
+    await navigator.clipboard.writeText(draft);
+    if (els.moneyLoopStatus) {
+      els.moneyLoopStatus.textContent = 'Message draft copied.';
+    }
+  } catch (_error) {
+    els.moneyDraft?.focus();
+    els.moneyDraft?.select();
+    document.execCommand?.('copy');
+    if (els.moneyLoopStatus) {
+      els.moneyLoopStatus.textContent = 'Message draft selected for copying.';
+    }
+  }
+}
+
+function readMoneyAiToken() {
+  try {
+    return normalizeText(window.localStorage.getItem(MONEY_AI_TOKEN_STORAGE_KEY));
+  } catch (_error) {
+    return '';
+  }
+}
+
+function buildMoneyLoopPayload() {
+  const latestCapture = getLatestCapture();
+  const captureKeywords = [
+    latestCapture?.inference?.marketSegment,
+    latestCapture?.inference?.primaryPain,
+    latestCapture?.inference?.offerAmount
+  ].filter(Boolean);
+
+  return {
+    market: 'warm-network service businesses, creators, and founders who need websites, tech support, or follow-up systems',
+    keywords: [
+      'small business website launch',
+      'lead follow-up',
+      'proposal workflow',
+      'tech support',
+      ...captureKeywords
+    ],
+    channels: ['email', 'linkedin', 'reddit'],
+    budget: 50,
+    limit: 12
+  };
+}
+
+async function persistMoneyLoopRun(result) {
+  if (!moneyAiRoot || !result?.runId) return;
+
+  const savedAt = new Date().toISOString();
+  // Later: replace this lightweight browser persistence with the backend CRM/analytics writer.
+  await putGun(moneyAiRoot.get('runs').get(result.runId), {
+    runId: result.runId,
+    generatedAt: normalizeText(result.generatedAt),
+    market: normalizeText(result.input?.market || result.market),
+    topOpportunity: normalizeText(result.topOpportunity?.title),
+    topOpportunityScore: normalizeCount(result.topOpportunity?.score),
+    savedAt,
+    source: 'revenue-desk'
+  });
+  await putGun(moneyAiRoot.get('status').get('latest'), {
+    runId: result.runId,
+    topOpportunity: normalizeText(result.topOpportunity?.title),
+    topOpportunityScore: normalizeCount(result.topOpportunity?.score),
+    savedAt,
+    source: 'revenue-desk'
+  });
+
+  for (const item of result.opportunities || []) {
+    const clean = normalizeMoneyOpportunity(item, result.runId);
+    if (clean?.id) {
+      await putGun(moneyAiRoot.get('opportunities').get(clean.id), {
+        ...clean,
+        savedAt,
+        source: 'revenue-desk'
+      });
+    }
+  }
+}
+
+function applyMoneyLoopResult(result) {
+  const opportunities = Array.isArray(result?.opportunities) ? result.opportunities : [];
+  upsertMoneyOpportunities(opportunities, result?.runId || '');
+  state.moneyLoop.latestRun = result && typeof result === 'object' ? {
+    runId: normalizeText(result.runId),
+    generatedAt: normalizeText(result.generatedAt),
+    market: normalizeText(result.input?.market || result.market),
+    topOpportunity: normalizeText(result.topOpportunity?.title)
+  } : null;
+  state.moneyLoop.updatedAt = new Date().toISOString();
+  saveMoneyLoop();
+  renderMoneyNow();
+}
+
+async function runMoneyLoopNow() {
+  if (state.moneyLoopInFlight) return;
+  state.moneyLoopInFlight = true;
+  if (els.runMoneyLoopButton) {
+    els.runMoneyLoopButton.disabled = true;
+    els.runMoneyLoopButton.textContent = 'Running...';
+  }
+  if (els.moneyLoopStatus) {
+    els.moneyLoopStatus.textContent = 'Running Money AI against current 3dvr.tech demand angles...';
+  }
+
+  try {
+    const token = readMoneyAiToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const response = await fetch('/api/money/loop', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(buildMoneyLoopPayload())
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || `Money loop responded with ${response.status}`);
+    }
+
+    applyMoneyLoopResult(payload);
+    await persistMoneyLoopRun(payload);
+
+    if (els.moneyLoopStatus) {
+      const top = normalizeText(payload.topOpportunity?.title) || 'new opportunity';
+      els.moneyLoopStatus.textContent = `Money AI saved ${top}.`;
+    }
+  } catch (error) {
+    if (els.moneyLoopStatus) {
+      els.moneyLoopStatus.textContent = `Money AI did not run: ${error.message || 'open Money AI to refresh the token.'}`;
+    }
+  } finally {
+    state.moneyLoopInFlight = false;
+    if (els.runMoneyLoopButton) {
+      els.runMoneyLoopButton.disabled = false;
+      els.runMoneyLoopButton.textContent = 'Run Money AI';
+    }
+  }
+}
+
 function renderMetrics() {
   const mrr = calculateMrr();
   const stripeMrr = getStripeMrrDollars();
@@ -660,6 +1025,7 @@ function renderProposals() {
 
 function render() {
   renderMetrics();
+  renderMoneyNow();
   renderProposals();
   renderDailyBrief();
   renderNextMove();
@@ -802,6 +1168,23 @@ function subscribeGun() {
     state.touchLog[clean.id] = clean;
   });
 
+  moneyAiRoot?.get('opportunities')?.map().on((opportunity) => {
+    const clean = normalizeMoneyOpportunity(cleanGunRecord(opportunity));
+    if (!clean?.id) return;
+    upsertMoneyOpportunities([clean], clean.runId);
+    saveMoneyLoop();
+    renderMoneyNow();
+  });
+
+  moneyAiRoot?.get('status')?.get('latest')?.on((status) => {
+    const clean = cleanGunRecord(status);
+    if (!clean?.runId && !clean?.topOpportunity) return;
+    state.moneyLoop.status = clean;
+    upsertMoneyOpportunities([clean], clean.runId);
+    saveMoneyLoop();
+    renderMoneyNow();
+  });
+
   stripeMetricsRoot?.on((metrics) => {
     applyStripeMetricsPatch(cleanGunRecord(metrics));
   });
@@ -839,6 +1222,8 @@ function bindEvents() {
   els.proposalForm?.addEventListener('submit', addProposal);
   els.prefillFromCaptureButton?.addEventListener('click', prefillProposalFromLatestCapture);
   els.stripeRefreshButton?.addEventListener('click', refreshStripeTotals);
+  els.copyMoneyDraftButton?.addEventListener('click', copyMoneyDraft);
+  els.runMoneyLoopButton?.addEventListener('click', runMoneyLoopNow);
   els.agentBriefButtons.forEach(button => {
     button.addEventListener('click', queueAgentDailyBrief);
   });
