@@ -35,6 +35,7 @@ test('revenue desk ships a founder operating surface for profitability', async (
   assert.match(html, /3dvr-portal\/revenue-desk\/state/);
   assert.match(html, /3dvr-portal\/proposals/);
   assert.match(html, /docs\/path-to-profitability\.md/);
+  assert.match(html, /docs\/market-research-2026\.md/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
   assert.match(html, /type="module" src="app\.js"/);
 });
