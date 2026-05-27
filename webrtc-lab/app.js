@@ -20,6 +20,8 @@
     gunStatus: document.getElementById('gun-status'),
     announceCount: document.getElementById('announce-count'),
     turnStatus: document.getElementById('turn-status'),
+    iceStatus: document.getElementById('ice-status'),
+    relayCandidates: document.getElementById('relay-candidates'),
     eventLog: document.getElementById('event-log')
   };
 
@@ -56,12 +58,17 @@
   let iceServers = DEFAULT_ICE_SERVERS;
   let iceServersLoaded = false;
   let turnStatus = 'STUN only';
+  let iceStatus = 'Idle';
+  let localRelayCandidateCount = 0;
+  let remoteRelayCandidateCount = 0;
   let gunStatus = 'Not connected';
   let gunPeers = [];
   let gunConnected = false;
   let gunConnectionWaiters = [];
   const peers = new Map();
   const seenSignals = new Set();
+  const localCandidateKeys = new Set();
+  const remoteCandidateKeys = new Set();
 
   function normalizeRoom(value = '') {
     return String(value || '')
@@ -109,6 +116,10 @@
     if (refs.gunStatus) refs.gunStatus.textContent = gunStatus;
     if (refs.announceCount) refs.announceCount.textContent = String(announcesHandled);
     refs.turnStatus.textContent = turnStatus;
+    if (refs.iceStatus) refs.iceStatus.textContent = iceStatus;
+    if (refs.relayCandidates) {
+      refs.relayCandidates.textContent = `${localRelayCandidateCount} local / ${remoteRelayCandidateCount} remote`;
+    }
   }
 
   function resolveInitialRoom() {
@@ -335,7 +346,27 @@
 
     connection.onicecandidate = event => {
       if (event.candidate) {
+        recordCandidate('local', event.candidate.candidate, peer.name);
         sendSignal(remoteId, 'candidate', event.candidate);
+      }
+    };
+
+    connection.onicecandidateerror = event => {
+      const target = event.url || 'ICE server';
+      const detail = event.errorText || event.errorCode || 'candidate error';
+      logEvent(`${target} failed: ${detail}.`);
+    };
+
+    connection.onicegatheringstatechange = () => {
+      iceStatus = `Gathering ${connection.iceGatheringState}`;
+      updateDiagnostics();
+    };
+
+    connection.oniceconnectionstatechange = () => {
+      iceStatus = connection.iceConnectionState;
+      updateDiagnostics();
+      if (['failed', 'disconnected'].includes(connection.iceConnectionState)) {
+        logEvent(`${peer.name} ICE ${connection.iceConnectionState}.`);
       }
     };
 
@@ -348,6 +379,35 @@
 
     logEvent(`Peer ready: ${peer.name}.`);
     return peer;
+  }
+
+  function describeIceCandidate(candidateText = '') {
+    const candidate = String(candidateText || '');
+    const type = candidate.match(/\btyp\s+([a-z0-9]+)/i)?.[1] || 'unknown';
+    const protocol = candidate.match(/\b(udp|tcp)\b/i)?.[1]?.toUpperCase() || 'ICE';
+    const address = candidate.match(/candidate:\S+\s+\d+\s+\S+\s+\d+\s+([^\s]+)\s+(\d+)/i);
+    const endpoint = address ? `${address[1]}:${address[2]}` : '';
+    return { type, protocol, endpoint };
+  }
+
+  function recordCandidate(kind, candidateText = '', remoteName = '') {
+    const candidate = String(candidateText || '');
+    if (!candidate) return;
+
+    const seen = kind === 'local' ? localCandidateKeys : remoteCandidateKeys;
+    const key = `${kind}:${candidate}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    const detail = describeIceCandidate(candidate);
+    if (detail.type === 'relay') {
+      if (kind === 'local') localRelayCandidateCount += 1;
+      else remoteRelayCandidateCount += 1;
+
+      const source = kind === 'local' ? 'Local' : `Remote${remoteName ? ` ${remoteName}` : ''}`;
+      logEvent(`${source} relay candidate found (${detail.protocol}${detail.endpoint ? ` ${detail.endpoint}` : ''}).`);
+    }
+    updateDiagnostics();
   }
 
   function createRemoteTile(remoteId, name) {
@@ -488,6 +548,7 @@
 
   async function handleCandidate(signal) {
     const peer = peers.get(signal.from) || createPeer(signal.from, signal.fromName);
+    recordCandidate('remote', signal.payload?.candidate || '', signal.fromName);
     try {
       await peer.connection.addIceCandidate(new RTCIceCandidate(signal.payload));
     } catch (error) {

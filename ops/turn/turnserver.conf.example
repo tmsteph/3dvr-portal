@@ -1,7 +1,7 @@
 listening-port=3478
 tls-listening-port=5349
-min-port=49160
-max-port=49200
+min-port=49152
+max-port=65535
 
 realm=turn.3dvr.tech
 server-name=turn.3dvr.tech

@@ -13,9 +13,10 @@ The v2 room root uses tab-scoped peer IDs, starts media before signaling, sends 
 announcements, and stores offer/answer/candidate payloads as JSON strings so Gun does not have to
 serialize browser-native WebRTC objects.
 
-The page shows Gun relay status, announce count, and peer count in the diagnostics bar. If peer count stays
-at zero on two devices in the same room, the issue is usually room URL mismatch, stale cached assets, or
-Gun signaling reachability rather than TURN. TURN only affects media connectivity after peers can see each other.
+The page shows Gun relay status, announce count, peer count, ICE state, and relay candidate counts in the
+diagnostics bar. If peer count stays at zero on two devices in the same room, the issue is usually room URL
+mismatch, stale cached assets, or Gun signaling reachability rather than TURN. TURN only affects media
+connectivity after peers can see each other.
 
 After joining, the lab re-announces presence and sweeps the room a few times so a phone and laptop can recover
 from slow relay startup or a late Gun map subscription.
@@ -32,6 +33,7 @@ and caps the video sender near 240 kbps for weak mobile links.
 
 When `/api/session?route=turn-credentials` is configured with `TURN_URLS` and `TURN_STATIC_AUTH_SECRET`, the lab
 loads short-lived TURN credentials before joining a room. Add `?relay=1` or `?ice=relay` to the room
-URL to force relay-only ICE while testing the TURN server.
+URL to force relay-only ICE while testing the TURN server. In relay-only mode, a laptop-to-phone-on-5G test
+should show at least one local relay candidate and at least one remote relay candidate after both peers join.
 
 It is intentionally not a production replacement for a Selective Forwarding Unit. Mesh WebRTC is useful for two or three people while testing connection behavior, but larger meetings need an SFU or other managed media layer.
