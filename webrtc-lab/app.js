@@ -58,7 +58,8 @@
   let iceServers = DEFAULT_ICE_SERVERS;
   let iceServersLoaded = false;
   let turnStatus = 'STUN only';
-  let iceStatus = 'Idle';
+  let iceConnectionStatus = 'Idle';
+  let iceGatheringStatus = 'Idle';
   let localRelayCandidateCount = 0;
   let remoteRelayCandidateCount = 0;
   let gunStatus = 'Not connected';
@@ -69,6 +70,7 @@
   const seenSignals = new Set();
   const localCandidateKeys = new Set();
   const remoteCandidateKeys = new Set();
+  const iceCandidateErrorKeys = new Set();
 
   function normalizeRoom(value = '') {
     return String(value || '')
@@ -84,15 +86,13 @@
   }
 
   function getOrCreateLocalId() {
+    const next = createId('peer');
     try {
-      const stored = sessionStorage.getItem(PEER_SESSION_KEY);
-      if (stored) return stored;
-      const next = createId('peer');
       sessionStorage.setItem(PEER_SESSION_KEY, next);
-      return next;
     } catch (_error) {
-      return createId('peer');
+      // Duplicated mobile tabs can clone sessionStorage, so the active ID is per page load.
     }
+    return next;
   }
 
   function logEvent(message) {
@@ -116,7 +116,11 @@
     if (refs.gunStatus) refs.gunStatus.textContent = gunStatus;
     if (refs.announceCount) refs.announceCount.textContent = String(announcesHandled);
     refs.turnStatus.textContent = turnStatus;
-    if (refs.iceStatus) refs.iceStatus.textContent = iceStatus;
+    if (refs.iceStatus) {
+      refs.iceStatus.textContent = iceConnectionStatus === 'Idle' && iceGatheringStatus === 'Idle'
+        ? 'Idle'
+        : `${iceConnectionStatus} / gather ${iceGatheringStatus}`;
+    }
     if (refs.relayCandidates) {
       refs.relayCandidates.textContent = `${localRelayCandidateCount} local / ${remoteRelayCandidateCount} remote`;
     }
@@ -232,6 +236,20 @@
       .filter(Boolean);
   }
 
+  function relayOnlyIceServers(servers) {
+    const turnServers = servers
+      .map(server => {
+        const urls = server.urls.filter(url => /^turns?:/i.test(url));
+        if (!urls.length) return null;
+        const normalized = { urls };
+        if (server.username) normalized.username = server.username;
+        if (server.credential) normalized.credential = server.credential;
+        return normalized;
+      })
+      .filter(Boolean);
+    return turnServers.length ? turnServers : servers;
+  }
+
   async function loadIceServers() {
     if (iceServersLoaded) return iceServers;
     iceServersLoaded = true;
@@ -243,7 +261,10 @@
       }
 
       const data = await response.json();
-      const nextServers = normalizeIceServers(data.iceServers);
+      const normalizedServers = normalizeIceServers(data.iceServers);
+      const nextServers = shouldForceRelayOnly()
+        ? relayOnlyIceServers(normalizedServers)
+        : normalizedServers;
       if (nextServers.length) {
         iceServers = nextServers;
       }
@@ -253,6 +274,10 @@
         : 'STUN only';
       updateDiagnostics();
       logEvent(data.configured ? 'TURN relay credentials loaded.' : 'Using STUN only.');
+      if (data.configured && shouldForceRelayOnly()) {
+        const urlCount = iceServers.reduce((count, server) => count + server.urls.length, 0);
+        logEvent(`Relay-only test using ${urlCount} TURN URL${urlCount === 1 ? '' : 's'}.`);
+      }
     } catch (error) {
       console.warn('TURN credential load failed', error);
       turnStatus = 'STUN only';
@@ -352,18 +377,16 @@
     };
 
     connection.onicecandidateerror = event => {
-      const target = event.url || 'ICE server';
-      const detail = event.errorText || event.errorCode || 'candidate error';
-      logEvent(`${target} failed: ${detail}.`);
+      logIceCandidateError(event);
     };
 
     connection.onicegatheringstatechange = () => {
-      iceStatus = `Gathering ${connection.iceGatheringState}`;
+      iceGatheringStatus = connection.iceGatheringState;
       updateDiagnostics();
     };
 
     connection.oniceconnectionstatechange = () => {
-      iceStatus = connection.iceConnectionState;
+      iceConnectionStatus = connection.iceConnectionState;
       updateDiagnostics();
       if (['failed', 'disconnected'].includes(connection.iceConnectionState)) {
         logEvent(`${peer.name} ICE ${connection.iceConnectionState}.`);
@@ -388,6 +411,15 @@
     const address = candidate.match(/candidate:\S+\s+\d+\s+\S+\s+\d+\s+([^\s]+)\s+(\d+)/i);
     const endpoint = address ? `${address[1]}:${address[2]}` : '';
     return { type, protocol, endpoint };
+  }
+
+  function logIceCandidateError(event) {
+    const target = event.url || 'ICE server';
+    const detail = event.errorText || event.errorCode || 'candidate error';
+    const key = `${target}:${detail}`;
+    if (iceCandidateErrorKeys.has(key)) return;
+    iceCandidateErrorKeys.add(key);
+    logEvent(`${target} failed: ${detail}.`);
   }
 
   function recordCandidate(kind, candidateText = '', remoteName = '') {

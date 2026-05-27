@@ -9,11 +9,11 @@ This app uses:
 - Gun at `3dvr-webrtc-lab-v2/<room>` for lightweight signaling and room presence.
 - Public STUN servers for NAT discovery.
 
-The v2 room root uses tab-scoped peer IDs, starts media before signaling, sends explicit room
+The v2 room root uses page-load peer IDs, starts media before signaling, sends explicit room
 announcements, and stores offer/answer/candidate payloads as JSON strings so Gun does not have to
 serialize browser-native WebRTC objects.
 
-The page shows Gun relay status, announce count, peer count, ICE state, and relay candidate counts in the
+The page shows Gun relay status, announce count, peer count, ICE connection/gathering state, and relay candidate counts in the
 diagnostics bar. If peer count stays at zero on two devices in the same room, the issue is usually room URL
 mismatch, stale cached assets, or Gun signaling reachability rather than TURN. TURN only affects media
 connectivity after peers can see each other.
@@ -35,5 +35,6 @@ When `/api/session?route=turn-credentials` is configured with `TURN_URLS` and `T
 loads short-lived TURN credentials before joining a room. Add `?relay=1` or `?ice=relay` to the room
 URL to force relay-only ICE while testing the TURN server. In relay-only mode, a laptop-to-phone-on-5G test
 should show at least one local relay candidate and at least one remote relay candidate after both peers join.
+Relay-only mode strips STUN URLs from the browser ICE configuration so the log stays focused on TURN behavior.
 
 It is intentionally not a production replacement for a Selective Forwarding Unit. Mesh WebRTC is useful for two or three people while testing connection behavior, but larger meetings need an SFU or other managed media layer.
