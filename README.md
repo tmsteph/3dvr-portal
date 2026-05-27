@@ -630,6 +630,8 @@ export THREEDVR_AGENT_WORKER_CAPABILITIES=codex,node,static-hosting
 export THREEDVR_AGENT_WORKER_RISK_CLASSES=read_only,draft,workspace_write
 ```
 
+The server-side outreach daemon intentionally runs through `ask-sales loop`, not `ask-autopilot` directly. That keeps each unattended cycle tied to the portal sales summary and CRM sync, so the phone does not need to stay online for routine monitoring.
+
 ### Revenue Ops: Market Research and A/B Tests
 
 Use `3dvr revenue` to make the agent more systematic about finding markets, testing offers, and learning what produces replies.
