@@ -45,7 +45,7 @@ button { cursor: pointer; }
 .shell {
   width: min(1180px, calc(100% - 2rem));
   margin: 0 auto;
-  padding: 1rem 0 4rem;
+  padding: 1rem 0 calc(4rem + env(safe-area-inset-bottom));
 }
 
 .topbar,
@@ -57,7 +57,7 @@ button { cursor: pointer; }
 }
 
 .topbar {
-  margin-bottom: 2rem;
+  margin-bottom: 1.1rem;
 }
 
 .topbar a,
@@ -65,7 +65,9 @@ button { cursor: pointer; }
 .link-stack a,
 .command-grid a,
 .command-grid button,
-.proposal-actions button {
+.proposal-actions button,
+.mobile-dock a,
+.mobile-dock button {
   display: inline-flex;
   min-height: 40px;
   align-items: center;
@@ -85,7 +87,9 @@ button { cursor: pointer; }
 .link-stack a:hover,
 .command-grid a:hover,
 .command-grid button:hover,
-.proposal-actions button:hover {
+.proposal-actions button:hover,
+.mobile-dock a:hover,
+.mobile-dock button:hover {
   color: var(--text);
   border-color: var(--line-strong);
 }
@@ -98,11 +102,12 @@ button { cursor: pointer; }
 }
 
 .hero {
-  padding: 1rem 0 3rem;
+  padding: 0.5rem 0 1rem;
 }
 
 .hero-grid,
-.dashboard-grid {
+.dashboard-grid,
+.app-home-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
   gap: clamp(1rem, 4vw, 2rem);
@@ -127,7 +132,7 @@ h2 {
 
 h1 {
   max-width: 780px;
-  font-size: clamp(3rem, 8vw, 6.2rem);
+  font-size: clamp(2.5rem, 8vw, 4.6rem);
 }
 
 h2 {
@@ -135,10 +140,10 @@ h2 {
 }
 
 .lead {
-  max-width: 730px;
-  margin: 1.15rem 0 1.2rem;
+  max-width: 620px;
+  margin: 0.9rem 0 1rem;
   color: var(--muted);
-  font-size: clamp(1.05rem, 2vw, 1.22rem);
+  font-size: clamp(1rem, 2vw, 1.12rem);
 }
 
 .panel,
@@ -190,8 +195,16 @@ main {
   gap: 1rem;
 }
 
+.app-home-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+}
+
 .section-head {
   margin-bottom: 1rem;
+}
+
+.section-head.compact {
+  margin-bottom: 0.75rem;
 }
 
 .section-head.row {
@@ -218,6 +231,65 @@ code {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+.metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.next-move {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.next-move h2 {
+  font-size: clamp(1.8rem, 6vw, 3rem);
+}
+
+.next-move p {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--muted);
+}
+
+.automation-status,
+.stripe-sync-panel p {
+  margin: 0;
+  color: var(--quiet);
+  font-size: 0.88rem;
+}
+
+.app-spaces {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.app-space {
+  display: grid;
+  gap: 0.25rem;
+  min-height: 72px;
+  align-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 0.85rem;
+  text-decoration: none;
+}
+
+.app-space:hover,
+.app-space:focus-visible {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.app-space span {
+  font-weight: 900;
+}
+
+.app-space small {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .command-grid article,
@@ -248,6 +320,44 @@ code {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+.app-drawer {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.85rem;
+}
+
+.app-drawer summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 0.75rem 0.85rem;
+  list-style: none;
+}
+
+.app-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-drawer summary span {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.app-drawer summary small {
+  color: var(--quiet);
+  font-weight: 800;
+}
+
+.app-drawer[open] summary {
+  margin-bottom: 0.85rem;
 }
 
 .proposal-form {
@@ -286,6 +396,18 @@ select {
 .metric-grid,
 .pipeline-stats {
   margin-top: 1rem;
+}
+
+.stripe-sync-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 0.85rem;
 }
 
 .metric-grid strong,
@@ -368,9 +490,34 @@ select {
   padding: 1rem;
 }
 
+.mobile-dock {
+  position: fixed;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: none;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(13, 17, 23, 0.92);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.42);
+  padding: 0.45rem;
+  backdrop-filter: blur(14px);
+}
+
+.mobile-dock a,
+.mobile-dock button {
+  min-height: 44px;
+  padding: 0.45rem 0.35rem;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 980px) {
   .hero-grid,
   .dashboard-grid,
+  .app-home-grid,
   .command-grid,
   .question-grid {
     grid-template-columns: 1fr;
@@ -395,7 +542,28 @@ select {
 @media (max-width: 680px) {
   .shell {
     width: min(100% - 1rem, 1180px);
-    padding-bottom: 2rem;
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    margin-inline: -0.5rem;
+    padding: 0 0.5rem 0.35rem;
+    scrollbar-width: none;
+  }
+
+  .topbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topbar a {
+    white-space: nowrap;
+  }
+
+  .hero-actions .button,
+  .hero-actions button {
+    flex: 1 1 100%;
   }
 
   h1 {
@@ -412,5 +580,18 @@ select {
   .revenue-form,
   .proposal-meta {
     grid-template-columns: 1fr;
+  }
+
+  .section-head.row {
+    display: grid;
+  }
+
+  .stripe-sync-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mobile-dock {
+    display: grid;
   }
 }

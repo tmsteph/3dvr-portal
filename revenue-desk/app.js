@@ -1,3 +1,5 @@
+import { formatSyncTimestamp } from '../finance/stripe-sync.js';
+
 const REVENUE_STORAGE_KEY = '3dvr.revenueDesk.snapshot.v1';
 const PROPOSAL_STORAGE_KEY = '3dvr.revenueDesk.proposals.v1';
 const ROOT_KEY = '3dvr-portal';
@@ -32,7 +34,16 @@ const state = {
   snapshot: loadSnapshot(),
   proposals: loadLocalProposals(),
   recentCaptures: {},
-  touchLog: {}
+  touchLog: {},
+  stripeMetrics: {
+    available: {},
+    pending: {},
+    recurringRevenue: {},
+    activeSubscribers: 0,
+    updatedAt: '',
+    loaded: false
+  },
+  stripeRefreshInFlight: false
 };
 
 const gun = typeof Gun === 'function' ? Gun(window.__GUN_PEERS__ || DEFAULT_PEERS) : null;
@@ -41,6 +52,9 @@ const revenueRoot = portalRoot ? portalRoot.get(REVENUE_NODE) : null;
 const proposalRoot = portalRoot ? portalRoot.get(PROPOSALS_NODE) : null;
 const captureRoot = portalRoot ? portalRoot.get(MEMORY_CAPTURE_NODE).get('captures') : null;
 const touchLogRoot = portalRoot ? portalRoot.get(TOUCH_LOG_NODE) : null;
+const stripeMetricsRoot = portalRoot
+  ? portalRoot.get('finance').get('stripe').get('metrics').get('latest')
+  : null;
 const agentQueueRoot = portalRoot
   ? portalRoot.get('agentOps').get(AGENT_OWNER_ALIAS).get('taskQueue')
   : null;
@@ -50,11 +64,19 @@ const els = {
   revenueForm: document.getElementById('revenueForm'),
   customSprintRevenue: document.getElementById('customSprintRevenue'),
   mrrValue: document.getElementById('mrrValue'),
+  stripeMrrValue: document.getElementById('stripeMrrValue'),
+  stripeSubscriberValue: document.getElementById('stripeSubscriberValue'),
+  stripeBalanceValue: document.getElementById('stripeBalanceValue'),
+  stripeSyncStatus: document.getElementById('stripeSyncStatus'),
+  stripeRefreshButton: document.getElementById('stripeRefreshButton'),
   projectRevenueValue: document.getElementById('projectRevenueValue'),
   monthlyEngineValue: document.getElementById('monthlyEngineValue'),
   milestoneValue: document.getElementById('milestoneValue'),
+  nextMoveBody: document.getElementById('nextMoveBody'),
+  automationStatus: document.getElementById('automationStatus'),
   dailyBriefList: document.getElementById('dailyBriefList'),
   proposalForm: document.getElementById('proposalForm'),
+  proposalDrawer: document.getElementById('proposalDrawer'),
   proposalPerson: document.getElementById('proposalPerson'),
   proposalOffer: document.getElementById('proposalOffer'),
   proposalAmount: document.getElementById('proposalAmount'),
@@ -66,7 +88,8 @@ const els = {
   sentProposalCount: document.getElementById('sentProposalCount'),
   wonProposalCount: document.getElementById('wonProposalCount'),
   openProposalValue: document.getElementById('openProposalValue'),
-  agentBriefButton: document.getElementById('agentBriefButton')
+  prefillFromCaptureButton: document.getElementById('prefillFromCaptureButton'),
+  agentBriefButtons: Array.from(document.querySelectorAll('[data-agent-brief-button]'))
 };
 
 function normalizeText(value) {
@@ -117,6 +140,74 @@ function safe(value) {
 function formatMoney(value) {
   const amount = normalizeMoney(value);
   return `$${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+function normalizeStripeTotals(rawTotals) {
+  if (!rawTotals || typeof rawTotals !== 'object') {
+    return {};
+  }
+
+  return Object.entries(rawTotals).reduce((output, [currency, amount]) => {
+    if (currency === '_' || typeof amount === 'function') return output;
+    const normalizedCurrency = String(currency || '').trim().toUpperCase();
+    const numeric = Number(amount);
+    if (normalizedCurrency && Number.isFinite(numeric)) {
+      output[normalizedCurrency] = numeric;
+    }
+    return output;
+  }, {});
+}
+
+function formatStripeTotals(rawTotals) {
+  const totals = normalizeStripeTotals(rawTotals);
+  const entries = Object.entries(totals).filter(([, amount]) => Number.isFinite(amount));
+  if (!entries.length) return { label: '—', amount: 0, currency: 'USD' };
+
+  const [currency, amount] = entries.find(([code]) => code === 'USD') || entries[0];
+  let formatter;
+  try {
+    formatter = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2
+    });
+  } catch (_error) {
+    formatter = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    });
+  }
+
+  return {
+    label: formatter.format(amount / 100),
+    amount,
+    currency
+  };
+}
+
+function getStripeMrrDollars() {
+  const totals = formatStripeTotals(state.stripeMetrics.recurringRevenue);
+  return totals.amount > 0 ? Math.round(totals.amount / 100) : 0;
+}
+
+function getLatestCapture() {
+  return Object.values(state.recentCaptures)
+    .filter(capture => capture && typeof capture === 'object')
+    .sort((a, b) => {
+      const left = Date.parse(String(a.updatedAt || a.createdAt || '')) || 0;
+      const right = Date.parse(String(b.updatedAt || b.createdAt || '')) || 0;
+      return right - left;
+    })[0] || null;
+}
+
+function estimateProposalValueFromOffer(offer) {
+  const text = normalizeText(offer).toLowerCase();
+  if (text.includes('200')) return 200;
+  if (text.includes('50')) return 50;
+  if (text.includes('20')) return 20;
+  if (text.includes('5')) return 5;
+  return 0;
 }
 
 function loadJson(key, fallback) {
@@ -420,12 +511,55 @@ async function queueAgentDailyBrief() {
 
 function renderMetrics() {
   const mrr = calculateMrr();
+  const stripeMrr = getStripeMrrDollars();
+  const liveMrr = stripeMrr || mrr;
   const projectRevenue = normalizeMoney(state.snapshot.customSprintRevenue);
-  const total = mrr + projectRevenue;
+  const total = liveMrr + projectRevenue;
+  const stripeBalance = formatStripeTotals(state.stripeMetrics.available);
+  const stripeMrrTotals = formatStripeTotals(state.stripeMetrics.recurringRevenue);
   els.mrrValue.textContent = formatMoney(mrr);
+  els.stripeMrrValue.textContent = state.stripeMetrics.loaded ? stripeMrrTotals.label : '—';
+  els.stripeSubscriberValue.textContent = state.stripeMetrics.loaded
+    ? normalizeCount(state.stripeMetrics.activeSubscribers).toLocaleString()
+    : '—';
+  els.stripeBalanceValue.textContent = state.stripeMetrics.loaded ? stripeBalance.label : '—';
   els.projectRevenueValue.textContent = formatMoney(projectRevenue);
   els.monthlyEngineValue.textContent = formatMoney(total);
   els.milestoneValue.textContent = getMilestone(total);
+
+  if (els.stripeSyncStatus) {
+    els.stripeSyncStatus.innerHTML = state.stripeMetrics.loaded
+      ? `Stripe data synced from finance metrics ${safe(formatSyncTimestamp(state.stripeMetrics.updatedAt))}.`
+      : 'Stripe data loads from <code>3dvr-portal/finance/stripe/metrics/latest</code>.';
+  }
+}
+
+function renderNextMove() {
+  if (!els.nextMoveBody) return;
+
+  const proposals = getProposals();
+  const open = proposals.filter(proposal => OPEN_STAGES.includes(proposal.status));
+  const due = open.filter(proposal => isDue(proposal.followUpAt));
+  const latestCapture = getLatestCapture();
+
+  if (due.length) {
+    const proposal = due[0];
+    els.nextMoveBody.textContent = `${proposal.person || proposal.title}: ${proposal.nextBestAction || 'Send one tiny follow-up.'}`;
+    return;
+  }
+
+  if (latestCapture?.inference?.nextBestAction) {
+    els.nextMoveBody.textContent = `${latestCapture.inference.name || 'Latest capture'}: ${latestCapture.inference.nextBestAction}`;
+    return;
+  }
+
+  if (open.length) {
+    const proposal = open[0];
+    els.nextMoveBody.textContent = `${proposal.person || proposal.title}: ${proposal.nextBestAction || 'Ask one tiny next question.'}`;
+    return;
+  }
+
+  els.nextMoveBody.textContent = 'Capture the next real conversation, then let the desk turn it into a follow-up or proposal.';
 }
 
 function renderDailyBrief() {
@@ -528,6 +662,104 @@ function render() {
   renderMetrics();
   renderProposals();
   renderDailyBrief();
+  renderNextMove();
+}
+
+function applyStripeMetricsPatch(patch) {
+  if (!patch || typeof patch !== 'object') return;
+
+  const available = normalizeStripeTotals(patch.available);
+  const pending = normalizeStripeTotals(patch.pending);
+  const recurringRevenue = normalizeStripeTotals(patch.recurringRevenue);
+  const activeSubscribers = Number(patch.activeSubscribers);
+
+  if (Object.keys(available).length) state.stripeMetrics.available = available;
+  if (Object.keys(pending).length) state.stripeMetrics.pending = pending;
+  if (Object.keys(recurringRevenue).length) state.stripeMetrics.recurringRevenue = recurringRevenue;
+  if (Number.isFinite(activeSubscribers)) state.stripeMetrics.activeSubscribers = activeSubscribers;
+  if (patch.updatedAt) state.stripeMetrics.updatedAt = normalizeText(patch.updatedAt);
+  state.stripeMetrics.loaded = true;
+  render();
+}
+
+async function refreshStripeTotals() {
+  if (state.stripeRefreshInFlight) return;
+  state.stripeRefreshInFlight = true;
+  if (els.stripeRefreshButton) {
+    els.stripeRefreshButton.disabled = true;
+    els.stripeRefreshButton.textContent = 'Refreshing...';
+  }
+  if (els.stripeSyncStatus) {
+    els.stripeSyncStatus.textContent = 'Refreshing live Stripe totals from the finance API...';
+  }
+
+  try {
+    const response = await fetch('/api/stripe/metrics');
+    if (!response.ok) {
+      throw new Error(`Stripe API responded with ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const metrics = {
+      available: payload.available || {},
+      pending: payload.pending || {},
+      recurringRevenue: payload.recurringRevenue || {},
+      activeSubscribers: normalizeCount(payload.activeSubscribers),
+      updatedAt: new Date().toISOString()
+    };
+
+    applyStripeMetricsPatch(metrics);
+
+    if (stripeMetricsRoot && typeof stripeMetricsRoot.put === 'function') {
+      await putGun(stripeMetricsRoot, {
+        activeSubscribers: metrics.activeSubscribers,
+        updatedAt: metrics.updatedAt
+      });
+      await putGun(stripeMetricsRoot.get('available'), metrics.available);
+      await putGun(stripeMetricsRoot.get('pending'), metrics.pending);
+      await putGun(stripeMetricsRoot.get('recurringRevenue'), metrics.recurringRevenue);
+    }
+
+    if (els.stripeSyncStatus) {
+      els.stripeSyncStatus.textContent = `Stripe totals refreshed ${formatSyncTimestamp(metrics.updatedAt)}.`;
+    }
+  } catch (error) {
+    if (els.stripeSyncStatus) {
+      els.stripeSyncStatus.textContent = `Stripe totals not refreshed. ${error.message || 'Check finance API access.'}`;
+    }
+  } finally {
+    state.stripeRefreshInFlight = false;
+    if (els.stripeRefreshButton) {
+      els.stripeRefreshButton.disabled = false;
+      els.stripeRefreshButton.textContent = 'Refresh Stripe totals';
+    }
+  }
+}
+
+function prefillProposalFromLatestCapture() {
+  const capture = getLatestCapture();
+  if (!capture?.inference) {
+    if (els.automationStatus) {
+      els.automationStatus.textContent = 'No Memory Capture record is available yet. Log a conversation first.';
+    }
+    return;
+  }
+
+  const inference = capture.inference;
+  const offer = normalizeText(inference.offerAmount) || 'Offer needs shape';
+  els.proposalPerson.value = normalizeText(inference.name) || 'Memory capture lead';
+  els.proposalOffer.value = offer;
+  els.proposalAmount.value = String(estimateProposalValueFromOffer(offer) || '');
+  els.proposalStage.value = 'idea';
+  els.proposalFollowUp.value = addDays(3);
+  els.proposalNextStep.value = normalizeText(inference.nextBestAction) || 'Ask one tiny next question.';
+
+  if (els.proposalDrawer) {
+    els.proposalDrawer.open = true;
+  }
+  if (els.automationStatus) {
+    els.automationStatus.textContent = `Prefilled proposal from latest capture: ${els.proposalPerson.value}.`;
+  }
 }
 
 function subscribeGun() {
@@ -561,12 +793,29 @@ function subscribeGun() {
     if (!clean?.id) return;
     state.recentCaptures[clean.id] = clean;
     renderDailyBrief();
+    renderNextMove();
   });
 
   touchLogRoot?.map().on((touch) => {
     const clean = cleanGunRecord(touch);
     if (!clean?.id) return;
     state.touchLog[clean.id] = clean;
+  });
+
+  stripeMetricsRoot?.on((metrics) => {
+    applyStripeMetricsPatch(cleanGunRecord(metrics));
+  });
+
+  stripeMetricsRoot?.get('available')?.on((available) => {
+    applyStripeMetricsPatch({ available: cleanGunRecord(available) });
+  });
+
+  stripeMetricsRoot?.get('pending')?.on((pending) => {
+    applyStripeMetricsPatch({ pending: cleanGunRecord(pending) });
+  });
+
+  stripeMetricsRoot?.get('recurringRevenue')?.on((recurringRevenue) => {
+    applyStripeMetricsPatch({ recurringRevenue: cleanGunRecord(recurringRevenue) });
   });
 
   updateStatus('Gun sync: connected to revenue, proposals, captures, and touch log nodes.');
@@ -588,7 +837,11 @@ function loadSnapshotFromRemote(clean) {
 function bindEvents() {
   els.revenueForm?.addEventListener('submit', saveRevenueSnapshot);
   els.proposalForm?.addEventListener('submit', addProposal);
-  els.agentBriefButton?.addEventListener('click', queueAgentDailyBrief);
+  els.prefillFromCaptureButton?.addEventListener('click', prefillProposalFromLatestCapture);
+  els.stripeRefreshButton?.addEventListener('click', refreshStripeTotals);
+  els.agentBriefButtons.forEach(button => {
+    button.addEventListener('click', queueAgentDailyBrief);
+  });
   els.proposalBoard?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-proposal-stage][data-proposal-id]');
     if (!button) return;
