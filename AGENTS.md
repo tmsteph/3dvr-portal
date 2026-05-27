@@ -5,6 +5,7 @@
 - Pull and merge often so your branch stays close to `origin/main` and you do not build on stale context.
 - If the change is scoped, tests pass, and you are confident in the result, merge it instead of leaving it hanging.
 - Keep PRs narrow and do not overwrite or revert other agents' changes unless the user explicitly asks.
+- When the agent finds or contacts business leads, keep the portal CRM current. Run `3dvr crm sync` after outreach or lead discovery; use the default filtered sync for money-relevant contacts, and only use `--include-all` when a full raw import is intentional.
 
 ## Push And Merge With Termux GitHub Auth
 

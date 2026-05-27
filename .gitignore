@@ -13,3 +13,4 @@ thomas-agent/state/
 __pycache__/
 node_modules/
 radata/
+radata-*.tmp

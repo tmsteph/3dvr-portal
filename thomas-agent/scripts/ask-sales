@@ -10,10 +10,16 @@ case "$MODE" in
     cd "$ROOT"
     exec node "$ROOT/node/sales-summary.js" "$@"
     ;;
+  sync-crm|crm-sync)
+    shift || true
+    cd "$ROOT"
+    exec "$SCRIPT_DIR/ask-crm-sync" "$@"
+    ;;
   loop)
     shift || true
     cd "$ROOT"
     "$SCRIPT_DIR/ask-autopilot" "$@"
+    "$SCRIPT_DIR/ask-crm-sync"
     exec node "$ROOT/node/sales-summary.js" publish
     ;;
   website)

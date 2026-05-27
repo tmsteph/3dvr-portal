@@ -42,6 +42,14 @@ function portalAgentOpsNode() {
   return gun.get(PORTAL_ROOT).get('agentOps');
 }
 
+function portalCrmNode() {
+  return gun.get('3dvr-crm');
+}
+
+function portalCrmTouchLogNode() {
+  return gun.get(PORTAL_ROOT).get('crm-touch-log');
+}
+
 module.exports = {
   gun,
   RELAY,
@@ -57,5 +65,7 @@ module.exports = {
   autopilotRunsNode,
   autopilotStateNode,
   portalAgentOpsNode,
+  portalCrmNode,
+  portalCrmTouchLogNode,
   slugify,
 };

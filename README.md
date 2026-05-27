@@ -652,6 +652,23 @@ export THREEDVR_OUTREACH_EXPERIMENT_ID="restaurant-opener"
 3dvr revenue report
 ```
 
+### Portal CRM Sync
+
+Use `3dvr crm sync` after finding or contacting leads so the portal CRM stays the source of truth. The default sync skips noisy/test/failed rows and weak scraped leads so the CRM stays useful on mobile.
+
+```sh
+3dvr crm dry-run
+3dvr crm sync
+3dvr crm sync --include-all   # only for a deliberate full raw import
+```
+
+The command writes stable records into Gun, so rerunning it updates the same contact instead of making duplicates:
+
+```text
+3dvr-crm/<recordId>
+3dvr-portal/crm-touch-log/<touchId>
+```
+
 ```sh
 export THREEDVR_INBOX_REPLY_MODE="local"          # default: local Qwen, then OpenAI, then template
 export THREEDVR_INBOX_REPLY_MODE="local-strict"   # local Qwen only
