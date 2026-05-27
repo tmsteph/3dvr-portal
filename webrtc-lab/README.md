@@ -20,6 +20,11 @@ Gun signaling reachability rather than TURN. TURN only affects media connectivit
 After joining, the lab re-announces presence and sweeps the room a few times so a phone and laptop can recover
 from slow relay startup or a late Gun map subscription.
 
+The lab creates its Gun client with `radisk: false` and `localStorage: false` because signaling should be
+ephemeral. This avoids stale browser storage making a phone appear connected while its room writes stay local.
+Room signaling waits for the Gun relay `hi` event before writing presence so slower phones do not send their
+first join signals before the relay is ready.
+
 The default camera profile is intentionally low bandwidth: it asks for 320 x 180 video at about 10 fps
 and caps the video sender near 240 kbps for weak mobile links.
 

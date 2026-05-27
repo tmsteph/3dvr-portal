@@ -57,6 +57,8 @@
   let turnStatus = 'STUN only';
   let gunStatus = 'Not connected';
   let gunPeers = [];
+  let gunConnected = false;
+  let gunConnectionWaiters = [];
   const peers = new Map();
   const seenSignals = new Set();
 
@@ -137,26 +139,54 @@
     updateDiagnostics();
     gun = Gun({
       peers: gunPeers,
-      axe: true
+      axe: true,
+      // WebRTC room presence/signals are temporary; browser storage can make mobile clients look connected
+      // while their writes remain stuck locally.
+      radisk: false,
+      localStorage: false
     });
     logEvent(`Gun signaling peers: ${gunPeers.join(', ')}.`);
     if (typeof gun.on === 'function') {
       gun.on('hi', peer => {
+        gunConnected = true;
         gunStatus = 'Connected';
         updateDiagnostics();
         logEvent(`Gun relay connected: ${peer?.url || 'relay'}.`);
+        resolveGunConnectionWaiters(true);
         if (joined) {
           announcePresence('relay-connected');
           readParticipantsOnce();
         }
       });
       gun.on('bye', peer => {
+        gunConnected = false;
         gunStatus = 'Reconnecting';
         updateDiagnostics();
         logEvent(`Gun relay disconnected: ${peer?.url || 'relay'}.`);
       });
     }
     return gun;
+  }
+
+  function resolveGunConnectionWaiters(value) {
+    const waiters = gunConnectionWaiters;
+    gunConnectionWaiters = [];
+    waiters.forEach(resolve => resolve(value));
+  }
+
+  function waitForGunConnection(timeoutMs = 15000) {
+    if (gunConnected) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const timeout = setTimeout(() => {
+        gunConnectionWaiters = gunConnectionWaiters.filter(waiter => waiter !== done);
+        resolve(false);
+      }, timeoutMs);
+      function done(value) {
+        clearTimeout(timeout);
+        resolve(value);
+      }
+      gunConnectionWaiters.push(done);
+    });
   }
 
   function configuredGunPeers() {
@@ -548,8 +578,9 @@
 
   function connectToParticipant(remoteId, remoteName) {
     if (!remoteId || remoteId === localId) return;
+    const isNewPeer = !peers.has(remoteId);
     createPeer(remoteId, remoteName);
-    if (shouldInitiateOffer(remoteId)) {
+    if (isNewPeer && shouldInitiateOffer(remoteId)) {
       makeOffer(remoteId, remoteName).catch(error => {
         console.error('Offer failed', error);
         setStatus(`Offer failed: ${error.message || error}`);
@@ -590,7 +621,7 @@
 
   function scheduleDiscoveryRetries() {
     clearDiscoveryTimers();
-    [500, 1800, 4200].forEach((delay, index) => {
+    [800, 2200, 5200, 10000, 18000].forEach((delay, index) => {
       const timer = setTimeout(() => {
         if (!joined) return;
         announcePresence(`discovery-${index + 1}`);
@@ -612,7 +643,14 @@
     localName = String(refs.displayName.value || '').trim() || `Guest ${localId.slice(-4)}`;
     refs.localLabel.textContent = `${localName} (you)`;
     ensureGun();
-    await loadIceServers();
+    setStatus('Connecting to Gun relay before room signaling.');
+    const [_iceServers, relayReady] = await Promise.all([
+      loadIceServers(),
+      waitForGunConnection()
+    ]);
+    if (!relayReady) {
+      logEvent('Gun relay is still connecting; room signaling may be delayed.');
+    }
     roomNode = gun.get(ROOM_ROOT).get(roomId);
     participantsNode = roomNode.get('participants');
     signalsNode = roomNode.get('signals');
@@ -625,7 +663,10 @@
     announcePresence('join');
     readParticipantsOnce();
     scheduleDiscoveryRetries();
-    heartbeatTimer = setInterval(() => announcePresence('heartbeat'), 10000);
+    heartbeatTimer = setInterval(() => {
+      announcePresence('heartbeat');
+      readParticipantsOnce();
+    }, 10000);
     setStatus(`Joined room ${roomId}. Waiting for peers.`);
   }
 
