@@ -12,7 +12,7 @@ for a coturn server configured with the same shared secret.
    - `3478/tcp`
    - `3478/udp`
    - `5349/tcp`
-   - `49160-49200/udp`
+   - `49152-65535/udp`
 4. Install Docker and Docker Compose.
 5. Copy `turnserver.conf.example` to `turnserver.conf`.
 6. Replace `static-auth-secret` with a long random value:
@@ -48,3 +48,8 @@ TURN_USERNAME_PREFIX=portal
 
 Deploy the portal after setting the env vars. The WebRTC lab should then show `Relay: TURN ready`.
 Use `?relay=1` or `?ice=relay` on a room URL to force TURN-only testing.
+
+The current 3DVR test relay runs on the DigitalOcean server at `167.172.193.194` and is exposed through
+`selfhost.3dvr.tech`/`turn.3dvr.tech`. For mobile carrier testing, keep the relay UDP range wide enough
+for real calls and avoid blocking private or carrier-grade NAT peer ranges in coturn until the behavior is
+well understood; overly strict `denied-peer-ip` rules can make same-network calls work while 5G calls fail.

@@ -40,13 +40,15 @@ describe('WebRTC Lab app', () => {
     assert.match(html, /id="local-video"/);
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
     assert.match(html, /<script src="\/gun-init\.js\?v=20260527-v1"><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260527-v3">/);
+    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260527-v4">/);
     assert.match(html, /id="turn-status">STUN only</);
+    assert.match(html, /id="ice-status">Idle</);
+    assert.match(html, /id="relay-candidates">0 local \/ 0 remote</);
     assert.match(html, /id="video-profile">180p \/ 10fps</);
     assert.match(html, /id="gun-status">Not connected</);
     assert.match(html, /id="announce-count">0</);
-    assert.match(html, /id="build-version">WebRTC v2\.6</);
-    assert.match(html, /<script src="\.\/app\.js\?v=20260527-v3"><\/script>/);
+    assert.match(html, /id="build-version">WebRTC v2\.7</);
+    assert.match(html, /<script src="\.\/app\.js\?v=20260527-v4"><\/script>/);
     assert.match(js, /fetch\('\/api\/session\?route=turn-credentials', \{ cache: 'no-store' \}\)/);
     assert.match(js, /new RTCPeerConnection\(connectionConfig\)/);
     assert.match(js, /connectionConfig\.iceTransportPolicy = 'relay'/);
@@ -71,6 +73,10 @@ describe('WebRTC Lab app', () => {
     assert.match(js, /const isNewPeer = !peers\.has\(remoteId\)/);
     assert.match(js, /if \(isNewPeer && shouldInitiateOffer\(remoteId\)\)/);
     assert.match(js, /connection\.onnegotiationneeded/);
+    assert.match(js, /connection\.onicecandidateerror/);
+    assert.match(js, /connection\.oniceconnectionstatechange/);
+    assert.match(js, /recordCandidate\('local'/);
+    assert.match(js, /recordCandidate\('remote'/);
     assert.match(js, /signalQueue: Promise\.resolve\(\)/);
     assert.match(js, /queuePeerSignal\(peer, async \(\) =>/);
     assert.match(js, /peer\.connection\.signalingState !== 'have-local-offer'/);
@@ -90,7 +96,8 @@ describe('WebRTC Lab app', () => {
     assert.match(readme, /320 x 180 video at about 10 fps/);
     assert.match(readme, /near 240 kbps/);
     assert.match(readme, /Gun relay status/);
-    assert.match(readme, /TURN only affects media connectivity after peers can see each other/);
+    assert.match(readme, /ICE state, and relay candidate counts/);
+    assert.match(readme, /TURN only affects media\s+connectivity after peers can see each other/);
     assert.match(readme, /localStorage: false/);
     assert.match(readme, /waits for the Gun relay `hi` event/);
     assert.match(readme, /https:\/\/gun-relay-3dvr\.fly\.dev\/gun/);
@@ -129,6 +136,8 @@ describe('WebRTC Lab app', () => {
     assert.match(compose, /coturn\/coturn:latest/);
     assert.match(config, /use-auth-secret/);
     assert.match(config, /static-auth-secret=replace_me_with_same_value_as_TURN_STATIC_AUTH_SECRET/);
+    assert.match(config, /min-port=49152/);
+    assert.match(config, /max-port=65535/);
   });
 });
 
