@@ -6,6 +6,7 @@ __pycache__/
 *.bak
 *.egg-info/
 thomas-agent/leads.csv
+thomas-agent/outreach-log.ndjson
 thomas-agent/state/
 .venv/
 *.csv
