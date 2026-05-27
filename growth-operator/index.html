@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Growth Operator | 3dvr portal</title>
+  <meta
+    name="description"
+    content="A 3DVR operator app for lead discovery, approved outreach, customer service triage, and delivery follow-through."
+  />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0d1117" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <nav class="topbar" aria-label="Growth operator navigation">
+        <a href="../">Portal</a>
+        <a href="../revenue-desk/">Revenue Desk</a>
+        <a href="../crm/">People Log</a>
+        <a href="../email-operator/">Email Operator</a>
+        <a href="../money-ai/">Money AI</a>
+        <a href="../admin/#agent-ops-card">Agent Ops</a>
+      </nav>
+
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Approval-first operator</p>
+          <h1>Growth Operator</h1>
+          <p class="lead">
+            Find likely-fit leads, prepare email, handle support, and keep delivery moving without turning your day
+            into admin work.
+          </p>
+          <div class="hero-actions">
+            <button id="findLeadsButton" class="button primary" type="button">Find leads</button>
+            <button id="supportTriageButton" class="button" type="button">Check support</button>
+            <button id="deliveryPassButton" class="button" type="button">Delivery pass</button>
+          </div>
+        </div>
+        <aside class="status-card">
+          <span>Operating rule</span>
+          <strong>Prepare the work. Send only approved email.</strong>
+          <p id="syncStatus" role="status" aria-live="polite">Connecting to 3dvr-portal/growthOperator.</p>
+        </aside>
+      </div>
+    </header>
+
+    <main>
+      <section class="metric-grid" aria-label="Growth operator metrics">
+        <article>
+          <span>Lead queue</span>
+          <strong id="leadQueueCount">0</strong>
+        </article>
+        <article>
+          <span>Email ready</span>
+          <strong id="readyEmailCount">0</strong>
+        </article>
+        <article>
+          <span>Support</span>
+          <strong id="supportQueueCount">0</strong>
+        </article>
+        <article>
+          <span>Delivery</span>
+          <strong id="deliveryQueueCount">0</strong>
+        </article>
+      </section>
+
+      <section class="operator-grid">
+        <article class="panel">
+          <div class="section-head">
+            <p class="eyebrow">Quick add</p>
+            <h2>Add the person, problem, or customer.</h2>
+            <p>Minimum fields only. The operator can fill in the rest later.</p>
+          </div>
+
+          <form id="operatorForm" class="operator-form">
+            <label>
+              <span>Name or business</span>
+              <input id="itemName" type="text" autocomplete="name" placeholder="Victor / local contractor / customer" required />
+            </label>
+            <label>
+              <span>Email</span>
+              <input id="itemEmail" type="email" autocomplete="email" placeholder="optional until send" />
+            </label>
+            <label>
+              <span>Lane</span>
+              <select id="itemLane">
+                <option value="lead">Lead</option>
+                <option value="support">Support</option>
+                <option value="delivery">Delivery</option>
+              </select>
+            </label>
+            <label>
+              <span>Offer</span>
+              <input id="itemOffer" type="text" placeholder="$5, $20, $50, $200, or custom" />
+            </label>
+            <label class="wide">
+              <span>Context</span>
+              <textarea id="itemContext" rows="4" placeholder="What did they say? What do they need? What should happen next?"></textarea>
+            </label>
+            <button class="button primary" type="submit">Add to operator</button>
+          </form>
+        </article>
+
+        <aside class="panel">
+          <div class="section-head">
+            <p class="eyebrow">Direct email</p>
+            <h2>Send path</h2>
+            <p>Uses the existing unified mail route. Keep the token local and send only approved drafts.</p>
+          </div>
+          <label>
+            <span>Operator email token</span>
+            <input id="operatorEmailToken" type="password" autocomplete="off" placeholder="AGENT_OPERATOR_EMAIL_TOKEN" />
+          </label>
+          <p class="small">
+            API path: <code>/api/calendar/reminder-email</code>, mode <code>lead-outreach</code>.
+          </p>
+        </aside>
+      </section>
+
+      <section class="panel">
+        <div class="section-head row">
+          <div>
+            <p class="eyebrow">Operator queue</p>
+            <h2>Find, email, support, deliver.</h2>
+            <p>Everything saves locally first and mirrors to <code>3dvr-portal/growthOperator/items</code>.</p>
+          </div>
+          <button id="draftAllButton" class="button" type="button">Draft next emails</button>
+        </div>
+        <div id="operatorQueue" class="queue-list">
+          <p class="empty">No operator items yet.</p>
+        </div>
+      </section>
+
+      <section class="workflow-grid" aria-label="Operator workflow">
+        <article>
+          <span>1</span>
+          <strong>Discover</strong>
+          <p>Ask the agent for likely-fit leads from public sources, CRM gaps, referrals, and market research.</p>
+        </article>
+        <article>
+          <span>2</span>
+          <strong>Outreach</strong>
+          <p>Draft short, specific email with the right 3dvr.tech offer and a billing path when appropriate.</p>
+        </article>
+        <article>
+          <span>3</span>
+          <strong>Service</strong>
+          <p>Route replies, billing questions, account issues, and support promises into one visible queue.</p>
+        </article>
+        <article>
+          <span>4</span>
+          <strong>Delivery</strong>
+          <p>Turn paid work into checklists, customer updates, and a next visible result.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <nav class="mobile-dock" aria-label="Growth operator mobile actions">
+    <button type="button" data-mobile-action="find-leads">Find</button>
+    <button type="button" data-mobile-action="draft-all">Draft</button>
+    <button type="button" data-mobile-action="support">Support</button>
+    <button type="button" data-mobile-action="delivery">Deliver</button>
+  </nav>
+
+  <script type="module" src="app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
