@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
   <link rel="stylesheet" href="../style.css?v=webrtc-lab">
-  <link rel="stylesheet" href="./styles.css?v=20260522-v4">
+  <link rel="stylesheet" href="./styles.css?v=20260527-v1">
 </head>
 <body class="webrtc-page">
   <header class="lab-header">
@@ -79,6 +79,14 @@
           <dd id="signal-count">0</dd>
         </div>
         <div>
+          <dt>Gun</dt>
+          <dd id="gun-status">Not connected</dd>
+        </div>
+        <div>
+          <dt>Announces</dt>
+          <dd id="announce-count">0</dd>
+        </div>
+        <div>
           <dt>Relay</dt>
           <dd id="turn-status">STUN only</dd>
         </div>
@@ -88,7 +96,7 @@
         </div>
         <div>
           <dt>Build</dt>
-          <dd id="build-version">WebRTC v2.3</dd>
+          <dd id="build-version">WebRTC v2.4</dd>
         </div>
       </dl>
     </section>
@@ -116,6 +124,6 @@
     <p>Built as a 3DVR WebRTC proof of concept. Use HTTPS or localhost so browser camera permissions work.</p>
   </footer>
 
-  <script src="./app.js?v=20260522-v4"></script>
+  <script src="./app.js?v=20260527-v1"></script>
 </body>
 </html>

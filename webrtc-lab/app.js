@@ -17,6 +17,8 @@
     localPeerId: document.getElementById('local-peer-id'),
     peerCount: document.getElementById('peer-count'),
     signalCount: document.getElementById('signal-count'),
+    gunStatus: document.getElementById('gun-status'),
+    announceCount: document.getElementById('announce-count'),
     turnStatus: document.getElementById('turn-status'),
     eventLog: document.getElementById('event-log')
   };
@@ -24,6 +26,9 @@
   const DEFAULT_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
   ];
+  const DEFAULT_GUN_PEERS = Object.freeze([
+    'wss://gun-relay-3dvr.fly.dev/gun'
+  ]);
   const ROOM_ROOT = '3dvr-webrtc-lab-v2';
   const SIGNAL_TTL_MS = 1000 * 60 * 20;
   const PEER_SESSION_KEY = 'webrtcLabParticipantId';
@@ -44,10 +49,14 @@
   let localStream = null;
   let joined = false;
   let heartbeatTimer = null;
+  let discoveryTimers = [];
   let signalsHandled = 0;
+  let announcesHandled = 0;
   let iceServers = DEFAULT_ICE_SERVERS;
   let iceServersLoaded = false;
   let turnStatus = 'STUN only';
+  let gunStatus = 'Not connected';
+  let gunPeers = [];
   const peers = new Map();
   const seenSignals = new Set();
 
@@ -94,6 +103,8 @@
     refs.localPeerId.textContent = joined ? localId.replace(/^peer_/, '') : 'Not joined';
     refs.peerCount.textContent = String(peers.size);
     refs.signalCount.textContent = String(signalsHandled);
+    if (refs.gunStatus) refs.gunStatus.textContent = gunStatus;
+    if (refs.announceCount) refs.announceCount.textContent = String(announcesHandled);
     refs.turnStatus.textContent = turnStatus;
   }
 
@@ -121,14 +132,39 @@
     if (typeof Gun !== 'function') {
       throw new Error('Gun is not available for signaling.');
     }
+    gunPeers = configuredGunPeers();
+    gunStatus = `Connecting (${gunPeers.length})`;
+    updateDiagnostics();
     gun = Gun({
-      peers: window.__GUN_PEERS__ || [
-        'wss://relay.3dvr.tech/gun',
-        'wss://gun-relay-3dvr.fly.dev/gun'
-      ],
+      peers: gunPeers,
       axe: true
     });
+    logEvent(`Gun signaling peers: ${gunPeers.join(', ')}.`);
+    if (typeof gun.on === 'function') {
+      gun.on('hi', peer => {
+        gunStatus = 'Connected';
+        updateDiagnostics();
+        logEvent(`Gun relay connected: ${peer?.url || 'relay'}.`);
+        if (joined) {
+          announcePresence('relay-connected');
+          readParticipantsOnce();
+        }
+      });
+      gun.on('bye', peer => {
+        gunStatus = 'Reconnecting';
+        updateDiagnostics();
+        logEvent(`Gun relay disconnected: ${peer?.url || 'relay'}.`);
+      });
+    }
     return gun;
+  }
+
+  function configuredGunPeers() {
+    const configured = Array.isArray(window.__GUN_PEERS__) ? window.__GUN_PEERS__ : [];
+    const peersToUse = Array.from(new Set([...configured, ...DEFAULT_GUN_PEERS]
+      .map(peer => (typeof peer === 'string' ? peer.trim() : ''))
+      .filter(Boolean)));
+    return peersToUse.length ? peersToUse : [...DEFAULT_GUN_PEERS];
   }
 
   function shouldForceRelayOnly() {
@@ -523,16 +559,45 @@
 
   function handleAnnounce(signal) {
     if (!joined) return null;
+    announcesHandled += 1;
+    updateDiagnostics();
     connectToParticipant(signal.from, signal.fromName);
     return null;
   }
 
+  function handleParticipant(participant, id) {
+    if (!joined || !participant || id === '_' || id === localId) return;
+    const remoteId = participant.id || id;
+    if (!remoteId || remoteId === localId) return;
+    const lastSeen = Number(participant.lastSeen || 0);
+    if (Date.now() - lastSeen > 45000) return;
+    connectToParticipant(remoteId, participant.name);
+  }
+
   function watchParticipants() {
-    participantsNode.map().on((participant, id) => {
-      if (!joined || !participant || id === '_' || id === localId) return;
-      const lastSeen = Number(participant.lastSeen || 0);
-      if (Date.now() - lastSeen > 45000) return;
-      connectToParticipant(id, participant.name);
+    participantsNode.map().on(handleParticipant);
+  }
+
+  function readParticipantsOnce() {
+    if (!participantsNode) return;
+    participantsNode.map().once(handleParticipant);
+  }
+
+  function clearDiscoveryTimers() {
+    discoveryTimers.forEach(timer => clearTimeout(timer));
+    discoveryTimers = [];
+  }
+
+  function scheduleDiscoveryRetries() {
+    clearDiscoveryTimers();
+    [500, 1800, 4200].forEach((delay, index) => {
+      const timer = setTimeout(() => {
+        if (!joined) return;
+        announcePresence(`discovery-${index + 1}`);
+        readParticipantsOnce();
+        logEvent(`Discovery retry ${index + 1} sent.`);
+      }, delay);
+      discoveryTimers.push(timer);
     });
   }
 
@@ -558,12 +623,15 @@
     signalsNode.map().on(handleSignal);
     watchParticipants();
     announcePresence('join');
+    readParticipantsOnce();
+    scheduleDiscoveryRetries();
     heartbeatTimer = setInterval(() => announcePresence('heartbeat'), 10000);
     setStatus(`Joined room ${roomId}. Waiting for peers.`);
   }
 
   function leaveRoom() {
     joined = false;
+    clearDiscoveryTimers();
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;

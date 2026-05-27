@@ -13,6 +13,13 @@ The v2 room root uses tab-scoped peer IDs, starts media before signaling, sends 
 announcements, and stores offer/answer/candidate payloads as JSON strings so Gun does not have to
 serialize browser-native WebRTC objects.
 
+The page shows Gun relay status, announce count, and peer count in the diagnostics bar. If peer count stays
+at zero on two devices in the same room, the issue is usually room URL mismatch, stale cached assets, or
+Gun signaling reachability rather than TURN. TURN only affects media connectivity after peers can see each other.
+
+After joining, the lab re-announces presence and sweeps the room a few times so a phone and laptop can recover
+from slow relay startup or a late Gun map subscription.
+
 The default camera profile is intentionally low bandwidth: it asks for 320 x 180 video at about 10 fps
 and caps the video sender near 240 kbps for weak mobile links.
 
