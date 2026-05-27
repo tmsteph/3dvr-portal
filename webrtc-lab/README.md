@@ -24,6 +24,8 @@ The lab creates its Gun client with `radisk: false` and `localStorage: false` be
 ephemeral. This avoids stale browser storage making a phone appear connected while its room writes stay local.
 Room signaling waits for the Gun relay `hi` event before writing presence so slower phones do not send their
 first join signals before the relay is ready.
+The shared Gun initializer includes both `wss://gun-relay-3dvr.fly.dev/gun` and
+`https://gun-relay-3dvr.fly.dev/gun` so browsers that struggle with one transport can try the other.
 
 The default camera profile is intentionally low bandwidth: it asks for 320 x 180 video at about 10 fps
 and caps the video sender near 240 kbps for weak mobile links.
