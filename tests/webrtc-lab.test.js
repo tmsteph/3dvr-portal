@@ -39,13 +39,14 @@ describe('WebRTC Lab app', () => {
     assert.match(html, /Native WebRTC POC/);
     assert.match(html, /id="local-video"/);
     assert.match(html, /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260527-v2">/);
+    assert.match(html, /<script src="\/gun-init\.js\?v=20260527-v1"><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=20260527-v3">/);
     assert.match(html, /id="turn-status">STUN only</);
     assert.match(html, /id="video-profile">180p \/ 10fps</);
     assert.match(html, /id="gun-status">Not connected</);
     assert.match(html, /id="announce-count">0</);
-    assert.match(html, /id="build-version">WebRTC v2\.5</);
-    assert.match(html, /<script src="\.\/app\.js\?v=20260527-v2"><\/script>/);
+    assert.match(html, /id="build-version">WebRTC v2\.6</);
+    assert.match(html, /<script src="\.\/app\.js\?v=20260527-v3"><\/script>/);
     assert.match(js, /fetch\('\/api\/session\?route=turn-credentials', \{ cache: 'no-store' \}\)/);
     assert.match(js, /new RTCPeerConnection\(connectionConfig\)/);
     assert.match(js, /connectionConfig\.iceTransportPolicy = 'relay'/);
@@ -58,6 +59,7 @@ describe('WebRTC Lab app', () => {
     assert.match(js, /PEER_SESSION_KEY = 'webrtcLabParticipantId'/);
     assert.match(js, /sessionStorage\.setItem\(PEER_SESSION_KEY, next\)/);
     assert.match(js, /DEFAULT_GUN_PEERS = Object\.freeze/);
+    assert.match(js, /https:\/\/gun-relay-3dvr\.fly\.dev\/gun/);
     assert.match(js, /function configuredGunPeers\(\)/);
     assert.match(js, /gun\.on\('hi'/);
     assert.match(js, /radisk: false/);
@@ -91,6 +93,7 @@ describe('WebRTC Lab app', () => {
     assert.match(readme, /TURN only affects media connectivity after peers can see each other/);
     assert.match(readme, /localStorage: false/);
     assert.match(readme, /waits for the Gun relay `hi` event/);
+    assert.match(readme, /https:\/\/gun-relay-3dvr\.fly\.dev\/gun/);
     assert.match(readme, /Mesh WebRTC/);
     assert.match(readme, /3dvr-webrtc-lab-v2\/<room>/);
   });

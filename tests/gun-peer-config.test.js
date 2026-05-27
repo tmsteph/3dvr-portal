@@ -14,11 +14,14 @@ describe('Gun peer configuration', () => {
     for (const path of ['gun-init.js', 'contacts/gun-init.js', 'calendar/gun-init.js']) {
       const source = await read(path);
       const flyIndex = source.indexOf('wss://gun-relay-3dvr.fly.dev/gun');
+      const flyHttpsIndex = source.indexOf('https://gun-relay-3dvr.fly.dev/gun');
       const disabledIndex = source.indexOf('wss://relay.3dvr.tech/gun');
 
       assert.notEqual(flyIndex, -1, `${path} should include the Fly relay`);
+      assert.notEqual(flyHttpsIndex, -1, `${path} should include the Fly HTTPS fallback`);
       assert.notEqual(disabledIndex, -1, `${path} should explicitly filter the dead relay`);
       assert.ok(flyIndex < disabledIndex, `${path} should prefer Fly before mentioning disabled relays`);
+      assert.ok(flyIndex < flyHttpsIndex, `${path} should try WebSocket before HTTPS fallback`);
       assert.match(source, /disabledPeers|DISABLED/);
       assert.match(source, /filter\(peer => !disabledPeers\.has\(peer\)\)/);
     }

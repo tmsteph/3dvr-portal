@@ -27,7 +27,8 @@
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
   ];
   const DEFAULT_GUN_PEERS = Object.freeze([
-    'wss://gun-relay-3dvr.fly.dev/gun'
+    'wss://gun-relay-3dvr.fly.dev/gun',
+    'https://gun-relay-3dvr.fly.dev/gun'
   ]);
   const ROOM_ROOT = '3dvr-webrtc-lab-v2';
   const SIGNAL_TTL_MS = 1000 * 60 * 20;
