@@ -180,6 +180,8 @@ Run one simple sprint:
 
 Do not judge by likes. Judge by replies, booked calls, billing starts, and people sending the one thing you asked for.
 
+For Facebook experiments, use the Meta Market Bot plan in `docs/meta-market-bot.md`: publish approved Facebook Page posts through the Meta Graph API, then measure comments, reactions, shares, clicks, impressions, and engaged users. Treat Facebook as one market signal source, not the whole sales process.
+
 ## Positioning To Test
 
 Use plain language first:

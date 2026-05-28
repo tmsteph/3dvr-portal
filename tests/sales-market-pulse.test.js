@@ -12,6 +12,8 @@ test('market pulse dashboard ships live Gun wiring and approval surfaces', async
   assert.match(html, /id="pulseMarketFitScore"/);
   assert.match(html, /id="pulseAutomationCommand"/);
   assert.match(html, /id="pulseAutomationPolicy"/);
+  assert.match(html, /id="pulseMetaGraphPlan"/);
+  assert.match(html, /Meta Graph API path/);
   assert.match(html, /id="pulseSocialProbeList"/);
   assert.match(html, /id="pulseReactionList"/);
   assert.match(html, /id="pulseOutreachList"/);
@@ -24,6 +26,7 @@ test('market pulse dashboard ships live Gun wiring and approval surfaces', async
   assert.match(js, /deserializeMarketPulseFromGun/);
   assert.match(js, /automationPolicy/);
   assert.match(js, /market:pulse/);
+  assert.match(js, /meta_graph_api/);
   assert.match(js, /data-copy-probe/);
   assert.match(js, /reactionSnapshots/);
   assert.match(js, /data-approve-listing/);

@@ -1,5 +1,6 @@
 import { deriveOpportunityFromSignal, rankOpportunities } from '../money/scoring.js';
 import { collectDemandSignals } from '../money/sources.js';
+import { buildMetaMarketExperimentPlan } from './meta-graph.js';
 import { DEFAULT_GUN_PEERS, getNode } from './homepage-hero.js';
 
 export const MARKET_PULSE_ROOT_PATH = Object.freeze([
@@ -29,7 +30,7 @@ export const DEFAULT_MARKET_PULSE_PROFILE = Object.freeze({
     'small business automation',
     'customer intake',
   ],
-  channels: ['reddit', 'hackernews', 'facebook-groups', 'linkedin', 'tiktok-comments', 'email'],
+  channels: ['reddit', 'hackernews', 'facebook-groups', 'tiktok-comments', 'facebook-page', 'linkedin', 'email'],
   limit: 20,
 });
 
@@ -39,6 +40,13 @@ const SOCIAL_PROBE_CHANNELS = Object.freeze([
     label: 'Facebook Groups',
     surface: 'group discussion',
     risk: 'external_write',
+  }),
+  Object.freeze({
+    id: 'facebook-page',
+    label: 'Facebook Page',
+    surface: 'Meta Graph API page post',
+    risk: 'external_write',
+    integration: 'meta_graph_api',
   }),
   Object.freeze({
     id: 'reddit',
@@ -186,6 +194,13 @@ function buildResearchQuestion(opportunity = {}, channel = 'reddit') {
   const problem = normalizeText(opportunity.problem) || 'follow-up falling through after a lead comes in';
   const audience = normalizeText(opportunity.audience) || DEFAULT_MARKET_PULSE_PROFILE.market;
 
+  if (channel === 'facebook-page') {
+    return [
+      `Question for people running ${audience}: what part of ${problem.toLowerCase()} is hardest to keep up with?`,
+      'I am testing which real business problems have enough energy to build around. Replies, saves, clicks, and comments matter more than vanity likes.'
+    ].join('\n\n');
+  }
+
   if (channel === 'facebook-groups') {
     return [
       `For people running ${audience}: where does ${problem.toLowerCase()} show up in your week?`,
@@ -228,6 +243,7 @@ export function buildSocialProbeDrafts(opportunities = [], options = {}) {
       channelLabel: config.label,
       surface: config.surface,
       risk: config.risk,
+      integration: config.integration || '',
       approvalStatus: config.risk === 'external_write' ? 'required' : 'ready',
       linkedOpportunityId: opportunity.id || '',
       title: opportunity.title || 'Market-fit probe',
@@ -238,6 +254,15 @@ export function buildSocialProbeDrafts(opportunities = [], options = {}) {
       reactionCheck: config.risk === 'external_write'
         ? 'After posting, paste the post URL and check reactions, comments, saves, and DMs within 24 hours.'
         : 'Capture comment counts, repeated phrases, creator niches, and links back into Market Pulse.',
+      metaGraph: config.integration === 'meta_graph_api'
+        ? buildMetaMarketExperimentPlan({
+          experimentId: `${slugify(opportunity.title || opportunity.problem, 'social-probe')}-${config.id}`,
+          message: buildResearchQuestion(opportunity, config.id),
+          link: options.link,
+          pageId: options.metaPageId,
+          version: options.metaGraphVersion,
+        })
+        : null,
       priority: index + 1,
       generatedAt: options.generatedAt || new Date().toISOString(),
     }));
@@ -248,6 +273,7 @@ function channelFromSignal(signal = {}) {
   const source = normalizeText(signal.source).toLowerCase();
   if (source.includes('reddit')) return 'reddit';
   if (source.includes('hackernews')) return 'hackernews';
+  if (source.includes('meta') || source.includes('facebook-page') || source.includes('facebook page')) return 'facebook-page';
   if (source.includes('facebook')) return 'facebook-groups';
   if (source.includes('linkedin')) return 'linkedin';
   if (source.includes('tiktok')) return 'tiktok-comments';

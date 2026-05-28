@@ -18,6 +18,7 @@ const refs = {
   pulseAutomationMode: document.getElementById('pulseAutomationMode'),
   pulseAutomationCommand: document.getElementById('pulseAutomationCommand'),
   pulseAutomationPolicy: document.getElementById('pulseAutomationPolicy'),
+  pulseMetaGraphPlan: document.getElementById('pulseMetaGraphPlan'),
   pulseTopOpportunity: document.getElementById('pulseTopOpportunity'),
   pulseTopProblem: document.getElementById('pulseTopProblem'),
   pulseMarket: document.getElementById('pulseMarket'),
@@ -189,6 +190,7 @@ function renderSocialProbes() {
       </div>
       <p class="mt-3 whitespace-pre-wrap text-sm text-zinc-300">${safe(item.prompt)}</p>
       <p class="mt-3 text-xs text-zinc-500">${safe(item.successMetric)}</p>
+      ${item.metaGraph?.integration === 'meta_graph_api' ? `<p class="mt-2 rounded border border-sky-300/15 bg-sky-500/10 px-3 py-2 text-xs text-sky-100">Meta Graph API ready: publish after approval, then measure the returned post id.</p>` : ''}
       <button
         type="button"
         class="mt-3 rounded border border-white/15 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-white/10"
@@ -252,6 +254,9 @@ function automationCommand(latest = {}) {
 function renderAutomation() {
   const latest = state.latest || {};
   const policy = latest.automationPolicy || {};
+  const metaProbe = listFromLatest('socialProbeDrafts').find((item) => {
+    return item.integration === 'meta_graph_api' || item.metaGraph?.integration === 'meta_graph_api';
+  });
   if (refs.pulseAutomationMode) {
     refs.pulseAutomationMode.textContent = latest.runId
       ? `Latest run ${latest.runId} is ready for automatic refreshes. Social writes stay approval-gated.`
@@ -274,6 +279,23 @@ function renderAutomation() {
       <span class="mt-1 block text-zinc-400">${safe(value)}</span>
     </span>
   `).join('');
+
+  if (!refs.pulseMetaGraphPlan) return;
+  if (!metaProbe?.metaGraph) {
+    refs.pulseMetaGraphPlan.textContent = 'Meta Graph API path: approve a Facebook Page probe, publish through the Page feed, store the post id, then measure comments, reactions, shares, clicks, and impressions.';
+    return;
+  }
+
+  const permissions = Array.isArray(metaProbe.metaGraph.requiredPermissions)
+    ? metaProbe.metaGraph.requiredPermissions.join(', ')
+    : 'pages access permissions';
+  const metrics = metaProbe.metaGraph.measurementRequests?.[1]?.metrics || [];
+  refs.pulseMetaGraphPlan.innerHTML = `
+    <strong class="block text-sky-100">Meta Graph API experiment</strong>
+    <span class="mt-1 block text-sky-100/80">${safe(metaProbe.title || 'Facebook Page probe')}</span>
+    <span class="mt-2 block text-xs text-sky-100/70">Permissions: ${safe(permissions)}</span>
+    <span class="mt-1 block text-xs text-sky-100/70">Metrics: ${safe(metrics.join(', ') || 'post reactions, comments, shares, clicks, impressions')}</span>
+  `;
 }
 
 function approveListing(id) {
