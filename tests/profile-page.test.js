@@ -16,3 +16,18 @@ test('profile page exposes OAuth provider management and OAuth-only session hand
   assert.match(html, /function hasOauthOnlySession\(\)/);
   assert.match(html, /initializeSignedInProfile\(\{ oauthOnly: true \}\)/);
 });
+
+test('profile section exposes a sign-out action that clears stored auth state', async () => {
+  const html = await readFile(new URL('../profile.html', import.meta.url), 'utf8');
+
+  assert.match(html, /id="profile-sign-out"/);
+  assert.match(html, /onclick="handleProfileSignOut\(\)"/);
+  assert.match(html, /function handleProfileSignOut\(\)/);
+  assert.match(html, /user\.leave\(\)/);
+  assert.match(html, /PortalOAuth\.clearAuthSessionMarkers/);
+  assert.match(html, /function clearLocalAuthState\(\)/);
+  assert.match(html, /'signedIn'/);
+  assert.match(html, /'authMethod'/);
+  assert.match(html, /'verifiedEmail'/);
+  assert.match(html, /window\.location\.href = 'index\.html'/);
+});

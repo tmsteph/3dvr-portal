@@ -328,6 +328,18 @@
       box-shadow: none;
     }
 
+    .danger {
+      background: rgba(220, 38, 38, 0.08);
+      color: #b91c1c;
+      border-color: rgba(220, 38, 38, 0.22);
+      box-shadow: none;
+    }
+
+    .danger:hover {
+      background: rgba(220, 38, 38, 0.14);
+      box-shadow: none;
+    }
+
     .actions {
       display: flex;
       flex-wrap: wrap;
@@ -565,6 +577,7 @@
 
       <div class="actions">
         <button type="button" class="ghost" onclick="resetScore()">Reset Score</button>
+        <button type="button" class="danger" id="profile-sign-out" onclick="handleProfileSignOut()">Sign Out</button>
       </div>
     </article>
 
@@ -843,6 +856,46 @@ function clearSharedIdentity() {
   } catch (err) {
     console.warn('Failed to clear shared identity cookie', err);
   }
+}
+
+function clearLocalAuthState() {
+  [
+    'signedIn',
+    'alias',
+    'username',
+    'password',
+    'guest',
+    'guestId',
+    'guestDisplayName',
+    'userId',
+    'userPubKey',
+    'authMethod',
+    'authProvider',
+    'oauthAccountId',
+    'verifiedEmail',
+  ].forEach(key => localStorage.removeItem(key));
+}
+
+function handleProfileSignOut() {
+  if (!isGuest) {
+    try {
+      user.leave();
+    } catch (err) {
+      console.warn('Error signing out', err);
+    }
+  }
+
+  if (window.ScoreSystem && typeof window.ScoreSystem.resetManager === 'function') {
+    window.ScoreSystem.resetManager();
+  }
+
+  if (window.PortalOAuth && typeof window.PortalOAuth.clearAuthSessionMarkers === 'function') {
+    window.PortalOAuth.clearAuthSessionMarkers();
+  }
+
+  clearSharedIdentity();
+  clearLocalAuthState();
+  window.location.href = 'index.html';
 }
 
 function readStoredAlias() {
