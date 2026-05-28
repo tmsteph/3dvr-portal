@@ -1,0 +1,51 @@
+name: Market Pulse Automation
+
+on:
+  schedule:
+    - cron: '23 */8 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run market research without writing to Gun'
+        required: false
+        default: 'false'
+
+jobs:
+  market-pulse:
+    name: Refresh market-fit signals
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MARKET_PULSE_MARKET: ${{ vars.MARKET_PULSE_MARKET }}
+      MARKET_PULSE_KEYWORDS: ${{ vars.MARKET_PULSE_KEYWORDS }}
+      MARKET_PULSE_CHANNELS: ${{ vars.MARKET_PULSE_CHANNELS }}
+      MARKET_PULSE_LIMIT: ${{ vars.MARKET_PULSE_LIMIT }}
+      MARKET_PULSE_DRY_RUN: ${{ vars.MARKET_PULSE_DRY_RUN }}
+      GROWTH_GUN_PEERS: ${{ vars.GROWTH_GUN_PEERS }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run market pulse
+        run: |
+          mkdir -p artifacts/market-pulse
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            npm run market:pulse -- --dry-run --json | tee artifacts/market-pulse/latest.json
+          else
+            npm run market:pulse -- --json | tee artifacts/market-pulse/latest.json
+          fi
+
+      - name: Upload market pulse artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-pulse-${{ github.run_id }}
+          path: artifacts/market-pulse/latest.json
