@@ -11,6 +11,7 @@
     "money:loop": "node scripts/money/run-loop.mjs",
     "money:autopilot": "node scripts/money/run-autopilot.mjs",
     "market:pulse": "node scripts/growth/run-market-pulse.mjs",
+    "market:meta-worker": "node scripts/growth/run-meta-market-worker.mjs",
     "playwright:install:linux": "node scripts/playwright/install-runtime.mjs",
     "playwright:install:chrome-safari:linux": "PLAYWRIGHT_BROWSERS=\"chrome safari\" npm run playwright:install:linux",
     "playwright:install": "sh scripts/playwright/run-install.sh",

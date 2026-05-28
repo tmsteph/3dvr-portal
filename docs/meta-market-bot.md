@@ -20,7 +20,32 @@ The first implementation lives in:
 - `src/growth/market-pulse.js`: Facebook Page probes now include a `metaGraph` experiment plan.
 - `sales/market-pulse.html`: dashboard copy now shows the Meta Graph API path.
 
-The helper code intentionally creates API-shaped request objects instead of immediately calling Meta. Real publishing should happen server-side so access tokens never live in browser JavaScript.
+The helper code intentionally creates API-shaped request objects instead of immediately calling Meta from the browser. Real publishing should run from the DigitalOcean server so access tokens never live in browser JavaScript and the system can move away from Vercel-only infrastructure.
+
+## Preferred Runtime
+
+Use DigitalOcean as the trusted worker:
+
+1. Portal writes approved jobs to Gun.
+2. The DO worker runs on a timer.
+3. The worker reads approved jobs from Gun.
+4. The worker uses server env vars to call Meta.
+5. The worker writes `postId`, `permalinkUrl`, metrics, and score back to Gun.
+6. Portal reads Gun and shows results.
+
+The current worker entrypoint is:
+
+```sh
+npm run market:meta-worker -- --dry-run
+```
+
+Live mode requires:
+
+```sh
+META_PAGE_ID=...
+META_PAGE_ACCESS_TOKEN=...
+npm run market:meta-worker
+```
 
 ## Required Meta Setup
 
@@ -71,6 +96,7 @@ The purpose is not to optimize vanity metrics. A small post with a few serious c
 ## Guardrails
 
 - Human approval required before publishing.
+- Prefer SEA-signed approval records before enabling live posting from the DO worker.
 - Use only pages/accounts 3dvr controls or has explicit permission to manage.
 - Store tokens only server-side.
 - Respect Meta rate limits, app review requirements, and page policies.
@@ -79,7 +105,7 @@ The purpose is not to optimize vanity metrics. A small post with a few serious c
 
 ## Next Build Step
 
-Add a server endpoint that:
+Install the worker on the DigitalOcean server as a timer that:
 
 1. Reads an approved Market Pulse `metaGraph` plan.
 2. Uses `META_PAGE_ACCESS_TOKEN` and `META_PAGE_ID`.
