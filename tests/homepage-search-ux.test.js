@@ -23,11 +23,11 @@ test('homepage search shortcuts stay scoped to one top-level control per viewpor
   );
 });
 
-test('homepage app search can find People Log by CRM keywords', async () => {
+test('homepage app search can find CRM by CRM keywords', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.match(html, /data-app-keywords="[^"]*\bcrm\b[^"]*"/);
-  assert.match(html, /<span class="app-card__title">People Log<\/span>/);
+  assert.match(html, /<span class="app-card__title">CRM<\/span>/);
   assert.match(html, /card\.dataset\.appKeywords/);
   assert.match(html, /keywordIncludesQuery/);
 });

@@ -130,7 +130,7 @@ The system should avoid forcing customers to understand the whole portal. They s
 The portal should expose a smaller default business surface:
 
 1. Start
-2. People Log
+2. CRM
 3. Memory Capture
 4. Projects / Proposals
 5. Billing
@@ -151,7 +151,7 @@ This does not mean deleting the ecosystem. It means hiding complexity from the c
 The business should run on a daily loop:
 
 1. Capture conversations quickly.
-2. Convert useful captures into People Log records.
+2. Convert useful captures into CRM records.
 3. Attach one next step.
 4. Draft one short message.
 5. Send or approve the message.
@@ -290,7 +290,7 @@ Every week should answer five questions:
 
 Suggested weekly cadence:
 
-- Monday: Review People Log, proposals, and billing.
+- Monday: Review CRM, proposals, and billing.
 - Tuesday: Follow up with warm leads.
 - Wednesday: Ship one visible customer/proof asset.
 - Thursday: Improve one revenue path in portal or web.
@@ -348,7 +348,7 @@ Highest leverage next builds:
    - One large "Log conversation" action.
 
 2. Proposal pipeline
-   - Built into Memory Capture or People Log first.
+   - Built into Memory Capture or CRM first.
    - Tracks amount, stage, next step, and follow-up date.
 
 3. Customer onboarding after billing

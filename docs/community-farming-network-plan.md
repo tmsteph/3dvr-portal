@@ -124,7 +124,7 @@ The first portal version now supports:
 
 Next product steps:
 
-- Tie posts to People Log contacts.
+- Tie posts to CRM contacts.
 - Add privacy-aware neighborhood labels.
 - Add opt-in exact location sharing.
 - Add work-day events with tasks, tools, and volunteer roles.

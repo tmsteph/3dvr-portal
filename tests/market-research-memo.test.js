@@ -19,7 +19,7 @@ test('market research memo turns current sources into the revenue operating path
   assert.match(memo, /Spatial Design And 3D Visualization/);
   assert.match(memo, /Revenue Desk/);
   assert.match(memo, /Market Research Desk/);
-  assert.match(memo, /People Log \/ CRM/);
+  assert.match(memo, /CRM/);
   assert.match(memo, /Memory Capture/);
   assert.match(memo, /Market Lab/);
   assert.match(memo, /3dvr-agent should become the operator/);

@@ -12,7 +12,7 @@ The strongest promise is:
 
 The strongest sales motion is:
 
-1. Capture the conversation in Memory Capture or People Log.
+1. Capture the conversation in Memory Capture or CRM.
 2. Pick one tiny next ask.
 3. Move the person into Revenue Desk or Billing only when the next step is clear.
 4. Use Market Research Desk to track which segment gives the most replies, calls, and paid work.
@@ -204,7 +204,7 @@ Portal should keep being the operating desk:
 
 - Revenue Desk: daily CEO view for MRR, proposals, and the next revenue move.
 - Market Research Desk: interview sprint, segment scoreboard, and outreach playbooks.
-- People Log / CRM: one visible next step per person.
+- CRM: one visible next step per person.
 - Memory Capture: lowest-friction daily conversation capture.
 - Market Lab: landing page tests and CTA clicks.
 
