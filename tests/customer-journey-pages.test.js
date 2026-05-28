@@ -38,6 +38,9 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Start Your Thing/);
     assert.match(html, /Start Here: tools and paid help for a project, offer, or business\./);
     assert.match(html, /Search the dock/);
+    assert.match(html, /Sign in or create account/);
+    assert.match(html, /Use one account to save your progress and sync your points across devices\./);
+    assert.doesNotMatch(html, /Sign in to save your progress/);
     assert.match(html, /App dock/);
     assert.match(html, /Command center/);
     assert.match(html, /Same account, same apps, deeper levels of control\./);
