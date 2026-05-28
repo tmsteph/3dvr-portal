@@ -323,7 +323,7 @@
             <span class="app-card__title">Contacts</span>
             <span class="app-card__meta">Keep teammates and partners close.</span>
           </a>
-          <a href="crm/index.html" class="app-card">
+          <a href="crm/index.html" class="app-card" data-app-keywords="crm customer relationship management lead leads people log conversations messages notes follow up next steps sales">
             <span class="app-card__icon" aria-hidden="true">📊</span>
             <span class="app-card__title">People Log</span>
             <span class="app-card__meta">Save quick conversations, messages, and next steps before they leave your head.</span>
@@ -1188,9 +1188,11 @@
         const metaText = card
           .querySelector('.app-card__meta')
           ?.textContent?.toLowerCase() ?? '';
+        const keywordText = card.dataset.appKeywords?.toLowerCase() ?? '';
         const titleIncludesQuery = titleText.includes(query);
         const metaIncludesQuery = metaText.includes(query);
-        const matches = titleIncludesQuery || metaIncludesQuery;
+        const keywordIncludesQuery = keywordText.includes(query);
+        const matches = titleIncludesQuery || metaIncludesQuery || keywordIncludesQuery;
         const hideExperimental = isExperimental(card) && !shouldShowExperimental();
 
         card.hidden = !matches || hideExperimental;
@@ -1198,7 +1200,7 @@
           visibleCount += 1;
           if (titleIncludesQuery) {
             nameMatches.push(card);
-          } else if (metaIncludesQuery) {
+          } else if (metaIncludesQuery || keywordIncludesQuery) {
             descriptionMatches.push(card);
           }
         }
