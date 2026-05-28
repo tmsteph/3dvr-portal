@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3DVR CRM Flow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="./flow.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script type="module" src="./flow.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <header class="flow-topbar">
+    <a class="flow-brand" href="./index.html" aria-label="Open classic CRM">
+      <span class="flow-brand-mark">3D</span>
+      <span>CRM Flow</span>
+    </a>
+    <nav class="flow-nav" aria-label="CRM views">
+      <a class="flow-button ghost" href="./index.html">
+        <i data-lucide="table-2" aria-hidden="true"></i>
+        <span>Classic</span>
+      </a>
+      <a class="flow-button ghost" href="../contacts/index.html">
+        <i data-lucide="users" aria-hidden="true"></i>
+        <span>Contacts</span>
+      </a>
+      <a class="flow-button ghost" href="../sales/index.html">
+        <i data-lucide="line-chart" aria-hidden="true"></i>
+        <span>Sales</span>
+      </a>
+      <button id="openQuickAdd" class="flow-button primary" type="button">
+        <i data-lucide="plus" aria-hidden="true"></i>
+        <span>Add lead</span>
+      </button>
+    </nav>
+  </header>
+
+  <main class="flow-shell">
+    <section class="flow-hero" aria-labelledby="flowTitle">
+      <div class="hero-copy">
+        <p class="flow-kicker">Parallel CRM interface</p>
+        <h1 id="flowTitle">Today-first sales flow</h1>
+        <div class="hero-tags" aria-label="CRM status">
+          <span id="liveStatus" class="flow-pill neutral">Syncing</span>
+          <span id="leadCountPill" class="flow-pill blue">0 leads</span>
+          <span id="dueCountPill" class="flow-pill amber">0 due</span>
+        </div>
+      </div>
+      <div class="hero-search">
+        <label for="flowSearch">Search</label>
+        <div class="search-box">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <input id="flowSearch" type="search" placeholder="Name, company, pain, action, tag" autocomplete="off" />
+        </div>
+      </div>
+    </section>
+
+    <section class="flow-metrics" aria-label="Pipeline metrics">
+      <div class="metric-cell">
+        <span id="metricToday" class="metric-value">0</span>
+        <span class="metric-label">Today</span>
+      </div>
+      <div class="metric-cell">
+        <span id="metricHot" class="metric-value">0</span>
+        <span class="metric-label">Hot</span>
+      </div>
+      <div class="metric-cell">
+        <span id="metricWarm" class="metric-value">0</span>
+        <span class="metric-label">Warm</span>
+      </div>
+      <div class="metric-cell">
+        <span id="metricWon" class="metric-value">0</span>
+        <span class="metric-label">Won</span>
+      </div>
+      <div class="metric-cell">
+        <span id="metricMoves" class="metric-value">0</span>
+        <span class="metric-label">Moves</span>
+      </div>
+    </section>
+
+    <section class="flow-workbench" aria-label="CRM workbench">
+      <section class="flow-column today-column" aria-labelledby="todayHeading">
+        <div class="section-head">
+          <div>
+            <p class="flow-kicker">Focus stack</p>
+            <h2 id="todayHeading">Today</h2>
+          </div>
+          <div class="segment-control" aria-label="Lead filter">
+            <button class="segment is-active" type="button" data-flow-mode="today">Today</button>
+            <button class="segment" type="button" data-flow-mode="hot">Hot</button>
+            <button class="segment" type="button" data-flow-mode="all">All</button>
+          </div>
+        </div>
+        <div id="todayList" class="lead-stack" aria-live="polite"></div>
+      </section>
+
+      <section class="flow-column spotlight-column" aria-labelledby="spotlightHeading">
+        <div class="section-head">
+          <div>
+            <p class="flow-kicker">Next play</p>
+            <h2 id="spotlightHeading">Spotlight</h2>
+          </div>
+          <button id="shuffleSpotlight" class="icon-button" type="button" aria-label="Shuffle spotlight">
+            <i data-lucide="shuffle" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div id="spotlightCard" class="spotlight-card" aria-live="polite"></div>
+      </section>
+
+      <section class="flow-column pipeline-column" aria-labelledby="pipelineHeading">
+        <div class="section-head">
+          <div>
+            <p class="flow-kicker">Deal board</p>
+            <h2 id="pipelineHeading">Pipeline</h2>
+          </div>
+          <button id="collapseDone" class="flow-button compact ghost" type="button">
+            <i data-lucide="archive" aria-hidden="true"></i>
+            <span>Hide done</span>
+          </button>
+        </div>
+        <div id="pipelineBoard" class="pipeline-board" aria-live="polite"></div>
+      </section>
+    </section>
+
+    <section class="flow-map" aria-labelledby="mapHeading">
+      <div class="section-head">
+        <div>
+          <p class="flow-kicker">Opportunity map</p>
+          <h2 id="mapHeading">Groups and pains</h2>
+        </div>
+        <a class="flow-button compact ghost" href="./index.html#crm-capture">
+          <i data-lucide="network" aria-hidden="true"></i>
+          <span>Full graph</span>
+        </a>
+      </div>
+      <div id="opportunityMap" class="opportunity-map" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <div id="quickAddOverlay" class="flow-overlay" hidden>
+    <form id="quickAddForm" class="flow-modal" aria-labelledby="quickAddTitle">
+      <div class="modal-head">
+        <div>
+          <p class="flow-kicker">Quick add</p>
+          <h2 id="quickAddTitle">New lead</h2>
+        </div>
+        <button id="closeQuickAdd" class="icon-button" type="button" aria-label="Close quick add">
+          <i data-lucide="x" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="form-grid">
+        <label>
+          <span>Name</span>
+          <input id="flowLeadName" type="text" autocomplete="name" required />
+        </label>
+        <label>
+          <span>Email</span>
+          <input id="flowLeadEmail" type="email" autocomplete="email" />
+        </label>
+        <label>
+          <span>Company</span>
+          <input id="flowLeadCompany" type="text" autocomplete="organization" />
+        </label>
+        <label>
+          <span>Warmth</span>
+          <select id="flowLeadWarmth"></select>
+        </label>
+        <label class="wide">
+          <span>Primary pain</span>
+          <input id="flowLeadPain" type="text" />
+        </label>
+        <label class="wide">
+          <span>Next best action</span>
+          <input id="flowLeadAction" type="text" />
+        </label>
+        <label>
+          <span>Follow-up</span>
+          <input id="flowLeadFollowUp" type="date" />
+        </label>
+        <label>
+          <span>Offer</span>
+          <input id="flowLeadOffer" type="text" />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="flow-button ghost" type="button" id="cancelQuickAdd">
+          <i data-lucide="x" aria-hidden="true"></i>
+          <span>Cancel</span>
+        </button>
+        <button class="flow-button primary" type="submit">
+          <i data-lucide="save" aria-hidden="true"></i>
+          <span>Save lead</span>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <aside id="leadDrawer" class="lead-drawer" hidden aria-labelledby="drawerTitle">
+    <div class="drawer-panel">
+      <div class="modal-head">
+        <div>
+          <p id="drawerKicker" class="flow-kicker">Lead</p>
+          <h2 id="drawerTitle">Lead</h2>
+        </div>
+        <button id="closeDrawer" class="icon-button" type="button" aria-label="Close lead drawer">
+          <i data-lucide="x" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div id="drawerMeta" class="drawer-meta"></div>
+      <div id="drawerActions" class="drawer-actions">
+        <button class="flow-button primary" type="button" data-drawer-action="log-touch">
+          <i data-lucide="check-circle-2" aria-hidden="true"></i>
+          <span>Log touch</span>
+        </button>
+        <button class="flow-button coral" type="button" data-drawer-action="snooze">
+          <i data-lucide="calendar-plus" aria-hidden="true"></i>
+          <span>Snooze</span>
+        </button>
+        <button class="flow-button green" type="button" data-drawer-action="mark-won">
+          <i data-lucide="badge-check" aria-hidden="true"></i>
+          <span>Won</span>
+        </button>
+      </div>
+      <form id="drawerForm" class="drawer-form">
+        <label>
+          <span>Status</span>
+          <select id="drawerStatus"></select>
+        </label>
+        <label>
+          <span>Warmth</span>
+          <select id="drawerWarmth"></select>
+        </label>
+        <label>
+          <span>Follow-up</span>
+          <input id="drawerFollowUp" type="date" />
+        </label>
+        <label>
+          <span>Next best action</span>
+          <input id="drawerAction" type="text" />
+        </label>
+        <label>
+          <span>Primary pain</span>
+          <input id="drawerPain" type="text" />
+        </label>
+        <label>
+          <span>Notes</span>
+          <textarea id="drawerNotes" rows="5"></textarea>
+        </label>
+        <button class="flow-button primary full" type="submit">
+          <i data-lucide="save" aria-hidden="true"></i>
+          <span>Save changes</span>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
