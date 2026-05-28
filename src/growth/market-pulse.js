@@ -29,7 +29,7 @@ export const DEFAULT_MARKET_PULSE_PROFILE = Object.freeze({
     'small business automation',
     'customer intake',
   ],
-  channels: ['reddit', 'hackernews', 'linkedin', 'email'],
+  channels: ['reddit', 'hackernews', 'facebook-groups', 'linkedin', 'tiktok-comments', 'email'],
   limit: 20,
 });
 
@@ -471,7 +471,7 @@ export function buildMarketPulse(demand = {}, options = {}) {
       + outreachDrafts.length
       + tests.filter((item) => item.approvalStatus === 'draft').length,
     automationPolicy: {
-      marketResearch: 'Automatic on the scheduled cron.',
+      marketResearch: 'Automatic when the market-pulse runner or scheduler executes.',
       socialListening: 'Automatic for supported public sources. Account-gated platforms require connected accounts or manual pasted URLs.',
       socialPosting: 'Draft only. Publishing and replies require human approval plus platform account authorization.',
       directory: 'Approved aggregate listings publish to the public directory node.',
@@ -584,6 +584,7 @@ export function deserializeMarketPulseFromGun(record = {}) {
     reactionSnapshots: parseJsonField(record.reactionSnapshotsJson),
     tests: parseJsonField(record.testsJson),
     salesActions: parseJsonField(record.salesActionsJson),
+    automationPolicy: parseJsonObjectField(record.automationPolicyJson, {}),
   };
 }
 

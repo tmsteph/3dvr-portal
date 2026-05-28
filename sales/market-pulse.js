@@ -1,5 +1,6 @@
 import { DEFAULT_GUN_PEERS, getNode } from '../src/growth/homepage-hero.js';
 import {
+  DEFAULT_MARKET_PULSE_PROFILE,
   MARKET_PULSE_DIRECTORY_PATH,
   MARKET_PULSE_LATEST_PATH,
   deserializeMarketPulseFromGun,
@@ -14,6 +15,9 @@ const refs = {
   pulseSignalCount: document.getElementById('pulseSignalCount'),
   pulseListingCount: document.getElementById('pulseListingCount'),
   pulseApprovalCount: document.getElementById('pulseApprovalCount'),
+  pulseAutomationMode: document.getElementById('pulseAutomationMode'),
+  pulseAutomationCommand: document.getElementById('pulseAutomationCommand'),
+  pulseAutomationPolicy: document.getElementById('pulseAutomationPolicy'),
   pulseTopOpportunity: document.getElementById('pulseTopOpportunity'),
   pulseTopProblem: document.getElementById('pulseTopProblem'),
   pulseMarket: document.getElementById('pulseMarket'),
@@ -85,6 +89,10 @@ function percentScore(value) {
   const score = Number(value || 0);
   if (!Number.isFinite(score)) return '0';
   return String(Math.round(score));
+}
+
+function shellQuote(value = '') {
+  return `'${String(value || '').replace(/'/g, `'"'"'`)}'`;
 }
 
 async function copyText(value = '') {
@@ -225,6 +233,49 @@ function renderReactions() {
   `).join('');
 }
 
+function automationCommand(latest = {}) {
+  const profile = latest.profile || {};
+  const market = profile.market || DEFAULT_MARKET_PULSE_PROFILE.market;
+  const keywords = Array.isArray(profile.keywords) && profile.keywords.length
+    ? profile.keywords.slice(0, 8)
+    : DEFAULT_MARKET_PULSE_PROFILE.keywords;
+  const channels = DEFAULT_MARKET_PULSE_PROFILE.channels;
+  return [
+    'npm run market:pulse --',
+    `--market ${shellQuote(market)}`,
+    `--keywords ${shellQuote(keywords.join(','))}`,
+    `--channels ${shellQuote(channels.join(','))}`,
+    `--limit ${Number(profile.limit || DEFAULT_MARKET_PULSE_PROFILE.limit)}`,
+  ].join(' ');
+}
+
+function renderAutomation() {
+  const latest = state.latest || {};
+  const policy = latest.automationPolicy || {};
+  if (refs.pulseAutomationMode) {
+    refs.pulseAutomationMode.textContent = latest.runId
+      ? `Latest run ${latest.runId} is ready for automatic refreshes. Social writes stay approval-gated.`
+      : 'Run the market-fit automation to populate public signals, social probes, and reaction radar.';
+  }
+  if (refs.pulseAutomationCommand) {
+    refs.pulseAutomationCommand.textContent = automationCommand(latest);
+  }
+  if (!refs.pulseAutomationPolicy) return;
+
+  const items = [
+    ['Market research', policy.marketResearch || 'Automatic when the runner executes.'],
+    ['Social listening', policy.socialListening || 'Automatic for supported public sources.'],
+    ['Social posting', policy.socialPosting || 'Draft only until approved.'],
+    ['Outreach', policy.outreach || 'Draft only until approved.'],
+  ];
+  refs.pulseAutomationPolicy.innerHTML = items.map(([label, value]) => `
+    <span class="rounded bg-white/5 px-3 py-2">
+      <strong class="block text-zinc-100">${safe(label)}</strong>
+      <span class="mt-1 block text-zinc-400">${safe(value)}</span>
+    </span>
+  `).join('');
+}
+
 function approveListing(id) {
   const listing = directoryItems().find((item) => item.id === id);
   if (!listing || !state.directoryNode) return;
@@ -356,6 +407,7 @@ function render() {
   if (refs.pulseMarket) refs.pulseMarket.textContent = latest.profile?.market || '--';
 
   renderOpportunityList();
+  renderAutomation();
   renderActions();
   renderSocialProbes();
   renderReactions();
