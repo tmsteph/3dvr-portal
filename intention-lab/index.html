@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Intention Lab | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="Turn attention into action and run honest browser-randomness self-experiments."
+  >
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./intention-lab.css">
+  <link rel="manifest" href="/app-manifests/intention-lab.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <meta name="theme-color" content="#0e1116">
+  <meta name="analytics" content="disabled">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/auth-identity.js"></script>
+  <script src="/score.js"></script>
+  <script type="module" src="./intention-lab.js"></script>
+</head>
+<body class="intention-body">
+  <a class="skip-link" href="#mainContent">Skip to Intention Lab</a>
+
+  <header class="lab-header">
+    <nav class="lab-nav" aria-label="Intention Lab navigation">
+      <a class="lab-brand" href="/">
+        <span class="lab-brand__mark" aria-hidden="true">LAB</span>
+        <span>
+          <strong>Intention Lab</strong>
+          <small>3DVR experimental app</small>
+        </span>
+      </a>
+      <div class="lab-nav__links">
+        <a href="/science/">Science Lab</a>
+        <a href="/meditation/">Meditation</a>
+        <a href="/">Portal</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="mainContent" class="lab-shell">
+    <section class="hero-panel" aria-labelledby="intention-title">
+      <div class="hero-panel__copy">
+        <p class="kicker">Experimental self-study</p>
+        <h1 id="intention-title">Turn attention into action.</h1>
+        <p class="hero-panel__lead">
+          Attention selects. Thought rehearses. The body shifts. Action manifests.
+          Randomness experiments stay honest.
+        </p>
+        <p class="scope-note">
+          Exploratory self-experiment. Not medical advice. Not proof of mind-over-matter.
+        </p>
+      </div>
+      <div class="hero-panel__actions">
+        <a class="button button--primary" href="#state-check">Start a run</a>
+        <a class="button" href="/meditation/">Longer breathing work</a>
+      </div>
+    </section>
+
+    <section class="model-strip" aria-label="Intention Lab model">
+      <article>
+        <strong>Attention selects</strong>
+        <span>Choose the object of focus.</span>
+      </article>
+      <article>
+        <strong>Thought rehearses</strong>
+        <span>Name the belief being practiced.</span>
+      </article>
+      <article>
+        <strong>Body shifts</strong>
+        <span>Track calm, focus, energy, and mood.</span>
+      </article>
+      <article>
+        <strong>Action manifests</strong>
+        <span>Make the physical next step visible.</span>
+      </article>
+      <article>
+        <strong>Randomness stays honest</strong>
+        <span>Read the statistics without overclaiming.</span>
+      </article>
+    </section>
+
+    <form id="intentionForm" class="lab-grid">
+      <section class="panel panel--wide" id="state-check" aria-labelledby="state-title">
+        <div class="section-heading">
+          <p class="kicker">1. State Check</p>
+          <h2 id="state-title">Measure the starting point.</h2>
+          <p>Rate your state before and after the session. The delta is a simple observation.</p>
+        </div>
+
+        <div class="state-layout">
+          <fieldset class="state-card">
+            <legend>Before</legend>
+            <label class="range-field" for="preCalm">
+              <span>Calm <output id="preCalmValue" for="preCalm">3</output></span>
+              <input id="preCalm" name="preCalm" type="range" min="1" max="5" value="3" data-rating>
+            </label>
+            <label class="range-field" for="preFocus">
+              <span>Focus <output id="preFocusValue" for="preFocus">3</output></span>
+              <input id="preFocus" name="preFocus" type="range" min="1" max="5" value="3" data-rating>
+            </label>
+            <label class="range-field" for="preEnergy">
+              <span>Energy <output id="preEnergyValue" for="preEnergy">3</output></span>
+              <input id="preEnergy" name="preEnergy" type="range" min="1" max="5" value="3" data-rating>
+            </label>
+            <label class="range-field" for="preMood">
+              <span>Mood <output id="preMoodValue" for="preMood">3</output></span>
+              <input id="preMood" name="preMood" type="range" min="1" max="5" value="3" data-rating>
+            </label>
+          </fieldset>
+
+          <fieldset class="state-card">
+            <legend>After</legend>
+            <label class="range-field" for="postCalm">
+              <span>Calm <output id="postCalmValue" for="postCalm">3</output></span>
+              <input id="postCalm" name="postCalm" type="range" min="1" max="5" value="3" data-rating>
+            </label>
+            <label class="range-field" for="postFocus">
+              <span>Focus <output id="postFocusValue" for="postFocus">3</output></span>
+              <input id="postFocus" name="postFocus" type="range" min="1" max="5" value="3" data-rating>
+            </label>
+            <label class="range-field" for="postEnergy">
+              <span>Energy <output id="postEnergyValue" for="postEnergy">3</output></span>
+              <input id="postEnergy" name="postEnergy" type="range" min="1" max="5" value="3" data-rating>
+            </label>
+            <label class="range-field" for="postMood">
+              <span>Mood <output id="postMoodValue" for="postMood">3</output></span>
+              <input id="postMood" name="postMood" type="range" min="1" max="5" value="3" data-rating>
+            </label>
+          </fieldset>
+        </div>
+        <p class="delta-pill" id="stateDelta" aria-live="polite">calm: 0 | focus: 0 | energy: 0 | mood: 0</p>
+      </section>
+
+      <section class="panel panel--wide" aria-labelledby="intention-card-title">
+        <div class="section-heading">
+          <p class="kicker">2. Intention Card</p>
+          <h2 id="intention-card-title">Write the rehearsal and the action.</h2>
+          <p>Keep it practical. The strongest manifestation tool in this lab is action.</p>
+        </div>
+
+        <div class="field-grid">
+          <label class="text-field" for="intentionInput">
+            <span>Intention</span>
+            <textarea
+              id="intentionInput"
+              name="intention"
+              rows="3"
+              placeholder="Example: I will make one clean offer call today."
+            ></textarea>
+          </label>
+          <label class="text-field" for="thoughtInput">
+            <span>Belief or thought being rehearsed</span>
+            <textarea
+              id="thoughtInput"
+              name="thought"
+              rows="3"
+              placeholder="Example: I can move calmly and still be direct."
+            ></textarea>
+          </label>
+          <label class="text-field" for="desiredStateInput">
+            <span>Desired state</span>
+            <input
+              id="desiredStateInput"
+              name="desiredState"
+              type="text"
+              placeholder="Calm, focused, honest, steady"
+            >
+          </label>
+          <label class="text-field" for="nextActionInput">
+            <span>One physical action after the session</span>
+            <input
+              id="nextActionInput"
+              name="nextAction"
+              type="text"
+              placeholder="Send the message, wash the dishes, write the offer, take the walk"
+            >
+          </label>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="mode-title">
+        <div class="section-heading">
+          <p class="kicker">3. Mode</p>
+          <h2 id="mode-title">Choose the run type.</h2>
+        </div>
+        <label class="text-field" for="sessionMode">
+          <span>Session mode</span>
+          <select id="sessionMode" name="mode">
+            <option value="baseline">Baseline</option>
+            <option value="intention-more-ones">Intention: more ones</option>
+            <option value="intention-fewer-ones">Intention: fewer ones</option>
+            <option value="action-only">Action-only reflection</option>
+          </select>
+        </label>
+        <p class="muted">
+          Mode labels help compare sessions later. A single RNG result should not be treated as a conclusion.
+        </p>
+      </section>
+
+      <section class="panel" aria-labelledby="timer-title">
+        <div class="section-heading">
+          <p class="kicker">4. Grounding Timer</p>
+          <h2 id="timer-title">Regulate before testing.</h2>
+        </div>
+
+        <div class="timer-card">
+          <div class="timer-ring" id="timerRing" aria-hidden="true">
+            <span id="timerDisplay">00:30</span>
+          </div>
+          <p id="timerCue" class="timer-cue" aria-live="polite">Settle your attention before the next step.</p>
+          <p id="timerStatus" class="muted">Timer paused</p>
+        </div>
+
+        <div class="segmented" aria-label="Timer duration">
+          <button type="button" data-timer-seconds="30" class="is-active" aria-pressed="true">30 sec</button>
+          <button type="button" data-timer-seconds="60" aria-pressed="false">60 sec</button>
+          <button type="button" data-timer-seconds="180" aria-pressed="false">180 sec</button>
+        </div>
+        <div class="button-row">
+          <button type="button" id="startTimer" class="button button--primary">Start</button>
+          <button type="button" id="pauseTimer" class="button">Pause</button>
+          <button type="button" id="resetTimer" class="button">Reset</button>
+        </div>
+        <p class="muted">For longer breathing work, open <a href="/meditation/">Meditation</a>.</p>
+      </section>
+
+      <section class="panel panel--wide" aria-labelledby="rng-title">
+        <div class="section-heading">
+          <p class="kicker">5. RNG Lab</p>
+          <h2 id="rng-title">Run browser cryptographic randomness.</h2>
+          <p>
+            This uses <code>crypto.getRandomValues</code>. It is browser cryptographic randomness,
+            not quantum or hardware RNG.
+          </p>
+        </div>
+
+        <div class="rng-controls">
+          <label class="text-field" for="bitCount">
+            <span>Sample size</span>
+            <select id="bitCount" name="bitCount">
+              <option value="256">256 bits</option>
+              <option value="1024" selected>1,024 bits</option>
+              <option value="4096">4,096 bits</option>
+              <option value="16384">16,384 bits</option>
+            </select>
+          </label>
+          <button type="button" id="runRng" class="button button--primary">Run RNG trial</button>
+          <p id="rngStatus" class="status-line" data-tone="neutral" aria-live="polite">
+            Ready to sample browser cryptographic randomness.
+          </p>
+        </div>
+
+        <div class="rng-layout">
+          <div class="bit-grid" id="rngGrid" aria-label="Sample bit preview"></div>
+          <article class="result-card" id="rngResults" aria-live="polite">
+            <p class="muted">Run a sample to see neutral statistics.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel panel--wide" aria-labelledby="action-title">
+        <div class="section-heading">
+          <p class="kicker">6. Action Bridge</p>
+          <h2 id="action-title">Make the evidence behavioral.</h2>
+          <p>What physical action will prove this intention today?</p>
+        </div>
+        <div class="field-grid">
+          <label class="text-field" for="actionStatus">
+            <span>Action status</span>
+            <select id="actionStatus" name="actionStatus">
+              <option value="planned">Planned</option>
+              <option value="completed">Completed</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </label>
+          <label class="text-field" for="actionNote">
+            <span>Action note</span>
+            <input
+              id="actionNote"
+              name="actionNote"
+              type="text"
+              placeholder="What happened in the physical world?"
+            >
+          </label>
+          <label class="text-field text-field--full" for="notes">
+            <span>Session notes</span>
+            <textarea
+              id="notes"
+              name="notes"
+              rows="4"
+              placeholder="Patterns, context, or what to repeat next time."
+            ></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel panel--wide" aria-labelledby="save-title">
+        <div class="section-heading">
+          <p class="kicker">7. Save and Export</p>
+          <h2 id="save-title">Sync the run and keep exports portable.</h2>
+          <p>
+            Runs sync under <code>3dvr-portal/intention-lab</code>. A summary also mirrors to Science Lab
+            without freeform notes.
+          </p>
+        </div>
+
+        <label class="check-field" for="safetyAcknowledged">
+          <input id="safetyAcknowledged" name="safetyAcknowledged" type="checkbox" checked>
+          <span>
+            This lab helps observe attention, body state, randomness, and action. It does not diagnose,
+            treat, or prove supernatural causation.
+          </span>
+        </label>
+
+        <div class="button-row">
+          <button type="button" id="saveRun" class="button button--primary">Save to Gun</button>
+          <button type="button" id="copyJson" class="button">Copy JSON</button>
+          <button type="button" id="downloadCsv" class="button">Download CSV</button>
+          <button type="button" id="clearSession" class="button">Clear session</button>
+        </div>
+        <p id="syncStatus" class="status-line" data-tone="neutral" aria-live="polite">
+          Resolving Gun sync.
+        </p>
+      </section>
+    </form>
+
+    <section class="panel panel--wide" aria-labelledby="recent-title">
+      <div class="section-heading">
+        <p class="kicker">Recent synced runs</p>
+        <h2 id="recent-title">Evidence loop dashboard.</h2>
+        <p>Look for patterns across many sessions, not one dramatic result.</p>
+      </div>
+      <div id="recentRuns" class="recent-list" aria-live="polite">
+        <p class="muted">No synced runs yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="lab-footer">
+    <a href="/science/">Science Lab</a>
+    <a href="/meditation/">Meditation</a>
+    <a href="/field-simulation/">Field Simulation</a>
+    <a href="/tasks/">Tasks</a>
+    <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+  </footer>
+</body>
+</html>
