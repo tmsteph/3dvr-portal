@@ -10,6 +10,7 @@ const repoRoot = path.resolve(testDir, '..');
 const insightsTag = '<script defer src="/_vercel/insights/script.js"></script>';
 const insightsTagPattern = /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/g;
 const closingHeadPattern = /<\/head>/i;
+const analyticsOptOutPattern = /<meta\s+name="analytics"\s+content="disabled"\s*\/?>/i;
 
 function listTrackedHtmlFiles() {
   const stdout = execFileSync('git', ['-C', repoRoot, 'ls-files', '*.html'], { encoding: 'utf8' }).trim();
@@ -22,6 +23,10 @@ test('tracked html files include one vercel insights tag before the closing head
   for (const relativePath of listTrackedHtmlFiles()) {
     const absolutePath = path.join(repoRoot, relativePath);
     const source = readFileSync(absolutePath, 'utf8');
+    if (analyticsOptOutPattern.test(source)) {
+      continue;
+    }
+
     const matches = source.match(insightsTagPattern) || [];
 
     if (matches.length !== 1) {
