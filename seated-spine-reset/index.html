@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seated Spine Reset | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="A quiet seated posture and stretch reset for AV techs, conference work, laptop work, and long seated sessions."
+  >
+  <meta name="theme-color" content="#11110f">
+  <meta name="color-scheme" content="dark">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="/pwa-install.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#routineTitle">Skip to routine</a>
+
+  <main class="app-shell" data-app-shell>
+    <section class="screen screen--landing is-active" data-screen="landing" aria-labelledby="landingTitle">
+      <div class="landing-grid">
+        <div class="landing-copy">
+          <p class="eyebrow">3DVR / tmsteph wellness tool</p>
+          <h1 id="landingTitle">Seated Spine Reset</h1>
+          <p class="subtitle">A quiet 3&ndash;5 minute reset for neck, shoulders, spine, hips, and breath.</p>
+          <p class="context-line">Built for the back of the conference room, a laptop cart, or any long seated session.</p>
+          <div class="landing-actions" aria-label="Start routine">
+            <button class="button button--primary" type="button" data-start-mode="full">Start Full Routine</button>
+            <button class="button button--secondary" type="button" data-start-mode="quick">Quick Reset</button>
+          </div>
+        </div>
+
+        <aside class="quiet-panel" aria-labelledby="landingPrefsTitle">
+          <h2 id="landingPrefsTitle">Session settings</h2>
+          <div class="toggle-stack">
+            <label class="switch-row">
+              <span>
+                <strong>Reduce Motion</strong>
+                <small>Keep the visual steady and low movement.</small>
+              </span>
+              <input type="checkbox" data-pref="reduceMotion">
+            </label>
+            <label class="switch-row">
+              <span>
+                <strong>Silent Mode</strong>
+                <small>No sound or vibration cues.</small>
+              </span>
+              <input type="checkbox" data-pref="silentMode">
+            </label>
+          </div>
+          <p class="last-done" data-last-completed hidden></p>
+        </aside>
+      </div>
+
+      <p class="safety-note">
+        Move gently. Stop if you feel sharp pain, dizziness, numbness, tingling, or symptoms down the arm. This is not medical advice.
+      </p>
+    </section>
+
+    <section class="screen screen--routine" data-screen="routine" aria-labelledby="routineTitle">
+      <header class="routine-header">
+        <div>
+          <p class="eyebrow" data-mode-label>Full Routine</p>
+          <h1 id="routineTitle" data-step-title>Crown Up Posture Reset</h1>
+        </div>
+        <div class="header-actions">
+          <label class="compact-toggle">
+            <span>Motion</span>
+            <input type="checkbox" data-pref="reduceMotion">
+          </label>
+          <label class="compact-toggle">
+            <span>Silent</span>
+            <input type="checkbox" data-pref="silentMode">
+          </label>
+        </div>
+      </header>
+
+      <div class="routine-layout">
+        <section class="visual-stage" aria-labelledby="visualTitle">
+          <h2 id="visualTitle" class="sr-only">Posture visual guide</h2>
+          <div class="three-stage" data-three-stage>
+            <canvas data-three-canvas aria-label="Simple 3D seated posture guide"></canvas>
+            <div class="visual-fallback" data-visual-fallback hidden>
+              <div class="fallback-figure" aria-hidden="true">
+                <span class="fallback-chair-back"></span>
+                <span class="fallback-seat"></span>
+                <span class="fallback-spine"></span>
+                <span class="fallback-head"></span>
+                <span class="fallback-shoulders"></span>
+                <span class="fallback-arm fallback-arm--left"></span>
+                <span class="fallback-arm fallback-arm--right"></span>
+                <span class="fallback-leg fallback-leg--left"></span>
+                <span class="fallback-leg fallback-leg--right"></span>
+                <span class="fallback-cue fallback-cue--up"></span>
+                <span class="fallback-cue fallback-cue--side"></span>
+                <span class="fallback-cue fallback-cue--ring"></span>
+                <span class="fallback-cue fallback-cue--hip"></span>
+              </div>
+              <span class="fallback-label" data-fallback-symbol>UP</span>
+            </div>
+          </div>
+          <div class="visual-caption" aria-live="polite" data-visual-caption>
+            Crown lifts while feet settle into the floor.
+          </div>
+        </section>
+
+        <section class="guidance-panel" aria-live="polite">
+          <div class="progress-line">
+            <span data-step-count>Step 1 of 9</span>
+            <span data-total-time>About 4 minutes</span>
+          </div>
+          <div class="routine-progress" aria-hidden="true">
+            <span data-routine-progress></span>
+          </div>
+
+          <p class="instruction" data-step-instruction>
+            Sit toward the front of the chair. Feet flat. Imagine the crown of your head floating upward.
+          </p>
+
+          <div
+            class="timer-ring"
+            role="progressbar"
+            aria-label="Step timer"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="100"
+            data-timer-ring
+          >
+            <div>
+              <strong data-timer-primary>3 breaths</strong>
+              <span data-timer-secondary>Slow and easy</span>
+            </div>
+          </div>
+
+          <p class="closing-message" data-closing-message hidden>You are upright, calm, and available.</p>
+
+          <div class="control-grid" aria-label="Routine controls">
+            <button class="button button--ghost" type="button" data-action="back">Back</button>
+            <button class="button button--primary" type="button" data-action="pause">Pause</button>
+            <button class="button button--ghost" type="button" data-action="next">Next</button>
+            <button class="button button--secondary" type="button" data-action="restart">Restart</button>
+          </div>
+
+          <p class="safety-note safety-note--compact">
+            Move gently. Stop if you feel sharp pain, dizziness, numbness, tingling, or symptoms down the arm. This is not medical advice.
+          </p>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="install-banner is-hidden" data-install-banner hidden>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Install Seated Spine Reset</p>
+      <p class="install-banner__meta">Open the chair reset quickly during setup, rehearsal, or long seated work.</p>
+    </div>
+    <button type="button" class="install-banner__action" data-install-button>Install app</button>
+  </div>
+</body>
+</html>
