@@ -61,6 +61,7 @@ You can sign up, join the chat, and start contributing right now — no download
 Planning docs:
 
 - [Guest account migration plan](docs/guest-account-migration-plan.md)
+- [Focus Flow OS plan](docs/focus-flow-os-plan.md)
 
 ### Install individual apps
 
