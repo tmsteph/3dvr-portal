@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seated Spine Reset | Body Mode</title>
+  <meta
+    name="description"
+    content="A quiet seated posture and mobility reset for neck, shoulders, spine, hips, and breath."
+  >
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <meta name="theme-color" content="#17120f">
+  <script type="module" src="./seated-spine-reset.js"></script>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="body-mode-page">
+  <a class="skip-link" href="#resetMain">Skip to seated spine reset</a>
+
+  <header class="body-top">
+    <nav class="body-nav" aria-label="Seated Spine Reset navigation">
+      <a class="body-brand" href="/body-mode/">
+        <span class="body-brand__mark" aria-hidden="true">BODY</span>
+        <span>
+          <strong>Seated Spine Reset</strong>
+          <small>Body Mode</small>
+        </span>
+      </a>
+      <div class="body-nav__links">
+        <a href="/body-mode/">Body Mode</a>
+        <a href="/meditation/">Breathing Room</a>
+        <a href="/">Portal</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="resetMain" class="body-shell">
+    <section class="body-hero" aria-labelledby="reset-title">
+      <div class="body-hero__copy">
+        <p class="kicker">3-5 minute body reset</p>
+        <h1 id="reset-title">Seated Spine Reset</h1>
+        <p class="lead">
+          A quiet posture and mobility sequence for neck, shoulders, spine, hips, and breath.
+        </p>
+        <p class="muted">
+          Stay inside a comfortable range. Skip anything that feels sharp, forced, or wrong for your body today.
+        </p>
+      </div>
+      <div class="body-actions">
+        <a class="body-button" href="/body-mode/">Back to Body Mode</a>
+        <a class="body-button" href="/meditation/">Longer breathing</a>
+      </div>
+    </section>
+
+    <section class="preference-panel" aria-labelledby="reset-preferences-title">
+      <div class="section-heading">
+        <p class="kicker">Comfort settings</p>
+        <h2 id="reset-preferences-title">Use the same Body Mode preferences.</h2>
+      </div>
+      <div class="preference-row">
+        <label class="switch-field" for="reduceMotionToggle">
+          <input id="reduceMotionToggle" type="checkbox">
+          <span>Reduce Motion</span>
+        </label>
+        <label class="select-field" for="preferredMode">
+          <span>Preferred mode</span>
+          <select id="preferredMode">
+            <option value="work-reset">Work reset</option>
+            <option value="stress-downshift">Stress downshift</option>
+            <option value="creative-return">Creative return</option>
+            <option value="sleep-wind-down">Sleep wind-down</option>
+          </select>
+        </label>
+        <p class="preference-note">Last used app: <strong id="lastUsedApp">None yet</strong></p>
+      </div>
+    </section>
+
+    <section class="body-panel" aria-labelledby="routine-title">
+      <div class="section-heading">
+        <p class="kicker">Guided routine</p>
+        <h2 id="routine-title">Move gently from screen posture back into body awareness.</h2>
+      </div>
+
+      <div class="routine-layout">
+        <aside class="routine-card" aria-label="Routine controls">
+          <div class="timer-readout" aria-live="polite">
+            <strong id="timeRemaining">04:05</strong>
+            <span id="stepCounter">Step 1 of 7</span>
+          </div>
+          <div class="routine-meter" aria-label="Routine progress">
+            <span id="routineProgress"></span>
+          </div>
+          <div class="button-row">
+            <button id="startPauseButton" class="body-button body-button--primary" type="button">Start</button>
+            <button id="previousStepButton" class="body-button" type="button">Previous</button>
+            <button id="nextStepButton" class="body-button" type="button">Next</button>
+            <button id="resetButton" class="body-button" type="button">Reset</button>
+          </div>
+          <ol id="stepList" class="step-list" aria-label="Reset steps"></ol>
+        </aside>
+
+        <section class="routine-card" aria-labelledby="currentStepTitle">
+          <div class="posture-visual" aria-hidden="true">
+            <div class="body-line">
+              <span class="body-line__shoulders"></span>
+              <span class="body-line__hips"></span>
+              <span class="body-line__seat"></span>
+            </div>
+          </div>
+
+          <div class="step-copy">
+            <p class="kicker" id="currentStepArea">Arrive</p>
+            <h2 id="currentStepTitle">Feet, seat, screen distance</h2>
+            <p id="currentStepInstruction">
+              Place both feet on the ground. Let the chair support you. Move the screen a little farther away.
+            </p>
+            <ul id="currentStepCues" class="cue-list"></ul>
+            <div class="quiet-box">
+              <h3>Breath cue</h3>
+              <p id="currentBreathCue">Breathe through the nose if comfortable. Let the exhale be easy.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="disclaimer" aria-label="Seated Spine Reset disclaimer">
+      These tools support reflection, relaxation, and self-care. They are not medical advice or a substitute for
+      professional care.
+    </section>
+  </main>
+
+  <footer class="body-footer">
+    <a href="/body-mode/">Body Mode</a>
+    <a href="/wellness.html">Wellness Directory</a>
+    <a href="/meditation/">Breathing Room</a>
+    <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+  </footer>
+</body>
+</html>

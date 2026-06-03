@@ -1,0 +1,16 @@
+{
+  "id": "/body-mode/",
+  "name": "3DVR Body Mode",
+  "short_name": "Body Mode",
+  "description": "A sensory-friendly reset system for people who live through screens.",
+  "start_url": "/body-mode/?source=pwa",
+  "scope": "/body-mode/",
+  "display": "standalone",
+  "background_color": "#17120f",
+  "theme_color": "#17120f",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

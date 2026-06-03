@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Body Mode | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="A sensory-friendly reset system for people who live through screens."
+  >
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="/app-manifests/body-mode.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <meta name="theme-color" content="#17120f">
+  <script type="module" src="./body-mode.js"></script>
+
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="body-mode-page">
+  <a class="skip-link" href="#bodyModeMain">Skip to Body Mode apps</a>
+
+  <header class="body-top">
+    <nav class="body-nav" aria-label="Body Mode navigation">
+      <a class="body-brand" href="/">
+        <span class="body-brand__mark" aria-hidden="true">BODY</span>
+        <span>
+          <strong>Body Mode</strong>
+          <small>3DVR wellness-tech</small>
+        </span>
+      </a>
+      <div class="body-nav__links">
+        <a href="/">Portal</a>
+        <a href="/meditation/">Breathing Room</a>
+        <a href="/intention-lab/">Intention Lab</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="bodyModeMain" class="body-shell">
+    <section class="body-hero" aria-labelledby="body-mode-title">
+      <div class="body-hero__copy">
+        <p class="kicker">Sensory-friendly reset system</p>
+        <h1 id="body-mode-title">Body Mode</h1>
+        <p class="lead">A sensory-friendly reset system for people who live through screens.</p>
+        <p class="muted">
+          Technology should help us return to the body, not escape it. Body Mode gives you simple breath,
+          posture, reflection, and action tools for work, stress, and creative life.
+        </p>
+      </div>
+      <div class="body-actions">
+        <a class="body-button body-button--primary" href="/body-mode/seated-spine-reset/">Start spine reset</a>
+        <a class="body-button" href="/meditation/">Open Breathing Room</a>
+      </div>
+    </section>
+
+    <section class="preference-panel" aria-labelledby="preferences-title">
+      <div class="section-heading">
+        <p class="kicker">Comfort settings</p>
+        <h2 id="preferences-title">Keep the interface low-friction.</h2>
+      </div>
+      <div class="preference-row">
+        <label class="switch-field" for="reduceMotionToggle">
+          <input id="reduceMotionToggle" type="checkbox">
+          <span>Reduce Motion</span>
+        </label>
+        <label class="select-field" for="preferredMode">
+          <span>Preferred mode</span>
+          <select id="preferredMode">
+            <option value="work-reset">Work reset</option>
+            <option value="stress-downshift">Stress downshift</option>
+            <option value="creative-return">Creative return</option>
+            <option value="sleep-wind-down">Sleep wind-down</option>
+          </select>
+        </label>
+        <p class="preference-note">Last used app: <strong id="lastUsedApp">None yet</strong></p>
+      </div>
+    </section>
+
+    <section class="body-panel" aria-labelledby="apps-title">
+      <div class="section-heading">
+        <p class="kicker">Small tools</p>
+        <h2 id="apps-title">Choose the reset that fits this moment.</h2>
+      </div>
+
+      <div class="app-grid" aria-label="Body Mode apps">
+        <a class="body-card" href="/body-mode/seated-spine-reset/" data-body-app="seated-spine-reset">
+          <span class="body-card__tag">Ready</span>
+          <h3>Seated Spine Reset</h3>
+          <p>A quiet 3-5 minute posture and mobility reset for neck, shoulders, spine, hips, and breath.</p>
+        </a>
+        <a class="body-card" href="/meditation/" data-body-app="breathing-room">
+          <span class="body-card__tag">Available</span>
+          <h3>Breathing Room</h3>
+          <p>Guided breathing for calming, focusing, and returning to the present.</p>
+        </a>
+        <a class="body-card" href="#integration-journal" data-body-app="integration-journal">
+          <span class="body-card__tag">Planned</span>
+          <h3>Integration Journal</h3>
+          <p>
+            Reflect on dreams, meditation, emotional breakthroughs, and psychedelic experiences with grounded prompts.
+          </p>
+        </a>
+        <a class="body-card" href="#one-next-action" data-body-app="one-next-action">
+          <span class="body-card__tag">Planned</span>
+          <h3>One Next Action</h3>
+          <p>Turn an insight into one small real-world step.</p>
+        </a>
+        <a class="body-card" href="#sleep-wind-down" data-body-app="sleep-wind-down">
+          <span class="body-card__tag">Planned</span>
+          <h3>Sleep Wind-Down</h3>
+          <p>A low-light routine for relaxing your body and reducing screen intensity before bed.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="body-panel" aria-labelledby="roadmap-title">
+      <div class="section-heading">
+        <p class="kicker">Expansion path</p>
+        <h2 id="roadmap-title">The cards are ready to become apps.</h2>
+        <p>
+          Each Body Mode card has a stable route target, preference behavior, and a clear use case so the section can
+          grow one tool at a time.
+        </p>
+      </div>
+      <div class="quick-grid">
+        <article id="integration-journal" class="quiet-box">
+          <h3>Integration Journal</h3>
+          <p>Future prompts will separate memory, meaning, body state, and next action.</p>
+        </article>
+        <article id="one-next-action" class="quiet-box">
+          <h3>One Next Action</h3>
+          <p>Future flow will turn a thought into a small grounded task.</p>
+        </article>
+        <article id="sleep-wind-down" class="quiet-box">
+          <h3>Sleep Wind-Down</h3>
+          <p>Future routine will lower contrast, slow pacing, and reduce screen intensity.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="disclaimer" aria-label="Body Mode disclaimer">
+      These tools support reflection, relaxation, and self-care. They are not medical advice or a substitute for
+      professional care.
+    </section>
+  </main>
+
+  <footer class="body-footer">
+    <a href="/">Portal</a>
+    <a href="/wellness.html">Wellness Directory</a>
+    <a href="/meditation/">Breathing Room</a>
+    <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+  </footer>
+</body>
+</html>
