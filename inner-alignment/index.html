@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inner Alignment | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="Body, breath, attention, and action training with gentle Three.js visual guidance."
+  >
+  <meta name="analytics" content="disabled">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="manifest" href="/app-manifests/inner-alignment.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <meta name="theme-color" content="#100d0a">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body class="inner-page">
+  <a class="skip-link" href="#innerMain">Skip to Inner Alignment</a>
+
+  <header class="inner-top">
+    <nav class="inner-nav" aria-label="Inner Alignment navigation">
+      <a class="inner-brand" href="/">
+        <span class="inner-brand__mark" aria-hidden="true">IA</span>
+        <span>
+          <strong>Inner Alignment</strong>
+          <small>Wellness / consciousness training</small>
+        </span>
+      </a>
+      <div class="inner-nav__links">
+        <a href="/">Portal</a>
+        <a href="/body-mode/">Body Mode</a>
+        <a href="/portal-lab/">Portal Lab</a>
+        <a href="/meditation/">Breathing Room</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="innerMain" class="inner-shell">
+    <section class="hero" aria-labelledby="inner-title">
+      <div class="hero__copy">
+        <p class="kicker">Body as interface</p>
+        <h1 id="inner-title">Inner Alignment</h1>
+        <p class="hero__subtitle">Body, breath, attention, and action.</p>
+        <p class="hero__text">
+          Use the body as the interface for consciousness. Start with posture and breath, train attention,
+          let imagination become insight, then choose one grounded action.
+        </p>
+        <div class="chain" aria-label="Practice sequence">
+          <span>Body</span>
+          <span>Breath</span>
+          <span>Attention</span>
+          <span>Imagination</span>
+          <span>Insight</span>
+          <span>Action</span>
+        </div>
+      </div>
+      <div class="hero__actions">
+        <a class="inner-button inner-button--primary" href="#practiceRunner">Start practice</a>
+        <a class="inner-button" href="#practiceLibrary">Browse practices</a>
+      </div>
+    </section>
+
+    <section class="visual-stage" aria-labelledby="visual-title">
+      <div class="visual-stage__copy">
+        <p class="kicker">3D guidance</p>
+        <h2 id="visual-title">Watch the cue, then return to the body.</h2>
+        <p>
+          The visual is a quiet focus object: a spine wave, breath orb, heart light, attention point,
+          particles, or calm mandala depending on the practice.
+        </p>
+      </div>
+      <div class="canvas-wrap" aria-label="Three.js guided visual">
+        <canvas id="alignmentCanvas"></canvas>
+        <p id="sceneFallback" class="scene-fallback" hidden></p>
+      </div>
+    </section>
+
+    <section class="settings-panel" aria-labelledby="settings-title">
+      <div>
+        <p class="kicker">Sensory settings</p>
+        <h2 id="settings-title">Gentle by default.</h2>
+      </div>
+      <label class="switch-field" for="reduceMotionToggle">
+        <input id="reduceMotionToggle" type="checkbox">
+        <span>Reduce Motion</span>
+      </label>
+    </section>
+
+    <section id="practiceLibrary" class="panel" aria-labelledby="library-title">
+      <div class="section-heading">
+        <p class="kicker">Practice library</p>
+        <h2 id="library-title">Choose the doorway for this moment.</h2>
+        <p>
+          These micro-practices are framed as wellness, self-awareness, relaxation, posture, breath,
+          and intention training. No hard claims, no pressure.
+        </p>
+      </div>
+      <div id="categoryFilters" class="filter-row" aria-label="Practice categories"></div>
+      <div id="practiceGrid" class="practice-grid" aria-label="Inner Alignment practices"></div>
+    </section>
+
+    <section id="practiceRunner" class="runner-layout" aria-labelledby="runner-title">
+      <div class="runner-main">
+        <div class="section-heading">
+          <p id="activeCategory" class="kicker">Seated Body Reset</p>
+          <h2 id="runner-title"><span id="activeTitle">Seated Spinal Wave</span></h2>
+          <p id="activeIntention">Loosen the spine and restore flow.</p>
+        </div>
+
+        <div class="timer-strip" aria-label="Practice timer">
+          <div>
+            <span class="timer-label">Remaining</span>
+            <strong id="timerDisplay">01:30</strong>
+          </div>
+          <div>
+            <span class="timer-label">Duration</span>
+            <strong id="activeDuration">01:30</strong>
+          </div>
+          <div>
+            <span class="timer-label">Breath cue</span>
+            <strong id="activeBreath">inhale-exhale</strong>
+          </div>
+        </div>
+
+        <progress id="progressBar" value="0" max="1">0%</progress>
+
+        <div class="button-row" aria-label="Practice controls">
+          <button id="startPauseButton" class="inner-button inner-button--primary" type="button">Start</button>
+          <button id="nextStepButton" class="inner-button" type="button">Next step</button>
+          <button id="resetButton" class="inner-button" type="button">Reset</button>
+        </div>
+
+        <div class="instruction-panel" aria-live="polite">
+          <p id="stepCounter" class="step-counter">Step 1 of 4</p>
+          <ol id="instructionList"></ol>
+        </div>
+      </div>
+
+      <aside class="runner-side" aria-labelledby="reflection-title">
+        <div>
+          <p class="kicker">Integration</p>
+          <h2 id="reflection-title">Insight becomes action.</h2>
+          <p id="reflectionPrompt" class="prompt">Where do I feel blocked or tense?</p>
+        </div>
+        <label class="text-field" for="reflectionInput">
+          <span>Reflection</span>
+          <textarea id="reflectionInput" rows="4" placeholder="What changed in body, breath, or attention?"></textarea>
+        </label>
+        <label class="text-field" for="actionInput">
+          <span>One real-world action</span>
+          <input id="actionInput" type="text" placeholder="Send the message, stand up, drink water, take the walk">
+        </label>
+        <button id="saveSessionButton" class="inner-button inner-button--primary" type="button" disabled>
+          Save completed practice
+        </button>
+        <p id="saveStatus" class="status-text" aria-live="polite"></p>
+      </aside>
+    </section>
+
+    <section class="panel" aria-labelledby="history-title">
+      <div class="section-heading">
+        <p class="kicker">Local progress</p>
+        <h2 id="history-title">Saved practices: <span id="sessionCount">0</span></h2>
+        <p>
+          Sessions are saved locally in this browser for now. A clean sync hook is available for future
+          Gun-backed storage.
+        </p>
+      </div>
+      <div id="sessionList" class="session-list" aria-live="polite"></div>
+    </section>
+
+    <section class="disclaimer" aria-label="Wellness disclaimer">
+      This app is for general wellness and reflection. It is not medical advice. Move gently and stop if anything hurts.
+    </section>
+  </main>
+
+  <footer class="inner-footer">
+    <a href="/">Portal</a>
+    <a href="/wellness.html">Wellness Directory</a>
+    <a href="/body-mode/">Body Mode</a>
+    <a href="/portal-lab/">Portal Lab</a>
+    <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+  </footer>
+</body>
+</html>

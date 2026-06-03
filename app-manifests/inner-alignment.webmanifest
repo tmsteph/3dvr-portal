@@ -1,0 +1,16 @@
+{
+  "id": "/inner-alignment/",
+  "name": "3DVR Inner Alignment",
+  "short_name": "Inner Alignment",
+  "description": "Body, breath, attention, and action training with gentle visual guidance.",
+  "start_url": "/inner-alignment/?source=pwa",
+  "scope": "/inner-alignment/",
+  "display": "standalone",
+  "background_color": "#100d0a",
+  "theme_color": "#100d0a",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
