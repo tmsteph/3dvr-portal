@@ -3,7 +3,7 @@
 importScripts('/chat/notification-routing.js');
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v14';
+const CACHE_VERSION = 'v15';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 const chatNotificationRouting = self.ChatNotificationRouting || null;
@@ -22,6 +22,11 @@ const STATIC_ASSETS = [
   '/chat/notification-routing.js',
   '/styles/install-banner.css',
   '/manifest.webmanifest',
+  '/seated-spine-reset/',
+  '/seated-spine-reset/index.html',
+  '/seated-spine-reset/styles.css',
+  '/seated-spine-reset/app.js',
+  '/seated-spine-reset/manifest.webmanifest',
   '/brand/portal-logo.svg',
   '/app-manifests/chat.webmanifest',
   '/app-manifests/tasks.webmanifest',

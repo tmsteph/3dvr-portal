@@ -86,6 +86,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Attention Visualized](https://3dvr-portal.vercel.app/attention-visualized/)
 - [Logic Lab](https://3dvr-portal.vercel.app/logic-lab/)
 - [Intention Lab](https://3dvr-portal.vercel.app/intention-lab/)
+- [Seated Spine Reset](https://3dvr-portal.vercel.app/seated-spine-reset/)
 
 Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
 
@@ -100,6 +101,7 @@ Brave shields can block realtime sync. Click the 🛡️ icon and either turn Sh
 - Keep the portal node as the source of truth, and avoid device-local only storage for anything that should follow a user between browsers.
 - Ensure guest or SEA identities are initialized (via `ScoreSystem.ensureGuestIdentity`) before writing so contributions are properly attributed across apps.
 - Alive System state syncs through `gun.get('3dvr-portal').get('alive-system')`, with per-author dashboard state and append-only activity entries for redirects, check-ins, morning rituals, and social logs.
+- Seated Spine Reset is local-first in v1 and exposes `window.SeatedSpineReset.setPortalBridge(...)` so portal or Gun-backed completion sync can be added later without coupling the wellness app to login.
 
 ### Run Locally
 
