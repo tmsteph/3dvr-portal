@@ -87,6 +87,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Attention Visualized](https://3dvr-portal.vercel.app/attention-visualized/)
 - [Logic Lab](https://3dvr-portal.vercel.app/logic-lab/)
 - [Intention Lab](https://3dvr-portal.vercel.app/intention-lab/)
+- [Portal Lab](https://3dvr-portal.vercel.app/portal-lab/)
 - [Seated Spine Reset](https://3dvr-portal.vercel.app/seated-spine-reset/)
 
 Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
