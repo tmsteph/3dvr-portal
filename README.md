@@ -83,6 +83,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Life](https://3dvr-portal.vercel.app/life/)
 - [Alive System](https://3dvr-portal.vercel.app/alive-system/)
 - [Body Mode](https://3dvr-portal.vercel.app/body-mode/)
+- [Inner Alignment](https://3dvr-portal.vercel.app/inner-alignment/)
 - [Education Suite](https://3dvr-portal.vercel.app/education-suite/)
 - [Attention Visualized](https://3dvr-portal.vercel.app/attention-visualized/)
 - [Logic Lab](https://3dvr-portal.vercel.app/logic-lab/)
