@@ -13,10 +13,14 @@ describe('reseller partner policy page', () => {
     assert.match(html, /3DVR does not operate an open marketplace/);
     assert.match(html, /When a customer pays through 3DVR's Stripe account, 3DVR is the merchant of/);
     assert.match(html, /Partner payout is not earned when the order is placed/);
+    assert.match(html, /the stated\s+return or refund window has closed/);
+    assert.match(html, /Direct access to 3DVR's Stripe account is only considered for someone who officially\s+joins 3DVR/);
+    assert.match(html, /named, permission-limited, and removable/);
     assert.match(html, /No counterfeit, unauthorized branded, or trademark-risk products/);
     assert.match(html, /No regulated, age-restricted, hazardous, medical, supplement, weapon/);
     assert.match(html, /3DVR may refund a customer/);
     assert.match(html, /Stripe Connect setup/);
+    assert.match(html, /Join 3DVR officially/);
     assert.match(html, /Customer data may only be used for fulfillment/);
     assert.match(html, /not legal, tax, medical, or financial advice/);
   });
