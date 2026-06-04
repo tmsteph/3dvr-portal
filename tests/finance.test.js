@@ -120,8 +120,8 @@ describe('finance ledger hub', () => {
     assert.equal(await fileExists(portalIndex), true, 'root index.html should exist');
 
     const html = await readFile(portalIndex, 'utf8');
-    const financeIndex = html.indexOf('>Finance<');
-    const gamesIndex = html.indexOf('>Games<');
+    const financeIndex = html.indexOf('<span class="app-card__title">Finance</span>');
+    const gamesIndex = html.indexOf('<span class="app-card__title">Games</span>');
     assert.ok(financeIndex !== -1, 'Finance app card should be listed on the portal');
     assert.ok(gamesIndex !== -1, 'Games app card should still be present');
     assert.ok(financeIndex < gamesIndex, 'Finance card should appear before Games to keep alphabetical order');

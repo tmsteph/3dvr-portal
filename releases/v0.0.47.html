@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.47 (Week of May 25, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.46.html">Previous release</a>
+    <a class="release-nav-link" href="v0.0.48.html">Next release</a>
+  </nav>
+  <h1>Release v0.0.47</h1>
+  <div class="tag">Week of May 25, 2026</div>
+  <div class="release-summary">
+    <p>
+      This weekly release catches the sprint after v0.0.46: the portal became more operational, more visual, and more
+      connected to revenue, market research, WebRTC reliability, and customer follow-through.
+    </p>
+    <ul class="release-summary-list">
+      <li><strong>Revenue and market systems:</strong> Market Lab, Revenue Desk, Growth Operator, Market Pulse, and path-to-profitability docs turned demand research into clearer money actions.</li>
+      <li><strong>Realtime media reliability:</strong> WebRTC and Gun live-room work added cache busting, lower bandwidth, TURN support, relay diagnostics, HTTPS fallback, and better signaling waits.</li>
+      <li><strong>Portal surface:</strong> homepage search, release hub polish, PWA boot behavior, and the interactive Three.js portal logo made the main entry point feel sharper.</li>
+      <li><strong>Operational capture:</strong> Memory Capture, People Log, CRM flow, and Community Farming Network work gave more places to turn ideas and relationships into action.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Merged PRs</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/604">#604 Add weekly release notes through v0.0.46</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/605">#605 Mute release hub portal backlink</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/606">#606 Mention companion 3dvr web homepage work</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/607">#607 Make release dates read as metadata</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/608">#608 Include agent work in release notes</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/609">#609 Add branded portal startup logo</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/610">#610 Add Attention Shield concept page</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/611">#611 Add Market Lab experiment tracker</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/612">#612 Track Market Lab CTA sources</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/613">#613 Show Market Lab in main app dock</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/614">#614 Expand Market Lab with Gun-backed landing tests</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/615">#615 Brand portal logo as 3dvr portal</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/616">#616 Add memory capture workflow app</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/617">#617 Gate portal boot screen to PWA</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/618">#618 Expand memory capture proposal board</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/619">#619 Fix WebRTC lab room signaling</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/620">#620 Cache bust WebRTC lab assets</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/621">#621 Fix desktop portal scrolling</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/622">#622 Cache bust Gun live room assets</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/623">#623 Lower WebRTC lab video bandwidth</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/624">#624 Clean up homepage search actions</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/625">#625 Add TURN relay support for WebRTC lab</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/626">#626 Add interactive portal swirl logo</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/627">#627 Use Three.js portal logo token</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/628">#628 Keep portal logo text fixed on surface</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/629">#629 Keep portal logo text still over clock spin</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/630">#630 Make portal logo tilt gentler</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/631">#631 Calm portal logo flips</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/632">#632 Make portal logo motion more natural</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/633">#633 Increase portal logo drag tilt</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/634">#634 Add portal logo swipe momentum</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/635">#635 Keep portal logo text upright</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/636">#636 Fix portal logo back text mirroring</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/637">#637 Ramp portal logo touch energy</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/638">#638 Simplify People Log quick capture</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/639">#639 Guard WebRTC signaling state transitions</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/640">#640 Fix CRM mobile overflow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/641">#641 Add Community Farming Network project</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/642">#642 Document community farming network plan</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/643">#643 Document path to profitability</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/644">#644 Add revenue desk operating surface</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/645">#645 Add market research memo</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/646">#646 Make revenue desk mobile first</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/647">#647 Add revenue desk money actions</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/648">#648 Add growth operator app</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/649">#649 Add growth operator cycle log</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/650">#650 Improve WebRTC lab peer discovery diagnostics</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/651">#651 Wait for Gun relay before WebRTC signaling</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/652">#652 Add HTTPS Gun fallback for mobile signaling</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/653">#653 Add WebRTC relay diagnostics</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/654">#654 Clean up WebRTC relay-only diagnostics</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/655">#655 Add CRM flow interface</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/657">#657 Add market fit social pulse</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/658">#658 Add market pulse automation runner</a></li>
+    </ul>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">© 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
