@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "description": "Known 3DVR portal Gun roots for portable JSON snapshots. This is not a full relay backup; archive the RAD data directory too.",
+  "defaultDepth": 2,
+  "roots": [
+    {
+      "name": "portal",
+      "path": ["3dvr-portal"],
+      "depth": 3,
+      "critical": true,
+      "notes": "Primary portal workspace graph used by billing, app state, agent ops, money-ai, life, and newer apps."
+    },
+    {
+      "name": "crm",
+      "path": ["3dvr-crm"],
+      "depth": 3,
+      "critical": true,
+      "notes": "CRM records shared by contacts, memory capture, sales, and email operator."
+    },
+    {
+      "name": "guests",
+      "path": ["3dvr-guests"],
+      "depth": 3,
+      "critical": true,
+      "sensitive": true,
+      "notes": "Guest account profile and migration data."
+    },
+    {
+      "name": "contacts-public",
+      "path": ["contacts-public"],
+      "depth": 2,
+      "notes": "Shared contacts spaces."
+    },
+    {
+      "name": "org-demo",
+      "path": ["org-3dvr-demo"],
+      "depth": 2,
+      "notes": "Legacy org contacts graph."
+    },
+    {
+      "name": "chat",
+      "path": ["3dvr-chat"],
+      "depth": 2,
+      "notes": "Portal chat rooms and messages."
+    },
+    {
+      "name": "social-media",
+      "path": ["social-media"],
+      "depth": 2,
+      "notes": "Social command center legacy graph."
+    },
+    {
+      "name": "meeting-notes",
+      "path": ["meeting-notes"],
+      "depth": 2,
+      "notes": "Meeting notes app graph."
+    },
+    {
+      "name": "simple-folders",
+      "path": ["simple-folders"],
+      "depth": 2,
+      "notes": "Legacy notes folder graph."
+    },
+    {
+      "name": "simple-notes",
+      "path": ["simple-notes"],
+      "depth": 2,
+      "notes": "Legacy notes graph."
+    },
+    {
+      "name": "money-ai-legacy",
+      "path": ["money-ai"],
+      "depth": 2,
+      "notes": "Legacy Money AI mirror."
+    },
+    {
+      "name": "finance-legacy",
+      "path": ["finance"],
+      "depth": 2,
+      "sensitive": true,
+      "notes": "Legacy finance mirror."
+    },
+    {
+      "name": "ai",
+      "path": ["ai"],
+      "depth": 3,
+      "critical": true,
+      "sensitive": true,
+      "notes": "AI workbench key vault and related encrypted records."
+    },
+    {
+      "name": "stripe",
+      "path": ["stripe"],
+      "depth": 3,
+      "critical": true,
+      "sensitive": true,
+      "notes": "Stripe event/customer mirrors when written through Gun."
+    },
+    {
+      "name": "score",
+      "path": ["score"],
+      "depth": 2,
+      "notes": "Score/rewards ledger and totals."
+    },
+    {
+      "name": "science",
+      "path": ["science"],
+      "depth": 2,
+      "notes": "Science and intention summary mirrors."
+    },
+    {
+      "name": "projects",
+      "path": ["projects"],
+      "depth": 2,
+      "notes": "Project ideas, artifacts, and handoff graph."
+    },
+    {
+      "name": "education",
+      "path": ["education"],
+      "depth": 2,
+      "notes": "Education content graph."
+    },
+    {
+      "name": "job-tracker",
+      "path": ["job-tracker"],
+      "depth": 2,
+      "notes": "Job tracker records."
+    },
+    {
+      "name": "video-labs",
+      "path": ["3dvr-gun-video-lab"],
+      "depth": 2,
+      "notes": "Gun video frame lab room state."
+    },
+    {
+      "name": "clip-lab",
+      "path": ["3dvr-gun-clip-lab"],
+      "depth": 2,
+      "notes": "Gun clip lab room state."
+    },
+    {
+      "name": "live-room",
+      "path": ["3dvr-gun-live-room"],
+      "depth": 2,
+      "notes": "Gun live room state."
+    },
+    {
+      "name": "chunk-stream",
+      "path": ["3dvr-gun-chunk-stream"],
+      "depth": 2,
+      "notes": "Gun chunk stream state."
+    },
+    {
+      "name": "webrtc-lab",
+      "path": ["3dvr-webrtc-lab-v2"],
+      "depth": 2,
+      "notes": "WebRTC lab signaling state."
+    },
+    {
+      "name": "portal-video-control",
+      "path": ["portalVideoControl"],
+      "depth": 2,
+      "notes": "Video smart launcher control state."
+    }
+  ]
+}
