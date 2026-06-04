@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Master Key Room | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="A practical 24-step attention, reflection, and action practice inspired by Charles F. Haanel."
+  >
+  <meta name="theme-color" content="#070713">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070713;
+      --panel: rgba(255, 255, 255, 0.075);
+      --panel-strong: rgba(255, 255, 255, 0.12);
+      --text: #f6f2ff;
+      --muted: #b9afd2;
+      --gold: #ffd36b;
+      --violet: #9b5cff;
+      --cyan: #69e7ff;
+      --success: #74ffbf;
+      --shadow: 0 20px 80px rgba(0, 0, 0, 0.45);
+      --tap: 48px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--bg);
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        linear-gradient(145deg, rgba(155, 92, 255, 0.16), transparent 38%),
+        linear-gradient(215deg, rgba(105, 231, 255, 0.09), transparent 42%),
+        linear-gradient(180deg, #070713 0%, #101020 48%, #070713 100%);
+      color: var(--text);
+    }
+
+    button,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      min-height: var(--tap);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 800;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    button:hover,
+    button:focus-visible {
+      border-color: rgba(255, 211, 107, 0.7);
+      background: rgba(255, 255, 255, 0.14);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.48;
+      background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.9) 1px, transparent 1px),
+        radial-gradient(circle, rgba(255, 255, 255, 0.42) 1px, transparent 1px);
+      background-size: 90px 90px, 140px 140px;
+      background-position: 0 0, 40px 70px;
+      animation: drift 80s linear infinite;
+    }
+
+    @keyframes drift {
+      from {
+        transform: translate3d(0, 0, 0);
+      }
+
+      to {
+        transform: translate3d(-140px, -90px, 0);
+      }
+    }
+
+    .skip-link {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      z-index: 20;
+      padding: 0.65rem 0.9rem;
+      border-radius: 999px;
+      background: var(--text);
+      color: #10101a;
+      transform: translateY(-160%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    header {
+      position: relative;
+      z-index: 1;
+      padding: 3.5rem 1rem 1.5rem;
+      text-align: center;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .sigil {
+      position: relative;
+      width: 22px;
+      height: 22px;
+      border: 1px solid var(--gold);
+      border-radius: 50%;
+      box-shadow: 0 0 22px rgba(255, 211, 107, 0.45);
+    }
+
+    .sigil::before,
+    .sigil::after {
+      position: absolute;
+      content: "";
+      inset: 4px;
+      border: 1px solid var(--cyan);
+      transform: rotate(45deg);
+    }
+
+    .sigil::after {
+      inset: 8px;
+      border-color: var(--violet);
+      border-radius: 50%;
+      transform: none;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 0;
+      font-size: clamp(2.35rem, 8vw, 5.8rem);
+      line-height: 0.96;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    h2,
+    h3 {
+      margin-bottom: 0.75rem;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: clamp(1.55rem, 3vw, 2.35rem);
+    }
+
+    h3 {
+      font-size: 1.12rem;
+    }
+
+    p,
+    li {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 1.15rem auto 0;
+      font-size: clamp(1rem, 2vw, 1.22rem);
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+    }
+
+    .hero-grid,
+    .lesson-layout,
+    .grounding {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .hero-grid {
+      grid-template-columns: 1.05fr 0.95fr;
+      align-items: stretch;
+      margin: 1rem auto 2rem;
+    }
+
+    .lesson-layout {
+      grid-template-columns: 0.88fr 1.12fr;
+      margin-bottom: 2rem;
+    }
+
+    .grounding {
+      grid-template-columns: repeat(3, 1fr);
+      margin: 2rem 0 4rem;
+    }
+
+    .card {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      background: linear-gradient(145deg, var(--panel), rgba(255, 255, 255, 0.035));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      padding: 1.25rem;
+    }
+
+    .big-card {
+      padding: clamp(1.25rem, 3vw, 2rem);
+    }
+
+    .formula {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .formula span {
+      display: grid;
+      place-items: center;
+      min-height: 76px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.18);
+      color: var(--text);
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .formula small {
+      display: block;
+      margin-top: 0.25rem;
+      color: var(--muted);
+      font-size: 0.73rem;
+      font-weight: 500;
+    }
+
+    .orb-wrap {
+      position: relative;
+      display: grid;
+      min-height: 410px;
+      overflow: hidden;
+      place-items: center;
+    }
+
+    .orb {
+      position: relative;
+      width: min(300px, 72vw);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(255, 211, 107, 0.7) 8%, transparent 17%),
+        radial-gradient(circle at 50% 52%, rgba(105, 231, 255, 0.75), rgba(155, 92, 255, 0.6) 35%, rgba(255, 255, 255, 0.05) 68%, transparent 71%);
+      box-shadow:
+        0 0 40px rgba(105, 231, 255, 0.3),
+        0 0 120px rgba(155, 92, 255, 0.35),
+        inset 0 0 45px rgba(255, 255, 255, 0.2);
+      animation: breathe 7s ease-in-out infinite;
+    }
+
+    .orb::before,
+    .orb::after {
+      position: absolute;
+      content: "";
+      inset: -18%;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 50%;
+      animation: spin 22s linear infinite;
+    }
+
+    .orb::after {
+      inset: -34%;
+      border-color: rgba(255, 211, 107, 0.22);
+      animation-duration: 34s;
+      animation-direction: reverse;
+    }
+
+    @keyframes breathe {
+      0%,
+      100% {
+        transform: scale(0.96);
+        filter: hue-rotate(0deg);
+      }
+
+      50% {
+        transform: scale(1.04);
+        filter: hue-rotate(28deg);
+      }
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg) skew(7deg);
+      }
+
+      to {
+        transform: rotate(360deg) skew(7deg);
+      }
+    }
+
+    .lesson-nav {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 0.45rem;
+      margin: 1.5rem 0;
+    }
+
+    .lesson-nav button {
+      min-width: 0;
+      padding: 0.7rem 0.45rem;
+    }
+
+    button.active,
+    button[aria-current="step"] {
+      border-color: transparent;
+      background: linear-gradient(135deg, rgba(255, 211, 107, 0.92), rgba(155, 92, 255, 0.85));
+      color: #10101a;
+    }
+
+    .lesson-number {
+      margin-bottom: 0.45rem;
+      color: var(--gold);
+      font-size: 0.76rem;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .practice-box {
+      margin-top: 1rem;
+      border: 1px solid rgba(105, 231, 255, 0.24);
+      border-radius: 8px;
+      background: rgba(105, 231, 255, 0.055);
+      padding: 1rem;
+    }
+
+    .practice-box strong {
+      color: var(--cyan);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 170px;
+      margin-top: 0.75rem;
+      resize: vertical;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      outline: none;
+      background: rgba(0, 0, 0, 0.22);
+      color: var(--text);
+      padding: 1rem;
+      line-height: 1.45;
+    }
+
+    textarea:focus {
+      border-color: rgba(255, 211, 107, 0.55);
+      box-shadow: 0 0 0 4px rgba(255, 211, 107, 0.09);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      margin-top: 0.85rem;
+    }
+
+    .actions button {
+      padding: 0.7rem 0.95rem;
+    }
+
+    .primary {
+      border: none;
+      background: linear-gradient(135deg, var(--gold), var(--violet));
+      color: #0f0f19;
+    }
+
+    .ghost {
+      background: transparent;
+    }
+
+    .progress {
+      height: 12px;
+      margin-top: 0.8rem;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--gold));
+      transition: width 300ms ease;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+
+    .pill {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      padding: 0.45rem 0.7rem;
+      font-size: 0.86rem;
+    }
+
+    ul {
+      padding-left: 1.1rem;
+    }
+
+    .footer {
+      padding: 2rem 1rem 4rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .tiny {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid,
+      .lesson-layout,
+      .grounding {
+        grid-template-columns: 1fr;
+      }
+
+      .formula {
+        grid-template-columns: 1fr;
+      }
+
+      .lesson-nav {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+
+      .orb-wrap {
+        min-height: 320px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .lesson-nav {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      header {
+        padding-top: 2.4rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#lessonTitle">Skip to current lesson</a>
+  <div class="stars" aria-hidden="true"></div>
+
+  <header>
+    <div class="brand"><span class="sigil" aria-hidden="true"></span> 3DVR Portal Practice System</div>
+    <h1>Master Key Room</h1>
+    <p class="subtitle">
+      A 24-step inner engineering course inspired by Charles F. Haanel: train attention, clarify desire,
+      regulate the body, and translate imagination into action.
+    </p>
+  </header>
+
+  <main class="container">
+    <section class="hero-grid" aria-labelledby="engineTitle">
+      <div class="card big-card">
+        <h2 id="engineTitle">The Grounded Manifestation Engine</h2>
+        <p>
+          This room treats consciousness as a practical interface. You are not escaping reality. You are learning
+          to aim perception, calm the nervous system, choose better actions, and repeatedly shape your environment.
+        </p>
+        <div class="formula" aria-label="Attention to reality formula">
+          <span>Attention<small>what you feed</small></span>
+          <span>Belief<small>what feels possible</small></span>
+          <span>State<small>body and emotion</small></span>
+          <span>Action<small>what you do</small></span>
+          <span>Reality<small>what changes</small></span>
+        </div>
+        <div class="pill-row">
+          <span class="pill">24 lessons</span>
+          <span class="pill">Daily reflections</span>
+          <span class="pill">Local save</span>
+          <span class="pill">No account needed</span>
+        </div>
+      </div>
+
+      <div class="card orb-wrap" aria-label="Breathing focus visual">
+        <div class="orb" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="lessonPickerTitle">
+      <h2 id="lessonPickerTitle">Choose Today's Lesson</h2>
+      <p class="tiny">
+        Start with Lesson 1 and repeat any lesson for as many days as needed. The goal is not speed.
+        The goal is integration.
+      </p>
+      <div id="lessonNav" class="lesson-nav" aria-label="Master Key lessons"></div>
+      <div class="progress" aria-label="Course progress"><div id="progressBar" class="bar"></div></div>
+      <p id="progressText" class="tiny" aria-live="polite"></p>
+    </section>
+
+    <section class="lesson-layout">
+      <article class="card big-card" aria-labelledby="lessonTitle">
+        <div id="lessonNumber" class="lesson-number"></div>
+        <h2 id="lessonTitle" tabindex="-1"></h2>
+        <p id="lessonPrinciple"></p>
+
+        <div class="practice-box">
+          <strong>Today's Practice</strong>
+          <p id="lessonPractice"></p>
+        </div>
+
+        <div class="practice-box">
+          <strong>Reality Action</strong>
+          <p id="lessonAction"></p>
+        </div>
+      </article>
+
+      <aside class="card big-card" aria-labelledby="journalTitle">
+        <h2 id="journalTitle">Reflection Journal</h2>
+        <p class="tiny">Write what you noticed. Your notes are saved in this browser only.</p>
+        <textarea
+          id="journal"
+          placeholder="What am I noticing today? What thought am I practicing? What action proves the new reality is already beginning?"
+        ></textarea>
+        <div class="actions">
+          <button class="primary" type="button" id="saveBtn">Save Reflection</button>
+          <button class="ghost" type="button" id="completeBtn">Mark Lesson Complete</button>
+          <button class="ghost" type="button" id="clearBtn">Clear Note</button>
+        </div>
+        <p id="saveStatus" class="tiny" aria-live="polite"></p>
+      </aside>
+    </section>
+
+    <section class="grounding" aria-label="Grounding principles">
+      <div class="card">
+        <h3>Use Mysticism Responsibly</h3>
+        <p>
+          Treat visions and synchronicities as meaningful signals, not as commands. Stay connected to sleep,
+          food, money, relationships, and real commitments.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Practice Before Preaching</h3>
+        <p>
+          The portal becomes powerful when it helps users live better: less fear, more clarity, better habits,
+          cleaner action, kinder relationships.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Make It Measurable</h3>
+        <p>
+          After each inner practice, choose one outward action: one message sent, one task finished, one stretch,
+          one cleanup, one honest conversation.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Built for 3DVR / tmsteph - dream, build, share.</p>
+    <p class="tiny">Reflection tool only. This is not medical, mental health, legal, or financial advice.</p>
+  </footer>
+
+  <script>
+    (() => {
+      const lessons = [
+        {
+          title: 'Observe the Inner World',
+          principle: 'Your outer life is influenced by what repeatedly occupies your attention. Begin by noticing thought instead of being dragged by it.',
+          practice: 'Sit still for 3 minutes. Watch thoughts appear and disappear. Do not fight them. Simply label: memory, worry, desire, plan, image.',
+          action: 'Choose one small unfinished task and complete it today as proof that awareness can become action.'
+        },
+        {
+          title: 'The Seat of Power',
+          principle: 'Stillness reveals how much energy is usually lost to reaction. Calm attention is usable power.',
+          practice: 'Sit upright. Relax the face, jaw, shoulders, stomach, and hands. Breathe slowly until your body feels less defensive.',
+          action: 'Before replying to one stressful message, pause for three breaths and answer from choice instead of reflex.'
+        },
+        {
+          title: 'Directed Attention',
+          principle: 'Concentration is the bridge between imagination and creation. What you can hold clearly, you can organize around.',
+          practice: 'Pick one simple object. Hold it in your mind for 2 minutes. When distracted, gently return.',
+          action: 'Pick one priority for the day and remove one distraction that competes with it.'
+        },
+        {
+          title: 'The Mental Blueprint',
+          principle: 'A vague wish creates vague behavior. A clear image gives the nervous system and daily schedule a direction.',
+          practice: 'Visualize one specific improved scene from your life as if it is normal and embodied.',
+          action: 'Write the next physical step that would make that scene slightly more real, then do it.'
+        },
+        {
+          title: 'Desire With Exchange',
+          principle: 'Desire becomes creative when you know what you will give in exchange: effort, service, discipline, courage, patience.',
+          practice: 'Ask: what do I want, why do I want it, and what am I willing to give for it?',
+          action: 'Offer one useful act of service to someone connected to your goal.'
+        },
+        {
+          title: 'Faith as Repetition',
+          principle: 'Faith is not blind belief. It is repeated inner rehearsal plus repeated outer evidence.',
+          practice: 'Repeat a truthful affirmation that your body can believe: I am learning to act with clarity today.',
+          action: 'Create one piece of evidence for that affirmation.'
+        },
+        {
+          title: 'Fear Transmutation',
+          principle: 'Fear is attention attached to a threatening future. It can be converted into preparation.',
+          practice: 'Name one fear. Ask what it is trying to protect. Thank it, then identify the preparation it requests.',
+          action: 'Take one preparation step: send the email, save the file, ask the question, make the list.'
+        },
+        {
+          title: 'The Body as Antenna',
+          principle: 'The body is not separate from consciousness. Posture, breath, and tension shape thought quality.',
+          practice: 'Lengthen the spine. Open the chest. Breathe into the belly for 10 slow breaths.',
+          action: 'Do one body reset during work before reaching for your phone.'
+        },
+        {
+          title: 'Imagination Into Form',
+          principle: 'Imagination becomes real through constraints: time, place, tools, sequence, and collaboration.',
+          practice: 'Imagine a project complete, then reverse-engineer the first three boring steps.',
+          action: 'Do step one even if it feels too small.'
+        },
+        {
+          title: 'The Law of Use',
+          principle: 'Power grows through use. Ideas decay when they are only admired.',
+          practice: 'Ask which insight you have been collecting but not applying.',
+          action: 'Apply it in one visible way today.'
+        },
+        {
+          title: 'Speech as Spell',
+          principle: 'Words organize perception. Careless speech strengthens confusion; deliberate speech strengthens direction.',
+          practice: 'Notice one repeated phrase that weakens you. Replace it with a phrase that tells the truth and preserves agency.',
+          action: 'Say the stronger phrase out loud before starting a difficult task.'
+        },
+        {
+          title: 'Service Magnetism',
+          principle: 'The fastest way to become valuable is to create value. Service turns desire from grasping into contribution.',
+          practice: 'Visualize someone you want to help. Ask what would genuinely reduce their friction.',
+          action: 'Send one helpful message without pressure or manipulation.'
+        },
+        {
+          title: 'The Subconscious Garden',
+          principle: 'The subconscious is trained by repetition, emotion, image, and environment.',
+          practice: 'Before sleep, feed the mind one clean image of the person you are becoming.',
+          action: 'Remove one environmental cue that pulls you toward the old pattern.'
+        },
+        {
+          title: 'Cause and Effect',
+          principle: 'Every condition has causes. Instead of cursing the result, study and adjust the causes.',
+          practice: 'Pick one unwanted condition. List the repeated causes that maintain it without blaming yourself.',
+          action: 'Change one cause today.'
+        },
+        {
+          title: 'Harmony',
+          principle: 'Harmony is not passivity. It is aligned force: thought, emotion, word, and action moving in one direction.',
+          practice: 'Ask where you are divided. What do you say you want while acting against it?',
+          action: 'Make one small behavior match your stated desire.'
+        },
+        {
+          title: 'The Creative Ideal',
+          principle: 'Your ideal should be specific enough to guide action and noble enough to energize the heart.',
+          practice: 'Write a one-sentence ideal for your life or project.',
+          action: 'Put that sentence somewhere visible and do one task in its honor.'
+        },
+        {
+          title: 'Receiving',
+          principle: 'Many people ask but cannot receive. Receiving requires nervous system safety, humility, and follow-through.',
+          practice: 'Imagine receiving help, money, love, or opportunity without shrinking or sabotaging it.',
+          action: 'Accept one compliment, offer, or opportunity cleanly today.'
+        },
+        {
+          title: 'Non-Resistance',
+          principle: 'Resistance wastes energy arguing with what already happened. Acceptance frees energy for response.',
+          practice: 'Name one reality you are fighting. Say: this is here; now what is the cleanest next action?',
+          action: 'Take the clean next action without dramatizing it.'
+        },
+        {
+          title: 'Identity Installation',
+          principle: 'Sustainable change happens when actions become identity: I am the kind of person who does this.',
+          practice: 'Choose one identity sentence that is already partly true.',
+          action: 'Do one tiny vote for that identity.'
+        },
+        {
+          title: 'The Mastermind Field',
+          principle: 'Minds amplify each other. Choose companions, media, and rooms that strengthen your future self.',
+          practice: 'Visualize your ideal circle. What qualities do they share?',
+          action: 'Reach out to one person who represents that field.'
+        },
+        {
+          title: 'Wealth as Circulation',
+          principle: 'Wealth is not hoarding. It is useful circulation: value created, exchanged, protected, and reinvested.',
+          practice: 'Imagine money as flow through service, skill, and trust.',
+          action: 'Clarify one offer, price, or payment path.'
+        },
+        {
+          title: 'Health as Order',
+          principle: 'Health is rhythm: breath, movement, nourishment, rest, sunlight, attention.',
+          practice: 'Scan the body and ask what simple order it needs today.',
+          action: 'Do one nourishing act before seeking another insight.'
+        },
+        {
+          title: 'Gratitude as Perception',
+          principle: 'Gratitude trains the mind to notice resources. It does not deny pain; it widens the field.',
+          practice: 'List five things already supporting you.',
+          action: 'Thank one person or system that made your life easier.'
+        },
+        {
+          title: 'Embodiment',
+          principle: 'The final key is embodiment. Do not merely think the truth. Become a daily example of it.',
+          practice: 'Sit quietly and feel your ideal self breathing through your current body.',
+          action: 'Choose one public, practical behavior that proves the course has entered your life.'
+        }
+      ];
+
+      const STORAGE_KEYS = {
+        current: 'master-key-room.current.v1',
+        completed: 'master-key-room.completed.v1',
+        notePrefix: 'master-key-room.note.v1.'
+      };
+
+      const refs = {
+        nav: document.getElementById('lessonNav'),
+        lessonNumber: document.getElementById('lessonNumber'),
+        lessonTitle: document.getElementById('lessonTitle'),
+        lessonPrinciple: document.getElementById('lessonPrinciple'),
+        lessonPractice: document.getElementById('lessonPractice'),
+        lessonAction: document.getElementById('lessonAction'),
+        journal: document.getElementById('journal'),
+        saveStatus: document.getElementById('saveStatus'),
+        progressBar: document.getElementById('progressBar'),
+        progressText: document.getElementById('progressText'),
+        saveBtn: document.getElementById('saveBtn'),
+        completeBtn: document.getElementById('completeBtn'),
+        clearBtn: document.getElementById('clearBtn')
+      };
+
+      function safeRead(key, fallback) {
+        try {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : fallback;
+        } catch (_error) {
+          return fallback;
+        }
+      }
+
+      function safeWrite(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+          return true;
+        } catch (_error) {
+          return false;
+        }
+      }
+
+      function noteKey(index) {
+        return `${STORAGE_KEYS.notePrefix}${index}`;
+      }
+
+      function readNote(index) {
+        try {
+          return localStorage.getItem(noteKey(index)) || '';
+        } catch (_error) {
+          return '';
+        }
+      }
+
+      function saveNote(index, value) {
+        try {
+          localStorage.setItem(noteKey(index), value);
+          return true;
+        } catch (_error) {
+          return false;
+        }
+      }
+
+      const state = {
+        current: Math.min(Math.max(Number(safeRead(STORAGE_KEYS.current, 0)) || 0, 0), lessons.length - 1),
+        completed: safeRead(STORAGE_KEYS.completed, []).filter(index => Number.isInteger(index))
+      };
+
+      function setStatus(message) {
+        refs.saveStatus.textContent = message;
+      }
+
+      function renderNav() {
+        refs.nav.innerHTML = '';
+        lessons.forEach((lesson, index) => {
+          const button = document.createElement('button');
+          const done = state.completed.includes(index);
+          button.type = 'button';
+          button.textContent = done ? `Done ${index + 1}` : String(index + 1);
+          button.className = index === state.current ? 'active' : '';
+          button.setAttribute('aria-label', `${done ? 'Completed ' : ''}Lesson ${index + 1}: ${lesson.title}`);
+          if (index === state.current) {
+            button.setAttribute('aria-current', 'step');
+          }
+          button.addEventListener('click', () => {
+            state.current = index;
+            safeWrite(STORAGE_KEYS.current, state.current);
+            render();
+            refs.lessonTitle.focus({ preventScroll: true });
+          });
+          refs.nav.appendChild(button);
+        });
+      }
+
+      function renderProgress() {
+        const completedCount = state.completed.length;
+        const percent = Math.round((completedCount / lessons.length) * 100);
+        refs.progressBar.style.width = `${percent}%`;
+        refs.progressText.textContent = `${completedCount} of ${lessons.length} lessons complete - ${percent}% integrated.`;
+      }
+
+      function render() {
+        const lesson = lessons[state.current];
+        refs.lessonNumber.textContent = `Lesson ${state.current + 1} of ${lessons.length}`;
+        refs.lessonTitle.textContent = lesson.title;
+        refs.lessonPrinciple.textContent = lesson.principle;
+        refs.lessonPractice.textContent = lesson.practice;
+        refs.lessonAction.textContent = lesson.action;
+        refs.journal.value = readNote(state.current);
+        setStatus('');
+        renderNav();
+        renderProgress();
+      }
+
+      refs.saveBtn.addEventListener('click', () => {
+        const saved = saveNote(state.current, refs.journal.value);
+        setStatus(saved ? 'Saved in this browser.' : 'Unable to save in this browser.');
+      });
+
+      refs.clearBtn.addEventListener('click', () => {
+        refs.journal.value = '';
+        try {
+          localStorage.removeItem(noteKey(state.current));
+          setStatus('Note cleared.');
+        } catch (_error) {
+          setStatus('Unable to clear this note.');
+        }
+      });
+
+      refs.completeBtn.addEventListener('click', () => {
+        if (!state.completed.includes(state.current)) {
+          state.completed.push(state.current);
+        }
+        state.completed.sort((a, b) => a - b);
+        safeWrite(STORAGE_KEYS.completed, state.completed);
+        setStatus('Lesson marked complete.');
+        renderNav();
+        renderProgress();
+      });
+
+      refs.journal.addEventListener('input', () => {
+        setStatus('Unsaved changes.');
+      });
+
+      render();
+
+      window.MasterKeyRoom = {
+        lessons,
+        storageKeys: STORAGE_KEYS,
+        selectLesson(index) {
+          if (!Number.isInteger(index) || index < 0 || index >= lessons.length) return false;
+          state.current = index;
+          safeWrite(STORAGE_KEYS.current, state.current);
+          render();
+          return true;
+        },
+        getState() {
+          return {
+            current: state.current,
+            completed: [...state.completed]
+          };
+        }
+      };
+    })();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
