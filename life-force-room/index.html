@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Life Force Room | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="A symbolic, consent-centered room for desire, embodiment, creativity, nervous system awareness, and life-force transmutation."
+  >
+  <meta name="theme-color" content="#12090d">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #12090d;
+      --panel: rgba(32, 18, 22, 0.84);
+      --panel-strong: rgba(46, 24, 31, 0.94);
+      --line: rgba(255, 203, 164, 0.22);
+      --text: #fff8ee;
+      --muted: #d7baaa;
+      --soft: #f3a66b;
+      --rose: #ff7fa0;
+      --gold: #ffd07a;
+      --green: #8ee0b7;
+      --tap: 48px;
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(255, 127, 160, 0.18), transparent 34rem),
+        radial-gradient(circle at 80% 70%, rgba(255, 208, 122, 0.13), transparent 30rem),
+        linear-gradient(180deg, #12090d 0%, #1a0e12 50%, #09070a 100%);
+      color: var(--text);
+    }
+
+    button,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      min-height: var(--tap);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    button:hover,
+    button:focus-visible {
+      border-color: rgba(255, 208, 122, 0.72);
+      background: rgba(255, 208, 122, 0.14);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: 1rem;
+      z-index: 20;
+      padding: 0.65rem 0.9rem;
+      border-radius: 999px;
+      background: #fff8ee;
+      color: #14090d;
+      transform: translateY(-160%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .room-shell {
+      position: relative;
+      min-height: 100vh;
+      isolation: isolate;
+    }
+
+    .scene-layer {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+    }
+
+    .scene-layer canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .scene-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle, rgba(255, 127, 160, 0.18), transparent 16rem),
+        linear-gradient(180deg, #140a0f, #080609);
+    }
+
+    .fallback-orb {
+      width: min(42vw, 220px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 30%, #fff6c9 0 10%, #ff9e8c 32%, #ff6189 62%, rgba(255, 97, 137, 0.08) 100%);
+      box-shadow: 0 0 44px rgba(255, 127, 160, 0.45), 0 0 110px rgba(255, 208, 122, 0.2);
+      animation: breatheOrb 6s ease-in-out infinite;
+    }
+
+    .warm-scrim {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(90deg, rgba(9, 7, 10, 0.85), rgba(9, 7, 10, 0.38) 44%, rgba(9, 7, 10, 0.72)),
+        linear-gradient(180deg, rgba(9, 7, 10, 0.3), rgba(9, 7, 10, 0.86));
+      pointer-events: none;
+    }
+
+    .intro-screen,
+    .room-screen {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+    }
+
+    .intro-screen {
+      display: grid;
+      min-height: 100vh;
+      align-items: end;
+      padding: 64px 0 28px;
+    }
+
+    .intro-card {
+      display: grid;
+      gap: 22px;
+      max-width: 760px;
+      padding: clamp(22px, 5vw, 40px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(34, 18, 23, 0.88), rgba(22, 12, 17, 0.74));
+      box-shadow: 0 24px 90px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(18px);
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 850;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 10ch;
+      margin-bottom: 0;
+      font-size: clamp(3.25rem, 16vw, 7rem);
+      line-height: 0.9;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 680px;
+      margin-bottom: 0;
+      color: #f3d8ca;
+      font-size: clamp(1.08rem, 3.2vw, 1.35rem);
+      line-height: 1.58;
+    }
+
+    .temple-line {
+      margin: 0;
+      padding-left: 16px;
+      border-left: 3px solid rgba(255, 208, 122, 0.7);
+      color: #ffe7bf;
+      font-size: 1rem;
+      line-height: 1.55;
+    }
+
+    .intro-actions,
+    .mode-tabs,
+    .choice-grid,
+    .journal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .primary-action {
+      min-width: min(100%, 220px);
+      padding: 0.9rem 1.4rem;
+      border: 0;
+      background: linear-gradient(135deg, #ff7fa0, #f2b86f);
+      color: #17090d;
+      font-weight: 900;
+    }
+
+    .secondary-action,
+    .mode-tab,
+    .choice-button {
+      padding: 0.78rem 1rem;
+      font-weight: 760;
+    }
+
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--line);
+    }
+
+    .principles span {
+      min-height: 82px;
+      display: grid;
+      align-items: center;
+      padding: 14px;
+      background: rgba(18, 9, 13, 0.86);
+      color: #f7d6c4;
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+
+    .room-screen {
+      display: none;
+      padding: 22px 0 46px;
+    }
+
+    body.has-entered .intro-screen {
+      display: none;
+    }
+
+    body.has-entered .room-screen {
+      display: block;
+    }
+
+    .room-nav {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0;
+      background: linear-gradient(180deg, rgba(18, 9, 13, 0.94), rgba(18, 9, 13, 0.68));
+      backdrop-filter: blur(18px);
+    }
+
+    .room-brand {
+      color: var(--text);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 900;
+    }
+
+    .brand-mark {
+      display: inline-grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--gold);
+      font-size: 0.78rem;
+    }
+
+    .room-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(340px, 0.7fr);
+      gap: 18px;
+      align-items: start;
+      padding-top: 28px;
+    }
+
+    .mode-panel,
+    .journal-panel,
+    .guide-panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 18px 70px rgba(0, 0, 0, 0.24);
+      backdrop-filter: blur(18px);
+    }
+
+    .mode-panel {
+      min-height: 620px;
+      display: grid;
+      align-content: end;
+      padding: clamp(20px, 4vw, 34px);
+    }
+
+    .mode-kicker {
+      color: var(--rose);
+      font-size: 0.9rem;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .mode-title {
+      max-width: 13ch;
+      margin-bottom: 12px;
+      font-size: clamp(2.35rem, 8vw, 4.8rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .mode-copy {
+      max-width: 640px;
+      color: #f1d0c1;
+      font-size: clamp(1rem, 2.3vw, 1.16rem);
+      line-height: 1.62;
+    }
+
+    .prompt-card {
+      margin: 18px 0;
+      padding: 18px;
+      border: 1px solid rgba(255, 208, 122, 0.28);
+      border-radius: 14px;
+      background: rgba(255, 208, 122, 0.08);
+    }
+
+    .prompt-card p {
+      margin-bottom: 0;
+      color: #ffe7bf;
+      font-size: 1.1rem;
+      line-height: 1.55;
+    }
+
+    .mode-tab[aria-selected="true"],
+    .choice-button.is-selected {
+      border-color: rgba(255, 208, 122, 0.9);
+      background: rgba(255, 208, 122, 0.18);
+      color: #fff4d6;
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .journal-panel,
+    .guide-panel {
+      padding: 20px;
+    }
+
+    .panel-heading {
+      margin-bottom: 12px;
+      color: var(--gold);
+      font-size: 0.95rem;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .privacy-note {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin: 0 0 14px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(142, 224, 183, 0.12);
+      color: #d9fce9;
+      font-size: 0.88rem;
+      font-weight: 740;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 190px;
+      resize: vertical;
+      border: 1px solid rgba(255, 203, 164, 0.24);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(12, 8, 11, 0.78);
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    textarea:focus {
+      border-color: rgba(255, 208, 122, 0.8);
+      outline: none;
+    }
+
+    .journal-actions {
+      margin-top: 12px;
+    }
+
+    .mini-action {
+      padding: 0.68rem 0.92rem;
+      color: #ffe7bf;
+      font-weight: 780;
+    }
+
+    .reflection-list {
+      display: grid;
+      gap: 10px;
+      max-height: 230px;
+      overflow: auto;
+      margin-top: 16px;
+    }
+
+    .reflection-item {
+      padding: 12px;
+      border: 1px solid rgba(255, 203, 164, 0.16);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      color: #f0d3c2;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .reflection-item time {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--gold);
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .guide-panel ul {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .guide-panel li {
+      padding-left: 18px;
+      border-left: 2px solid rgba(255, 127, 160, 0.6);
+      color: #eacabd;
+      line-height: 1.45;
+    }
+
+    .status-line {
+      min-height: 22px;
+      margin: 12px 0 0;
+      color: var(--green);
+      font-size: 0.9rem;
+      font-weight: 730;
+    }
+
+    .disclaimer {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 0 0 28px;
+      color: #c9a99a;
+      font-size: 0.86rem;
+      line-height: 1.55;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @keyframes breatheOrb {
+      0%, 100% { transform: scale(0.96); opacity: 0.82; }
+      50% { transform: scale(1.06); opacity: 1; }
+    }
+
+    @media (max-width: 900px) {
+      .principles,
+      .room-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mode-panel {
+        min-height: 56vh;
+      }
+
+      .room-nav {
+        position: relative;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .intro-screen,
+      .room-screen,
+      .disclaimer {
+        width: min(100% - 22px, 520px);
+      }
+
+      .intro-actions,
+      .mode-tabs,
+      .choice-grid,
+      .journal-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      h1 {
+        font-size: 3.1rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#lifeForceRoom">Skip to Life Force Room</a>
+  <main class="room-shell" id="lifeForceRoom">
+    <div class="scene-layer" aria-hidden="true">
+      <canvas data-life-force-canvas></canvas>
+      <div class="scene-fallback" data-scene-fallback hidden>
+        <div class="fallback-orb"></div>
+      </div>
+    </div>
+    <div class="warm-scrim" aria-hidden="true"></div>
+
+    <section class="intro-screen" aria-labelledby="introTitle">
+      <div class="intro-card">
+        <p class="eyebrow">3DVR experimental room</p>
+        <h1 id="introTitle">Life Force Room</h1>
+        <p class="lead">
+          A symbolic room for eros as life-force: desire, embodiment, creativity, consent,
+          nervous system awareness, and the choice to turn charge into something conscious.
+        </p>
+        <p class="temple-line">
+          We are not building a fantasy of uncontrolled sexuality. We are building a temple for life-force.
+        </p>
+        <div class="principles" aria-label="Life Force Room principles">
+          <span>Desire is not shameful.</span>
+          <span>Consent makes desire safe.</span>
+          <span>The body is the doorway.</span>
+          <span>Sexual energy can become creativity.</span>
+          <span>Real intimacy requires honesty and care.</span>
+        </div>
+        <div class="intro-actions">
+          <button class="primary-action" type="button" data-enter-room>Enter the room</button>
+          <button class="secondary-action" type="button" data-start-mode="ground">Start grounded</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="room-screen" aria-labelledby="roomTitle">
+      <nav class="room-nav" aria-label="Life Force Room navigation">
+        <a class="room-brand" href="/">
+          <span class="brand-mark" aria-hidden="true">LFR</span>
+          <span>Life Force Room</span>
+        </a>
+        <div class="mode-tabs" role="tablist" aria-label="Life Force Room modes">
+          <button class="mode-tab" type="button" role="tab" aria-selected="true" data-mode="ground">Ground</button>
+          <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="embody">Embody</button>
+          <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="desire">Desire</button>
+          <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="transmute">Transmute</button>
+          <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="connect">Connect</button>
+        </div>
+      </nav>
+
+      <div class="room-grid">
+        <section class="mode-panel" aria-live="polite">
+          <p class="mode-kicker" data-mode-kicker>Ground</p>
+          <h2 class="mode-title" id="roomTitle" data-mode-title>Return to the body.</h2>
+          <p class="mode-copy" data-mode-copy>
+            Take three slow breaths. Let the jaw soften, let the floor hold you, and notice what is actually here.
+          </p>
+          <div class="prompt-card">
+            <p data-mode-prompt>Return to your body. What do you feel?</p>
+          </div>
+          <div class="choice-grid" data-transmute-actions hidden>
+            <button class="choice-button" type="button" data-action-choice="Create">Create</button>
+            <button class="choice-button" type="button" data-action-choice="Move">Move</button>
+            <button class="choice-button" type="button" data-action-choice="Connect">Connect</button>
+            <button class="choice-button" type="button" data-action-choice="Rest">Rest</button>
+            <button class="choice-button" type="button" data-action-choice="Release">Release</button>
+          </div>
+        </section>
+
+        <div class="side-stack">
+          <section class="journal-panel" aria-labelledby="journalTitle">
+            <p class="panel-heading" id="journalTitle">Private reflection</p>
+            <p class="privacy-note">Your reflections stay on this device.</p>
+            <textarea
+              id="reflectionText"
+              data-reflection-input
+              placeholder="What is this energy asking for?"
+            ></textarea>
+            <div class="journal-actions">
+              <button class="mini-action" type="button" data-save-reflection>Save locally</button>
+              <button class="mini-action" type="button" data-clear-reflection>Clear text</button>
+            </div>
+            <p class="status-line" data-status-line aria-live="polite"></p>
+            <div class="reflection-list" data-reflection-list aria-label="Saved local reflections"></div>
+          </section>
+
+          <section class="guide-panel" aria-labelledby="guideTitle">
+            <p class="panel-heading" id="guideTitle">Practice frame</p>
+            <ul>
+              <li>Notice charge before acting from it.</li>
+              <li>Ask whether the desire is mutual, safe, honest, and respectful.</li>
+              <li>Choose release, connection, creativity, movement, or rest consciously.</li>
+              <li>Keep this symbolic, private, consensual, and grounded.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <p class="disclaimer">
+    Life Force Room is a reflection and creativity tool. It is not therapy, medical advice, a dating app,
+    or a place for explicit sexual content. Stop any practice that causes distress and choose real-world
+    consent, privacy, and care.
+  </p>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = 'life-force-room.reflections.v1';
+      const MODE_KEY = 'life-force-room.mode.v1';
+      const modes = {
+        ground: {
+          kicker: 'Ground',
+          title: 'Return to the body.',
+          copy: 'Take three slow breaths. Let the jaw soften, let the floor hold you, and notice what is actually here.',
+          prompt: 'Return to your body. What do you feel?',
+          color: 0xffd07a,
+        },
+        embody: {
+          kicker: 'Embody',
+          title: 'Feel the current.',
+          copy: 'Scan jaw, chest, belly, pelvis, and spine. Desire becomes clearer when the body is included.',
+          prompt: 'Where is the energy strongest?',
+          color: 0xff9e8c,
+        },
+        desire: {
+          kicker: 'Desire',
+          title: 'Listen without shame.',
+          copy: 'Name the desire honestly. Then look underneath it for aliveness, contact, beauty, safety, expression, or rest.',
+          prompt: 'What do I desire, and what need is underneath this desire?',
+          color: 0xff7fa0,
+        },
+        transmute: {
+          kicker: 'Transmute',
+          title: 'Turn charge into action.',
+          copy: 'Sexual energy can become art, code, movement, devotion, courage, prayer, music, or one clean next step.',
+          prompt: 'Do I want release, connection, creation, movement, or rest?',
+          color: 0xf2b86f,
+        },
+        connect: {
+          kicker: 'Connect',
+          title: 'Make consent central.',
+          copy: 'Healthy intimacy needs mutuality, honesty, timing, safety, and respectful communication.',
+          prompt: 'Is this mutual, safe, honest, and respectful?',
+          color: 0x8ee0b7,
+        },
+      };
+      const actionPrompts = {
+        Create: 'Create: write, code, draw, make music, or shape the charge into beauty.',
+        Move: 'Move: stretch, dance, walk, train, or let the body metabolize the energy.',
+        Connect: 'Connect: send a respectful message, ask clearly, and honor the answer.',
+        Rest: 'Rest: breathe, regulate, and let the nervous system feel safe.',
+        Release: 'Release: choose private self-care without shame, spiraling, or objectification.',
+      };
+      const state = {
+        mode: 'ground',
+        actionChoice: '',
+        reflections: [],
+        scene: null,
+        entered: false,
+      };
+
+      const body = document.body;
+      const enterButtons = document.querySelectorAll('[data-enter-room], [data-start-mode]');
+      const modeTabs = document.querySelectorAll('[data-mode]');
+      const title = document.querySelector('[data-mode-title]');
+      const kicker = document.querySelector('[data-mode-kicker]');
+      const copy = document.querySelector('[data-mode-copy]');
+      const prompt = document.querySelector('[data-mode-prompt]');
+      const actionGrid = document.querySelector('[data-transmute-actions]');
+      const actionButtons = document.querySelectorAll('[data-action-choice]');
+      const reflectionInput = document.querySelector('[data-reflection-input]');
+      const reflectionList = document.querySelector('[data-reflection-list]');
+      const statusLine = document.querySelector('[data-status-line]');
+      const saveButton = document.querySelector('[data-save-reflection]');
+      const clearButton = document.querySelector('[data-clear-reflection]');
+
+      function safeRead(key, fallback) {
+        try {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : fallback;
+        } catch (_error) {
+          return fallback;
+        }
+      }
+
+      function safeWrite(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (_error) {
+          // Local-only save can fail in private browsing; keep the session usable.
+        }
+      }
+
+      function renderReflections() {
+        if (!reflectionList) return;
+        reflectionList.innerHTML = '';
+        if (!state.reflections.length) {
+          const empty = document.createElement('div');
+          empty.className = 'reflection-item';
+          empty.textContent = 'No saved reflections yet.';
+          reflectionList.appendChild(empty);
+          return;
+        }
+        for (const entry of state.reflections.slice(0, 4)) {
+          const item = document.createElement('article');
+          item.className = 'reflection-item';
+          const time = document.createElement('time');
+          time.dateTime = entry.createdAt;
+          time.textContent = `${entry.mode} · ${new Date(entry.createdAt).toLocaleString()}`;
+          const text = document.createElement('p');
+          text.textContent = entry.text;
+          item.append(time, text);
+          reflectionList.appendChild(item);
+        }
+      }
+
+      function setMode(nextMode) {
+        state.mode = modes[nextMode] ? nextMode : 'ground';
+        const mode = modes[state.mode];
+        kicker.textContent = mode.kicker;
+        title.textContent = mode.title;
+        copy.textContent = mode.copy;
+        prompt.textContent = state.actionChoice && state.mode === 'transmute'
+          ? actionPrompts[state.actionChoice]
+          : mode.prompt;
+        actionGrid.hidden = state.mode !== 'transmute';
+        modeTabs.forEach((tab) => {
+          tab.setAttribute('aria-selected', String(tab.dataset.mode === state.mode));
+        });
+        safeWrite(MODE_KEY, state.mode);
+        if (state.scene) {
+          state.scene.targetColor.setHex(mode.color);
+          state.scene.transmute = state.mode === 'transmute';
+        }
+      }
+
+      function enterRoom(mode) {
+        state.entered = true;
+        body.classList.add('has-entered');
+        setMode(mode || state.mode);
+        requestAnimationFrame(() => title.focus?.());
+      }
+
+      function saveReflection() {
+        const text = reflectionInput.value.trim();
+        if (!text) {
+          statusLine.textContent = 'Write a few words first.';
+          return;
+        }
+        const entry = {
+          id: `life-force-${Date.now()}`,
+          mode: modes[state.mode].kicker,
+          text,
+          createdAt: new Date().toISOString(),
+        };
+        state.reflections = [entry, ...state.reflections].slice(0, 12);
+        safeWrite(STORAGE_KEY, state.reflections);
+        reflectionInput.value = '';
+        statusLine.textContent = 'Saved locally on this device.';
+        renderReflections();
+      }
+
+      function initScene() {
+        const canvas = document.querySelector('[data-life-force-canvas]');
+        const fallback = document.querySelector('[data-scene-fallback]');
+        if (!window.THREE || !canvas) {
+          fallback.hidden = false;
+          return null;
+        }
+        const testCanvas = document.createElement('canvas');
+        const hasWebGL = Boolean(
+          testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')
+        );
+        if (!hasWebGL) {
+          fallback.hidden = false;
+          return null;
+        }
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x12090d, 0.035);
+        const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 80);
+        camera.position.set(0, 2.2, 8.2);
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+        const ambient = new THREE.AmbientLight(0xffc7a0, 0.65);
+        const heartLight = new THREE.PointLight(0xff7fa0, 2.4, 18);
+        heartLight.position.set(0, 1.25, 1.2);
+        const goldLight = new THREE.PointLight(0xffd07a, 1.4, 18);
+        goldLight.position.set(-3.2, 4, 3);
+        scene.add(ambient, heartLight, goldLight);
+
+        const orb = new THREE.Mesh(
+          new THREE.SphereGeometry(1.1, 48, 48),
+          new THREE.MeshStandardMaterial({
+            color: 0xff7fa0,
+            emissive: 0xff5578,
+            emissiveIntensity: 0.55,
+            roughness: 0.38,
+            metalness: 0.08,
+          })
+        );
+        orb.position.set(0, 1.18, 0);
+        scene.add(orb);
+
+        const columnGroup = new THREE.Group();
+        const columnMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffd07a,
+          emissive: 0xff9d5c,
+          emissiveIntensity: 0.32,
+          transparent: true,
+          opacity: 0.72,
+        });
+        const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 4.8, 20), columnMaterial);
+        spine.position.y = 1.1;
+        columnGroup.add(spine);
+        for (let i = 0; i < 7; i += 1) {
+          const bead = new THREE.Mesh(new THREE.SphereGeometry(0.12, 20, 20), columnMaterial);
+          bead.position.y = -1.15 + i * 0.74;
+          columnGroup.add(bead);
+        }
+        scene.add(columnGroup);
+
+        const waveGeometry = new THREE.PlaneGeometry(18, 18, 80, 80);
+        const waveMaterial = new THREE.MeshStandardMaterial({
+          color: 0x24101b,
+          emissive: 0x35111b,
+          emissiveIntensity: 0.18,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.4,
+        });
+        const wave = new THREE.Mesh(waveGeometry, waveMaterial);
+        wave.rotation.x = -Math.PI / 2;
+        wave.position.y = -1.7;
+        scene.add(wave);
+
+        const particleCount = 460;
+        const positions = new Float32Array(particleCount * 3);
+        const speeds = new Float32Array(particleCount);
+        for (let i = 0; i < particleCount; i += 1) {
+          const radius = 2 + Math.random() * 5.4;
+          const angle = Math.random() * Math.PI * 2;
+          positions[i * 3] = Math.cos(angle) * radius;
+          positions[i * 3 + 1] = -1.8 + Math.random() * 6.2;
+          positions[i * 3 + 2] = Math.sin(angle) * radius;
+          speeds[i] = 0.004 + Math.random() * 0.014;
+        }
+        const particleGeometry = new THREE.BufferGeometry();
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particles = new THREE.Points(
+          particleGeometry,
+          new THREE.PointsMaterial({
+            color: 0xffd07a,
+            size: 0.045,
+            transparent: true,
+            opacity: 0.72,
+            depthWrite: false,
+          })
+        );
+        scene.add(particles);
+
+        const targetColor = new THREE.Color(modes[state.mode].color);
+        const currentColor = new THREE.Color(modes[state.mode].color);
+        const clock = new THREE.Clock();
+        const sceneState = {
+          renderer,
+          scene,
+          camera,
+          targetColor,
+          currentColor,
+          transmute: false,
+          resize() {
+            const { innerWidth, innerHeight } = window;
+            renderer.setSize(innerWidth, innerHeight, false);
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+          },
+          animate() {
+            const time = clock.getElapsedTime();
+            const breath = 1 + Math.sin(time * 1.05) * 0.07;
+            currentColor.lerp(targetColor, 0.035);
+            orb.material.color.copy(currentColor);
+            orb.material.emissive.copy(currentColor);
+            orb.scale.setScalar(breath);
+            heartLight.color.copy(currentColor);
+            heartLight.intensity = 2.1 + Math.sin(time * 1.05) * 0.6;
+            columnGroup.rotation.y = Math.sin(time * 0.22) * 0.13;
+            columnGroup.position.y = Math.sin(time * 0.55) * 0.08;
+            const wavePositions = wave.geometry.attributes.position;
+            for (let i = 0; i < wavePositions.count; i += 1) {
+              const x = wavePositions.getX(i);
+              const y = wavePositions.getY(i);
+              const ripple = Math.sin((x * 1.4) + time) * 0.08 + Math.cos((y * 1.2) - time * 0.8) * 0.06;
+              wavePositions.setZ(i, ripple);
+            }
+            wavePositions.needsUpdate = true;
+            const positionAttr = particles.geometry.attributes.position;
+            for (let i = 0; i < particleCount; i += 1) {
+              const offset = i * 3;
+              const lift = speeds[i] * (sceneState.transmute ? 4.2 : 1.4);
+              positions[offset + 1] += lift;
+              positions[offset] += Math.sin(time * 0.35 + i) * 0.0009;
+              if (positions[offset + 1] > 5.2) {
+                positions[offset + 1] = -1.9;
+              }
+            }
+            positionAttr.needsUpdate = true;
+            renderer.render(scene, camera);
+            requestAnimationFrame(sceneState.animate);
+          },
+        };
+        sceneState.resize();
+        window.addEventListener('resize', sceneState.resize);
+        requestAnimationFrame(sceneState.animate);
+        return sceneState;
+      }
+
+      state.reflections = safeRead(STORAGE_KEY, []);
+      state.mode = safeRead(MODE_KEY, 'ground');
+      renderReflections();
+
+      enterButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          enterRoom(button.dataset.startMode || state.mode);
+        });
+      });
+      modeTabs.forEach((button) => {
+        button.addEventListener('click', () => setMode(button.dataset.mode));
+      });
+      actionButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          state.actionChoice = button.dataset.actionChoice;
+          actionButtons.forEach((item) => item.classList.toggle('is-selected', item === button));
+          prompt.textContent = actionPrompts[state.actionChoice];
+          if (state.scene) state.scene.transmute = true;
+        });
+      });
+      saveButton?.addEventListener('click', saveReflection);
+      clearButton?.addEventListener('click', () => {
+        reflectionInput.value = '';
+        statusLine.textContent = 'Reflection cleared from the text box.';
+      });
+
+      window.addEventListener('DOMContentLoaded', () => {
+        state.scene = initScene();
+        setMode(state.mode);
+      });
+
+      window.LifeForceRoom = {
+        modes,
+        actionPrompts,
+        storageKey: STORAGE_KEY,
+      };
+    })();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
