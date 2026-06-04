@@ -88,6 +88,7 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Education Suite](https://3dvr-portal.vercel.app/education-suite/)
 - [Attention Visualized](https://3dvr-portal.vercel.app/attention-visualized/)
 - [Logic Lab](https://3dvr-portal.vercel.app/logic-lab/)
+- [Master Key Room](https://3dvr-portal.vercel.app/master-key-room/)
 - [Intention Lab](https://3dvr-portal.vercel.app/intention-lab/)
 - [Portal Lab](https://3dvr-portal.vercel.app/portal-lab/)
 - [Seated Spine Reset](https://3dvr-portal.vercel.app/seated-spine-reset/)
