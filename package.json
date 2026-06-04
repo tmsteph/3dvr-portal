@@ -8,6 +8,7 @@
     "start": "npm run dev",
     "test": "node --test",
     "env:check": "node scripts/env/check.mjs",
+    "gun:backup": "node scripts/gun/backup-known-roots.mjs",
     "money:loop": "node scripts/money/run-loop.mjs",
     "money:autopilot": "node scripts/money/run-autopilot.mjs",
     "market:pulse": "node scripts/growth/run-market-pulse.mjs",
