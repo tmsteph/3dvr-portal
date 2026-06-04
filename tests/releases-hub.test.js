@@ -15,12 +15,20 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the weekly milestones through v0.0.46', async () => {
+  it('updates the release index with the weekly milestones through v0.0.48', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Latest Release/);
+    assert.match(html, /href="v0\.0\.48\.html">v0\.0\.48</);
+    assert.match(html, /Week of June 1, 2026/);
+    assert.match(html, /Wellness and consciousness apps/);
+    assert.match(html, /GunJS backup tooling/);
+    assert.match(html, /href="v0\.0\.47\.html">v0\.0\.47</);
+    assert.match(html, /Week of May 25, 2026/);
+    assert.match(html, /Revenue Desk/);
+    assert.match(html, /WebRTC reliability/);
     assert.match(html, /href="v0\.0\.46\.html">v0\.0\.46</);
     assert.match(html, /Week of May 18, 2026/);
     assert.match(html, /Guest identity cleanup/);
@@ -56,6 +64,8 @@ describe('release hub backfill', () => {
 
   it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
+      ['v0.0.48.html', /Week of June 1, 2026/, /Focus Flow direction/i, /pull\/670/],
+      ['v0.0.47.html', /Week of May 25, 2026/, /Market Lab/i, /href="v0\.0\.48\.html"/],
       ['v0.0.46.html', /Week of May 18, 2026/, /Pure Gun media/i, /3dvr-web\/pull\/185/],
       ['v0.0.45.html', /Week of May 11, 2026/, /tenant-aware task scheduling/i, /3dvr-agent\/commit\/ec7c967/],
       ['v0.0.44.html', /Week of May 4, 2026/, /3dvr-agent outreach phases/i, /3dvr-agent\/pull\/49/],

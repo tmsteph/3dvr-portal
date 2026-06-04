@@ -31,3 +31,12 @@ test('homepage app search can find CRM by CRM keywords', async () => {
   assert.match(html, /card\.dataset\.appKeywords/);
   assert.match(html, /keywordIncludesQuery/);
 });
+
+test('homepage top navigation keeps Games one click away', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(
+    html,
+    /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="games\.html">Games<\/a>/
+  );
+});
