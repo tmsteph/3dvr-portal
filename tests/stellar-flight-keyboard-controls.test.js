@@ -9,8 +9,8 @@ test('stellar drift supports keyboard-only flight controls', async () => {
   assert.match(html, /<strong>E\/Ctrl<\/strong> to climb or drop/);
   assert.match(html, /fire with <strong>Space<\/strong>, <strong>Enter<\/strong>,\s+<strong>F<\/strong>, or left-click/);
 
-  assert.match(html, /const keyboardLookSpeed = 1\.35;/);
-  assert.match(html, /const keyboardPitchSpeed = 1\.05;/);
+  assert.match(html, /const keyboardLookSpeed = 0\.9;/);
+  assert.match(html, /const keyboardPitchSpeed = 0\.72;/);
   assert.match(html, /'ArrowUp'/);
   assert.match(html, /'ArrowDown'/);
   assert.match(html, /'ArrowLeft'/);
