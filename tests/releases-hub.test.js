@@ -92,17 +92,18 @@ describe('release hub backfill', () => {
     }
   });
 
-  it('rewards release readers with direct links to the shipped apps and docs', async () => {
+  it('links shipped apps and docs inline where the release summaries mention them', async () => {
     const release47 = await readFile(new URL('v0.0.47.html', baseDir), 'utf8');
     const release48 = await readFile(new URL('v0.0.48.html', baseDir), 'utf8');
 
-    assert.match(release47, /<h2>Open the Work<\/h2>/);
+    assert.doesNotMatch(release47, /<h2>Open the Work<\/h2>/);
     assert.match(release47, /href="\.\.\/revenue-desk\/">Revenue Desk</);
     assert.match(release47, /href="\.\.\/market-lab\/">Market Lab</);
     assert.match(release47, /href="\.\.\/webrtc-lab\/">WebRTC Lab</);
-    assert.match(release47, /href="\.\.\/docs\/path-to-profitability\.md">Path to Profitability</);
+    assert.match(release47, /href="\.\.\/docs\/path-to-profitability\.md">path-to-profitability docs</);
+    assert.match(release47, /<strong>Revenue and market systems:<\/strong>[\s\S]*href="\.\.\/market-lab\/"/);
 
-    assert.match(release48, /<h2>Open the Work<\/h2>/);
+    assert.doesNotMatch(release48, /<h2>Open the Work<\/h2>/);
     assert.match(release48, /href="\.\.\/intention-lab\/">Intention Lab</);
     assert.match(release48, /href="\.\.\/body-mode\/">Body Mode</);
     assert.match(release48, /href="\.\.\/portal-lab\/">Portal Lab</);
@@ -111,6 +112,7 @@ describe('release hub backfill', () => {
     assert.match(release48, /href="\.\.\/master-key-room\/">Master Key Room</);
     assert.match(release48, /href="\.\.\/games\.html">Games</);
     assert.match(release48, /href="\.\.\/stellar-flight\.html">Stellar Drift</);
+    assert.match(release48, /<strong>Wellness and consciousness apps:<\/strong>[\s\S]*href="\.\.\/intention-lab\/"/);
     assert.match(release48, /pull\/672/);
   });
 });
