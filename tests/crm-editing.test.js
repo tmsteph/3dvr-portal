@@ -10,9 +10,13 @@ import {
   CRM_FIT_OPTIONS,
   CRM_URGENCY_OPTIONS,
   CRM_RECORD_TYPE_OPTIONS,
+  CRM_CONVERSATION_PLAN_OPTIONS,
+  buildConversationCaptureRecord,
   normalizeCrmRecordType,
   normalizeCrmWarmth,
+  normalizeConversationCaptureList,
   parseCrmList,
+  sanitizeConversationCaptureRecord,
   sanitizeCrmRecord,
   buildCrmRelationshipBoard,
 } from '../crm/crm-editing.js';
@@ -99,6 +103,96 @@ describe('crm option sets', () => {
       { value: 'group', label: 'Group / account' },
       { value: 'problem', label: 'Problem / pain' },
     ]);
+  });
+});
+
+describe('crm conversation capture helpers', () => {
+  it('normalizes structured mobile discovery captures', () => {
+    assert.deepEqual(Array.from(CRM_CONVERSATION_PLAN_OPTIONS), [
+      'Free',
+      '$5/mo',
+      '$20/mo',
+      '$50/mo',
+      'Custom',
+      'Not interested yet',
+    ]);
+    assert.deepEqual(normalizeConversationCaptureList({
+      1: 'Needs design',
+      0: 'No website',
+      _: 'gun metadata',
+    }), ['No website', 'Needs design']);
+
+    const record = buildConversationCaptureRecord({
+      personId: 'person-1',
+      name: 'Max',
+      relationship: 'coworker',
+      contactMethod: 'in person only',
+      projectType: 'art/music',
+      projectDescription: 'Aspiring audio engineer learning Dante and networking.',
+      painPoints: ['No website', 'No website', 'Needs design'],
+      exactWords: 'I want to learn more general computer knowledge.',
+      interestedPlan: '$20/mo',
+      signupTrigger: 'A clear AV learning path.',
+      interestLevel: 'Interested',
+      nextAction: 'Send example site',
+      followUpDate: '2026-06-08',
+    }, { id: 'guest-1', label: 'Thomas' }, {
+      idFactory: () => 'capture-1',
+      now: new Date('2026-06-04T20:00:00.000Z'),
+    });
+
+    assert.deepEqual(record, {
+      id: 'capture-1',
+      personId: 'person-1',
+      name: 'Max',
+      relationship: 'Coworker',
+      contactMethod: 'In person only',
+      contactDetail: '',
+      projectType: 'Art/music',
+      projectDescription: 'Aspiring audio engineer learning Dante and networking.',
+      painPoints: ['No website', 'Needs design'],
+      exactWords: 'I want to learn more general computer knowledge.',
+      interestedPlan: '$20/mo',
+      signupTrigger: 'A clear AV learning path.',
+      interestLevel: 'Interested',
+      nextAction: 'Send example site',
+      followUpDate: '2026-06-08',
+      createdAt: '2026-06-04T20:00:00.000Z',
+      updatedAt: '2026-06-04T20:00:00.000Z',
+      source: 'mobile-conversation',
+      capturedBy: 'guest-1',
+      capturedByLabel: 'Thomas',
+    });
+  });
+
+  it('sanitizes captures without losing optional incomplete fields', () => {
+    assert.deepEqual(sanitizeConversationCaptureRecord({
+      id: 'capture-2',
+      name: 'Sean',
+      painPoints: 'No website, Needs booking/forms',
+      interestedPlan: 'custom',
+      nextAction: 'send pricing',
+      source: '',
+    }), {
+      id: 'capture-2',
+      personId: '',
+      name: 'Sean',
+      relationship: '',
+      contactMethod: '',
+      contactDetail: '',
+      projectType: '',
+      projectDescription: '',
+      painPoints: ['No website', 'Needs booking/forms'],
+      exactWords: '',
+      interestedPlan: 'Custom',
+      signupTrigger: '',
+      interestLevel: '',
+      nextAction: 'Send pricing',
+      followUpDate: '',
+      createdAt: '',
+      updatedAt: '',
+      source: 'mobile-conversation',
+    });
   });
 });
 

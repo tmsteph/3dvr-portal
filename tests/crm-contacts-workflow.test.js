@@ -12,12 +12,31 @@ async function read(relativePath) {
 test('CRM page exposes workflow filters and import controls for fast lead retrieval', async () => {
   const html = await read('crm/index.html');
   assert.match(html, /id="quickConversationCapture"/);
+  assert.match(html, /id="openConversationCapture"/);
+  assert.match(html, /\+ Capture Conversation/);
+  assert.match(html, /id="conversationCapturePanel"/);
+  assert.match(html, /id="conversationCaptureForm"/);
+  assert.match(html, /id="conversationCaptureName"/);
+  assert.match(html, /name="conversationRelationship"/);
+  assert.match(html, /name="conversationProjectType"/);
+  assert.match(html, /name="conversationPainPoints"/);
+  assert.match(html, /name="conversationInterestedPlan"/);
+  assert.match(html, /name="conversationInterestLevel"/);
+  assert.match(html, /name="conversationNextAction"/);
+  assert.match(html, /id="conversationFollowUpCustom"/);
+  assert.match(html, /id="conversationCaptureSummary"/);
+  assert.match(html, /id="conversationCapturesList"/);
+  assert.match(html, /id="conversationCapturePlanFilter"/);
+  assert.match(html, /id="conversationCaptureActionFilter"/);
+  assert.match(html, /id="conversationCaptureInterestFilter"/);
+  assert.match(html, /Ask, tap, save\./);
+  assert.match(html, /Save Conversation/);
   assert.match(html, /id="quickConversationForm"/);
   assert.match(html, /id="quickConversationNote"/);
   assert.match(html, /id="quickConversationPerson"/);
   assert.match(html, /id="quickConversationChannel"/);
   assert.match(html, /id="quickConversationNextStep"/);
-  assert.match(html, /Drop the note\. Keep moving\./);
+  assert.match(html, /Ask, tap, save\./);
   assert.match(html, /overflow-x: hidden/);
   assert.match(html, /overflow-wrap: anywhere/);
   assert.match(html, /#crmFloatingIdentity/);
@@ -73,6 +92,15 @@ test('CRM page exposes workflow filters and import controls for fast lead retrie
 
 test('CRM app includes keyboard search shortcut, workflow filters, and import wiring', async () => {
   const js = await read('crm/app.js');
+  assert.match(js, /portalRoot\.get\('crm'\)\.get\('conversationCaptures'\)/);
+  assert.match(js, /function handleConversationCaptureSubmit\(event\)/);
+  assert.match(js, /buildConversationCaptureRecord/);
+  assert.match(js, /source\/mobile-conversation/);
+  assert.match(js, /putConversationCapture\(capture\)/);
+  assert.match(js, /conversationCapturesRoot\.map\(\)\.on/);
+  assert.match(js, /conversationCaptureForm\?\.addEventListener\('submit', handleConversationCaptureSubmit\)/);
+  assert.match(js, /openConversationCapture\?\.addEventListener\('click', openConversationCapturePanel\)/);
+  assert.match(js, /conversationCapturePlanFilter\?\.addEventListener\('change', renderConversationCaptures\)/);
   assert.match(js, /handleQuickConversationSubmit/);
   assert.match(js, /findQuickConversationRecord/);
   assert.match(js, /appendConversationNote/);
