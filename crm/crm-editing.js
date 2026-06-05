@@ -71,6 +71,79 @@ const DEFAULT_RECORD_TYPE_OPTIONS = Object.freeze([
   Object.freeze({ value: 'problem', label: 'Problem / pain' }),
 ]);
 
+const DEFAULT_CONVERSATION_RELATIONSHIP_OPTIONS = Object.freeze([
+  'Friend',
+  'Coworker',
+  'Client',
+  'Family',
+  'Stranger',
+  'Business Owner',
+  'Other',
+]);
+
+const DEFAULT_CONVERSATION_CONTACT_METHOD_OPTIONS = Object.freeze([
+  'Phone',
+  'Email',
+  'Instagram',
+  'Facebook',
+  'In person only',
+]);
+
+const DEFAULT_CONVERSATION_PROJECT_TYPE_OPTIONS = Object.freeze([
+  'Business',
+  'Personal brand',
+  'Product',
+  'Event',
+  'Service',
+  'Art/music',
+  'Community',
+  'Existing website',
+  'Just curious',
+  'Nothing yet',
+]);
+
+const DEFAULT_CONVERSATION_PAIN_POINT_OPTIONS = Object.freeze([
+  'No website',
+  'Website outdated',
+  'Too expensive',
+  'Too confusing',
+  'No time',
+  'Needs design',
+  'Needs hosting',
+  'Needs marketing',
+  'Needs online payments',
+  'Needs booking/forms',
+  'Not sure yet',
+]);
+
+const DEFAULT_CONVERSATION_PLAN_OPTIONS = Object.freeze([
+  'Free',
+  '$5/mo',
+  '$20/mo',
+  '$50/mo',
+  'Custom',
+  'Not interested yet',
+]);
+
+const DEFAULT_CONVERSATION_INTEREST_LEVEL_OPTIONS = Object.freeze([
+  'Ready now',
+  'Interested',
+  'Maybe later',
+  'Polite only',
+  'Not a fit',
+]);
+
+const DEFAULT_CONVERSATION_NEXT_ACTION_OPTIONS = Object.freeze([
+  'Send link',
+  'Send pricing',
+  'Send example site',
+  'Make free homepage',
+  'Schedule call',
+  'Ask again later',
+  'Introduce to team',
+  'No action',
+]);
+
 export const CRM_STATUS_OPTIONS = DEFAULT_STATUS_OPTIONS;
 export const CRM_MARKET_SEGMENT_OPTIONS = DEFAULT_MARKET_SEGMENT_OPTIONS;
 export const CRM_PAIN_SEVERITY_OPTIONS = DEFAULT_PAIN_SEVERITY_OPTIONS;
@@ -79,6 +152,13 @@ export const CRM_WARMTH_OPTIONS = DEFAULT_WARMTH_OPTIONS;
 export const CRM_FIT_OPTIONS = DEFAULT_FIT_OPTIONS;
 export const CRM_URGENCY_OPTIONS = DEFAULT_URGENCY_OPTIONS;
 export const CRM_RECORD_TYPE_OPTIONS = DEFAULT_RECORD_TYPE_OPTIONS;
+export const CRM_CONVERSATION_RELATIONSHIP_OPTIONS = DEFAULT_CONVERSATION_RELATIONSHIP_OPTIONS;
+export const CRM_CONVERSATION_CONTACT_METHOD_OPTIONS = DEFAULT_CONVERSATION_CONTACT_METHOD_OPTIONS;
+export const CRM_CONVERSATION_PROJECT_TYPE_OPTIONS = DEFAULT_CONVERSATION_PROJECT_TYPE_OPTIONS;
+export const CRM_CONVERSATION_PAIN_POINT_OPTIONS = DEFAULT_CONVERSATION_PAIN_POINT_OPTIONS;
+export const CRM_CONVERSATION_PLAN_OPTIONS = DEFAULT_CONVERSATION_PLAN_OPTIONS;
+export const CRM_CONVERSATION_INTEREST_LEVEL_OPTIONS = DEFAULT_CONVERSATION_INTEREST_LEVEL_OPTIONS;
+export const CRM_CONVERSATION_NEXT_ACTION_OPTIONS = DEFAULT_CONVERSATION_NEXT_ACTION_OPTIONS;
 
 export function createCrmEditingManager(initialIds = []) {
   const editing = new Set();
@@ -192,6 +272,116 @@ export function parseCrmList(value) {
 
 export function serializeCrmList(value) {
   return parseCrmList(value).join(', ');
+}
+
+function normalizeConversationOption(value = '', options = []) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const match = (Array.isArray(options) ? options : []).find(option => (
+    String(option || '').trim().toLowerCase() === raw.toLowerCase()
+  ));
+  return match || raw;
+}
+
+export function normalizeConversationCaptureList(value = [], options = []) {
+  const parts = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+    ? Object.keys(value)
+      .filter(key => key !== '_')
+      .sort((a, b) => Number(a) - Number(b))
+      .map(key => value[key])
+    : String(value || '').split(/[\n,]/);
+  const output = [];
+  const seen = new Set();
+
+  parts.forEach(entry => {
+    const normalized = normalizeConversationOption(entry, options);
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    output.push(normalized);
+  });
+
+  return output;
+}
+
+function normalizeIsoDate(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toISOString();
+}
+
+function createConversationCaptureId(now, idFactory) {
+  if (typeof idFactory === 'function') {
+    return String(idFactory() || '').trim();
+  }
+  const timestamp = now instanceof Date && !Number.isNaN(now.getTime())
+    ? now.getTime()
+    : Date.now();
+  return `conversation-${timestamp}`;
+}
+
+export function sanitizeConversationCaptureRecord(data = {}) {
+  const clean = {};
+  Object.entries(data || {}).forEach(([key, value]) => {
+    if (key === '_' || typeof value === 'function') return;
+    clean[key] = value;
+  });
+
+  clean.id = String(clean.id || '').trim();
+  clean.personId = String(clean.personId || '').trim();
+  clean.name = String(clean.name || '').trim();
+  clean.relationship = normalizeConversationOption(clean.relationship, CRM_CONVERSATION_RELATIONSHIP_OPTIONS);
+  clean.contactMethod = normalizeConversationOption(clean.contactMethod, CRM_CONVERSATION_CONTACT_METHOD_OPTIONS);
+  clean.contactDetail = String(clean.contactDetail || '').trim();
+  clean.projectType = normalizeConversationOption(clean.projectType, CRM_CONVERSATION_PROJECT_TYPE_OPTIONS);
+  clean.projectDescription = String(clean.projectDescription || '').trim();
+  clean.painPoints = normalizeConversationCaptureList(clean.painPoints, CRM_CONVERSATION_PAIN_POINT_OPTIONS);
+  clean.exactWords = String(clean.exactWords || '').trim();
+  clean.interestedPlan = normalizeConversationOption(clean.interestedPlan, CRM_CONVERSATION_PLAN_OPTIONS);
+  clean.signupTrigger = String(clean.signupTrigger || '').trim();
+  clean.interestLevel = normalizeConversationOption(clean.interestLevel, CRM_CONVERSATION_INTEREST_LEVEL_OPTIONS);
+  clean.nextAction = normalizeConversationOption(clean.nextAction, CRM_CONVERSATION_NEXT_ACTION_OPTIONS);
+  clean.followUpDate = String(clean.followUpDate || '').trim();
+  clean.createdAt = normalizeIsoDate(clean.createdAt);
+  clean.updatedAt = normalizeIsoDate(clean.updatedAt);
+  clean.source = String(clean.source || 'mobile-conversation').trim();
+
+  return clean;
+}
+
+export function buildConversationCaptureRecord(input = {}, identity = {}, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const timestamp = Number.isNaN(now.getTime()) ? new Date().toISOString() : now.toISOString();
+  const id = String(input.id || createConversationCaptureId(now, options.idFactory)).trim();
+
+  return sanitizeConversationCaptureRecord({
+    id,
+    personId: input.personId,
+    name: input.name,
+    relationship: input.relationship,
+    contactMethod: input.contactMethod,
+    contactDetail: input.contactDetail,
+    projectType: input.projectType,
+    projectDescription: input.projectDescription,
+    painPoints: input.painPoints,
+    exactWords: input.exactWords,
+    interestedPlan: input.interestedPlan,
+    signupTrigger: input.signupTrigger,
+    interestLevel: input.interestLevel,
+    nextAction: input.nextAction,
+    followUpDate: input.followUpDate,
+    createdAt: input.createdAt || timestamp,
+    updatedAt: timestamp,
+    source: 'mobile-conversation',
+    capturedBy: String(identity.id || identity.alias || '').trim(),
+    capturedByLabel: String(identity.label || identity.alias || '').trim(),
+  });
 }
 
 export function sanitizeCrmRecord(data) {
@@ -341,8 +531,18 @@ if (typeof window !== 'undefined') {
     CRM_PAIN_SEVERITY_OPTIONS,
     CRM_PILOT_STATUS_OPTIONS,
     CRM_RECORD_TYPE_OPTIONS,
+    CRM_CONVERSATION_RELATIONSHIP_OPTIONS,
+    CRM_CONVERSATION_CONTACT_METHOD_OPTIONS,
+    CRM_CONVERSATION_PROJECT_TYPE_OPTIONS,
+    CRM_CONVERSATION_PAIN_POINT_OPTIONS,
+    CRM_CONVERSATION_PLAN_OPTIONS,
+    CRM_CONVERSATION_INTEREST_LEVEL_OPTIONS,
+    CRM_CONVERSATION_NEXT_ACTION_OPTIONS,
     createCrmEditingManager,
     normalizeCrmRecordType,
+    normalizeConversationCaptureList,
+    sanitizeConversationCaptureRecord,
+    buildConversationCaptureRecord,
     parseCrmList,
     serializeCrmList,
     sanitizeCrmRecord,

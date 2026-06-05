@@ -37,6 +37,9 @@
     #contactList,
     #crmDuplicateSummary,
     #crmDetailCard,
+    #conversationCapturePanel,
+    #conversationCaptureSummary,
+    #conversationCapturesList,
     #crmCreateOverlay > div,
     .crm-card {
       max-width: 100%;
@@ -152,44 +155,281 @@
       <div class="grid gap-5 lg:grid-cols-[0.75fr,1.25fr] lg:items-start">
         <div class="space-y-2">
           <p class="text-xs font-semibold tracking-[0.32em] text-teal-300 uppercase">Quick capture</p>
-          <h2 class="text-2xl font-semibold">Drop the note. Keep moving.</h2>
+          <h2 class="text-2xl font-semibold">Ask, tap, save.</h2>
           <p class="text-sm text-gray-300">
-            Use this after a work chat, text, call, or random idea. Add the person if you remember. Add one next step if there is one.
+            Pull this up during a real conversation. Tap the useful signal, dictate tiny notes, and save the next step.
           </p>
+          <button
+            id="openConversationCapture"
+            type="button"
+            class="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-teal-400 px-5 py-4 text-base font-bold text-gray-950 shadow-lg shadow-teal-950/30 hover:bg-teal-300 sm:w-auto"
+          >
+            + Capture Conversation
+          </button>
         </div>
-        <form id="quickConversationForm" class="grid gap-3">
-          <label for="quickConversationNote" class="sr-only">Conversation note</label>
-          <textarea
-            id="quickConversationNote"
-            rows="4"
-            class="w-full rounded-2xl border border-white/10 bg-white text-gray-950 p-4 text-base leading-relaxed"
-            placeholder="Example: Talked to Victor. He still wants the Alibaba store. Ask him to send one product link tomorrow."
-          ></textarea>
-          <div class="grid gap-3 md:grid-cols-[1fr,0.7fr]">
-            <div>
-              <label for="quickConversationPerson" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Who</label>
-              <input id="quickConversationPerson" type="text" class="w-full p-3 rounded-xl text-black" placeholder="Optional name" autocomplete="name" />
-            </div>
-            <div>
-              <label for="quickConversationChannel" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Kind</label>
-              <select id="quickConversationChannel" class="w-full p-3 rounded-xl text-black">
-                <option value="conversation">Conversation</option>
-                <option value="message">Text / DM</option>
-                <option value="call">Call</option>
-                <option value="email">Email</option>
-                <option value="group-chat">Group chat</option>
-              </select>
-            </div>
+        <div class="space-y-5">
+          <div
+            id="conversationCapturePanel"
+            class="hidden rounded-3xl border border-teal-300/20 bg-gray-950/45 p-4 sm:p-5"
+          >
+            <form id="conversationCaptureForm" class="grid gap-5">
+              <section class="space-y-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.28em] text-teal-200">1 · Person</p>
+                  <label for="conversationCaptureName" class="mt-2 block text-lg font-semibold">Name or nickname</label>
+                  <input
+                    id="conversationCaptureName"
+                    type="text"
+                    class="mt-2 w-full rounded-2xl border border-white/10 bg-white p-4 text-lg text-gray-950"
+                    placeholder="Max, Sean, the coffee shop owner..."
+                    autocomplete="name"
+                  />
+                </div>
+                <fieldset class="space-y-2">
+                  <legend class="text-sm font-semibold text-gray-300">Relationship</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationRelationship" value="Friend">Friend</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationRelationship" value="Coworker">Coworker</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationRelationship" value="Client">Client</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationRelationship" value="Family">Family</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationRelationship" value="Stranger">Stranger</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationRelationship" value="Business Owner">Business owner</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationRelationship" value="Other">Other</label>
+                  </div>
+                </fieldset>
+                <fieldset class="space-y-2">
+                  <legend class="text-sm font-semibold text-gray-300">Contact method</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationContactMethod" value="Phone">Phone</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationContactMethod" value="Email">Email</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationContactMethod" value="Instagram">Instagram</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationContactMethod" value="Facebook">Facebook</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationContactMethod" value="In person only">In person only</label>
+                  </div>
+                  <label for="conversationCaptureContactDetail" class="sr-only">Contact detail</label>
+                  <input
+                    id="conversationCaptureContactDetail"
+                    type="text"
+                    class="w-full rounded-xl border border-white/10 bg-white p-3 text-gray-950"
+                    placeholder="Optional phone, email, handle, or where you met"
+                  />
+                </fieldset>
+              </section>
+
+              <section class="space-y-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.28em] text-teal-200">2 · Project / need</p>
+                <fieldset class="space-y-2">
+                  <legend class="text-lg font-semibold">Do they have something they want online?</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Business">Business</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Personal brand">Personal brand</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Product">Product</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Event">Event</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Service">Service</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Art/music">Art/music</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Community">Community</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Existing website">Existing website</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Just curious">Just curious</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationProjectType" value="Nothing yet">Nothing yet</label>
+                  </div>
+                </fieldset>
+                <label for="conversationProjectDescription" class="block text-sm font-semibold text-gray-300">What is it?</label>
+                <textarea
+                  id="conversationProjectDescription"
+                  rows="2"
+                  class="w-full rounded-2xl border border-white/10 bg-white p-4 text-base text-gray-950"
+                  placeholder="Voice note friendly: aspiring audio engineer, local AV work, needs Dante/networking..."
+                ></textarea>
+              </section>
+
+              <section class="space-y-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.28em] text-teal-200">3 · Pain</p>
+                <fieldset class="space-y-2">
+                  <legend class="text-lg font-semibold">What is stopping them?</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="No website">No website</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Website outdated">Website outdated</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Too expensive">Too expensive</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Too confusing">Too confusing</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="No time">No time</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Needs design">Needs design</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Needs hosting">Needs hosting</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Needs marketing">Needs marketing</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Needs online payments">Needs online payments</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Needs booking/forms">Needs booking/forms</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="checkbox" name="conversationPainPoints" value="Not sure yet">Not sure yet</label>
+                  </div>
+                </fieldset>
+                <label for="conversationExactWords" class="block text-sm font-semibold text-gray-300">Exact words they used</label>
+                <textarea
+                  id="conversationExactWords"
+                  rows="2"
+                  class="w-full rounded-2xl border border-white/10 bg-white p-4 text-base text-gray-950"
+                  placeholder="Quote their words if you can. This becomes better follow-up copy later."
+                ></textarea>
+              </section>
+
+              <section class="space-y-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.28em] text-teal-200">4 · Plan interest</p>
+                <fieldset class="space-y-2">
+                  <legend class="text-lg font-semibold">Which plan felt interesting?</legend>
+                  <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <label class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestedPlan" value="Free">Free</label>
+                    <label class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestedPlan" value="$5/mo">$5/mo</label>
+                    <label class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestedPlan" value="$20/mo">$20/mo</label>
+                    <label class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestedPlan" value="$50/mo">$50/mo</label>
+                    <label class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestedPlan" value="Custom">Custom</label>
+                    <label class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestedPlan" value="Not interested yet">Not yet</label>
+                  </div>
+                </fieldset>
+                <label for="conversationSignupTrigger" class="block text-sm font-semibold text-gray-300">What would make them happy to sign up?</label>
+                <textarea id="conversationSignupTrigger" rows="2" class="w-full rounded-2xl border border-white/10 bg-white p-4 text-base text-gray-950"></textarea>
+              </section>
+
+              <section class="space-y-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.28em] text-teal-200">5 · Mood</p>
+                <fieldset class="space-y-2">
+                  <legend class="text-lg font-semibold">How interested were they?</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestLevel" value="Ready now">Ready now</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestLevel" value="Interested">Interested</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestLevel" value="Maybe later">Maybe later</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestLevel" value="Polite only">Polite only</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationInterestLevel" value="Not a fit">Not a fit</label>
+                  </div>
+                </fieldset>
+              </section>
+
+              <section class="space-y-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.28em] text-teal-200">6 · Next step</p>
+                <fieldset class="space-y-2">
+                  <legend class="text-lg font-semibold">What should I do next?</legend>
+                  <div class="flex flex-wrap gap-2">
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationNextAction" value="Send link">Send link</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationNextAction" value="Send pricing">Send pricing</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationNextAction" value="Send example site">Send example site</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationNextAction" value="Make free homepage">Make free homepage</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationNextAction" value="Schedule call">Schedule call</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationNextAction" value="Ask again later">Ask again later</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationNextAction" value="Introduce to team">Introduce to team</label>
+                    <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationNextAction" value="No action">No action</label>
+                  </div>
+                </fieldset>
+                <div class="grid gap-3 sm:grid-cols-[1fr,180px]">
+                  <fieldset class="space-y-2">
+                    <legend class="text-sm font-semibold text-gray-300">Follow-up date</legend>
+                    <div class="flex flex-wrap gap-2">
+                      <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationFollowUpQuick" value="tomorrow">Tomorrow</label>
+                      <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationFollowUpQuick" value="3-days">3 days</label>
+                      <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationFollowUpQuick" value="1-week">1 week</label>
+                      <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationFollowUpQuick" value="2-weeks">2 weeks</label>
+                      <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationFollowUpQuick" value="1-month">1 month</label>
+                      <label class="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm"><input class="mr-2 accent-teal-400" type="radio" name="conversationFollowUpQuick" value="custom">Custom</label>
+                    </div>
+                  </fieldset>
+                  <div>
+                    <label for="conversationFollowUpCustom" class="block text-sm font-semibold text-gray-300">Custom</label>
+                    <input id="conversationFollowUpCustom" type="date" class="mt-2 w-full rounded-xl border border-white/10 bg-white p-3 text-gray-950" />
+                  </div>
+                </div>
+              </section>
+
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button type="submit" class="rounded-2xl bg-teal-400 px-5 py-4 font-bold text-gray-950 hover:bg-teal-300">Save Conversation</button>
+                <button id="resetConversationCapture" type="button" class="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 font-semibold text-white hover:bg-white/15">Clear</button>
+              </div>
+              <p id="conversationCaptureStatus" class="hidden rounded-xl border px-3 py-2 text-sm" role="status" aria-live="polite"></p>
+            </form>
           </div>
-          <div class="grid gap-3 md:grid-cols-[1fr,auto] md:items-end">
-            <div>
-              <label for="quickConversationNextStep" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Next step</label>
-              <input id="quickConversationNextStep" type="text" class="w-full p-3 rounded-xl text-black" placeholder="Optional: ask for product link, send examples, follow up Friday..." />
+
+          <div id="conversationCaptureSummary" class="hidden rounded-2xl border border-emerald-400/25 bg-emerald-950/35 p-4"></div>
+
+          <details class="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <summary class="cursor-pointer text-sm font-semibold text-gray-200">Fast fallback note</summary>
+            <form id="quickConversationForm" class="mt-4 grid gap-3">
+              <label for="quickConversationNote" class="sr-only">Conversation note</label>
+              <textarea
+                id="quickConversationNote"
+                rows="4"
+                class="w-full rounded-2xl border border-white/10 bg-white text-gray-950 p-4 text-base leading-relaxed"
+                placeholder="Example: Talked to Victor. He still wants the Alibaba store. Ask him to send one product link tomorrow."
+              ></textarea>
+              <div class="grid gap-3 md:grid-cols-[1fr,0.7fr]">
+                <div>
+                  <label for="quickConversationPerson" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Who</label>
+                  <input id="quickConversationPerson" type="text" class="w-full p-3 rounded-xl text-black" placeholder="Optional name" autocomplete="name" />
+                </div>
+                <div>
+                  <label for="quickConversationChannel" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Kind</label>
+                  <select id="quickConversationChannel" class="w-full p-3 rounded-xl text-black">
+                    <option value="conversation">Conversation</option>
+                    <option value="message">Text / DM</option>
+                    <option value="call">Call</option>
+                    <option value="email">Email</option>
+                    <option value="group-chat">Group chat</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid gap-3 md:grid-cols-[1fr,auto] md:items-end">
+                <div>
+                  <label for="quickConversationNextStep" class="block text-xs font-semibold uppercase tracking-[0.22em] text-gray-400 mb-1">Next step</label>
+                  <input id="quickConversationNextStep" type="text" class="w-full p-3 rounded-xl text-black" placeholder="Optional: ask for product link, send examples, follow up Friday..." />
+                </div>
+                <button type="submit" class="rounded-xl bg-teal-500 px-5 py-3 font-semibold text-gray-950 hover:bg-teal-400">Save note</button>
+              </div>
+              <p id="quickConversationStatus" class="hidden rounded-xl border px-3 py-2 text-sm" role="status" aria-live="polite"></p>
+            </form>
+          </details>
+
+          <section class="rounded-2xl border border-white/10 bg-gray-950/35 p-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">Recent Conversations</p>
+                <p class="text-sm text-gray-300">Filter the capture research without digging through dense CRM rows.</p>
+              </div>
+              <div class="grid gap-2 sm:grid-cols-3">
+                <label class="text-xs text-gray-400">
+                  Plan
+                  <select id="conversationCapturePlanFilter" class="mt-1 w-full rounded-lg bg-white p-2 text-gray-950">
+                    <option value="">All plans</option>
+                    <option value="Free">Free</option>
+                    <option value="$5/mo">$5/mo</option>
+                    <option value="$20/mo">$20/mo</option>
+                    <option value="$50/mo">$50/mo</option>
+                    <option value="Custom">Custom</option>
+                    <option value="Not interested yet">Not interested yet</option>
+                  </select>
+                </label>
+                <label class="text-xs text-gray-400">
+                  Next
+                  <select id="conversationCaptureActionFilter" class="mt-1 w-full rounded-lg bg-white p-2 text-gray-950">
+                    <option value="">All actions</option>
+                    <option value="Send link">Send link</option>
+                    <option value="Send pricing">Send pricing</option>
+                    <option value="Send example site">Send example site</option>
+                    <option value="Make free homepage">Make free homepage</option>
+                    <option value="Schedule call">Schedule call</option>
+                    <option value="Ask again later">Ask again later</option>
+                    <option value="Introduce to team">Introduce to team</option>
+                    <option value="No action">No action</option>
+                  </select>
+                </label>
+                <label class="text-xs text-gray-400">
+                  Interest
+                  <select id="conversationCaptureInterestFilter" class="mt-1 w-full rounded-lg bg-white p-2 text-gray-950">
+                    <option value="">All interest</option>
+                    <option value="Ready now">Ready now</option>
+                    <option value="Interested">Interested</option>
+                    <option value="Maybe later">Maybe later</option>
+                    <option value="Polite only">Polite only</option>
+                    <option value="Not a fit">Not a fit</option>
+                  </select>
+                </label>
+              </div>
             </div>
-            <button type="submit" class="rounded-xl bg-teal-500 px-5 py-3 font-semibold text-gray-950 hover:bg-teal-400">Save note</button>
-          </div>
-          <p id="quickConversationStatus" class="hidden rounded-xl border px-3 py-2 text-sm" role="status" aria-live="polite"></p>
-        </form>
+            <div id="conversationCapturesList" class="mt-4 space-y-3"></div>
+          </section>
+        </div>
       </div>
     </section>
 

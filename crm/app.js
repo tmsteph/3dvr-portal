@@ -7,6 +7,8 @@ import {
   CRM_FIT_OPTIONS,
   CRM_URGENCY_OPTIONS,
   CRM_RECORD_TYPE_OPTIONS,
+  buildConversationCaptureRecord,
+  sanitizeConversationCaptureRecord,
   normalizeCrmRecordType,
   normalizeCrmWarmth,
   parseCrmList,
@@ -41,6 +43,8 @@ const ORG_CONTACTS_NODE_KEY = 'org-3dvr-demo';
 const contactsWorkspaceOrg = gun.get(ORG_CONTACTS_NODE_KEY);
 const touchLogRoot = portalRoot.get('crm-touch-log');
 const crmDraftsRoot = portalRoot.get('crm-outreach-drafts');
+// Mobile discovery captures live under 3dvr-portal/crm/conversationCaptures.
+const conversationCapturesRoot = portalRoot.get('crm').get('conversationCaptures');
 const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
   ? window.ScoreSystem.getManager({ gun, user, portalRoot })
   : null;
@@ -64,6 +68,7 @@ const contactWorkspacePersonalIndex = Object.create(null);
 const crmIndex = Object.create(null);
 const draftIndex = new Map();
 const touchLogIndex = new Map();
+const conversationCaptureIndex = new Map();
 const duplicateSummaryById = new Map();
 const WEEKLY_CHALLENGE_GOAL = 3;
 const SALES_STALE_DAYS = 7;
@@ -168,6 +173,22 @@ const elements = {
   quickConversationChannel: document.getElementById('quickConversationChannel'),
   quickConversationNextStep: document.getElementById('quickConversationNextStep'),
   quickConversationStatus: document.getElementById('quickConversationStatus'),
+  openConversationCapture: document.getElementById('openConversationCapture'),
+  conversationCapturePanel: document.getElementById('conversationCapturePanel'),
+  conversationCaptureForm: document.getElementById('conversationCaptureForm'),
+  conversationCaptureName: document.getElementById('conversationCaptureName'),
+  conversationCaptureContactDetail: document.getElementById('conversationCaptureContactDetail'),
+  conversationProjectDescription: document.getElementById('conversationProjectDescription'),
+  conversationExactWords: document.getElementById('conversationExactWords'),
+  conversationSignupTrigger: document.getElementById('conversationSignupTrigger'),
+  conversationFollowUpCustom: document.getElementById('conversationFollowUpCustom'),
+  conversationCaptureStatus: document.getElementById('conversationCaptureStatus'),
+  conversationCaptureSummary: document.getElementById('conversationCaptureSummary'),
+  resetConversationCapture: document.getElementById('resetConversationCapture'),
+  conversationCapturesList: document.getElementById('conversationCapturesList'),
+  conversationCapturePlanFilter: document.getElementById('conversationCapturePlanFilter'),
+  conversationCaptureActionFilter: document.getElementById('conversationCaptureActionFilter'),
+  conversationCaptureInterestFilter: document.getElementById('conversationCaptureInterestFilter'),
   quickLeadForm: document.getElementById('quickLeadForm'),
   quickLeadName: document.getElementById('quickLeadName'),
   quickLeadEmail: document.getElementById('quickLeadEmail'),
@@ -518,6 +539,143 @@ function deriveQuickConversationName(note = '') {
   return fallback || `Quick note ${new Date().toLocaleString()}`;
 }
 
+function getCheckedValue(name = '') {
+  return String(document.querySelector(`input[name="${escapeSelectorValue(name)}"]:checked`)?.value || '').trim();
+}
+
+function getCheckedValues(name = '') {
+  return Array.from(document.querySelectorAll(`input[name="${escapeSelectorValue(name)}"]:checked`))
+    .map(input => String(input.value || '').trim())
+    .filter(Boolean);
+}
+
+function dateDaysFromNow(days) {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getConversationFollowUpDate() {
+  const custom = String(elements.conversationFollowUpCustom?.value || '').trim();
+  const quick = getCheckedValue('conversationFollowUpQuick');
+  if (quick === 'custom') {
+    return custom;
+  }
+  if (custom) {
+    return custom;
+  }
+  if (quick === 'tomorrow') return dateDaysFromNow(1);
+  if (quick === '3-days') return dateDaysFromNow(3);
+  if (quick === '1-week') return dateDaysFromNow(7);
+  if (quick === '2-weeks') return dateDaysFromNow(14);
+  if (quick === '1-month') return dateDaysFromNow(30);
+  return '';
+}
+
+function getConversationCaptureInput(personId = '') {
+  return {
+    personId,
+    name: elements.conversationCaptureName?.value,
+    relationship: getCheckedValue('conversationRelationship'),
+    contactMethod: getCheckedValue('conversationContactMethod'),
+    contactDetail: elements.conversationCaptureContactDetail?.value,
+    projectType: getCheckedValue('conversationProjectType'),
+    projectDescription: elements.conversationProjectDescription?.value,
+    painPoints: getCheckedValues('conversationPainPoints'),
+    exactWords: elements.conversationExactWords?.value,
+    interestedPlan: getCheckedValue('conversationInterestedPlan'),
+    signupTrigger: elements.conversationSignupTrigger?.value,
+    interestLevel: getCheckedValue('conversationInterestLevel'),
+    nextAction: getCheckedValue('conversationNextAction'),
+    followUpDate: getConversationFollowUpDate(),
+  };
+}
+
+function getConversationCaptureIdentity() {
+  return {
+    id: getParticipantId(),
+    alias,
+    label: getParticipantLabel(),
+  };
+}
+
+function getCaptureWarmth(capture = {}) {
+  if (capture.interestLevel === 'Ready now') return 'hot';
+  if (capture.interestLevel === 'Interested' || capture.interestLevel === 'Maybe later') return 'warm';
+  if (capture.interestLevel === 'Polite only' || capture.interestLevel === 'Not a fit') return 'cold';
+  return 'warm';
+}
+
+function getCaptureStatus(capture = {}) {
+  if (capture.interestLevel === 'Ready now') return 'Warm - Discovery';
+  if (capture.interestLevel === 'Interested') return 'Warm - Awareness';
+  if (capture.interestLevel === 'Maybe later') return 'Warm - Follow-up';
+  if (capture.interestLevel === 'Not a fit') return 'Lost';
+  return DEFAULT_PERSON_STATUS;
+}
+
+function getCaptureFit(capture = {}) {
+  const projectType = String(capture.projectType || '').toLowerCase();
+  if (projectType.includes('website') || projectType === 'business' || projectType === 'service') return 'website';
+  if (projectType.includes('brand') || projectType.includes('art') || projectType.includes('music')) return 'branding';
+  if (projectType === 'product' || projectType === 'community' || projectType === 'event') return 'app';
+  return '';
+}
+
+function getCaptureContactFields(capture = {}, existing = {}) {
+  const detail = String(capture.contactDetail || '').trim();
+  const method = String(capture.contactMethod || '').toLowerCase();
+  const email = detail.includes('@') || method === 'email' ? detail : String(existing.email || '').trim();
+  const phone = method === 'phone' && !detail.includes('@') ? detail : String(existing.phone || '').trim();
+  return { email, phone };
+}
+
+function buildCaptureTags(capture = {}) {
+  const tags = ['conversation-capture', 'source/mobile-conversation'];
+  if (capture.interestedPlan) {
+    tags.push(`offer/${String(capture.interestedPlan).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`);
+  }
+  if (capture.projectType) {
+    tags.push(`project/${String(capture.projectType).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`);
+  }
+  return tags.join(', ');
+}
+
+function buildCaptureNote(capture = {}) {
+  const lines = [
+    capture.projectType ? `Wants online: ${capture.projectType}` : '',
+    capture.projectDescription ? `What it is: ${capture.projectDescription}` : '',
+    capture.painPoints?.length ? `Pain: ${capture.painPoints.join(', ')}` : '',
+    capture.exactWords ? `Exact words: ${capture.exactWords}` : '',
+    capture.interestedPlan ? `Plan interest: ${capture.interestedPlan}` : '',
+    capture.signupTrigger ? `Signup trigger: ${capture.signupTrigger}` : '',
+    capture.interestLevel ? `Interest: ${capture.interestLevel}` : '',
+    capture.nextAction ? `Next action: ${capture.nextAction}` : '',
+    capture.followUpDate ? `Follow-up: ${capture.followUpDate}` : '',
+  ].filter(Boolean);
+  return lines.join('\n');
+}
+
+function resetConversationCaptureForm({ keepOpen = true } = {}) {
+  elements.conversationCaptureForm?.reset();
+  showConversationCaptureStatus('');
+  if (elements.conversationCaptureSummary) {
+    elements.conversationCaptureSummary.classList.add('hidden');
+    elements.conversationCaptureSummary.innerHTML = '';
+  }
+  if (keepOpen) {
+    elements.conversationCaptureName?.focus();
+  }
+}
+
+function openConversationCapturePanel() {
+  elements.conversationCapturePanel?.classList.remove('hidden');
+  window.requestAnimationFrame(() => {
+    elements.conversationCaptureName?.focus();
+  });
+}
+
 function findQuickConversationRecord(personValue = '', note = '') {
   const people = getQuickConversationPeople();
   const explicit = String(personValue || '').trim().toLowerCase();
@@ -559,6 +717,24 @@ function showQuickConversationStatus(message = '', tone = 'info') {
   };
   elements.quickConversationStatus.className = `rounded-xl border px-3 py-2 text-sm ${palettes[tone] || palettes.info}`;
   elements.quickConversationStatus.textContent = copy;
+}
+
+function showConversationCaptureStatus(message = '', tone = 'info') {
+  if (!elements.conversationCaptureStatus) return;
+  const copy = String(message || '').trim();
+  if (!copy) {
+    elements.conversationCaptureStatus.className = 'hidden rounded-xl border px-3 py-2 text-sm';
+    elements.conversationCaptureStatus.textContent = '';
+    return;
+  }
+  const palettes = {
+    info: 'border-sky-500/30 bg-sky-950/40 text-sky-100',
+    success: 'border-emerald-500/30 bg-emerald-950/40 text-emerald-100',
+    warn: 'border-amber-500/30 bg-amber-950/40 text-amber-100',
+    error: 'border-rose-500/30 bg-rose-950/40 text-rose-100',
+  };
+  elements.conversationCaptureStatus.className = `rounded-xl border px-3 py-2 text-sm ${palettes[tone] || palettes.info}`;
+  elements.conversationCaptureStatus.textContent = copy;
 }
 
 function showImportStatus(message = '', tone = 'info') {
@@ -1704,6 +1880,67 @@ function renderList() {
   renderSalesMoves();
 }
 
+function conversationCaptureMatchesFilters(capture = {}) {
+  const plan = String(elements.conversationCapturePlanFilter?.value || '').trim();
+  const action = String(elements.conversationCaptureActionFilter?.value || '').trim();
+  const interest = String(elements.conversationCaptureInterestFilter?.value || '').trim();
+  return (!plan || capture.interestedPlan === plan)
+    && (!action || capture.nextAction === action)
+    && (!interest || capture.interestLevel === interest);
+}
+
+function renderConversationCaptureCard(capture = {}) {
+  const personButton = capture.personId
+    ? `<button type="button" data-action="open-detail" data-record-id="${safeAttr(capture.personId)}" class="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">Open person</button>`
+    : '';
+  return `
+    <article class="rounded-2xl border border-white/10 bg-gray-900/65 p-4" data-conversation-capture-id="${safeAttr(capture.id)}">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0 space-y-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="text-lg font-semibold text-white">${safe(capture.name || 'Unnamed conversation')}</h3>
+            ${capture.interestLevel ? `<span class="rounded-full border border-teal-300/20 bg-teal-950/45 px-2 py-1 text-xs text-teal-100">${safe(capture.interestLevel)}</span>` : ''}
+          </div>
+          ${renderBadgeRow([
+            capture.relationship,
+            capture.projectType,
+            capture.interestedPlan ? `Plan ${capture.interestedPlan}` : '',
+            capture.nextAction ? `Next ${capture.nextAction}` : '',
+            capture.followUpDate ? `Follow-up ${capture.followUpDate}` : '',
+          ])}
+          ${capture.projectDescription ? `<p class="text-sm text-gray-300">${safe(capture.projectDescription)}</p>` : ''}
+          ${capture.painPoints?.length ? `<p class="text-xs text-amber-100/90 rounded-lg border border-amber-400/15 bg-amber-950/35 p-3">Pain: ${safe(capture.painPoints.join(', '))}</p>` : ''}
+          ${capture.exactWords ? `<p class="text-xs text-sky-100/90 rounded-lg border border-sky-400/15 bg-sky-950/35 p-3">"${safe(capture.exactWords)}"</p>` : ''}
+          <p class="text-xs text-gray-500">Saved ${safe(formatUpdated(capture.updatedAt || capture.createdAt))}</p>
+        </div>
+        <div class="shrink-0">${personButton}</div>
+      </div>
+    </article>
+  `;
+}
+
+function renderConversationCaptures() {
+  if (!elements.conversationCapturesList) return;
+  const captures = Array.from(conversationCaptureIndex.values())
+    .map(sanitizeConversationCaptureRecord)
+    .filter(capture => String(capture.id || '').trim())
+    .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+  const filtered = captures.filter(conversationCaptureMatchesFilters);
+
+  if (!captures.length) {
+    elements.conversationCapturesList.innerHTML = '<p class="rounded-xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-gray-400">No structured conversation captures yet.</p>';
+    return;
+  }
+  if (!filtered.length) {
+    elements.conversationCapturesList.innerHTML = '<p class="rounded-xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-gray-400">No captures match those filters.</p>';
+    return;
+  }
+  elements.conversationCapturesList.innerHTML = filtered
+    .slice(0, 12)
+    .map(renderConversationCaptureCard)
+    .join('');
+}
+
 function renderSalesMoveRows(target, records, formatter) {
   if (!target) return;
   if (!records.length) {
@@ -1814,6 +2051,21 @@ function putCrmRecord(record) {
       crmIndex[record.id] = { ...(crmIndex[record.id] || {}), ...sanitizeCrmRecord(record), id: record.id };
       scheduleRender();
       resolve(record);
+    });
+  });
+}
+
+function putConversationCapture(capture) {
+  return new Promise((resolve, reject) => {
+    const sanitized = sanitizeConversationCaptureRecord(capture);
+    conversationCapturesRoot.get(sanitized.id).put(sanitized, ack => {
+      if (ack && ack.err) {
+        reject(new Error(String(ack.err)));
+        return;
+      }
+      conversationCaptureIndex.set(sanitized.id, sanitized);
+      renderConversationCaptures();
+      resolve(sanitized);
     });
   });
 }
@@ -2788,6 +3040,98 @@ async function handleCreateSubmit(event) {
   }
 }
 
+async function handleConversationCaptureSubmit(event) {
+  event.preventDefault();
+  const name = String(elements.conversationCaptureName?.value || '').trim();
+  if (!name) {
+    showConversationCaptureStatus('Add a name or nickname first. Everything else can stay incomplete.', 'warn');
+    elements.conversationCaptureName?.focus();
+    return;
+  }
+
+  const existing = findQuickConversationRecord(name, [
+    elements.conversationProjectDescription?.value,
+    elements.conversationExactWords?.value,
+    elements.conversationSignupTrigger?.value,
+  ].join(' '));
+  const captureDraft = buildConversationCaptureRecord(
+    getConversationCaptureInput(existing?.id || ''),
+    getConversationCaptureIdentity(),
+    { idFactory: generateId }
+  );
+  const contactFields = getCaptureContactFields(captureDraft, existing || {});
+  const now = captureDraft.createdAt || new Date().toISOString();
+  const captureNote = buildCaptureNote(captureDraft);
+  const nextAction = captureDraft.nextAction || existing?.nextBestAction || '';
+  const savedRecord = pruneRecordForType({
+    ...(existing || {}),
+    id: existing?.id || generateId(),
+    recordType: 'person',
+    name: existing?.name || captureDraft.name,
+    email: contactFields.email,
+    phone: contactFields.phone,
+    tags: mergeCommaSeparatedValues(existing?.tags, buildCaptureTags(captureDraft)),
+    status: existing?.status || getCaptureStatus(captureDraft),
+    warmth: existing?.warmth || getCaptureWarmth(captureDraft),
+    fit: existing?.fit || getCaptureFit(captureDraft),
+    primaryPain: existing?.primaryPain || captureDraft.painPoints?.[0] || captureDraft.exactWords || '',
+    currentWorkaround: existing?.currentWorkaround || captureDraft.exactWords || '',
+    offerAmount: existing?.offerAmount || captureDraft.interestedPlan || '',
+    lastSignal: 'Conversation capture',
+    nextExperiment: existing?.nextExperiment || captureDraft.signupTrigger || '',
+    nextBestAction: nextAction,
+    nextFollowUp: captureDraft.followUpDate || existing?.nextFollowUp || '',
+    notes: appendConversationNote(existing?.notes, {
+      timestamp: now,
+      channelLabel: 'Conversation Capture',
+      note: captureNote || `Captured a founder-discovery conversation with ${captureDraft.name}.`,
+      nextStep: nextAction,
+    }),
+    source: existing?.source || 'Conversation capture',
+    created: existing?.created || now,
+    updated: now,
+    lastContacted: now,
+    activityCount: toActivityCount(existing?.activityCount) + 1,
+    contactId: existing?.contactId || '',
+  });
+  const capture = sanitizeConversationCaptureRecord({
+    ...captureDraft,
+    personId: savedRecord.id,
+    updatedAt: now,
+  });
+
+  try {
+    await putCrmRecord(savedRecord);
+    await putConversationCapture(capture);
+    appendTouchLogEntry(savedRecord, {
+      touchType: 'conversation',
+      note: captureNote || `Captured ${capture.name}.`,
+      followUp: capture.followUpDate,
+      source: 'Conversation capture',
+      statusAfter: savedRecord.status || DEFAULT_PERSON_STATUS,
+      timestamp: now,
+    });
+    state.focusId = savedRecord.id;
+    state.focusApplied = false;
+    showConversationCaptureStatus(`Saved conversation for ${capture.name}.`, 'success');
+    if (elements.conversationCaptureSummary) {
+      elements.conversationCaptureSummary.classList.remove('hidden');
+      elements.conversationCaptureSummary.innerHTML = `
+        <p class="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200">Saved</p>
+        <h3 class="mt-1 text-lg font-semibold text-white">${safe(capture.name)}</h3>
+        <p class="mt-2 text-sm text-emerald-100/90">${safe(capture.nextAction || 'No next action selected yet.')}</p>
+        ${capture.followUpDate ? `<p class="mt-1 text-xs text-emerald-100/70">Follow up ${safe(capture.followUpDate)}</p>` : ''}
+      `;
+    }
+    elements.conversationCaptureForm?.reset();
+    elements.conversationCaptureName?.focus();
+    if (scoreManager) scoreManager.increment(existing ? 3 : 8);
+  } catch (err) {
+    console.error('Unable to save structured conversation capture', err);
+    showConversationCaptureStatus('Could not save this conversation right now.', 'error');
+  }
+}
+
 async function handleQuickConversationSubmit(event) {
   event.preventDefault();
   const note = String(elements.quickConversationNote?.value || '').trim();
@@ -3086,6 +3430,12 @@ async function handleAction(action, recordId) {
 
 function attachEvents() {
   elements.form?.addEventListener('submit', handleCreateSubmit);
+  elements.openConversationCapture?.addEventListener('click', openConversationCapturePanel);
+  elements.conversationCaptureForm?.addEventListener('submit', handleConversationCaptureSubmit);
+  elements.resetConversationCapture?.addEventListener('click', () => resetConversationCaptureForm());
+  elements.conversationCapturePlanFilter?.addEventListener('change', renderConversationCaptures);
+  elements.conversationCaptureActionFilter?.addEventListener('change', renderConversationCaptures);
+  elements.conversationCaptureInterestFilter?.addEventListener('change', renderConversationCaptures);
   elements.quickConversationForm?.addEventListener('submit', handleQuickConversationSubmit);
   elements.quickLeadForm?.addEventListener('submit', handleQuickLeadSubmit);
   elements.filterInput?.addEventListener('input', applyFilter);
@@ -3152,6 +3502,13 @@ function attachEvents() {
     const card = event.target.closest('.crm-card[data-record-id]');
     if (!card || event.target.closest('button, a, input, select, textarea, form')) return;
     openDetail(card.dataset.recordId || '');
+  });
+
+  elements.conversationCapturesList?.addEventListener('click', async event => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    event.preventDefault();
+    await handleAction(actionTarget.dataset.action || '', actionTarget.dataset.recordId || '');
   });
 
   const handleDetailActionClick = async event => {
@@ -3253,6 +3610,16 @@ function startSync() {
     }
   });
 
+  conversationCapturesRoot.map().on((data, id) => {
+    if (!id) return;
+    if (!data) {
+      conversationCaptureIndex.delete(id);
+    } else {
+      conversationCaptureIndex.set(id, sanitizeConversationCaptureRecord({ ...data, id }));
+    }
+    renderConversationCaptures();
+  });
+
   crmRecords.map().on((data, id) => {
     if (!id) return;
     if (!data) {
@@ -3280,6 +3647,7 @@ function init() {
   startSync();
   renderWeeklyChallenge();
   renderList();
+  renderConversationCaptures();
   applyUrlDraftIfNeeded();
 }
 
