@@ -43,10 +43,9 @@
 
   .overlay {
     position: fixed;
-    top: calc(6.5rem + env(safe-area-inset-top, 0px));
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(440px, calc(100% - 2rem));
+    right: var(--safe-right);
+    bottom: calc(var(--safe-bottom) + var(--control-safe-zone));
+    width: min(420px, calc(100vw - 2rem));
     background: rgba(15, 23, 42, 0.72);
     backdrop-filter: blur(12px);
     border-radius: 18px;
@@ -95,7 +94,7 @@
 
   .overlay-hidden {
     opacity: 0;
-    transform: translate(-50%, -18px);
+    transform: translate3d(0, 18px, 0);
     pointer-events: none;
   }
 
@@ -107,9 +106,8 @@
 
   .overlay-toggle {
     position: fixed;
-    top: calc(6rem + env(safe-area-inset-top, 0px));
-    left: 50%;
-    transform: translateX(-50%);
+    right: var(--safe-right);
+    bottom: calc(var(--safe-bottom) + var(--control-safe-zone));
     padding: 0.55rem 1.15rem;
     border-radius: 999px;
     border: 1px solid rgba(96, 165, 250, 0.5);
@@ -136,7 +134,7 @@
   .overlay-toggle-visible {
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(-50%) translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 
   .status {
@@ -792,12 +790,15 @@
 
   @media (max-width: 720px) {
     .overlay {
-      top: 7.5rem;
+      right: calc(env(safe-area-inset-right, 0px) + 1rem);
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 1rem);
+      width: min(380px, calc(100vw - 2rem));
       padding: 1rem;
     }
 
     .overlay-toggle {
-      top: 7rem;
+      right: calc(env(safe-area-inset-right, 0px) + 1rem);
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 1rem);
     }
 
     .overlay h1 {
@@ -862,8 +863,9 @@
 
   @media (max-width: 540px) {
     .overlay {
-      top: calc(4.6rem + env(safe-area-inset-top, 0px));
-      width: min(360px, calc(100% - 1.25rem));
+      right: calc(env(safe-area-inset-right, 0px) + 0.65rem);
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 1.25rem);
+      width: min(320px, calc(100vw - 1.3rem));
       padding: 0.85rem 0.9rem 0.85rem;
       max-height: 34vh;
       overflow: auto;
@@ -885,9 +887,8 @@
     }
 
     .overlay-toggle {
-      top: auto;
-      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 0.75rem);
-      transform: translate(-50%, 0);
+      right: calc(env(safe-area-inset-right, 0px) + 0.65rem);
+      bottom: calc(var(--safe-bottom) + var(--control-safe-zone) + 1rem);
     }
 
     .status {
@@ -1064,7 +1065,7 @@
     Touch: Off
   </button>
 
-  <button class="overlay-toggle" id="overlayToggle" type="button" aria-hidden="true">Show Flight Controls</button>
+  <button class="overlay-toggle" id="overlayToggle" type="button" aria-label="Show flight controls" aria-hidden="true">Show Controls</button>
 
   <div class="overlay" aria-live="polite" aria-hidden="false">
     <button class="overlay-close" id="overlayClose" type="button">Hide</button>
