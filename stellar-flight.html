@@ -1071,13 +1071,14 @@
     <button class="overlay-close" id="overlayClose" type="button">Hide</button>
     <h1>Stellar Drift</h1>
     <p id="primaryInstructions">
-      Fly through stars and luminous worlds. Click to fly, look with your mouse, use <strong>WASD</strong> to steer,
-      hold <strong>Shift</strong> to boost, and fire with left-click or <strong>F</strong>.
+      Fly through stars and luminous worlds. Use <strong>WASD</strong> to steer, <strong>Arrow Keys</strong> or mouse to
+      look, <strong>Space/Ctrl</strong> to climb or drop, and fire with <strong>Enter</strong>, <strong>F</strong>, or
+      left-click.
     </p>
     <div class="hint" id="secondaryInstructions">
-      Press <strong>R</strong> if you ever want to re-center your ship. Pointer lock keeps the cursor inside the
-      cockpit—press <strong>Esc</strong> to release. Tag the luminous mission beacons in any order and follow the pulsing
-      canopy compass to line up your next objective.
+      Press <strong>R</strong> if you ever want to re-center your ship. Click for pointer-lock mouse look, then press
+      <strong>Esc</strong> to release. Tag the luminous mission beacons in any order and follow the pulsing canopy compass
+      to line up your next objective.
     </div>
   </div>
 
@@ -2223,12 +2224,13 @@
     } else {
       primaryInstructions.innerHTML =
         [
-          'Glide through procedurally scattered stars and luminous worlds. Click anywhere to engage flight controls,',
-          'then use your mouse to look and <strong>WASD</strong> to steer. Hold <strong>Shift</strong> to boost and left-click or press <strong>F</strong> to fire a laser burst.'
+          'Glide through procedurally scattered stars and luminous worlds. Use <strong>WASD</strong> to steer,',
+          '<strong>Arrow Keys</strong> or mouse to look, <strong>Space/Ctrl</strong> to climb or drop, and <strong>Shift</strong> to boost.',
+          'Fire a laser burst with <strong>Enter</strong>, <strong>F</strong>, or left-click.'
         ].join(' ');
       secondaryInstructions.innerHTML =
         [
-          'Press <strong>R</strong> to re-center your ship. Pointer lock keeps the cursor inside the cockpit—press <strong>Esc</strong> to release.',
+          'Press <strong>R</strong> to re-center your ship. Click anytime for pointer-lock mouse look, then press <strong>Esc</strong> to release.',
           'Tag the luminous mission beacons to complete objectives and watch the tracker for your next target.'
         ].join(' ');
     }
@@ -2473,6 +2475,27 @@
   let pitch = 0;
   let pointerLocked = false;
   const pitchLimit = Math.PI / 2 - 0.08;
+  const keyboardLookSpeed = 1.35;
+  const keyboardPitchSpeed = 1.05;
+  const keyboardFlightCodes = new Set([
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'ControlLeft',
+    'ControlRight',
+    'Enter',
+    'KeyA',
+    'KeyD',
+    'KeyF',
+    'KeyR',
+    'KeyS',
+    'KeyW',
+    'NumpadEnter',
+    'ShiftLeft',
+    'ShiftRight',
+    'Space'
+  ]);
 
   const laserLength = 22;
   const laserCoreGeometry = new THREE.CylinderGeometry(0.08, 0.08, laserLength, 12);
@@ -2629,13 +2652,25 @@
 
   updateStatus(0);
 
+  function isUiActivationKey(event) {
+    if (event.code !== 'Enter' && event.code !== 'NumpadEnter' && event.code !== 'Space') {
+      return false;
+    }
+    return Boolean(event.target?.closest?.('a, button, input, textarea, select, [contenteditable="true"]'));
+  }
+
   window.addEventListener('keydown', (event) => {
+    if (isUiActivationKey(event)) {
+      return;
+    }
+    if (keyboardFlightCodes.has(event.code)) {
+      event.preventDefault();
+    }
     keys.add(event.code);
     if (event.code === 'KeyR') {
       recenterShip();
     }
-    if (event.code === 'KeyF') {
-      event.preventDefault();
+    if (event.code === 'KeyF' || event.code === 'Enter' || event.code === 'NumpadEnter') {
       triggerLaserBurst();
     }
   });
@@ -2735,6 +2770,15 @@
     const dampening = 1 - Math.min(delta * 0.6, 0.18);
     velocity.multiplyScalar(dampening);
 
+    const lookYaw = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0);
+    const lookPitch = (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0);
+    const keyboardLookDelta = Math.min(delta, 1 / 30);
+    if (lookYaw !== 0) {
+      yaw += lookYaw * keyboardLookSpeed * keyboardLookDelta;
+    }
+    if (lookPitch !== 0) {
+      pitch += lookPitch * keyboardPitchSpeed * keyboardLookDelta;
+    }
     pitch = Math.max(-pitchLimit, Math.min(pitchLimit, pitch));
 
     direction.set(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
