@@ -1072,8 +1072,8 @@
     <h1>Stellar Drift</h1>
     <p id="primaryInstructions">
       Fly through stars and luminous worlds. Use <strong>WASD</strong> to steer, <strong>Arrow Keys</strong> or mouse to
-      look, <strong>Space/Ctrl</strong> to climb or drop, and fire with <strong>Enter</strong>, <strong>F</strong>, or
-      left-click.
+      look, <strong>E/Ctrl</strong> to climb or drop, and fire with <strong>Space</strong>, <strong>Enter</strong>,
+      <strong>F</strong>, or left-click.
     </p>
     <div class="hint" id="secondaryInstructions">
       Press <strong>R</strong> if you ever want to re-center your ship. Click for pointer-lock mouse look, then press
@@ -2225,8 +2225,8 @@
       primaryInstructions.innerHTML =
         [
           'Glide through procedurally scattered stars and luminous worlds. Use <strong>WASD</strong> to steer,',
-          '<strong>Arrow Keys</strong> or mouse to look, <strong>Space/Ctrl</strong> to climb or drop, and <strong>Shift</strong> to boost.',
-          'Fire a laser burst with <strong>Enter</strong>, <strong>F</strong>, or left-click.'
+          '<strong>Arrow Keys</strong> or mouse to look, <strong>E/Ctrl</strong> to climb or drop, <strong>Space</strong> to fire, and <strong>Shift</strong> to boost.',
+          'Fire a laser burst with <strong>Space</strong>, <strong>Enter</strong>, <strong>F</strong>, or left-click.'
         ].join(' ');
       secondaryInstructions.innerHTML =
         [
@@ -2487,6 +2487,7 @@
     'Enter',
     'KeyA',
     'KeyD',
+    'KeyE',
     'KeyF',
     'KeyR',
     'KeyS',
@@ -2670,7 +2671,7 @@
     if (event.code === 'KeyR') {
       recenterShip();
     }
-    if (event.code === 'KeyF' || event.code === 'Enter' || event.code === 'NumpadEnter') {
+    if (event.code === 'Space' || event.code === 'KeyF' || event.code === 'Enter' || event.code === 'NumpadEnter') {
       triggerLaserBurst();
     }
   });
@@ -2817,7 +2818,7 @@
     if (keys.has('KeyD')) {
       velocity.addScaledVector(right, acceleration * delta);
     }
-    if (keys.has('Space')) {
+    if (keys.has('KeyE')) {
       velocity.addScaledVector(vertical, acceleration * delta);
     }
     if (keys.has('ControlLeft') || keys.has('ControlRight')) {
