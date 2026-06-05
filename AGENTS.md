@@ -7,6 +7,18 @@
 - Keep PRs narrow and do not overwrite or revert other agents' changes unless the user explicitly asks.
 - When the agent finds or contacts business leads, keep the portal CRM current. Run `3dvr crm sync` after outreach or lead discovery; use the default filtered sync for money-relevant contacts, and only use `--include-all` when a full raw import is intentional.
 
+## Agent Execution Principles
+
+- Think before coding: state important assumptions, surface conflicting interpretations, and ask when guessing would
+  change the solution. Push back when a simpler or safer path exists.
+- Simplicity first: implement the smallest useful change. Do not add speculative features, one-use abstractions, or
+  configurability the task did not request. If the first version feels bloated, simplify before committing.
+- Surgical changes: touch only files and lines required by the request. Match local style, leave unrelated comments and
+  formatting alone, and remove only dead code created by your own change.
+- Goal-driven execution: turn each task into a verifiable outcome. For fixes, reproduce with a test or focused check
+  first when practical; for refactors, verify behavior before and after. Keep looping until checks or a clearly stated
+  blocker close the task.
+
 ## Push And Merge With Termux GitHub Auth
 
 - GitHub auth for this workspace usually lives in Termux, not `/root`.
