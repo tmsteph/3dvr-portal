@@ -88,7 +88,9 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 
 ## Formatting
 - Use two spaces for indentation in HTML, CSS, JavaScript, and JSON.
-- Keep lines under 120 characters where practical and end files with a trailing newline.
+- Preserve trailing newlines and readable formatting.
+- Do not reflow code or prose only to satisfy a line-length target; wrap lines when it improves readability or when
+  project tooling requires it.
 
 ## JavaScript
 - Prefer `const` and `let`; avoid unused variables and keep functions focused.
