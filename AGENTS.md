@@ -13,6 +13,17 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Keep this operating rule visible in planning, commits, and reviews: `Sell first. Build second. Keep it simple.`
 - Avoid expanding billing, portal, or platform scope unless the change supports a real user flow, active delivery, or a clear revenue path.
 
+## Agent Execution Principles
+- Think before coding: state important assumptions, surface conflicting interpretations, and ask when guessing would
+  change the solution. Push back when a simpler or safer path exists.
+- Simplicity first: implement the smallest useful change. Do not add speculative features, one-use abstractions, or
+  configurability the task did not request. If the first version feels bloated, simplify before committing.
+- Surgical changes: touch only files and lines required by the request. Match local style, leave unrelated comments and
+  formatting alone, and remove only dead code created by your own change.
+- Goal-driven execution: turn each task into a verifiable outcome. For fixes, reproduce with a test or focused check
+  first when practical; for refactors, verify behavior before and after. Keep looping until checks or a clearly stated
+  blocker close the task.
+
 ## Git Workflow
 - Do not make substantive changes directly on `main`. Create a branch first.
 - Open a pull request for changes that should be merged, deployed, or remembered. Use the PR as the record of intent and tradeoffs.
