@@ -25,6 +25,8 @@ describe('release hub backfill', () => {
     assert.match(html, /Week of June 1, 2026/);
     assert.match(html, /Wellness and consciousness apps/);
     assert.match(html, /GunJS backup tooling/);
+    assert.match(html, /href="\.\.\/intention-lab\/">Intention Lab</);
+    assert.match(html, /href="\.\.\/games\.html">Games</);
     assert.match(html, /href="v0\.0\.47\.html">v0\.0\.47</);
     assert.match(html, /Week of May 25, 2026/);
     assert.match(html, /Revenue Desk/);
@@ -88,5 +90,27 @@ describe('release hub backfill', () => {
       assert.match(html, topicPattern);
       assert.match(html, navPattern);
     }
+  });
+
+  it('rewards release readers with direct links to the shipped apps and docs', async () => {
+    const release47 = await readFile(new URL('v0.0.47.html', baseDir), 'utf8');
+    const release48 = await readFile(new URL('v0.0.48.html', baseDir), 'utf8');
+
+    assert.match(release47, /<h2>Open the Work<\/h2>/);
+    assert.match(release47, /href="\.\.\/revenue-desk\/">Revenue Desk</);
+    assert.match(release47, /href="\.\.\/market-lab\/">Market Lab</);
+    assert.match(release47, /href="\.\.\/webrtc-lab\/">WebRTC Lab</);
+    assert.match(release47, /href="\.\.\/docs\/path-to-profitability\.md">Path to Profitability</);
+
+    assert.match(release48, /<h2>Open the Work<\/h2>/);
+    assert.match(release48, /href="\.\.\/intention-lab\/">Intention Lab</);
+    assert.match(release48, /href="\.\.\/body-mode\/">Body Mode</);
+    assert.match(release48, /href="\.\.\/portal-lab\/">Portal Lab</);
+    assert.match(release48, /href="\.\.\/inner-alignment\/">Inner Alignment</);
+    assert.match(release48, /href="\.\.\/life-force-room\/">Life Force Room</);
+    assert.match(release48, /href="\.\.\/master-key-room\/">Master Key Room</);
+    assert.match(release48, /href="\.\.\/games\.html">Games</);
+    assert.match(release48, /href="\.\.\/stellar-flight\.html">Stellar Drift</);
+    assert.match(release48, /pull\/672/);
   });
 });
