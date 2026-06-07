@@ -4,7 +4,6 @@ import { readFile } from 'node:fs/promises';
 
 const gameCards = [
   ['pong', 'Pong (2P)'],
-  ['memory', 'Memory Match'],
   ['tribes', 'Zero-G Ski Range'],
   ['stellar', 'Stellar Drift Flight'],
   ['jetpack', 'Jetpack Corridor'],
@@ -20,6 +19,9 @@ describe('games page icons', () => {
     assert.match(html, /\.game-grid \{[\s\S]*?display: flex;[\s\S]*?justify-content: center;/);
     assert.match(html, /\.game-card \{[\s\S]*?flex: 0 1 230px;/);
     assert.match(html, /\.game-icon svg/);
+    assert.doesNotMatch(html, /memory\.html/);
+    assert.doesNotMatch(html, /Memory Match/);
+    assert.doesNotMatch(html, /game-card memory/);
 
     for (const [className, title] of gameCards) {
       assert.match(html, new RegExp(`class="game-card ${className}"[\\s\\S]*?<span class="game-icon"`));

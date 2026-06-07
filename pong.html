@@ -79,14 +79,15 @@ h1 {
 }
 
 canvas {
-  width: min(760px, calc(100vw - 2rem));
-  height: min(500px, calc(100dvh - 15rem));
+  width: min(920px, calc(100vw - 2rem));
+  height: min(560px, calc(100dvh - 14rem));
   min-height: 280px;
   background: rgba(248, 250, 252, 0.96);
   border-radius: 18px;
   border: 2px solid rgba(102, 194, 176, 0.86);
   display: block;
   box-shadow: 0 24px 60px rgba(8, 145, 178, 0.28);
+  cursor: none;
   touch-action: none;
 }
 
@@ -234,6 +235,28 @@ const ball = { x: canvas.width/2, y: canvas.height/2, radius: 7, speed: 5, dx: 5
 let playerScore = 0;
 let aiScore = 0;
 let lastTouchY = null;
+const keysDown = new Set();
+
+function scaledBallSpeedX() {
+  return Math.max(4.8, canvas.width * 0.0072);
+}
+
+function scaledBallSpeedY() {
+  return Math.max(3.8, canvas.height * 0.0085);
+}
+
+function playerSpeed() {
+  return Math.max(8, canvas.height * 0.02);
+}
+
+function clampPaddle(paddle) {
+  paddle.y = Math.min(canvas.height - paddle.height, Math.max(0, paddle.y));
+}
+
+function syncKeyboardVelocity() {
+  const direction = Number(keysDown.has('ArrowDown')) - Number(keysDown.has('ArrowUp'));
+  player.dy = direction * playerSpeed();
+}
 
 function resizeGame() {
   const rect = canvas.getBoundingClientRect();
@@ -262,8 +285,9 @@ function resizeGame() {
   ball.radius = Math.max(6, Math.round(Math.min(width, height) * 0.018));
   ball.x = Math.min(width - ball.radius, Math.max(ball.radius, ball.x * xRatio));
   ball.y = Math.min(height - ball.radius, Math.max(ball.radius, ball.y * yRatio));
-  ball.dx = Math.sign(ball.dx || 1) * Math.max(4, width * 0.008);
-  ball.dy = Math.sign(ball.dy || 1) * Math.max(4, height * 0.01);
+  ball.dx = Math.sign(ball.dx || 1) * scaledBallSpeedX();
+  ball.dy = Math.sign(ball.dy || 1) * scaledBallSpeedY();
+  syncKeyboardVelocity();
 }
 
 resizeGame();
@@ -284,24 +308,38 @@ function drawCircle(x, y, r, color) {
 function resetBall() {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
-  ball.dx = -ball.dx;
-  ball.dy = 5 * (Math.random() > 0.5 ? 1 : -1);
+  ball.dx = -Math.sign(ball.dx || 1) * scaledBallSpeedX();
+  ball.dy = scaledBallSpeedY() * (Math.random() > 0.5 ? 1 : -1);
+}
+
+function bounceFromPaddle(paddle, direction) {
+  const paddleCenter = paddle.y + paddle.height / 2;
+  const impact = (ball.y - paddleCenter) / (paddle.height / 2);
+  const speedX = Math.min(canvas.width * 0.012, Math.abs(ball.dx) * 1.04);
+  ball.dx = direction * Math.max(scaledBallSpeedX(), speedX);
+  ball.dy = Math.max(-1, Math.min(1, impact)) * Math.max(scaledBallSpeedY(), canvas.height * 0.012);
 }
 
 function update() {
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+  if (ball.y + ball.radius > canvas.height) {
+    ball.y = canvas.height - ball.radius;
+    ball.dy *= -1;
+  } else if (ball.y - ball.radius < 0) {
+    ball.y = ball.radius;
     ball.dy *= -1;
   }
 
-  if (ball.x - ball.radius < player.x + player.width && ball.y > player.y && ball.y < player.y + player.height) {
-    ball.dx *= -1;
+  if (ball.dx < 0 && ball.x - ball.radius < player.x + player.width && ball.y > player.y && ball.y < player.y + player.height) {
+    ball.x = player.x + player.width + ball.radius;
+    bounceFromPaddle(player, 1);
   }
 
-  if (ball.x + ball.radius > ai.x && ball.y > ai.y && ball.y < ai.y + ai.height) {
-    ball.dx *= -1;
+  if (ball.dx > 0 && ball.x + ball.radius > ai.x && ball.y > ai.y && ball.y < ai.y + ai.height) {
+    ball.x = ai.x - ball.radius;
+    bounceFromPaddle(ai, -1);
   }
 
   if (ball.x < 0) {
@@ -315,15 +353,14 @@ function update() {
     winGame();
   }
 
-  const aiStep = Math.max(4, canvas.height * 0.01);
-  if (ball.dy > 0) ai.y += aiStep;
-  else ai.y -= aiStep;
+  const aiTarget = ball.y - ai.height / 2;
+  const aiStep = Math.max(4.5, canvas.height * 0.012);
+  const aiDelta = aiTarget - ai.y;
+  ai.y += Math.max(-aiStep, Math.min(aiStep, aiDelta));
 
   player.y += player.dy;
-  if (player.y < 0) player.y = 0;
-  if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
-  if (ai.y < 0) ai.y = 0;
-  if (ai.y + ai.height > canvas.height) ai.y = canvas.height - ai.height;
+  clampPaddle(player);
+  clampPaddle(ai);
 }
 
 function render() {
@@ -346,12 +383,17 @@ function loop() {
 }
 
 window.addEventListener('keydown', e => {
-  const speed = Math.max(7, canvas.height * 0.018);
-  if (e.key === 'ArrowUp') player.dy = -speed;
-  else if (e.key === 'ArrowDown') player.dy = speed;
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    keysDown.add(e.key);
+    syncKeyboardVelocity();
+  }
 });
 window.addEventListener('keyup', e => {
-  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') player.dy = 0;
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    keysDown.delete(e.key);
+    syncKeyboardVelocity();
+  }
 });
 
 function movePaddleFromClientY(clientY) {
@@ -378,10 +420,16 @@ canvas.addEventListener('touchend', () => {
   player.dy = 0;
 });
 
+canvas.addEventListener('pointermove', event => {
+  if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+    movePaddleFromClientY(event.clientY);
+  }
+});
+
 document.querySelectorAll('.touch-controls button').forEach(button => {
   const direction = button.dataset.move === 'up' ? -1 : 1;
   const setMoving = active => {
-    player.dy = active ? direction * Math.max(7, canvas.height * 0.018) : 0;
+    player.dy = active ? direction * playerSpeed() : 0;
   };
   button.addEventListener('pointerdown', event => {
     event.preventDefault();
