@@ -83,12 +83,20 @@ describe('portal customer journey pages', () => {
 
   it('turns the start page into a compact onboarding router with easy plan access', async () => {
     const html = await readFile(new URL('../start/index.html', import.meta.url), 'utf8');
-    assert.match(html, /One account\. One path\. One next move\./);
+    assert.match(html, /Start your next 3dvr project\./);
+    assert.match(html, /getting organized, ready for direct help, or already managing/);
     assert.match(html, /3 clear paths/);
     assert.match(html, /Start where you actually are/);
     assert.match(html, /Start free/);
-    assert.match(html, /Choose a paid lane/);
-    assert.match(html, /Already paying\?/);
+    assert.match(html, /Get direct help/);
+    assert.match(html, /Manage billing/);
+    assert.match(html, /Pick your path/);
+    assert.match(html, /Three ways to begin/);
+    assert.match(html, /I am getting organized/);
+    assert.match(html, /I want help launching something/);
+    assert.match(html, /I already pay for 3dvr/);
+    assert.doesNotMatch(html, /The job of this page is simple/);
+    assert.doesNotMatch(html, /Do not make every customer start on the same screen/);
     assert.match(html, /Manage what is already active/);
     assert.match(html, /Paid lanes/);
     assert.match(html, /Continue with \$5/);
