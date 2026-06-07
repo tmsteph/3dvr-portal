@@ -100,7 +100,7 @@ This can work for a personal portal, but for the marketing CTA `Start a project`
 oriented:
 
 - What are you trying to start?
-- What state is it in?
+- What stage is it in?
 - How much help do you want?
 
 ### 6. There Is Some Duplicate Ending Content
@@ -178,7 +178,7 @@ Replace the current questions with project-oriented prompts:
    - offer/business system
    - personal portal/reset
 
-2. What state is it in?
+2. What stage is it in?
    - just an idea
    - partly built
    - already live but messy
@@ -240,7 +240,7 @@ Verify:
 
 ### 4. Rework The Router Questions
 
-Make the router about the visitor's project state, not only emotional state.
+Make the router about the visitor's project stage, not only emotional state.
 
 Verify:
 

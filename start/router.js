@@ -69,15 +69,23 @@ const ROUTES = {
 };
 
 function getRouteKey(answers) {
-  if (answers.support === 'direct' && answers.goal === 'launch' && answers.pain === 'income') {
+  if (answers.support === 'direct' && answers.project === 'workflow') {
     return 'builder';
   }
 
-  if (answers.support === 'direct' && answers.goal === 'launch') {
+  if (answers.support === 'direct' && answers.stage === 'stuck') {
+    return 'builder';
+  }
+
+  if (answers.support === 'direct' && answers.project === 'website') {
     return 'founder';
   }
 
-  if (answers.goal === 'community' || answers.pain === 'alone' || answers.support === 'community') {
+  if (answers.support === 'direct' && answers.stage === 'partly-built') {
+    return 'founder';
+  }
+
+  if (answers.support === 'community') {
     return 'cell';
   }
 
@@ -120,8 +128,8 @@ function renderRecommendation(root, recommendation) {
 function readAnswers(form) {
   const data = new FormData(form);
   return {
-    pain: data.get('pain') || 'scattered',
-    goal: data.get('goal') || 'clarity',
+    project: data.get('project') || 'personal',
+    stage: data.get('stage') || 'idea',
     support: data.get('support') || 'free',
   };
 }

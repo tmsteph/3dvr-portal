@@ -96,7 +96,7 @@ Better router questions:
    - workflow, CRM, or automation
    - personal reset / operating system
 
-2. What state is it in?
+2. What stage is it in?
    - just an idea
    - partly built
    - already live but messy
@@ -153,7 +153,7 @@ The start page routes people, but it does not capture much evidence about what p
 If we are serious about validation, the page should eventually capture:
 
 - what the visitor is trying to build
-- what state it is in
+- what stage it is in
 - what blocked them
 - whether they want done-with-you help, done-for-you help, or tools
 - what price band feels reasonable
@@ -194,7 +194,7 @@ Validation check:
 
 ### Step 3: Rework The Router Into Project Questions
 
-Replace emotional/personal-state questions with project-state questions.
+Replace emotional/personal-state questions with project-stage questions.
 
 Validation check:
 
