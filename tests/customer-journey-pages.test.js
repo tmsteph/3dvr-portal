@@ -111,9 +111,13 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Continue with \$50/);
     assert.match(html, /Continue with \$200/);
     assert.match(html, /Need help choosing\?/);
-    assert.match(html, /What hurts most right now\?/);
-    assert.match(html, /What do you want next\?/);
-    assert.match(html, /How much help do you want\?/);
+    assert.match(html, /What are you trying to start\?/);
+    assert.match(html, /What stage is it in\?/);
+    assert.match(html, /What kind of help do you want\?/);
+    assert.match(html, /Just an idea/);
+    assert.match(html, /Partly built/);
+    assert.match(html, /Stuck and needs rescue/);
+    assert.doesNotMatch(html, /What state is it in\?/);
     assert.match(html, /Best next move/);
     assert.match(html, /Open sign-in/);
     assert.match(html, /Open billing/);
