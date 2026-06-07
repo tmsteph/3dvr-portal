@@ -85,8 +85,9 @@ describe('portal customer journey pages', () => {
     const html = await readFile(new URL('../start/index.html', import.meta.url), 'utf8');
     assert.match(html, /Start your next 3dvr project\./);
     assert.match(html, /getting organized, ready for direct help, or already managing/);
-    assert.match(html, /3 clear paths/);
+    assert.match(html, /3 clear needs/);
     assert.match(html, /Start where you actually are/);
+    assert.match(html, /Pick the sentence that sounds most like your situation/);
     assert.match(html, /Start free/);
     assert.match(html, /Get direct help/);
     assert.match(html, /Manage billing/);
@@ -97,7 +98,13 @@ describe('portal customer journey pages', () => {
     assert.match(html, /I already pay for 3dvr/);
     assert.doesNotMatch(html, /The job of this page is simple/);
     assert.doesNotMatch(html, /Do not make every customer start on the same screen/);
-    assert.match(html, /Manage what is already active/);
+    assert.match(html, /I need to get organized/);
+    assert.match(html, /Find one next step without a card/);
+    assert.match(html, /I need help building something/);
+    assert.match(html, /Get direct help on a real project/);
+    assert.match(html, /I already pay for 3DVR/);
+    assert.match(html, /Manage an active subscription/);
+    assert.doesNotMatch(html, /Free, paid, and existing billing each get their own first step/);
     assert.match(html, /Paid lanes/);
     assert.match(html, /Continue with \$5/);
     assert.match(html, /Continue with \$20/);
