@@ -7,7 +7,10 @@
 <link rel="stylesheet" href="styles/global.css">
 <style>
 body {
-  background: #e9f0f5;
+  background:
+    radial-gradient(circle at top left, rgba(100, 221, 255, 0.26), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(148, 91, 255, 0.22), transparent 30rem),
+    #e9f0f5;
   color: #222;
   font-family: 'Poppins', sans-serif;
   margin: 0;
@@ -17,36 +20,135 @@ body {
 
 h1 {
   text-align: center;
-  margin-top: 0;
-  font-size: 2.4rem;
-  color: #333;
+  margin: 0 0 8px;
+  font-size: clamp(2.2rem, 7vw, 4rem);
+  color: #1e293b;
+}
+
+.hub-intro {
+  color: #475569;
+  font-size: 1.05rem;
+  margin: 0 auto 28px;
+  max-width: 620px;
+  text-align: center;
 }
 
 .game-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 20px;
-  max-width: 900px;
+  justify-content: center;
+  max-width: 980px;
   margin: auto;
 }
 
 .game-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 25px;
-  text-align: center;
-  color: #333;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  font-size: 1.2rem;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 24px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.09);
+  box-sizing: border-box;
+  color: #1e293b;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  display: flex;
+  flex: 0 1 230px;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 230px;
+  overflow: hidden;
+  padding: 24px;
+  position: relative;
+  text-align: center;
   text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.game-card:hover {
-  transform: scale(1.04);
-  background: #f9fbfc;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+.game-card::before {
+  background: var(--card-glow, linear-gradient(135deg, rgba(56, 189, 248, 0.4), rgba(168, 85, 247, 0.38)));
+  border-radius: 999px;
+  content: "";
+  filter: blur(8px);
+  height: 110px;
+  opacity: 0.65;
+  position: absolute;
+  right: -44px;
+  top: -42px;
+  width: 110px;
+}
+
+.game-card:hover,
+.game-card:focus-visible {
+  background: #ffffff;
+  box-shadow: 0 24px 52px rgba(15, 23, 42, 0.16);
+  outline: none;
+  transform: translateY(-6px) scale(1.02);
+}
+
+.game-icon {
+  align-items: center;
+  background: var(--icon-bg, linear-gradient(135deg, #38bdf8, #8b5cf6));
+  border-radius: 28px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), 0 16px 32px rgba(15, 23, 42, 0.16);
+  color: #ffffff;
+  display: flex;
+  height: 116px;
+  justify-content: center;
+  position: relative;
+  width: 116px;
+  z-index: 1;
+}
+
+.game-icon svg {
+  height: 76px;
+  width: 76px;
+}
+
+.game-title {
+  font-size: 1.18rem;
+  font-weight: 800;
+  line-height: 1.2;
+  position: relative;
+  z-index: 1;
+}
+
+.game-blurb {
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.game-card.pong {
+  --card-glow: linear-gradient(135deg, rgba(34, 197, 94, 0.38), rgba(14, 165, 233, 0.4));
+  --icon-bg: linear-gradient(135deg, #0f172a, #0ea5e9);
+}
+
+.game-card.memory {
+  --card-glow: linear-gradient(135deg, rgba(236, 72, 153, 0.36), rgba(251, 191, 36, 0.42));
+  --icon-bg: linear-gradient(135deg, #ec4899, #f97316);
+}
+
+.game-card.tribes {
+  --card-glow: linear-gradient(135deg, rgba(45, 212, 191, 0.42), rgba(59, 130, 246, 0.34));
+  --icon-bg: linear-gradient(135deg, #14b8a6, #2563eb);
+}
+
+.game-card.stellar {
+  --card-glow: linear-gradient(135deg, rgba(129, 140, 248, 0.42), rgba(217, 70, 239, 0.34));
+  --icon-bg: linear-gradient(135deg, #312e81, #c026d3);
+}
+
+.game-card.jetpack {
+  --card-glow: linear-gradient(135deg, rgba(248, 113, 113, 0.38), rgba(250, 204, 21, 0.42));
+  --icon-bg: linear-gradient(135deg, #ef4444, #f59e0b);
+}
+
+.game-card.asteroids {
+  --card-glow: linear-gradient(135deg, rgba(56, 189, 248, 0.38), rgba(99, 102, 241, 0.4));
+  --icon-bg: linear-gradient(135deg, #020617, #4f46e5);
 }
 </style>
 
@@ -62,15 +164,83 @@ h1 {
   <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
 </div>
 
-<h1>🎮 Mini Game Hub</h1>
+<h1>Mini Game Hub</h1>
+<p class="hub-intro">Pick a launch tile and jump into one of the portal's quick-play experiments.</p>
 
-<div class="game-grid">
-  <a class="game-card" href="pong.html">Pong (2P)</a>
-  <a class="game-card" href="memory.html">Memory Match</a>
-  <a class="game-card" href="tribes-flight.html">Zero-G Ski Range</a>
-  <a class="game-card" href="stellar-flight.html">Stellar Drift Flight</a>
-  <a class="game-card" href="jetpack/">Jetpack Corridor (Arrows/WASD + Jetpack)</a>
-  <a class="game-card" href="space-jetpack/">Space Jetpack: 3DVR Asteroids</a>
+<div class="game-grid" aria-label="3DVR mini games">
+  <a class="game-card pong" href="pong.html">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <rect x="16" y="22" width="8" height="52" rx="4" fill="currentColor" opacity="0.95"/>
+        <rect x="72" y="22" width="8" height="52" rx="4" fill="currentColor" opacity="0.95"/>
+        <circle cx="48" cy="48" r="8" fill="currentColor"/>
+        <path d="M38 18h20M38 78h20" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity="0.45"/>
+      </svg>
+    </span>
+    <span class="game-title">Pong (2P)</span>
+    <p class="game-blurb">Classic couch competition with glowing arcade-table energy.</p>
+  </a>
+  <a class="game-card memory" href="memory.html">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <rect x="18" y="18" width="26" height="26" rx="7" fill="currentColor" opacity="0.95"/>
+        <rect x="52" y="18" width="26" height="26" rx="7" fill="currentColor" opacity="0.62"/>
+        <rect x="18" y="52" width="26" height="26" rx="7" fill="currentColor" opacity="0.62"/>
+        <rect x="52" y="52" width="26" height="26" rx="7" fill="currentColor" opacity="0.95"/>
+        <path d="M27 31h8M61 65h8" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+      </svg>
+    </span>
+    <span class="game-title">Memory Match</span>
+    <p class="game-blurb">Flip the neon cards and chase a perfect pattern streak.</p>
+  </a>
+  <a class="game-card tribes" href="tribes-flight.html">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <path d="M18 66c18-20 42-24 60-13" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" opacity="0.5"/>
+        <path d="M24 72c18-18 39-21 58-10" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+        <path d="M44 20l26 22-18 7-10 23-9-24-20-9 23-6 8-13z" fill="currentColor"/>
+      </svg>
+    </span>
+    <span class="game-title">Zero-G Ski Range</span>
+    <p class="game-blurb">Carve fast lines through a floaty sci-fi training range.</p>
+  </a>
+  <a class="game-card stellar" href="stellar-flight.html">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <circle cx="28" cy="28" r="4" fill="currentColor" opacity="0.7"/>
+        <circle cx="72" cy="24" r="3" fill="currentColor" opacity="0.55"/>
+        <circle cx="66" cy="72" r="5" fill="currentColor" opacity="0.5"/>
+        <path d="M48 14l15 35 17 7-17 8-15 18-15-18-17-8 17-7 15-35z" fill="currentColor"/>
+        <path d="M48 26v38" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+      </svg>
+    </span>
+    <span class="game-title">Stellar Drift Flight</span>
+    <p class="game-blurb">Thread a starfighter through deep-space drift lanes.</p>
+  </a>
+  <a class="game-card jetpack" href="jetpack/">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <path d="M36 18h24l8 18v23c0 9-7 16-16 16h-8c-9 0-16-7-16-16V36l8-18z" fill="currentColor"/>
+        <path d="M37 76l-7 12M59 76l7 12" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity="0.74"/>
+        <path d="M42 32h12" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity="0.68"/>
+        <path d="M30 50H18M78 50H66" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.56"/>
+      </svg>
+    </span>
+    <span class="game-title">Jetpack Corridor</span>
+    <p class="game-blurb">Dodge the tunnel with arrows, WASD, and a burst of thrust.</p>
+  </a>
+  <a class="game-card asteroids" href="space-jetpack/">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <path d="M48 14l9 24 25 3-20 16 6 25-20-14-20 14 6-25-20-16 25-3 9-24z" fill="currentColor" opacity="0.95"/>
+        <circle cx="28" cy="28" r="5" fill="#fff" opacity="0.55"/>
+        <circle cx="70" cy="25" r="3" fill="#fff" opacity="0.45"/>
+        <circle cx="72" cy="70" r="6" fill="#fff" opacity="0.3"/>
+      </svg>
+    </span>
+    <span class="game-title">Space Jetpack: 3DVR Asteroids</span>
+    <p class="game-blurb">Blast into asteroid chaos with chunky portal-arcade vibes.</p>
+  </a>
 </div>
 
   <script defer src="/issue-launcher.js"></script>
