@@ -29,6 +29,11 @@ test('sales research desk keeps current market signals tied to action', async ()
   assert.match(html, /Open calendar draft/);
   assert.match(html, /id="interviewLogForm"/);
   assert.match(html, /id="interviewScheduledId"/);
+  assert.match(html, /Not sure yet/);
+  assert.match(html, /data-interview-quick="follow-up"/);
+  assert.match(html, /data-interview-quick="not-sure"/);
+  assert.match(html, /Save capture/);
+  assert.match(html, /N\/A and not sure are valid/);
   assert.match(html, /id="interviewSprintStatus"/);
   assert.match(html, /First 3 today/);
   assert.match(html, /One real conversation per segment/);
@@ -37,4 +42,9 @@ test('sales research desk keeps current market signals tied to action', async ()
   assert.match(html, /https:\/\/www\.census\.gov\/econ\/bfs\/pdf\/historic\/bfs_2025m12\.pdf/);
   assert.match(html, /https:\/\/advocacy\.sba\.gov\/wp-content\/uploads\/2025\/06\/United_States_2025-State-Profile\.pdf/);
   assert.match(html, /https:\/\/www\.fedsmallbusiness\.org\/2026-report-on-employer-firms/);
+
+  const js = await readFile(new URL('../sales/research.js', import.meta.url), 'utf8');
+  assert.match(js, /function applyQuickInterviewCapture/);
+  assert.match(js, /Incomplete capture\. Details are N\/A or not sure yet\./);
+  assert.doesNotMatch(js, /Add at least a company or contact before saving/);
 });

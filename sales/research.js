@@ -15,6 +15,8 @@ const INTERVIEW_STATUS_VALUES = Object.freeze([
   'Interviewed',
   'Qualified',
   'Not a fit',
+  'Not sure',
+  'N/A',
 ]);
 
 const SEGMENTS = Object.freeze({
@@ -41,6 +43,14 @@ const SEGMENTS = Object.freeze({
     nextStep: 'Send first Embedded note today',
     opener: 'Teams usually do not need more apps first. They need one clearer operating loop for intake, scheduling, and shared follow-up.',
     full: 'Open with: Teams usually do not need more apps first. They need one clearer operating loop for intake, scheduling, and shared follow-up.\nAsk: Where does coordination break down most often right now: intake, scheduling, handoff, or client follow-up?\nClose: If the pain is shared across a real team, Embedded is the cleaner fit because it gives you a tighter monthly execution lane.',
+  }),
+  'not-sure': Object.freeze({
+    label: 'Not sure yet',
+    marketSegment: 'Not sure yet',
+    queueLead: 'Unsorted conversation capture',
+    nextStep: 'Clarify fit when there is more signal',
+    opener: 'Capture the real words first. Sort the segment later.',
+    full: 'Capture the real words first. Sort the segment later.',
   }),
 });
 
@@ -1013,6 +1023,46 @@ function hydrateInterviewsFromGun() {
   interviewsNode.on(applyRemoteInterviews);
 }
 
+function appendInterviewNote(note) {
+  if (!interviewNotes || !note) {
+    return;
+  }
+  const existing = String(interviewNotes.value || '').trim();
+  interviewNotes.value = existing ? `${existing}\n${note}` : note;
+}
+
+function applyQuickInterviewCapture(type) {
+  if (type === 'follow-up') {
+    if (interviewStatus) interviewStatus.value = 'Interviewed';
+    appendInterviewNote('Needs follow-up. Capture details when there is more time.');
+    if (interviewNextStep && !interviewNextStep.value.trim()) {
+      interviewNextStep.value = 'Follow up';
+    }
+  }
+
+  if (type === 'not-sure') {
+    if (interviewSegment) interviewSegment.value = 'not-sure';
+    if (interviewStatus) interviewStatus.value = 'Not sure';
+    appendInterviewNote('Not sure yet. Save the raw signal and sort it later.');
+    if (interviewNextStep && !interviewNextStep.value.trim()) {
+      interviewNextStep.value = 'Not sure';
+    }
+  }
+
+  if (type === 'not-fit') {
+    if (interviewStatus) interviewStatus.value = 'Not a fit';
+    appendInterviewNote('Probably not a fit.');
+    if (interviewNextStep && !interviewNextStep.value.trim()) {
+      interviewNextStep.value = 'N/A';
+    }
+  }
+
+  if (interviewLogSaveStatus) {
+    interviewLogSaveStatus.textContent = 'Quick capture added. Save now or add more detail first.';
+  }
+  interviewNotes?.focus();
+}
+
 function handleInterviewSubmit(event) {
   event.preventDefault();
   const segmentId = SEGMENTS[String(interviewSegment?.value || '').trim()]
@@ -1027,15 +1077,8 @@ function handleInterviewSubmit(event) {
     : 'Queued';
   const scheduledId = String(interviewScheduledId?.value || '').trim();
 
-  if (!company && !contact) {
-    if (interviewLogSaveStatus) {
-      interviewLogSaveStatus.textContent = 'Add at least a company or contact before saving.';
-    }
-    interviewCompany?.focus();
-    return;
-  }
-
   const now = new Date().toISOString();
+  const captureNotes = notes || 'Incomplete capture. Details are N/A or not sure yet.';
   setInterviews([
     {
       id: generateId(),
@@ -1043,8 +1086,8 @@ function handleInterviewSubmit(event) {
       company,
       contact,
       status,
-      notes,
-      nextStep,
+      notes: captureNotes,
+      nextStep: nextStep || 'Not sure',
       createdAt: now,
       updatedAt: now,
       source: 'Market research desk',
@@ -1071,7 +1114,7 @@ function handleInterviewSubmit(event) {
   if (interviewLogSaveStatus) {
     interviewLogSaveStatus.textContent = scheduledId
       ? 'Saved the interview log and cleared the scheduled slot.'
-      : 'Saved the interview log. Keep the next step concrete.';
+      : 'Saved the capture. You can refine it later.';
   }
 }
 
@@ -1256,8 +1299,17 @@ function bindPlaybookActions() {
   });
 }
 
+function bindInterviewQuickCapture() {
+  document.querySelectorAll('[data-interview-quick]').forEach(button => {
+    button.addEventListener('click', () => {
+      applyQuickInterviewCapture(button.getAttribute('data-interview-quick') || '');
+    });
+  });
+}
+
 function init() {
   bindPlaybookActions();
+  bindInterviewQuickCapture();
   hydrateQueueFromLocal();
   hydrateInterviewsFromLocal();
   hydrateScheduledInterviewsFromLocal();
