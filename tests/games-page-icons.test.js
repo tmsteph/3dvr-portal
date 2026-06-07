@@ -17,6 +17,8 @@ describe('games page icons', () => {
 
     assert.match(html, /class="hub-intro"/);
     assert.match(html, /class="game-grid" aria-label="3DVR mini games"/);
+    assert.match(html, /\.game-grid \{[\s\S]*?display: flex;[\s\S]*?justify-content: center;/);
+    assert.match(html, /\.game-card \{[\s\S]*?flex: 0 1 230px;/);
     assert.match(html, /\.game-icon svg/);
 
     for (const [className, title] of gameCards) {
