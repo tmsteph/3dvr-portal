@@ -325,6 +325,111 @@
     .practice-card strong {
       color: rgba(56, 189, 248, 0.85);
     }
+    .manifestation-lab {
+      border-radius: 30px;
+      border: 1px solid rgba(94, 234, 212, 0.28);
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.68));
+      box-shadow: 0 26px 70px rgba(5, 12, 26, 0.42);
+      padding: 30px;
+      display: grid;
+      gap: 22px;
+    }
+    .manifestation-lab__header {
+      display: grid;
+      gap: 10px;
+    }
+    .manifestation-lab__header p,
+    .manifestation-note {
+      margin: 0;
+      color: rgba(148, 163, 184, 0.9);
+      line-height: 1.65;
+    }
+    .manifestation-lab__header h2,
+    .manifestation-card h3 {
+      margin: 0;
+    }
+    .manifestation-form {
+      display: grid;
+      gap: 18px;
+    }
+    .manifestation-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .manifestation-form label {
+      display: grid;
+      gap: 8px;
+      color: rgba(226, 232, 240, 0.92);
+      font-weight: 700;
+    }
+    .manifestation-form span {
+      color: rgba(148, 163, 184, 0.88);
+      font-size: 0.9rem;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+    .manifestation-form textarea {
+      min-height: 112px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.72);
+      color: #e2e8f0;
+      padding: 14px 16px;
+      resize: vertical;
+      font: inherit;
+      line-height: 1.55;
+    }
+    .manifestation-form textarea:focus {
+      border-color: rgba(94, 234, 212, 0.68);
+      box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.12);
+      outline: none;
+    }
+    .manifestation-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .manifestation-actions button {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.7);
+      color: #f8fafc;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 12px 18px;
+    }
+    .manifestation-actions button:first-child {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(94, 234, 212, 0.82));
+      color: #05111f;
+      border-color: transparent;
+    }
+    .manifestation-card {
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(10, 19, 32, 0.76);
+      padding: 22px;
+      display: grid;
+      gap: 12px;
+    }
+    .manifestation-card dl {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+    }
+    .manifestation-card dt {
+      color: rgba(56, 189, 248, 0.9);
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .manifestation-card dd {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.94);
+      line-height: 1.55;
+    }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -471,6 +576,61 @@
         </article>
       </div>
     </section>
+    <section class="manifestation-lab" aria-labelledby="manifestationHeading">
+      <div class="manifestation-lab__header">
+        <p>Grounded manifestation</p>
+        <h2 id="manifestationHeading">Turn the vision into a next move</h2>
+        <p>
+          Use affirmations as a starting signal, then make the desire practical. Name the wish,
+          feel why it matters, face the obstacle, and write the if/then plan you will actually use.
+        </p>
+      </div>
+      <form class="manifestation-form" id="manifestationForm">
+        <div class="manifestation-grid">
+          <label for="wishText">
+            Wish
+            <span>What do you want to create, receive, change, or become?</span>
+            <textarea id="wishText" name="wishText" placeholder="I want to launch a simple paid offer for 3DVR Builder help."></textarea>
+          </label>
+          <label for="outcomeText">
+            Outcome
+            <span>How would life or work feel if this became real?</span>
+            <textarea id="outcomeText" name="outcomeText" placeholder="I feel clear, useful, paid, and connected to people who need help shipping."></textarea>
+          </label>
+          <label for="obstacleText">
+            Inner obstacle
+            <span>What pattern, fear, distraction, or habit usually gets in the way?</span>
+            <textarea id="obstacleText" name="obstacleText" placeholder="I keep building new apps instead of asking real people what they need."></textarea>
+          </label>
+          <label for="planText">
+            If/then plan
+            <span>If the obstacle appears, what specific action will you take?</span>
+            <textarea id="planText" name="planText" placeholder="If I want to build another feature, then I will message one person about their current project first."></textarea>
+          </label>
+        </div>
+        <div class="manifestation-actions">
+          <button type="submit">Save practice</button>
+          <button type="button" id="clearManifestation">Clear practice</button>
+          <button type="button" id="copyManifestation">Copy practice</button>
+        </div>
+        <p class="manifestation-note" id="manifestationStatus" role="status" aria-live="polite">
+          Saved on this device only. Pair this with the Life check-in when you want to track follow-through.
+        </p>
+      </form>
+      <article class="manifestation-card" aria-labelledby="savedPracticeHeading">
+        <h3 id="savedPracticeHeading">Current practice</h3>
+        <dl>
+          <dt>Wish</dt>
+          <dd id="savedWish">No wish saved yet.</dd>
+          <dt>Outcome</dt>
+          <dd id="savedOutcome">No outcome saved yet.</dd>
+          <dt>Obstacle</dt>
+          <dd id="savedObstacle">No obstacle saved yet.</dd>
+          <dt>Plan</dt>
+          <dd id="savedPlan">No if/then plan saved yet.</dd>
+        </dl>
+      </article>
+    </section>
   </main>
   <span id="copyStatus" class="sr-only" role="status" aria-live="polite"></span>
   <script>
@@ -539,6 +699,23 @@
     const autoplayButton = document.getElementById('toggleAutoplay');
     const copyButton = document.getElementById('copyAffirmation');
     const copyStatus = document.getElementById('copyStatus');
+    const manifestationKey = '3dvr.manifestationPractice.v1';
+    const manifestationForm = document.getElementById('manifestationForm');
+    const manifestationStatus = document.getElementById('manifestationStatus');
+    const clearManifestation = document.getElementById('clearManifestation');
+    const copyManifestation = document.getElementById('copyManifestation');
+    const manifestationFields = {
+      wish: document.getElementById('wishText'),
+      outcome: document.getElementById('outcomeText'),
+      obstacle: document.getElementById('obstacleText'),
+      plan: document.getElementById('planText')
+    };
+    const savedPractice = {
+      wish: document.getElementById('savedWish'),
+      outcome: document.getElementById('savedOutcome'),
+      obstacle: document.getElementById('savedObstacle'),
+      plan: document.getElementById('savedPlan')
+    };
 
     let currentDeck = 'focus';
     let autoplayTimer = null;
@@ -646,7 +823,90 @@
       }
     });
 
+    function readManifestationPractice() {
+      return {
+        wish: manifestationFields.wish.value.trim(),
+        outcome: manifestationFields.outcome.value.trim(),
+        obstacle: manifestationFields.obstacle.value.trim(),
+        plan: manifestationFields.plan.value.trim()
+      };
+    }
+
+    function renderManifestationPractice(practice = {}) {
+      savedPractice.wish.textContent = practice.wish || 'No wish saved yet.';
+      savedPractice.outcome.textContent = practice.outcome || 'No outcome saved yet.';
+      savedPractice.obstacle.textContent = practice.obstacle || 'No obstacle saved yet.';
+      savedPractice.plan.textContent = practice.plan || 'No if/then plan saved yet.';
+    }
+
+    function loadManifestationPractice() {
+      try {
+        const raw = window.localStorage.getItem(manifestationKey);
+        if (!raw) {
+          renderManifestationPractice();
+          return;
+        }
+        const practice = JSON.parse(raw);
+        Object.entries(manifestationFields).forEach(([key, field]) => {
+          field.value = practice[key] || '';
+        });
+        renderManifestationPractice(practice);
+      } catch (error) {
+        manifestationStatus.textContent = 'Practice storage is unavailable. You can still copy your plan.';
+        renderManifestationPractice();
+      }
+    }
+
+    function saveManifestationPractice(practice) {
+      try {
+        window.localStorage.setItem(manifestationKey, JSON.stringify(practice));
+        manifestationStatus.textContent = 'Practice saved on this device.';
+      } catch (error) {
+        manifestationStatus.textContent = 'Practice storage is unavailable. Copy your plan before leaving.';
+      }
+      renderManifestationPractice(practice);
+    }
+
+    function formatManifestationPractice(practice) {
+      return [
+        'Grounded manifestation practice',
+        `Wish: ${practice.wish || '(not set)'}`,
+        `Outcome: ${practice.outcome || '(not set)'}`,
+        `Obstacle: ${practice.obstacle || '(not set)'}`,
+        `If/then plan: ${practice.plan || '(not set)'}`
+      ].join('\n');
+    }
+
+    manifestationForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveManifestationPractice(readManifestationPractice());
+    });
+
+    clearManifestation.addEventListener('click', () => {
+      Object.values(manifestationFields).forEach((field) => {
+        field.value = '';
+      });
+      try {
+        window.localStorage.removeItem(manifestationKey);
+      } catch (error) {
+        // Keep the UI usable if browser storage is blocked.
+      }
+      manifestationStatus.textContent = 'Practice cleared from this device.';
+      renderManifestationPractice();
+    });
+
+    copyManifestation.addEventListener('click', async () => {
+      const practice = readManifestationPractice();
+      try {
+        await navigator.clipboard.writeText(formatManifestationPractice(practice));
+        manifestationStatus.textContent = 'Practice copied to clipboard.';
+      } catch (error) {
+        manifestationStatus.textContent = 'Copy unavailable. Select the text manually instead.';
+      }
+    });
+
     updateAffirmation(currentDeck, { preserveText: true });
+    loadManifestationPractice();
     startAutoplay();
   </script>
   <script defer src="/issue-launcher.js"></script>
