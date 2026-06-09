@@ -32,6 +32,17 @@ test('homepage app search can find CRM by CRM keywords', async () => {
   assert.match(html, /keywordIncludesQuery/);
 });
 
+test('homepage app search can find the manifestation practice', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(
+    html,
+    /href="meditation\/affirmations\.html#manifestationHeading" class="app-card" data-app-keywords="[^"]*\bmanifestation\b[^"]*"/
+  );
+  assert.match(html, /<span class="app-card__title">Manifestation Practice<\/span>/);
+  assert.match(html, /wish, outcome, obstacle, and if\/then plan/);
+});
+
 test('homepage top navigation keeps Games one click away', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
