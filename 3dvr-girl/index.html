@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR Girl Portal</title>
+  <meta name="theme-color" content="#111314">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="girl-shell">
+    <section class="hero" aria-labelledby="pageTitle">
+      <img class="hero__image" src="assets/portal-ring.jpg" alt="3DVR Girl standing inside a blue portal ring">
+      <div class="hero__shade" aria-hidden="true"></div>
+      <nav class="hero__nav" aria-label="Page navigation">
+        <a href="../index.html">3DVR</a>
+        <a href="#gallery">Gallery</a>
+        <a href="#signal">Signal</a>
+      </nav>
+      <div class="hero__content">
+        <p class="eyebrow">3DVR avatar channel</p>
+        <h1 id="pageTitle">3DVR Girl</h1>
+        <p class="hero__copy">
+          A portal identity for motion, beauty, discipline, and the next-level immersion lane.
+        </p>
+        <div class="hero__actions" aria-label="Portal actions">
+          <button class="icon-command" type="button" data-focus-image="portal-ring" aria-label="Open portal mode" title="Open portal mode">
+            <span aria-hidden="true">O</span>
+          </button>
+          <button class="icon-command" type="button" data-focus-image="warrior-flow" aria-label="Open flow mode" title="Open flow mode">
+            <span aria-hidden="true">^</span>
+          </button>
+          <button class="icon-command" type="button" data-focus-image="festival-dance" aria-label="Open festival mode" title="Open festival mode">
+            <span aria-hidden="true">*</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="portal-board" aria-label="3DVR Girl portal board">
+      <aside class="identity-panel" id="signal">
+        <p class="eyebrow">Live signal</p>
+        <h2>Motion-first muse</h2>
+        <div class="signal-meter" aria-label="Portal signal level">
+          <span style="--level: 86%"></span>
+        </div>
+        <dl class="identity-list">
+          <div>
+            <dt>Mode</dt>
+            <dd id="modeLabel">Portal</dd>
+          </div>
+          <div>
+            <dt>Texture</dt>
+            <dd>Neon, sun, white cloth</dd>
+          </div>
+          <div>
+            <dt>Lane</dt>
+            <dd>3DVR visual companion</dd>
+          </div>
+        </dl>
+      </aside>
+
+      <section class="stage" aria-live="polite">
+        <div class="stage__media">
+          <img id="stageImage" src="assets/portal-ring.jpg" alt="Selected 3DVR Girl scene">
+        </div>
+        <div class="stage__caption">
+          <p class="eyebrow" id="stageKicker">Portal ring</p>
+          <h2 id="stageTitle">Next-level immersion</h2>
+          <p id="stageCopy">A clean hero image for the 3DVR Girl identity: bright ring, studio posture, instant brand read.</p>
+        </div>
+      </section>
+
+      <aside class="palette-panel">
+        <p class="eyebrow">Portal palette</p>
+        <div class="swatches" aria-label="Color palette">
+          <span style="--swatch: #111314"></span>
+          <span style="--swatch: #f7f1e7"></span>
+          <span style="--swatch: #2d9cff"></span>
+          <span style="--swatch: #f04f98"></span>
+          <span style="--swatch: #c9a875"></span>
+        </div>
+        <div class="mood-stack" aria-label="Modes">
+          <button class="mood-pill is-active" type="button" data-focus-image="portal-ring">Portal</button>
+          <button class="mood-pill" type="button" data-focus-image="balance-tree">Balance</button>
+          <button class="mood-pill" type="button" data-focus-image="warrior-flow">Power</button>
+          <button class="mood-pill" type="button" data-focus-image="festival-dance">Pulse</button>
+        </div>
+      </aside>
+    </section>
+
+    <section class="gallery-section" id="gallery" aria-labelledby="galleryTitle">
+      <div class="section-heading">
+        <p class="eyebrow">Scene set</p>
+        <h2 id="galleryTitle">Choose the portal frame</h2>
+      </div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
