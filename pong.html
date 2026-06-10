@@ -1,184 +1,389 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="portal:issue-launcher" content="off">
-<title>3DVR - Pong</title>
-<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-<script src="gun-init.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
-<script src="score.js"></script>
-<link rel="stylesheet" href="styles/global.css">
-<style>
-body {
-  margin: 0;
-  background:
-    radial-gradient(circle at 20% -10%, rgba(102, 194, 176, 0.28), transparent 34rem),
-    linear-gradient(180deg, #07111f, #030712 72%);
-  color: #f8fafc;
-  font-family: 'Poppins', sans-serif;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow: hidden;
-}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="portal:issue-launcher" content="off">
+  <title>3DVR - Pong Arena</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="score.js"></script>
+  <link rel="stylesheet" href="styles/global.css">
+  <style>
+  :root {
+    --pong-bg: #030712;
+    --pong-panel: rgba(8, 18, 31, 0.74);
+    --pong-panel-strong: rgba(14, 31, 47, 0.9);
+    --pong-border: rgba(125, 211, 252, 0.32);
+    --pong-cyan: #67e8f9;
+    --pong-teal: #5eead4;
+    --pong-amber: #facc15;
+    --pong-text: #f8fafc;
+    --pong-muted: rgba(203, 213, 225, 0.78);
+    --safe-top: calc(env(safe-area-inset-top, 0px) + 0.85rem);
+    --safe-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.85rem);
+  }
 
-.game-page {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 0.75rem;
-  padding: calc(env(safe-area-inset-top, 0px) + 0.75rem) 1rem calc(env(safe-area-inset-bottom, 0px) + 0.85rem);
-  box-sizing: border-box;
-}
+  * {
+    box-sizing: border-box;
+  }
 
-.top-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 0.55rem;
-  flex-wrap: wrap;
-}
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 18% 8%, rgba(94, 234, 212, 0.22), transparent 28rem),
+      radial-gradient(circle at 88% 2%, rgba(59, 130, 246, 0.2), transparent 24rem),
+      linear-gradient(180deg, #08111f 0%, var(--pong-bg) 70%);
+    color: var(--pong-text);
+    font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
 
-.top-buttons a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.36rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.32);
-  background: rgba(15, 23, 42, 0.72);
-  color: rgba(226, 232, 240, 0.92);
-  text-decoration: none;
-  font-size: 0.78rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(180deg, black 0%, transparent 78%);
+  }
 
-.game-title {
-  text-align: center;
-}
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-h1 {
-  color: #f8fafc;
-  font-size: clamp(1.5rem, 4vw, 2.4rem);
-  margin: 0;
-}
-
-.game-title p {
-  margin: 0.3rem auto 0;
-  max-width: 34rem;
-  color: rgba(203, 213, 225, 0.76);
-  font-size: 0.92rem;
-}
-
-.arena {
-  min-height: 0;
-  display: grid;
-  place-items: center;
-}
-
-canvas {
-  width: min(920px, calc(100vw - 2rem));
-  height: min(560px, calc(100dvh - 14rem));
-  min-height: 280px;
-  background: rgba(248, 250, 252, 0.96);
-  border-radius: 18px;
-  border: 2px solid rgba(102, 194, 176, 0.86);
-  display: block;
-  box-shadow: 0 24px 60px rgba(8, 145, 178, 0.28);
-  cursor: none;
-  touch-action: none;
-}
-
-#message {
-  text-align: center;
-  min-height: 1.4rem;
-  font-size: 1rem;
-  color: rgba(165, 243, 252, 0.96);
-}
-
-.touch-controls {
-  display: none;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
-  width: min(420px, calc(100vw - 1.5rem));
-  margin: 0 auto;
-}
-
-.touch-controls button {
-  min-height: 44px;
-  border-radius: 12px;
-  border: 1px solid rgba(94, 234, 212, 0.42);
-  background: rgba(15, 23, 42, 0.76);
-  color: rgba(165, 243, 252, 0.96);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  touch-action: none;
-}
-
-footer {
-  text-align: center;
-  font-size: 0.8rem;
-  color: rgba(148, 163, 184, 0.78);
-}
-
-@media (max-width: 640px) {
   .game-page {
-    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-    gap: 0.55rem;
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 0.8rem;
+    padding: var(--safe-top) 1rem var(--safe-bottom);
   }
 
   .top-buttons {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.35rem;
-    flex-wrap: nowrap;
-    width: auto;
-    margin: 0;
-    padding: 0;
+    display: flex;
+    justify-content: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
   }
 
   .top-buttons a {
-    width: auto !important;
-    flex: 0 1 auto;
-    padding: 0.32rem 0.54rem;
-    font-size: 0.66rem;
-    letter-spacing: 0.03em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0.38rem 0.76rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    background: rgba(15, 23, 42, 0.72);
+    color: rgba(226, 232, 240, 0.94);
+    font-size: 0.78rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    backdrop-filter: blur(14px);
   }
 
-  .top-buttons a:nth-child(n + 3) {
-    display: none;
+  .top-buttons a:focus-visible,
+  .top-buttons a:hover {
+    border-color: rgba(94, 234, 212, 0.58);
+    color: #ecfeff;
+    outline: none;
+  }
+
+  .game-title {
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: clamp(1.6rem, 4vw, 2.85rem);
+    letter-spacing: -0.05em;
+    line-height: 0.96;
   }
 
   .game-title p {
+    max-width: 44rem;
+    margin: 0.42rem auto 0;
+    color: var(--pong-muted);
+    font-size: clamp(0.88rem, 2vw, 1rem);
+    line-height: 1.55;
+  }
+
+  .hud {
+    width: min(960px, 100%);
+    margin: 0.75rem auto 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .hud-card {
+    min-height: 62px;
+    padding: 0.65rem 0.72rem;
+    border: 1px solid rgba(125, 211, 252, 0.2);
+    border-radius: 15px;
+    background: rgba(8, 18, 31, 0.68);
+    box-shadow: 0 18px 45px rgba(2, 8, 23, 0.28);
+    text-align: left;
+    backdrop-filter: blur(14px);
+  }
+
+  .hud-label {
+    display: block;
+    color: rgba(148, 163, 184, 0.78);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .hud-value {
+    display: block;
+    margin-top: 0.25rem;
+    color: #ecfeff;
+    font-size: clamp(1rem, 3vw, 1.45rem);
+    font-weight: 760;
+    letter-spacing: 0.03em;
+  }
+
+  .arena-shell {
+    min-height: 0;
+    display: grid;
+    place-items: center;
+  }
+
+  .arena {
+    position: relative;
+    width: min(1040px, calc(100vw - 2rem));
+    height: min(590px, calc(100dvh - 17.2rem));
+    min-height: 330px;
+    overflow: hidden;
+    border: 1px solid rgba(125, 211, 252, 0.28);
+    border-radius: 26px;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(94, 234, 212, 0.13), transparent 22rem),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(3, 7, 18, 0.9));
+    box-shadow:
+      0 28px 80px rgba(8, 145, 178, 0.18),
+      inset 0 0 60px rgba(14, 165, 233, 0.08);
+    touch-action: none;
+    cursor: none;
+  }
+
+  .arena canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .arena::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  .fallback {
+    position: absolute;
+    inset: 0;
     display: none;
+    place-items: center;
+    padding: 1.2rem;
+    text-align: center;
+    background: rgba(3, 7, 18, 0.92);
+    z-index: 3;
   }
 
-  canvas {
-    width: calc(100vw - 1.5rem);
-    height: calc(100dvh - 13.75rem);
-    min-height: 300px;
-    border-radius: 14px;
-  }
-
-  #message {
-    display: none;
-  }
-
-  .touch-controls {
+  .fallback.visible {
     display: grid;
   }
 
-  footer {
-    display: none;
+  .fallback-card {
+    width: min(34rem, 100%);
+    padding: 1.2rem;
+    border-radius: 20px;
+    border: 1px solid rgba(125, 211, 252, 0.3);
+    background: var(--pong-panel-strong);
   }
-}
-</style>
+
+  .fallback-card h2 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .fallback-card p {
+    margin: 0.7rem 0 0;
+    color: var(--pong-muted);
+    line-height: 1.55;
+  }
+
+  .message-row {
+    min-height: 2.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  #message {
+    color: rgba(165, 243, 252, 0.96);
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+
+  .touch-controls {
+    display: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+    width: min(460px, calc(100vw - 1.5rem));
+    margin: 0 auto;
+  }
+
+  .touch-controls button {
+    min-height: 48px;
+    border-radius: 15px;
+    border: 1px solid rgba(94, 234, 212, 0.42);
+    background: rgba(15, 23, 42, 0.78);
+    color: rgba(207, 250, 254, 0.96);
+    font-weight: 760;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    touch-action: none;
+  }
+
+  .touch-controls button:focus-visible,
+  .touch-controls button:hover {
+    border-color: rgba(250, 204, 21, 0.58);
+    outline: none;
+  }
+
+  footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    color: rgba(148, 163, 184, 0.78);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+
+  @media (max-width: 760px) {
+    .game-page {
+      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+      gap: 0.55rem;
+      padding-left: 0.72rem;
+      padding-right: 0.72rem;
+    }
+
+    .top-buttons {
+      justify-content: space-between;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+    }
+
+    .top-buttons a {
+      flex: 0 1 auto;
+      min-height: 34px;
+      padding: 0.32rem 0.54rem;
+      font-size: 0.66rem;
+      letter-spacing: 0.03em;
+    }
+
+    .top-buttons a:nth-child(n + 3) {
+      display: none;
+    }
+
+    .game-title p {
+      display: none;
+    }
+
+    .hud {
+      margin-top: 0.55rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .hud-card {
+      min-height: 54px;
+      padding: 0.55rem 0.62rem;
+      border-radius: 13px;
+    }
+
+    .hud-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+    }
+
+    .hud-value {
+      font-size: 1rem;
+    }
+
+    .arena {
+      width: calc(100vw - 1.44rem);
+      height: calc(100dvh - 19.75rem);
+      min-height: 310px;
+      border-radius: 20px;
+    }
+
+    .message-row {
+      min-height: 1.4rem;
+    }
+
+    #message {
+      font-size: 0.86rem;
+    }
+
+    .touch-controls {
+      display: grid;
+    }
+
+    footer {
+      display: none;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .hud {
+      gap: 0.42rem;
+    }
+
+    .hud-card {
+      min-height: 50px;
+    }
+
+    .arena {
+      height: calc(100dvh - 19.1rem);
+      min-height: 290px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.001ms !important;
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+  </style>
+  <script
+    src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"
+    integrity="sha384-FnJUTmxFMWfpLQrvHL2uy8VKoMnr2zmljCJ4RkoHfE+wBRHzYs1tJwGY+wzMezvD"
+    crossorigin="anonymous"
+  ></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -186,250 +391,620 @@ footer {
 
 <main class="game-page">
   <div class="top-buttons">
-    <a href="index.html">🏠 Portal</a>
-    <a href="games.html">🎮 Hub</a>
-    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">⭐ Subscribe</a>
-    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">🚀 GitHub</a>
+    <a href="index.html">Portal</a>
+    <a href="games.html">Games Hub</a>
+    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">Subscribe</a>
+    <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">GitHub</a>
   </div>
 
   <header class="game-title">
-    <h1>🏓 Pong</h1>
-    <p>Move the left paddle, beat the AI, and bank portal score when you land a point.</p>
+    <h1>Pong Arena</h1>
+    <p>
+      A neon 3DVR paddle duel. Use Up/Down or Left/Right to move, track the ball trail,
+      and score against a less-perfect training AI.
+    </p>
+    <div class="hud" aria-label="Pong score and status">
+      <div class="hud-card">
+        <span class="hud-label">Player</span>
+        <span class="hud-value" id="playerScore">0</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-label">AI</span>
+        <span class="hud-value" id="aiScore">0</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-label">Rally</span>
+        <span class="hud-value" id="rallyCount">0</span>
+      </div>
+      <div class="hud-card">
+        <span class="hud-label">Controls</span>
+        <span class="hud-value">Left/Right</span>
+      </div>
+    </div>
   </header>
 
-  <section class="arena" aria-label="Pong arena">
-    <canvas id="pong" width="600" height="400"></canvas>
+  <section class="arena-shell">
+    <div class="arena" id="arena" aria-label="Three-dimensional Pong arena" tabindex="0">
+      <div class="fallback" id="webglFallback" role="status" aria-live="polite">
+        <div class="fallback-card">
+          <h2>WebGL is unavailable</h2>
+          <p>
+            Pong Arena needs browser WebGL for the Three.js court. Try a different browser
+            or enable hardware acceleration to play this version.
+          </p>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <div id="message" role="status" aria-live="polite"></div>
+  <div class="message-row">
+    <div id="message" role="status" aria-live="polite"></div>
+  </div>
 
   <div class="touch-controls" role="group" aria-label="Touch paddle controls">
-    <button type="button" data-move="up">Up</button>
-    <button type="button" data-move="down">Down</button>
+    <button type="button" data-move="up">Left / Up</button>
+    <button type="button" data-move="down">Right / Down</button>
   </div>
 
   <footer>
-    Built with 3DVR.tech
+    Built with 3DVR.tech. Score a point to add 50 portal score.
   </footer>
 </main>
 
 <script>
-const gun = Gun(window.__GUN_PEERS__ || [
-  'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun'
-]);
-const portalUser = gun.user();
+const gunContext = window.ScoreSystem && window.ScoreSystem.ensureGun
+  ? window.ScoreSystem.ensureGun(() => Gun(window.__GUN_PEERS__ || [
+    'wss://relay.3dvr.tech/gun',
+    'wss://gun-relay-3dvr.fly.dev/gun'
+  ]), { label: 'pong' })
+  : (() => {
+    const fallbackGun = Gun(window.__GUN_PEERS__ || [
+      'wss://relay.3dvr.tech/gun',
+      'wss://gun-relay-3dvr.fly.dev/gun'
+    ]);
+    return { gun: fallbackGun, user: fallbackGun.user(), isStub: false };
+  })();
+const gun = gunContext.gun;
+const portalUser = gunContext.user;
 const portalRoot = gun.get('3dvr-portal');
 const scoreManager = window.ScoreSystem
   ? window.ScoreSystem.getManager({ gun, user: portalUser, portalRoot })
   : null;
 
-const canvas = document.getElementById('pong');
-const ctx = canvas.getContext('2d');
-let paddleWidth = 10;
-let paddleHeight = 100;
-const player = { x: 0, y: canvas.height/2 - paddleHeight/2, width: paddleWidth, height: paddleHeight, dy: 0 };
-const ai = { x: canvas.width - paddleWidth, y: canvas.height/2 - paddleHeight/2, width: paddleWidth, height: paddleHeight, dy: 0 };
-const ball = { x: canvas.width/2, y: canvas.height/2, radius: 7, speed: 5, dx: 5, dy: 5 };
+const THREE_AVAILABLE = Boolean(window.THREE);
+const arena = document.getElementById('arena');
+const fallback = document.getElementById('webglFallback');
+const message = document.getElementById('message');
+const playerScoreEl = document.getElementById('playerScore');
+const aiScoreEl = document.getElementById('aiScore');
+const rallyCountEl = document.getElementById('rallyCount');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const FIELD_WIDTH = 34;
+const FIELD_HEIGHT = 22;
+const WALL_LIMIT = FIELD_HEIGHT / 2;
+const PLAYER_X = -FIELD_WIDTH / 2 + 2.15;
+const AI_X = FIELD_WIDTH / 2 - 2.15;
+const PADDLE_HEIGHT = 5.1;
+const PADDLE_WIDTH = 0.82;
+const BALL_RADIUS = 0.46;
+const BASE_BALL_SPEED = 12.8;
+const MAX_BALL_SPEED = 20;
+const PLAYER_SPEED = 17.5;
+const AI_MAX_SPEED = 9.6;
+const AI_REACTION_SECONDS = 0.34;
+const AI_AIM_ERROR = 1.85;
+const VALID_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+
+let renderer;
+let scene;
+let camera;
+let playerMesh;
+let aiMesh;
+let ballMesh;
+let ballGlow;
+let centerLine;
+let trailMeshes = [];
+let sparkMeshes = [];
+let animationFrameId = 0;
+let lastFrameTime = 0;
 let playerScore = 0;
 let aiScore = 0;
-let lastTouchY = null;
+let rallyCount = 0;
+let aiThinkTimer = 0;
+let aiTargetY = 0;
+let pointerControlActive = false;
+let touchMoveDirection = 0;
+let statusTimer = 0;
+
 const keysDown = new Set();
+const player = { y: 0 };
+const ai = { y: 0 };
+const ball = {
+  x: 0,
+  y: 0,
+  vx: BASE_BALL_SPEED,
+  vy: BASE_BALL_SPEED * 0.34,
+  speed: BASE_BALL_SPEED
+};
 
-function scaledBallSpeedX() {
-  return Math.max(4.8, canvas.width * 0.0072);
+function supportsWebGL() {
+  if (!THREE_AVAILABLE) return false;
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(
+      window.WebGLRenderingContext
+      && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch (err) {
+    return false;
+  }
 }
 
-function scaledBallSpeedY() {
-  return Math.max(3.8, canvas.height * 0.0085);
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
-function playerSpeed() {
-  return Math.max(8, canvas.height * 0.02);
+function randomServeDirection() {
+  return Math.random() > 0.5 ? 1 : -1;
 }
 
-function clampPaddle(paddle) {
-  paddle.y = Math.min(canvas.height - paddle.height, Math.max(0, paddle.y));
+function updateHud() {
+  playerScoreEl.textContent = String(playerScore);
+  aiScoreEl.textContent = String(aiScore);
+  rallyCountEl.textContent = String(rallyCount);
+}
+
+function setMessage(text, duration = 2500) {
+  message.textContent = text;
+  if (statusTimer) {
+    window.clearTimeout(statusTimer);
+  }
+  if (duration > 0) {
+    statusTimer = window.setTimeout(() => {
+      message.textContent = '';
+      statusTimer = 0;
+    }, duration);
+  }
+}
+
+function resetBall(servingToward = randomServeDirection()) {
+  ball.x = 0;
+  ball.y = 0;
+  ball.speed = BASE_BALL_SPEED;
+  ball.vx = servingToward * BASE_BALL_SPEED;
+  ball.vy = (Math.random() * 0.9 - 0.45) * BASE_BALL_SPEED;
+  aiThinkTimer = 0;
+  aiTargetY = 0;
+  rallyCount = 0;
+  updateHud();
+}
+
+function makeRoundedBox(width, height, depth, color, emissive) {
+  const geometry = new THREE.BoxGeometry(width, height, depth, 1, 8, 1);
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    emissive,
+    emissiveIntensity: 0.68,
+    roughness: 0.32,
+    metalness: 0.24
+  });
+  return new THREE.Mesh(geometry, material);
+}
+
+function addLine(points, color, opacity = 0.82) {
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity
+  });
+  const line = new THREE.Line(geometry, material);
+  scene.add(line);
+  return line;
+}
+
+function createCourtLines() {
+  const z = 0.04;
+  const left = -FIELD_WIDTH / 2;
+  const right = FIELD_WIDTH / 2;
+  const top = FIELD_HEIGHT / 2;
+  const bottom = -FIELD_HEIGHT / 2;
+
+  addLine([
+    new THREE.Vector3(left, top, z),
+    new THREE.Vector3(right, top, z),
+    new THREE.Vector3(right, bottom, z),
+    new THREE.Vector3(left, bottom, z),
+    new THREE.Vector3(left, top, z)
+  ], 0x67e8f9, 0.58);
+
+  const dashMaterial = new THREE.LineBasicMaterial({
+    color: 0xfacc15,
+    transparent: true,
+    opacity: 0.62
+  });
+  const dashGroup = new THREE.Group();
+  for (let y = bottom + 0.9; y < top - 0.8; y += 1.75) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, y, z + 0.01),
+      new THREE.Vector3(0, y + 0.86, z + 0.01)
+    ]);
+    dashGroup.add(new THREE.Line(geometry, dashMaterial));
+  }
+  scene.add(dashGroup);
+  centerLine = dashGroup;
+
+  for (let x = left + 3; x < right - 2; x += 3) {
+    addLine([
+      new THREE.Vector3(x, bottom, -0.02),
+      new THREE.Vector3(x, top, -0.02)
+    ], 0x1f9db2, 0.13);
+  }
+  for (let y = bottom + 2; y < top - 1; y += 2) {
+    addLine([
+      new THREE.Vector3(left, y, -0.02),
+      new THREE.Vector3(right, y, -0.02)
+    ], 0x1f9db2, 0.12);
+  }
+}
+
+function createTrail() {
+  const trailGeometry = new THREE.SphereGeometry(BALL_RADIUS, 18, 14);
+  for (let index = 0; index < 12; index += 1) {
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x67e8f9,
+      transparent: true,
+      opacity: 0.09 + (index / 12) * 0.22
+    });
+    const mesh = new THREE.Mesh(trailGeometry, material);
+    mesh.scale.setScalar(0.35 + (index / 12) * 0.62);
+    mesh.visible = false;
+    scene.add(mesh);
+    trailMeshes.push(mesh);
+  }
+}
+
+function createSparks() {
+  const sparkGeometry = new THREE.SphereGeometry(0.06, 8, 6);
+  for (let index = 0; index < 38; index += 1) {
+    const material = new THREE.MeshBasicMaterial({
+      color: index % 3 === 0 ? 0xfacc15 : 0x67e8f9,
+      transparent: true,
+      opacity: 0.42
+    });
+    const mesh = new THREE.Mesh(sparkGeometry, material);
+    mesh.position.set(
+      (Math.random() - 0.5) * FIELD_WIDTH,
+      (Math.random() - 0.5) * FIELD_HEIGHT,
+      -3 - Math.random() * 7
+    );
+    mesh.userData.drift = 0.15 + Math.random() * 0.35;
+    scene.add(mesh);
+    sparkMeshes.push(mesh);
+  }
+}
+
+function initScene() {
+  scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x030712, 26, 48);
+
+  camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
+  camera.position.set(0, -1.8, 36);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  arena.appendChild(renderer.domElement);
+
+  const ambient = new THREE.AmbientLight(0x7dd3fc, 0.48);
+  scene.add(ambient);
+
+  const keyLight = new THREE.PointLight(0x5eead4, 2.3, 46);
+  keyLight.position.set(-10, -7, 13);
+  scene.add(keyLight);
+
+  const rimLight = new THREE.PointLight(0xfacc15, 1.25, 44);
+  rimLight.position.set(12, 8, 12);
+  scene.add(rimLight);
+
+  const floorGeometry = new THREE.PlaneGeometry(FIELD_WIDTH, FIELD_HEIGHT, 1, 1);
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    color: 0x07111f,
+    emissive: 0x022c38,
+    emissiveIntensity: 0.3,
+    roughness: 0.72,
+    metalness: 0.12,
+    transparent: true,
+    opacity: 0.92
+  });
+  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  floor.position.z = -0.16;
+  scene.add(floor);
+
+  createCourtLines();
+
+  playerMesh = makeRoundedBox(PADDLE_WIDTH, PADDLE_HEIGHT, 0.78, 0x5eead4, 0x0f766e);
+  playerMesh.position.set(PLAYER_X, player.y, 0.48);
+  scene.add(playerMesh);
+
+  aiMesh = makeRoundedBox(PADDLE_WIDTH, PADDLE_HEIGHT, 0.78, 0xfacc15, 0xb45309);
+  aiMesh.position.set(AI_X, ai.y, 0.48);
+  scene.add(aiMesh);
+
+  const ballGeometry = new THREE.SphereGeometry(BALL_RADIUS, 32, 20);
+  const ballMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    emissive: 0x67e8f9,
+    emissiveIntensity: 1.25,
+    roughness: 0.18,
+    metalness: 0.12
+  });
+  ballMesh = new THREE.Mesh(ballGeometry, ballMaterial);
+  ballMesh.position.set(ball.x, ball.y, 0.86);
+  scene.add(ballMesh);
+
+  const glowGeometry = new THREE.SphereGeometry(BALL_RADIUS * 1.8, 32, 20);
+  const glowMaterial = new THREE.MeshBasicMaterial({
+    color: 0x67e8f9,
+    transparent: true,
+    opacity: 0.16
+  });
+  ballGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+  ballMesh.add(ballGlow);
+
+  createTrail();
+  createSparks();
+  resizeRenderer();
+  resetBall(1);
+}
+
+function resizeRenderer() {
+  if (!renderer || !camera) return;
+  const rect = arena.getBoundingClientRect();
+  const width = Math.max(320, Math.round(rect.width));
+  const height = Math.max(280, Math.round(rect.height));
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
 }
 
 function syncKeyboardVelocity() {
-  const direction = Number(keysDown.has('ArrowDown')) - Number(keysDown.has('ArrowUp'));
-  player.dy = direction * playerSpeed();
+  const upward = keysDown.has('ArrowUp') || keysDown.has('ArrowLeft');
+  const downward = keysDown.has('ArrowDown') || keysDown.has('ArrowRight');
+  if (upward && !downward) return -1;
+  if (downward && !upward) return 1;
+  return 0;
 }
 
-function resizeGame() {
-  const rect = canvas.getBoundingClientRect();
-  const width = Math.max(320, Math.round(rect.width));
-  const height = Math.max(280, Math.round(rect.height));
-  const previousWidth = canvas.width || width;
-  const previousHeight = canvas.height || height;
-  const xRatio = width / previousWidth;
-  const yRatio = height / previousHeight;
-
-  canvas.width = width;
-  canvas.height = height;
-  paddleWidth = Math.max(8, Math.round(width * 0.018));
-  paddleHeight = Math.max(76, Math.round(height * 0.23));
-
-  player.width = paddleWidth;
-  player.height = paddleHeight;
-  player.x = 0;
-  player.y = Math.min(height - paddleHeight, Math.max(0, player.y * yRatio));
-
-  ai.width = paddleWidth;
-  ai.height = paddleHeight;
-  ai.x = width - paddleWidth;
-  ai.y = Math.min(height - paddleHeight, Math.max(0, ai.y * yRatio));
-
-  ball.radius = Math.max(6, Math.round(Math.min(width, height) * 0.018));
-  ball.x = Math.min(width - ball.radius, Math.max(ball.radius, ball.x * xRatio));
-  ball.y = Math.min(height - ball.radius, Math.max(ball.radius, ball.y * yRatio));
-  ball.dx = Math.sign(ball.dx || 1) * scaledBallSpeedX();
-  ball.dy = Math.sign(ball.dy || 1) * scaledBallSpeedY();
-  syncKeyboardVelocity();
+function movePlayerByPointer(clientY) {
+  const rect = arena.getBoundingClientRect();
+  const normalized = clamp((clientY - rect.top) / rect.height, 0, 1);
+  const courtY = (0.5 - normalized) * FIELD_HEIGHT;
+  player.y = clamp(courtY, -WALL_LIMIT + PADDLE_HEIGHT / 2, WALL_LIMIT - PADDLE_HEIGHT / 2);
 }
 
-resizeGame();
-window.addEventListener('resize', resizeGame);
-
-function drawRect(x, y, w, h, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w, h);
+function updatePlayer(deltaSeconds) {
+  const direction = pointerControlActive ? 0 : syncKeyboardVelocity() || touchMoveDirection;
+  if (direction !== 0) {
+    player.y += direction * PLAYER_SPEED * deltaSeconds;
+  }
+  player.y = clamp(player.y, -WALL_LIMIT + PADDLE_HEIGHT / 2, WALL_LIMIT - PADDLE_HEIGHT / 2);
 }
 
-function drawCircle(x, y, r, color) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2, false);
-  ctx.fill();
-}
+function chooseAiTarget(deltaSeconds) {
+  aiThinkTimer -= deltaSeconds;
+  if (aiThinkTimer > 0) return;
 
-function resetBall() {
-  ball.x = canvas.width / 2;
-  ball.y = canvas.height / 2;
-  ball.dx = -Math.sign(ball.dx || 1) * scaledBallSpeedX();
-  ball.dy = scaledBallSpeedY() * (Math.random() > 0.5 ? 1 : -1);
-}
-
-function bounceFromPaddle(paddle, direction) {
-  const paddleCenter = paddle.y + paddle.height / 2;
-  const impact = (ball.y - paddleCenter) / (paddle.height / 2);
-  const speedX = Math.min(canvas.width * 0.012, Math.abs(ball.dx) * 1.04);
-  ball.dx = direction * Math.max(scaledBallSpeedX(), speedX);
-  ball.dy = Math.max(-1, Math.min(1, impact)) * Math.max(scaledBallSpeedY(), canvas.height * 0.012);
-}
-
-function update() {
-  ball.x += ball.dx;
-  ball.y += ball.dy;
-
-  if (ball.y + ball.radius > canvas.height) {
-    ball.y = canvas.height - ball.radius;
-    ball.dy *= -1;
-  } else if (ball.y - ball.radius < 0) {
-    ball.y = ball.radius;
-    ball.dy *= -1;
+  aiThinkTimer = AI_REACTION_SECONDS + Math.random() * 0.16;
+  const ballMovingTowardAi = ball.vx > 0;
+  if (!ballMovingTowardAi) {
+    aiTargetY = Math.sin(performance.now() * 0.0007) * 1.1;
+    return;
   }
 
-  if (ball.dx < 0 && ball.x - ball.radius < player.x + player.width && ball.y > player.y && ball.y < player.y + player.height) {
-    ball.x = player.x + player.width + ball.radius;
-    bounceFromPaddle(player, 1);
-  }
-
-  if (ball.dx > 0 && ball.x + ball.radius > ai.x && ball.y > ai.y && ball.y < ai.y + ai.height) {
-    ball.x = ai.x - ball.radius;
-    bounceFromPaddle(ai, -1);
-  }
-
-  if (ball.x < 0) {
-    aiScore++;
-    resetBall();
-  }
-
-  if (ball.x > canvas.width) {
-    playerScore++;
-    resetBall();
-    winGame();
-  }
-
-  const aiTarget = ball.y - ai.height / 2;
-  const aiStep = Math.max(4.5, canvas.height * 0.012);
-  const aiDelta = aiTarget - ai.y;
-  ai.y += Math.max(-aiStep, Math.min(aiStep, aiDelta));
-
-  player.y += player.dy;
-  clampPaddle(player);
-  clampPaddle(ai);
-}
-
-function render() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  drawRect(player.x, player.y, player.width, player.height, '#66c2b0');
-  drawRect(ai.x, ai.y, ai.width, ai.height, '#66c2b0');
-  drawCircle(ball.x, ball.y, ball.radius, '#66c2b0');
-
-  ctx.font = '20px Poppins, sans-serif';
-  ctx.fillStyle = '#444';
-  ctx.fillText(`Player: ${playerScore}`, 50, 30);
-  ctx.fillText(`AI: ${aiScore}`, canvas.width - 120, 30);
-}
-
-function loop() {
-  update();
-  render();
-  requestAnimationFrame(loop);
-}
-
-window.addEventListener('keydown', e => {
-  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-    e.preventDefault();
-    keysDown.add(e.key);
-    syncKeyboardVelocity();
-  }
-});
-window.addEventListener('keyup', e => {
-  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-    keysDown.delete(e.key);
-    syncKeyboardVelocity();
-  }
-});
-
-function movePaddleFromClientY(clientY) {
-  const rect = canvas.getBoundingClientRect();
-  const scaleY = canvas.height / rect.height;
-  player.y = Math.min(
-    canvas.height - player.height,
-    Math.max(0, (clientY - rect.top) * scaleY - player.height / 2)
+  const distance = Math.max(0.1, AI_X - ball.x);
+  const travelTime = distance / Math.max(0.1, Math.abs(ball.vx));
+  const softPrediction = ball.y + ball.vy * travelTime * 0.54;
+  const pressureError = Math.min(AI_AIM_ERROR * 1.9, AI_AIM_ERROR + ball.speed * 0.055);
+  const aimNoise = (Math.random() - 0.5) * pressureError * 2;
+  aiTargetY = clamp(
+    softPrediction + aimNoise,
+    -WALL_LIMIT + PADDLE_HEIGHT / 2,
+    WALL_LIMIT - PADDLE_HEIGHT / 2
   );
 }
 
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  lastTouchY = e.touches[0].clientY;
-  movePaddleFromClientY(lastTouchY);
-});
-canvas.addEventListener('touchmove', e => {
-  e.preventDefault();
-  const touchY = e.touches[0].clientY;
-  lastTouchY = touchY;
-  movePaddleFromClientY(touchY);
-});
-canvas.addEventListener('touchend', () => {
-  player.dy = 0;
+function updateAi(deltaSeconds) {
+  chooseAiTarget(deltaSeconds);
+  const delta = aiTargetY - ai.y;
+  const maxStep = AI_MAX_SPEED * deltaSeconds;
+  ai.y += clamp(delta, -maxStep, maxStep);
+  ai.y = clamp(ai.y, -WALL_LIMIT + PADDLE_HEIGHT / 2, WALL_LIMIT - PADDLE_HEIGHT / 2);
+}
+
+function bounceFromPaddle(paddleY, direction) {
+  const impact = clamp((ball.y - paddleY) / (PADDLE_HEIGHT / 2), -1, 1);
+  ball.speed = Math.min(MAX_BALL_SPEED, ball.speed * 1.045 + 0.12);
+  ball.vx = direction * ball.speed;
+  ball.vy = impact * ball.speed * 0.82;
+  rallyCount += 1;
+  updateHud();
+}
+
+function updateBall(deltaSeconds) {
+  ball.x += ball.vx * deltaSeconds;
+  ball.y += ball.vy * deltaSeconds;
+
+  if (ball.y + BALL_RADIUS >= WALL_LIMIT) {
+    ball.y = WALL_LIMIT - BALL_RADIUS;
+    ball.vy = -Math.abs(ball.vy);
+  } else if (ball.y - BALL_RADIUS <= -WALL_LIMIT) {
+    ball.y = -WALL_LIMIT + BALL_RADIUS;
+    ball.vy = Math.abs(ball.vy);
+  }
+
+  const playerHit =
+    ball.vx < 0
+    && ball.x - BALL_RADIUS <= PLAYER_X + PADDLE_WIDTH / 2
+    && ball.x > PLAYER_X - PADDLE_WIDTH
+    && Math.abs(ball.y - player.y) <= PADDLE_HEIGHT / 2 + BALL_RADIUS;
+  if (playerHit) {
+    ball.x = PLAYER_X + PADDLE_WIDTH / 2 + BALL_RADIUS;
+    bounceFromPaddle(player.y, 1);
+  }
+
+  const aiHit =
+    ball.vx > 0
+    && ball.x + BALL_RADIUS >= AI_X - PADDLE_WIDTH / 2
+    && ball.x < AI_X + PADDLE_WIDTH
+    && Math.abs(ball.y - ai.y) <= PADDLE_HEIGHT / 2 + BALL_RADIUS;
+  if (aiHit) {
+    ball.x = AI_X - PADDLE_WIDTH / 2 - BALL_RADIUS;
+    bounceFromPaddle(ai.y, -1);
+  }
+
+  if (ball.x < -FIELD_WIDTH / 2 - 1.4) {
+    aiScore += 1;
+    updateHud();
+    setMessage('AI scored. Resetting the rally.', 1600);
+    resetBall(1);
+  }
+
+  if (ball.x > FIELD_WIDTH / 2 + 1.4) {
+    playerScore += 1;
+    updateHud();
+    resetBall(-1);
+    winGame();
+  }
+}
+
+function updateTrail() {
+  for (let index = trailMeshes.length - 1; index > 0; index -= 1) {
+    trailMeshes[index].position.copy(trailMeshes[index - 1].position);
+    trailMeshes[index].visible = trailMeshes[index - 1].visible;
+  }
+  if (trailMeshes[0]) {
+    trailMeshes[0].position.set(ball.x, ball.y, 0.54);
+    trailMeshes[0].visible = true;
+  }
+}
+
+function updateVisuals(deltaSeconds, nowSeconds) {
+  playerMesh.position.y = player.y;
+  aiMesh.position.y = ai.y;
+  ballMesh.position.set(ball.x, ball.y, 0.86);
+  ballMesh.rotation.x += deltaSeconds * 3.4;
+  ballMesh.rotation.y += deltaSeconds * 4.2;
+
+  if (ballGlow) {
+    const pulse = reduceMotion ? 1 : 1 + Math.sin(nowSeconds * 6) * 0.08;
+    ballGlow.scale.setScalar(pulse);
+  }
+
+  if (centerLine && !reduceMotion) {
+    centerLine.rotation.z = Math.sin(nowSeconds * 0.8) * 0.004;
+  }
+
+  if (!reduceMotion) {
+    sparkMeshes.forEach((spark, index) => {
+      spark.position.y += spark.userData.drift * deltaSeconds;
+      spark.position.x += Math.sin(nowSeconds * 0.4 + index) * 0.004;
+      if (spark.position.y > WALL_LIMIT + 2) {
+        spark.position.y = -WALL_LIMIT - 2;
+      }
+    });
+    camera.position.x = Math.sin(nowSeconds * 0.28) * 0.42;
+    camera.position.y = -1.8 + Math.cos(nowSeconds * 0.24) * 0.22;
+    camera.lookAt(0, 0, 0);
+  }
+}
+
+function tick(timestamp) {
+  const nowSeconds = timestamp * 0.001;
+  const deltaSeconds = lastFrameTime
+    ? Math.min(0.033, (timestamp - lastFrameTime) * 0.001)
+    : 0.016;
+  lastFrameTime = timestamp;
+
+  updatePlayer(deltaSeconds);
+  updateAi(deltaSeconds);
+  updateBall(deltaSeconds);
+  updateTrail();
+  updateVisuals(deltaSeconds, nowSeconds);
+  renderer.render(scene, camera);
+  animationFrameId = requestAnimationFrame(tick);
+}
+
+function winGame() {
+  setMessage('You scored. +50 portal score.', 3000);
+  if (scoreManager) {
+    scoreManager.increment(50);
+  }
+}
+
+function startGame() {
+  if (!supportsWebGL()) {
+    fallback.classList.add('visible');
+    return;
+  }
+  initScene();
+  updateHud();
+  setMessage('Ready. Up/Down or Left/Right controls the player paddle.', 3000);
+  animationFrameId = requestAnimationFrame(tick);
+}
+
+window.addEventListener('resize', resizeRenderer);
+
+window.addEventListener('keydown', event => {
+  if (VALID_KEYS.has(event.key)) {
+    event.preventDefault();
+    keysDown.add(event.key);
+    pointerControlActive = false;
+    arena.focus({ preventScroll: true });
+  }
 });
 
-canvas.addEventListener('pointermove', event => {
-  if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
-    movePaddleFromClientY(event.clientY);
+window.addEventListener('keyup', event => {
+  if (VALID_KEYS.has(event.key)) {
+    keysDown.delete(event.key);
   }
+});
+
+arena.addEventListener('pointermove', event => {
+  if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+    pointerControlActive = true;
+    movePlayerByPointer(event.clientY);
+  }
+});
+
+arena.addEventListener('pointerleave', event => {
+  if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+    pointerControlActive = false;
+  }
+});
+
+arena.addEventListener('touchstart', event => {
+  event.preventDefault();
+  pointerControlActive = true;
+  movePlayerByPointer(event.touches[0].clientY);
+}, { passive: false });
+
+arena.addEventListener('touchmove', event => {
+  event.preventDefault();
+  movePlayerByPointer(event.touches[0].clientY);
+}, { passive: false });
+
+arena.addEventListener('touchend', () => {
+  pointerControlActive = false;
 });
 
 document.querySelectorAll('.touch-controls button').forEach(button => {
   const direction = button.dataset.move === 'up' ? -1 : 1;
   const setMoving = active => {
-    player.dy = active ? direction * playerSpeed() : 0;
+    touchMoveDirection = active ? direction : 0;
+    pointerControlActive = false;
   };
   button.addEventListener('pointerdown', event => {
     event.preventDefault();
@@ -441,17 +1016,21 @@ document.querySelectorAll('.touch-controls button').forEach(button => {
   button.addEventListener('lostpointercapture', () => setMoving(false));
 });
 
-function winGame() {
-  document.getElementById('message').innerText = "🎉 You scored! +50 Score!";
-  if (scoreManager) {
-    scoreManager.increment(50);
+window.addEventListener('pagehide', () => {
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = 0;
   }
-  setTimeout(() => {
-    document.getElementById('message').innerText = "";
-  }, 3000);
-}
+});
 
-loop();
+window.addEventListener('pageshow', () => {
+  if (renderer && !animationFrameId) {
+    lastFrameTime = 0;
+    animationFrameId = requestAnimationFrame(tick);
+  }
+});
+
+startGame();
 </script>
 </body>
 </html>
