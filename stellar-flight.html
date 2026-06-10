@@ -1073,7 +1073,7 @@
     <p id="primaryInstructions">
       Fly through stars and luminous worlds. Use <strong>WASD</strong> to steer, <strong>Arrow Keys</strong> or mouse to
       look, <strong>E/Ctrl</strong> to climb or drop, and fire with <strong>Space</strong>, <strong>Enter</strong>,
-      <strong>F</strong>, or left-click.
+      <strong>F</strong>, or left-click. Random hostile drones now phase into the drift lanes.
     </p>
     <div class="hint" id="secondaryInstructions">
       Press <strong>R</strong> if you ever want to re-center your ship. Click for pointer-lock mouse look, then press
@@ -1154,6 +1154,10 @@
     <div class="score-panel-row score-panel-row-total">
       <span class="score-row-label">Total</span>
       <span class="score-row-value" id="scorePanelTotal">0</span>
+    </div>
+    <div class="score-panel-row">
+      <span class="score-row-label">Threats</span>
+      <span class="score-row-value" id="enemyCounter">0 active · 0 cleared</span>
     </div>
   </div>
 
@@ -1255,6 +1259,7 @@
   const scoreIndicator = document.getElementById('scoreIndicator');
   const scorePanelUser = document.getElementById('scorePanelUser');
   const scorePanelTotal = document.getElementById('scorePanelTotal');
+  const enemyCounter = document.getElementById('enemyCounter');
 
   const sanitizeScoreValue = value => {
     if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
@@ -1828,6 +1833,246 @@
   let primaryObjective = null;
   let totalSyncedObjectives = 0;
 
+  const enemyGroup = new THREE.Group();
+  scene.add(enemyGroup);
+
+  const enemyCoreGeometry = new THREE.TetrahedronGeometry(7.5, 0);
+  const enemyRingGeometry = new THREE.TorusGeometry(10, 0.55, 12, 48);
+  const enemyWingGeometry = new THREE.ConeGeometry(2.6, 13, 4);
+  const enemyBoltGeometry = new THREE.SphereGeometry(1.4, 16, 16);
+  const enemyCoreMaterial = new THREE.MeshStandardMaterial({
+    color: 0xf43f5e,
+    emissive: 0x7f1d1d,
+    emissiveIntensity: 0.9,
+    roughness: 0.28,
+    metalness: 0.18
+  });
+  const enemyRingMaterial = new THREE.MeshBasicMaterial({
+    color: 0xfb7185,
+    transparent: true,
+    opacity: 0.48,
+    blending: THREE.AdditiveBlending
+  });
+  const enemyWingMaterial = new THREE.MeshBasicMaterial({
+    color: 0xfda4af,
+    transparent: true,
+    opacity: 0.7,
+    blending: THREE.AdditiveBlending
+  });
+  const enemyBoltMaterial = new THREE.MeshBasicMaterial({
+    color: 0xfb7185,
+    transparent: true,
+    opacity: 0.88,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  const enemies = [];
+  const enemyBolts = [];
+  const enemySpawnForward = new THREE.Vector3();
+  const enemySpawnRight = new THREE.Vector3();
+  const enemySpawnUp = new THREE.Vector3();
+  const enemyTempVector = new THREE.Vector3();
+  const enemyOrbitVector = new THREE.Vector3();
+  const MAX_RANDOM_ENEMIES = 5;
+  const ENEMY_SPAWN_MIN_SECONDS = 3.5;
+  const ENEMY_SPAWN_RANDOM_SECONDS = 5.5;
+  let enemySpawnTimer = 2.2;
+  let enemiesCleared = 0;
+
+  function updateEnemyCounter() {
+    if (!enemyCounter) {
+      return;
+    }
+    const activeCount = enemies.filter((enemy) => !enemy.destroyed).length;
+    enemyCounter.textContent = `${activeCount} active · ${enemiesCleared} cleared`;
+  }
+
+  function createEnemyDrone() {
+    const group = new THREE.Group();
+    enemySpawnForward.set(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+    enemySpawnRight.set(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
+    enemySpawnUp.set(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+    group.position
+      .copy(camera.position)
+      .addScaledVector(enemySpawnForward, 280 + Math.random() * 420)
+      .addScaledVector(enemySpawnRight, (Math.random() - 0.5) * 420)
+      .addScaledVector(enemySpawnUp, (Math.random() - 0.5) * 210);
+
+    const core = new THREE.Mesh(enemyCoreGeometry, enemyCoreMaterial.clone());
+    group.add(core);
+
+    const ring = new THREE.Mesh(enemyRingGeometry, enemyRingMaterial.clone());
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
+
+    const leftWing = new THREE.Mesh(enemyWingGeometry, enemyWingMaterial.clone());
+    leftWing.position.set(-8.2, 0, 0);
+    leftWing.rotation.z = Math.PI / 2;
+    group.add(leftWing);
+
+    const rightWing = new THREE.Mesh(enemyWingGeometry, enemyWingMaterial.clone());
+    rightWing.position.set(8.2, 0, 0);
+    rightWing.rotation.z = -Math.PI / 2;
+    group.add(rightWing);
+
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: anomalyTexture,
+      color: 0xfb7185,
+      transparent: true,
+      opacity: 0.38,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    }));
+    glow.scale.set(34, 34, 34);
+    group.add(glow);
+
+    enemyGroup.add(group);
+    enemies.push({
+      group,
+      core,
+      ring,
+      glow,
+      velocity: new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 8, 0),
+      health: 100,
+      hitRadius: 13,
+      phase: Math.random() * Math.PI * 2,
+      fireTimer: 1.2 + Math.random() * 2.8,
+      age: 0,
+      destroyed: false
+    });
+    updateEnemyCounter();
+  }
+
+  function removeEnemy(index) {
+    const enemy = enemies[index];
+    enemyGroup.remove(enemy.group);
+    enemy.group.traverse((part) => {
+      if (part.material && typeof part.material.dispose === 'function') {
+        part.material.dispose();
+      }
+    });
+    enemies.splice(index, 1);
+    updateEnemyCounter();
+  }
+
+  function spawnEnemyBolt(enemy) {
+    const bolt = new THREE.Mesh(enemyBoltGeometry, enemyBoltMaterial.clone());
+    bolt.position.copy(enemy.group.position);
+    enemyTempVector.copy(camera.position).sub(enemy.group.position).normalize();
+    enemyGroup.add(bolt);
+    enemyBolts.push({
+      mesh: bolt,
+      direction: enemyTempVector.clone(),
+      speed: 82 + Math.random() * 34,
+      age: 0,
+      lifetime: 4.2
+    });
+  }
+
+  function removeEnemyBolt(index) {
+    const bolt = enemyBolts[index];
+    enemyGroup.remove(bolt.mesh);
+    if (bolt.mesh.material && typeof bolt.mesh.material.dispose === 'function') {
+      bolt.mesh.material.dispose();
+    }
+    enemyBolts.splice(index, 1);
+  }
+
+  function damageEnemy(enemy, amount) {
+    if (enemy.destroyed) {
+      return;
+    }
+    enemy.health -= amount;
+    enemy.core.material.emissiveIntensity = 1.7;
+    enemy.glow.material.opacity = 0.58;
+    if (enemy.health > 0) {
+      return;
+    }
+    enemy.destroyed = true;
+    enemiesCleared += 1;
+    awardScore(35, { amount: 35, label: 'Hostile drone cleared', unit: 'points' });
+    updateEnemyCounter();
+  }
+
+  function updateEnemies(delta) {
+    if (!paused) {
+      enemySpawnTimer -= delta;
+      if (enemySpawnTimer <= 0) {
+        if (enemies.filter((enemy) => !enemy.destroyed).length < MAX_RANDOM_ENEMIES) {
+          createEnemyDrone();
+          showScoreIndicator({ text: 'Hostile contact' });
+        }
+        enemySpawnTimer = ENEMY_SPAWN_MIN_SECONDS + Math.random() * ENEMY_SPAWN_RANDOM_SECONDS;
+      }
+    }
+
+    for (let index = enemies.length - 1; index >= 0; index--) {
+      const enemy = enemies[index];
+      enemy.age += delta;
+      enemy.phase += delta;
+
+      if (enemy.destroyed) {
+        enemy.group.scale.multiplyScalar(Math.max(0.72, 1 - delta * 2.2));
+        enemy.glow.material.opacity = Math.max(0, enemy.glow.material.opacity - delta * 0.9);
+        if (enemy.group.scale.x <= 0.1 || enemy.glow.material.opacity <= 0.02) {
+          removeEnemy(index);
+        }
+        continue;
+      }
+
+      enemyTempVector.copy(camera.position).sub(enemy.group.position);
+      const distance = enemyTempVector.length();
+      const chaseDirection = distance > 0.001 ? enemyTempVector.normalize() : enemyTempVector.set(0, 0, 1);
+      enemyOrbitVector
+        .set(Math.sin(enemy.phase * 1.3), Math.cos(enemy.phase * 0.9), Math.sin(enemy.phase * 0.7))
+        .multiplyScalar(10);
+      enemy.velocity.lerp(chaseDirection.clone().multiplyScalar(22).add(enemyOrbitVector), Math.min(1, delta * 0.55));
+      enemy.group.position.addScaledVector(enemy.velocity, delta);
+      enemy.group.lookAt(camera.position);
+      enemy.core.rotation.x += delta * 1.9;
+      enemy.core.rotation.y += delta * 1.4;
+      enemy.ring.rotation.z += delta * 2.4;
+      enemy.core.material.emissiveIntensity += (0.9 - enemy.core.material.emissiveIntensity) * Math.min(1, delta * 3);
+      enemy.glow.material.opacity += (0.38 - enemy.glow.material.opacity) * Math.min(1, delta * 3);
+
+      enemy.fireTimer -= delta;
+      if (enemy.fireTimer <= 0 && distance < 560) {
+        spawnEnemyBolt(enemy);
+        enemy.fireTimer = 1.8 + Math.random() * 2.8;
+      }
+
+      if (distance < 16) {
+        velocity.addScaledVector(chaseDirection, -16);
+        showScoreIndicator({ text: 'Hull proximity warning' });
+        enemy.destroyed = true;
+        updateEnemyCounter();
+      } else if (distance > 1100 || enemy.age > 42) {
+        removeEnemy(index);
+      }
+    }
+  }
+
+  function updateEnemyBolts(delta) {
+    for (let index = enemyBolts.length - 1; index >= 0; index--) {
+      const bolt = enemyBolts[index];
+      bolt.age += delta;
+      bolt.mesh.position.addScaledVector(bolt.direction, bolt.speed * delta);
+      const pulse = 1 + Math.sin(bolt.age * 18) * 0.22;
+      bolt.mesh.scale.setScalar(pulse);
+      if (bolt.mesh.position.distanceTo(camera.position) < 11) {
+        velocity.addScaledVector(bolt.direction, 12);
+        showScoreIndicator({ text: 'Shield clipped' });
+        removeEnemyBolt(index);
+        continue;
+      }
+      if (bolt.age > bolt.lifetime || bolt.mesh.position.distanceTo(camera.position) > 1000) {
+        removeEnemyBolt(index);
+      }
+    }
+  }
+
+  updateEnemyCounter();
+
   const compassDots = targetCompass
     ? objectiveMarkers.map((marker) => {
         const dot = document.createElement('span');
@@ -2219,7 +2464,7 @@
       secondaryInstructions.innerHTML =
         [
           'Hold Boost to surge forward, Strafe or Ascend/Descend to slide and climb, and Re-center to reset orientation.',
-          'Tag luminous objective beacons to sync this sector—the mission tracker keeps score while Pause freezes the ship.'
+          'Tag luminous objective beacons, and clear random hostile drones before they flood the lane.'
         ].join(' ');
     } else {
       primaryInstructions.innerHTML =
@@ -2231,7 +2476,7 @@
       secondaryInstructions.innerHTML =
         [
           'Press <strong>R</strong> to re-center your ship. Click anytime for pointer-lock mouse look, then press <strong>Esc</strong> to release.',
-          'Tag the luminous mission beacons to complete objectives and watch the tracker for your next target.'
+          'Tag the luminous mission beacons, then shoot down random hostile drones as they phase into the drift.'
         ].join(' ');
     }
   }
@@ -2618,6 +2863,19 @@
       }
 
       if (!shouldRemove) {
+        for (const enemy of enemies) {
+          if (enemy.destroyed) {
+            continue;
+          }
+          if (shot.group.position.distanceTo(enemy.group.position) <= enemy.hitRadius) {
+            damageEnemy(enemy, 55);
+            shouldRemove = true;
+            break;
+          }
+        }
+      }
+
+      if (!shouldRemove) {
         for (const target of planetTargets) {
           target.planet.getWorldPosition(planetHitPosition);
           if (shot.group.position.distanceTo(planetHitPosition) <= target.hitRadius) {
@@ -2865,6 +3123,8 @@
       triggerLaserBurst();
     }
     updateMovement(delta);
+    updateEnemies(delta);
+    updateEnemyBolts(delta);
     updateLasers(delta);
 
     starLayers.forEach((layer, index) => {
