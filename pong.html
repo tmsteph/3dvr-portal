@@ -401,7 +401,7 @@
     <h1>Pong Arena</h1>
     <p>
       A neon 3DVR paddle duel. Use Up/Down or Left/Right to move, track the ball trail,
-      and score against a less-perfect training AI.
+      click the arena to lock mouse control, and score against a less-perfect training AI.
     </p>
     <div class="hud" aria-label="Pong score and status">
       <div class="hud-card">
@@ -491,6 +491,7 @@ const BALL_RADIUS = 0.46;
 const BASE_BALL_SPEED = 12.8;
 const MAX_BALL_SPEED = 20;
 const PLAYER_SPEED = 17.5;
+const MOUSE_LOCK_SENSITIVITY = 0.038;
 const AI_MAX_SPEED = 9.6;
 const AI_REACTION_SECONDS = 0.34;
 const AI_AIM_ERROR = 1.85;
@@ -514,6 +515,8 @@ let rallyCount = 0;
 let aiThinkTimer = 0;
 let aiTargetY = 0;
 let pointerControlActive = false;
+let pointerLocked = false;
+let pointerLockHintShown = false;
 let touchMoveDirection = 0;
 let statusTimer = 0;
 
@@ -773,8 +776,8 @@ function resizeRenderer() {
 function syncKeyboardVelocity() {
   const upward = keysDown.has('ArrowUp') || keysDown.has('ArrowLeft');
   const downward = keysDown.has('ArrowDown') || keysDown.has('ArrowRight');
-  if (upward && !downward) return -1;
-  if (downward && !upward) return 1;
+  if (upward && !downward) return 1;
+  if (downward && !upward) return -1;
   return 0;
 }
 
@@ -783,6 +786,36 @@ function movePlayerByPointer(clientY) {
   const normalized = clamp((clientY - rect.top) / rect.height, 0, 1);
   const courtY = (0.5 - normalized) * FIELD_HEIGHT;
   player.y = clamp(courtY, -WALL_LIMIT + PADDLE_HEIGHT / 2, WALL_LIMIT - PADDLE_HEIGHT / 2);
+}
+
+function movePlayerByPointerDelta(deltaY) {
+  player.y = clamp(
+    player.y - deltaY * MOUSE_LOCK_SENSITIVITY,
+    -WALL_LIMIT + PADDLE_HEIGHT / 2,
+    WALL_LIMIT - PADDLE_HEIGHT / 2
+  );
+}
+
+function requestMouseLock() {
+  if (!arena.requestPointerLock || document.pointerLockElement === arena) {
+    return;
+  }
+  pointerLockHintShown = true;
+  try {
+    arena.requestPointerLock();
+  } catch (err) {
+    console.warn('Pointer lock request failed', err);
+  }
+}
+
+function syncPointerLockState() {
+  pointerLocked = document.pointerLockElement === arena;
+  pointerControlActive = pointerLocked;
+  if (pointerLocked) {
+    setMessage('Mouse locked. Move up/down to steer; press Esc to release.', 2600);
+  } else if (pointerLockHintShown) {
+    setMessage('Mouse released. Click the arena to lock again.', 1800);
+  }
 }
 
 function updatePlayer(deltaSeconds) {
@@ -951,7 +984,7 @@ function startGame() {
   }
   initScene();
   updateHud();
-  setMessage('Ready. Up/Down or Left/Right controls the player paddle.', 3000);
+  setMessage('Ready. Up/Down or Left/Right controls the paddle. Click the arena to lock the mouse.', 3600);
   animationFrameId = requestAnimationFrame(tick);
 }
 
@@ -973,17 +1006,32 @@ window.addEventListener('keyup', event => {
 });
 
 arena.addEventListener('pointermove', event => {
-  if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+  if (!pointerLocked && (event.pointerType === 'mouse' || event.pointerType === 'pen')) {
     pointerControlActive = true;
     movePlayerByPointer(event.clientY);
   }
 });
 
 arena.addEventListener('pointerleave', event => {
-  if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+  if (!pointerLocked && (event.pointerType === 'mouse' || event.pointerType === 'pen')) {
     pointerControlActive = false;
   }
 });
+
+arena.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'mouse') {
+    requestMouseLock();
+  }
+});
+
+document.addEventListener('mousemove', event => {
+  if (pointerLocked) {
+    pointerControlActive = true;
+    movePlayerByPointerDelta(event.movementY);
+  }
+});
+
+document.addEventListener('pointerlockchange', syncPointerLockState);
 
 arena.addEventListener('touchstart', event => {
   event.preventDefault();
@@ -1001,7 +1049,7 @@ arena.addEventListener('touchend', () => {
 });
 
 document.querySelectorAll('.touch-controls button').forEach(button => {
-  const direction = button.dataset.move === 'up' ? -1 : 1;
+  const direction = button.dataset.move === 'up' ? 1 : -1;
   const setMoving = active => {
     touchMoveDirection = active ? direction : 0;
     pointerControlActive = false;
