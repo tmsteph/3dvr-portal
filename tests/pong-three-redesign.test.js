@@ -20,7 +20,9 @@ describe('Pong Three.js redesign', () => {
     assert.match(html, /'ArrowRight'/);
     assert.match(html, /keysDown\.has\('ArrowLeft'\)/);
     assert.match(html, /keysDown\.has\('ArrowRight'\)/);
-    assert.match(html, /Left\/Right controls the player paddle/);
+    assert.match(html, /Left\/Right controls the paddle/);
+    assert.match(html, /if \(upward && !downward\) return 1;/);
+    assert.match(html, /if \(downward && !upward\) return -1;/);
   });
 
   it('keeps the AI intentionally beatable', async () => {
@@ -31,5 +33,15 @@ describe('Pong Three.js redesign', () => {
     assert.match(html, /const AI_AIM_ERROR = 1\.85;/);
     assert.match(html, /aimNoise/);
     assert.match(html, /aiThinkTimer/);
+  });
+
+  it('locks mouse control after clicking the arena', async () => {
+    const html = await readFile(new URL('../pong.html', import.meta.url), 'utf8');
+
+    assert.match(html, /requestMouseLock\(\)/);
+    assert.match(html, /arena\.requestPointerLock\(\)/);
+    assert.match(html, /document\.pointerLockElement === arena/);
+    assert.match(html, /movePlayerByPointerDelta\(event\.movementY\)/);
+    assert.match(html, /press Esc to release/);
   });
 });
