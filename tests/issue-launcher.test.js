@@ -35,9 +35,11 @@ test('issue launcher ships a GitHub issue helper for the portal repo', async () 
   assert.match(source, /- URL:/);
   assert.match(source, /Current page:/);
   assert.match(source, /portal-issue-launcher--footer/);
+  assert.match(source, /portal-issue-launcher--body-footer/);
   assert.match(source, /shouldFloatLauncher = launcherPreference === 'floating'/);
   assert.match(source, /portal-issue-launcher portal-issue-launcher--footer/);
-  assert.match(source, /document\.querySelector\('footer'\) \|\| document\.body/);
+  assert.match(source, /const pageFooter = document\.querySelector\('footer'\)/);
+  assert.match(source, /root\.classList\.add\('portal-issue-launcher--body-footer'\)/);
   assert.match(source, /portal-issue-launcher--footer \.portal-issue-launcher__button-title/);
   assert.match(source, /remaining <= root\.offsetHeight \+ 24/);
   assert.match(source, /window\.addEventListener\('scroll', syncDockModeSoon/);

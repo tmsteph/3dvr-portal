@@ -80,6 +80,17 @@
       justify-items: center;
     }
 
+    .portal-issue-launcher--body-footer {
+      position: fixed;
+      left: 50%;
+      bottom: max(0.5rem, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(28rem, calc(100vw - 1rem));
+      max-width: calc(100vw - 1rem);
+      margin: 0;
+      z-index: 1200;
+    }
+
     .portal-issue-launcher__button,
     .portal-issue-launcher__panel {
       pointer-events: auto;
@@ -391,9 +402,13 @@
   `;
 
   root.append(button, panel);
+  const pageFooter = document.querySelector('footer');
   const mountTarget = shouldFloatLauncher
     ? document.body
-    : document.querySelector('footer') || document.body;
+    : pageFooter || document.body;
+  if (!shouldFloatLauncher && !pageFooter) {
+    root.classList.add('portal-issue-launcher--body-footer');
+  }
   mountTarget.appendChild(root);
 
   const form = panel.querySelector('form');
