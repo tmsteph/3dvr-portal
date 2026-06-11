@@ -39,6 +39,14 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
   - Use that same Termux auth context before merging or pushing when the remote may have advanced after a GitHub app write.
   - If a page was created remotely with the GitHub app and a local commit touched the same new path, fetch `origin/main` first and resolve any `add/add` conflict before pushing.
 
+## Clean Worktree Discipline
+- Start every task with `git status -sb` and identify unrelated dirty files before editing.
+- If the repo is already dirty, use a clean worktree from `origin/main` for publishable work unless the dirty files are directly part of the task.
+- Stage files explicitly by path. Do not use broad staging commands like `git add .` in a dirty repo.
+- Before committing, review `git diff --stat` and the staged diff to confirm the commit contains only the intended scope.
+- Leave unrelated local changes untouched. If they block the task, document the conflict instead of resetting or overwriting them.
+- When a dirty-worktree pattern repeats, add the lesson to the relevant `AGENTS.md` so the next agent starts cleaner.
+
 ## Push And Merge With Termux GitHub Auth
 - Check auth without printing secrets:
   - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh auth status`
@@ -83,6 +91,7 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Work iteratively in small, testable increments with concise commits and clear context.
 - Prefer reuse over reinvention: extract shared helpers and styles instead of duplicating logic.
 - Document decisions inline so future contributors understand why a choice was made.
+- When you learn repo-specific context that would help the next agent, update the relevant `AGENTS.md` before finishing.
 
 ## Data Layer (GunJS)
 - Treat GunJS as the source of truth. Read and write through shared Gun nodes, not device-local storage.
