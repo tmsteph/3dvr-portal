@@ -61,15 +61,6 @@ const scenes = [
     copy: 'A quieter frame for teaser tiles, transitions, and portal memory moments.',
     image: 'assets/over-shoulder.jpg',
     alt: '3DVR Girl looking back over her shoulder'
-  },
-  {
-    id: 'shore-preview',
-    title: 'Storefront echo',
-    kicker: 'Preview capture',
-    mode: 'Commerce',
-    copy: 'A rough phone capture that can become the product lane once higher-resolution originals are available.',
-    image: 'assets/shore-preview.jpg',
-    alt: 'Phone screenshot preview of a 3DVR Girl image'
   }
 ];
 
