@@ -14,23 +14,28 @@ async function fileExists(path) {
   }
 }
 
-describe('3DVR Project Launchpad', () => {
+describe('3DVR Seed Deck', () => {
   it('ships a project nursery route with public node surfaces', async () => {
     const html = await readFile(new URL('index.html', baseDir), 'utf8');
 
     assert.equal(await fileExists(new URL('index.html', baseDir)), true);
     assert.equal(await fileExists(new URL('projects.css', baseDir)), true);
     assert.equal(await fileExists(new URL('app.js', baseDir)), true);
-    assert.match(html, /3DVR Project Launchpad/);
-    assert.match(html, /Where fledgling projects become real/);
-    assert.match(html, /A home for projects before they are companies/);
-    assert.match(html, /The social network for people building the future/);
+    assert.match(html, /3DVR Seed Deck/);
+    assert.match(html, /Start before you're ready/);
+    assert.match(html, /Not a social network\. Not a website builder\. Not a CRM\. A seed bed/);
+    assert.match(html, /3DVR Seed Deck helps unfinished ideas become real/);
+    assert.match(html, /Community garden/);
+    assert.match(html, /Regenerative living/);
+    assert.match(html, /Open-source tools/);
+    assert.match(html, /Spiritual technology/);
     assert.match(html, /id="projectForm"/);
     assert.match(html, /id="projectBoard"/);
     assert.match(html, /id="projectList"/);
     assert.match(html, /id="updateForm"/);
     assert.match(html, /id="launchpadStats"/);
     assert.match(html, /Human-approved AI help/);
+    assert.match(html, /summarize interest/);
     assert.match(html, /project\.3dvr\.tech/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="\.{2}\/gun-init\.js"/);
@@ -56,7 +61,8 @@ describe('3DVR Project Launchpad', () => {
 
     assert.match(html, /href="projects\/index\.html"/);
     assert.match(html, /<span class="app-card__title">Projects<\/span>/);
-    assert.match(html, /project nodes with profiles, updates, needs, offers, and support links/);
+    assert.match(html, /Open Seed Deck to plant ideas with pages, updates, needs, offers, and support links/);
+    assert.match(html, /data-app-keywords="[^"]*\bseed deck\b[^"]*"/);
     assert.match(html, /data-app-keywords="[^"]*\blaunchpad\b[^"]*"/);
   });
 });
