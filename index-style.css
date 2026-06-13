@@ -101,6 +101,39 @@ body.landing {
   padding: 6rem 1.5rem 4rem;
 }
 
+.site-backlink {
+  position: absolute;
+  top: 1.35rem;
+  left: 1.5rem;
+  z-index: 11;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 1px solid rgba(186, 230, 253, 0.24);
+  border-radius: 999px;
+  background: rgba(8, 15, 31, 0.74);
+  color: rgba(226, 232, 240, 0.9);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 800;
+  box-shadow: 0 18px 50px rgba(4, 9, 20, 0.28);
+  backdrop-filter: blur(14px);
+  transition: transform var(--transition-base),
+    background var(--transition-base),
+    border-color var(--transition-base),
+    color var(--transition-base);
+}
+
+.site-backlink:hover,
+.site-backlink:focus-visible {
+  transform: translateY(-2px);
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(125, 211, 252, 0.6);
+  color: var(--color-text);
+  outline: none;
+}
+
 .skip-link {
   position: absolute;
   top: 1.5rem;
@@ -1379,6 +1412,14 @@ footer a {
 @media (max-width: 640px) {
   .landing-shell {
     padding: 4.5rem 1rem 3rem;
+  }
+
+  .site-backlink {
+    top: 0.9rem;
+    left: 1rem;
+    min-height: 2.25rem;
+    padding: 0 0.85rem;
+    font-size: 0.84rem;
   }
 
   .portal-swirl-brand {
