@@ -8,6 +8,7 @@ import {
   CRM_URGENCY_OPTIONS,
   CRM_RECORD_TYPE_OPTIONS,
   buildConversationCaptureRecord,
+  buildGunConversationCapturePayload,
   sanitizeConversationCaptureRecord,
   normalizeCrmRecordType,
   normalizeCrmWarmth,
@@ -2058,7 +2059,8 @@ function putCrmRecord(record) {
 function putConversationCapture(capture) {
   return new Promise((resolve, reject) => {
     const sanitized = sanitizeConversationCaptureRecord(capture);
-    conversationCapturesRoot.get(sanitized.id).put(sanitized, ack => {
+    const payload = buildGunConversationCapturePayload(sanitized);
+    conversationCapturesRoot.get(sanitized.id).put(payload, ack => {
       if (ack && ack.err) {
         reject(new Error(String(ack.err)));
         return;

@@ -12,6 +12,7 @@ import {
   CRM_RECORD_TYPE_OPTIONS,
   CRM_CONVERSATION_PLAN_OPTIONS,
   buildConversationCaptureRecord,
+  buildGunConversationCapturePayload,
   normalizeCrmRecordType,
   normalizeCrmWarmth,
   normalizeConversationCaptureList,
@@ -193,6 +194,22 @@ describe('crm conversation capture helpers', () => {
       updatedAt: '',
       source: 'mobile-conversation',
     });
+  });
+
+  it('serializes captures into a Gun-safe payload without losing readable pain points', () => {
+    const payload = buildGunConversationCapturePayload({
+      id: 'capture-3',
+      name: 'Rae',
+      painPoints: ['No website', 'No website', 'Needs booking/forms'],
+      interestedPlan: '$50/mo',
+    });
+
+    assert.equal(Array.isArray(payload.painPoints), false);
+    assert.equal(payload.painPoints, 'No website\nNeeds booking/forms');
+    assert.deepEqual(sanitizeConversationCaptureRecord(payload).painPoints, [
+      'No website',
+      'Needs booking/forms',
+    ]);
   });
 });
 

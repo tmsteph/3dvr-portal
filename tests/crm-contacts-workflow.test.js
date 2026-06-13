@@ -95,8 +95,10 @@ test('CRM app includes keyboard search shortcut, workflow filters, and import wi
   assert.match(js, /portalRoot\.get\('crm'\)\.get\('conversationCaptures'\)/);
   assert.match(js, /function handleConversationCaptureSubmit\(event\)/);
   assert.match(js, /buildConversationCaptureRecord/);
+  assert.match(js, /buildGunConversationCapturePayload\(sanitized\)/);
   assert.match(js, /source\/mobile-conversation/);
   assert.match(js, /putConversationCapture\(capture\)/);
+  assert.match(js, /conversationCapturesRoot\.get\(sanitized\.id\)\.put\(payload/);
   assert.match(js, /conversationCapturesRoot\.map\(\)\.on/);
   assert.match(js, /conversationCaptureForm\?\.addEventListener\('submit', handleConversationCaptureSubmit\)/);
   assert.match(js, /openConversationCapture\?\.addEventListener\('click', openConversationCapturePanel\)/);
