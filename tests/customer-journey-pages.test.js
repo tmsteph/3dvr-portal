@@ -72,6 +72,9 @@ describe('portal customer journey pages', () => {
     assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
     assert.match(css, /\.botanical-border\s*\{/);
     assert.match(css, /\.botanical-border__leaf--right-c\s*\{/);
+    assert.match(css, /animation:\s*search-callout 3\.8s ease-in-out infinite/);
+    assert.match(css, /\.top-nav__search::before\s*\{/);
+    assert.match(css, /\.top-buttons a\.top-buttons__search-shortcut\s*\{/);
   });
 
   it('keeps the free trial page tied to the portal account journey', async () => {
