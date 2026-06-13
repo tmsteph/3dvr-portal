@@ -4,8 +4,7 @@ body.landing {
   align-items: stretch;
 }
 
-body.landing::before,
-body.landing::after {
+body.landing::before {
   content: '';
   position: fixed;
   inset: 0;
@@ -22,18 +21,98 @@ body.landing::before {
     0 0 32px rgba(20, 184, 166, 0.09);
 }
 
-body.landing::after {
+.botanical-border {
+  position: fixed;
+  inset: 0.9rem;
+  z-index: 2;
+  pointer-events: none;
+  border: 1px solid rgba(134, 239, 172, 0.2);
+  border-radius: 2rem;
+  box-shadow:
+    inset 0 0 1px rgba(187, 247, 208, 0.24),
+    0 0 30px rgba(20, 184, 166, 0.08);
+}
+
+.botanical-border__leaf {
+  position: absolute;
+  width: 2.25rem;
+  height: 0.62rem;
+  border-radius: 999px 0 999px 0;
   background:
-    radial-gradient(ellipse 1.25rem 0.42rem at 1.1rem 8%, rgba(134, 239, 172, 0.32), transparent 74%),
-    radial-gradient(ellipse 0.42rem 1.15rem at 1.85rem 14%, rgba(45, 212, 191, 0.2), transparent 74%),
-    radial-gradient(ellipse 1.1rem 0.4rem at 1rem 52%, rgba(187, 247, 208, 0.2), transparent 76%),
-    radial-gradient(ellipse 1.18rem 0.42rem at calc(100% - 1.1rem) 12%, rgba(134, 239, 172, 0.28), transparent 74%),
-    radial-gradient(ellipse 0.42rem 1.15rem at calc(100% - 1.85rem) 20%, rgba(45, 212, 191, 0.18), transparent 74%),
-    radial-gradient(ellipse 1.1rem 0.42rem at calc(100% - 1rem) 64%, rgba(187, 247, 208, 0.18), transparent 76%),
-    radial-gradient(ellipse 1.18rem 0.42rem at calc(100% - 1.1rem) 86%, rgba(134, 239, 172, 0.22), transparent 76%),
-    radial-gradient(ellipse 1.2rem 0.42rem at 62% calc(100% - 1.1rem), rgba(134, 239, 172, 0.16), transparent 74%);
-  filter: drop-shadow(0 0 0.45rem rgba(74, 222, 128, 0.09));
-  opacity: 0.52;
+    radial-gradient(ellipse at 32% 50%, rgba(236, 253, 245, 0.7), transparent 42%),
+    linear-gradient(90deg, rgba(187, 247, 208, 0.76), rgba(45, 212, 191, 0.34));
+  box-shadow: 0 0 0.7rem rgba(74, 222, 128, 0.16);
+  opacity: 0.58;
+}
+
+.botanical-border__leaf--top {
+  top: -0.28rem;
+}
+
+.botanical-border__leaf--top-a {
+  left: 12%;
+  transform: rotate(5deg);
+}
+
+.botanical-border__leaf--top-b {
+  left: 38%;
+  transform: rotate(-2deg);
+}
+
+.botanical-border__leaf--top-c {
+  right: 18%;
+  transform: rotate(7deg);
+}
+
+.botanical-border__leaf--right {
+  right: -0.28rem;
+  transform: rotate(94deg);
+}
+
+.botanical-border__leaf--right-a {
+  top: 18%;
+}
+
+.botanical-border__leaf--right-b {
+  top: 48%;
+}
+
+.botanical-border__leaf--right-c {
+  top: 78%;
+}
+
+.botanical-border__leaf--bottom {
+  bottom: -0.28rem;
+  transform: rotate(186deg);
+}
+
+.botanical-border__leaf--bottom-a {
+  left: 18%;
+}
+
+.botanical-border__leaf--bottom-b {
+  left: 48%;
+}
+
+.botanical-border__leaf--bottom-c {
+  right: 14%;
+}
+
+.botanical-border__leaf--left {
+  left: -0.28rem;
+  transform: rotate(92deg);
+}
+
+.botanical-border__leaf--left-a {
+  top: 16%;
+}
+
+.botanical-border__leaf--left-b {
+  top: 46%;
+}
+
+.botanical-border__leaf--left-c {
+  top: 74%;
 }
 
 @media (max-width: 720px) {
@@ -42,13 +121,40 @@ body.landing::after {
     border-radius: 1.35rem;
   }
 
-  body.landing::after {
-    background:
-      radial-gradient(ellipse 0.9rem 0.34rem at 0.8rem 6%, rgba(134, 239, 172, 0.18), transparent 76%),
-      radial-gradient(ellipse 0.34rem 0.85rem at 1.35rem 11%, rgba(45, 212, 191, 0.12), transparent 76%),
-      radial-gradient(ellipse 0.9rem 0.34rem at calc(100% - 0.8rem) 10%, rgba(134, 239, 172, 0.16), transparent 76%),
-      radial-gradient(ellipse 0.9rem 0.34rem at calc(100% - 0.8rem) 82%, rgba(134, 239, 172, 0.14), transparent 76%);
-    opacity: 0.34;
+  .botanical-border {
+    inset: 0.45rem;
+    border-radius: 1.35rem;
+  }
+
+  .botanical-border__leaf {
+    width: 1.45rem;
+    height: 0.44rem;
+    opacity: 0.46;
+  }
+
+  .botanical-border__leaf--top-a {
+    left: 28%;
+  }
+
+  .botanical-border__leaf--top-b,
+  .botanical-border__leaf--bottom-b {
+    display: none;
+  }
+
+  .botanical-border__leaf--top-c {
+    right: 22%;
+  }
+
+  .botanical-border__leaf--right-a {
+    top: 24%;
+  }
+
+  .botanical-border__leaf--right-b {
+    top: 52%;
+  }
+
+  .botanical-border__leaf--right-c {
+    top: 82%;
   }
 }
 
