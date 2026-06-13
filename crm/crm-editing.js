@@ -384,6 +384,15 @@ export function buildConversationCaptureRecord(input = {}, identity = {}, option
   });
 }
 
+export function buildGunConversationCapturePayload(data = {}) {
+  const clean = sanitizeConversationCaptureRecord(data);
+
+  return {
+    ...clean,
+    painPoints: clean.painPoints.join('\n'),
+  };
+}
+
 export function sanitizeCrmRecord(data) {
   if (!data || typeof data !== 'object') return {};
   const clean = {};
@@ -543,6 +552,7 @@ if (typeof window !== 'undefined') {
     normalizeConversationCaptureList,
     sanitizeConversationCaptureRecord,
     buildConversationCaptureRecord,
+    buildGunConversationCapturePayload,
     parseCrmList,
     serializeCrmList,
     sanitizeCrmRecord,
