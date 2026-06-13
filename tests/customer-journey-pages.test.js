@@ -41,6 +41,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Sign in or create account/);
     assert.match(html, /Use one account to save your progress and sync your points across devices\./);
     assert.doesNotMatch(html, /Sign in to save your progress/);
+    assert.match(html, /class="site-backlink" href="https:\/\/3dvr\.tech\/" aria-label="Back to 3dvr\.tech home">3dvr\.tech<\/a>/);
+    assert.doesNotMatch(html, />3dvr\.tech home<\/a>/);
     assert.match(html, /App dock/);
     assert.match(html, /Command center/);
     assert.match(html, /Same account, same apps, deeper levels of control\./);
