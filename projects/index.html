@@ -3,151 +3,277 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Projects · 3DVR Portal</title>
+  <title>Projects · 3DVR Project Launchpad</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <link rel="stylesheet" href="../styles/global.css">
   <link rel="stylesheet" href="./projects.css">
-
+  <script defer src="./app.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body class="projects theme-dark">
-  <a class="skip-link" href="#projectsMain">Skip to project directory</a>
+  <a class="skip-link" href="#projectsMain">Skip to project launchpad</a>
   <div class="projects-shell">
     <header class="projects-hero" aria-labelledby="projectsTitle">
-      <div>
-        <p class="projects-hero__eyebrow">Project directory</p>
-        <h1 id="projectsTitle" class="projects-hero__title">Keep explorations visible and ready to ship</h1>
-        <p class="projects-hero__lede">
-          Capture active concepts, link them to notes and tasks, and spell out what success looks like before we build.
-          Everything here stays portable across VR, desktop, and mobile flows.
-        </p>
-        <div class="projects-hero__actions">
-          <a class="cta primary" href="../index.html">⬅️ Back to portal</a>
-          <a class="cta ghost" href="../notes/">📝 Open shared notes</a>
-          <a class="cta ghost" href="../tasks.html">✅ Plan next tasks</a>
+      <nav class="projects-nav" aria-label="Project launchpad navigation">
+        <a href="../index.html">Portal</a>
+        <a href="../community/">Community</a>
+        <a href="../crm/">CRM</a>
+        <a href="../billing/">Billing</a>
+      </nav>
+      <div class="projects-hero__grid">
+        <div>
+          <p class="projects-hero__eyebrow">3DVR project launchpad</p>
+          <h1 id="projectsTitle" class="projects-hero__title">Where fledgling projects become real.</h1>
+          <p class="projects-hero__lede">
+            A home for projects before they are companies: public profile, mission, updates, needs, offers,
+            contact paths, support links, followers, and human-approved AI help.
+          </p>
+          <div class="projects-hero__actions">
+            <a class="cta primary" href="#projectForm">Start a project node</a>
+            <a class="cta ghost" href="#projectBoard">Browse project nodes</a>
+            <a class="cta ghost" href="../start/">Choose a 3DVR plan</a>
+          </div>
         </div>
-      </div>
-      <div class="projects-meta" aria-label="Project data guidance">
-        <p class="projects-meta__label">Shared data paths</p>
-        <ul>
-          <li><code>gun.get('projects').get('ideas')</code> for concepts and owners.</li>
-          <li><code>gun.get('projects').get('artifacts')</code> for sketches, diagrams, and attachments.</li>
-          <li><code>gun.get('projects').get('handoff')</code> for build-ready checklists.</li>
-        </ul>
+        <aside class="projects-meta" aria-label="Launchpad positioning">
+          <p class="projects-meta__label">Positioning</p>
+          <p>
+            The social network for people building the future: a project nursery where seeds can
+            gather people, explain themselves, collect support, and grow into real work.
+          </p>
+          <ul>
+            <li><code>3dvr.tech/project-name</code> for a simple project home.</li>
+            <li><code>project.3dvr.tech</code> when the project is ready for a custom subdomain.</li>
+            <li>Use independent websites later, after the project has momentum.</li>
+          </ul>
+        </aside>
       </div>
     </header>
 
-    <main id="projectsMain" class="projects-main" aria-label="3DVR project directory">
-      <section class="projects-section" aria-labelledby="wearableTitle">
-        <div class="section-header">
-          <p class="section-eyebrow">Active exploration</p>
-          <h2 id="wearableTitle">Wearable input kit for travel and AR</h2>
-          <p class="section-lede">
-            A portable keyboard and pointing system that clips to your legs for standing or seated
-            work, keeps phones usable while pocketed, and mirrors desktop control inside VR or AR
-            glasses.
-          </p>
-        </div>
-        <div class="project-grid" role="list">
-          <article class="project-card" role="listitem" aria-labelledby="cardDesignTitle">
-            <div class="project-card__icon" aria-hidden="true">⌨️</div>
-            <div class="project-card__body">
-              <div class="project-card__header">
-                <h3 id="cardDesignTitle">Form factor</h3>
-                <span class="status-pill">Status: Designing</span>
-              </div>
-              <p>
-                Split keyboard halves strap to each thigh so posture stays comfortable when walking,
-                standing at a counter, or seated on a flight. A low-profile fold keeps the kit in a
-                backpack and deploys in seconds.
-              </p>
-              <ul>
-                <li>Leg-mounted plates keep wrists aligned and elbows relaxed.</li>
-                <li>Compact columns mirror standard layouts for fast onboarding.</li>
-                <li>Detachable straps support both casual and athletic wear.</li>
-              </ul>
-            </div>
-          </article>
-
-          <article class="project-card" role="listitem" aria-labelledby="cardControlTitle">
-            <div class="project-card__icon" aria-hidden="true">🖱️</div>
-            <div class="project-card__body">
-              <div class="project-card__header">
-                <h3 id="cardControlTitle">Input + pointing</h3>
-                <span class="status-pill status-pill--focus">Focus: Ergonomics</span>
-              </div>
-              <p>
-                Capacitive trackpads on both sides keep mousing symmetrical and shoulder-friendly. Thumb clusters handle
-                modifiers, quick toggles, and media so typing stays uninterrupted.
-              </p>
-              <ul>
-                <li>Dual trackpads that map to desktop, mobile, and VR cursors.</li>
-                <li>Haptics confirm gestures without needing to look down.</li>
-                <li>Low-latency Bluetooth first, with a wired fallback for labs.</li>
-              </ul>
-            </div>
-          </article>
-
-          <article class="project-card" role="listitem" aria-labelledby="cardXRTitle">
-            <div class="project-card__icon" aria-hidden="true">🕶️</div>
-            <div class="project-card__body">
-              <div class="project-card__header">
-                <h3 id="cardXRTitle">AR + phone pairing</h3>
-                <span class="status-pill status-pill--planning">Planning: Prototyping</span>
-              </div>
-              <p>
-                The kit mirrors phone UI inside AR glasses so you can keep the phone in your pocket, navigate apps, and
-                respond quickly while staying heads-up. Inputs also pass through to desktop and VR sessions.
-              </p>
-              <ul>
-                <li>Overlay notifications and text fields in-headset for glanceable control.</li>
-                <li>Bridge sessions through <code>gun.get('projects').get('io-link')</code> for shared state.</li>
-                <li>USB-C passthrough keeps phones powered during long days.</li>
-              </ul>
-            </div>
-          </article>
-        </div>
+    <main id="projectsMain" class="projects-main" aria-label="3DVR project launchpad">
+      <section class="metrics-grid" id="launchpadStats" aria-label="Launchpad stats">
+        <article>
+          <span id="nodeCount">0</span>
+          <strong>Project nodes</strong>
+        </article>
+        <article>
+          <span id="updateCount">0</span>
+          <strong>Updates</strong>
+        </article>
+        <article>
+          <span id="needCount">0</span>
+          <strong>Needs listed</strong>
+        </article>
+        <article>
+          <span id="offerCount">0</span>
+          <strong>Offers listed</strong>
+        </article>
       </section>
 
-      <section class="projects-section" aria-labelledby="nextStepsTitle">
+      <section class="workspace-grid" aria-label="Project launchpad workspace">
+        <form id="projectForm" class="projects-section form-panel" aria-labelledby="createProjectTitle">
+          <div class="section-header">
+            <p class="section-eyebrow">Create a node</p>
+            <h2 id="createProjectTitle">Put the seed somewhere visible.</h2>
+            <p class="section-lede">
+              A rough project is enough. Capture the mission, needs, offers, and where supporters should go next.
+            </p>
+          </div>
+          <div class="field-row">
+            <label>
+              Name
+              <input
+                id="projectName"
+                required
+                maxlength="80"
+                placeholder="Regenerative Farm, repair circle, music retreat..."
+              />
+            </label>
+            <label>
+              Stage
+              <select id="projectStage">
+                <option value="seed">Seed</option>
+                <option value="building">Building</option>
+                <option value="live">Live</option>
+                <option value="seeking">Seeking support</option>
+              </select>
+            </label>
+          </div>
+          <div class="field-row">
+            <label>
+              Slug
+              <input id="projectSlug" maxlength="64" placeholder="project-name" />
+            </label>
+            <label>
+              Category
+              <input id="projectCategory" maxlength="64" placeholder="farm, software, music, co-op..." />
+            </label>
+          </div>
+          <label>
+            Mission
+            <textarea
+              id="projectMission"
+              required
+              rows="3"
+              maxlength="360"
+              placeholder="What are you building, who is it for, and why should people care?"
+            ></textarea>
+          </label>
+          <div class="field-row">
+            <label>
+              Needs
+              <textarea
+                id="projectNeeds"
+                rows="3"
+                placeholder="land, funding, coders, volunteers, artists..."
+              ></textarea>
+            </label>
+            <label>
+              Offers
+              <textarea
+                id="projectOffers"
+                rows="3"
+                placeholder="classes, repairs, websites, retreats, music..."
+              ></textarea>
+            </label>
+          </div>
+          <div class="field-row">
+            <label>
+              Contact link
+              <input id="projectContact" type="url" placeholder="mailto:3dvr.tech@gmail.com" />
+            </label>
+            <label>
+              Support link
+              <input id="projectSupport" type="url" placeholder="Stripe, donation, subscription, or signup URL" />
+            </label>
+          </div>
+          <button class="cta primary" type="submit">Save project node</button>
+          <p id="syncStatus" class="sync-status" role="status" aria-live="polite">Connecting to project graph...</p>
+        </form>
+
+        <aside class="projects-section" aria-labelledby="ladderTitle">
+          <div class="section-header">
+            <p class="section-eyebrow">Plan ladder</p>
+            <h2 id="ladderTitle">Let the node grow with the project.</h2>
+          </div>
+          <div class="plan-ladder">
+            <article>
+              <strong>Free</strong>
+              <span>Profile, posts, needs, offers, contact form direction.</span>
+            </article>
+            <article>
+              <strong>$5/mo</strong>
+              <span>Custom subdomain, basic intake, support button.</span>
+            </article>
+            <article>
+              <strong>$20/mo</strong>
+              <span>Booking, payments, lead dashboard, AI drafts.</span>
+            </article>
+            <article>
+              <strong>$50/mo</strong>
+              <span>Managed project desk, email, forms, automation.</span>
+            </article>
+            <article>
+              <strong>$200/mo</strong>
+              <span>Full digital operating system and white-glove launch support.</span>
+            </article>
+          </div>
+        </aside>
+      </section>
+
+      <section id="projectBoard" class="projects-section" aria-labelledby="boardTitle">
+        <div class="board-head">
+          <div class="section-header">
+            <p class="section-eyebrow">Live commons</p>
+            <h2 id="boardTitle">Project nodes</h2>
+            <p class="section-lede">
+              The point is not polish. The point is identity, community, momentum, and tools.
+            </p>
+          </div>
+          <div class="filters" aria-label="Filter project nodes">
+            <button type="button" class="filter active" data-filter="all">All</button>
+            <button type="button" class="filter" data-filter="seed">Seeds</button>
+            <button type="button" class="filter" data-filter="building">Building</button>
+            <button type="button" class="filter" data-filter="live">Live</button>
+            <button type="button" class="filter" data-filter="seeking">Seeking</button>
+          </div>
+        </div>
+        <div id="projectList" class="project-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="workspace-grid" aria-label="Project updates and operating model">
+        <form id="updateForm" class="projects-section form-panel" aria-labelledby="updateTitle">
+          <div class="section-header">
+            <p class="section-eyebrow">Project journal</p>
+            <h2 id="updateTitle">Post an update.</h2>
+            <p class="section-lede">
+              Updates make unfinished work visible. Share what changed, what is blocked, or what help is needed.
+            </p>
+          </div>
+          <label>
+            Project
+            <select id="updateProject" required></select>
+          </label>
+          <label>
+            Update title
+            <input id="updateHeading" required maxlength="100" placeholder="What moved forward?" />
+          </label>
+          <label>
+            Update
+            <textarea id="updateBody" required rows="4" placeholder="Short project journal entry..."></textarea>
+          </label>
+          <button class="cta primary" type="submit">Post update</button>
+        </form>
+
+        <aside class="projects-section" aria-labelledby="aiHelpTitle">
+          <div class="section-header">
+            <p class="section-eyebrow">Human-approved AI help</p>
+            <h2 id="aiHelpTitle">AI prepares. People steer.</h2>
+            <p class="section-lede">
+              Future agents can draft posts, replies, proposals, project plans, and outreach, but publishing,
+              sending, billing, and commitments stay human-gated.
+            </p>
+          </div>
+          <div class="ai-queue" aria-label="Future AI approval queue">
+            <article>
+              <strong>Draft update</strong>
+              <span>Turn rough notes into a public project post.</span>
+            </article>
+            <article>
+              <strong>Draft outreach</strong>
+              <span>Ask a supporter, volunteer, customer, or partner for the next move.</span>
+            </article>
+            <article>
+              <strong>Plan next step</strong>
+              <span>Convert a messy idea into tasks, offers, and support requests.</span>
+            </article>
+          </div>
+        </aside>
+      </section>
+
+      <section class="projects-section" aria-labelledby="operatingRulesTitle">
         <div class="section-header">
-          <p class="section-eyebrow">Next steps</p>
-          <h2 id="nextStepsTitle">Make the concept testable</h2>
+          <p class="section-eyebrow">Operating idea</p>
+          <h2 id="operatingRulesTitle">A commons for living projects.</h2>
           <p class="section-lede">
-            Pair the exploration with concrete experiments so we can validate comfort, latency, and
-            cross-device routing.
+            Independent websites still matter, but they are often the finished artifact. Project Launchpad is the
+            early home: a sketch, a prototype, a garden, a group, a tool, a movement, or a family trying to begin.
           </p>
         </div>
-        <div class="step-list" role="list">
-          <div class="step" role="listitem">
-            <div class="step__icon" aria-hidden="true">🧩</div>
-            <div>
-              <h3>Prototype layout and straps</h3>
-              <p>
-                Rough-print keyboard plates, map keys to travel-friendly columns, and record fit
-                notes in shared notes.
-              </p>
-            </div>
-          </div>
-          <div class="step" role="listitem">
-            <div class="step__icon" aria-hidden="true">🔗</div>
-            <div>
-              <h3>Sync controls across devices</h3>
-              <p>
-                Route inputs through <code>gun.get('projects').get('io-link')</code> to keep phone,
-                desktop, and VR views aligned.
-              </p>
-            </div>
-          </div>
-          <div class="step" role="listitem">
-            <div class="step__icon" aria-hidden="true">🧪</div>
-            <div>
-              <h3>Test in travel and standing scenarios</h3>
-              <p>
-                Measure comfort while walking, at a standing desk, and on flights. Capture clips and
-                feedback before the next iteration.
-              </p>
-            </div>
-          </div>
+        <div class="principle-grid">
+          <article>
+            <strong>Not an attention trap</strong>
+            <span>People follow projects because they want to help, learn, fund, join, or collaborate.</span>
+          </article>
+          <article>
+            <strong>Seed before company</strong>
+            <span>A node can become a website, business, nonprofit, software project, retreat, co-op, or band.</span>
+          </article>
+          <article>
+            <strong>Network effects that serve</strong>
+            <span>Projects can discover builders, donors, coders, artists, land, customers, and volunteers.</span>
+          </article>
         </div>
       </section>
     </main>
