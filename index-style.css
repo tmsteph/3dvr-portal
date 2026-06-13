@@ -15,36 +15,41 @@ body.landing::after {
 
 body.landing::before {
   inset: 0.9rem;
-  border: 1px solid rgba(134, 239, 172, 0.34);
+  border: 1px solid rgba(134, 239, 172, 0.24);
   border-radius: 2rem;
-  background:
-    linear-gradient(90deg, rgba(74, 222, 128, 0.16), transparent 18%, transparent 82%, rgba(45, 212, 191, 0.14)),
-    linear-gradient(180deg, rgba(134, 239, 172, 0.12), transparent 16%, transparent 84%, rgba(74, 222, 128, 0.14));
   box-shadow:
-    inset 0 0 38px rgba(34, 197, 94, 0.12),
-    inset 0 0 2px rgba(187, 247, 208, 0.3),
-    0 0 46px rgba(20, 184, 166, 0.14);
+    inset 0 0 1px rgba(187, 247, 208, 0.24),
+    0 0 32px rgba(20, 184, 166, 0.09);
 }
 
 body.landing::after {
   background:
-    radial-gradient(ellipse 1.6rem 0.75rem at 1.2rem 8%, rgba(134, 239, 172, 0.6), transparent 70%),
-    radial-gradient(ellipse 0.75rem 1.6rem at 2.35rem 14%, rgba(74, 222, 128, 0.42), transparent 70%),
-    radial-gradient(ellipse 1.7rem 0.8rem at 1.15rem 31%, rgba(187, 247, 208, 0.46), transparent 70%),
-    radial-gradient(ellipse 0.8rem 1.7rem at 2.45rem 39%, rgba(45, 212, 191, 0.34), transparent 70%),
-    radial-gradient(ellipse 1.55rem 0.75rem at 1.15rem 62%, rgba(74, 222, 128, 0.48), transparent 70%),
-    radial-gradient(ellipse 0.78rem 1.55rem at 2.2rem 72%, rgba(134, 239, 172, 0.36), transparent 70%),
-    radial-gradient(ellipse 1.6rem 0.75rem at calc(100% - 1.2rem) 11%, rgba(134, 239, 172, 0.56), transparent 70%),
-    radial-gradient(ellipse 0.78rem 1.6rem at calc(100% - 2.25rem) 20%, rgba(45, 212, 191, 0.36), transparent 70%),
-    radial-gradient(ellipse 1.7rem 0.8rem at calc(100% - 1.15rem) 48%, rgba(187, 247, 208, 0.44), transparent 70%),
-    radial-gradient(ellipse 0.8rem 1.7rem at calc(100% - 2.35rem) 58%, rgba(74, 222, 128, 0.38), transparent 70%),
-    radial-gradient(ellipse 1.6rem 0.75rem at calc(100% - 1.25rem) 83%, rgba(134, 239, 172, 0.5), transparent 70%),
-    radial-gradient(ellipse 1.65rem 0.75rem at 20% 1.25rem, rgba(74, 222, 128, 0.34), transparent 70%),
-    radial-gradient(ellipse 1.7rem 0.75rem at 48% calc(100% - 1.15rem), rgba(134, 239, 172, 0.34), transparent 70%),
-    linear-gradient(90deg, transparent, rgba(74, 222, 128, 0.18) 18%, transparent 38%, transparent 62%, rgba(45, 212, 191, 0.14) 82%, transparent),
-    linear-gradient(180deg, transparent, rgba(74, 222, 128, 0.12) 26%, transparent 48%, transparent 66%, rgba(134, 239, 172, 0.1) 88%, transparent);
-  filter: drop-shadow(0 0 0.85rem rgba(74, 222, 128, 0.2));
-  opacity: 0.95;
+    radial-gradient(ellipse 1.25rem 0.42rem at 1.1rem 8%, rgba(134, 239, 172, 0.32), transparent 74%),
+    radial-gradient(ellipse 0.42rem 1.15rem at 1.85rem 14%, rgba(45, 212, 191, 0.2), transparent 74%),
+    radial-gradient(ellipse 1.1rem 0.4rem at 1rem 52%, rgba(187, 247, 208, 0.2), transparent 76%),
+    radial-gradient(ellipse 1.18rem 0.42rem at calc(100% - 1.1rem) 12%, rgba(134, 239, 172, 0.28), transparent 74%),
+    radial-gradient(ellipse 0.42rem 1.15rem at calc(100% - 1.85rem) 20%, rgba(45, 212, 191, 0.18), transparent 74%),
+    radial-gradient(ellipse 1.1rem 0.42rem at calc(100% - 1rem) 64%, rgba(187, 247, 208, 0.18), transparent 76%),
+    radial-gradient(ellipse 1.18rem 0.42rem at calc(100% - 1.1rem) 86%, rgba(134, 239, 172, 0.22), transparent 76%),
+    radial-gradient(ellipse 1.2rem 0.42rem at 62% calc(100% - 1.1rem), rgba(134, 239, 172, 0.16), transparent 74%);
+  filter: drop-shadow(0 0 0.45rem rgba(74, 222, 128, 0.09));
+  opacity: 0.52;
+}
+
+@media (max-width: 720px) {
+  body.landing::before {
+    inset: 0.55rem;
+    border-radius: 1.35rem;
+  }
+
+  body.landing::after {
+    background:
+      radial-gradient(ellipse 0.9rem 0.34rem at 0.8rem 6%, rgba(134, 239, 172, 0.18), transparent 76%),
+      radial-gradient(ellipse 0.34rem 0.85rem at 1.35rem 11%, rgba(45, 212, 191, 0.12), transparent 76%),
+      radial-gradient(ellipse 0.9rem 0.34rem at calc(100% - 0.8rem) 10%, rgba(134, 239, 172, 0.16), transparent 76%),
+      radial-gradient(ellipse 0.9rem 0.34rem at calc(100% - 0.8rem) 82%, rgba(134, 239, 172, 0.14), transparent 76%);
+    opacity: 0.34;
+  }
 }
 
 .app-boot {
