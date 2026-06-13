@@ -49,6 +49,9 @@ function ensureHomepageSearchShortcuts() {
 function createNavbar() {
   ensureHomepageSearchShortcuts();
   hideUnreadyHomepageSections();
+  document.querySelectorAll('.floating-identity').forEach(existingNav => {
+    existingNav.remove();
+  });
 
   if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
     window.ScoreSystem.recallUserSession(user);
@@ -237,3 +240,4 @@ function createNavbar() {
 
 ensureHomepageSearchShortcuts();
 window.addEventListener('load', createNavbar);
+window.addEventListener('portal-auth:changed', createNavbar);

@@ -943,11 +943,23 @@
 
     function continueAsGuest() {
       const authModal = document.getElementById('auth-modal');
-      ensureGuestId();
+      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+        window.ScoreSystem.ensureGuestIdentity();
+      } else {
+        ensureGuestId();
+        localStorage.setItem('guest', 'true');
+      }
+      localStorage.removeItem('signedIn');
+      localStorage.removeItem('alias');
+      localStorage.removeItem('username');
+      localStorage.removeItem('password');
       localStorage.setItem('guest', 'true');
       authModal.style.display = 'none';
       authModal.setAttribute('aria-hidden', 'true');
       window.dispatchEvent(new Event('auth-modal:closed'));
+      window.dispatchEvent(new CustomEvent('portal-auth:changed', {
+        detail: { mode: 'guest' }
+      }));
     }
 
     function startAccountFromHere() {
