@@ -243,7 +243,9 @@ body.landing::before {
 
 @media (prefers-reduced-motion: reduce) {
   .app-boot__mark,
-  .app-boot__bar span {
+  .app-boot__bar span,
+  .top-nav__search,
+  .top-buttons a.top-buttons__search-shortcut {
     animation: none;
   }
 }
@@ -355,18 +357,27 @@ body.landing::before {
 }
 
 .top-nav__search {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.65rem 1.2rem;
+  min-height: 3.05rem;
+  padding: 0.72rem 1.35rem;
   border-radius: 999px;
-  border: 1px solid rgba(34, 211, 238, 0.45);
-  background: rgba(34, 211, 238, 0.14);
-  color: var(--accent-strong);
+  border: 1px solid rgba(125, 249, 255, 0.92);
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.34), transparent 34%),
+    linear-gradient(135deg, rgba(103, 232, 249, 0.96), rgba(34, 211, 238, 0.9));
+  color: #04111f;
   font: inherit;
-  font-weight: 700;
+  font-weight: 900;
   cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.18),
+    0 0 28px rgba(34, 211, 238, 0.36),
+    0 16px 42px rgba(8, 145, 178, 0.22);
+  animation: search-callout 3.8s ease-in-out infinite;
   transition: transform var(--transition-base),
     background var(--transition-base),
     border-color var(--transition-base),
@@ -374,13 +385,81 @@ body.landing::before {
     box-shadow var(--transition-base);
 }
 
+.top-nav__search::before {
+  content: '';
+  width: 0.82rem;
+  height: 0.82rem;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+
+.top-nav__search::after {
+  content: '';
+  position: absolute;
+  left: 1.7rem;
+  top: 50%;
+  width: 0.46rem;
+  height: 0.14rem;
+  margin: 0;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(0.15rem, 0.35rem) rotate(45deg);
+}
+
+.top-buttons a.top-buttons__search-shortcut {
+  position: relative;
+  min-height: 3.05rem;
+  padding: 0.72rem 1.35rem;
+  border-color: rgba(125, 249, 255, 0.92);
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.34), transparent 34%),
+    linear-gradient(135deg, rgba(103, 232, 249, 0.96), rgba(34, 211, 238, 0.9));
+  color: #04111f;
+  font-weight: 900;
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.18),
+    0 0 28px rgba(34, 211, 238, 0.36),
+    0 16px 42px rgba(8, 145, 178, 0.22);
+  animation: search-callout 3.8s ease-in-out infinite;
+}
+
+.top-buttons a.top-buttons__search-shortcut::before {
+  content: '';
+  width: 0.82rem;
+  height: 0.82rem;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+
+.top-buttons a.top-buttons__search-shortcut::after {
+  content: '';
+  position: absolute;
+  left: 1.7rem;
+  top: 50%;
+  width: 0.46rem;
+  height: 0.14rem;
+  margin: 0;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(0.15rem, 0.35rem) rotate(45deg);
+}
+
 .top-nav__search:hover,
-.top-nav__search:focus-visible {
-  transform: translateY(-2px);
-  background: rgba(56, 189, 248, 0.24);
-  border-color: rgba(56, 189, 248, 0.75);
-  color: var(--color-text);
-  box-shadow: var(--top-button-shadow-hover);
+.top-nav__search:focus-visible,
+.top-buttons a.top-buttons__search-shortcut:hover,
+.top-buttons a.top-buttons__search-shortcut:focus-visible {
+  transform: translateY(-3px);
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.42), transparent 34%),
+    linear-gradient(135deg, rgba(165, 243, 252, 1), rgba(56, 189, 248, 0.96));
+  border-color: rgba(207, 250, 254, 1);
+  color: #020617;
+  box-shadow:
+    0 0 0 3px rgba(34, 211, 238, 0.24),
+    0 0 36px rgba(34, 211, 238, 0.48),
+    0 18px 48px rgba(8, 145, 178, 0.3);
 }
 
 .top-nav__toggle:focus-visible {
@@ -390,7 +469,26 @@ body.landing::before {
 
 .top-nav__search:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.35);
+  box-shadow:
+    0 0 0 4px rgba(14, 165, 233, 0.45),
+    0 0 38px rgba(34, 211, 238, 0.48),
+    0 18px 48px rgba(8, 145, 178, 0.3);
+}
+
+@keyframes search-callout {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(34, 211, 238, 0.18),
+      0 0 28px rgba(34, 211, 238, 0.32),
+      0 16px 42px rgba(8, 145, 178, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(34, 211, 238, 0.25),
+      0 0 44px rgba(34, 211, 238, 0.5),
+      0 18px 50px rgba(8, 145, 178, 0.3);
+  }
 }
 
 .top-nav__toggle-icon {
