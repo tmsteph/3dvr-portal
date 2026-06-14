@@ -4,6 +4,8 @@ const setCorsHeaders = (res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 };
 
+const DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID = 'team_KXuVUd00RMnDsjoqwdREcZ7J';
+
 function parseProvider(req) {
   const fromQuery = String(req?.query?.provider || '').trim().toLowerCase();
   if (fromQuery) {
@@ -232,6 +234,16 @@ async function assignVercelAlias({ token, deploymentId, domain, teamId, fetchImp
   };
 }
 
+function withVercelTeamScope(url, teamId) {
+  if (!teamId) {
+    return url;
+  }
+
+  const scopedUrl = new URL(url);
+  scopedUrl.searchParams.set('teamId', teamId);
+  return scopedUrl.toString();
+}
+
 async function createVercelDeployment({
   token,
   projectName,
@@ -259,7 +271,7 @@ async function createVercelDeployment({
     target: 'production'
   };
 
-  const response = await fetchImpl('https://api.vercel.com/v13/deployments', {
+  const response = await fetchImpl(withVercelTeamScope('https://api.vercel.com/v13/deployments', teamId), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -305,7 +317,7 @@ export function createGithubPublishHandler(options = {}) {
   const {
     fetchImpl = globalThis.fetch,
     vercelToken = process.env.VERCEL_TOKEN,
-    vercelTeamId = process.env.VERCEL_TEAM_ID,
+    vercelTeamId = process.env.SITE_LAUNCH_VERCEL_TEAM_ID || process.env.VERCEL_TEAM_ID || DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID,
     siteLaunchBaseDomain = process.env.SITE_LAUNCH_BASE_DOMAIN
   } = options;
 

@@ -35,6 +35,11 @@ const sharedSecretResolvers = {
   openai: [],
   vercel: []
 };
+const defaultButtonText = {
+  generate: 'Generate Site',
+  revise: 'Revise Draft',
+  publish: 'Publish'
+};
 
 renderEmptyPreview();
 hydrateStoredDraft();
@@ -186,7 +191,7 @@ async function generateSite() {
   }
 
   lastPrompt = buildPrompt(state);
-  await requestSiteDraft(lastPrompt, 'Generating site...');
+  await requestSiteDraft(lastPrompt, 'Preparing site draft...', 'generate');
 }
 
 async function reviseSite() {
@@ -201,17 +206,20 @@ async function reviseSite() {
     return;
   }
 
-  await requestSiteDraft(buildRevisionPrompt(revisionRequest), 'Revising draft...');
+  await requestSiteDraft(buildRevisionPrompt(revisionRequest), 'Preparing revision...', 'revise');
   revisionInput.value = '';
 }
 
-async function requestSiteDraft(prompt, message) {
-  setBusy(true);
+async function requestSiteDraft(prompt, message, operation = 'generate') {
+  setBusy(true, operation);
   setStatus(message, 'info');
   publishResult.innerHTML = '';
 
   try {
     await waitForSharedSecret('openai', 'Loading shared site generator key...');
+    setStatus(operation === 'revise'
+      ? 'Sending revision request to the site generator...'
+      : 'Sending site request to the generator...', 'info');
     const response = await fetch('/api/openai-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -227,6 +235,7 @@ async function requestSiteDraft(prompt, message) {
       throw new Error(result?.error || 'The site generator is not available.');
     }
 
+    setStatus('Rendering the preview...', 'info');
     currentHtml = result.html || '';
     currentTitle = result.title || collectFormState().businessName || 'Website draft';
     previewTitle.textContent = currentTitle;
@@ -255,12 +264,13 @@ async function publishSite() {
     return;
   }
 
-  publishButton.disabled = true;
+  setBusy(true, 'publish');
   setStatus(`Publishing ${state.slug}.3dvr.tech...`, 'info');
   publishResult.innerHTML = '';
 
   try {
     await waitForSharedSecret('vercel', 'Loading shared publishing key...');
+    setStatus('Creating the deployment in the 3dvr workspace and assigning the address...', 'info');
     const response = await fetch('/api/vercel-deploy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -278,6 +288,7 @@ async function publishSite() {
       throw new Error(result?.error || 'Publishing failed.');
     }
 
+    setStatus('Preparing the live link...', 'info');
     const liveUrl = result.aliasUrl || result.url || result.inspectUrl;
     if (liveUrl) {
       publishResult.innerHTML = `Live: <a href="${escapeAttribute(liveUrl)}" target="_blank" rel="noopener">${escapeHtml(liveUrl)}</a>`;
@@ -288,14 +299,19 @@ async function publishSite() {
   } catch (error) {
     setStatus(error.message || 'Unable to publish the site.', 'error');
   } finally {
-    publishButton.disabled = !currentHtml;
+    setBusy(false);
   }
 }
 
-function setBusy(isBusy) {
+function setBusy(isBusy, operation = '') {
+  form.setAttribute('aria-busy', isBusy ? 'true' : 'false');
   generateButton.disabled = isBusy;
   reviseButton.disabled = isBusy || !currentHtml;
   publishButton.disabled = isBusy || !currentHtml;
+
+  generateButton.textContent = operation === 'generate' && isBusy ? 'Generating...' : defaultButtonText.generate;
+  reviseButton.textContent = operation === 'revise' && isBusy ? 'Revising...' : defaultButtonText.revise;
+  publishButton.textContent = operation === 'publish' && isBusy ? 'Publishing...' : defaultButtonText.publish;
 }
 
 function setDraftControlsEnabled(enabled) {
