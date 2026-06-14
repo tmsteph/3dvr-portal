@@ -474,10 +474,13 @@ export function createGithubPublishHandler(options = {}) {
     const body = req.body || {};
     const provider = parseProvider(req);
 
-    if (provider === 'vercel') {
+      if (provider === 'vercel') {
       const validationError = validateVercelRequest(body, { defaultToken: vercelToken });
       if (validationError) {
-        return res.status(400).json({ error: validationError });
+        return res.status(400).json({
+          error: validationError,
+          publishApiVersion: PUBLISH_API_VERSION
+        });
       }
 
       try {
@@ -533,7 +536,10 @@ export function createGithubPublishHandler(options = {}) {
         const status = message.includes('scope "') || message.includes('Recreate your Vercel token with access')
           ? 403
           : 500;
-        return res.status(status).json({ error: message });
+        return res.status(status).json({
+          error: message,
+          publishApiVersion: PUBLISH_API_VERSION
+        });
       }
     }
 
