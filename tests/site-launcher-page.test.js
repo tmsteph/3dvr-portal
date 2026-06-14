@@ -25,6 +25,9 @@ test('site launcher exposes the simple customer publishing flow', async () => {
   assert.match(app, /subdomain: state\.slug/);
   assert.match(app, /readDefaultSecret\(data, 'openai'\)/);
   assert.match(app, /readDefaultSecret\(data, 'vercel'\)/);
+  assert.match(app, /waitForSharedSecret\('openai'/);
+  assert.match(app, /waitForSharedSecret\('vercel'/);
+  assert.match(app, /hasDefaultRecord\(data\)/);
 
   assert.match(portalHome, /href="launch-site\/"/);
   assert.match(portalHome, />Launch Site</);
