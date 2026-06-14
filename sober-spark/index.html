@@ -39,6 +39,10 @@
       font-family: "Trebuchet MS", "Avenir Next", Verdana, sans-serif;
       overflow: hidden;
       touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      overscroll-behavior: none;
     }
 
     canvas {
@@ -47,6 +51,9 @@
       width: 100vw;
       height: 100vh;
       display: block;
+      cursor: crosshair;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .shell {
@@ -79,13 +86,32 @@
       gap: 6px;
     }
 
-    .brand a {
-      color: var(--muted);
+    .portal-link {
+      width: fit-content;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 230, 109, 0.36);
+      background:
+        linear-gradient(135deg, rgba(255, 230, 109, 0.2), rgba(47, 230, 255, 0.14)),
+        rgba(10, 10, 10, 0.72);
+      color: var(--ink);
       text-decoration: none;
       font-weight: 800;
       letter-spacing: 0;
       text-transform: uppercase;
-      font-size: 0.78rem;
+      font-size: 0.98rem;
+      box-shadow:
+        0 0 28px rgba(255, 230, 109, 0.2),
+        0 14px 45px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(14px);
+    }
+
+    .portal-link:hover,
+    .portal-link:focus-visible {
+      outline: 2px solid var(--pulse);
+      outline-offset: 3px;
+      background:
+        linear-gradient(135deg, rgba(255, 230, 109, 0.36), rgba(47, 230, 255, 0.22)),
+        rgba(10, 10, 10, 0.82);
     }
 
     h1 {
@@ -275,6 +301,29 @@
       box-shadow: 0 0 26px var(--pulse);
     }
 
+    .spark.capture {
+      width: 34px;
+      height: 34px;
+      border-color: var(--blue);
+      border-radius: 999px;
+      box-shadow:
+        0 0 34px var(--blue),
+        inset 0 0 20px rgba(47, 230, 255, 0.45);
+      animation-name: capture-pop;
+    }
+
+    @keyframes capture-pop {
+      from {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.18);
+      }
+
+      to {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(5.8);
+      }
+    }
+
     @keyframes pop {
       from {
         opacity: 1;
@@ -312,6 +361,10 @@
         grid-template-columns: 1fr;
       }
 
+      .portal-link {
+        font-size: 0.9rem;
+      }
+
       .controls {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -335,7 +388,7 @@
   <div class="shell">
     <header>
       <div class="brand">
-        <a href="../index.html">3DVR Portal</a>
+        <a class="portal-link" href="../index.html">Back to 3DVR Portal</a>
         <h1>Sober Spark</h1>
       </div>
       <div class="status" id="soundStatus">Sound muted</div>
@@ -357,7 +410,11 @@
           <select id="modeSelect">
             <option value="urge">Urge surf</option>
             <option value="coffee">Coffee edge</option>
-            <option value="weed">Weed redirect</option>
+            <option value="weed">Weed tunnel</option>
+            <option value="mushrooms">Mushroom drift</option>
+            <option value="lsd">LSD geometry</option>
+            <option value="dmt">DMT flash</option>
+            <option value="alcohol">Alcohol wobble</option>
             <option value="focus">Focus tunnel</option>
           </select>
         </label>
@@ -366,7 +423,7 @@
       <div class="meter" aria-label="Intensity meter">
         <span>Stimulation level</span>
         <div class="bar"><i id="meterBar"></i></div>
-        <div class="hint">Pointer controls the field. Press and hold for pressure release. Space triggers a burst.</div>
+        <div class="hint">Left-click captures the field. Drag to steer. Hold for pressure release. Space triggers a burst.</div>
       </div>
     </div>
   </div>
@@ -389,6 +446,7 @@
         title: "Ride the urge",
         line: "Move, tap, hold, breathe, repeat",
         colors: ["#ff4d2e", "#ffe66d", "#2fe6ff", "#55ff84"],
+        effect: "spark",
         tempo: 0.76,
         tone: 130.81
       },
@@ -396,20 +454,55 @@
         title: "Wake without coffee",
         line: "Fast eyes, clean hands, no crash",
         colors: ["#ffe66d", "#ff8a2a", "#2fe6ff", "#ffffff"],
+        effect: "spark",
         tempo: 1.12,
         tone: 164.81
       },
       weed: {
-        title: "Redirect the want",
-        line: "Let the craving become color",
-        colors: ["#55ff84", "#2fe6ff", "#b7ff3c", "#ff4d2e"],
-        tempo: 0.64,
+        title: "Zone the tunnel",
+        line: "Slow pull, green haze, no smoke",
+        colors: ["#55ff84", "#174f2f", "#b7ff3c", "#2fe6ff"],
+        effect: "weedTunnel",
+        tempo: 0.52,
         tone: 98
+      },
+      mushrooms: {
+        title: "Mycelium drift",
+        line: "Organic waves, grounded feet",
+        colors: ["#ff7bd5", "#f8f0da", "#ffb85c", "#65ff9a"],
+        effect: "mushrooms",
+        tempo: 0.58,
+        tone: 146.83
+      },
+      lsd: {
+        title: "Prism without the tab",
+        line: "Clean geometry, sharp colors, stay here",
+        colors: ["#ff2fd6", "#ffe66d", "#2fe6ff", "#ffffff"],
+        effect: "lsd",
+        tempo: 1.08,
+        tone: 220
+      },
+      dmt: {
+        title: "Flash tunnel",
+        line: "Fast portal, short blast, breathe out",
+        colors: ["#ff4dff", "#2fe6ff", "#ffe66d", "#55ff84"],
+        effect: "dmt",
+        tempo: 1.34,
+        tone: 261.63
+      },
+      alcohol: {
+        title: "Wobble without drinking",
+        line: "Amber blur, steady body, clear exit",
+        colors: ["#ffb14d", "#7c1f18", "#f8f0da", "#2fe6ff"],
+        effect: "alcohol",
+        tempo: 0.7,
+        tone: 110
       },
       focus: {
         title: "Lock the tunnel",
         line: "Narrow the noise into one beam",
         colors: ["#2fe6ff", "#f8f0da", "#55ff84", "#ffe66d"],
+        effect: "focusTunnel",
         tempo: 0.92,
         tone: 196
       }
@@ -427,6 +520,7 @@
     let audio = null;
     let soundOn = false;
     let beatTimer = 0;
+    let capturePulse = 0;
     let lastTime = performance.now();
 
     function resize() {
@@ -476,15 +570,41 @@
       intensity = Math.min(1, intensity + 0.03);
     }
 
-    function addRing(x = pointer.x * width, y = pointer.y * height, force = 1) {
+    function addRing(x = pointer.x * width, y = pointer.y * height, force = 1, kind = "spark") {
       rings.push({ x, y, r: 8, force, life: 1 });
       const spark = document.createElement("span");
-      spark.className = "spark";
+      spark.className = kind === "capture" ? "spark capture" : "spark";
       spark.style.left = `${x}px`;
       spark.style.top = `${y}px`;
       document.body.appendChild(spark);
       spark.addEventListener("animationend", () => spark.remove(), { once: true });
       if (soundOn) playPing(force);
+    }
+
+    function captureField(event) {
+      if (event.button !== undefined && event.button !== 0) return;
+      event.preventDefault();
+      setPointer(event);
+      pointer.down = true;
+      capturePulse = 1;
+      if (canvas.setPointerCapture && event.pointerId !== undefined) {
+        try {
+          canvas.setPointerCapture(event.pointerId);
+        } catch (err) {
+          // Pointer capture is a progressive enhancement.
+        }
+      }
+      addRing(event.clientX, event.clientY, 1.45, "capture");
+      particles.forEach((particle, index) => {
+        const dx = particle.x - event.clientX;
+        const dy = particle.y - event.clientY;
+        const dist = Math.hypot(dx, dy) || 1;
+        const wave = index % 2 === 0 ? 1 : -1;
+        particle.vx += (dx / dist) * 3.2 + (-dy / dist) * wave * 1.5;
+        particle.vy += (dy / dist) * 3.2 + (dx / dist) * wave * 1.5;
+      });
+      if (soundOn) playNoise(1.1);
+      soundStatus.textContent = soundOn ? "Pointer captured" : "Field captured";
     }
 
     function initAudio() {
@@ -597,6 +717,145 @@
       }
     }
 
+    function drawTunnel(now, px, py, mode, { sides = 0, speed = 0.18, twist = 0.0018, wobble = 0 } = {}) {
+      const maxRadius = Math.hypot(width, height);
+      const ringCount = 32;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(now * twist + capturePulse * 0.35);
+      for (let i = 0; i < ringCount; i += 1) {
+        const t = (i / ringCount + now * speed * 0.001) % 1;
+        const radius = 18 + t * maxRadius * 0.88;
+        const alpha = (1 - t) * (0.12 + intensity * 0.4);
+        const offset = Math.sin(now * 0.0016 + i * 0.55) * wobble * (20 + radius * 0.04);
+        const color = mode.colors[i % mode.colors.length];
+        ctx.strokeStyle = `${color}${Math.floor(Math.max(28, alpha * 255)).toString(16).padStart(2, "0")}`;
+        ctx.lineWidth = 1.2 + (1 - t) * 8 + capturePulse * 5;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 14 + intensity * 34;
+        ctx.beginPath();
+        if (sides > 2) {
+          for (let p = 0; p <= sides; p += 1) {
+            const a = (p / sides) * Math.PI * 2 + i * 0.13 + now * 0.0008;
+            const r = radius + Math.sin(a * 3 + now * 0.002) * offset;
+            const x = Math.cos(a) * r;
+            const y = Math.sin(a) * r;
+            if (p === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+        } else {
+          ctx.arc(offset, -offset * 0.45, radius, 0, Math.PI * 2);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawRadialSpokes(now, px, py, mode, count = 18) {
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(now * 0.0015);
+      const length = Math.max(width, height);
+      for (let i = 0; i < count; i += 1) {
+        const angle = (i / count) * Math.PI * 2;
+        const color = mode.colors[i % mode.colors.length];
+        const wave = Math.sin(now * 0.003 + i) * 32;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1 + intensity * 4;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 20 + capturePulse * 42;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 20, Math.sin(angle) * 20);
+        ctx.quadraticCurveTo(
+          Math.cos(angle + 0.35) * (length * 0.35 + wave),
+          Math.sin(angle + 0.35) * (length * 0.35 - wave),
+          Math.cos(angle) * length,
+          Math.sin(angle) * length
+        );
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawOrganicDrift(now, px, py, mode) {
+      ctx.save();
+      ctx.globalAlpha = 0.22 + intensity * 0.32;
+      for (let i = 0; i < 11; i += 1) {
+        const phase = now * 0.001 + i * 0.84;
+        const x = px + Math.cos(phase) * width * (0.08 + i * 0.018);
+        const y = py + Math.sin(phase * 1.3) * height * (0.08 + i * 0.014);
+        const radius = 44 + Math.sin(phase * 2) * 18 + intensity * 44;
+        const gradient = ctx.createRadialGradient(x, y, 4, x, y, radius * 2.4);
+        gradient.addColorStop(0, `${mode.colors[i % mode.colors.length]}cc`);
+        gradient.addColorStop(0.55, `${mode.colors[(i + 1) % mode.colors.length]}33`);
+        gradient.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.ellipse(x, y, radius * (1.2 + Math.sin(phase) * 0.22), radius * 0.8, phase, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 0.34;
+      ctx.strokeStyle = mode.colors[3];
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < 24; i += 1) {
+        const a = i * 0.62 + now * 0.0007;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.bezierCurveTo(
+          px + Math.cos(a) * width * 0.16,
+          py + Math.sin(a * 1.2) * height * 0.12,
+          px + Math.cos(a + 1.3) * width * 0.28,
+          py + Math.sin(a + 0.4) * height * 0.24,
+          px + Math.cos(a + 0.7) * width * 0.42,
+          py + Math.sin(a + 0.8) * height * 0.36
+        );
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawAlcoholWobble(now, px, py, mode) {
+      ctx.save();
+      ctx.globalAlpha = 0.24 + intensity * 0.28;
+      for (let y = -40; y < height + 60; y += 34) {
+        const wave = Math.sin(y * 0.018 + now * 0.002) * (22 + intensity * 38);
+        const color = mode.colors[Math.abs(Math.floor(y / 34)) % mode.colors.length];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 10 + intensity * 14;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 28;
+        ctx.beginPath();
+        ctx.moveTo(-80, y + wave);
+        ctx.bezierCurveTo(width * 0.28, y - wave * 1.4, width * 0.62, y + wave * 1.6, width + 80, y - wave);
+        ctx.stroke();
+      }
+      const amber = ctx.createRadialGradient(px, py, 20, px, py, Math.max(width, height) * 0.7);
+      amber.addColorStop(0, "rgba(255,177,77,0.34)");
+      amber.addColorStop(0.5, "rgba(124,31,24,0.18)");
+      amber.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = amber;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
+
+    function drawModeField(now, px, py, mode) {
+      if (mode.effect === "weedTunnel") {
+        drawTunnel(now, px, py, mode, { speed: 0.09, twist: 0.0006, wobble: 1.5 });
+      } else if (mode.effect === "focusTunnel") {
+        drawTunnel(now, px, py, mode, { speed: 0.12, twist: 0.0012, wobble: 0.35 });
+      } else if (mode.effect === "mushrooms") {
+        drawOrganicDrift(now, px, py, mode);
+      } else if (mode.effect === "lsd") {
+        drawTunnel(now, px, py, mode, { sides: 6, speed: 0.2, twist: 0.0024, wobble: 0.9 });
+        drawRadialSpokes(now, px, py, mode, 24);
+      } else if (mode.effect === "dmt") {
+        drawTunnel(now, px, py, mode, { sides: 8, speed: 0.34, twist: 0.0038, wobble: 1.1 });
+        drawRadialSpokes(now, px, py, mode, 32);
+      } else if (mode.effect === "alcohol") {
+        drawAlcoholWobble(now, px, py, mode);
+      }
+    }
+
     function draw(now) {
       const dt = Math.min(0.04, (now - lastTime) / 1000);
       lastTime = now;
@@ -605,6 +864,7 @@
       const py = pointer.y * height;
       intensity += (pointer.down ? 0.9 : 0.42 - intensity) * dt * 0.9;
       intensity = Math.max(0.25, Math.min(1, intensity));
+      capturePulse = Math.max(0, capturePulse - dt * 1.7);
       meterBar.style.transform = `scaleX(${intensity})`;
       updateAudio(dt);
 
@@ -618,6 +878,7 @@
       sweep.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = sweep;
       ctx.fillRect(0, 0, width, height);
+      drawModeField(now, px, py, mode);
 
       stars.forEach((star) => {
         const alpha = 0.25 + Math.sin(now * 0.004 + star.phase) * 0.2;
@@ -629,25 +890,30 @@
         const dx = px - particle.x;
         const dy = py - particle.y;
         const dist = Math.hypot(dx, dy) || 1;
-        const pull = pointer.active ? (pointer.down ? -220 : 110) / (dist + 80) : 0;
+        const zoneyPull = mode.effect === "weedTunnel" ? 210 : 110;
+        const holdRelease = mode.effect === "alcohol" ? -150 : -220;
+        const pull = pointer.active ? (pointer.down ? holdRelease : zoneyPull) / (dist + 80) : 0;
         particle.vx += (dx / dist) * pull * dt;
         particle.vy += (dy / dist) * pull * dt;
-        particle.vx += Math.sin(now * 0.0015 + particle.spin) * 0.03;
-        particle.vy += Math.cos(now * 0.0013 + particle.spin) * 0.03;
+        const swirl = mode.effect === "dmt" || mode.effect === "lsd" ? 0.09 : 0.03;
+        const drift = mode.effect === "mushrooms" ? 0.055 : swirl;
+        particle.vx += Math.sin(now * 0.0015 + particle.spin) * drift + (-dy / dist) * capturePulse * 0.12;
+        particle.vy += Math.cos(now * 0.0013 + particle.spin) * drift + (dx / dist) * capturePulse * 0.12;
         particle.vx *= 0.992;
         particle.vy *= 0.992;
-        particle.x += particle.vx * (0.8 + intensity * 1.8);
-        particle.y += particle.vy * (0.8 + intensity * 1.8);
+        const speedBoost = mode.effect === "dmt" ? 2.6 : mode.effect === "weedTunnel" ? 1.1 : 1.8;
+        particle.x += particle.vx * (0.8 + intensity * speedBoost);
+        particle.y += particle.vy * (0.8 + intensity * speedBoost);
         if (particle.x < -40) particle.x = width + 40;
         if (particle.x > width + 40) particle.x = -40;
         if (particle.y < -40) particle.y = height + 40;
         if (particle.y > height + 40) particle.y = -40;
 
         const color = mode.colors[particle.hue % mode.colors.length];
-        const size = particle.size * (1 + intensity * 1.8);
+        const size = particle.size * (1 + intensity * 1.8 + capturePulse * 1.4);
         ctx.save();
         ctx.translate(particle.x, particle.y);
-        ctx.rotate(particle.spin + now * 0.002);
+        ctx.rotate(particle.spin + now * (mode.effect === "alcohol" ? 0.0008 : 0.002));
         ctx.fillStyle = color;
         ctx.shadowColor = color;
         ctx.shadowBlur = 22 + intensity * 42;
@@ -698,19 +964,33 @@
       burst(0.75);
     });
 
-    window.addEventListener("pointermove", setPointer);
-    window.addEventListener("pointerdown", (event) => {
+    canvas.addEventListener("pointermove", (event) => {
+      event.preventDefault();
       setPointer(event);
-      pointer.down = true;
-      addRing(event.clientX, event.clientY, 1.15);
+    });
+    canvas.addEventListener("pointerdown", captureField);
+    canvas.addEventListener("pointerup", (event) => {
+      event.preventDefault();
+      if (canvas.releasePointerCapture && event.pointerId !== undefined) {
+        try {
+          canvas.releasePointerCapture(event.pointerId);
+        } catch (err) {
+          // Pointer capture is a progressive enhancement.
+        }
+      }
+      pointer.down = false;
+    });
+    canvas.addEventListener("pointercancel", () => {
+      pointer.down = false;
     });
     window.addEventListener("pointerup", () => {
       pointer.down = false;
     });
     window.addEventListener("touchmove", (event) => {
-      setPointer(event);
       event.preventDefault();
     }, { passive: false });
+    window.addEventListener("selectstart", (event) => event.preventDefault());
+    window.addEventListener("contextmenu", (event) => event.preventDefault());
     window.addEventListener("keydown", (event) => {
       if (event.code === "Space") {
         event.preventDefault();
