@@ -66,12 +66,16 @@
 
         <div class="actions">
           <button id="generate-site" class="primary" type="submit">Generate Site</button>
-          <button id="revise-site" class="secondary" type="button" disabled>Revise Draft</button>
         </div>
 
         <label for="revision-request" class="revision-label">Revision</label>
         <input id="revision-request" type="text"
           placeholder="Make it more direct, add pricing, or change the tone." disabled>
+
+        <div class="actions revision-actions">
+          <button id="revise-site" class="secondary" type="button" disabled>Revise Draft</button>
+          <button id="publish-site" class="primary" type="button" disabled>Publish</button>
+        </div>
 
         <p id="launcher-status" class="status status--info" aria-live="polite">Ready.</p>
       </form>
@@ -83,7 +87,6 @@
           <p class="eyebrow">Preview</p>
           <h2 id="preview-title">Draft</h2>
         </div>
-        <button id="publish-site" class="primary" type="button" disabled>Publish</button>
       </div>
       <iframe id="site-preview" title="Website preview"></iframe>
       <div id="publish-result" class="publish-result" aria-live="polite"></div>

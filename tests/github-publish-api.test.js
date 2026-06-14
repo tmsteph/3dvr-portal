@@ -111,9 +111,11 @@ test('github publish handler supports owner + repo payload shape', async () => {
 });
 
 test('github publish handler supports vercel deploy provider mode', async () => {
+  const calls = [];
   let requestPayload = null;
   const handler = createGithubPublishHandler({
-    fetchImpl: async (_url, options = {}) => {
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
       requestPayload = JSON.parse(options.body);
       return {
         ok: true,
@@ -147,6 +149,7 @@ test('github publish handler supports vercel deploy provider mode', async () => 
   assert.equal(res.body.id, 'dpl_123');
   assert.equal(res.body.url, 'https://project-demo.vercel.app');
   assert.equal(requestPayload.name, 'project-demo');
+  assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_KXuVUd00RMnDsjoqwdREcZ7J$/);
 });
 
 test('sanitizeLaunchSubdomain normalizes customer site addresses', () => {
@@ -170,6 +173,7 @@ test('vercel deploy provider can use server token and assign a 3dvr subdomain', 
   const calls = [];
   const handler = createGithubPublishHandler({
     vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
     siteLaunchBaseDomain: '3dvr.tech',
     fetchImpl: async (url, options = {}) => {
       calls.push({ url: String(url), options });
@@ -223,6 +227,8 @@ test('vercel deploy provider can use server token and assign a 3dvr subdomain', 
   assert.equal(res.body.aliasUrl, 'https://river-city-wellness.3dvr.tech');
   assert.equal(res.body.url, 'https://3dvr-river-city-wellness.vercel.app');
   assert.equal(calls.length, 2);
+  assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
+  assert.match(calls[1].url, /\/v2\/deployments\/dpl_launch_123\/aliases\?teamId=team_3dvr$/);
   assert.equal(calls[0].options.headers.Authorization, 'Bearer server_vercel_token');
   assert.equal(calls[1].options.headers.Authorization, 'Bearer server_vercel_token');
   assert.deepEqual(JSON.parse(calls[1].options.body), {

@@ -12,6 +12,8 @@ test('site launcher exposes the simple customer publishing flow', async () => {
   assert.match(html, /id="site-purpose"/);
   assert.match(html, /id="site-slug"/);
   assert.match(html, /id="publish-site"/);
+  assert.match(html, /id="revision-request"[\s\S]*id="publish-site"/);
+  assert.doesNotMatch(html, /class="preview-header"[\s\S]*id="publish-site"[\s\S]*<\/div>\s*<iframe/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
   assert.match(html, /src="\/gun-init\.js"/);
 
@@ -28,6 +30,8 @@ test('site launcher exposes the simple customer publishing flow', async () => {
   assert.match(app, /waitForSharedSecret\('openai'/);
   assert.match(app, /waitForSharedSecret\('vercel'/);
   assert.match(app, /hasDefaultRecord\(data\)/);
+  assert.match(app, /Generating\.\.\./);
+  assert.match(app, /Creating the deployment in the 3dvr workspace/);
 
   assert.match(portalHome, /href="launch-site\/"/);
   assert.match(portalHome, />Launch Site</);
