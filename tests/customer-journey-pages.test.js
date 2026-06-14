@@ -43,9 +43,7 @@ describe('portal customer journey pages', () => {
     assert.doesNotMatch(html, /Sign in to save your progress/);
     assert.match(html, /class="site-backlink" href="https:\/\/3dvr\.tech\/" aria-label="Back to 3dvr\.tech home">3dvr\.tech<\/a>/);
     assert.doesNotMatch(html, />3dvr\.tech home<\/a>/);
-    assert.match(html, /class="botanical-border" aria-hidden="true"/);
-    assert.match(html, /botanical-border__leaf--right-c/);
-    assert.match(html, /botanical-border__leaf--bottom-c/);
+    assert.doesNotMatch(html, /botanical-border/);
     assert.match(html, /App dock/);
     assert.match(html, /Command center/);
     assert.match(html, /Same account, same apps, deeper levels of control\./);
@@ -70,8 +68,8 @@ describe('portal customer journey pages', () => {
     assert.match(css, /@media \(max-width: 380px\)/);
     assert.match(css, /\.hero-actions \.cta\s*\{/);
     assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
-    assert.match(css, /\.botanical-border\s*\{/);
-    assert.match(css, /\.botanical-border__leaf--right-c\s*\{/);
+    assert.doesNotMatch(css, /botanical-border/);
+    assert.doesNotMatch(css, /body\.landing::before/);
     assert.match(css, /animation:\s*search-callout 3\.8s ease-in-out infinite/);
     assert.match(css, /\.top-nav__search::before\s*\{/);
     assert.match(css, /\.top-buttons a\.top-buttons__search-shortcut\s*\{/);
