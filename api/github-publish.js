@@ -5,6 +5,20 @@ const setCorsHeaders = (res) => {
 };
 
 const PUBLISH_API_VERSION = 'alias-fallback-v2';
+const FUNCTION_BOOTED_AT = new Date().toISOString();
+
+function getBuildMarker() {
+  const deploymentHost =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_BRANCH_URL ||
+    process.env.VERCEL_URL;
+
+  return {
+    commit: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || 'local',
+    deploymentUrl: deploymentHost ? `https://${deploymentHost}` : 'local',
+    buildTime: FUNCTION_BOOTED_AT
+  };
+}
 
 function parseProvider(req) {
   const fromQuery = String(req?.query?.provider || '').trim().toLowerCase();
@@ -524,6 +538,7 @@ export function createGithubPublishHandler(options = {}) {
         }
 
         return res.status(200).json({
+          buildInfo: getBuildMarker(),
           ...result,
           publishApiVersion: PUBLISH_API_VERSION,
           projectName: body.projectName,
@@ -537,6 +552,7 @@ export function createGithubPublishHandler(options = {}) {
           ? 403
           : 500;
         return res.status(status).json({
+          buildInfo: getBuildMarker(),
           error: message,
           publishApiVersion: PUBLISH_API_VERSION
         });
@@ -545,7 +561,10 @@ export function createGithubPublishHandler(options = {}) {
 
     const validationError = validateGithubRequest(body);
     if (validationError) {
-      return res.status(400).json({ error: validationError });
+      return res.status(400).json({
+        buildInfo: getBuildMarker(),
+        error: validationError
+      });
     }
 
     const branch = (body.branch || 'main').trim();
@@ -564,13 +583,17 @@ export function createGithubPublishHandler(options = {}) {
       });
 
       return res.status(200).json({
+        buildInfo: getBuildMarker(),
         ...result,
         repo: resolvedRepo,
         message: body.message || 'Publish from 3dvr OpenAI workbench',
         createdAt: Date.now(),
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message || 'Unexpected GitHub publish error.' });
+      return res.status(500).json({
+        buildInfo: getBuildMarker(),
+        error: err.message || 'Unexpected GitHub publish error.'
+      });
     }
   };
 }

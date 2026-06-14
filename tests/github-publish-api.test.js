@@ -146,6 +146,9 @@ test('github publish handler supports vercel deploy provider mode', async () => 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.id, 'dpl_123');
   assert.equal(res.body.url, 'https://project-demo.vercel.app');
+  assert.equal(res.body.buildInfo?.commit, 'local');
+  assert.ok(res.body.buildInfo?.deploymentUrl);
+  assert.ok(res.body.buildInfo?.buildTime);
   assert.equal(requestPayload.name, 'project-demo');
 });
 
@@ -223,6 +226,7 @@ test('vercel deploy provider can use server token and assign a 3dvr subdomain', 
   assert.equal(res.body.aliasAssigned, true);
   assert.equal(res.body.aliasUrl, 'https://river-city-wellness.3dvr.tech');
   assert.equal(res.body.url, 'https://3dvr-river-city-wellness.vercel.app');
+  assert.equal(res.body.buildInfo?.commit, 'local');
   assert.equal(calls.length, 3);
   assert.equal(calls[0].options.headers.Authorization, 'Bearer server_vercel_token');
   assert.equal(calls[1].options.headers.Authorization, 'Bearer server_vercel_token');
