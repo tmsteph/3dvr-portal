@@ -604,18 +604,24 @@
 
     function updateNavigation(dt) {
       const pan = (360 + 320 * camera.zoom) * dt;
-      if (keys.has("a")) camera.x += pan;
-      if (keys.has("d")) camera.x -= pan;
+      if (keys.has("a")) {
+        camera.x -= pan;
+        chargeInteraction(0.01);
+      }
+      if (keys.has("d")) {
+        camera.x += pan;
+        chargeInteraction(0.01);
+      }
       if (keys.has("w")) {
-        zoomAt(1 + dt * 3.1);
+        camera.y -= pan;
         chargeInteraction(0.012);
       }
       if (keys.has("s")) {
-        zoomAt(1 - dt * 2.2);
-        chargeInteraction(0.01);
+        camera.y += pan;
+        chargeInteraction(0.012);
       }
       if (!keys.has("a") && !keys.has("d")) camera.x *= 1 - Math.min(0.08, dt * 0.7);
-      camera.y *= 1 - Math.min(0.06, dt * 0.5);
+      if (!keys.has("w") && !keys.has("s")) camera.y *= 1 - Math.min(0.08, dt * 0.7);
       camera.rush = Math.max(0, camera.rush - dt * 0.9);
       camera.x = clamp(camera.x, -width * 0.82, width * 0.82);
       camera.y = clamp(camera.y, -height * 0.82, height * 0.82);
@@ -1250,14 +1256,15 @@
       if (["w", "a", "s", "d"].includes(key)) {
         event.preventDefault();
         if (!keys.has(key)) {
-          if (key === "w") zoomAt(1.32);
-          if (key === "s") zoomAt(0.72);
-          if (key === "a") camera.x += 80;
-          if (key === "d") camera.x -= 80;
+          if (key === "w") camera.y -= 92;
+          if (key === "s") camera.y += 92;
+          if (key === "a") camera.x -= 92;
+          if (key === "d") camera.x += 92;
+          camera.rush = Math.min(1.2, camera.rush + 0.2);
           chargeInteraction(0.08);
         }
         keys.add(key);
-        soundStatus.textContent = "WASD flight";
+        soundStatus.textContent = "WASD drift";
       }
       if (event.code === "Space") {
         event.preventDefault();

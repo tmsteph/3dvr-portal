@@ -40,8 +40,11 @@ describe('Sober Spark app', () => {
     assert.match(html, /keys\.has\("a"\)/);
     assert.match(html, /keys\.has\("s"\)/);
     assert.match(html, /keys\.has\("d"\)/);
-    assert.match(html, /if \(key === "w"\) zoomAt\(1\.32\)/);
-    assert.match(html, /if \(key === "s"\) zoomAt\(0\.72\)/);
+    assert.match(html, /if \(key === "w"\) camera\.y -= 92/);
+    assert.match(html, /if \(key === "s"\) camera\.y \+= 92/);
+    assert.match(html, /if \(key === "a"\) camera\.x -= 92/);
+    assert.match(html, /if \(key === "d"\) camera\.x \+= 92/);
+    assert.match(html, /soundStatus\.textContent = "WASD drift"/);
     assert.match(html, /canvas\.addEventListener\("wheel", handleWheel, \{ passive: false \}\)/);
     assert.match(html, /function handleTouchMove\(event\)/);
     assert.match(html, /gesture\.lastDistance/);
