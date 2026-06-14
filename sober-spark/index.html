@@ -45,6 +45,40 @@
       overscroll-behavior: none;
     }
 
+    body.immersive .brand h1,
+    body.immersive .status,
+    body.immersive .stage-label {
+      opacity: 0;
+      transform: translateY(16px);
+      pointer-events: none;
+    }
+
+    body.immersive .bottom-bar {
+      justify-content: flex-end;
+      pointer-events: auto;
+    }
+
+    body.immersive .controls {
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
+    body.immersive .controls > :not(#focusButton) {
+      display: none;
+    }
+
+    body.immersive #focusButton {
+      min-width: 148px;
+      background: rgba(255, 230, 109, 0.18);
+      border-color: rgba(255, 230, 109, 0.34);
+    }
+
+    body.peak {
+      animation: peak-shock 900ms ease-out;
+    }
+
     canvas {
       position: fixed;
       inset: 0;
@@ -79,6 +113,7 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 16px;
+      transition: opacity 180ms ease, transform 180ms ease;
     }
 
     .brand {
@@ -157,6 +192,7 @@
       padding: 24px;
       pointer-events: none;
       text-transform: uppercase;
+      transition: opacity 180ms ease, transform 180ms ease;
     }
 
     .stage-label strong {
@@ -179,10 +215,11 @@
       width: min(1120px, calc(100% - 32px));
       margin: 0 auto;
       padding: 0 0 20px;
-      display: grid;
-      grid-template-columns: 1fr auto;
+      display: flex;
       align-items: end;
+      justify-content: center;
       gap: 16px;
+      transition: opacity 180ms ease, transform 180ms ease;
     }
 
     .controls {
@@ -249,46 +286,6 @@
       color: var(--ink);
     }
 
-    .meter {
-      display: grid;
-      gap: 8px;
-      min-width: min(100%, 260px);
-      padding: 14px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.36);
-      backdrop-filter: blur(18px);
-    }
-
-    .meter span {
-      color: var(--muted);
-      font-size: 0.8rem;
-      font-weight: 900;
-      letter-spacing: 0;
-      text-transform: uppercase;
-    }
-
-    .bar {
-      height: 12px;
-      background: rgba(248, 240, 218, 0.12);
-      overflow: hidden;
-    }
-
-    .bar i {
-      display: block;
-      height: 100%;
-      width: 62%;
-      background: linear-gradient(90deg, var(--green), var(--blue), var(--pulse), var(--hot));
-      box-shadow: 0 0 24px rgba(255, 230, 109, 0.45);
-      transform-origin: left center;
-    }
-
-    .hint {
-      color: rgba(248, 240, 218, 0.68);
-      font-size: 0.9rem;
-      line-height: 1.35;
-    }
-
     .spark {
       position: fixed;
       z-index: 3;
@@ -324,6 +321,20 @@
       }
     }
 
+    @keyframes peak-shock {
+      0% {
+        filter: saturate(1);
+      }
+
+      28% {
+        filter: saturate(2.8) contrast(1.28);
+      }
+
+      100% {
+        filter: saturate(1);
+      }
+    }
+
     @keyframes pop {
       from {
         opacity: 1;
@@ -355,10 +366,6 @@
 
       .status {
         width: fit-content;
-      }
-
-      .bottom-bar {
-        grid-template-columns: 1fr;
       }
 
       .portal-link {
@@ -404,6 +411,7 @@
         <button type="button" id="soundButton">Unmute sound</button>
         <button type="button" id="burstButton">Burst</button>
         <button type="button" id="strobeButton" data-active="false">Strobe</button>
+        <button type="button" id="focusButton">Fullscreen</button>
         <button type="button" id="resetButton">Reset</button>
         <label class="select-wrap">
           Mode
@@ -419,12 +427,6 @@
           </select>
         </label>
       </div>
-
-      <div class="meter" aria-label="Intensity meter">
-        <span>Stimulation level</span>
-        <div class="bar"><i id="meterBar"></i></div>
-        <div class="hint">Right-click captures the field. Drag to steer. WASD flies the view. Wheel or two fingers zoom and slide.</div>
-      </div>
     </div>
   </div>
 
@@ -435,11 +437,11 @@
     const soundStatus = document.getElementById("soundStatus");
     const burstButton = document.getElementById("burstButton");
     const strobeButton = document.getElementById("strobeButton");
+    const focusButton = document.getElementById("focusButton");
     const resetButton = document.getElementById("resetButton");
     const modeSelect = document.getElementById("modeSelect");
     const modeTitle = document.getElementById("modeTitle");
     const modeLine = document.getElementById("modeLine");
-    const meterBar = document.getElementById("meterBar");
 
     const modes = {
       urge: {
@@ -447,7 +449,7 @@
         line: "Move, tap, hold, breathe, repeat",
         colors: ["#ff4d2e", "#ffe66d", "#2fe6ff", "#55ff84"],
         effect: "spark",
-        tempo: 0.76,
+        tempo: 1.08,
         tone: 130.81
       },
       coffee: {
@@ -455,7 +457,7 @@
         line: "Fast eyes, clean hands, no crash",
         colors: ["#ffe66d", "#ff8a2a", "#2fe6ff", "#ffffff"],
         effect: "spark",
-        tempo: 1.12,
+        tempo: 1.42,
         tone: 164.81
       },
       weed: {
@@ -463,7 +465,7 @@
         line: "Slow pull, green haze, no smoke",
         colors: ["#55ff84", "#174f2f", "#b7ff3c", "#2fe6ff"],
         effect: "weedTunnel",
-        tempo: 0.52,
+        tempo: 0.78,
         tone: 98
       },
       mushrooms: {
@@ -471,7 +473,7 @@
         line: "Organic waves, grounded feet",
         colors: ["#ff7bd5", "#f8f0da", "#ffb85c", "#65ff9a"],
         effect: "mushrooms",
-        tempo: 0.58,
+        tempo: 0.86,
         tone: 146.83
       },
       lsd: {
@@ -479,7 +481,7 @@
         line: "Clean geometry, sharp colors, stay here",
         colors: ["#ff2fd6", "#ffe66d", "#2fe6ff", "#ffffff"],
         effect: "lsd",
-        tempo: 1.08,
+        tempo: 1.36,
         tone: 220
       },
       dmt: {
@@ -487,7 +489,7 @@
         line: "Fast portal, short blast, breathe out",
         colors: ["#ff4dff", "#2fe6ff", "#ffe66d", "#55ff84"],
         effect: "dmt",
-        tempo: 1.34,
+        tempo: 1.58,
         tone: 261.63
       },
       alcohol: {
@@ -495,7 +497,7 @@
         line: "Amber blur, steady body, clear exit",
         colors: ["#ffb14d", "#7c1f18", "#f8f0da", "#2fe6ff"],
         effect: "alcohol",
-        tempo: 0.7,
+        tempo: 0.96,
         tone: 110
       },
       focus: {
@@ -503,7 +505,7 @@
         line: "Narrow the noise into one beam",
         colors: ["#2fe6ff", "#f8f0da", "#55ff84", "#ffe66d"],
         effect: "focusTunnel",
-        tempo: 0.92,
+        tempo: 1.24,
         tone: 196
       }
     };
@@ -515,10 +517,14 @@
     let rings = [];
     let stars = [];
     let pointer = { x: 0.5, y: 0.5, down: false, active: false };
-    let camera = { x: 0, y: 0, zoom: 1 };
+    let camera = { x: 0, y: 0, zoom: 1, rush: 0 };
     const keys = new Set();
     const gesture = { active: false, lastDistance: 0, lastX: 0, lastY: 0 };
     let intensity = 0.58;
+    let charge = 0.18;
+    let peakPulse = 0;
+    let peakCooldown = 0;
+    let immersive = false;
     let strobe = false;
     let audio = null;
     let soundOn = false;
@@ -587,24 +593,39 @@
 
     function zoomAt(factor, originX = width * 0.5, originY = height * 0.5) {
       const previous = camera.zoom;
-      camera.zoom = clamp(camera.zoom * factor, 0.48, 2.9);
+      camera.zoom = clamp(camera.zoom * factor, 0.34, 4.6);
       const ratio = camera.zoom / previous;
-      camera.x += (width * 0.5 - originX) * (ratio - 1) * 0.32;
-      camera.y += (height * 0.5 - originY) * (ratio - 1) * 0.32;
+      camera.x += (width * 0.5 - originX) * (ratio - 1) * 0.5;
+      camera.y += (height * 0.5 - originY) * (ratio - 1) * 0.5;
+      camera.rush = Math.min(1.2, camera.rush + Math.abs(ratio - 1) * 0.75);
       camera.x = clamp(camera.x, -width * 0.82, width * 0.82);
       camera.y = clamp(camera.y, -height * 0.82, height * 0.82);
     }
 
     function updateNavigation(dt) {
-      const pan = (260 + 260 * camera.zoom) * dt;
+      const pan = (360 + 320 * camera.zoom) * dt;
       if (keys.has("a")) camera.x += pan;
       if (keys.has("d")) camera.x -= pan;
-      if (keys.has("w")) zoomAt(1 + dt * 1.25);
-      if (keys.has("s")) zoomAt(1 - dt * 0.92);
+      if (keys.has("w")) {
+        zoomAt(1 + dt * 3.1);
+        chargeInteraction(0.012);
+      }
+      if (keys.has("s")) {
+        zoomAt(1 - dt * 2.2);
+        chargeInteraction(0.01);
+      }
       if (!keys.has("a") && !keys.has("d")) camera.x *= 1 - Math.min(0.08, dt * 0.7);
       camera.y *= 1 - Math.min(0.06, dt * 0.5);
+      camera.rush = Math.max(0, camera.rush - dt * 0.9);
       camera.x = clamp(camera.x, -width * 0.82, width * 0.82);
       camera.y = clamp(camera.y, -height * 0.82, height * 0.82);
+    }
+
+    function chargeInteraction(amount) {
+      charge = Math.min(1.08, charge + amount);
+      if (charge >= 1 && peakCooldown <= 0) {
+        peakBlast();
+      }
     }
 
     function addRing(x = pointer.x * width, y = pointer.y * height, force = 1, kind = "spark") {
@@ -618,6 +639,37 @@
       if (soundOn) playPing(force);
     }
 
+    function peakBlast() {
+      charge = 0.22;
+      peakPulse = 1.4;
+      peakCooldown = 2.8;
+      capturePulse = 1.15;
+      camera.rush = 1.2;
+      document.body.classList.remove("peak");
+      void document.body.offsetWidth;
+      document.body.classList.add("peak");
+      window.setTimeout(() => document.body.classList.remove("peak"), 920);
+      for (let i = 0; i < 11; i += 1) {
+        addRing(
+          width * (0.12 + Math.random() * 0.76),
+          height * (0.12 + Math.random() * 0.76),
+          1.35 + Math.random() * 1.2,
+          i % 3 === 0 ? "capture" : "spark"
+        );
+      }
+      particles.forEach((particle) => {
+        const angle = Math.atan2(particle.y - height * 0.5, particle.x - width * 0.5) + Math.random() * 1.6 - 0.8;
+        particle.vx += Math.cos(angle) * (5 + Math.random() * 5);
+        particle.vy += Math.sin(angle) * (5 + Math.random() * 5);
+      });
+      if (soundOn) {
+        playKick(1.4);
+        playNoise(1.6);
+        playPing(1.5);
+      }
+      soundStatus.textContent = "Peak burst";
+    }
+
     function captureField(event) {
       if (event.button !== undefined && event.button !== 2) return;
       event.preventDefault();
@@ -625,6 +677,7 @@
       pointer.down = true;
       capturePulse = 1;
       zoomAt(1.16, event.clientX, event.clientY);
+      chargeInteraction(0.22);
       if (canvas.setPointerCapture && event.pointerId !== undefined) {
         try {
           canvas.setPointerCapture(event.pointerId);
@@ -662,6 +715,7 @@
         }
       }
       addRing(event.clientX, event.clientY, 0.55);
+      chargeInteraction(0.06);
     }
 
     function handleWheel(event) {
@@ -671,6 +725,7 @@
       zoomAt(factor, event.clientX, event.clientY);
       capturePulse = Math.min(1, capturePulse + 0.12);
       intensity = Math.min(1, intensity + 0.08);
+      chargeInteraction(0.085);
       addRing(event.clientX, event.clientY, 0.32);
       soundStatus.textContent = camera.zoom > 1 ? "Wheel zooming in" : "Wheel zooming out";
     }
@@ -699,6 +754,7 @@
         gesture.lastY = mid.y;
         setPointer({ clientX: mid.x, clientY: mid.y });
         addRing(mid.x, mid.y, 0.48);
+        chargeInteraction(0.08);
       } else if (event.touches.length === 1) {
         setPointer(event);
         pointer.down = true;
@@ -715,6 +771,7 @@
         camera.x += (mid.x - gesture.lastX) * 0.9;
         camera.y += (mid.y - gesture.lastY) * 0.9;
         capturePulse = Math.min(1, capturePulse + 0.05);
+        chargeInteraction(0.035);
       }
       gesture.active = true;
       gesture.lastDistance = distance;
@@ -743,18 +800,25 @@
       const feedback = context.createGain();
       const pad = context.createOscillator();
       const padGain = context.createGain();
+      const bass = context.createOscillator();
+      const bassGain = context.createGain();
 
       master.gain.value = 0.0001;
       filter.type = "lowpass";
-      filter.frequency.value = 900;
-      delay.delayTime.value = 0.18;
-      feedback.gain.value = 0.22;
-      pad.type = "sine";
+      filter.frequency.value = 1400;
+      delay.delayTime.value = 0.08;
+      feedback.gain.value = 0.08;
+      pad.type = "sawtooth";
       pad.frequency.value = activeMode().tone / 2;
-      padGain.gain.value = 0.025;
+      padGain.gain.value = 0.012;
+      bass.type = "square";
+      bass.frequency.value = activeMode().tone / 4;
+      bassGain.gain.value = 0.018;
 
       pad.connect(padGain);
       padGain.connect(filter);
+      bass.connect(bassGain);
+      bassGain.connect(filter);
       filter.connect(delay);
       filter.connect(master);
       delay.connect(feedback);
@@ -762,7 +826,8 @@
       delay.connect(master);
       master.connect(context.destination);
       pad.start();
-      audio = { context, master, filter, delay, pad, padGain };
+      bass.start();
+      audio = { context, master, filter, delay, pad, padGain, bass, bassGain };
     }
 
     function setSound(enabled) {
@@ -771,7 +836,7 @@
       audio.context.resume();
       const now = audio.context.currentTime;
       audio.master.gain.cancelScheduledValues(now);
-      audio.master.gain.setTargetAtTime(enabled ? 0.36 : 0.0001, now, 0.05);
+      audio.master.gain.setTargetAtTime(enabled ? 0.32 : 0.0001, now, 0.05);
       soundButton.textContent = enabled ? "Mute sound" : "Unmute sound";
       soundButton.dataset.active = String(enabled);
       soundStatus.textContent = enabled ? "Sound live" : "Sound muted";
@@ -783,23 +848,40 @@
       const now = audio.context.currentTime;
       const osc = audio.context.createOscillator();
       const gain = audio.context.createGain();
-      const pick = [1, 1.25, 1.5, 2][Math.floor(Math.random() * 4)];
-      osc.type = Math.random() > 0.4 ? "triangle" : "square";
+      const pick = [1, 1.5, 2, 3][Math.floor(Math.random() * 4)];
+      osc.type = Math.random() > 0.32 ? "square" : "sawtooth";
       osc.frequency.setValueAtTime(mode.tone * pick, now);
-      osc.frequency.exponentialRampToValueAtTime(mode.tone * pick * (0.5 + Math.random()), now + 0.14);
+      osc.frequency.exponentialRampToValueAtTime(mode.tone * pick * (0.72 + Math.random() * 0.35), now + 0.09);
       gain.gain.setValueAtTime(0.001, now);
-      gain.gain.exponentialRampToValueAtTime(0.12 * force, now + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      gain.gain.exponentialRampToValueAtTime(0.085 * force, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
       osc.connect(gain);
       gain.connect(audio.filter);
       osc.start(now);
-      osc.stop(now + 0.24);
+      osc.stop(now + 0.15);
+    }
+
+    function playKick(force = 1) {
+      if (!audio) return;
+      const now = audio.context.currentTime;
+      const osc = audio.context.createOscillator();
+      const gain = audio.context.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(110, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18 * force, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(audio.master);
+      osc.start(now);
+      osc.stop(now + 0.2);
     }
 
     function playNoise(force = 1) {
       if (!audio) return;
       const now = audio.context.currentTime;
-      const length = Math.floor(audio.context.sampleRate * 0.12);
+      const length = Math.floor(audio.context.sampleRate * 0.08);
       const buffer = audio.context.createBuffer(1, length, audio.context.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < length; i += 1) {
@@ -808,7 +890,7 @@
       const source = audio.context.createBufferSource();
       const gain = audio.context.createGain();
       source.buffer = buffer;
-      gain.gain.value = 0.08 * force;
+      gain.gain.value = 0.055 * force;
       source.connect(gain);
       gain.connect(audio.filter);
       source.start(now);
@@ -823,6 +905,7 @@
         );
       }
       intensity = 1;
+      chargeInteraction(0.24);
       if (soundOn) playNoise(force);
     }
 
@@ -833,13 +916,16 @@
       const px = pointer.x || 0.5;
       const py = pointer.y || 0.5;
       audio.filter.frequency.setTargetAtTime(420 + px * 4200, now, 0.04);
-      audio.delay.delayTime.setTargetAtTime(0.08 + py * 0.26, now, 0.06);
-      audio.pad.frequency.setTargetAtTime(mode.tone * (0.45 + px * 0.42), now, 0.05);
-      audio.padGain.gain.setTargetAtTime(0.018 + intensity * 0.036, now, 0.08);
+      audio.delay.delayTime.setTargetAtTime(0.04 + py * 0.11, now, 0.06);
+      audio.pad.frequency.setTargetAtTime(mode.tone * (0.72 + px * 0.62), now, 0.05);
+      audio.bass.frequency.setTargetAtTime(mode.tone * (0.23 + px * 0.08), now, 0.04);
+      audio.padGain.gain.setTargetAtTime(0.01 + intensity * 0.022, now, 0.08);
+      audio.bassGain.gain.setTargetAtTime(0.018 + charge * 0.04, now, 0.05);
       beatTimer += dt * mode.tempo * (0.7 + intensity);
-      if (beatTimer > 0.28) {
+      if (beatTimer > 0.18) {
         beatTimer = 0;
-        playPing(0.35 + intensity * 0.45);
+        playKick(0.45 + charge * 0.55);
+        if (Math.random() > 0.35) playPing(0.3 + intensity * 0.45);
       }
     }
 
@@ -993,16 +1079,19 @@
       intensity += (pointer.down ? 0.9 : 0.42 - intensity) * dt * 0.9;
       intensity = Math.max(0.25, Math.min(1, intensity));
       capturePulse = Math.max(0, capturePulse - dt * 1.7);
-      meterBar.style.transform = `scaleX(${intensity})`;
+      peakPulse = Math.max(0, peakPulse - dt * 1.2);
+      peakCooldown = Math.max(0, peakCooldown - dt);
+      charge = Math.max(0.08, charge - dt * 0.025);
       updateAudio(dt);
 
       const flash = strobe && Math.floor(now / 85) % 2 === 0;
-      ctx.fillStyle = flash ? "rgba(248, 240, 218, 0.42)" : "rgba(5, 5, 5, 0.22)";
+      const fade = 0.2 - camera.rush * 0.07 - peakPulse * 0.06;
+      ctx.fillStyle = flash ? "rgba(248, 240, 218, 0.42)" : `rgba(5, 5, 5, ${Math.max(0.08, fade)})`;
       ctx.fillRect(0, 0, width, height);
 
-      const sweep = ctx.createRadialGradient(px, py, 20, px, py, Math.max(width, height) * 0.78);
-      sweep.addColorStop(0, `${mode.colors[1]}66`);
-      sweep.addColorStop(0.26, `${mode.colors[2]}22`);
+      const sweep = ctx.createRadialGradient(px, py, 20, px, py, Math.max(width, height) * (0.78 + peakPulse * 0.22));
+      sweep.addColorStop(0, `${mode.colors[1]}${peakPulse > 0 ? "aa" : "66"}`);
+      sweep.addColorStop(0.26, `${mode.colors[2]}${peakPulse > 0 ? "66" : "22"}`);
       sweep.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = sweep;
       ctx.fillRect(0, 0, width, height);
@@ -1014,9 +1103,10 @@
       ctx.restore();
 
       stars.forEach((star) => {
-        const alpha = 0.25 + Math.sin(now * 0.004 + star.phase) * 0.2;
+        const alpha = 0.25 + peakPulse * 0.45 + Math.sin(now * 0.004 + star.phase) * 0.2;
         ctx.fillStyle = `rgba(248,240,218,${alpha})`;
-        ctx.fillRect(star.x, star.y, star.size, star.size);
+        const size = star.size * (1 + peakPulse * 5);
+        ctx.fillRect(star.x, star.y, size, size);
       });
 
       particles.forEach((particle) => {
@@ -1043,7 +1133,7 @@
         if (particle.y > height + 40) particle.y = -40;
 
         const color = mode.colors[particle.hue % mode.colors.length];
-        const size = particle.size * (1 + intensity * 1.8 + capturePulse * 1.4) * (0.82 + camera.zoom * 0.22);
+        const size = particle.size * (1 + intensity * 1.8 + capturePulse * 1.4 + peakPulse * 1.8) * (0.82 + camera.zoom * 0.22);
         ctx.save();
         ctx.translate(particle.x, particle.y);
         ctx.rotate(particle.spin + now * (mode.effect === "alcohol" ? 0.0008 : 0.002));
@@ -1085,9 +1175,34 @@
       strobe = !strobe;
       strobeButton.dataset.active = String(strobe);
     });
+    async function setImmersive(enabled) {
+      immersive = enabled;
+      document.body.classList.toggle("immersive", immersive);
+      focusButton.textContent = immersive ? "Show controls" : "Fullscreen";
+      focusButton.dataset.active = String(immersive);
+      if (immersive && document.fullscreenEnabled && !document.fullscreenElement) {
+        try {
+          await document.documentElement.requestFullscreen();
+        } catch (err) {
+          // Some mobile browsers reject fullscreen outside installed web apps.
+        }
+      } else if (!immersive && document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch (err) {
+          // Fullscreen state is best-effort.
+        }
+      }
+    }
+    focusButton.addEventListener("click", () => setImmersive(!immersive));
     resetButton.addEventListener("click", () => {
       rings = [];
       intensity = 0.45;
+      charge = 0.18;
+      peakPulse = 0;
+      camera.zoom = 1;
+      camera.x = 0;
+      camera.y = 0;
       seed();
     });
     modeSelect.addEventListener("change", () => {
@@ -1134,6 +1249,13 @@
       const key = event.key.toLowerCase();
       if (["w", "a", "s", "d"].includes(key)) {
         event.preventDefault();
+        if (!keys.has(key)) {
+          if (key === "w") zoomAt(1.32);
+          if (key === "s") zoomAt(0.72);
+          if (key === "a") camera.x += 80;
+          if (key === "d") camera.x -= 80;
+          chargeInteraction(0.08);
+        }
         keys.add(key);
         soundStatus.textContent = "WASD flight";
       }
@@ -1144,9 +1266,23 @@
       if (key === "m") {
         setSound(!soundOn);
       }
+      if (key === "f") {
+        setImmersive(!immersive);
+      }
+      if (event.key === "Escape" && immersive) {
+        setImmersive(false);
+      }
     });
     window.addEventListener("keyup", (event) => {
       keys.delete(event.key.toLowerCase());
+    });
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement && immersive) {
+        immersive = false;
+        document.body.classList.remove("immersive");
+        focusButton.textContent = "Fullscreen";
+        focusButton.dataset.active = "false";
+      }
     });
     window.addEventListener("resize", resize);
 

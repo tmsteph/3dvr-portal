@@ -40,10 +40,24 @@ describe('Sober Spark app', () => {
     assert.match(html, /keys\.has\("a"\)/);
     assert.match(html, /keys\.has\("s"\)/);
     assert.match(html, /keys\.has\("d"\)/);
+    assert.match(html, /if \(key === "w"\) zoomAt\(1\.32\)/);
+    assert.match(html, /if \(key === "s"\) zoomAt\(0\.72\)/);
     assert.match(html, /canvas\.addEventListener\("wheel", handleWheel, \{ passive: false \}\)/);
     assert.match(html, /function handleTouchMove\(event\)/);
     assert.match(html, /gesture\.lastDistance/);
     assert.match(html, /Two-finger flight/);
+  });
+
+  it('drops the stimulation meter and adds peak and fullscreen controls', async () => {
+    const html = await readFile(pageUrl, 'utf8');
+
+    assert.doesNotMatch(html, /Stimulation level/);
+    assert.doesNotMatch(html, /Right-click captures the field\. Drag to steer\./);
+    assert.match(html, /id="focusButton">Fullscreen/);
+    assert.match(html, /function peakBlast\(\)/);
+    assert.match(html, /body\.peak/);
+    assert.match(html, /function playKick\(force = 1\)/);
+    assert.match(html, /document\.documentElement\.requestFullscreen/);
   });
 
   it('keeps Sober Spark discoverable from the portal home', async () => {
