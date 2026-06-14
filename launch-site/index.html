@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Launch Site | 3DVR Portal</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a href="../index.html" class="brand">3DVR Portal</a>
+    <nav aria-label="Site launcher links">
+      <a href="../web-builder-app/">Advanced builder</a>
+      <a href="../profile.html#profile">Profile</a>
+    </nav>
+  </header>
+
+  <main class="launcher-shell">
+    <section class="launcher-brief" aria-labelledby="launcher-title">
+      <p class="eyebrow">Site launcher</p>
+      <h1 id="launcher-title">Launch a website on 3dvr.tech</h1>
+
+      <form id="site-form" class="brief-form">
+        <label for="business-name">Name</label>
+        <input id="business-name" name="businessName" type="text" autocomplete="organization"
+          placeholder="River City Wellness" required>
+
+        <label for="site-purpose">Offer</label>
+        <textarea id="site-purpose" name="purpose" rows="5"
+          placeholder="Massage therapy, booking requests, gift cards, and a calming first impression." required></textarea>
+
+        <div class="field-grid">
+          <label for="site-audience">Audience
+            <input id="site-audience" name="audience" type="text" placeholder="Busy parents and local workers">
+          </label>
+          <label for="site-action">Action
+            <input id="site-action" name="action" type="text" placeholder="Book a session">
+          </label>
+        </div>
+
+        <div class="field-grid">
+          <label for="site-style">Style
+            <select id="site-style" name="style">
+              <option value="clean, warm, and trustworthy">Warm</option>
+              <option value="bright, energetic, and sales-focused">Bold</option>
+              <option value="minimal, editorial, and premium">Minimal</option>
+              <option value="playful, friendly, and colorful">Playful</option>
+            </select>
+          </label>
+          <label for="site-slug">Address
+            <span class="address-field">
+              <input id="site-slug" name="slug" type="text" inputmode="url" autocomplete="off"
+                placeholder="river-city-wellness" required>
+              <span>.3dvr.tech</span>
+            </span>
+          </label>
+        </div>
+
+        <label for="site-notes">Details</label>
+        <textarea id="site-notes" name="notes" rows="3"
+          placeholder="Hours, location, services, prices, phone, email, testimonials, or anything important."></textarea>
+
+        <div class="actions">
+          <button id="generate-site" class="primary" type="submit">Generate Site</button>
+          <button id="revise-site" class="secondary" type="button" disabled>Revise Draft</button>
+        </div>
+
+        <label for="revision-request" class="revision-label">Revision</label>
+        <input id="revision-request" type="text"
+          placeholder="Make it more direct, add pricing, or change the tone." disabled>
+
+        <p id="launcher-status" class="status status--info" aria-live="polite">Ready.</p>
+      </form>
+    </section>
+
+    <section class="preview-panel" aria-labelledby="preview-title">
+      <div class="preview-header">
+        <div>
+          <p class="eyebrow">Preview</p>
+          <h2 id="preview-title">Draft</h2>
+        </div>
+        <button id="publish-site" class="primary" type="button" disabled>Publish</button>
+      </div>
+      <iframe id="site-preview" title="Website preview"></iframe>
+      <div id="publish-result" class="publish-result" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

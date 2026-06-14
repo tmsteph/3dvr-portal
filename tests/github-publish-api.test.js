@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createGithubPublishHandler } from '../api/github-publish.js';
+import {
+  createGithubPublishHandler,
+  resolveLaunchDomain,
+  sanitizeLaunchSubdomain
+} from '../api/github-publish.js';
 
 function createMockRes() {
   return {
@@ -145,3 +149,109 @@ test('github publish handler supports vercel deploy provider mode', async () => 
   assert.equal(requestPayload.name, 'project-demo');
 });
 
+test('sanitizeLaunchSubdomain normalizes customer site addresses', () => {
+  assert.equal(sanitizeLaunchSubdomain(' River City Wellness! '), 'river-city-wellness');
+  assert.equal(sanitizeLaunchSubdomain('ab'), '');
+  assert.equal(sanitizeLaunchSubdomain('portal'), '');
+});
+
+test('resolveLaunchDomain limits aliases to the configured launch domain', () => {
+  assert.deepEqual(
+    resolveLaunchDomain({ subdomain: 'River City Wellness' }, { baseDomain: '3dvr.tech' }),
+    {
+      subdomain: 'river-city-wellness',
+      domain: 'river-city-wellness.3dvr.tech',
+      baseDomain: '3dvr.tech'
+    }
+  );
+});
+
+test('vercel deploy provider can use server token and assign a 3dvr subdomain', async () => {
+  const calls = [];
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    siteLaunchBaseDomain: '3dvr.tech',
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_launch_123',
+              url: '3dvr-river-city-wellness.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_launch_123'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v2/deployments/dpl_launch_123/aliases')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              alias: 'river-city-wellness.3dvr.tech'
+            };
+          }
+        };
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-river-city-wellness',
+      subdomain: 'River City Wellness',
+      html: '<html><body>deployment test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.aliasAssigned, true);
+  assert.equal(res.body.aliasUrl, 'https://river-city-wellness.3dvr.tech');
+  assert.equal(res.body.url, 'https://3dvr-river-city-wellness.vercel.app');
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer server_vercel_token');
+  assert.equal(calls[1].options.headers.Authorization, 'Bearer server_vercel_token');
+  assert.deepEqual(JSON.parse(calls[1].options.body), {
+    alias: 'river-city-wellness.3dvr.tech'
+  });
+});
+
+test('vercel deploy provider rejects reserved launch subdomains', async () => {
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    fetchImpl: async () => {
+      throw new Error('fetch should not run for invalid aliases');
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-portal',
+      subdomain: 'portal',
+      html: '<html><body>deployment test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /valid, available/);
+});
