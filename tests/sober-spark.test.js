@@ -18,15 +18,32 @@ describe('Sober Spark app', () => {
     assert.match(html, /Alcohol wobble/);
   });
 
-  it('prevents text selection and captures primary pointer interaction on the canvas', async () => {
+  it('prevents text selection and captures right-click interaction on the canvas', async () => {
     const html = await readFile(pageUrl, 'utf8');
 
     assert.match(html, /user-select: none/);
     assert.match(html, /-webkit-user-select: none/);
     assert.match(html, /function captureField\(event\)/);
+    assert.match(html, /event\.button !== undefined && event\.button !== 2/);
     assert.match(html, /canvas\.setPointerCapture/);
-    assert.match(html, /canvas\.addEventListener\("pointerdown", captureField\)/);
+    assert.match(html, /canvas\.addEventListener\("pointerdown", handlePointerDown\)/);
+    assert.match(html, /canvas\.addEventListener\("contextmenu", \(event\) => event\.preventDefault\(\)\)/);
     assert.match(html, /selectstart", \(event\) => event\.preventDefault\(\)/);
+  });
+
+  it('supports keyboard, wheel, and two-finger navigation controls', async () => {
+    const html = await readFile(pageUrl, 'utf8');
+
+    assert.match(html, /const keys = new Set\(\)/);
+    assert.match(html, /function updateNavigation\(dt\)/);
+    assert.match(html, /keys\.has\("w"\)/);
+    assert.match(html, /keys\.has\("a"\)/);
+    assert.match(html, /keys\.has\("s"\)/);
+    assert.match(html, /keys\.has\("d"\)/);
+    assert.match(html, /canvas\.addEventListener\("wheel", handleWheel, \{ passive: false \}\)/);
+    assert.match(html, /function handleTouchMove\(event\)/);
+    assert.match(html, /gesture\.lastDistance/);
+    assert.match(html, /Two-finger flight/);
   });
 
   it('keeps Sober Spark discoverable from the portal home', async () => {

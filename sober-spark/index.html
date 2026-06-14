@@ -423,7 +423,7 @@
       <div class="meter" aria-label="Intensity meter">
         <span>Stimulation level</span>
         <div class="bar"><i id="meterBar"></i></div>
-        <div class="hint">Left-click captures the field. Drag to steer. Hold for pressure release. Space triggers a burst.</div>
+        <div class="hint">Right-click captures the field. Drag to steer. WASD flies the view. Wheel or two fingers zoom and slide.</div>
       </div>
     </div>
   </div>
@@ -515,6 +515,9 @@
     let rings = [];
     let stars = [];
     let pointer = { x: 0.5, y: 0.5, down: false, active: false };
+    let camera = { x: 0, y: 0, zoom: 1 };
+    const keys = new Set();
+    const gesture = { active: false, lastDistance: 0, lastX: 0, lastY: 0 };
     let intensity = 0.58;
     let strobe = false;
     let audio = null;
@@ -562,12 +565,46 @@
       return modes[modeSelect.value] || modes.urge;
     }
 
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
     function setPointer(event) {
       const point = event.touches ? event.touches[0] : event;
-      pointer.x = point.clientX / width;
-      pointer.y = point.clientY / height;
+      pointer.x = clamp(point.clientX / width, 0, 1);
+      pointer.y = clamp(point.clientY / height, 0, 1);
       pointer.active = true;
       intensity = Math.min(1, intensity + 0.03);
+    }
+
+    function viewPoint() {
+      return {
+        x: width * 0.5 + camera.x + (pointer.x - 0.5) * width * 0.52,
+        y: height * 0.5 + camera.y + (pointer.y - 0.5) * height * 0.52,
+        scale: camera.zoom
+      };
+    }
+
+    function zoomAt(factor, originX = width * 0.5, originY = height * 0.5) {
+      const previous = camera.zoom;
+      camera.zoom = clamp(camera.zoom * factor, 0.48, 2.9);
+      const ratio = camera.zoom / previous;
+      camera.x += (width * 0.5 - originX) * (ratio - 1) * 0.32;
+      camera.y += (height * 0.5 - originY) * (ratio - 1) * 0.32;
+      camera.x = clamp(camera.x, -width * 0.82, width * 0.82);
+      camera.y = clamp(camera.y, -height * 0.82, height * 0.82);
+    }
+
+    function updateNavigation(dt) {
+      const pan = (260 + 260 * camera.zoom) * dt;
+      if (keys.has("a")) camera.x += pan;
+      if (keys.has("d")) camera.x -= pan;
+      if (keys.has("w")) zoomAt(1 + dt * 1.25);
+      if (keys.has("s")) zoomAt(1 - dt * 0.92);
+      if (!keys.has("a") && !keys.has("d")) camera.x *= 1 - Math.min(0.08, dt * 0.7);
+      camera.y *= 1 - Math.min(0.06, dt * 0.5);
+      camera.x = clamp(camera.x, -width * 0.82, width * 0.82);
+      camera.y = clamp(camera.y, -height * 0.82, height * 0.82);
     }
 
     function addRing(x = pointer.x * width, y = pointer.y * height, force = 1, kind = "spark") {
@@ -582,11 +619,12 @@
     }
 
     function captureField(event) {
-      if (event.button !== undefined && event.button !== 0) return;
+      if (event.button !== undefined && event.button !== 2) return;
       event.preventDefault();
       setPointer(event);
       pointer.down = true;
       capturePulse = 1;
+      zoomAt(1.16, event.clientX, event.clientY);
       if (canvas.setPointerCapture && event.pointerId !== undefined) {
         try {
           canvas.setPointerCapture(event.pointerId);
@@ -604,7 +642,95 @@
         particle.vy += (dy / dist) * 3.2 + (dx / dist) * wave * 1.5;
       });
       if (soundOn) playNoise(1.1);
-      soundStatus.textContent = soundOn ? "Pointer captured" : "Field captured";
+      soundStatus.textContent = soundOn ? "Right-click capture live" : "Right-click capture";
+    }
+
+    function handlePointerDown(event) {
+      if (event.button === 2) {
+        captureField(event);
+        return;
+      }
+      if (event.button !== 0) return;
+      event.preventDefault();
+      setPointer(event);
+      pointer.down = true;
+      if (canvas.setPointerCapture && event.pointerId !== undefined) {
+        try {
+          canvas.setPointerCapture(event.pointerId);
+        } catch (err) {
+          // Pointer capture is a progressive enhancement.
+        }
+      }
+      addRing(event.clientX, event.clientY, 0.55);
+    }
+
+    function handleWheel(event) {
+      event.preventDefault();
+      setPointer(event);
+      const factor = Math.exp(-event.deltaY * 0.00115);
+      zoomAt(factor, event.clientX, event.clientY);
+      capturePulse = Math.min(1, capturePulse + 0.12);
+      intensity = Math.min(1, intensity + 0.08);
+      addRing(event.clientX, event.clientY, 0.32);
+      soundStatus.textContent = camera.zoom > 1 ? "Wheel zooming in" : "Wheel zooming out";
+    }
+
+    function touchMidpoint(touches) {
+      return {
+        x: (touches[0].clientX + touches[1].clientX) * 0.5,
+        y: (touches[0].clientY + touches[1].clientY) * 0.5
+      };
+    }
+
+    function touchDistance(touches) {
+      return Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY
+      );
+    }
+
+    function handleTouchStart(event) {
+      if (event.touches.length === 2) {
+        event.preventDefault();
+        const mid = touchMidpoint(event.touches);
+        gesture.active = true;
+        gesture.lastDistance = touchDistance(event.touches);
+        gesture.lastX = mid.x;
+        gesture.lastY = mid.y;
+        setPointer({ clientX: mid.x, clientY: mid.y });
+        addRing(mid.x, mid.y, 0.48);
+      } else if (event.touches.length === 1) {
+        setPointer(event);
+        pointer.down = true;
+      }
+    }
+
+    function handleTouchMove(event) {
+      if (event.touches.length !== 2) return;
+      event.preventDefault();
+      const mid = touchMidpoint(event.touches);
+      const distance = touchDistance(event.touches);
+      if (gesture.active && gesture.lastDistance > 0) {
+        zoomAt(distance / gesture.lastDistance, mid.x, mid.y);
+        camera.x += (mid.x - gesture.lastX) * 0.9;
+        camera.y += (mid.y - gesture.lastY) * 0.9;
+        capturePulse = Math.min(1, capturePulse + 0.05);
+      }
+      gesture.active = true;
+      gesture.lastDistance = distance;
+      gesture.lastX = mid.x;
+      gesture.lastY = mid.y;
+      setPointer({ clientX: mid.x, clientY: mid.y });
+      soundStatus.textContent = "Two-finger flight";
+    }
+
+    function handleTouchEnd(event) {
+      if (event.touches.length < 2) {
+        gesture.active = false;
+      }
+      if (event.touches.length === 0) {
+        pointer.down = false;
+      }
     }
 
     function initAudio() {
@@ -860,8 +986,10 @@
       const dt = Math.min(0.04, (now - lastTime) / 1000);
       lastTime = now;
       const mode = activeMode();
-      const px = pointer.x * width;
-      const py = pointer.y * height;
+      updateNavigation(dt);
+      const view = viewPoint();
+      const px = view.x;
+      const py = view.y;
       intensity += (pointer.down ? 0.9 : 0.42 - intensity) * dt * 0.9;
       intensity = Math.max(0.25, Math.min(1, intensity));
       capturePulse = Math.max(0, capturePulse - dt * 1.7);
@@ -878,7 +1006,12 @@
       sweep.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = sweep;
       ctx.fillRect(0, 0, width, height);
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.scale(view.scale, view.scale);
+      ctx.translate(-px, -py);
       drawModeField(now, px, py, mode);
+      ctx.restore();
 
       stars.forEach((star) => {
         const alpha = 0.25 + Math.sin(now * 0.004 + star.phase) * 0.2;
@@ -902,15 +1035,15 @@
         particle.vx *= 0.992;
         particle.vy *= 0.992;
         const speedBoost = mode.effect === "dmt" ? 2.6 : mode.effect === "weedTunnel" ? 1.1 : 1.8;
-        particle.x += particle.vx * (0.8 + intensity * speedBoost);
-        particle.y += particle.vy * (0.8 + intensity * speedBoost);
+        particle.x += particle.vx * (0.8 + intensity * speedBoost) * (0.82 + camera.zoom * 0.28);
+        particle.y += particle.vy * (0.8 + intensity * speedBoost) * (0.82 + camera.zoom * 0.28);
         if (particle.x < -40) particle.x = width + 40;
         if (particle.x > width + 40) particle.x = -40;
         if (particle.y < -40) particle.y = height + 40;
         if (particle.y > height + 40) particle.y = -40;
 
         const color = mode.colors[particle.hue % mode.colors.length];
-        const size = particle.size * (1 + intensity * 1.8 + capturePulse * 1.4);
+        const size = particle.size * (1 + intensity * 1.8 + capturePulse * 1.4) * (0.82 + camera.zoom * 0.22);
         ctx.save();
         ctx.translate(particle.x, particle.y);
         ctx.rotate(particle.spin + now * (mode.effect === "alcohol" ? 0.0008 : 0.002));
@@ -968,7 +1101,13 @@
       event.preventDefault();
       setPointer(event);
     });
-    canvas.addEventListener("pointerdown", captureField);
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+    canvas.addEventListener("touchend", handleTouchEnd);
+    canvas.addEventListener("touchcancel", handleTouchEnd);
+    canvas.addEventListener("contextmenu", (event) => event.preventDefault());
     canvas.addEventListener("pointerup", (event) => {
       event.preventDefault();
       if (canvas.releasePointerCapture && event.pointerId !== undefined) {
@@ -992,13 +1131,22 @@
     window.addEventListener("selectstart", (event) => event.preventDefault());
     window.addEventListener("contextmenu", (event) => event.preventDefault());
     window.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      if (["w", "a", "s", "d"].includes(key)) {
+        event.preventDefault();
+        keys.add(key);
+        soundStatus.textContent = "WASD flight";
+      }
       if (event.code === "Space") {
         event.preventDefault();
         burst(1.35);
       }
-      if (event.key.toLowerCase() === "m") {
+      if (key === "m") {
         setSound(!soundOn);
       }
+    });
+    window.addEventListener("keyup", (event) => {
+      keys.delete(event.key.toLowerCase());
     });
     window.addEventListener("resize", resize);
 
