@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR Spatial Portal</title>
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to workspace</a>
+  <main class="portal-shell" id="workspace">
+    <section class="stage" aria-labelledby="portal-title">
+      <canvas id="spatial-canvas" aria-label="Spatial portal scene"></canvas>
+      <div class="stage__overlay">
+        <header class="portal-header">
+          <div>
+            <p class="portal-kicker">3DVR portal prototype</p>
+            <h1 id="portal-title">Spatial workspace</h1>
+          </div>
+          <nav class="portal-actions" aria-label="Portal links">
+            <a href="/" class="portal-link">Home</a>
+            <a href="/home/" class="portal-link">Desktop</a>
+            <button class="portal-link" type="button" id="xr-button">XR</button>
+          </nav>
+        </header>
+
+        <div class="device-bar" aria-label="Viewport modes">
+          <button class="device-chip is-active" type="button" data-device-mode="headset">Headset</button>
+          <button class="device-chip" type="button" data-device-mode="desktop">Desktop</button>
+          <button class="device-chip" type="button" data-device-mode="phone">Phone</button>
+          <button class="device-chip" type="button" data-device-mode="flat">2D</button>
+        </div>
+
+        <div class="orbit-dock" id="app-dock" aria-label="Portal apps"></div>
+      </div>
+    </section>
+
+    <section class="workspace-panel" aria-label="Selected app workspace">
+      <div class="workspace-panel__header">
+        <div>
+          <p class="workspace-panel__type" id="app-type">Core app</p>
+          <h2 id="app-title">Portal app</h2>
+          <p id="app-description"></p>
+        </div>
+        <div class="workspace-panel__stats" aria-label="App summary">
+          <span><strong id="record-total">0</strong> records</span>
+          <span><strong id="record-next">None</strong> next</span>
+        </div>
+      </div>
+
+      <div class="workspace-tabs" role="tablist" aria-label="Workspace views">
+        <button class="workspace-tab is-active" type="button" role="tab" aria-selected="true" data-panel-tab="data">
+          Data
+        </button>
+        <button class="workspace-tab" type="button" role="tab" aria-selected="false" data-panel-tab="app">
+          2D app
+        </button>
+      </div>
+
+      <div class="data-view" data-panel-view="data">
+        <div class="record-toolbar">
+          <label class="search-field">
+            <span>Search</span>
+            <input id="record-search" type="search" autocomplete="off">
+          </label>
+          <button class="primary-action" type="button" id="new-record">New</button>
+        </div>
+
+        <div class="record-layout">
+          <div class="record-list" id="record-list" aria-label="Records"></div>
+          <form class="record-editor" id="record-form">
+            <input type="hidden" name="id">
+            <div class="editor-fields" id="editor-fields"></div>
+            <div class="editor-actions">
+              <button class="primary-action" type="submit">Save</button>
+              <button class="secondary-action" type="button" id="delete-record">Delete</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="app-view" data-panel-view="app" hidden>
+        <div class="app-frame-toolbar">
+          <span id="app-frame-label">Embedded app</span>
+          <a id="open-app-link" class="secondary-action" href="/" target="_blank" rel="noopener">Open</a>
+        </div>
+        <iframe id="app-frame" title="Selected 2D portal app"></iframe>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
