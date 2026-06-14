@@ -24,6 +24,14 @@ test('spatial portal page ships a Three.js scene and editable core app workspace
   assert.match(app, /gun\.get\('3dvr-portal'\)\.get\('spatialPortal'\)\.get\('apps'\)/);
 });
 
+test('portal launcher includes the spatial portal app card', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /href="vr-portal\/"/);
+  assert.match(html, /Spatial Portal/);
+  assert.match(html, /data-app-keywords="vr ar xr spatial interface desktop crm notes calendar tasks finance portal"/);
+});
+
 test('spatial portal data supports app selection, filtering, editing, and deletion', () => {
   const state = createInitialPortalState();
   const crm = getAppById(state, 'crm');
