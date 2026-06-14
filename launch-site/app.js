@@ -22,6 +22,7 @@ const publishResult = document.getElementById('publish-result');
 
 const statusClasses = ['status--info', 'status--success', 'status--warning', 'status--error'];
 const draftStorageKey = 'site-launcher-current-draft';
+const sharedDefaultsWaitMs = 6000;
 
 let currentHtml = '';
 let currentTitle = '';
@@ -29,6 +30,10 @@ let lastPrompt = '';
 let sharedSecrets = {
   openai: '',
   vercel: ''
+};
+const sharedSecretResolvers = {
+  openai: [],
+  vercel: []
 };
 
 renderEmptyPreview();
@@ -82,15 +87,68 @@ function sanitizeSlug(value) {
 
 function subscribeToSharedDefaults() {
   if (!defaultsNode) {
+    resolveSharedSecretWaiters('openai');
+    resolveSharedSecretWaiters('vercel');
     return;
   }
 
   defaultsNode.on(data => {
+    if (!hasDefaultRecord(data)) {
+      return;
+    }
+
     sharedSecrets = {
       openai: readDefaultSecret(data, 'openai'),
       vercel: readDefaultSecret(data, 'vercel')
     };
+    if (sharedSecrets.openai) {
+      resolveSharedSecretWaiters('openai');
+    }
+    if (sharedSecrets.vercel) {
+      resolveSharedSecretWaiters('vercel');
+    }
   });
+}
+
+function hasDefaultRecord(data) {
+  return Boolean(
+    data &&
+    typeof data === 'object' &&
+    Object.keys(data).some(key => key !== '_')
+  );
+}
+
+function resolveSharedSecretWaiters(targetKey) {
+  const waiters = sharedSecretResolvers[targetKey] || [];
+  while (waiters.length) {
+    waiters.shift()?.();
+  }
+}
+
+function wait(ms) {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForSharedSecret(targetKey, message) {
+  if (sharedSecrets[targetKey]) {
+    return true;
+  }
+
+  if (!defaultsNode) {
+    return false;
+  }
+
+  setStatus(message, 'info');
+  await Promise.race([
+    new Promise(resolve => {
+      sharedSecretResolvers[targetKey]?.push(resolve);
+    }),
+    wait(sharedDefaultsWaitMs)
+  ]);
+
+  return Boolean(sharedSecrets[targetKey]);
 }
 
 function buildPrompt(state) {
@@ -153,6 +211,7 @@ async function requestSiteDraft(prompt, message) {
   publishResult.innerHTML = '';
 
   try {
+    await waitForSharedSecret('openai', 'Loading shared site generator key...');
     const response = await fetch('/api/openai-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -201,6 +260,7 @@ async function publishSite() {
   publishResult.innerHTML = '';
 
   try {
+    await waitForSharedSecret('vercel', 'Loading shared publishing key...');
     const response = await fetch('/api/vercel-deploy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

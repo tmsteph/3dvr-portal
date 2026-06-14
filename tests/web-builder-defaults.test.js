@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   hasEncryptedDefault,
@@ -51,4 +52,13 @@ test('listAvailableDefaultTargets supports cipher-only mode', () => {
     listAvailableDefaultTargets(record, { includePlain: false, includeCipher: true }),
     ['vercel']
   );
+});
+
+test('web builder waits for shared defaults before missing-key warning', async () => {
+  const app = await readFile(new URL('../web-builder-app/app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /DEFAULTS_LOAD_TIMEOUT_MS/);
+  assert.match(app, /readDefaultsConfig\(timeoutMs\)/);
+  assert.match(app, /hasDefaultRecord\(data\)/);
+  assert.match(app, /await loadDefaultsWithOptions\(\{ force: false, silent: true, timeoutMs: DEFAULTS_LOAD_TIMEOUT_MS \}\)/);
 });

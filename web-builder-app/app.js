@@ -55,6 +55,15 @@ let currentSources = [];
 let currentSearchUsage = null;
 let generateStatusAnimationTimer = null;
 let billingStatusSyncPromise = null;
+let resolveDefaultsFirstRecord = null;
+const defaultsFirstRecordPromise = new Promise(resolve => {
+  resolveDefaultsFirstRecord = resolve;
+});
+const defaultSecretResolvers = {
+  openai: [],
+  vercel: [],
+  github: []
+};
 
 const identityStorageKey = 'web-builder-identity';
 const sharedBillingTierStorageKey = 'portal-usage-tier';
@@ -70,6 +79,7 @@ const modelStorageKey = 'web-builder-model';
 
 const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
 const LOAD_DEFAULTS_LABEL = 'Reload shared defaults';
+const DEFAULTS_LOAD_TIMEOUT_MS = 6000;
 
 const menuToggle = document.getElementById('menu-toggle');
 const builderNav = document.getElementById('builder-nav');
@@ -787,7 +797,17 @@ function hydrateStoredKeys() {
 
 function subscribeToDefaults() {
   defaultsNode.on(data => {
+    if (!hasDefaultRecord(data)) {
+      return;
+    }
+
     currentDefaultConfig = data || {};
+    resolveDefaultsFirstRecord?.(currentDefaultConfig);
+    ['openai', 'vercel', 'github'].forEach(targetKey => {
+      if (readDefaultSecret(currentDefaultConfig, targetKey)) {
+        resolveDefaultSecretWaiters(targetKey);
+      }
+    });
 
     const plainAvailable = describeTargets(
       listAvailableDefaultTargets(currentDefaultConfig, { includePlain: true, includeCipher: false })
@@ -815,6 +835,38 @@ function subscribeToDefaults() {
       'warning'
     );
   });
+}
+
+function hasDefaultRecord(data) {
+  return Boolean(
+    data &&
+    typeof data === 'object' &&
+    Object.keys(data).some(key => key !== '_')
+  );
+}
+
+function resolveDefaultSecretWaiters(targetKey) {
+  const waiters = defaultSecretResolvers[targetKey] || [];
+  while (waiters.length) {
+    waiters.shift()?.();
+  }
+}
+
+async function waitForDefaultSecret(targetKey, timeoutMs = DEFAULTS_LOAD_TIMEOUT_MS) {
+  if (readDefaultSecret(currentDefaultConfig, targetKey)) {
+    return true;
+  }
+
+  await Promise.race([
+    new Promise(resolve => {
+      defaultSecretResolvers[targetKey]?.push(resolve);
+    }),
+    new Promise(resolve => {
+      setTimeout(resolve, timeoutMs);
+    })
+  ]);
+
+  return Boolean(readDefaultSecret(currentDefaultConfig, targetKey));
 }
 
 function describeTargets(targets) {
@@ -973,9 +1025,11 @@ function usingAnySharedKey() {
 }
 
 async function loadDefaultsWithOptions(options = {}) {
-  const { force = true, silent = false } = options;
+  const { force = true, silent = false, timeoutMs = DEFAULTS_LOAD_TIMEOUT_MS } = options;
   const hasCachedConfig = Object.keys(currentDefaultConfig || {}).length > 0;
-  const config = hasCachedConfig ? currentDefaultConfig : await new Promise(resolve => defaultsNode.once(resolve));
+  const config = hasCachedConfig
+    ? currentDefaultConfig
+    : await readDefaultsConfig(timeoutMs);
   const targets = [
     {
       key: 'openai',
@@ -1059,6 +1113,20 @@ async function loadDefaultsWithOptions(options = {}) {
   if (!silent) {
     setDefaultStatus('No shared defaults are configured yet.', 'warning');
   }
+}
+
+function readDefaultsConfig(timeoutMs = DEFAULTS_LOAD_TIMEOUT_MS) {
+  const hasCachedConfig = Object.keys(currentDefaultConfig || {}).length > 0;
+  if (hasCachedConfig) {
+    return Promise.resolve(currentDefaultConfig);
+  }
+
+  return Promise.race([
+    defaultsFirstRecordPromise,
+    new Promise(resolve => {
+      setTimeout(() => resolve({}), timeoutMs);
+    })
+  ]);
 }
 
 function saveLocalKeys() {
@@ -1392,7 +1460,17 @@ async function readGenerationStream(response, { onStatus } = {}) {
 }
 
 async function requestGeneration(prompt, mode) {
-  const apiKey = getActiveKey(openaiInput, defaultSecrets.openai, 'openai');
+  let apiKey = getActiveKey(openaiInput, defaultSecrets.openai, 'openai');
+  if (!apiKey) {
+    setGenerateStatus('Loading shared defaults...', 'info');
+    await loadDefaultsWithOptions({ force: false, silent: true, timeoutMs: DEFAULTS_LOAD_TIMEOUT_MS });
+    if (!readDefaultSecret(currentDefaultConfig, 'openai')) {
+      await waitForDefaultSecret('openai', DEFAULTS_LOAD_TIMEOUT_MS);
+      await loadDefaultsWithOptions({ force: false, silent: true, timeoutMs: 0 });
+    }
+    apiKey = getActiveKey(openaiInput, defaultSecrets.openai, 'openai');
+  }
+
   if (!apiKey) {
     setGenerateStatus('No OpenAI key available. Open Config and load shared defaults or add a personal key. Portal billing tiers do not include OpenAI API billing.', 'warning');
     revealConfig();
