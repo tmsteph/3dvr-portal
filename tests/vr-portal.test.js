@@ -30,6 +30,7 @@ test('portal launcher includes the spatial portal app card', async () => {
   assert.match(html, /href="vr-portal\/"/);
   assert.match(html, /Spatial Portal/);
   assert.match(html, /data-app-keywords="vr ar xr spatial interface desktop crm notes calendar tasks finance portal"/);
+  assert.doesNotMatch(html, /href="vr-portal\/"[\s\S]{0,140}data-app-tier="experimental"/);
 });
 
 test('spatial portal data supports app selection, filtering, editing, and deletion', () => {
