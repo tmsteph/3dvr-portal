@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   createGithubPublishHandler,
   resolveLaunchDomain,
+  sanitizeCustomDomain,
   sanitizeLaunchSubdomain
 } from '../api/github-publish.js';
 
@@ -275,6 +276,24 @@ test('resolveLaunchDomain limits aliases to the configured launch domain', () =>
   );
 });
 
+test('sanitizeCustomDomain normalizes full customer domains', () => {
+  assert.equal(sanitizeCustomDomain(' https://WWW.Example.com/path '), 'www.example.com');
+  assert.equal(sanitizeCustomDomain('example'), '');
+  assert.equal(sanitizeCustomDomain('bad domain.com'), '');
+});
+
+test('resolveLaunchDomain supports explicit custom domains', () => {
+  assert.deepEqual(
+    resolveLaunchDomain({ customDomain: 'Launch.CustomerSite.com' }, { baseDomain: '3dvr.tech' }),
+    {
+      subdomain: 'launch',
+      domain: 'launch.customersite.com',
+      baseDomain: 'customersite.com',
+      customDomain: true
+    }
+  );
+});
+
 test('vercel deploy provider can use server token and assign a 3dvr subdomain', async () => {
   const calls = [];
   const handler = createGithubPublishHandler({
@@ -294,6 +313,19 @@ test('vercel deploy provider can use server token and assign a 3dvr subdomain', 
               url: '3dvr-river-city-wellness.vercel.app',
               inspectUrl: 'https://vercel.com/example/launch/dpl_launch_123',
               readyState: 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v10/projects/3dvr-river-city-wellness/domains')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              name: 'river-city-wellness.3dvr.tech',
+              verified: true
             };
           }
         };
@@ -333,12 +365,19 @@ test('vercel deploy provider can use server token and assign a 3dvr subdomain', 
   assert.equal(res.body.aliasAssigned, true);
   assert.equal(res.body.aliasUrl, 'https://river-city-wellness.3dvr.tech');
   assert.equal(res.body.url, 'https://3dvr-river-city-wellness.vercel.app');
-  assert.equal(calls.length, 2);
+  assert.equal(res.body.projectDomainAdded, true);
+  assert.equal(res.body.projectDomainReady, true);
+  assert.equal(calls.length, 3);
   assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
-  assert.match(calls[1].url, /\/v2\/deployments\/dpl_launch_123\/aliases\?teamId=team_3dvr$/);
+  assert.match(calls[1].url, /\/v10\/projects\/3dvr-river-city-wellness\/domains\?teamId=team_3dvr$/);
+  assert.match(calls[2].url, /\/v2\/deployments\/dpl_launch_123\/aliases\?teamId=team_3dvr$/);
   assert.equal(calls[0].options.headers.Authorization, 'Bearer server_vercel_token');
   assert.equal(calls[1].options.headers.Authorization, 'Bearer server_vercel_token');
+  assert.equal(calls[2].options.headers.Authorization, 'Bearer server_vercel_token');
   assert.deepEqual(JSON.parse(calls[1].options.body), {
+    name: 'river-city-wellness.3dvr.tech'
+  });
+  assert.deepEqual(JSON.parse(calls[2].options.body), {
     alias: 'river-city-wellness.3dvr.tech'
   });
 });
@@ -362,6 +401,19 @@ test('vercel deploy provider returns deployment URL when custom domain is missin
               url: '3dvr-test.vercel.app',
               inspectUrl: 'https://vercel.com/example/launch/dpl_missing_domain',
               readyState: 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v10/projects/3dvr-test/domains')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              name: 'test.3dvr.tech',
+              verified: true
             };
           }
         };
@@ -408,6 +460,78 @@ test('vercel deploy provider returns deployment URL when custom domain is missin
   assert.equal(res.body.domainSetupUrl, 'https://vercel.com/dashboard/domains');
   assert.match(res.body.aliasError, /Vercel alias error 404/);
   assert.equal(res.body.url, 'https://3dvr-test.vercel.app');
+  assert.equal(res.body.projectDomainAdded, true);
+  assert.equal(calls.length, 3);
+});
+
+test('vercel deploy provider reports custom domain setup failures with deployment URL', async () => {
+  const calls = [];
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
+    siteLaunchBaseDomain: '3dvr.tech',
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_custom_domain',
+              url: '3dvr-customer-site.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_custom_domain',
+              readyState: 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v10/projects/3dvr-customer-site/domains')) {
+        return {
+          ok: false,
+          status: 400,
+          async text() {
+            return JSON.stringify({
+              code: 'domain_not_verified',
+              message: 'Domain ownership must be verified before use.',
+              statusCode: 400
+            });
+          }
+        };
+      }
+
+      if (String(url).includes('/aliases')) {
+        throw new Error('alias should not run when project domain setup fails');
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-customer-site',
+      customDomain: 'launch.customer-site.com',
+      html: '<html><body>custom domain setup test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.aliasAssigned, false);
+  assert.equal(res.body.customDomain, true);
+  assert.equal(res.body.alias, 'launch.customer-site.com');
+  assert.equal(res.body.aliasErrorCode, 'domain_not_verified');
+  assert.equal(res.body.projectDomainAdded, false);
+  assert.equal(res.body.projectDomainReady, false);
+  assert.equal(res.body.url, 'https://3dvr-customer-site.vercel.app');
   assert.equal(calls.length, 2);
 });
 
@@ -455,6 +579,19 @@ test('vercel deploy provider waits for deployment readiness before aliasing', as
         };
       }
 
+      if (String(url).includes('/v10/projects/3dvr-ready-test/domains')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              name: 'ready-test.3dvr.tech',
+              verified: true
+            };
+          }
+        };
+      }
+
       if (String(url).includes('/v2/deployments/dpl_launch_queued/aliases')) {
         return {
           ok: true,
@@ -488,12 +625,13 @@ test('vercel deploy provider waits for deployment readiness before aliasing', as
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.aliasAssigned, true);
   assert.equal(res.body.aliasUrl, 'https://ready-test.3dvr.tech');
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 5);
   assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
   assert.match(calls[1].url, /\/v13\/deployments\/dpl_launch_queued\?teamId=team_3dvr$/);
   assert.match(calls[2].url, /\/v13\/deployments\/dpl_launch_queued\?teamId=team_3dvr$/);
-  assert.match(calls[3].url, /\/v2\/deployments\/dpl_launch_queued\/aliases\?teamId=team_3dvr$/);
-  assert.equal(calls[3].options.method, 'POST');
+  assert.match(calls[3].url, /\/v10\/projects\/3dvr-ready-test\/domains\?teamId=team_3dvr$/);
+  assert.match(calls[4].url, /\/v2\/deployments\/dpl_launch_queued\/aliases\?teamId=team_3dvr$/);
+  assert.equal(calls[4].options.method, 'POST');
 });
 
 test('vercel deploy provider reports failed deployment readiness before aliasing', async () => {
@@ -587,5 +725,5 @@ test('vercel deploy provider rejects reserved launch subdomains', async () => {
   await handler(req, res);
 
   assert.equal(res.statusCode, 400);
-  assert.match(res.body.error, /valid, available/);
+  assert.match(res.body.error, /valid launch address or custom domain/);
 });
