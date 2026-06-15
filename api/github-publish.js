@@ -5,8 +5,10 @@ const setCorsHeaders = (res) => {
 };
 
 const DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID = 'team_KXuVUd00RMnDsjoqwdREcZ7J';
+const DEFAULT_SITE_LAUNCH_VERCEL_DNS_TEAM_ID = 'team_xxJGO7S7h1ZP4BHidYV0CX9Z';
 const DEFAULT_VERCEL_READY_TIMEOUT_MS = 30_000;
 const DEFAULT_VERCEL_READY_POLL_INTERVAL_MS = 1_000;
+const DEFAULT_VERCEL_DNS_VERIFY_RETRY_DELAY_MS = 1_000;
 const VERCEL_READY_STATE = 'READY';
 const VERCEL_FAILED_READY_STATES = new Set(['ERROR', 'CANCELED']);
 const VERCEL_DOMAIN_EXISTS_CODES = new Set([
@@ -21,6 +23,26 @@ function resolveSiteLaunchVercelTeamId(configuredTeamId) {
     configuredTeamId,
     process.env.SITE_LAUNCH_VERCEL_TEAM_ID,
     DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID
+  ].map(value => String(value || '').trim()).find(Boolean);
+}
+
+function isDisabledConfigValue(value) {
+  if (value === false) {
+    return true;
+  }
+
+  return ['0', 'false', 'none', 'off'].includes(String(value || '').trim().toLowerCase());
+}
+
+function resolveSiteLaunchVercelDnsTeamId(configuredTeamId) {
+  if (isDisabledConfigValue(configuredTeamId) || isDisabledConfigValue(process.env.SITE_LAUNCH_VERCEL_DNS_TEAM_ID)) {
+    return '';
+  }
+
+  return [
+    configuredTeamId,
+    process.env.SITE_LAUNCH_VERCEL_DNS_TEAM_ID,
+    DEFAULT_SITE_LAUNCH_VERCEL_DNS_TEAM_ID
   ].map(value => String(value || '').trim()).find(Boolean);
 }
 
@@ -374,11 +396,14 @@ async function addVercelProjectDomain({
     const errorText = await response.text();
     const error = createVercelApiError('Vercel project domain error', response, errorText);
     if (isVercelDomainExistsError(error)) {
+      const existingDomain = error?.details?.domain || {};
       return {
-        projectDomain: domain,
+        projectDomain: existingDomain.name || domain,
         projectDomainAdded: false,
-        projectDomainReady: true,
-        projectDomainStatus: 'exists'
+        projectDomainReady: existingDomain.verified !== false,
+        projectDomainStatus: existingDomain.verified === false ? 'pending' : 'exists',
+        projectDomainVerified: existingDomain.verified,
+        projectDomainVerification: existingDomain.verification
       };
     }
     throw error;
@@ -427,6 +452,195 @@ async function verifyVercelProjectDomain({
     projectDomainVerification: data.verification,
     projectDomainStatus: data.verified === false ? 'pending' : 'verified'
   };
+}
+
+function normalizeVercelVerificationRecords(records) {
+  return (Array.isArray(records) ? records : [records])
+    .map(record => ({
+      type: String(record?.type || '').trim().toUpperCase(),
+      domain: String(record?.domain || '').trim().toLowerCase().replace(/^\.+|\.+$/g, ''),
+      value: String(record?.value || '').trim()
+    }))
+    .filter(record => record.type === 'TXT' && record.domain && record.value);
+}
+
+function resolveDnsRecordName(recordDomain, baseDomain) {
+  const normalizedDomain = String(recordDomain || '').trim().toLowerCase().replace(/^\.+|\.+$/g, '');
+  const normalizedBase = String(baseDomain || '').trim().toLowerCase().replace(/^\.+|\.+$/g, '');
+
+  if (!normalizedDomain || !normalizedBase) {
+    return null;
+  }
+
+  if (normalizedDomain === normalizedBase) {
+    return '';
+  }
+
+  const suffix = `.${normalizedBase}`;
+  if (!normalizedDomain.endsWith(suffix)) {
+    return null;
+  }
+
+  return normalizedDomain.slice(0, -suffix.length);
+}
+
+async function addVercelDnsVerificationRecord({
+  token,
+  baseDomain,
+  record,
+  dnsTeamId,
+  fetchImpl = globalThis.fetch
+}) {
+  const name = resolveDnsRecordName(record.domain, baseDomain);
+  if (name === null || !dnsTeamId) {
+    return null;
+  }
+
+  const url = withVercelTeamScope(
+    `https://api.vercel.com/v3/domains/${encodeURIComponent(baseDomain)}/records`,
+    dnsTeamId
+  );
+  const response = await fetchImpl(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name,
+      type: record.type,
+      value: record.value
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    const error = createVercelApiError('Vercel DNS record error', response, errorText);
+    if (response.status === 409 || String(error.code || '').toLowerCase().includes('conflict')) {
+      return {
+        domain: record.domain,
+        name,
+        type: record.type,
+        value: record.value,
+        added: false,
+        status: 'exists'
+      };
+    }
+    throw error;
+  }
+
+  const data = await response.json();
+  return {
+    domain: record.domain,
+    name,
+    type: record.type,
+    value: record.value,
+    id: data.id,
+    added: true,
+    status: 'added'
+  };
+}
+
+async function addVercelDnsVerificationRecords({
+  token,
+  baseDomain,
+  verification,
+  dnsTeamId,
+  fetchImpl = globalThis.fetch
+}) {
+  const records = normalizeVercelVerificationRecords(verification);
+  if (!dnsTeamId || !records.length) {
+    return null;
+  }
+
+  const results = [];
+  for (const record of records) {
+    const result = await addVercelDnsVerificationRecord({
+      token,
+      baseDomain,
+      record,
+      dnsTeamId,
+      fetchImpl
+    });
+    if (result) {
+      results.push(result);
+    }
+  }
+
+  if (!results.length) {
+    return null;
+  }
+
+  return {
+    projectDomainDnsRecordAdded: results.some(result => result.added),
+    projectDomainDnsRecordStatus: results.every(result => result.status === 'exists') ? 'exists' : 'added',
+    projectDomainDnsRecords: results
+  };
+}
+
+async function verifyVercelProjectDomainWithDnsRetry({
+  token,
+  projectName,
+  domain,
+  baseDomain,
+  teamId,
+  dnsTeamId,
+  projectDomainResult,
+  fetchImpl = globalThis.fetch,
+  sleepImpl = delay,
+  retryDelayMs = DEFAULT_VERCEL_DNS_VERIFY_RETRY_DELAY_MS
+}) {
+  try {
+    return await verifyVercelProjectDomain({
+      token,
+      projectName,
+      domain,
+      teamId,
+      fetchImpl
+    });
+  } catch (error) {
+    const verification = error?.details?.verification
+      || extractVercelVerificationFromMessage(error?.details?.message || error?.message)
+      || projectDomainResult?.projectDomainVerification;
+
+    let dnsResult = null;
+    try {
+      dnsResult = await addVercelDnsVerificationRecords({
+        token,
+        baseDomain,
+        verification,
+        dnsTeamId,
+        fetchImpl
+      });
+    } catch (dnsError) {
+      dnsError.details = {
+        ...(dnsError.details || {}),
+        verification: normalizeVercelVerificationRecords(verification)
+      };
+      throw dnsError;
+    }
+
+    if (!dnsResult) {
+      throw error;
+    }
+
+    if (retryDelayMs > 0) {
+      await sleepImpl(retryDelayMs);
+    }
+
+    const verifiedDomainResult = await verifyVercelProjectDomain({
+      token,
+      projectName,
+      domain,
+      teamId,
+      fetchImpl
+    });
+
+    return {
+      ...verifiedDomainResult,
+      ...dnsResult
+    };
+  }
 }
 
 function toVercelAliasFallback({ error, domain }) {
@@ -582,9 +796,11 @@ async function createVercelDeployment({
   html,
   launchDomain,
   teamId,
+  dnsTeamId,
   sleepImpl,
   readyTimeoutMs,
   readyPollIntervalMs,
+  dnsVerifyRetryDelayMs,
   fetchImpl = globalThis.fetch
 }) {
   const sanitizedProjectName = sanitizeProjectName(projectName);
@@ -661,12 +877,17 @@ async function createVercelDeployment({
 
     if (projectDomainResult?.projectDomainReady === false) {
       try {
-        const verifiedDomainResult = await verifyVercelProjectDomain({
+        const verifiedDomainResult = await verifyVercelProjectDomainWithDnsRetry({
           token,
           projectName: sanitizedProjectName,
           domain: launchDomain.domain,
+          baseDomain: launchDomain.baseDomain,
           teamId,
-          fetchImpl
+          dnsTeamId,
+          projectDomainResult,
+          fetchImpl,
+          sleepImpl,
+          retryDelayMs: dnsVerifyRetryDelayMs
         });
         projectDomainResult = {
           ...projectDomainResult,
@@ -735,11 +956,14 @@ export function createGithubPublishHandler(options = {}) {
     sleepImpl = delay,
     vercelToken = process.env.VERCEL_TOKEN,
     vercelTeamId: configuredVercelTeamId,
+    vercelDnsTeamId: configuredVercelDnsTeamId,
     vercelReadyTimeoutMs,
     vercelReadyPollIntervalMs,
+    vercelDnsVerifyRetryDelayMs,
     siteLaunchBaseDomain = process.env.SITE_LAUNCH_BASE_DOMAIN
   } = options;
   const vercelTeamId = resolveSiteLaunchVercelTeamId(configuredVercelTeamId);
+  const vercelDnsTeamId = resolveSiteLaunchVercelDnsTeamId(configuredVercelDnsTeamId);
 
   return async function handler(req, res) {
     setCorsHeaders(res);
@@ -777,9 +1001,11 @@ export function createGithubPublishHandler(options = {}) {
           html: body.html,
           launchDomain,
           teamId: vercelTeamId,
+          dnsTeamId: vercelDnsTeamId,
           sleepImpl,
           readyTimeoutMs: vercelReadyTimeoutMs,
           readyPollIntervalMs: vercelReadyPollIntervalMs,
+          dnsVerifyRetryDelayMs: vercelDnsVerifyRetryDelayMs,
           fetchImpl
         });
 
