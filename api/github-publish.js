@@ -6,6 +6,14 @@ const setCorsHeaders = (res) => {
 
 const DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID = 'team_KXuVUd00RMnDsjoqwdREcZ7J';
 
+function resolveSiteLaunchVercelTeamId(configuredTeamId) {
+  return [
+    configuredTeamId,
+    process.env.SITE_LAUNCH_VERCEL_TEAM_ID,
+    DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID
+  ].map(value => String(value || '').trim()).find(Boolean);
+}
+
 function parseProvider(req) {
   const fromQuery = String(req?.query?.provider || '').trim().toLowerCase();
   if (fromQuery) {
@@ -317,9 +325,10 @@ export function createGithubPublishHandler(options = {}) {
   const {
     fetchImpl = globalThis.fetch,
     vercelToken = process.env.VERCEL_TOKEN,
-    vercelTeamId = process.env.SITE_LAUNCH_VERCEL_TEAM_ID || process.env.VERCEL_TEAM_ID || DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID,
+    vercelTeamId: configuredVercelTeamId,
     siteLaunchBaseDomain = process.env.SITE_LAUNCH_BASE_DOMAIN
   } = options;
+  const vercelTeamId = resolveSiteLaunchVercelTeamId(configuredVercelTeamId);
 
   return async function handler(req, res) {
     setCorsHeaders(res);
@@ -356,7 +365,7 @@ export function createGithubPublishHandler(options = {}) {
           projectName: body.projectName,
           html: body.html,
           launchDomain,
-          teamId: body.teamId || vercelTeamId,
+          teamId: vercelTeamId,
           fetchImpl
         });
 
