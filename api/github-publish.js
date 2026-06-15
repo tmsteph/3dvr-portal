@@ -5,6 +5,10 @@ const setCorsHeaders = (res) => {
 };
 
 const DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID = 'team_KXuVUd00RMnDsjoqwdREcZ7J';
+const DEFAULT_VERCEL_READY_TIMEOUT_MS = 30_000;
+const DEFAULT_VERCEL_READY_POLL_INTERVAL_MS = 1_000;
+const VERCEL_READY_STATE = 'READY';
+const VERCEL_FAILED_READY_STATES = new Set(['ERROR', 'CANCELED']);
 
 function resolveSiteLaunchVercelTeamId(configuredTeamId) {
   return [
@@ -12,6 +16,12 @@ function resolveSiteLaunchVercelTeamId(configuredTeamId) {
     process.env.SITE_LAUNCH_VERCEL_TEAM_ID,
     DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID
   ].map(value => String(value || '').trim()).find(Boolean);
+}
+
+function delay(ms) {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function parseProvider(req) {
@@ -252,12 +262,91 @@ function withVercelTeamScope(url, teamId) {
   return scopedUrl.toString();
 }
 
+function readVercelReadyState(deployment) {
+  return String(deployment?.readyState || '').trim().toUpperCase();
+}
+
+function toVercelDeploymentResult(deployment) {
+  return {
+    id: deployment.id,
+    url: deployment.url ? `https://${deployment.url}` : undefined,
+    inspectUrl: deployment.inspectUrl
+  };
+}
+
+async function fetchVercelDeploymentStatus({ token, deploymentId, teamId, fetchImpl = globalThis.fetch }) {
+  const url = withVercelTeamScope(
+    `https://api.vercel.com/v13/deployments/${encodeURIComponent(deploymentId)}`,
+    teamId
+  );
+  const response = await fetchImpl(url, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Vercel deployment status error ${response.status}: ${errorText || 'Unknown error'}`);
+  }
+
+  return response.json();
+}
+
+async function waitForVercelDeploymentReady({
+  token,
+  deploymentId,
+  teamId,
+  initialDeployment,
+  fetchImpl = globalThis.fetch,
+  sleepImpl = delay,
+  timeoutMs = DEFAULT_VERCEL_READY_TIMEOUT_MS,
+  pollIntervalMs = DEFAULT_VERCEL_READY_POLL_INTERVAL_MS
+}) {
+  let latestDeployment = initialDeployment;
+  let readyState = readVercelReadyState(latestDeployment);
+
+  if (readyState === VERCEL_READY_STATE) {
+    return latestDeployment;
+  }
+
+  if (VERCEL_FAILED_READY_STATES.has(readyState)) {
+    throw new Error(`Vercel deployment ${deploymentId} ended with readyState ${readyState}; alias was not assigned.`);
+  }
+
+  const maxAttempts = Math.max(1, Math.ceil(timeoutMs / Math.max(pollIntervalMs, 1)));
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    await sleepImpl(pollIntervalMs);
+    latestDeployment = await fetchVercelDeploymentStatus({
+      token,
+      deploymentId,
+      teamId,
+      fetchImpl
+    });
+    readyState = readVercelReadyState(latestDeployment);
+
+    if (readyState === VERCEL_READY_STATE) {
+      return latestDeployment;
+    }
+
+    if (VERCEL_FAILED_READY_STATES.has(readyState)) {
+      throw new Error(`Vercel deployment ${deploymentId} ended with readyState ${readyState}; alias was not assigned.`);
+    }
+  }
+
+  throw new Error(`Vercel deployment ${deploymentId} was not READY within ${Math.ceil(timeoutMs / 1000)} seconds; alias was not assigned.`);
+}
+
 async function createVercelDeployment({
   token,
   projectName,
   html,
   launchDomain,
   teamId,
+  sleepImpl,
+  readyTimeoutMs,
+  readyPollIntervalMs,
   fetchImpl = globalThis.fetch
 }) {
   const files = [
@@ -295,13 +384,20 @@ async function createVercelDeployment({
   }
 
   const data = await response.json();
-  const result = {
-    id: data.id,
-    url: data.url ? `https://${data.url}` : undefined,
-    inspectUrl: data.inspectUrl
-  };
+  let deployment = data;
 
   if (launchDomain?.domain && data.id) {
+    deployment = await waitForVercelDeploymentReady({
+      token,
+      deploymentId: data.id,
+      teamId,
+      initialDeployment: data,
+      fetchImpl,
+      sleepImpl,
+      timeoutMs: readyTimeoutMs,
+      pollIntervalMs: readyPollIntervalMs
+    });
+
     const aliasResult = await assignVercelAlias({
       token,
       deploymentId: data.id,
@@ -311,21 +407,24 @@ async function createVercelDeployment({
     });
 
     return {
-      ...result,
+      ...toVercelDeploymentResult(deployment),
       ...aliasResult,
       subdomain: launchDomain.subdomain,
       baseDomain: launchDomain.baseDomain
     };
   }
 
-  return result;
+  return toVercelDeploymentResult(deployment);
 }
 
 export function createGithubPublishHandler(options = {}) {
   const {
     fetchImpl = globalThis.fetch,
+    sleepImpl = delay,
     vercelToken = process.env.VERCEL_TOKEN,
     vercelTeamId: configuredVercelTeamId,
+    vercelReadyTimeoutMs,
+    vercelReadyPollIntervalMs,
     siteLaunchBaseDomain = process.env.SITE_LAUNCH_BASE_DOMAIN
   } = options;
   const vercelTeamId = resolveSiteLaunchVercelTeamId(configuredVercelTeamId);
@@ -366,6 +465,9 @@ export function createGithubPublishHandler(options = {}) {
           html: body.html,
           launchDomain,
           teamId: vercelTeamId,
+          sleepImpl,
+          readyTimeoutMs: vercelReadyTimeoutMs,
+          readyPollIntervalMs: vercelReadyPollIntervalMs,
           fetchImpl
         });
 
