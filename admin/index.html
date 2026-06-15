@@ -779,6 +779,10 @@
           Publish shared defaults for OpenAI, Vercel, and GitHub. Web Builder can load them in one click while
           rate limits still apply per identity.
         </p>
+        <p class="text-muted">
+          Leave a key field blank to keep the saved value for that provider. Use <strong>Clear defaults</strong>
+          only when you want to remove the saved shared keys.
+        </p>
         <div class="form-group">
           <label for="default-api-key">Default OpenAI API key</label>
           <input id="default-api-key" type="password" placeholder="sk-..." />
@@ -2496,6 +2500,15 @@
     }
   }
 
+  function readPreservedDefaultPlain(field) {
+    const value = defaultRecord?.[field];
+    return typeof value === 'string' && value.trim() ? value : null;
+  }
+
+  function readPreservedDefaultCipher(field) {
+    return defaultRecord?.[field] || null;
+  }
+
   function setRecoveryStatus(message, tone = 'muted') {
     if (!recoveryStatusEl) return;
     recoveryStatusEl.innerText = message;
@@ -2840,9 +2853,10 @@
     const passphrase = (defaultPassphraseInput.value || '').trim();
     const hint = (defaultHintInput.value || '').trim();
     const hasPassphrase = Boolean(passphrase);
+    const hasNewKey = Boolean(apiKey || vercelToken || githubToken);
 
-    if (!apiKey && !vercelToken && !githubToken) {
-      updateDefaultStatus('Add at least one key before publishing defaults.');
+    if (!hasNewKey) {
+      updateDefaultStatus('Enter at least one new key. Blank fields keep saved defaults; Clear defaults removes them.');
       return false;
     }
 
@@ -2864,14 +2878,21 @@
       const cipher = hasPassphrase && apiKey ? await Gun.SEA.encrypt(apiKey, passphrase) : null;
       const vercelCipher = hasPassphrase && vercelToken ? await Gun.SEA.encrypt(vercelToken, passphrase) : null;
       const githubCipher = hasPassphrase && githubToken ? await Gun.SEA.encrypt(githubToken, passphrase) : null;
+      const nextApiKey = apiKey || readPreservedDefaultPlain('apiKey');
+      const nextVercelToken = vercelToken || readPreservedDefaultPlain('vercelToken');
+      const nextGithubToken = githubToken || readPreservedDefaultPlain('githubToken');
+      const nextApiKeyCipher = apiKey ? cipher : readPreservedDefaultCipher('apiKeyCipher');
+      const nextVercelTokenCipher = vercelToken ? vercelCipher : readPreservedDefaultCipher('vercelTokenCipher');
+      const nextGithubTokenCipher = githubToken ? githubCipher : readPreservedDefaultCipher('githubTokenCipher');
+      const nextHint = hasPassphrase ? (hint || defaultRecord?.hint || '') : (defaultRecord?.hint || '');
       const payload = {
-        apiKey: apiKey || null,
-        vercelToken: vercelToken || null,
-        githubToken: githubToken || null,
-        apiKeyCipher: cipher,
-        vercelTokenCipher: vercelCipher,
-        githubTokenCipher: githubCipher,
-        hint: hasPassphrase ? hint : '',
+        apiKey: nextApiKey,
+        vercelToken: nextVercelToken,
+        githubToken: nextGithubToken,
+        apiKeyCipher: nextApiKeyCipher,
+        vercelTokenCipher: nextVercelTokenCipher,
+        githubTokenCipher: nextGithubTokenCipher,
+        hint: nextHint,
         updatedAt: Date.now(),
         updatedBy: alias || 'admin'
       };
@@ -2888,9 +2909,13 @@
       defaultGithubInput.value = '';
       defaultPassphraseInput.value = '';
       defaultHintInput.value = '';
+      defaultRecord = {
+        ...defaultRecord,
+        ...payload
+      };
       updateDefaultStatus(hasPassphrase
-        ? 'Published. Password-free defaults and encrypted copies are both ready.'
-        : 'Published. Password-free defaults are ready and encrypted copies were cleared.');
+        ? 'Published. Blank fields kept their saved defaults; updated keys refreshed encrypted copies.'
+        : 'Published. Blank fields kept their saved defaults.');
       return true;
     } catch (error) {
       updateDefaultStatus(hasPassphrase
