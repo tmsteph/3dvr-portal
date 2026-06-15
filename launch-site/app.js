@@ -10,6 +10,7 @@ const audienceInput = document.getElementById('site-audience');
 const actionInput = document.getElementById('site-action');
 const styleInput = document.getElementById('site-style');
 const slugInput = document.getElementById('site-slug');
+const customDomainInput = document.getElementById('custom-domain');
 const notesInput = document.getElementById('site-notes');
 const revisionInput = document.getElementById('revision-request');
 const generateButton = document.getElementById('generate-site');
@@ -76,6 +77,7 @@ function collectFormState() {
     action: actionInput.value.trim(),
     style: styleInput.value,
     slug: sanitizeSlug(slugInput.value),
+    customDomain: sanitizeCustomDomain(customDomainInput.value),
     notes: notesInput.value.trim()
   };
 }
@@ -88,6 +90,30 @@ function sanitizeSlug(value) {
     .replace(/^-+|-+$/g, '')
     .replace(/-{2,}/g, '-')
     .slice(0, 48);
+}
+
+function sanitizeCustomDomain(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/^\.+|\.+$/g, '');
+
+  if (!normalized || !normalized.includes('.') || normalized.includes('..') || normalized.includes('*')) {
+    return '';
+  }
+
+  const labels = normalized.split('.');
+  if (labels.some(label => (
+    !label
+    || label.length > 63
+    || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label)
+  ))) {
+    return '';
+  }
+
+  return normalized;
 }
 
 function subscribeToSharedDefaults() {
@@ -265,7 +291,8 @@ async function publishSite() {
   }
 
   setBusy(true, 'publish');
-  setStatus(`Publishing ${state.slug}.3dvr.tech...`, 'info');
+  const launchAddress = state.customDomain || `${state.slug}.3dvr.tech`;
+  setStatus(`Publishing ${launchAddress}...`, 'info');
   publishResult.innerHTML = '';
 
   try {
@@ -277,6 +304,7 @@ async function publishSite() {
       body: JSON.stringify({
         projectName: `3dvr-${state.slug}`,
         subdomain: state.slug,
+        ...(state.customDomain ? { customDomain: state.customDomain } : {}),
         html: currentHtml,
         title: currentTitle,
         ...(sharedSecrets.vercel ? { token: sharedSecrets.vercel } : {})
@@ -386,6 +414,7 @@ function hydrateStoredDraft() {
     actionInput.value = formState.action || '';
     styleInput.value = formState.style || styleInput.value;
     slugInput.value = formState.slug || '';
+    customDomainInput.value = formState.customDomain || '';
     notesInput.value = formState.notes || '';
 
     previewTitle.textContent = currentTitle;

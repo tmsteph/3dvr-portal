@@ -11,6 +11,7 @@ test('site launcher exposes the simple customer publishing flow', async () => {
   assert.match(html, /id="business-name"/);
   assert.match(html, /id="site-purpose"/);
   assert.match(html, /id="site-slug"/);
+  assert.match(html, /id="custom-domain"/);
   assert.match(html, /id="publish-site"/);
   assert.match(html, /id="revision-request"[\s\S]*id="publish-site"/);
   assert.doesNotMatch(html, /class="preview-header"[\s\S]*id="publish-site"[\s\S]*<\/div>\s*<iframe/);
@@ -25,6 +26,8 @@ test('site launcher exposes the simple customer publishing flow', async () => {
   assert.match(app, /fetch\('\/api\/openai-site'/);
   assert.match(app, /fetch\('\/api\/vercel-deploy'/);
   assert.match(app, /subdomain: state\.slug/);
+  assert.match(app, /customDomain: state\.customDomain/);
+  assert.match(app, /sanitizeCustomDomain\(customDomainInput\.value\)/);
   assert.match(app, /readDefaultSecret\(data, 'openai'\)/);
   assert.match(app, /readDefaultSecret\(data, 'vercel'\)/);
   assert.match(app, /waitForSharedSecret\('openai'/);

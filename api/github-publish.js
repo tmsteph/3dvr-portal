@@ -9,6 +9,12 @@ const DEFAULT_VERCEL_READY_TIMEOUT_MS = 30_000;
 const DEFAULT_VERCEL_READY_POLL_INTERVAL_MS = 1_000;
 const VERCEL_READY_STATE = 'READY';
 const VERCEL_FAILED_READY_STATES = new Set(['ERROR', 'CANCELED']);
+const VERCEL_DOMAIN_EXISTS_CODES = new Set([
+  'domain_already_exists',
+  'domain_already_in_project',
+  'domain_already_in_use',
+  'domain_exists'
+]);
 
 function resolveSiteLaunchVercelTeamId(configuredTeamId) {
   return [
@@ -34,6 +40,31 @@ function parseProvider(req) {
     return fromBody;
   }
   return 'github';
+}
+
+function parseVercelErrorPayload(errorText) {
+  if (!errorText) {
+    return { code: '', details: null };
+  }
+
+  try {
+    const parsed = JSON.parse(errorText);
+    return {
+      code: parsed?.error?.code || parsed?.code || '',
+      details: parsed?.error || parsed
+    };
+  } catch (parseError) {
+    return { code: '', details: null };
+  }
+}
+
+function createVercelApiError(label, response, errorText) {
+  const { code, details } = parseVercelErrorPayload(errorText);
+  const error = new Error(`${label} ${response.status}: ${errorText || 'Unknown error'}`);
+  error.status = response.status;
+  error.code = code;
+  error.details = details;
+  return error;
 }
 
 function resolveGithubRepo(body = {}) {
@@ -125,11 +156,49 @@ export function sanitizeLaunchSubdomain(value) {
   return normalized;
 }
 
+export function sanitizeCustomDomain(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/^\.+|\.+$/g, '');
+
+  if (!normalized || normalized.length > 253 || !normalized.includes('.')) {
+    return '';
+  }
+
+  if (normalized.includes('..') || normalized.includes('*')) {
+    return '';
+  }
+
+  const labels = normalized.split('.');
+  if (labels.some(label => (
+    !label
+    || label.length > 63
+    || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label)
+  ))) {
+    return '';
+  }
+
+  return normalized;
+}
+
 export function resolveLaunchDomain(body = {}, options = {}) {
   const baseDomain = String(options.baseDomain || process.env.SITE_LAUNCH_BASE_DOMAIN || '3dvr.tech')
     .trim()
     .toLowerCase()
     .replace(/^\.+|\.+$/g, '');
+
+  const customDomain = sanitizeCustomDomain(body.customDomain || body.domain);
+  if (customDomain) {
+    return {
+      subdomain: customDomain.split('.')[0],
+      domain: customDomain,
+      baseDomain: customDomain.split('.').slice(-2).join('.'),
+      customDomain: true
+    };
+  }
 
   const requestedSubdomain = body.subdomain || body.siteSlug || body.slug || body.alias;
   const subdomain = sanitizeLaunchSubdomain(requestedSubdomain);
@@ -241,17 +310,7 @@ async function assignVercelAlias({ token, deploymentId, domain, teamId, fetchImp
 
   if (!response.ok) {
     const errorText = await response.text();
-    const error = new Error(`Vercel alias error ${response.status}: ${errorText || 'Unknown error'}`);
-    error.status = response.status;
-    try {
-      const parsed = JSON.parse(errorText);
-      error.code = parsed?.error?.code || parsed?.code || '';
-      error.details = parsed?.error || parsed;
-    } catch (parseError) {
-      error.code = '';
-      error.details = null;
-    }
-    throw error;
+    throw createVercelApiError('Vercel alias error', response, errorText);
   }
 
   const data = await response.json();
@@ -259,6 +318,65 @@ async function assignVercelAlias({ token, deploymentId, domain, teamId, fetchImp
     alias: data.alias || domain,
     aliasUrl: `https://${data.alias || domain}`,
     aliasAssigned: true
+  };
+}
+
+function isVercelDomainExistsError(error) {
+  const code = String(error?.code || '').trim();
+  const message = String(error?.message || '').toLowerCase();
+  return VERCEL_DOMAIN_EXISTS_CODES.has(code)
+    || (message.includes('domain') && (
+      message.includes('already exists')
+      || message.includes('already added')
+      || message.includes('already in use')
+    ));
+}
+
+async function addVercelProjectDomain({
+  token,
+  projectName,
+  domain,
+  teamId,
+  fetchImpl = globalThis.fetch
+}) {
+  if (!domain || !projectName) {
+    return null;
+  }
+
+  const url = withVercelTeamScope(
+    `https://api.vercel.com/v10/projects/${encodeURIComponent(projectName)}/domains`,
+    teamId
+  );
+  const response = await fetchImpl(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ name: domain })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    const error = createVercelApiError('Vercel project domain error', response, errorText);
+    if (isVercelDomainExistsError(error)) {
+      return {
+        projectDomain: domain,
+        projectDomainAdded: false,
+        projectDomainReady: true,
+        projectDomainStatus: 'exists'
+      };
+    }
+    throw error;
+  }
+
+  const data = await response.json();
+  return {
+    projectDomain: data.name || domain,
+    projectDomainAdded: true,
+    projectDomainReady: data.verified !== false,
+    projectDomainVerified: data.verified,
+    projectDomainVerification: data.verification
   };
 }
 
@@ -272,7 +390,28 @@ function toVercelAliasFallback({ error, domain }) {
     aliasError: message,
     aliasErrorCode: code || undefined,
     aliasStatus: error?.status,
+    aliasDetails: error?.details || undefined,
     domainSetupUrl: code === 'domain_not_found' ? 'https://vercel.com/dashboard/domains' : undefined
+  };
+}
+
+function toVercelProjectDomainFallback({ error, domain }) {
+  const code = String(error?.code || '').trim();
+  const message = error?.message || 'Vercel project domain setup failed.';
+  return {
+    alias: domain,
+    aliasUrl: null,
+    aliasAssigned: false,
+    aliasError: message,
+    aliasErrorCode: code || undefined,
+    aliasStatus: error?.status,
+    aliasDetails: error?.details || undefined,
+    projectDomain: domain,
+    projectDomainAdded: false,
+    projectDomainReady: false,
+    projectDomainError: message,
+    projectDomainErrorCode: code || undefined,
+    domainSetupUrl: 'https://vercel.com/dashboard/domains'
   };
 }
 
@@ -373,6 +512,7 @@ async function createVercelDeployment({
   readyPollIntervalMs,
   fetchImpl = globalThis.fetch
 }) {
+  const sanitizedProjectName = sanitizeProjectName(projectName);
   const files = [
     { file: 'index.html', data: html },
     {
@@ -384,7 +524,7 @@ async function createVercelDeployment({
   ];
 
   const payload = {
-    name: sanitizeProjectName(projectName),
+    name: sanitizedProjectName,
     files,
     projectSettings: {
       framework: null
@@ -411,6 +551,7 @@ async function createVercelDeployment({
   let deployment = data;
 
   if (launchDomain?.domain && data.id) {
+    let projectDomainResult = null;
     deployment = await waitForVercelDeploymentReady({
       token,
       deploymentId: data.id,
@@ -421,6 +562,27 @@ async function createVercelDeployment({
       timeoutMs: readyTimeoutMs,
       pollIntervalMs: readyPollIntervalMs
     });
+
+    try {
+      projectDomainResult = await addVercelProjectDomain({
+        token,
+        projectName: sanitizedProjectName,
+        domain: launchDomain.domain,
+        teamId,
+        fetchImpl
+      });
+    } catch (error) {
+      return {
+        ...toVercelDeploymentResult(deployment),
+        ...toVercelProjectDomainFallback({
+          error,
+          domain: launchDomain.domain
+        }),
+        subdomain: launchDomain.subdomain,
+        baseDomain: launchDomain.baseDomain,
+        customDomain: launchDomain.customDomain || undefined
+      };
+    }
 
     let aliasResult;
     try {
@@ -440,9 +602,11 @@ async function createVercelDeployment({
 
     return {
       ...toVercelDeploymentResult(deployment),
+      ...projectDomainResult,
       ...aliasResult,
       subdomain: launchDomain.subdomain,
-      baseDomain: launchDomain.baseDomain
+      baseDomain: launchDomain.baseDomain,
+      customDomain: launchDomain.customDomain || undefined
     };
   }
 
@@ -483,12 +647,12 @@ export function createGithubPublishHandler(options = {}) {
 
       try {
         const token = body.token || vercelToken;
-        const launchDomain = body.subdomain || body.siteSlug || body.slug || body.alias
+        const launchDomain = body.customDomain || body.domain || body.subdomain || body.siteSlug || body.slug || body.alias
           ? resolveLaunchDomain(body, { baseDomain: siteLaunchBaseDomain })
           : null;
 
-        if ((body.subdomain || body.siteSlug || body.slug || body.alias) && !launchDomain) {
-          return res.status(400).json({ error: 'Choose a valid, available 3dvr.tech subdomain.' });
+        if ((body.customDomain || body.domain || body.subdomain || body.siteSlug || body.slug || body.alias) && !launchDomain) {
+          return res.status(400).json({ error: 'Choose a valid launch address or custom domain.' });
         }
 
         const result = await createVercelDeployment({
