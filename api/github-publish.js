@@ -241,7 +241,17 @@ async function assignVercelAlias({ token, deploymentId, domain, teamId, fetchImp
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Vercel alias error ${response.status}: ${errorText || 'Unknown error'}`);
+    const error = new Error(`Vercel alias error ${response.status}: ${errorText || 'Unknown error'}`);
+    error.status = response.status;
+    try {
+      const parsed = JSON.parse(errorText);
+      error.code = parsed?.error?.code || parsed?.code || '';
+      error.details = parsed?.error || parsed;
+    } catch (parseError) {
+      error.code = '';
+      error.details = null;
+    }
+    throw error;
   }
 
   const data = await response.json();
@@ -249,6 +259,20 @@ async function assignVercelAlias({ token, deploymentId, domain, teamId, fetchImp
     alias: data.alias || domain,
     aliasUrl: `https://${data.alias || domain}`,
     aliasAssigned: true
+  };
+}
+
+function toVercelAliasFallback({ error, domain }) {
+  const code = String(error?.code || '').trim();
+  const message = error?.message || 'Vercel alias assignment failed.';
+  return {
+    alias: domain,
+    aliasUrl: null,
+    aliasAssigned: false,
+    aliasError: message,
+    aliasErrorCode: code || undefined,
+    aliasStatus: error?.status,
+    domainSetupUrl: code === 'domain_not_found' ? 'https://vercel.com/dashboard/domains' : undefined
   };
 }
 
@@ -398,13 +422,21 @@ async function createVercelDeployment({
       pollIntervalMs: readyPollIntervalMs
     });
 
-    const aliasResult = await assignVercelAlias({
-      token,
-      deploymentId: data.id,
-      domain: launchDomain.domain,
-      teamId,
-      fetchImpl
-    });
+    let aliasResult;
+    try {
+      aliasResult = await assignVercelAlias({
+        token,
+        deploymentId: data.id,
+        domain: launchDomain.domain,
+        teamId,
+        fetchImpl
+      });
+    } catch (error) {
+      aliasResult = toVercelAliasFallback({
+        error,
+        domain: launchDomain.domain
+      });
+    }
 
     return {
       ...toVercelDeploymentResult(deployment),
