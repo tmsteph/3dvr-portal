@@ -341,9 +341,19 @@ async function publishSite() {
 }
 
 function formatAliasError(result = {}) {
+  const verification = Array.isArray(result.projectDomainVerification)
+    ? result.projectDomainVerification.find(record => record?.type && record?.domain && record?.value)
+    : null;
+  if (verification) {
+    return `Add a ${verification.type} record for ${verification.domain} with value ${verification.value}, then publish again.`;
+  }
   if (result.aliasErrorCode === 'domain_not_found') {
     const domain = result.alias || `${collectFormState().slug}.3dvr.tech`;
     return `${domain} is not available in the Vercel team yet.`;
+  }
+  if (result.aliasErrorCode === 'missing_txt_record' || result.aliasErrorCode === 'domain_not_verified') {
+    const domain = result.alias || `${collectFormState().slug}.3dvr.tech`;
+    return `${domain} needs DNS verification before it can be attached.`;
   }
   return result.aliasError || 'Custom address setup failed.';
 }
