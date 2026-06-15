@@ -374,9 +374,44 @@ async function addVercelProjectDomain({
   return {
     projectDomain: data.name || domain,
     projectDomainAdded: true,
+    projectDomainStatus: data.verified === false ? 'pending' : 'added',
     projectDomainReady: data.verified !== false,
     projectDomainVerified: data.verified,
     projectDomainVerification: data.verification
+  };
+}
+
+async function verifyVercelProjectDomain({
+  token,
+  projectName,
+  domain,
+  teamId,
+  fetchImpl = globalThis.fetch
+}) {
+  const url = withVercelTeamScope(
+    `https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}/domains/${encodeURIComponent(domain)}/verify`,
+    teamId
+  );
+  const response = await fetchImpl(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw createVercelApiError('Vercel project domain verify error', response, errorText);
+  }
+
+  const data = await response.json();
+  return {
+    projectDomain: data.name || domain,
+    projectDomainReady: data.verified !== false,
+    projectDomainVerified: data.verified,
+    projectDomainVerification: data.verification,
+    projectDomainStatus: data.verified === false ? 'pending' : 'verified'
   };
 }
 
@@ -392,6 +427,29 @@ function toVercelAliasFallback({ error, domain }) {
     aliasStatus: error?.status,
     aliasDetails: error?.details || undefined,
     domainSetupUrl: code === 'domain_not_found' ? 'https://vercel.com/dashboard/domains' : undefined
+  };
+}
+
+function toVercelUnverifiedDomainFallback({ domain, projectDomainResult, error }) {
+  const code = String(error?.code || '').trim() || 'domain_not_verified';
+  const message = error?.message || `Vercel project domain ${domain} is not verified yet.`;
+  return {
+    alias: domain,
+    aliasUrl: null,
+    aliasAssigned: false,
+    aliasError: message,
+    aliasErrorCode: code,
+    aliasStatus: error?.status,
+    aliasDetails: error?.details || undefined,
+    projectDomain: projectDomainResult?.projectDomain || domain,
+    projectDomainAdded: projectDomainResult?.projectDomainAdded,
+    projectDomainReady: false,
+    projectDomainVerified: false,
+    projectDomainVerification: error?.details?.verification || projectDomainResult?.projectDomainVerification,
+    projectDomainStatus: 'pending',
+    projectDomainError: message,
+    projectDomainErrorCode: code,
+    domainSetupUrl: 'https://vercel.com/dashboard/domains'
   };
 }
 
@@ -577,6 +635,47 @@ async function createVercelDeployment({
         ...toVercelProjectDomainFallback({
           error,
           domain: launchDomain.domain
+        }),
+        subdomain: launchDomain.subdomain,
+        baseDomain: launchDomain.baseDomain,
+        customDomain: launchDomain.customDomain || undefined
+      };
+    }
+
+    if (projectDomainResult?.projectDomainReady === false) {
+      try {
+        const verifiedDomainResult = await verifyVercelProjectDomain({
+          token,
+          projectName: sanitizedProjectName,
+          domain: launchDomain.domain,
+          teamId,
+          fetchImpl
+        });
+        projectDomainResult = {
+          ...projectDomainResult,
+          ...verifiedDomainResult
+        };
+      } catch (error) {
+        return {
+          ...toVercelDeploymentResult(deployment),
+          ...toVercelUnverifiedDomainFallback({
+            domain: launchDomain.domain,
+            projectDomainResult,
+            error
+          }),
+          subdomain: launchDomain.subdomain,
+          baseDomain: launchDomain.baseDomain,
+          customDomain: launchDomain.customDomain || undefined
+        };
+      }
+    }
+
+    if (projectDomainResult?.projectDomainReady === false) {
+      return {
+        ...toVercelDeploymentResult(deployment),
+        ...toVercelUnverifiedDomainFallback({
+          domain: launchDomain.domain,
+          projectDomainResult
         }),
         subdomain: launchDomain.subdomain,
         baseDomain: launchDomain.baseDomain,

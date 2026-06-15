@@ -36,7 +36,7 @@ test('site launcher exposes the simple customer publishing flow', async () => {
   assert.match(app, /Generating\.\.\./);
   assert.match(app, /Creating the deployment in the 3dvr workspace/);
   assert.match(app, /formatAliasError\(result\)/);
-  assert.match(app, /Published on Vercel\. The 3dvr\.tech address still needs domain setup\./);
+  assert.match(app, /Published on Vercel\. The custom address still needs domain setup\./);
   assert.match(app, /domain_not_found/);
 
   assert.match(portalHome, /href="launch-site\/"/);
