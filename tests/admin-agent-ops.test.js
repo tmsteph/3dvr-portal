@@ -129,3 +129,22 @@ test('portal home links to the agent ops dashboard', async () => {
   assert.match(html, /Agent Ops/);
   assert.match(html, /portal session, control the 3dvr-agent/);
 });
+
+test('admin shared defaults preserve saved provider keys when fields are blank', async () => {
+  const adminUrl = new URL('../admin/index.html', import.meta.url);
+  assert.equal(await fileExists(adminUrl), true, 'admin/index.html should exist');
+
+  const html = await readFile(adminUrl, 'utf8');
+  assert.match(html, /Leave a key field blank to keep the saved value for that provider/);
+  assert.match(html, /function readPreservedDefaultPlain\(field\)/);
+  assert.match(html, /function readPreservedDefaultCipher\(field\)/);
+  assert.match(html, /const nextApiKey = apiKey \|\| readPreservedDefaultPlain\('apiKey'\)/);
+  assert.match(html, /const nextVercelToken = vercelToken \|\| readPreservedDefaultPlain\('vercelToken'\)/);
+  assert.match(html, /const nextGithubToken = githubToken \|\| readPreservedDefaultPlain\('githubToken'\)/);
+  assert.match(html, /apiKey: nextApiKey/);
+  assert.match(html, /vercelToken: nextVercelToken/);
+  assert.match(html, /githubToken: nextGithubToken/);
+  assert.doesNotMatch(html, /apiKey: apiKey \|\| null/);
+  assert.doesNotMatch(html, /vercelToken: vercelToken \|\| null/);
+  assert.doesNotMatch(html, /githubToken: githubToken \|\| null/);
+});
