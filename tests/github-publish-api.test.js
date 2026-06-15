@@ -31,6 +31,30 @@ function createMockRes() {
   };
 }
 
+async function withTemporaryEnv(overrides, callback) {
+  const previous = {};
+  Object.keys(overrides).forEach(key => {
+    previous[key] = process.env[key];
+    if (overrides[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = overrides[key];
+    }
+  });
+
+  try {
+    return await callback();
+  } finally {
+    Object.keys(overrides).forEach(key => {
+      if (previous[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = previous[key];
+      }
+    });
+  }
+}
+
 test('github publish handler rejects non-post methods', async () => {
   const handler = createGithubPublishHandler();
   const req = { method: 'GET', headers: {}, body: {} };
@@ -150,6 +174,88 @@ test('github publish handler supports vercel deploy provider mode', async () => 
   assert.equal(res.body.url, 'https://project-demo.vercel.app');
   assert.equal(requestPayload.name, 'project-demo');
   assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_KXuVUd00RMnDsjoqwdREcZ7J$/);
+});
+
+test('vercel deploy provider ignores generic Vercel team env for site launches', async () => {
+  await withTemporaryEnv({
+    SITE_LAUNCH_VERCEL_TEAM_ID: '   ',
+    VERCEL_TEAM_ID: 'team_tmsteph'
+  }, async () => {
+    const calls = [];
+    const handler = createGithubPublishHandler({
+      fetchImpl: async (url, options = {}) => {
+        calls.push({ url: String(url), options });
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_3dvr',
+              url: '3dvr-test.vercel.app',
+              inspectUrl: 'https://vercel.com/3dvr/test/deployments/dpl_3dvr'
+            };
+          }
+        };
+      }
+    });
+
+    const req = {
+      method: 'POST',
+      query: { provider: 'vercel' },
+      headers: {},
+      body: {
+        token: 'vercel_token',
+        projectName: '3dvr-test',
+        html: '<html><body>deployment test content</body></html>'
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_KXuVUd00RMnDsjoqwdREcZ7J$/);
+    assert.doesNotMatch(calls[0].url, /team_tmsteph/);
+  });
+});
+
+test('vercel deploy provider ignores client team overrides', async () => {
+  const calls = [];
+  const handler = createGithubPublishHandler({
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            id: 'dpl_3dvr',
+            url: '3dvr-test.vercel.app',
+            inspectUrl: 'https://vercel.com/3dvr/test/deployments/dpl_3dvr'
+          };
+        }
+      };
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      token: 'vercel_token',
+      teamId: 'team_tmsteph',
+      projectName: '3dvr-test',
+      html: '<html><body>deployment test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_KXuVUd00RMnDsjoqwdREcZ7J$/);
+  assert.doesNotMatch(calls[0].url, /team_tmsteph/);
 });
 
 test('sanitizeLaunchSubdomain normalizes customer site addresses', () => {
