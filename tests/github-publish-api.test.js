@@ -580,9 +580,8 @@ test('vercel deploy provider verifies project domains before aliasing', async ()
           async text() {
             return JSON.stringify({
               error: {
-                code: 'domain_not_verified',
-                message: 'The domain test.3dvr.tech is not verified and cannot be used as an alias',
-                verification: [{ type: 'TXT', domain: '_vercel.test.3dvr.tech', value: 'vc-domain-verify=test' }]
+                code: 'missing_txt_record',
+                message: 'Domain _vercel.3dvr.tech is missing required TXT Record "vc-domain-verify=test.3dvr.tech,b1983a19514666902356"'
               }
             });
           }
@@ -614,12 +613,12 @@ test('vercel deploy provider verifies project domains before aliasing', async ()
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.aliasAssigned, false);
   assert.equal(res.body.alias, 'test.3dvr.tech');
-  assert.equal(res.body.aliasErrorCode, 'domain_not_verified');
+  assert.equal(res.body.aliasErrorCode, 'missing_txt_record');
   assert.equal(res.body.projectDomainAdded, true);
   assert.equal(res.body.projectDomainReady, false);
   assert.equal(res.body.projectDomainStatus, 'pending');
   assert.deepEqual(res.body.projectDomainVerification, [
-    { type: 'TXT', domain: '_vercel.test.3dvr.tech', value: 'vc-domain-verify=test' }
+    { type: 'TXT', domain: '_vercel.3dvr.tech', value: 'vc-domain-verify=test.3dvr.tech,b1983a19514666902356' }
   ]);
   assert.equal(res.body.url, 'https://3dvr-test.vercel.app');
   assert.equal(calls.length, 3);

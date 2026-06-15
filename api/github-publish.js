@@ -67,6 +67,20 @@ function createVercelApiError(label, response, errorText) {
   return error;
 }
 
+function extractVercelVerificationFromMessage(message) {
+  const text = String(message || '');
+  const match = text.match(/Domain\s+([^\s]+)\s+is\s+missing\s+required\s+([A-Z]+)\s+Record\s+"([^"]+)"/i);
+  if (!match) {
+    return undefined;
+  }
+
+  return [{
+    type: match[2].toUpperCase(),
+    domain: match[1],
+    value: match[3]
+  }];
+}
+
 function resolveGithubRepo(body = {}) {
   const explicit = String(body.repo || '').trim();
   if (explicit && explicit.includes('/')) {
@@ -433,6 +447,9 @@ function toVercelAliasFallback({ error, domain }) {
 function toVercelUnverifiedDomainFallback({ domain, projectDomainResult, error }) {
   const code = String(error?.code || '').trim() || 'domain_not_verified';
   const message = error?.message || `Vercel project domain ${domain} is not verified yet.`;
+  const verification = error?.details?.verification
+    || extractVercelVerificationFromMessage(error?.details?.message || error?.message)
+    || projectDomainResult?.projectDomainVerification;
   return {
     alias: domain,
     aliasUrl: null,
@@ -445,7 +462,7 @@ function toVercelUnverifiedDomainFallback({ domain, projectDomainResult, error }
     projectDomainAdded: projectDomainResult?.projectDomainAdded,
     projectDomainReady: false,
     projectDomainVerified: false,
-    projectDomainVerification: error?.details?.verification || projectDomainResult?.projectDomainVerification,
+    projectDomainVerification: verification,
     projectDomainStatus: 'pending',
     projectDomainError: message,
     projectDomainErrorCode: code,
