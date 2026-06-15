@@ -323,10 +323,10 @@ async function publishSite() {
       if (result.aliasError) {
         publishResult.innerHTML += [
           '<span class="publish-note">',
-          `The 3dvr.tech address was not attached yet. ${escapeHtml(formatAliasError(result))}`,
+          `The custom address was not attached yet. ${escapeHtml(formatAliasError(result))}`,
           '</span>'
         ].join('');
-        setStatus('Published on Vercel. The 3dvr.tech address still needs domain setup.', 'warning');
+        setStatus('Published on Vercel. The custom address still needs domain setup.', 'warning');
       } else {
         setStatus('Published.', 'success');
       }

@@ -535,6 +535,99 @@ test('vercel deploy provider reports custom domain setup failures with deploymen
   assert.equal(calls.length, 2);
 });
 
+test('vercel deploy provider verifies project domains before aliasing', async () => {
+  const calls = [];
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
+    siteLaunchBaseDomain: '3dvr.tech',
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_unverified_domain',
+              url: '3dvr-test.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_unverified_domain',
+              readyState: 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v10/projects/3dvr-test/domains')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              name: 'test.3dvr.tech',
+              verified: false,
+              verification: [{ type: 'TXT', domain: '_vercel.test.3dvr.tech', value: 'vc-domain-verify=test' }]
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v9/projects/3dvr-test/domains/test.3dvr.tech/verify')) {
+        return {
+          ok: false,
+          status: 400,
+          async text() {
+            return JSON.stringify({
+              error: {
+                code: 'domain_not_verified',
+                message: 'The domain test.3dvr.tech is not verified and cannot be used as an alias',
+                verification: [{ type: 'TXT', domain: '_vercel.test.3dvr.tech', value: 'vc-domain-verify=test' }]
+              }
+            });
+          }
+        };
+      }
+
+      if (String(url).includes('/aliases')) {
+        throw new Error('alias should not run when project domain verification fails');
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-test',
+      subdomain: 'test',
+      html: '<html><body>domain verification test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.aliasAssigned, false);
+  assert.equal(res.body.alias, 'test.3dvr.tech');
+  assert.equal(res.body.aliasErrorCode, 'domain_not_verified');
+  assert.equal(res.body.projectDomainAdded, true);
+  assert.equal(res.body.projectDomainReady, false);
+  assert.equal(res.body.projectDomainStatus, 'pending');
+  assert.deepEqual(res.body.projectDomainVerification, [
+    { type: 'TXT', domain: '_vercel.test.3dvr.tech', value: 'vc-domain-verify=test' }
+  ]);
+  assert.equal(res.body.url, 'https://3dvr-test.vercel.app');
+  assert.equal(calls.length, 3);
+  assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
+  assert.match(calls[1].url, /\/v10\/projects\/3dvr-test\/domains\?teamId=team_3dvr$/);
+  assert.match(calls[2].url, /\/v9\/projects\/3dvr-test\/domains\/test\.3dvr\.tech\/verify\?teamId=team_3dvr$/);
+});
+
 test('vercel deploy provider waits for deployment readiness before aliasing', async () => {
   const calls = [];
   let statusPollCount = 0;
