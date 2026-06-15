@@ -343,6 +343,74 @@ test('vercel deploy provider can use server token and assign a 3dvr subdomain', 
   });
 });
 
+test('vercel deploy provider returns deployment URL when custom domain is missing', async () => {
+  const calls = [];
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
+    siteLaunchBaseDomain: '3dvr.tech',
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_missing_domain',
+              url: '3dvr-test.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_missing_domain',
+              readyState: 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v2/deployments/dpl_missing_domain/aliases')) {
+        return {
+          ok: false,
+          status: 404,
+          async text() {
+            return JSON.stringify({
+              code: 'domain_not_found',
+              message: 'The domain "test.3dvr.tech" could not be found in your account.',
+              statusCode: 404
+            });
+          }
+        };
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-test',
+      subdomain: 'test',
+      html: '<html><body>deployment test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.aliasAssigned, false);
+  assert.equal(res.body.alias, 'test.3dvr.tech');
+  assert.equal(res.body.aliasUrl, null);
+  assert.equal(res.body.aliasErrorCode, 'domain_not_found');
+  assert.equal(res.body.aliasStatus, 404);
+  assert.equal(res.body.domainSetupUrl, 'https://vercel.com/dashboard/domains');
+  assert.match(res.body.aliasError, /Vercel alias error 404/);
+  assert.equal(res.body.url, 'https://3dvr-test.vercel.app');
+  assert.equal(calls.length, 2);
+});
+
 test('vercel deploy provider waits for deployment readiness before aliasing', async () => {
   const calls = [];
   let statusPollCount = 0;

@@ -292,7 +292,16 @@ async function publishSite() {
     const liveUrl = result.aliasUrl || result.url || result.inspectUrl;
     if (liveUrl) {
       publishResult.innerHTML = `Live: <a href="${escapeAttribute(liveUrl)}" target="_blank" rel="noopener">${escapeHtml(liveUrl)}</a>`;
-      setStatus('Published.', 'success');
+      if (result.aliasError) {
+        publishResult.innerHTML += [
+          '<span class="publish-note">',
+          `The 3dvr.tech address was not attached yet. ${escapeHtml(formatAliasError(result))}`,
+          '</span>'
+        ].join('');
+        setStatus('Published on Vercel. The 3dvr.tech address still needs domain setup.', 'warning');
+      } else {
+        setStatus('Published.', 'success');
+      }
     } else {
       setStatus('Published, but no live URL was returned.', 'warning');
     }
@@ -301,6 +310,14 @@ async function publishSite() {
   } finally {
     setBusy(false);
   }
+}
+
+function formatAliasError(result = {}) {
+  if (result.aliasErrorCode === 'domain_not_found') {
+    const domain = result.alias || `${collectFormState().slug}.3dvr.tech`;
+    return `${domain} is not available in the Vercel team yet.`;
+  }
+  return result.aliasError || 'Custom address setup failed.';
 }
 
 function setBusy(isBusy, operation = '') {

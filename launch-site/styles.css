@@ -252,6 +252,12 @@ button:disabled {
   font-weight: 800;
 }
 
+.publish-note {
+  display: block;
+  margin-top: 6px;
+  color: #ffe0a3;
+}
+
 @media (max-width: 860px) {
   .topbar {
     align-items: flex-start;
