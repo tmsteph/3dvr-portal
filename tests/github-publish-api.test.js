@@ -292,7 +292,8 @@ test('vercel deploy provider can use server token and assign a 3dvr subdomain', 
             return {
               id: 'dpl_launch_123',
               url: '3dvr-river-city-wellness.vercel.app',
-              inspectUrl: 'https://vercel.com/example/launch/dpl_launch_123'
+              inspectUrl: 'https://vercel.com/example/launch/dpl_launch_123',
+              readyState: 'READY'
             };
           }
         };
@@ -340,6 +341,159 @@ test('vercel deploy provider can use server token and assign a 3dvr subdomain', 
   assert.deepEqual(JSON.parse(calls[1].options.body), {
     alias: 'river-city-wellness.3dvr.tech'
   });
+});
+
+test('vercel deploy provider waits for deployment readiness before aliasing', async () => {
+  const calls = [];
+  let statusPollCount = 0;
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
+    siteLaunchBaseDomain: '3dvr.tech',
+    vercelReadyTimeoutMs: 3,
+    vercelReadyPollIntervalMs: 1,
+    sleepImpl: async () => {},
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments') && options.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_launch_queued',
+              url: '3dvr-ready-test.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_launch_queued',
+              readyState: 'BUILDING'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v13/deployments/dpl_launch_queued')) {
+        statusPollCount += 1;
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_launch_queued',
+              url: '3dvr-ready-test.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_launch_queued',
+              readyState: statusPollCount === 1 ? 'BUILDING' : 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v2/deployments/dpl_launch_queued/aliases')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              alias: 'ready-test.3dvr.tech'
+            };
+          }
+        };
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-ready-test',
+      subdomain: 'ready-test',
+      html: '<html><body>deployment readiness test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.aliasAssigned, true);
+  assert.equal(res.body.aliasUrl, 'https://ready-test.3dvr.tech');
+  assert.equal(calls.length, 4);
+  assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
+  assert.match(calls[1].url, /\/v13\/deployments\/dpl_launch_queued\?teamId=team_3dvr$/);
+  assert.match(calls[2].url, /\/v13\/deployments\/dpl_launch_queued\?teamId=team_3dvr$/);
+  assert.match(calls[3].url, /\/v2\/deployments\/dpl_launch_queued\/aliases\?teamId=team_3dvr$/);
+  assert.equal(calls[3].options.method, 'POST');
+});
+
+test('vercel deploy provider reports failed deployment readiness before aliasing', async () => {
+  const calls = [];
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
+    siteLaunchBaseDomain: '3dvr.tech',
+    vercelReadyTimeoutMs: 1,
+    vercelReadyPollIntervalMs: 1,
+    sleepImpl: async () => {},
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments') && options.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_launch_failed',
+              url: '3dvr-failed-test.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_launch_failed',
+              readyState: 'BUILDING'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v13/deployments/dpl_launch_failed')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_launch_failed',
+              readyState: 'ERROR'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/aliases')) {
+        throw new Error('alias should not run for a failed deployment');
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-failed-test',
+      subdomain: 'failed-test',
+      html: '<html><body>deployment readiness failure content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 500);
+  assert.match(res.body.error, /readyState ERROR/);
+  assert.equal(calls.length, 2);
+  assert.doesNotMatch(calls.map(call => call.url).join('\n'), /aliases/);
 });
 
 test('vercel deploy provider rejects reserved launch subdomains', async () => {
