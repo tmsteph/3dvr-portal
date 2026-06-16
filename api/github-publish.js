@@ -8,7 +8,8 @@ const DEFAULT_SITE_LAUNCH_VERCEL_TEAM_ID = 'team_KXuVUd00RMnDsjoqwdREcZ7J';
 const DEFAULT_SITE_LAUNCH_VERCEL_DNS_TEAM_ID = 'team_xxJGO7S7h1ZP4BHidYV0CX9Z';
 const DEFAULT_VERCEL_READY_TIMEOUT_MS = 30_000;
 const DEFAULT_VERCEL_READY_POLL_INTERVAL_MS = 1_000;
-const DEFAULT_VERCEL_DNS_VERIFY_RETRY_DELAY_MS = 1_000;
+const DEFAULT_VERCEL_DNS_VERIFY_RETRY_DELAY_MS = 2_000;
+const DEFAULT_VERCEL_DNS_VERIFY_MAX_ATTEMPTS = 5;
 const VERCEL_READY_STATE = 'READY';
 const VERCEL_FAILED_READY_STATES = new Set(['ERROR', 'CANCELED']);
 const VERCEL_DOMAIN_EXISTS_CODES = new Set([
@@ -588,7 +589,8 @@ async function verifyVercelProjectDomainWithDnsRetry({
   projectDomainResult,
   fetchImpl = globalThis.fetch,
   sleepImpl = delay,
-  retryDelayMs = DEFAULT_VERCEL_DNS_VERIFY_RETRY_DELAY_MS
+  retryDelayMs = DEFAULT_VERCEL_DNS_VERIFY_RETRY_DELAY_MS,
+  retryAttempts = DEFAULT_VERCEL_DNS_VERIFY_MAX_ATTEMPTS
 }) {
   try {
     return await verifyVercelProjectDomain({
@@ -624,22 +626,38 @@ async function verifyVercelProjectDomainWithDnsRetry({
       throw error;
     }
 
-    if (retryDelayMs > 0) {
-      await sleepImpl(retryDelayMs);
+    const maxAttempts = Math.max(1, Number(retryAttempts) || DEFAULT_VERCEL_DNS_VERIFY_MAX_ATTEMPTS);
+    let retryError = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (retryDelayMs > 0) {
+        await sleepImpl(retryDelayMs);
+      }
+
+      try {
+        const verifiedDomainResult = await verifyVercelProjectDomain({
+          token,
+          projectName,
+          domain,
+          teamId,
+          fetchImpl
+        });
+
+        return {
+          ...verifiedDomainResult,
+          ...dnsResult
+        };
+      } catch (nextError) {
+        retryError = nextError;
+      }
     }
 
-    const verifiedDomainResult = await verifyVercelProjectDomain({
-      token,
-      projectName,
-      domain,
-      teamId,
-      fetchImpl
-    });
-
-    return {
-      ...verifiedDomainResult,
-      ...dnsResult
+    retryError.dnsVerificationResult = dnsResult;
+    retryError.details = {
+      ...(retryError.details || {}),
+      verification: normalizeVercelVerificationRecords(verification)
     };
+    throw retryError;
   }
 }
 
@@ -677,6 +695,7 @@ function toVercelUnverifiedDomainFallback({ domain, projectDomainResult, error }
     projectDomainReady: false,
     projectDomainVerified: false,
     projectDomainVerification: verification,
+    ...(error?.dnsVerificationResult || {}),
     projectDomainStatus: 'pending',
     projectDomainError: message,
     projectDomainErrorCode: code,
@@ -801,6 +820,7 @@ async function createVercelDeployment({
   readyTimeoutMs,
   readyPollIntervalMs,
   dnsVerifyRetryDelayMs,
+  dnsVerifyRetryAttempts,
   fetchImpl = globalThis.fetch
 }) {
   const sanitizedProjectName = sanitizeProjectName(projectName);
@@ -887,7 +907,8 @@ async function createVercelDeployment({
           projectDomainResult,
           fetchImpl,
           sleepImpl,
-          retryDelayMs: dnsVerifyRetryDelayMs
+          retryDelayMs: dnsVerifyRetryDelayMs,
+          retryAttempts: dnsVerifyRetryAttempts
         });
         projectDomainResult = {
           ...projectDomainResult,
@@ -960,6 +981,7 @@ export function createGithubPublishHandler(options = {}) {
     vercelReadyTimeoutMs,
     vercelReadyPollIntervalMs,
     vercelDnsVerifyRetryDelayMs,
+    vercelDnsVerifyRetryAttempts,
     siteLaunchBaseDomain = process.env.SITE_LAUNCH_BASE_DOMAIN
   } = options;
   const vercelTeamId = resolveSiteLaunchVercelTeamId(configuredVercelTeamId);
@@ -1006,6 +1028,7 @@ export function createGithubPublishHandler(options = {}) {
           readyTimeoutMs: vercelReadyTimeoutMs,
           readyPollIntervalMs: vercelReadyPollIntervalMs,
           dnsVerifyRetryDelayMs: vercelDnsVerifyRetryDelayMs,
+          dnsVerifyRetryAttempts: vercelDnsVerifyRetryAttempts,
           fetchImpl
         });
 
