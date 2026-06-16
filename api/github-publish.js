@@ -347,7 +347,18 @@ async function assignVercelAlias({ token, deploymentId, domain, teamId, fetchImp
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw createVercelApiError('Vercel alias error', response, errorText);
+    const error = createVercelApiError('Vercel alias error', response, errorText);
+    if (response.status === 409 && String(error.code || '').trim() === 'not_modified') {
+      const alias = error?.details?.alias || domain;
+      return {
+        alias,
+        aliasUrl: `https://${alias}`,
+        aliasAssigned: true,
+        aliasAlreadyAssigned: true,
+        aliasStatus: response.status
+      };
+    }
+    throw error;
   }
 
   const data = await response.json();
