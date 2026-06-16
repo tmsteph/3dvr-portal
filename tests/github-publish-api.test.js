@@ -679,7 +679,7 @@ test('vercel deploy provider adds DNS verification records before retrying custo
 
       if (String(url).includes('/v9/projects/3dvr-test/domains/test.3dvr.tech/verify')) {
         verifyCount += 1;
-        if (verifyCount === 1) {
+        if (verifyCount <= 2) {
           return {
             ok: false,
             status: 400,
@@ -764,13 +764,14 @@ test('vercel deploy provider adds DNS verification records before retrying custo
       status: 'added'
     }
   ]);
-  assert.equal(calls.length, 6);
+  assert.equal(calls.length, 7);
   assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
   assert.match(calls[1].url, /\/v10\/projects\/3dvr-test\/domains\?teamId=team_3dvr$/);
   assert.match(calls[2].url, /\/v9\/projects\/3dvr-test\/domains\/test\.3dvr\.tech\/verify\?teamId=team_3dvr$/);
   assert.match(calls[3].url, /\/v3\/domains\/3dvr\.tech\/records\?teamId=team_dns$/);
   assert.match(calls[4].url, /\/v9\/projects\/3dvr-test\/domains\/test\.3dvr\.tech\/verify\?teamId=team_3dvr$/);
-  assert.match(calls[5].url, /\/v2\/deployments\/dpl_dns_verify\/aliases\?teamId=team_3dvr$/);
+  assert.match(calls[5].url, /\/v9\/projects\/3dvr-test\/domains\/test\.3dvr\.tech\/verify\?teamId=team_3dvr$/);
+  assert.match(calls[6].url, /\/v2\/deployments\/dpl_dns_verify\/aliases\?teamId=team_3dvr$/);
   assert.deepEqual(JSON.parse(calls[3].options.body), {
     name: '_vercel',
     type: 'TXT',
