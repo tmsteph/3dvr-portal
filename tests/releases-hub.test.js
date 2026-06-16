@@ -15,12 +15,22 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the weekly milestones through v0.0.48', async () => {
+  it('updates the release index with the weekly milestones through v0.0.50', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Latest Release/);
+    assert.match(html, /href="v0\.0\.50\.html">v0\.0\.50</);
+    assert.match(html, /Week of June 15, 2026/);
+    assert.match(html, /Launch Site/);
+    assert.match(html, /custom-domain publishing/);
+    assert.match(html, /href="\.\.\/sober-spark\/">Sober Spark</);
+    assert.match(html, /href="\.\.\/projects\/">Seed Deck</);
+    assert.match(html, /href="v0\.0\.49\.html">v0\.0\.49</);
+    assert.match(html, /Week of June 8, 2026/);
+    assert.match(html, /Stellar Drift/);
+    assert.match(html, /href="\.\.\/games\.html">Games<\/a> hub polish/);
     assert.match(html, /href="v0\.0\.48\.html">v0\.0\.48</);
     assert.match(html, /Week of June 1, 2026/);
     assert.match(html, /Wellness and consciousness apps/);
@@ -66,7 +76,9 @@ describe('release hub backfill', () => {
 
   it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
-      ['v0.0.48.html', /Week of June 1, 2026/, /Focus Flow direction/i, /pull\/670/],
+      ['v0.0.50.html', /Week of June 15, 2026/, /Launch Site publishing/i, /pull\/736/],
+      ['v0.0.49.html', /Week of June 8, 2026/, /Games and flight controls/i, /href="v0\.0\.50\.html"/],
+      ['v0.0.48.html', /Week of June 1, 2026/, /Focus Flow direction/i, /href="v0\.0\.49\.html"/],
       ['v0.0.47.html', /Week of May 25, 2026/, /Market Lab/i, /href="v0\.0\.48\.html"/],
       ['v0.0.46.html', /Week of May 18, 2026/, /Pure Gun media/i, /3dvr-web\/pull\/185/],
       ['v0.0.45.html', /Week of May 11, 2026/, /tenant-aware task scheduling/i, /3dvr-agent\/commit\/ec7c967/],
@@ -93,8 +105,25 @@ describe('release hub backfill', () => {
   });
 
   it('links shipped apps and docs inline where the release summaries mention them', async () => {
+    const release50 = await readFile(new URL('v0.0.50.html', baseDir), 'utf8');
+    const release49 = await readFile(new URL('v0.0.49.html', baseDir), 'utf8');
     const release47 = await readFile(new URL('v0.0.47.html', baseDir), 'utf8');
     const release48 = await readFile(new URL('v0.0.48.html', baseDir), 'utf8');
+
+    assert.match(release50, /href="\.\.\/web-builder-app\/">Launch Site</);
+    assert.match(release50, /href="\.\.\/sober-spark\/">Sober Spark</);
+    assert.match(release50, /href="\.\.\/projects\/">Seed Deck</);
+    assert.match(release50, /href="\.\.\/vr-portal\/">Spatial VR Portal</);
+    assert.match(release50, /pull\/734/);
+    assert.match(release50, /pull\/737/);
+
+    assert.match(release49, /href="\.\.\/stellar-flight\.html">Stellar Drift</);
+    assert.match(release49, /href="\.\.\/games\.html">Games</);
+    assert.match(release49, /href="\.\.\/pong\.html">Pong Arena</);
+    assert.match(release49, /href="\.\.\/meditation\/affirmations\.html">Manifestation Practice</);
+    assert.match(release49, /href="\.\.\/3dvr-girl\/">3DVR Girl</);
+    assert.match(release49, /pull\/673/);
+    assert.match(release49, /pull\/703/);
 
     assert.doesNotMatch(release47, /<h2>Open the Work<\/h2>/);
     assert.match(release47, /href="\.\.\/revenue-desk\/">Revenue Desk</);

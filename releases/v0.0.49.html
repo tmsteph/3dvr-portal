@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.49 (Week of June 8, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.48.html">Previous release</a>
+    <a class="release-nav-link" href="v0.0.50.html">Next release</a>
+  </nav>
+  <h1>Release v0.0.49</h1>
+  <div class="tag">Week of June 8, 2026</div>
+  <div class="release-summary">
+    <p>
+      This weekly release tightens play, capture, and validation surfaces while turning a set of portal strategy notes
+      into clearer operating language.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Games and flight controls:</strong>
+        <a href="../stellar-flight.html">Stellar Drift</a> gained keyboard flight, spacebar firing, tuned arrow aim,
+        and random enemies while <a href="../games.html">Games</a>, <a href="../pong.html">Pong Arena</a>, and the
+        Zero-G Ski Range experience moved toward sharper desktop play.
+      </li>
+      <li>
+        <strong>Capture and validation:</strong>
+        <a href="../crm/">CRM</a> conversation capture, simplified capture flows, the
+        <a href="../docs/project-desk-mvp.md">Project Desk portal relationship</a>, and problem-validation docs made
+        the start path more concrete.
+      </li>
+      <li>
+        <strong>Portal operating language:</strong>
+        the cybernetic portal, civic operating system, worker power, portal vision card, and agent execution notes
+        clarified what the portal is for before adding more layers.
+      </li>
+      <li>
+        <strong>Practice and prototypes:</strong>
+        <a href="../meditation/affirmations.html">Manifestation Practice</a>, <a href="../3dvr-girl/">3DVR Girl</a>,
+        and the customer-facing start-page pass gave experimental work clearer homes.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Merged PRs</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/673">#673 Add Stellar Drift keyboard flight</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/674">#674 Add direct app links to release notes</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/675">#675 Inline release app links in summaries</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/676">#676 Map Stellar Drift spacebar to fire</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/677">#677 Add CRM conversation capture flow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/678">#678 Tune Stellar Drift arrow aim speed</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/679">#679 Add cybernetic portal design document</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/680">#680 Add civic operating system plan</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/681">#681 Add worker power planning docs</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/682">#682 Relax agent line length guidance</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/683">#683 Add portal vision card</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/684">#684 Add agent execution principles</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/685">#685 Add start page review plan</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/686">#686 Make start page hero customer-facing</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/687">#687 Add AI-native startup playbook notes</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/688">#688 Refresh games hub with themed icons and blurbs</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/689">#689 Revamp games page UI with themed SVG icons and add tests</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/690">#690 Add problem validation doc</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/691">#691 Remove Memory Match and tune Pong desktop play</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/692">#692 Add problem validation and start page critique</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/693">#693 Simplify conversation capture</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/694">#694 Use project stage questions on start router</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/695">#695 Add grounded manifestation practice</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/696">#696 Add manifestation practice app card</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/697">#697 Add 3DVR Girl portal</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/698">#698 Redesign Zero-G Ski Range as FPS trainer</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/699">#699 Add random enemies to Stellar Drift</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/700">#700 Redesign Pong with Three.js arena</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/701">#701 Fix Pong controls and mouse lock</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/702">#702 Document Project Desk portal relationship</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/703">#703 Remove 3DVR Girl preview capture</a></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Release Cadence</h2>
+    <p>
+      v0.0.49 catches the work merged after v0.0.48 and before the site-launcher/custom-domain sprint that follows
+      in v0.0.50.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
