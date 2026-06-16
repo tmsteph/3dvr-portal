@@ -465,6 +465,86 @@ test('vercel deploy provider returns deployment URL when custom domain is missin
   assert.equal(calls.length, 3);
 });
 
+test('vercel deploy provider treats already-associated aliases as assigned', async () => {
+  const calls = [];
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
+    siteLaunchBaseDomain: '3dvr.tech',
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_alias_exists',
+              url: '3dvr-test4.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_alias_exists',
+              readyState: 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v10/projects/3dvr-test4/domains')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              name: 'test4.3dvr.tech',
+              verified: true
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v2/deployments/dpl_alias_exists/aliases')) {
+        return {
+          ok: false,
+          status: 409,
+          async text() {
+            return JSON.stringify({
+              error: {
+                alias: 'test4.3dvr.tech',
+                code: 'not_modified',
+                message: 'The domain you are trying to associate is already associated with this deployment'
+              }
+            });
+          }
+        };
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-test4',
+      subdomain: 'test4',
+      html: '<html><body>already associated alias test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.aliasAssigned, true);
+  assert.equal(res.body.aliasAlreadyAssigned, true);
+  assert.equal(res.body.aliasStatus, 409);
+  assert.equal(res.body.aliasUrl, 'https://test4.3dvr.tech');
+  assert.equal(res.body.projectDomainReady, true);
+  assert.equal(calls.length, 3);
+});
+
 test('vercel deploy provider reports custom domain setup failures with deployment URL', async () => {
   const calls = [];
   const handler = createGithubPublishHandler({
