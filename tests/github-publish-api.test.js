@@ -387,6 +387,7 @@ test('vercel deploy provider returns deployment URL when custom domain is missin
   const handler = createGithubPublishHandler({
     vercelToken: 'server_vercel_token',
     vercelTeamId: 'team_3dvr',
+    vercelDnsTeamId: false,
     siteLaunchBaseDomain: '3dvr.tech',
     fetchImpl: async (url, options = {}) => {
       calls.push({ url: String(url), options });
@@ -540,6 +541,7 @@ test('vercel deploy provider verifies project domains before aliasing', async ()
   const handler = createGithubPublishHandler({
     vercelToken: 'server_vercel_token',
     vercelTeamId: 'team_3dvr',
+    vercelDnsTeamId: false,
     siteLaunchBaseDomain: '3dvr.tech',
     fetchImpl: async (url, options = {}) => {
       calls.push({ url: String(url), options });
@@ -625,6 +627,155 @@ test('vercel deploy provider verifies project domains before aliasing', async ()
   assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
   assert.match(calls[1].url, /\/v10\/projects\/3dvr-test\/domains\?teamId=team_3dvr$/);
   assert.match(calls[2].url, /\/v9\/projects\/3dvr-test\/domains\/test\.3dvr\.tech\/verify\?teamId=team_3dvr$/);
+});
+
+test('vercel deploy provider adds DNS verification records before retrying custom domain verification', async () => {
+  const calls = [];
+  let verifyCount = 0;
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
+    vercelDnsTeamId: 'team_dns',
+    vercelDnsVerifyRetryDelayMs: 0,
+    siteLaunchBaseDomain: '3dvr.tech',
+    sleepImpl: async () => {},
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_dns_verify',
+              url: '3dvr-test.vercel.app',
+              inspectUrl: 'https://vercel.com/example/launch/dpl_dns_verify',
+              readyState: 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v10/projects/3dvr-test/domains')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              name: 'test.3dvr.tech',
+              verified: false,
+              verification: [
+                {
+                  type: 'TXT',
+                  domain: '_vercel.3dvr.tech',
+                  value: 'vc-domain-verify=test.3dvr.tech,b1983a19514666902356'
+                }
+              ]
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v9/projects/3dvr-test/domains/test.3dvr.tech/verify')) {
+        verifyCount += 1;
+        if (verifyCount === 1) {
+          return {
+            ok: false,
+            status: 400,
+            async text() {
+              return JSON.stringify({
+                error: {
+                  code: 'missing_txt_record',
+                  message: 'Domain _vercel.3dvr.tech is missing required TXT Record "vc-domain-verify=test.3dvr.tech,b1983a19514666902356"'
+                }
+              });
+            }
+          };
+        }
+
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              name: 'test.3dvr.tech',
+              verified: true
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v3/domains/3dvr.tech/records')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { id: 'rec_dns_verify' };
+          }
+        };
+      }
+
+      if (String(url).includes('/v2/deployments/dpl_dns_verify/aliases')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              alias: 'test.3dvr.tech'
+            };
+          }
+        };
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-test',
+      subdomain: 'test',
+      html: '<html><body>domain DNS verification test content</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.aliasAssigned, true);
+  assert.equal(res.body.aliasUrl, 'https://test.3dvr.tech');
+  assert.equal(res.body.projectDomainReady, true);
+  assert.equal(res.body.projectDomainVerified, true);
+  assert.equal(res.body.projectDomainDnsRecordAdded, true);
+  assert.equal(res.body.projectDomainDnsRecordStatus, 'added');
+  assert.deepEqual(res.body.projectDomainDnsRecords, [
+    {
+      domain: '_vercel.3dvr.tech',
+      name: '_vercel',
+      type: 'TXT',
+      value: 'vc-domain-verify=test.3dvr.tech,b1983a19514666902356',
+      id: 'rec_dns_verify',
+      added: true,
+      status: 'added'
+    }
+  ]);
+  assert.equal(calls.length, 6);
+  assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
+  assert.match(calls[1].url, /\/v10\/projects\/3dvr-test\/domains\?teamId=team_3dvr$/);
+  assert.match(calls[2].url, /\/v9\/projects\/3dvr-test\/domains\/test\.3dvr\.tech\/verify\?teamId=team_3dvr$/);
+  assert.match(calls[3].url, /\/v3\/domains\/3dvr\.tech\/records\?teamId=team_dns$/);
+  assert.match(calls[4].url, /\/v9\/projects\/3dvr-test\/domains\/test\.3dvr\.tech\/verify\?teamId=team_3dvr$/);
+  assert.match(calls[5].url, /\/v2\/deployments\/dpl_dns_verify\/aliases\?teamId=team_3dvr$/);
+  assert.deepEqual(JSON.parse(calls[3].options.body), {
+    name: '_vercel',
+    type: 'TXT',
+    value: 'vc-domain-verify=test.3dvr.tech,b1983a19514666902356'
+  });
 });
 
 test('vercel deploy provider waits for deployment readiness before aliasing', async () => {
