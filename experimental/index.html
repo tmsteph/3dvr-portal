@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Open Form / 3DVR Connect</title>
+  <meta
+    name="description"
+    content="Open Form landing page for Mediterranean linenwear, Open Form Private, and 3DVR Connect with consent-centered pathways."
+  />
+  <style>
+    :root {
+      --ink: #1f1f1f;
+      --paper: #f4efe5;
+      --linen: #e8ddd0;
+      --ink-soft: #52514a;
+      --line: #cec4b5;
+      --green: #2f7a4f;
+      --gold: #ab8a3b;
+      --red: #9a3333;
+      --deep: #14110f;
+      --panel: #f9f6f0;
+      --radius: 0.8rem;
+      --max: 1120px;
+      --container-pad: clamp(1.25rem, 4vw, 2rem);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: radial-gradient(circle at 20% 10%, #1e1b19, #120f0d 52%);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      line-height: 1.6;
+    }
+
+    body {
+      background-color: var(--paper);
+      color: var(--deep);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    main {
+      min-height: 100vh;
+      padding-bottom: 4rem;
+    }
+
+    .site-shell {
+      width: min(var(--max), calc(100% - var(--container-pad) * 2));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: rgba(244, 239, 229, 0.98);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(46, 39, 33, 0.2);
+      box-shadow: 0 8px 24px rgba(22, 16, 13, 0.12);
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 4rem;
+      gap: 1rem;
+      padding: 0.75rem 0;
+    }
+
+    .brand {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 650;
+    }
+
+    nav {
+      display: none;
+      gap: 0.75rem;
+      font-size: 0.92rem;
+    }
+
+    .pill {
+      border: 1px solid rgba(31, 31, 31, 0.2);
+      padding: 0.42rem 0.8rem;
+      border-radius: 999px;
+      text-decoration: none;
+      background: transparent;
+      transition: all 0.2s ease;
+    }
+
+    .pill:hover {
+      background: #ddd1bf;
+      border-color: rgba(31, 31, 31, 0.4);
+    }
+
+    .hero {
+      padding-top: 5rem;
+      padding-bottom: 4rem;
+      background: linear-gradient(140deg, #f5efe6 35%, #f1e4d2 100%);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      color: #4e4a44;
+      font-size: 0.78rem;
+      margin: 0 0 0.85rem;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      letter-spacing: 0.01em;
+      line-height: 1.12;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      max-width: 16ch;
+    }
+
+    .hero p {
+      max-width: 62ch;
+      color: var(--ink-soft);
+      font-size: 1.05rem;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.35rem;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      border: none;
+      padding: 0.72rem 1.1rem;
+      border-radius: 0.65rem;
+      cursor: pointer;
+      font-weight: 640;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.78rem;
+    }
+
+    .button.primary {
+      background: var(--deep);
+      color: #f5efe4;
+    }
+
+    .button.secondary {
+      background: transparent;
+      border: 1px solid rgba(20, 16, 13, 0.4);
+      color: var(--deep);
+    }
+
+    section {
+      padding: clamp(3rem, 5vw, 4rem) 0;
+      border-bottom: 1px solid rgba(46, 39, 33, 0.12);
+    }
+
+    section:last-of-type {
+      border-bottom: none;
+    }
+
+    .section-title {
+      font-size: clamp(1.45rem, 3.2vw, 2rem);
+      margin-bottom: 0.9rem;
+    }
+
+    .section-lede {
+      max-width: 74ch;
+      color: var(--ink-soft);
+    }
+
+    .grid {
+      margin-top: 1.8rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(31, 31, 31, 0.14);
+      border-radius: var(--radius);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .card p,
+    .card li {
+      margin: 0;
+      color: #3f3c37;
+    }
+
+    .placeholder {
+      border: 1.5px dashed rgba(31, 31, 31, 0.28);
+      border-radius: 0.7rem;
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(165deg, #f1e7d9 0%, #e1d3bd 42%, #d6c3a8 100%);
+      display: grid;
+      place-items: center;
+      color: #5d5a55;
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    .placeholder strong {
+      color: #3d342a;
+    }
+
+    .pill-group {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .room-buttons {
+      display: inline-flex;
+      border: 1px solid rgba(31, 31, 31, 0.2);
+      border-radius: 999px;
+      overflow: hidden;
+      width: fit-content;
+    }
+
+    .room-buttons button {
+      border: none;
+      background: #f8f3ec;
+      color: #2f2b28;
+      padding: 0.55rem 1rem;
+      cursor: pointer;
+      font-size: 0.87rem;
+      font-weight: 600;
+    }
+
+    .room-buttons button[aria-pressed="true"] {
+      background: #ded0ba;
+    }
+
+    .room-content {
+      margin-top: 0.95rem;
+      background: #f4ebe0;
+      border: 1px solid rgba(31, 31, 31, 0.14);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .room-content h3 {
+      margin-bottom: 0.4rem;
+      font-size: 1.1rem;
+    }
+
+    .room-content p {
+      margin-top: 0;
+      color: #47433f;
+    }
+
+    .room-list {
+      list-style: none;
+      margin: 0.45rem 0 0;
+      padding: 0;
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .room-list li {
+      display: flex;
+      gap: 0.6rem;
+      align-items: baseline;
+    }
+
+    .dot {
+      width: 0.48rem;
+      height: 0.48rem;
+      border-radius: 50%;
+      margin-top: 0.28rem;
+      flex: 0 0 auto;
+    }
+
+    .dot.green {
+      background: var(--green);
+    }
+
+    .dot.gold {
+      background: var(--gold);
+    }
+
+    .dot.red {
+      background: var(--red);
+    }
+
+    .architecture {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+      margin-top: 1rem;
+    }
+
+    .architecture-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .architecture-list li {
+      padding: 0.9rem;
+      border-left: 4px solid rgba(46, 39, 33, 0.22);
+      background: var(--panel);
+      border-radius: 0.55rem;
+    }
+
+    .architecture-list strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .subdomain-grid {
+      display: grid;
+      gap: 0.7rem;
+      margin-top: 1.2rem;
+      grid-template-columns: 1fr;
+    }
+
+    .subdomain-item {
+      border: 1px solid rgba(31, 31, 31, 0.17);
+      border-radius: 0.75rem;
+      background: #f7f1e7;
+      padding: 0.9rem 1rem;
+      display: grid;
+      gap: 0.25rem;
+    }
+
+    .subdomain-item b {
+      font-size: 1rem;
+      color: #2b2824;
+    }
+
+    .subdomain-item span {
+      color: #57534f;
+    }
+
+    footer {
+      padding: 2.5rem 0 2.25rem;
+      font-size: 0.96rem;
+      color: #4b4844;
+      border-top: 1px solid rgba(46, 39, 33, 0.2);
+      background: #efe5d8;
+    }
+
+    .muted {
+      color: #5a544f;
+      font-size: 0.9rem;
+    }
+
+    .line-quote {
+      border-left: 3px solid #7f7468;
+      padding-left: 0.9rem;
+      margin: 1.1rem 0;
+      color: #322f2a;
+      font-size: 1.06rem;
+      font-weight: 560;
+    }
+
+    .quote-key {
+      margin: 0.8rem 0 0;
+      font-style: italic;
+      color: #5f5a55;
+      max-width: 72ch;
+    }
+
+    .disclaimer {
+      margin-top: 1rem;
+      background: #efe2d5;
+      border-radius: 0.65rem;
+      padding: 0.85rem;
+      border: 1px solid rgba(46, 39, 33, 0.17);
+      font-size: 0.9rem;
+    }
+
+    .hidden-note {
+      display: none;
+    }
+
+    .manifesto-lines {
+      display: grid;
+      gap: 0.7rem;
+      margin: 1.25rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .manifesto-lines li {
+      background: linear-gradient(90deg, #efeadf, #f4ece0);
+      border-radius: 0.6rem;
+      border: 1px solid rgba(31, 31, 31, 0.15);
+      padding: 0.8rem;
+      font-size: 1rem;
+      color: #342f2a;
+    }
+
+    @media (min-width: 760px) {
+      nav {
+        display: flex;
+      }
+
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .subdomain-grid,
+      .architecture,
+      .room-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 980px) {
+      .grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .architecture,
+      .subdomain-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .card,
+      .subdomain-item,
+      .architecture-list li {
+        transition: transform 220ms ease, box-shadow 220ms ease;
+      }
+
+      .card:hover,
+      .subdomain-item:hover,
+      .architecture-list li:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(20, 16, 13, 0.08);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <p class="brand">Open Form / 3DVR Connect</p>
+      <nav>
+        <a class="pill" href="#hero">Hero</a>
+        <a class="pill" href="#open-form">Open Form</a>
+        <a class="pill" href="#linen-capsule">Linen Capsule</a>
+        <a class="pill" href="#open-form-private">Open Form Private</a>
+        <a class="pill" href="#connect">3DVR Connect</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Placeholder: age gate module should live above this page until legal gating policy is finalized. -->
+    <section id="hero" class="hero">
+      <div class="site-shell">
+        <p class="eyebrow">Premium lifestyle landing</p>
+        <h1>Open Form / 3DVR Connect</h1>
+        <p>
+          Open Form is a sensual menswear and intimacy-wear label. 3DVR Connect is the consent-based
+          community and play-space platform around it.
+        </p>
+        <p class="quote-key">
+          “Design the container. Let humans become human again.”
+        </p>
+        <p class="quote-key">
+          “Sensual menswear for sun, skin, and consensual play.”
+        </p>
+        <div class="hero-ctas">
+          <button class="button primary" type="button" data-action="focus-open-form">
+            Explore Capsule
+          </button>
+          <button class="button secondary" type="button" data-action="focus-connect">
+            Enter 3DVR Connect
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section id="open-form">
+      <div class="site-shell">
+        <h2 class="section-title">Open Form</h2>
+        <p class="section-lede">
+          Open Form brings Mediterranean linen systems, calm tailoring, and intimate-ready layers into one
+          elevated menswear language.
+        </p>
+        <div class="grid">
+          <article class="card">
+            <h3>Menswear with purpose</h3>
+            <p>
+              Sensual menswear designed for day-to-day comfort, slow movement, and social trust. Every cut
+              balances practical movement with sculptural silhouette.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Intimacy-wear layer strategy</h3>
+            <p>
+              Pieces are engineered for discretion, adaptability, and confidence in mixed environments with
+              clear boundaries for transition between public and private contexts.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Open Form ethos</h3>
+            <p>
+              The collection centers consent, wellness, and self-expression. Styling and fit are built to
+              support ritual, not pressure.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="linen-capsule">
+      <div class="site-shell">
+        <h2 class="section-title">Linen Capsule</h2>
+        <p class="section-lede">
+          Mediterranean linen that behaves well in heat, water, and shifting body states—without being loud, and
+          without forcing any one identity.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <div class="placeholder" role="img" aria-label="Linen set placeholder image">
+              <strong>Image Placeholder</strong><br />
+              Mediterranean Resortwear Set
+            </div>
+            <h3>Resort essentials</h3>
+            <p>Coastal-weight drape and breathable weaves for warm light-to-moderate activity.</p>
+          </div>
+          <div class="card">
+            <div class="placeholder" role="img" aria-label="Wardrobe module placeholder image">
+              <strong>Image Placeholder</strong><br />
+              Movement Capsule Grid
+            </div>
+            <h3>Movement layering</h3>
+            <p>Neutral tones and clean seams for calm transitions between public, workspace, and social blocks.</p>
+          </div>
+          <div class="card">
+            <div class="placeholder" role="img" aria-label="Private-ready item placeholder image">
+              <strong>Image Placeholder</strong><br />
+              Soft-Surface Utility Item
+            </div>
+            <h3>Private-ready forms</h3>
+            <p>Design patterns that support personal pacing and consent-aware environments.</p>
+          </div>
+        </div>
+        <!-- Placeholder: ecommerce product cards and "add-to-cart" workflows should be integrated here. -->
+      </div>
+    </section>
+
+    <section id="open-form-private">
+      <div class="site-shell">
+        <h2 class="section-title">Open Form Private</h2>
+        <p class="section-lede">
+          Open Form Private is the intimate layer of the brand and is governed by privacy-first defaults:
+          explicit consent prompts, private onboarding, and opt-in visibility controls.
+        </p>
+        <div class="grid">
+          <article class="card">
+            <h3>Display Lounge Pant</h3>
+            <p>
+              A tasteful, structured foundation piece designed to support private intimacy contexts only.
+            </p>
+            <ul>
+              <li>Structured front support pouch</li>
+              <li>Optional removable body-safe silicone sleeve</li>
+              <li>Internal support harness tuned for comfort and movement</li>
+              <li>Washable and replaceable components for hygiene and care</li>
+              <li>Private consensual use only</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Access and curation</h3>
+            <p>
+              Access to Open Form Private remains invitation-only, with age and consent checkpoints and no
+              explicit display outside approved contexts.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Material intent</h3>
+            <p>
+              Breathable natural fibers and adaptable supports keep the garment from feeling performative and
+              maintain a calm, premium look in private spaces.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="connect">
+      <div class="site-shell">
+        <h2 class="section-title">3DVR Connect</h2>
+        <p class="section-lede">
+          3DVR Connect is the consent-based community and play-space platform centered on mutual safety, clear
+          communication, and modular social rituals.
+        </p>
+        <p class="section-lede">
+          Think of it as a behind-the-scenes operating system: structured identity, event signals, room-state
+          controls, and shared culture notes.
+        </p>
+        <div class="grid">
+          <article class="card">
+            <h3>Community architecture</h3>
+            <p>Moderated community pathways, transparent norms, and private profile boundaries.</p>
+          </article>
+          <article class="card">
+            <h3>Event ecosystem</h3>
+            <p>
+              Curated open/private event streams with clear attendance intents and pre-event expectation
+              statements.
+            </p>
+            <!-- Placeholder: event listings module and attendance workflows should be built here. -->
+          </article>
+          <article class="card">
+            <h3>Membership pathway</h3>
+            <p>
+              Tiered membership can support product access, room capacity, mentorship, and educational pathways.
+            </p>
+            <!-- Placeholder: membership billing and entitlement wiring should be inserted in Connect flows. -->
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="rooms">
+      <div class="site-shell">
+        <h2 class="section-title">Consent-Based Play Rooms</h2>
+        <p class="section-lede">
+          Every room is consent-coded and role-explicit. Use the room system as a shared language for pace,
+          intention, and boundaries.
+        </p>
+        <div class="room-buttons" role="tablist" aria-label="Room system selector">
+          <button type="button" role="tab" data-room="green" aria-pressed="true">Green</button>
+          <button type="button" role="tab" data-room="gold">Gold</button>
+          <button type="button" role="tab" data-room="red">Red</button>
+        </div>
+        <div id="room-content" class="room-content" role="tabpanel" aria-live="polite">
+          <h3><span class="dot green"></span>Green Room</h3>
+          <p>Workplace-safe movement, restorative rest, and social creativity spaces.</p>
+          <ul class="room-list">
+            <li><span class="dot green"></span>Public/low-friction environments</li>
+            <li><span class="dot green"></span>Focus blocks and restorative movement</li>
+            <li><span class="dot green"></span>Open participation with low expectation</li>
+          </ul>
+        </div>
+        <p class="section-lede" style="margin-top: 1rem">
+          The model extends to Gold and Red contexts only where both participants have actively consented and
+          confirmed intentions before entering.
+        </p>
+        <div class="grid room-grid" style="margin-top: 1rem">
+          <article class="card">
+            <h3>Green = workplace-safe</h3>
+            <p>Movement, rest, creativity, and social play with no erotic escalation.</p>
+          </article>
+          <article class="card">
+            <h3>Gold = embodiment & education</h3>
+            <p>Guided touch language, flirtation education, and emotional pacing frameworks.</p>
+          </article>
+          <article class="card">
+            <h3>Red = private erotic play</h3>
+            <p>Strict opt-in only, private context, explicit boundaries, and immediate stop-flow controls.</p>
+          </article>
+        </div>
+        <!-- Placeholder: consent onboarding flow and boundary management should mount adjacent to this component. -->
+      </div>
+    </section>
+
+    <section id="workplace">
+      <div class="site-shell">
+        <h2 class="section-title">Workplace Future</h2>
+        <p class="section-lede">
+          A manifesto for environments that support both output and embodied presence: clean rituals, consent-based
+          interaction norms, and recovery patterns that protect dignity for everyone.
+        </p>
+        <div class="grid">
+          <article class="card">
+            <h3>Human pace, not constant performance</h3>
+            <p>Micro-rest windows and movement loops integrated into social flow.</p>
+          </article>
+          <article class="card">
+            <h3>Choice-rich ergonomics</h3>
+            <p>Clothing and room systems that reduce signaling pressure while preserving self-authorship.</p>
+          </article>
+          <article class="card">
+            <h3>Respect at scale</h3>
+            <p>Policies that operationalize consent language without reducing people to roles.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="site-shell">
+        <h2 class="section-title">Brand Architecture</h2>
+        <p class="section-lede">
+          Three-layer structure, one coherent mission: premium design, private freedom, and infrastructure.
+        </p>
+        <div class="architecture">
+          <ul class="architecture-list">
+            <li>
+              <strong>Open Form</strong>
+              Public-facing menswear and intimacy-aware lifestyle.
+            </li>
+            <li>
+              <strong>Open Form Private</strong>
+              Invitation-led private product layer with strict privacy standards.
+            </li>
+            <li>
+              <strong>3DVR Connect</strong>
+              Consent-centered platform and community operations layer.
+            </li>
+            <li>
+              <strong>3DVR Infrastructure</strong>
+              Event tooling, room orchestration, and identity workflows.
+            </li>
+            <li>
+              <strong>Open Form Culture</strong>
+              Education, editorial, and social norms for mature adults.
+            </li>
+            <li>
+              <strong>Salon Access</strong>
+              Private curation events and in-person experiential extensions.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="subdomains">
+      <div class="site-shell">
+        <h2 class="section-title">Subdomain Map</h2>
+        <p class="section-lede">
+          Reserved production surfaces for the Open Form ecosystem.
+        </p>
+        <div class="subdomain-grid">
+          <article class="subdomain-item">
+            <b>openform.3dvr.tech</b>
+            <span>Primary brand storefront, stories, and public product catalog.</span>
+          </article>
+          <article class="subdomain-item">
+            <b>private.openform.3dvr.tech</b>
+            <span>Private member area for Open Form Private experiences.</span>
+          </article>
+          <article class="subdomain-item">
+            <b>connect.3dvr.tech</b>
+            <span>Consent-first platform surface with room states and events.</span>
+          </article>
+          <article class="subdomain-item">
+            <b>salon.3dvr.tech</b>
+            <span>In-person and semi-private gathering coordination interface.</span>
+          </article>
+          <article class="subdomain-item">
+            <b>rooms.3dvr.tech</b>
+            <span>Room directory, policy-aware state toggles, and participation signals.</span>
+          </article>
+        </div>
+        <div class="disclaimer">
+          DNS and routing entries are placeholders for now and should point to the relevant environments once
+          product and legal review is complete.
+        </div>
+      </div>
+    </section>
+
+    <section id="manifesto">
+      <div class="site-shell">
+        <h2 class="section-title">Manifesto</h2>
+        <p class="line-quote">
+          Design should not force desire. It should grant permission for people to become fully present with
+          themselves and others.
+        </p>
+        <ul class="manifesto-lines">
+          <li>
+            Consent is the architecture: explicit language before any escalation.
+          </li>
+          <li>
+            Movement, embodiment, and rest are all part of adult wellness.
+          </li>
+          <li>
+            Privacy is not a policy add-on; it is the structure of trust.
+          </li>
+          <li>
+            Hospitality and desire can coexist with dignity, clarity, and calm.
+          </li>
+        </ul>
+        <div class="disclaimer">
+          This page is intentionally elegant, non-explicit, and age-appropriate. Final legal-safe disclosures should
+          be added with regional privacy and safety review before launch.
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="site-shell">
+        <p class="muted">
+          © 2026 Open Form / 3DVR Connect • Built as a premium, consent-centered landing prototype.
+        </p>
+        <p class="muted">
+          Placeholder: wire CMS-backed product feeds, event calendars, membership onboarding, and consent tutorials.
+        </p>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    const roomData = {
+      green: {
+        name: "Green Room",
+        color: "green",
+        title: "Green Room: workplace-safe movement/rest/creativity/play.",
+        body: "Ideal for professional and public adjacency: movement flow, social creativity, and non-erotic body-positive social interaction.",
+        items: [
+          "Public/low-friction environments",
+          "Focus blocks and restorative movement",
+          "Open participation with low expectation"
+        ]
+      },
+      gold: {
+        name: "Gold Room",
+        color: "gold",
+        title: "Gold Room: social embodiment, guided touch, and flirtation education.",
+        body: "Use in settings where social intent is clear and consensual teaching, body language, and coaching protocols are active.",
+        items: [
+          "Guided embodiment and posture work",
+          "Structured consent prompts for touch education",
+          "Flirtation cues with opt-out safety triggers"
+        ]
+      },
+      red: {
+        name: "Red Room",
+        color: "red",
+        title: "Red Room: adult/private erotic play with strict opt-in consent.",
+        body: "Private-only and invitation-only context with explicit boundary agreements, immediate stop-flow, and private access controls.",
+        items: [
+          "Explicit mutual opt-in before entry",
+          "Private membership and short-lived context windows",
+          "Immediate withdraw/exit controls and respectful de-escalation"
+        ]
+      }
+    };
+
+    const roomContent = document.getElementById("room-content");
+    const roomButtons = document.querySelectorAll('[data-room]');
+    const heroOpenFormBtn = document.querySelector('[data-action="focus-open-form"]');
+    const heroConnectBtn = document.querySelector('[data-action="focus-connect"]');
+
+    const renderRoom = (key) => {
+      const room = roomData[key];
+      const title = `<h3><span class="dot ${room.color}"></span>${room.title}</h3>`;
+      const list = room.items.map((item) => `<li><span class="dot ${room.color}"></span>${item}</li>`).join("");
+      roomContent.innerHTML = `${title}<p>${room.body}</p><ul class="room-list">${list}</ul>`;
+      roomButtons.forEach((button) => {
+        const isActive = button.dataset.room === key;
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+    };
+
+    roomButtons.forEach((button) => {
+      button.addEventListener("click", () => renderRoom(button.dataset.room));
+    });
+
+    heroOpenFormBtn.addEventListener("click", () => {
+      document.getElementById("linen-capsule").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    heroConnectBtn.addEventListener("click", () => {
+      document.getElementById("connect").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    const revealTop = () => {
+      const shouldShow = window.scrollY > 480;
+      document.querySelector(".topbar").style.boxShadow =
+        shouldShow ? "0 10px 28px rgba(13, 11, 9, 0.16)" : "0 8px 24px rgba(22, 16, 13, 0.12)";
+    };
+    window.addEventListener("scroll", revealTop, { passive: true });
+  </script>
+</body>
+</html>
