@@ -10,13 +10,13 @@
   />
   <style>
     :root {
-      --paper: #f6efe5;
-      --surface: rgba(255, 250, 244, 0.9);
-      --surface-strong: #fffaf3;
-      --surface-soft: #f8f1e8;
-      --ink: #231a13;
-      --muted: #675c50;
-      --line: rgba(60, 45, 32, 0.14);
+      --paper: #eef4ef;
+      --surface: rgba(252, 254, 250, 0.9);
+      --surface-strong: #fbfdf7;
+      --surface-soft: #edf5ee;
+      --ink: #16231b;
+      --muted: #526458;
+      --line: rgba(35, 64, 47, 0.15);
       --line-strong: rgba(180, 138, 68, 0.38);
       --gold: #aa8440;
       --green: #4d7c60;
@@ -39,9 +39,9 @@
 
     body {
       background:
-        radial-gradient(circle at 14% 12%, rgba(255, 255, 255, 0.68), transparent 25%),
-        radial-gradient(circle at 84% 8%, rgba(176, 138, 68, 0.12), transparent 22%),
-        linear-gradient(180deg, #f8f1e6 0%, #efe2cf 100%);
+        radial-gradient(circle at 14% 12%, rgba(255, 255, 255, 0.72), transparent 25%),
+        radial-gradient(circle at 84% 8%, rgba(77, 124, 96, 0.16), transparent 22%),
+        linear-gradient(180deg, #f4f8f2 0%, #dfece3 100%);
       color: var(--ink);
       font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       line-height: 1.5;
@@ -69,7 +69,7 @@
 
     .topbar {
       border-bottom: 1px solid rgba(50, 38, 26, 0.12);
-      background: rgba(248, 241, 231, 0.9);
+      background: rgba(244, 248, 242, 0.9);
       backdrop-filter: blur(14px);
     }
 
@@ -196,6 +196,13 @@
       color: #3d3127;
     }
 
+    .start-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.85rem;
+    }
+
     .tag-row,
     .step-pills {
       display: flex;
@@ -226,7 +233,7 @@
       border: 1px dashed rgba(50, 38, 26, 0.18);
       border-radius: 0.72rem;
       background:
-        linear-gradient(160deg, rgba(255, 255, 255, 0.74), rgba(233, 218, 194, 0.92)),
+        linear-gradient(160deg, rgba(255, 255, 255, 0.76), rgba(218, 235, 222, 0.92)),
         repeating-linear-gradient(135deg, rgba(50, 38, 26, 0.04), rgba(50, 38, 26, 0.04) 13px, transparent 13px, transparent 26px);
       display: grid;
       place-items: center;
@@ -282,7 +289,8 @@
       gap: 0.5rem;
     }
 
-    .control-row button {
+    .control-row button,
+    .start-row button {
       border: 1px solid rgba(50, 38, 26, 0.16);
       background: rgba(255, 255, 255, 0.7);
       color: var(--deep);
@@ -292,7 +300,14 @@
       font-weight: 700;
     }
 
-    .control-row button.primary {
+    .control-row button:disabled,
+    .start-row button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .control-row button.primary,
+    .start-row button.primary {
       background: var(--deep);
       color: #fff;
       border-color: var(--deep);
@@ -301,6 +316,77 @@
     .progress {
       display: grid;
       gap: 0.45rem;
+    }
+
+    .session-dashboard {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .timer-panel,
+    .breath-panel {
+      border: 1px solid rgba(50, 38, 26, 0.14);
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.68);
+      padding: 0.9rem;
+    }
+
+    .timer-panel {
+      display: grid;
+      gap: 0.35rem;
+      align-content: center;
+    }
+
+    .timer-display {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      line-height: 1;
+      color: var(--deep);
+    }
+
+    .timer-status {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .breath-panel {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 0.85rem;
+      align-items: center;
+    }
+
+    .breath-disc {
+      width: 5.4rem;
+      aspect-ratio: 1;
+      border-radius: 999px;
+      border: 1px solid rgba(77, 124, 96, 0.35);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(77, 124, 96, 0.24), rgba(77, 124, 96, 0.08) 55%, rgba(255, 255, 255, 0.7) 56%);
+      transform: scale(0.78);
+      transition: transform 900ms ease, background 900ms ease;
+    }
+
+    .breath-disc[data-phase="inhale"] {
+      transform: scale(1);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(77, 124, 96, 0.34), rgba(77, 124, 96, 0.12) 58%, rgba(255, 255, 255, 0.78) 59%);
+    }
+
+    .breath-copy {
+      display: grid;
+      gap: 0.25rem;
+      min-width: 0;
+    }
+
+    .breath-copy strong {
+      color: var(--deep);
+      font-size: 1.05rem;
+    }
+
+    .breath-copy span {
+      color: var(--muted);
+      font-size: 0.92rem;
     }
 
     .progress-track {
@@ -393,7 +479,7 @@
 
     .status-bar {
       border-top: 1px solid rgba(50, 38, 26, 0.12);
-      background: rgba(248, 241, 231, 0.92);
+      background: rgba(244, 248, 242, 0.92);
     }
 
     .status-bar__inner {
@@ -452,7 +538,8 @@
       }
 
       .source-grid,
-      .split-grid {
+      .split-grid,
+      .session-dashboard {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
@@ -550,22 +637,45 @@
           <div class="view is-active" data-view-panel="intro">
             <div class="stack-grid">
               <article class="info-card">
-                <h3>What this page is</h3>
+                <h3>Start the guided reset</h3>
                 <p>
-                  A calm, premium, low-force body reset designed to feel like a compact experience rather than a long
-                  article.
+                  Press start and the routine advances by itself with timers and a breath cue.
                 </p>
+                <div class="start-row">
+                  <button type="button" class="primary" data-action="start">Start Session</button>
+                  <button type="button" data-action="jump" data-target="safety">Safety First</button>
+                </div>
               </article>
               <article class="info-card">
-                <h3>How to use it</h3>
+                <h3>How it runs</h3>
                 <p>
-                  Pick a view, then step through the routine at your own pace. The content changes in place.
+                  Each step counts down, then moves forward. You can pause, resume, reset, or jump to any step.
                 </p>
               </article>
             </div>
           </div>
 
           <div class="view" data-view-panel="routine">
+            <div class="session-dashboard">
+              <div class="timer-panel" aria-live="polite">
+                <div class="stage-meta">
+                  <span>Step timer</span>
+                  <span data-session-status>Ready</span>
+                </div>
+                <strong class="timer-display" data-timer-display>01:30</strong>
+                <span class="timer-status" data-timer-status>Press Start Session to begin.</span>
+              </div>
+
+              <div class="breath-panel" aria-live="polite">
+                <div class="breath-disc" data-breath-disc data-phase="inhale"></div>
+                <div class="breath-copy">
+                  <strong data-breath-label>Inhale</strong>
+                  <span data-breath-count>4 seconds</span>
+                  <span data-breath-hint>Nose breath if possible.</span>
+                </div>
+              </div>
+            </div>
+
             <div class="progress">
               <div class="stage-meta">
                 <span data-step-label>Step 1 of 6</span>
@@ -597,8 +707,11 @@
             </article>
 
             <div class="control-row" aria-label="Routine controls">
+              <button type="button" class="primary" data-action="start">Start</button>
+              <button type="button" data-action="pause">Pause</button>
+              <button type="button" data-action="reset">Reset</button>
               <button type="button" data-action="back">Back</button>
-              <button type="button" class="primary" data-action="next">Next</button>
+              <button type="button" data-action="next">Next</button>
               <button type="button" data-action="jump" data-target="safety">Jump to safety</button>
             </div>
           </div>
@@ -712,41 +825,60 @@
     const stageLabel = document.querySelector('[data-stage-label]');
     const viewTitle = document.querySelector('[data-view-title]');
     const viewLead = document.querySelector('[data-view-lead]');
+    const timerDisplay = document.querySelector('[data-timer-display]');
+    const timerStatus = document.querySelector('[data-timer-status]');
+    const sessionStatus = document.querySelector('[data-session-status]');
+    const breathDisc = document.querySelector('[data-breath-disc]');
+    const breathLabel = document.querySelector('[data-breath-label]');
+    const breathCount = document.querySelector('[data-breath-count]');
+    const breathHint = document.querySelector('[data-breath-hint]');
+    const startButtons = [...document.querySelectorAll('[data-action="start"]')];
+    const pauseButtons = [...document.querySelectorAll('[data-action="pause"]')];
+
+    const inhaleSeconds = 4;
+    const exhaleSeconds = 6;
+    const breathCycleMs = (inhaleSeconds + exhaleSeconds) * 1000;
 
     const routine = [
       {
         title: 'Downshift first',
         duration: '90 seconds',
+        seconds: 90,
         body: 'Sit or lie down. One hand on chest, one on belly. Inhale 4 seconds, exhale 6-8 seconds. On each exhale, silently say, "tongue soft, jaw heavy, eyes soft."',
         points: ['Use nose breathing if possible.', 'Let the exhale be longer than the inhale.', 'Drop the clench before anything else.']
       },
       {
         title: 'Tongue and jaw reset',
         duration: '2 minutes',
+        seconds: 120,
         body: 'Place the tongue on the roof of the mouth behind the upper front teeth. Set tongue up, teeth apart, lips lightly closed, jaw hanging.',
         points: ['Do 5 tiny jaw openings.', 'Massage the cheek muscle and jaw angle.', 'Keep pressure light and avoid the joint.']
       },
       {
         title: 'SCM release',
         duration: '2 minutes',
+        seconds: 120,
         body: 'Turn the head slightly left. On the right side, gently pinch the sternocleidomastoid between fingers, not the throat, and glide downward toward the collarbone.',
         points: ['Use 3-5 slow passes per side.', 'Pressure stays gentle.', 'Do not dig.']
       },
       {
         title: 'Suboccipital release',
         duration: '2 minutes',
+        seconds: 120,
         body: 'Lie on your back. Put two tennis balls in a sock, or use fingertips, under the base of the skull. Let the head rest without rolling aggressively.',
         points: ['Make tiny yes nods for 30 seconds.', 'Make tiny no motions for 30 seconds.', 'Then breathe and melt for 60 seconds.']
       },
       {
         title: 'Pec and collarbone sweep',
         duration: '90 seconds',
+        seconds: 90,
         body: 'Gently sweep under the collarbone from sternum outward to shoulder, then massage the pec area below the collarbone.',
         points: ['Spend 45 seconds each side.', 'Keep the shoulder relaxed.', 'This often matters more than the neck alone.']
       },
       {
         title: 'Chin tuck decompression',
         duration: '1 minute',
+        seconds: 60,
         body: 'Sit tall, imagine the back of the skull floating upward, then slide the head backward like making a small double chin. Do not look down.',
         points: ['Hold 3 seconds, then release.', 'Do 5-8 reps.', 'Keep discomfort very low.']
       }
@@ -782,8 +914,17 @@
 
     let currentView = 'intro';
     let currentStep = 0;
+    let running = false;
+    let completed = false;
+    let remainingMs = routine[0].seconds * 1000;
+    let stepEndAt = 0;
+    let breathStartedAt = 0;
+    let sessionTimer = null;
 
     function setView(nextView) {
+      if (running && nextView !== 'routine') {
+        pauseSession('Paused while you check another view.');
+      }
       currentView = nextView;
       views.forEach((view) => view.classList.toggle('is-active', view.dataset.viewPanel === nextView));
       viewButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.view === nextView)));
@@ -792,9 +933,65 @@
       viewLead.textContent = viewsMeta[nextView].lead;
     }
 
-    function renderStep(index) {
+    function formatTime(milliseconds) {
+      const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function updateControls() {
+      const atStart = currentStep === 0 && remainingMs === routine[0].seconds * 1000 && !completed;
+      startButtons.forEach((button) => {
+        button.disabled = running;
+        button.textContent = completed ? 'Start Over' : atStart ? 'Start Session' : 'Resume';
+      });
+      pauseButtons.forEach((button) => {
+        button.disabled = !running;
+        button.textContent = running ? 'Pause' : 'Paused';
+      });
+    }
+
+    function updateTimer(message) {
+      timerDisplay.textContent = formatTime(remainingMs);
+      sessionStatus.textContent = completed ? 'Complete' : running ? 'Running' : 'Ready';
+      timerStatus.textContent = message || (running
+        ? 'The next step starts automatically.'
+        : 'Press Start Session to begin.');
+      updateControls();
+    }
+
+    function updateBreath() {
+      if (!running) {
+        breathDisc.dataset.phase = 'inhale';
+        breathLabel.textContent = completed ? 'Complete' : 'Inhale';
+        breathCount.textContent = completed ? 'Session done' : `${inhaleSeconds} seconds`;
+        breathHint.textContent = completed ? 'Return slowly.' : 'Nose breath if possible.';
+        return;
+      }
+
+      const elapsed = (Date.now() - breathStartedAt) % breathCycleMs;
+      const phase = elapsed < inhaleSeconds * 1000 ? 'inhale' : 'exhale';
+      const phaseDuration = phase === 'inhale' ? inhaleSeconds * 1000 : exhaleSeconds * 1000;
+      const phaseElapsed = phase === 'inhale' ? elapsed : elapsed - inhaleSeconds * 1000;
+      const count = Math.max(1, Math.ceil((phaseDuration - phaseElapsed) / 1000));
+
+      breathDisc.dataset.phase = phase;
+      breathLabel.textContent = phase === 'inhale' ? 'Inhale' : 'Exhale';
+      breathCount.textContent = `${count} second${count === 1 ? '' : 's'}`;
+      breathHint.textContent = phase === 'inhale' ? 'Let the ribs widen gently.' : 'Jaw heavy. Eyes soft.';
+    }
+
+    function renderStep(index, resetTimer = true) {
       currentStep = (index + routine.length) % routine.length;
       const step = routine[currentStep];
+      if (resetTimer) {
+        remainingMs = step.seconds * 1000;
+        if (running) {
+          stepEndAt = Date.now() + remainingMs;
+          breathStartedAt = Date.now();
+        }
+      }
       stepTitle.textContent = step.title;
       stepBody.textContent = step.body;
       stepPoints.innerHTML = step.points.map((point) => `<li>${point}</li>`).join('');
@@ -802,6 +999,84 @@
       stepDuration.textContent = step.duration;
       progressFill.style.width = `${((currentStep + 1) / routine.length) * 100}%`;
       stepButtons.forEach((button) => button.setAttribute('aria-pressed', String(Number(button.dataset.step) === currentStep)));
+      updateTimer();
+      updateBreath();
+    }
+
+    function startLoop() {
+      if (sessionTimer) {
+        return;
+      }
+      sessionTimer = window.setInterval(tickSession, 250);
+    }
+
+    function stopLoop() {
+      window.clearInterval(sessionTimer);
+      sessionTimer = null;
+    }
+
+    function startSession() {
+      if (completed) {
+        resetSession();
+      }
+      setView('routine');
+      running = true;
+      completed = false;
+      stepEndAt = Date.now() + remainingMs;
+      breathStartedAt = Date.now();
+      startLoop();
+      updateTimer('The next step starts automatically.');
+      updateBreath();
+    }
+
+    function pauseSession(message = 'Paused. Resume when ready.') {
+      if (!running) {
+        updateTimer(message);
+        return;
+      }
+      remainingMs = Math.max(0, stepEndAt - Date.now());
+      running = false;
+      stopLoop();
+      updateTimer(message);
+      updateBreath();
+    }
+
+    function resetSession() {
+      running = false;
+      completed = false;
+      stopLoop();
+      renderStep(0);
+      updateTimer('Press Start Session to begin.');
+      updateBreath();
+    }
+
+    function completeSession() {
+      running = false;
+      completed = true;
+      remainingMs = 0;
+      stopLoop();
+      updateTimer('Session complete. Return slowly.');
+      updateBreath();
+    }
+
+    function advanceStep() {
+      if (currentStep >= routine.length - 1) {
+        completeSession();
+        return;
+      }
+      renderStep(currentStep + 1);
+    }
+
+    function tickSession() {
+      if (!running) {
+        return;
+      }
+      remainingMs = Math.max(0, stepEndAt - Date.now());
+      updateTimer('The next step starts automatically.');
+      updateBreath();
+      if (remainingMs <= 0) {
+        advanceStep();
+      }
     }
 
     viewButtons.forEach((button) => {
@@ -827,6 +1102,18 @@
         setView('routine');
         renderStep(currentStep + 1);
       });
+    });
+
+    document.querySelectorAll('[data-action="start"]').forEach((button) => {
+      button.addEventListener('click', startSession);
+    });
+
+    document.querySelectorAll('[data-action="pause"]').forEach((button) => {
+      button.addEventListener('click', () => pauseSession());
+    });
+
+    document.querySelectorAll('[data-action="reset"]').forEach((button) => {
+      button.addEventListener('click', resetSession);
     });
 
     document.querySelectorAll('[data-action="jump"]').forEach((button) => {
