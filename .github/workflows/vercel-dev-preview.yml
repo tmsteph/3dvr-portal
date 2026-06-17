@@ -26,35 +26,49 @@ jobs:
   deploy-preview:
     name: Deploy preview alias
     runs-on: ubuntu-latest
-    if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
     env:
-      SHOULD_ALIAS: ${{
-        (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')) ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.set_alias == 'true')
-      }}
+      SHOULD_ALIAS: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.set_alias == 'true') }}
     steps:
+      - name: Check Vercel preview configuration
+        id: config
+        shell: bash
+        run: |
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
+            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Vercel Dev Preview because one or more Vercel secrets are not configured."
+          fi
+
       - name: Checkout repository
+        if: ${{ steps.config.outputs.can_deploy == 'true' }}
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: ${{ steps.config.outputs.can_deploy == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: ${{ steps.config.outputs.can_deploy == 'true' }}
         run: npm ci
 
       - name: Install Vercel CLI
+        if: ${{ steps.config.outputs.can_deploy == 'true' }}
         run: npm install --global vercel
 
       - name: Pull preview environment from Vercel
+        if: ${{ steps.config.outputs.can_deploy == 'true' }}
         run: vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
 
       - name: Build preview artifact
+        if: ${{ steps.config.outputs.can_deploy == 'true' }}
         run: vercel build --token=$VERCEL_TOKEN
 
       - name: Deploy preview artifact
+        if: ${{ steps.config.outputs.can_deploy == 'true' }}
         id: deploy
         run: |
           DEPLOY_URL=$(vercel deploy --prebuilt --target=preview --token=$VERCEL_TOKEN --yes)
@@ -62,5 +76,5 @@ jobs:
           echo "Preview URL: $DEPLOY_URL"
 
       - name: Alias deployment to stable dev URL
-        if: ${{ env.VERCEL_DEV_ALIAS != '' && env.SHOULD_ALIAS == 'true' }}
+        if: ${{ steps.config.outputs.can_deploy == 'true' && env.VERCEL_DEV_ALIAS != '' && env.SHOULD_ALIAS == 'true' }}
         run: vercel alias set ${{ steps.deploy.outputs.url }} $VERCEL_DEV_ALIAS --token=$VERCEL_TOKEN

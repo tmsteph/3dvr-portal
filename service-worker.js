@@ -3,14 +3,14 @@
 importScripts('/chat/notification-routing.js');
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v15';
+const CACHE_VERSION = 'v16';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 const chatNotificationRouting = self.ChatNotificationRouting || null;
 
-// What to cache at install (add your CSS/JS/assets here)
+// What to cache at install (add your CSS/JS/assets here). Keep HTML out of the
+// install cache so stale app shells cannot survive a deploy.
 const STATIC_ASSETS = [
-  '/',                     // App shell (Start URL)
   '/index-style.css',
   '/styles/global.css',
   '/home/style.css',
@@ -40,6 +40,82 @@ const STATIC_ASSETS = [
 
 const createReloadedRequests = (assets) =>
   assets.map((asset) => new Request(asset, { cache: 'reload' }));
+
+const SECURITY_CHECKPOINT_PATTERN = /Vercel Security Checkpoint|Failed to verify your browser|Code 705/i;
+
+const createOfflinePortalFallbackResponse = () => new Response(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR Portal offline</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+    main {
+      width: min(92vw, 440px);
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      background: #161b22;
+      padding: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+    h1 { margin: 0 0 8px; font-size: 1.4rem; }
+    p { margin: 0 0 18px; color: #9ba3b4; }
+    a {
+      display: inline-block;
+      border-radius: 999px;
+      background: #58a6ff;
+      color: #07111f;
+      font-weight: 700;
+      padding: 10px 14px;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Open the portal again</h1>
+    <p>The browser could not refresh the portal shell. Reconnect or reload to get a fresh copy.</p>
+    <a href="/">Reload portal</a>
+  </main>
+</body>
+</html>`, {
+  headers: {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store'
+  }
+});
+
+const shouldCacheHtmlResponse = (response) => {
+  if (!response || !response.ok) return false;
+  const contentType = response.headers.get('content-type') || '';
+  return contentType.includes('text/html');
+};
+
+const cacheHtmlResponse = async (request, response) => {
+  if (!shouldCacheHtmlResponse(response)) return;
+
+  const responseForCache = response.clone();
+  const responseForInspection = response.clone();
+  const text = await responseForInspection.text();
+
+  if (SECURITY_CHECKPOINT_PATTERN.test(text)) {
+    return;
+  }
+
+  const cache = await caches.open(HTML_CACHE);
+  await cache.put(request, responseForCache);
+};
 
 const networkFirst = async (req, { cacheMode = 'default' } = {}) => {
   try {
@@ -89,7 +165,16 @@ self.addEventListener('install', (event) => {
   const assetsToCache = createReloadedRequests(STATIC_ASSETS);
 
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(assetsToCache))
+    caches.open(STATIC_CACHE).then((cache) =>
+      Promise.allSettled(
+        assetsToCache.map(async (request) => {
+          const response = await fetch(request);
+          if (response && (response.ok || response.type === 'opaque')) {
+            await cache.put(request, response);
+          }
+        })
+      )
+    )
   );
   self.skipWaiting();
 });
@@ -106,7 +191,7 @@ self.addEventListener('activate', (event) => {
 });
 
 // Simple helpers
-const isHTML = (req) => req.headers.get('accept')?.includes('text/html');
+const isHTML = (req) => req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html');
 const isGunRealtime = (url) => url.includes('/gun') || url.startsWith('wss://') || url.startsWith('ws://');
 const isAPI = (url) => url.includes('/api/'); // adjust if you add APIs
 const isStyleRequest = (req) => req.destination === 'style';
@@ -164,11 +249,13 @@ self.addEventListener('fetch', (event) => {
   if (isHTML(req)) {
     // Network-first for HTML for freshness
     event.respondWith(
-      fetch(req).then((res) => {
-        const resClone = res.clone();
-        caches.open(HTML_CACHE).then((cache) => cache.put(req, resClone));
+      fetch(req, { cache: 'reload' }).then((res) => {
+        event.waitUntil(cacheHtmlResponse(req, res));
         return res;
-      }).catch(() => caches.match(req))
+      }).catch(async () => {
+        const cached = await caches.match(req, { ignoreSearch: true });
+        return cached || createOfflinePortalFallbackResponse();
+      })
     );
     return;
   }
