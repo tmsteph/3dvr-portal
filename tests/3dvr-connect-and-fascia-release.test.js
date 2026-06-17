@@ -28,6 +28,14 @@ test('Fascia Release ships as a standalone gentle reset and portal card', async 
   assert.match(html, /overflow: hidden;/);
   assert.match(html, /data-view-panel="routine"/);
   assert.match(html, /data-step="0"/);
+  assert.match(html, /data-action="start"/);
+  assert.match(html, /data-action="pause"/);
+  assert.match(html, /data-action="reset"/);
+  assert.match(html, /data-timer-display/);
+  assert.match(html, /data-breath-label/);
+  assert.match(html, /data-breath-disc/);
+  assert.match(html, /const inhaleSeconds = 4/);
+  assert.match(html, /window\.setInterval\(tickSession, 250\)/);
   assert.match(html, /Reset without the scroll/);
   assert.match(html, /Tongue soft, jaw heavy, eyes soft/);
   assert.match(html, /Placeholder image panel/);
