@@ -252,8 +252,9 @@ export function resolveLaunchDomain(body = {}, options = {}) {
 }
 
 function validateVercelRequest(body, options = {}) {
-  const { token, projectName, html } = body || {};
+  const { token, html } = body || {};
   const effectiveToken = token || options.defaultToken;
+  const projectName = options.projectName || body?.projectName;
 
   if (!effectiveToken || typeof effectiveToken !== 'string') {
     return 'A Vercel token is required. Configure VERCEL_TOKEN or provide a token.';
@@ -273,6 +274,18 @@ function validateVercelRequest(body, options = {}) {
   }
 
   return null;
+}
+
+function resolveSiteLaunchVercelProjectName(bodyProjectName, launchDomain, configuredProjectName) {
+  if (!launchDomain?.domain) {
+    return bodyProjectName;
+  }
+
+  return [
+    configuredProjectName,
+    process.env.SITE_LAUNCH_VERCEL_PROJECT_NAME,
+    bodyProjectName
+  ].map(value => String(value || '').trim()).find(Boolean);
 }
 
 async function fetchExistingFile({ token, repo, path, branch, fetchImpl }) {
@@ -993,6 +1006,7 @@ export function createGithubPublishHandler(options = {}) {
     vercelReadyPollIntervalMs,
     vercelDnsVerifyRetryDelayMs,
     vercelDnsVerifyRetryAttempts,
+    siteLaunchVercelProjectName,
     siteLaunchBaseDomain = process.env.SITE_LAUNCH_BASE_DOMAIN
   } = options;
   const vercelTeamId = resolveSiteLaunchVercelTeamId(configuredVercelTeamId);
@@ -1013,24 +1027,32 @@ export function createGithubPublishHandler(options = {}) {
     const provider = parseProvider(req);
 
     if (provider === 'vercel') {
-      const validationError = validateVercelRequest(body, { defaultToken: vercelToken });
+      const launchDomain = body.customDomain || body.domain || body.subdomain || body.siteSlug || body.slug || body.alias
+        ? resolveLaunchDomain(body, { baseDomain: siteLaunchBaseDomain })
+        : null;
+
+      if ((body.customDomain || body.domain || body.subdomain || body.siteSlug || body.slug || body.alias) && !launchDomain) {
+        return res.status(400).json({ error: 'Choose a valid launch address or custom domain.' });
+      }
+
+      const projectName = resolveSiteLaunchVercelProjectName(
+        body.projectName,
+        launchDomain,
+        siteLaunchVercelProjectName
+      );
+      const validationError = validateVercelRequest(body, {
+        defaultToken: vercelToken,
+        projectName
+      });
       if (validationError) {
         return res.status(400).json({ error: validationError });
       }
 
       try {
         const token = body.token || vercelToken;
-        const launchDomain = body.customDomain || body.domain || body.subdomain || body.siteSlug || body.slug || body.alias
-          ? resolveLaunchDomain(body, { baseDomain: siteLaunchBaseDomain })
-          : null;
-
-        if ((body.customDomain || body.domain || body.subdomain || body.siteSlug || body.slug || body.alias) && !launchDomain) {
-          return res.status(400).json({ error: 'Choose a valid launch address or custom domain.' });
-        }
-
         const result = await createVercelDeployment({
           token,
-          projectName: body.projectName,
+          projectName,
           html: body.html,
           launchDomain,
           teamId: vercelTeamId,
@@ -1045,7 +1067,8 @@ export function createGithubPublishHandler(options = {}) {
 
         return res.status(200).json({
           ...result,
-          projectName: body.projectName,
+          projectName,
+          requestedProjectName: body.projectName,
           createdAt: Date.now()
         });
       } catch (err) {

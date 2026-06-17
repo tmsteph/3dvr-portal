@@ -24,6 +24,7 @@ const publishResult = document.getElementById('publish-result');
 const statusClasses = ['status--info', 'status--success', 'status--warning', 'status--error'];
 const draftStorageKey = 'site-launcher-current-draft';
 const sharedDefaultsWaitMs = 6000;
+const launchProjectName = '3dvr-launch-sites';
 
 let currentHtml = '';
 let currentTitle = '';
@@ -302,7 +303,7 @@ async function publishSite() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        projectName: `3dvr-${state.slug}`,
+        projectName: launchProjectName,
         subdomain: state.slug,
         ...(state.customDomain ? { customDomain: state.customDomain } : {}),
         html: currentHtml,

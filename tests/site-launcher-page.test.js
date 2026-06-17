@@ -25,6 +25,9 @@ test('site launcher exposes the simple customer publishing flow', async () => {
 
   assert.match(app, /fetch\('\/api\/openai-site'/);
   assert.match(app, /fetch\('\/api\/vercel-deploy'/);
+  assert.match(app, /const launchProjectName = '3dvr-launch-sites'/);
+  assert.match(app, /projectName: launchProjectName/);
+  assert.doesNotMatch(app, /projectName: `3dvr-\$\{state\.slug\}`/);
   assert.match(app, /subdomain: state\.slug/);
   assert.match(app, /customDomain: state\.customDomain/);
   assert.match(app, /sanitizeCustomDomain\(customDomainInput\.value\)/);
