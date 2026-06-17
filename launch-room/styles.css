@@ -1,0 +1,104 @@
+.launch-room__shell {
+  max-width: 1120px;
+}
+
+.launch-room .top-nav {
+  margin-bottom: 2rem;
+}
+
+.launch-room__hero {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.launch-room__core-copy {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: var(--radius-lg);
+  background: rgba(34, 211, 238, 0.12);
+  color: rgba(248, 250, 252, 0.94);
+  font-size: clamp(1.15rem, 1vw + 0.95rem, 1.55rem);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.launch-room__flow,
+.launch-room__modules {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.launch-room__steps {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.launch-room__steps .app-card__icon {
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+.launch-room__module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.launch-room__module {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1.2rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: rgba(17, 24, 39, 0.62);
+  color: var(--color-text);
+  box-shadow: 0 24px 60px rgba(4, 9, 20, 0.38);
+}
+
+.launch-room__module:hover {
+  border-color: rgba(56, 189, 248, 0.48);
+  background: rgba(30, 41, 59, 0.72);
+  color: var(--color-text);
+}
+
+.launch-room__module strong {
+  font-size: 1.02rem;
+}
+
+.launch-room__module span {
+  color: var(--color-text-muted);
+  font-size: 0.94rem;
+}
+
+.launch-room__module-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.launch-room__module-links a {
+  padding: 0.35rem 0.65rem;
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.launch-room__module-links a:hover {
+  background: rgba(56, 189, 248, 0.14);
+  color: var(--color-text);
+}
+
+.launch-room__footer-actions {
+  justify-content: flex-start;
+  margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+  .launch-room__core-copy {
+    padding: 1rem;
+  }
+}
