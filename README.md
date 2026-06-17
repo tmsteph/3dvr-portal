@@ -91,6 +91,8 @@ Most of the portal experiences now ship with their own installable manifests, so
 - [Master Key Room](https://3dvr-portal.vercel.app/master-key-room/)
 - [Intention Lab](https://3dvr-portal.vercel.app/intention-lab/)
 - [Portal Lab](https://3dvr-portal.vercel.app/portal-lab/)
+- [3DVR Connect](https://3dvr-portal.vercel.app/3dvr-connect/)
+- [Fascia Release](https://3dvr-portal.vercel.app/fascia-release/)
 - [Seated Spine Reset](https://3dvr-portal.vercel.app/seated-spine-reset/)
 
 Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.

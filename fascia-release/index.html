@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fascia Release | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="A gentle neck, jaw, tongue, and computer tension reset with low-intensity guidance and clear safety notes."
+  />
+  <style>
+    :root {
+      --paper: #f4ede2;
+      --surface: #fcfaf6;
+      --surface-soft: #f7f1e8;
+      --ink: #211913;
+      --muted: #61574d;
+      --line: #d8c7b2;
+      --line-strong: #b79460;
+      --gold: #b08a44;
+      --green: #4f7f64;
+      --clay: #8d4d43;
+      --deep: #15110d;
+      --shadow: 0 20px 50px rgba(34, 23, 15, 0.12);
+      --radius: 0.8rem;
+      --max: 1180px;
+      --pad: clamp(1rem, 3vw, 1.8rem);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.6), transparent 26%),
+        radial-gradient(circle at 82% 8%, rgba(176, 138, 68, 0.1), transparent 22%),
+        linear-gradient(180deg, #f7f1e7 0%, #efe3d1 100%);
+      color: var(--ink);
+      font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(var(--max), calc(100% - var(--pad) * 2));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid rgba(46, 35, 26, 0.14);
+      background: rgba(247, 241, 231, 0.94);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar__inner {
+      min-height: 4.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.75rem 0;
+    }
+
+    .brand {
+      margin: 0;
+      color: var(--deep);
+      font-size: 0.9rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    .nav button {
+      border: 1px solid rgba(46, 35, 26, 0.16);
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 0.5rem 0.85rem;
+      cursor: pointer;
+      transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .nav button[aria-pressed="true"] {
+      background: var(--deep);
+      border-color: var(--deep);
+      color: #fff;
+    }
+
+    main {
+      padding-bottom: 4rem;
+    }
+
+    section {
+      padding: clamp(3rem, 5vw, 4.5rem) 0;
+      border-bottom: 1px solid rgba(45, 36, 26, 0.1);
+    }
+
+    section:last-of-type {
+      border-bottom: none;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.06;
+      letter-spacing: 0.01em;
+    }
+
+    h1,
+    h2 {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    }
+
+    h1 {
+      font-size: clamp(2.45rem, 6vw, 4.5rem);
+      max-width: 12ch;
+    }
+
+    h2 {
+      font-size: clamp(1.45rem, 3vw, 2.1rem);
+    }
+
+    .eyebrow {
+      margin: 0 0 0.8rem;
+      color: var(--gold);
+      font-size: 0.76rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .lead {
+      max-width: 68ch;
+      margin: 1rem 0 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .hero {
+      padding-top: 3rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .card,
+    .panel {
+      border-radius: var(--radius);
+      border: 1px solid rgba(46, 35, 26, 0.14);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-copy {
+      padding: clamp(1.35rem, 4vw, 2.4rem);
+      display: grid;
+      gap: 1rem;
+    }
+
+    .keyline {
+      margin: 0;
+      max-width: 66ch;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      font-size: clamp(1.2rem, 2.2vw, 1.55rem);
+      font-style: italic;
+      color: #3d332b;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.9rem;
+      padding: 0.78rem 1rem;
+      border-radius: 0.65rem;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--deep);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 700;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .button--primary {
+      background: var(--deep);
+      color: #fff;
+    }
+
+    .button--secondary {
+      border-color: rgba(46, 35, 26, 0.2);
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    .hero-aside {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .safety-card {
+      padding: 1.1rem;
+      background: #fff8f0;
+      border-left: 4px solid var(--clay);
+      display: grid;
+      gap: 0.7rem;
+    }
+
+    .safety-card h2 {
+      font-size: 1.1rem;
+      font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    }
+
+    .safety-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .callout {
+      margin: 0;
+      padding: 0.95rem 1rem;
+      background: rgba(180, 138, 96, 0.12);
+      border-radius: 0.7rem;
+      border: 1px solid rgba(180, 138, 96, 0.22);
+      color: #4b3d31;
+    }
+
+    .visual-stack {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .visual-panel {
+      min-height: 12rem;
+      padding: 1rem;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.7), rgba(233, 217, 192, 0.9)),
+        repeating-linear-gradient(
+          135deg,
+          rgba(46, 35, 26, 0.04),
+          rgba(46, 35, 26, 0.04) 14px,
+          transparent 14px,
+          transparent 28px
+        );
+      border: 1px dashed rgba(46, 35, 26, 0.18);
+      color: var(--muted);
+    }
+
+    .visual-panel strong {
+      display: block;
+      color: var(--deep);
+      font-size: 1rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .placeholder-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 1px solid rgba(46, 35, 26, 0.16);
+      padding: 0.42rem 0.75rem;
+      background: rgba(255, 255, 255, 0.72);
+      color: #51453d;
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+
+    .section-lead {
+      max-width: 72ch;
+      margin: 0.85rem 0 0;
+      color: var(--muted);
+    }
+
+    .step-grid,
+    .support-grid,
+    .source-grid {
+      margin-top: 1.25rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+
+    .step-card,
+    .support-card,
+    .source-card {
+      padding: 1rem;
+      border-radius: var(--radius);
+      border: 1px solid rgba(46, 35, 26, 0.14);
+      background: var(--surface);
+    }
+
+    .step-meta {
+      display: flex;
+      gap: 0.75rem;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      color: var(--gold);
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .step-card p,
+    .support-card p,
+    .source-card p {
+      margin: 0.75rem 0 0;
+      color: #4a4037;
+    }
+
+    .step-card ul,
+    .support-card ul {
+      margin: 0.8rem 0 0;
+      padding-left: 1.1rem;
+      color: #4a4037;
+    }
+
+    .support-card {
+      background: var(--surface-soft);
+    }
+
+    .rule-band {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .rule-card {
+      padding: clamp(1.1rem, 3vw, 1.6rem);
+      border-radius: var(--radius);
+      border: 1px solid rgba(46, 35, 26, 0.14);
+      background: linear-gradient(135deg, #fdf8ef, #f3e8d6);
+      box-shadow: var(--shadow);
+    }
+
+    .rule-card h2 {
+      margin-bottom: 0.5rem;
+    }
+
+    .rule-quote {
+      margin: 0;
+      max-width: 54ch;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      font-size: clamp(1.4rem, 2.5vw, 1.85rem);
+      color: #32281f;
+    }
+
+    .source-card a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .source-card a:hover {
+      text-decoration: underline;
+    }
+
+    .source-card small {
+      display: block;
+      margin-top: 0.45rem;
+      color: var(--muted);
+    }
+
+    .footnote {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: var(--radius);
+      background: rgba(176, 138, 68, 0.12);
+      border: 1px solid rgba(176, 138, 68, 0.2);
+      color: #4d4033;
+    }
+
+    footer {
+      padding: 2rem 0 2.4rem;
+      color: var(--muted);
+    }
+
+    @media (min-width: 860px) {
+      .hero-grid {
+        grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+      }
+
+      .step-grid,
+      .support-grid,
+      .source-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .source-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .button,
+      .nav button,
+      .step-card,
+      .support-card,
+      .source-card,
+      .visual-panel {
+        transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
+      }
+
+      .button:hover,
+      .nav button:hover,
+      .step-card:hover,
+      .support-card:hover,
+      .source-card:hover,
+      .visual-panel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 56px rgba(34, 23, 15, 0.12);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar__inner">
+      <p class="brand">Fascia Release</p>
+      <nav class="nav" aria-label="Section navigation">
+        <button type="button" data-jump="hero" aria-pressed="true">Hero</button>
+        <button type="button" data-jump="routine" aria-pressed="false">Routine</button>
+        <button type="button" data-jump="rule" aria-pressed="false">Rule</button>
+        <button type="button" data-jump="avoid" aria-pressed="false">Avoid</button>
+        <button type="button" data-jump="sources" aria-pressed="false">Sources</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="hero" class="hero">
+      <div class="shell hero-grid">
+        <div class="card hero-copy">
+          <p class="eyebrow">Gentle reset / 2-4 out of 10</p>
+          <h1>Fascia Release</h1>
+          <p class="lead">
+            Here is a gentle fascia-release reset for neck, jaw, tongue, and computer tension. Keep everything at
+            2-4/10 intensity. No forcing, cracking, aggressive stretching, or deep pressure on the front of the throat.
+          </p>
+          <p class="keyline">"Tongue soft, jaw heavy, eyes soft."</p>
+          <div class="hero-actions">
+            <button class="button button--primary" type="button" data-jump="routine">Open Routine</button>
+            <button class="button button--secondary" type="button" data-jump="rule">See Computer Jaw Rule</button>
+          </div>
+          <div class="pill-row" aria-label="Intent tags">
+            <span class="pill">Neck</span>
+            <span class="pill">Jaw</span>
+            <span class="pill">Tongue</span>
+            <span class="pill">Computer tension</span>
+            <span class="pill">Low intensity</span>
+          </div>
+        </div>
+
+        <aside class="hero-aside">
+          <div class="safety-card">
+            <h2>Seek care urgently if</h2>
+            <p>
+              arm or hand numbness gets worse, weakness appears, clumsiness shows up, balance changes, severe headache
+              with neck pain appears, dizziness starts, or symptoms follow an injury.
+            </p>
+            <p class="callout">
+              This page is a gentle reset, not a diagnosis or a substitute for medical care.
+            </p>
+          </div>
+
+          <div class="visual-stack">
+            <div class="visual-panel" role="img" aria-label="Placeholder image panel for a future neck and jaw visual">
+              <div>
+                <strong>Placeholder image panel</strong>
+                Future three.js neck and jaw stage
+              </div>
+            </div>
+            <div class="visual-panel" role="img" aria-label="Placeholder image panel for a future breathing cue visual">
+              <div>
+                <strong>Placeholder image panel</strong>
+                Breath loop and fascia map
+              </div>
+            </div>
+          </div>
+
+          <!-- Placeholder: future three.js visualization can replace these panels later. -->
+        </aside>
+      </div>
+    </section>
+
+    <section id="routine">
+      <div class="shell">
+        <p class="eyebrow">10-minute neck/jaw fascia release</p>
+        <h2>Move slowly. Stay small. Keep the whole routine calm.</h2>
+        <p class="section-lead">
+          The sequence below follows the original reset: downshift first, then jaw, SCM, suboccipitals, chest and
+          collarbone, and a final chin-tuck decompression.
+        </p>
+
+        <div class="step-grid">
+          <article class="step-card">
+            <div class="step-meta"><span>01</span><span>90 seconds</span></div>
+            <h3>Downshift first</h3>
+            <p>Sit or lie down. One hand on chest, one on belly. Inhale 4 seconds, exhale 6-8 seconds. On each exhale, quietly say, "tongue soft, jaw heavy, eyes soft."</p>
+            <ul>
+              <li>Use nose breathing if possible.</li>
+              <li>Let the exhale be longer than the inhale.</li>
+              <li>Drop the clench before anything else.</li>
+            </ul>
+          </article>
+
+          <article class="step-card">
+            <div class="step-meta"><span>02</span><span>2 minutes</span></div>
+            <h3>Tongue and jaw reset</h3>
+            <p>Place the tongue gently on the roof of the mouth behind the upper front teeth. Set the jaw to tongue up, teeth apart, lips lightly closed, jaw hanging.</p>
+            <ul>
+              <li>Do 5 tiny jaw openings, only 1-2 finger widths.</li>
+              <li>Massage the cheek muscle and jaw angle with small circles.</li>
+              <li>Keep pressure light and avoid digging into the joint.</li>
+            </ul>
+          </article>
+
+          <article class="step-card">
+            <div class="step-meta"><span>03</span><span>2 minutes</span></div>
+            <h3>SCM release</h3>
+            <p>Turn the head slightly left. On the right side, gently pinch the sternocleidomastoid between fingers, not the throat, and glide downward toward the collarbone.</p>
+            <ul>
+              <li>Use 3-5 slow passes per side.</li>
+              <li>Pressure stays gentle; do not dig.</li>
+              <li>This area is sensitive because of nearby nerves and vessels.</li>
+            </ul>
+          </article>
+
+          <article class="step-card">
+            <div class="step-meta"><span>04</span><span>2 minutes</span></div>
+            <h3>Suboccipital release</h3>
+            <p>Lie on your back. Put two tennis balls in a sock, or use fingertips, under the base of the skull. Let the head rest without rolling aggressively.</p>
+            <ul>
+              <li>Make tiny yes nods for 30 seconds.</li>
+              <li>Make tiny no motions for 30 seconds.</li>
+              <li>Then just breathe and melt for 60 seconds.</li>
+            </ul>
+          </article>
+
+          <article class="step-card">
+            <div class="step-meta"><span>05</span><span>90 seconds</span></div>
+            <h3>Pec and collarbone sweep</h3>
+            <p>Gently sweep under the collarbone from sternum outward to shoulder, then massage the pec area below the collarbone.</p>
+            <ul>
+              <li>Spend 45 seconds each side.</li>
+              <li>Let the shoulder stay relaxed.</li>
+              <li>This often matters more than the neck alone.</li>
+            </ul>
+          </article>
+
+          <article class="step-card">
+            <div class="step-meta"><span>06</span><span>1 minute</span></div>
+            <h3>Chin tuck decompression</h3>
+            <p>Sit tall, imagine the back of the skull floating upward, then slide the head backward like making a small double chin. Do not look down.</p>
+            <ul>
+              <li>Hold 3 seconds, then release.</li>
+              <li>Do 5-8 reps.</li>
+              <li>Keep discomfort very low, ideally 0-3/10.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="rule">
+      <div class="shell rule-band">
+        <div class="rule-card">
+          <p class="eyebrow">The computer jaw rule</p>
+          <h2>Use this 15-second reset every 20-30 minutes.</h2>
+          <p class="rule-quote">
+            "Feet grounded. Exhale. Tongue up. Teeth apart. Shoulders drop. Chin gently back. Eyes look far away."
+          </p>
+        </div>
+        <div class="support-grid">
+          <article class="support-card">
+            <h3>Why it helps</h3>
+            <p>
+              Computer work often recreates the same clench and forward-head pattern. A short reset can interrupt that
+              loop before it becomes the whole day.
+            </p>
+          </article>
+          <article class="support-card">
+            <h3>Keep it tiny</h3>
+            <p>
+              The point is not to fix the body in one move. The point is to lower effort enough that the jaw and neck
+              stop bracing.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="avoid">
+      <div class="shell">
+        <p class="eyebrow">What I would avoid</p>
+        <h2>Stay away from hard, corrective, or aggressive work.</h2>
+        <div class="support-grid">
+          <article class="support-card">
+            <h3>Do not force the neck</h3>
+            <p>Skip hard cracking, aggressive stretching, and deep pressure on the front of the throat.</p>
+          </article>
+          <article class="support-card">
+            <h3>Do not force the jaw</h3>
+            <p>If the jaw clicks, locks, hurts, or the bite changes, stop trying to expand or align it yourself.</p>
+          </article>
+          <article class="support-card">
+            <h3>Use care with tools</h3>
+            <p>Aggressive gua sha or strong pressure over the throat is not part of this reset.</p>
+          </article>
+          <article class="support-card">
+            <h3>Get help when needed</h3>
+            <p>A dentist or TMJ-aware physical therapist is worth it if the symptoms persist or the bite feels changed.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="sources">
+      <div class="shell">
+        <p class="eyebrow">Sources</p>
+        <h2>Reference points behind the routine.</h2>
+        <p class="section-lead">
+          These links are there for context and safety, not to turn the page into a diagnosis tool.
+        </p>
+        <div class="source-grid">
+          <article class="source-card">
+            <a href="https://www.nhsinform.scot/illnesses-and-conditions/muscle-bone-and-joints/neck-and-back-problems-and-conditions/neck-problems/?utm_source=chatgpt.com" target="_blank" rel="noopener">
+              <strong>NHS inform</strong>
+            </a>
+            <small>Urgent advice signs for neck problems.</small>
+          </article>
+          <article class="source-card">
+            <a href="https://www.mayoclinic.org/diseases-conditions/tmj/diagnosis-treatment/drc-20350945?utm_source=chatgpt.com" target="_blank" rel="noopener">
+              <strong>Mayo Clinic</strong>
+            </a>
+            <small>TMJ self-care and clenching awareness.</small>
+          </article>
+          <article class="source-card">
+            <a href="https://my.clevelandclinic.org/health/body/24939-sternocleidomastoid-scm-muscle?utm_source=chatgpt.com" target="_blank" rel="noopener">
+              <strong>Cleveland Clinic</strong>
+            </a>
+            <small>SCM basics and posture-related care.</small>
+          </article>
+        </div>
+        <div class="footnote">
+          The routine is intentionally small and low force. If symptoms are severe, escalating, or tied to injury,
+          seek medical advice instead of pushing through.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell">
+      <p>Fascia Release is a gentle reset page for neck, jaw, tongue, and computer tension.</p>
+      <p>Placeholder: future three.js visuals can be added later without changing the sequence.</p>
+    </div>
+  </footer>
+
+  <script>
+    const sections = [...document.querySelectorAll('section[id]')];
+    const buttons = [...document.querySelectorAll('[data-jump]')];
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = document.getElementById(button.dataset.jump);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    const setActive = (id) => {
+      document.querySelectorAll('.nav button').forEach((button) => {
+        button.setAttribute('aria-pressed', String(button.dataset.jump === id));
+      });
+    };
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (visible) {
+            setActive(visible.target.id);
+          }
+        },
+        { rootMargin: '-30% 0px -55% 0px', threshold: [0.1, 0.2, 0.3, 0.4, 0.5] }
+      );
+
+      sections.forEach((section) => observer.observe(section));
+    }
+  </script>
+</body>
+</html>
