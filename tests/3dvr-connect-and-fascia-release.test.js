@@ -24,8 +24,11 @@ test('Fascia Release ships as a standalone gentle reset and portal card', async 
   const portal = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.match(html, /<title>Fascia Release \| 3DVR Portal<\/title>/);
-  assert.match(html, /Here is a gentle fascia-release reset for neck, jaw, tongue, and computer tension\./);
-  assert.match(html, /Inhale 4 seconds, exhale 6-8 seconds/);
+  assert.match(html, /presented as a single-screen interactive experience/);
+  assert.match(html, /overflow: hidden;/);
+  assert.match(html, /data-view-panel="routine"/);
+  assert.match(html, /data-step="0"/);
+  assert.match(html, /Reset without the scroll/);
   assert.match(html, /Tongue soft, jaw heavy, eyes soft/);
   assert.match(html, /Placeholder image panel/);
   assert.match(html, /Seek care urgently if/);
