@@ -8,6 +8,37 @@
     ? resolvedScopeUrl.pathname
     : `${resolvedScopeUrl.pathname}/`;
   const scopeHref = new URL(scopePath, window.location.origin).href;
+  const reloadGuardKey = `3dvr-service-worker-reload:${scopePath}`;
+  const reloadCooldownMs = 30000;
+  let restoredFromPageCache = false;
+
+  window.addEventListener('pageshow', (event) => {
+    restoredFromPageCache = Boolean(event.persisted);
+    if (restoredFromPageCache) {
+      window.setTimeout(() => {
+        restoredFromPageCache = false;
+      }, 1000);
+    }
+  });
+
+  const shouldReloadForControllerChange = () => {
+    if (restoredFromPageCache || document.visibilityState === 'hidden') {
+      return false;
+    }
+
+    try {
+      const now = Date.now();
+      const lastReloadAt = Number(sessionStorage.getItem(reloadGuardKey) || 0);
+      if (now - lastReloadAt < reloadCooldownMs) {
+        return false;
+      }
+      sessionStorage.setItem(reloadGuardKey, String(now));
+    } catch (error) {
+      console.warn('Service worker reload guard unavailable', error);
+    }
+
+    return true;
+  };
 
   const toPathname = (url) => {
     if (!url) return '';
@@ -25,7 +56,9 @@
     if (waitingActivationRequested) return;
     waitingActivationRequested = true;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload();
+      if (shouldReloadForControllerChange()) {
+        window.location.reload();
+      }
     }, { once: true });
   };
 

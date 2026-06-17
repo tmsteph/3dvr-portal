@@ -116,8 +116,11 @@ describe('contacts PWA configuration', () => {
     const config = JSON.parse(vercelText);
     const rules = Array.isArray(config.headers) ? config.headers : [];
 
-    const staticAssetsIndex = rules.findIndex(
-      (rule) => rule.source === '/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|webp|woff2?)'
+    const codeAssetIndex = rules.findIndex(
+      (rule) => rule.source === '/(.*)\\.(css|js)'
+    );
+    const mediaAssetIndex = rules.findIndex(
+      (rule) => rule.source === '/(.*)\\.(png|jpg|jpeg|gif|svg|webp|woff2?)'
     );
     const pwaInstallIndex = rules.findIndex((rule) => rule.source === '/pwa-install.js');
     const contactsPwaInstallIndex = rules.findIndex(
@@ -131,24 +134,35 @@ describe('contacts PWA configuration', () => {
       (rule) => rule.source === '/contacts/contacts.webmanifest'
     );
 
-    assert.notEqual(staticAssetsIndex, -1);
+    assert.notEqual(codeAssetIndex, -1);
+    assert.notEqual(mediaAssetIndex, -1);
     assert.notEqual(pwaInstallIndex, -1);
     assert.notEqual(contactsPwaInstallIndex, -1);
     assert.notEqual(rootWorkerIndex, -1);
     assert.notEqual(contactsWorkerIndex, -1);
     assert.notEqual(contactsManifestIndex, -1);
 
-    assert.equal(staticAssetsIndex < pwaInstallIndex, true);
-    assert.equal(staticAssetsIndex < contactsPwaInstallIndex, true);
-    assert.equal(staticAssetsIndex < rootWorkerIndex, true);
-    assert.equal(staticAssetsIndex < contactsWorkerIndex, true);
+    assert.equal(codeAssetIndex < pwaInstallIndex, true);
+    assert.equal(codeAssetIndex < contactsPwaInstallIndex, true);
+    assert.equal(codeAssetIndex < rootWorkerIndex, true);
+    assert.equal(codeAssetIndex < contactsWorkerIndex, true);
 
+    const codeAssetRule = rules[codeAssetIndex];
+    const mediaAssetRule = rules[mediaAssetIndex];
     const pwaInstallRule = rules[pwaInstallIndex];
     const contactsPwaInstallRule = rules[contactsPwaInstallIndex];
     const rootWorkerRule = rules[rootWorkerIndex];
     const contactsWorkerRule = rules[contactsWorkerIndex];
     const contactsManifestRule = rules[contactsManifestIndex];
 
+    assert.equal(
+      findHeaderValue(codeAssetRule.headers, 'Cache-Control'),
+      'public, max-age=0, must-revalidate'
+    );
+    assert.equal(
+      findHeaderValue(mediaAssetRule.headers, 'Cache-Control'),
+      'public, max-age=31536000, immutable'
+    );
     assert.equal(findHeaderValue(pwaInstallRule.headers, 'Cache-Control'), 'no-cache');
     assert.equal(findHeaderValue(contactsPwaInstallRule.headers, 'Cache-Control'), 'no-cache');
     assert.equal(findHeaderValue(rootWorkerRule.headers, 'Cache-Control'), 'no-cache');
