@@ -259,6 +259,87 @@ test('vercel deploy provider ignores client team overrides', async () => {
   assert.doesNotMatch(calls[0].url, /team_tmsteph/);
 });
 
+test('vercel launch domains can publish through a configured shared project', async () => {
+  const calls = [];
+  let requestPayload = null;
+  const handler = createGithubPublishHandler({
+    vercelToken: 'server_vercel_token',
+    vercelTeamId: 'team_3dvr',
+    siteLaunchVercelProjectName: '3dvr-launch-sites',
+    siteLaunchBaseDomain: '3dvr.tech',
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+
+      if (String(url).includes('/v13/deployments')) {
+        requestPayload = JSON.parse(options.body);
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: 'dpl_shared_launch',
+              url: '3dvr-launch-sites.vercel.app',
+              inspectUrl: 'https://vercel.com/3dvr/3dvr-launch-sites/deployments/dpl_shared_launch',
+              readyState: 'READY'
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v10/projects/3dvr-launch-sites/domains')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              name: 'river-city-wellness.3dvr.tech',
+              verified: true
+            };
+          }
+        };
+      }
+
+      if (String(url).includes('/v2/deployments/dpl_shared_launch/aliases')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              alias: 'river-city-wellness.3dvr.tech'
+            };
+          }
+        };
+      }
+
+      throw new Error(`Unexpected url ${url}`);
+    }
+  });
+
+  const req = {
+    method: 'POST',
+    query: { provider: 'vercel' },
+    headers: {},
+    body: {
+      projectName: '3dvr-river-city-wellness',
+      subdomain: 'river-city-wellness',
+      html: '<html><body>shared launch project deployment test</body></html>'
+    }
+  };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(requestPayload.name, '3dvr-launch-sites');
+  assert.equal(res.body.projectName, '3dvr-launch-sites');
+  assert.equal(res.body.requestedProjectName, '3dvr-river-city-wellness');
+  assert.equal(res.body.aliasAssigned, true);
+  assert.equal(res.body.aliasUrl, 'https://river-city-wellness.3dvr.tech');
+  assert.match(calls[0].url, /\/v13\/deployments\?teamId=team_3dvr$/);
+  assert.match(calls[1].url, /\/v10\/projects\/3dvr-launch-sites\/domains\?teamId=team_3dvr$/);
+  assert.match(calls[2].url, /\/v2\/deployments\/dpl_shared_launch\/aliases\?teamId=team_3dvr$/);
+});
+
 test('sanitizeLaunchSubdomain normalizes customer site addresses', () => {
   assert.equal(sanitizeLaunchSubdomain(' River City Wellness! '), 'river-city-wellness');
   assert.equal(sanitizeLaunchSubdomain('ab'), '');
