@@ -1,0 +1,212 @@
+:root {
+  --panel: rgba(8, 13, 22, 0.72);
+  --panel-strong: rgba(8, 13, 22, 0.86);
+  --line: rgba(226, 232, 240, 0.18);
+  --ink: #f8fafc;
+  --muted: #b6c2d2;
+  --accent: #2dd4bf;
+  --accent-2: #38bdf8;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #070b12;
+  color: var(--ink);
+  font-family: Inter, Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 10;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #03201f;
+  transform: translateY(-150%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.fractal-shell {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+#fractal-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  background: #070b12;
+}
+
+.scene-header,
+.control-panel {
+  position: fixed;
+  z-index: 2;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.scene-header {
+  top: clamp(0.85rem, 2vw, 1.5rem);
+  left: clamp(0.85rem, 2vw, 1.5rem);
+  width: min(31rem, calc(100vw - 2rem));
+  padding: clamp(1rem, 2vw, 1.35rem);
+}
+
+.eyebrow {
+  margin: 0 0 0.45rem;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.scene-header h1,
+.panel-heading h2 {
+  margin: 0;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.scene-header h1 {
+  font-size: clamp(2rem, 4vw, 4rem);
+}
+
+.scene-header p:not(.eyebrow) {
+  max-width: 34rem;
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+}
+
+.scene-header nav,
+.control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.scene-header a,
+.scene-header button,
+.control-panel button,
+.control-panel select {
+  min-height: 2.45rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.6rem 0.78rem;
+  background: rgba(15, 23, 42, 0.74);
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.scene-header a:hover,
+.scene-header button:hover,
+.control-panel button:hover,
+.control-panel select:hover {
+  border-color: rgba(45, 212, 191, 0.6);
+  color: var(--ink);
+}
+
+.control-panel {
+  right: clamp(0.85rem, 2vw, 1.5rem);
+  top: clamp(0.85rem, 2vw, 1.5rem);
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 1rem;
+  display: grid;
+  gap: 0.95rem;
+}
+
+.panel-heading {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.panel-heading h2 {
+  font-size: 1.15rem;
+}
+
+.control-panel label {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.control-panel label > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.control-panel input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.control-panel select {
+  width: 100%;
+  color-scheme: dark;
+  background: var(--panel-strong);
+}
+
+.hint,
+.status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.status {
+  color: var(--accent-2);
+}
+
+@media (max-width: 820px) {
+  body {
+    overflow: auto;
+  }
+
+  .scene-header,
+  .control-panel {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    width: auto;
+    margin: 0.85rem;
+  }
+
+  .fractal-shell {
+    min-height: 100dvh;
+    padding-bottom: 0.85rem;
+    display: grid;
+    align-content: space-between;
+  }
+
+  #fractal-canvas {
+    position: fixed;
+    min-height: 100dvh;
+  }
+}

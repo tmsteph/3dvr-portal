@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fractal Explorer | 3DVR Portal</title>
+  <meta name="theme-color" content="#070b12">
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#controls">Skip to controls</a>
+  <main class="fractal-shell">
+    <canvas id="fractal-canvas" aria-label="Interactive raymarched Mandelbulb fractal"></canvas>
+
+    <header class="scene-header">
+      <p class="eyebrow">3D fractal navigator</p>
+      <h1>Fractal Explorer</h1>
+      <p>
+        A browser-based fractal workspace inspired by Mandelbulb3D's navigator:
+        raymarched geometry, live formula controls, lighting, and shareable presets.
+      </p>
+      <nav aria-label="Mandelbulb links">
+        <a href="../index.html">Portal</a>
+        <a href="../vr-portal/">Spatial Portal</a>
+        <button id="randomize" type="button">Mutate</button>
+        <button id="copy-link" type="button">Copy Link</button>
+      </nav>
+    </header>
+
+    <section class="control-panel" id="controls" aria-labelledby="controls-title">
+      <div class="panel-heading">
+        <p class="eyebrow">Live formula</p>
+        <h2 id="controls-title">Navigator controls</h2>
+      </div>
+
+      <label>
+        <span>Power <output id="power-value">8.0</output></span>
+        <input id="power" type="range" min="2" max="12" value="8" step="0.1">
+      </label>
+
+      <label>
+        <span>Iterations <output id="iterations-value">9</output></span>
+        <input id="iterations" type="range" min="4" max="14" value="9" step="1">
+      </label>
+
+      <label>
+        <span>Detail <output id="detail-value">72</output></span>
+        <input id="detail" type="range" min="36" max="112" value="72" step="4">
+      </label>
+
+      <label>
+        <span>Bloom <output id="bloom-value">0.35</output></span>
+        <input id="bloom" type="range" min="0" max="0.9" value="0.35" step="0.01">
+      </label>
+
+      <label>
+        <span>Palette</span>
+        <select id="palette">
+          <option value="0">Aurora</option>
+          <option value="1">Copper</option>
+          <option value="2">Ice</option>
+          <option value="3">Mono</option>
+        </select>
+      </label>
+
+      <div class="control-actions">
+        <button id="reset-view" type="button">Reset View</button>
+        <button id="pause" type="button" aria-pressed="false">Pause</button>
+      </div>
+
+      <p class="hint">Drag to orbit. Scroll or pinch to zoom. Changes update the URL so the scene can be shared.</p>
+      <p class="status" id="status" aria-live="polite">Rendering in WebGL.</p>
+    </section>
+  </main>
+</body>
+</html>
