@@ -103,6 +103,7 @@
             <div class="launch-room__brief-actions" aria-label="Movement Brief actions">
               <button class="cta ghost" type="button" data-action="copy">Copy Brief</button>
               <button class="cta ghost" type="button" data-action="download">Download Markdown</button>
+              <button class="cta ghost" type="button" data-action="build-launch-page">Build Launch Page</button>
             </div>
 
             <div class="brief-stack" aria-live="polite">
@@ -141,6 +142,60 @@
                 <ol class="brief-list" data-brief="actions"></ol>
               </article>
             </div>
+
+            <section
+              class="launch-page-draft"
+              data-launch-page-section
+              aria-labelledby="launchPageDraftTitle"
+              hidden
+            >
+              <div class="app-hub__intro">
+                <span class="eyebrow">Next step</span>
+                <h2 id="launchPageDraftTitle">Launch Page Draft</h2>
+                <p>Simple page copy based on the Movement Brief above.</p>
+              </div>
+
+              <div class="launch-room__brief-actions" aria-label="Launch Page Draft actions">
+                <button class="cta ghost" type="button" data-action="copy-launch-page">Copy Launch Page</button>
+              </div>
+
+              <div class="brief-stack" aria-live="polite">
+                <article class="brief-card brief-card--title">
+                  <p class="brief-card__label">Hero headline</p>
+                  <h3 data-launch-page="headline"></h3>
+                </article>
+
+                <article class="brief-card">
+                  <p class="brief-card__label">Short subheadline</p>
+                  <p data-launch-page="subheadline"></p>
+                </article>
+
+                <article class="brief-card">
+                  <p class="brief-card__label">Mission section</p>
+                  <p data-launch-page="mission"></p>
+                </article>
+
+                <article class="brief-card">
+                  <p class="brief-card__label">Who this is for</p>
+                  <p data-launch-page="audience"></p>
+                </article>
+
+                <article class="brief-card">
+                  <p class="brief-card__label">First invitation / call to action</p>
+                  <p data-launch-page="invitation"></p>
+                </article>
+
+                <article class="brief-card">
+                  <p class="brief-card__label">Simple contact CTA</p>
+                  <p data-launch-page="contact"></p>
+                </article>
+
+                <article class="brief-card">
+                  <p class="brief-card__label">Footer line</p>
+                  <p data-launch-page="footer"></p>
+                </article>
+              </div>
+            </section>
           </aside>
         </div>
       </section>
