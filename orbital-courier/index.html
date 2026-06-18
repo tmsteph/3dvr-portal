@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orbital Courier - 3DVR Games</title>
+  <meta name="description" content="A tiny spherical delivery game for the 3DVR portal arcade.">
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body data-issue-launcher="off">
+  <canvas id="game-canvas" aria-label="Orbital Courier 3D spherical delivery world"></canvas>
+
+  <button id="menu-toggle" class="nav-toggle" type="button" aria-controls="game-nav" aria-expanded="false">Menu</button>
+  <nav id="game-nav" class="top-buttons" aria-label="Game links">
+    <a href="../index.html">Portal</a>
+    <a href="../games.html">Game Hub</a>
+    <a href="../space-jetpack/">Space Jetpack</a>
+    <a href="https://3dvr.tech/#subscribe" target="_blank" rel="noopener">Subscribe</a>
+  </nav>
+
+  <main class="game-shell" aria-label="Orbital Courier game interface">
+    <section class="hud" aria-live="polite">
+      <div class="hud__brand">
+        <span class="hud__eyebrow">3DVR Games</span>
+        <h1>Orbital Courier</h1>
+      </div>
+
+      <div class="hud__stats" aria-label="Run status">
+        <div>
+          <span>Deliveries</span>
+          <strong id="deliveries-count">0</strong>
+        </div>
+        <div>
+          <span>Time</span>
+          <strong id="time-left">02:00</strong>
+        </div>
+        <div>
+          <span>Load</span>
+          <strong id="load-state">Empty</strong>
+        </div>
+      </div>
+
+      <div class="route-panel">
+        <span class="route-panel__label">Current route</span>
+        <p id="route-text">Press Start Route to begin a delivery run.</p>
+      </div>
+
+      <div class="signal-strip" aria-label="Village signal feed">
+        <span id="signal-one">Market ping</span>
+        <span id="signal-two">Harbor wave</span>
+        <span id="signal-three">Hilltop ready</span>
+      </div>
+
+      <div class="hud__actions">
+        <button id="start-button" type="button">Start Route</button>
+        <button id="pause-button" type="button">Pause</button>
+        <button id="reset-button" type="button">Reset</button>
+      </div>
+    </section>
+
+    <section id="intro-panel" class="intro-panel" aria-labelledby="intro-title">
+      <div>
+        <span class="intro-panel__kicker">Tiny planet, quick errands</span>
+        <h2 id="intro-title">Carry signal parcels between neighborhoods before the route window closes.</h2>
+        <p>Move with WASD, arrows, or the touch stick. Get close to the green pickup beacon, then carry the parcel to the gold drop-off beacon.</p>
+      </div>
+      <button id="intro-start-button" type="button">Start Route</button>
+    </section>
+
+    <div class="instruction-chip" role="status">
+      <span id="instruction-text">Start a route, then steer toward the glowing pickup.</span>
+    </div>
+
+    <div class="touch-controls" aria-label="Touch controls">
+      <div class="touch-pad" data-touch-pad aria-label="Move courier">
+        <span class="touch-pad__nub" data-touch-nub></span>
+      </div>
+      <button id="boost-button" class="boost-button" type="button">Pulse</button>
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script type="module" src="main.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

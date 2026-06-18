@@ -6,6 +6,7 @@ const gameCards = [
   ['pong', 'Pong Arena'],
   ['tribes', 'Zero-G Ski Range'],
   ['stellar', 'Stellar Drift Flight'],
+  ['courier', 'Orbital Courier'],
   ['jetpack', 'Jetpack Corridor'],
   ['asteroids', 'Space Jetpack: 3DVR Asteroids']
 ];
