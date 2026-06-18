@@ -23,7 +23,9 @@ const briefTargets = {
   checklist: document.querySelector('[data-brief="checklist"]'),
   actions: document.querySelector('[data-brief="actions"]')
 };
+const LAUNCH_PAGE_TITLE = 'Launch Page Draft';
 const launchPageSection = document.querySelector('[data-launch-page-section]');
+const launchPageTitle = document.querySelector('[data-launch-page-title]');
 const launchPageTargets = {
   headline: document.querySelector('[data-launch-page="headline"]'),
   subheadline: document.querySelector('[data-launch-page="subheadline"]'),
@@ -204,6 +206,7 @@ function launchPageToMarkdown(launchPage) {
 function renderLaunchPage(brief) {
   const launchPage = buildLaunchPage(brief);
 
+  launchPageTitle.textContent = LAUNCH_PAGE_TITLE;
   launchPageTargets.headline.textContent = launchPage.headline;
   launchPageTargets.subheadline.textContent = launchPage.subheadline;
   launchPageTargets.mission.textContent = launchPage.mission;
@@ -298,8 +301,9 @@ function generateLaunchPage() {
   const brief = buildBrief(getState());
 
   renderLaunchPage(brief);
-  status.textContent = 'Launch Page Draft generated locally.';
+  status.textContent = 'Launch Page Draft generated.';
   launchPageSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  launchPageTitle.focus({ preventScroll: true });
 }
 
 async function copyLaunchPage() {

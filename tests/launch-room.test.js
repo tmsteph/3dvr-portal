@@ -32,10 +32,12 @@ test('launch room ships a local-first Movement Brief flow', async () => {
   assert.match(html, /Copy Brief/);
   assert.match(html, /Download Markdown/);
   assert.match(html, /Build Launch Page/);
+  assert.match(html, /data-action="build-launch-page"/);
   assert.match(html, /Movement Brief/);
   assert.match(html, /Launch Checklist/);
   assert.match(html, /Next 3 Actions/);
   assert.match(html, /Launch Page Draft/);
+  assert.match(html, /data-launch-page-title/);
   assert.match(html, /Hero headline/);
   assert.match(html, /Short subheadline/);
   assert.match(html, /Mission section/);
@@ -50,6 +52,13 @@ test('launch room ships a local-first Movement Brief flow', async () => {
   assert.match(app, /function buildLaunchPage/);
   assert.match(app, /function launchPageToMarkdown/);
   assert.match(app, /function renderLaunchPage/);
+  assert.match(app, /buildLaunchPageButton\.addEventListener\('click', generateLaunchPage\)/);
+  assert.match(app, /launchPageTitle\.textContent = LAUNCH_PAGE_TITLE/);
+  assert.match(app, /LAUNCH_PAGE_TITLE = 'Launch Page Draft'/);
+  assert.match(app, /launchPageSection\.hidden = false/);
+  assert.match(app, /status\.textContent = 'Launch Page Draft generated\.'/);
+  assert.match(app, /launchPageTitle\.focus/);
+  assert.match(app, /copyLaunchPageButton\.addEventListener\('click', copyLaunchPage\)/);
   assert.match(app, /Built with 3DVR Launch Room/);
   assert.match(app, /navigator\.clipboard\.writeText/);
   assert.match(app, /type: 'text\/markdown'/);
