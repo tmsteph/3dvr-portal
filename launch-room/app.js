@@ -72,6 +72,10 @@ function asSentence(text) {
   return normalized ? `${normalized.replace(/[.?!]+$/, '')}.` : '';
 }
 
+function asClause(text) {
+  return clean(text).replace(/[.?!]+$/, '');
+}
+
 function slugify(text) {
   const slug = clean(text)
     .toLowerCase()
@@ -82,29 +86,42 @@ function slugify(text) {
 }
 
 function buildBrief(state) {
-  const movementName = titleCase(state.movementName) || 'Your movement';
-  const worldPain = fallback(state.worldPain, 'the pattern you are ready to change');
-  const worldWish = fallback(state.worldWish, 'a better option that is easier to live inside');
-  const audience = fallback(state.firstAudience, 'the first people who need this most');
-  const tinyProject = fallback(state.tinyProject, 'a tiny version that can exist this week');
+  const movementName = titleCase(state.movementName) || 'A Movement Worth Starting';
+  const worldPain = fallback(
+    state.worldPain,
+    'people feel disconnected from what they care about and unsure where to begin'
+  );
+  const worldWish = fallback(
+    state.worldWish,
+    'a simple way to turn care into a small, real project'
+  );
+  const audience = fallback(
+    state.firstAudience,
+    'someone with an idea they keep putting off'
+  );
+  const tinyProject = fallback(
+    state.tinyProject,
+    'a one-page brief and a first invitation to respond'
+  );
 
   return {
     movementName,
-    mission: `We are building ${movementName} to move beyond ${worldPain} and make ${worldWish} real for ${audience}.`,
-    worldview: `This matters because ${worldPain} keeps showing up while ${worldWish} stays out of reach. The movement gives people a clearer direction, and the tiny project proves the idea can become real without waiting for permission.`,
+    mission: `${movementName} helps ${audience} respond to this problem: ${asSentence(worldPain)} It starts by making ${worldWish} feel practical, visible, and close enough to try.`,
+    worldview: `This matters because good ideas often stay private when people feel overwhelmed, unsupported, or unsure how to begin. If ${asClause(worldPain)}, then ${asClause(worldWish)} deserves a real first step. This movement begins small so people can see it, react to it, and help shape what comes next.`,
     audience,
     tinyProject,
     checklist: [
-      `Write the movement in one sentence: ${movementName}.`,
-      `Keep the first audience narrow: ${audience}.`,
-      `Build the tiny version this week: ${tinyProject}.`,
-      'Share it with a few real people and note what feels true.',
-      'Use the feedback to tighten the next version instead of expanding too soon.'
+      `Name the movement clearly: ${movementName}.`,
+      `Say the problem in plain language: ${asSentence(worldPain)}`,
+      `Describe the better future people can picture: ${asSentence(worldWish)}`,
+      `Choose a first audience you can actually reach: ${audience}.`,
+      `Ship the smallest visible version: ${asSentence(tinyProject)}`,
+      'Ask three people what feels useful, confusing, or missing.'
     ],
     actions: [
-      `Today: turn the idea into one short paragraph and keep it visible.`,
-      `This week: ship ${asSentence(tinyProject).slice(0, -1) || 'the tiny version'}.`,
-      `Next: show it to ${audience} and capture the first response.`
+      `Today: turn this brief into a short project intro people can understand in one minute.`,
+      `This week: share ${asSentence(tinyProject).slice(0, -1)} with ${audience}.`,
+      'Next: collect the first responses and decide what to keep, change, or remove.'
     ]
   };
 }
