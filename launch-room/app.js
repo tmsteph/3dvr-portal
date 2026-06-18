@@ -2,6 +2,8 @@ const STORAGE_KEY = '3dvr.launch-room.movement-brief.v1';
 
 const form = document.getElementById('movementBriefForm');
 const clearButton = document.querySelector('[data-action="clear"]');
+const copyButton = document.querySelector('[data-action="copy"]');
+const downloadButton = document.querySelector('[data-action="download"]');
 const status = document.getElementById('draftStatus');
 const fields = {
   movementName: document.getElementById('movementName'),
@@ -70,6 +72,15 @@ function asSentence(text) {
   return normalized ? `${normalized.replace(/[.?!]+$/, '')}.` : '';
 }
 
+function slugify(text) {
+  const slug = clean(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || 'movement-brief';
+}
+
 function buildBrief(state) {
   const movementName = titleCase(state.movementName) || 'Your movement';
   const worldPain = fallback(state.worldPain, 'the pattern you are ready to change');
@@ -96,6 +107,31 @@ function buildBrief(state) {
       `Next: show it to ${audience} and capture the first response.`
     ]
   };
+}
+
+function briefToMarkdown(brief) {
+  return [
+    `# ${brief.movementName}`,
+    '',
+    '## Mission',
+    brief.mission,
+    '',
+    '## Worldview / Why This Matters',
+    brief.worldview,
+    '',
+    '## First Audience',
+    brief.audience,
+    '',
+    '## First Tiny Project',
+    brief.tinyProject,
+    '',
+    '## Launch Checklist',
+    ...brief.checklist.map(item => `- ${item}`),
+    '',
+    '## Next 3 Actions',
+    ...brief.actions.map(item => `- ${item}`),
+    ''
+  ].join('\n');
 }
 
 function renderBrief(state) {
@@ -135,6 +171,44 @@ function sync() {
   renderBrief(state);
 }
 
+async function copyBrief() {
+  const brief = buildBrief(getState());
+  const markdown = briefToMarkdown(brief);
+
+  try {
+    await navigator.clipboard.writeText(markdown);
+    status.textContent = 'Movement Brief copied to clipboard.';
+  } catch {
+    const fallback = document.createElement('textarea');
+    fallback.value = markdown;
+    fallback.setAttribute('readonly', '');
+    fallback.style.position = 'fixed';
+    fallback.style.inset = '0 auto auto 0';
+    fallback.style.opacity = '0';
+    document.body.append(fallback);
+    fallback.select();
+    document.execCommand('copy');
+    fallback.remove();
+    status.textContent = 'Movement Brief copied to clipboard.';
+  }
+}
+
+function downloadBrief() {
+  const brief = buildBrief(getState());
+  const markdown = briefToMarkdown(brief);
+  const blob = new Blob([markdown], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = `${slugify(brief.movementName)}.md`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  status.textContent = 'Movement Brief downloaded as Markdown.';
+}
+
 const initialState = {
   movementName: '',
   worldPain: '',
@@ -167,5 +241,9 @@ clearButton.addEventListener('click', () => {
   });
   saveDraft(getState());
   renderBrief(getState());
-  fields.movementName.focus();
+  fields.worldPain.focus();
 });
+
+copyButton.addEventListener('click', copyBrief);
+
+downloadButton.addEventListener('click', downloadBrief);
