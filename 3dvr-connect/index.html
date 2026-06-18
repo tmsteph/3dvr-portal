@@ -10,19 +10,23 @@
   />
   <style>
     :root {
-      --ink: #1f1f1f;
-      --paper: #f4efe5;
-      --linen: #e8ddd0;
-      --ink-soft: #52514a;
-      --line: #cec4b5;
+      --ink: #171411;
+      --paper: #f6f1e8;
+      --linen: #e7dac8;
+      --ink-soft: #686159;
+      --line: rgba(42, 35, 29, 0.15);
       --green: #2f7a4f;
       --gold: #ab8a3b;
       --red: #9a3333;
-      --deep: #14110f;
-      --panel: #f9f6f0;
-      --radius: 0.8rem;
-      --max: 1120px;
-      --container-pad: clamp(1.25rem, 4vw, 2rem);
+      --deep: #100d0b;
+      --panel: #fffaf2;
+      --panel-warm: #ece0cf;
+      --blue: #1b6f91;
+      --sage: #596b5b;
+      --clay: #9f5e43;
+      --radius: 8px;
+      --max: 1180px;
+      --container-pad: clamp(1rem, 4vw, 2rem);
     }
 
     * {
@@ -33,15 +37,14 @@
     body {
       margin: 0;
       min-height: 100%;
-      background: radial-gradient(circle at 20% 10%, #1e1b19, #120f0d 52%);
+      background: var(--paper);
       color: var(--ink);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      line-height: 1.6;
+      line-height: 1.5;
     }
 
     body {
-      background-color: var(--paper);
-      color: var(--deep);
+      color: var(--ink);
     }
 
     a {
@@ -59,150 +62,191 @@
     }
 
     .topbar {
-      position: sticky;
+      position: fixed;
       top: 0;
+      left: 0;
+      right: 0;
       z-index: 5;
-      background: rgba(244, 239, 229, 0.98);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid rgba(46, 39, 33, 0.2);
-      box-shadow: 0 8px 24px rgba(22, 16, 13, 0.12);
+      background: rgba(13, 11, 9, 0.78);
+      color: #fff8ed;
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(255, 248, 237, 0.14);
     }
 
     .topbar-inner {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-height: 4rem;
+      min-height: 3.6rem;
       gap: 1rem;
-      padding: 0.75rem 0;
+      padding: 0.55rem 0;
     }
 
     .brand {
       margin: 0;
-      font-size: 0.95rem;
-      letter-spacing: 0.12em;
+      font-size: 0.76rem;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      font-weight: 650;
+      font-weight: 760;
     }
 
     nav {
       display: none;
-      gap: 0.75rem;
-      font-size: 0.92rem;
+      gap: 0.35rem;
+      font-size: 0.78rem;
     }
 
     .pill {
-      border: 1px solid rgba(31, 31, 31, 0.2);
-      padding: 0.42rem 0.8rem;
+      border: 1px solid rgba(255, 248, 237, 0.18);
+      padding: 0.38rem 0.62rem;
       border-radius: 999px;
       text-decoration: none;
-      background: transparent;
+      background: rgba(255, 248, 237, 0.05);
       transition: all 0.2s ease;
     }
 
     .pill:hover {
-      background: #ddd1bf;
-      border-color: rgba(31, 31, 31, 0.4);
+      background: rgba(255, 248, 237, 0.14);
+      border-color: rgba(255, 248, 237, 0.38);
     }
 
     .hero {
-      padding-top: 5rem;
-      padding-bottom: 4rem;
-      background: linear-gradient(140deg, #f5efe6 35%, #f1e4d2 100%);
-      border-bottom: 1px solid var(--line);
+      min-height: min(760px, 92vh);
+      display: grid;
+      align-items: end;
+      padding-top: 7.5rem;
+      padding-bottom: clamp(3rem, 8vh, 5rem);
+      color: #fff8ed;
+      background:
+        linear-gradient(90deg, rgba(11, 9, 8, 0.92) 0%, rgba(11, 9, 8, 0.72) 39%, rgba(11, 9, 8, 0.28) 72%, rgba(11, 9, 8, 0.68) 100%),
+        linear-gradient(0deg, rgba(11, 9, 8, 0.9), rgba(11, 9, 8, 0.05) 42%, rgba(11, 9, 8, 0.35)),
+        url("assets/open-form-mens-linen-club-collection.png") center / cover no-repeat;
+      border-bottom: 1px solid rgba(255, 248, 237, 0.08);
     }
 
     .eyebrow {
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      font-weight: 700;
-      color: #4e4a44;
-      font-size: 0.78rem;
-      margin: 0 0 0.85rem;
+      letter-spacing: 0.14em;
+      font-weight: 780;
+      color: #d8c7b1;
+      font-size: 0.72rem;
+      margin: 0 0 0.75rem;
     }
 
     h1,
     h2,
     h3 {
       margin: 0;
-      letter-spacing: 0.01em;
+      letter-spacing: 0;
       line-height: 1.12;
     }
 
     h1 {
-      font-size: clamp(2rem, 4vw, 3.1rem);
-      max-width: 16ch;
+      font-size: 3rem;
+      max-width: 8ch;
+      line-height: 0.9;
+      text-transform: uppercase;
     }
 
     .hero p {
-      max-width: 62ch;
-      color: var(--ink-soft);
+      max-width: 52ch;
+      color: rgba(255, 248, 237, 0.82);
       font-size: 1.05rem;
     }
 
     .hero-ctas {
       display: flex;
       gap: 0.75rem;
-      margin-top: 1.35rem;
+      margin-top: 1.5rem;
       flex-wrap: wrap;
     }
 
     .button {
       border: none;
-      padding: 0.72rem 1.1rem;
-      border-radius: 0.65rem;
+      padding: 0.76rem 1rem;
+      border-radius: var(--radius);
       cursor: pointer;
-      font-weight: 640;
+      font-weight: 760;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      font-size: 0.72rem;
     }
 
     .button.primary {
-      background: var(--deep);
-      color: #f5efe4;
-    }
-
-    .button.secondary {
-      background: transparent;
-      border: 1px solid rgba(20, 16, 13, 0.4);
+      background: #fff8ed;
       color: var(--deep);
     }
 
+    .button.secondary {
+      background: rgba(255, 248, 237, 0.08);
+      border: 1px solid rgba(255, 248, 237, 0.36);
+      color: #fff8ed;
+    }
+
     section {
-      padding: clamp(3rem, 5vw, 4rem) 0;
-      border-bottom: 1px solid rgba(46, 39, 33, 0.12);
+      padding: clamp(3rem, 7vw, 5.5rem) 0;
+      border-bottom: 1px solid var(--line);
+      scroll-margin-top: 4.5rem;
     }
 
     section:last-of-type {
       border-bottom: none;
     }
 
+    #open-form,
+    #connect,
+    #workplace,
+    #subdomains {
+      background: #fbf6ee;
+    }
+
+    #linen-capsule {
+      background:
+        linear-gradient(180deg, #15110f 0%, #241b16 48%, #f6f1e8 48%, #f6f1e8 100%);
+      color: #fff8ed;
+    }
+
+    #open-form-private,
+    #rooms,
+    #architecture,
+    #manifesto {
+      background: var(--paper);
+    }
+
     .section-title {
-      font-size: clamp(1.45rem, 3.2vw, 2rem);
-      margin-bottom: 0.9rem;
+      font-size: 2rem;
+      max-width: 12ch;
+      margin-bottom: 0.8rem;
+      text-transform: uppercase;
     }
 
     .section-lede {
-      max-width: 74ch;
+      max-width: 64ch;
       color: var(--ink-soft);
+      font-size: 1.04rem;
+    }
+
+    #linen-capsule > .site-shell > .section-lede,
+    #linen-capsule .line-quote {
+      color: rgba(255, 248, 237, 0.78);
     }
 
     .grid {
-      margin-top: 1.8rem;
+      margin-top: 1.4rem;
       display: grid;
-      gap: 1rem;
+      gap: 0.8rem;
       grid-template-columns: 1fr;
     }
 
     .card {
       background: var(--panel);
-      border: 1px solid rgba(31, 31, 31, 0.14);
+      border: 1px solid rgba(42, 35, 29, 0.13);
       border-radius: var(--radius);
-      padding: 1rem;
+      padding: clamp(1rem, 2vw, 1.25rem);
       display: flex;
       flex-direction: column;
-      gap: 0.6rem;
+      gap: 0.65rem;
+      box-shadow: 0 18px 48px rgba(28, 21, 16, 0.05);
     }
 
     .card p,
@@ -211,9 +255,18 @@
       color: #3f3c37;
     }
 
+    .card h3 {
+      font-size: 1.12rem;
+    }
+
+    #linen-capsule .card {
+      background: rgba(255, 250, 242, 0.96);
+      color: var(--ink);
+    }
+
     .placeholder {
       border: 1.5px dashed rgba(31, 31, 31, 0.28);
-      border-radius: 0.7rem;
+      border-radius: var(--radius);
       aspect-ratio: 16 / 9;
       background: linear-gradient(165deg, #f1e7d9 0%, #e1d3bd 42%, #d6c3a8 100%);
       display: grid;
@@ -226,6 +279,79 @@
 
     .placeholder strong {
       color: #3d342a;
+    }
+
+    .capsule-hero {
+      margin-top: 1.8rem;
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: 1fr;
+      align-items: start;
+    }
+
+    .collection-image {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 248, 237, 0.18);
+      background: #1d1713;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    }
+
+    .feature-list {
+      margin: 0.35rem 0 0;
+      padding-left: 1.1rem;
+      color: #3f3c37;
+    }
+
+    .feature-list li + li {
+      margin-top: 0.28rem;
+    }
+
+    .capsule-card {
+      min-height: 100%;
+    }
+
+    .capsule-tag {
+      width: fit-content;
+      border: 1px solid rgba(31, 31, 31, 0.16);
+      border-radius: 999px;
+      padding: 0.26rem 0.6rem;
+      background: #efe3d4;
+      color: #473b30;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .palette-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+
+    .swatch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      border: 1px solid rgba(31, 31, 31, 0.14);
+      border-radius: 999px;
+      padding: 0.35rem 0.58rem;
+      background: #fffaf2;
+      color: #3e3933;
+      font-size: 0.86rem;
+    }
+
+    .swatch::before {
+      content: "";
+      width: 0.9rem;
+      height: 0.9rem;
+      border-radius: 50%;
+      border: 1px solid rgba(31, 31, 31, 0.18);
+      background: var(--swatch);
     }
 
     .pill-group {
@@ -241,6 +367,7 @@
       border-radius: 999px;
       overflow: hidden;
       width: fit-content;
+      background: #fffaf2;
     }
 
     .room-buttons button {
@@ -259,10 +386,10 @@
 
     .room-content {
       margin-top: 0.95rem;
-      background: #f4ebe0;
+      background: #fffaf2;
       border: 1px solid rgba(31, 31, 31, 0.14);
-      border-radius: 0.75rem;
-      padding: 1rem;
+      border-radius: var(--radius);
+      padding: 1.1rem;
     }
 
     .room-content h3 {
@@ -325,10 +452,10 @@
     }
 
     .architecture-list li {
-      padding: 0.9rem;
-      border-left: 4px solid rgba(46, 39, 33, 0.22);
-      background: var(--panel);
-      border-radius: 0.55rem;
+      padding: 1rem;
+      border-left: 4px solid var(--blue);
+      background: #fffaf2;
+      border-radius: var(--radius);
     }
 
     .architecture-list strong {
@@ -346,8 +473,8 @@
 
     .subdomain-item {
       border: 1px solid rgba(31, 31, 31, 0.17);
-      border-radius: 0.75rem;
-      background: #f7f1e7;
+      border-radius: var(--radius);
+      background: #fffaf2;
       padding: 0.9rem 1rem;
       display: grid;
       gap: 0.25rem;
@@ -365,9 +492,9 @@
     footer {
       padding: 2.5rem 0 2.25rem;
       font-size: 0.96rem;
-      color: #4b4844;
-      border-top: 1px solid rgba(46, 39, 33, 0.2);
-      background: #efe5d8;
+      color: rgba(255, 248, 237, 0.72);
+      border-top: 1px solid rgba(255, 248, 237, 0.12);
+      background: #100d0b;
     }
 
     .muted {
@@ -376,7 +503,7 @@
     }
 
     .line-quote {
-      border-left: 3px solid #7f7468;
+      border-left: 3px solid var(--blue);
       padding-left: 0.9rem;
       margin: 1.1rem 0;
       color: #322f2a;
@@ -386,15 +513,14 @@
 
     .quote-key {
       margin: 0.8rem 0 0;
-      font-style: italic;
-      color: #5f5a55;
+      color: rgba(255, 248, 237, 0.7);
       max-width: 72ch;
     }
 
     .disclaimer {
       margin-top: 1rem;
-      background: #efe2d5;
-      border-radius: 0.65rem;
+      background: #fffaf2;
+      border-radius: var(--radius);
       padding: 0.85rem;
       border: 1px solid rgba(46, 39, 33, 0.17);
       font-size: 0.9rem;
@@ -413,8 +539,8 @@
     }
 
     .manifesto-lines li {
-      background: linear-gradient(90deg, #efeadf, #f4ece0);
-      border-radius: 0.6rem;
+      background: #fffaf2;
+      border-radius: var(--radius);
       border: 1px solid rgba(31, 31, 31, 0.15);
       padding: 0.8rem;
       font-size: 1rem;
@@ -426,8 +552,20 @@
         display: flex;
       }
 
+      h1 {
+        font-size: 5rem;
+      }
+
+      .section-title {
+        font-size: 2.7rem;
+      }
+
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .capsule-hero {
+        grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr);
       }
 
       .subdomain-grid,
@@ -438,7 +576,23 @@
     }
 
     @media (min-width: 980px) {
+      h1 {
+        font-size: 7rem;
+      }
+
+      .hero p {
+        font-size: 1.16rem;
+      }
+
+      .section-title {
+        font-size: 3.25rem;
+      }
+
       .grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #linen-capsule .grid:first-of-type {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
@@ -483,16 +637,13 @@
     <section id="hero" class="hero">
       <div class="site-shell">
         <p class="eyebrow">Premium lifestyle landing</p>
-        <h1>3DVR Connect</h1>
+        <h1>Open Form</h1>
         <p>
-          3DVR Connect is the consent-based community and play-space platform around Open Form.
-          Open Form is a sensual menswear and intimacy-wear label around it.
+          Sensual linen menswear for sun, skin, and confident movement. 3DVR Connect is the consent-based
+          community and play-space platform around the brand.
         </p>
         <p class="quote-key">
           “Design the container. Let humans become human again.”
-        </p>
-        <p class="quote-key">
-          “Sensual menswear for sun, skin, and consensual play.”
         </p>
         <div class="hero-ctas">
           <button class="button primary" type="button" data-action="focus-open-form">
@@ -540,36 +691,127 @@
 
     <section id="linen-capsule">
       <div class="site-shell">
-        <h2 class="section-title">Linen Capsule</h2>
+        <h2 class="section-title">Open Form Men's Linen</h2>
         <p class="section-lede">
-          Mediterranean linen that behaves well in heat, water, and shifting body states—without being loud, and
-          without forcing any one identity.
+          Sunlit linen, athletic reveal, and intentional modesty control. The public line should feel ancient
+          Greek, Mediterranean, luxury beach, and festival-ready: clothing for men who are comfortable being seen.
         </p>
+        <p class="line-quote">
+          Linen menswear for open bodies: soft masculine clothing with movement, breath, and form.
+        </p>
+        <div class="capsule-hero">
+          <img
+            class="collection-image"
+            src="assets/open-form-mens-linen-club-collection.png"
+            alt="Open Form men's linen club collection with split shorts, wrap shorts, mesh shirt, split pant, and sheer robe"
+          />
+          <article class="card capsule-card">
+            <span class="capsule-tag">Hero prototype</span>
+            <h3>Open Form Split Short</h3>
+            <p>
+              The defining piece: a 4 inch cream linen short with a relaxed boxer-like shape, high side slit,
+              supportive inner brief, elastic back waistband, flat front, and blue drawcord tips.
+            </p>
+            <ul class="feature-list">
+              <li>6-8 inch side slit that opens while walking or sitting</li>
+              <li>Slight front contour and modest inner support</li>
+              <li>Optional mesh triangle behind the slit for bolder versions</li>
+              <li>Tiny Open Form mark near the left hem</li>
+            </ul>
+          </article>
+        </div>
+
         <div class="grid">
-          <div class="card">
-            <div class="placeholder" role="img" aria-label="Linen set placeholder image">
-              <strong>Image Placeholder</strong><br />
-              Mediterranean Resortwear Set
-            </div>
-            <h3>Resort essentials</h3>
-            <p>Coastal-weight drape and breathable weaves for warm light-to-moderate activity.</p>
+          <article class="card">
+            <span class="capsule-tag">Reveal zones</span>
+            <h3>Design language</h3>
+            <p>
+              Four reveal zones guide the line: thigh through high vents and wraps, form through soft drape and
+              inner support, biceps through sleeveless camp cuts, and pecs through open collars and lace-up plackets.
+            </p>
+          </article>
+          <article class="card">
+            <span class="capsule-tag">Fit system</span>
+            <h3>Bulge-friendly, not fetish-coded</h3>
+            <p>
+              Low-rise waists, front pleats, gusseted crotches, curved seams, overlapping panels, and soft liners
+              let masculine form exist visibly without making the crotch the whole story.
+            </p>
+          </article>
+          <article class="card">
+            <span class="capsule-tag">Mood</span>
+            <h3>Public-facing sensuality</h3>
+            <p>
+              The line avoids cheap clubwear cues. Keep the front mostly linen, let reveal happen through
+              movement, and use mesh or sheer zones as architectural details.
+            </p>
+          </article>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <span class="capsule-tag">1</span>
+            <h3>Open Thigh Short</h3>
+            <p>Cream linen, high side slit, inner liner, flat-front waist, and a relaxed 4-5 inch inseam.</p>
+          </article>
+          <article class="card">
+            <span class="capsule-tag">2</span>
+            <h3>Apollo Wrap Short</h3>
+            <p>Asymmetric front overlap, tie at one hip, curved hem, and a modest trunk liner that reveals one thigh in motion.</p>
+          </article>
+          <article class="card">
+            <span class="capsule-tag">3</span>
+            <h3>Deep-V Muscle Camp</h3>
+            <p>Sleeveless linen camp/tunic hybrid with open collar, hidden snaps, low armholes, and side vents.</p>
+          </article>
+          <article class="card">
+            <span class="capsule-tag">4</span>
+            <h3>Split Linen Pant</h3>
+            <p>Loose beach pant with button-adjustable side slits, wide waistband, soft pleats, and visible inner short option.</p>
+          </article>
+          <article class="card">
+            <span class="capsule-tag">5</span>
+            <h3>Sheer Sun Robe</h3>
+            <p>Semi-sheer gauze linen robe with open front, high side slits, generous sleeves, and belt-on or belt-off styling.</p>
+          </article>
+          <article class="card">
+            <span class="capsule-tag">Forward piece</span>
+            <h3>Linen Harness Vest</h3>
+            <p>Structured linen canvas vest with open chest, wrap straps, side ties, and a mesh back for private events or festival styling.</p>
+          </article>
+        </div>
+
+        <div class="card" style="margin-top: 1rem">
+          <span class="capsule-tag">Palette</span>
+          <h3>Natural tones with one Mediterranean signal</h3>
+          <p>
+            Start premium and sunlit: bone, sand, stone gray, washed black, and Mediterranean blue used only as
+            stitching, drawcord tips, logo marks, or mesh details.
+          </p>
+          <div class="palette-row" aria-label="Open Form linen color palette">
+            <span class="swatch" style="--swatch: #f2eadf">Bone</span>
+            <span class="swatch" style="--swatch: #cdbb9d">Sand</span>
+            <span class="swatch" style="--swatch: #8f8d86">Stone gray</span>
+            <span class="swatch" style="--swatch: #22201e">Washed black</span>
+            <span class="swatch" style="--swatch: #1b6f91">Mediterranean blue</span>
           </div>
-          <div class="card">
-            <div class="placeholder" role="img" aria-label="Wardrobe module placeholder image">
-              <strong>Image Placeholder</strong><br />
-              Movement Capsule Grid
-            </div>
-            <h3>Movement layering</h3>
-            <p>Neutral tones and clean seams for calm transitions between public, workspace, and social blocks.</p>
-          </div>
-          <div class="card">
-            <div class="placeholder" role="img" aria-label="Private-ready item placeholder image">
-              <strong>Image Placeholder</strong><br />
-              Soft-Surface Utility Item
-            </div>
-            <h3>Private-ready forms</h3>
-            <p>Design patterns that support personal pacing and consent-aware environments.</p>
-          </div>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <span class="capsule-tag">Campaign line</span>
+            <h3>Resortwear for men who want to be seen</h3>
+            <p>
+              Lead with confidence, heat, and natural materials instead of selling the line as novelty sexy clothes.
+            </p>
+          </article>
+          <article class="card">
+            <span class="capsule-tag">Brand stance</span>
+            <h3>Masculine form, visibly and beautifully</h3>
+            <p>
+              The product philosophy is not exposure for shock. It is breath, movement, and controlled reveal.
+            </p>
+          </article>
         </div>
         <!-- Placeholder: ecommerce product cards and "add-to-cart" workflows should be integrated here. -->
       </div>
