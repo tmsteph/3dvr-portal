@@ -13,7 +13,7 @@ test('CRM page exposes workflow filters and import controls for fast lead retrie
   const html = await read('crm/index.html');
   assert.match(html, /id="quickConversationCapture"/);
   assert.match(html, /id="openConversationCapture"/);
-  assert.match(html, /\+ Capture Conversation/);
+  assert.match(html, /\+ Intake form/);
   assert.match(html, /id="conversationCapturePanel"/);
   assert.match(html, /id="conversationCaptureForm"/);
   assert.match(html, /id="conversationCaptureName"/);
@@ -29,14 +29,18 @@ test('CRM page exposes workflow filters and import controls for fast lead retrie
   assert.match(html, /id="conversationCapturePlanFilter"/);
   assert.match(html, /id="conversationCaptureActionFilter"/);
   assert.match(html, /id="conversationCaptureInterestFilter"/);
-  assert.match(html, /Ask, tap, save\./);
-  assert.match(html, /Save Conversation/);
+  assert.match(html, /Start with the fallback note\./);
+  assert.match(html, /Save intake/);
   assert.match(html, /id="quickConversationForm"/);
   assert.match(html, /id="quickConversationNote"/);
   assert.match(html, /id="quickConversationPerson"/);
   assert.match(html, /id="quickConversationChannel"/);
   assert.match(html, /id="quickConversationNextStep"/);
-  assert.match(html, /Ask, tap, save\./);
+  assert.match(html, /Fastest path: write the messy note/);
+  assert.ok(
+    html.indexOf('id="quickConversationForm"') < html.indexOf('id="conversationCapturePanel"'),
+    'expected the fallback note to appear before the intake form'
+  );
   assert.match(html, /overflow-x: hidden/);
   assert.match(html, /overflow-wrap: anywhere/);
   assert.match(html, /#crmFloatingIdentity/);
@@ -106,7 +110,7 @@ test('CRM app includes keyboard search shortcut, workflow filters, and import wi
   assert.match(js, /handleQuickConversationSubmit/);
   assert.match(js, /findQuickConversationRecord/);
   assert.match(js, /appendConversationNote/);
-  assert.match(js, /source: 'Quick capture'/);
+  assert.match(js, /source: 'Fast fallback note'/);
   assert.match(js, /touchType: getQuickConversationTouchType\(channel\)/);
   assert.match(js, /quickConversationForm\?\.addEventListener\('submit', handleQuickConversationSubmit\)/);
   assert.match(js, /personWorkflowFilter\?\.addEventListener\('change', applyFilter\)/);
