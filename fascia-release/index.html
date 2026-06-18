@@ -378,6 +378,84 @@
       color: #ffffff;
     }
 
+    .start-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.85rem;
+    }
+
+    .session-dashboard {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .timer-panel,
+    .breath-panel {
+      border: 1px solid rgba(50, 38, 26, 0.14);
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.68);
+      padding: 0.9rem;
+    }
+
+    .timer-panel {
+      display: grid;
+      gap: 0.35rem;
+      align-content: center;
+    }
+
+    .timer-display {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      line-height: 1;
+      color: var(--deep);
+    }
+
+    .timer-status {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .breath-panel {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 0.85rem;
+      align-items: center;
+    }
+
+    .breath-disc {
+      width: 5.4rem;
+      aspect-ratio: 1;
+      border-radius: 999px;
+      border: 1px solid rgba(77, 124, 96, 0.35);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(77, 124, 96, 0.24), rgba(77, 124, 96, 0.08) 55%, rgba(255, 255, 255, 0.7) 56%);
+      transform: scale(0.78);
+      transition: transform 900ms ease, background 900ms ease;
+    }
+
+    .breath-disc[data-phase="inhale"] {
+      transform: scale(1);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(77, 124, 96, 0.34), rgba(77, 124, 96, 0.12) 58%, rgba(255, 255, 255, 0.78) 59%);
+    }
+
+    .breath-copy {
+      display: grid;
+      gap: 0.25rem;
+      min-width: 0;
+    }
+
+    .breath-copy strong {
+      color: var(--deep);
+      font-size: 1.05rem;
+    }
+
+    .breath-copy span {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
     .screen {
       grid-row: 2;
       min-height: 0;
@@ -843,38 +921,70 @@
         <div class="screen is-active" data-view-panel="intro">
           <h1 id="screenTitle">Fascia Release</h1>
           <p class="lede">
-            A low-force reset for neck, jaw, tongue, and computer tension. Keep it gentle. Stop if symptoms intensify.
+            A guided low-force reset for neck, jaw, tongue, and computer tension. Start the session and let it move for you.
           </p>
           <div class="cue-card">
             <strong>Start with the downshift.</strong>
-            <p>Tongue soft, jaw heavy, eyes soft. Then move one step at a time.</p>
+            <p>Tongue soft, jaw heavy, eyes soft. Then let the routine advance on its own.</p>
+          </div>
+          <div class="start-row">
+            <button type="button" class="primary" data-action="start">Start Session</button>
+            <button type="button" data-action="safety">Safety First</button>
           </div>
         </div>
 
         <div class="screen" data-view-panel="routine">
-          <h2 data-step-title>Downshift first</h2>
-          <p class="lede" data-step-body>
-            One hand on chest, one on belly. Inhale for 4, exhale for 6-8. Let the jaw hang.
-          </p>
-          <div class="cue-card">
-            <strong data-step-cue>Tongue soft, jaw heavy, eyes soft.</strong>
-            <ul class="cue-list" data-step-points>
-              <li>Nose breathing if possible.</li>
-              <li>Six slow breaths.</li>
-              <li>No stretching yet.</li>
-            </ul>
-          </div>
-        </div>
+          <div class="session-dashboard">
+            <div class="timer-panel" aria-live="polite">
+              <div class="stage-meta">
+                <span>Step timer</span>
+                <span data-session-status>Ready</span>
+              </div>
+              <strong class="timer-display" data-timer-display>01:30</strong>
+              <span class="timer-status" data-timer-status>Press Start Session to begin.</span>
+            </div>
 
-        <div class="screen" data-view-panel="desk">
-          <h2>The computer jaw rule</h2>
-          <p class="lede">
-            Feet grounded. Exhale. Tongue up. Teeth apart. Shoulders drop. Chin gently back. Eyes look far away.
-          </p>
-          <div class="cue-card short-reset">
-            <strong>15 seconds every 20-30 minutes.</strong>
-            <p>Lower effort before the clench becomes posture.</p>
+            <div class="breath-panel" aria-live="polite">
+              <div class="breath-disc" data-breath-disc data-phase="inhale"></div>
+              <div class="breath-copy">
+                <strong data-breath-label>Inhale</strong>
+                <span data-breath-count>4 seconds</span>
+                <span data-breath-hint>Nose breath if possible.</span>
+              </div>
+            </div>
           </div>
+
+          <div class="progress">
+            <div class="stage-meta">
+              <span data-step-label>Step 1 of 6</span>
+              <span data-step-duration>90 seconds</span>
+            </div>
+            <div class="progress-track" aria-hidden="true"><span data-progress-fill></span></div>
+          </div>
+
+          <div class="step-pills" role="tablist" aria-label="Routine steps">
+            <button type="button" data-step="0" aria-pressed="true">Downshift</button>
+            <button type="button" data-step="1" aria-pressed="false">Jaw</button>
+            <button type="button" data-step="2" aria-pressed="false">SCM</button>
+            <button type="button" data-step="3" aria-pressed="false">Base</button>
+            <button type="button" data-step="4" aria-pressed="false">Chest</button>
+            <button type="button" data-step="5" aria-pressed="false">Chin tuck</button>
+          </div>
+
+          <article class="stack-card green-accent">
+            <h2 data-step-title>Downshift first</h2>
+            <p class="lede" data-step-body>
+              One hand on chest, one on belly. Inhale for 4, exhale for 6-8. Let the jaw hang.
+            </p>
+            <div class="cue-card">
+              <strong data-step-cue>Tongue soft, jaw heavy, eyes soft.</strong>
+              <ul class="cue-list" data-step-points>
+                <li>Nose breathing if possible.</li>
+                <li>Six slow breaths.</li>
+                <li>No stretching yet.</li>
+              </ul>
+            </div>
+          </article>
         </div>
 
         <div class="screen" data-view-panel="safety">
@@ -929,9 +1039,11 @@
         </div>
 
         <div class="actions" aria-label="App controls">
+          <button type="button" class="primary" data-action="start">Start Session</button>
+          <button type="button" data-action="pause">Pause</button>
+          <button type="button" data-action="reset">Reset</button>
           <button type="button" data-action="back">Back</button>
-          <button type="button" class="primary" data-action="next">Start reset</button>
-          <button type="button" data-action="desk">Desk reset</button>
+          <button type="button" data-action="next">Next</button>
           <button type="button" class="warning" data-action="safety">Safety</button>
         </div>
       </section>
@@ -952,13 +1064,30 @@
     const focusDot = document.querySelector('[data-focus-dot]');
     const focusLabel = document.querySelector('[data-focus-label]');
     const focusCopy = document.querySelector('[data-focus-copy]');
-    const nextButton = document.querySelector('[data-action="next"]');
-    const backButton = document.querySelector('[data-action="back"]');
+    const timerDisplay = document.querySelector('[data-timer-display]');
+    const timerStatus = document.querySelector('[data-timer-status]');
+    const sessionStatus = document.querySelector('[data-session-status]');
+    const breathDisc = document.querySelector('[data-breath-disc]');
+    const breathLabel = document.querySelector('[data-breath-label]');
+    const breathCount = document.querySelector('[data-breath-count]');
+    const breathHint = document.querySelector('[data-breath-hint]');
+    const startButtons = [...document.querySelectorAll('[data-action="start"]')];
+    const pauseButtons = [...document.querySelectorAll('[data-action="pause"]')];
+    const resetButtons = [...document.querySelectorAll('[data-action="reset"]')];
+    const backButtons = [...document.querySelectorAll('[data-action="back"]')];
+    const nextButtons = [...document.querySelectorAll('[data-action="next"]')];
+    const safetyButtons = [...document.querySelectorAll('[data-action="safety"]')];
+    const sourceButtons = [...document.querySelectorAll('[data-action="sources"]')];
+
+    const inhaleSeconds = 4;
+    const exhaleSeconds = 6;
+    const breathCycleMs = (inhaleSeconds + exhaleSeconds) * 1000;
 
     const routine = [
       {
         title: 'Downshift first',
         duration: '90 seconds',
+        seconds: 90,
         focus: 'breath',
         focusLabel: 'Breath and brace',
         cue: 'Tongue soft, jaw heavy, eyes soft.',
@@ -968,6 +1097,7 @@
       {
         title: 'Tongue and jaw',
         duration: '2 minutes',
+        seconds: 120,
         focus: 'jaw',
         focusLabel: 'Tongue and jaw',
         cue: 'Tongue up, teeth apart, lips light.',
@@ -977,6 +1107,7 @@
       {
         title: 'Side neck',
         duration: '2 minutes',
+        seconds: 120,
         focus: 'neck',
         focusLabel: 'SCM side neck',
         cue: 'Gentle pinch, never the throat.',
@@ -986,6 +1117,7 @@
       {
         title: 'Skull base',
         duration: '2 minutes',
+        seconds: 120,
         focus: 'base',
         focusLabel: 'Base of skull',
         cue: 'Rest the head, do less.',
@@ -995,6 +1127,7 @@
       {
         title: 'Collarbone and chest',
         duration: '90 seconds',
+        seconds: 90,
         focus: 'chest',
         focusLabel: 'Collarbone line',
         cue: 'Open the front without forcing.',
@@ -1004,6 +1137,7 @@
       {
         title: 'Chin tuck',
         duration: '1 minute',
+        seconds: 60,
         focus: 'spine',
         focusLabel: 'Neck stack',
         cue: 'Back of skull floats up.',
@@ -1013,16 +1147,21 @@
     ];
 
     const screenMeta = {
-      intro: { mode: 'Ready', step: 'Ready', duration: '10 minutes', progress: 0, next: 'Start reset', focus: routine[0] },
-      routine: { mode: 'Routine', next: 'Next' },
-      desk: { mode: 'Desk reset', step: '15 seconds', duration: 'Every 20-30 minutes', progress: 100, next: 'Routine', focus: routine[1] },
-      safety: { mode: 'Safety', step: 'Stop rules', duration: 'Light pressure only', progress: 0, next: 'Routine', focus: routine[2] },
-      sources: { mode: 'Sources', step: 'References', duration: 'Opens in new tabs', progress: 0, next: 'Routine', focus: routine[4] },
-      done: { mode: 'Complete', step: 'Done', duration: 'Repeat gently', progress: 100, next: 'Run again', focus: routine[5] }
+      intro: { mode: 'Ready', step: 'Ready', duration: '10 minutes', progress: 0, focus: routine[0] },
+      routine: { mode: 'Routine', step: 'Step 1 of 6', duration: '90 seconds', progress: 0, focus: routine[0] },
+      safety: { mode: 'Safety', step: 'Stop rules', duration: 'Light pressure only', progress: 0, focus: routine[2] },
+      sources: { mode: 'Sources', step: 'References', duration: 'Opens in new tabs', progress: 0, focus: routine[4] },
+      done: { mode: 'Complete', step: 'Done', duration: 'Repeat gently', progress: 100, focus: routine[5] }
     };
 
     let currentScreen = 'intro';
     let currentStep = 0;
+    let running = false;
+    let completed = false;
+    let remainingMs = routine[0].seconds * 1000;
+    let stepEndAt = 0;
+    let breathStartedAt = 0;
+    let sessionTimer = null;
 
     function setFocus(step) {
       focusDot.dataset.focus = step.focus;
@@ -1030,57 +1169,243 @@
       focusCopy.textContent = step.cue;
     }
 
-    function setScreen(screen) {
-      currentScreen = screen;
-      document.body.dataset.screen = screen;
-      screens.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.viewPanel === screen));
+    function clampStep(index) {
+      return Math.min(routine.length - 1, Math.max(0, index));
+    }
 
-      if (screen === 'routine') {
-        renderStep(currentStep);
+    function formatTime(milliseconds) {
+      const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function updateBreath() {
+      if (!breathDisc || !breathLabel || !breathCount || !breathHint) {
         return;
       }
 
+      if (!running) {
+        breathDisc.dataset.phase = 'inhale';
+        breathLabel.textContent = completed ? 'Complete' : 'Inhale';
+        breathCount.textContent = completed ? 'Session done' : `${inhaleSeconds} seconds`;
+        breathHint.textContent = completed ? 'Return slowly.' : 'Nose breath if possible.';
+        return;
+      }
+
+      const elapsed = (Date.now() - breathStartedAt) % breathCycleMs;
+      const phase = elapsed < inhaleSeconds * 1000 ? 'inhale' : 'exhale';
+      const phaseDuration = phase === 'inhale' ? inhaleSeconds * 1000 : exhaleSeconds * 1000;
+      const phaseElapsed = phase === 'inhale' ? elapsed : elapsed - inhaleSeconds * 1000;
+      const count = Math.max(1, Math.ceil((phaseDuration - phaseElapsed) / 1000));
+
+      breathDisc.dataset.phase = phase;
+      breathLabel.textContent = phase === 'inhale' ? 'Inhale' : 'Exhale';
+      breathCount.textContent = `${count} second${count === 1 ? '' : 's'}`;
+      breathHint.textContent = phase === 'inhale' ? 'Let the ribs widen gently.' : 'Jaw heavy. Eyes soft.';
+    }
+
+    function updateControls() {
+      const atStart = !running && !completed && currentScreen === 'intro';
+      const routineLabel = completed ? 'Run again' : running ? 'Running' : atStart ? 'Start Session' : 'Start Session';
+
+      startButtons.forEach((button) => {
+        button.disabled = running;
+        button.textContent = routineLabel;
+      });
+
+      pauseButtons.forEach((button) => {
+        button.disabled = !running;
+      });
+
+      resetButtons.forEach((button) => {
+        button.disabled = false;
+      });
+
+      backButtons.forEach((button) => {
+        button.disabled = currentScreen === 'intro' && currentStep === 0 && !running;
+      });
+
+      nextButtons.forEach((button) => {
+        button.textContent = currentScreen === 'done' ? 'Run again' : currentScreen === 'intro' ? 'Start Guided' : 'Next';
+      });
+
+      safetyButtons.forEach((button) => {
+        button.disabled = false;
+      });
+    }
+
+    function updateTimer(message) {
+      if (timerDisplay) {
+        timerDisplay.textContent = formatTime(remainingMs);
+      }
+
+      if (sessionStatus) {
+        sessionStatus.textContent = completed ? 'Complete' : running ? 'Running' : 'Ready';
+      }
+
+      if (timerStatus) {
+        timerStatus.textContent = message || (running
+          ? 'The next step starts automatically.'
+          : 'Press Start Session to begin.');
+      }
+
+      updateControls();
+      updateBreath();
+    }
+
+    function syncScreenMeta(screen) {
       const meta = screenMeta[screen];
       modeLabel.textContent = meta.mode;
       stepLabel.textContent = meta.step;
       stepDuration.textContent = meta.duration;
       progressFill.style.width = `${meta.progress}%`;
-      nextButton.textContent = meta.next;
-      backButton.textContent = screen === 'intro' ? 'Back' : 'Close';
       stepButtons.forEach((button) => button.setAttribute('aria-pressed', 'false'));
       setFocus(meta.focus);
+      updateControls();
     }
 
-    function renderStep(index) {
-      currentScreen = 'routine';
-      document.body.dataset.screen = 'routine';
-      currentStep = Math.max(0, Math.min(index, routine.length - 1));
+    function renderStep(index, syncTimer = true) {
+      currentStep = clampStep(index);
       const step = routine[currentStep];
 
+      currentScreen = 'routine';
+      document.body.dataset.screen = 'routine';
       screens.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.viewPanel === 'routine'));
       modeLabel.textContent = 'Routine';
-      stepDuration.textContent = step.duration;
       stepLabel.textContent = `Step ${currentStep + 1} of ${routine.length}`;
+      stepDuration.textContent = step.duration;
       progressFill.style.width = `${((currentStep + 1) / routine.length) * 100}%`;
       stepTitle.textContent = step.title;
       stepBody.textContent = step.body;
       stepCue.textContent = step.cue;
       stepPoints.innerHTML = step.points.map((point) => `<li>${point}</li>`).join('');
-      nextButton.textContent = currentStep === routine.length - 1 ? 'Finish' : 'Next';
-      backButton.textContent = currentStep === 0 ? 'Intro' : 'Back';
       stepButtons.forEach((button) => {
         button.setAttribute('aria-pressed', String(Number(button.dataset.step) === currentStep));
       });
       setFocus(step);
+
+      remainingMs = step.seconds * 1000;
+
+      if (syncTimer) {
+        stepEndAt = Date.now() + remainingMs;
+        breathStartedAt = Date.now();
+      }
+
+      updateTimer();
+    }
+
+    function setScreen(screen) {
+      if (running && screen !== 'routine') {
+        pauseSession('Paused while you check another view.');
+      }
+
+      currentScreen = screen;
+      document.body.dataset.screen = screen;
+      screens.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.viewPanel === screen));
+
+      if (screen === 'routine') {
+        renderStep(currentStep, !running);
+        return;
+      }
+
+      syncScreenMeta(screen);
+    }
+
+    function startSession() {
+      if (completed) {
+        completed = false;
+        currentStep = 0;
+        remainingMs = routine[0].seconds * 1000;
+      }
+
+      if (currentScreen !== 'routine') {
+        setScreen('routine');
+      } else {
+        renderStep(currentStep, true);
+      }
+
+      running = true;
+      stepEndAt = Date.now() + remainingMs;
+      breathStartedAt = Date.now();
+      clearInterval(sessionTimer);
+      sessionTimer = window.setInterval(tickSession, 250);
+      updateTimer('The next step starts automatically.');
+    }
+
+    function pauseSession(message = 'Session paused.') {
+      if (!running) {
+        return;
+      }
+
+      running = false;
+      clearInterval(sessionTimer);
+      sessionTimer = null;
+      remainingMs = Math.max(0, stepEndAt - Date.now());
+      updateTimer(message);
+    }
+
+    function resetSession() {
+      running = false;
+      completed = false;
+      clearInterval(sessionTimer);
+      sessionTimer = null;
+      currentStep = 0;
+      remainingMs = routine[0].seconds * 1000;
+      stepEndAt = 0;
+      breathStartedAt = 0;
+      setScreen('intro');
+      timerDisplay.textContent = formatTime(remainingMs);
+      updateTimer('Session reset.');
+    }
+
+    function advanceStep() {
+      if (currentStep < routine.length - 1) {
+        renderStep(currentStep + 1, true);
+        return;
+      }
+
+      completeSession();
+    }
+
+    function completeSession() {
+      running = false;
+      completed = true;
+      clearInterval(sessionTimer);
+      sessionTimer = null;
+      remainingMs = 0;
+      stepEndAt = 0;
+      breathStartedAt = 0;
+      currentStep = routine.length - 1;
+      setScreen('done');
+      if (timerDisplay) {
+        timerDisplay.textContent = '00:00';
+      }
+      updateTimer('Session complete.');
+    }
+
+    function tickSession() {
+      if (!running) {
+        return;
+      }
+
+      const step = routine[currentStep];
+
+      remainingMs = Math.max(0, stepEndAt - Date.now());
+      timerDisplay.textContent = formatTime(remainingMs);
+
+      if (remainingMs <= 0) {
+        advanceStep();
+        return;
+      }
+
+      updateBreath();
+      timerStatus.textContent = `Step ${currentStep + 1} of ${routine.length} running.`;
     }
 
     function goBack() {
-      if (currentScreen === 'routine') {
-        if (currentStep === 0) {
-          setScreen('intro');
-        } else {
-          renderStep(currentStep - 1);
-        }
+      if (currentScreen === 'routine' && currentStep > 0) {
+        renderStep(currentStep - 1, running);
         return;
       }
 
@@ -1089,21 +1414,21 @@
 
     function goNext() {
       if (currentScreen === 'intro') {
-        renderStep(0);
+        startSession();
         return;
       }
 
       if (currentScreen === 'routine') {
-        if (currentStep === routine.length - 1) {
-          setScreen('done');
+        if (running) {
+          advanceStep();
         } else {
-          renderStep(currentStep + 1);
+          renderStep(currentStep + 1, false);
         }
         return;
       }
 
       if (currentScreen === 'done') {
-        renderStep(0);
+        startSession();
         return;
       }
 
@@ -1111,30 +1436,42 @@
     }
 
     stepButtons.forEach((button) => {
-      button.addEventListener('click', () => renderStep(Number(button.dataset.step)));
+      button.addEventListener('click', () => {
+        setScreen('routine');
+        renderStep(Number(button.dataset.step), running);
+      });
     });
 
-    document.querySelectorAll('[data-action="back"]').forEach((button) => {
+    startButtons.forEach((button) => {
+      button.addEventListener('click', startSession);
+    });
+
+    pauseButtons.forEach((button) => {
+      button.addEventListener('click', () => pauseSession('Session paused.'));
+    });
+
+    resetButtons.forEach((button) => {
+      button.addEventListener('click', resetSession);
+    });
+
+    backButtons.forEach((button) => {
       button.addEventListener('click', goBack);
     });
 
-    document.querySelectorAll('[data-action="next"]').forEach((button) => {
+    nextButtons.forEach((button) => {
       button.addEventListener('click', goNext);
     });
 
-    document.querySelectorAll('[data-action="desk"]').forEach((button) => {
-      button.addEventListener('click', () => setScreen('desk'));
-    });
-
-    document.querySelectorAll('[data-action="safety"]').forEach((button) => {
+    safetyButtons.forEach((button) => {
       button.addEventListener('click', () => setScreen('safety'));
     });
 
-    document.querySelectorAll('[data-action="sources"]').forEach((button) => {
+    sourceButtons.forEach((button) => {
       button.addEventListener('click', () => setScreen('sources'));
     });
 
     setScreen('intro');
+    updateTimer();
   </script>
 </body>
 </html>
