@@ -1730,7 +1730,7 @@ function updateCounts(total, visible) {
   if (elements.visibleCount) elements.visibleCount.textContent = String(visible);
   if (!elements.emptyState) return;
   if (total === 0) {
-    elements.emptyState.textContent = 'No notes yet. Save a quick conversation to get started.';
+    elements.emptyState.textContent = 'No notes yet. Save a fallback note to get started.';
     elements.emptyState.classList.remove('hidden');
   } else if (visible === 0) {
     elements.emptyState.textContent = 'No records match this filter yet.';
@@ -3168,7 +3168,7 @@ async function handleQuickConversationSubmit(event) {
       note: body,
       nextStep,
     }),
-    source: existing?.source || 'Quick capture',
+    source: existing?.source || 'Fast fallback note',
     created: existing?.created || now,
     updated: now,
     lastContacted: now,
@@ -3181,7 +3181,7 @@ async function handleQuickConversationSubmit(event) {
     appendTouchLogEntry(savedRecord, {
       touchType: getQuickConversationTouchType(channel),
       note: body,
-      source: 'Quick capture',
+      source: 'Fast fallback note',
       statusAfter: savedRecord.status || DEFAULT_PERSON_STATUS,
       timestamp: now,
     });
