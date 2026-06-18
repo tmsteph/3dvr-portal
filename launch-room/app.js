@@ -4,6 +4,8 @@ const form = document.getElementById('movementBriefForm');
 const clearButton = document.querySelector('[data-action="clear"]');
 const copyButton = document.querySelector('[data-action="copy"]');
 const downloadButton = document.querySelector('[data-action="download"]');
+const buildLaunchPageButton = document.querySelector('[data-action="build-launch-page"]');
+const copyLaunchPageButton = document.querySelector('[data-action="copy-launch-page"]');
 const status = document.getElementById('draftStatus');
 const fields = {
   movementName: document.getElementById('movementName'),
@@ -20,6 +22,16 @@ const briefTargets = {
   tinyProject: document.querySelector('[data-brief="tinyProject"]'),
   checklist: document.querySelector('[data-brief="checklist"]'),
   actions: document.querySelector('[data-brief="actions"]')
+};
+const launchPageSection = document.querySelector('[data-launch-page-section]');
+const launchPageTargets = {
+  headline: document.querySelector('[data-launch-page="headline"]'),
+  subheadline: document.querySelector('[data-launch-page="subheadline"]'),
+  mission: document.querySelector('[data-launch-page="mission"]'),
+  audience: document.querySelector('[data-launch-page="audience"]'),
+  invitation: document.querySelector('[data-launch-page="invitation"]'),
+  contact: document.querySelector('[data-launch-page="contact"]'),
+  footer: document.querySelector('[data-launch-page="footer"]')
 };
 
 function clean(value) {
@@ -151,6 +163,59 @@ function briefToMarkdown(brief) {
   ].join('\n');
 }
 
+function buildLaunchPage(brief) {
+  const audience = asClause(brief.audience);
+  const tinyProject = asClause(brief.tinyProject);
+
+  return {
+    headline: `${brief.movementName} starts here.`,
+    subheadline: `A simple first step for ${audience}: ${tinyProject}.`,
+    mission: brief.mission,
+    audience: `This is for ${audience}, especially anyone ready for a practical first move instead of another vague plan.`,
+    invitation: `Start with ${tinyProject}. Read it, try it, and share what would make it more useful.`,
+    contact: `Want to help shape ${brief.movementName}? Send a note, share your story, or ask for the first version.`,
+    footer: 'Built with 3DVR Launch Room'
+  };
+}
+
+function launchPageToMarkdown(launchPage) {
+  return [
+    `# ${launchPage.headline}`,
+    '',
+    launchPage.subheadline,
+    '',
+    '## Mission',
+    launchPage.mission,
+    '',
+    '## Who This Is For',
+    launchPage.audience,
+    '',
+    '## First Invitation',
+    launchPage.invitation,
+    '',
+    '## Contact',
+    launchPage.contact,
+    '',
+    launchPage.footer,
+    ''
+  ].join('\n');
+}
+
+function renderLaunchPage(brief) {
+  const launchPage = buildLaunchPage(brief);
+
+  launchPageTargets.headline.textContent = launchPage.headline;
+  launchPageTargets.subheadline.textContent = launchPage.subheadline;
+  launchPageTargets.mission.textContent = launchPage.mission;
+  launchPageTargets.audience.textContent = launchPage.audience;
+  launchPageTargets.invitation.textContent = launchPage.invitation;
+  launchPageTargets.contact.textContent = launchPage.contact;
+  launchPageTargets.footer.textContent = launchPage.footer;
+  launchPageSection.hidden = false;
+
+  return launchPage;
+}
+
 function renderBrief(state) {
   const brief = buildBrief(state);
 
@@ -182,6 +247,23 @@ function renderBrief(state) {
     : 'Saved locally in this browser.';
 }
 
+async function writeTextToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const fallback = document.createElement('textarea');
+    fallback.value = text;
+    fallback.setAttribute('readonly', '');
+    fallback.style.position = 'fixed';
+    fallback.style.inset = '0 auto auto 0';
+    fallback.style.opacity = '0';
+    document.body.append(fallback);
+    fallback.select();
+    document.execCommand('copy');
+    fallback.remove();
+  }
+}
+
 function sync() {
   const state = getState();
   saveDraft(state);
@@ -192,22 +274,8 @@ async function copyBrief() {
   const brief = buildBrief(getState());
   const markdown = briefToMarkdown(brief);
 
-  try {
-    await navigator.clipboard.writeText(markdown);
-    status.textContent = 'Movement Brief copied to clipboard.';
-  } catch {
-    const fallback = document.createElement('textarea');
-    fallback.value = markdown;
-    fallback.setAttribute('readonly', '');
-    fallback.style.position = 'fixed';
-    fallback.style.inset = '0 auto auto 0';
-    fallback.style.opacity = '0';
-    document.body.append(fallback);
-    fallback.select();
-    document.execCommand('copy');
-    fallback.remove();
-    status.textContent = 'Movement Brief copied to clipboard.';
-  }
+  await writeTextToClipboard(markdown);
+  status.textContent = 'Movement Brief copied to clipboard.';
 }
 
 function downloadBrief() {
@@ -224,6 +292,22 @@ function downloadBrief() {
   link.remove();
   URL.revokeObjectURL(url);
   status.textContent = 'Movement Brief downloaded as Markdown.';
+}
+
+function generateLaunchPage() {
+  const brief = buildBrief(getState());
+
+  renderLaunchPage(brief);
+  status.textContent = 'Launch Page Draft generated locally.';
+  launchPageSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function copyLaunchPage() {
+  const brief = buildBrief(getState());
+  const launchPage = renderLaunchPage(brief);
+
+  await writeTextToClipboard(launchPageToMarkdown(launchPage));
+  status.textContent = 'Launch Page Draft copied to clipboard.';
 }
 
 const initialState = {
@@ -258,9 +342,14 @@ clearButton.addEventListener('click', () => {
   });
   saveDraft(getState());
   renderBrief(getState());
+  launchPageSection.hidden = true;
   fields.worldPain.focus();
 });
 
 copyButton.addEventListener('click', copyBrief);
 
 downloadButton.addEventListener('click', downloadBrief);
+
+buildLaunchPageButton.addEventListener('click', generateLaunchPage);
+
+copyLaunchPageButton.addEventListener('click', copyLaunchPage);

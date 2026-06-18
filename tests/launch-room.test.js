@@ -31,13 +31,26 @@ test('launch room ships a local-first Movement Brief flow', async () => {
   assert.match(html, /Generate My Movement Brief/);
   assert.match(html, /Copy Brief/);
   assert.match(html, /Download Markdown/);
+  assert.match(html, /Build Launch Page/);
   assert.match(html, /Movement Brief/);
   assert.match(html, /Launch Checklist/);
   assert.match(html, /Next 3 Actions/);
+  assert.match(html, /Launch Page Draft/);
+  assert.match(html, /Hero headline/);
+  assert.match(html, /Short subheadline/);
+  assert.match(html, /Mission section/);
+  assert.match(html, /Who this is for/);
+  assert.match(html, /First invitation \/ call to action/);
+  assert.match(html, /Simple contact CTA/);
+  assert.match(html, /Copy Launch Page/);
 
   assert.match(app, /STORAGE_KEY = '3dvr\.launch-room\.movement-brief\.v1'/);
   assert.match(app, /function buildBrief/);
   assert.match(app, /function briefToMarkdown/);
+  assert.match(app, /function buildLaunchPage/);
+  assert.match(app, /function launchPageToMarkdown/);
+  assert.match(app, /function renderLaunchPage/);
+  assert.match(app, /Built with 3DVR Launch Room/);
   assert.match(app, /navigator\.clipboard\.writeText/);
   assert.match(app, /type: 'text\/markdown'/);
   assert.match(app, /localStorage/);
