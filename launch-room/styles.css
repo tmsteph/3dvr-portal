@@ -24,6 +24,15 @@
   line-height: 1.5;
 }
 
+.launch-room__emotional-line {
+  max-width: 760px;
+  margin: 0 auto;
+  color: rgba(241, 245, 249, 0.9);
+  font-size: clamp(1.18rem, 1rem + 0.85vw, 1.65rem);
+  font-weight: 750;
+  line-height: 1.32;
+}
+
 .launch-room__workspace,
 .launch-room__notes {
   display: grid;
@@ -103,6 +112,12 @@
   gap: 1rem;
 }
 
+.launch-room__brief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .brief-stack {
   display: grid;
   gap: 0.75rem;
@@ -180,6 +195,10 @@
   }
 
   .launch-room__actions .cta {
+    width: 100%;
+  }
+
+  .launch-room__brief-actions .cta {
     width: 100%;
   }
 }

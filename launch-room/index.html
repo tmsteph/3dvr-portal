@@ -32,6 +32,9 @@
         <p class="hero-tagline">
           Turn a vague frustration into a Movement Brief you can use to start a real project.
         </p>
+        <p class="launch-room__emotional-line">
+          Most people don’t need another productivity app. They need a place to remember what they care about.
+        </p>
         <p class="launch-room__core-copy">
           Answer five prompts. The room will turn them into a readable brief with a movement name, mission,
           first audience, tiny first project, checklist, and next actions.
@@ -54,33 +57,33 @@
 
         <div class="launch-room__grid">
           <form id="movementBriefForm" class="launch-room__form" autocomplete="off">
-            <label class="brief-field" for="movementName">
-              <span>What should we call this movement?</span>
-              <input id="movementName" name="movementName" type="text" placeholder="Launch Room, for example">
-            </label>
-
             <label class="brief-field" for="worldPain">
               <span>What are you tired of seeing in the world?</span>
-              <textarea id="worldPain" name="worldPain" rows="4" placeholder="The current frustration, gap, or pattern."></textarea>
+              <textarea id="worldPain" name="worldPain" rows="4" placeholder="Example: People feel stuck in work that drains them and nobody asks what they actually want to build."></textarea>
             </label>
 
             <label class="brief-field" for="worldWish">
               <span>What do you wish existed instead?</span>
-              <textarea id="worldWish" name="worldWish" rows="4" placeholder="The better world or outcome."></textarea>
+              <textarea id="worldWish" name="worldWish" rows="4" placeholder="Example: A calm place where anyone can name what matters, see a path, and launch a small real project."></textarea>
             </label>
 
             <label class="brief-field" for="firstAudience">
               <span>Who would you help first?</span>
-              <textarea id="firstAudience" name="firstAudience" rows="3" placeholder="Be concrete: one person, group, or niche."></textarea>
+              <textarea id="firstAudience" name="firstAudience" rows="3" placeholder="Example: Creative parents, burned-out operators, or one friend with a useful idea but no launch plan."></textarea>
             </label>
 
             <label class="brief-field" for="tinyProject">
               <span>What tiny version could exist this week?</span>
-              <textarea id="tinyProject" name="tinyProject" rows="4" placeholder="A page, doc, checklist, prototype, or post."></textarea>
+              <textarea id="tinyProject" name="tinyProject" rows="4" placeholder="Example: A one-page brief, a simple landing page, a 7-day checklist, or a prototype people can react to."></textarea>
+            </label>
+
+            <label class="brief-field" for="movementName">
+              <span>What should we call this movement?</span>
+              <input id="movementName" name="movementName" type="text" placeholder="Example: Launch Room, Human Scale Work, or The First Tiny Project">
             </label>
 
             <div class="launch-room__actions">
-              <button class="cta primary" type="submit">Build Movement Brief</button>
+              <button class="cta primary" type="submit">Generate My Movement Brief</button>
               <button class="cta ghost" type="button" data-action="clear">Clear</button>
             </div>
             <p class="launch-room__status" id="draftStatus" aria-live="polite">
@@ -96,6 +99,10 @@
                 This is the first version of the movement document. It can grow later, but it already tells the
                 next story.
               </p>
+            </div>
+            <div class="launch-room__brief-actions" aria-label="Movement Brief actions">
+              <button class="cta ghost" type="button" data-action="copy">Copy Brief</button>
+              <button class="cta ghost" type="button" data-action="download">Download Markdown</button>
             </div>
 
             <div class="brief-stack" aria-live="polite">
