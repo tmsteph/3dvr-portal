@@ -10,21 +10,22 @@
   />
   <style>
     :root {
-      --page: #f4f7f1;
-      --surface: #ffffff;
-      --surface-soft: #edf3ee;
-      --ink: #12201d;
-      --muted: #53635f;
-      --line: #cfdbd5;
-      --line-strong: #90aaa0;
-      --teal: #2f6f6b;
-      --teal-soft: #dcebe7;
-      --coral: #d75a43;
-      --coral-soft: #f7dfd8;
-      --amber: #efb84f;
-      --violet: #5b5797;
+      color-scheme: dark;
+      --page: #05070c;
+      --surface: rgba(15, 23, 42, 0.92);
+      --surface-soft: rgba(18, 26, 40, 0.9);
+      --ink: #edf2f7;
+      --muted: rgba(203, 213, 225, 0.74);
+      --line: rgba(148, 163, 184, 0.16);
+      --line-strong: rgba(94, 234, 212, 0.26);
+      --teal: #5eead4;
+      --teal-soft: rgba(94, 234, 212, 0.1);
+      --coral: #f0b56d;
+      --coral-soft: rgba(240, 181, 109, 0.12);
+      --amber: #8dc8ff;
+      --violet: #b9a5f0;
       --radius: 8px;
-      --focus: 0 0 0 3px rgba(47, 111, 107, 0.22);
+      --focus: 0 0 0 3px rgba(94, 234, 212, 0.24);
     }
 
     * {
@@ -39,10 +40,14 @@
     }
 
     body {
-      background: var(--page);
+      background:
+        radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.16), transparent 30%),
+        radial-gradient(circle at 82% 8%, rgba(94, 234, 212, 0.1), transparent 24%),
+        linear-gradient(180deg, #05070c 0%, #0a1220 54%, #070b11 100%);
       color: var(--ink);
       font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      line-height: 1.35;
+      line-height: 1.45;
+      overflow-x: hidden;
     }
 
     button,
@@ -70,7 +75,8 @@
 
     .topbar {
       border-bottom: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.92);
+      background: rgba(5, 7, 12, 0.86);
+      backdrop-filter: blur(14px);
     }
 
     .topbar__inner {
@@ -192,7 +198,7 @@
       content: "";
       position: absolute;
       inset: 12%;
-      border: 1px solid rgba(47, 111, 107, 0.16);
+      border: 1px solid rgba(94, 234, 212, 0.16);
       border-radius: 999px;
     }
 
@@ -212,8 +218,8 @@
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
-      background: #ffffff;
-      border: 2px solid #142a25;
+      background: rgba(226, 232, 240, 0.92);
+      border: 2px solid rgba(94, 234, 212, 0.16);
     }
 
     .head {
@@ -229,7 +235,7 @@
       height: 6%;
       border-top: 0;
       border-radius: 0 0 999px 999px;
-      background: var(--coral-soft);
+      background: rgba(240, 181, 109, 0.12);
     }
 
     .neck {
@@ -237,7 +243,7 @@
       width: 17%;
       height: 14%;
       border-radius: 999px;
-      background: #f9fbf7;
+      background: rgba(226, 232, 240, 0.88);
     }
 
     .shoulder {
@@ -245,7 +251,7 @@
       width: 74%;
       height: 12%;
       border-radius: 999px 999px 20px 20px;
-      background: #f9fbf7;
+      background: rgba(226, 232, 240, 0.88);
     }
 
     .torso {
@@ -253,7 +259,7 @@
       width: 48%;
       height: 37%;
       border-radius: 30px 30px 18px 18px;
-      background: #ffffff;
+      background: rgba(248, 250, 252, 0.9);
     }
 
     .chest-line {
@@ -270,7 +276,7 @@
       height: 24px;
       border-radius: 50%;
       border: 6px solid var(--teal);
-      background: #ffffff;
+      background: rgba(15, 23, 42, 0.95);
       transform: translate(-50%, -50%);
       transition: top 180ms ease, left 180ms ease, border-color 180ms ease;
       z-index: 2;
@@ -343,7 +349,7 @@
     .progress-track {
       height: 9px;
       border-radius: 999px;
-      background: #e0e8e2;
+      background: rgba(148, 163, 184, 0.2);
       overflow: hidden;
     }
 
@@ -374,8 +380,8 @@
 
     .step-dots button[aria-pressed="true"] {
       border-color: var(--teal);
-      background: var(--teal);
-      color: #ffffff;
+      background: rgba(94, 234, 212, 0.2);
+      color: #f8fafc;
     }
 
     .screen {
@@ -459,7 +465,7 @@
       padding: 7px 9px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: #ffffff;
+      background: rgba(15, 23, 42, 0.92);
     }
 
     .cue-list li::before {
@@ -485,7 +491,7 @@
       padding: 12px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: #ffffff;
+      background: rgba(15, 23, 42, 0.92);
     }
 
     .safety-item strong {
@@ -506,7 +512,7 @@
       padding: 12px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: #ffffff;
+      background: rgba(15, 23, 42, 0.92);
       text-decoration: none;
       font-weight: 800;
     }
@@ -527,7 +533,7 @@
       min-height: 48px;
       border: 1px solid var(--line-strong);
       border-radius: var(--radius);
-      background: #ffffff;
+      background: rgba(15, 23, 42, 0.92);
       color: var(--ink);
       cursor: pointer;
       font-weight: 850;
@@ -535,14 +541,14 @@
 
     .actions button.primary {
       border-color: var(--teal);
-      background: var(--teal);
-      color: #ffffff;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(94, 234, 212, 0.2));
+      color: #f8fafc;
     }
 
     .actions button.warning {
       border-color: var(--coral);
-      background: var(--coral-soft);
-      color: #7b2b1d;
+      background: rgba(240, 181, 109, 0.12);
+      color: #f8fafc;
     }
 
     .actions button:active,
