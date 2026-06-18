@@ -7,34 +7,85 @@
   <link rel="stylesheet" href="styles/global.css">
   <style>
     :root {
-      color-scheme: dark light;
+      color-scheme: dark;
+      --well-bg: #05070c;
+      --well-surface: rgba(13, 18, 28, 0.9);
+      --well-surface-strong: rgba(17, 25, 38, 0.94);
+      --well-border: rgba(148, 163, 184, 0.18);
+      --well-border-strong: rgba(94, 234, 212, 0.18);
+      --well-text: #edf2f7;
+      --well-muted: rgba(203, 213, 225, 0.72);
+      --well-faint: rgba(203, 213, 225, 0.52);
+      --well-accent: #8dc8ff;
+      --well-accent-strong: #5eead4;
+      --well-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
     }
     body {
       margin: 0;
       font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(160deg, #0e1116 0%, #18212f 50%, #24364a 100%);
-      color: #f4f6fb;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.14), transparent 36%),
+        radial-gradient(circle at 82% 18%, rgba(94, 234, 212, 0.08), transparent 32%),
+        linear-gradient(145deg, #05070c 0%, #0a1220 56%, #070b11 100%);
+      color: var(--well-text);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      overflow-x: hidden;
+    }
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      filter: blur(110px);
+      opacity: 0.22;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      top: -170px;
+      left: -120px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.38), transparent 65%);
+    }
+    body::after {
+      bottom: -200px;
+      right: -130px;
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.28), transparent 65%);
     }
     header {
-      padding: 48px 24px 24px;
+      position: relative;
+      z-index: 1;
+      width: min(100%, 1100px);
+      margin: 0 auto;
+      padding: 56px 24px 24px;
       text-align: center;
+    }
+    header .eyebrow {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      color: var(--well-muted);
+      font-size: 0.78rem;
+      font-weight: 800;
     }
     header h1 {
       margin: 12px 0 16px;
       font-size: clamp(2rem, 4vw, 2.875rem);
-      letter-spacing: -0.04em;
+      letter-spacing: 0;
     }
     header p {
       margin: 0 auto;
       max-width: 720px;
-      color: rgba(244, 246, 251, 0.8);
+      color: var(--well-muted);
       font-size: 1.05rem;
       line-height: 1.6;
     }
     .directory {
+      position: relative;
+      z-index: 1;
       flex: 1;
       padding: 0 24px 64px;
       max-width: 1100px;
@@ -49,20 +100,20 @@
       margin-bottom: 32px;
     }
     .directory-nav a {
-      background: rgba(16, 26, 39, 0.7);
-      border: 1px solid rgba(116, 172, 255, 0.25);
-      color: #f4f6fb;
+      background: rgba(12, 18, 28, 0.92);
+      border: 1px solid var(--well-border);
+      color: var(--well-text);
       padding: 10px 18px;
       border-radius: 999px;
       text-decoration: none;
       font-weight: 600;
-      letter-spacing: 0.01em;
+      letter-spacing: 0;
       transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
     }
     .directory-nav a:focus,
     .directory-nav a:hover {
-      background: rgba(116, 172, 255, 0.22);
-      border-color: rgba(116, 172, 255, 0.5);
+      background: rgba(94, 234, 212, 0.12);
+      border-color: rgba(94, 234, 212, 0.34);
       transform: translateY(-2px);
       outline: none;
     }
@@ -72,12 +123,12 @@
       gap: 24px;
     }
     .section-card {
-      background: rgba(14, 17, 22, 0.82);
-      border-radius: 20px;
-      border: 1px solid rgba(116, 172, 255, 0.18);
+      background: linear-gradient(180deg, rgba(16, 23, 35, 0.96), rgba(10, 15, 24, 0.94));
+      border-radius: 16px;
+      border: 1px solid var(--well-border);
       padding: 24px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
-      backdrop-filter: blur(10px);
+      box-shadow: var(--well-shadow);
+      backdrop-filter: blur(14px);
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -88,48 +139,62 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      letter-spacing: 0;
     }
     .section-card p {
       margin: 0;
-      color: rgba(244, 246, 251, 0.75);
+      color: var(--well-muted);
       line-height: 1.6;
     }
     .section-card ul {
       margin: 0;
       padding-left: 20px;
-      color: rgba(244, 246, 251, 0.8);
+      color: var(--well-muted);
       line-height: 1.5;
     }
     .section-card a {
-      color: #8dc4ff;
+      color: var(--well-accent);
     }
     .resource-links {
       margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
     .resource-links a {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(116, 172, 255, 0.16);
+      background: rgba(12, 18, 28, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.16);
       border-radius: 999px;
       padding: 8px 14px;
       text-decoration: none;
-      color: #f4f6fb;
+      color: var(--well-text);
       font-size: 0.95rem;
       font-weight: 600;
       transition: background 0.2s ease, transform 0.2s ease;
     }
     .resource-links a:focus,
     .resource-links a:hover {
-      background: rgba(116, 172, 255, 0.32);
+      background: rgba(94, 234, 212, 0.12);
+      border-color: rgba(94, 234, 212, 0.32);
       transform: translateY(-1px);
       outline: none;
     }
     footer {
+      position: relative;
+      z-index: 1;
       text-align: center;
       padding: 32px 24px;
-      color: rgba(244, 246, 251, 0.6);
+      color: var(--well-faint);
       font-size: 0.9rem;
+    }
+    .skip-link:focus-visible,
+    .directory-nav a:focus-visible,
+    .resource-links a:focus-visible {
+      outline: 2px solid var(--well-accent-strong);
+      outline-offset: 2px;
     }
     @media (max-width: 600px) {
       header {
@@ -146,7 +211,7 @@
 <body>
   <a class="skip-link" href="#wellnessDirectory">Skip to wellness sections</a>
   <header>
-    <p class="eyebrow" style="text-transform: uppercase; letter-spacing: 0.2em; color: rgba(244, 246, 251, 0.6);">3DVR wellbeing hub</p>
+    <p class="eyebrow">3DVR wellbeing hub</p>
     <h1>Explore the Wellness Directory</h1>
     <p>
       Curated resources to support a balanced lifestyle. Jump into mindfulness, nutrition, mental health, sleep, ergonomics,
