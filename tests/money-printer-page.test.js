@@ -32,6 +32,8 @@ describe('money-printer MVP', () => {
     assert.match(html, /id="missionInput"/);
     assert.match(html, /Generate Money Machine/);
     assert.match(html, /Money Printer Dashboard/);
+    assert.match(html, /AI \/ Runtime Status/);
+    assert.match(html, /npm run money-printer -- ai-status/);
     assert.match(html, /Opportunity Engine/);
     assert.match(html, /Founder Command Brief/);
     assert.match(html, /Bot Dashboard/);

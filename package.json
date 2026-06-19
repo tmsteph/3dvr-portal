@@ -14,6 +14,8 @@
     "money-printer:brief": "node scripts/money-printer-cli.mjs brief",
     "money-printer:ideas": "node scripts/money-printer-cli.mjs ideas",
     "money-printer:daemon": "node scripts/money-printer-cli.mjs daemon --once",
+    "money-printer:ai-status": "node scripts/money-printer-cli.mjs ai-status",
+    "money-printer:codex": "node scripts/money-printer-cli.mjs codex",
     "money:loop": "node scripts/money/run-loop.mjs",
     "money:autopilot": "node scripts/money/run-autopilot.mjs",
     "market:pulse": "node scripts/growth/run-market-pulse.mjs",
