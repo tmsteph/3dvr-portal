@@ -27,6 +27,7 @@ const elements = {
   missionInput: document.getElementById('missionInput'),
   missionStatus: document.getElementById('missionStatus'),
   metricsGrid: document.getElementById('metricsGrid'),
+  runtimeStatusGrid: document.getElementById('runtimeStatusGrid'),
   nextBestMoneyAction: document.getElementById('nextBestMoneyAction'),
   businessConfigPreview: document.getElementById('businessConfigPreview'),
   founderBrief: document.getElementById('founderBrief'),
@@ -145,6 +146,31 @@ function renderMetrics() {
 
   replaceChildren(elements.metricsGrid, metricCards);
   elements.nextBestMoneyAction.textContent = metrics.nextBestMoneyAction;
+}
+
+function renderRuntimeStatus() {
+  const github = connectorStatuses.find(status => status.id === 'github');
+  const vercel = connectorStatuses.find(status => status.id === 'vercel');
+  const cards = [
+    ['Mode', 'Browser mock cockpit', 'CLI/server can run mock or openai mode.'],
+    ['Model', 'Configured in runtime env', 'MONEY_PRINTER_MODEL / MONEY_PRINTER_FAST_MODEL / MONEY_PRINTER_REASONING_MODEL.'],
+    ['Live connectors', 'Disabled in browser', 'Execution requires local approval plus env flags on the CLI/server.'],
+    ['GitHub', github?.status || 'Mock mode', 'Issue creation is available from the CLI when explicitly configured.'],
+    ['Vercel', vercel?.status || 'Mock mode', 'Project/deployment inspection is CLI/server-side to protect tokens.'],
+    ['Codex', 'Prompt-ready', 'Prompts save to .money-printer/codex-prompts; execution is opt-in.'],
+    ['Daemon ready', 'Yes', 'Run npm run money-printer -- daemon --once --ai from the engine machine.']
+  ].map(([label, value, detail]) => {
+    const card = document.createElement('article');
+    card.className = 'runtime-status-card';
+    card.append(
+      textElement('span', 'metric-card__label', label),
+      textElement('strong', 'runtime-status-card__value', value),
+      textElement('p', '', detail)
+    );
+    return card;
+  });
+
+  replaceChildren(elements.runtimeStatusGrid, cards);
 }
 
 function renderBusinessConfig() {
@@ -483,6 +509,7 @@ function renderTools() {
 
 function render() {
   renderMetrics();
+  renderRuntimeStatus();
   renderBusinessConfig();
   renderFounderBrief();
   renderIdeas();

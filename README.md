@@ -128,37 +128,63 @@ npm install
 npm run dev
 ```
 
-### money-printer MVP
+### Money Printer
 
-The `money-printer` app is available at `/money-printer/`. It is a local-first founder control room for generating
-business ideas, scoring opportunities, creating validation tests, promoting experiments, running mock operator bots,
-and reviewing the next best money action.
+The `money-printer` app is available at `/money-printer/`. It is the cockpit for a local-first venture operator that
+generates ideas, scores opportunities, creates validation tests, promotes experiments, drafts founder briefs, plans
+connector operations, and recommends the next best money action.
 
-The web dashboard stores MVP state in browser `localStorage` and uses mock connectors from
-`src/money-printer/moneyPrinterConnectors.js`. To add real GitHub or Vercel integration next, create server-side API routes
-that read the matching variables from `.env.example`, enforce the autonomy zone rules, call the provider API, and
-return the same structured connector response shape currently returned by the mock methods.
+The web dashboard stays secret-free and stores cockpit state in browser `localStorage`. Real runtime work happens through
+the CLI/server engine in `src/money-printer/`, which stores operator state in `.money-printer/`, writes reports and logs,
+and can use OpenAI, GitHub, Vercel, and Codex only when explicitly configured.
 
-Intended future architecture:
+Runtime modes:
+
+- `mock`: deterministic local bot output with no external calls.
+- `openai`: model-powered ideas, bot runs, founder briefs, connector plans, and Codex prompts.
+- `connector dry-run`: generate GitHub/Vercel operations without executing provider writes.
+- `connector execute`: execute approved yellow-zone operations when env flags and `--execute` are present.
+- `codex prompt`: save implementation prompts to `.money-printer/codex-prompts/`.
+- `codex execute`: run Codex CLI only when `MONEY_PRINTER_ALLOW_CODEX_EXEC=true` and `--execute` are both set.
+
+Command protocol:
+
+- Green operations may be auto-approved only when config allows it.
+- Yellow operations require local approval in `.money-printer/operations.json`.
+- Red operations stay blocked. Email sending, money movement, DNS, production merge, and data deletion are not executed by this runtime.
+
+Core pieces:
 
 - `money-printer-core`: shared engine for bots, scoring, prompts, experiments, briefs, and connector interfaces.
 - `money-printer-web`: portal dashboard/control room at `/money-printer/`.
-- `money-printer-cli`: command line interface for running the engine from a terminal.
-- `money-printer-daemon`: future long-running server process that runs scheduled loops on a DigitalOcean server.
+- `money-printer-cli`: terminal runner that reads and writes `.money-printer/` files.
+- `money-printer-daemon`: one-cycle or scheduled operator loop for a DigitalOcean server.
+- `money-printer-model-provider`: OpenAI Responses API wrapper with structured JSON parsing and mock fallback.
+- `money-printer-operations`: local approval ledger plus guarded connector execution.
+- `money-printer-codex-runner`: prompt generation and opt-in Codex CLI execution.
 
 ### Money Printer CLI
-
-The first CLI MVP uses the same `src/money-printer/` core modules as the web dashboard. It stores local operator state in
-`.money-printer/`, keeps real provider actions in dry-run/mock mode, and writes daemon reports plus event logs for later
-DigitalOcean scheduling.
 
 ```bash
 npm run money-printer -- init
 npm run money-printer -- mission "Launch an AI web agency for local service businesses"
 npm run money-printer -- ideas --count 5 --save
+npm run money-printer -- ideas --ai --count 5 --save
 npm run money-printer -- brief
 npm run money-printer -- run executive
+npm run money-printer -- run executive --ai
+npm run money-printer -- run market-research --ai
+npm run money-printer -- run validation --ai
+npm run money-printer -- ai-status
 npm run money-printer -- daemon --once
+npm run money-printer -- daemon --once --ai
+npm run money-printer -- operations
+npm run money-printer -- operations approve <operation-id>
+npm run money-printer -- operations execute <operation-id> --execute
+npm run money-printer -- operations execute-approved --execute
+npm run money-printer -- codex status
+npm run money-printer -- codex prompt --bot website-builder
+npm run money-printer -- codex run --bot website-builder --execute
 ```
 
 Useful direct scripts:
@@ -168,14 +194,80 @@ npm run money-printer:init
 npm run money-printer:ideas -- --count 5 --save
 npm run money-printer:brief
 npm run money-printer:daemon
+npm run money-printer:ai-status
+npm run money-printer:codex -- prompt --bot website-builder
 ```
 
-The intended split is:
+AI/provider setup example:
 
-- `money-printer-core`: shared engine for bots, scoring, prompts, experiments, briefs, and connector interfaces.
-- `money-printer-web`: portal dashboard/control room.
-- `money-printer-cli`: terminal runner that reads and writes `.money-printer/` files.
-- `money-printer-daemon`: scheduled server process for dry-run loops now and real approved integrations later.
+```bash
+OPENAI_API_KEY=
+MONEY_PRINTER_AI_MODE=openai
+MONEY_PRINTER_MODEL=gpt-4.1-mini
+MONEY_PRINTER_REASONING_MODEL=gpt-5.4-mini
+MONEY_PRINTER_FAST_MODEL=gpt-4.1-mini
+MONEY_PRINTER_TEMPERATURE=0.25
+MONEY_PRINTER_MAX_OUTPUT_TOKENS=2500
+
+GITHUB_TOKEN=
+GITHUB_OWNER=tmsteph
+GITHUB_REPO=3dvr-portal
+
+VERCEL_TOKEN=
+VERCEL_PROJECT_ID=
+VERCEL_TEAM_ID=
+
+MONEY_PRINTER_LIVE_CONNECTORS=false
+MONEY_PRINTER_ALLOW_GITHUB_WRITE=false
+MONEY_PRINTER_ALLOW_VERCEL_WRITE=false
+MONEY_PRINTER_ALLOW_CODEX_EXEC=false
+```
+
+OpenAI mode uses `OPENAI_API_KEY` plus `MONEY_PRINTER_AI_MODE=openai`. If the key is missing, if mode is not `openai`,
+or if a model response cannot be parsed as valid JSON, Money Printer logs the raw output and falls back to mock output.
+
+GitHub issue creation is the first real write path. It requires `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`,
+`MONEY_PRINTER_ALLOW_GITHUB_WRITE=true`, a locally approved operation, and the CLI `--execute` flag. Vercel support is
+read/inspect first: set `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and optionally `VERCEL_TEAM_ID` to inspect project and
+deployment status. Preview deployment creation remains plan-only until a safe project-specific deploy path is approved.
+
+Codex integration starts by saving prompts. Execution requires the Codex CLI to be installed, a generated prompt,
+`MONEY_PRINTER_ALLOW_CODEX_EXEC=true`, and `--execute`.
+
+Mock-mode smoke tests:
+
+```bash
+npm run money-printer -- ai-status
+npm run money-printer -- ideas --ai --count 5 --save
+npm run money-printer -- daemon --once --ai
+```
+
+OpenAI-mode smoke tests:
+
+```bash
+MONEY_PRINTER_AI_MODE=openai OPENAI_API_KEY=sk-... npm run money-printer -- ideas --ai --count 5 --save
+MONEY_PRINTER_AI_MODE=openai OPENAI_API_KEY=sk-... npm run money-printer -- run market-research --ai --save
+MONEY_PRINTER_AI_MODE=openai OPENAI_API_KEY=sk-... npm run money-printer -- daemon --once --ai
+```
+
+GitHub issue execution test:
+
+```bash
+npm run money-printer -- operations
+npm run money-printer -- operations approve <operation-id>
+MONEY_PRINTER_ALLOW_GITHUB_WRITE=true npm run money-printer -- operations execute <operation-id> --execute
+```
+
+DigitalOcean deployment target:
+
+```text
+~/projects/3dvr-portal/
+~/projects/3dvr-portal/.money-printer/
+~/projects/3dvr-portal/.env.local
+```
+
+Run one dry cycle first, inspect the report, then schedule `npm run money-printer -- daemon --once --ai` with cron or
+systemd once model output and connector plans look sane.
 
 ### Run the money automation loop
 

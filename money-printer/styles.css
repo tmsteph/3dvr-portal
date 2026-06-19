@@ -249,6 +249,7 @@ body.money-printer-page {
 }
 
 .metrics-grid,
+.runtime-status-grid,
 .idea-grid,
 .experiment-grid,
 .autonomy-grid,
@@ -262,7 +263,12 @@ body.money-printer-page {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.runtime-status-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .metric-card,
+.runtime-status-card,
 .next-money-action,
 .idea-card,
 .experiment-card,
@@ -281,6 +287,27 @@ body.money-printer-page {
   gap: 0.25rem;
   padding: 0.8rem;
   min-height: 5.2rem;
+}
+
+.runtime-status-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.8rem;
+  min-height: 6.6rem;
+  border-color: rgba(147, 197, 253, 0.28);
+  background:
+    linear-gradient(135deg, rgba(147, 197, 253, 0.1), rgba(45, 212, 191, 0.06)),
+    var(--mp-panel);
+}
+
+.runtime-status-card__value {
+  color: var(--mp-text);
+  font-size: 1.05rem;
+}
+
+.runtime-status-card p {
+  margin: 0;
+  color: var(--mp-muted);
 }
 
 .metric-card__value {
@@ -664,6 +691,10 @@ body.money-printer-page {
 
   .metrics-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .runtime-status-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .idea-grid,

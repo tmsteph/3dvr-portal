@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>48-Hour Offer Audit | 3DVR</title>
+  <meta
+    name="description"
+    content="A 48-hour paid offer audit for independent builders who need a sharper buyer, clearer offer, and first outreach sequence."
+  >
+  <link rel="stylesheet" href="audience-leads.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="audience-leads.js" defer></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    :root {
+      --audit-bg: #07110f;
+      --audit-panel: rgba(247, 250, 252, 0.08);
+      --audit-border: rgba(190, 219, 196, 0.24);
+      --audit-text: #f4f7f2;
+      --audit-muted: #b7c8bb;
+      --audit-green: #8fd694;
+      --audit-yellow: #f7c873;
+      --audit-blue: #9cc8ff;
+    }
+
+    body {
+      background:
+        linear-gradient(120deg, rgba(143, 214, 148, 0.16), transparent 34%),
+        linear-gradient(230deg, rgba(247, 200, 115, 0.12), transparent 42%),
+        var(--audit-bg);
+      color: var(--audit-text);
+    }
+
+    .page {
+      max-width: 1180px;
+    }
+
+    .layout {
+      align-items: stretch;
+    }
+
+    .panel {
+      border-color: var(--audit-border);
+      border-radius: 8px;
+      background: var(--audit-panel);
+    }
+
+    .offer-visual {
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr);
+      gap: 18px;
+      align-items: center;
+      margin: 20px 0;
+      padding: 18px;
+      border: 1px solid var(--audit-border);
+      border-radius: 8px;
+      background: rgba(5, 14, 12, 0.72);
+    }
+
+    .offer-visual img {
+      width: 76px;
+      height: 76px;
+      border-radius: 18px;
+      background: #ffffff;
+    }
+
+    .offer-visual strong {
+      display: block;
+      font-size: 1.05rem;
+    }
+
+    .offer-visual span {
+      color: var(--audit-muted);
+    }
+
+    .price-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin: 20px 0 0;
+    }
+
+    .price-line strong {
+      color: var(--audit-yellow);
+      font-size: 1.45rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      border: 1px solid rgba(156, 200, 255, 0.34);
+      border-radius: 999px;
+      padding: 6px 11px;
+      color: #d9e9ff;
+      background: rgba(156, 200, 255, 0.1);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .deliverables {
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .deliverable {
+      border: 1px solid var(--audit-border);
+      border-radius: 8px;
+      padding: 14px;
+      background: rgba(7, 17, 15, 0.7);
+    }
+
+    .deliverable strong {
+      display: block;
+      color: var(--audit-green);
+    }
+
+    .deliverable span {
+      color: var(--audit-muted);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .text-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      color: var(--audit-blue);
+      font-weight: 800;
+    }
+
+    .cta-note {
+      margin-top: 12px;
+      color: var(--audit-muted);
+      font-size: 0.94rem;
+    }
+
+    .form-panel {
+      border-color: rgba(247, 200, 115, 0.32);
+    }
+
+    .form-panel h2 {
+      color: #fff7df;
+    }
+
+    @media (max-width: 520px) {
+      .offer-visual {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="top-nav" aria-label="Offer audit navigation">
+      <a href="/ideas/">Ideas Lab</a>
+      <a href="/money-printer/">Money Printer</a>
+      <a href="/index.html">Portal Home</a>
+    </nav>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="headline">
+        <p class="kicker">Paid validation sprint</p>
+        <h1 id="headline">Get a sharper offer in 48 hours.</h1>
+        <p class="subhead">
+          For independent builders with useful skills, messy positioning, and no clear first buyer path.
+        </p>
+
+        <div class="offer-visual" aria-label="Offer audit summary">
+          <img src="/icons/icon-512.png" alt="3DVR portal mark">
+          <p>
+            <strong>One buyer. One painful problem. One paid ask.</strong>
+            <span>We turn scattered project notes into a buyer-specific offer, landing copy, and first outreach sequence.</span>
+          </p>
+        </div>
+
+        <div class="body-text">
+          <p>
+            You do not need a bigger app yet. You need proof that a real buyer understands the problem, cares now, and
+            will pay for the first useful outcome.
+          </p>
+          <p>This audit is built to answer three questions fast:</p>
+          <ul>
+            <li>Who is most likely to pay first?</li>
+            <li>What painful outcome should the offer promise?</li>
+            <li>What should you say to 25 reachable buyers this week?</li>
+          </ul>
+        </div>
+
+        <div class="price-line">
+          <strong>$300 fixed audit</strong>
+          <span class="pill">48-hour turnaround</span>
+          <span class="pill">Software later</span>
+        </div>
+
+        <div class="deliverables" aria-label="Audit deliverables">
+          <div class="deliverable">
+            <strong>Offer rewrite</strong>
+            <span>Clear buyer, pain, promise, price test, objections, and proof plan.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Landing-page copy</strong>
+            <span>A focused one-page offer you can publish or paste into your current site.</span>
+          </div>
+          <div class="deliverable">
+            <strong>First outreach sequence</strong>
+            <span>Five short messages for warm contacts, DMs, email, and follow-up.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Decision rule</strong>
+            <span>What to scale, rewrite, or kill after 25 buyer touches.</span>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <a
+            class="cta"
+            href="mailto:hello@3dvr.tech?subject=48-Hour%20Offer%20Audit&body=I%20want%20the%20%24300%2048-hour%20offer%20audit.%0A%0AMy%20project%3A%0AMy%20current%20buyer%3A%0AMy%20main%20problem%3A"
+          >Book the $300 audit</a>
+          <a class="text-link" href="/money-printer/">Open the operator cockpit</a>
+        </div>
+        <p class="cta-note">Payment link comes after fit check. If the offer is not specific enough for an audit, we will say that first.</p>
+      </section>
+
+      <aside class="panel form-panel" aria-label="Offer audit intake">
+        <h2>Send the messy version.</h2>
+        <p>
+          Share your project and current offer. We are looking for builders who want one concrete paid test this week.
+        </p>
+        <form
+          class="form-grid"
+          data-audience-form
+          data-audience-key="offer-audit"
+          data-audience-label="Independent builder offer audit"
+          data-source-label="Money Printer · 48-hour offer audit"
+          data-question-label="What are you trying to sell, and who do you think should buy it?"
+        >
+          <label>
+            <span>Name</span>
+            <input name="name" type="text" autocomplete="name" required placeholder="Taylor Morgan">
+          </label>
+          <label>
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+          </label>
+          <label>
+            <span>What are you trying to sell?</span>
+            <textarea
+              name="prompt"
+              placeholder="Project, current buyer guess, price, and what feels unclear."
+            ></textarea>
+          </label>
+          <button type="submit">Request offer audit</button>
+          <p class="status" data-form-status role="status" aria-live="polite"></p>
+        </form>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      Intake writes to the 3DVR Gun relay under <code>3dvr-audience-tests/v1/offer-audit/signups</code>.
+    </footer>
+  </div>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

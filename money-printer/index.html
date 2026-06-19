@@ -21,6 +21,7 @@
         <a href="../index.html">Portal</a>
         <a href="../launch-room/">Launch Room</a>
         <a href="../money-ai/">Money AI</a>
+        <a href="../ideas/offer-audit.html">Offer Audit</a>
         <a href="../sales/">Sales</a>
         <a href="../deployment-guides/">Deploy Guides</a>
       </nav>
@@ -39,6 +40,9 @@
           </p>
           <p class="mp-hero__movement">
             Purpose → Movement → Project → Business → Automations → Community
+          </p>
+          <p class="mp-hero__promise">
+            First live experiment: <a href="../ideas/offer-audit.html">sell a $300 48-hour offer audit</a>.
           </p>
         </div>
 
@@ -80,6 +84,18 @@
           <h3 id="nextMoneyActionTitle">Choose the next revenue move</h3>
           <p id="nextBestMoneyAction">Generate the money machine to pick a concrete action.</p>
         </article>
+      </section>
+
+      <section class="mp-band" aria-labelledby="runtimeStatusTitle">
+        <div class="mp-section-heading">
+          <span class="eyebrow">AI / Runtime Status</span>
+          <h2 id="runtimeStatusTitle">Cockpit view, engine runs in CLI/server</h2>
+          <p>
+            Browser status is intentionally secret-free. Real OpenAI, GitHub, Vercel, and Codex readiness comes from
+            <code>npm run money-printer -- ai-status</code> on the server or local CLI.
+          </p>
+        </div>
+        <div id="runtimeStatusGrid" class="runtime-status-grid" aria-live="polite"></div>
       </section>
 
       <section class="mp-split" aria-labelledby="configTitle">
