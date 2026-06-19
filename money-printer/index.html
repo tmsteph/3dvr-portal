@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>money-printer | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="An open-source AI venture engine for turning ideas into operating businesses."
+  >
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="../index-style.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="landing theme-dark money-printer-page">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <div class="landing-shell money-printer-shell">
+    <header class="top-nav">
+      <nav class="top-buttons" aria-label="money-printer navigation">
+        <a href="../index.html">Portal</a>
+        <a href="../launch-room/">Launch Room</a>
+        <a href="../money-ai/">Money AI</a>
+        <a href="../sales/">Sales</a>
+        <a href="../deployment-guides/">Deploy Guides</a>
+      </nav>
+    </header>
+
+    <main id="mainContent" class="landing-content money-printer-main">
+      <section class="mp-hero" aria-labelledby="moneyPrinterTitle">
+        <div class="mp-hero__copy">
+          <span class="hero-eyebrow">Founder Control Room</span>
+          <h1 id="moneyPrinterTitle">money-printer</h1>
+          <p class="hero-tagline">
+            An open-source AI venture engine for turning ideas into operating businesses.
+          </p>
+          <p class="mp-hero__promise">
+            Give it the mission. Give it the tools. It starts building.
+          </p>
+          <p class="mp-hero__movement">
+            Purpose → Movement → Project → Business → Automations → Community
+          </p>
+        </div>
+
+        <form id="missionForm" class="mission-console" autocomplete="off">
+          <label for="missionInput">
+            <span>What mission, skill, market, or business direction should the AI explore?</span>
+            <textarea
+              id="missionInput"
+              name="mission"
+              rows="5"
+              placeholder="Example: Help local service businesses turn missed website leads into booked calls."
+            ></textarea>
+          </label>
+          <div class="mission-console__actions">
+            <button class="mp-button mp-button--primary" type="submit">Generate Money Machine</button>
+            <p id="missionStatus" class="mission-console__status" aria-live="polite">
+              The system will create a business config, generate opportunities, score experiments, and recommend
+              next actions.
+            </p>
+          </div>
+        </form>
+
+        <div class="mp-signal-strip" aria-label="money-printer principles">
+          <span>Find pain. Generate offers. Launch experiments. Compound toward cashflow.</span>
+          <span>3DVR helps independent builders turn purpose into operating businesses.</span>
+          <span>Not magic. Relentless opportunity loops.</span>
+        </div>
+      </section>
+
+      <section class="mp-band" aria-labelledby="dashboardTitle">
+        <div class="mp-section-heading">
+          <span class="eyebrow">Money Printer Dashboard</span>
+          <h2 id="dashboardTitle">Revenue-focused operating state</h2>
+          <p>Mock metrics update as the machine creates ideas, experiments, validation tests, and bot outputs.</p>
+        </div>
+        <div id="metricsGrid" class="metrics-grid" aria-live="polite"></div>
+        <article class="next-money-action" aria-labelledby="nextMoneyActionTitle">
+          <span class="mp-card-label">Next Best Money Action</span>
+          <h3 id="nextMoneyActionTitle">Choose the next revenue move</h3>
+          <p id="nextBestMoneyAction">Generate the money machine to pick a concrete action.</p>
+        </article>
+      </section>
+
+      <section class="mp-split" aria-labelledby="configTitle">
+        <article class="mp-work-panel">
+          <div class="mp-section-heading">
+            <span class="eyebrow">Business Config</span>
+            <h2 id="configTitle">Generated business.json preview</h2>
+            <p>Edit the mission above and regenerate to update this operating config.</p>
+          </div>
+          <pre id="businessConfigPreview" class="config-preview" aria-live="polite"></pre>
+        </article>
+
+        <article class="mp-work-panel">
+          <div class="mp-section-heading">
+            <span class="eyebrow">Founder Command Brief</span>
+            <h2>Current command brief</h2>
+            <p>The brief updates when ideas, tests, experiments, and bot loops change.</p>
+          </div>
+          <div id="founderBrief" class="brief-grid" aria-live="polite"></div>
+        </article>
+      </section>
+
+      <section class="mp-band" aria-labelledby="opportunityTitle">
+        <div class="mp-section-heading mp-section-heading--wide">
+          <span class="eyebrow">Opportunity Engine</span>
+          <h2 id="opportunityTitle">Opportunity Engine</h2>
+          <p>Find pain. Generate offers. Launch experiments. Compound toward cashflow.</p>
+        </div>
+        <div class="engine-controls" aria-label="Opportunity engine controls">
+          <button class="mp-button" type="button" data-action="generate-ideas">Generate 5 Business Ideas</button>
+          <button class="mp-button" type="button" data-action="score-ideas">Score Ideas</button>
+          <button class="mp-button" type="button" data-action="create-validation">Create Validation Test</button>
+          <button class="mp-button" type="button" data-action="build-mvp">Build Tiny MVP Plan</button>
+          <button class="mp-button" type="button" data-action="kill-scale">Kill or Scale?</button>
+          <button class="mp-button mp-button--primary" type="button" data-action="promote-top">
+            Promote to Active Business
+          </button>
+        </div>
+        <p id="engineStatus" class="engine-status" aria-live="polite">
+          Score logic prioritizes urgent pain, reachable buyers, simple offers, low build cost, clear distribution,
+          fast path to first dollar, founder advantage, and software-later potential.
+        </p>
+        <div id="ideaGrid" class="idea-grid" aria-live="polite"></div>
+        <div class="engine-output-grid">
+          <article class="engine-output">
+            <span class="mp-card-label">Validation Test</span>
+            <div id="validationOutput"></div>
+          </article>
+          <article class="engine-output">
+            <span class="mp-card-label">Tiny MVP Plan</span>
+            <div id="mvpOutput"></div>
+          </article>
+          <article class="engine-output">
+            <span class="mp-card-label">Kill or Scale</span>
+            <div id="killScaleOutput"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="mp-band" aria-labelledby="portfolioTitle">
+        <div class="mp-section-heading">
+          <span class="eyebrow">Experiments / Portfolio</span>
+          <h2 id="portfolioTitle">Active business experiments</h2>
+          <p>Promote strong ideas, watch traction, and kill weak paths before they drain attention.</p>
+        </div>
+        <div id="experimentGrid" class="experiment-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="mp-band" aria-labelledby="botDashboardTitle">
+        <div class="mp-section-heading mp-section-heading--wide">
+          <span class="eyebrow">Bot Dashboard</span>
+          <h2 id="botDashboardTitle">Operator loops</h2>
+          <p>Run mock loops now. Real connectors can replace the mock layer without changing the command surface.</p>
+        </div>
+        <div id="botDashboard" class="bot-dashboard" aria-live="polite"></div>
+      </section>
+
+      <section class="mp-band" aria-labelledby="autonomyTitle">
+        <div class="mp-section-heading">
+          <span class="eyebrow">Autonomy Zones</span>
+          <h2 id="autonomyTitle">Delegated command boundaries</h2>
+          <p>Clear operating zones let the AI move quickly without pretending every action has the same risk.</p>
+        </div>
+        <div id="autonomyGrid" class="autonomy-grid"></div>
+      </section>
+
+      <section class="mp-band" aria-labelledby="toolsTitle">
+        <div class="mp-section-heading">
+          <span class="eyebrow">Connect Tools</span>
+          <h2 id="toolsTitle">Connector-ready tool surface</h2>
+          <p>Connections are mock status only in this MVP. No OAuth, real API calls, spending, mass email, DNS changes,
+            production merges, or destructive actions run from this page.</p>
+        </div>
+        <div id="toolGrid" class="tool-grid"></div>
+      </section>
+
+      <section class="mp-docs" aria-labelledby="connectorDocsTitle">
+        <div class="mp-section-heading">
+          <span class="eyebrow">Agent Connector Architecture</span>
+          <h2 id="connectorDocsTitle">How real integrations should be added next</h2>
+          <p>
+            The shared engine lives in <code>src/money-printer/moneyPrinterCore.js</code>, with connector contracts in
+            <code>src/money-printer/moneyPrinterConnectors.js</code>. Add real implementations by swapping each mock
+            method for a server-side API route that reads environment variables, validates autonomy zone rules,
+            performs the external call, and returns the same structured response shape to the UI, future CLI, or daemon.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      3DVR.Tech &copy; 2025 - Open Web for Everyone | <a href="../index.html">Back to Portal</a>
+    </footer>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

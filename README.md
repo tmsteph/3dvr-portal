@@ -128,6 +128,55 @@ npm install
 npm run dev
 ```
 
+### money-printer MVP
+
+The `money-printer` app is available at `/money-printer/`. It is a local-first founder control room for generating
+business ideas, scoring opportunities, creating validation tests, promoting experiments, running mock operator bots,
+and reviewing the next best money action.
+
+The web dashboard stores MVP state in browser `localStorage` and uses mock connectors from
+`src/money-printer/moneyPrinterConnectors.js`. To add real GitHub or Vercel integration next, create server-side API routes
+that read the matching variables from `.env.example`, enforce the autonomy zone rules, call the provider API, and
+return the same structured connector response shape currently returned by the mock methods.
+
+Intended future architecture:
+
+- `money-printer-core`: shared engine for bots, scoring, prompts, experiments, briefs, and connector interfaces.
+- `money-printer-web`: portal dashboard/control room at `/money-printer/`.
+- `money-printer-cli`: command line interface for running the engine from a terminal.
+- `money-printer-daemon`: future long-running server process that runs scheduled loops on a DigitalOcean server.
+
+### Money Printer CLI
+
+The first CLI MVP uses the same `src/money-printer/` core modules as the web dashboard. It stores local operator state in
+`.money-printer/`, keeps real provider actions in dry-run/mock mode, and writes daemon reports plus event logs for later
+DigitalOcean scheduling.
+
+```bash
+npm run money-printer -- init
+npm run money-printer -- mission "Launch an AI web agency for local service businesses"
+npm run money-printer -- ideas --count 5 --save
+npm run money-printer -- brief
+npm run money-printer -- run executive
+npm run money-printer -- daemon --once
+```
+
+Useful direct scripts:
+
+```bash
+npm run money-printer:init
+npm run money-printer:ideas -- --count 5 --save
+npm run money-printer:brief
+npm run money-printer:daemon
+```
+
+The intended split is:
+
+- `money-printer-core`: shared engine for bots, scoring, prompts, experiments, briefs, and connector interfaces.
+- `money-printer-web`: portal dashboard/control room.
+- `money-printer-cli`: terminal runner that reads and writes `.money-printer/` files.
+- `money-printer-daemon`: scheduled server process for dry-run loops now and real approved integrations later.
+
 ### Run the money automation loop
 
 Use the new loop runner to research demand, rank opportunities, and draft ad copy from one command:
