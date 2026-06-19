@@ -125,7 +125,8 @@ test('portal home links to the agent ops dashboard', async () => {
   assert.equal(await fileExists(portalIndex), true, 'index.html should exist');
 
   const html = await readFile(portalIndex, 'utf8');
-  assert.match(html, /href="\/admin\/"/);
+  assert.match(html, /href="\/admin\/" class="app-card" data-app-tier="experimental"/);
+  assert.match(html, /<span class="app-card__badge">Experimental<\/span>/);
   assert.match(html, /Agent Ops/);
   assert.match(html, /portal session, control the 3dvr-agent/);
 });
