@@ -204,7 +204,7 @@ function buildPublicCommentDraft(signal = {}) {
 function buildInterviewQuestions(signal = {}) {
   const market = normalizeText(signal.market || 'this market');
   return [
-    `When did ${market} onboarding first become painful enough that you started looking for fixes?`,
+    `When did this problem first become painful enough for ${market} that you started looking for fixes?`,
     'What are you doing manually today, and which part would you happily stop doing this week?',
     'If someone fixed this as a done-for-you pilot, what result would make it worth paying for in the next 30 days?',
     'What have you already tried, and why did it fail or become too much work?',
