@@ -50,6 +50,9 @@ nano ~/.config/3dvr/money-printer.env
 chmod 600 ~/.config/3dvr/money-printer.env
 ```
 
+Money Printer CLI and supervisor runs load this file automatically. For a nonstandard path, set
+`MONEY_PRINTER_ENV_FILE=/path/to/money-printer.env`.
+
 Example:
 
 ```bash

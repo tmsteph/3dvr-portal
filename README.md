@@ -227,6 +227,9 @@ MONEY_PRINTER_ALLOW_VERCEL_WRITE=false
 MONEY_PRINTER_ALLOW_CODEX_EXEC=false
 ```
 
+The CLI and supervisor automatically load `.env`, `.env.local`, and `~/.config/3dvr/money-printer.env` when present.
+Set `MONEY_PRINTER_ENV_FILE=/path/to/money-printer.env` to point a server run at a custom private env file.
+
 OpenAI mode uses `OPENAI_API_KEY` plus `MONEY_PRINTER_AI_MODE=openai`. If the key is missing, if mode is not `openai`,
 or if a model response cannot be parsed as valid JSON, Money Printer logs the raw output and falls back to mock output.
 
@@ -267,7 +270,7 @@ DigitalOcean deployment target:
 ```text
 ~/projects/3dvr-portal/
 ~/projects/3dvr-portal/.money-printer/
-~/projects/3dvr-portal/.env.local
+~/.config/3dvr/money-printer.env
 ```
 
 Run one dry cycle first, inspect the report, then schedule the supervised wrapper with cron or systemd once model output
