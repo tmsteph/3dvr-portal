@@ -2,6 +2,7 @@
 
 import path from 'node:path';
 import process from 'node:process';
+import { readFile } from 'node:fs/promises';
 import {
   buildMetrics,
   generateFounderCommandBrief,
@@ -45,6 +46,12 @@ import {
 import { readGithubStatus } from '../src/money-printer/moneyPrinterGithubConnector.js';
 import { readVercelStatus } from '../src/money-printer/moneyPrinterVercelConnector.js';
 import { loadMoneyPrinterEnv } from '../src/money-printer/moneyPrinterEnv.js';
+import {
+  addWeakSignals,
+  buildWeakSignalOperations,
+  extractWeakSignalsFromText,
+  loadWeakSignals
+} from '../src/money-printer/moneyPrinterWeakSignals.js';
 
 const BOT_ALIASES = {
   executive: 'executive-agent',
@@ -135,6 +142,7 @@ Usage:
   npm run money-printer -- daemon --once
   npm run money-printer -- operations
   npm run money-printer -- codex prompt --bot website-builder
+  npm run money-printer -- weak-signals import --file posts.txt --source linkedin --save
 
 Commands:
   init                  Create .money-printer workspace files
@@ -148,6 +156,7 @@ Commands:
   daemon --once         Run one safe daemon cycle and write report/log (--ai, --execute, --json)
   operations            List/approve/execute operation plans
   codex                 Generate or optionally run Codex prompts
+  weak-signals          Import/list weak social signals and generate validation tasks
 `);
 }
 
@@ -372,8 +381,104 @@ async function commandStatus(rootDir) {
   console.log(`Replies: ${metrics.replies}`);
   console.log(`Calls Booked: ${metrics.callsBooked}`);
   console.log(`Revenue Tracked: ${formatMoney(metrics.revenueTracked)}`);
+  console.log(`Weak Signals Found: ${metrics.weakSignalsFound || 0}`);
   console.log(`Portfolio Focus: ${portfolio.primaryFocus}`);
   console.log(`Next Best Money Action: ${metrics.nextBestMoneyAction}`);
+}
+
+function printWeakSignals(signals = []) {
+  if (!signals.length) {
+    console.log('No weak signals saved yet.');
+    return;
+  }
+  signals.forEach((signal, index) => {
+    console.log(`${index + 1}. [${signal.score}/100 ${signal.stage}] ${signal.platform}: ${signal.title}`);
+    if (signal.url) console.log(`   ${signal.url}`);
+    if (signal.indicators?.length) console.log(`   indicators: ${signal.indicators.join(', ')}`);
+  });
+}
+
+async function commandWeakSignals(rootDir, args, flags = {}) {
+  const subcommand = args[0] || 'list';
+  if (subcommand === 'import') {
+    const raw = flags.file
+      ? await readFile(path.resolve(rootDir, flags.file), 'utf8')
+      : String(flags.text || args.slice(1).join(' ') || '').trim();
+    if (!raw) {
+      throw new Error('Missing weak-signal text. Use --file <path> or --text "post text".');
+    }
+
+    const extracted = extractWeakSignalsFromText(raw, {
+      source: flags.source || flags.platform || 'manual',
+      platform: flags.platform || flags.source || 'manual',
+      market: flags.market || ''
+    });
+    const shouldSave = Boolean(flags.save || flags.operations || flags.json);
+    const result = shouldSave
+      ? await addWeakSignals(rootDir, extracted)
+      : { signals: extracted, added: extracted, path: '' };
+    const operations = buildWeakSignalOperations(result.added, {
+      market: flags.market || '',
+      limit: flags.limit || 5
+    });
+
+    if (flags.operations && operations.length) {
+      await addMoneyPrinterOperations(rootDir, operations);
+    }
+
+    await appendMoneyPrinterEvent(rootDir, {
+      command: 'weak-signals import',
+      inputSummary: `${flags.source || flags.platform || 'manual'}; ${extracted.length} block(s)`,
+      outputSummary: `${result.added.length} weak signal(s) added; ${operations.length} operation(s) prepared.`,
+      nextAction: operations.length
+        ? 'Review weak-signal operations and approve only useful public comments or interview tasks.'
+        : 'Collect more post/comment examples from Facebook or LinkedIn.'
+    });
+
+    if (flags.json) {
+      printJson({
+        signals: result.added,
+        operations,
+        saved: shouldSave,
+        path: result.path
+      });
+      return;
+    }
+
+    console.log(`Weak signals parsed: ${extracted.length}`);
+    console.log(`Weak signals added: ${result.added.length}`);
+    console.log(`Operations prepared: ${operations.length}${flags.operations ? ' and saved' : ''}`);
+    printWeakSignals(result.added);
+    return;
+  }
+
+  if (subcommand === 'operations') {
+    const signals = await loadWeakSignals(rootDir);
+    const limit = Number.parseInt(flags.limit || '5', 10);
+    const operations = buildWeakSignalOperations(signals, {
+      market: flags.market || '',
+      limit: Number.isFinite(limit) ? limit : 5
+    });
+    if (flags.save && operations.length) {
+      await addMoneyPrinterOperations(rootDir, operations);
+    }
+    if (flags.json) {
+      printJson(operations);
+      return;
+    }
+    console.log(`Weak-signal operations: ${operations.length}${flags.save ? ' saved' : ''}`);
+    operations.forEach(operation => console.log(`- [${operation.risk}] ${operation.title}`));
+    return;
+  }
+
+  const signals = await loadWeakSignals(rootDir);
+  const limit = Number.parseInt(flags.limit || '12', 10);
+  const selected = signals.slice(0, Number.isFinite(limit) ? limit : 12);
+  if (flags.json) {
+    printJson(selected);
+    return;
+  }
+  printWeakSignals(selected);
 }
 
 async function commandDaemon(rootDir, flags) {
@@ -606,6 +711,9 @@ async function main() {
       break;
     case 'codex':
       await commandCodex(rootDir, positional, flags);
+      break;
+    case 'weak-signals':
+      await commandWeakSignals(rootDir, positional, flags);
       break;
     case 'validation': {
       const loaded = await loadMoneyPrinterWorkspace(rootDir);

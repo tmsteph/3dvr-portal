@@ -389,6 +389,7 @@ function buildStatePayload(context = {}) {
     mission: state.mission || state.businessConfig?.mission || '',
     ideas: (state.ideas || []).slice(0, 8),
     experiments: (state.experiments || []).slice(0, 8),
+    weakSignals: (state.weakSignals || []).slice(0, 12),
     metrics: context.metrics || {},
     recentReports: context.recentReports || [],
     availableConnectors: context.availableConnectors || ['github', 'vercel', 'codex'],
@@ -684,6 +685,7 @@ export async function generateConnectorPlanWithModel(state = {}, options = {}) {
       'Only include green/yellow operations. Mark red-zone actions as blocked by omitting them or setting risk red.',
       'Do not invent action names. Use github.createIssue for most execution tasks and Vercel plan/read actions for deployment work.',
       'Create work that follows the founder doctrine: buyer interviews, market pain proof, offer packaging, manual concierge delivery, landing-page copy, and paid pilot validation before software buildout.',
+      'If weakSignals are present, prioritize posts with repeated pain, current workaround, buying intent, and high comment depth. Create comment/interview/probe tasks before cold outreach.',
       JSON.stringify(buildStatePayload(state), null, 2)
     ].join('\n\n'), {
       ...options,

@@ -16,6 +16,11 @@ import {
   MONEY_PRINTER_FOUNDER_DOCTRINE
 } from '../src/money-printer/moneyPrinterFounderDoctrine.js';
 import {
+  buildWeakSignalOperations,
+  extractWeakSignalsFromText,
+  scoreWeakSignal
+} from '../src/money-printer/moneyPrinterWeakSignals.js';
+import {
   addMoneyPrinterOperations,
   autoApproveMoneyPrinterOperations,
   approveMoneyPrinterOperation,
@@ -65,6 +70,30 @@ describe('money-printer model runtime', () => {
     assert.match(doctrine, /manual audits|manual user recruitment|manual concierge/);
     assert.match(doctrine, /90\/10 solution/);
     assert.match(doctrine, /paid-pilot|paid pilot/);
+  });
+
+  it('scores weak social posts before direct outreach', () => {
+    const signal = {
+      platform: 'linkedin',
+      title: 'How do you fix SaaS onboarding emails?',
+      text: 'Does anyone know a good way to fix onboarding emails? We are stuck in spreadsheets, replies are manual, and I would pay for a done-for-me setup before demo week.',
+      comments: 12,
+      reactions: 30
+    };
+
+    const score = scoreWeakSignal(signal);
+    assert.equal(score.stage, 'offer-test');
+    assert.ok(score.score >= 76);
+    assert.ok(score.indicators.includes('question'));
+    assert.ok(score.indicators.includes('buying-intent'));
+
+    const extracted = extractWeakSignalsFromText(`${signal.text}\n\nLow signal brand update. We launched a new feature.`, {
+      platform: 'linkedin',
+      market: 'early-stage SaaS'
+    });
+    assert.equal(extracted.length, 2);
+    const operations = buildWeakSignalOperations(extracted, { market: 'early-stage SaaS' });
+    assert.ok(operations.some(operation => /weak signal/i.test(operation.title)));
   });
 
   it('falls back to mock mode when OpenAI mode is requested without a key', async () => {
@@ -359,6 +388,40 @@ describe('money-printer model runtime', () => {
       assert.equal(await exists(payload.promptPath), true);
       assert.match(await readFile(payload.promptPath, 'utf8'), /Money Printer Codex Prompt/);
       assert.match(await readFile(payload.promptPath, 'utf8'), /Do not deploy or merge without explicit approval/);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('weak-signals import saves signals and prepares operation plans', async () => {
+    const cwd = await createTempWorkspace();
+    try {
+      const postsPath = path.join(cwd, 'posts.txt');
+      await writeFile(postsPath, [
+        'How do you fix SaaS onboarding emails? We are stuck in spreadsheets and manual follow-up. Would pay for a done-for-me setup before demo week.',
+        '',
+        'Anyone know a checklist for client onboarding? Our current manual process is chaos and clients keep asking for status updates.'
+      ].join('\n'));
+
+      const result = await runCli(cwd, [
+        'weak-signals',
+        'import',
+        '--file',
+        postsPath,
+        '--source',
+        'linkedin',
+        '--market',
+        'early-stage SaaS',
+        '--save',
+        '--operations',
+        '--json'
+      ]);
+      const payload = JSON.parse(result.stdout);
+      assert.equal(payload.signals.length, 2);
+      assert.ok(payload.operations.length >= 1);
+      assert.equal(await exists(path.join(cwd, '.money-printer', 'weak-signals.json')), true);
+      const operations = await readJson(path.join(cwd, '.money-printer', 'operations.json'));
+      assert.ok(operations.some(operation => operation.payload?.labels?.includes('weak-signal')));
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }

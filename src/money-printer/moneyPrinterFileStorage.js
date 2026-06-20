@@ -19,6 +19,7 @@ export function getMoneyPrinterWorkspacePaths(rootDir = process.cwd()) {
     businessPath: path.join(workspaceDir, 'business.json'),
     ideasPath: path.join(workspaceDir, 'ideas.json'),
     experimentsPath: path.join(workspaceDir, 'experiments.json'),
+    weakSignalsPath: path.join(workspaceDir, 'weak-signals.json'),
     reportsDir: path.join(workspaceDir, 'reports'),
     logsDir: path.join(workspaceDir, 'logs'),
     eventsPath: path.join(workspaceDir, 'logs', 'events.jsonl')
@@ -66,7 +67,8 @@ export async function ensureMoneyPrinterWorkspace(rootDir = process.cwd()) {
   const defaults = [
     [paths.businessPath, createDefaultBusinessConfig()],
     [paths.ideasPath, []],
-    [paths.experimentsPath, []]
+    [paths.experimentsPath, []],
+    [paths.weakSignalsPath, []]
   ];
 
   for (const [filePath, value] of defaults) {
@@ -87,11 +89,13 @@ export async function loadMoneyPrinterWorkspace(rootDir = process.cwd()) {
   const businessConfig = await readJsonFile(paths.businessPath, createDefaultBusinessConfig());
   const ideas = await readJsonFile(paths.ideasPath, []);
   const experiments = await readJsonFile(paths.experimentsPath, []);
+  const weakSignals = await readJsonFile(paths.weakSignalsPath, []);
   const state = refreshMoneyPrinterState({
     mission: businessConfig.mission,
     businessConfig,
     ideas: Array.isArray(ideas) ? ideas : [],
     experiments: Array.isArray(experiments) ? experiments : [],
+    weakSignals: Array.isArray(weakSignals) ? weakSignals : [],
     botOutputs: {}
   });
 
@@ -101,6 +105,7 @@ export async function loadMoneyPrinterWorkspace(rootDir = process.cwd()) {
     businessConfig: state.businessConfig,
     ideas: state.ideas,
     experiments: state.experiments,
+    weakSignals: state.weakSignals || [],
     metrics: buildMetrics(state)
   };
 }

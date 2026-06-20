@@ -170,6 +170,7 @@ export function buildMetrics(state = {}) {
     replies: tractionTotals.replies + (ideas.length ? 2 : 0),
     callsBooked: tractionTotals.callsBooked + (ideas.length ? 1 : 0),
     revenueTracked: tractionTotals.revenue,
+    weakSignalsFound: Array.isArray(state.weakSignals) ? state.weakSignals.length : 0,
     nextBestMoneyAction: getNextBestMoneyAction(state)
   };
 }
@@ -184,6 +185,7 @@ export function refreshMoneyPrinterState(nextState = {}) {
     ideas,
     businessConfig,
     experiments: Array.isArray(nextState.experiments) ? nextState.experiments : [],
+    weakSignals: Array.isArray(nextState.weakSignals) ? nextState.weakSignals : [],
     botOutputs: nextState.botOutputs || {}
   };
   updated.nextBestMoneyAction = getNextBestMoneyAction(updated);
