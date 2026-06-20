@@ -1,19 +1,55 @@
 const scenes = [
   {
-    id: 'portal-ring',
+    id: 'portal-arrival',
     title: 'Next-level immersion',
-    kicker: 'Portal ring',
+    kicker: 'Portal arrival',
     mode: 'Portal',
-    copy: 'A clean hero image for the 3DVR Girl identity: bright ring, studio posture, instant brand read.',
-    image: 'assets/portal-ring.jpg',
-    alt: '3DVR Girl standing inside a blue portal ring'
+    copy: 'A polished portal-ready frame with the 3DVR mark, blue ring, and a cleaner model direction.',
+    image: 'assets/portal-arrival.png',
+    alt: '3DVR Girl standing inside a glowing blue portal ring'
+  },
+  {
+    id: 'pool-welcome',
+    title: 'Pool welcome',
+    kicker: 'Pool welcome',
+    mode: 'Refresh',
+    copy: 'Bright water, bougainvillea, and an inviting close frame for a lighter first impression.',
+    image: 'assets/pool-welcome.png',
+    alt: '3DVR Girl smiling from a bright swimming pool'
+  },
+  {
+    id: 'pool-stand',
+    title: 'Sunlit reset',
+    kicker: 'Pool stand',
+    mode: 'Reset',
+    copy: 'Clean pool light and centered posture for an open, restorative scene.',
+    image: 'assets/pool-stand.png',
+    alt: '3DVR Girl standing in a blue swimming pool'
+  },
+  {
+    id: 'meditation-seat',
+    title: 'Meditation seat',
+    kicker: 'Meditation',
+    mode: 'Calm',
+    copy: 'A composed seated frame for breathwork, guided entry, and quieter portal states.',
+    image: 'assets/meditation-seat.png',
+    alt: '3DVR Girl seated in a meditation pose on a sunlit mat'
+  },
+  {
+    id: 'courtyard-crouch',
+    title: 'Courtyard pause',
+    kicker: 'Courtyard pause',
+    mode: 'Ease',
+    copy: 'Warm architecture and a relaxed pose for soft profile moments and scene transitions.',
+    image: 'assets/courtyard-crouch.png',
+    alt: '3DVR Girl crouching in a sunlit courtyard'
   },
   {
     id: 'balance-tree',
     title: 'Balance protocol',
     kicker: 'Courtyard balance',
     mode: 'Balance',
-    copy: 'Sunlit calm, ritual posture, and a wellness lane that can anchor daily check-ins.',
+    copy: 'Sunlit calm and ritual posture for daily check-ins, breathwork, and soft onboarding.',
     image: 'assets/balance-tree.jpg',
     alt: '3DVR Girl balancing in a courtyard'
   },
@@ -21,7 +57,7 @@ const scenes = [
     id: 'warrior-flow',
     title: 'White-light discipline',
     kicker: 'Warrior flow',
-    mode: 'Power',
+    mode: 'Focus',
     copy: 'Strong side profile for motion cards, training prompts, and embodied focus.',
     image: 'assets/warrior-flow.jpg',
     alt: '3DVR Girl in a warrior stance'
@@ -39,8 +75,8 @@ const scenes = [
     id: 'downward-flow',
     title: 'Grounded arc',
     kicker: 'Flow posture',
-    mode: 'Stretch',
-    copy: 'A physical reset visual for breathwork, recovery, and nervous-system pages.',
+    mode: 'Restore',
+    copy: 'A physical reset visual for recovery, nervous-system pages, and lower-energy sessions.',
     image: 'assets/downward-flow.jpg',
     alt: '3DVR Girl in a downward stretch posture'
   },
@@ -127,85 +163,127 @@ const guides = [
   }
 ];
 
-const stageImage = document.getElementById('stageImage');
-const stageTitle = document.getElementById('stageTitle');
-const stageKicker = document.getElementById('stageKicker');
-const stageCopy = document.getElementById('stageCopy');
-const modeLabel = document.getElementById('modeLabel');
-const galleryGrid = document.getElementById('galleryGrid');
-const guideGrid = document.getElementById('guideGrid');
-const guideNote = document.getElementById('guideNote');
-const heroGuideImage = document.getElementById('heroGuideImage');
-const guidePreviewImage = document.getElementById('guidePreviewImage');
-const guidePreviewKicker = document.getElementById('guidePreviewKicker');
-const guidePreviewTitle = document.getElementById('guidePreviewTitle');
-const guidePreviewCopy = document.getElementById('guidePreviewCopy');
-const heroImage = document.querySelector('.hero__image');
 const GUIDE_STORAGE_KEY = '3dvrGirlGuide';
+const $ = (selector) => document.querySelector(selector);
+
+const refs = {
+  stageImage: $('#stageImage'),
+  stageTitle: $('#stageTitle'),
+  stageKicker: $('#stageKicker'),
+  stageCopy: $('#stageCopy'),
+  modeLabel: $('#modeLabel'),
+  guideLabel: $('#guideLabel'),
+  galleryGrid: $('#galleryGrid'),
+  sceneRail: $('#sceneRail'),
+  guideGrid: $('#guideGrid'),
+  guideNote: $('#guideNote'),
+  heroImage: $('#heroImage'),
+  heroGuideImage: $('#heroGuideImage'),
+  guidePreviewImage: $('#guidePreviewImage'),
+  guidePreviewKicker: $('#guidePreviewKicker'),
+  guidePreviewTitle: $('#guidePreviewTitle'),
+  guidePreviewCopy: $('#guidePreviewCopy')
+};
+
+function setText(node, text) {
+  if (node) {
+    node.textContent = text;
+  }
+}
 
 function setScene(sceneId) {
   const scene = scenes.find((item) => item.id === sceneId) || scenes[0];
-  stageImage.src = scene.image;
-  stageImage.alt = scene.alt;
-  stageTitle.textContent = scene.title;
-  stageKicker.textContent = scene.kicker;
-  stageCopy.textContent = scene.copy;
-  modeLabel.textContent = scene.mode;
 
-  if (scene.id === 'portal-ring' || scene.id === 'festival-dance') {
-    heroImage.src = scene.image;
-    heroImage.alt = scene.alt;
+  if (refs.stageImage) {
+    refs.stageImage.src = scene.image;
+    refs.stageImage.alt = scene.alt;
   }
 
+  if (refs.heroImage) {
+    refs.heroImage.src = scene.image;
+    refs.heroImage.alt = scene.alt;
+  }
+
+  setText(refs.stageTitle, scene.title);
+  setText(refs.stageKicker, scene.kicker);
+  setText(refs.stageCopy, scene.copy);
+  setText(refs.modeLabel, scene.mode);
+
   document.querySelectorAll('[data-focus-image]').forEach((control) => {
-    control.classList.toggle('is-active', control.dataset.focusImage === scene.id);
+    const active = control.dataset.focusImage === scene.id;
+    control.classList.toggle('is-active', active);
+    control.setAttribute('aria-pressed', String(active));
   });
 }
 
-function createGallery() {
-  scenes.forEach((scene) => {
-    const button = document.createElement('button');
-    button.className = 'gallery-card';
-    button.type = 'button';
-    button.dataset.focusImage = scene.id;
-    button.setAttribute('aria-label', `Select ${scene.kicker}`);
+function createSceneButton(scene, index) {
+  const button = document.createElement('button');
+  button.className = 'scene-chip';
+  button.type = 'button';
+  button.dataset.focusImage = scene.id;
+  button.setAttribute('aria-label', `Select ${scene.kicker}`);
+  button.setAttribute('aria-pressed', 'false');
 
-    const image = document.createElement('img');
-    image.src = scene.image;
-    image.alt = scene.alt;
-    image.loading = 'lazy';
+  const number = document.createElement('span');
+  number.setAttribute('aria-hidden', 'true');
+  number.textContent = String(index + 1).padStart(2, '0');
 
-    const label = document.createElement('span');
-    label.textContent = scene.kicker;
+  button.append(number, scene.mode);
+  button.addEventListener('click', () => setScene(scene.id));
+  return button;
+}
 
-    button.append(image, label);
-    button.addEventListener('click', () => setScene(scene.id));
-    galleryGrid.append(button);
+function createGalleryCard(scene) {
+  const button = document.createElement('button');
+  button.className = 'gallery-card';
+  button.type = 'button';
+  button.dataset.focusImage = scene.id;
+  button.setAttribute('aria-label', `Select ${scene.kicker}`);
+  button.setAttribute('aria-pressed', 'false');
+
+  const image = document.createElement('img');
+  image.src = scene.image;
+  image.alt = scene.alt;
+  image.loading = 'lazy';
+
+  const label = document.createElement('span');
+  label.textContent = scene.kicker;
+
+  button.append(image, label);
+  button.addEventListener('click', () => setScene(scene.id));
+  return button;
+}
+
+function createScenes() {
+  scenes.forEach((scene, index) => {
+    if (refs.sceneRail) {
+      refs.sceneRail.append(createSceneButton(scene, index));
+    }
+    if (refs.galleryGrid) {
+      refs.galleryGrid.append(createGalleryCard(scene));
+    }
   });
 }
 
 function setGuide(guideId) {
   const guide = guides.find((item) => item.id === guideId) || guides[0];
   document.body.dataset.guide = guide.id;
-  if (guideNote) {
-    guideNote.textContent = guide.note;
+
+  setText(refs.guideNote, guide.note);
+  setText(refs.guideLabel, guide.label);
+  setText(refs.guidePreviewKicker, guide.title);
+  setText(refs.guidePreviewTitle, guide.headline);
+  setText(refs.guidePreviewCopy, guide.copy);
+
+  if (refs.heroGuideImage) {
+    refs.heroGuideImage.src = guide.image;
   }
-  if (heroGuideImage) {
-    heroGuideImage.src = guide.image;
+
+  if (refs.guidePreviewImage) {
+    refs.guidePreviewImage.src = guide.image;
+    refs.guidePreviewImage.alt = guide.alt;
   }
-  if (guidePreviewImage) {
-    guidePreviewImage.src = guide.image;
-    guidePreviewImage.alt = guide.alt;
-  }
-  if (guidePreviewKicker) {
-    guidePreviewKicker.textContent = guide.title;
-  }
-  if (guidePreviewTitle) {
-    guidePreviewTitle.textContent = guide.headline;
-  }
-  if (guidePreviewCopy) {
-    guidePreviewCopy.textContent = guide.copy;
-  }
+
   try {
     localStorage.setItem(GUIDE_STORAGE_KEY, guide.id);
   } catch (error) {
@@ -220,7 +298,7 @@ function setGuide(guideId) {
 }
 
 function createGuidePicker() {
-  if (!guideGrid) {
+  if (!refs.guideGrid) {
     return;
   }
 
@@ -242,7 +320,7 @@ function createGuidePicker() {
 
     button.append(image, label);
     button.addEventListener('click', () => setGuide(guide.id));
-    guideGrid.append(button);
+    refs.guideGrid.append(button);
   });
 }
 
@@ -255,10 +333,11 @@ function getStoredGuide() {
 }
 
 document.querySelectorAll('[data-focus-image]').forEach((control) => {
+  control.setAttribute('aria-pressed', 'false');
   control.addEventListener('click', () => setScene(control.dataset.focusImage));
 });
 
-createGallery();
+createScenes();
 createGuidePicker();
-setScene('portal-ring');
+setScene('portal-arrival');
 setGuide(getStoredGuide() || 'feminine');
