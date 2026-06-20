@@ -40,10 +40,12 @@ test('buildMarketPulse creates approved directory data while gating outreach', (
   assert.equal(pulse.directoryListings[0].approved, true);
   assert.equal(pulse.outreachDrafts[0].approvalStatus, 'required');
   assert.ok(pulse.socialProbeDrafts.some((item) => item.channel === 'reddit'));
+  assert.ok(pulse.socialProbeDrafts.some((item) => item.channel === 'threads'));
   assert.ok(pulse.socialProbeDrafts.some((item) => item.channel === 'facebook-groups'));
   assert.ok(pulse.socialProbeDrafts.some((item) => item.channel === 'facebook-page'));
   assert.ok(pulse.socialProbeDrafts.some((item) => item.channel === 'tiktok-comments'));
   assert.ok(pulse.socialProbeDrafts.some((item) => item.metaGraph?.integration === 'meta_graph_api'));
+  assert.ok(pulse.socialProbeDrafts.some((item) => item.threadsApi?.integration === 'threads_api'));
   assert.ok(pulse.socialProbeDrafts.every((item) => item.approvalStatus === 'required' || item.risk === 'external_read'));
   assert.equal(pulse.reactionSnapshots[0].channel, 'reddit');
   assert.ok(pulse.reactionSnapshots[0].marketFitScore > 0);
@@ -65,6 +67,7 @@ test('market pulse gun serialization keeps dashboard arrays recoverable', () => 
   assert.equal(restored.outreachDrafts.length, 1);
   assert.equal(restored.socialProbeDrafts.length > 0, true);
   assert.ok(restored.socialProbeDrafts.some((item) => item.metaGraph?.integration === 'meta_graph_api'));
+  assert.ok(restored.socialProbeDrafts.some((item) => item.threadsApi?.integration === 'threads_api'));
   assert.equal(restored.reactionSnapshots.length, 1);
   assert.equal(restored.marketFit.verdict.length > 0, true);
   assert.equal(restored.tests.length, 2);

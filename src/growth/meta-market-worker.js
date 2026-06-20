@@ -3,7 +3,15 @@ import {
   buildMetaPagePostRequest,
   buildMetaPostFieldsRequest,
   buildMetaPostInsightsRequest,
+  buildMetaUserPagesRequest,
+  buildThreadsMediaInsightsRequest,
+  buildThreadsMediaRequest,
+  buildThreadsPublishRequest,
+  buildThreadsTextContainerRequest,
+  META_THREADS_TEXT_LIMIT,
   normalizeMetaPostMetrics,
+  normalizeThreadsPostMetrics,
+  validateThreadsPostText,
 } from './meta-graph.js';
 
 export const META_MARKET_ROOT_PATH = Object.freeze([
@@ -30,9 +38,17 @@ Options:
   --help               Show this help.
 
 Environment:
+  META_APP_ID             Meta Graph app id (kept server-side when used for auth tooling).
+  META_APP_SECRET         Meta Graph app secret (secret manager only).
   META_PAGE_ID             Default Facebook Page id.
   META_PAGE_ACCESS_TOKEN   Server-only Page access token.
+  META_USER_ACCESS_TOKEN   Optional server-only User token used to resolve Page tokens.
   META_GRAPH_API_VERSION   Optional Graph API version.
+  THREADS_APP_ID           Threads app id (kept server-side when used for auth tooling).
+  THREADS_APP_SECRET       Threads app secret (secret manager only).
+  THREADS_USER_ID          Threads user id. Defaults to me.
+  THREADS_ACCESS_TOKEN     Server-only Threads user access token.
+  THREADS_API_VERSION      Optional Threads API version.
 `;
 
 function normalizeText(value) {
@@ -75,7 +91,7 @@ async function readJsonResponse(response) {
   }
 
   if (!response.ok || payload?.error) {
-    const message = payload?.error?.message || `Meta Graph request failed with ${response.status}`;
+    const message = payload?.error?.message || `Meta request failed with ${response.status}`;
     throw new Error(message);
   }
 
@@ -170,17 +186,22 @@ export function parseMetaMarketWorkerArgs(argv = []) {
 }
 
 export function normalizeMetaMarketJob(data = {}, id = '') {
-  const postId = normalizeText(data.postId || data.metaPostId);
+  const channel = normalizeText(data.channel || 'facebook-page').toLowerCase();
+  const defaultIntegration = channel === 'threads' ? 'threads_api' : 'meta_graph_api';
+  const postId = normalizeText(data.postId || data.metaPostId || data.mediaId || data.threadsMediaId);
   return {
     id: normalizeText(data.id || id),
     experimentId: normalizeText(data.experimentId),
     status: normalizeText(data.status || 'draft'),
-    channel: normalizeText(data.channel || 'facebook-page'),
-    integration: normalizeText(data.integration || 'meta_graph_api'),
+    channel,
+    integration: normalizeText(data.integration || defaultIntegration),
     message: normalizeText(data.message),
     link: normalizeText(data.link),
     pageId: normalizeText(data.pageId),
+    threadsUserId: normalizeText(data.threadsUserId || data.userId),
+    creationId: normalizeText(data.creationId || data.creation_id),
     postId,
+    mediaId: postId,
     permalinkUrl: normalizeText(data.permalinkUrl),
     approvedAt: normalizeText(data.approvedAt),
     publishedAt: normalizeText(data.publishedAt),
@@ -190,9 +211,16 @@ export function normalizeMetaMarketJob(data = {}, id = '') {
   };
 }
 
+function isFacebookPageJob(job = {}) {
+  return job.channel === 'facebook-page' && job.integration === 'meta_graph_api';
+}
+
+function isThreadsJob(job = {}) {
+  return job.channel === 'threads' && job.integration === 'threads_api';
+}
+
 export function isApprovedMetaMarketJob(job = {}) {
-  return job.integration === 'meta_graph_api'
-    && job.channel === 'facebook-page'
+  return (isFacebookPageJob(job) || isThreadsJob(job))
     && job.status === 'approved'
     && Boolean(job.message)
     && Boolean(job.approvedAt);
@@ -207,17 +235,51 @@ export function shouldMeasureMetaMarketJob(job = {}, now = new Date()) {
   return now.getTime() - measuredAt.getTime() >= 60 * 60 * 1000;
 }
 
-export async function publishMetaMarketJob(job = {}, options = {}) {
+async function resolveFacebookPageTarget(job = {}, options = {}) {
   const env = options.env || process.env;
-  const pageId = normalizeText(job.pageId || env.META_PAGE_ID);
-  const accessToken = normalizeText(options.accessToken || env.META_PAGE_ACCESS_TOKEN);
+  const inferredPageId = normalizeText(job.postId).includes('_')
+    ? normalizeText(job.postId).split('_')[0]
+    : '';
+  const pageId = normalizeText(job.pageId || env.META_PAGE_ID || inferredPageId);
+  let accessToken = normalizeText(options.accessToken || env.META_PAGE_ACCESS_TOKEN);
 
   if (!pageId) {
     throw new Error('META_PAGE_ID or job.pageId is required.');
   }
-  if (!accessToken) {
-    throw new Error('META_PAGE_ACCESS_TOKEN is required on the DO worker.');
+
+  if (accessToken) {
+    return { pageId, accessToken };
   }
+
+  const userAccessToken = normalizeText(options.userAccessToken || env.META_USER_ACCESS_TOKEN);
+  if (!userAccessToken) {
+    throw new Error('META_PAGE_ACCESS_TOKEN or META_USER_ACCESS_TOKEN is required on the DO worker.');
+  }
+
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const request = buildMetaUserPagesRequest({
+    version: options.version || env.META_GRAPH_API_VERSION,
+    accessToken: userAccessToken,
+  });
+  const response = await fetchImpl(request.url, { method: request.method });
+  const payload = await readJsonResponse(response);
+  const pages = Array.isArray(payload.data) ? payload.data : [];
+  const page = pages.find((item) => normalizeText(item.id) === pageId);
+  const pageAccessToken = normalizeText(page?.access_token);
+
+  if (!page) {
+    throw new Error('The configured META_PAGE_ID was not returned by /me/accounts.');
+  }
+  if (!pageAccessToken) {
+    throw new Error('Meta did not return a Page access token for the configured Page.');
+  }
+
+  return { pageId, accessToken: pageAccessToken };
+}
+
+async function publishFacebookPageMarketJob(job = {}, options = {}) {
+  const env = options.env || process.env;
+  const { pageId, accessToken } = await resolveFacebookPageTarget(job, options);
 
   const request = buildMetaPagePostRequest({
     pageId,
@@ -244,21 +306,105 @@ export async function publishMetaMarketJob(job = {}, options = {}) {
     permalinkUrl: normalizeText(payload.permalink_url || payload.permalinkUrl),
     publishedAt: now,
     updatedAt: now,
+    channel: 'facebook-page',
+    integration: 'meta_graph_api',
     error: '',
   };
 }
 
-export async function measureMetaMarketJob(job = {}, options = {}) {
+function assertThreadsTextAllowed(text = '') {
+  const validation = validateThreadsPostText(text);
+  if (!validation.ok) {
+    if (!validation.characterCount) {
+      throw new Error('Threads post text is required.');
+    }
+    throw new Error(`Threads post text must be ${META_THREADS_TEXT_LIMIT} characters or fewer.`);
+  }
+}
+
+export async function publishThreadsMarketJob(job = {}, options = {}) {
   const env = options.env || process.env;
-  const accessToken = normalizeText(options.accessToken || env.META_PAGE_ACCESS_TOKEN);
+  const threadsUserId = normalizeText(job.threadsUserId || env.THREADS_USER_ID || 'me') || 'me';
+  const accessToken = normalizeText(options.threadsAccessToken || options.accessToken || env.THREADS_ACCESS_TOKEN);
+
+  if (!accessToken) {
+    throw new Error('THREADS_ACCESS_TOKEN is required on the DO worker.');
+  }
+
+  const request = buildThreadsTextContainerRequest({
+    threadsUserId,
+    message: job.message,
+    link: job.link,
+    version: options.threadsVersion || options.version || env.THREADS_API_VERSION,
+    accessToken,
+  });
+  assertThreadsTextAllowed(request.body.text);
+
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const containerResponse = await fetchImpl(request.url, {
+    method: request.method,
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body: graphBody(request.body),
+  });
+  const containerPayload = await readJsonResponse(containerResponse);
+  const creationId = normalizeText(containerPayload.id || containerPayload.creation_id || containerPayload.creationId);
+
+  if (!creationId) {
+    throw new Error('Threads did not return a media container id.');
+  }
+
+  const publishRequest = buildThreadsPublishRequest({
+    threadsUserId,
+    creationId,
+    version: options.threadsVersion || options.version || env.THREADS_API_VERSION,
+    accessToken,
+  });
+  const publishResponse = await fetchImpl(publishRequest.url, {
+    method: publishRequest.method,
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body: graphBody(publishRequest.body),
+  });
+  const payload = await readJsonResponse(publishResponse);
+  const now = new Date().toISOString();
+  const postId = normalizeText(payload.id || payload.post_id || payload.media_id);
+
+  if (!postId) {
+    throw new Error('Threads did not return a published media id.');
+  }
+
+  return {
+    status: 'published',
+    channel: 'threads',
+    integration: 'threads_api',
+    threadsUserId,
+    creationId,
+    postId,
+    mediaId: postId,
+    permalinkUrl: normalizeText(payload.permalink || payload.permalink_url || payload.permalinkUrl),
+    publishedAt: now,
+    updatedAt: now,
+    error: '',
+  };
+}
+
+export async function publishMetaMarketJob(job = {}, options = {}) {
+  return isThreadsJob(job)
+    ? publishThreadsMarketJob(job, options)
+    : publishFacebookPageMarketJob(job, options);
+}
+
+async function measureFacebookPageMarketJob(job = {}, options = {}) {
+  const env = options.env || process.env;
 
   if (!job.postId) {
     throw new Error('job.postId is required before measurement.');
   }
-  if (!accessToken) {
-    throw new Error('META_PAGE_ACCESS_TOKEN is required on the DO worker.');
-  }
 
+  const { accessToken } = await resolveFacebookPageTarget(job, options);
   const version = options.version || env.META_GRAPH_API_VERSION;
   const fieldsRequest = buildMetaPostFieldsRequest({
     postId: job.postId,
@@ -284,6 +430,8 @@ export async function measureMetaMarketJob(job = {}, options = {}) {
 
   return {
     status: 'measured',
+    channel: 'facebook-page',
+    integration: 'meta_graph_api',
     measuredAt: now,
     updatedAt: now,
     permalinkUrl: metrics.permalinkUrl || job.permalinkUrl,
@@ -298,6 +446,75 @@ export async function measureMetaMarketJob(job = {}, options = {}) {
     metrics,
     error: '',
   };
+}
+
+export async function measureThreadsMarketJob(job = {}, options = {}) {
+  const env = options.env || process.env;
+  const accessToken = normalizeText(options.threadsAccessToken || options.accessToken || env.THREADS_ACCESS_TOKEN);
+
+  if (!job.postId) {
+    throw new Error('job.postId is required before measurement.');
+  }
+  if (!accessToken) {
+    throw new Error('THREADS_ACCESS_TOKEN is required on the DO worker.');
+  }
+
+  const version = options.threadsVersion || options.version || env.THREADS_API_VERSION;
+  const mediaRequest = buildThreadsMediaRequest({
+    mediaId: job.postId,
+    version,
+    accessToken,
+  });
+  const insightsRequest = buildThreadsMediaInsightsRequest({
+    mediaId: job.postId,
+    version,
+    accessToken,
+  });
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const [mediaResponse, insightsResponse] = await Promise.all([
+    fetchImpl(mediaRequest.url, { method: mediaRequest.method }),
+    fetchImpl(insightsRequest.url, { method: insightsRequest.method }),
+  ]);
+  const [media, insights] = await Promise.all([
+    readJsonResponse(mediaResponse),
+    readJsonResponse(insightsResponse),
+  ]);
+  const metrics = normalizeThreadsPostMetrics({ media, insights });
+  const now = new Date().toISOString();
+  const interactionCount = metrics.likeCount + metrics.replyCount + metrics.repostCount + metrics.quoteCount;
+  const shareCount = metrics.repostCount + metrics.quoteCount;
+
+  return {
+    status: 'measured',
+    channel: 'threads',
+    integration: 'threads_api',
+    measuredAt: now,
+    updatedAt: now,
+    postId: metrics.postId || job.postId,
+    mediaId: metrics.postId || job.postId,
+    permalinkUrl: metrics.permalinkUrl || job.permalinkUrl,
+    reactionCount: metrics.likeCount,
+    commentCount: metrics.replyCount,
+    shareCount,
+    clickCount: 0,
+    impressionCount: metrics.viewCount,
+    uniqueImpressionCount: 0,
+    engagedUsers: interactionCount,
+    viewCount: metrics.viewCount,
+    likeCount: metrics.likeCount,
+    replyCount: metrics.replyCount,
+    repostCount: metrics.repostCount,
+    quoteCount: metrics.quoteCount,
+    marketSignalScore: metrics.marketSignalScore,
+    metrics,
+    error: '',
+  };
+}
+
+export async function measureMetaMarketJob(job = {}, options = {}) {
+  return isThreadsJob(job)
+    ? measureThreadsMarketJob(job, options)
+    : measureFacebookPageMarketJob(job, options);
 }
 
 export async function executeMetaMarketJob(job = {}, options = {}) {

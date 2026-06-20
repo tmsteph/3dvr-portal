@@ -376,6 +376,14 @@ Environment controls:
 - `GROWTH_HOMEPAGE_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
 - `GROWTH_HOMEPAGE_CRON_DRY_RUN` (`true`/`false`)
 - `GROWTH_GUN_PEERS` (optional comma-separated relay override for growth cron reads)
+- `MARKET_PULSE_PROBE_LINK` (optional link appended to approval-gated social probes)
+- `META_APP_ID` / `META_APP_SECRET` (Meta Graph app credentials; store the secret server-side only)
+- `META_GRAPH_API_VERSION` (default `v25.0`)
+- `META_PAGE_ID` / `META_PAGE_ACCESS_TOKEN` (server-side Facebook Page posting and measurement)
+- `META_USER_ACCESS_TOKEN` (optional fallback for resolving a Page token from `/me/accounts`)
+- `THREADS_APP_ID` / `THREADS_APP_SECRET` (Threads app credentials; store the secret server-side only)
+- `THREADS_API_VERSION` (default `v1.0`)
+- `THREADS_USER_ID` / `THREADS_ACCESS_TOKEN` (server-side Threads posting and owned-post insights)
 
 Portal billing center:
 

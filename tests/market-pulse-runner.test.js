@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { loadLocalEnv } from '../scripts/env/load-local-env.mjs';
 import {
   buildMarketPulseRunOptions,
   parseMarketPulseArgs,
@@ -39,6 +42,11 @@ test('buildMarketPulseRunOptions can be driven by environment defaults', () => {
     MARKET_PULSE_CHANNELS: 'reddit,linkedin',
     MARKET_PULSE_LIMIT: '12',
     MARKET_PULSE_DRY_RUN: 'true',
+    MARKET_PULSE_PROBE_LINK: 'https://portal.3dvr.tech/market-lab/',
+    META_PAGE_ID: 'page-123',
+    META_GRAPH_API_VERSION: 'v25.0',
+    THREADS_USER_ID: 'me',
+    THREADS_API_VERSION: 'v1.0',
     GROWTH_GUN_PEERS: 'wss://relay.example/gun',
   });
 
@@ -48,6 +56,38 @@ test('buildMarketPulseRunOptions can be driven by environment defaults', () => {
   assert.equal(options.limit, 12);
   assert.equal(options.dryRun, true);
   assert.deepEqual(options.gunPeers, ['wss://relay.example/gun']);
+  assert.equal(options.link, 'https://portal.3dvr.tech/market-lab/');
+  assert.equal(options.metaPageId, 'page-123');
+  assert.equal(options.metaGraphVersion, 'v25.0');
+  assert.equal(options.threadsUserId, 'me');
+  assert.equal(options.threadsVersion, 'v1.0');
+});
+
+test('loadLocalEnv reads ignored local environment files without overriding shell values by default', async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), 'market-pulse-env-'));
+  await writeFile(path.join(cwd, '.env.local'), [
+    'META_PAGE_ID=page-from-file',
+    'META_USER_ACCESS_TOKEN=user-token',
+    'THREADS_USER_ID=me',
+  ].join('\n'));
+
+  const originalMetaPageId = process.env.META_PAGE_ID;
+  process.env.META_PAGE_ID = 'page-from-shell';
+  delete process.env.META_USER_ACCESS_TOKEN;
+  delete process.env.THREADS_USER_ID;
+
+  try {
+    const result = loadLocalEnv({ cwd });
+    assert.equal(result.loaded, true);
+    assert.equal(process.env.META_PAGE_ID, 'page-from-shell');
+    assert.equal(process.env.META_USER_ACCESS_TOKEN, 'user-token');
+    assert.equal(process.env.THREADS_USER_ID, 'me');
+  } finally {
+    if (originalMetaPageId == null) delete process.env.META_PAGE_ID;
+    else process.env.META_PAGE_ID = originalMetaPageId;
+    delete process.env.META_USER_ACCESS_TOKEN;
+    delete process.env.THREADS_USER_ID;
+  }
 });
 
 test('runMarketPulseCli runs the injected pulse cycle and prints a useful summary', async () => {
@@ -136,4 +176,6 @@ test('market pulse automation is wired to npm and scheduled GitHub Actions', asy
   assert.match(workflow, /workflow_dispatch/);
   assert.match(workflow, /npm run market:pulse -- --json/);
   assert.match(workflow, /MARKET_PULSE_MARKET/);
+  assert.match(workflow, /META_PAGE_ID/);
+  assert.match(workflow, /THREADS_USER_ID/);
 });

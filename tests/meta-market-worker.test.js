@@ -3,9 +3,11 @@ import test from 'node:test';
 import {
   executeMetaMarketJob,
   isApprovedMetaMarketJob,
+  measureThreadsMarketJob,
   normalizeMetaMarketJob,
   parseMetaMarketWorkerArgs,
   publishMetaMarketJob,
+  publishThreadsMarketJob,
   runMetaMarketWorkerOnce,
   shouldMeasureMetaMarketJob,
 } from '../src/growth/meta-market-worker.js';
@@ -51,6 +53,20 @@ test('approved Meta market jobs require approval, message, and integration match
   assert.equal(isApprovedMetaMarketJob({ ...job, message: '' }), false);
 });
 
+test('approved Threads market jobs use the Threads integration gate', () => {
+  const job = normalizeMetaMarketJob({
+    id: 'threads-job-1',
+    status: 'approved',
+    channel: 'threads',
+    message: 'Testing a Threads market angle',
+    approvedAt: '2026-06-20T12:00:00.000Z',
+  });
+
+  assert.equal(job.integration, 'threads_api');
+  assert.equal(isApprovedMetaMarketJob(job), true);
+  assert.equal(isApprovedMetaMarketJob({ ...job, integration: 'meta_graph_api' }), false);
+});
+
 test('published jobs become measurement candidates after an hour', () => {
   const job = normalizeMetaMarketJob({
     status: 'published',
@@ -88,6 +104,78 @@ test('publishMetaMarketJob calls Meta from the server-side worker context', asyn
   assert.equal(update.postId, 'page-123_post-456');
 });
 
+test('publishMetaMarketJob can resolve a Page token from a User token', async () => {
+  const calls = [];
+  const update = await publishMetaMarketJob({
+    id: 'job-1',
+    message: 'Question for service businesses',
+  }, {
+    env: {
+      META_PAGE_ID: 'page-123',
+      META_USER_ACCESS_TOKEN: 'user-token',
+      META_GRAPH_API_VERSION: 'v25.0',
+    },
+    async fetchImpl(url, init = {}) {
+      calls.push({ url, init });
+      if (url.includes('/me/accounts')) {
+        return jsonResponse({
+          data: [
+            {
+              id: 'page-123',
+              name: '3DVR',
+              access_token: 'page-token',
+            },
+          ],
+        });
+      }
+      return jsonResponse({ id: 'page-123_post-456' });
+    },
+  });
+
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].url, /\/me\/accounts\?/);
+  assert.match(calls[0].url, /access_token=user-token/);
+  assert.equal(calls[1].url, 'https://graph.facebook.com/v25.0/page-123/feed');
+  assert.equal(calls[1].init.body.get('access_token'), 'page-token');
+  assert.equal(update.status, 'published');
+  assert.equal(update.postId, 'page-123_post-456');
+});
+
+test('publishThreadsMarketJob creates then publishes a Threads text container', async () => {
+  const calls = [];
+  const update = await publishThreadsMarketJob({
+    id: 'threads-job-1',
+    channel: 'threads',
+    integration: 'threads_api',
+    message: 'Question for service businesses',
+    link: 'https://portal.3dvr.tech/market-lab/',
+  }, {
+    env: {
+      THREADS_ACCESS_TOKEN: 'threads-token',
+      THREADS_USER_ID: 'me',
+      THREADS_API_VERSION: 'v1.0',
+    },
+    async fetchImpl(url, init) {
+      calls.push({ url, init });
+      if (url.endsWith('/threads')) {
+        return jsonResponse({ id: 'container-123' });
+      }
+      return jsonResponse({ id: 'threads-media-456' });
+    },
+  });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, 'https://graph.threads.net/v1.0/me/threads');
+  assert.equal(calls[0].init.body.get('media_type'), 'TEXT');
+  assert.equal(calls[0].init.body.get('access_token'), 'threads-token');
+  assert.equal(calls[1].url, 'https://graph.threads.net/v1.0/me/threads_publish');
+  assert.equal(calls[1].init.body.get('creation_id'), 'container-123');
+  assert.equal(update.status, 'published');
+  assert.equal(update.channel, 'threads');
+  assert.equal(update.creationId, 'container-123');
+  assert.equal(update.postId, 'threads-media-456');
+});
+
 test('executeMetaMarketJob measures existing posts and returns scored metrics', async () => {
   const result = await executeMetaMarketJob({
     id: 'job-1',
@@ -123,6 +211,48 @@ test('executeMetaMarketJob measures existing posts and returns scored metrics', 
   assert.equal(result.update.reactionCount, 8);
   assert.equal(result.update.commentCount, 3);
   assert.ok(result.update.marketSignalScore > 0);
+});
+
+test('measureThreadsMarketJob returns Threads-owned-post signal metrics', async () => {
+  const result = await measureThreadsMarketJob({
+    id: 'threads-job-1',
+    channel: 'threads',
+    integration: 'threads_api',
+    status: 'published',
+    postId: 'threads-media-456',
+  }, {
+    env: {
+      THREADS_ACCESS_TOKEN: 'threads-token',
+      THREADS_API_VERSION: 'v1.0',
+    },
+    async fetchImpl(url) {
+      if (url.includes('/insights')) {
+        return jsonResponse({
+          data: [
+            { name: 'views', values: [{ value: 320 }] },
+            { name: 'likes', values: [{ value: 12 }] },
+            { name: 'replies', values: [{ value: 4 }] },
+            { name: 'reposts', values: [{ value: 2 }] },
+            { name: 'quotes', values: [{ value: 1 }] },
+          ],
+        });
+      }
+      return jsonResponse({
+        id: 'threads-media-456',
+        permalink: 'https://www.threads.net/@3dvr/post/456',
+        text: 'Question for service businesses',
+      });
+    },
+  });
+
+  assert.equal(result.status, 'measured');
+  assert.equal(result.channel, 'threads');
+  assert.equal(result.viewCount, 320);
+  assert.equal(result.likeCount, 12);
+  assert.equal(result.replyCount, 4);
+  assert.equal(result.commentCount, 4);
+  assert.equal(result.shareCount, 3);
+  assert.ok(result.marketSignalScore > 0);
 });
 
 test('runMetaMarketWorkerOnce uses Gun-backed client as queue and result store', async () => {
