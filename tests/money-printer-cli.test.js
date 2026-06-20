@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -18,12 +18,13 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
 
-async function runCli(cwd, args = []) {
+async function runCli(cwd, args = [], env = {}) {
   return execFileAsync(process.execPath, [cliPath, ...args], {
     cwd,
     env: {
       ...process.env,
-      NO_COLOR: '1'
+      NO_COLOR: '1',
+      ...env
     }
   });
 }
@@ -101,6 +102,44 @@ describe('money-printer CLI', () => {
       const report = await readJson(path.join(reportsDir, reportFiles[0]));
       assert.equal(report.mode, 'dry-run');
       assert.match(report.botOutput.title, /Executive Agent/);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('loads a configured Money Printer env file for runtime status without printing secrets', async () => {
+    const cwd = await createTempWorkspace();
+    const envPath = path.join(cwd, 'money-printer.env');
+    try {
+      await writeFile(envPath, [
+        'MONEY_PRINTER_AI_MODE=openai',
+        'OPENAI_API_KEY=openai-secret',
+        'GITHUB_TOKEN=github-secret',
+        'GITHUB_OWNER=tmsteph',
+        'GITHUB_REPO=3dvr-portal',
+        'VERCEL_TOKEN=vercel-secret',
+        'VERCEL_PROJECT_ID=prj_test',
+        'MONEY_PRINTER_LIVE_CONNECTORS=false',
+        'MONEY_PRINTER_ALLOW_GITHUB_WRITE=false',
+        'MONEY_PRINTER_ALLOW_VERCEL_WRITE=false',
+        'MONEY_PRINTER_ALLOW_CODEX_EXEC=false'
+      ].join('\n'));
+
+      const result = await runCli(cwd, ['ai-status', '--json'], {
+        MONEY_PRINTER_ENV_FILE: envPath,
+        OPENAI_API_KEY: '',
+        GITHUB_TOKEN: '',
+        VERCEL_TOKEN: ''
+      });
+
+      assert.doesNotMatch(result.stdout, /openai-secret|github-secret|vercel-secret/);
+      const payload = JSON.parse(result.stdout);
+      assert.equal(payload.openAiKeyPresent, true);
+      assert.equal(payload.github.configured, true);
+      assert.equal(payload.vercel.configured, true);
+      assert.equal(payload.allowGithubWrite, false);
+      assert.equal(payload.allowVercelWrite, false);
+      assert.equal(payload.allowCodexExec, false);
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }

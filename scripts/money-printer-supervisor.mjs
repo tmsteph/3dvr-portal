@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-import { appendFile, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { appendFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { detectCodexCli } from '../src/money-printer/moneyPrinterCodexRunner.js';
+import { loadMoneyPrinterEnv } from '../src/money-printer/moneyPrinterEnv.js';
 import {
   appendMoneyPrinterEvent,
   ensureMoneyPrinterWorkspace,
@@ -41,33 +41,6 @@ function parseArgs(argv = process.argv.slice(2)) {
     }
   }
   return flags;
-}
-
-function parseEnvLine(line = '') {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return null;
-  const splitAt = trimmed.indexOf('=');
-  const key = trimmed.slice(0, splitAt).trim();
-  let value = trimmed.slice(splitAt + 1).trim();
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) return null;
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    value = value.slice(1, -1);
-  }
-  return [key, value];
-}
-
-async function loadEnvFiles(rootDir = process.cwd()) {
-  for (const file of ['.env', '.env.local']) {
-    const filePath = path.resolve(rootDir, file);
-    if (!existsSync(filePath)) continue;
-    const lines = (await readFile(filePath, 'utf8')).split(/\r?\n/);
-    for (const line of lines) {
-      const entry = parseEnvLine(line);
-      if (entry && process.env[entry[0]] === undefined) {
-        process.env[entry[0]] = entry[1];
-      }
-    }
-  }
 }
 
 function countByStatus(operations = []) {
@@ -113,7 +86,7 @@ Flags:
 
 export async function runMoneyPrinterSupervisor(options = {}) {
   const rootDir = path.resolve(options.rootDir || process.cwd());
-  await loadEnvFiles(rootDir);
+  await loadMoneyPrinterEnv(rootDir);
   await ensureMoneyPrinterWorkspace(rootDir);
 
   const ai = options.mock ? false : Boolean(options.ai || process.env.MONEY_PRINTER_SUPERVISOR_AI === 'true');

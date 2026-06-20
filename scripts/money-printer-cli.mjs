@@ -2,7 +2,6 @@
 
 import path from 'node:path';
 import process from 'node:process';
-import { existsSync, readFileSync } from 'node:fs';
 import {
   buildMetrics,
   generateFounderCommandBrief,
@@ -45,6 +44,7 @@ import {
 } from '../src/money-printer/moneyPrinterCodexRunner.js';
 import { readGithubStatus } from '../src/money-printer/moneyPrinterGithubConnector.js';
 import { readVercelStatus } from '../src/money-printer/moneyPrinterVercelConnector.js';
+import { loadMoneyPrinterEnv } from '../src/money-printer/moneyPrinterEnv.js';
 
 const BOT_ALIASES = {
   executive: 'executive-agent',
@@ -110,46 +110,6 @@ function parseArgs(argv) {
     flags,
     positional
   };
-}
-
-function parseEnvLine(line = '') {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) {
-    return null;
-  }
-  const index = trimmed.indexOf('=');
-  const key = trimmed.slice(0, index).trim();
-  let value = trimmed.slice(index + 1).trim();
-  if (!key || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
-    return null;
-  }
-  if (
-    (value.startsWith('"') && value.endsWith('"'))
-    || (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    value = value.slice(1, -1);
-  }
-  return [key, value];
-}
-
-function loadLocalEnv(rootDir = process.cwd()) {
-  const merged = {};
-  for (const file of ['.env', '.env.local']) {
-    const filePath = path.resolve(rootDir, file);
-    if (!existsSync(filePath)) continue;
-    const lines = readFileSync(filePath, 'utf8').split(/\r?\n/);
-    for (const line of lines) {
-      const entry = parseEnvLine(line);
-      if (entry) {
-        merged[entry[0]] = entry[1];
-      }
-    }
-  }
-  for (const [key, value] of Object.entries(merged)) {
-    if (process.env[key] === undefined) {
-      process.env[key] = value;
-    }
-  }
 }
 
 function printJson(value) {
@@ -605,7 +565,7 @@ async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const { flags, positional } = parseArgs(rest);
   const rootDir = process.cwd();
-  loadLocalEnv(rootDir);
+  await loadMoneyPrinterEnv(rootDir);
 
   switch (command) {
     case undefined:

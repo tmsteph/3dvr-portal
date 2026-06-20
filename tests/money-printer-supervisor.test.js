@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -49,6 +49,39 @@ describe('money-printer supervisor', () => {
       assert.equal(payload.guardrails.sendsEmail, false);
       assert.equal(payload.guardrails.movesMoney, false);
       assert.equal(existsSync(path.join(cwd, '.money-printer', 'reports', 'supervisor-latest.json')), true);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('loads the configured Money Printer env file for unattended server runs', async () => {
+    const cwd = await createTempWorkspace();
+    const envPath = path.join(cwd, 'money-printer.env');
+    try {
+      await writeFile(envPath, [
+        'MONEY_PRINTER_AI_MODE=openai',
+        'OPENAI_API_KEY=openai-secret',
+        'GITHUB_TOKEN=github-secret',
+        'GITHUB_OWNER=tmsteph',
+        'GITHUB_REPO=3dvr-portal',
+        'VERCEL_TOKEN=vercel-secret',
+        'VERCEL_PROJECT_ID=prj_test'
+      ].join('\n'));
+
+      const result = runSupervisor(cwd, ['--health-only', '--json'], {
+        MONEY_PRINTER_ENV_FILE: envPath,
+        OPENAI_API_KEY: '',
+        GITHUB_TOKEN: '',
+        VERCEL_TOKEN: ''
+      });
+
+      assert.equal(result.status, 0, result.stderr);
+      assert.doesNotMatch(result.stdout, /openai-secret|github-secret|vercel-secret/);
+      const payload = JSON.parse(result.stdout);
+      assert.equal(payload.mode, 'openai');
+      assert.equal(payload.runtime.openAiKeyPresent, true);
+      assert.equal(payload.runtime.githubConfigured, true);
+      assert.equal(payload.runtime.vercelConfigured, true);
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }
