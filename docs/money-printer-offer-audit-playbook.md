@@ -2,29 +2,43 @@
 
 ## Offer
 
-48-hour offer audit for independent builders.
+48-hour client-getting offer audit for Webflow, no-code, and freelance web designers.
 
 Price: $300 fixed audit.
 
-Payment: live Stripe checkout from the offer page. Checkout collects the buyer email, project URL/name, and current offer context.
+Payment: live Stripe checkout from the offer page. Checkout collects the buyer email, project URL/name, and current offer context, but payment is not the first ask for cold prospects.
 
-Promise: turn a messy project or service into one buyer-specific offer, a landing-page draft, and a first outreach sequence.
+Promise: turn a broad web design/no-code service menu into one buyer-specific offer, a landing-page draft, and a first outreach sequence.
 
-## Buyer
+## Beachhead Market
 
-Independent builders, service operators, creators, and solo technical founders who have skill or product energy but cannot clearly answer:
+First market: freelance web designers, Webflow specialists, and no-code builders selling services to clients.
 
-- who should pay first
-- what painful problem they solve
-- what the first paid ask should be
-- what to say in the first 25 buyer touches
+Research basis:
+
+- Web Designer Academy's 2025 survey reports getting clients, recurring revenue, selling services, and pricing as top web designer challenges.
+- The same report says word of mouth drives most new business, which means many designers have trust but not a repeatable market motion.
+- Webflow's partner directory shows an addressable market of freelancers and agencies actively accepting projects.
+
+Pain statement:
+
+Talented web designers can build good sites, but many still rely on referrals, under-explain business outcomes, hesitate on price, and struggle to make a specific outreach ask.
+
+The audit should not sell "clarity" in the abstract. It should sell a practical client-getting rewrite:
+
+- sharper market
+- sharper expensive pain
+- sharper project/discovery ask
+- sharper outreach sequence
+- sharper decision rule after 25 touches
 
 ## Qualification
 
 Good fit:
 
-- Has a real project, skill, service, audience, or tool.
-- Can name at least one buyer segment.
+- Sells or wants to sell Webflow, no-code, web design, UX/UI, SEO, automation, or related implementation work.
+- Can name at least one current or desired client segment.
+- Has a client acquisition, pricing, sales, or recurring revenue problem.
 - Wants a paid test this week, not a long strategy process.
 - Can pay $300 for clarity and execution.
 
@@ -34,37 +48,50 @@ Bad fit:
 - Refuses outreach.
 - Needs a full app build before any validation.
 - Cannot describe the problem in plain language.
+- Only wants more traffic without changing the offer or sales conversation.
+
+## Trust Ladder
+
+Cold prospects should move through trust, not straight to checkout:
+
+1. Public research: reference something visible about their offer without pretending to know more than the page shows.
+2. Permission ask: offer a short fit check or a three-bullet diagnostic.
+3. Proof of thought: send one useful observation before asking for payment.
+4. Paid audit: use the Stripe checkout only once they agree the pain is real.
+5. Delivery: ship a concrete before/after asset in 48 hours.
+
+Do not send more than 10 cold touches before reviewing replies. Trust quality matters more than list volume.
 
 ## First 25 Touches
 
-Target 25 warm or reachable buyers:
+Target 25 reachable web design/no-code service providers:
 
-- 10 people who already know the builder
-- 5 people posting about a related pain
-- 5 operators with a visibly weak offer or landing page
-- 5 founders/builders asking for growth, positioning, or pricing help
+- 10 Webflow/no-code freelancers with direct contact emails and broad service copy
+- 5 designers publicly discussing pricing, clients, retainers, or AI pressure
+- 5 small studios with a clear service but unclear niche or paid discovery offer
+- 5 warm/local service operators Thomas already knows who can refer a designer or founder
 
 ## Outreach Message 1
 
-Subject: quick offer clarity idea
+Subject: quick client-getting offer idea
 
-Hey [name], I am testing a 48-hour offer audit for builders who have something useful but need a clearer first paid ask.
+Hey [name], I am researching a specific problem for Webflow/no-code freelancers: good work, broad service copy, and client acquisition that still depends too much on referrals.
 
-I looked at [specific project / profile / page] and I think the fastest win may be tightening:
+I looked at [specific profile/page] and I think the fastest win may be tightening:
 
-1. who the buyer is
-2. what painful outcome you promise
-3. what to ask for in the next 25 buyer touches
+1. which client segment you lead with
+2. what expensive outcome your offer promises
+3. what small paid/discovery ask you make before a full project
 
-I am doing the first audits for $300. Want me to send the exact before/after outline I would use for yours?
+Want me to send a short three-bullet read on what I would tighten?
 
-If you already know this is the right sprint, the offer page has direct checkout. If you are unsure, ask for a fit check first.
+If it looks useful, the full 48-hour audit is $300. If not, no problem.
 
 ## Outreach Message 2
 
 Hey [name], quick question.
 
-If I could turn your current project into a sharper one-page offer plus five outreach messages in 48 hours, would that be useful enough to pay $300 for?
+If I could turn your current web design/no-code service into a sharper client-getting offer plus five outreach messages in 48 hours, would that be useful enough to pay $300 for?
 
 No pitch deck. No big build. Just buyer, offer, copy, and first sales motion.
 
@@ -78,10 +105,10 @@ I am only looking for a few builders where this would create immediate clarity. 
 
 For each paid audit, deliver:
 
-- Buyer segment statement
+- Market and buyer segment statement
 - Pain statement
 - Offer promise
-- Price test
+- Paid discovery or project price test
 - Proof plan
 - Objection list
 - One-page landing copy
@@ -104,12 +131,14 @@ Rewrite if:
 - Replies are polite but vague.
 - People like the idea but do not share a current pain.
 - They want free advice but avoid the paid audit.
+- People only ask for lead lists, templates, or AI automation without wanting to sharpen the offer.
 
 Kill if:
 
 - Fewer than 2 specific replies after 25 targeted touches.
 - The buyer segment is too broad to find manually.
 - The pain requires a full product before anyone will pay.
+- The market responds defensively to outside positioning help and will not share a concrete sales problem.
 
 ## Scale
 

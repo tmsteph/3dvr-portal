@@ -25,12 +25,16 @@ describe('Money Printer offer audit experiment', () => {
     const html = await readFile(offerPageUrl, 'utf8');
 
     assert.match(html, /48-Hour Offer Audit/);
+    assert.match(html, /Webflow, no-code, and freelance web designers/);
+    assert.match(html, /getting enough right-fit clients/);
+    assert.match(html, /Why this market first/);
+    assert.match(html, /2025 pricing report/);
     assert.match(html, /\$300 fixed audit/);
     assert.match(html, /data-audience-key="offer-audit"/);
     assert.match(html, /3dvr-audience-tests\/v1\/offer-audit\/signups/);
-    assert.match(html, /Pay \$300 and start/);
+    assert.match(html, /Request free fit check/);
+    assert.match(html, /Pay \$300 if ready/);
     assert.match(html, /https:\/\/buy\.stripe\.com\/aFabJ1eua5pV24DdQEc7u0a/);
-    assert.match(html, /Ask for fit check first/);
     assert.match(html, /data-checkout-success/);
     assert.match(html, /\/icons\/icon-512\.png/);
   });
@@ -55,5 +59,6 @@ describe('Money Printer offer audit experiment', () => {
     assert.match(playbook, /First 25 Touches/);
     assert.match(playbook, /Minimum viable signal: 3 specific replies/);
     assert.match(playbook, /Scale only after a paid audit or two booked calls/);
+    assert.match(playbook, /Trust Ladder/);
   });
 });
