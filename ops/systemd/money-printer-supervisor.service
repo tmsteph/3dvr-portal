@@ -7,7 +7,7 @@ After=network-online.target
 Type=oneshot
 WorkingDirectory=%h/projects/3dvr-portal
 EnvironmentFile=-%h/.config/3dvr/money-printer.env
-ExecStart=/usr/bin/npm run money-printer:supervisor -- --ai
+ExecStart=/usr/bin/npm run money-printer:supervisor -- --ai --auto-approve-green --execute-approved
 Nice=5
 
 [Install]

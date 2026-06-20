@@ -72,6 +72,20 @@ MONEY_PRINTER_LIVE_CONNECTORS=false
 MONEY_PRINTER_ALLOW_GITHUB_WRITE=false
 MONEY_PRINTER_ALLOW_VERCEL_WRITE=false
 MONEY_PRINTER_ALLOW_CODEX_EXEC=false
+MONEY_PRINTER_AUTO_APPROVE_GREEN=false
+MONEY_PRINTER_AUTO_APPROVE_MAX=3
+```
+
+For bounded live mode, keep Vercel writes and Codex execution blocked, set GitHub write on, and allow only capped green
+auto-approval:
+
+```bash
+MONEY_PRINTER_LIVE_CONNECTORS=true
+MONEY_PRINTER_ALLOW_GITHUB_WRITE=true
+MONEY_PRINTER_ALLOW_VERCEL_WRITE=false
+MONEY_PRINTER_ALLOW_CODEX_EXEC=false
+MONEY_PRINTER_AUTO_APPROVE_GREEN=true
+MONEY_PRINTER_AUTO_APPROVE_MAX=3
 ```
 
 ## First Manual Runs
@@ -86,6 +100,12 @@ Run one supervised cycle:
 
 ```bash
 npm run money-printer:supervisor -- --ai
+```
+
+Run one bounded live cycle:
+
+```bash
+npm run money-printer:supervisor -- --ai --auto-approve-green --execute-approved
 ```
 
 Review output:
@@ -104,7 +124,7 @@ npm run money-printer -- operations approve <operation-id>
 Execute approved operations only when the relevant env flag is enabled:
 
 ```bash
-MONEY_PRINTER_ALLOW_GITHUB_WRITE=true npm run money-printer:supervisor -- --ai --execute-approved
+MONEY_PRINTER_ALLOW_GITHUB_WRITE=true npm run money-printer:supervisor -- --ai --auto-approve-green --execute-approved
 ```
 
 ## Install Systemd Timer

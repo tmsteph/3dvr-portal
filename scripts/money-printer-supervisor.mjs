@@ -14,6 +14,7 @@ import {
 } from '../src/money-printer/moneyPrinterFileStorage.js';
 import { getModelProviderStatus } from '../src/money-printer/moneyPrinterModelProvider.js';
 import {
+  autoApproveMoneyPrinterOperations,
   executeApprovedMoneyPrinterOperations,
   loadMoneyPrinterOperations
 } from '../src/money-printer/moneyPrinterOperations.js';
@@ -79,6 +80,7 @@ Flags:
   --ai                   Use configured AI provider, falling back to mock
   --mock                 Force mock mode
   --execute-approved     Execute locally approved operations if connector env flags allow it
+  --auto-approve-green   Auto-approve bounded green operations before execution
   --health-only          Write/read status without running a daemon cycle
   --json                 Print JSON only
 `);
@@ -115,6 +117,12 @@ export async function runMoneyPrinterSupervisor(options = {}) {
     });
 
   const afterPlanOperations = await loadMoneyPrinterOperations(rootDir);
+  const autoApprovedOperations = options.autoApproveGreen || process.env.MONEY_PRINTER_AUTO_APPROVE_GREEN === 'true'
+    ? await autoApproveMoneyPrinterOperations(rootDir, {
+      ...runOptions,
+      autoApproveGreen: true
+    })
+    : [];
   const executedOperations = options.executeApproved
     ? await executeApprovedMoneyPrinterOperations(rootDir, {
       ...runOptions,
@@ -139,6 +147,7 @@ export async function runMoneyPrinterSupervisor(options = {}) {
     operationsAfterPlanning: afterPlanOperations.length,
     operationsAfterExecution: finalOperations.length,
     operationsAddedThisCycle: Math.max(0, afterPlanOperations.length - beforeOperations.length),
+    autoApprovedCount: autoApprovedOperations.length,
     operationStatusCounts: countByStatus(finalOperations),
     operationRiskCounts: countByRisk(finalOperations),
     executedApprovedCount: executedOperations.length,
@@ -192,6 +201,7 @@ async function main() {
     ai: flags.ai === true,
     mock: flags.mock === true,
     executeApproved: flags.executeApproved === true,
+    autoApproveGreen: flags.autoApproveGreen === true,
     healthOnly: flags.healthOnly === true
   });
 
@@ -207,6 +217,7 @@ async function main() {
     console.log(`Cycle report: ${path.relative(result.rootDir, result.daemonReportPath)}`);
   }
   console.log(`Operations added: ${result.operationsAddedThisCycle}`);
+  console.log(`Green operations auto-approved: ${result.autoApprovedCount}`);
   console.log(`Approved operations executed: ${result.executedApprovedCount}`);
   console.log(`Codex prompt: ${result.codexPromptPath ? path.relative(result.rootDir, result.codexPromptPath) : 'not generated'}`);
   console.log(`Next action: ${result.nextBestMoneyAction || 'Review planned operations and recent market signals.'}`);

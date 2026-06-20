@@ -225,6 +225,8 @@ MONEY_PRINTER_LIVE_CONNECTORS=false
 MONEY_PRINTER_ALLOW_GITHUB_WRITE=false
 MONEY_PRINTER_ALLOW_VERCEL_WRITE=false
 MONEY_PRINTER_ALLOW_CODEX_EXEC=false
+MONEY_PRINTER_AUTO_APPROVE_GREEN=false
+MONEY_PRINTER_AUTO_APPROVE_MAX=3
 ```
 
 The CLI and supervisor automatically load `.env`, `.env.local`, and `~/.config/3dvr/money-printer.env` when present.
@@ -237,6 +239,9 @@ GitHub issue creation is the first real write path. It requires `GITHUB_TOKEN`, 
 `MONEY_PRINTER_ALLOW_GITHUB_WRITE=true`, a locally approved operation, and the CLI `--execute` flag. Vercel support is
 read/inspect first: set `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and optionally `VERCEL_TEAM_ID` to inspect project and
 deployment status. Preview deployment creation remains plan-only until a safe project-specific deploy path is approved.
+
+Set `MONEY_PRINTER_AUTO_APPROVE_GREEN=true` with `MONEY_PRINTER_AUTO_APPROVE_MAX=3` to let the scheduled supervisor
+approve a bounded number of green GitHub/Vercel task operations each cycle before it runs `--execute-approved`.
 
 Codex integration starts by saving prompts. Execution requires the Codex CLI to be installed, a generated prompt,
 `MONEY_PRINTER_ALLOW_CODEX_EXEC=true`, and `--execute`.

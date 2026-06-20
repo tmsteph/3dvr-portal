@@ -17,6 +17,16 @@ export const DEFAULT_MONEY_PRINTER_FAST_MODEL = 'gpt-4.1-mini';
 export const DEFAULT_MONEY_PRINTER_REASONING_MODEL = 'gpt-5.4-mini';
 
 const GPT_5_RE = /^gpt-5([.-]|$)/;
+const CONNECTOR_ACTION_ENUM = [
+  'createIssue',
+  'createIssueFromOperation',
+  'createBranchPlan',
+  'createPullRequestPlan',
+  'inspectProject',
+  'listDeployments',
+  'inspectDeployment',
+  'createPreviewDeploymentPlan'
+];
 
 const BOT_OUTPUT_SCHEMA = {
   name: 'money_printer_bot_output',
@@ -39,8 +49,8 @@ const BOT_OUTPUT_SCHEMA = {
           required: ['provider', 'action', 'title', 'summary', 'risk', 'payload'],
           additionalProperties: false,
           properties: {
-            provider: { type: 'string' },
-            action: { type: 'string' },
+            provider: { type: 'string', enum: ['github', 'vercel'] },
+            action: { type: 'string', enum: CONNECTOR_ACTION_ENUM },
             title: { type: 'string' },
             summary: { type: 'string' },
             risk: { type: 'string', enum: ['green', 'yellow', 'red'] },
@@ -360,6 +370,11 @@ function buildInstructions() {
     'Sell first. Build second. Keep it simple.',
     'Prefer service-first, software-later businesses with reachable buyers and clear first-dollar paths.',
     'Never propose red-zone execution as allowed. Money movement, DNS, deletion, mass email, and production merges stay blocked.',
+    'Connector operations must use exact executable actions only.',
+    'Allowed GitHub actions: createIssue, createIssueFromOperation, createBranchPlan, createPullRequestPlan.',
+    'Allowed Vercel actions: inspectProject, listDeployments, inspectDeployment, createPreviewDeploymentPlan.',
+    'Use github.createIssue for research tasks, lead-review tasks, content drafts, customer-proposal drafts, and code tasks that need a work queue item.',
+    'Put code implementation details in codexPrompt instead of inventing a codex connector action.',
     'Return only structured JSON that matches the requested schema.'
   ].join('\n');
 }
@@ -663,6 +678,7 @@ export async function generateConnectorPlanWithModel(state = {}, options = {}) {
     const result = await runStructuredModelPrompt([
       'Generate safe connector operations for the next Money Printer cycle.',
       'Only include green/yellow operations. Mark red-zone actions as blocked by omitting them or setting risk red.',
+      'Do not invent action names. Use github.createIssue for most execution tasks and Vercel plan/read actions for deployment work.',
       JSON.stringify(buildStatePayload(state), null, 2)
     ].join('\n\n'), {
       ...options,

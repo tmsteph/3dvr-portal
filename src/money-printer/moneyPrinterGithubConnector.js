@@ -101,7 +101,7 @@ export async function createGithubIssue(options = {}) {
   const body = String(options.body || options.payload?.body || '').trim();
   const labels = Array.isArray(options.labels || options.payload?.labels)
     ? (options.labels || options.payload?.labels).map(String).filter(Boolean)
-    : ['money-printer'];
+    : [];
 
   if (!title) {
     return {
@@ -148,7 +148,7 @@ export async function createGithubIssue(options = {}) {
       body: JSON.stringify({
         title,
         body,
-        labels
+        ...(labels.length ? { labels } : {})
       })
     }
   );

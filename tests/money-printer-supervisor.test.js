@@ -54,6 +54,31 @@ describe('money-printer supervisor', () => {
     }
   });
 
+  it('reports auto-approved green operations when enabled', async () => {
+    const cwd = await createTempWorkspace();
+    try {
+      await addMoneyPrinterOperations(cwd, [{
+        provider: 'github',
+        action: 'createIssue',
+        title: 'Auto-approved green sprint task',
+        summary: 'Safe task issue.',
+        risk: 'green',
+        payload: { title: 'Auto-approved green sprint task', body: 'Safe task issue.' }
+      }]);
+
+      const result = runSupervisor(cwd, ['--health-only', '--auto-approve-green', '--json'], {
+        MONEY_PRINTER_AUTO_APPROVE_MAX: '1'
+      });
+
+      assert.equal(result.status, 0, result.stderr);
+      const payload = JSON.parse(result.stdout);
+      assert.equal(payload.autoApprovedCount, 1);
+      assert.equal(payload.operationStatusCounts.approved, 1);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('loads the configured Money Printer env file for unattended server runs', async () => {
     const cwd = await createTempWorkspace();
     const envPath = path.join(cwd, 'money-printer.env');

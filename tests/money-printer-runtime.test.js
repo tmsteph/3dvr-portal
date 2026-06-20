@@ -13,7 +13,9 @@ import {
 } from '../src/money-printer/moneyPrinterModelProvider.js';
 import {
   addMoneyPrinterOperations,
+  autoApproveMoneyPrinterOperations,
   approveMoneyPrinterOperation,
+  createConnectorOperationPlan,
   executeMoneyPrinterOperation
 } from '../src/money-printer/moneyPrinterOperations.js';
 import { createGithubIssue } from '../src/money-printer/moneyPrinterGithubConnector.js';
@@ -194,6 +196,73 @@ describe('money-printer model runtime', () => {
       assert.equal(operations[0].id, operationId);
       assert.equal(operations[0].status, 'approved');
       assert.ok(operations[0].approvedAt);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('normalizes model-style connector operations into executable task issues', () => {
+    const operation = createConnectorOperationPlan({
+      provider: 'codex',
+      action: 'drafting content',
+      title: 'Draft outreach messages for validation sprint',
+      summary: 'Prepare useful first-touch messages for human review.',
+      risk: 'green',
+      payload: {
+        segment: 'Webflow freelancers'
+      }
+    });
+
+    assert.equal(operation.provider, 'github');
+    assert.equal(operation.action, 'createIssue');
+    assert.equal(operation.risk, 'green');
+    assert.equal(operation.sourceProvider, 'codex');
+    assert.equal(operation.sourceAction, 'drafting content');
+    assert.equal(operation.payload.title, 'Draft outreach messages for validation sprint');
+    assert.match(operation.payload.body, /Source model operation: codex\.drafting content/);
+  });
+
+  it('auto-approves only bounded green safe operations', async () => {
+    const cwd = await createTempWorkspace();
+    try {
+      await addMoneyPrinterOperations(cwd, [
+        {
+          provider: 'github',
+          action: 'createIssue',
+          title: 'Green task one',
+          summary: 'Can become a GitHub issue.',
+          risk: 'green',
+          payload: { title: 'Green task one', body: 'Safe.' }
+        },
+        {
+          provider: 'github',
+          action: 'createIssue',
+          title: 'Green task two',
+          summary: 'Can become a GitHub issue later.',
+          risk: 'green',
+          payload: { title: 'Green task two', body: 'Safe.' }
+        },
+        {
+          provider: 'github',
+          action: 'createIssue',
+          title: 'Yellow task',
+          summary: 'Needs local approval.',
+          risk: 'yellow',
+          payload: { title: 'Yellow task', body: 'Review first.' }
+        }
+      ]);
+
+      const approved = await autoApproveMoneyPrinterOperations(cwd, {
+        autoApproveGreen: true,
+        max: 1
+      });
+
+      assert.equal(approved.length, 1);
+      assert.equal(approved[0].title, 'Green task one');
+
+      const operations = await readJson(path.join(cwd, '.money-printer', 'operations.json'));
+      assert.equal(operations.filter(operation => operation.status === 'approved').length, 1);
+      assert.equal(operations.filter(operation => operation.status === 'planned').length, 2);
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }
