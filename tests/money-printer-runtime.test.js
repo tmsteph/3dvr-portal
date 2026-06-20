@@ -94,6 +94,9 @@ describe('money-printer model runtime', () => {
     assert.equal(extracted.length, 2);
     const operations = buildWeakSignalOperations(extracted, { market: 'early-stage SaaS' });
     assert.ok(operations.some(operation => /weak signal/i.test(operation.title)));
+    assert.match(operations[0].payload.body, /Draft public comment/);
+    assert.match(operations[0].payload.body, /Interview questions/);
+    assert.match(operations[0].payload.body, /Do not send DMs or offers automatically/);
   });
 
   it('falls back to mock mode when OpenAI mode is requested without a key', async () => {
