@@ -10,77 +10,84 @@
 <body data-guide="feminine">
   <main class="girl-shell">
     <section class="hero" aria-labelledby="pageTitle">
-      <img class="hero__image" src="assets/portal-ring.jpg" alt="3DVR Girl standing inside a blue portal ring">
+      <img class="hero__image" id="heroImage" src="assets/portal-arrival.png" alt="3DVR Girl standing inside a glowing blue portal ring">
       <img class="hero__guide-image" id="heroGuideImage" src="assets/guides/feminine.png" alt="" aria-hidden="true">
       <div class="hero__portal-brand" aria-hidden="true">
         <span>3DVR</span>
       </div>
       <div class="hero__shade" aria-hidden="true"></div>
+
       <nav class="hero__nav" aria-label="Page navigation">
         <a href="../index.html">3DVR</a>
-        <a href="#gallery">Gallery</a>
-        <a href="#signal">Signal</a>
+        <a href="#studio">Studio</a>
+        <a href="#gallery">Scenes</a>
       </nav>
+
       <div class="hero__content">
-        <p class="eyebrow">3DVR avatar channel</p>
+        <p class="eyebrow">Avatar channel</p>
         <h1 id="pageTitle">3DVR Girl</h1>
         <p class="hero__copy">
-          A portal identity for motion, beauty, discipline, and the next-level immersion lane.
+          A cleaner portal identity for guided scenes, immersive wellness, and character-led sign-in moments.
         </p>
-        <div class="hero__actions" aria-label="Portal actions">
-          <button class="icon-command" type="button" data-focus-image="portal-ring" aria-label="Open portal mode" title="Open portal mode">
-            <span aria-hidden="true">O</span>
+        <div class="hero__actions" aria-label="Featured scenes">
+          <button class="scene-chip is-active" type="button" data-focus-image="portal-arrival">
+            <span aria-hidden="true">01</span>
+            Portal
           </button>
-          <button class="icon-command" type="button" data-focus-image="warrior-flow" aria-label="Open flow mode" title="Open flow mode">
-            <span aria-hidden="true">^</span>
+          <button class="scene-chip" type="button" data-focus-image="pool-welcome">
+            <span aria-hidden="true">02</span>
+            Refresh
           </button>
-          <button class="icon-command" type="button" data-focus-image="festival-dance" aria-label="Open festival mode" title="Open festival mode">
-            <span aria-hidden="true">*</span>
+          <button class="scene-chip" type="button" data-focus-image="meditation-seat">
+            <span aria-hidden="true">03</span>
+            Calm
           </button>
         </div>
       </div>
     </section>
 
-    <section class="portal-board" aria-label="3DVR Girl portal board">
-      <aside class="identity-panel" id="signal">
+    <section class="studio-console" id="studio" aria-label="3DVR Girl studio console">
+      <aside class="signal-panel" id="signal">
         <p class="eyebrow">Live signal</p>
-        <h2>Motion-first muse</h2>
+        <h2>Portal profile</h2>
         <div class="signal-meter" aria-label="Portal signal level">
           <span style="--level: 86%"></span>
         </div>
         <dl class="identity-list">
           <div>
-            <dt>Mode</dt>
+            <dt>Scene</dt>
             <dd id="modeLabel">Portal</dd>
           </div>
           <div>
-            <dt>Texture</dt>
-            <dd>Neon, sun, white cloth</dd>
+            <dt>Guide</dt>
+            <dd id="guideLabel">Feminine</dd>
           </div>
           <div>
-            <dt>Lane</dt>
-            <dd>3DVR visual companion</dd>
+            <dt>Use</dt>
+            <dd>Sign-in atmosphere</dd>
           </div>
         </dl>
       </aside>
 
       <section class="stage" aria-live="polite">
         <div class="stage__media">
-          <img id="stageImage" src="assets/portal-ring.jpg" alt="Selected 3DVR Girl scene">
+          <img id="stageImage" src="assets/portal-arrival.png" alt="Selected 3DVR Girl scene">
+          <div class="stage__glow" aria-hidden="true"></div>
         </div>
         <div class="stage__caption">
           <p class="eyebrow" id="stageKicker">Portal ring</p>
           <h2 id="stageTitle">Next-level immersion</h2>
-          <p id="stageCopy">A clean hero image for the 3DVR Girl identity: bright ring, studio posture, instant brand read.</p>
+          <p id="stageCopy">Bright ring, studio posture, and an instant 3DVR read for the main entry point.</p>
         </div>
       </section>
 
-      <aside class="palette-panel">
+      <aside class="guide-panel">
         <p class="eyebrow">Sign-in atmosphere</p>
         <h2 class="guide-title">Choose your guide</h2>
         <p class="guide-copy">
-          Pick the presence you want greeting you when the portal opens.
+          Pick the presence that greets users as the portal opens.
         </p>
+
         <div class="guide-preview" id="guidePreview" aria-live="polite">
           <img id="guidePreviewImage" src="assets/guides/feminine.png" alt="Cartoon feminine 3DVR guide inside a soft portal ring">
           <div>
@@ -89,21 +96,9 @@
             <p id="guidePreviewCopy">Soft, focused, and human-forward for a calm portal greeting.</p>
           </div>
         </div>
+
         <div class="guide-grid" id="guideGrid" aria-label="Choose your guide"></div>
         <p class="guide-note" id="guideNote">Feminine guide selected.</p>
-        <div class="swatches" aria-label="Color palette">
-          <span style="--swatch: #111314"></span>
-          <span style="--swatch: #f7f1e7"></span>
-          <span style="--swatch: #2d9cff"></span>
-          <span style="--swatch: #f04f98"></span>
-          <span style="--swatch: #c9a875"></span>
-        </div>
-        <div class="mood-stack" aria-label="Modes">
-          <button class="mood-pill is-active" type="button" data-focus-image="portal-ring">Portal</button>
-          <button class="mood-pill" type="button" data-focus-image="balance-tree">Balance</button>
-          <button class="mood-pill" type="button" data-focus-image="warrior-flow">Power</button>
-          <button class="mood-pill" type="button" data-focus-image="festival-dance">Pulse</button>
-        </div>
       </aside>
     </section>
 
@@ -112,6 +107,7 @@
         <p class="eyebrow">Scene set</p>
         <h2 id="galleryTitle">Choose the portal frame</h2>
       </div>
+      <div class="scene-rail" id="sceneRail" aria-label="Scene quick select"></div>
       <div class="gallery-grid" id="galleryGrid"></div>
     </section>
   </main>

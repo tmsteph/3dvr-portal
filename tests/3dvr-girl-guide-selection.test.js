@@ -22,16 +22,25 @@ describe('3DVR Girl guide selection', () => {
     const css = await readFile(new URL('styles.css', appDir), 'utf8');
 
     assert.match(html, /data-guide="feminine"/);
+    assert.match(html, /assets\/portal-arrival\.png/);
+    assert.doesNotMatch(html, /portal-ring\.jpg/);
+    assert.doesNotMatch(js, /portal-ring\.jpg/);
+    assert.match(html, /studio-console/);
     assert.match(html, /hero__portal-brand/);
     assert.match(html, /heroGuideImage/);
     assert.match(html, /guidePreviewImage/);
+    assert.match(html, /sceneRail/);
     assert.match(html, /Choose your guide/);
     assert.match(html, /Sign-in atmosphere/);
     assert.match(js, /const guides = \[/);
+    assert.match(js, /id: 'pool-welcome'/);
+    assert.match(js, /id: 'meditation-seat'/);
+    assert.match(js, /function createScenes\(\)/);
     assert.match(js, /GUIDE_STORAGE_KEY = '3dvrGirlGuide'/);
-    assert.match(js, /heroGuideImage\.src = guide\.image/);
-    assert.match(js, /guidePreviewTitle\.textContent = guide\.headline/);
+    assert.match(js, /refs\.heroGuideImage\.src = guide\.image/);
+    assert.match(js, /setText\(refs\.guidePreviewTitle, guide\.headline\)/);
     assert.match(css, /body\[data-guide="robot"\]/);
+    assert.match(css, /\.studio-console/);
     assert.match(css, /\.hero__guide-image/);
     assert.match(css, /\.guide-preview/);
     assert.match(css, /\.guide-grid/);
