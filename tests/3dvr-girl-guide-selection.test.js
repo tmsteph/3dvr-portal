@@ -23,11 +23,17 @@ describe('3DVR Girl guide selection', () => {
 
     assert.match(html, /data-guide="feminine"/);
     assert.match(html, /hero__portal-brand/);
+    assert.match(html, /heroGuideImage/);
+    assert.match(html, /guidePreviewImage/);
     assert.match(html, /Choose your guide/);
     assert.match(html, /Sign-in atmosphere/);
     assert.match(js, /const guides = \[/);
     assert.match(js, /GUIDE_STORAGE_KEY = '3dvrGirlGuide'/);
+    assert.match(js, /heroGuideImage\.src = guide\.image/);
+    assert.match(js, /guidePreviewTitle\.textContent = guide\.headline/);
     assert.match(css, /body\[data-guide="robot"\]/);
+    assert.match(css, /\.hero__guide-image/);
+    assert.match(css, /\.guide-preview/);
     assert.match(css, /\.guide-grid/);
   });
 

@@ -71,7 +71,9 @@ const guides = [
     title: 'Feminine guide',
     image: 'assets/guides/feminine.png',
     alt: 'Cartoon feminine 3DVR guide inside a soft portal ring',
-    note: 'Feminine guide selected.'
+    note: 'Feminine guide selected.',
+    headline: 'Warm studio presence',
+    copy: 'Soft, focused, and human-forward for a calm portal greeting.'
   },
   {
     id: 'masculine',
@@ -79,7 +81,9 @@ const guides = [
     title: 'Masculine guide',
     image: 'assets/guides/masculine.png',
     alt: 'Cartoon masculine 3DVR guide inside a blue portal ring',
-    note: 'Masculine guide selected.'
+    note: 'Masculine guide selected.',
+    headline: 'Grounded signal',
+    copy: 'Steady, composed, and direct for a focused entry into the experience.'
   },
   {
     id: 'robot',
@@ -87,7 +91,9 @@ const guides = [
     title: 'Robot guide',
     image: 'assets/guides/robot.png',
     alt: 'Cartoon robot 3DVR guide inside a glowing portal ring',
-    note: 'Robot guide selected.'
+    note: 'Robot guide selected.',
+    headline: 'Precision interface',
+    copy: 'Clean, technical, and luminous for a more synthetic portal atmosphere.'
   },
   {
     id: 'nature',
@@ -95,7 +101,9 @@ const guides = [
     title: 'Nature guide',
     image: 'assets/guides/nature.png',
     alt: 'Cartoon nature 3DVR guide inside a green portal ring',
-    note: 'Nature guide selected.'
+    note: 'Nature guide selected.',
+    headline: 'Restorative path',
+    copy: 'Botanical, bright, and grounded for a softer environmental welcome.'
   },
   {
     id: 'cosmic',
@@ -103,7 +111,9 @@ const guides = [
     title: 'Cosmic guide',
     image: 'assets/guides/cosmic.png',
     alt: 'Cartoon cosmic 3DVR guide inside a violet portal ring',
-    note: 'Cosmic guide selected.'
+    note: 'Cosmic guide selected.',
+    headline: 'Astral companion',
+    copy: 'Dreamlike, spacious, and cinematic for a more surreal opening mood.'
   },
   {
     id: 'portal',
@@ -111,7 +121,9 @@ const guides = [
     title: 'Portal guide',
     image: 'assets/guides/portal.png',
     alt: 'Cartoon blue 3DVR portal guide with concentric rings',
-    note: 'Portal guide selected.'
+    note: 'Portal guide selected.',
+    headline: 'Pure 3DVR frame',
+    copy: 'Brand-first, abstract, and light-driven when you want the portal itself to lead.'
   }
 ];
 
@@ -123,6 +135,11 @@ const modeLabel = document.getElementById('modeLabel');
 const galleryGrid = document.getElementById('galleryGrid');
 const guideGrid = document.getElementById('guideGrid');
 const guideNote = document.getElementById('guideNote');
+const heroGuideImage = document.getElementById('heroGuideImage');
+const guidePreviewImage = document.getElementById('guidePreviewImage');
+const guidePreviewKicker = document.getElementById('guidePreviewKicker');
+const guidePreviewTitle = document.getElementById('guidePreviewTitle');
+const guidePreviewCopy = document.getElementById('guidePreviewCopy');
 const heroImage = document.querySelector('.hero__image');
 const GUIDE_STORAGE_KEY = '3dvrGirlGuide';
 
@@ -172,6 +189,22 @@ function setGuide(guideId) {
   document.body.dataset.guide = guide.id;
   if (guideNote) {
     guideNote.textContent = guide.note;
+  }
+  if (heroGuideImage) {
+    heroGuideImage.src = guide.image;
+  }
+  if (guidePreviewImage) {
+    guidePreviewImage.src = guide.image;
+    guidePreviewImage.alt = guide.alt;
+  }
+  if (guidePreviewKicker) {
+    guidePreviewKicker.textContent = guide.title;
+  }
+  if (guidePreviewTitle) {
+    guidePreviewTitle.textContent = guide.headline;
+  }
+  if (guidePreviewCopy) {
+    guidePreviewCopy.textContent = guide.copy;
   }
   try {
     localStorage.setItem(GUIDE_STORAGE_KEY, guide.id);
