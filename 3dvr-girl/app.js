@@ -64,13 +64,67 @@ const scenes = [
   }
 ];
 
+const guides = [
+  {
+    id: 'feminine',
+    label: 'Feminine',
+    title: 'Feminine guide',
+    image: 'assets/guides/feminine.png',
+    alt: 'Cartoon feminine 3DVR guide inside a soft portal ring',
+    note: 'Feminine guide selected.'
+  },
+  {
+    id: 'masculine',
+    label: 'Masculine',
+    title: 'Masculine guide',
+    image: 'assets/guides/masculine.png',
+    alt: 'Cartoon masculine 3DVR guide inside a blue portal ring',
+    note: 'Masculine guide selected.'
+  },
+  {
+    id: 'robot',
+    label: 'Robot',
+    title: 'Robot guide',
+    image: 'assets/guides/robot.png',
+    alt: 'Cartoon robot 3DVR guide inside a glowing portal ring',
+    note: 'Robot guide selected.'
+  },
+  {
+    id: 'nature',
+    label: 'Nature',
+    title: 'Nature guide',
+    image: 'assets/guides/nature.png',
+    alt: 'Cartoon nature 3DVR guide inside a green portal ring',
+    note: 'Nature guide selected.'
+  },
+  {
+    id: 'cosmic',
+    label: 'Cosmic',
+    title: 'Cosmic guide',
+    image: 'assets/guides/cosmic.png',
+    alt: 'Cartoon cosmic 3DVR guide inside a violet portal ring',
+    note: 'Cosmic guide selected.'
+  },
+  {
+    id: 'portal',
+    label: 'Portal',
+    title: 'Portal guide',
+    image: 'assets/guides/portal.png',
+    alt: 'Cartoon blue 3DVR portal guide with concentric rings',
+    note: 'Portal guide selected.'
+  }
+];
+
 const stageImage = document.getElementById('stageImage');
 const stageTitle = document.getElementById('stageTitle');
 const stageKicker = document.getElementById('stageKicker');
 const stageCopy = document.getElementById('stageCopy');
 const modeLabel = document.getElementById('modeLabel');
 const galleryGrid = document.getElementById('galleryGrid');
+const guideGrid = document.getElementById('guideGrid');
+const guideNote = document.getElementById('guideNote');
 const heroImage = document.querySelector('.hero__image');
+const GUIDE_STORAGE_KEY = '3dvrGirlGuide';
 
 function setScene(sceneId) {
   const scene = scenes.find((item) => item.id === sceneId) || scenes[0];
@@ -113,9 +167,65 @@ function createGallery() {
   });
 }
 
+function setGuide(guideId) {
+  const guide = guides.find((item) => item.id === guideId) || guides[0];
+  document.body.dataset.guide = guide.id;
+  if (guideNote) {
+    guideNote.textContent = guide.note;
+  }
+  try {
+    localStorage.setItem(GUIDE_STORAGE_KEY, guide.id);
+  } catch (error) {
+    // The picker still works when storage is unavailable.
+  }
+
+  document.querySelectorAll('[data-guide-option]').forEach((control) => {
+    const active = control.dataset.guideOption === guide.id;
+    control.classList.toggle('is-active', active);
+    control.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function createGuidePicker() {
+  if (!guideGrid) {
+    return;
+  }
+
+  guides.forEach((guide) => {
+    const button = document.createElement('button');
+    button.className = 'guide-option';
+    button.type = 'button';
+    button.dataset.guideOption = guide.id;
+    button.setAttribute('aria-label', `Choose ${guide.title}`);
+    button.setAttribute('aria-pressed', 'false');
+
+    const image = document.createElement('img');
+    image.src = guide.image;
+    image.alt = guide.alt;
+    image.loading = 'lazy';
+
+    const label = document.createElement('span');
+    label.textContent = guide.label;
+
+    button.append(image, label);
+    button.addEventListener('click', () => setGuide(guide.id));
+    guideGrid.append(button);
+  });
+}
+
+function getStoredGuide() {
+  try {
+    return localStorage.getItem(GUIDE_STORAGE_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
 document.querySelectorAll('[data-focus-image]').forEach((control) => {
   control.addEventListener('click', () => setScene(control.dataset.focusImage));
 });
 
 createGallery();
+createGuidePicker();
 setScene('portal-ring');
+setGuide(getStoredGuide() || 'feminine');

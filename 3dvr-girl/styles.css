@@ -8,6 +8,9 @@
   --gold: #c9a875;
   --white: #fffaf2;
   --shadow: 0 24px 70px rgba(17, 19, 20, 0.24);
+  --guide-aura: #f04f98;
+  --guide-deep: #111314;
+  --guide-soft: #f7f1e7;
 }
 
 * {
@@ -25,6 +28,42 @@ body {
   font-family: "Avenir Next", "Trebuchet MS", sans-serif;
 }
 
+body[data-guide="feminine"] {
+  --guide-aura: #f04f98;
+  --guide-deep: #3f1f33;
+  --guide-soft: #f6c5c7;
+}
+
+body[data-guide="masculine"] {
+  --guide-aura: #2d9cff;
+  --guide-deep: #16324f;
+  --guide-soft: #c9a875;
+}
+
+body[data-guide="robot"] {
+  --guide-aura: #4de4ef;
+  --guide-deep: #1f2433;
+  --guide-soft: #8fb7c7;
+}
+
+body[data-guide="nature"] {
+  --guide-aura: #95d870;
+  --guide-deep: #214d3a;
+  --guide-soft: #d7b56d;
+}
+
+body[data-guide="cosmic"] {
+  --guide-aura: #b999ff;
+  --guide-deep: #281c56;
+  --guide-soft: #cc8cbe;
+}
+
+body[data-guide="portal"] {
+  --guide-aura: #7de9ff;
+  --guide-deep: #0b263b;
+  --guide-soft: #2d9cff;
+}
+
 button,
 a {
   font: inherit;
@@ -38,6 +77,7 @@ a {
 .girl-shell {
   min-height: 100vh;
   background:
+    radial-gradient(circle at 86% 6%, color-mix(in srgb, var(--guide-aura) 28%, transparent), transparent 30%),
     linear-gradient(90deg, rgba(17, 19, 20, 0.06) 1px, transparent 1px) 0 0 / 44px 44px,
     var(--paper);
 }
@@ -54,7 +94,8 @@ a {
 }
 
 .hero__image,
-.hero__shade {
+.hero__shade,
+.hero__portal-brand {
   position: absolute;
   inset: 0;
 }
@@ -64,13 +105,35 @@ a {
   height: 100%;
   object-fit: cover;
   object-position: 50% 36%;
+  z-index: -3;
+}
+
+.hero__portal-brand {
   z-index: -2;
+  display: grid;
+  place-items: center;
+  opacity: 0.64;
+  background:
+    radial-gradient(circle, transparent 0 18%, color-mix(in srgb, var(--guide-aura) 72%, transparent) 18.4% 19.4%, transparent 19.8% 26%, rgba(255, 255, 255, 0.22) 26.4% 27.2%, transparent 27.6% 35%, rgba(45, 156, 255, 0.34) 35.5% 36.2%, transparent 36.6%),
+    radial-gradient(circle at 52% 46%, color-mix(in srgb, var(--guide-deep) 46%, transparent), transparent 44%);
+}
+
+.hero__portal-brand span {
+  margin-top: -18vh;
+  color: rgba(255, 250, 242, 0.16);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(6rem, 23vw, 20rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  text-shadow:
+    0 0 18px color-mix(in srgb, var(--guide-aura) 52%, transparent),
+    0 0 80px rgba(45, 156, 255, 0.42);
 }
 
 .hero__shade {
   z-index: -1;
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.22) 58%, rgba(0, 0, 0, 0.52)),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.18) 58%, rgba(0, 0, 0, 0.54)),
     linear-gradient(0deg, rgba(0, 0, 0, 0.82), transparent 48%);
 }
 
@@ -202,7 +265,7 @@ a {
   display: block;
   width: var(--level);
   height: 100%;
-  background: linear-gradient(90deg, var(--blue), var(--rose), var(--gold));
+  background: linear-gradient(90deg, var(--blue), var(--guide-aura), var(--gold));
 }
 
 .identity-list {
@@ -277,6 +340,69 @@ a {
   background: var(--swatch);
 }
 
+.guide-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.guide-copy,
+.guide-note {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.guide-copy {
+  margin: 10px 0 14px;
+}
+
+.guide-note {
+  min-height: 22px;
+  margin: 10px 0 18px;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.guide-option {
+  min-width: 0;
+  border: 1px solid var(--line);
+  padding: 0;
+  background: var(--ink);
+  color: var(--white);
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+}
+
+.guide-option img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.guide-option span {
+  display: block;
+  padding: 7px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.guide-option.is-active,
+.guide-option:hover,
+.guide-option:focus-visible {
+  border-color: var(--guide-aura);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--guide-aura) 46%, transparent);
+  outline: none;
+}
+
 .mood-stack {
   display: grid;
   gap: 8px;
@@ -296,7 +422,7 @@ a {
 .mood-pill.is-active,
 .mood-pill:hover,
 .mood-pill:focus-visible {
-  background: var(--ink);
+  background: linear-gradient(90deg, var(--ink), color-mix(in srgb, var(--guide-deep) 78%, var(--ink)));
   color: var(--white);
   outline: none;
 }
@@ -414,6 +540,10 @@ a {
   .identity-panel,
   .palette-panel {
     padding: 18px;
+  }
+
+  .guide-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .gallery-grid {

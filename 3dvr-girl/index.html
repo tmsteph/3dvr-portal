@@ -7,10 +7,13 @@
   <meta name="theme-color" content="#111314">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-guide="feminine">
   <main class="girl-shell">
     <section class="hero" aria-labelledby="pageTitle">
       <img class="hero__image" src="assets/portal-ring.jpg" alt="3DVR Girl standing inside a blue portal ring">
+      <div class="hero__portal-brand" aria-hidden="true">
+        <span>3DVR</span>
+      </div>
       <div class="hero__shade" aria-hidden="true"></div>
       <nav class="hero__nav" aria-label="Page navigation">
         <a href="../index.html">3DVR</a>
@@ -72,7 +75,13 @@
       </section>
 
       <aside class="palette-panel">
-        <p class="eyebrow">Portal palette</p>
+        <p class="eyebrow">Sign-in atmosphere</p>
+        <h2 class="guide-title">Choose your guide</h2>
+        <p class="guide-copy">
+          Pick the presence you want greeting you when the portal opens.
+        </p>
+        <div class="guide-grid" id="guideGrid" aria-label="Choose your guide"></div>
+        <p class="guide-note" id="guideNote">Feminine guide selected.</p>
         <div class="swatches" aria-label="Color palette">
           <span style="--swatch: #111314"></span>
           <span style="--swatch: #f7f1e7"></span>
