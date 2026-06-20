@@ -12,6 +12,10 @@ import {
   runBotWithModel
 } from '../src/money-printer/moneyPrinterModelProvider.js';
 import {
+  formatMoneyPrinterFounderDoctrine,
+  MONEY_PRINTER_FOUNDER_DOCTRINE
+} from '../src/money-printer/moneyPrinterFounderDoctrine.js';
+import {
   addMoneyPrinterOperations,
   autoApproveMoneyPrinterOperations,
   approveMoneyPrinterOperation,
@@ -54,6 +58,15 @@ async function runCli(cwd, args = [], env = {}) {
 }
 
 describe('money-printer model runtime', () => {
+  it('formats the founder doctrine around offers, users, and manual validation', () => {
+    const doctrine = formatMoneyPrinterFounderDoctrine();
+    assert.ok(MONEY_PRINTER_FOUNDER_DOCTRINE.length >= 6);
+    assert.match(doctrine, /urgent pain/);
+    assert.match(doctrine, /manual audits|manual user recruitment|manual concierge/);
+    assert.match(doctrine, /90\/10 solution/);
+    assert.match(doctrine, /paid-pilot|paid pilot/);
+  });
+
   it('falls back to mock mode when OpenAI mode is requested without a key', async () => {
     const status = getModelProviderStatus({}, {
       MONEY_PRINTER_AI_MODE: 'openai',

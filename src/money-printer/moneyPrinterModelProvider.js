@@ -10,6 +10,7 @@ import {
 } from './moneyPrinterCore.js';
 import { generateValidationTest } from './moneyPrinterExperiments.js';
 import { getMoneyPrinterWorkspacePaths } from './moneyPrinterFileStorage.js';
+import { formatMoneyPrinterFounderDoctrine } from './moneyPrinterFounderDoctrine.js';
 import { createConnectorOperationPlan } from './moneyPrinterOperations.js';
 
 export const DEFAULT_MONEY_PRINTER_MODEL = 'gpt-4.1-mini';
@@ -375,6 +376,8 @@ function buildInstructions() {
     'Allowed Vercel actions: inspectProject, listDeployments, inspectDeployment, createPreviewDeploymentPlan.',
     'Use github.createIssue for research tasks, lead-review tasks, content drafts, customer-proposal drafts, and code tasks that need a work queue item.',
     'Put code implementation details in codexPrompt instead of inventing a codex connector action.',
+    'Founder doctrine:',
+    formatMoneyPrinterFounderDoctrine(),
     'Return only structured JSON that matches the requested schema.'
   ].join('\n');
 }
@@ -580,6 +583,7 @@ export async function generateStructuredIdeasWithModel(state = {}, options = {})
     const result = await runStructuredModelPrompt([
       'Generate practical Money Printer business ideas.',
       'Each idea needs a reachable buyer, urgent pain, paid first offer, validation step, and tools needed.',
+      'Use the founder doctrine: one narrow buyer, one expensive pain, one high-value manual outcome, one paid validation ask.',
       JSON.stringify(buildStatePayload(state), null, 2)
     ].join('\n\n'), {
       ...options,
@@ -679,6 +683,7 @@ export async function generateConnectorPlanWithModel(state = {}, options = {}) {
       'Generate safe connector operations for the next Money Printer cycle.',
       'Only include green/yellow operations. Mark red-zone actions as blocked by omitting them or setting risk red.',
       'Do not invent action names. Use github.createIssue for most execution tasks and Vercel plan/read actions for deployment work.',
+      'Create work that follows the founder doctrine: buyer interviews, market pain proof, offer packaging, manual concierge delivery, landing-page copy, and paid pilot validation before software buildout.',
       JSON.stringify(buildStatePayload(state), null, 2)
     ].join('\n\n'), {
       ...options,
