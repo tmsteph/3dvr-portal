@@ -1,0 +1,12 @@
+[Unit]
+Description=Run 3DVR Money Printer supervisor every 6 hours
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=6h
+AccuracySec=5min
+Persistent=true
+Unit=money-printer-supervisor.service
+
+[Install]
+WantedBy=timers.target

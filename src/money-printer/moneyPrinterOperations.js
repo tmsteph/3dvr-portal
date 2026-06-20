@@ -83,6 +83,26 @@ function inferRisk(operation = {}) {
   return normalizeRisk(operation.risk || operation.zone || 'yellow');
 }
 
+function stableJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function operationSignature(operation = {}) {
+  return [
+    operation.provider,
+    operation.action,
+    operation.title,
+    operation.summary,
+    stableJson(operation.payload || {})
+  ].map(value => String(value || '').trim().toLowerCase()).join('|');
+}
+
 export function createConnectorOperationPlan(operation = {}) {
   if (!operation || typeof operation !== 'object') return null;
   const provider = String(operation.provider || operation.connector || '').trim().toLowerCase();
@@ -109,16 +129,31 @@ export function createConnectorOperationPlan(operation = {}) {
 
 function mergeOperations(existing = [], incoming = []) {
   const byIdentity = new Map();
+  const bySignature = new Map();
+  const added = [];
+
   existing.forEach(operation => {
     byIdentity.set(operation.id, operation);
+    bySignature.set(operationSignature(operation), operation);
   });
+
   incoming.forEach(operation => {
-    const identity = operation.id;
-    if (!byIdentity.has(identity)) {
-      byIdentity.set(identity, operation);
+    if (byIdentity.has(operation.id)) {
+      return;
     }
+    const signature = operationSignature(operation);
+    if (bySignature.has(signature)) {
+      return;
+    }
+    byIdentity.set(operation.id, operation);
+    bySignature.set(signature, operation);
+    added.push(operation);
   });
-  return Array.from(byIdentity.values());
+
+  return {
+    operations: Array.from(byIdentity.values()),
+    added
+  };
 }
 
 export async function loadMoneyPrinterOperations(rootDir = process.cwd()) {
@@ -151,10 +186,10 @@ export async function addMoneyPrinterOperations(rootDir = process.cwd(), operati
   const normalized = operations.map(createConnectorOperationPlan).filter(Boolean);
   const existing = await loadMoneyPrinterOperations(rootDir);
   const merged = mergeOperations(existing, normalized);
-  const pathWritten = await saveMoneyPrinterOperations(rootDir, merged);
+  const pathWritten = await saveMoneyPrinterOperations(rootDir, merged.operations);
   return {
-    operations: merged,
-    added: normalized,
+    operations: merged.operations,
+    added: merged.added,
     path: pathWritten
   };
 }

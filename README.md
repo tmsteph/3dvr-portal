@@ -159,6 +159,7 @@ Core pieces:
 - `money-printer-web`: portal dashboard/control room at `/money-printer/`.
 - `money-printer-cli`: terminal runner that reads and writes `.money-printer/` files.
 - `money-printer-daemon`: one-cycle or scheduled operator loop for a DigitalOcean server.
+- `money-printer-supervisor`: DigitalOcean-safe scheduled wrapper that runs a cycle, writes health reports, dedupes plans, and executes only locally approved operations.
 - `money-printer-model-provider`: OpenAI Responses API wrapper with structured JSON parsing and mock fallback.
 - `money-printer-operations`: local approval ledger plus guarded connector execution.
 - `money-printer-codex-runner`: prompt generation and opt-in Codex CLI execution.
@@ -178,6 +179,8 @@ npm run money-printer -- run validation --ai
 npm run money-printer -- ai-status
 npm run money-printer -- daemon --once
 npm run money-printer -- daemon --once --ai
+npm run money-printer:supervisor -- --ai
+npm run money-printer:supervisor -- --health-only
 npm run money-printer -- operations
 npm run money-printer -- operations approve <operation-id>
 npm run money-printer -- operations execute <operation-id> --execute
@@ -196,6 +199,7 @@ npm run money-printer:brief
 npm run money-printer:daemon
 npm run money-printer:ai-status
 npm run money-printer:codex -- prompt --bot website-builder
+npm run money-printer:supervisor -- --ai
 ```
 
 AI/provider setup example:
@@ -266,8 +270,16 @@ DigitalOcean deployment target:
 ~/projects/3dvr-portal/.env.local
 ```
 
-Run one dry cycle first, inspect the report, then schedule `npm run money-printer -- daemon --once --ai` with cron or
-systemd once model output and connector plans look sane.
+Run one dry cycle first, inspect the report, then schedule the supervised wrapper with cron or systemd once model output
+and connector plans look sane:
+
+```bash
+npm run money-printer:supervisor -- --health-only
+npm run money-printer:supervisor -- --ai
+```
+
+Install the included systemd timer from `ops/systemd/` when the one-cycle report looks sane. Full runbook:
+`docs/digitalocean-money-printer-supervisor.md`.
 
 ### Run the money automation loop
 
