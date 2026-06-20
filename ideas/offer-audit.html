@@ -145,6 +145,16 @@
       font-size: 0.94rem;
     }
 
+    .checkout-success {
+      margin: 16px 0 0;
+      border: 1px solid rgba(143, 214, 148, 0.48);
+      border-radius: 8px;
+      padding: 14px;
+      color: #ecfff0;
+      background: rgba(42, 120, 61, 0.28);
+      font-weight: 700;
+    }
+
     .form-panel {
       border-color: rgba(247, 200, 115, 0.32);
     }
@@ -225,11 +235,20 @@
         <div class="button-row">
           <a
             class="cta"
+            href="https://buy.stripe.com/aFabJ1eua5pV24DdQEc7u0a"
+            target="_blank"
+            rel="noopener noreferrer"
+          >Pay $300 and start</a>
+          <a
+            class="text-link"
             href="mailto:hello@3dvr.tech?subject=48-Hour%20Offer%20Audit&body=I%20want%20the%20%24300%2048-hour%20offer%20audit.%0A%0AMy%20project%3A%0AMy%20current%20buyer%3A%0AMy%20main%20problem%3A"
-          >Book the $300 audit</a>
+          >Ask for fit check first</a>
           <a class="text-link" href="/money-printer/">Open the operator cockpit</a>
         </div>
-        <p class="cta-note">Payment link comes after fit check. If the offer is not specific enough for an audit, we will say that first.</p>
+        <p class="cta-note">Stripe checkout collects your project and current offer. If you are unsure it is a fit, ask first and we will tell you plainly.</p>
+        <p class="checkout-success" data-checkout-success hidden>
+          Payment received. Watch your inbox and send any extra notes to hello@3dvr.tech so the 48-hour audit can start cleanly.
+        </p>
       </section>
 
       <aside class="panel form-panel" aria-label="Offer audit intake">
@@ -270,6 +289,15 @@
       Intake writes to the 3DVR Gun relay under <code>3dvr-audience-tests/v1/offer-audit/signups</code>.
     </footer>
   </div>
+  <script>
+    (() => {
+      const success = new URLSearchParams(window.location.search).get('checkout') === 'success';
+      const message = document.querySelector('[data-checkout-success]');
+      if (success && message) {
+        message.hidden = false;
+      }
+    })();
+  </script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>

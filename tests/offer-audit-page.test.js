@@ -28,7 +28,10 @@ describe('Money Printer offer audit experiment', () => {
     assert.match(html, /\$300 fixed audit/);
     assert.match(html, /data-audience-key="offer-audit"/);
     assert.match(html, /3dvr-audience-tests\/v1\/offer-audit\/signups/);
-    assert.match(html, /Book the \$300 audit/);
+    assert.match(html, /Pay \$300 and start/);
+    assert.match(html, /https:\/\/buy\.stripe\.com\/aFabJ1eua5pV24DdQEc7u0a/);
+    assert.match(html, /Ask for fit check first/);
+    assert.match(html, /data-checkout-success/);
     assert.match(html, /\/icons\/icon-512\.png/);
   });
 

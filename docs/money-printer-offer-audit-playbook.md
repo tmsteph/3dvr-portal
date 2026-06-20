@@ -6,6 +6,8 @@
 
 Price: $300 fixed audit.
 
+Payment: live Stripe checkout from the offer page. Checkout collects the buyer email, project URL/name, and current offer context.
+
 Promise: turn a messy project or service into one buyer-specific offer, a landing-page draft, and a first outreach sequence.
 
 ## Buyer
@@ -55,6 +57,8 @@ I looked at [specific project / profile / page] and I think the fastest win may 
 3. what to ask for in the next 25 buyer touches
 
 I am doing the first audits for $300. Want me to send the exact before/after outline I would use for yours?
+
+If you already know this is the right sprint, the offer page has direct checkout. If you are unsure, ask for a fit check first.
 
 ## Outreach Message 2
 
@@ -115,6 +119,6 @@ Next scale step:
 
 - Publish the offer page.
 - Create one GitHub issue for landing-page improvements.
-- Add a Stripe one-time checkout link for the $300 audit.
+- Keep the Stripe one-time checkout link visible on the offer page.
 - Move replies into CRM.
 - Ask the same buyer segment for the same deal at the same price.
