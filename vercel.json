@@ -151,6 +151,16 @@
   ],
   "rewrites": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "purpose.3dvr.tech"
+        }
+      ],
+      "destination": "/purpose/index.html"
+    },
+    {
       "source": "/webhooks/stripe",
       "destination": "/api/webhooks/stripe"
     },
