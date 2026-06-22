@@ -1125,6 +1125,18 @@ body.landing {
   color: var(--color-text-muted);
 }
 
+.app-card__cta {
+  width: fit-content;
+  margin-top: 0.1rem;
+  padding: 0.46rem 0.74rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.26);
+  background: rgba(34, 211, 238, 0.12);
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .gamified-dashboard {
   display: grid;
   gap: 2.5rem;

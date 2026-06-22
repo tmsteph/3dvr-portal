@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purpose by 3DVR</title>
+  <meta
+    name="description"
+    content="Purpose by 3DVR helps you organize your life, find your purpose, and launch meaningful projects."
+  />
+  <meta name="theme-color" content="#120f17" />
+  <link rel="stylesheet" href="/purpose/styles.css" />
+</head>
+<body>
+  <canvas id="purposeScene" aria-hidden="true"></canvas>
+  <div class="ambient-vignette" aria-hidden="true"></div>
+
+  <main class="purpose-shell" id="app">
+    <header class="purpose-topbar">
+      <a class="portal-link" href="/" data-portal-link>Back to Portal</a>
+      <div class="brand-mark" aria-label="Purpose by 3DVR">
+        <span class="brand-mark__sigil" aria-hidden="true"></span>
+        <span>Purpose by 3DVR</span>
+      </div>
+    </header>
+
+    <section class="stage-panel" data-view="start" aria-labelledby="startTitle">
+      <p class="eyebrow">Guided life map</p>
+      <h1 id="startTitle">Organize your life. Find your purpose. Launch meaningful projects.</h1>
+      <p class="positive-line">Your life has patterns. Purpose helps you see them.</p>
+      <p class="description">
+        Purpose by 3DVR helps you turn scattered thoughts, responsibilities, dreams, and ideas into a clear map for what matters next.
+      </p>
+      <div class="panel-actions">
+        <button class="button button--primary" type="button" data-start>Start My Purpose Map</button>
+      </div>
+      <p class="privacy-note">Your answers stay on this device unless you choose to export, share, or create an account to save.</p>
+    </section>
+
+    <section class="stage-panel stage-panel--prompt" data-view="prompt" hidden aria-labelledby="promptTitle">
+      <div class="prompt-header">
+        <p class="eyebrow" id="promptProgress">Prompt 1 of 5</p>
+        <div class="progress-track" aria-hidden="true">
+          <span class="progress-track__fill" data-progress-fill></span>
+        </div>
+      </div>
+      <h2 id="promptTitle">What feels scattered or unfinished in your life right now?</h2>
+      <label class="answer-field" for="promptAnswer">
+        <span>Your answer</span>
+        <textarea
+          id="promptAnswer"
+          rows="7"
+          maxlength="900"
+          placeholder="Write a few honest lines. Short notes are enough."
+          data-answer
+        ></textarea>
+      </label>
+      <p class="validation-message" data-validation role="status" aria-live="polite"></p>
+      <div class="panel-actions panel-actions--split">
+        <button class="button button--quiet" type="button" data-back>Back</button>
+        <button class="button button--primary" type="button" data-next>Continue</button>
+      </div>
+    </section>
+
+    <section class="stage-panel stage-panel--map" data-view="map" hidden aria-labelledby="mapTitle">
+      <p class="eyebrow">Purpose Map</p>
+      <h2 id="mapTitle">A clear next shape is forming.</h2>
+      <p class="map-intro">
+        This summary is generated on this device from your five answers. Edit your answers any time and regenerate.
+      </p>
+
+      <article class="purpose-map" data-map-output aria-live="polite"></article>
+
+      <div class="save-panel" aria-label="Save options">
+        <p>Want to save this and come back later? Create a free 3DVR account to save your Purpose Map, sync across devices, and keep building.</p>
+        <div class="save-actions">
+          <a class="button button--primary" href="/sign-in.html?redirect=%2Fpurpose%2F" data-create-account>Create Account to Save</a>
+          <button class="button button--quiet" type="button" data-device-save>Keep Using This Device</button>
+          <button class="button button--quiet" type="button" data-download-markdown>Download Instead</button>
+        </div>
+      </div>
+
+      <div class="tool-row" aria-label="Purpose Map actions">
+        <button type="button" data-copy>Copy Purpose Map</button>
+        <button type="button" data-download-markdown>Download Markdown</button>
+        <button type="button" data-export-json>Export JSON</button>
+        <label class="import-button">
+          Import JSON
+          <input type="file" accept="application/json,.json" data-import-json />
+        </label>
+        <button type="button" data-start-over>Start Over</button>
+      </div>
+
+      <div class="future-actions" aria-label="Future paths">
+        <button type="button" data-future-action="project">Turn into Project Seed</button>
+        <button type="button" data-future-action="launch">Open Launch Room</button>
+        <button type="button" data-future-action="notes">Save to Notes</button>
+      </div>
+
+      <p class="status-line" data-status role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <template id="mapTemplate">
+    <section class="map-section">
+      <span class="map-section__label"></span>
+      <p class="map-section__body"></p>
+    </section>
+  </template>
+
+  <script type="module" src="/purpose/app.js"></script>
+</body>
+</html>
