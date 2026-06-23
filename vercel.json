@@ -92,6 +92,33 @@
       ]
     },
     {
+      "source": "/crm/crm.webmanifest",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/crm/root.webmanifest",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/crm.webmanifest",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/pwa-install.js",
       "headers": [
         {
@@ -102,6 +129,15 @@
     },
     {
       "source": "/contacts/pwa-install.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/crm/pwa-install.js",
       "headers": [
         {
           "key": "Cache-Control",
@@ -147,9 +183,42 @@
           "value": "/calendar/"
         }
       ]
+    },
+    {
+      "source": "/crm/service-worker.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/crm.webmanifest",
+      "has": [
+        {
+          "type": "host",
+          "value": "crm.3dvr.tech"
+        }
+      ],
+      "destination": "/crm/root.webmanifest"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "crm.3dvr.tech"
+        }
+      ],
+      "destination": "/crm/index.html"
+    },
     {
       "source": "/",
       "has": [

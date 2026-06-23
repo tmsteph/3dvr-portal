@@ -4,15 +4,39 @@
   <meta charset="UTF-8" />
   <title>CRM | 3dvr portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0e1116" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="icon" href="https://fav.farm/🧠" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <script>
+    (() => {
+      const manifest = document.createElement('link');
+      manifest.rel = 'manifest';
+      manifest.href = window.location.hostname === 'crm.3dvr.tech'
+        ? '/crm.webmanifest'
+        : '/crm/crm.webmanifest';
+      document.head.append(manifest);
+    })();
+  </script>
+  <link rel="stylesheet" href="/crm/install-banner.css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
-  <script src="../score.js"></script>
-  <script src="../oauth.js"></script>
-  <script type="module" src="./app.js"></script>
+  <script src="/score.js"></script>
+  <script src="/oauth.js"></script>
+  <script
+    src="/crm/pwa-install.js"
+    data-sw-url="/crm/service-worker.js"
+    data-sw-scope="/crm/"
+    data-sw-standalone-host="crm.3dvr.tech"
+    data-sw-standalone-scope="/"
+    defer
+  ></script>
+  <script type="module" src="/crm/app.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <style>
     html,
@@ -110,6 +134,14 @@
   </style>
 </head>
 <body class="bg-gray-900 text-white font-sans min-h-screen">
+  <div class="install-banner" data-install-banner hidden>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Install CRM</p>
+      <p class="install-banner__meta">Open your people pipeline quickly from your phone or desktop.</p>
+    </div>
+    <button type="button" class="install-banner__action" data-install-button>Install app</button>
+  </div>
+
   <header class="bg-gray-950/70 border-b border-white/10">
     <div class="max-w-5xl mx-auto px-4 py-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
@@ -120,7 +152,7 @@
       </div>
       <nav class="flex flex-wrap gap-2 text-sm">
         <a href="../sales/index.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Sales</a>
-        <a href="./flow.html" class="bg-teal-500 hover:bg-teal-400 text-gray-950 px-3 py-1.5 rounded transition font-semibold">Flow view</a>
+        <a href="/crm/flow.html" class="bg-teal-500 hover:bg-teal-400 text-gray-950 px-3 py-1.5 rounded transition font-semibold">Flow view</a>
         <a href="../sales/outreach.html" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Outreach</a>
         <a href="../sales/training/" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Training</a>
         <a href="../contacts/index.html" data-contacts-link class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition">Contacts</a>
