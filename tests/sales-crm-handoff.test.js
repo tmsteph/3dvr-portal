@@ -17,7 +17,7 @@ test('sales hub routes offers into prefilled CRM drafts', async () => {
   assert.match(crmHtml, /Builder draft/);
   assert.match(crmHtml, /Embedded draft/);
   assert.match(crmHtml, /Custom draft/);
-  assert.match(crmHtml, /type="module" src="\.\/app\.js"/);
+  assert.match(crmHtml, /type="module" src="\/crm\/app\.js"/);
   assert.doesNotMatch(crmHtml, /const gun = Gun\(window\.__GUN_PEERS__/);
   assert.match(crmAppJs, /SALES_DRAFT_PRESETS/);
   assert.match(crmAppJs, /applyUrlDraftIfNeeded/);
