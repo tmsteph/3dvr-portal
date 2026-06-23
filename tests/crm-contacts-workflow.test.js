@@ -130,6 +130,20 @@ test('CRM app includes keyboard search shortcut, workflow filters, and import wi
   assert.match(js, /runtime\.listContacts/);
 });
 
+test('CRM saves records locally before waiting on Gun mobile relay acknowledgements', async () => {
+  const js = await read('crm/app.js');
+  assert.match(js, /const CRM_LOCAL_RECORDS_KEY = 'portal-crm-local-records-v1'/);
+  assert.match(js, /const CRM_LOCAL_CONVERSATION_CAPTURES_KEY = 'portal-crm-local-conversation-captures-v1'/);
+  assert.match(js, /function hydrateLocalCrmCache\(\)/);
+  assert.match(js, /function syncCachedCrmRecordsToGun\(\)/);
+  assert.match(js, /function putCrmRecord\(record\) \{\s+const sanitized = \{ \.\.\.sanitizeCrmRecord\(record\), id: record\.id \};\s+crmIndex\[sanitized\.id\]/);
+  assert.match(js, /cacheCrmRecord\(sanitized\);\s+scheduleRender\(\);\s+syncCrmRecordToGun\(sanitized\);\s+return Promise\.resolve\(sanitized\);/);
+  assert.match(js, /function putConversationCapture\(capture\) \{\s+const sanitized = sanitizeConversationCaptureRecord\(capture\);/);
+  assert.match(js, /cacheConversationCapture\(sanitized\);\s+renderConversationCaptures\(\);\s+syncConversationCaptureToGun\(sanitized\);\s+return Promise\.resolve\(sanitized\);/);
+  assert.match(js, /CRM record saved locally; Gun sync will retry after refresh or the next edit\./);
+  assert.match(js, /hydrateLocalCrmCache\(\);\s+updateFilterButtons\(\);/);
+});
+
 test('Contacts page exposes CRM link filter and phone import controls', async () => {
   const html = await read('contacts/index.html');
   assert.match(html, /id="filterCrmLink"/);
