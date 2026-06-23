@@ -102,6 +102,7 @@ describe('CRM PWA configuration', () => {
     const vercelText = await readProjectFile('vercel.json');
     const config = JSON.parse(vercelText);
     const rules = Array.isArray(config.headers) ? config.headers : [];
+    const redirects = Array.isArray(config.redirects) ? config.redirects : [];
     const rewrites = Array.isArray(config.rewrites) ? config.rewrites : [];
 
     const manifestRule = rules.find((rule) => rule.source === '/crm/crm.webmanifest');
@@ -112,6 +113,13 @@ describe('CRM PWA configuration', () => {
     const crmRootManifestRewrite = rewrites.find((rule) =>
       rule.source === '/crm.webmanifest'
       && rule.destination === '/crm/root.webmanifest'
+      && Array.isArray(rule.has)
+      && rule.has.some((entry) => entry.type === 'host' && entry.value === 'crm.3dvr.tech')
+    );
+    const crmRootRedirect = redirects.find((rule) =>
+      rule.source === '/'
+      && rule.destination === '/crm/'
+      && rule.permanent === false
       && Array.isArray(rule.has)
       && rule.has.some((entry) => entry.type === 'host' && entry.value === 'crm.3dvr.tech')
     );
@@ -128,6 +136,7 @@ describe('CRM PWA configuration', () => {
     assert.ok(pwaInstallRule);
     assert.ok(workerRule);
     assert.ok(crmRootManifestRewrite);
+    assert.ok(crmRootRedirect);
     assert.ok(crmHostRewrite);
     assert.equal(
       findHeaderValue(manifestRule.headers, 'Cache-Control'),

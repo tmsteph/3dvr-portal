@@ -198,6 +198,19 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "crm.3dvr.tech"
+        }
+      ],
+      "destination": "/crm/",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/crm.webmanifest",
