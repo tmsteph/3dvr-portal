@@ -3,7 +3,7 @@
 importScripts('/chat/notification-routing.js');
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v16';
+const CACHE_VERSION = 'v17';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 const chatNotificationRouting = self.ChatNotificationRouting || null;
@@ -41,7 +41,7 @@ const STATIC_ASSETS = [
 const createReloadedRequests = (assets) =>
   assets.map((asset) => new Request(asset, { cache: 'reload' }));
 
-const SECURITY_CHECKPOINT_PATTERN = /Vercel Security Checkpoint|Failed to verify your browser|Code 705/i;
+const SECURITY_CHECKPOINT_PATTERN = /Vercel Security Checkpoint|Failed to verify your browser|We(?:'|’)?re (?:verifying|checking) your browser|Code\s*(?:705|805)/i;
 
 const createOfflinePortalFallbackResponse = () => new Response(`<!doctype html>
 <html lang="en">
@@ -115,6 +115,32 @@ const cacheHtmlResponse = async (request, response) => {
 
   const cache = await caches.open(HTML_CACHE);
   await cache.put(request, responseForCache);
+};
+
+const getCachedHtmlFallback = async (request) => {
+  const cached = await caches.match(request, { ignoreSearch: true });
+  return cached || createOfflinePortalFallbackResponse();
+};
+
+const networkFirstHtml = async (request) => {
+  const fresh = await fetch(request, { cache: 'reload' });
+  const contentType = fresh.headers.get('content-type') || '';
+
+  if (contentType.includes('text/html')) {
+    const responseForInspection = fresh.clone();
+    const text = await responseForInspection.text();
+
+    if (SECURITY_CHECKPOINT_PATTERN.test(text)) {
+      return getCachedHtmlFallback(request);
+    }
+
+    if (fresh.ok) {
+      const cache = await caches.open(HTML_CACHE);
+      await cache.put(request, fresh.clone());
+    }
+  }
+
+  return fresh;
 };
 
 const networkFirst = async (req, { cacheMode = 'default' } = {}) => {
@@ -249,13 +275,7 @@ self.addEventListener('fetch', (event) => {
   if (isHTML(req)) {
     // Network-first for HTML for freshness
     event.respondWith(
-      fetch(req, { cache: 'reload' }).then((res) => {
-        event.waitUntil(cacheHtmlResponse(req, res));
-        return res;
-      }).catch(async () => {
-        const cached = await caches.match(req, { ignoreSearch: true });
-        return cached || createOfflinePortalFallbackResponse();
-      })
+      networkFirstHtml(req).catch(() => getCachedHtmlFallback(req))
     );
     return;
   }
