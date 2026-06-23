@@ -62,6 +62,11 @@ describe('CRM PWA configuration', () => {
     assert.match(html, /data-sw-standalone-scope="\/"/);
     assert.match(html, /src="\/crm\/app\.js"/);
     assert.match(html, /href="\/crm\/flow\.html"/);
+    assert.match(html, /<title>3DVR CRM<\/title>/);
+    assert.match(html, /<h1 class="text-3xl font-bold">3DVR CRM<\/h1>/);
+    assert.match(html, /rel="icon" type="image\/png" sizes="192x192" href="\/icons\/icon-192\.png"/);
+    assert.doesNotMatch(html, /People CRM/);
+    assert.doesNotMatch(html, /fav\.farm/);
     assert.match(html, /data-install-banner/);
     assert.match(html, /data-install-button/);
   });
