@@ -144,6 +144,14 @@ test('CRM saves records locally before waiting on Gun mobile relay acknowledgeme
   assert.match(js, /hydrateLocalCrmCache\(\);\s+updateFilterButtons\(\);/);
 });
 
+test('CRM PWA source launch does not auto-open the add lead overlay', async () => {
+  const js = await read('crm/app.js');
+
+  assert.match(js, /const \{ source, \.\.\.draftFields \} = draft;/);
+  assert.match(js, /Object\.values\(draftFields\)\.some\(value => Boolean\(value\)\)/);
+  assert.doesNotMatch(js, /Object\.values\(draft\)\.some\(value => Boolean\(value\)\)/);
+});
+
 test('Contacts page exposes CRM link filter and phone import controls', async () => {
   const html = await read('contacts/index.html');
   assert.match(html, /id="filterCrmLink"/);

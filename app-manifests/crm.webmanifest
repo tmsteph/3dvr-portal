@@ -3,7 +3,7 @@
   "name": "3DVR CRM",
   "short_name": "3DVR CRM",
   "description": "Add people fast, capture next steps, and keep your 3DVR relationships moving.",
-  "start_url": "/crm/?source=pwa",
+  "start_url": "/crm/",
   "scope": "/crm/",
   "display": "standalone",
   "background_color": "#0e1116",

@@ -22,7 +22,7 @@ describe('CRM PWA configuration', () => {
 
     assert.equal(manifest.id, '/crm/');
     assert.equal(manifest.scope, '/crm/');
-    assert.equal(manifest.start_url, '/crm/?source=pwa');
+    assert.equal(manifest.start_url, '/crm/');
     assert.equal(manifest.display, 'standalone');
   });
 
@@ -32,7 +32,7 @@ describe('CRM PWA configuration', () => {
 
     assert.equal(manifest.id, './');
     assert.equal(manifest.scope, './');
-    assert.equal(manifest.start_url, './?source=pwa');
+    assert.equal(manifest.start_url, './');
     assert.equal(manifest.display, 'standalone');
     assert.equal(manifest.short_name, '3DVR CRM');
   });
@@ -43,7 +43,7 @@ describe('CRM PWA configuration', () => {
 
     assert.equal(manifest.id, '/');
     assert.equal(manifest.scope, '/');
-    assert.equal(manifest.start_url, '/?source=pwa');
+    assert.equal(manifest.start_url, '/');
     assert.equal(manifest.display, 'standalone');
     assert.equal(manifest.short_name, '3DVR CRM');
   });

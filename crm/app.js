@@ -3091,7 +3091,8 @@ function scheduleRender() {
 function applyUrlDraftIfNeeded() {
   if (state.draftApplied) return;
   const draft = state.urlDraft;
-  const hasDraft = params.has('type') || Object.values(draft).some(value => Boolean(value));
+  const { source, ...draftFields } = draft;
+  const hasDraft = params.has('type') || Object.values(draftFields).some(value => Boolean(value));
   if (!hasDraft) return;
   state.draftApplied = true;
   openCreateOverlay({
