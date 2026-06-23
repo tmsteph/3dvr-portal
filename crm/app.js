@@ -71,6 +71,8 @@ const draftIndex = new Map();
 const touchLogIndex = new Map();
 const conversationCaptureIndex = new Map();
 const duplicateSummaryById = new Map();
+const CRM_LOCAL_RECORDS_KEY = 'portal-crm-local-records-v1';
+const CRM_LOCAL_CONVERSATION_CAPTURES_KEY = 'portal-crm-local-conversation-captures-v1';
 const WEEKLY_CHALLENGE_GOAL = 3;
 const SALES_STALE_DAYS = 7;
 const DEFAULT_PERSON_STATUS = 'Warm - Awareness';
@@ -382,6 +384,123 @@ function generateId() {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function safeParseJson(value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function readLocalMap(key) {
+  const parsed = safeParseJson(ls.getItem(key), {});
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+}
+
+function writeLocalMap(key, value) {
+  try {
+    ls.setItem(key, JSON.stringify(value && typeof value === 'object' ? value : {}));
+  } catch (err) {
+    console.warn('CRM local cache unavailable', err);
+  }
+}
+
+function cacheCrmRecord(record) {
+  if (!record?.id) return;
+  const stored = readLocalMap(CRM_LOCAL_RECORDS_KEY);
+  stored[record.id] = sanitizeCrmRecord(record);
+  writeLocalMap(CRM_LOCAL_RECORDS_KEY, stored);
+}
+
+function removeCachedCrmRecord(id) {
+  const stored = readLocalMap(CRM_LOCAL_RECORDS_KEY);
+  if (!stored[id]) return;
+  delete stored[id];
+  writeLocalMap(CRM_LOCAL_RECORDS_KEY, stored);
+}
+
+function cacheConversationCapture(capture) {
+  if (!capture?.id) return;
+  const stored = readLocalMap(CRM_LOCAL_CONVERSATION_CAPTURES_KEY);
+  stored[capture.id] = sanitizeConversationCaptureRecord(capture);
+  writeLocalMap(CRM_LOCAL_CONVERSATION_CAPTURES_KEY, stored);
+}
+
+function removeCachedConversationCapture(id) {
+  const stored = readLocalMap(CRM_LOCAL_CONVERSATION_CAPTURES_KEY);
+  if (!stored[id]) return;
+  delete stored[id];
+  writeLocalMap(CRM_LOCAL_CONVERSATION_CAPTURES_KEY, stored);
+}
+
+function hydrateLocalCrmCache() {
+  Object.entries(readLocalMap(CRM_LOCAL_RECORDS_KEY)).forEach(([id, record]) => {
+    const sanitized = sanitizeCrmRecord(record);
+    if (!sanitized.id) {
+      sanitized.id = id;
+    }
+    if (sanitized.id) {
+      crmIndex[sanitized.id] = { ...(crmIndex[sanitized.id] || {}), ...sanitized };
+    }
+  });
+
+  Object.entries(readLocalMap(CRM_LOCAL_CONVERSATION_CAPTURES_KEY)).forEach(([id, capture]) => {
+    const sanitized = sanitizeConversationCaptureRecord({ ...capture, id: capture?.id || id });
+    if (sanitized.id) {
+      conversationCaptureIndex.set(sanitized.id, sanitized);
+    }
+  });
+}
+
+function syncCrmRecordToGun(record) {
+  try {
+    crmRecords.get(record.id).put(record, ack => {
+      if (ack && ack.err) {
+        console.warn('CRM record saved locally; Gun sync will retry after refresh or the next edit.', ack.err);
+        return;
+      }
+      cacheCrmRecord(record);
+    });
+  } catch (err) {
+    console.warn('CRM record saved locally; Gun sync is unavailable right now.', err);
+  }
+}
+
+function syncConversationCaptureToGun(capture) {
+  try {
+    const sanitized = sanitizeConversationCaptureRecord(capture);
+    const payload = buildGunConversationCapturePayload(sanitized);
+    conversationCapturesRoot.get(sanitized.id).put(payload, ack => {
+      if (ack && ack.err) {
+        console.warn('Conversation capture saved locally; Gun sync will retry after refresh or the next edit.', ack.err);
+        return;
+      }
+      cacheConversationCapture(sanitized);
+    });
+  } catch (err) {
+    console.warn('Conversation capture saved locally; Gun sync is unavailable right now.', err);
+  }
+}
+
+function syncCachedCrmRecordsToGun() {
+  Object.values(readLocalMap(CRM_LOCAL_RECORDS_KEY)).forEach(record => {
+    const sanitized = sanitizeCrmRecord(record);
+    if (sanitized.id) {
+      syncCrmRecordToGun(sanitized);
+    }
+  });
+
+  Object.values(readLocalMap(CRM_LOCAL_CONVERSATION_CAPTURES_KEY)).forEach(capture => {
+    const sanitized = sanitizeConversationCaptureRecord(capture);
+    if (sanitized.id) {
+      syncConversationCaptureToGun(sanitized);
+    }
+  });
 }
 
 function toActivityCount(value) {
@@ -2043,33 +2162,21 @@ function renderSalesMoves() {
 }
 
 function putCrmRecord(record) {
-  return new Promise((resolve, reject) => {
-    crmRecords.get(record.id).put(record, ack => {
-      if (ack && ack.err) {
-        reject(new Error(String(ack.err)));
-        return;
-      }
-      crmIndex[record.id] = { ...(crmIndex[record.id] || {}), ...sanitizeCrmRecord(record), id: record.id };
-      scheduleRender();
-      resolve(record);
-    });
-  });
+  const sanitized = { ...sanitizeCrmRecord(record), id: record.id };
+  crmIndex[sanitized.id] = { ...(crmIndex[sanitized.id] || {}), ...sanitized };
+  cacheCrmRecord(sanitized);
+  scheduleRender();
+  syncCrmRecordToGun(sanitized);
+  return Promise.resolve(sanitized);
 }
 
 function putConversationCapture(capture) {
-  return new Promise((resolve, reject) => {
-    const sanitized = sanitizeConversationCaptureRecord(capture);
-    const payload = buildGunConversationCapturePayload(sanitized);
-    conversationCapturesRoot.get(sanitized.id).put(payload, ack => {
-      if (ack && ack.err) {
-        reject(new Error(String(ack.err)));
-        return;
-      }
-      conversationCaptureIndex.set(sanitized.id, sanitized);
-      renderConversationCaptures();
-      resolve(sanitized);
-    });
-  });
+  const sanitized = sanitizeConversationCaptureRecord(capture);
+  conversationCaptureIndex.set(sanitized.id, sanitized);
+  cacheConversationCapture(sanitized);
+  renderConversationCaptures();
+  syncConversationCaptureToGun(sanitized);
+  return Promise.resolve(sanitized);
 }
 
 function putContactRecord(id, payload, space = getPreferredContactsSpace()) {
@@ -2093,17 +2200,19 @@ function putContactRecord(id, payload, space = getPreferredContactsSpace()) {
 }
 
 function deleteCrmRecord(id) {
-  return new Promise((resolve, reject) => {
+  delete crmIndex[id];
+  removeCachedCrmRecord(id);
+  scheduleRender();
+  try {
     crmRecords.get(id).put(null, ack => {
       if (ack && ack.err) {
-        reject(new Error(String(ack.err)));
-        return;
+        console.warn('CRM record deleted locally; Gun delete will retry when the relay is reachable.', ack.err);
       }
-      delete crmIndex[id];
-      scheduleRender();
-      resolve();
     });
-  });
+  } catch (err) {
+    console.warn('CRM record deleted locally; Gun delete is unavailable right now.', err);
+  }
+  return Promise.resolve();
 }
 
 function putLeadDrafts(recordId, payload) {
@@ -3616,8 +3725,11 @@ function startSync() {
     if (!id) return;
     if (!data) {
       conversationCaptureIndex.delete(id);
+      removeCachedConversationCapture(id);
     } else {
-      conversationCaptureIndex.set(id, sanitizeConversationCaptureRecord({ ...data, id }));
+      const sanitized = sanitizeConversationCaptureRecord({ ...data, id });
+      conversationCaptureIndex.set(id, sanitized);
+      cacheConversationCapture(sanitized);
     }
     renderConversationCaptures();
   });
@@ -3626,15 +3738,20 @@ function startSync() {
     if (!id) return;
     if (!data) {
       delete crmIndex[id];
+      removeCachedCrmRecord(id);
     } else {
       const sanitized = sanitizeCrmRecord(data);
       crmIndex[id] = { ...(crmIndex[id] || {}), ...sanitized, id };
+      cacheCrmRecord(crmIndex[id]);
     }
     scheduleRender();
   });
+
+  syncCachedCrmRecordsToGun();
 }
 
 function init() {
+  hydrateLocalCrmCache();
   updateFilterButtons();
   refreshImportControls();
   refreshOauthImportControls();
