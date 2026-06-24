@@ -6,6 +6,13 @@ import {
   deserializeMarketPulseFromGun,
 } from '../src/growth/market-pulse.js';
 
+const META_MARKET_JOBS_PATH = Object.freeze([
+  '3dvr-portal',
+  'growth',
+  'meta-market',
+  'jobs',
+]);
+
 const refs = {
   marketPulseStatus: document.getElementById('marketPulseStatus'),
   pulseUpdatedAt: document.getElementById('pulseUpdatedAt'),
@@ -36,6 +43,8 @@ const state = {
   latest: null,
   directory: Object.create(null),
   directoryNode: null,
+  metaMarketJobs: Object.create(null),
+  metaMarketJobsNode: null,
 };
 
 function createGun() {
@@ -131,6 +140,85 @@ function emptyBlock(message) {
   return `<div class="rounded-md border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-400">${safe(message)}</div>`;
 }
 
+function extractPathSegment(url = '', beforeSegment = '') {
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const index = parts.indexOf(beforeSegment);
+    return index > 0 ? parts[index - 1] : '';
+  } catch (_error) {
+    return '';
+  }
+}
+
+function concreteTargetId(value = '') {
+  const normalized = String(value || '').trim();
+  return normalized.includes('{') ? '' : normalized;
+}
+
+function socialProbeIntegrationNote(item = {}) {
+  if (item.metaGraph?.integration === 'meta_graph_api') {
+    return '<p class="mt-2 rounded border border-sky-300/15 bg-sky-500/10 px-3 py-2 text-xs text-sky-100">Meta Graph API ready: publish after approval, then measure the returned post id.</p>';
+  }
+  if (item.threadsApi?.integration === 'threads_api') {
+    return '<p class="mt-2 rounded border border-violet-300/15 bg-violet-500/10 px-3 py-2 text-xs text-violet-100">Threads API ready: create a text container, publish after approval, then measure owned-post insights.</p>';
+  }
+  return '';
+}
+
+function queuedProbeRecord(probeId = '') {
+  return state.metaMarketJobs[String(probeId || '').trim()] || null;
+}
+
+function buildMetaMarketJobFromProbe(probe = {}) {
+  const metaGraph = probe.metaGraph || null;
+  const threadsApi = probe.threadsApi || null;
+  const plan = metaGraph || threadsApi;
+  if (!plan) return null;
+
+  const now = new Date().toISOString();
+  return {
+    id: probe.id || plan.id,
+    experimentId: plan.id || probe.id || '',
+    status: 'approved',
+    channel: plan.channel || probe.channel || '',
+    channelLabel: plan.channelLabel || probe.channelLabel || '',
+    integration: plan.integration || probe.integration || '',
+    title: probe.title || '',
+    surface: probe.surface || '',
+    linkedOpportunityId: probe.linkedOpportunityId || '',
+    message: probe.prompt || plan.publishRequest?.body?.message || plan.publishRequest?.body?.text || '',
+    link: probe.link || metaGraph?.publishRequest?.body?.link || '',
+    pageId: concreteTargetId(extractPathSegment(metaGraph?.publishRequest?.url, 'feed')),
+    threadsUserId: concreteTargetId(extractPathSegment(threadsApi?.publishRequest?.url, 'threads')),
+    approvalSource: 'market-pulse-dashboard',
+    approvedBy: 'market-pulse-dashboard',
+    approvedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    error: '',
+  };
+}
+
+function queueButtonMarkup(item = {}) {
+  if (!(item.metaGraph || item.threadsApi)) {
+    return '';
+  }
+
+  const queued = queuedProbeRecord(item.id);
+  if (queued) {
+    return `<span class="mt-3 inline-flex rounded border border-emerald-300/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">Worker queue: ${safe(queued.status || 'approved')}</span>`;
+  }
+
+  return `
+    <button
+      type="button"
+      class="mt-3 rounded border border-emerald-300/30 bg-emerald-400 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-emerald-300"
+      data-queue-probe="${safeAttr(item.id)}"
+    >Approve for worker</button>
+  `;
+}
+
 function renderOpportunityList() {
   const opportunities = listFromLatest('opportunities').slice(0, 4);
   if (!refs.pulseOpportunityList) return;
@@ -190,12 +278,13 @@ function renderSocialProbes() {
       </div>
       <p class="mt-3 whitespace-pre-wrap text-sm text-zinc-300">${safe(item.prompt)}</p>
       <p class="mt-3 text-xs text-zinc-500">${safe(item.successMetric)}</p>
-      ${item.metaGraph?.integration === 'meta_graph_api' ? `<p class="mt-2 rounded border border-sky-300/15 bg-sky-500/10 px-3 py-2 text-xs text-sky-100">Meta Graph API ready: publish after approval, then measure the returned post id.</p>` : ''}
+      ${socialProbeIntegrationNote(item)}
       <button
         type="button"
         class="mt-3 rounded border border-white/15 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-white/10"
         data-copy-probe="${safeAttr(item.id)}"
       >Copy draft</button>
+      ${queueButtonMarkup(item)}
     </article>
   `).join('');
 
@@ -207,6 +296,9 @@ function renderSocialProbes() {
       await copyText(probe.prompt);
       button.textContent = 'Copied';
     });
+  });
+  refs.pulseSocialProbeList.querySelectorAll('[data-queue-probe]').forEach((button) => {
+    button.addEventListener('click', () => queueSocialProbe(button.getAttribute('data-queue-probe')));
   });
 }
 
@@ -257,6 +349,9 @@ function renderAutomation() {
   const metaProbe = listFromLatest('socialProbeDrafts').find((item) => {
     return item.integration === 'meta_graph_api' || item.metaGraph?.integration === 'meta_graph_api';
   });
+  const threadsProbe = listFromLatest('socialProbeDrafts').find((item) => {
+    return item.integration === 'threads_api' || item.threadsApi?.integration === 'threads_api';
+  });
   if (refs.pulseAutomationMode) {
     refs.pulseAutomationMode.textContent = latest.runId
       ? `Latest run ${latest.runId} is ready for automatic refreshes. Social writes stay approval-gated.`
@@ -281,21 +376,37 @@ function renderAutomation() {
   `).join('');
 
   if (!refs.pulseMetaGraphPlan) return;
-  if (!metaProbe?.metaGraph) {
-    refs.pulseMetaGraphPlan.textContent = 'Meta Graph API path: approve a Facebook Page probe, publish through the Page feed, store the post id, then measure comments, reactions, shares, clicks, and impressions.';
+  if (!metaProbe?.metaGraph && !threadsProbe?.threadsApi) {
+    refs.pulseMetaGraphPlan.textContent = 'Meta publishing path: approve a Facebook Page or Threads probe, publish from the server worker, store the post id, then measure comments, reactions, shares, clicks, views, and impressions.';
     return;
   }
 
-  const permissions = Array.isArray(metaProbe.metaGraph.requiredPermissions)
-    ? metaProbe.metaGraph.requiredPermissions.join(', ')
-    : 'pages access permissions';
-  const metrics = metaProbe.metaGraph.measurementRequests?.[1]?.metrics || [];
-  refs.pulseMetaGraphPlan.innerHTML = `
-    <strong class="block text-sky-100">Meta Graph API experiment</strong>
-    <span class="mt-1 block text-sky-100/80">${safe(metaProbe.title || 'Facebook Page probe')}</span>
-    <span class="mt-2 block text-xs text-sky-100/70">Permissions: ${safe(permissions)}</span>
-    <span class="mt-1 block text-xs text-sky-100/70">Metrics: ${safe(metrics.join(', ') || 'post reactions, comments, shares, clicks, impressions')}</span>
-  `;
+  const planCards = [];
+  if (metaProbe?.metaGraph) {
+    const permissions = Array.isArray(metaProbe.metaGraph.requiredPermissions)
+      ? metaProbe.metaGraph.requiredPermissions.join(', ')
+      : 'pages access permissions';
+    const metrics = metaProbe.metaGraph.measurementRequests?.[1]?.metrics || [];
+    planCards.push(`
+      <strong class="block text-sky-100">Facebook Page experiment</strong>
+      <span class="mt-1 block text-sky-100/80">${safe(metaProbe.title || 'Facebook Page probe')}</span>
+      <span class="mt-2 block text-xs text-sky-100/70">Permissions: ${safe(permissions)}</span>
+      <span class="mt-1 block text-xs text-sky-100/70">Metrics: ${safe(metrics.join(', ') || 'post reactions, comments, shares, clicks, impressions')}</span>
+    `);
+  }
+  if (threadsProbe?.threadsApi) {
+    const permissions = Array.isArray(threadsProbe.threadsApi.requiredPermissions)
+      ? threadsProbe.threadsApi.requiredPermissions.join(', ')
+      : 'threads access permissions';
+    const metrics = threadsProbe.threadsApi.measurementRequests?.[1]?.metrics || [];
+    planCards.push(`
+      <strong class="mt-4 block text-violet-100">Threads experiment</strong>
+      <span class="mt-1 block text-violet-100/80">${safe(threadsProbe.title || 'Threads probe')}</span>
+      <span class="mt-2 block text-xs text-violet-100/70">Permissions: ${safe(permissions)}</span>
+      <span class="mt-1 block text-xs text-violet-100/70">Metrics: ${safe(metrics.join(', ') || 'views, likes, replies, reposts, quotes')}</span>
+    `);
+  }
+  refs.pulseMetaGraphPlan.innerHTML = planCards.join('');
 }
 
 function approveListing(id) {
@@ -310,6 +421,16 @@ function approveListing(id) {
   };
   state.directory[id] = approved;
   state.directoryNode.get(id).put(approved);
+  render();
+}
+
+function queueSocialProbe(id) {
+  const probe = listFromLatest('socialProbeDrafts').find((item) => item.id === id);
+  const job = buildMetaMarketJobFromProbe(probe);
+  if (!job || !state.metaMarketJobsNode) return;
+
+  state.metaMarketJobs[job.id] = job;
+  state.metaMarketJobsNode.get(job.id).put(job);
   render();
 }
 
@@ -456,6 +577,17 @@ function normalizeListing(data = {}, id = '') {
   };
 }
 
+function normalizeMetaMarketJob(data = {}, id = '') {
+  return {
+    id: String(data.id || id || '').trim(),
+    status: String(data.status || '').trim(),
+    channel: String(data.channel || '').trim(),
+    integration: String(data.integration || '').trim(),
+    approvedAt: String(data.approvedAt || '').trim(),
+    updatedAt: String(data.updatedAt || '').trim(),
+  };
+}
+
 function init() {
   const gun = createGun();
   if (!gun) {
@@ -467,6 +599,7 @@ function init() {
 
   const latestNode = getNode(gun, MARKET_PULSE_LATEST_PATH);
   state.directoryNode = getNode(gun, MARKET_PULSE_DIRECTORY_PATH);
+  state.metaMarketJobsNode = getNode(gun, META_MARKET_JOBS_PATH);
 
   latestNode?.on((data) => {
     state.latest = deserializeMarketPulseFromGun(data || {});
@@ -479,6 +612,16 @@ function init() {
       delete state.directory[id];
     } else {
       state.directory[id] = normalizeListing(data, id);
+    }
+    render();
+  });
+
+  state.metaMarketJobsNode?.map().on((data, id) => {
+    if (!id) return;
+    if (!data) {
+      delete state.metaMarketJobs[id];
+    } else {
+      state.metaMarketJobs[id] = normalizeMetaMarketJob(data, id);
     }
     render();
   });

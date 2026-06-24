@@ -1,6 +1,6 @@
 import { deriveOpportunityFromSignal, rankOpportunities } from '../money/scoring.js';
 import { collectDemandSignals } from '../money/sources.js';
-import { buildMetaMarketExperimentPlan } from './meta-graph.js';
+import { buildMetaMarketExperimentPlan, buildThreadsMarketExperimentPlan } from './meta-graph.js';
 import { DEFAULT_GUN_PEERS, getNode } from './homepage-hero.js';
 
 export const MARKET_PULSE_ROOT_PATH = Object.freeze([
@@ -30,7 +30,7 @@ export const DEFAULT_MARKET_PULSE_PROFILE = Object.freeze({
     'small business automation',
     'customer intake',
   ],
-  channels: ['reddit', 'hackernews', 'facebook-groups', 'tiktok-comments', 'facebook-page', 'linkedin', 'email'],
+  channels: ['reddit', 'hackernews', 'threads', 'facebook-page', 'facebook-groups', 'tiktok-comments', 'linkedin', 'email'],
   limit: 20,
 });
 
@@ -47,6 +47,13 @@ const SOCIAL_PROBE_CHANNELS = Object.freeze([
     surface: 'Meta Graph API page post',
     risk: 'external_write',
     integration: 'meta_graph_api',
+  }),
+  Object.freeze({
+    id: 'threads',
+    label: 'Threads',
+    surface: 'Threads API post',
+    risk: 'external_write',
+    integration: 'threads_api',
   }),
   Object.freeze({
     id: 'reddit',
@@ -201,6 +208,13 @@ function buildResearchQuestion(opportunity = {}, channel = 'reddit') {
     ].join('\n\n');
   }
 
+  if (channel === 'threads') {
+    return [
+      `Question for ${audience}: what part of ${problem.toLowerCase()} is hardest to keep up with?`,
+      'I am testing where real operators feel enough pain to reply, click, or ask for a fix.'
+    ].join('\n\n');
+  }
+
   if (channel === 'facebook-groups') {
     return [
       `For people running ${audience}: where does ${problem.toLowerCase()} show up in your week?`,
@@ -232,7 +246,7 @@ function buildResearchQuestion(opportunity = {}, channel = 'reddit') {
 export function buildSocialProbeDrafts(opportunities = [], options = {}) {
   const channels = parseList(options.channels, ['facebook-groups', 'reddit', 'linkedin', 'tiktok-comments'])
     .filter((channel) => channel !== 'hackernews' && channel !== 'email')
-    .slice(0, 4);
+    .slice(0, 5);
   const topOpportunities = opportunities.slice(0, 2);
 
   return channels.flatMap((channel) => {
@@ -248,6 +262,7 @@ export function buildSocialProbeDrafts(opportunities = [], options = {}) {
       linkedOpportunityId: opportunity.id || '',
       title: opportunity.title || 'Market-fit probe',
       prompt: buildResearchQuestion(opportunity, config.id),
+      link: normalizeText(options.link),
       successMetric: config.id === 'tiktok-comments'
         ? 'Find 10+ repeated comment-level pains and 3+ workaround mentions.'
         : 'Collect replies that describe a real workflow, current workaround, and willingness to pay.',
@@ -263,6 +278,15 @@ export function buildSocialProbeDrafts(opportunities = [], options = {}) {
           version: options.metaGraphVersion,
         })
         : null,
+      threadsApi: config.integration === 'threads_api'
+        ? buildThreadsMarketExperimentPlan({
+          experimentId: `${slugify(opportunity.title || opportunity.problem, 'social-probe')}-${config.id}`,
+          message: buildResearchQuestion(opportunity, config.id),
+          link: options.link,
+          threadsUserId: options.threadsUserId,
+          version: options.threadsVersion,
+        })
+        : null,
       priority: index + 1,
       generatedAt: options.generatedAt || new Date().toISOString(),
     }));
@@ -273,6 +297,7 @@ function channelFromSignal(signal = {}) {
   const source = normalizeText(signal.source).toLowerCase();
   if (source.includes('reddit')) return 'reddit';
   if (source.includes('hackernews')) return 'hackernews';
+  if (source.includes('threads')) return 'threads';
   if (source.includes('meta') || source.includes('facebook-page') || source.includes('facebook page')) return 'facebook-page';
   if (source.includes('facebook')) return 'facebook-groups';
   if (source.includes('linkedin')) return 'linkedin';
@@ -469,6 +494,11 @@ export function buildMarketPulse(demand = {}, options = {}) {
   const socialProbeDrafts = buildSocialProbeDrafts(opportunities, {
     channels: profile.channels,
     generatedAt,
+    link: options.link,
+    metaPageId: options.metaPageId,
+    metaGraphVersion: options.metaGraphVersion,
+    threadsUserId: options.threadsUserId,
+    threadsVersion: options.threadsVersion,
   });
   const reactionSnapshots = buildReactionSnapshots(signals);
   const marketFit = buildMarketFitSummary({ opportunities, signals, reactionSnapshots });

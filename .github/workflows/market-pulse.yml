@@ -21,6 +21,11 @@ jobs:
       MARKET_PULSE_CHANNELS: ${{ vars.MARKET_PULSE_CHANNELS }}
       MARKET_PULSE_LIMIT: ${{ vars.MARKET_PULSE_LIMIT }}
       MARKET_PULSE_DRY_RUN: ${{ vars.MARKET_PULSE_DRY_RUN }}
+      MARKET_PULSE_PROBE_LINK: ${{ vars.MARKET_PULSE_PROBE_LINK }}
+      META_PAGE_ID: ${{ vars.META_PAGE_ID }}
+      META_GRAPH_API_VERSION: ${{ vars.META_GRAPH_API_VERSION }}
+      THREADS_USER_ID: ${{ vars.THREADS_USER_ID }}
+      THREADS_API_VERSION: ${{ vars.THREADS_API_VERSION }}
       GROWTH_GUN_PEERS: ${{ vars.GROWTH_GUN_PEERS }}
     steps:
       - name: Checkout repository

@@ -5,8 +5,15 @@ import {
   buildMetaPagePostRequest,
   buildMetaPostFieldsRequest,
   buildMetaPostInsightsRequest,
+  buildMetaUserPagesRequest,
+  buildThreadsMarketExperimentPlan,
+  buildThreadsPublishRequest,
+  buildThreadsTextContainerRequest,
+  calculateThreadsMarketSignalScore,
   calculateMetaMarketSignalScore,
   normalizeMetaPostMetrics,
+  normalizeThreadsPostMetrics,
+  validateThreadsPostText,
 } from '../src/growth/meta-graph.js';
 
 test('buildMetaPagePostRequest prepares a Page feed publish call without leaking tokens by default', () => {
@@ -38,6 +45,43 @@ test('Meta post measurement requests include post fields and insight metrics', (
   assert.ok(insights.metrics.includes('post_reactions_by_type_total'));
 });
 
+test('buildMetaUserPagesRequest prepares a user token page-list lookup', () => {
+  const request = buildMetaUserPagesRequest({
+    accessToken: 'user-token',
+    version: 'v25.0',
+  });
+
+  assert.equal(request.method, 'GET');
+  assert.match(request.url, /^https:\/\/graph\.facebook\.com\/v25\.0\/me\/accounts\?/);
+  assert.match(request.url, /fields=/);
+  assert.match(request.url, /access_token=user-token/);
+  assert.ok(request.fields.includes('access_token'));
+});
+
+test('Threads text publishing requests use the two-step Threads API flow', () => {
+  const container = buildThreadsTextContainerRequest({
+    threadsUserId: 'me',
+    message: 'Question for service operators',
+    link: 'https://portal.3dvr.tech/market-lab/',
+    version: 'v1.0',
+  });
+  const publish = buildThreadsPublishRequest({
+    threadsUserId: 'me',
+    creationId: 'container-123',
+    version: 'v1.0',
+  });
+
+  assert.equal(container.method, 'POST');
+  assert.equal(container.url, 'https://graph.threads.net/v1.0/me/threads');
+  assert.equal(container.body.media_type, 'TEXT');
+  assert.match(container.body.text, /Question for service operators/);
+  assert.equal(container.requiresAccessToken, true);
+  assert.equal(validateThreadsPostText(container.body.text).ok, true);
+  assert.equal(publish.method, 'POST');
+  assert.equal(publish.url, 'https://graph.threads.net/v1.0/me/threads_publish');
+  assert.equal(publish.body.creation_id, 'container-123');
+});
+
 test('normalizeMetaPostMetrics turns Graph responses into a market signal score', () => {
   const metrics = normalizeMetaPostMetrics({
     post: {
@@ -67,6 +111,33 @@ test('normalizeMetaPostMetrics turns Graph responses into a market signal score'
   assert.equal(calculateMetaMarketSignalScore(metrics), metrics.marketSignalScore);
 });
 
+test('normalizeThreadsPostMetrics turns Threads insights into a market signal score', () => {
+  const metrics = normalizeThreadsPostMetrics({
+    media: {
+      id: 'threads-media-123',
+      permalink: 'https://www.threads.net/@3dvr/post/123',
+      text: 'What part of follow-up is hardest?',
+      timestamp: '2026-06-20T12:00:00+0000',
+    },
+    insights: {
+      data: [
+        { name: 'views', values: [{ value: 400 }] },
+        { name: 'likes', values: [{ value: 18 }] },
+        { name: 'replies', values: [{ value: 7 }] },
+        { name: 'reposts', values: [{ value: 2 }] },
+        { name: 'quotes', values: [{ value: 1 }] },
+      ],
+    },
+  });
+
+  assert.equal(metrics.postId, 'threads-media-123');
+  assert.equal(metrics.viewCount, 400);
+  assert.equal(metrics.likeCount, 18);
+  assert.equal(metrics.replyCount, 7);
+  assert.ok(metrics.marketSignalScore > 0);
+  assert.equal(calculateThreadsMarketSignalScore(metrics), metrics.marketSignalScore);
+});
+
 test('buildMetaMarketExperimentPlan describes the approved post and measurement loop', () => {
   const plan = buildMetaMarketExperimentPlan({
     experimentId: 'follow-up-facebook-page',
@@ -81,5 +152,23 @@ test('buildMetaMarketExperimentPlan describes the approved post and measurement 
   assert.equal(plan.humanApprovalRequired, true);
   assert.ok(plan.requiredPermissions.includes('pages_manage_posts'));
   assert.equal(plan.publishRequest.url, 'https://graph.facebook.com/v24.0/123/feed');
+  assert.equal(plan.measurementRequests.length, 2);
+});
+
+test('buildThreadsMarketExperimentPlan describes the approved Threads post and measurement loop', () => {
+  const plan = buildThreadsMarketExperimentPlan({
+    experimentId: 'follow-up-threads',
+    threadsUserId: 'me',
+    postId: 'threads-media-123',
+    message: 'Question for service businesses...',
+    version: 'v1.0',
+  });
+
+  assert.equal(plan.channel, 'threads');
+  assert.equal(plan.integration, 'threads_api');
+  assert.equal(plan.humanApprovalRequired, true);
+  assert.ok(plan.requiredPermissions.includes('threads_content_publish'));
+  assert.equal(plan.publishRequest.url, 'https://graph.threads.net/v1.0/me/threads');
+  assert.equal(plan.publishCommitRequest.url, 'https://graph.threads.net/v1.0/me/threads_publish');
   assert.equal(plan.measurementRequests.length, 2);
 });

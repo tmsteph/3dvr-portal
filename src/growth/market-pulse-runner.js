@@ -96,6 +96,11 @@ export function buildMarketPulseRunOptions(parsed = {}, env = process.env) {
       ? parsedLimit
       : (Number.isFinite(envLimit) ? envLimit : DEFAULT_MARKET_PULSE_PROFILE.limit),
     gunPeers: peers,
+    link: normalizeText(env.MARKET_PULSE_PROBE_LINK),
+    metaPageId: normalizeText(env.META_PAGE_ID),
+    metaGraphVersion: normalizeText(env.META_GRAPH_API_VERSION),
+    threadsUserId: normalizeText(env.THREADS_USER_ID),
+    threadsVersion: normalizeText(env.THREADS_API_VERSION),
     dryRun: Boolean(parsed.dryRun || parseBoolEnv(env.MARKET_PULSE_DRY_RUN)),
   };
 }
