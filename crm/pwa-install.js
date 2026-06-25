@@ -98,9 +98,21 @@
 
   const installBanner = document.querySelector('[data-install-banner]');
   const installButton = installBanner?.querySelector('[data-install-button]');
+  const dismissButton = installBanner?.querySelector('[data-install-dismiss]');
+  const dismissKey = installBanner?.dataset.installDismissKey || '';
   let deferredPrompt = null;
 
   if (!installBanner || !installButton) return;
+
+  const wasDismissed = () => {
+    if (!dismissKey) return false;
+    try {
+      return localStorage.getItem(dismissKey) === 'true';
+    } catch (error) {
+      console.warn('Unable to read install banner dismissal', error);
+      return false;
+    }
+  };
 
   const isInstalled = () => {
     return window.matchMedia('(display-mode: standalone)').matches
@@ -113,7 +125,19 @@
     installBanner.setAttribute('hidden', '');
   };
 
+  const dismissBanner = () => {
+    if (dismissKey) {
+      try {
+        localStorage.setItem(dismissKey, 'true');
+      } catch (error) {
+        console.warn('Unable to store install banner dismissal', error);
+      }
+    }
+    hideBanner();
+  };
+
   const showBanner = () => {
+    if (wasDismissed()) return;
     installBanner.classList.remove('is-hidden');
     installBanner.removeAttribute('hidden');
   };
@@ -128,6 +152,7 @@
   });
 
   window.addEventListener('appinstalled', hideBanner);
+  dismissButton?.addEventListener('click', dismissBanner);
 
   installButton.addEventListener('click', async () => {
     if (!deferredPrompt) return;
@@ -142,4 +167,5 @@
   });
 
   if (isInstalled()) hideBanner();
+  if (wasDismissed()) hideBanner();
 })();

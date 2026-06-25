@@ -11,6 +11,21 @@
   max-width: 1100px;
 }
 
+.install-banner--bottom {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left));
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 60;
+  width: min(680px, calc(100% - 32px));
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
+  background: rgba(17, 24, 39, 0.96);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(16px);
+}
+
 .install-banner[hidden],
 .install-banner.is-hidden {
   display: none;
@@ -23,6 +38,10 @@
   color: var(--text-primary, #0f172a);
 }
 
+.install-banner--bottom .install-banner__text {
+  color: #f8fafc;
+}
+
 .install-banner__title {
   margin: 0;
   font-size: 1rem;
@@ -33,6 +52,10 @@
   margin: 0;
   color: var(--text-muted, #4b5563);
   font-size: 0.93rem;
+}
+
+.install-banner--bottom .install-banner__meta {
+  color: #cbd5e1;
 }
 
 .install-banner__action {
@@ -48,6 +71,25 @@
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
 }
 
+.install-banner__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.install-banner__dismiss:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .install-banner__action:hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
@@ -58,4 +100,26 @@
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .install-banner--bottom {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .install-banner--bottom .install-banner__action {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .install-banner--bottom .install-banner__dismiss {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+
+  .install-banner--bottom .install-banner__text {
+    padding-right: 2.5rem;
+  }
 }
