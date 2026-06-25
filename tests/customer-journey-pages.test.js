@@ -11,6 +11,13 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Open CRM/);
     assert.match(html, /Open Sales/);
     assert.match(html, /Open Web Builder/);
+    assert.match(html, /Featured games/);
+    assert.match(html, /href="stellar-flight\.html"[\s\S]*?Game: Stellar Drift/);
+    assert.match(html, /href="jetpack\.html"[\s\S]*?Game: Jetpack Corridor/);
+    assert.ok(
+      html.indexOf('Featured games') < html.indexOf('Core workspaces'),
+      'expected featured games to appear before core workspaces'
+    );
     assert.doesNotMatch(html, /System layers/);
     assert.doesNotMatch(html, /Cloud workspace for identity, notes, CRM, billing, messaging, and AI\./);
     assert.doesNotMatch(html, /Launcher, multi-panel workspace, media tools, and in-browser runtime experiments\./);
