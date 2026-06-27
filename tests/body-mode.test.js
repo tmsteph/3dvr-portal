@@ -140,6 +140,10 @@ test('Portal registry and docs link to Body Mode', async () => {
   const manifest = await readFile(new URL('../app-manifests/body-mode.webmanifest', import.meta.url), 'utf8');
 
   assert.match(portal, /href="body-mode\/"/);
+  assert.match(
+    portal,
+    /href="body-mode\/"\s*class="app-card"\s*data-app-tier="experimental"\s*data-app-keywords="body mode wellness posture breathing nervous system sensory reset sleep action"\s*>\s*<span class="app-card__badge">Experimental<\/span>/
+  );
   assert.match(portal, />Body Mode</);
   assert.match(portal, /sensory-friendly breath, posture, reflection, and action tools/);
   assert.match(wellness, /href="body-mode\/"/);

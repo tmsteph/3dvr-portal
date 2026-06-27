@@ -1540,6 +1540,20 @@ footer a {
   .top-nav--expanded .top-buttons {
     display: flex;
   }
+
+  .hero-actions {
+    grid-template-columns: repeat(4, max-content);
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .hero-actions .cta {
+    min-height: 2.55rem;
+    padding: 0.58rem 1rem;
+    font-size: 0.92rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 960px) {
