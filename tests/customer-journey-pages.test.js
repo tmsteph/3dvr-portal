@@ -5,8 +5,25 @@ import { readFile } from 'node:fs/promises';
 describe('portal customer journey pages', () => {
   it('gives the portal home a clear concrete entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-    assert.match(html, /One portal\. Fast access\./);
-    assert.match(html, /Find the apps, contacts, notes, websites, subscriptions, and support tools you need/);
+    assert.match(html, /data-view-mode="human-os" data-active-room=""/);
+    assert.match(html, /Find your purpose\. Organize your life\. Launch your world\./);
+    assert.match(html, /What are you trying to organize today\?/);
+    assert.match(html, /Human O\.S\./);
+    assert.match(html, /Workshop/);
+    assert.match(html, /Nine doors into the portal/);
+    assert.match(html, /🧭 My Purpose/);
+    assert.match(html, /🌱 My Life/);
+    assert.match(html, /💡 My Ideas/);
+    assert.match(html, /🛠️ My Projects/);
+    assert.match(html, /💼 My Work/);
+    assert.match(html, /🧠 My Learning/);
+    assert.match(html, /🤝 My Community/);
+    assert.match(html, /💰 My Money/);
+    assert.match(html, /🕹️ 3D Play/);
+    assert.match(html, /data-room-back/);
+    assert.match(html, /const humanRoomTitles =/);
+    assert.match(html, /document\.body\.dataset\.viewMode = mode/);
+    assert.match(html, /document\.body\.dataset\.activeRoom = mode === 'human-os' \? nextRoom : ''/);
     assert.doesNotMatch(html, /Grow into your own operating system/);
     assert.match(html, /Open CRM/);
     assert.match(html, /Open Sales/);
@@ -14,6 +31,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Featured games/);
     assert.match(html, /href="stellar-flight\.html"[\s\S]*?Game: Stellar Drift/);
     assert.match(html, /href="jetpack\.html"[\s\S]*?Game: Jetpack Corridor/);
+    assert.match(html, /<span class="app-card__title">Stellar Drift<\/span>/);
+    assert.match(html, /<span class="app-card__title">Jetpack Corridor<\/span>/);
     assert.ok(
       html.indexOf('Featured games') < html.indexOf('Core workspaces'),
       'expected featured games to appear before core workspaces'
@@ -54,6 +73,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /App dock/);
     assert.match(html, /Command center/);
     assert.match(html, /Same account, same apps, deeper levels of control\./);
+    assert.match(html, /data-active-room=""/);
+    assert.match(html, /data-view-mode-button="workshop"/);
     assert.doesNotMatch(html, /Suggested launcher lanes/);
     assert.doesNotMatch(html, /Run the business workspace/);
     assert.doesNotMatch(html, /Open the workspace runtime/);

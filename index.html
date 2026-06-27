@@ -115,7 +115,7 @@
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
-<body class="landing theme-dark">
+<body class="landing theme-dark" data-view-mode="human-os" data-active-room="">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="app-boot" aria-hidden="true">
     <div class="app-boot__mark">
@@ -142,11 +142,15 @@
         </button>
         <button type="button" class="top-nav__search" data-app-search-trigger>Search apps</button>
       </div>
+      <div class="view-toggle-container" aria-label="Portal view mode">
+        <button class="toggle-btn" type="button" data-view-mode-button="human-os" data-active="true">Human O.S.</button>
+        <button class="toggle-btn" type="button" data-view-mode-button="workshop" data-active="false">Workshop</button>
+      </div>
       <nav class="top-buttons" id="landingQuickLinks" aria-label="3DVR quick links">
         <a href="https://3dvr.tech">Home</a>
         <a href="start/">Start</a>
         <a href="start/#paid-lanes">Plans</a>
-        <a href="#app-hub-title">Apps</a>
+        <a href="#app-hub-title" data-app-search-trigger>Apps</a>
         <a href="games.html">Games</a>
         <a href="share.html">Share</a>
         <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">GitHub</a>
@@ -177,10 +181,10 @@
                 </span>
               </div>
             </div>
-            <span class="hero-eyebrow">Apps. Tools. People.</span>
-            <h1 id="landing-title">One portal. Fast access.</h1>
+            <span class="hero-eyebrow">Human O.S.</span>
+            <h1 id="landing-title">Find your purpose. Organize your life. Launch your world.</h1>
             <p class="hero-tagline">
-              Find the apps, contacts, notes, websites, subscriptions, and support tools you need
+              What are you trying to organize today?
             </p>
             <div class="hero-actions">
               <a href="revenue-desk/" class="cta primary">Open Revenue Desk</a>
@@ -280,6 +284,61 @@
                 <span class="shortcut-card__meta">Start Here: tools and paid help for a project, offer, or business.</span>
               </a>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="human-os-container" aria-labelledby="human-os-title">
+        <div class="human-os-map" data-human-os-map>
+          <div class="human-os-heading">
+            <span class="eyebrow">Choose a room</span>
+            <h2 id="human-os-title">Nine doors into the portal</h2>
+          </div>
+          <div class="doors-grid" aria-label="Human O.S. rooms">
+            <button class="door-card" type="button" data-room-door="purpose">
+              <span class="door-card__label">🧭 My Purpose</span>
+              <span class="door-card__subtitle">Direction &amp; Core Values</span>
+            </button>
+            <button class="door-card" type="button" data-room-door="life">
+              <span class="door-card__label">🌱 My Life</span>
+              <span class="door-card__subtitle">Habits, Health &amp; Rhythms</span>
+            </button>
+            <button class="door-card" type="button" data-room-door="ideas">
+              <span class="door-card__label">💡 My Ideas</span>
+              <span class="door-card__subtitle">Capture Thoughts &amp; Dumps</span>
+            </button>
+            <button class="door-card" type="button" data-room-door="projects">
+              <span class="door-card__label">🛠️ My Projects</span>
+              <span class="door-card__subtitle">Build &amp; Execute</span>
+            </button>
+            <button class="door-card" type="button" data-room-door="work">
+              <span class="door-card__label">💼 My Work</span>
+              <span class="door-card__subtitle">Clients &amp; Operations</span>
+            </button>
+            <button class="door-card" type="button" data-room-door="learning">
+              <span class="door-card__label">🧠 My Learning</span>
+              <span class="door-card__subtitle">Sandboxes &amp; Knowledge</span>
+            </button>
+            <button class="door-card" type="button" data-room-door="community">
+              <span class="door-card__label">🤝 My Community</span>
+              <span class="door-card__subtitle">Collaborators &amp; P2P Mesh</span>
+            </button>
+            <button class="door-card" type="button" data-room-door="money">
+              <span class="door-card__label">💰 My Money</span>
+              <span class="door-card__subtitle">Cashflow &amp; Runway</span>
+            </button>
+            <button class="door-card" type="button" data-room-door="play">
+              <span class="door-card__label">🕹️ 3D Play</span>
+              <span class="door-card__subtitle">Physics, Games &amp; Engine</span>
+            </button>
+          </div>
+        </div>
+        <div class="room-reveal" data-room-reveal hidden>
+          <button class="room-back" type="button" data-room-back>← Back to Map</button>
+          <div>
+            <span class="eyebrow">Human O.S. room</span>
+            <h2 data-room-title>Room</h2>
+            <p data-room-subtitle>Only the portal tools for this state are shown below.</p>
           </div>
         </div>
       </section>
@@ -460,6 +519,16 @@
             <span class="app-card__icon" aria-hidden="true">🎮</span>
             <span class="app-card__title">Games</span>
             <span class="app-card__meta">Compete, sharpen skills, and earn bonus points.</span>
+          </a>
+          <a href="stellar-flight.html" class="app-card" data-app-keywords="stellar drift game flight starfighter space arcade play">
+            <span class="app-card__icon" aria-hidden="true">🚀</span>
+            <span class="app-card__title">Stellar Drift</span>
+            <span class="app-card__meta">Game: fly a starfighter through deep-space drift lanes.</span>
+          </a>
+          <a href="jetpack.html" class="app-card" data-app-keywords="jetpack corridor game arcade boost dodge play">
+            <span class="app-card__icon" aria-hidden="true">🕹️</span>
+            <span class="app-card__title">Jetpack Corridor</span>
+            <span class="app-card__meta">Game: dodge, boost, and thread the corridor in quick runs.</span>
           </a>
           <a href="3dvr-girl/" class="app-card" data-app-tier="experimental">
             <span class="app-card__badge">Experimental</span>
@@ -1395,6 +1464,166 @@
     const searchTriggers = Array.from(
       document.querySelectorAll('[data-app-search-trigger]')
     );
+    const viewModeButtons = Array.from(
+      document.querySelectorAll('[data-view-mode-button]')
+    );
+    const roomButtons = Array.from(
+      document.querySelectorAll('[data-room-door]')
+    );
+    const roomBackButton = document.querySelector('[data-room-back]');
+    const roomReveal = document.querySelector('[data-room-reveal]');
+    const roomTitle = document.querySelector('[data-room-title]');
+    const roomSubtitle = document.querySelector('[data-room-subtitle]');
+    const roomMeta = {
+      purpose: {
+        title: '🧭 My Purpose',
+        subtitle: 'Direction, values, manifestation practice, and purpose mapping.',
+      },
+      life: {
+        title: '🌱 My Life',
+        subtitle: 'Daily rhythm, wellness, posture, nervous system, and grounded check-ins.',
+      },
+      ideas: {
+        title: '💡 My Ideas',
+        subtitle: 'Notes, memory capture, scratchpads, and lightweight idea workbenches.',
+      },
+      projects: {
+        title: '🛠️ My Projects',
+        subtitle: 'Launch rooms, project decks, site builders, and execution tools.',
+      },
+      work: {
+        title: '💼 My Work',
+        subtitle: 'Clients, CRM, sales, calendars, contacts, and daily operating loops.',
+      },
+      learning: {
+        title: '🧠 My Learning',
+        subtitle: 'Labs, education, open source, AI workbenches, and knowledge systems.',
+      },
+      community: {
+        title: '🤝 My Community',
+        subtitle: 'Circles, chat, video, mutual support, and peer-to-peer spaces.',
+      },
+      money: {
+        title: '💰 My Money',
+        subtitle: 'Finance, billing, rewards, runway, offers, and cashflow tools.',
+      },
+      play: {
+        title: '🕹️ 3D Play',
+        subtitle: 'Games, spatial prototypes, physics experiments, and 3D engine rooms.',
+      },
+    };
+    const humanRoomTitles = {
+      purpose: [
+        'Purpose',
+        'Purpose Movement',
+        'Reality Builder',
+        'Master Key Room',
+        'Manifestation Practice',
+        'Intention Lab',
+        'Start Here',
+      ],
+      life: [
+        'Life',
+        'Alive System',
+        'Sober Spark',
+        'Wellness',
+        'Body Mode',
+        'Inner Alignment',
+        'Herbal Toolkit',
+        'Seated Spine Reset',
+        'Fascia Release',
+        'Life Force Room',
+      ],
+      ideas: [
+        'Notes',
+        'TinyMark',
+        'Clipboard',
+        'Memory Capture',
+        'Ideas Lab',
+        'Workbench Ideas',
+      ],
+      projects: [
+        'Projects',
+        'Launch Room',
+        'Launch Site',
+        'Web Builder',
+        'Workbench Site Builder',
+        'Workbench Dev Lab',
+        'Sites',
+        'Spatial Portal',
+        'Pocket Workstation',
+      ],
+      work: [
+        'Revenue Desk',
+        'Growth Operator',
+        'CRM',
+        'Sales',
+        'Email Operator',
+        'Contacts',
+        'Calendar',
+        'Meetings',
+        'Lead Capture',
+        'Market Lab',
+        'Job Tracker',
+        'Tasks',
+      ],
+      learning: [
+        'Learn',
+        'Education Suite',
+        'Logic Lab',
+        'Open Source',
+        'Human-Scale Tech',
+        'Science Lab',
+        'OpenAI Workbench',
+        'Debian Browser Lab',
+        'Personal Debian Server',
+        'Local Models',
+        'Deploy Guides',
+      ],
+      community: [
+        'Community',
+        'Community Farming',
+        'Cell',
+        'Chat',
+        'Video Chat',
+        '3DVR Connect',
+        'News Lounge',
+        'Profile',
+      ],
+      money: [
+        'Finance',
+        'Billing',
+        'Money AI',
+        'money-printer',
+        'Offer Audit',
+        'Live Point Value',
+        'Score Rewards',
+        'Rewards',
+        'Human Economics',
+      ],
+      play: [
+        'Games',
+        'Stellar Drift',
+        'Jetpack Corridor',
+        '3DVR Girl',
+        'Spatial Portal',
+        'Pocket Window',
+        'Fractal Explorer',
+        'Field Simulation',
+        'XR Motion Lab',
+        'Mini DaedalOS',
+        'Portal Lab',
+      ],
+    };
+    const titleToRooms = new Map();
+    Object.entries(humanRoomTitles).forEach(([room, titles]) => {
+      titles.forEach((title) => {
+        const existing = titleToRooms.get(title) || [];
+        existing.push(room);
+        titleToRooms.set(title, existing);
+      });
+    });
+
     if (appGrid && appCards.length > 0) {
       const sortedCards = [...appCards].sort((a, b) => {
         const aTitle = a
@@ -1414,6 +1643,13 @@
       });
 
       appCards = sortedCards;
+      appCards.forEach((card) => {
+        const title = card.querySelector('.app-card__title')?.textContent?.trim();
+        const rooms = title ? titleToRooms.get(title) : null;
+        if (rooms && rooms.length > 0) {
+          card.dataset.humanRooms = rooms.join(' ');
+        }
+      });
     }
     const prefersReducedMotionQuery =
       typeof window.matchMedia === 'function'
@@ -1424,6 +1660,56 @@
     const isExperimental = (card) =>
       card.getAttribute('data-app-tier') === 'experimental';
     const shouldShowExperimental = () => Boolean(experimentalToggle?.checked);
+    const getViewMode = () => document.body.dataset.viewMode || 'human-os';
+    const getActiveRoom = () => document.body.dataset.activeRoom || '';
+    const isHumanRoomCard = (card) => {
+      const activeRoom = getActiveRoom();
+      if (!activeRoom) return false;
+      return (card.dataset.humanRooms || '').split(/\s+/).includes(activeRoom);
+    };
+    const shouldHideCardForState = (card) => {
+      if (getViewMode() === 'workshop') {
+        return isExperimental(card) && !shouldShowExperimental();
+      }
+
+      const activeRoom = getActiveRoom();
+      if (!activeRoom) {
+        return true;
+      }
+
+      return !isHumanRoomCard(card);
+    };
+    const syncRoomReveal = () => {
+      const activeRoom = getActiveRoom();
+      const meta = roomMeta[activeRoom];
+
+      if (!roomReveal) return;
+
+      if (!activeRoom || !meta) {
+        roomReveal.hidden = true;
+        return;
+      }
+
+      if (roomTitle) {
+        roomTitle.textContent = meta.title;
+      }
+      if (roomSubtitle) {
+        roomSubtitle.textContent = meta.subtitle;
+      }
+      roomReveal.hidden = false;
+    };
+    const setViewMode = (nextMode, nextRoom = '') => {
+      const mode = nextMode === 'workshop' ? 'workshop' : 'human-os';
+      document.body.dataset.viewMode = mode;
+      document.body.dataset.activeRoom = mode === 'human-os' ? nextRoom : '';
+      viewModeButtons.forEach((button) => {
+        const active = button.dataset.viewModeButton === mode;
+        button.dataset.active = active ? 'true' : 'false';
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+      syncRoomReveal();
+      updateAppFilter(searchInput?.value ?? '');
+    };
 
     const updateAppFilter = (value = '') => {
       const query = value.trim().toLowerCase();
@@ -1432,9 +1718,9 @@
 
       if (!query) {
         appCards.forEach((card) => {
-          const hideExperimental = isExperimental(card) && !shouldShowExperimental();
-          card.hidden = hideExperimental;
-          if (!hideExperimental) {
+          const hideForState = shouldHideCardForState(card);
+          card.hidden = hideForState;
+          if (!hideForState) {
             if (appGrid) {
               appGrid.appendChild(card);
             }
@@ -1463,10 +1749,10 @@
         const metaIncludesQuery = metaText.includes(query);
         const keywordIncludesQuery = keywordText.includes(query);
         const matches = titleIncludesQuery || metaIncludesQuery || keywordIncludesQuery;
-        const hideExperimental = isExperimental(card) && !shouldShowExperimental();
+        const hideForState = shouldHideCardForState(card);
 
-        card.hidden = !matches || hideExperimental;
-        if (matches && !hideExperimental) {
+        card.hidden = !matches || hideForState;
+        if (matches && !hideForState) {
           visibleCount += 1;
           if (titleIncludesQuery) {
             nameMatches.push(card);
@@ -1624,6 +1910,10 @@
     const focusSearch = ({ scroll = false, alignSearch = false } = {}) => {
       if (!searchInput || isAuthModalVisible()) return;
 
+      if (getViewMode() === 'human-os' && !getActiveRoom()) {
+        setViewMode('workshop');
+      }
+
       if (scroll) {
         scrollAppsIntoView({ alignSearch });
       }
@@ -1691,6 +1981,36 @@
       });
     }
 
+    viewModeButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        setViewMode(button.dataset.viewModeButton);
+      });
+    });
+
+    roomButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const room = button.dataset.roomDoor || '';
+        if (!room) return;
+        setViewMode('human-os', room);
+        window.requestAnimationFrame(() => {
+          appHub?.scrollIntoView({
+            behavior: prefersReducedMotionQuery?.matches ? 'auto' : 'smooth',
+            block: 'start',
+          });
+        });
+      });
+    });
+
+    roomBackButton?.addEventListener('click', () => {
+      setViewMode('human-os');
+      window.requestAnimationFrame(() => {
+        document.querySelector('[data-human-os-map]')?.scrollIntoView({
+          behavior: prefersReducedMotionQuery?.matches ? 'auto' : 'smooth',
+          block: 'start',
+        });
+      });
+    });
+
     searchTriggers.forEach((trigger) => {
       trigger.addEventListener('click', (event) => {
         event.preventDefault();
@@ -1726,6 +2046,7 @@
     });
 
     const initialSearchValue = searchInput?.value ?? '';
+    setViewMode('human-os');
     updateAppFilter(initialSearchValue);
   </script>
   <script defer src="/issue-launcher.js"></script>
