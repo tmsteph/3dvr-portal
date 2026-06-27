@@ -74,6 +74,7 @@ describe('portal customer journey pages', () => {
     assert.match(globalCss, /text-size-adjust:\s*100%/);
     assert.match(css, /@media \(max-width: 380px\)/);
     assert.match(css, /\.hero-actions \.cta\s*\{/);
+    assert.match(css, /@media \(min-width: 721px\) \{[\s\S]*?\.hero-actions \{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*max-content\);[\s\S]*?\.hero-actions \.cta \{[\s\S]*?padding:\s*0\.58rem 1rem;/);
     assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
     assert.doesNotMatch(css, /botanical-border/);
     assert.doesNotMatch(css, /body\.landing::before/);
