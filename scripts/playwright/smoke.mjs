@@ -91,7 +91,7 @@ try {
   const heading = (await page.locator('#landing-title').innerText()).trim();
 
   assert.equal(pageTitle, '3DVR Portal');
-  assert.match(heading, /Welcome to the 3DVR Portal|Choose your path into the portal|Get in, get moving\.|One system\. Any device\.|One portal\. Fast access\./i);
+  assert.match(heading, /Welcome to the 3DVR Portal|Choose your path into the portal|Get in, get moving\.|One system\. Any device\.|One portal\. Fast access\.|Find your purpose\. Organize your life\. Launch your world\./i);
 
   console.log(`Playwright smoke check passed in ${browserTarget.displayName} at ${baseUrl}`);
 } finally {
