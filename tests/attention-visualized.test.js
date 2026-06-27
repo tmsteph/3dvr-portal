@@ -70,6 +70,10 @@ test('portal homepage links to attention visualized near Learn', async () => {
   assert.ok(learnIndex < attentionIndex, 'Attention Visualized should render after Learn');
   assert.ok(attentionIndex < logicIndex, 'Attention Visualized should render before Logic Lab');
   assert.match(html, /href="attention-visualized\/"/);
+  assert.match(
+    html,
+    /<a href="attention-visualized\/" class="app-card" data-app-tier="experimental">\s*<span class="app-card__badge">Experimental<\/span>/
+  );
   assert.match(html, /See self-attention, softmax, Q\/K\/V, and tiny JavaScript attention in one browser lab\./);
 });
 

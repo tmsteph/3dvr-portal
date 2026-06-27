@@ -27,6 +27,10 @@ describe('alive system app', () => {
     assert.match(js, /portal-alive-system-cache/);
 
     assert.match(portalIndex, /href="alive-system\/"/);
+    assert.match(
+      portalIndex,
+      /<a href="alive-system\/" class="app-card" data-app-tier="experimental">\s*<span class="app-card__badge">Experimental<\/span>/
+    );
     assert.match(portalIndex, /<span class="app-card__title">Alive System<\/span>/);
     assert.match(readme, /\[Alive System\]\(https:\/\/3dvr-portal\.vercel\.app\/alive-system\/\)/);
     assert.match(readme, /gun\.get\('3dvr-portal'\)\.get\('alive-system'\)/);
