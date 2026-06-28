@@ -5,6 +5,16 @@ import { constants } from 'node:fs';
 
 const appDir = new URL('../3dvr-girl/', import.meta.url);
 const guideIds = ['feminine', 'masculine', 'robot', 'nature', 'cosmic', 'portal'];
+const rescuedSceneAssets = [
+  ['sunlit-crouch', 'sunlit-crouch.jpg'],
+  ['pool-signal', 'pool-signal.jpg'],
+  ['courtyard-meditation', 'courtyard-meditation.jpg'],
+  ['courtyard-profile', 'courtyard-profile.jpg'],
+  ['sunlit-curve', 'sunlit-curve.jpg'],
+  ['wide-flow', 'wide-flow.jpg'],
+  ['tree-prayer', 'tree-prayer.jpg'],
+  ['blue-portal-stance', 'blue-portal-stance.jpg'],
+];
 
 async function fileExists(path) {
   try {
@@ -35,6 +45,7 @@ describe('3DVR Girl guide selection', () => {
     assert.match(js, /const guides = \[/);
     assert.match(js, /id: 'pool-welcome'/);
     assert.match(js, /id: 'meditation-seat'/);
+    assert.match(js, /id: 'blue-portal-stance'/);
     assert.match(js, /function createScenes\(\)/);
     assert.match(js, /GUIDE_STORAGE_KEY = '3dvrGirlGuide'/);
     assert.match(js, /refs\.heroGuideImage\.src = guide\.image/);
@@ -55,6 +66,20 @@ describe('3DVR Girl guide selection', () => {
         await fileExists(new URL(`assets/guides/${guideId}.png`, appDir)),
         true,
         `${guideId} guide portrait should exist`
+      );
+    }
+  });
+
+  it('keeps the rescued gallery scenes backed by local optimized assets', async () => {
+    const js = await readFile(new URL('app.js', appDir), 'utf8');
+
+    for (const [sceneId, fileName] of rescuedSceneAssets) {
+      assert.match(js, new RegExp(`id: '${sceneId}'`));
+      assert.match(js, new RegExp(`assets/${fileName.replace('.', '\\.')}`));
+      assert.equal(
+        await fileExists(new URL(`assets/${fileName}`, appDir)),
+        true,
+        `${sceneId} image should exist`
       );
     }
   });

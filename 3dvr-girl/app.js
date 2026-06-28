@@ -97,6 +97,78 @@ const scenes = [
     copy: 'A quieter frame for teaser tiles, transitions, and portal memory moments.',
     image: 'assets/over-shoulder.jpg',
     alt: '3DVR Girl looking back over her shoulder'
+  },
+  {
+    id: 'sunlit-crouch',
+    title: 'Low sun signal',
+    kicker: 'Sunlit crouch',
+    mode: 'Presence',
+    copy: 'A warm courtyard pose for social cutdowns, avatar intros, and light lifestyle cards.',
+    image: 'assets/sunlit-crouch.jpg',
+    alt: '3DVR Girl crouching in warm courtyard light'
+  },
+  {
+    id: 'pool-signal',
+    title: 'Waterline focus',
+    kicker: 'Pool signal',
+    mode: 'Refresh',
+    copy: 'A bright pool frame that points the brand toward summer, wellness, and visual reset moments.',
+    image: 'assets/pool-signal.jpg',
+    alt: '3DVR Girl standing in a sunlit pool'
+  },
+  {
+    id: 'courtyard-meditation',
+    title: 'Calm body channel',
+    kicker: 'Courtyard meditation',
+    mode: 'Calm',
+    copy: 'A seated frame for manifestation, breathwork, and soft-focus portal programming.',
+    image: 'assets/courtyard-meditation.jpg',
+    alt: '3DVR Girl sitting cross-legged in a courtyard'
+  },
+  {
+    id: 'courtyard-profile',
+    title: 'Profile lockup',
+    kicker: 'Courtyard profile',
+    mode: 'Profile',
+    copy: 'A clean side-profile asset for bios, campaign covers, and creator identity cards.',
+    image: 'assets/courtyard-profile.jpg',
+    alt: '3DVR Girl standing in profile in a courtyard'
+  },
+  {
+    id: 'sunlit-curve',
+    title: 'Golden hour line',
+    kicker: 'Sunlit curve',
+    mode: 'Motion',
+    copy: 'A standing motion pose with warm shadows, useful for transition tiles and rhythm prompts.',
+    image: 'assets/sunlit-curve.jpg',
+    alt: '3DVR Girl posing in warm sunlit shadows'
+  },
+  {
+    id: 'wide-flow',
+    title: 'Open stance',
+    kicker: 'Wide flow',
+    mode: 'Power',
+    copy: 'A wide-frame movement pose that expands the gallery beyond still portrait energy.',
+    image: 'assets/wide-flow.jpg',
+    alt: '3DVR Girl holding a wide movement stance'
+  },
+  {
+    id: 'tree-prayer',
+    title: 'Prayer balance',
+    kicker: 'Tree prayer',
+    mode: 'Balance',
+    copy: 'A stable one-leg frame for practice sequences, daily rituals, and mindful check-ins.',
+    image: 'assets/tree-prayer.jpg',
+    alt: '3DVR Girl holding a tree pose with hands in prayer'
+  },
+  {
+    id: 'blue-portal-stance',
+    title: 'Brand portal stance',
+    kicker: 'Blue portal stance',
+    mode: 'Portal',
+    copy: 'A high-brand read with blue rings, 3DVR mark, and a direct avatar-channel landing image.',
+    image: 'assets/blue-portal-stance.jpg',
+    alt: '3DVR Girl standing in a blue branded portal'
   }
 ];
 
