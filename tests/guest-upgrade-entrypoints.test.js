@@ -19,6 +19,9 @@ describe('guest account entrypoints', () => {
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /onclick="startAccountFromHere\(\)"/);
     assert.match(html, /function startAccountFromHere\(\)/);
+    assert.match(html, /localStorage\.setItem\('guest', 'true'\)/);
+    assert.match(html, /authModal\.style\.display = 'none'/);
+    assert.doesNotMatch(html, /authModal\.style\.display = 'flex'/);
     assert.doesNotMatch(html, /upgradeParam/);
     assert.doesNotMatch(html, /&upgrade=guest/);
     assert.match(html, /\/sign-in\.html\?redirect=/);

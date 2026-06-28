@@ -7,6 +7,11 @@ test('sales index leads with the revenue close section', async () => {
 
   assert.match(html, /Pick one lead, one offer, and one ask\. Keep the close path simple\./);
   assert.match(html, /<p class="text-xs uppercase tracking-\[0\.3em\] text-blue-300">Today&apos;s close<\/p>/);
+  assert.match(html, /Client Onboarding Sprint/);
+  assert.match(html, /AI pick/);
+  assert.match(html, /\$300 setup/);
+  assert.match(html, /\.\.\/ideas\/client-onboarding-sprint\.html/);
+  assert.match(html, /threadId=sales-client-onboarding/);
   assert.match(html, /\$50 \/ month/);
   assert.match(html, /\$200 \/ month/);
   assert.match(html, /Ask Builder/);

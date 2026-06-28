@@ -134,6 +134,12 @@ describe('billing center', () => {
     assert.ok(js.includes("label = 'Refresh account first'"));
     assert.ok(js.includes('authPub: livePub'));
     assert.ok(js.includes("window.location.assign(signInHref(targetPlan))"));
+    assert.ok(js.includes('function prefillCustomCheckoutFromUrl()'));
+    assert.ok(js.includes("billingQueryValue('amount', 'customAmount')"));
+    assert.ok(js.includes("billingQueryValue('label', 'customLabel')"));
+    assert.ok(js.includes("billingQueryValue('description', 'customDescription')"));
+    assert.ok(js.includes("customAmountInput.value = amount.replace(/[^0-9.]/g, '')"));
+    assert.ok(js.includes('prefillCustomCheckoutFromUrl()'));
     assert.ok(!js.includes('cancel the extra plan'));
     assert.ok(!js.includes("label = 'Review duplicates'"));
   });
