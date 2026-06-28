@@ -9,6 +9,8 @@ describe('3DVR Forge product route', () => {
     assert.match(html, /<title>3DVR Forge \| Turn frustration into a project<\/title>/);
     assert.match(html, /href="\.\.\/index\.html">Portal<\/a>/);
     assert.match(html, /href="\.\.\/launch-room\/">Launch Room<\/a>/);
+    assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
+    assert.match(html, /src="\/gun-init\.js"/);
     assert.match(html, /3DVR Forge/);
     assert.match(html, /Turn your frustration into a project\./);
     assert.match(html, /Rant, ramble, complain, dream, or describe the thing you can't stop thinking about\./);
@@ -25,17 +27,30 @@ describe('3DVR Forge product route', () => {
     assert.doesNotMatch(html, /create an account/i);
   });
 
-  it('includes a simple state machine and mockable Movement Brief generator', async () => {
+  it('uses the Forge API first and keeps local fallback behavior', async () => {
     const app = await readFile(new URL('../forge/app.js', import.meta.url), 'utf8');
 
+    assert.match(app, /import \{ readDefaultSecret \} from '\.\.\/web-builder-app\/defaults\.js'/);
     assert.match(app, /const STORAGE_KEY = '3dvr\.forge\.session\.v1'/);
+    assert.match(app, /const FORGE_MODEL = 'gpt-4\.1-mini'/);
+    assert.match(app, /SHARED_DEFAULTS_WAIT_MS/);
     assert.match(app, /INTRO: 'intro'/);
     assert.match(app, /INITIAL: 'initial'/);
     assert.match(app, /FOLLOWUPS: 'followups'/);
     assert.match(app, /GENERATING: 'generating'/);
     assert.match(app, /BRIEF: 'brief'/);
+    assert.match(app, /subscribeToSharedDefaults/);
+    assert.match(app, /waitForSharedSecret\('openai'/);
+    assert.match(app, /readDefaultSecret\(data, 'openai'\)/);
+    assert.match(app, /fetch\('\/api\/openai-site'/);
+    assert.match(app, /forge:\s*true/);
+    assert.match(app, /requestForge\('followups'/);
+    assert.match(app, /requestForge\('brief'/);
     assert.match(app, /function chooseFollowUps\(initial\)/);
     assert.match(app, /function buildMockMovementBrief\(currentSession\)/);
+    assert.match(app, /normalizeFollowUpsResponse/);
+    assert.match(app, /normalizeBriefResponse/);
+    assert.match(app, /local fallback brief was generated/);
     assert.match(app, /Who else has this problem\?/);
     assert.match(app, /What have you already tried\?/);
     assert.match(app, /What would a tiny version look like in 7 days\?/);
@@ -61,7 +76,6 @@ describe('3DVR Forge product route', () => {
     assert.match(app, /Do not build an app yet/);
     assert.match(app, /navigator\.clipboard\.writeText/);
     assert.match(app, /type: 'text\/markdown'/);
-    assert.match(app, /window\.setTimeout/);
     assert.match(app, /window\.localStorage\.setItem\(STORAGE_KEY/);
   });
 

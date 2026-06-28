@@ -1,3 +1,5 @@
+import { createForgeHandler } from '../src/forge/api.js';
+
 export const DEFAULT_MODEL = 'gpt-4.1-mini';
 export const SUPPORTED_SITE_MODELS = Object.freeze([
   'gpt-4o-mini',
@@ -454,5 +456,18 @@ export function createSiteGeneratorHandler(options = {}) {
   };
 }
 
-const handler = createSiteGeneratorHandler();
+export function createOpenAiSiteRouter(options = {}) {
+  const siteHandler = createSiteGeneratorHandler(options);
+  const forgeHandler = createForgeHandler(options.forge || options);
+
+  return async function handler(req, res) {
+    if (req?.body?.forge === true || req?.query?.provider === 'forge') {
+      return forgeHandler(req, res);
+    }
+
+    return siteHandler(req, res);
+  };
+}
+
+const handler = createOpenAiSiteRouter();
 export default handler;
