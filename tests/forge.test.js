@@ -29,9 +29,10 @@ describe('3DVR Forge product route', () => {
     assert.match(html, /aria-label="Forge another brief">New brief<\/button>/);
     assert.match(html, /Sell this next/);
     assert.match(html, /Turn this brief into a paid launch sprint\./);
-    assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dpro">Start \$20 Founder<\/a>/);
+    assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dcustom%26amount%3D300%26label%3DForge%20Revenue%20Sprint/);
+    assert.match(html, /Start \$300 sprint<\/a>/);
     assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Go \$50 Builder<\/a>/);
-    assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dcustom">Custom deposit<\/a>/);
+    assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dpro">Start \$20 Founder<\/a>/);
     assert.match(html, /Make test message/);
     assert.match(html, /Make Codex prompt/);
     assert.match(html, /Make landing page copy/);
@@ -175,8 +176,9 @@ describe('3DVR Forge product route', () => {
     assert.match(html, /href="forge\/" class="app-card" data-app-keywords="[^"]*\bfrustration\b[^"]*\bmovement brief\b[^"]*"/);
     assert.match(html, /<span class="app-card__title">3DVR Forge<\/span>/);
     assert.match(html, /Rant, reflect, and turn messy thoughts into a Movement Brief and 7-day test\./);
-    assert.match(html, /href="sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dpro"[\s\S]*?<span class="app-card__title">Forge Sprint<\/span>/);
-    assert.match(html, /Turn a Movement Brief into a paid offer test, first messages, and a tiny launch artifact\./);
+    assert.match(html, /href="sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dcustom%26amount%3D300%26label%3DForge%20Revenue%20Sprint/);
+    assert.match(html, /<span class="app-card__title">Forge Sprint<\/span>/);
+    assert.match(html, /Turn a Movement Brief into a 72-hour paid offer page, first test message, and reply tracker\./);
     assert.match(html, /projects:\s*\[[\s\S]*?'3DVR Forge'/);
     assert.match(html, /projects:\s*\[[\s\S]*?'Forge Sprint'/);
     assert.match(html, /money:\s*\[[\s\S]*?'Forge Sprint'/);
