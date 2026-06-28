@@ -25,6 +25,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /document\.body\.dataset\.viewMode = mode/);
     assert.match(html, /document\.body\.dataset\.activeRoom = mode === 'human-os' \? nextRoom : ''/);
     assert.doesNotMatch(html, /Grow into your own operating system/);
+    assert.match(html, /href="forge\/">Forge<\/a>/);
+    assert.match(html, /href="forge\/" class="cta primary">Enter the Forge<\/a>/);
     assert.match(html, /Open CRM/);
     assert.match(html, /Open Sales/);
     assert.match(html, /Open Web Builder/);
@@ -73,6 +75,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /App dock/);
     assert.match(html, /Command center/);
     assert.match(html, /Same account, same apps, deeper levels of control\./);
+    assert.match(html, /<span class="app-card__title">3DVR Forge<\/span>/);
+    assert.match(html, /Rant, reflect, and turn messy thoughts into a Movement Brief and 7-day test\./);
     assert.match(html, /data-active-room=""/);
     assert.match(html, /data-view-mode-button="workshop"/);
     assert.doesNotMatch(html, /Suggested launcher lanes/);
@@ -95,7 +99,7 @@ describe('portal customer journey pages', () => {
     assert.match(globalCss, /text-size-adjust:\s*100%/);
     assert.match(css, /@media \(max-width: 380px\)/);
     assert.match(css, /\.hero-actions \.cta\s*\{/);
-    assert.match(css, /@media \(min-width: 721px\) \{[\s\S]*?\.hero-actions \{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*max-content\);[\s\S]*?\.hero-actions \.cta \{[\s\S]*?padding:\s*0\.58rem 1rem;/);
+    assert.match(css, /@media \(min-width: 721px\) \{[\s\S]*?\.hero-actions \{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(9rem,\s*1fr\)\);[\s\S]*?\.hero-actions \.cta \{[\s\S]*?padding:\s*0\.58rem 1rem;/);
     assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
     assert.doesNotMatch(css, /botanical-border/);
     assert.doesNotMatch(css, /body\.landing::before/);
