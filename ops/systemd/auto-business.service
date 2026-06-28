@@ -1,0 +1,14 @@
+[Unit]
+Description=3DVR auto-business research, critique, offer, and warm outreach cycle
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/projects/3dvr-portal
+EnvironmentFile=-%h/.config/3dvr/money-printer.env
+ExecStart=/usr/bin/npm run money-printer:auto-business
+Nice=5
+
+[Install]
+WantedBy=default.target

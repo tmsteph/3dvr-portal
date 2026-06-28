@@ -4,9 +4,9 @@ Goal: use the Meta Graph API to publish controlled Facebook Page posts and measu
 
 This is not a scraping bot, spam bot, or auto-reply system. It is a market experiment loop:
 
-1. Pick one market angle from Market Pulse.
+1. Pick one market angle from Market Pulse or the auto-business selected market.
 2. Draft one Facebook Page post.
-3. Require human approval.
+3. Mark it approved manually, or let the DigitalOcean revenue engine auto-approve when `AUTO_BUSINESS_FACEBOOK_AUTO_APPROVE=true`.
 4. Publish through the Meta Graph API.
 5. Store the returned post id.
 6. Re-check reactions, comments, shares, clicks, impressions, and engaged users.
@@ -20,7 +20,7 @@ The first implementation lives in:
 - `src/growth/market-pulse.js`: Facebook Page probes now include a `metaGraph` experiment plan.
 - `sales/market-pulse.html`: dashboard copy now shows the Meta Graph API path.
 
-The helper code intentionally creates API-shaped request objects instead of immediately calling Meta from the browser. Real publishing should run from the DigitalOcean server so access tokens never live in browser JavaScript and the system can move away from Vercel-only infrastructure.
+The helper code intentionally creates API-shaped request objects instead of immediately calling Meta from the browser. Real publishing runs from the DigitalOcean server so access tokens never live in browser JavaScript and the system can move away from Vercel-only infrastructure.
 
 ## Preferred Runtime
 
@@ -39,7 +39,7 @@ The current worker entrypoint is:
 npm run market:meta-worker -- --dry-run
 ```
 
-Live mode requires:
+Live mode requires a Facebook Page controlled by 3DVR and server-side Page credentials:
 
 ```sh
 META_PAGE_ID=...
@@ -47,9 +47,19 @@ META_PAGE_ACCESS_TOKEN=...
 npm run market:meta-worker
 ```
 
+The auto-business runner can queue and run this worker in one cycle:
+
+```sh
+AUTO_BUSINESS_FACEBOOK_QUEUE_ENABLED=true
+AUTO_BUSINESS_FACEBOOK_AUTO_APPROVE=true
+AUTO_BUSINESS_FACEBOOK_RUN_WORKER=true
+AUTO_BUSINESS_FACEBOOK_DRY_RUN=false
+npm run money-printer:auto-business
+```
+
 ## Required Meta Setup
 
-Start with a Page that 3dvr controls. Do not post to unrelated groups or personal profiles.
+Start with a Page that 3dvr controls. Do not automate the Android Facebook app, unrelated groups, or personal profiles. The supported surface is the Meta Graph API for a Page.
 
 Likely app permissions:
 
@@ -95,7 +105,7 @@ The purpose is not to optimize vanity metrics. A small post with a few serious c
 
 ## Guardrails
 
-- Human approval required before publishing.
+- Human approval or server-side auto-approval required before publishing.
 - Prefer SEA-signed approval records before enabling live posting from the DO worker.
 - Use only pages/accounts 3dvr controls or has explicit permission to manage.
 - Store tokens only server-side.

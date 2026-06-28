@@ -43,6 +43,16 @@ test('homepage app search can find Forge by project-shaping keywords', async () 
   assert.match(html, /Movement Brief and 7-day test/);
 });
 
+test('homepage app search can find Forge Sprint by paid offer keywords', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(
+    html,
+    /<a[\s\S]*?data-app-keywords="[^"]*\bpaid\b[^"]*\boffer\b[^"]*\brevenue\b[^"]*"[\s\S]*?<span class="app-card__title">Forge Sprint<\/span>/
+  );
+  assert.match(html, /Start paid sprint/);
+});
+
 test('homepage app search can find the manifestation practice', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
