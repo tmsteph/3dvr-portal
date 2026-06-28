@@ -115,7 +115,7 @@
 
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
-<body class="landing theme-dark" data-view-mode="human-os" data-active-room="">
+<body class="landing theme-dark" data-view-mode="workshop" data-active-room="">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="app-boot" aria-hidden="true">
     <div class="app-boot__mark">
@@ -143,8 +143,8 @@
         <button type="button" class="top-nav__search" data-app-search-trigger>Search apps</button>
       </div>
       <div class="view-toggle-container" aria-label="Portal view mode">
-        <button class="toggle-btn" type="button" data-view-mode-button="human-os" data-active="true">Human O.S.</button>
-        <button class="toggle-btn" type="button" data-view-mode-button="workshop" data-active="false">Workshop</button>
+        <button class="toggle-btn" type="button" data-view-mode-button="human-os" data-active="false">Human O.S.</button>
+        <button class="toggle-btn" type="button" data-view-mode-button="workshop" data-active="true">Workshop</button>
       </div>
       <nav class="top-buttons" id="landingQuickLinks" aria-label="3DVR quick links">
         <a href="https://3dvr.tech">Home</a>
@@ -2046,7 +2046,7 @@
     });
 
     const initialSearchValue = searchInput?.value ?? '';
-    setViewMode('human-os');
+    setViewMode('workshop');
     updateAppFilter(initialSearchValue);
   </script>
   <script defer src="/issue-launcher.js"></script>
