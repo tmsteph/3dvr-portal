@@ -188,50 +188,73 @@ function credentialStatus(env = process.env) {
   return {
     openai: {
       ok: Boolean(String(env.OPENAI_API_KEY || '').trim()),
+      accepted: ['OPENAI_API_KEY'],
       missing: ['OPENAI_API_KEY'],
       help: 'Create an OpenAI API key in the OpenAI platform dashboard, then add OPENAI_API_KEY=sk-... to ~/.config/3dvr/money-printer.env.'
     },
     ownerEmail: {
       ok: Boolean(ownerEmail),
-      missing: ['AUTO_BUSINESS_OWNER_EMAIL'],
-      help: 'Set AUTO_BUSINESS_OWNER_EMAIL to the inbox that should receive every auto-business report.'
+      accepted: ['AUTO_BUSINESS_OWNER_EMAIL', 'MONEY_PRINTER_OWNER_EMAIL', 'STRIPE_LOG_EMAIL', 'GMAIL_USER'],
+      missing: ['AUTO_BUSINESS_OWNER_EMAIL, MONEY_PRINTER_OWNER_EMAIL, STRIPE_LOG_EMAIL, or GMAIL_USER'],
+      help: 'Set AUTO_BUSINESS_OWNER_EMAIL to the inbox that should receive every auto-business report, or reuse STRIPE_LOG_EMAIL/GMAIL_USER from the existing portal mail setup.'
     },
     mail: {
       ok: hasMailConfig(env),
+      accepted: ['GMAIL_USER + GMAIL_APP_PASSWORD', 'SMTP_HOST + SMTP_USER + SMTP_PASSWORD'],
       missing: ['GMAIL_USER + GMAIL_APP_PASSWORD', 'or SMTP_HOST + SMTP_USER + SMTP_PASSWORD'],
       help: 'For Gmail, enable 2-Step Verification, create an app password for Mail, then set GMAIL_USER and GMAIL_APP_PASSWORD. Any SMTP provider can use SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and optional SMTP_SECURE=true.'
     },
     github: {
       ok: Boolean(String(env.GITHUB_TOKEN || env.MONEY_AUTOPILOT_GH_TOKEN || env.GH_PAT || '').trim()),
+      accepted: ['GITHUB_TOKEN', 'MONEY_AUTOPILOT_GH_TOKEN', 'GH_PAT'],
       missing: ['GITHUB_TOKEN or MONEY_AUTOPILOT_GH_TOKEN'],
       help: 'Create a GitHub fine-grained token for this repository with Issues and Contents write access. Add it as GITHUB_TOKEN for task/issues or MONEY_AUTOPILOT_GH_TOKEN for offer publishing.'
     },
     vercel: {
       ok: Boolean(String(env.VERCEL_TOKEN || env.MONEY_AUTOPILOT_VERCEL_TOKEN || '').trim()),
+      accepted: ['VERCEL_TOKEN', 'MONEY_AUTOPILOT_VERCEL_TOKEN'],
       missing: ['VERCEL_TOKEN'],
       help: 'Create a Vercel account token, then set VERCEL_TOKEN. Add VERCEL_PROJECT_ID for inspection and MONEY_AUTOPILOT_VERCEL_PROJECT_NAME if auto-publishing offer pages to Vercel.'
     },
     checkout: {
       ok: Boolean(String(env.MONEY_AUTOPILOT_CHECKOUT_URL || env.STRIPE_CHECKOUT_URL || '').trim()),
+      accepted: ['MONEY_AUTOPILOT_CHECKOUT_URL', 'STRIPE_CHECKOUT_URL'],
       missing: ['MONEY_AUTOPILOT_CHECKOUT_URL or STRIPE_CHECKOUT_URL'],
-      help: 'Set this to the paid checkout or billing URL the generated offer pages should use.'
+      help: 'Set this to the paid checkout or billing URL the generated offer pages should use. STRIPE_SECRET_KEY/price IDs can power portal billing, but the auto-offer pages still need a destination URL.'
     },
     facebookPage: {
       ok: Boolean(String(env.META_PAGE_ID || '').trim() && String(env.META_PAGE_ACCESS_TOKEN || '').trim()),
+      accepted: ['META_PAGE_ID + META_PAGE_ACCESS_TOKEN'],
       missing: ['META_PAGE_ID', 'META_PAGE_ACCESS_TOKEN'],
       help: 'Connect a Facebook Page through Meta Graph API. Use a server-side Page access token with page posting permissions; do not automate a personal Android Facebook session.'
     },
     outreachContacts: {
       ok: Boolean(String(env.AUTO_BUSINESS_CONTACTS_FILE || '').trim()),
+      accepted: ['AUTO_BUSINESS_CONTACTS_FILE'],
       missing: ['AUTO_BUSINESS_CONTACTS_FILE'],
       help: `Put contacts in ${outreachContactsPath}. CSV columns: email,name,company,optIn,source,recipientType,legalBasis,country.`
     },
     senderCompliance: {
       ok: Boolean(physicalAddress && (unsubscribeUrl || unsubscribeEmail)),
+      accepted: [
+        'AUTO_BUSINESS_PHYSICAL_ADDRESS or BUSINESS_PHYSICAL_ADDRESS',
+        'AUTO_BUSINESS_UNSUBSCRIBE_URL or UNSUBSCRIBE_URL',
+        'AUTO_BUSINESS_UNSUBSCRIBE_EMAIL or UNSUBSCRIBE_EMAIL'
+      ],
       missing: ['AUTO_BUSINESS_PHYSICAL_ADDRESS', 'AUTO_BUSINESS_UNSUBSCRIBE_URL or AUTO_BUSINESS_UNSUBSCRIBE_EMAIL'],
       help: 'Commercial outreach requires a real sender identity, a valid physical postal address, and a simple opt-out path in every message.'
     }
   };
+}
+
+function summarizeCredentialStatus(status = {}) {
+  return Object.entries(status).map(([key, item]) => ({
+    key,
+    ok: Boolean(item.ok),
+    accepted: Array.isArray(item.accepted) ? item.accepted : [],
+    missing: item.ok ? [] : item.missing,
+    help: item.ok ? '' : item.help
+  }));
 }
 
 function errorMessage(error) {
@@ -898,6 +921,47 @@ async function sendOwnerReport({ env, config, report }) {
   result.sent = true;
   result.reason = 'sent';
   return result;
+}
+
+export async function checkAutoBusinessSetup(options = {}) {
+  const rootDir = path.resolve(options.rootDir || process.cwd());
+  const env = options.env || process.env;
+  const envLoad = await loadMoneyPrinterEnv(rootDir, env);
+  const config = resolveAutoBusinessConfig(options, env);
+  const credentials = credentialStatus(env);
+  const missing = missingCredentials(credentials);
+
+  return {
+    checkedAt: nowIso(),
+    rootDir,
+    envFilesLoaded: envLoad.loadedFiles,
+    keysLoaded: envLoad.keysLoaded.sort(),
+    ready: {
+      coreAi: credentials.openai.ok,
+      ownerEmail: credentials.ownerEmail.ok,
+      mailReports: credentials.ownerEmail.ok && credentials.mail.ok,
+      checkout: credentials.checkout.ok,
+      facebookPagePosting: credentials.facebookPage.ok,
+      outreach: credentials.mail.ok && credentials.outreachContacts.ok && credentials.senderCompliance.ok
+    },
+    config: {
+      market: config.market,
+      emailReports: config.emailReports,
+      outreachEnabled: config.outreachEnabled,
+      outreachMode: config.outreachMode,
+      outreachDailyLimit: config.outreachDailyLimit,
+      contactsFile: config.contactsFile,
+      suppressionFile: config.suppressionFile,
+      facebookQueueEnabled: config.facebookQueueEnabled,
+      facebookAutoApprove: config.facebookAutoApprove,
+      facebookRunWorker: config.facebookRunWorker,
+      facebookDryRun: config.facebookDryRun,
+      facebookPageIdConfigured: Boolean(config.facebookPageId),
+      facebookLinkConfigured: Boolean(config.facebookLink)
+    },
+    credentials: summarizeCredentialStatus(credentials),
+    missing
+  };
 }
 
 export async function runAutoBusinessCycle(options = {}) {

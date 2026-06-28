@@ -2,7 +2,10 @@
 
 import path from 'node:path';
 import process from 'node:process';
-import { runAutoBusinessCycle } from '../src/money-printer/autoBusiness.js';
+import {
+  checkAutoBusinessSetup,
+  runAutoBusinessCycle
+} from '../src/money-printer/autoBusiness.js';
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {};
@@ -53,15 +56,64 @@ Flags:
   --facebook-run-worker <bool> Run the Meta worker after queueing jobs.
   --facebook-dry-run <bool>    Dry-run Meta worker publishing/measurement.
   --facebook-limit <n>         Max Facebook Page jobs this cycle.
+  --setup-check                Load env and print present/missing setup only.
   --json                       Print full JSON report.
   --help                       Show this help.
 `);
+}
+
+function printSetupCheck(setup = {}) {
+  console.log('3DVR auto-business setup check');
+  console.log(`Env files loaded: ${setup.envFilesLoaded?.length ? setup.envFilesLoaded.join(', ') : 'none'}`);
+  console.log(`Core AI: ${setup.ready?.coreAi ? 'present' : 'missing'}`);
+  console.log(`Owner email: ${setup.ready?.ownerEmail ? 'present' : 'missing'}`);
+  console.log(`Mail reports: ${setup.ready?.mailReports ? 'ready' : 'missing setup'}`);
+  console.log(`Checkout link: ${setup.ready?.checkout ? 'present' : 'missing'}`);
+  console.log(`Facebook Page posting: ${setup.ready?.facebookPagePosting ? 'ready' : 'missing setup'}`);
+  console.log(`Outreach: ${setup.ready?.outreach ? 'ready' : 'missing setup'}`);
+  console.log('');
+
+  for (const item of setup.credentials || []) {
+    const accepted = item.accepted?.length ? ` (${item.accepted.join(' / ')})` : '';
+    console.log(`${item.ok ? 'OK' : 'MISSING'} ${item.key}${accepted}`);
+    if (!item.ok && item.help) {
+      console.log(`  ${item.help}`);
+    }
+  }
 }
 
 async function main() {
   const args = parseArgs();
   if (args.help || args.h) {
     printHelp();
+    return;
+  }
+
+  if (args.setupCheck) {
+    const setup = await checkAutoBusinessSetup({
+      rootDir: path.resolve(args.root || process.cwd()),
+      market: args.market,
+      keywords: args.keywords,
+      channels: args.channels,
+      dryRun: parseBool(args.dryRun),
+      outreachEnabled: parseBool(args.outreachEnabled),
+      outreachMode: args.outreachMode,
+      outreachDailyLimit: args.outreachDailyLimit ? Number(args.outreachDailyLimit) : undefined,
+      contactsFile: args.contactsFile,
+      suppressionFile: args.suppressionFile,
+      facebookQueueEnabled: parseBool(args.facebookQueue),
+      facebookAutoApprove: parseBool(args.facebookAutoApprove),
+      facebookRunWorker: parseBool(args.facebookRunWorker),
+      facebookDryRun: parseBool(args.facebookDryRun),
+      facebookLimit: args.facebookLimit ? Number(args.facebookLimit) : undefined
+    });
+
+    if (args.json) {
+      console.log(JSON.stringify(setup, null, 2));
+      return;
+    }
+
+    printSetupCheck(setup);
     return;
   }
 

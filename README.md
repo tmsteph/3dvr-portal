@@ -183,6 +183,7 @@ npm run money-printer -- daemon --once
 npm run money-printer -- daemon --once --ai
 npm run money-printer:supervisor -- --ai
 npm run money-printer:supervisor -- --health-only
+npm run money-printer:auto-business -- --setup-check
 npm run money-printer:auto-business
 npm run money-printer -- operations
 npm run money-printer -- operations approve <operation-id>
@@ -203,12 +204,14 @@ npm run money-printer:daemon
 npm run money-printer:ai-status
 npm run money-printer:codex -- prompt --bot website-builder
 npm run money-printer:supervisor -- --ai
+npm run money-printer:auto-business -- --setup-check
 npm run money-printer:auto-business
 ```
 
 AI/provider setup example:
 
 ```bash
+# Reused from existing portal AI flows.
 OPENAI_API_KEY=
 MONEY_PRINTER_AI_MODE=openai
 MONEY_PRINTER_MODEL=gpt-4.1-mini
@@ -232,10 +235,16 @@ MONEY_PRINTER_ALLOW_CODEX_EXEC=false
 MONEY_PRINTER_AUTO_APPROVE_GREEN=false
 MONEY_PRINTER_AUTO_APPROVE_MAX=3
 
+# Reused from Stripe/mail apps when present: STRIPE_LOG_EMAIL, GMAIL_USER, GMAIL_APP_PASSWORD.
 AUTO_BUSINESS_OWNER_EMAIL=
 AUTO_BUSINESS_EMAIL_REPORTS=true
 GMAIL_USER=
 GMAIL_APP_PASSWORD=
+
+# Offer CTA. MONEY_AUTOPILOT_CHECKOUT_URL can be omitted when STRIPE_CHECKOUT_URL is set.
+MONEY_AUTOPILOT_CHECKOUT_URL=
+STRIPE_CHECKOUT_URL=
+
 AUTO_BUSINESS_OUTREACH_ENABLED=true
 AUTO_BUSINESS_OUTREACH_MODE=compliant-b2b
 AUTO_BUSINESS_CONTACTS_FILE=~/.config/3dvr/outreach-contacts.csv

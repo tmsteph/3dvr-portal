@@ -64,12 +64,30 @@ nano ~/.config/3dvr/money-printer.env
 chmod 600 ~/.config/3dvr/money-printer.env
 ```
 
+The runner already reuses the same secret names as the existing portal apps. If the droplet already has these, do not duplicate them:
+
+- `OPENAI_API_KEY`
+- `GMAIL_USER`
+- `GMAIL_APP_PASSWORD`
+- `STRIPE_LOG_EMAIL`
+- `STRIPE_CHECKOUT_URL`
+- `GITHUB_TOKEN`
+- `VERCEL_TOKEN`
+- `GROWTH_GUN_PEERS`
+
+Check what is present without exposing values:
+
+```bash
+npm run money-printer:auto-business -- --setup-check
+```
+
 Example env:
 
 ```bash
 AUTO_BUSINESS_AI=true
 AUTO_BUSINESS_EMAIL_REPORTS=true
-AUTO_BUSINESS_OWNER_EMAIL=you@example.com
+# Optional if STRIPE_LOG_EMAIL or GMAIL_USER already points to the owner inbox.
+AUTO_BUSINESS_OWNER_EMAIL=
 AUTO_BUSINESS_MARKETS=local home service businesses with quote follow-up leaks,freelancers trying to turn inquiries into paid projects,creators launching paid pages and apps
 AUTO_BUSINESS_KEYWORDS=lead follow up,quote follow-up,client onboarding,website launch help,crm setup
 AUTO_BUSINESS_CHANNELS=reddit,hackernews,linkedin,email
@@ -78,6 +96,7 @@ AUTO_BUSINESS_EXECUTE_APPROVED=true
 AUTO_BUSINESS_AUTO_APPROVE_GREEN=true
 
 MONEY_PRINTER_AI_MODE=openai
+# Reuse the portal OpenAI key if already configured.
 OPENAI_API_KEY=
 
 GITHUB_TOKEN=
@@ -92,6 +111,7 @@ MONEY_AUTOPILOT_PUBLISH=false
 MONEY_AUTOPILOT_GH_TOKEN=
 MONEY_AUTOPILOT_GH_REPO=tmsteph/3dvr-portal
 MONEY_AUTOPILOT_GH_BRANCH=main
+# Or set STRIPE_CHECKOUT_URL if that already exists.
 MONEY_AUTOPILOT_CHECKOUT_URL=https://portal.3dvr.tech/sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dpro
 
 GROWTH_GUN_PEERS=https://relay.3dvr.tech/gun
@@ -106,6 +126,7 @@ AUTO_BUSINESS_FACEBOOK_DRY_RUN=false
 AUTO_BUSINESS_FACEBOOK_LIMIT=1
 AUTO_BUSINESS_FACEBOOK_LINK=https://portal.3dvr.tech/forge/
 
+# Reuse the existing portal mail transport.
 GMAIL_USER=
 GMAIL_APP_PASSWORD=
 # Or use SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_SECURE.
