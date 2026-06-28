@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 describe('portal customer journey pages', () => {
   it('gives the portal home a clear concrete entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-    assert.match(html, /data-view-mode="human-os" data-active-room=""/);
+    assert.match(html, /data-view-mode="workshop" data-active-room=""/);
     assert.match(html, /Find your purpose\. Organize your life\. Launch your world\./);
     assert.match(html, /What are you trying to organize today\?/);
     assert.match(html, /Human O\.S\./);
