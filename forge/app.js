@@ -44,6 +44,13 @@ const followUpPool = {
   },
 };
 
+const starterSparks = [
+  'I need money, I do not have much free time, and I keep thinking there is a useful project hiding in the tools I already have.',
+  'I am tired of watching capable people lose momentum because their ideas, follow-up, and first offer are scattered everywhere.',
+  'I know there is something I should build, but every version gets too big before I can test whether anyone actually wants it.',
+  'I want to turn 3DVR into something people can buy this week, not another giant platform promise.',
+];
+
 const briefOrder = [
   ['projectName', 'Project Name'],
   ['coreFrustration', 'Core Frustration'],
@@ -61,8 +68,16 @@ const refs = {
   answer: document.querySelector('[data-forge-answer]'),
   inputLabel: document.querySelector('[data-input-label]'),
   submit: document.querySelector('[data-submit-answer]'),
+  spark: document.querySelector('[data-spark-idea]'),
   reset: document.querySelector('[data-reset-forge]'),
   transcript: document.querySelector('[data-transcript]'),
+  progress: document.querySelector('[data-forge-progress]'),
+  progressLabel: document.querySelector('[data-forge-progress-label]'),
+  progressBar: document.querySelector('[data-forge-progress-bar]'),
+  guidancePanel: document.querySelector('[data-guidance-panel]'),
+  guidanceDiagnosis: document.querySelector('[data-guidance-diagnosis]'),
+  guidancePaths: document.querySelector('[data-guidance-paths]'),
+  guidanceActions: document.querySelector('[data-guidance-actions]'),
   status: document.querySelector('[data-forge-status]'),
   conversationPanel: document.querySelector('[data-forge-panel="conversation"]'),
   briefPanel: document.querySelector('[data-forge-panel="brief"]'),
@@ -96,6 +111,7 @@ let session = {
 let isBusy = false;
 let forgeSessionId = resolveForgeSessionId();
 let forgeActorKey = resolveForgeActorKey();
+let sparkIndex = 0;
 const sharedSecrets = {
   openai: '',
 };
@@ -765,7 +781,6 @@ function renderTranscript() {
 
   if (!session.initial) return;
 
-  addMessage('Forge', 'What’s been bothering you lately?');
   addMessage('You', session.initial);
 
   session.followUps.forEach((followUp, index) => {
@@ -777,14 +792,56 @@ function renderTranscript() {
     }
   });
 
-  const guidanceMessage = formatGuidanceMessage(session.guidance);
-  if (guidanceMessage) {
-    addMessage('Forge', guidanceMessage);
-  }
-
   if (session.stage === stage.GENERATING) {
     addMessage('Forge', 'Good raw material. Too vague right now. Let’s sharpen it into a test.');
   }
+}
+
+function renderGuidance() {
+  const shouldShow = Boolean(session.initial && session.guidance && session.stage !== stage.BRIEF);
+  if (!refs.guidancePanel) return;
+
+  refs.guidancePanel.hidden = !shouldShow;
+  if (!shouldShow) return;
+
+  refs.guidanceDiagnosis.textContent = session.guidance.diagnosis;
+  refs.guidancePaths.replaceChildren();
+  refs.guidanceActions.replaceChildren();
+
+  session.guidance.solutionPaths.forEach((item) => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    refs.guidancePaths.appendChild(li);
+  });
+
+  session.guidance.nextActions.forEach((item) => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    refs.guidanceActions.appendChild(li);
+  });
+}
+
+function renderProgress() {
+  if (!refs.progress || !refs.progressLabel || !refs.progressBar) return;
+
+  if (session.stage === stage.INITIAL || session.stage === stage.INTRO || session.stage === stage.BRIEF) {
+    refs.progress.hidden = true;
+    return;
+  }
+
+  const total = session.followUps.length || 3;
+  const answered = Math.min(Object.keys(session.answers || {}).length, total);
+  const active = Math.min(session.followUpIndex + 1, total);
+  const percent = session.stage === stage.GENERATING
+    ? 100
+    : Math.max(18, Math.round(((answered + 1) / (total + 1)) * 100));
+  const label = session.stage === stage.GENERATING
+    ? 'Forging the brief'
+    : `Question ${active} of ${total}`;
+
+  refs.progress.hidden = false;
+  refs.progressLabel.textContent = label;
+  refs.progressBar.style.width = `${percent}%`;
 }
 
 function currentPrompt() {
@@ -792,6 +849,7 @@ function currentPrompt() {
     return {
       label: 'The Forge is shaping your Movement Brief.',
       button: 'Forging...',
+      placeholder: 'Hold tight. Forge is turning the raw material into a Movement Brief.',
     };
   }
 
@@ -799,19 +857,27 @@ function currentPrompt() {
     return {
       label: 'Rant, ramble, complain, dream, or describe the thing you can’t stop thinking about.',
       button: 'Send to Forge',
+      placeholder: 'Example: I need money, I do not have much time, and I keep thinking there is a useful project in 3DVR.',
     };
   }
 
   const followUp = session.followUps[session.followUpIndex];
+  const total = session.followUps.length || 3;
+  const active = Math.min(session.followUpIndex + 1, total);
   return {
-    label: followUp?.question || 'Ready to forge the brief.',
-    button: session.followUpIndex >= session.followUps.length - 1 ? 'Forge Movement Brief' : 'Answer',
+    label: followUp?.question ? `Question ${active} of ${total}: ${followUp.question}` : 'Ready to forge the brief.',
+    button: session.followUpIndex >= session.followUps.length - 1 ? 'Forge brief' : 'Answer',
+    placeholder: 'Answer in plain language. A rough answer is enough.',
   };
 }
 
 function renderBriefSection(key, label, value) {
   const node = refs.sectionTemplate.content.firstElementChild.cloneNode(true);
   node.classList.toggle('brief-section--strong', key === 'projectName' || key === 'realityCheck');
+  node.classList.toggle(
+    'brief-section--wide',
+    ['projectName', 'projectConcept', 'tinyExperiment', 'testMessage', 'codexPrompt', 'realityCheck'].includes(key)
+  );
   node.querySelector('.brief-section__label').textContent = label;
   const body = node.querySelector('.brief-section__body');
 
@@ -933,14 +999,19 @@ function render() {
   refs.conversationPanel.hidden = session.stage === stage.BRIEF;
   refs.inputLabel.textContent = prompt.label;
   refs.submit.textContent = prompt.button;
+  refs.answer.placeholder = prompt.placeholder;
   refs.answer.value = '';
   refs.answer.disabled = isBusy || session.stage === stage.GENERATING || session.stage === stage.BRIEF;
   refs.submit.disabled = isBusy || session.stage === stage.GENERATING || session.stage === stage.BRIEF;
+  refs.spark.hidden = isBusy || Boolean(session.initial) || session.stage !== stage.INITIAL;
+  refs.reset.hidden = !session.initial && session.stage === stage.INITIAL;
   refs.briefPanel.hidden = session.stage !== stage.BRIEF;
   refs.status.textContent = statusText;
   if (refs.briefStatus) refs.briefStatus.textContent = statusText;
 
+  renderProgress();
   renderTranscript();
+  renderGuidance();
   renderBrief();
 
   if (session.nextOutput && refs.nextOutput.hidden && session.stage === stage.BRIEF) {
@@ -1098,6 +1169,7 @@ function resetForge() {
   session = {
     stage: stage.INITIAL,
     initial: '',
+    guidance: null,
     followUps: defaultFollowUps,
     followUpIndex: 0,
     answers: {},
@@ -1112,7 +1184,16 @@ function resetForge() {
   render();
 }
 
+function sparkIdea() {
+  const spark = starterSparks[sparkIndex % starterSparks.length];
+  sparkIndex += 1;
+  refs.answer.value = spark;
+  refs.status.textContent = 'Spark loaded. Edit it or send it.';
+  refs.answer.focus();
+}
+
 refs.form?.addEventListener('submit', handleSubmit);
+refs.spark?.addEventListener('click', sparkIdea);
 refs.reset?.addEventListener('click', resetForge);
 refs.resetBrief?.addEventListener('click', resetForge);
 refs.copyBrief?.addEventListener('click', () => {

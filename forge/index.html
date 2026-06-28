@@ -35,7 +35,32 @@
             <h1 id="forgeRoomTitle">What’s been bothering you lately?</h1>
           </div>
 
+          <div class="forge-progress" data-forge-progress hidden>
+            <span data-forge-progress-label>Start with the messy version.</span>
+            <span class="forge-progress__track" aria-hidden="true">
+              <span data-forge-progress-bar></span>
+            </span>
+          </div>
+
           <div class="forge-transcript" data-transcript aria-live="polite"></div>
+
+          <article class="forge-guidance" data-guidance-panel hidden aria-live="polite">
+            <div class="forge-guidance__header">
+              <span class="eyebrow">Forge read</span>
+              <h2>First solution paths</h2>
+              <p data-guidance-diagnosis></p>
+            </div>
+            <div class="forge-guidance__grid">
+              <section>
+                <h3>Possible paths</h3>
+                <ul data-guidance-paths></ul>
+              </section>
+              <section>
+                <h3>Do next</h3>
+                <ol data-guidance-actions></ol>
+              </section>
+            </div>
+          </article>
 
           <form class="forge-input" data-forge-form>
             <label for="forgeAnswer" class="forge-input__label" data-input-label>
@@ -52,6 +77,7 @@
             ></textarea>
             <div class="forge-input__actions">
               <button class="cta primary" type="submit" data-submit-answer>Send to Forge</button>
+              <button class="cta ghost forge-spark" type="button" data-spark-idea>Spark idea</button>
               <button class="cta ghost" type="button" data-reset-forge>Reset</button>
             </div>
             <p class="forge-status" data-forge-status role="status" aria-live="polite">
@@ -67,31 +93,13 @@
           </div>
 
           <div class="forge-brief__actions" aria-label="Movement Brief actions">
-            <button class="cta ghost" type="button" data-copy-brief>Copy Brief</button>
-            <button class="cta ghost" type="button" data-download-brief>Download Markdown</button>
-            <button class="cta ghost" type="button" data-reset-brief>Forge Another</button>
+            <button class="cta ghost" type="button" data-copy-brief aria-label="Copy Movement Brief">Copy</button>
+            <button class="cta ghost" type="button" data-download-brief aria-label="Download Movement Brief as Markdown">Download</button>
+            <button class="cta ghost" type="button" data-reset-brief aria-label="Forge another brief">New brief</button>
           </div>
           <p class="forge-status" data-brief-status role="status" aria-live="polite">Movement Brief ready.</p>
 
           <div class="movement-brief-grid" data-brief-output></div>
-
-          <article class="forge-offer" aria-labelledby="forgeOfferTitle">
-            <div>
-              <span class="eyebrow">Sell this next</span>
-              <h3 id="forgeOfferTitle">Turn this brief into a paid launch sprint.</h3>
-              <p>Get direct help sharpening the offer, sending the first test messages, and building only what proves demand.</p>
-            </div>
-            <ul class="forge-offer__list">
-              <li>Offer and test message review</li>
-              <li>Landing page or build prompt pass</li>
-              <li>Reply tracker and 7-day follow-up</li>
-            </ul>
-            <div class="forge-offer__actions">
-              <a class="cta primary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dpro">Start $20 Founder</a>
-              <a class="cta ghost" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Go $50 Builder</a>
-              <a class="cta ghost" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dcustom">Custom deposit</a>
-            </div>
-          </article>
 
           <div class="forge-next-moves" aria-labelledby="nextMoveTitle">
             <div>
@@ -112,6 +120,24 @@
               <pre data-next-output-body></pre>
             </article>
           </div>
+
+          <article class="forge-offer" aria-labelledby="forgeOfferTitle">
+            <div>
+              <span class="eyebrow">Sell this next</span>
+              <h3 id="forgeOfferTitle">Turn this brief into a paid launch sprint.</h3>
+              <p>Get direct help sharpening the offer, sending the first test messages, and building only what proves demand.</p>
+            </div>
+            <ul class="forge-offer__list">
+              <li>Offer and test message review</li>
+              <li>Landing page or build prompt pass</li>
+              <li>Reply tracker and 7-day follow-up</li>
+            </ul>
+            <div class="forge-offer__actions">
+              <a class="cta primary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dpro">Start $20 Founder</a>
+              <a class="cta ghost" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Go $50 Builder</a>
+              <a class="cta ghost" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dcustom">Custom deposit</a>
+            </div>
+          </article>
         </aside>
       </section>
     </main>
