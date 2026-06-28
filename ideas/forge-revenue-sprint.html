@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forge Revenue Sprint | 3DVR</title>
+  <meta
+    name="description"
+    content="A 72-hour paid sprint that turns a 3DVR Forge Movement Brief into a paid offer page, first test message, and reply tracker."
+  >
+  <link rel="stylesheet" href="audience-leads.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="audience-leads.js" defer></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    :root {
+      --forge-bg: #0b0f17;
+      --forge-panel: rgba(248, 250, 252, 0.08);
+      --forge-border: rgba(252, 196, 87, 0.28);
+      --forge-text: #f8fafc;
+      --forge-muted: #cbd5e1;
+      --forge-gold: #f7c948;
+      --forge-cyan: #89e2ff;
+      --forge-green: #8df0bd;
+    }
+
+    body {
+      background:
+        linear-gradient(135deg, rgba(247, 201, 72, 0.14), transparent 34%),
+        linear-gradient(230deg, rgba(137, 226, 255, 0.14), transparent 42%),
+        var(--forge-bg);
+      color: var(--forge-text);
+    }
+
+    .page {
+      max-width: 1160px;
+    }
+
+    .panel {
+      border-color: var(--forge-border);
+      border-radius: 8px;
+      background: var(--forge-panel);
+    }
+
+    .signal-box,
+    .deliverable,
+    .proof-box,
+    .copy-box {
+      border: 1px solid rgba(247, 201, 72, 0.22);
+      border-radius: 8px;
+      padding: 16px;
+      background: rgba(7, 11, 18, 0.78);
+    }
+
+    .signal-box {
+      display: grid;
+      gap: 12px;
+      margin: 22px 0;
+    }
+
+    .signal-box strong,
+    .proof-box strong,
+    .copy-box strong {
+      color: var(--forge-green);
+    }
+
+    .price-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .price-line strong {
+      color: var(--forge-gold);
+      font-size: 1.35rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      border: 1px solid rgba(137, 226, 255, 0.36);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: #dff7ff;
+      background: rgba(137, 226, 255, 0.1);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .deliverables {
+      display: grid;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .deliverable {
+      border-color: rgba(141, 240, 189, 0.22);
+      background: rgba(141, 240, 189, 0.07);
+    }
+
+    .deliverable strong {
+      display: block;
+      color: #ddffe9;
+    }
+
+    .deliverable span,
+    .proof-box p,
+    .copy-box p {
+      color: var(--forge-muted);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .cta,
+    .text-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      border-radius: 999px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .cta {
+      padding: 12px 20px;
+      color: #111827;
+      background: var(--forge-gold);
+      box-shadow: 0 14px 30px rgba(247, 201, 72, 0.22);
+    }
+
+    .text-link {
+      color: var(--forge-cyan);
+    }
+
+    .not-fit {
+      border: 1px solid rgba(248, 113, 113, 0.26);
+      border-radius: 8px;
+      margin-top: 18px;
+      padding: 14px;
+      color: #ffe2e2;
+      background: rgba(248, 113, 113, 0.08);
+    }
+
+    .copy-box {
+      margin-top: 18px;
+      white-space: pre-wrap;
+    }
+
+    .form-panel {
+      border-color: rgba(137, 226, 255, 0.32);
+    }
+
+    @media (min-width: 900px) {
+      .layout {
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="top-nav" aria-label="Forge Revenue Sprint navigation">
+      <a href="/forge/">Forge</a>
+      <a href="/ideas/">Ideas Lab</a>
+      <a href="/index.html">Portal Home</a>
+    </nav>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="headline">
+        <p class="kicker">Paid sprint for builders with a rough brief</p>
+        <h1 id="headline">Turn your Forge brief into a paid offer in 72 hours.</h1>
+        <p class="subhead">
+          3DVR Forge Revenue Sprint takes the messy project raw material and turns it into a buyable offer page, first
+          test message, and reply tracker so you can ask real people for money this week.
+        </p>
+
+        <div class="signal-box" aria-label="Sprint summary">
+          <strong>Built for the moment after Forge gives you a brief.</strong>
+          <span>
+            A Movement Brief is useful only if it becomes a market test. This sprint converts the brief into the
+            smallest paid offer you can explain, send, and track without building a giant product first.
+          </span>
+        </div>
+
+        <div class="body-text">
+          <p>
+            The expensive mistake is turning a new idea into a full app before anyone proves they care. We keep the
+            scope small, make the offer concrete, and create the first sales motion around one buyer problem.
+          </p>
+          <p>This sprint ships the first money path:</p>
+          <ul>
+            <li>A sharper paid offer from your Movement Brief.</li>
+            <li>A simple landing page or hosted checkout path for the offer.</li>
+            <li>A direct test message you can send to 10 likely buyers.</li>
+            <li>A tiny reply tracker so interest does not disappear.</li>
+          </ul>
+        </div>
+
+        <div class="price-line">
+          <strong>$300 Forge Revenue Sprint</strong>
+          <span class="pill">72-hour delivery</span>
+          <span class="pill">Paid-offer first</span>
+        </div>
+
+        <div class="deliverables" aria-label="Sprint deliverables">
+          <div class="deliverable">
+            <strong>Offer sharpened</strong>
+            <span>One buyer, one painful problem, one useful promise, one clear paid next step.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Offer page or checkout path</strong>
+            <span>A lightweight page, billing prefill, or portal lane that makes the sprint buyable.</span>
+          </div>
+          <div class="deliverable">
+            <strong>First test message</strong>
+            <span>A short DM, email, or post that asks for a real signal instead of vague encouragement.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Reply tracker</strong>
+            <span>A simple place to record who responded, what they asked, and what to do next.</span>
+          </div>
+        </div>
+
+        <div class="proof-box" aria-label="Why this can sell">
+          <strong>Why this is the next money move</strong>
+          <p>
+            It sells a contained transformation instead of an unfinished platform: messy idea to paid test. That is
+            specific enough to buy and small enough to deliver quickly.
+          </p>
+        </div>
+
+        <div class="not-fit">
+          Not a fit if you need guaranteed income, passive income, investment advice, mass scraping, or automated spam.
+          This is a manual paid-offer test.
+        </div>
+
+        <div class="copy-box" aria-label="First outreach copy">
+          <strong>First test message</strong>
+          <p>Quick question: I am testing a 72-hour sprint that turns a rough idea or rant into a paid offer page, first buyer message, and reply tracker. If you had one idea you wanted to test for money this week, would that be useful?</p>
+        </div>
+
+        <div class="button-row">
+          <a
+            class="cta"
+            href="/sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dcustom%26amount%3D300%26label%3DForge%2520Revenue%2520Sprint%26description%3D72-hour%2520Movement%2520Brief%2520to%2520paid%2520offer%2520page%252C%2520first%2520test%2520message%252C%2520and%2520reply%2520tracker"
+          >Start $300 sprint</a>
+          <a class="text-link" href="#fit-check">Request fit check</a>
+          <a class="text-link" href="/forge/">Make a Forge brief first</a>
+        </div>
+      </section>
+
+      <aside id="fit-check" class="panel form-panel" aria-label="Forge Revenue Sprint intake">
+        <h2>Send the messy brief.</h2>
+        <p>
+          Share the rough idea, who might pay, and what you want to test. If it is too vague, we will sharpen the first
+          buyer ask before building anything.
+        </p>
+        <form
+          class="form-grid"
+          data-audience-form
+          data-audience-key="forge-revenue-sprint"
+          data-audience-label="Forge Revenue Sprint"
+          data-source-label="Forge Revenue Sprint"
+          data-question-label="What is the rough idea, who might pay, and what do you want to test?"
+        >
+          <label>
+            <span>Name</span>
+            <input name="name" type="text" autocomplete="name" required placeholder="Taylor Morgan">
+          </label>
+          <label>
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+          </label>
+          <label>
+            <span>Messy brief</span>
+            <textarea
+              name="prompt"
+              placeholder="Paste your Forge brief, rant, buyer idea, or the thing you want to test for money."
+            ></textarea>
+          </label>
+          <button type="submit">Request fit check</button>
+          <p class="status" data-form-status role="status" aria-live="polite"></p>
+        </form>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      Intake writes to the 3DVR Gun relay under <code>3dvr-audience-tests/v1/forge-revenue-sprint/signups</code>.
+    </footer>
+  </div>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
