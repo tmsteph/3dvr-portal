@@ -1,4 +1,11 @@
+import { readDefaultSecret } from '../web-builder-app/defaults.js';
+
 const STORAGE_KEY = '3dvr.forge.session.v1';
+const FORGE_MODEL = 'gpt-4.1-mini';
+const SHARED_DEFAULTS_WAIT_MS = 6000;
+
+const gun = window.Gun ? window.Gun({ peers: window.__GUN_PEERS__ || undefined }) : null;
+const defaultsNode = gun?.get('3dvr-portal')?.get('ai-workbench')?.get('defaults');
 
 const stage = {
   INTRO: 'intro',
@@ -78,10 +85,83 @@ let session = {
   answers: {},
   brief: null,
   nextOutput: '',
+  notice: '',
+  briefSource: '',
+};
+let isBusy = false;
+const sharedSecrets = {
+  openai: '',
+};
+const sharedSecretResolvers = {
+  openai: [],
 };
 
 function clean(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function setNotice(message) {
+  session.notice = message;
+}
+
+function hasDefaultRecord(data) {
+  return Boolean(
+    data &&
+    typeof data === 'object' &&
+    Object.keys(data).some((key) => key !== '_')
+  );
+}
+
+function resolveSharedSecretWaiters(targetKey) {
+  const waiters = sharedSecretResolvers[targetKey] || [];
+  while (waiters.length) {
+    waiters.shift()?.();
+  }
+}
+
+function subscribeToSharedDefaults() {
+  if (!defaultsNode) {
+    resolveSharedSecretWaiters('openai');
+    return;
+  }
+
+  defaultsNode.on((data) => {
+    if (!hasDefaultRecord(data)) {
+      return;
+    }
+
+    sharedSecrets.openai = readDefaultSecret(data, 'openai');
+    if (sharedSecrets.openai) {
+      resolveSharedSecretWaiters('openai');
+    }
+  });
+}
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForSharedSecret(targetKey, message) {
+  if (sharedSecrets[targetKey]) {
+    return true;
+  }
+
+  if (!defaultsNode) {
+    return false;
+  }
+
+  setNotice(message);
+  render();
+  await Promise.race([
+    new Promise((resolve) => {
+      sharedSecretResolvers[targetKey]?.push(resolve);
+    }),
+    wait(SHARED_DEFAULTS_WAIT_MS),
+  ]);
+
+  return Boolean(sharedSecrets[targetKey]);
 }
 
 function sentence(value, fallback) {
@@ -220,6 +300,93 @@ function buildMockMovementBrief(currentSession) {
   };
 }
 
+function normalizeFollowUpsResponse(value) {
+  const list = Array.isArray(value) ? value : [];
+  const normalized = list
+    .map((item, index) => ({
+      key: clean(item?.key)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || `followup_${index + 1}`,
+      question: clean(item?.question),
+    }))
+    .filter((item) => item.question)
+    .slice(0, 3);
+
+  defaultFollowUps.forEach((fallback) => {
+    if (normalized.length < 3) {
+      normalized.push(fallback);
+    }
+  });
+
+  return normalized.slice(0, 3);
+}
+
+function normalizeStringList(value, fallback, limit) {
+  const list = Array.isArray(value) ? value : [];
+  const normalized = list.map(clean).filter(Boolean).slice(0, limit);
+
+  fallback.forEach((item) => {
+    if (normalized.length < Math.min(3, limit)) {
+      normalized.push(item);
+    }
+  });
+
+  return normalized.slice(0, limit);
+}
+
+function normalizeBriefResponse(value) {
+  const fallback = buildMockMovementBrief(session);
+
+  return {
+    projectName: clean(value?.projectName) || fallback.projectName,
+    coreFrustration: clean(value?.coreFrustration) || fallback.coreFrustration,
+    audience: clean(value?.audience) || fallback.audience,
+    projectConcept: clean(value?.projectConcept) || fallback.projectConcept,
+    tinyExperiment: clean(value?.tinyExperiment) || fallback.tinyExperiment,
+    firstActions: normalizeStringList(value?.firstActions, fallback.firstActions, 3),
+    testMessage: clean(value?.testMessage) || fallback.testMessage,
+    codexPrompt: clean(value?.codexPrompt) || fallback.codexPrompt,
+    realityCheck: normalizeStringList(value?.realityCheck, fallback.realityCheck, 5),
+  };
+}
+
+async function parseApiError(response) {
+  const errorText = await response.text();
+  if (!errorText) {
+    return 'The Forge API is not available.';
+  }
+
+  try {
+    const parsed = JSON.parse(errorText);
+    return parsed?.error || parsed?.message || errorText;
+  } catch {
+    return errorText;
+  }
+}
+
+async function requestForge(mode, payload = {}) {
+  await waitForSharedSecret('openai', 'Loading shared Forge key...');
+
+  const response = await fetch('/api/openai-site', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      forge: true,
+      mode,
+      model: FORGE_MODEL,
+      ...(sharedSecrets.openai ? { apiKey: sharedSecrets.openai } : {}),
+      ...payload,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
+
+  return response.json();
+}
+
 function saveSession() {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
@@ -285,6 +452,13 @@ function renderTranscript() {
 }
 
 function currentPrompt() {
+  if (session.stage === stage.GENERATING) {
+    return {
+      label: 'The Forge is shaping your Movement Brief.',
+      button: 'Forging...',
+    };
+  }
+
   if (session.stage === stage.INITIAL || session.stage === stage.INTRO) {
     return {
       label: 'Rant, ramble, complain, dream, or describe the thing you can’t stop thinking about.',
@@ -419,12 +593,18 @@ function render() {
   refs.inputLabel.textContent = prompt.label;
   refs.submit.textContent = prompt.button;
   refs.answer.value = '';
-  refs.answer.disabled = session.stage === stage.GENERATING || session.stage === stage.BRIEF;
-  refs.submit.disabled = session.stage === stage.GENERATING || session.stage === stage.BRIEF;
+  refs.answer.disabled = isBusy || session.stage === stage.GENERATING || session.stage === stage.BRIEF;
+  refs.submit.disabled = isBusy || session.stage === stage.GENERATING || session.stage === stage.BRIEF;
   refs.briefPanel.hidden = session.stage !== stage.BRIEF;
-  refs.status.textContent = session.stage === stage.BRIEF
-    ? 'Movement Brief generated. Copy it or choose one next move.'
-    : 'No login required. This v1 runs in your browser.';
+  if (isBusy) {
+    refs.status.textContent = session.notice || 'Forge AI is working...';
+  } else if (session.notice) {
+    refs.status.textContent = session.notice;
+  } else {
+    refs.status.textContent = session.stage === stage.BRIEF
+      ? 'Movement Brief generated. Copy it or choose one next move.'
+      : 'No login required. This v1 runs in your browser.';
+  }
 
   renderTranscript();
   renderBrief();
@@ -442,21 +622,59 @@ function startForge() {
   window.requestAnimationFrame(() => refs.answer.focus());
 }
 
-function generateBrief() {
-  session.stage = stage.GENERATING;
+async function prepareFollowUps(initial) {
+  isBusy = true;
+  setNotice('Forge AI is sharpening three follow-up questions...');
   render();
 
-  window.setTimeout(() => {
+  try {
+    const result = await requestForge('followups', { initial });
+    session.followUps = normalizeFollowUpsResponse(result?.questions);
+    setNotice('Good raw material. Answer these three sharper questions.');
+  } catch (error) {
+    session.followUps = chooseFollowUps(initial);
+    setNotice(`Forge AI is unavailable, so local questions are loaded. ${error.message || ''}`.trim());
+  } finally {
+    isBusy = false;
+    session.stage = stage.FOLLOWUPS;
+    saveSession();
+    render();
+    window.requestAnimationFrame(() => refs.answer.focus());
+  }
+}
+
+async function generateBrief() {
+  session.stage = stage.GENERATING;
+  isBusy = true;
+  setNotice('Forge AI is shaping your Movement Brief...');
+  render();
+
+  try {
+    const result = await requestForge('brief', {
+      initial: session.initial,
+      followUps: session.followUps,
+      answers: session.answers,
+    });
+    session.brief = normalizeBriefResponse(result?.brief);
+    session.briefSource = 'ai';
+    setNotice('Movement Brief generated with Forge AI. Copy it or choose one next move.');
+  } catch (error) {
     session.brief = buildMockMovementBrief(session);
+    session.briefSource = 'local-fallback';
+    setNotice(`Forge AI is unavailable, so a local fallback brief was generated. ${error.message || ''}`.trim());
+  } finally {
+    isBusy = false;
     session.stage = stage.BRIEF;
     saveSession();
     render();
     refs.briefPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 420);
+  }
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
+  if (isBusy) return;
+
   const value = clean(refs.answer.value);
   if (!value) {
     refs.status.textContent = 'Give the Forge raw material first.';
@@ -469,7 +687,7 @@ function handleSubmit(event) {
     session.followUpIndex = 0;
     session.stage = stage.FOLLOWUPS;
     saveSession();
-    render();
+    await prepareFollowUps(value);
     return;
   }
 
@@ -480,7 +698,7 @@ function handleSubmit(event) {
 
   if (session.followUpIndex >= session.followUps.length - 1) {
     saveSession();
-    generateBrief();
+    await generateBrief();
     return;
   }
 
@@ -529,6 +747,8 @@ function resetForge() {
     answers: {},
     brief: null,
     nextOutput: '',
+    notice: '',
+    briefSource: '',
   };
   refs.nextOutput.hidden = true;
   refs.nextOutputBody.textContent = '';
@@ -555,5 +775,6 @@ refs.copyNextOutput?.addEventListener('click', () => {
   }
 });
 
+subscribeToSharedDefaults();
 loadSession();
 render();
