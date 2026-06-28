@@ -32,6 +32,17 @@ test('homepage app search can find CRM by CRM keywords', async () => {
   assert.match(html, /keywordIncludesQuery/);
 });
 
+test('homepage app search can find Forge by project-shaping keywords', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(
+    html,
+    /href="forge\/" class="app-card" data-app-keywords="[^"]*\bfrustration\b[^"]*\bcodex prompt\b[^"]*"/
+  );
+  assert.match(html, /<span class="app-card__title">3DVR Forge<\/span>/);
+  assert.match(html, /Movement Brief and 7-day test/);
+});
+
 test('homepage app search can find the manifestation practice', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
@@ -49,5 +60,14 @@ test('homepage top navigation keeps Games one click away', async () => {
   assert.match(
     html,
     /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="games\.html">Games<\/a>/
+  );
+});
+
+test('homepage top navigation keeps Forge one click away', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(
+    html,
+    /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="forge\/">Forge<\/a>/
   );
 });

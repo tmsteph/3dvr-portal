@@ -1720,8 +1720,8 @@ footer a {
   }
 
   .hero-actions {
-    grid-template-columns: repeat(4, max-content);
-    width: fit-content;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    width: min(100%, 44rem);
     max-width: 100%;
   }
 

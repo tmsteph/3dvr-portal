@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR Forge | Turn frustration into a project</title>
+  <meta
+    name="description"
+    content="3DVR Forge turns messy thoughts, rants, and ideas into a Movement Brief, tiny 7-day experiment, and next actions."
+  >
+  <meta name="theme-color" content="#111827">
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="../index-style.css">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="landing theme-dark forge-page">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <div class="landing-shell forge-shell">
+    <header class="top-nav">
+      <nav class="top-buttons" aria-label="Forge navigation">
+        <a href="../index.html">Portal</a>
+        <a href="../launch-room/">Launch Room</a>
+        <a href="../web-builder-app/">Codex Bench</a>
+      </nav>
+    </header>
+
+    <main id="mainContent" class="landing-content">
+      <section class="forge-hero" aria-labelledby="forgeTitle">
+        <div class="forge-hero__copy">
+          <span class="hero-eyebrow">3DVR Forge</span>
+          <h1 id="forgeTitle">Turn your frustration into a project.</h1>
+          <p class="forge-hero__subheadline">
+            Rant, ramble, complain, dream, or describe the thing you can't stop thinking about.
+            3DVR Forge turns it into a Movement Brief, a tiny experiment, and your next actions.
+          </p>
+          <div class="forge-hero__actions">
+            <button class="cta primary" type="button" data-enter-forge>Enter the Forge</button>
+          </div>
+        </div>
+        <aside class="forge-principle" aria-label="Forge promise">
+          <p>Rant. Reflect. Forge a project.</p>
+          <span>In 15 minutes, turn a frustration into a project brief and a 7-day test plan.</span>
+        </aside>
+      </section>
+
+      <section class="forge-workspace" aria-labelledby="forgeRoomTitle">
+        <div class="forge-panel forge-conversation" data-forge-panel="conversation">
+          <div class="forge-panel__header">
+            <span class="eyebrow">Forge Room</span>
+            <h2 id="forgeRoomTitle">What’s been bothering you lately?</h2>
+            <p>
+              Say the messy version first. The Forge will challenge vague parts and shape the raw material into a test.
+            </p>
+          </div>
+
+          <div class="forge-transcript" data-transcript aria-live="polite"></div>
+
+          <form class="forge-input" data-forge-form>
+            <label for="forgeAnswer" class="forge-input__label" data-input-label>
+              Rant, ramble, complain, dream, or describe the thing you can't stop thinking about.
+            </label>
+            <textarea
+              id="forgeAnswer"
+              rows="7"
+              maxlength="2400"
+              placeholder="Example: I keep seeing skilled people stuck in draining jobs, but they have useful ideas and no clean way to test them."
+              data-forge-answer
+              required
+            ></textarea>
+            <div class="forge-input__actions">
+              <button class="cta primary" type="submit" data-submit-answer>Start forging</button>
+              <button class="cta ghost" type="button" data-reset-forge>Reset</button>
+            </div>
+            <p class="forge-status" data-forge-status role="status" aria-live="polite">
+              No login required. This v1 runs in your browser.
+            </p>
+          </form>
+        </div>
+
+        <aside class="forge-panel forge-brief" data-forge-panel="brief" hidden aria-labelledby="movementBriefTitle">
+          <div class="forge-panel__header">
+            <span class="eyebrow">Movement Brief</span>
+            <h2 id="movementBriefTitle">Readable output</h2>
+            <p>Good raw material becomes a testable project. Copy it, send it, or hand the build prompt to Codex.</p>
+          </div>
+
+          <div class="forge-brief__actions" aria-label="Movement Brief actions">
+            <button class="cta ghost" type="button" data-copy-brief>Copy Brief</button>
+            <button class="cta ghost" type="button" data-download-brief>Download Markdown</button>
+            <button class="cta ghost" type="button" data-reset-brief>Forge Another</button>
+          </div>
+
+          <div class="movement-brief-grid" data-brief-output></div>
+
+          <div class="forge-next-moves" aria-labelledby="nextMoveTitle">
+            <div>
+              <span class="eyebrow">Next move</span>
+              <h3 id="nextMoveTitle">Do not overbuild yet.</h3>
+            </div>
+            <div class="forge-next-moves__buttons">
+              <button type="button" data-next-move="testMessage">Make test message</button>
+              <button type="button" data-next-move="codexPrompt">Make Codex prompt</button>
+              <button type="button" data-next-move="landingCopy">Make landing page copy</button>
+              <button type="button" data-next-move="checklist">Make 7-day checklist</button>
+            </div>
+            <article class="next-output" data-next-output hidden>
+              <div class="next-output__header">
+                <h4 data-next-output-title>Next move</h4>
+                <button type="button" data-copy-next-output>Copy</button>
+              </div>
+              <pre data-next-output-body></pre>
+            </article>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <footer>
+      3DVR.Tech &copy; 2025 - Open Web for Everyone | <a href="../index.html">Back to Portal</a>
+    </footer>
+  </div>
+
+  <template id="messageTemplate">
+    <article class="forge-message">
+      <span class="forge-message__role"></span>
+      <p></p>
+    </article>
+  </template>
+
+  <template id="briefSectionTemplate">
+    <article class="brief-section">
+      <p class="brief-section__label"></p>
+      <div class="brief-section__body"></div>
+    </article>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
