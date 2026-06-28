@@ -35,7 +35,21 @@ body {
 }
 
 .forge-page .top-nav {
-  margin-bottom: 1.4rem;
+  margin-bottom: 1.1rem;
+}
+
+.forge-page .top-buttons {
+  width: fit-content;
+  max-width: min(100%, 620px);
+  margin-bottom: 0;
+  padding: 0.5rem;
+  border-radius: 1.25rem;
+}
+
+.forge-page .top-buttons a {
+  min-height: 2.45rem;
+  padding: 0.52rem 1.05rem;
+  font-size: 0.92rem;
 }
 
 .forge-workspace {
@@ -64,6 +78,10 @@ body[data-forge-stage="brief"] .forge-workspace {
   display: none;
 }
 
+.forge-page [hidden] {
+  display: none !important;
+}
+
 .forge-panel__header {
   display: grid;
   gap: 0.6rem;
@@ -73,7 +91,7 @@ body[data-forge-stage="brief"] .forge-workspace {
 .forge-panel__header h2 {
   margin: 0;
   font-size: clamp(1.7rem, 1.1rem + 2vw, 3rem);
-  line-height: 1;
+  line-height: 1.04;
 }
 
 .forge-panel__header p {
@@ -91,6 +109,38 @@ body[data-forge-stage="brief"] .forge-workspace {
 
 .forge-transcript:empty {
   display: none;
+}
+
+.forge-progress {
+  display: grid;
+  gap: 0.45rem;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.82rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.forge-progress[hidden] {
+  display: none;
+}
+
+.forge-progress__track {
+  display: block;
+  width: 100%;
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.forge-progress__track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--forge-hot), var(--forge-blue));
+  transition: width 0.25s ease;
 }
 
 .forge-message {
@@ -122,6 +172,71 @@ body[data-forge-stage="brief"] .forge-workspace {
   color: var(--forge-text);
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.forge-guidance {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(145deg, rgba(120, 53, 15, 0.2), rgba(8, 13, 23, 0.9)),
+    rgba(8, 13, 23, 0.86);
+}
+
+.forge-guidance[hidden] {
+  display: none;
+}
+
+.forge-guidance__header {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.forge-guidance h2,
+.forge-guidance h3,
+.forge-guidance p {
+  margin: 0;
+}
+
+.forge-guidance h2 {
+  font-size: clamp(1.25rem, 1rem + 0.7vw, 1.7rem);
+  line-height: 1.12;
+}
+
+.forge-guidance h3 {
+  color: var(--forge-hot);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.forge-guidance p,
+.forge-guidance li {
+  color: var(--forge-muted);
+  line-height: 1.52;
+}
+
+.forge-guidance__grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.forge-guidance__grid section {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.forge-guidance ul,
+.forge-guidance ol {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 1.15rem;
 }
 
 .forge-input {
@@ -157,6 +272,12 @@ body[data-forge-stage="brief"] .forge-workspace {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.forge-spark {
+  border-color: rgba(250, 204, 21, 0.34);
+  background: rgba(250, 204, 21, 0.11);
+  color: rgba(254, 249, 195, 0.96);
 }
 
 .forge-status {
@@ -327,6 +448,14 @@ body[data-forge-stage="brief"] .forge-workspace {
   .forge-workspace {
     align-items: start;
   }
+
+  .movement-brief-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .brief-section--wide {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 640px) {
@@ -335,15 +464,73 @@ body[data-forge-stage="brief"] .forge-workspace {
     padding-right: 1rem;
   }
 
+  .forge-page .top-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    max-width: 100%;
+    gap: 0.45rem;
+    padding: 0.45rem;
+    border-radius: 1rem;
+  }
+
+  .forge-page .top-buttons a {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.25rem;
+    padding: 0.48rem 0.34rem;
+    font-size: 0.78rem;
+    line-height: 1.12;
+    text-align: center;
+  }
+
   .forge-panel,
   .brief-section,
   .next-output {
     border-radius: 1rem;
   }
 
-  .forge-input__actions .cta,
-  .forge-brief__actions .cta,
+  .forge-input__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.6rem;
+  }
+
+  .forge-input__actions .cta {
+    width: auto;
+    min-width: 0;
+  }
+
+  .forge-input__actions .cta.ghost {
+    min-width: 6.4rem;
+  }
+
+  .forge-brief__actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .forge-brief__actions .cta {
+    width: auto;
+    min-width: 0;
+    padding: 0.54rem 0.36rem;
+    font-size: 0.74rem;
+    line-height: 1.12;
+  }
+
   .forge-offer__actions .cta {
     width: 100%;
+  }
+
+  .forge-next-moves__buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .forge-next-moves__buttons button {
+    min-width: 0;
+    padding: 0.62rem 0.5rem;
+    font-size: 0.82rem;
+    line-height: 1.18;
   }
 }
