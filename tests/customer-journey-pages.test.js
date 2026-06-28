@@ -77,6 +77,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Same account, same apps, deeper levels of control\./);
     assert.match(html, /<span class="app-card__title">3DVR Forge<\/span>/);
     assert.match(html, /Rant, reflect, and turn messy thoughts into a Movement Brief and 7-day test\./);
+    assert.match(html, /<span class="app-card__title">Forge Sprint<\/span>/);
+    assert.match(html, /Start paid sprint/);
     assert.match(html, /data-active-room=""/);
     assert.match(html, /data-view-mode-button="workshop"/);
     assert.doesNotMatch(html, /Suggested launcher lanes/);

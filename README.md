@@ -136,7 +136,7 @@ connector operations, and recommends the next best money action.
 
 The web dashboard stays secret-free and stores cockpit state in browser `localStorage`. Real runtime work happens through
 the CLI/server engine in `src/money-printer/`, which stores operator state in `.money-printer/`, writes reports and logs,
-and can use OpenAI, GitHub, Vercel, and Codex only when explicitly configured.
+and can use OpenAI, GitHub, Vercel, email, and Codex only when explicitly configured.
 
 Runtime modes:
 
@@ -151,7 +151,8 @@ Command protocol:
 
 - Green operations may be auto-approved only when config allows it.
 - Yellow operations require local approval in `.money-printer/operations.json`.
-- Red operations stay blocked. Email sending, money movement, DNS, production merge, and data deletion are not executed by this runtime.
+- Red operations stay blocked. Money movement, DNS, production merge, and data deletion are not executed by this runtime.
+- The auto-business runner is built for aggressive market and offer testing: research, publish, critique, and send eligible outbound from an explicit contact file. Sends require mail credentials, sender identity, opt-out details, suppression checks, and `AUTO_BUSINESS_OUTREACH_ENABLED=true`. Default mode is warm/opt-in; `AUTO_BUSINESS_OUTREACH_MODE=compliant-b2b` enables higher-risk US B2B outbound with required contact provenance.
 
 Core pieces:
 
@@ -160,6 +161,7 @@ Core pieces:
 - `money-printer-cli`: terminal runner that reads and writes `.money-printer/` files.
 - `money-printer-daemon`: one-cycle or scheduled operator loop for a DigitalOcean server.
 - `money-printer-supervisor`: DigitalOcean-safe scheduled wrapper that runs a cycle, writes health reports, dedupes plans, and executes only locally approved operations.
+- `money-printer-auto-business`: broader DigitalOcean loop for research, offer generation, self-critique, owner email reports, and capped compliant outreach.
 - `money-printer-model-provider`: OpenAI Responses API wrapper with structured JSON parsing and mock fallback.
 - `money-printer-operations`: local approval ledger plus guarded connector execution.
 - `money-printer-codex-runner`: prompt generation and opt-in Codex CLI execution.
@@ -181,6 +183,8 @@ npm run money-printer -- daemon --once
 npm run money-printer -- daemon --once --ai
 npm run money-printer:supervisor -- --ai
 npm run money-printer:supervisor -- --health-only
+npm run money-printer:auto-business -- --setup-check
+npm run money-printer:auto-business
 npm run money-printer -- operations
 npm run money-printer -- operations approve <operation-id>
 npm run money-printer -- operations execute <operation-id> --execute
@@ -200,11 +204,14 @@ npm run money-printer:daemon
 npm run money-printer:ai-status
 npm run money-printer:codex -- prompt --bot website-builder
 npm run money-printer:supervisor -- --ai
+npm run money-printer:auto-business -- --setup-check
+npm run money-printer:auto-business
 ```
 
 AI/provider setup example:
 
 ```bash
+# Reused from existing portal AI flows.
 OPENAI_API_KEY=
 MONEY_PRINTER_AI_MODE=openai
 MONEY_PRINTER_MODEL=gpt-4.1-mini
@@ -227,6 +234,35 @@ MONEY_PRINTER_ALLOW_VERCEL_WRITE=false
 MONEY_PRINTER_ALLOW_CODEX_EXEC=false
 MONEY_PRINTER_AUTO_APPROVE_GREEN=false
 MONEY_PRINTER_AUTO_APPROVE_MAX=3
+
+# Reused from Stripe/mail apps when present: STRIPE_LOG_EMAIL, GMAIL_USER, GMAIL_APP_PASSWORD.
+AUTO_BUSINESS_OWNER_EMAIL=
+AUTO_BUSINESS_EMAIL_REPORTS=true
+GMAIL_USER=
+GMAIL_APP_PASSWORD=
+
+# Offer CTA. MONEY_AUTOPILOT_CHECKOUT_URL can be omitted when STRIPE_CHECKOUT_URL is set.
+MONEY_AUTOPILOT_CHECKOUT_URL=
+STRIPE_CHECKOUT_URL=
+
+AUTO_BUSINESS_OUTREACH_ENABLED=true
+AUTO_BUSINESS_OUTREACH_MODE=compliant-b2b
+AUTO_BUSINESS_CONTACTS_FILE=~/.config/3dvr/outreach-contacts.csv
+AUTO_BUSINESS_SUPPRESSION_FILE=~/.config/3dvr/outreach-suppression.csv
+AUTO_BUSINESS_OUTREACH_DAILY_LIMIT=15
+AUTO_BUSINESS_OUTREACH_MAX_CAP=50
+AUTO_BUSINESS_PHYSICAL_ADDRESS=
+AUTO_BUSINESS_UNSUBSCRIBE_EMAIL=
+AUTO_BUSINESS_UNSUBSCRIBE_URL=
+
+META_PAGE_ID=
+META_PAGE_ACCESS_TOKEN=
+META_GRAPH_API_VERSION=v24.0
+AUTO_BUSINESS_FACEBOOK_QUEUE_ENABLED=true
+AUTO_BUSINESS_FACEBOOK_AUTO_APPROVE=true
+AUTO_BUSINESS_FACEBOOK_RUN_WORKER=true
+AUTO_BUSINESS_FACEBOOK_DRY_RUN=false
+AUTO_BUSINESS_FACEBOOK_LIMIT=1
 ```
 
 The CLI and supervisor automatically load `.env`, `.env.local`, and `~/.config/3dvr/money-printer.env` when present.
@@ -286,8 +322,8 @@ npm run money-printer:supervisor -- --health-only
 npm run money-printer:supervisor -- --ai
 ```
 
-Install the included systemd timer from `ops/systemd/` when the one-cycle report looks sane. Full runbook:
-`docs/digitalocean-money-printer-supervisor.md`.
+Install the included systemd timers from `ops/systemd/` when the one-cycle reports look sane. Full runbooks:
+`docs/digitalocean-money-printer-supervisor.md` and `docs/digitalocean-auto-business.md`.
 
 ### Run the money automation loop
 

@@ -178,7 +178,7 @@ function normalizeBrief(value) {
     tinyExperiment: clean(value?.tinyExperiment, 900) || 'In 7 days, make one clear promise and send it to 10 people.',
     firstActions: normalizeStringList(value?.firstActions, fallbackActions, { min: 3, max: 3 }),
     testMessage: clean(value?.testMessage, 1200) || 'I am testing a small project idea. Does this feel useful, too vague, or not your problem?',
-    codexPrompt: clean(value?.codexPrompt, 2600) || 'Build a minimal, mobile-first prototype for this project. Keep it focused and add a simple verification path.',
+    codexPrompt: clean(value?.codexPrompt, 2600) || 'Build the smallest mobile-first support artifact for this project. Start with the offer, outreach script, and reply tracking before product features.',
     realityCheck: normalizeStringList(value?.realityCheck, fallbackReality, { min: 3, max: 5 })
   };
 }
@@ -224,6 +224,11 @@ export function buildForgeInstructions(now = new Date()) {
     'Do not act like a therapist. Act like a practical blacksmith for projects.',
     'Use a direct, supportive, unsyrupy tone. Challenge vague claims.',
     'Prefer tiny tests over platform fantasies. Tell the user when they should send a message before building software.',
+    'If the user mentions needing money, low time, income, clients, bills, sales, or starting 3DVR, default to a revenue/offer validation test instead of a 3D scene or VR build.',
+    'Treat 3DVR as a business or project brand unless the user explicitly asks for a 3D, VR, Three.js, or game scene.',
+    'For revenue-pressure ideas, the tiny 7-day experiment should usually be one clear paid promise, one specific audience, 10 direct messages, and a simple reply tracker.',
+    'The Codex build prompt should create the smallest support artifact, such as a landing page, outreach script, checklist, or reply tracker. Avoid accounts, dashboards, metaverse concepts, and complex persistence unless the user specifically needs them.',
+    'If the user answers with placeholders such as test, unsure, or I do not know, say what is missing instead of inventing certainty.',
     'The target user is a frustrated working person with hidden skills who wants to build something useful but does not know where to begin.',
     'For followups mode, ask exactly three short adaptive questions. They should feel conversational, not like a form.',
     'For brief mode, produce a complete Movement Brief with concrete next steps, a test message, a Codex-ready build prompt, and a blunt reality check.',

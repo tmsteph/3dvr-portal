@@ -28,32 +28,11 @@
     </header>
 
     <main id="mainContent" class="landing-content">
-      <section class="forge-hero" aria-labelledby="forgeTitle">
-        <div class="forge-hero__copy">
-          <span class="hero-eyebrow">3DVR Forge</span>
-          <h1 id="forgeTitle">Turn your frustration into a project.</h1>
-          <p class="forge-hero__subheadline">
-            Rant, ramble, complain, dream, or describe the thing you can't stop thinking about.
-            3DVR Forge turns it into a Movement Brief, a tiny experiment, and your next actions.
-          </p>
-          <div class="forge-hero__actions">
-            <button class="cta primary" type="button" data-enter-forge>Enter the Forge</button>
-          </div>
-        </div>
-        <aside class="forge-principle" aria-label="Forge promise">
-          <p>Rant. Reflect. Forge a project.</p>
-          <span>In 15 minutes, turn a frustration into a project brief and a 7-day test plan.</span>
-        </aside>
-      </section>
-
       <section class="forge-workspace" aria-labelledby="forgeRoomTitle">
         <div class="forge-panel forge-conversation" data-forge-panel="conversation">
           <div class="forge-panel__header">
-            <span class="eyebrow">Forge Room</span>
-            <h2 id="forgeRoomTitle">What’s been bothering you lately?</h2>
-            <p>
-              Say the messy version first. The Forge will challenge vague parts and shape the raw material into a test.
-            </p>
+            <span class="eyebrow">3DVR Forge</span>
+            <h1 id="forgeRoomTitle">What’s been bothering you lately?</h1>
           </div>
 
           <div class="forge-transcript" data-transcript aria-live="polite"></div>
@@ -66,16 +45,17 @@
               id="forgeAnswer"
               rows="7"
               maxlength="2400"
-              placeholder="Example: I keep seeing skilled people stuck in draining jobs, but they have useful ideas and no clean way to test them."
+              placeholder="Rant, complain, dream, or describe the thing you can’t stop thinking about."
               data-forge-answer
+              autofocus
               required
             ></textarea>
             <div class="forge-input__actions">
-              <button class="cta primary" type="submit" data-submit-answer>Start forging</button>
+              <button class="cta primary" type="submit" data-submit-answer>Send to Forge</button>
               <button class="cta ghost" type="button" data-reset-forge>Reset</button>
             </div>
             <p class="forge-status" data-forge-status role="status" aria-live="polite">
-              No login required. This v1 runs in your browser.
+              Ready.
             </p>
           </form>
         </div>
@@ -83,8 +63,7 @@
         <aside class="forge-panel forge-brief" data-forge-panel="brief" hidden aria-labelledby="movementBriefTitle">
           <div class="forge-panel__header">
             <span class="eyebrow">Movement Brief</span>
-            <h2 id="movementBriefTitle">Readable output</h2>
-            <p>Good raw material becomes a testable project. Copy it, send it, or hand the build prompt to Codex.</p>
+            <h2 id="movementBriefTitle">Movement Brief</h2>
           </div>
 
           <div class="forge-brief__actions" aria-label="Movement Brief actions">
@@ -92,8 +71,27 @@
             <button class="cta ghost" type="button" data-download-brief>Download Markdown</button>
             <button class="cta ghost" type="button" data-reset-brief>Forge Another</button>
           </div>
+          <p class="forge-status" data-brief-status role="status" aria-live="polite">Movement Brief ready.</p>
 
           <div class="movement-brief-grid" data-brief-output></div>
+
+          <article class="forge-offer" aria-labelledby="forgeOfferTitle">
+            <div>
+              <span class="eyebrow">Sell this next</span>
+              <h3 id="forgeOfferTitle">Turn this brief into a paid launch sprint.</h3>
+              <p>Get direct help sharpening the offer, sending the first test messages, and building only what proves demand.</p>
+            </div>
+            <ul class="forge-offer__list">
+              <li>Offer and test message review</li>
+              <li>Landing page or build prompt pass</li>
+              <li>Reply tracker and 7-day follow-up</li>
+            </ul>
+            <div class="forge-offer__actions">
+              <a class="cta primary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dpro">Start $20 Founder</a>
+              <a class="cta ghost" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Go $50 Builder</a>
+              <a class="cta ghost" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dcustom">Custom deposit</a>
+            </div>
+          </article>
 
           <div class="forge-next-moves" aria-labelledby="nextMoveTitle">
             <div>

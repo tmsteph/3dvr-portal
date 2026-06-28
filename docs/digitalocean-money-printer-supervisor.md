@@ -4,6 +4,8 @@ Money Printer is not a fully autonomous company. It is a supervised operator loo
 
 The founder still owns judgment, customer trust, legal/compliance risk, money movement, production merges, and final approval.
 
+For the broader runner that combines supervisor, market research, offer generation, owner email reports, and capped warm outreach, see `docs/digitalocean-auto-business.md`.
+
 ## What It Can Do Today
 
 - Run a scheduled Money Printer daemon cycle.

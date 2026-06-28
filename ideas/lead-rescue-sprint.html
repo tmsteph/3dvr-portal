@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lead Rescue Sprint | 3DVR</title>
+  <meta
+    name="description"
+    content="A fast setup sprint for freelancers and small agencies who need a clearer offer page, lead capture, and follow-up system before more inquiries go cold."
+  >
+  <link rel="stylesheet" href="audience-leads.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="audience-leads.js" defer></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    :root {
+      --rescue-bg: #081014;
+      --rescue-panel: rgba(242, 248, 246, 0.08);
+      --rescue-border: rgba(121, 220, 198, 0.24);
+      --rescue-text: #f4fbf9;
+      --rescue-muted: #b8ccc7;
+      --rescue-green: #7ee7bf;
+      --rescue-yellow: #f5c466;
+      --rescue-red: #ff9f8a;
+    }
+
+    body {
+      background:
+        linear-gradient(135deg, rgba(126, 231, 191, 0.18), transparent 34%),
+        linear-gradient(230deg, rgba(245, 196, 102, 0.12), transparent 42%),
+        var(--rescue-bg);
+      color: var(--rescue-text);
+    }
+
+    .page {
+      max-width: 1160px;
+    }
+
+    .panel {
+      border-color: var(--rescue-border);
+      border-radius: 8px;
+      background: var(--rescue-panel);
+    }
+
+    .sprint-box,
+    .proof-box,
+    .copy-box {
+      border: 1px solid var(--rescue-border);
+      border-radius: 8px;
+      padding: 16px;
+      background: rgba(6, 16, 20, 0.76);
+    }
+
+    .sprint-box {
+      display: grid;
+      gap: 12px;
+      margin: 22px 0;
+    }
+
+    .sprint-box strong,
+    .proof-box strong,
+    .copy-box strong {
+      color: var(--rescue-green);
+    }
+
+    .price-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .price-line strong {
+      color: var(--rescue-yellow);
+      font-size: 1.35rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      border: 1px solid rgba(245, 196, 102, 0.34);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: #fff3ce;
+      background: rgba(245, 196, 102, 0.1);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .deliverables {
+      display: grid;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .deliverable {
+      border: 1px solid rgba(126, 231, 191, 0.2);
+      border-radius: 8px;
+      padding: 14px;
+      background: rgba(126, 231, 191, 0.07);
+    }
+
+    .deliverable strong {
+      display: block;
+      color: #d8fff2;
+    }
+
+    .deliverable span,
+    .proof-box p,
+    .copy-box p {
+      color: var(--rescue-muted);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .text-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      color: var(--rescue-green);
+      font-weight: 800;
+    }
+
+    .not-fit {
+      border: 1px solid rgba(255, 159, 138, 0.28);
+      border-radius: 8px;
+      margin-top: 18px;
+      padding: 14px;
+      color: #ffe1da;
+      background: rgba(255, 159, 138, 0.08);
+    }
+
+    .copy-box {
+      margin-top: 18px;
+      white-space: pre-wrap;
+    }
+
+    .form-panel {
+      border-color: rgba(245, 196, 102, 0.32);
+    }
+
+    @media (min-width: 900px) {
+      .layout {
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="top-nav" aria-label="Lead Rescue navigation">
+      <a href="/ideas/">Ideas Lab</a>
+      <a href="/sales/">Sales</a>
+      <a href="/index.html">Portal Home</a>
+    </nav>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="headline">
+        <p class="kicker">Freelancer and small-agency revenue sprint</p>
+        <h1 id="headline">Stop losing freelance leads after the first reply.</h1>
+        <p class="subhead">
+          3DVR Lead Rescue Sprint gives freelancers and small agencies one sharper offer page, one intake path, and
+          one follow-up system so interested buyers do not disappear in DMs, inboxes, and half-written notes.
+        </p>
+
+        <div class="sprint-box" aria-label="Sprint summary">
+          <strong>Built from today's auto-business signal.</strong>
+          <span>
+            The runner found the strongest immediate market around freelancers and small agencies with follow-up,
+            client onboarding, and small-business automation pain. This page turns that signal into a paid offer.
+          </span>
+        </div>
+
+        <div class="body-text">
+          <p>
+            The expensive problem is not that you need more software. It is that a real lead shows interest, then the
+            next step is vague, slow, or scattered. That costs projects.
+          </p>
+          <p>This sprint fixes the first money leak:</p>
+          <ul>
+            <li>A buyer sees a specific offer instead of a broad service menu.</li>
+            <li>They have one obvious intake path.</li>
+            <li>You get a follow-up sequence before the lead goes cold.</li>
+            <li>Your next 25 touches become a real market test.</li>
+          </ul>
+        </div>
+
+        <div class="price-line">
+          <strong>$300 setup sprint</strong>
+          <span class="pill">72-hour build</span>
+          <span class="pill">$50 Builder lane if ongoing</span>
+        </div>
+
+        <div class="deliverables" aria-label="Sprint deliverables">
+          <div class="deliverable">
+            <strong>Focused offer page</strong>
+            <span>Headline, problem, promise, proof, CTA, and first intake question for one buyer segment.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Simple lead capture</strong>
+            <span>A form or portal lane that stores the buyer, pain, budget hint, and next step.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Three follow-up messages</strong>
+            <span>Short messages for the first reply, the 24-hour nudge, and the final clear ask.</span>
+          </div>
+          <div class="deliverable">
+            <strong>25-touch decision rule</strong>
+            <span>What to keep, rewrite, or kill after the first real outreach batch.</span>
+          </div>
+        </div>
+
+        <div class="proof-box" aria-label="Market proof">
+          <strong>Why this should sell now</strong>
+          <p>
+            Freelancers and small agencies already pay with time, lost momentum, and missed projects when lead capture,
+            onboarding, and follow-up stay informal. The sprint is small enough to buy quickly and concrete enough to
+            judge within a week.
+          </p>
+        </div>
+
+        <div class="copy-box" aria-label="Facebook and outreach copy">
+          <strong>Use this as the first public market probe:</strong>
+          <p>Question for freelancers and small agencies:
+
+Where does follow-up break first after a buyer says they might be interested?
+
+I am testing a 72-hour setup that turns one service offer into a page, intake path, and follow-up sequence. Would that be useful, or is the real bottleneck somewhere else?</p>
+        </div>
+
+        <div class="button-row">
+          <a class="cta" href="#fit-check">Request free fit check</a>
+          <a class="text-link" href="/sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Start $50 Builder</a>
+          <a class="text-link" href="/sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dcustom">Custom sprint deposit</a>
+        </div>
+
+        <div class="not-fit">
+          Not a fit if you will not contact buyers, only want a prettier website, or need a full agency rebuild before
+          testing one paid ask.
+        </div>
+      </section>
+
+      <aside id="fit-check" class="panel form-panel" aria-label="Lead Rescue intake">
+        <h2>Send the stuck lead situation.</h2>
+        <p>
+          Share what you sell, who usually asks about it, and where the lead goes cold. If the pain is real, the next
+          step is a paid sprint or Builder lane.
+        </p>
+        <form
+          class="form-grid"
+          data-audience-form
+          data-audience-key="lead-rescue-sprint"
+          data-audience-label="Lead Rescue Sprint"
+          data-source-label="Auto-business · Lead Rescue Sprint"
+          data-question-label="What do you sell, who asks about it, and where does follow-up break?"
+        >
+          <label>
+            <span>Name</span>
+            <input name="name" type="text" autocomplete="name" required placeholder="Taylor Morgan">
+          </label>
+          <label>
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+          </label>
+          <label>
+            <span>Where does the lead go cold?</span>
+            <textarea
+              name="prompt"
+              placeholder="What you sell, who asks about it, what happens after first interest, and what follow-up you already tried."
+            ></textarea>
+          </label>
+          <button type="submit">Request free fit check</button>
+          <p class="status" data-form-status role="status" aria-live="polite"></p>
+        </form>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      Intake writes to the 3DVR Gun relay under <code>3dvr-audience-tests/v1/lead-rescue-sprint/signups</code>.
+    </footer>
+  </div>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

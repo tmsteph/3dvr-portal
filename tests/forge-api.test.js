@@ -70,6 +70,11 @@ test('buildForgeInstructions injects date and blacksmith tone rules', () => {
   assert.match(instructions, /Do not act like a therapist/i);
   assert.match(instructions, /practical blacksmith/i);
   assert.match(instructions, /Prefer tiny tests over platform fantasies/i);
+  assert.match(instructions, /revenue\/offer validation test/i);
+  assert.match(instructions, /Treat 3DVR as a business or project brand/i);
+  assert.match(instructions, /10 direct messages/i);
+  assert.match(instructions, /Avoid accounts, dashboards, metaverse concepts/i);
+  assert.match(instructions, /instead of inventing certainty/i);
   assert.match(instructions, /Movement Brief/i);
 });
 

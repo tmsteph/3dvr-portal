@@ -1,0 +1,12 @@
+[Unit]
+Description=Run 3DVR auto-business cycle 3 times per day
+
+[Timer]
+OnBootSec=7min
+OnCalendar=*-*-* 08,14,20:17:00
+AccuracySec=10min
+Persistent=true
+Unit=auto-business.service
+
+[Install]
+WantedBy=timers.target
