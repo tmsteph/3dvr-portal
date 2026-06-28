@@ -109,7 +109,7 @@ test('homepage app search can find Forge Sprint by paid offer keywords', async (
     html,
     /<a[\s\S]*?data-app-keywords="[^"]*\bpaid\b[^"]*\boffer\b[^"]*\brevenue\b[^"]*"[\s\S]*?<span class="app-card__title">Forge Sprint<\/span>/
   );
-  assert.match(html, /Start paid sprint/);
+  assert.match(html, /Start \$300 sprint/);
 });
 
 test('homepage app search can find the manifestation practice', async () => {
