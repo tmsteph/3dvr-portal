@@ -8,7 +8,10 @@ test('portal homepage links to the public 3dvr.tech vision page', async () => {
   assert.match(html, /href="https:\/\/3dvr\.tech\/vision\/"/);
   assert.match(html, /target="_blank"/);
   assert.match(html, /rel="noopener"/);
+  assert.match(html, /class="app-card app-card--vision"/);
+  assert.match(html, /<span class="app-card__badge">Future map<\/span>/);
   assert.match(html, /<span class="app-card__title">Vision<\/span>/);
-  assert.match(html, /open hardware and nomad ecosystem roadmap/);
+  assert.match(html, /Tour the 3dvr\.tech open hardware and nomad ecosystem roadmap/);
+  assert.match(html, /Explore the future kit/);
   assert.match(html, /data-app-keywords="vision roadmap open hardware backpack car laptop phone e-bike tent yurt nomad ecosystem"/);
 });

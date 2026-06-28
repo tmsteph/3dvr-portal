@@ -12,8 +12,17 @@ const FORGE_FOLLOWUPS_SCHEMA = {
   schema: {
     type: 'object',
     additionalProperties: false,
-    required: ['questions'],
+    required: ['diagnosis', 'solutionPaths', 'nextActions', 'questions'],
     properties: {
+      diagnosis: { type: 'string' },
+      solutionPaths: {
+        type: 'array',
+        items: { type: 'string' }
+      },
+      nextActions: {
+        type: 'array',
+        items: { type: 'string' }
+      },
       questions: {
         type: 'array',
         items: {
@@ -142,6 +151,25 @@ function normalizeFollowUps(value) {
   return normalized.slice(0, 3);
 }
 
+function normalizeFollowUpGuidance(value = {}) {
+  const fallbackSolutions = [
+    'Turn the frustration into one paid or useful promise for a specific person.',
+    'Test demand with direct messages before building a larger product.',
+    'Create the smallest support artifact: a page, checklist, script, or tracker.'
+  ];
+  const fallbackActions = [
+    'Write the plain-language problem in one sentence.',
+    'Pick one audience you can reach this week.',
+    'Send a low-pressure test message before building.'
+  ];
+
+  return {
+    diagnosis: clean(value?.diagnosis, 700) || 'Good raw material. The frustration has energy, but it needs a sharper audience and a smaller first test.',
+    solutionPaths: normalizeStringList(value?.solutionPaths, fallbackSolutions, { min: 2, max: 3 }),
+    nextActions: normalizeStringList(value?.nextActions, fallbackActions, { min: 2, max: 3 })
+  };
+}
+
 function normalizeStringList(value, fallback, { min = 3, max = 5 } = {}) {
   const source = Array.isArray(value) ? value : [];
   const normalized = source
@@ -230,7 +258,7 @@ export function buildForgeInstructions(now = new Date()) {
     'The Codex build prompt should create the smallest support artifact, such as a landing page, outreach script, checklist, or reply tracker. Avoid accounts, dashboards, metaverse concepts, and complex persistence unless the user specifically needs them.',
     'If the user answers with placeholders such as test, unsure, or I do not know, say what is missing instead of inventing certainty.',
     'The target user is a frustrated working person with hidden skills who wants to build something useful but does not know where to begin.',
-    'For followups mode, ask exactly three short adaptive questions. They should feel conversational, not like a form.',
+    'For followups mode, do not only ask questions. Give a concise diagnosis, two or three plausible solution paths, two or three concrete next actions, then ask exactly three short adaptive questions. If prior answers are present, update the diagnosis and solution paths from those answers, then ask only for the missing sharp details. The questions should sharpen a choice, not restart the conversation.',
     'For brief mode, produce a complete Movement Brief with concrete next steps, a test message, a Codex-ready build prompt, and a blunt reality check.',
     'Do not include markdown fences. Return only the JSON object requested by the schema.'
   ].join(' ');
@@ -363,6 +391,7 @@ export function createForgeHandler(options = {}) {
       if (mode === 'followups') {
         return res.status(200).json({
           mode,
+          guidance: normalizeFollowUpGuidance(parsed),
           questions: normalizeFollowUps(parsed.questions),
           model: effectiveModel,
           createdAt: currentDate.getTime()

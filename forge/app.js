@@ -83,6 +83,7 @@ const refs = {
 let session = {
   stage: stage.INITIAL,
   initial: '',
+  guidance: null,
   followUps: defaultFollowUps,
   followUpIndex: 0,
   answers: {},
@@ -318,6 +319,59 @@ function guessProjectShape(answers, initial = '') {
   return 'small useful offer';
 }
 
+function buildLocalForgeGuidance(initial = '') {
+  const raw = clean(initial);
+  const lower = raw.toLowerCase();
+  const moneyPressure = /\b(money|income|cash|revenue|paid|client|clients|bills?|rent|sales?|no time|busy)\b/.test(lower);
+  const jobPressure = /\b(job|work|resume|interview|hiring|career|boss|shift|laid off|unemployed)\b/.test(lower);
+
+  if (moneyPressure) {
+    return {
+      diagnosis: 'This is cash pressure, not a giant product problem yet. The first move is to find a small paid promise that can be tested with real people this week.',
+      solutionPaths: [
+        'Package one narrow service as a paid sprint, such as setup, cleanup, onboarding, follow-up, or troubleshooting.',
+        'Use your existing network before building: send a short offer message to 10 people who might know the pain.',
+        'Reduce pressure while testing by finding one bill, subscription, or commitment to negotiate or pause.'
+      ],
+      nextActions: [
+        'Write one sentence that starts with: I help [specific person] get [specific outcome] in [short time].',
+        'Name 10 people or businesses you can contact without needing a new audience.',
+        'Do not build software until at least one person replies with a real problem, budget, or referral.'
+      ]
+    };
+  }
+
+  if (jobPressure) {
+    return {
+      diagnosis: 'This sounds like work pressure and underused skill. The first solution is not inspiration; it is a sharper job, freelance, or project signal.',
+      solutionPaths: [
+        'Turn the frustration into a skill proof: one short portfolio artifact, teardown, checklist, or case study.',
+        'Build a better-work search lane with target roles, warm contacts, and follow-up messages.',
+        'Test a freelance version of the skill before waiting for a perfect job opening.'
+      ],
+      nextActions: [
+        'List the three skills you want someone to pay or hire you for.',
+        'Find five roles, crews, clients, or businesses where those skills matter.',
+        'Send one direct message that asks for a conversation, not a job.'
+      ]
+    };
+  }
+
+  return {
+    diagnosis: 'Good raw material. The emotional force is real, but the audience and first useful version are still too wide.',
+    solutionPaths: [
+      'Turn it into a service if someone needs human help now.',
+      'Turn it into a tool if the same repeated task keeps showing up.',
+      'Turn it into content or a community if people mainly need language, examples, and momentum.'
+    ],
+    nextActions: [
+      'Name the exact person this helps first.',
+      'Write the smallest promise that would be useful in seven days.',
+      'Send the promise to real people before adding features.'
+    ]
+  };
+}
+
 function buildMockMovementBrief(currentSession) {
   const initial = clean(currentSession.initial);
   const answers = currentSession.answers;
@@ -377,6 +431,29 @@ function buildMockMovementBrief(currentSession) {
   };
 }
 
+function normalizeGuidanceList(value, fallback, limit = 3) {
+  const list = Array.isArray(value) ? value : [];
+  const normalized = list.map(clean).filter(Boolean).slice(0, limit);
+
+  fallback.forEach((item) => {
+    if (normalized.length < Math.min(2, limit)) {
+      normalized.push(item);
+    }
+  });
+
+  return normalized.slice(0, limit);
+}
+
+function normalizeForgeGuidanceResponse(value, initial = session.initial) {
+  const fallback = buildLocalForgeGuidance(initial);
+
+  return {
+    diagnosis: clean(value?.diagnosis) || fallback.diagnosis,
+    solutionPaths: normalizeGuidanceList(value?.solutionPaths, fallback.solutionPaths, 3),
+    nextActions: normalizeGuidanceList(value?.nextActions, fallback.nextActions, 3),
+  };
+}
+
 function normalizeFollowUpsResponse(value) {
   const list = Array.isArray(value) ? value : [];
   const normalized = list
@@ -397,6 +474,26 @@ function normalizeFollowUpsResponse(value) {
   });
 
   return normalized.slice(0, 3);
+}
+
+function mergeFollowUpsResponse(value, lockedCount = 0) {
+  const incoming = normalizeFollowUpsResponse(value);
+  const locked = session.followUps.slice(0, lockedCount);
+  const merged = [...locked];
+
+  const add = (item) => {
+    if (!item?.question || !item?.key) return;
+    if (session.answers[item.key]) return;
+    if (merged.some((existing) => existing.key === item.key)) return;
+    merged.push(item);
+  };
+
+  incoming.forEach(add);
+  session.followUps.slice(lockedCount).forEach(add);
+  defaultFollowUps.forEach(add);
+  Object.values(followUpPool).forEach(add);
+
+  return merged.slice(0, 3);
 }
 
 function normalizeStringList(value, fallback, limit) {
@@ -476,13 +573,20 @@ function normalizeSessionSnapshot(value = {}, updatedAt = '') {
   const answers = value.answers && typeof value.answers === 'object' && !Array.isArray(value.answers)
     ? Object.fromEntries(Object.entries(value.answers).map(([key, answer]) => [clean(key), clean(answer)]).filter(([key]) => key))
     : {};
+  const initial = clean(value.initial);
+  const guidance = value.guidance && typeof value.guidance === 'object' && !Array.isArray(value.guidance)
+    ? normalizeForgeGuidanceResponse(value.guidance, initial)
+    : initial
+      ? buildLocalForgeGuidance(initial)
+      : null;
   const brief = value.brief && typeof value.brief === 'object' && !Array.isArray(value.brief)
     ? normalizeBriefResponse(value.brief)
     : null;
 
   return {
     stage: normalizeStage(parsedStage),
-    initial: clean(value.initial),
+    initial,
+    guidance,
     followUps,
     followUpIndex: Number.isInteger(value.followUpIndex)
       ? Math.max(0, Math.min(value.followUpIndex, followUps.length))
@@ -642,6 +746,20 @@ function addMessage(role, text) {
   refs.transcript.appendChild(node);
 }
 
+function formatGuidanceMessage(guidance) {
+  if (!guidance) return '';
+
+  return [
+    `What I see: ${guidance.diagnosis}`,
+    '',
+    'Possible solution paths:',
+    ...guidance.solutionPaths.map((item) => `- ${item}`),
+    '',
+    'Do next:',
+    ...guidance.nextActions.map((item) => `- ${item}`),
+  ].join('\n');
+}
+
 function renderTranscript() {
   refs.transcript.replaceChildren();
 
@@ -658,6 +776,11 @@ function renderTranscript() {
       addMessage('You', session.answers[followUp.key]);
     }
   });
+
+  const guidanceMessage = formatGuidanceMessage(session.guidance);
+  if (guidanceMessage) {
+    addMessage('Forge', guidanceMessage);
+  }
 
   if (session.stage === stage.GENERATING) {
     addMessage('Forge', 'Good raw material. Too vague right now. Let’s sharpen it into a test.');
@@ -828,19 +951,45 @@ function render() {
 
 async function prepareFollowUps(initial) {
   isBusy = true;
-  setNotice('Sharpening three questions...');
+  setNotice('Reading for solution paths and the next sharp question...');
   render();
 
   try {
     const result = await requestForge('followups', { initial });
+    session.guidance = normalizeForgeGuidanceResponse(result?.guidance, initial);
     session.followUps = normalizeFollowUpsResponse(result?.questions);
-    setNotice('Answer three questions.');
+    setNotice('Forge suggested first solution paths. Answer one question to sharpen the brief.');
   } catch (error) {
+    session.guidance = buildLocalForgeGuidance(initial);
     session.followUps = chooseFollowUps(initial);
-    setNotice(`Local questions loaded. ${error.message || ''}`.trim());
+    setNotice(`Local solution paths loaded. ${error.message || ''}`.trim());
   } finally {
     isBusy = false;
     session.stage = stage.FOLLOWUPS;
+    saveSession();
+    render();
+    window.requestAnimationFrame(() => refs.answer.focus());
+  }
+}
+
+async function refineForgeTurn() {
+  isBusy = true;
+  setNotice('Updating solution paths from your answer...');
+  render();
+
+  try {
+    const result = await requestForge('followups', {
+      initial: session.initial,
+      followUps: session.followUps,
+      answers: session.answers,
+    });
+    session.guidance = normalizeForgeGuidanceResponse(result?.guidance, session.initial);
+    session.followUps = mergeFollowUpsResponse(result?.questions, session.followUpIndex);
+    setNotice('Forge updated the solution paths. Answer the next sharp question.');
+  } catch (error) {
+    setNotice(`Kept the current solution path. ${error.message || ''}`.trim());
+  } finally {
+    isBusy = false;
     saveSession();
     render();
     window.requestAnimationFrame(() => refs.answer.focus());
@@ -887,6 +1036,7 @@ async function handleSubmit(event) {
 
   if (session.stage === stage.INTRO || session.stage === stage.INITIAL) {
     session.initial = value;
+    session.guidance = buildLocalForgeGuidance(value);
     session.followUps = chooseFollowUps(value);
     session.followUpIndex = 0;
     session.stage = stage.FOLLOWUPS;
@@ -908,7 +1058,7 @@ async function handleSubmit(event) {
 
   session.followUpIndex += 1;
   saveSession();
-  render();
+  await refineForgeTurn();
 }
 
 async function writeText(text, successMessage) {
