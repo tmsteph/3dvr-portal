@@ -451,6 +451,19 @@ function updatePlanQuery(plan = '') {
   window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`)
 }
 
+function readBillingQuery() {
+  return new URLSearchParams(window.location.search)
+}
+
+function billingQueryValue(...keys) {
+  const params = readBillingQuery()
+  for (const key of keys) {
+    const value = String(params.get(key) || '').trim()
+    if (value) return value
+  }
+  return ''
+}
+
 function billingCenterHref(plan = '') {
   const nextUrl = new URL(window.location.href)
   const selectedPlan = plan || state.selectedPlan || selectedPlanFromUrl()
@@ -472,7 +485,7 @@ function refreshSignInLink(plan = '') {
 }
 
 function selectedPlanFromUrl() {
-  const params = new URLSearchParams(window.location.search)
+  const params = readBillingQuery()
   return normalizePlanKey(params.get('plan'))
 }
 
@@ -499,6 +512,26 @@ function configHintForPlan(plan = '') {
   if (plan === 'builder') return 'STRIPE_PRICE_BUILDER_ID or STRIPE_PRICE_STUDIO_ID'
   if (plan === 'embedded') return 'STRIPE_PRICE_EMBEDDED_ID or STRIPE_PRICE_EXECUTION_ID'
   return 'the matching Stripe price env var'
+}
+
+function prefillCustomCheckoutFromUrl() {
+  if (selectedPlanFromUrl() !== 'custom') {
+    return
+  }
+
+  const amount = billingQueryValue('amount', 'customAmount')
+  const label = billingQueryValue('label', 'customLabel')
+  const description = billingQueryValue('description', 'customDescription')
+
+  if (amount && customAmountInput && !customAmountInput.value) {
+    customAmountInput.value = amount.replace(/[^0-9.]/g, '')
+  }
+  if (label && customLabelInput && !customLabelInput.value) {
+    customLabelInput.value = label.slice(0, 80)
+  }
+  if (description && customDescriptionInput && !customDescriptionInput.value) {
+    customDescriptionInput.value = description.slice(0, 600)
+  }
 }
 
 function highlightPlan(plan = '', options = {}) {
@@ -1588,6 +1621,7 @@ function bindEvents() {
     }
 
     highlightPlan('custom', { updateUrl: true })
+    prefillCustomCheckoutFromUrl()
 
     if (!requireSignedInForPaidFlow({ plan: 'custom', redirectOnFailure: true })) {
       return
@@ -1661,6 +1695,7 @@ async function init() {
 
   handleFlashFromQuery()
   highlightPlan(selectedPlanFromUrl())
+  prefillCustomCheckoutFromUrl()
   bindEvents()
   renderAccountSummary()
 

@@ -385,6 +385,18 @@
               <span class="app-toggle__switch" aria-hidden="true"></span>
             </label>
           </div>
+          <div class="app-lane-filter" aria-label="Filter app dock by lane">
+            <button type="button" data-app-lane-filter="all" data-active="true" aria-pressed="true">All</button>
+            <button type="button" data-app-lane-filter="money" aria-pressed="false">Money</button>
+            <button type="button" data-app-lane-filter="work" aria-pressed="false">Work</button>
+            <button type="button" data-app-lane-filter="projects" aria-pressed="false">Projects</button>
+            <button type="button" data-app-lane-filter="life" aria-pressed="false">Life</button>
+            <button type="button" data-app-lane-filter="ideas" aria-pressed="false">Ideas</button>
+            <button type="button" data-app-lane-filter="learning" aria-pressed="false">Learn</button>
+            <button type="button" data-app-lane-filter="community" aria-pressed="false">Community</button>
+            <button type="button" data-app-lane-filter="play" aria-pressed="false">Games</button>
+            <button type="button" data-app-lane-filter="experimental" aria-pressed="false">Experimental</button>
+          </div>
         </div>
         <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
         <div class="app-grid" data-app-list>
@@ -412,6 +424,16 @@
             <span class="app-card__icon" aria-hidden="true">$300</span>
             <span class="app-card__title">Lead Rescue Sprint</span>
             <span class="app-card__meta">A 72-hour paid setup for freelancers and small agencies losing interested buyers after the first reply.</span>
+            <span class="app-card__cta">Open paid offer</span>
+          </a>
+          <a
+            href="ideas/client-onboarding-sprint.html"
+            class="app-card"
+            data-app-keywords="client onboarding sprint freelancers small agencies checklist follow up paid offer crm intake sales revenue"
+          >
+            <span class="app-card__icon" aria-hidden="true">$300</span>
+            <span class="app-card__title">Client Onboarding Sprint</span>
+            <span class="app-card__meta">A 72-hour paid setup that turns a yes into intake, checklist, and first-week follow-up.</span>
             <span class="app-card__cta">Open paid offer</span>
           </a>
           <a href="start/" class="app-card">
@@ -1196,14 +1218,14 @@
       const authModal = document.getElementById('auth-modal');
 
       if (!signedIn && !guest) {
-        authModal.style.display = 'flex';
-        authModal.setAttribute('aria-hidden', 'false');
-      } else {
-        authModal.style.display = 'none';
-        authModal.setAttribute('aria-hidden', 'true');
+        ensureGuestId();
+        localStorage.setItem('guest', 'true');
       }
 
-      if (guest) {
+      authModal.style.display = 'none';
+      authModal.setAttribute('aria-hidden', 'true');
+
+      if (guest || localStorage.getItem('guest') === 'true') {
         ensureGuestId();
       }
     });
@@ -1483,6 +1505,9 @@
     const experimentalToggle = document.querySelector(
       '[data-experimental-toggle]'
     );
+    const laneFilterButtons = Array.from(
+      document.querySelectorAll('[data-app-lane-filter]')
+    );
     const appHub = document.querySelector('.app-hub');
     const appGrid = document.querySelector('[data-app-list]');
     let appCards = appGrid
@@ -1502,6 +1527,7 @@
     const roomReveal = document.querySelector('[data-room-reveal]');
     const roomTitle = document.querySelector('[data-room-title]');
     const roomSubtitle = document.querySelector('[data-room-subtitle]');
+    let activeAppLane = 'all';
     const roomMeta = {
       purpose: {
         title: '🧭 My Purpose',
@@ -1540,6 +1566,17 @@
         subtitle: 'Games, spatial prototypes, physics experiments, and 3D engine rooms.',
       },
     };
+    const roomSearchTerms = {
+      purpose: 'purpose direction values meaning manifestation vision start here',
+      life: 'life habits health wellness body rhythm posture nervous system reset',
+      ideas: 'ideas notes scratchpad memory capture writing brainstorm',
+      projects: 'projects launch build website app builder execution forge',
+      work: 'work clients crm sales contacts calendar leads follow up jobs',
+      learning: 'learning education docs open source ai lab knowledge',
+      community: 'community chat video collaborators members peer support',
+      money: 'money finance billing revenue cashflow offers rewards income',
+      play: 'games play 3d spatial physics xr arcade engine',
+    };
     const humanRoomTitles = {
       purpose: [
         'Purpose',
@@ -1574,6 +1611,7 @@
         '3DVR Forge',
         'Forge Sprint',
         'Lead Rescue Sprint',
+        'Client Onboarding Sprint',
         'Projects',
         'Launch Room',
         'Launch Site',
@@ -1587,6 +1625,7 @@
       work: [
         'Revenue Desk',
         'Lead Rescue Sprint',
+        'Client Onboarding Sprint',
         'Growth Operator',
         'CRM',
         'Sales',
@@ -1627,6 +1666,7 @@
         'Billing',
         'Forge Sprint',
         'Lead Rescue Sprint',
+        'Client Onboarding Sprint',
         'Money AI',
         'money-printer',
         'Offer Audit',
@@ -1683,6 +1723,21 @@
         if (rooms && rooms.length > 0) {
           card.dataset.humanRooms = rooms.join(' ');
         }
+        const roomSearchText = (rooms || [])
+          .map((room) => `${room} ${roomMeta[room]?.title || ''} ${roomSearchTerms[room] || ''}`)
+          .join(' ');
+        const searchableParts = [
+          title,
+          card.querySelector('.app-card__meta')?.textContent?.trim(),
+          card.dataset.appKeywords,
+          card.dataset.appTier,
+          card.getAttribute('href')?.replace(/[/.#?=&_-]+/g, ' '),
+          roomSearchText,
+        ];
+        card.dataset.appSearchText = searchableParts
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
       });
     }
     const prefersReducedMotionQuery =
@@ -1696,6 +1751,14 @@
     const shouldShowExperimental = () => Boolean(experimentalToggle?.checked);
     const getViewMode = () => document.body.dataset.viewMode || 'human-os';
     const getActiveRoom = () => document.body.dataset.activeRoom || '';
+    const setActiveAppLane = (lane = 'all') => {
+      activeAppLane = lane || 'all';
+      laneFilterButtons.forEach((button) => {
+        const active = button.dataset.appLaneFilter === activeAppLane;
+        button.dataset.active = active ? 'true' : 'false';
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    };
     const isHumanRoomCard = (card) => {
       const activeRoom = getActiveRoom();
       if (!activeRoom) return false;
@@ -1703,6 +1766,9 @@
     };
     const shouldHideCardForState = (card) => {
       if (getViewMode() === 'workshop') {
+        if (activeAppLane === 'experimental') {
+          return !isExperimental(card);
+        }
         return isExperimental(card) && !shouldShowExperimental();
       }
 
@@ -1712,6 +1778,17 @@
       }
 
       return !isHumanRoomCard(card);
+    };
+    const shouldHideCardForLane = (card) => {
+      if (getViewMode() !== 'workshop') {
+        return false;
+      }
+      if (activeAppLane === 'all' || activeAppLane === 'experimental') {
+        return false;
+      }
+      return !(card.dataset.humanRooms || '')
+        .split(/\s+/)
+        .includes(activeAppLane);
     };
     const syncRoomReveal = () => {
       const activeRoom = getActiveRoom();
@@ -1736,6 +1813,9 @@
       const mode = nextMode === 'workshop' ? 'workshop' : 'human-os';
       document.body.dataset.viewMode = mode;
       document.body.dataset.activeRoom = mode === 'human-os' ? nextRoom : '';
+      if (mode === 'human-os' && activeAppLane !== 'all') {
+        setActiveAppLane('all');
+      }
       viewModeButtons.forEach((button) => {
         const active = button.dataset.viewModeButton === mode;
         button.dataset.active = active ? 'true' : 'false';
@@ -1753,8 +1833,9 @@
       if (!query) {
         appCards.forEach((card) => {
           const hideForState = shouldHideCardForState(card);
-          card.hidden = hideForState;
-          if (!hideForState) {
+          const hideForLane = shouldHideCardForLane(card);
+          card.hidden = hideForState || hideForLane;
+          if (!card.hidden) {
             if (appGrid) {
               appGrid.appendChild(card);
             }
@@ -1779,18 +1860,22 @@
           .querySelector('.app-card__meta')
           ?.textContent?.toLowerCase() ?? '';
         const keywordText = card.dataset.appKeywords?.toLowerCase() ?? '';
+        const searchText = card.dataset.appSearchText?.toLowerCase() ?? '';
         const titleIncludesQuery = titleText.includes(query);
         const metaIncludesQuery = metaText.includes(query);
         const keywordIncludesQuery = keywordText.includes(query);
-        const matches = titleIncludesQuery || metaIncludesQuery || keywordIncludesQuery;
+        const searchTextIncludesQuery = searchText.includes(query);
+        const matches =
+          titleIncludesQuery || metaIncludesQuery || keywordIncludesQuery || searchTextIncludesQuery;
         const hideForState = shouldHideCardForState(card);
+        const hideForLane = shouldHideCardForLane(card);
 
-        card.hidden = !matches || hideForState;
-        if (matches && !hideForState) {
+        card.hidden = !matches || hideForState || hideForLane;
+        if (matches && !hideForState && !hideForLane) {
           visibleCount += 1;
           if (titleIncludesQuery) {
             nameMatches.push(card);
-          } else if (metaIncludesQuery || keywordIncludesQuery) {
+          } else if (metaIncludesQuery || keywordIncludesQuery || searchTextIncludesQuery) {
             descriptionMatches.push(card);
           }
         }
@@ -2015,6 +2100,17 @@
       });
     }
 
+    laneFilterButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        setViewMode('workshop');
+        setActiveAppLane(button.dataset.appLaneFilter || 'all');
+        updateAppFilter(searchInput?.value ?? '');
+        window.requestAnimationFrame(() => {
+          scrollAppsIntoView({ alignSearch: true });
+        });
+      });
+    });
+
     viewModeButtons.forEach((button) => {
       button.addEventListener('click', () => {
         setViewMode(button.dataset.viewModeButton);
@@ -2081,6 +2177,7 @@
 
     const initialSearchValue = searchInput?.value ?? '';
     setViewMode('workshop');
+    setActiveAppLane('all');
     updateAppFilter(initialSearchValue);
   </script>
   <script defer src="/issue-launcher.js"></script>

@@ -1,6 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+
+const rootDir = new URL('../', import.meta.url);
+
+function appCardHrefs(html) {
+  return Array.from(html.matchAll(/<a\s+([\s\S]*?class="app-card"[\s\S]*?)>/g))
+    .map((match) => match[1].match(/href="([^"]+)"/)?.[1])
+    .filter(Boolean);
+}
+
+async function routeExists(href) {
+  if (/^(https?:|mailto:|#)/.test(href)) return true;
+
+  const clean = href.split(/[?#]/)[0];
+  const rel = clean.startsWith('/') ? clean.slice(1) : clean;
+  const candidates = [
+    rel,
+    rel.endsWith('/') ? `${rel}index.html` : `${rel}.html`,
+    rel.endsWith('/') ? rel : `${rel}/index.html`,
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await access(new URL(candidate, rootDir), constants.F_OK);
+      return true;
+    } catch {
+      // Try the next route shape.
+    }
+  }
+
+  return false;
+}
 
 test('homepage search shortcuts stay scoped to one top-level control per viewport', async () => {
   const [navbarJs, indexCss] = await Promise.all([
@@ -30,6 +62,33 @@ test('homepage app search can find CRM by CRM keywords', async () => {
   assert.match(html, /<span class="app-card__title">CRM<\/span>/);
   assert.match(html, /card\.dataset\.appKeywords/);
   assert.match(html, /keywordIncludesQuery/);
+});
+
+test('homepage app dock has lane filters and generated search context', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /class="app-lane-filter"/);
+  assert.match(html, /data-app-lane-filter="money"/);
+  assert.match(html, /data-app-lane-filter="work"/);
+  assert.match(html, /data-app-lane-filter="projects"/);
+  assert.match(html, /data-app-lane-filter="experimental"/);
+  assert.match(html, /const roomSearchTerms =/);
+  assert.match(html, /card\.dataset\.appSearchText = searchableParts/);
+  assert.match(html, /const shouldHideCardForLane =/);
+  assert.match(html, /searchTextIncludesQuery/);
+});
+
+test('homepage app dock does not ship dead local app routes', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const missing = [];
+
+  for (const href of appCardHrefs(html)) {
+    if (!(await routeExists(href))) {
+      missing.push(href);
+    }
+  }
+
+  assert.deepEqual(missing, []);
 });
 
 test('homepage app search can find Forge by project-shaping keywords', async () => {
