@@ -121,6 +121,7 @@ body[data-forge-stage="brief"] .forge-workspace {
   margin: 0;
   color: var(--forge-text);
   line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .forge-input {

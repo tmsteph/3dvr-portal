@@ -91,6 +91,16 @@ test('buildForgeOpenAiRequest creates a structured follow-up request', () => {
   assert.equal(request.temperature, 0.45);
   assert.equal(request.text.format.type, 'json_schema');
   assert.equal(request.text.format.name, 'forge_followups_response');
+  assert.deepEqual(request.text.format.schema.required, [
+    'diagnosis',
+    'solutionPaths',
+    'nextActions',
+    'questions'
+  ]);
+  assert.match(request.instructions, /do not only ask questions/i);
+  assert.match(request.instructions, /solution paths/i);
+  assert.match(request.instructions, /concrete next actions/i);
+  assert.match(request.instructions, /If prior answers are present/i);
   assert.match(request.input, /buried stagehand skills/);
 });
 
@@ -123,7 +133,7 @@ test('supported Forge models mirror the builder model options', () => {
   ]);
 });
 
-test('Forge handler returns adaptive follow-up questions from OpenAI', async () => {
+test('Forge handler returns solution guidance and adaptive follow-up questions from OpenAI', async () => {
   let requestUrl = '';
   let requestBody = null;
   const handler = createForgeHandler({
@@ -133,6 +143,15 @@ test('Forge handler returns adaptive follow-up questions from OpenAI', async () 
       requestUrl = String(url);
       requestBody = JSON.parse(options.body || '{}');
       return createOpenAiResponse(createOutputText({
+        diagnosis: 'The useful-builder pain is real, but the first audience is still too broad.',
+        solutionPaths: [
+          'Start with underused stagehands who already have project ideas.',
+          'Offer a one-session project-shaping sprint before building software.'
+        ],
+        nextActions: [
+          'Name 10 underused builders.',
+          'Send a direct test message.'
+        ],
         questions: [
           { key: 'audience', question: 'Who else feels this same pressure?' },
           { key: 'stakes', question: 'What gets worse if nobody solves it?' },
@@ -157,6 +176,9 @@ test('Forge handler returns adaptive follow-up questions from OpenAI', async () 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.mode, 'followups');
   assert.equal(res.body.model, DEFAULT_FORGE_MODEL);
+  assert.match(res.body.guidance.diagnosis, /first audience is still too broad/);
+  assert.equal(res.body.guidance.solutionPaths.length, 2);
+  assert.equal(res.body.guidance.nextActions.length, 2);
   assert.equal(res.body.questions.length, 3);
   assert.equal(res.body.questions[1].key, 'stakes');
 });
@@ -257,6 +279,15 @@ test('OpenAI site route dispatches Forge requests without adding another API fun
     fetchImpl: async (_url, options = {}) => {
       requestBody = JSON.parse(options.body || '{}');
       return createOpenAiResponse(createOutputText({
+        diagnosis: 'The user has project energy, but needs a smaller first proof.',
+        solutionPaths: [
+          'Run a one-page offer test.',
+          'Send a direct message to a narrow audience.'
+        ],
+        nextActions: [
+          'Name the buyer.',
+          'Write the promise.'
+        ],
         questions: [
           { key: 'audience', question: 'Who feels it?' },
           { key: 'signal', question: 'What signal matters?' },
@@ -281,5 +312,6 @@ test('OpenAI site route dispatches Forge requests without adding another API fun
   assert.equal(requestBody.text.format.name, 'forge_followups_response');
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.mode, 'followups');
+  assert.match(res.body.guidance.diagnosis, /smaller first proof/);
   assert.equal(res.body.questions.length, 3);
 });
