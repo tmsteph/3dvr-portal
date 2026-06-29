@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.51 (Week of June 22, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.50.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.51</h1>
+  <div class="tag">Week of June 22, 2026</div>
+  <div class="release-summary">
+    <p>
+      This release catches the portal up from the post-v0.0.50 PR stream: mobile reliability, CRM install polish,
+      the Human O.S. / Workshop switch, Forge becoming a real product route, and the first paid sprint revenue paths.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Portal shell and mobile stability:</strong>
+        the homepage overflow fix from <a href="https://github.com/tmsteph/3dvr-portal/pull/843">PR #843</a>,
+        smaller desktop hero buttons from <a href="https://github.com/tmsteph/3dvr-portal/pull/877">PR #877</a>,
+        the <a href="../games.html">Games</a> hero feature from
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/848">PR #848</a>, and
+        <a href="../crm/">CRM</a> PWA/install improvements from
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/823">PR #823</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/847">PR #847</a> made the portal easier to open and trust.
+      </li>
+      <li>
+        <strong>Human O.S., rooms, and launch flow:</strong>
+        <a href="../purpose-movement/">Purpose Movement</a>, <a href="../launch-room/">Launch Room</a>,
+        <a href="../manifest/">Reality Builder</a>, <a href="../fractal-explorer/">Fractal Explorer</a>,
+        <a href="../orbital-courier/">Orbital Courier</a>, and <a href="../pocket-window/">Pocket Window</a>
+        expanded the room system while the <a href="../index.html">portal</a> gained the Human O.S. filter in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/878">PR #878</a> and defaulted back to Workshop in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/882">PR #882</a>.
+      </li>
+      <li>
+        <strong>Connect, fascia, and 3DVR Girl:</strong>
+        <a href="../3dvr-connect/">3DVR Connect</a> and <a href="../fascia-release/">Fascia Release</a> shipped and
+        tightened across <a href="https://github.com/tmsteph/3dvr-portal/pull/746">PR #746</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/756">PR #756</a>, while
+        <a href="../3dvr-girl/">3DVR Girl</a> gained guide selection, portal-section polish, and rescued gallery assets
+        in <a href="https://github.com/tmsteph/3dvr-portal/pull/787">PR #787</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/788">PR #788</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/898">PR #898</a>.
+      </li>
+      <li>
+        <strong>Money Printer and paid sprint paths:</strong>
+        <a href="../money-printer/">money-printer</a>, <a href="../ideas/offer-audit.html">Offer Audit</a>,
+        <a href="../forge/">3DVR Forge</a>, <a href="../ideas/forge-revenue-sprint.html">Forge Revenue Sprint</a>,
+        <a href="../ideas/freelance-portfolio-validation-sprint.html">Portfolio Validation Sprint</a>, and
+        <a href="../growth-operator/">Growth Operator</a> now form a practical loop: generate a brief, convert it into
+        a paid offer, capture fit-checks, and import those leads into the operator queue.
+      </li>
+      <li>
+        <strong>Forge becomes the product:</strong>
+        <a href="../forge/">3DVR Forge</a> moved from idea to route in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/883">PR #883</a>, gained live AI behavior in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/884">PR #884</a>, simplified its prompt flow in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/888">PR #888</a>, and picked up revenue-focused
+        guidance and sprint CTAs through <a href="https://github.com/tmsteph/3dvr-portal/pull/895">PR #895</a>
+        through <a href="https://github.com/tmsteph/3dvr-portal/pull/903">PR #903</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Merged PRs</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/738">#738 Update portal release notes through v0.0.50</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/739">#739 Harden portal mobile browser loading</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/740">#740 Reuse launch site Vercel project</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/741">#741 Add Fractal Explorer</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/742">#742 Add Purpose Movement deck</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/743">#743 Add Launch Room page</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/744">#744 Add manifestation builder page</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/746">#746 Add Open Form / 3DVR Connect experimental landing page</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/747">#747 Add Open Form / 3DVR Connect portal card</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/748">#748 Add 3DVR Connect and Fascia Release apps</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/749">#749 Turn Fascia Release into a single-screen experience</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/750">#750 Add guided timers to Fascia Release</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/751">#751 Add Orbital Courier game</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/752">#752 Redesign Fascia Release as a button-driven SPA</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/753">#753 Make Fascia Release a guided session</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/754">#754 Darken wellness directory</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/756">#756 Darken fascia release page</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/757">#757 Add Launch Room movement brief flow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/758">#758 Polish Launch Room brief flow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/759">#759 Improve Launch Room brief copy</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/760">#760 Prioritize CRM fallback note</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/761">#761 Add Launch page draft generation</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/762">#762 Fix Launch page draft reveal</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/763">#763 Redesign Open Form experimental landing</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/764">#764 Add Pocket Window portal app</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/765">#765 Move Agent Ops dock card to experimental</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/766">#766 Add money-printer dashboard and CLI</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/768">#768 Add Money Printer runtime and offer audit</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/787">#787 Add 3DVR Girl guide selection</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/788">#788 Improve 3DVR Girl portal section</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/809">#809 Add Purpose guided app</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/822">#822 Fix mobile CRM first-save failures</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/823">#823 Add CRM subdomain PWA support</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/824">#824 Redirect CRM subdomain root</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/825">#825 Update CRM branding and icon</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/826">#826 Stop CRM PWA from auto-opening add lead</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/827">#827 Handle Vercel browser check navigations</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/843">#843 Fix portal mobile homepage overflow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/847">#847 Move CRM install prompt to bottom</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/848">#848 Feature portal games in hero</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/877">#877 Shrink portal desktop hero buttons</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/878">#878 Add Human OS portal filter</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/882">#882 Default portal to workshop view</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/883">#883 Add 3DVR Forge product route</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/884">#884 Make Forge use AI generation</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/888">#888 Simplify Forge prompt flow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/895">#895 Clean up portal app dock and revenue path</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/896">#896 Improve Forge guidance and Vision card</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/897">#897 Polish Forge flow and add spark starter</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/898">#898 Rescue 3DVR Girl gallery assets</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/899">#899 Point Forge buyers to 300 sprint</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/903">#903 Add Forge revenue sprint lead path</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/904">#904 Import sprint fit checks into Growth Operator</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/905">#905 Add portfolio validation sprint offer</a></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Release Cadence</h2>
+    <p>
+      v0.0.51 catches the work merged after v0.0.50 and through
+      <a href="https://github.com/tmsteph/3dvr-portal/pull/905">PR #905</a>. The next release should continue from
+      the post-#905 portal cleanup, outreach, and conversion work.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
