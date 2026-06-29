@@ -8,6 +8,39 @@ const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun'
 ];
 
+const AUDIENCE_LEAD_SOURCES = Object.freeze([
+  {
+    key: 'forge-revenue-sprint',
+    offer: '$300 Forge Revenue Sprint',
+    nextStep: 'Review the messy brief and draft the first paid-offer reply.'
+  },
+  {
+    key: 'lead-rescue-sprint',
+    offer: '$300 Lead Rescue Sprint',
+    nextStep: 'Review the lead leak and draft a short rescue-sprint reply.'
+  },
+  {
+    key: 'client-onboarding-sprint',
+    offer: '$300 Client Onboarding Sprint',
+    nextStep: 'Review the onboarding break and draft a fit-check reply.'
+  },
+  {
+    key: 'offer-audit',
+    offer: '48-Hour Offer Audit',
+    nextStep: 'Review the offer and draft the smallest paid audit next step.'
+  },
+  {
+    key: 'ai-leverage',
+    offer: 'AI leverage sprint',
+    nextStep: 'Review the workflow pain and draft a simple leverage sprint reply.'
+  },
+  {
+    key: 'freedom-from-work',
+    offer: 'Project-shaping sprint',
+    nextStep: 'Review the stuck-at-work context and draft a low-pressure project reply.'
+  }
+]);
+
 const LANE_LABELS = Object.freeze({
   lead: 'Lead',
   support: 'Support',
@@ -33,6 +66,7 @@ const gun = typeof Gun === 'function' ? Gun(window.__GUN_PEERS__ || DEFAULT_PEER
 const portalRoot = gun ? gun.get(ROOT_KEY) : null;
 const operatorRoot = portalRoot ? portalRoot.get(OPERATOR_NODE) : null;
 const itemsRoot = operatorRoot ? operatorRoot.get('items') : null;
+const audienceRoot = gun ? gun.get('3dvr-audience-tests').get('v1') : null;
 const agentQueueRoot = portalRoot
   ? portalRoot.get('agentOps').get(AGENT_OWNER_ALIAS).get('taskQueue')
   : null;
@@ -244,6 +278,48 @@ function buildDraft(item) {
     '',
     billingUrl ? `Start here if you want to make it official: ${billingUrl}` : 'Want me to send the simplest next step?'
   ].filter(Boolean).join('\n');
+}
+
+function audienceLeadId(sourceKey, lead) {
+  const sourceId = normalizeText(lead?.id) || `${normalizeEmail(lead?.email)}-${normalizeText(lead?.createdAt)}`;
+  return `audience-${sourceKey}-${slug(sourceId)}`;
+}
+
+function normalizeAudienceLead(source, lead) {
+  if (!source || !lead || typeof lead !== 'object') return null;
+  const name = normalizeText(lead.name || lead.company || lead.business);
+  const email = normalizeEmail(lead.email);
+  if (!name || !email) return null;
+
+  const promptLabel = normalizeText(lead.promptLabel) || 'Fit-check note';
+  const prompt = normalizeText(lead.prompt);
+  const audienceLabel = normalizeText(lead.audienceLabel) || source.key;
+  const sourceLabel = normalizeText(lead.source) || 'Audience fit check';
+  const createdAt = normalizeText(lead.createdAt) || new Date().toISOString();
+  const context = [
+    `${audienceLabel} fit-check from ${sourceLabel}.`,
+    prompt ? `${promptLabel}: ${prompt}` : '',
+    normalizeText(lead.referrer) ? `Referrer: ${normalizeText(lead.referrer)}` : ''
+  ].filter(Boolean).join('\n\n');
+
+  const item = {
+    id: audienceLeadId(source.key, lead),
+    name,
+    email,
+    lane: 'lead',
+    stage: 'drafted',
+    offer: source.offer,
+    context,
+    draft: '',
+    nextStep: source.nextStep,
+    source: `audience:${source.key}`,
+    approvedAt: '',
+    sentAt: '',
+    createdAt,
+    updatedAt: new Date().toISOString()
+  };
+  item.draft = buildDraft(item);
+  return normalizeItem(item);
 }
 
 function buildItemFromForm() {
@@ -540,6 +616,33 @@ function subscribeGun() {
   updateStatus('Gun sync: connected to 3dvr-portal/growthOperator/items.');
 }
 
+function subscribeAudienceLeads() {
+  if (!audienceRoot || !itemsRoot) {
+    return;
+  }
+
+  AUDIENCE_LEAD_SOURCES.forEach(source => {
+    audienceRoot.get(source.key).get('signups').map().on(async (record) => {
+      const lead = normalizeAudienceLead(source, cleanGunRecord(record));
+      if (!lead?.id) return;
+
+      const existing = normalizeItem(state.items[lead.id]);
+      if (existing) return;
+
+      state.items[lead.id] = lead;
+      persistLocalItems();
+      render();
+
+      try {
+        await putGun(itemsRoot.get(lead.id), lead);
+        updateStatus(`Imported ${lead.name} from ${source.offer} fit-checks.`);
+      } catch (error) {
+        updateStatus(`Imported ${lead.name} locally. ${error.message || 'Gun sync failed.'}`);
+      }
+    });
+  });
+}
+
 function bindEvents() {
   els.form?.addEventListener('submit', addItem);
   els.operatorEmailToken?.addEventListener('input', persistOperatorToken);
@@ -589,6 +692,7 @@ function init() {
   bindEvents();
   render();
   subscribeGun();
+  subscribeAudienceLeads();
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
