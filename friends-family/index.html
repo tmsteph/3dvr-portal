@@ -6,7 +6,7 @@
   <title>Friends &amp; Family Pass | 3DVR Portal</title>
   <meta
     name="description"
-    content="Join 3DVR free as an early tester, or support the portal for $5/month to help people organize ideas, visualize projects, and take control of life and money."
+    content="Try 3DVR free or support it for $5/month. Organize ideas, visualize a plan, and take the next step."
   >
   <style>
     :root {
@@ -20,7 +20,6 @@
       --blue: #7dd3fc;
       --green: #86efac;
       --gold: #fde68a;
-      --danger: #fca5a5;
       --shadow: 0 24px 80px rgba(2, 6, 23, 0.35);
     }
 
@@ -200,8 +199,7 @@
       background: rgba(15, 23, 42, 0.62);
     }
 
-    .offer-grid,
-    .details-grid {
+    .offer-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
@@ -210,8 +208,8 @@
     }
 
     .offer,
-    .detail,
-    .message-panel {
+    .message-panel,
+    .fine-print {
       min-width: 0;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -254,31 +252,17 @@
       font-weight: 800;
     }
 
-    .offer p,
-    .detail p {
+    .offer p {
       margin-bottom: 0;
       color: var(--muted);
     }
 
-    .offer ul,
-    .detail ul {
+    .offer ul {
       display: grid;
       gap: 8px;
       margin: 0;
       padding-left: 20px;
       color: var(--muted);
-    }
-
-    .detail {
-      padding: 18px;
-      background: rgba(23, 34, 53, 0.76);
-    }
-
-    .detail strong {
-      display: block;
-      margin-bottom: 6px;
-      color: var(--text);
-      font-size: 1.05rem;
     }
 
     .message-panel {
@@ -305,15 +289,15 @@
     .invite-message {
       display: block;
       width: 100%;
-      min-height: 190px;
       max-width: 100%;
-      resize: vertical;
+      margin: 0;
       border: 1px solid rgba(125, 211, 252, 0.22);
       border-radius: 8px;
       padding: 14px;
       color: var(--text);
       background: #08111f;
       line-height: 1.5;
+      word-break: break-word;
     }
 
     .copy-status {
@@ -324,10 +308,15 @@
       font-weight: 800;
     }
 
-    .boundary {
-      border-left: 3px solid var(--danger);
-      padding-left: 14px;
-      color: #fee2e2;
+    .fine-print {
+      padding: 14px 16px;
+      color: var(--soft);
+      background: rgba(15, 23, 42, 0.58);
+      box-shadow: none;
+    }
+
+    .fine-print p {
+      margin: 0;
     }
 
     .footer {
@@ -363,8 +352,7 @@
         padding-top: 24px;
       }
 
-      .offer-grid,
-      .details-grid {
+      .offer-grid {
         grid-template-columns: 1fr;
       }
 
@@ -401,12 +389,8 @@
       <main>
         <section class="hero" aria-labelledby="friends-family-title">
           <p class="kicker">Small first offer</p>
-          <h1 id="friends-family-title">Organize your ideas. See the next move.</h1>
-          <p class="lead">
-            3DVR is for people with scattered ideas, unfinished plans, money stress, and the feeling that life could
-            be more under their control. Join free to try it, or support the build for $5/month while we turn it into
-            a practical place for organizing ideas, visualizing projects, and moving toward more freedom.
-          </p>
+          <h1 id="friends-family-title">Get clear. Take the next step.</h1>
+          <p class="lead">Organize ideas, visualize a plan, and move forward without getting stuck in tech.</p>
           <div class="actions" aria-label="Friends and Family actions">
             <a class="button button--primary" href="../free-trial.html">Join free</a>
             <a class="button button--secondary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dstarter">
@@ -420,11 +404,11 @@
             <span class="offer__label">Early tester</span>
             <h2>Free</h2>
             <div class="price">$0</div>
-            <p>Use the portal to sort out ideas, map what you want, and find one next step without paying first.</p>
+            <p>Try the portal and see if it helps you get unstuck.</p>
             <ul>
+              <li>Sort messy ideas.</li>
+              <li>Find one next move.</li>
               <li>No card required.</li>
-              <li>Good if your thoughts, goals, or projects feel scattered.</li>
-              <li>Best if you want to see whether 3DVR helps you feel clearer.</li>
             </ul>
             <a class="button button--ghost" href="../free-trial.html">Start free</a>
           </article>
@@ -433,11 +417,11 @@
             <span class="offer__label">Friends &amp; Family Pass</span>
             <h2>Supporter</h2>
             <div class="price">$5<span>/month</span></div>
-            <p>Support the portal while it grows into a life, ideas, and money-clarity toolkit.</p>
+            <p>Support the build while it grows.</p>
             <ul>
-              <li>Everything in free access.</li>
-              <li>Early looks at tools for idea organization, project visualization, and practical next steps.</li>
-              <li>Light monthly updates on what shipped, what changed, and what supporters can try next.</li>
+              <li>Free access included.</li>
+              <li>Early tools and updates.</li>
+              <li>Easy upgrade later.</li>
             </ul>
             <a class="button button--secondary" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dstarter">
               Choose $5/month
@@ -445,42 +429,21 @@
           </article>
         </section>
 
-        <section class="details-grid" aria-label="What the pass includes">
-          <div class="detail">
-            <strong>What supporters get</strong>
-            <ul>
-              <li>Early access to simple tools for organizing messy ideas into a clearer plan.</li>
-              <li>Ways to visualize projects, offers, life direction, and money moves before overbuilding.</li>
-              <li>A small recurring vote of confidence that helps fund the next round of useful tools.</li>
-            </ul>
-          </div>
-          <div class="detail">
-            <strong>What this is not</strong>
-            <p class="boundary">
-              This is not financial advice, a custom-build contract, an agency retainer, or a promise that every
-              request gets built. It is a small support pass for early access, feedback, and momentum.
-            </p>
-          </div>
+        <section class="fine-print" aria-label="Small print">
+          <p>Not financial advice or custom work. Just early access, feedback, and support.</p>
         </section>
 
         <section class="message-panel" aria-labelledby="copy-title">
           <div class="message-panel__top">
             <div>
-              <h2 id="copy-title">Copy this invite</h2>
-              <p>Use this for friends and family. Edit the tone before sending if you want it to sound more like you.</p>
+              <h2 id="copy-title">Share it</h2>
+              <p>Short enough to text.</p>
             </div>
             <button class="button button--ghost" type="button" data-copy-message>Copy message</button>
           </div>
-          <textarea class="invite-message" data-invite-message readonly>Hey, I am getting 3DVR off the ground.
-
-It is a small portal for organizing ideas, visualizing projects, and turning scattered thoughts into practical next steps.
-
-The bigger direction is helping people take more control of their life, work, and money without getting stuck in tech.
-
-You can join free as an early tester, or support it for $5/month if you want to help it keep moving while it is still small.
-
-Start here:
-https://portal.3dvr.tech/friends-family/</textarea>
+          <p class="invite-message" data-invite-message>
+            Try 3DVR free or support it for $5/month: https://portal.3dvr.tech/friends-family/
+          </p>
           <p class="copy-status" data-copy-status aria-live="polite"></p>
         </section>
       </main>
@@ -508,16 +471,22 @@ https://portal.3dvr.tech/friends-family/</textarea>
     }
 
     copyButton?.addEventListener('click', async () => {
-      const message = inviteMessage?.value || '';
+      const message = (inviteMessage?.value || inviteMessage?.textContent || '').trim();
       if (!message) return;
 
       try {
         await navigator.clipboard.writeText(message);
         setCopyStatus('Copied. Send it to one person who might actually care.');
       } catch (error) {
-        inviteMessage.focus();
-        inviteMessage.select();
+        const temporaryInput = document.createElement('textarea');
+        temporaryInput.value = message;
+        temporaryInput.setAttribute('readonly', '');
+        temporaryInput.style.position = 'fixed';
+        temporaryInput.style.left = '-9999px';
+        document.body.appendChild(temporaryInput);
+        temporaryInput.select();
         const copied = document.execCommand('copy');
+        temporaryInput.remove();
         setCopyStatus(copied ? 'Copied.' : 'Select the message and copy it manually.');
       }
     });

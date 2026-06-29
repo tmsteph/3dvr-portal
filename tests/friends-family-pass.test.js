@@ -21,17 +21,20 @@ test('friends and family pass is a shareable small offer page', async () => {
   const html = await readFile(pageUrl, 'utf8');
 
   assert.match(html, /Friends &amp; Family Pass \| 3DVR Portal/);
-  assert.match(html, /Organize your ideas\. See the next move\./);
-  assert.match(html, /organizing ideas, visualizing projects, and moving toward more freedom/);
+  assert.match(html, /Get clear\. Take the next step\./);
+  assert.match(html, /Organize ideas, visualize a plan, and move forward without getting stuck in tech\./);
   assert.match(html, /Support for \$5\/month/);
   assert.match(html, /href="\.\.\/free-trial\.html"/);
   assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dstarter"/);
-  assert.match(html, /This is not financial advice/);
-  assert.match(html, /Ways to visualize projects, offers, life direction, and money moves/);
-  assert.match(html, /take more control of their life, work, and money/);
+  assert.match(html, /Sort messy ideas\./);
+  assert.match(html, /Find one next move\./);
+  assert.match(html, /Not financial advice or custom work/);
+  assert.match(html, /Short enough to text\./);
   assert.match(html, /data-copy-message/);
   assert.match(html, /data-invite-message/);
   assert.match(html, /https:\/\/portal\.3dvr\.tech\/friends-family\//);
+  assert.doesNotMatch(html, /What supporters get/);
+  assert.doesNotMatch(html, /The bigger direction/);
   assert.match(html, /navigator\.clipboard\.writeText\(message\)/);
 });
 
@@ -41,7 +44,7 @@ test('friends and family page uses defensive mobile sizing', async () => {
   assert.match(html, /html,\s*body\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;[\s\S]*?overflow-x:\s*hidden;/);
   assert.match(html, /\*,\s*\*::before,\s*\*::after\s*\{[\s\S]*?box-sizing:\s*border-box;/);
   assert.match(html, /\.shell\s*\{[\s\S]*?width:\s*min\(100%, 1080px\);[\s\S]*?max-width:\s*100%;/);
-  assert.match(html, /@media \(max-width: 760px\)\s*\{[\s\S]*?\.offer-grid,[\s\S]*?\.details-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr;/);
+  assert.match(html, /@media \(max-width: 760px\)\s*\{[\s\S]*?\.offer-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr;/);
 });
 
 test('portal home links the pass in navigation, support lanes, app dock, and rooms', async () => {
@@ -52,12 +55,12 @@ test('portal home links the pass in navigation, support lanes, app dock, and roo
     html,
     /<a href="friends-family\/" class="shortcut-card">[\s\S]*?<span class="shortcut-card__title">Friends &amp; Family Pass<\/span>/
   );
-  assert.match(html, /Organize ideas, visualize projects, and support 3DVR for \$5\/month/);
+  assert.match(html, /Get clear, try free, or support 3DVR for \$5\/month/);
   assert.match(
     html,
     /href="friends-family\/"[\s\S]*?class="app-card"[\s\S]*?<span class="app-card__title">Friends &amp; Family Pass<\/span>/
   );
-  assert.match(html, /A shareable free or \$5\/month path for organizing ideas, visualizing projects, and taking control\./);
+  assert.match(html, /A shareable free or \$5\/month path for getting clearer and moving forward\./);
   assert.match(html, /data-app-keywords="[^"]*friends family supporter support five 5[^"]*"/);
   assert.match(html, /'Friends & Family Pass'/);
   assert.match(html, /money:\s*\[[\s\S]*?'Friends & Family Pass'/);
