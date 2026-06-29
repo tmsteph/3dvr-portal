@@ -15,12 +15,19 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the weekly milestones through v0.0.50', async () => {
+  it('updates the release index with the weekly milestones through v0.0.51', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Latest Release/);
+    assert.match(html, /href="v0\.0\.51\.html">v0\.0\.51</);
+    assert.match(html, /Week of June 22, 2026/);
+    assert.match(html, /href="\.\.\/forge\/">3DVR Forge</);
+    assert.match(html, /href="\.\.\/money-printer\/">money-printer</);
+    assert.match(html, /href="\.\.\/ideas\/forge-revenue-sprint\.html">Forge Revenue Sprint</);
+    assert.match(html, /href="\.\.\/ideas\/freelance-portfolio-validation-sprint\.html">Portfolio Validation Sprint</);
+    assert.match(html, /href="\.\.\/growth-operator\/">Growth Operator</);
     assert.match(html, /href="v0\.0\.50\.html">v0\.0\.50</);
     assert.match(html, /Week of June 15, 2026/);
     assert.match(html, /Launch Site/);
@@ -76,7 +83,8 @@ describe('release hub backfill', () => {
 
   it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
-      ['v0.0.50.html', /Week of June 15, 2026/, /Launch Site publishing/i, /pull\/736/],
+      ['v0.0.51.html', /Week of June 22, 2026/, /Money Printer and paid sprint paths/i, /pull\/905/],
+      ['v0.0.50.html', /Week of June 15, 2026/, /Launch Site publishing/i, /href="v0\.0\.51\.html"/],
       ['v0.0.49.html', /Week of June 8, 2026/, /Games and flight controls/i, /href="v0\.0\.50\.html"/],
       ['v0.0.48.html', /Week of June 1, 2026/, /Focus Flow direction/i, /href="v0\.0\.49\.html"/],
       ['v0.0.47.html', /Week of May 25, 2026/, /Market Lab/i, /href="v0\.0\.48\.html"/],
@@ -105,10 +113,27 @@ describe('release hub backfill', () => {
   });
 
   it('links shipped apps and docs inline where the release summaries mention them', async () => {
+    const release51 = await readFile(new URL('v0.0.51.html', baseDir), 'utf8');
     const release50 = await readFile(new URL('v0.0.50.html', baseDir), 'utf8');
     const release49 = await readFile(new URL('v0.0.49.html', baseDir), 'utf8');
     const release47 = await readFile(new URL('v0.0.47.html', baseDir), 'utf8');
     const release48 = await readFile(new URL('v0.0.48.html', baseDir), 'utf8');
+
+    assert.match(release51, /href="\.\.\/crm\/">CRM</);
+    assert.match(release51, /href="\.\.\/games\.html">Games</);
+    assert.match(release51, /href="\.\.\/purpose-movement\/">Purpose Movement</);
+    assert.match(release51, /href="\.\.\/launch-room\/">Launch Room</);
+    assert.match(release51, /href="\.\.\/3dvr-connect\/">3DVR Connect</);
+    assert.match(release51, /href="\.\.\/fascia-release\/">Fascia Release</);
+    assert.match(release51, /href="\.\.\/3dvr-girl\/">3DVR Girl</);
+    assert.match(release51, /href="\.\.\/money-printer\/">money-printer</);
+    assert.match(release51, /href="\.\.\/ideas\/offer-audit\.html">Offer Audit</);
+    assert.match(release51, /href="\.\.\/forge\/">3DVR Forge</);
+    assert.match(release51, /href="\.\.\/ideas\/forge-revenue-sprint\.html">Forge Revenue Sprint</);
+    assert.match(release51, /href="\.\.\/ideas\/freelance-portfolio-validation-sprint\.html">Portfolio Validation Sprint</);
+    assert.match(release51, /href="\.\.\/growth-operator\/">Growth Operator</);
+    assert.match(release51, /pull\/738/);
+    assert.match(release51, /pull\/905/);
 
     assert.match(release50, /href="\.\.\/web-builder-app\/">Launch Site</);
     assert.match(release50, /href="\.\.\/sober-spark\/">Sober Spark</);
