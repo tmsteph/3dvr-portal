@@ -49,6 +49,7 @@ test('growth operator app queues agent work and can send approved outreach throu
   assert.match(js, /AUDIENCE_LEAD_SOURCES = Object\.freeze/);
   assert.match(js, /key: 'forge-revenue-sprint'/);
   assert.match(js, /key: 'lead-rescue-sprint'/);
+  assert.match(js, /key: 'freelance-portfolio-validation-sprint'/);
   assert.match(js, /key: 'client-onboarding-sprint'/);
   assert.match(js, /key: 'offer-audit'/);
   assert.match(js, /audienceRoot = gun \? gun\.get\('3dvr-audience-tests'\)\.get\('v1'\) : null/);

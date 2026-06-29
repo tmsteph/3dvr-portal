@@ -20,6 +20,11 @@ const AUDIENCE_LEAD_SOURCES = Object.freeze([
     nextStep: 'Review the lead leak and draft a short rescue-sprint reply.'
   },
   {
+    key: 'freelance-portfolio-validation-sprint',
+    offer: '$500 Freelance Portfolio Validation Sprint',
+    nextStep: 'Review the portfolio gap and draft a paid pilot validation reply.'
+  },
+  {
     key: 'client-onboarding-sprint',
     offer: '$300 Client Onboarding Sprint',
     nextStep: 'Review the onboarding break and draft a fit-check reply.'
