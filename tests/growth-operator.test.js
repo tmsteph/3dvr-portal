@@ -35,6 +35,8 @@ test('growth operator ships a separate lead, email, support, and delivery app', 
   assert.match(html, /id="deliveryQueueCount"/);
   assert.match(html, /\/api\/calendar\/reminder-email/);
   assert.match(html, /3dvr-portal\/growthOperator\/items/);
+  assert.match(html, /sprint fit-check leads/);
+  assert.match(html, /3dvr-audience-tests\/v1/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
   assert.match(html, /type="module" src="app\.js"/);
 });
@@ -44,6 +46,16 @@ test('growth operator app queues agent work and can send approved outreach throu
 
   assert.match(js, /OPERATOR_NODE = 'growthOperator'/);
   assert.match(js, /AGENT_OWNER_ALIAS = '3dvr-managed'/);
+  assert.match(js, /AUDIENCE_LEAD_SOURCES = Object\.freeze/);
+  assert.match(js, /key: 'forge-revenue-sprint'/);
+  assert.match(js, /key: 'lead-rescue-sprint'/);
+  assert.match(js, /key: 'client-onboarding-sprint'/);
+  assert.match(js, /key: 'offer-audit'/);
+  assert.match(js, /audienceRoot = gun \? gun\.get\('3dvr-audience-tests'\)\.get\('v1'\) : null/);
+  assert.match(js, /function normalizeAudienceLead/);
+  assert.match(js, /source: `audience:\$\{source\.key\}`/);
+  assert.match(js, /subscribeAudienceLeads/);
+  assert.match(js, /itemsRoot\.get\(lead\.id\), lead/);
   assert.match(js, /portalRoot\.get\('agentOps'\)\.get\(AGENT_OWNER_ALIAS\)\.get\('taskQueue'\)/);
   assert.match(js, /buildAgentTask/);
   assert.match(js, /find-leads/);
