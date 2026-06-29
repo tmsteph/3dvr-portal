@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Freelance Portfolio Validation Sprint | 3DVR</title>
+  <meta
+    name="description"
+    content="A 7-day paid sprint for freelance designers and creative builders who need one portfolio proof piece, buyer feedback, and a paid pilot offer."
+  >
+  <link rel="stylesheet" href="audience-leads.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="audience-leads.js" defer></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    :root {
+      --portfolio-bg: #0d1018;
+      --portfolio-panel: rgba(248, 250, 252, 0.08);
+      --portfolio-border: rgba(151, 191, 255, 0.26);
+      --portfolio-text: #f8fafc;
+      --portfolio-muted: #c6d0df;
+      --portfolio-blue: #9dc3ff;
+      --portfolio-green: #8ef0c2;
+      --portfolio-gold: #f5d06f;
+    }
+
+    body {
+      background:
+        linear-gradient(135deg, rgba(157, 195, 255, 0.16), transparent 34%),
+        linear-gradient(230deg, rgba(142, 240, 194, 0.14), transparent 42%),
+        var(--portfolio-bg);
+      color: var(--portfolio-text);
+    }
+
+    .page {
+      max-width: 1160px;
+    }
+
+    .panel {
+      border-color: var(--portfolio-border);
+      border-radius: 8px;
+      background: var(--portfolio-panel);
+    }
+
+    .sprint-box,
+    .proof-box,
+    .copy-box,
+    .deliverable {
+      border: 1px solid var(--portfolio-border);
+      border-radius: 8px;
+      padding: 16px;
+      background: rgba(7, 11, 18, 0.76);
+    }
+
+    .sprint-box {
+      display: grid;
+      gap: 12px;
+      margin: 22px 0;
+    }
+
+    .sprint-box strong,
+    .proof-box strong,
+    .copy-box strong {
+      color: var(--portfolio-green);
+    }
+
+    .price-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .price-line strong {
+      color: var(--portfolio-gold);
+      font-size: 1.35rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      border: 1px solid rgba(245, 208, 111, 0.34);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: #fff3cc;
+      background: rgba(245, 208, 111, 0.1);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .deliverables {
+      display: grid;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .deliverable {
+      border-color: rgba(142, 240, 194, 0.2);
+      background: rgba(142, 240, 194, 0.07);
+    }
+
+    .deliverable strong {
+      display: block;
+      color: #ddfff0;
+    }
+
+    .deliverable span,
+    .proof-box p,
+    .copy-box p {
+      color: var(--portfolio-muted);
+    }
+
+    .proof-box a {
+      color: #dbeafe;
+      font-weight: 800;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .cta,
+    .text-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      border-radius: 999px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .cta {
+      padding: 12px 20px;
+      color: #0f172a;
+      background: var(--portfolio-gold);
+      box-shadow: 0 14px 30px rgba(245, 208, 111, 0.22);
+    }
+
+    .text-link {
+      color: var(--portfolio-blue);
+    }
+
+    .not-fit {
+      border: 1px solid rgba(248, 113, 113, 0.26);
+      border-radius: 8px;
+      margin-top: 18px;
+      padding: 14px;
+      color: #ffe2e2;
+      background: rgba(248, 113, 113, 0.08);
+    }
+
+    .copy-box {
+      margin-top: 18px;
+      white-space: pre-wrap;
+    }
+
+    .form-panel {
+      border-color: rgba(245, 208, 111, 0.32);
+    }
+
+    @media (min-width: 900px) {
+      .layout {
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="top-nav" aria-label="Portfolio Validation Sprint navigation">
+      <a href="/ideas/">Ideas Lab</a>
+      <a href="/growth-operator/">Growth Operator</a>
+      <a href="/index.html">Portal Home</a>
+    </nav>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="headline">
+        <p class="kicker">Paid validation sprint for freelance designers</p>
+        <h1 id="headline">Turn one hidden skill into a proof piece clients can react to.</h1>
+        <p class="subhead">
+          3DVR Portfolio Validation Sprint helps freelance designers and creative builders create one sharp portfolio
+          proof piece, get real buyer feedback, and ask for a paid pilot without rebuilding their whole brand.
+        </p>
+
+        <div class="sprint-box" aria-label="Sprint summary">
+          <strong>Built from the current money-printer command brief.</strong>
+          <span>
+            The strongest immediate opportunity is a service-first offer for independent creatives who have skill but
+            need a clearer artifact, audience, and first paid ask.
+          </span>
+        </div>
+
+        <div class="body-text">
+          <p>
+            A broad portfolio says "I can do many things." A validation piece says "I understand this specific buyer
+            problem and can create a result worth paying for." That is the shift this sprint tests.
+          </p>
+          <p>This sprint keeps the scope concrete:</p>
+          <ul>
+            <li>Pick one reachable buyer and one painful business problem.</li>
+            <li>Create a small proof piece that shows the before and after.</li>
+            <li>Ask real buyers for feedback using a short test message.</li>
+            <li>Turn useful replies into one paid pilot offer.</li>
+          </ul>
+        </div>
+
+        <div class="proof-box" aria-label="Market proof">
+          <strong>Why this market is worth testing</strong>
+          <p>
+            Web Designer Academy's 2025 pricing report calls out getting clients, recurring revenue, selling services,
+            and pricing as top designer challenges. Upwork also continues to report a large independent work market,
+            which makes a narrow paid validation sprint easier to test manually.
+          </p>
+          <p>
+            Sources:
+            <a href="https://webdesigneracademy.com/state-of-web-designer-pricing-2025/" target="_blank" rel="noopener noreferrer">Web Designer Academy pricing report</a>
+            and
+            <a href="https://www.upwork.com/resources/freelancing-stats" target="_blank" rel="noopener noreferrer">Upwork freelancing stats</a>.
+          </p>
+        </div>
+
+        <div class="price-line">
+          <strong>$500 validation sprint</strong>
+          <span class="pill">7-day delivery</span>
+          <span class="pill">Proof before platform</span>
+        </div>
+
+        <div class="deliverables" aria-label="Sprint deliverables">
+          <div class="deliverable">
+            <strong>Proof-piece brief</strong>
+            <span>One buyer, problem, promise, proof angle, and acceptance criteria for the portfolio artifact.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Portfolio proof copy</strong>
+            <span>Headline, context, before/after story, and CTA copy for the proof piece or case-study page.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Buyer feedback script</strong>
+            <span>Short outreach messages for warm contacts, target buyers, and one follow-up.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Paid pilot offer</strong>
+            <span>A small paid next step, objection notes, and a rule for whether to keep, rewrite, or kill it.</span>
+          </div>
+        </div>
+
+        <div class="not-fit">
+          Not a fit if you want passive income, a generic portfolio redesign, or a shortcut around talking to buyers.
+          This is a paid market test around one proof piece.
+        </div>
+
+        <div class="copy-box" aria-label="First outreach copy">
+          <strong>First test message</strong>
+          <p>Quick question: I am testing a 7-day sprint for freelance designers who have skill but need one proof piece that a real buyer can react to. If your portfolio had to win one specific type of client, what would it need to prove?</p>
+        </div>
+
+        <div class="button-row">
+          <a
+            class="cta"
+            href="/sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dcustom%26amount%3D500%26label%3DFreelance%2520Portfolio%2520Validation%2520Sprint%26description%3D7-day%2520portfolio%2520proof%2520piece%252C%2520buyer%2520feedback%2520script%252C%2520and%2520paid%2520pilot%2520offer"
+          >Start $500 sprint</a>
+          <a class="text-link" href="#fit-check">Request fit check</a>
+          <a class="text-link" href="/ideas/offer-audit.html">Start with $300 offer audit</a>
+        </div>
+      </section>
+
+      <aside id="fit-check" class="panel form-panel" aria-label="Portfolio Validation Sprint intake">
+        <h2>Send the portfolio problem.</h2>
+        <p>
+          Share what you do, who you want to attract, and what your current portfolio fails to prove. The first response
+          should sharpen the buyer and proof angle before building anything.
+        </p>
+        <form
+          class="form-grid"
+          data-audience-form
+          data-audience-key="freelance-portfolio-validation-sprint"
+          data-audience-label="Freelance Portfolio Validation Sprint"
+          data-source-label="Money Printer · Portfolio Validation Sprint"
+          data-question-label="What do you do, who do you want to attract, and what does your portfolio fail to prove?"
+        >
+          <label>
+            <span>Name</span>
+            <input name="name" type="text" autocomplete="name" required placeholder="Taylor Morgan">
+          </label>
+          <label>
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+          </label>
+          <label>
+            <span>Portfolio problem</span>
+            <textarea
+              name="prompt"
+              placeholder="What you sell, who you want more of, current portfolio link or summary, and what buyers are not understanding yet."
+            ></textarea>
+          </label>
+          <button type="submit">Request fit check</button>
+          <p class="status" data-form-status role="status" aria-live="polite"></p>
+        </form>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      Intake writes to the 3DVR Gun relay under <code>3dvr-audience-tests/v1/freelance-portfolio-validation-sprint/signups</code>.
+    </footer>
+  </div>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
