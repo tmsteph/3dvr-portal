@@ -21,12 +21,14 @@ test('friends and family pass is a shareable small offer page', async () => {
   const html = await readFile(pageUrl, 'utf8');
 
   assert.match(html, /Friends &amp; Family Pass \| 3DVR Portal/);
-  assert.match(html, /Help 3DVR grow while it is still early\./);
-  assert.match(html, /Join free as an early tester/);
+  assert.match(html, /Organize your ideas\. See the next move\./);
+  assert.match(html, /organizing ideas, visualizing projects, and moving toward more freedom/);
   assert.match(html, /Support for \$5\/month/);
   assert.match(html, /href="\.\.\/free-trial\.html"/);
   assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dstarter"/);
-  assert.match(html, /This is not a custom-build contract/);
+  assert.match(html, /This is not financial advice/);
+  assert.match(html, /Ways to visualize projects, offers, life direction, and money moves/);
+  assert.match(html, /take more control of their life, work, and money/);
   assert.match(html, /data-copy-message/);
   assert.match(html, /data-invite-message/);
   assert.match(html, /https:\/\/portal\.3dvr\.tech\/friends-family\//);
@@ -50,10 +52,12 @@ test('portal home links the pass in navigation, support lanes, app dock, and roo
     html,
     /<a href="friends-family\/" class="shortcut-card">[\s\S]*?<span class="shortcut-card__title">Friends &amp; Family Pass<\/span>/
   );
+  assert.match(html, /Organize ideas, visualize projects, and support 3DVR for \$5\/month/);
   assert.match(
     html,
     /href="friends-family\/"[\s\S]*?class="app-card"[\s\S]*?<span class="app-card__title">Friends &amp; Family Pass<\/span>/
   );
+  assert.match(html, /A shareable free or \$5\/month path for organizing ideas, visualizing projects, and taking control\./);
   assert.match(html, /data-app-keywords="[^"]*friends family supporter support five 5[^"]*"/);
   assert.match(html, /'Friends & Family Pass'/);
   assert.match(html, /money:\s*\[[\s\S]*?'Friends & Family Pass'/);
