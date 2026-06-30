@@ -31,3 +31,17 @@ test('profile section exposes a sign-out action that clears stored auth state', 
   assert.match(html, /'verifiedEmail'/);
   assert.match(html, /window\.location\.href = 'index\.html'/);
 });
+
+test('profile page exposes clear sign-in paths for guest users', async () => {
+  const html = await readFile(new URL('../profile.html', import.meta.url), 'utf8');
+
+  assert.match(html, /href="sign-in\.html\?upgrade=guest&amp;redirect=%2Fprofile\.html" data-profile-auth-entry>🔑 Sign in<\/a>/);
+  assert.match(html, /id="profile-sign-in-callout"/);
+  assert.match(html, /You are using this browser as a guest/);
+  assert.match(html, /Sign in or create account/);
+  assert.match(html, /const profileSignInCallout = document\.getElementById\('profile-sign-in-callout'\)/);
+  assert.match(html, /const profileAuthEntryLinks = Array\.from\(document\.querySelectorAll\('\[data-profile-auth-entry\]'\)\)/);
+  assert.match(html, /function updateProfileSignInCallout\(\)/);
+  assert.match(html, /profileSignInCallout\.hidden = isSignedIn/);
+  assert.match(html, /link\.textContent = isSignedIn \? '👤 Profile' : '🔑 Sign in'/);
+});

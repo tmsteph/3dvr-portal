@@ -102,6 +102,10 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Start Your Thing/);
     assert.match(html, /Start Here: organize life, ideas, work, and what wants to grow\./);
     assert.match(html, /Search the dock/);
+    assert.match(html, /class="top-nav__sign-in" href="sign-in\.html\?upgrade=guest&amp;redirect=%2Findex\.html" data-auth-entry>Sign in<\/a>/);
+    assert.match(html, /href="sign-in\.html\?upgrade=guest&amp;redirect=%2Findex\.html" data-auth-entry>Sign in<\/a>/);
+    assert.match(html, /function updatePortalAuthEntryLinks\(\)/);
+    assert.match(html, /const label = signedIn \? 'Profile' : 'Sign in'/);
     assert.match(html, /You are already in\./);
     assert.match(html, /The portal remembers this browser\./);
     assert.doesNotMatch(html, /Sign in to save your progress/);

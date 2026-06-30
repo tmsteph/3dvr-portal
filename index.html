@@ -49,6 +49,7 @@
     }
     .top-nav__toggle,
     .top-nav__search,
+    .top-nav__sign-in,
     .cta,
     .top-buttons a {
       border: 1px solid rgba(88, 166, 255, 0.45);
@@ -141,6 +142,7 @@
           <span class="top-nav__toggle-text">Menu</span>
         </button>
         <button type="button" class="top-nav__search" data-app-search-trigger>Search apps</button>
+        <a class="top-nav__sign-in" href="sign-in.html?upgrade=guest&amp;redirect=%2Findex.html" data-auth-entry>Sign in</a>
       </div>
       <div class="view-toggle-container" aria-label="Portal view mode">
         <button class="toggle-btn" type="button" data-view-mode-button="guide" data-active="false">Guide</button>
@@ -156,6 +158,7 @@
         <a href="#app-hub-title" data-app-search-trigger>Apps</a>
         <a href="games.html">Games</a>
         <a href="share.html">Share</a>
+        <a href="sign-in.html?upgrade=guest&amp;redirect=%2Findex.html" data-auth-entry>Sign in</a>
         <a href="https://github.com/tmsteph/3dvr-portal" target="_blank" rel="noopener">GitHub</a>
       </nav>
     </div>
@@ -1533,6 +1536,19 @@
     function startAccountFromHere() {
       const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
       window.location.href = `/sign-in.html?redirect=${encodeURIComponent(currentPath || '/index.html')}`;
+    }
+
+    function updatePortalAuthEntryLinks() {
+      const signedIn = localStorage.getItem('signedIn') === 'true';
+      const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
+      const href = signedIn
+        ? 'profile.html'
+        : `sign-in.html?upgrade=guest&redirect=${encodeURIComponent(currentPath || '/index.html')}`;
+      const label = signedIn ? 'Profile' : 'Sign in';
+      document.querySelectorAll('[data-auth-entry]').forEach((link) => {
+        link.setAttribute('href', href);
+        link.textContent = label;
+      });
     }
   </script>
 
@@ -3232,6 +3248,7 @@
     updateAppFilter(initialSearchValue);
     renderOwnedAppList();
     applyAutoIdentityHints();
+    updatePortalAuthEntryLinks();
   </script>
   <script defer src="/issue-launcher.js"></script>
 </body>
