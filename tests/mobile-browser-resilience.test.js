@@ -18,18 +18,22 @@ test('portal root and unversioned styles/scripts revalidate on mobile browsers',
   const rootRule = rules.find((rule) => rule.source === '/');
   const indexRule = rules.find((rule) => rule.source === '/index.html');
   const cacheResetRule = rules.find((rule) => rule.source === '/cache-reset.html');
+  const apiCacheResetRule = rules.find((rule) => rule.source === '/api/cache-reset');
   const codeAssetRule = rules.find((rule) => rule.source === '/(.*)\\.(css|js)');
   const mediaAssetRule = rules.find((rule) => rule.source === '/(.*)\\.(png|jpg|jpeg|gif|svg|webp|woff2?)');
 
   assert.ok(rootRule);
   assert.ok(indexRule);
   assert.ok(cacheResetRule);
+  assert.ok(apiCacheResetRule);
   assert.ok(codeAssetRule);
   assert.ok(mediaAssetRule);
   assert.equal(findHeaderValue(rootRule.headers, 'Cache-Control'), 'public, max-age=0, must-revalidate');
   assert.equal(findHeaderValue(indexRule.headers, 'Cache-Control'), 'public, max-age=0, must-revalidate');
   assert.equal(findHeaderValue(cacheResetRule.headers, 'Cache-Control'), 'no-store');
   assert.equal(findHeaderValue(cacheResetRule.headers, 'Clear-Site-Data'), '"cache"');
+  assert.equal(findHeaderValue(apiCacheResetRule.headers, 'Cache-Control'), 'no-store');
+  assert.equal(findHeaderValue(apiCacheResetRule.headers, 'Clear-Site-Data'), '"cache"');
   assert.equal(findHeaderValue(codeAssetRule.headers, 'Cache-Control'), 'public, max-age=0, must-revalidate');
   assert.equal(findHeaderValue(mediaAssetRule.headers, 'Cache-Control'), 'public, max-age=31536000, immutable');
 });
@@ -74,6 +78,8 @@ test('root service worker does not cache stale portal HTML or Vercel checkpoints
   assert.match(source, /fetch\(request,\s*\{\s*cache:\s*'reload'\s*\}\)/);
   assert.match(source, /caches\.match\(request,\s*\{\s*ignoreSearch:\s*true\s*\}\)/);
   assert.match(source, /createOfflinePortalFallbackResponse/);
+  assert.match(source, /isAPI\(url\.pathname\)/);
+  assert.match(source, /return;\s*\/\/ let network handle it/);
 });
 
 test('root PWA installer prevents controllerchange reload loops', async () => {
@@ -113,4 +119,14 @@ test('cache reset page aggressively clears only browser cache infrastructure', a
   assert.doesNotMatch(html, /localStorage\.clear\(\)/);
   assert.doesNotMatch(html, /indexedDB\.deleteDatabase/);
   assert.doesNotMatch(html, /document\.cookie\s*=/);
+});
+
+test('api cache reset rewrites to the static reset page to bypass stale service workers', async () => {
+  const vercelText = await readProjectFile('vercel.json');
+  const config = JSON.parse(vercelText);
+  const rewrites = Array.isArray(config.rewrites) ? config.rewrites : [];
+  const apiCacheResetRewrite = rewrites.find((rule) => rule.source === '/api/cache-reset');
+
+  assert.ok(apiCacheResetRewrite);
+  assert.equal(apiCacheResetRewrite.destination, '/cache-reset.html');
 });
