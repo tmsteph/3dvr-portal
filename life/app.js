@@ -1,19 +1,13 @@
-const categoryDefs = [
-  { key: 'mind', label: 'Mind' },
-  { key: 'body', label: 'Body' },
-  { key: 'money', label: 'Money' },
-  { key: 'relationships', label: 'Relationships' },
-  { key: 'mission', label: 'Mission' }
-];
-
 const STORAGE_KEY = 'portal-life-checkins';
 const DRAFT_KEY = 'portal-life-draft';
 
-function createLocalGunSubscriptionStub() {
-  return {
-    off() {}
-  };
-}
+const defaultCategories = Object.freeze({
+  mind: 3,
+  body: 3,
+  money: 3,
+  relationships: 3,
+  mission: 3
+});
 
 function createLocalGunNodeStub() {
   const node = {
@@ -27,46 +21,21 @@ function createLocalGunNodeStub() {
       }
       return node;
     },
-    once(callback) {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback(undefined), 0);
-      }
-      return node;
-    },
-    on() {
-      return createLocalGunSubscriptionStub();
-    },
-    off() {},
     map() {
       return {
-        __isGunStub: true,
         on() {
-          return createLocalGunSubscriptionStub();
+          return { off() {} };
         }
       };
     }
   };
+
   return node;
 }
 
 function createLocalGunUserStub() {
-  const node = createLocalGunNodeStub();
   return {
-    ...node,
-    is: null,
-    _: {},
-    recall() {},
-    auth(_alias, _password, callback) {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
-      }
-    },
-    leave() {},
-    create(_alias, _password, callback) {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
-      }
-    }
+    is: null
   };
 }
 
@@ -86,16 +55,15 @@ function ensureGunContext(factory, label) {
         return {
           gun: instance,
           user: typeof instance.user === 'function' ? instance.user() : createLocalGunUserStub(),
-          isStub: !!instance.__isGunStub
+          isStub: Boolean(instance.__isGunStub)
         };
       }
     } catch (error) {
-      console.warn(`Failed to initialize ${label || 'life'} Gun instance`, error);
+      console.warn('Life could not start Gun. Saving on this device.', error);
     }
   }
 
-  console.warn(`Gun.js is unavailable for ${label || 'life'}; running in offline mode.`);
-  const stubGun = {
+  const gun = {
     __isGunStub: true,
     get() {
       return createLocalGunNodeStub();
@@ -106,18 +74,18 @@ function ensureGunContext(factory, label) {
   };
 
   return {
-    gun: stubGun,
-    user: stubGun.user(),
+    gun,
+    user: gun.user(),
     isStub: true
   };
 }
 
-function clampScore(value) {
+function clampMood(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
-    return 7;
+    return 3;
   }
-  return Math.min(10, Math.max(1, Math.round(number)));
+  return Math.min(5, Math.max(1, Math.round(number)));
 }
 
 function toDateInputValue(value = new Date()) {
@@ -131,10 +99,10 @@ function toReadableDate(value) {
   if (Number.isNaN(date.getTime())) {
     return 'Today';
   }
+
   return new Intl.DateTimeFormat(undefined, {
     month: 'short',
-    day: 'numeric',
-    year: 'numeric'
+    day: 'numeric'
   }).format(date);
 }
 
@@ -142,6 +110,7 @@ function makeId() {
   if (window.crypto && typeof window.crypto.randomUUID === 'function') {
     return window.crypto.randomUUID();
   }
+
   return `life-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
@@ -152,58 +121,65 @@ function parseJson(value, fallback) {
 
   try {
     return JSON.parse(value);
-  } catch (error) {
+  } catch {
     return fallback;
   }
 }
 
+function normalizeCategories(value = {}, mood = 3) {
+  return {
+    mind: clampMood(value.mind ?? mood),
+    body: clampMood(value.body ?? mood),
+    money: clampMood(value.money ?? mood),
+    relationships: clampMood(value.relationships ?? mood),
+    mission: clampMood(value.mission ?? value.projects ?? mood)
+  };
+}
+
 function normalizeEntry(entry, fallbackId = makeId()) {
   const source = entry && typeof entry === 'object' ? entry : {};
-  const categories = {};
-
-  for (const category of categoryDefs) {
-    const rawValue = source.categories && (
-      source.categories[category.key]
-      ?? (category.key === 'mission' ? source.categories.projects : undefined)
-    );
-    categories[category.key] = clampScore(rawValue);
-  }
+  const mood = clampMood(source.mood);
 
   return {
     id: String(source.id || fallbackId),
     createdAt: source.createdAt || new Date().toISOString(),
     date: source.date || toDateInputValue(),
-    mood: clampScore(source.mood),
-    alignment: clampScore(source.alignment),
+    mood,
+    alignment: clampMood(source.alignment ?? mood),
     today: String(source.today || '').trim(),
     avoidance: String(source.avoidance || '').trim(),
     trueTask: String(source.trueTask || '').trim(),
     tomorrow: String(source.tomorrow || '').trim(),
     vision: String(source.vision || '').trim(),
     weeklyReflection: String(source.weeklyReflection || source.reflection || '').trim(),
-    categories,
+    categories: normalizeCategories(source.categories || defaultCategories, mood),
     author: String(source.author || '').trim()
   };
 }
 
-function summarizeEntry(entry) {
-  return entry.trueTask || entry.today || entry.tomorrow || entry.weeklyReflection || 'No written note yet.';
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
-function average(values) {
-  if (!values.length) {
-    return 0;
+function readValue(id) {
+  return document.getElementById(id)?.value || '';
+}
+
+function setValue(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.value = value;
   }
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function loadStoredEntries() {
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  const parsed = parseJson(raw, []);
-  if (!Array.isArray(parsed)) {
-    return [];
-  }
-  return parsed.map((entry) => normalizeEntry(entry));
+  const parsed = parseJson(window.localStorage.getItem(STORAGE_KEY), []);
+  return Array.isArray(parsed) ? parsed.map((entry) => normalizeEntry(entry)) : [];
 }
 
 function saveStoredEntries(entries) {
@@ -219,73 +195,32 @@ function saveDraft(draft) {
   window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 }
 
-function readValue(id) {
-  const element = document.getElementById(id);
-  return element ? element.value : '';
-}
-
-function setValue(id, value) {
-  const element = document.getElementById(id);
-  if (element) {
-    element.value = value;
-  }
-}
-
-function updateSliderValue(inputId, outputId) {
-  const input = document.getElementById(inputId);
-  const output = document.getElementById(outputId);
-  if (!input || !output) {
-    return;
-  }
-
-  const sync = () => {
-    output.textContent = String(clampScore(input.value));
-  };
-
-  input.addEventListener('input', sync);
-  sync();
-}
-
 function getFormDraft() {
+  const mood = clampMood(readValue('moodScore'));
+
   return {
-    date: readValue('lifeDate'),
-    mood: clampScore(readValue('moodScore')),
-    alignment: clampScore(readValue('alignmentScore')),
+    date: readValue('lifeDate') || toDateInputValue(),
+    mood,
+    alignment: mood,
     today: readValue('todayText').trim(),
-    avoidance: readValue('avoidanceText').trim(),
+    avoidance: '',
     trueTask: readValue('trueTaskText').trim(),
-    tomorrow: readValue('tomorrowText').trim(),
-    vision: readValue('visionText').trim(),
-    weeklyReflection: readValue('weeklyText').trim(),
-    categories: {
-      mind: clampScore(readValue('mindScore')),
-      body: clampScore(readValue('bodyScore')),
-      money: clampScore(readValue('moneyScore')),
-      relationships: clampScore(readValue('relationshipsScore')),
-      mission: clampScore(readValue('missionScore'))
-    }
+    tomorrow: '',
+    vision: '',
+    weeklyReflection: '',
+    categories: normalizeCategories(defaultCategories, mood)
   };
 }
 
 function applyDraft(draft) {
   const source = draft && typeof draft === 'object' ? draft : {};
-  setValue('lifeDate', source.date || toDateInputValue());
-  setValue('moodScore', clampScore(source.mood || 7));
-  setValue('alignmentScore', clampScore(source.alignment || 7));
-  setValue('todayText', source.today || '');
-  setValue('avoidanceText', source.avoidance || '');
-  setValue('trueTaskText', source.trueTask || '');
-  setValue('tomorrowText', source.tomorrow || '');
-  setValue('visionText', source.vision || '');
-  setValue('weeklyText', source.weeklyReflection || '');
+  const mood = clampMood(source.mood || 3);
 
-  for (const category of categoryDefs) {
-    const nextValue = source.categories && (
-      source.categories[category.key]
-      ?? (category.key === 'mission' ? source.categories.projects : undefined)
-    );
-    setValue(`${category.key}Score`, clampScore(nextValue));
-  }
+  setValue('lifeDate', source.date || toDateInputValue());
+  setValue('moodScore', mood);
+  setValue('todayText', source.today || '');
+  setValue('trueTaskText', source.trueTask || '');
+  syncMoodOutput();
 }
 
 function getAllEntries() {
@@ -298,44 +233,11 @@ function getAllEntries() {
     });
 }
 
-function getRecentEntries(limit = 5) {
-  return getAllEntries().slice(0, limit);
-}
-
-function getAverages(entries) {
-  const scores = {};
-  for (const category of categoryDefs) {
-    scores[category.key] = average(entries.map((entry) => Number(entry.categories[category.key] || 0)));
-  }
-  return scores;
-}
-
-function getMoodTrend(entries) {
-  const moods = entries.map((entry) => Number(entry.mood || 0));
-  const recent = moods.slice(0, 3);
-  const previous = moods.slice(3, 6);
-  if (!recent.length || !previous.length) {
-    return 'Need more check-ins';
-  }
-
-  const delta = average(recent) - average(previous);
-  if (delta > 0.35) {
-    return 'Up';
-  }
-  if (delta < -0.35) {
-    return 'Down';
-  }
-  return 'Flat';
-}
-
 function getStreak(entries) {
-  const uniqueDates = new Set();
-  for (const entry of entries) {
-    uniqueDates.add(entry.date);
-  }
-
+  const uniqueDates = new Set(entries.map((entry) => entry.date));
   let streak = 0;
   let cursor = new Date(toDateInputValue());
+
   while (true) {
     const key = toDateInputValue(cursor);
     if (!uniqueDates.has(key)) {
@@ -348,26 +250,27 @@ function getStreak(entries) {
   return streak;
 }
 
-function renderCategoryBars(entries) {
-  const container = document.getElementById('categoryBars');
-  if (!container) {
-    return;
+function getEntryNeed(entry) {
+  return entry.today || entry.avoidance || entry.vision || 'No note yet.';
+}
+
+function getEntryStep(entry) {
+  return entry.trueTask || entry.tomorrow || entry.weeklyReflection || 'Pick one small step.';
+}
+
+function renderSummary(entries) {
+  const latestStep = document.getElementById('latestStep');
+  const latest = entries[0];
+
+  if (latestStep) {
+    latestStep.textContent = latest ? getEntryStep(latest) : 'Save a check-in to pick one step.';
   }
 
-  const averages = getAverages(entries);
-  container.innerHTML = categoryDefs.map((category) => {
-    const value = averages[category.key] || 0;
-    const width = Math.max(8, Math.round((value / 10) * 100));
-    return `
-      <div class="bar-row">
-        <div class="bar-row__head">
-          <span>${category.label}</span>
-          <span>${value.toFixed(1)} / 10</span>
-        </div>
-        <div class="bar" aria-hidden="true"><span style="width:${width}%"></span></div>
-      </div>
-    `;
-  }).join('');
+  const saveStatus = document.getElementById('saveStatus');
+  if (saveStatus && entries.length) {
+    const streak = getStreak(entries);
+    saveStatus.dataset.streak = String(streak);
+  }
 }
 
 function renderEntryList(entries) {
@@ -376,85 +279,25 @@ function renderEntryList(entries) {
     return;
   }
 
-  if (!entries.length) {
-    list.innerHTML = '<li class="entry-item"><strong>No entries yet</strong><p class="entry-copy">Save your first check-in to start building a pattern.</p></li>';
+  const recent = entries.slice(0, 4);
+  if (!recent.length) {
+    list.innerHTML = '<li class="entry-item"><strong>No notes yet</strong><p class="entry-copy">Save one small step.</p></li>';
     return;
   }
 
-  list.innerHTML = entries.map((entry) => `
+  list.innerHTML = recent.map((entry) => `
     <li class="entry-item">
-      <strong>${toReadableDate(entry.date)} · Mood ${entry.mood}/10 · Alignment ${entry.alignment}/10</strong>
-      <div class="entry-meta">${categoryDefs.map((category) => `${category.label} ${entry.categories[category.key]}/10`).join(' · ')}</div>
-      <div class="entry-facts">
-        <span class="entry-fact">Mission ${entry.categories.mission}/10</span>
-        ${entry.trueTask ? `<span class="entry-fact">True task named</span>` : ''}
-        ${entry.avoidance ? `<span class="entry-fact">Avoidance logged</span>` : ''}
-      </div>
-      <p class="entry-copy">${escapeHtml(summarizeEntry(entry))}</p>
-      ${(entry.avoidance || entry.trueTask) ? `
-        <div class="entry-stack">
-          ${entry.trueTask ? `<div class="entry-block"><strong>One true task</strong><p class="entry-copy">${escapeHtml(entry.trueTask)}</p></div>` : ''}
-          ${entry.avoidance ? `<div class="entry-block"><strong>Avoidance</strong><p class="entry-copy">${escapeHtml(entry.avoidance)}</p></div>` : ''}
-        </div>
-      ` : ''}
+      <strong>${escapeHtml(getEntryStep(entry))}</strong>
+      <p class="entry-meta">${toReadableDate(entry.date)} · Feeling ${entry.mood}/5</p>
+      <p class="entry-copy">${escapeHtml(getEntryNeed(entry))}</p>
     </li>
   `).join('');
-}
-
-function renderSummary(entries) {
-  const averageMood = document.getElementById('averageMood');
-  const averageAlignment = document.getElementById('averageAlignment');
-  const trendLabel = document.getElementById('trendLabel');
-  const streakValue = document.getElementById('streakValue');
-  const latestReflection = document.getElementById('latestReflection');
-  const currentVision = document.getElementById('currentVision');
-
-  if (averageMood) {
-    averageMood.textContent = entries.length ? `${average(entries.map((entry) => entry.mood)).toFixed(1)} / 10` : '--';
-  }
-
-  if (averageAlignment) {
-    averageAlignment.textContent = entries.length
-      ? `${average(entries.map((entry) => entry.alignment)).toFixed(1)} / 10`
-      : '--';
-  }
-
-  if (trendLabel) {
-    trendLabel.textContent = getMoodTrend(entries);
-  }
-
-  if (streakValue) {
-    const streak = getStreak(entries);
-    streakValue.textContent = streak ? `${streak} day${streak === 1 ? '' : 's'}` : '0 days';
-  }
-
-  if (latestReflection) {
-    const weekly = entries.find((entry) => entry.weeklyReflection);
-    latestReflection.textContent = weekly ? weekly.weeklyReflection : 'No reflections yet. Save one when you want to review the week.';
-  }
-
-  if (currentVision) {
-    const visionEntry = entries.find((entry) => entry.vision);
-    currentVision.textContent = visionEntry
-      ? visionEntry.vision
-      : 'No vision saved yet. Use the check-in form when you want to name what you are building.';
-  }
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 }
 
 function render() {
   const entries = getAllEntries();
   renderSummary(entries);
-  renderCategoryBars(entries);
-  renderEntryList(getRecentEntries());
+  renderEntryList(entries);
 }
 
 function mergeEntry(entry, id) {
@@ -478,11 +321,9 @@ function writeEntry(entry) {
         return;
       }
 
-      if (ack && ack.err) {
-        status.textContent = 'Saved locally. Gun sync is unavailable right now, so the entry stays in your browser cache.';
-      } else {
-        status.textContent = 'Saved to Life and queued for Gun sync.';
-      }
+      status.textContent = ack && ack.err
+        ? 'Saved on this phone.'
+        : 'Saved.';
     });
   }
 }
@@ -498,11 +339,82 @@ function loadEntriesFromGun() {
   }
 
   mapped.on((entry, id) => {
-    if (!entry || !id) {
-      return;
+    if (entry && id) {
+      mergeEntry(entry, id);
     }
-    mergeEntry(entry, id);
   });
+}
+
+function syncMoodOutput() {
+  const input = document.getElementById('moodScore');
+  const output = document.getElementById('moodValue');
+  if (input && output) {
+    output.textContent = String(clampMood(input.value));
+  }
+}
+
+function persistDraftFromForm() {
+  saveDraft(getFormDraft());
+}
+
+function fillIfEmpty(id, value) {
+  const element = document.getElementById(id);
+  if (!element) {
+    return;
+  }
+
+  if (element.value.trim()) {
+    element.value = value;
+  } else {
+    element.value = value;
+  }
+
+  persistDraftFromForm();
+  element.focus();
+}
+
+function initializeForm() {
+  applyDraft(loadDraft() || { date: toDateInputValue(), mood: 3 });
+
+  const moodInput = document.getElementById('moodScore');
+  moodInput?.addEventListener('input', () => {
+    syncMoodOutput();
+    persistDraftFromForm();
+  });
+
+  for (const input of document.querySelectorAll('#lifeForm input, #lifeForm textarea')) {
+    input.addEventListener('input', persistDraftFromForm);
+  }
+
+  document.querySelectorAll('[data-need]').forEach((button) => {
+    button.addEventListener('click', () => {
+      fillIfEmpty('todayText', button.dataset.need || '');
+    });
+  });
+
+  document.querySelectorAll('[data-step]').forEach((button) => {
+    button.addEventListener('click', () => {
+      fillIfEmpty('trueTaskText', button.dataset.step || '');
+    });
+  });
+
+  const clearDraftButton = document.getElementById('clearDraft');
+  clearDraftButton?.addEventListener('click', () => {
+    window.localStorage.removeItem(DRAFT_KEY);
+    applyDraft({ date: toDateInputValue(), mood: 3 });
+    const status = document.getElementById('saveStatus');
+    if (status) {
+      status.textContent = 'Cleared.';
+    }
+  });
+}
+
+function initializeEntries() {
+  for (const entry of loadStoredEntries()) {
+    entriesById.set(entry.id, entry);
+  }
+  render();
+  loadEntriesFromGun();
 }
 
 const gunContext = ensureGunContext(
@@ -520,93 +432,42 @@ const gunContext = ensureGunContext(
 
 const gun = gunContext.gun;
 const user = gunContext.user;
-
-// Life entries live at 3dvr-portal/life/entries so the portal can keep one shared history.
-// Life data lives under 3dvr-portal/life so it syncs with the rest of the portal graph.
 const portalRoot = gun && typeof gun.get === 'function'
   ? gun.get('3dvr-portal')
   : createLocalGunNodeStub();
 const lifeRoot = portalRoot.get('life');
 const entriesRoot = lifeRoot.get('entries');
-
 const entriesById = new Map();
-
-function persistDraftFromForm() {
-  saveDraft(getFormDraft());
-}
-
-function initializeForm() {
-  const draft = loadDraft();
-  applyDraft(draft || { date: toDateInputValue() });
-
-  for (const category of categoryDefs) {
-    updateSliderValue(`${category.key}Score`, `${category.key}Value`);
-  }
-
-  const moodInput = document.getElementById('moodScore');
-  const moodOutput = document.getElementById('moodValue');
-  if (moodInput && moodOutput) {
-    moodInput.addEventListener('input', () => {
-      moodOutput.textContent = String(clampScore(moodInput.value));
-      persistDraftFromForm();
-    });
-  }
-
-  updateSliderValue('alignmentScore', 'alignmentValue');
-
-  for (const input of document.querySelectorAll('#lifeForm input, #lifeForm textarea')) {
-    input.addEventListener('input', persistDraftFromForm);
-  }
-
-  const clearDraftButton = document.getElementById('clearDraft');
-  if (clearDraftButton) {
-    clearDraftButton.addEventListener('click', () => {
-      window.localStorage.removeItem(DRAFT_KEY);
-      applyDraft({ date: toDateInputValue() });
-      const status = document.getElementById('saveStatus');
-      if (status) {
-        status.textContent = 'Draft cleared.';
-      }
-    });
-  }
-}
-
-function initializeEntries() {
-  const storedEntries = loadStoredEntries();
-  for (const entry of storedEntries) {
-    entriesById.set(entry.id, entry);
-  }
-  render();
-  loadEntriesFromGun();
-}
 
 const form = document.getElementById('lifeForm');
 const saveStatus = document.getElementById('saveStatus');
 
 if (saveStatus) {
   saveStatus.textContent = gunContext.isStub
-    ? 'Offline mode is active. Entries will stay in local storage until Gun is available.'
-    : 'Life is connected to Gun and ready to sync across devices.';
+    ? 'Saves on this phone.'
+    : 'Ready.';
 }
 
 initializeForm();
 initializeEntries();
 
-if (form) {
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const draft = getFormDraft();
-    const entry = normalizeEntry({
-      ...draft,
-      createdAt: new Date().toISOString(),
-      author: window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function'
-        ? window.ScoreSystem.ensureGuestIdentity()
-        : (user && user.is && user.is.pub) || ''
-    });
+form?.addEventListener('submit', (event) => {
+  event.preventDefault();
 
-    writeEntry(entry);
-    if (saveStatus) {
-      saveStatus.textContent = 'Saved. The entry is now part of your Life history.';
-    }
+  const draft = getFormDraft();
+  const entry = normalizeEntry({
+    ...draft,
+    createdAt: new Date().toISOString(),
+    author: window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function'
+      ? window.ScoreSystem.ensureGuestIdentity()
+      : (user && user.is && user.is.pub) || ''
   });
-}
+
+  writeEntry(entry);
+  window.localStorage.removeItem(DRAFT_KEY);
+  applyDraft({ date: toDateInputValue(), mood: entry.mood });
+
+  if (saveStatus) {
+    saveStatus.textContent = 'Saved. Do one small step.';
+  }
+});
