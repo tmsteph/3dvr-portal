@@ -79,15 +79,11 @@ const FORGE_BRIEF_SCHEMA = {
 const DEFAULT_FOLLOWUPS = Object.freeze([
   {
     key: 'audience',
-    question: 'Who else has this problem?'
+    question: 'Who is this for? You can say me.'
   },
   {
-    key: 'tried',
-    question: 'What have you already tried?'
-  },
-  {
-    key: 'tiny',
-    question: 'What would a tiny version look like in 7 days?'
+    key: 'help',
+    question: 'What would help this week?'
   }
 ]);
 
@@ -140,31 +136,31 @@ function normalizeFollowUps(value) {
       question: clean(item?.question, 220)
     }))
     .filter(item => item.question)
-    .slice(0, 3);
+    .slice(0, 2);
 
   DEFAULT_FOLLOWUPS.forEach((fallback) => {
-    if (normalized.length < 3) {
+    if (normalized.length < 2) {
       normalized.push(fallback);
     }
   });
 
-  return normalized.slice(0, 3);
+  return normalized.slice(0, 2);
 }
 
 function normalizeFollowUpGuidance(value = {}) {
   const fallbackSolutions = [
-    'Turn the frustration into one paid or useful promise for a specific person.',
-    'Test demand with direct messages before building a larger product.',
-    'Create the smallest support artifact: a page, checklist, script, or tracker.'
+    'Turn the stuck feeling into one small promise for one person.',
+    'Test with a message before building a larger product.',
+    'Make the smallest useful thing: a page, checklist, script, or tracker.'
   ];
   const fallbackActions = [
-    'Write the plain-language problem in one sentence.',
-    'Pick one audience you can reach this week.',
-    'Send a low-pressure test message before building.'
+    'Write the problem in one plain sentence.',
+    'Pick one person you can reach this week.',
+    'Send a low-pressure message before building.'
   ];
 
   return {
-    diagnosis: clean(value?.diagnosis, 700) || 'Good raw material. The frustration has energy, but it needs a sharper audience and a smaller first test.',
+    diagnosis: clean(value?.diagnosis, 700) || 'Good start. Make it smaller and easier to test.',
     solutionPaths: normalizeStringList(value?.solutionPaths, fallbackSolutions, { min: 2, max: 3 }),
     nextActions: normalizeStringList(value?.nextActions, fallbackActions, { min: 2, max: 3 })
   };
@@ -188,14 +184,13 @@ function normalizeStringList(value, fallback, { min = 3, max = 5 } = {}) {
 
 function normalizeBrief(value) {
   const fallbackActions = [
-    'Name the audience in one sentence.',
-    'Send the test message to 10 real people.',
-    'Build only after at least one useful reply.'
+    'Write one clear promise.',
+    'Text 10 people.',
+    'Build after one yes.'
   ];
   const fallbackReality = [
-    'Too vague unless the audience is specific.',
-    'This is a test, not a full startup yet.',
-    'A direct message may validate the idea faster than an app.'
+    'Pick one kind of person first.',
+    'Send the message before building.'
   ];
 
   return {
@@ -203,11 +198,11 @@ function normalizeBrief(value) {
     coreFrustration: clean(value?.coreFrustration, 900) || 'The raw frustration is real, but the project still needs sharper edges.',
     audience: clean(value?.audience, 500) || 'frustrated working people with hidden skills',
     projectConcept: clean(value?.projectConcept, 1400) || 'A small useful offer that turns the frustration into a testable project.',
-    tinyExperiment: clean(value?.tinyExperiment, 900) || 'In 7 days, make one clear promise and send it to 10 people.',
+    tinyExperiment: clean(value?.tinyExperiment, 900) || 'This week: make one promise. Send it to 10 people. Track replies.',
     firstActions: normalizeStringList(value?.firstActions, fallbackActions, { min: 3, max: 3 }),
-    testMessage: clean(value?.testMessage, 1200) || 'I am testing a small project idea. Does this feel useful, too vague, or not your problem?',
+    testMessage: clean(value?.testMessage, 1200) || 'Quick question: I am testing a small project idea. Would this help you this week?',
     codexPrompt: clean(value?.codexPrompt, 2600) || 'Build the smallest mobile-first support artifact for this project. Start with the offer, outreach script, and reply tracking before product features.',
-    realityCheck: normalizeStringList(value?.realityCheck, fallbackReality, { min: 3, max: 5 })
+    realityCheck: normalizeStringList(value?.realityCheck, fallbackReality, { min: 2, max: 2 })
   };
 }
 
@@ -258,8 +253,8 @@ export function buildForgeInstructions(now = new Date()) {
     'The Codex build prompt should create the smallest support artifact, such as a landing page, outreach script, checklist, or reply tracker. Avoid accounts, dashboards, metaverse concepts, and complex persistence unless the user specifically needs them.',
     'If the user answers with placeholders such as test, unsure, or I do not know, say what is missing instead of inventing certainty.',
     'The target user is a frustrated working person with hidden skills who wants to build something useful but does not know where to begin.',
-    'For followups mode, do not only ask questions. Give a concise diagnosis, two or three plausible solution paths, two or three concrete next actions, then ask exactly three short adaptive questions. If prior answers are present, update the diagnosis and solution paths from those answers, then ask only for the missing sharp details. The questions should sharpen a choice, not restart the conversation.',
-    'For brief mode, produce a complete Movement Brief with concrete next steps, a test message, a Codex-ready build prompt, and a blunt reality check.',
+    'For followups mode, do not only ask questions. Give one concise diagnosis, two plausible solution paths, two concrete next actions, then ask exactly two short, easy questions. The questions must be answerable in one sentence. Let the user say "I do not know." If prior answers are present, update the diagnosis and solution paths from those answers, then ask only for missing simple details.',
+    'For brief mode, produce a complete Movement Brief with concrete next steps, a test message, a Codex-ready build prompt, and a blunt reality check. Keep visible user-facing fields short: first actions should be one line each with six words or less, test message should be under 35 words, tiny experiment should be under 20 words, and realityCheck must contain exactly two plain bullets.',
     'Do not include markdown fences. Return only the JSON object requested by the schema.'
   ].join(' ');
 }

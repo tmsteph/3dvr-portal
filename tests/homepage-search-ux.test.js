@@ -99,7 +99,7 @@ test('homepage app search can find Forge by project-shaping keywords', async () 
     /href="forge\/" class="app-card" data-app-keywords="[^"]*\bfrustration\b[^"]*\bcodex prompt\b[^"]*"/
   );
   assert.match(html, /<span class="app-card__title">3DVR Forge<\/span>/);
-  assert.match(html, /Movement Brief and 7-day test/);
+  assert.match(html, /simple plan or message/);
 });
 
 test('homepage app search can find Forge Sprint by paid offer keywords', async () => {

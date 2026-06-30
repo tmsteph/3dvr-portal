@@ -3,7 +3,8 @@ import { readDefaultSecret } from '../web-builder-app/defaults.js';
 const STORAGE_KEY = '3dvr.forge.session.v1';
 const FORGE_GUN_SESSION_ID_KEY = '3dvr.forge.sessionId.v1';
 const FORGE_MODEL = 'gpt-4.1-mini';
-const SHARED_DEFAULTS_WAIT_MS = 6000;
+const SHARED_DEFAULTS_WAIT_MS = 1200;
+const FORGE_API_TIMEOUT_MS = 10000;
 
 const gun = window.Gun ? window.Gun({ peers: window.__GUN_PEERS__ || undefined }) : null;
 const portalRoot = gun?.get('3dvr-portal') || null;
@@ -21,46 +22,38 @@ const stage = {
 const defaultFollowUps = [
   {
     key: 'audience',
-    question: 'Who else has this problem?',
+    question: 'Who is this for? You can say me.',
   },
   {
-    key: 'tried',
-    question: 'What have you already tried?',
-  },
-  {
-    key: 'tiny',
-    question: 'What would a tiny version look like in 7 days?',
+    key: 'help',
+    question: 'What would help this week?',
   },
 ];
 
 const followUpPool = {
   shape: {
     key: 'shape',
-    question: 'Do you want this to become a tool, service, community, content project, or business?',
+    question: 'What should this become first? A page, service, tool, or message?',
   },
   resources: {
     key: 'resources',
-    question: 'What skills or resources do you already have?',
+    question: 'What do you already have? A skill, tool, friend, or place to start?',
   },
 };
 
 const starterSparks = [
-  'I need money, I do not have much free time, and I keep thinking there is a useful project hiding in the tools I already have.',
-  'I am tired of watching capable people lose momentum because their ideas, follow-up, and first offer are scattered everywhere.',
-  'I know there is something I should build, but every version gets too big before I can test whether anyone actually wants it.',
-  'I want to turn 3DVR into something people can buy this week, not another giant platform promise.',
+  'I need money and I do not know what to do first.',
+  'I need better work and I do not know where to start.',
+  'I have an idea but it feels too big.',
+  'I feel stuck and need one small next step.',
 ];
 
 const briefOrder = [
-  ['projectName', 'Project Name'],
-  ['coreFrustration', 'Core Frustration'],
-  ['audience', 'Audience'],
-  ['projectConcept', 'Project Concept'],
-  ['tinyExperiment', 'Tiny 7-Day Experiment'],
-  ['firstActions', 'First 3 Actions'],
-  ['testMessage', 'Test Message'],
-  ['codexPrompt', 'Codex Build Prompt'],
-  ['realityCheck', 'Reality Check'],
+  ['projectName', 'Name'],
+  ['firstActions', 'Do these 3 things'],
+  ['testMessage', 'Message to send'],
+  ['tinyExperiment', '7-day test'],
+  ['realityCheck', 'Watch out'],
 ];
 
 const refs = {
@@ -69,6 +62,9 @@ const refs = {
   inputLabel: document.querySelector('[data-input-label]'),
   submit: document.querySelector('[data-submit-answer]'),
   spark: document.querySelector('[data-spark-idea]'),
+  easyAnswer: document.querySelector('[data-easy-answer]'),
+  presets: document.querySelector('[data-forge-presets]'),
+  presetButtons: Array.from(document.querySelectorAll('[data-preset-idea]')),
   reset: document.querySelector('[data-reset-forge]'),
   transcript: document.querySelector('[data-transcript]'),
   progress: document.querySelector('[data-forge-progress]'),
@@ -303,10 +299,10 @@ function chooseFollowUps(initial) {
   }
 
   if (/\b(skill|build|make|code|design|write|film|stage|tech|crew|freelance)\b/.test(lower)) {
-    chosen[2] = followUpPool.resources;
+    chosen[1] = followUpPool.resources;
   }
 
-  return chosen.slice(0, 3);
+  return chosen.slice(0, 2);
 }
 
 function deriveProjectName(initial, answers) {
@@ -343,47 +339,47 @@ function buildLocalForgeGuidance(initial = '') {
 
   if (moneyPressure) {
     return {
-      diagnosis: 'This is cash pressure, not a giant product problem yet. The first move is to find a small paid promise that can be tested with real people this week.',
+      diagnosis: 'This looks like money pressure. Start with one small offer, not a big app.',
       solutionPaths: [
-        'Package one narrow service as a paid sprint, such as setup, cleanup, onboarding, follow-up, or troubleshooting.',
-        'Use your existing network before building: send a short offer message to 10 people who might know the pain.',
-        'Reduce pressure while testing by finding one bill, subscription, or commitment to negotiate or pause.'
+        'Offer one small paid service to people you already know.',
+        'Ask 10 people what they would pay for before building.',
+        'Cut or pause one bill while you test the offer.'
       ],
       nextActions: [
-        'Write one sentence that starts with: I help [specific person] get [specific outcome] in [short time].',
-        'Name 10 people or businesses you can contact without needing a new audience.',
-        'Do not build software until at least one person replies with a real problem, budget, or referral.'
+        'Write: I help [person] do [thing] this week.',
+        'Name 10 people you can text.',
+        'Build only after one person shows real interest.'
       ]
     };
   }
 
   if (jobPressure) {
     return {
-      diagnosis: 'This sounds like work pressure and underused skill. The first solution is not inspiration; it is a sharper job, freelance, or project signal.',
+      diagnosis: 'This looks like work pressure. Start with one proof of skill.',
       solutionPaths: [
-        'Turn the frustration into a skill proof: one short portfolio artifact, teardown, checklist, or case study.',
-        'Build a better-work search lane with target roles, warm contacts, and follow-up messages.',
-        'Test a freelance version of the skill before waiting for a perfect job opening.'
+        'Make one small proof that shows what you can do.',
+        'Text one warm person and ask who needs that skill.',
+        'Test a tiny freelance offer before waiting for a perfect job.'
       ],
       nextActions: [
-        'List the three skills you want someone to pay or hire you for.',
-        'Find five roles, crews, clients, or businesses where those skills matter.',
-        'Send one direct message that asks for a conversation, not a job.'
+        'Pick one skill you want to be paid for.',
+        'Name five places where that skill helps.',
+        'Send one message asking for advice, not a job.'
       ]
     };
   }
 
   return {
-    diagnosis: 'Good raw material. The emotional force is real, but the audience and first useful version are still too wide.',
+    diagnosis: 'This is still wide. Make it smaller.',
     solutionPaths: [
-      'Turn it into a service if someone needs human help now.',
-      'Turn it into a tool if the same repeated task keeps showing up.',
-      'Turn it into content or a community if people mainly need language, examples, and momentum.'
+      'Make one page, checklist, message, or tiny service.',
+      'Start with one person before a big audience.',
+      'Use a direct message before building software.'
     ],
     nextActions: [
-      'Name the exact person this helps first.',
-      'Write the smallest promise that would be useful in seven days.',
-      'Send the promise to real people before adding features.'
+      'Name who this helps.',
+      'Write one useful promise.',
+      'Send it before adding features.'
     ]
   };
 }
@@ -392,10 +388,8 @@ function buildMockMovementBrief(currentSession) {
   const initial = clean(currentSession.initial);
   const answers = currentSession.answers;
   const projectName = deriveProjectName(initial, answers);
-  const audience = clause(answers.audience, 'frustrated working people with hidden skills');
-  const tiny = clause(answers.tiny, 'a one-page promise plus a message sent to 10 people');
-  const tried = clause(answers.tried, 'thinking about it alone');
-  const resources = clause(answers.resources, 'your existing skills, phone, laptop, and direct network');
+  const audience = clause(answers.audience, 'me first, then people like me');
+  const tiny = clause(answers.help || answers.tiny, 'one page, one message, or one checklist that helps this week');
   const shape = guessProjectShape(answers, initial);
   const coreFrustration = sentence(
     initial,
@@ -403,15 +397,15 @@ function buildMockMovementBrief(currentSession) {
   );
   const isRevenuePressure = /\b(money|income|cash|revenue|paid|client|clients|bills?|rent|sales?|no time|busy)\b/i.test(`${initial} ${Object.values(answers).join(' ')}`);
   const projectConcept = isRevenuePressure
-    ? `${projectName} is a ${shape} for ${audience}. It starts from this tension: ${coreFrustration} The first useful version should test a clear paid offer with real people before building a 3D scene, dashboard, or platform.`
-    : `${projectName} is a ${shape} for ${audience}. It starts from this tension: ${coreFrustration} The first useful version should avoid platform fantasy and prove whether people respond.`;
-  const tinyExperiment = `In 7 days, make ${tiny}. Send it to 10 specific people, ask what feels useful or unclear, and track replies without building a full app.`;
+    ? `${projectName} is a ${shape} for ${audience}. Test a clear paid offer before building.`
+    : `${projectName} is a ${shape} for ${audience}. Test if people care before building.`;
+  const tinyExperiment = `This week: make ${tiny}. Send it to 10 people. Track replies.`;
   const firstActions = [
-    `Write a one-paragraph project promise for ${audience}.`,
-    `Send the test message to 10 people before adding features.`,
-    `Turn the strongest reply into the next tiny build or service step.`,
+    'Write one clear promise.',
+    'Text 10 people.',
+    'Build after one yes.',
   ];
-  const testMessage = `I am testing an idea called ${projectName}. It is for ${audience} who are dealing with this: ${coreFrustration} The tiny version is ${tiny}. Does this feel useful, too vague, or not your problem?`;
+  const testMessage = `Quick question: I am testing ${projectName}. It is for ${audience}. Would this help you this week?`;
   const codexPrompt = [
     `Build a minimal first version of ${projectName}.`,
     '',
@@ -428,10 +422,8 @@ function buildMockMovementBrief(currentSession) {
     '- Add tests or a simple verification path for the core interaction.',
   ].join('\n');
   const realityCheck = [
-    'Good raw material. Too vague right now unless the audience is named in plain language.',
-    `You already tried ${tried}; do not repeat that as the next step.`,
-    `Use ${resources} first. This is probably not a startup yet. It is a test.`,
-    'Do not build an app yet if a direct message can test the signal faster.',
+    'Pick one kind of person first.',
+    'Send the message before building.',
   ];
 
   return {
@@ -481,15 +473,15 @@ function normalizeFollowUpsResponse(value) {
       question: clean(item?.question),
     }))
     .filter((item) => item.question)
-    .slice(0, 3);
+    .slice(0, 2);
 
   defaultFollowUps.forEach((fallback) => {
-    if (normalized.length < 3) {
+    if (normalized.length < 2) {
       normalized.push(fallback);
     }
   });
 
-  return normalized.slice(0, 3);
+  return normalized.slice(0, 2);
 }
 
 function mergeFollowUpsResponse(value, lockedCount = 0) {
@@ -509,7 +501,7 @@ function mergeFollowUpsResponse(value, lockedCount = 0) {
   defaultFollowUps.forEach(add);
   Object.values(followUpPool).forEach(add);
 
-  return merged.slice(0, 3);
+  return merged.slice(0, 2);
 }
 
 function normalizeStringList(value, fallback, limit) {
@@ -537,7 +529,7 @@ function normalizeBriefResponse(value) {
     firstActions: normalizeStringList(value?.firstActions, fallback.firstActions, 3),
     testMessage: clean(value?.testMessage) || fallback.testMessage,
     codexPrompt: clean(value?.codexPrompt) || fallback.codexPrompt,
-    realityCheck: normalizeStringList(value?.realityCheck, fallback.realityCheck, 5),
+    realityCheck: normalizeStringList(value?.realityCheck, fallback.realityCheck, 2),
   };
 }
 
@@ -558,17 +550,32 @@ async function parseApiError(response) {
 async function requestForge(mode, payload = {}) {
   await waitForSharedSecret('openai', 'Loading shared Forge key...');
 
-  const response = await fetch('/api/openai-site', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      forge: true,
-      mode,
-      model: FORGE_MODEL,
-      ...(sharedSecrets.openai ? { apiKey: sharedSecrets.openai } : {}),
-      ...payload,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), FORGE_API_TIMEOUT_MS);
+  let response;
+
+  try {
+    response = await fetch('/api/openai-site', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        forge: true,
+        mode,
+        model: FORGE_MODEL,
+        ...(sharedSecrets.openai ? { apiKey: sharedSecrets.openai } : {}),
+        ...payload,
+      }),
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('Forge request timed out.');
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new Error(await parseApiError(response));
@@ -768,11 +775,11 @@ function formatGuidanceMessage(guidance) {
   return [
     `What I see: ${guidance.diagnosis}`,
     '',
-    'Possible solution paths:',
-    ...guidance.solutionPaths.map((item) => `- ${item}`),
+    'Try this:',
+    `- ${guidance.solutionPaths[0] || 'Make it smaller.'}`,
     '',
-    'Do next:',
-    ...guidance.nextActions.map((item) => `- ${item}`),
+    'Then do this:',
+    `- ${guidance.nextActions[0] || 'Pick one next step.'}`,
   ].join('\n');
 }
 
@@ -808,13 +815,13 @@ function renderGuidance() {
   refs.guidancePaths.replaceChildren();
   refs.guidanceActions.replaceChildren();
 
-  session.guidance.solutionPaths.forEach((item) => {
+  session.guidance.solutionPaths.slice(0, 1).forEach((item) => {
     const li = document.createElement('li');
     li.textContent = item;
     refs.guidancePaths.appendChild(li);
   });
 
-  session.guidance.nextActions.forEach((item) => {
+  session.guidance.nextActions.slice(0, 1).forEach((item) => {
     const li = document.createElement('li');
     li.textContent = item;
     refs.guidanceActions.appendChild(li);
@@ -836,8 +843,8 @@ function renderProgress() {
     ? 100
     : Math.max(18, Math.round(((answered + 1) / (total + 1)) * 100));
   const label = session.stage === stage.GENERATING
-    ? 'Forging the brief'
-    : `Question ${active} of ${total}`;
+    ? 'Making the plan'
+    : `Step ${active} of ${total}`;
 
   refs.progress.hidden = false;
   refs.progressLabel.textContent = label;
@@ -847,17 +854,17 @@ function renderProgress() {
 function currentPrompt() {
   if (session.stage === stage.GENERATING) {
     return {
-      label: 'The Forge is shaping your Movement Brief.',
-      button: 'Forging...',
-      placeholder: 'Hold tight. Forge is turning the raw material into a Movement Brief.',
+      label: 'Making your plan.',
+      button: 'Making...',
+      placeholder: 'Hold tight. Forge is making a simple plan.',
     };
   }
 
   if (session.stage === stage.INITIAL || session.stage === stage.INTRO) {
     return {
-      label: 'Rant, ramble, complain, dream, or describe the thing you can’t stop thinking about.',
-      button: 'Send to Forge',
-      placeholder: 'Example: I need money, I do not have much time, and I keep thinking there is a useful project in 3DVR.',
+      label: 'Tell me what feels stuck. One sentence is enough.',
+      button: 'Help me sort it',
+      placeholder: 'Example: I need money and I do not know what to do first.',
     };
   }
 
@@ -865,14 +872,38 @@ function currentPrompt() {
   const total = session.followUps.length || 3;
   const active = Math.min(session.followUpIndex + 1, total);
   return {
-    label: followUp?.question ? `Question ${active} of ${total}: ${followUp.question}` : 'Ready to forge the brief.',
-    button: session.followUpIndex >= session.followUps.length - 1 ? 'Forge brief' : 'Answer',
-    placeholder: 'Answer in plain language. A rough answer is enough.',
+    label: followUp?.question ? `Step ${active} of ${total}: ${followUp.question}` : 'Ready to make the plan.',
+    button: session.followUpIndex >= session.followUps.length - 1 ? 'Make my plan' : 'Next',
+    placeholder: 'A short answer is enough. You can say I do not know.',
   };
+}
+
+function simpleAnswerForCurrentPrompt() {
+  const followUp = session.followUps[session.followUpIndex];
+  const key = followUp?.key || '';
+
+  if (key === 'audience') {
+    return 'Me first, then people like me.';
+  }
+
+  if (key === 'help' || key === 'tiny') {
+    return 'a simple page, message, or checklist I can use this week.';
+  }
+
+  if (key === 'shape') {
+    return 'Start with a simple page or service.';
+  }
+
+  if (key === 'resources') {
+    return 'My skills, my phone, and a few people I can ask.';
+  }
+
+  return 'I do not know yet. Help me pick the simplest next step.';
 }
 
 function renderBriefSection(key, label, value) {
   const node = refs.sectionTemplate.content.firstElementChild.cloneNode(true);
+  node.dataset.briefSection = key;
   node.classList.toggle('brief-section--strong', key === 'projectName' || key === 'realityCheck');
   node.classList.toggle(
     'brief-section--wide',
@@ -993,7 +1024,7 @@ function render() {
   const prompt = currentPrompt();
   const statusText = isBusy
     ? (session.notice || 'Forge AI is working...')
-    : session.notice || (session.stage === stage.BRIEF ? 'Movement Brief ready.' : 'Ready.');
+    : session.notice || (session.stage === stage.BRIEF ? 'Plan ready.' : 'Ready.');
 
   document.body.dataset.forgeStage = session.stage;
   refs.conversationPanel.hidden = session.stage === stage.BRIEF;
@@ -1004,6 +1035,12 @@ function render() {
   refs.answer.disabled = isBusy || session.stage === stage.GENERATING || session.stage === stage.BRIEF;
   refs.submit.disabled = isBusy || session.stage === stage.GENERATING || session.stage === stage.BRIEF;
   refs.spark.hidden = isBusy || Boolean(session.initial) || session.stage !== stage.INITIAL;
+  if (refs.easyAnswer) {
+    refs.easyAnswer.hidden = isBusy || session.stage !== stage.FOLLOWUPS;
+  }
+  if (refs.presets) {
+    refs.presets.hidden = isBusy || Boolean(session.initial) || session.stage !== stage.INITIAL;
+  }
   refs.reset.hidden = !session.initial && session.stage === stage.INITIAL;
   refs.briefPanel.hidden = session.stage !== stage.BRIEF;
   refs.status.textContent = statusText;
@@ -1022,18 +1059,18 @@ function render() {
 
 async function prepareFollowUps(initial) {
   isBusy = true;
-  setNotice('Reading for solution paths and the next sharp question...');
+  setNotice('Finding a simple first step...');
   render();
 
   try {
     const result = await requestForge('followups', { initial });
     session.guidance = normalizeForgeGuidanceResponse(result?.guidance, initial);
     session.followUps = normalizeFollowUpsResponse(result?.questions);
-    setNotice('Forge suggested first solution paths. Answer one question to sharpen the brief.');
+    setNotice('Start here. Answer two easy steps, or use the simple answer.');
   } catch (error) {
     session.guidance = buildLocalForgeGuidance(initial);
     session.followUps = chooseFollowUps(initial);
-    setNotice(`Local solution paths loaded. ${error.message || ''}`.trim());
+    setNotice('Simple path loaded. Keep going.');
   } finally {
     isBusy = false;
     session.stage = stage.FOLLOWUPS;
@@ -1045,7 +1082,7 @@ async function prepareFollowUps(initial) {
 
 async function refineForgeTurn() {
   isBusy = true;
-  setNotice('Updating solution paths from your answer...');
+  setNotice('Updating the plan...');
   render();
 
   try {
@@ -1056,9 +1093,9 @@ async function refineForgeTurn() {
     });
     session.guidance = normalizeForgeGuidanceResponse(result?.guidance, session.initial);
     session.followUps = mergeFollowUpsResponse(result?.questions, session.followUpIndex);
-    setNotice('Forge updated the solution paths. Answer the next sharp question.');
+    setNotice('Plan updated. One more small step.');
   } catch (error) {
-    setNotice(`Kept the current solution path. ${error.message || ''}`.trim());
+    setNotice('Kept the simple path. Keep going.');
   } finally {
     isBusy = false;
     saveSession();
@@ -1070,7 +1107,7 @@ async function refineForgeTurn() {
 async function generateBrief() {
   session.stage = stage.GENERATING;
   isBusy = true;
-  setNotice('Shaping your Movement Brief...');
+  setNotice('Making your plan...');
   render();
 
   try {
@@ -1081,11 +1118,11 @@ async function generateBrief() {
     });
     session.brief = normalizeBriefResponse(result?.brief);
     session.briefSource = 'ai';
-    setNotice('Movement Brief ready.');
+    setNotice('Plan ready.');
   } catch (error) {
     session.brief = buildMockMovementBrief(session);
     session.briefSource = 'local-fallback';
-    setNotice(`Local fallback brief ready. ${error.message || ''}`.trim());
+    setNotice('Plan ready.');
   } finally {
     isBusy = false;
     session.stage = stage.BRIEF;
@@ -1101,7 +1138,7 @@ async function handleSubmit(event) {
 
   const value = clean(refs.answer.value);
   if (!value) {
-    refs.status.textContent = 'Give the Forge raw material first.';
+    refs.status.textContent = 'Type one sentence or pick a starter.';
     return;
   }
 
@@ -1111,8 +1148,10 @@ async function handleSubmit(event) {
     session.followUps = chooseFollowUps(value);
     session.followUpIndex = 0;
     session.stage = stage.FOLLOWUPS;
+    setNotice('Start here. Answer two easy steps, or use the simple answer.');
     saveSession();
-    await prepareFollowUps(value);
+    render();
+    window.requestAnimationFrame(() => refs.answer.focus());
     return;
   }
 
@@ -1128,8 +1167,10 @@ async function handleSubmit(event) {
   }
 
   session.followUpIndex += 1;
+  setNotice('Good. One more small step.');
   saveSession();
-  await refineForgeTurn();
+  render();
+  window.requestAnimationFrame(() => refs.answer.focus());
 }
 
 async function writeText(text, successMessage) {
@@ -1161,8 +1202,8 @@ function downloadBrief() {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  refs.status.textContent = 'Movement Brief downloaded.';
-  if (refs.briefStatus) refs.briefStatus.textContent = 'Movement Brief downloaded.';
+  refs.status.textContent = 'Plan downloaded.';
+  if (refs.briefStatus) refs.briefStatus.textContent = 'Plan downloaded.';
 }
 
 function resetForge() {
@@ -1188,17 +1229,36 @@ function sparkIdea() {
   const spark = starterSparks[sparkIndex % starterSparks.length];
   sparkIndex += 1;
   refs.answer.value = spark;
-  refs.status.textContent = 'Spark loaded. Edit it or send it.';
+  refs.status.textContent = 'Example loaded. Edit it or send it.';
+  refs.answer.focus();
+}
+
+function usePresetIdea(event) {
+  const idea = clean(event.currentTarget?.dataset?.presetIdea);
+  if (!idea) return;
+
+  refs.answer.value = idea;
+  refs.status.textContent = 'Starter loaded. Edit it or send it.';
+  refs.answer.focus();
+}
+
+function useSimpleAnswer() {
+  refs.answer.value = simpleAnswerForCurrentPrompt();
+  refs.status.textContent = 'Simple answer added. You can edit it.';
   refs.answer.focus();
 }
 
 refs.form?.addEventListener('submit', handleSubmit);
 refs.spark?.addEventListener('click', sparkIdea);
+refs.easyAnswer?.addEventListener('click', useSimpleAnswer);
+refs.presetButtons.forEach((button) => {
+  button.addEventListener('click', usePresetIdea);
+});
 refs.reset?.addEventListener('click', resetForge);
 refs.resetBrief?.addEventListener('click', resetForge);
 refs.copyBrief?.addEventListener('click', () => {
   if (session.brief) {
-    writeText(briefToMarkdown(session.brief), 'Movement Brief copied.');
+    writeText(briefToMarkdown(session.brief), 'Plan copied.');
   }
 });
 refs.downloadBrief?.addEventListener('click', downloadBrief);

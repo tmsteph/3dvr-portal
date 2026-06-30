@@ -76,6 +76,9 @@ test('buildForgeInstructions injects date and blacksmith tone rules', () => {
   assert.match(instructions, /Avoid accounts, dashboards, metaverse concepts/i);
   assert.match(instructions, /instead of inventing certainty/i);
   assert.match(instructions, /Movement Brief/i);
+  assert.match(instructions, /exactly two short, easy questions/i);
+  assert.match(instructions, /exactly two plain bullets/i);
+  assert.match(instructions, /I do not know/i);
 });
 
 test('buildForgeOpenAiRequest creates a structured follow-up request', () => {
@@ -179,7 +182,7 @@ test('Forge handler returns solution guidance and adaptive follow-up questions f
   assert.match(res.body.guidance.diagnosis, /first audience is still too broad/);
   assert.equal(res.body.guidance.solutionPaths.length, 2);
   assert.equal(res.body.guidance.nextActions.length, 2);
-  assert.equal(res.body.questions.length, 3);
+  assert.equal(res.body.questions.length, 2);
   assert.equal(res.body.questions[1].key, 'stakes');
 });
 
@@ -216,14 +219,12 @@ test('Forge handler returns a normalized Movement Brief from OpenAI', async () =
       mode: 'brief',
       initial: 'I want to turn rants into project tests.',
       followUps: [
-        { key: 'audience', question: 'Who else has this problem?' },
-        { key: 'tried', question: 'What have you tried?' },
-        { key: 'tiny', question: 'What is tiny?' }
+        { key: 'audience', question: 'Who is this for? You can say me.' },
+        { key: 'help', question: 'What would help this week?' }
       ],
       answers: {
         audience: 'frustrated workers',
-        tried: 'notes',
-        tiny: 'message test'
+        help: 'message test'
       }
     }
   }, res);
@@ -232,7 +233,7 @@ test('Forge handler returns a normalized Movement Brief from OpenAI', async () =
   assert.equal(res.body.mode, 'brief');
   assert.equal(res.body.brief.projectName, 'Rant to Project Forge');
   assert.equal(res.body.brief.firstActions.length, 3);
-  assert.equal(res.body.brief.realityCheck.length, 3);
+  assert.equal(res.body.brief.realityCheck.length, 2);
   assert.match(res.body.brief.codexPrompt, /Build a minimal Forge prototype/);
 });
 
@@ -313,5 +314,5 @@ test('OpenAI site route dispatches Forge requests without adding another API fun
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.mode, 'followups');
   assert.match(res.body.guidance.diagnosis, /smaller first proof/);
-  assert.equal(res.body.questions.length, 3);
+  assert.equal(res.body.questions.length, 2);
 });
