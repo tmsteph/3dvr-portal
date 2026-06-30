@@ -12,7 +12,7 @@ test('start router sends clarity-first answers to Life', () => {
   assert.equal(key, 'life');
   assert.equal(
     getRecommendation({ project: 'personal', stage: 'idea', support: 'free' }).title,
-    'Start free in the portal'
+    'Start free with Daily Direction'
   );
   assert.equal(
     getRecommendation({ project: 'personal', stage: 'idea', support: 'free' }).primaryLabel,

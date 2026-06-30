@@ -55,16 +55,16 @@ describe('portal customer journey pages', () => {
     assert.match(html, /href="sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dstarter"/);
     assert.match(html, /href="sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dpro"/);
     assert.match(html, /href="sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dbuilder"/);
-    assert.match(html, /Get started/);
+    assert.match(html, /Get clear/);
     assert.match(html, /Family &amp; Friends/);
     assert.match(html, /Builder/);
-    assert.match(html, /Keep the support lanes nearby/);
+    assert.match(html, /Start free, then grow/);
     assert.match(html, /Daily Direction/);
-    assert.match(html, /Life: 3-minute check-in and one clear next step\./);
+    assert.match(html, /Free: sort your life and choose one next step\./);
     assert.match(html, /Support Group/);
     assert.match(html, /Cell: small-group accountability and weekly momentum\./);
     assert.match(html, /Start Your Thing/);
-    assert.match(html, /Start Here: tools and paid help for a project, offer, or business\./);
+    assert.match(html, /Start Here: organize life, ideas, work, and what wants to grow\./);
     assert.match(html, /Search the dock/);
     assert.match(html, /Sign in or create account/);
     assert.match(html, /Use one account to save your progress and sync your points across devices\./);
@@ -115,12 +115,13 @@ describe('portal customer journey pages', () => {
 
   it('keeps the free trial page tied to the portal account journey', async () => {
     const html = await readFile(new URL('../free-trial.html', import.meta.url), 'utf8');
-    assert.match(html, /Get organized and take your next step/);
-    assert.match(html, /Create or use one portal account/);
-    assert.match(html, /Start with daily direction/);
-    assert.match(html, /Send free-plan link/);
+    assert.match(html, /Organize your life\. Find your next step\./);
+    assert.match(html, /You are meant for more than staying stuck/);
+    assert.match(html, /Open your portal/);
+    assert.match(html, /Pick one move/);
+    assert.match(html, /Send free link/);
     assert.match(html, /Start here/);
-    assert.match(html, /Use the email you want attached to your portal account/);
+    assert.match(html, /Use the email you want for your portal account/);
     assert.match(html, /Sign in or create account/);
     assert.match(html, /Open billing center/);
     assert.match(html, /Open start flow/);
@@ -129,23 +130,22 @@ describe('portal customer journey pages', () => {
 
   it('turns the start page into a compact onboarding router with easy plan access', async () => {
     const html = await readFile(new URL('../start/index.html', import.meta.url), 'utf8');
-    assert.match(html, /Start your next 3dvr project\./);
-    assert.match(html, /getting organized, ready for direct help, or already managing/);
+    assert.match(html, /Organize your life\. Find your next step\./);
+    assert.match(html, /Start free if life feels scattered/);
     assert.match(html, /3 clear needs/);
-    assert.match(html, /Start where you actually are/);
-    assert.match(html, /Pick the sentence that sounds most like your situation/);
+    assert.match(html, /Start where you are/);
+    assert.match(html, /Pick the sentence that feels true/);
     assert.match(html, /Start free/);
     assert.match(html, /Get direct help/);
     assert.match(html, /Manage billing/);
     assert.match(html, /Pick your path/);
     assert.match(html, /Three ways to begin/);
-    assert.match(html, /I am getting organized/);
+    assert.match(html, /I feel scattered/);
     assert.match(html, /I want help launching something/);
     assert.match(html, /I already pay for 3dvr/);
     assert.doesNotMatch(html, /The job of this page is simple/);
     assert.doesNotMatch(html, /Do not make every customer start on the same screen/);
-    assert.match(html, /I need to get organized/);
-    assert.match(html, /Find one next step without a card/);
+    assert.match(html, /Get clear for free/);
     assert.match(html, /I need help building something/);
     assert.match(html, /Get direct help on a real project/);
     assert.match(html, /I already pay for 3DVR/);
@@ -173,7 +173,7 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Open Messenger/);
     assert.match(html, /Open Finance/);
     assert.match(html, /One portal account/);
-    assert.match(html, /Switch plans later in Stripe/);
+    assert.match(html, /You are meant for more/);
     assert.match(html, /Open sign-in/);
     assert.match(html, /Browse apps/);
     assert.match(html, /Returning customers should not have to wade back through plan education\./);
