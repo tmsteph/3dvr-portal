@@ -337,6 +337,35 @@
             <button class="cta ghost" type="button" data-guide-show-dock>Show matching apps</button>
           </div>
         </article>
+
+        <section class="portal-app-studio" data-owned-app-studio hidden aria-labelledby="owned-app-title">
+          <div class="portal-app-studio__header">
+            <div>
+              <span class="eyebrow">Your app</span>
+              <h3 id="owned-app-title" data-owned-app-title>New app draft</h3>
+              <p data-owned-app-status>Only you can edit this draft.</p>
+            </div>
+            <a class="cta primary" href="web-builder-app/index.html" data-owned-app-builder>Open Builder</a>
+          </div>
+          <div class="portal-app-studio__grid">
+            <label>
+              App name
+              <input type="text" data-owned-app-name maxlength="80" autocomplete="off">
+            </label>
+            <label>
+              What should it do?
+              <textarea rows="4" data-owned-app-prompt maxlength="1200"></textarea>
+            </label>
+          </div>
+          <div class="portal-app-studio__actions">
+            <button class="cta primary" type="button" data-owned-app-save>Save draft</button>
+            <button class="cta ghost" type="button" data-owned-app-copy>Copy build prompt</button>
+          </div>
+          <div class="portal-app-studio__owned">
+            <strong>Your drafts</strong>
+            <div class="portal-app-studio__list" data-owned-app-list></div>
+          </div>
+        </section>
       </section>
 
       <section class="human-os-container" aria-labelledby="human-os-title">
@@ -1779,6 +1808,15 @@
     const guideStatus = document.querySelector('[data-guide-status]');
     const guideShowDock = document.querySelector('[data-guide-show-dock]');
     const autoIdentityStatus = document.querySelector('[data-auto-identity-status]');
+    const ownedAppStudio = document.querySelector('[data-owned-app-studio]');
+    const ownedAppTitle = document.querySelector('[data-owned-app-title]');
+    const ownedAppStatus = document.querySelector('[data-owned-app-status]');
+    const ownedAppBuilder = document.querySelector('[data-owned-app-builder]');
+    const ownedAppName = document.querySelector('[data-owned-app-name]');
+    const ownedAppPrompt = document.querySelector('[data-owned-app-prompt]');
+    const ownedAppSave = document.querySelector('[data-owned-app-save]');
+    const ownedAppCopy = document.querySelector('[data-owned-app-copy]');
+    const ownedAppList = document.querySelector('[data-owned-app-list]');
     const GUIDE_API_TIMEOUT_MS = 14000;
     let activeAppLane = 'all';
     const roomMeta = {
@@ -1861,6 +1899,22 @@
           'Name the kind of work you want next.',
           'List one person, place, or role to contact.',
           'Use the tracker to keep the next step visible.',
+        ],
+      },
+      {
+        id: 'app-admin',
+        room: 'projects',
+        href: 'web-builder-app/index.html',
+        cta: 'Open Builder',
+        label: 'App admin',
+        title: 'My App Studio',
+        copy: 'Make or edit an app draft that belongs to you.',
+        search: 'create edit app builder admin portal',
+        keywords: ['create app', 'make app', 'new app', 'edit app', 'my app', 'admin app', 'portal edit', 'own app', 'app builder'],
+        steps: [
+          'Say what the app should do.',
+          'Save the draft under your identity.',
+          'Open Builder when you are ready.',
         ],
       },
       {
@@ -2165,6 +2219,242 @@
     const trackPortalBehavior = (type, detail = {}) => {
       window.PortalAutoIdentity?.remember?.(type, detail);
     };
+    const OWNED_APPS_STORAGE_KEY = 'portal:owned-apps:v1';
+    const WEB_BUILDER_PREFILL_KEY = 'web-builder-prefill-request';
+    const APP_ADMIN_INTENT_RE = /\b(create|make|build|start|new|edit|update|change|fix|improve|admin|manage)\b[\s\S]{0,80}\b(app|tool|page|site|website|portal)\b|\b(app|tool|page|site|website|portal)\b[\s\S]{0,80}\b(create|make|build|edit|update|change|fix|improve|admin|manage)\b/i;
+    let currentOwnedAppId = '';
+
+    const parseStoredJson = (value, fallback) => {
+      if (!value) return fallback;
+      try {
+        return JSON.parse(value);
+      } catch (_error) {
+        return fallback;
+      }
+    };
+
+    const readOwnedApps = () => {
+      const stored = parseStoredJson(localStorage.getItem(OWNED_APPS_STORAGE_KEY), []);
+      return Array.isArray(stored) ? stored.filter((app) => app && typeof app === 'object') : [];
+    };
+
+    const writeOwnedApps = (apps) => {
+      localStorage.setItem(OWNED_APPS_STORAGE_KEY, JSON.stringify(apps));
+      return apps;
+    };
+
+    const getPortalOwnerId = () => {
+      const profile = window.PortalAutoIdentity?.ensure?.();
+      return String(
+        profile?.id
+        || localStorage.getItem('userPubKey')
+        || localStorage.getItem('guestId')
+        || ''
+      ).trim();
+    };
+
+    const canAdminOwnedApp = (app) => {
+      const ownerId = getPortalOwnerId();
+      return Boolean(ownerId && app?.ownerId === ownerId);
+    };
+
+    const getOwnedAppsForCurrentOwner = () => {
+      const ownerId = getPortalOwnerId();
+      return readOwnedApps()
+        .filter((app) => app.ownerId === ownerId)
+        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    };
+
+    const makeOwnedAppId = () => {
+      if (window.crypto?.randomUUID) {
+        return `app_${window.crypto.randomUUID()}`;
+      }
+      return `app_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    };
+
+    const toAppTitle = (value = '') => {
+      const cleaned = String(value)
+        .replace(/\b(can you|please|i want|i need|i would like|help me|for me)\b/gi, ' ')
+        .replace(/\b(create|make|build|start|new|edit|update|change|fix|improve|admin|manage)\b/gi, ' ')
+        .replace(/\b(app|tool|page|site|website|portal|that|where|with|for|about|into)\b/gi, ' ')
+        .replace(/[^a-z0-9\s-]/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 6)
+        .join(' ');
+
+      if (!cleaned) return 'New Portal App';
+      return cleaned.replace(/\b\w/g, (letter) => letter.toUpperCase());
+    };
+
+    const buildOwnedAppPrompt = (app) => [
+      `Build an owned 3DVR portal app named "${app.name}".`,
+      `Owner id: ${app.ownerId}.`,
+      `User request: ${app.prompt}`,
+      'Keep it mobile-first.',
+      'Make the first screen useful right away.',
+      'Store user data under this owner id.',
+      'Only show admin controls when the active owner id matches.',
+      'If code changes are needed in the shared portal, prepare them as a pull request.'
+    ].join('\n');
+
+    const mirrorOwnedAppToGun = (app) => {
+      try {
+        if (typeof portalRoot === 'undefined' || !portalRoot || !canAdminOwnedApp(app)) {
+          return;
+        }
+        portalRoot.get('owned-apps').get(app.ownerId).get(app.id).put({
+          id: app.id,
+          ownerId: app.ownerId,
+          name: app.name,
+          prompt: app.prompt,
+          buildPrompt: app.buildPrompt,
+          updatedAt: app.updatedAt,
+          createdAt: app.createdAt,
+          source: 'portal-home'
+        });
+      } catch (error) {
+        console.warn('Could not mirror owned app draft to Gun', error);
+      }
+    };
+
+    const saveOwnedAppDraft = (draft) => {
+      if (!canAdminOwnedApp(draft)) {
+        throw new Error('This draft belongs to another owner.');
+      }
+
+      const apps = readOwnedApps();
+      const existingIndex = apps.findIndex((app) => app.id === draft.id);
+      if (existingIndex >= 0 && apps[existingIndex].ownerId !== draft.ownerId) {
+        throw new Error('This draft belongs to another owner.');
+      }
+
+      if (existingIndex >= 0) {
+        apps[existingIndex] = draft;
+      } else {
+        apps.push(draft);
+      }
+
+      writeOwnedApps(apps);
+      mirrorOwnedAppToGun(draft);
+      return draft;
+    };
+
+    const makeOwnedAppDraft = (prompt, route) => {
+      const ownerId = getPortalOwnerId();
+      const now = new Date().toISOString();
+      const wantsEdit = /\b(edit|update|change|fix|improve|admin|manage)\b/i.test(prompt);
+      const latestOwnedDraft = getOwnedAppsForCurrentOwner()[0];
+      const existing = wantsEdit && latestOwnedDraft ? latestOwnedDraft : null;
+      const name = existing?.name || toAppTitle(prompt);
+      const draft = {
+        id: existing?.id || makeOwnedAppId(),
+        ownerId,
+        name,
+        prompt: String(prompt || '').trim(),
+        routeId: route?.id || 'app-admin',
+        status: 'draft',
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+      };
+      draft.buildPrompt = buildOwnedAppPrompt(draft);
+      return saveOwnedAppDraft(draft);
+    };
+
+    const renderOwnedAppList = () => {
+      if (!ownedAppList) return;
+      const apps = getOwnedAppsForCurrentOwner();
+      ownedAppList.replaceChildren();
+
+      if (!apps.length) {
+        const empty = document.createElement('span');
+        empty.textContent = 'No drafts yet.';
+        ownedAppList.appendChild(empty);
+        return;
+      }
+
+      apps.forEach((app) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.ownedAppId = app.id;
+        button.dataset.active = app.id === currentOwnedAppId ? 'true' : 'false';
+        button.textContent = app.name || 'Untitled app';
+        ownedAppList.appendChild(button);
+      });
+    };
+
+    const getCurrentOwnedApp = () => {
+      const app = readOwnedApps().find((item) => item.id === currentOwnedAppId);
+      return app && canAdminOwnedApp(app) ? app : null;
+    };
+
+    const prepareBuilderHandoff = (app) => {
+      if (!canAdminOwnedApp(app)) {
+        if (ownedAppStatus) ownedAppStatus.textContent = 'This draft belongs to another owner.';
+        return false;
+      }
+
+      localStorage.setItem(WEB_BUILDER_PREFILL_KEY, JSON.stringify({
+        source: 'portal-home',
+        appId: app.id,
+        ownerId: app.ownerId,
+        request: app.buildPrompt,
+        siteTitle: app.name,
+        siteGoal: 'Create the first useful version.',
+        audience: 'The owner and the people they invite.',
+        createdAt: new Date().toISOString(),
+      }));
+      trackPortalBehavior('app', {
+        title: app.name,
+        href: 'web-builder-app/index.html',
+        room: 'projects',
+      });
+      return true;
+    };
+
+    const renderOwnedAppStudio = (app) => {
+      if (!ownedAppStudio || !app || !canAdminOwnedApp(app)) return;
+
+      currentOwnedAppId = app.id;
+      ownedAppStudio.hidden = false;
+      if (ownedAppTitle) ownedAppTitle.textContent = app.name || 'New app draft';
+      if (ownedAppName) ownedAppName.value = app.name || '';
+      if (ownedAppPrompt) ownedAppPrompt.value = app.prompt || '';
+      if (ownedAppStatus) {
+        ownedAppStatus.textContent = 'Only you can edit this draft.';
+      }
+      if (ownedAppBuilder) {
+        ownedAppBuilder.href = 'web-builder-app/index.html#builder-card';
+      }
+      renderOwnedAppList();
+    };
+
+    const hideOwnedAppStudio = () => {
+      if (ownedAppStudio) {
+        ownedAppStudio.hidden = true;
+      }
+    };
+
+    const handleOwnedAppIntent = (prompt, route) => {
+      if (!APP_ADMIN_INTENT_RE.test(prompt) && route?.id !== 'app-admin') {
+        hideOwnedAppStudio();
+        return null;
+      }
+
+      try {
+        const app = makeOwnedAppDraft(prompt, route);
+        renderOwnedAppStudio(app);
+        return app;
+      } catch (error) {
+        if (ownedAppStatus) {
+          ownedAppStatus.textContent = error?.message || 'Could not save this draft.';
+        }
+        return null;
+      }
+    };
+
     const setActiveAppLane = (lane = 'all') => {
       activeAppLane = lane || 'all';
       laneFilterButtons.forEach((button) => {
@@ -2422,10 +2712,12 @@
       const fallbackRoute = chooseGuideRoute(prompt);
       setGuideBusy(true);
       if (guideStatus) guideStatus.textContent = 'AI guide is thinking...';
+      hideOwnedAppStudio();
 
       try {
         const route = await requestGuideRoute(prompt, fallbackRoute);
         renderGuideRoute(route);
+        handleOwnedAppIntent(prompt, route);
         trackPortalBehavior('guide', {
           routeId: route.id,
           room: route.room,
@@ -2434,6 +2726,7 @@
         if (guideStatus) guideStatus.textContent = 'AI guide ready.';
       } catch (error) {
         renderGuideRoute({ ...fallbackRoute, source: 'local-fallback' });
+        handleOwnedAppIntent(prompt, fallbackRoute);
         trackPortalBehavior('guide', {
           routeId: fallbackRoute.id,
           room: fallbackRoute.room,
@@ -2662,6 +2955,63 @@
       }
     };
 
+    ownedAppSave?.addEventListener('click', () => {
+      const app = getCurrentOwnedApp();
+      if (!app) {
+        if (ownedAppStatus) ownedAppStatus.textContent = 'No app draft is selected.';
+        return;
+      }
+
+      const next = {
+        ...app,
+        name: (ownedAppName?.value || '').trim() || app.name || 'New Portal App',
+        prompt: (ownedAppPrompt?.value || '').trim() || app.prompt,
+        updatedAt: new Date().toISOString(),
+      };
+      next.buildPrompt = buildOwnedAppPrompt(next);
+
+      try {
+        saveOwnedAppDraft(next);
+        renderOwnedAppStudio(next);
+        if (ownedAppStatus) ownedAppStatus.textContent = 'Draft saved. Only you can edit it.';
+      } catch (error) {
+        if (ownedAppStatus) ownedAppStatus.textContent = error?.message || 'Could not save this draft.';
+      }
+    });
+
+    ownedAppCopy?.addEventListener('click', async () => {
+      const app = getCurrentOwnedApp();
+      if (!app) {
+        if (ownedAppStatus) ownedAppStatus.textContent = 'No app draft is selected.';
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(app.buildPrompt || buildOwnedAppPrompt(app));
+        if (ownedAppStatus) ownedAppStatus.textContent = 'Build prompt copied.';
+      } catch (_error) {
+        if (ownedAppStatus) ownedAppStatus.textContent = app.buildPrompt || buildOwnedAppPrompt(app);
+      }
+    });
+
+    ownedAppBuilder?.addEventListener('click', (event) => {
+      const app = getCurrentOwnedApp();
+      if (!app || !prepareBuilderHandoff(app)) {
+        event.preventDefault();
+      }
+    });
+
+    ownedAppList?.addEventListener('click', (event) => {
+      const button = event.target?.closest?.('[data-owned-app-id]');
+      if (!button) return;
+      const app = readOwnedApps().find((item) => item.id === button.dataset.ownedAppId);
+      if (!app || !canAdminOwnedApp(app)) {
+        if (ownedAppStatus) ownedAppStatus.textContent = 'This draft belongs to another owner.';
+        return;
+      }
+      renderOwnedAppStudio(app);
+    });
+
     guideForm?.addEventListener('submit', (event) => {
       event.preventDefault();
       submitGuidePrompt(guidePrompt?.value ?? '');
@@ -2852,6 +3202,7 @@
     setViewMode('workshop');
     setActiveAppLane('all');
     updateAppFilter(initialSearchValue);
+    renderOwnedAppList();
     applyAutoIdentityHints();
   </script>
   <script defer src="/issue-launcher.js"></script>

@@ -62,3 +62,14 @@ test('web builder waits for shared defaults before missing-key warning', async (
   assert.match(app, /hasDefaultRecord\(data\)/);
   assert.match(app, /await loadDefaultsWithOptions\(\{ force: false, silent: true, timeoutMs: DEFAULTS_LOAD_TIMEOUT_MS \}\)/);
 });
+
+test('web builder accepts homepage owned-app handoff', async () => {
+  const app = await readFile(new URL('../web-builder-app/app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /builderPrefillStorageKey = 'web-builder-prefill-request'/);
+  assert.match(app, /hydrateBuilderPrefill\(\)/);
+  assert.match(app, /builderRequestInput\.value = request/);
+  assert.match(app, /siteTitleInput\.value = title/);
+  assert.match(app, /safeRemove\(localStorage, builderPrefillStorageKey\)/);
+  assert.match(app, /Loaded your app draft from Portal\./);
+});

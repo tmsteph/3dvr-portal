@@ -76,6 +76,7 @@ const openaiStorageKey = 'web-builder-openai';
 const vercelStorageKey = 'web-builder-vercel';
 const githubStorageKey = 'web-builder-github';
 const modelStorageKey = 'web-builder-model';
+const builderPrefillStorageKey = 'web-builder-prefill-request';
 
 const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
 const LOAD_DEFAULTS_LABEL = 'Reload shared defaults';
@@ -126,6 +127,7 @@ recallBillingSession();
 
 hydrateStoredKeys();
 hydrateCachedBillingStatus();
+hydrateBuilderPrefill();
 subscribeToDefaults();
 subscribeToBillingTier();
 subscribeToUsageCounters();
@@ -378,6 +380,39 @@ function safeParseJson(raw) {
   } catch (error) {
     return null;
   }
+}
+
+function hydrateBuilderPrefill() {
+  const raw = safeRead(localStorage, builderPrefillStorageKey) || safeRead(sessionStorage, builderPrefillStorageKey);
+  const prefill = safeParseJson(raw);
+  if (!prefill || typeof prefill !== 'object') {
+    return;
+  }
+
+  const request = String(prefill.request || '').trim();
+  if (request && builderRequestInput) {
+    builderRequestInput.value = request;
+  }
+
+  const title = String(prefill.siteTitle || '').trim();
+  if (title && siteTitleInput) {
+    siteTitleInput.value = title;
+  }
+
+  const goal = String(prefill.siteGoal || '').trim();
+  if (goal && siteGoalInput) {
+    siteGoalInput.value = goal;
+  }
+
+  const audience = String(prefill.audience || '').trim();
+  if (audience && siteAudienceInput) {
+    siteAudienceInput.value = audience;
+  }
+
+  safeRemove(localStorage, builderPrefillStorageKey);
+  safeRemove(sessionStorage, builderPrefillStorageKey);
+  setGenerateStatus('Loaded your app draft from Portal.', 'success');
+  logMessage(`Loaded app draft${title ? `: ${title}` : ''}.`);
 }
 
 function readSharedValue(key) {
