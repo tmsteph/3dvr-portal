@@ -1462,6 +1462,37 @@
 
     countAutoIdentityVisit();
 
+    function isGunAuthInProgressError(message = '') {
+      return /already being created or authenticated/i.test(String(message || ''));
+    }
+
+    function clearStoredAuthSession() {
+      localStorage.removeItem('signedIn');
+      localStorage.removeItem('alias');
+      localStorage.removeItem('username');
+      localStorage.removeItem('password');
+    }
+
+    function restoreStoredGunSession(alias, password, attempt = 0) {
+      if (!user || user.is || !alias || !password || typeof user.auth !== 'function') {
+        return;
+      }
+
+      user.auth(alias, password, ack => {
+        if (!ack || !ack.err) {
+          return;
+        }
+
+        if (isGunAuthInProgressError(ack.err) && attempt < 8) {
+          setTimeout(() => restoreStoredGunSession(alias, password, attempt + 1), 500);
+          return;
+        }
+
+        console.warn('Session restore failed', ack.err);
+        clearStoredAuthSession();
+      });
+    }
+
     function restoreAuthIfPossible() {
       const signedIn = localStorage.getItem('signedIn') === 'true';
       const alias = localStorage.getItem('alias');
@@ -1469,21 +1500,9 @@
 
       if (signedIn && alias && password) {
         localStorage.removeItem('guest');
-        if (!user.is) {
-          user.auth(alias, password, ack => {
-            if (ack && ack.err) {
-              console.warn('Session restore failed', ack.err);
-              localStorage.removeItem('signedIn');
-              localStorage.removeItem('alias');
-              localStorage.removeItem('username');
-              localStorage.removeItem('password');
-            }
-          });
-        }
+        restoreStoredGunSession(alias, password);
       } else if (signedIn) {
-        localStorage.removeItem('signedIn');
-        localStorage.removeItem('alias');
-        localStorage.removeItem('password');
+        clearStoredAuthSession();
       }
     }
 

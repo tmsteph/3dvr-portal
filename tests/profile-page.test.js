@@ -26,6 +26,11 @@ test('profile section exposes a sign-out action that clears stored auth state', 
   assert.match(html, /user\.leave\(\)/);
   assert.match(html, /PortalOAuth\.clearAuthSessionMarkers/);
   assert.match(html, /function clearLocalAuthState\(\)/);
+  assert.match(html, /function isGunAuthInProgressError\(message = ''\)/);
+  assert.match(html, /function restoreSignedInGunSession\(alias, password, attempt = 0\)/);
+  assert.match(html, /attempt < 8/);
+  assert.match(html, /restoreSignedInGunSession\(signedInAlias, signedInPassword\)\.then\(restored =>/);
+  assert.match(html, /clearLocalAuthState\(\);/);
   assert.match(html, /'signedIn'/);
   assert.match(html, /'authMethod'/);
   assert.match(html, /'verifiedEmail'/);
