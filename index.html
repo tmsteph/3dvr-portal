@@ -143,6 +143,7 @@
         <button type="button" class="top-nav__search" data-app-search-trigger>Search apps</button>
       </div>
       <div class="view-toggle-container" aria-label="Portal view mode">
+        <button class="toggle-btn" type="button" data-view-mode-button="guide" data-active="false">Guide</button>
         <button class="toggle-btn" type="button" data-view-mode-button="human-os" data-active="false">Human O.S.</button>
         <button class="toggle-btn" type="button" data-view-mode-button="workshop" data-active="true">Workshop</button>
       </div>
@@ -294,6 +295,46 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="portal-guide" aria-labelledby="portal-guide-title" data-portal-guide>
+        <div class="portal-guide__panel">
+          <div class="portal-guide__intro">
+            <span class="eyebrow">One prompt</span>
+            <h2 id="portal-guide-title">Tell the portal what you need.</h2>
+            <p>Write one sentence. The portal will pick a place to start and give you the next few moves.</p>
+          </div>
+          <form class="portal-guide__form" data-guide-form>
+            <label class="portal-guide__label" for="portalGuidePrompt">What are you trying to sort out?</label>
+            <textarea
+              id="portalGuidePrompt"
+              rows="4"
+              maxlength="800"
+              placeholder="Example: I feel scattered and need to organize my life."
+              data-guide-prompt
+            ></textarea>
+            <div class="portal-guide__chips" aria-label="Guide starter prompts">
+              <button type="button" data-guide-chip="I feel scattered and need to organize my life.">Life</button>
+              <button type="button" data-guide-chip="I have an idea and do not know what to do next.">Idea</button>
+              <button type="button" data-guide-chip="I need money, work, or a better follow-up system.">Money</button>
+              <button type="button" data-guide-chip="I want to build a page, app, or project.">Build</button>
+            </div>
+            <button class="cta primary" type="submit">Guide me</button>
+          </form>
+        </div>
+
+        <article class="portal-guide__result" data-guide-result hidden>
+          <div>
+            <span class="eyebrow" data-guide-label>Best place</span>
+            <h3 data-guide-title>Daily Direction</h3>
+            <p data-guide-copy>Start with a quick life check-in and one clear next step.</p>
+          </div>
+          <ol class="portal-guide__steps" data-guide-steps></ol>
+          <div class="portal-guide__actions">
+            <a class="cta primary" href="life/index.html" data-guide-primary>Open Daily Direction</a>
+            <button class="cta ghost" type="button" data-guide-show-dock>Show matching apps</button>
+          </div>
+        </article>
       </section>
 
       <section class="human-os-container" aria-labelledby="human-os-title">
@@ -1555,6 +1596,16 @@
     const roomReveal = document.querySelector('[data-room-reveal]');
     const roomTitle = document.querySelector('[data-room-title]');
     const roomSubtitle = document.querySelector('[data-room-subtitle]');
+    const guideForm = document.querySelector('[data-guide-form]');
+    const guidePrompt = document.querySelector('[data-guide-prompt]');
+    const guideChipButtons = Array.from(document.querySelectorAll('[data-guide-chip]'));
+    const guideResult = document.querySelector('[data-guide-result]');
+    const guideLabel = document.querySelector('[data-guide-label]');
+    const guideTitle = document.querySelector('[data-guide-title]');
+    const guideCopy = document.querySelector('[data-guide-copy]');
+    const guideSteps = document.querySelector('[data-guide-steps]');
+    const guidePrimary = document.querySelector('[data-guide-primary]');
+    const guideShowDock = document.querySelector('[data-guide-show-dock]');
     let activeAppLane = 'all';
     const roomMeta = {
       purpose: {
@@ -1605,6 +1656,152 @@
       money: 'money finance billing revenue cashflow offers rewards income',
       play: 'games play 3d spatial physics xr arcade engine',
     };
+    const portalGuideRoutes = [
+      {
+        id: 'money',
+        room: 'money',
+        href: 'revenue-desk/',
+        cta: 'Open Revenue Desk',
+        label: 'Money path',
+        title: 'Revenue Desk',
+        copy: 'Start with one money move, one follow-up, and one clear next action.',
+        search: 'revenue money follow up',
+        keywords: ['money', 'cash', 'income', 'revenue', 'bill', 'rent', 'sell', 'client', 'paid'],
+        steps: [
+          'Name the money pressure in one sentence.',
+          'Pick one person or lead to follow up with.',
+          'Use the desk to choose the next revenue move.',
+        ],
+      },
+      {
+        id: 'work',
+        room: 'work',
+        href: 'job-tracker/index.html',
+        cta: 'Open Job Tracker',
+        label: 'Work path',
+        title: 'Job Tracker',
+        copy: 'Turn work pressure into a small search, proof, or outreach step.',
+        search: 'job work crm contacts',
+        keywords: ['job', 'work', 'career', 'hire', 'hired', 'resume', 'freelance', 'client work'],
+        steps: [
+          'Name the kind of work you want next.',
+          'List one person, place, or role to contact.',
+          'Use the tracker to keep the next step visible.',
+        ],
+      },
+      {
+        id: 'build',
+        room: 'projects',
+        href: 'launch-room/',
+        cta: 'Open Launch Room',
+        label: 'Build path',
+        title: 'Launch Room',
+        copy: 'Turn the thing you want to build into a page, plan, and first test.',
+        search: 'launch builder project page app',
+        keywords: ['build', 'app', 'page', 'website', 'site', 'launch', 'project', 'tool', 'software'],
+        steps: [
+          'Write the smallest useful version.',
+          'Choose the first screen or page.',
+          'Open Launch Room and make the first draft.',
+        ],
+      },
+      {
+        id: 'idea',
+        room: 'projects',
+        href: 'forge/',
+        cta: 'Open Forge',
+        label: 'Idea path',
+        title: '3DVR Forge',
+        copy: 'Turn a messy thought into a simple plan, message, and 7-day test.',
+        search: 'forge idea plan message',
+        keywords: ['idea', 'stuck idea', 'frustration', 'rant', 'dream', 'dont know', "don't know", 'what next'],
+        steps: [
+          'Say the messy version first.',
+          'Answer two easy shaping prompts.',
+          'Leave with one plan you can copy.',
+        ],
+      },
+      {
+        id: 'purpose',
+        room: 'purpose',
+        href: 'purpose/',
+        cta: 'Open Purpose',
+        label: 'Purpose path',
+        title: 'Purpose',
+        copy: 'Start with meaning, values, and the bigger direction behind the next move.',
+        search: 'purpose meaning direction values',
+        keywords: ['purpose', 'meaning', 'values', 'mission', 'vision', 'meant for more', 'direction'],
+        steps: [
+          'Name what keeps pulling at you.',
+          'Pick one value that matters now.',
+          'Open Purpose and turn that into a direction.',
+        ],
+      },
+      {
+        id: 'community',
+        room: 'community',
+        href: 'cell/index.html',
+        cta: 'Open Cell',
+        label: 'People path',
+        title: 'Cell',
+        copy: 'Use a small support cell when the next step needs people around it.',
+        search: 'community support cell people',
+        keywords: ['friend', 'family', 'community', 'support', 'group', 'people', 'accountability'],
+        steps: [
+          'Name who should be around this.',
+          'Pick one check-in or support rhythm.',
+          'Open Cell to organize the people side.',
+        ],
+      },
+      {
+        id: 'learning',
+        room: 'learning',
+        href: 'education-suite/',
+        cta: 'Open Learning',
+        label: 'Learning path',
+        title: 'Education Suite',
+        copy: 'Use a learning lane when the block is skill, practice, or understanding.',
+        search: 'learn education skill',
+        keywords: ['learn', 'study', 'practice', 'skill', 'teach', 'school', 'course'],
+        steps: [
+          'Name the skill you need.',
+          'Choose one tiny lesson or practice.',
+          'Open Learning and keep it small.',
+        ],
+      },
+      {
+        id: 'play',
+        room: 'play',
+        href: 'games.html',
+        cta: 'Open Games',
+        label: 'Play path',
+        title: 'Games',
+        copy: 'Use play when you need motion, reset, or a quick energy shift.',
+        search: 'games play jetpack stellar',
+        keywords: ['game', 'games', 'play', 'bored', 'fun', 'reset', 'energy'],
+        steps: [
+          'Pick a quick game or motion room.',
+          'Play for a short reset.',
+          'Come back and choose one next move.',
+        ],
+      },
+      {
+        id: 'life',
+        room: 'life',
+        href: 'life/index.html',
+        cta: 'Open Daily Direction',
+        label: 'Life path',
+        title: 'Daily Direction',
+        copy: 'Start by sorting life, attention, and the one next step for today.',
+        search: 'life daily direction organize',
+        keywords: ['life', 'scattered', 'organize', 'clear', 'overwhelmed', 'stuck', 'habit', 'health', 'next step'],
+        steps: [
+          'Do a 3-minute check-in.',
+          'Name what needs attention.',
+          'Pick one small move for today.',
+        ],
+      },
+    ];
     const humanRoomTitles = {
       purpose: [
         'Purpose',
@@ -1843,10 +2040,10 @@
       roomReveal.hidden = false;
     };
     const setViewMode = (nextMode, nextRoom = '') => {
-      const mode = nextMode === 'workshop' ? 'workshop' : 'human-os';
+      const mode = ['workshop', 'guide'].includes(nextMode) ? nextMode : 'human-os';
       document.body.dataset.viewMode = mode;
       document.body.dataset.activeRoom = mode === 'human-os' ? nextRoom : '';
-      if (mode === 'human-os' && activeAppLane !== 'all') {
+      if (mode !== 'workshop' && activeAppLane !== 'all') {
         setActiveAppLane('all');
       }
       viewModeButtons.forEach((button) => {
@@ -1856,6 +2053,87 @@
       });
       syncRoomReveal();
       updateAppFilter(searchInput?.value ?? '');
+    };
+
+    let lastGuideRoute = portalGuideRoutes.find((route) => route.id === 'life') || portalGuideRoutes[0];
+
+    const scoreGuideRoute = (route, query) =>
+      route.keywords.reduce((score, keyword) => {
+        if (!query.includes(keyword)) return score;
+        return score + Math.max(1, keyword.split(/\s+/).length);
+      }, 0);
+
+    const chooseGuideRoute = (value = '') => {
+      const query = value.trim().toLowerCase();
+      if (!query) {
+        return lastGuideRoute;
+      }
+
+      let bestRoute = portalGuideRoutes.find((route) => route.id === 'life') || portalGuideRoutes[0];
+      let bestScore = 0;
+
+      portalGuideRoutes.forEach((route) => {
+        const score = scoreGuideRoute(route, query);
+        if (score > bestScore) {
+          bestRoute = route;
+          bestScore = score;
+        }
+      });
+
+      return bestRoute;
+    };
+
+    const renderGuideRoute = (route) => {
+      if (!route || !guideResult) return;
+
+      lastGuideRoute = route;
+      if (guideLabel) guideLabel.textContent = route.label;
+      if (guideTitle) guideTitle.textContent = route.title;
+      if (guideCopy) guideCopy.textContent = route.copy;
+      if (guidePrimary) {
+        guidePrimary.href = route.href;
+        guidePrimary.textContent = route.cta;
+      }
+      if (guideSteps) {
+        guideSteps.replaceChildren();
+        route.steps.forEach((step) => {
+          const item = document.createElement('li');
+          item.textContent = step;
+          guideSteps.appendChild(item);
+        });
+      }
+      guideResult.hidden = false;
+    };
+
+    const submitGuidePrompt = (value = '') => {
+      const prompt = value.trim();
+      const route = chooseGuideRoute(prompt);
+      renderGuideRoute(route);
+      guideResult?.scrollIntoView({
+        behavior: prefersReducedMotionQuery?.matches ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+    };
+
+    const showGuideMatches = () => {
+      if (!lastGuideRoute) return;
+
+      if (lastGuideRoute.room) {
+        if (searchInput) {
+          searchInput.value = '';
+        }
+        setViewMode('human-os', lastGuideRoute.room);
+      } else {
+        setViewMode('workshop');
+        if (searchInput) {
+          searchInput.value = lastGuideRoute.search || '';
+        }
+        updateAppFilter(searchInput?.value ?? '');
+      }
+
+      window.requestAnimationFrame(() => {
+        scrollAppsIntoView({ alignSearch: false });
+      });
     };
 
     const updateAppFilter = (value = '') => {
@@ -2044,6 +2322,23 @@
       }
     };
 
+    guideForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitGuidePrompt(guidePrompt?.value ?? '');
+    });
+
+    guideChipButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const prompt = button.dataset.guideChip || '';
+        if (guidePrompt) {
+          guidePrompt.value = prompt;
+        }
+        submitGuidePrompt(prompt);
+      });
+    });
+
+    guideShowDock?.addEventListener('click', showGuideMatches);
+
     const getAuthModal = () => document.getElementById('auth-modal');
 
     const isAuthModalVisible = () => {
@@ -2062,7 +2357,7 @@
     const focusSearch = ({ scroll = false, alignSearch = false } = {}) => {
       if (!searchInput || isAuthModalVisible()) return;
 
-      if (getViewMode() === 'human-os' && !getActiveRoom()) {
+      if (getViewMode() === 'guide' || (getViewMode() === 'human-os' && !getActiveRoom())) {
         setViewMode('workshop');
       }
 

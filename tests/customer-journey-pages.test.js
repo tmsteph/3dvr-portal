@@ -9,7 +9,18 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Find your purpose\. Organize your life\. Launch your world\./);
     assert.match(html, /What are you trying to organize today\?/);
     assert.match(html, /Human O\.S\./);
+    assert.match(html, /data-view-mode-button="guide"/);
+    assert.match(html, />Guide<\/button>/);
     assert.match(html, /Workshop/);
+    assert.match(html, /Tell the portal what you need\./);
+    assert.match(html, /data-guide-form/);
+    assert.match(html, /data-guide-prompt/);
+    assert.match(html, /data-guide-chip="I feel scattered and need to organize my life\."/);
+    assert.match(html, /data-guide-result hidden/);
+    assert.match(html, /data-guide-show-dock/);
+    assert.match(html, /const portalGuideRoutes =/);
+    assert.match(html, /const chooseGuideRoute =/);
+    assert.match(html, /const showGuideMatches =/);
     assert.match(html, /Nine doors into the portal/);
     assert.match(html, /🧭 My Purpose/);
     assert.match(html, /🌱 My Life/);
@@ -83,6 +94,7 @@ describe('portal customer journey pages', () => {
     assert.match(html, /A 72-hour paid setup that turns a yes into intake, checklist, and first-week follow-up\./);
     assert.match(html, /ideas\/client-onboarding-sprint\.html/);
     assert.match(html, /data-active-room=""/);
+    assert.match(html, /data-view-mode-button="guide"/);
     assert.match(html, /data-view-mode-button="workshop"/);
     assert.doesNotMatch(html, /Suggested launcher lanes/);
     assert.doesNotMatch(html, /Run the business workspace/);
@@ -104,6 +116,10 @@ describe('portal customer journey pages', () => {
     assert.match(globalCss, /text-size-adjust:\s*100%/);
     assert.match(css, /@media \(max-width: 380px\)/);
     assert.match(css, /\.hero-actions \.cta\s*\{/);
+    assert.match(css, /body\[data-view-mode="guide"\] \.app-hub/);
+    assert.match(css, /\.portal-guide\s*\{/);
+    assert.match(css, /\.portal-guide__chips/);
+    assert.match(css, /\.portal-guide__actions/);
     assert.match(css, /@media \(min-width: 721px\) \{[\s\S]*?\.hero-actions \{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(9rem,\s*1fr\)\);[\s\S]*?\.hero-actions \.cta \{[\s\S]*?padding:\s*0\.58rem 1rem;/);
     assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
     assert.doesNotMatch(css, /botanical-border/);
