@@ -562,7 +562,7 @@
   <a href="notes/">📝 Shared Notes</a>
   <a href="/tasks/">✅ Task Board</a>
   <a href="games.html">🎮 Mini Games</a>
-  <a href="sign-in.html?upgrade=guest&amp;redirect=%2Fprofile.html" data-profile-auth-entry>🔑 Sign in</a>
+  <a href="sign-in.html?redirect=%2Fprofile.html" data-profile-auth-entry>🔑 Sign in</a>
   <a href="https://3dvr.tech/#subscribe" target="_blank">⭐ Subscribe</a>
   <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
 </div>
@@ -612,7 +612,7 @@
 
       <div class="profile-signin-callout" id="profile-sign-in-callout">
         <p>You are using this browser as a guest. Sign in when you want sync, billing, and saved work across devices.</p>
-        <a class="profile-signin-link" href="sign-in.html?upgrade=guest&amp;redirect=%2Fprofile.html">Sign in or create account</a>
+        <a class="profile-signin-link" href="sign-in.html?redirect=%2Fprofile.html">Sign in or create account</a>
       </div>
 
       <form class="name-form" onsubmit="event.preventDefault(); saveUsername();">
@@ -1360,7 +1360,7 @@ function updateProfileSignInCallout() {
   if (!profileSignInCallout) return;
   profileSignInCallout.hidden = isSignedIn;
   profileAuthEntryLinks.forEach((link) => {
-    link.setAttribute('href', isSignedIn ? 'profile.html' : 'sign-in.html?upgrade=guest&redirect=%2Fprofile.html');
+    link.setAttribute('href', isSignedIn ? 'profile.html' : 'sign-in.html?redirect=%2Fprofile.html');
     link.textContent = isSignedIn ? '👤 Profile' : '🔑 Sign in';
   });
 }

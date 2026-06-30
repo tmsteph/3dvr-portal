@@ -23,6 +23,7 @@ describe('guest account entrypoints', () => {
     assert.match(html, /authModal\.style\.display = 'none'/);
     assert.doesNotMatch(html, /authModal\.style\.display = 'flex'/);
     assert.doesNotMatch(html, /upgradeParam/);
+    assert.doesNotMatch(html, /sign-in\.html\?upgrade=guest/);
     assert.doesNotMatch(html, /&upgrade=guest/);
     assert.match(html, /\/sign-in\.html\?redirect=/);
   });
