@@ -21,17 +21,20 @@ test('friends and family pass is a shareable small offer page', async () => {
   const html = await readFile(pageUrl, 'utf8');
 
   assert.match(html, /Friends &amp; Family Pass \| 3DVR Portal/);
-  assert.match(html, /Get clear\. Take one step\./);
-  assert.match(html, /Plan your ideas\. See what to do next\. Move without tech stress\./);
-  assert.match(html, /Help for \$5\/month/);
+  assert.match(html, /Try 3DVR free\. If it helps, join for \$5\./);
+  assert.match(html, /Sort one messy thought\. Pick one next step\. No card for free\./);
+  assert.match(html, /Join for \$5\/month/);
   assert.match(html, /href="\.\.\/free-trial\.html"/);
   assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dstarter"/);
-  assert.match(html, /Sort ideas\./);
+  assert.match(html, /Use the portal to sort life, ideas, money, or work into one small next step\./);
+  assert.match(html, /Check in\./);
   assert.match(html, /Pick one step\./);
-  assert.match(html, /Not money advice or custom work/);
-  assert.match(html, /Short enough to text\./);
+  assert.match(html, /Start free\. Only pay if you want to help keep it growing\./);
+  assert.match(html, /Text this to one person/);
+  assert.match(html, /Short, honest, and not awkward\./);
   assert.match(html, /data-copy-message/);
   assert.match(html, /data-invite-message/);
+  assert.match(html, /I am trying a simple 3DVR invite/);
   assert.match(html, /https:\/\/portal\.3dvr\.tech\/friends-family\//);
   assert.doesNotMatch(html, /What supporters get/);
   assert.doesNotMatch(html, /The bigger direction/);
