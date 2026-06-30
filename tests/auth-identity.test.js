@@ -160,6 +160,10 @@ describe('auth identity helper', () => {
 
   it('preserves signed-in mode for OAuth identities without a stored password', () => {
     const { api, localStorage } = loadAuthIdentity();
+    localStorage.setItem('signedIn', 'true');
+    localStorage.setItem('alias', 'oauth@3dvr');
+    localStorage.setItem('authMethod', 'oauth');
+    localStorage.setItem('oauthAccountId', 'google-123');
 
     api.writeSharedIdentity({
       signedIn: true,
@@ -178,7 +182,7 @@ describe('auth identity helper', () => {
     assert.equal(localStorage.getItem('verifiedEmail'), 'oauth@example.com');
   });
 
-  it('preserves signed-in mode for SEA identities without a stored password', () => {
+  it('downgrades stale SEA identity cookies without a stored password', () => {
     const { api, localStorage } = loadAuthIdentity();
 
     api.writeSharedIdentity({
@@ -191,9 +195,33 @@ describe('auth identity helper', () => {
 
     const changed = api.syncStorageFromSharedIdentity(localStorage);
     assert.equal(changed, true);
-    assert.equal(localStorage.getItem('signedIn'), 'true');
-    assert.equal(localStorage.getItem('authMethod'), 'sea');
-    assert.equal(localStorage.getItem('authProvider'), 'gun');
+    assert.equal(localStorage.getItem('signedIn'), null);
+    assert.equal(localStorage.getItem('alias'), 'sea@3dvr');
+    assert.equal(localStorage.getItem('authMethod'), null);
+    assert.equal(localStorage.getItem('authProvider'), null);
+    assert.equal(api.readSharedIdentity(), null);
+  });
+
+  it('does not let a stale OAuth cookie create a signed-in session by itself', () => {
+    const { api, localStorage } = loadAuthIdentity();
+
+    api.writeSharedIdentity({
+      signedIn: true,
+      alias: 'oauth@3dvr',
+      username: 'OAuth User',
+      authMethod: 'oauth',
+      authProvider: 'google',
+      verifiedEmail: 'oauth@example.com',
+    });
+
+    const changed = api.syncStorageFromSharedIdentity(localStorage);
+    assert.equal(changed, true);
+    assert.equal(localStorage.getItem('signedIn'), null);
+    assert.equal(localStorage.getItem('alias'), 'oauth@3dvr');
+    assert.equal(localStorage.getItem('authMethod'), null);
+    assert.equal(localStorage.getItem('authProvider'), null);
+    assert.equal(localStorage.getItem('verifiedEmail'), null);
+    assert.equal(api.readSharedIdentity(), null);
   });
 
   it('clears shared identity cookies', () => {

@@ -251,13 +251,26 @@
     const nextUsername = identity.username || aliasToDisplay(nextAlias) || 'User';
     const nextVerifiedEmail = normalizeText(identity.verifiedEmail).toLowerCase();
     const hasStoredPassword = normalizeText(storage.getItem('password')).length > 0;
-    const nextSignedIn = hasStoredPassword || identity.authMethod === 'oauth' || identity.authMethod === 'sea';
     const currentSignedIn = storage.getItem('signedIn') === 'true';
     const currentAlias = normalizeText(storage.getItem('alias'));
     const currentUsername = normalizeText(storage.getItem('username'));
     const currentAuthMethod = normalizeText(storage.getItem('authMethod'));
     const currentAuthProvider = normalizeText(storage.getItem('authProvider'));
     const currentVerifiedEmail = normalizeText(storage.getItem('verifiedEmail')).toLowerCase();
+    const currentOauthAccountId = normalizeText(storage.getItem('oauthAccountId'));
+    const aliasMatches = currentAlias === nextAlias;
+    const hasMatchingGunCredential = (!currentAlias || aliasMatches) && hasStoredPassword;
+    const hasMatchingOauthSession = (
+      aliasMatches
+      && currentSignedIn
+      && currentAuthMethod === 'oauth'
+      && identity.authMethod === 'oauth'
+      && currentOauthAccountId.length > 0
+    );
+    const nextSignedIn = hasMatchingGunCredential || hasMatchingOauthSession;
+    const nextAuthMethod = nextSignedIn ? identity.authMethod : '';
+    const nextAuthProvider = nextSignedIn ? identity.authProvider : '';
+    const nextStoredVerifiedEmail = nextSignedIn ? nextVerifiedEmail : '';
     const hasGuestMarkers = Boolean(
       storage.getItem('guest')
       || storage.getItem('guestId')
@@ -267,9 +280,9 @@
       currentSignedIn !== nextSignedIn
       || currentAlias !== nextAlias
       || currentUsername !== nextUsername
-      || currentAuthMethod !== identity.authMethod
-      || currentAuthProvider !== identity.authProvider
-      || currentVerifiedEmail !== nextVerifiedEmail
+      || currentAuthMethod !== nextAuthMethod
+      || currentAuthProvider !== nextAuthProvider
+      || currentVerifiedEmail !== nextStoredVerifiedEmail
       || hasGuestMarkers
     );
 
@@ -284,20 +297,23 @@
     }
     storage.setItem('alias', nextAlias);
     storage.setItem('username', nextUsername);
-    if (identity.authMethod) {
-      storage.setItem('authMethod', identity.authMethod);
+    if (nextAuthMethod) {
+      storage.setItem('authMethod', nextAuthMethod);
     } else {
       storage.removeItem('authMethod');
     }
-    if (identity.authProvider) {
-      storage.setItem('authProvider', identity.authProvider);
+    if (nextAuthProvider) {
+      storage.setItem('authProvider', nextAuthProvider);
     } else {
       storage.removeItem('authProvider');
     }
-    if (identity.verifiedEmail) {
-      storage.setItem('verifiedEmail', identity.verifiedEmail);
+    if (nextStoredVerifiedEmail) {
+      storage.setItem('verifiedEmail', nextStoredVerifiedEmail);
     } else {
       storage.removeItem('verifiedEmail');
+    }
+    if (!nextSignedIn && (identity.authMethod || identity.authProvider || identity.verifiedEmail)) {
+      clearSharedIdentity();
     }
     storage.removeItem('guest');
     storage.removeItem('guestId');
