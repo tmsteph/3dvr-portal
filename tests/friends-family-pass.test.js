@@ -21,14 +21,14 @@ test('friends and family pass is a shareable small offer page', async () => {
   const html = await readFile(pageUrl, 'utf8');
 
   assert.match(html, /Friends &amp; Family Pass \| 3DVR Portal/);
-  assert.match(html, /Get clear\. Take the next step\./);
-  assert.match(html, /Organize ideas, visualize a plan, and move forward without getting stuck in tech\./);
-  assert.match(html, /Support for \$5\/month/);
+  assert.match(html, /Get clear\. Take one step\./);
+  assert.match(html, /Plan your ideas\. See what to do next\. Move without tech stress\./);
+  assert.match(html, /Help for \$5\/month/);
   assert.match(html, /href="\.\.\/free-trial\.html"/);
   assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dstarter"/);
-  assert.match(html, /Sort messy ideas\./);
-  assert.match(html, /Find one next move\./);
-  assert.match(html, /Not financial advice or custom work/);
+  assert.match(html, /Sort ideas\./);
+  assert.match(html, /Pick one step\./);
+  assert.match(html, /Not money advice or custom work/);
   assert.match(html, /Short enough to text\./);
   assert.match(html, /data-copy-message/);
   assert.match(html, /data-invite-message/);
@@ -55,12 +55,12 @@ test('portal home links the pass in navigation, support lanes, app dock, and roo
     html,
     /<a href="friends-family\/" class="shortcut-card">[\s\S]*?<span class="shortcut-card__title">Friends &amp; Family Pass<\/span>/
   );
-  assert.match(html, /Get clear, try free, or support 3DVR for \$5\/month/);
+  assert.match(html, /Get clear, try free, or help 3DVR for \$5\/month/);
   assert.match(
     html,
     /href="friends-family\/"[\s\S]*?class="app-card"[\s\S]*?<span class="app-card__title">Friends &amp; Family Pass<\/span>/
   );
-  assert.match(html, /A shareable free or \$5\/month path for getting clearer and moving forward\./);
+  assert.match(html, /A free or \$5\/month path to get clear and take one step\./);
   assert.match(html, /data-app-keywords="[^"]*friends family supporter support five 5[^"]*"/);
   assert.match(html, /'Friends & Family Pass'/);
   assert.match(html, /money:\s*\[[\s\S]*?'Friends & Family Pass'/);
