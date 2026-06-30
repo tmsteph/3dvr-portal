@@ -152,7 +152,7 @@
       <nav class="top-buttons" id="landingQuickLinks" aria-label="3DVR quick links">
         <a href="https://3dvr.tech">Home</a>
         <a href="start/">Start</a>
-        <a href="forge/">Forge</a>
+        <a href="life/index.html">Daily Direction</a>
         <a href="friends-family/">Support</a>
         <a href="start/#paid-lanes">Plans</a>
         <a href="#app-hub-title" data-app-search-trigger>Apps</a>
@@ -190,14 +190,13 @@
             <span class="hero-eyebrow">Human O.S.</span>
             <h1 id="landing-title">Find your purpose. Organize your life. Launch your world.</h1>
             <p class="hero-tagline">
-              What are you trying to organize today?
+              Start small. Sort one messy thought and pick one next step for today.
             </p>
             <div class="hero-actions">
-              <a href="forge/" class="cta primary">Enter the Forge</a>
-              <a href="revenue-desk/" class="cta ghost">Open Revenue Desk</a>
-              <a href="crm/index.html" class="cta ghost">Open CRM</a>
-              <a href="sales/index.html" class="cta ghost">Open Sales</a>
-              <a href="web-builder-app/index.html" class="cta ghost">Open Web Builder</a>
+              <a href="life/index.html" class="cta primary">Take one small step</a>
+              <a href="forge/" class="cta ghost">I have an idea</a>
+              <a href="start/#paid-lanes" class="cta ghost">I need help building</a>
+              <a href="#app-hub-title" class="cta ghost" data-app-search-trigger>Browse apps</a>
             </div>
             <div class="workspace-strip" aria-label="Featured games">
               <span class="workspace-strip__label">Featured games</span>
@@ -241,8 +240,8 @@
               <span class="plan-strip__label">Plans</span>
               <div class="plan-ribbon plan-ribbon--compact">
                 <a class="plan-pill" href="free-trial.html">
-                  <strong>Free</strong>
-                  <span>Get clear</span>
+                  <strong>Free Plan</strong>
+                  <span>One messy thought, one step</span>
                 </a>
                 <a class="plan-pill" href="sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dstarter">
                   <strong>$5</strong>
@@ -304,8 +303,8 @@
         <div class="portal-guide__panel">
           <div class="portal-guide__intro">
             <span class="eyebrow">One prompt</span>
-            <h2 id="portal-guide-title">Tell the portal what you need.</h2>
-            <p>Write one sentence. The portal will pick a place to start and give you the next few moves.</p>
+            <h2 id="portal-guide-title">What feels scattered today?</h2>
+            <p>Write one sentence. The portal will start with Daily Direction unless your note clearly needs another lane.</p>
             <p class="portal-guide__memory" data-auto-identity-status>No login needed. This browser remembers what helps.</p>
           </div>
           <form class="portal-guide__form" data-guide-form>
@@ -467,7 +466,8 @@
             </label>
           </div>
           <div class="app-lane-filter" aria-label="Filter app dock by lane">
-            <button type="button" data-app-lane-filter="all" data-active="true" aria-pressed="true">All</button>
+            <button type="button" data-app-lane-filter="simple" data-active="true" aria-pressed="true">Simple</button>
+            <button type="button" data-app-lane-filter="all" aria-pressed="false">All</button>
             <button type="button" data-app-lane-filter="money" aria-pressed="false">Money</button>
             <button type="button" data-app-lane-filter="work" aria-pressed="false">Work</button>
             <button type="button" data-app-lane-filter="projects" aria-pressed="false">Projects</button>
@@ -595,7 +595,7 @@
           </a>
           <a href="life/index.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🌿</span>
-            <span class="app-card__title">Life</span>
+            <span class="app-card__title">Daily Direction</span>
             <span class="app-card__meta">Check in, name what needs care, and pick one small step.</span>
           </a>
           <a href="/purpose/" class="app-card">
@@ -2103,7 +2103,7 @@
         'Start Here',
       ],
       life: [
-        'Life',
+        'Daily Direction',
         'Alive System',
         'Sober Spark',
         'Wellness',
@@ -2218,6 +2218,20 @@
         titleToRooms.set(title, existing);
       });
     });
+    const simpleDockTitles = new Set([
+      'Daily Direction',
+      'Life',
+      'Start Here',
+      'Friends & Family Pass',
+      'Notes',
+      'Purpose',
+      'Ideas Lab',
+      'Projects',
+      'Cell',
+      'Games',
+      'Stellar Drift',
+      'Jetpack Corridor',
+    ]);
 
     if (appGrid && appCards.length > 0) {
       const sortedCards = [...appCards].sort((a, b) => {
@@ -2240,6 +2254,9 @@
       appCards = sortedCards;
       appCards.forEach((card) => {
         const title = card.querySelector('.app-card__title')?.textContent?.trim();
+        if (simpleDockTitles.has(title)) {
+          card.dataset.appMode = 'simple';
+        }
         const rooms = title ? titleToRooms.get(title) : null;
         if (rooms && rooms.length > 0) {
           card.dataset.humanRooms = rooms.join(' ');
@@ -2549,6 +2566,9 @@
     const shouldHideCardForLane = (card) => {
       if (getViewMode() !== 'workshop') {
         return false;
+      }
+      if (activeAppLane === 'simple') {
+        return card.dataset.appMode !== 'simple';
       }
       if (activeAppLane === 'all' || activeAppLane === 'experimental') {
         return false;
@@ -3114,6 +3134,10 @@
       if (getViewMode() === 'guide' || (getViewMode() === 'human-os' && !getActiveRoom())) {
         setViewMode('workshop');
       }
+      if (scroll && activeAppLane === 'simple') {
+        setActiveAppLane('all');
+        updateAppFilter(searchInput?.value ?? '');
+      }
 
       if (scroll) {
         scrollAppsIntoView({ alignSearch });
@@ -3263,7 +3287,7 @@
 
     const initialSearchValue = searchInput?.value ?? '';
     setViewMode('workshop');
-    setActiveAppLane('all');
+    setActiveAppLane('simple');
     updateAppFilter(initialSearchValue);
     renderOwnedAppList();
     applyAutoIdentityHints();

@@ -20,6 +20,11 @@ describe('life app', () => {
     assert.match(lifeHtml, /data-need="My body needs care\."/);
     assert.match(lifeHtml, /data-step="Drink water\."/);
     assert.match(lifeHtml, /Do this next/);
+    assert.match(lifeHtml, /Your next step is saved\./);
+    assert.match(lifeHtml, /Text this to Thomas/);
+    assert.match(lifeHtml, /Copy my next step/);
+    assert.match(lifeHtml, /Save my free link/);
+    assert.match(lifeHtml, /See support options/);
     assert.match(lifeHtml, /Last notes/);
     assert.match(lifeHtml, /Saves here\. Can sync later\./);
     assert.doesNotMatch(lifeHtml, /Life OS/);
@@ -39,13 +44,20 @@ describe('life app', () => {
     assert.match(lifeJs, /mission/);
     assert.match(lifeJs, /value\.projects/);
     assert.match(lifeJs, /Saved\. Do one small step\./);
+    assert.match(lifeJs, /function buildStepMessage/);
+    assert.match(lifeJs, /I tried Daily Direction\. My next step is:/);
+    assert.match(lifeJs, /function updateResponseLoop/);
+    assert.match(lifeJs, /copyStepButton/);
+    assert.match(lifeJs, /copyFreeLinkButton/);
 
-    assert.match(portalIndex, /<span class="app-card__title">Life<\/span>/);
+    assert.match(portalIndex, /<span class="app-card__title">Daily Direction<\/span>/);
     assert.match(portalIndex, /Check in, name what needs care, and pick one small step\./);
 
-    assert.match(freeTrial, /Free link sent\. Check your email, then open the portal\./);
-    assert.match(freeTrial, /Pick one move/);
-    assert.match(freeTrial, /href="\/start\/"/);
+    assert.match(freeTrial, /Try it now/);
+    assert.match(freeTrial, /Start Daily Direction/);
+    assert.match(freeTrial, /Email me my free link/);
+    assert.match(freeTrial, /Email is optional\. You can start Daily Direction now\./);
+    assert.match(freeTrial, /href="\/life\/index\.html"/);
 
     assert.match(readme, /\[Life\]\(https:\/\/3dvr-portal\.vercel\.app\/life\/\)/);
     assert.match(readme, /gun\.get\('3dvr-portal'\)\.get\('life'\)\.get\('entries'\)/);

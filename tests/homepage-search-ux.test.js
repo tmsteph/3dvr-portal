@@ -69,6 +69,7 @@ test('homepage app dock has lane filters and generated search context', async ()
 
   assert.match(html, /class="app-lane-filter"/);
   assert.match(html, /data-app-lane-filter="money"/);
+  assert.match(html, /data-app-lane-filter="simple" data-active="true"/);
   assert.match(html, /data-app-lane-filter="work"/);
   assert.match(html, /data-app-lane-filter="projects"/);
   assert.match(html, /data-app-lane-filter="experimental"/);
@@ -132,11 +133,11 @@ test('homepage top navigation keeps Games one click away', async () => {
   );
 });
 
-test('homepage top navigation keeps Forge one click away', async () => {
+test('homepage top navigation keeps Daily Direction one click away', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.match(
     html,
-    /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="forge\/">Forge<\/a>/
+    /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="life\/index\.html">Daily Direction<\/a>/
   );
 });

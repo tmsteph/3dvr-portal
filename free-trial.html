@@ -233,6 +233,26 @@
       background-color: #0ea5e9;
     }
 
+    .button-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 48px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #08111f;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .button-link.secondary {
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      color: var(--text);
+    }
+
     .message {
       min-height: 24px;
       font-weight: 700;
@@ -294,53 +314,58 @@
         <a href="/index.html">← Back to portal</a>
         <a href="https://3dvr.tech/subscribe/">View plans</a>
       </div>
+      <span class="eyebrow">Free Plan</span>
+      <h1>Organize your life. Find your next step.</h1>
+      <p class="lead">Sort one messy thought. Pick one small next step. No card. No big plan.</p>
+
       <div class="signup-card">
-        <h2>Start free</h2>
-        <p class="form-intro">Share your email and get the free path back into the portal. No card.</p>
+        <h2>Try it now</h2>
+        <p class="form-intro">Start with Daily Direction. You can save or email yourself the link after it helps.</p>
+        <div class="next-steps">
+          <a class="button-link" href="/life/index.html">Start Daily Direction</a>
+        </div>
         <form id="trialForm">
           <label for="email" class="email-field">
-            <span class="email-label">Email for your free path <span class="email-badge">Start here</span></span>
-            <span class="email-hint">Use the email you want for your portal account.</span>
-            <input type="email" id="email" placeholder="you@example.com" required />
+            <span class="email-label">Email me my free link <span class="email-badge">Optional</span></span>
+            <span class="email-hint">Use this only if you want the link back later.</span>
+            <input type="email" id="email" placeholder="you@example.com" />
           </label>
           <button type="submit">Send free link</button>
           <div class="message" id="message"></div>
           <div class="secure-note">This secure page is part of the 3dvr.tech portal flow.</div>
         </form>
       </div>
-      <span class="eyebrow">Free plan</span>
-      <h1>Organize your life. Find your next step.</h1>
-      <p class="lead">You are meant for more than staying stuck. Start free, sort what matters, and pick one small move for today.</p>
-
       <div class="journey" aria-label="Free plan journey">
         <div class="journey-step">
           <div class="journey-number">1</div>
           <div>
-            <h2>Enter your email</h2>
-            <p class="step-copy">We send the free link so you can come back later.</p>
+            <h2>Start Daily Direction</h2>
+            <p class="step-copy">No login. No card. Open the check-in first.</p>
           </div>
         </div>
         <div class="journey-step">
           <div class="journey-number">2</div>
           <div>
-            <h2>Open your portal</h2>
-            <p class="step-copy">Use one place for your notes, next steps, and support.</p>
+            <h2>Sort one messy thought</h2>
+            <p class="step-copy">Name what needs care in plain words.</p>
           </div>
         </div>
         <div class="journey-step">
           <div class="journey-number">3</div>
           <div>
-            <h2>Pick one move</h2>
-            <p class="step-copy">Do a quick check-in. Leave with one clear thing to do.</p>
+            <h2>Pick one small step</h2>
+            <p class="step-copy">Leave with one move for today. Save or send it if you want.</p>
           </div>
         </div>
       </div>
     </section>
 
     <aside class="aside">
-      <h2>Already have an account?</h2>
-      <p>Jump back in. The free path is for life, ideas, and the next small move.</p>
+      <h2>Free Plan</h2>
+      <p>Sort one messy thought. Pick one small next step. Start with what feels scattered and leave with one move for today.</p>
       <div class="next-steps">
+        <a href="/life/index.html">Start Daily Direction</a>
+        <a href="/friends-family/">Friends &amp; Family invite</a>
         <a href="/start/">Open start flow</a>
         <a href="/sign-in.html">Sign in or create account</a>
         <a href="/billing/">Open billing center</a>
@@ -355,8 +380,12 @@
   <script>
     document.getElementById('trialForm').addEventListener('submit', async function (e) {
       e.preventDefault();
-      const email = document.getElementById('email').value;
+      const email = document.getElementById('email').value.trim();
       const messageEl = document.getElementById('message');
+      if (!email) {
+        messageEl.textContent = 'Email is optional. You can start Daily Direction now.';
+        return;
+      }
       messageEl.textContent = 'Sending your free link...';
 
       try {

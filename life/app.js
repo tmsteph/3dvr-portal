@@ -265,12 +265,36 @@ function renderSummary(entries) {
   if (latestStep) {
     latestStep.textContent = latest ? getEntryStep(latest) : 'Save a check-in to pick one step.';
   }
+  updateResponseLoop(latest);
 
   const saveStatus = document.getElementById('saveStatus');
   if (saveStatus && entries.length) {
     const streak = getStreak(entries);
     saveStatus.dataset.streak = String(streak);
   }
+}
+
+function buildStepMessage(step = '') {
+  return `I tried Daily Direction. My next step is: ${step || 'one small step.'}`;
+}
+
+function updateResponseLoop(entry) {
+  const responseLoop = document.getElementById('responseLoop');
+  if (!responseLoop) {
+    return;
+  }
+
+  if (!entry) {
+    responseLoop.hidden = true;
+    return;
+  }
+
+  const step = getEntryStep(entry);
+  const textLink = document.getElementById('textThomasLink');
+  if (textLink) {
+    textLink.href = `sms:?&body=${encodeURIComponent(buildStepMessage(step))}`;
+  }
+  responseLoop.hidden = false;
 }
 
 function renderEntryList(entries) {
@@ -469,5 +493,30 @@ form?.addEventListener('submit', (event) => {
 
   if (saveStatus) {
     saveStatus.textContent = 'Saved. Do one small step.';
+  }
+});
+
+document.getElementById('copyStepButton')?.addEventListener('click', async () => {
+  const latest = getAllEntries()[0];
+  const responseStatus = document.getElementById('responseStatus');
+  const message = buildStepMessage(latest ? getEntryStep(latest) : '');
+
+  try {
+    await navigator.clipboard.writeText(message);
+    if (responseStatus) responseStatus.textContent = 'Next step copied.';
+  } catch (_error) {
+    if (responseStatus) responseStatus.textContent = message;
+  }
+});
+
+document.getElementById('copyFreeLinkButton')?.addEventListener('click', async () => {
+  const responseStatus = document.getElementById('responseStatus');
+  const link = 'https://portal.3dvr.tech/life/';
+
+  try {
+    await navigator.clipboard.writeText(link);
+    if (responseStatus) responseStatus.textContent = 'Free link copied.';
+  } catch (_error) {
+    if (responseStatus) responseStatus.textContent = link;
   }
 });
