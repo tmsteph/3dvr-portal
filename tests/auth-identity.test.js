@@ -51,14 +51,25 @@ function createStorage() {
   };
 }
 
-function loadAuthIdentity({ hostname = 'portal.3dvr.tech', documentObj, localStorage } = {}) {
+function loadAuthIdentity({
+  hostname = 'portal.3dvr.tech',
+  documentObj,
+  localStorage,
+  sessionStorage,
+  locationObj,
+  caches,
+  navigator,
+} = {}) {
   const documentRef = documentObj || createCookieDocument();
   const storageRef = localStorage || createStorage();
   const sandbox = {
     window: {
       document: documentRef,
-      location: { hostname },
+      location: locationObj || { hostname },
       localStorage: storageRef,
+      sessionStorage: sessionStorage || createStorage(),
+      caches,
+      navigator,
     },
   };
   vm.runInNewContext(authIdentitySource, sandbox, { filename: 'auth-identity.js' });
@@ -66,6 +77,21 @@ function loadAuthIdentity({ hostname = 'portal.3dvr.tech', documentObj, localSto
     api: sandbox.window.AuthIdentity,
     document: documentRef,
     localStorage: storageRef,
+  };
+}
+
+function createCacheApi(keys = []) {
+  const cacheKeys = new Set(keys);
+  const deleted = [];
+  return {
+    deleted,
+    async keys() {
+      return Array.from(cacheKeys);
+    },
+    async delete(key) {
+      deleted.push(key);
+      return cacheKeys.delete(key);
+    },
   };
 }
 
@@ -183,5 +209,73 @@ describe('auth identity helper', () => {
     const cleared = api.clearSharedIdentity();
     assert.equal(cleared, true);
     assert.equal(api.readSharedIdentity(), null);
+  });
+
+  it('refreshes stale portal auth caches without clearing identity storage', async () => {
+    const localStorage = createStorage();
+    const sessionStorage = createStorage();
+    const cacheApi = createCacheApi([
+      '3dvr-html-v17',
+      '3dvr-static-v17',
+      'contacts-static-v4',
+      'calendar-html-v2',
+    ]);
+    const waitingMessages = [];
+    let updateCalled = false;
+    let registrationScope = '';
+    let reloadCount = 0;
+    const registration = {
+      waiting: {
+        postMessage(message) {
+          waitingMessages.push(message);
+        },
+      },
+      async update() {
+        updateCalled = true;
+        return registration;
+      },
+    };
+
+    localStorage.setItem('signedIn', 'true');
+    localStorage.setItem('alias', 'pilot@3dvr');
+    localStorage.setItem('username', 'Pilot');
+    localStorage.setItem('password', 'secret');
+    localStorage.setItem('3dvr-auth-cache-recovery-version', '2026-06-30-auth-cache-v1');
+
+    const { api } = loadAuthIdentity({
+      localStorage,
+      sessionStorage,
+      caches: cacheApi,
+      navigator: {
+        serviceWorker: {
+          async getRegistration(scope) {
+            registrationScope = scope;
+            return registration;
+          },
+        },
+      },
+      locationObj: {
+        hostname: 'portal.3dvr.tech',
+        pathname: '/profile.html',
+        reload() {
+          reloadCount += 1;
+        },
+      },
+    });
+
+    localStorage.removeItem('3dvr-auth-cache-recovery-version');
+    const changed = await api.refreshPortalAuthCache({ storage: localStorage, reload: true });
+
+    assert.equal(changed, true);
+    assert.deepEqual(cacheApi.deleted.sort(), ['3dvr-html-v17', '3dvr-static-v17']);
+    assert.equal(updateCalled, true);
+    assert.equal(registrationScope, '/');
+    assert.equal(waitingMessages.length, 1);
+    assert.equal(waitingMessages[0].type, 'SKIP_WAITING');
+    assert.equal(reloadCount, 1);
+    assert.equal(localStorage.getItem('3dvr-auth-cache-recovery-version'), '2026-06-30-auth-cache-v1');
+    assert.equal(localStorage.getItem('signedIn'), 'true');
+    assert.equal(localStorage.getItem('alias'), 'pilot@3dvr');
+    assert.equal(localStorage.getItem('password'), 'secret');
   });
 });

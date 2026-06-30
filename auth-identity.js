@@ -1,6 +1,10 @@
 (function initAuthIdentity(global) {
   const SHARED_COOKIE_NAME = 'portalIdentity';
   const SHARED_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+  const AUTH_CACHE_RECOVERY_VERSION = '2026-06-30-auth-cache-v1';
+  const AUTH_CACHE_RECOVERY_KEY = '3dvr-auth-cache-recovery-version';
+  const AUTH_CACHE_RECOVERY_RELOAD_KEY = `3dvr-auth-cache-recovery-reload:${AUTH_CACHE_RECOVERY_VERSION}`;
+  const AUTH_CRITICAL_PATHS = new Set(['/', '/index.html', '/profile.html', '/sign-in.html']);
 
   function normalizeText(value) {
     return typeof value === 'string' ? value.trim() : '';
@@ -19,6 +23,123 @@
       return '.3dvr.tech';
     }
     return '';
+  }
+
+  function isAuthCriticalPath(locationObj = global.location) {
+    const pathname = locationObj && typeof locationObj.pathname === 'string'
+      ? locationObj.pathname
+      : '';
+    return AUTH_CRITICAL_PATHS.has(pathname || '/');
+  }
+
+  function shouldRunAuthCacheRecovery(storage = global.localStorage) {
+    try {
+      return !storage || storage.getItem(AUTH_CACHE_RECOVERY_KEY) !== AUTH_CACHE_RECOVERY_VERSION;
+    } catch (_err) {
+      return true;
+    }
+  }
+
+  function markAuthCacheRecovery(storage = global.localStorage) {
+    if (!storage || typeof storage.setItem !== 'function') return;
+    try {
+      storage.setItem(AUTH_CACHE_RECOVERY_KEY, AUTH_CACHE_RECOVERY_VERSION);
+    } catch (_err) {
+      // Ignore storage failures; cache recovery is best-effort.
+    }
+  }
+
+  function clearPortalShellCaches(cacheApi = global.caches) {
+    if (!cacheApi || typeof cacheApi.keys !== 'function' || typeof cacheApi.delete !== 'function') {
+      return Promise.resolve(false);
+    }
+
+    return cacheApi.keys()
+      .then(keys => Promise.all(
+        keys
+          .filter(key => /^3dvr-(html|static)-/.test(String(key || '')))
+          .map(key => cacheApi.delete(key))
+      ))
+      .then(results => results.some(Boolean));
+  }
+
+  function requestWaitingActivation(registration) {
+    if (!registration || !registration.waiting || typeof registration.waiting.postMessage !== 'function') {
+      return false;
+    }
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    return true;
+  }
+
+  function updateRootServiceWorker(navigatorObj = global.navigator) {
+    if (
+      !navigatorObj
+      || !navigatorObj.serviceWorker
+      || typeof navigatorObj.serviceWorker.getRegistration !== 'function'
+    ) {
+      return Promise.resolve(false);
+    }
+
+    return navigatorObj.serviceWorker.getRegistration('/')
+      .then(registration => {
+        if (!registration) return false;
+        const updatePromise = typeof registration.update === 'function'
+          ? registration.update().catch(() => registration)
+          : Promise.resolve(registration);
+        return updatePromise.then(nextRegistration => {
+          requestWaitingActivation(nextRegistration || registration);
+          return true;
+        });
+      });
+  }
+
+  function reloadAuthCriticalPageOnce({
+    locationObj = global.location,
+    sessionStorageObj = global.sessionStorage,
+  } = {}) {
+    if (!isAuthCriticalPath(locationObj) || !locationObj || typeof locationObj.reload !== 'function') {
+      return false;
+    }
+
+    try {
+      if (
+        sessionStorageObj
+        && typeof sessionStorageObj.getItem === 'function'
+        && sessionStorageObj.getItem(AUTH_CACHE_RECOVERY_RELOAD_KEY) === 'true'
+      ) {
+        return false;
+      }
+      if (sessionStorageObj && typeof sessionStorageObj.setItem === 'function') {
+        sessionStorageObj.setItem(AUTH_CACHE_RECOVERY_RELOAD_KEY, 'true');
+      }
+    } catch (_err) {
+      // Reload anyway if sessionStorage is unavailable.
+    }
+
+    locationObj.reload();
+    return true;
+  }
+
+  function refreshPortalAuthCache({
+    storage = global.localStorage,
+    reload = false,
+  } = {}) {
+    if (!shouldRunAuthCacheRecovery(storage)) {
+      return Promise.resolve(false);
+    }
+
+    return Promise.all([
+      clearPortalShellCaches(),
+      updateRootServiceWorker(),
+    ])
+      .then(results => {
+        markAuthCacheRecovery(storage);
+        if (reload) {
+          reloadAuthCriticalPageOnce();
+        }
+        return results.some(Boolean);
+      })
+      .catch(() => false);
   }
 
   function sanitizeIdentityPayload(payload = {}) {
@@ -176,6 +297,9 @@
     writeSharedIdentity,
     clearSharedIdentity,
     syncStorageFromSharedIdentity,
+    refreshPortalAuthCache,
     resolveSharedCookieDomain,
   };
+
+  refreshPortalAuthCache({ reload: true });
 })(typeof window !== 'undefined' ? window : globalThis);

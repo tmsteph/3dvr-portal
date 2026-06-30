@@ -77,6 +77,12 @@ test('root PWA installer prevents controllerchange reload loops', async () => {
 
   assert.match(source, /reloadGuardKey/);
   assert.match(source, /reloadCooldownMs = 30000/);
+  assert.match(source, /authCacheRecoveryVersion = '2026-06-30-auth-cache-v1'/);
+  assert.match(source, /authCriticalPaths = new Set\(\['\/', '\/index\.html', '\/profile\.html', '\/sign-in\.html'\]\)/);
+  assert.match(source, /const clearPortalShellCaches = async \(\) =>/);
+  assert.match(source, /\^3dvr-\(html\|static\)-/);
+  assert.match(source, /updateRootServiceWorker/);
+  assert.match(source, /recoverPortalAuthCache\(\)/);
   assert.match(source, /window\.addEventListener\('pageshow'/);
   assert.match(source, /event\.persisted/);
   assert.match(source, /sessionStorage\.getItem\(reloadGuardKey\)/);
