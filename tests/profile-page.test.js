@@ -35,7 +35,7 @@ test('profile section exposes a sign-out action that clears stored auth state', 
 test('profile page exposes clear sign-in paths for guest users', async () => {
   const html = await readFile(new URL('../profile.html', import.meta.url), 'utf8');
 
-  assert.match(html, /href="sign-in\.html\?upgrade=guest&amp;redirect=%2Fprofile\.html" data-profile-auth-entry>🔑 Sign in<\/a>/);
+  assert.match(html, /href="sign-in\.html\?redirect=%2Fprofile\.html" data-profile-auth-entry>🔑 Sign in<\/a>/);
   assert.match(html, /id="profile-sign-in-callout"/);
   assert.match(html, /You are using this browser as a guest/);
   assert.match(html, /Sign in or create account/);
@@ -44,4 +44,5 @@ test('profile page exposes clear sign-in paths for guest users', async () => {
   assert.match(html, /function updateProfileSignInCallout\(\)/);
   assert.match(html, /profileSignInCallout\.hidden = isSignedIn/);
   assert.match(html, /link\.textContent = isSignedIn \? '👤 Profile' : '🔑 Sign in'/);
+  assert.doesNotMatch(html, /sign-in\.html\?upgrade=guest/);
 });
