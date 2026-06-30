@@ -303,6 +303,7 @@
             <span class="eyebrow">One prompt</span>
             <h2 id="portal-guide-title">Tell the portal what you need.</h2>
             <p>Write one sentence. The portal will pick a place to start and give you the next few moves.</p>
+            <p class="portal-guide__memory" data-auto-identity-status>No login needed. This browser remembers what helps.</p>
           </div>
           <form class="portal-guide__form" data-guide-form>
             <label class="portal-guide__label" for="portalGuidePrompt">What are you trying to sort out?</label>
@@ -1191,11 +1192,11 @@
 
   <div id="auth-modal" class="auth-modal" aria-hidden="true">
     <div class="auth-modal__panel" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-      <h2 id="auth-modal-title">Sign in or create account</h2>
-      <p>Use one account to save your progress and sync your points across devices.</p>
+      <h2 id="auth-modal-title">You are already in.</h2>
+      <p>The portal remembers this browser. Add an account later only if you want sync across devices.</p>
       <div class="auth-modal__actions">
-        <button type="button" class="cta primary" onclick="startAccountFromHere()">Sign in or create account</button>
-        <button type="button" class="cta ghost" onclick="continueAsGuest()">Continue as guest</button>
+        <button type="button" class="cta primary" onclick="continueAsGuest()">Keep going</button>
+        <button type="button" class="cta ghost" onclick="startAccountFromHere()">Sync later</button>
       </div>
     </div>
   </div>
@@ -1233,23 +1234,190 @@
     }
 
     function ensureGuestId() {
-      const legacyId = localStorage.getItem('userId');
-      if (legacyId && !localStorage.getItem('guestId')) {
-        localStorage.setItem('guestId', legacyId);
+      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
+        return window.ScoreSystem.ensureGuestIdentity();
       }
-      if (legacyId) {
-        localStorage.removeItem('userId');
+
+      try {
+        const legacyId = localStorage.getItem('userId');
+        if (legacyId && !localStorage.getItem('guestId')) {
+          localStorage.setItem('guestId', legacyId);
+        }
+        if (legacyId) {
+          localStorage.removeItem('userId');
+        }
+        let guestId = localStorage.getItem('guestId');
+        if (!guestId) {
+          guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem('guestId', guestId);
+        }
+        if (!localStorage.getItem('guestDisplayName')) {
+          localStorage.setItem('guestDisplayName', 'Guest');
+        }
+        localStorage.setItem('guest', 'true');
+        return guestId;
+      } catch (error) {
+        console.warn('Could not create local portal identity', error);
+        return '';
       }
-      let guestId = localStorage.getItem('guestId');
-      if (!guestId) {
-        guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('guestId', guestId);
-      }
-      if (!localStorage.getItem('guestDisplayName')) {
-        localStorage.setItem('guestDisplayName', 'Guest');
-      }
-      return guestId;
     }
+
+    const PORTAL_AUTO_IDENTITY_KEY = 'portal:auto-identity:v1';
+    const PORTAL_AUTO_ACTIVITY_LIMIT = 28;
+
+    function safeParseJson(value, fallback) {
+      if (!value) return fallback;
+      try {
+        return JSON.parse(value);
+      } catch (_error) {
+        return fallback;
+      }
+    }
+
+    function readAutoIdentity() {
+      return safeParseJson(localStorage.getItem(PORTAL_AUTO_IDENTITY_KEY), null);
+    }
+
+    function writeAutoIdentity(profile) {
+      localStorage.setItem(PORTAL_AUTO_IDENTITY_KEY, JSON.stringify(profile));
+      return profile;
+    }
+
+    function createAutoIdentity({ countVisit = false } = {}) {
+      const now = new Date().toISOString();
+      const guestId = ensureGuestId();
+      const existing = readAutoIdentity();
+      const profile = existing && typeof existing === 'object' ? existing : {};
+
+      return writeAutoIdentity({
+        id: profile.id || guestId || `local_${Math.random().toString(36).slice(2, 10)}`,
+        kind: 'local-browser',
+        createdAt: profile.createdAt || now,
+        updatedAt: now,
+        visits: Number(profile.visits || 0) + (countVisit ? 1 : 0),
+        rooms: profile.rooms && typeof profile.rooms === 'object' ? profile.rooms : {},
+        apps: profile.apps && typeof profile.apps === 'object' ? profile.apps : {},
+        routeIds: profile.routeIds && typeof profile.routeIds === 'object' ? profile.routeIds : {},
+        recent: Array.isArray(profile.recent) ? profile.recent.slice(0, PORTAL_AUTO_ACTIVITY_LIMIT) : [],
+        lastViewMode: profile.lastViewMode || document.body.dataset.viewMode || 'workshop',
+        lastRoom: profile.lastRoom || '',
+        lastApp: profile.lastApp || '',
+        lastGuideRoute: profile.lastGuideRoute || '',
+      });
+    }
+
+    function countAutoIdentityVisit() {
+      try {
+        const key = 'portal:auto-identity:visit-counted';
+        if (sessionStorage.getItem(key) === 'true') {
+          return createAutoIdentity();
+        }
+        sessionStorage.setItem(key, 'true');
+        return createAutoIdentity({ countVisit: true });
+      } catch (_error) {
+        return createAutoIdentity({ countVisit: true });
+      }
+    }
+
+    function incrementCounter(map, key) {
+      const normalized = String(key || '').trim();
+      if (!normalized) return map || {};
+      const next = map && typeof map === 'object' ? { ...map } : {};
+      next[normalized] = Number(next[normalized] || 0) + 1;
+      return next;
+    }
+
+    function topCounterKey(map = {}) {
+      return Object.entries(map)
+        .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+        .map(([key]) => key)[0] || '';
+    }
+
+    function rememberPortalBehavior(type, detail = {}) {
+      try {
+        const now = new Date().toISOString();
+        const current = readAutoIdentity() || createAutoIdentity();
+        const safeType = String(type || '').trim();
+        const safeDetail = detail && typeof detail === 'object' ? detail : {};
+        const next = {
+          ...current,
+          updatedAt: now,
+          lastViewMode: document.body.dataset.viewMode || current.lastViewMode || 'workshop',
+        };
+
+        if (safeType === 'room' && safeDetail.room) {
+          next.rooms = incrementCounter(next.rooms, safeDetail.room);
+          next.lastRoom = String(safeDetail.room);
+        }
+
+        if (safeType === 'app' && safeDetail.title) {
+          next.apps = incrementCounter(next.apps, safeDetail.title);
+          next.lastApp = String(safeDetail.title);
+          if (safeDetail.room) {
+            next.rooms = incrementCounter(next.rooms, safeDetail.room);
+            next.lastRoom = String(safeDetail.room);
+          }
+        }
+
+        if (safeType === 'guide' && safeDetail.routeId) {
+          next.routeIds = incrementCounter(next.routeIds, safeDetail.routeId);
+          next.lastGuideRoute = String(safeDetail.routeId);
+          if (safeDetail.room) {
+            next.rooms = incrementCounter(next.rooms, safeDetail.room);
+            next.lastRoom = String(safeDetail.room);
+          }
+        }
+
+        next.recent = [
+          {
+            type: safeType,
+            at: now,
+            room: safeDetail.room || '',
+            routeId: safeDetail.routeId || '',
+            title: safeDetail.title || '',
+          },
+          ...(Array.isArray(next.recent) ? next.recent : []),
+        ].slice(0, PORTAL_AUTO_ACTIVITY_LIMIT);
+
+        writeAutoIdentity(next);
+        window.dispatchEvent(new CustomEvent('portal-auto-identity:updated', {
+          detail: { profile: next }
+        }));
+        return next;
+      } catch (error) {
+        console.warn('Could not remember portal behavior', error);
+        return null;
+      }
+    }
+
+    function getAutoIdentitySummary() {
+      const profile = readAutoIdentity() || createAutoIdentity();
+      const preferredRoom = profile.lastRoom || topCounterKey(profile.rooms);
+      const preferredRoute = profile.lastGuideRoute || topCounterKey(profile.routeIds);
+      const preferredApp = profile.lastApp || topCounterKey(profile.apps);
+      return {
+        profile,
+        preferredRoom,
+        preferredRoute,
+        preferredApp,
+      };
+    }
+
+    window.PortalAutoIdentity = {
+      ensure: createAutoIdentity,
+      remember: rememberPortalBehavior,
+      getProfile: readAutoIdentity,
+      getSummary: getAutoIdentitySummary,
+      reset() {
+        localStorage.removeItem(PORTAL_AUTO_IDENTITY_KEY);
+        window.dispatchEvent(new CustomEvent('portal-auto-identity:updated', {
+          detail: { profile: null }
+        }));
+      },
+      storageKey: PORTAL_AUTO_IDENTITY_KEY,
+    };
+
+    countAutoIdentityVisit();
 
     function restoreAuthIfPossible() {
       const signedIn = localStorage.getItem('signedIn') === 'true';
@@ -1298,6 +1466,7 @@
       if (guest || localStorage.getItem('guest') === 'true') {
         ensureGuestId();
       }
+      window.PortalAutoIdentity?.ensure?.();
     });
 
     function continueAsGuest() {
@@ -1609,6 +1778,7 @@
     const guideSubmit = document.querySelector('[data-guide-submit]');
     const guideStatus = document.querySelector('[data-guide-status]');
     const guideShowDock = document.querySelector('[data-guide-show-dock]');
+    const autoIdentityStatus = document.querySelector('[data-auto-identity-status]');
     const GUIDE_API_TIMEOUT_MS = 14000;
     let activeAppLane = 'all';
     const roomMeta = {
@@ -1972,6 +2142,13 @@
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
+        card.addEventListener('click', () => {
+          window.PortalAutoIdentity?.remember?.('app', {
+            title: title || card.getAttribute('href') || 'App',
+            href: card.getAttribute('href') || '',
+            room: (card.dataset.humanRooms || '').split(/\s+/).filter(Boolean)[0] || '',
+          });
+        });
       });
     }
     const prefersReducedMotionQuery =
@@ -1985,6 +2162,9 @@
     const shouldShowExperimental = () => Boolean(experimentalToggle?.checked);
     const getViewMode = () => document.body.dataset.viewMode || 'human-os';
     const getActiveRoom = () => document.body.dataset.activeRoom || '';
+    const trackPortalBehavior = (type, detail = {}) => {
+      window.PortalAutoIdentity?.remember?.(type, detail);
+    };
     const setActiveAppLane = (lane = 'all') => {
       activeAppLane = lane || 'all';
       laneFilterButtons.forEach((button) => {
@@ -2057,10 +2237,34 @@
       });
       syncRoomReveal();
       updateAppFilter(searchInput?.value ?? '');
+      trackPortalBehavior('view', { room: nextRoom || '', title: mode });
     };
 
     let lastGuideRoute = portalGuideRoutes.find((route) => route.id === 'life') || portalGuideRoutes[0];
     let isGuideBusy = false;
+
+    const getAutoRoute = () => {
+      const summary = window.PortalAutoIdentity?.getSummary?.();
+      if (!summary) return null;
+
+      return portalGuideRoutes.find((route) => route.id === summary.preferredRoute)
+        || portalGuideRoutes.find((route) => route.room === summary.preferredRoom)
+        || null;
+    };
+
+    const applyAutoIdentityHints = () => {
+      const route = getAutoRoute();
+      if (autoIdentityStatus) {
+        autoIdentityStatus.textContent = route
+          ? `No login needed. This browser remembers ${route.title}.`
+          : 'No login needed. This browser remembers what helps.';
+      }
+      if (guidePrompt && !guidePrompt.value) {
+        guidePrompt.placeholder = route
+          ? `Need more help with ${route.title}, or something new?`
+          : 'Example: I feel scattered and need to organize my life.';
+      }
+    };
 
     const scoreGuideRoute = (route, query) =>
       route.keywords.reduce((score, keyword) => {
@@ -2222,9 +2426,19 @@
       try {
         const route = await requestGuideRoute(prompt, fallbackRoute);
         renderGuideRoute(route);
+        trackPortalBehavior('guide', {
+          routeId: route.id,
+          room: route.room,
+          title: route.title,
+        });
         if (guideStatus) guideStatus.textContent = 'AI guide ready.';
       } catch (error) {
         renderGuideRoute({ ...fallbackRoute, source: 'local-fallback' });
+        trackPortalBehavior('guide', {
+          routeId: fallbackRoute.id,
+          room: fallbackRoute.room,
+          title: fallbackRoute.title,
+        });
         if (guideStatus) guideStatus.textContent = 'Local guide ready. AI is unavailable.';
       } finally {
         setGuideBusy(false);
@@ -2239,11 +2453,17 @@
       if (!lastGuideRoute) return;
 
       if (lastGuideRoute.room) {
+        trackPortalBehavior('room', {
+          room: lastGuideRoute.room,
+          routeId: lastGuideRoute.id,
+          title: lastGuideRoute.title,
+        });
         if (searchInput) {
           searchInput.value = '';
         }
         setViewMode('human-os', lastGuideRoute.room);
       } else {
+        trackPortalBehavior('view', { title: 'workshop' });
         setViewMode('workshop');
         if (searchInput) {
           searchInput.value = lastGuideRoute.search || '';
@@ -2458,6 +2678,7 @@
     });
 
     guideShowDock?.addEventListener('click', showGuideMatches);
+    window.addEventListener('portal-auto-identity:updated', applyAutoIdentityHints);
 
     const getAuthModal = () => document.getElementById('auth-modal');
 
@@ -2569,6 +2790,10 @@
       button.addEventListener('click', () => {
         const room = button.dataset.roomDoor || '';
         if (!room) return;
+        trackPortalBehavior('room', {
+          room,
+          title: roomMeta[room]?.title || room,
+        });
         setViewMode('human-os', room);
         window.requestAnimationFrame(() => {
           appHub?.scrollIntoView({
@@ -2627,6 +2852,7 @@
     setViewMode('workshop');
     setActiveAppLane('all');
     updateAppFilter(initialSearchValue);
+    applyAutoIdentityHints();
   </script>
   <script defer src="/issue-launcher.js"></script>
 </body>

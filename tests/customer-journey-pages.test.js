@@ -13,6 +13,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, />Guide<\/button>/);
     assert.match(html, /Workshop/);
     assert.match(html, /Tell the portal what you need\./);
+    assert.match(html, /data-auto-identity-status/);
+    assert.match(html, /No login needed\. This browser remembers what helps\./);
     assert.match(html, /data-guide-form/);
     assert.match(html, /data-guide-prompt/);
     assert.match(html, /data-guide-submit/);
@@ -28,6 +30,11 @@ describe('portal customer journey pages', () => {
     assert.match(html, /AI guide is thinking/);
     assert.match(html, /Local guide ready\. AI is unavailable\./);
     assert.match(html, /const showGuideMatches =/);
+    assert.match(html, /PORTAL_AUTO_IDENTITY_KEY = 'portal:auto-identity:v1'/);
+    assert.match(html, /window\.PortalAutoIdentity =/);
+    assert.match(html, /rememberPortalBehavior/);
+    assert.match(html, /portal-auto-identity:updated/);
+    assert.match(html, /lastGuideRoute/);
     assert.match(html, /Nine doors into the portal/);
     assert.match(html, /🧭 My Purpose/);
     assert.match(html, /🌱 My Life/);
@@ -84,8 +91,8 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Start Your Thing/);
     assert.match(html, /Start Here: organize life, ideas, work, and what wants to grow\./);
     assert.match(html, /Search the dock/);
-    assert.match(html, /Sign in or create account/);
-    assert.match(html, /Use one account to save your progress and sync your points across devices\./);
+    assert.match(html, /You are already in\./);
+    assert.match(html, /The portal remembers this browser\./);
     assert.doesNotMatch(html, /Sign in to save your progress/);
     assert.match(html, /class="site-backlink" href="https:\/\/3dvr\.tech\/" aria-label="Back to 3dvr\.tech home">3dvr\.tech<\/a>/);
     assert.doesNotMatch(html, />3dvr\.tech home<\/a>/);
@@ -128,6 +135,7 @@ describe('portal customer journey pages', () => {
     assert.match(css, /\.portal-guide__chips/);
     assert.match(css, /\.portal-guide__actions/);
     assert.match(css, /\.portal-guide__status/);
+    assert.match(css, /\.portal-guide__memory/);
     assert.match(css, /@media \(min-width: 721px\) \{[\s\S]*?\.hero-actions \{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(9rem,\s*1fr\)\);[\s\S]*?\.hero-actions \.cta \{[\s\S]*?padding:\s*0\.58rem 1rem;/);
     assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
     assert.doesNotMatch(css, /botanical-border/);

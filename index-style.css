@@ -866,6 +866,10 @@ body[data-view-mode="human-os"]:not([data-active-room=""]) .human-os-map {
   line-height: 1.55;
 }
 
+.portal-guide__memory {
+  font-size: 0.92rem;
+}
+
 .portal-guide__label {
   color: rgba(226, 232, 240, 0.9);
   font-weight: 800;

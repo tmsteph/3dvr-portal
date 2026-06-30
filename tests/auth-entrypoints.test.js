@@ -5,9 +5,10 @@ import { readFile } from 'node:fs/promises';
 const indexUrl = new URL('../index.html', import.meta.url);
 
 describe('auth entrypoints', () => {
-  it('sends the homepage auth modal directly to the canonical sign-in page', async () => {
+  it('keeps optional homepage sync pointed at the canonical sign-in page', async () => {
     const html = await readFile(indexUrl, 'utf8');
-    assert.match(html, /window\.location\.href='\/sign-in\.html'/);
+    assert.match(html, /\/sign-in\.html\?redirect=/);
+    assert.match(html, /Sync later/);
     assert.doesNotMatch(html, /window\.location\.href='\/auth\/sign-in\.html'/);
   });
 });
