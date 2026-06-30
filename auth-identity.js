@@ -1,7 +1,7 @@
 (function initAuthIdentity(global) {
   const SHARED_COOKIE_NAME = 'portalIdentity';
   const SHARED_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
-  const AUTH_CACHE_RECOVERY_VERSION = '2026-06-30-auth-cache-v1';
+  const AUTH_CACHE_RECOVERY_VERSION = '2026-06-30-auth-cache-v2';
   const AUTH_CACHE_RECOVERY_KEY = '3dvr-auth-cache-recovery-version';
   const AUTH_CACHE_RECOVERY_RELOAD_KEY = `3dvr-auth-cache-recovery-reload:${AUTH_CACHE_RECOVERY_VERSION}`;
   const AUTH_CRITICAL_PATHS = new Set(['/', '/index.html', '/profile.html', '/sign-in.html']);
@@ -49,16 +49,14 @@
     }
   }
 
-  function clearPortalShellCaches(cacheApi = global.caches) {
+  function clearPortalOriginCaches(cacheApi = global.caches) {
     if (!cacheApi || typeof cacheApi.keys !== 'function' || typeof cacheApi.delete !== 'function') {
       return Promise.resolve(false);
     }
 
     return cacheApi.keys()
       .then(keys => Promise.all(
-        keys
-          .filter(key => /^3dvr-(html|static)-/.test(String(key || '')))
-          .map(key => cacheApi.delete(key))
+        keys.map(key => cacheApi.delete(key))
       ))
       .then(results => results.some(Boolean));
   }
@@ -71,26 +69,42 @@
     return true;
   }
 
-  function updateRootServiceWorker(navigatorObj = global.navigator) {
+  function isSameOriginServiceWorkerScope(scope = '', currentOrigin = '') {
+    if (!currentOrigin) return true;
+    const normalizedScope = String(scope || '');
+    const UrlConstructor = global && typeof global.URL === 'function' ? global.URL : null;
+    if (UrlConstructor) {
+      try {
+        return new UrlConstructor(normalizedScope).origin === currentOrigin;
+      } catch (_err) {
+        // Fall back to a prefix check for test environments without a browser URL implementation.
+      }
+    }
+    return normalizedScope === currentOrigin || normalizedScope.startsWith(`${currentOrigin}/`);
+  }
+
+  function unregisterPortalServiceWorkers(navigatorObj = global.navigator, locationObj = global.location) {
     if (
       !navigatorObj
       || !navigatorObj.serviceWorker
-      || typeof navigatorObj.serviceWorker.getRegistration !== 'function'
+      || typeof navigatorObj.serviceWorker.getRegistrations !== 'function'
     ) {
       return Promise.resolve(false);
     }
 
-    return navigatorObj.serviceWorker.getRegistration('/')
-      .then(registration => {
-        if (!registration) return false;
-        const updatePromise = typeof registration.update === 'function'
-          ? registration.update().catch(() => registration)
-          : Promise.resolve(registration);
-        return updatePromise.then(nextRegistration => {
-          requestWaitingActivation(nextRegistration || registration);
-          return true;
-        });
-      });
+    const currentOrigin = locationObj && locationObj.origin ? locationObj.origin : '';
+    return navigatorObj.serviceWorker.getRegistrations()
+      .then(registrations => Promise.all(
+        registrations
+          .filter(registration => isSameOriginServiceWorkerScope(registration && registration.scope, currentOrigin))
+          .map(registration => {
+            requestWaitingActivation(registration);
+            return typeof registration.unregister === 'function'
+              ? registration.unregister()
+              : Promise.resolve(false);
+          })
+      ))
+      .then(results => results.some(Boolean));
   }
 
   function reloadAuthCriticalPageOnce({
@@ -129,8 +143,8 @@
     }
 
     return Promise.all([
-      clearPortalShellCaches(),
-      updateRootServiceWorker(),
+      clearPortalOriginCaches(),
+      unregisterPortalServiceWorkers(),
     ])
       .then(results => {
         markAuthCacheRecovery(storage);

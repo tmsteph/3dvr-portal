@@ -29,6 +29,15 @@
       ]
     },
     {
+      "source": "/cache-reset.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
       "source": "/(.*)\\.(css|js)",
       "headers": [
         {

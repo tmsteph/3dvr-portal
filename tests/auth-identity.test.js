@@ -221,18 +221,18 @@ describe('auth identity helper', () => {
       'calendar-html-v2',
     ]);
     const waitingMessages = [];
-    let updateCalled = false;
-    let registrationScope = '';
+    let unregisterCount = 0;
     let reloadCount = 0;
     const registration = {
+      scope: 'https://portal.3dvr.tech/',
       waiting: {
         postMessage(message) {
           waitingMessages.push(message);
         },
       },
-      async update() {
-        updateCalled = true;
-        return registration;
+      async unregister() {
+        unregisterCount += 1;
+        return true;
       },
     };
 
@@ -240,7 +240,7 @@ describe('auth identity helper', () => {
     localStorage.setItem('alias', 'pilot@3dvr');
     localStorage.setItem('username', 'Pilot');
     localStorage.setItem('password', 'secret');
-    localStorage.setItem('3dvr-auth-cache-recovery-version', '2026-06-30-auth-cache-v1');
+    localStorage.setItem('3dvr-auth-cache-recovery-version', '2026-06-30-auth-cache-v2');
 
     const { api } = loadAuthIdentity({
       localStorage,
@@ -248,14 +248,22 @@ describe('auth identity helper', () => {
       caches: cacheApi,
       navigator: {
         serviceWorker: {
-          async getRegistration(scope) {
-            registrationScope = scope;
-            return registration;
+          async getRegistrations() {
+            return [
+              registration,
+              {
+                scope: 'https://other.example/',
+                async unregister() {
+                  throw new Error('wrong registration');
+                },
+              },
+            ];
           },
         },
       },
       locationObj: {
         hostname: 'portal.3dvr.tech',
+        origin: 'https://portal.3dvr.tech',
         pathname: '/profile.html',
         reload() {
           reloadCount += 1;
@@ -267,13 +275,17 @@ describe('auth identity helper', () => {
     const changed = await api.refreshPortalAuthCache({ storage: localStorage, reload: true });
 
     assert.equal(changed, true);
-    assert.deepEqual(cacheApi.deleted.sort(), ['3dvr-html-v17', '3dvr-static-v17']);
-    assert.equal(updateCalled, true);
-    assert.equal(registrationScope, '/');
+    assert.deepEqual(cacheApi.deleted.sort(), [
+      '3dvr-html-v17',
+      '3dvr-static-v17',
+      'calendar-html-v2',
+      'contacts-static-v4',
+    ]);
+    assert.equal(unregisterCount, 1);
     assert.equal(waitingMessages.length, 1);
     assert.equal(waitingMessages[0].type, 'SKIP_WAITING');
     assert.equal(reloadCount, 1);
-    assert.equal(localStorage.getItem('3dvr-auth-cache-recovery-version'), '2026-06-30-auth-cache-v1');
+    assert.equal(localStorage.getItem('3dvr-auth-cache-recovery-version'), '2026-06-30-auth-cache-v2');
     assert.equal(localStorage.getItem('signedIn'), 'true');
     assert.equal(localStorage.getItem('alias'), 'pilot@3dvr');
     assert.equal(localStorage.getItem('password'), 'secret');
