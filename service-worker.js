@@ -3,10 +3,16 @@
 importScripts('/chat/notification-routing.js');
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v17';
+const CACHE_VERSION = 'v18';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 const chatNotificationRouting = self.ChatNotificationRouting || null;
+const AUTH_CRITICAL_HTML_PATHS = new Set([
+  '/',
+  '/index.html',
+  '/profile.html',
+  '/sign-in.html'
+]);
 
 // What to cache at install (add your CSS/JS/assets here). Keep HTML out of the
 // install cache so stale app shells cannot survive a deploy.
@@ -102,8 +108,18 @@ const shouldCacheHtmlResponse = (response) => {
   return contentType.includes('text/html');
 };
 
+const isAuthCriticalHtmlRequest = (request) => {
+  try {
+    const url = new URL(request.url);
+    return url.origin === self.location.origin && AUTH_CRITICAL_HTML_PATHS.has(url.pathname);
+  } catch (error) {
+    return false;
+  }
+};
+
 const cacheHtmlResponse = async (request, response) => {
   if (!shouldCacheHtmlResponse(response)) return;
+  if (isAuthCriticalHtmlRequest(request)) return;
 
   const responseForCache = response.clone();
   const responseForInspection = response.clone();
@@ -123,6 +139,7 @@ const getCachedHtmlFallback = async (request) => {
 };
 
 const networkFirstHtml = async (request) => {
+  const isAuthCritical = isAuthCriticalHtmlRequest(request);
   const fresh = await fetch(request, { cache: 'reload' });
   const contentType = fresh.headers.get('content-type') || '';
 
@@ -131,10 +148,13 @@ const networkFirstHtml = async (request) => {
     const text = await responseForInspection.text();
 
     if (SECURITY_CHECKPOINT_PATTERN.test(text)) {
+      if (isAuthCritical) {
+        return fresh;
+      }
       return getCachedHtmlFallback(request);
     }
 
-    if (fresh.ok) {
+    if (fresh.ok && !isAuthCritical) {
       const cache = await caches.open(HTML_CACHE);
       await cache.put(request, fresh.clone());
     }

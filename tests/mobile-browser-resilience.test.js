@@ -48,7 +48,12 @@ test('root service worker does not cache stale portal HTML or Vercel checkpoints
   const source = await readProjectFile('service-worker.js');
   const staticAssetsBlock = source.match(/const STATIC_ASSETS = \[[\s\S]*?\];/)?.[0] || '';
 
-  assert.match(source, /const CACHE_VERSION = 'v17';/);
+  assert.match(source, /const CACHE_VERSION = 'v18';/);
+  assert.match(source, /const AUTH_CRITICAL_HTML_PATHS = new Set\(\[/);
+  assert.match(source, /'\/index\.html'/);
+  assert.match(source, /'\/profile\.html'/);
+  assert.match(source, /'\/sign-in\.html'/);
+  assert.match(source, /const isAuthCriticalHtmlRequest = \(request\) =>/);
   assert.doesNotMatch(staticAssetsBlock, /'\/'/);
   assert.match(source, /SECURITY_CHECKPOINT_PATTERN/);
   assert.match(source, /Vercel Security Checkpoint/);
@@ -57,8 +62,11 @@ test('root service worker does not cache stale portal HTML or Vercel checkpoints
   assert.match(source, /705\|805/);
   assert.match(source, /networkFirstHtml/);
   assert.match(source, /SECURITY_CHECKPOINT_PATTERN\.test\(text\)/);
+  assert.match(source, /if \(isAuthCritical\) \{[\s\S]*?return fresh;[\s\S]*?\}/);
   assert.match(source, /return getCachedHtmlFallback\(request\)/);
   assert.match(source, /shouldCacheHtmlResponse/);
+  assert.match(source, /if \(isAuthCriticalHtmlRequest\(request\)\) return;/);
+  assert.match(source, /fresh\.ok && !isAuthCritical/);
   assert.match(source, /fetch\(request,\s*\{\s*cache:\s*'reload'\s*\}\)/);
   assert.match(source, /caches\.match\(request,\s*\{\s*ignoreSearch:\s*true\s*\}\)/);
   assert.match(source, /createOfflinePortalFallbackResponse/);
