@@ -60,6 +60,7 @@ const refs = {
   form: document.querySelector('[data-forge-form]'),
   answer: document.querySelector('[data-forge-answer]'),
   inputLabel: document.querySelector('[data-input-label]'),
+  inputMode: document.querySelector('[data-forge-input-mode]'),
   submit: document.querySelector('[data-submit-answer]'),
   spark: document.querySelector('[data-spark-idea]'),
   easyAnswer: document.querySelector('[data-easy-answer]'),
@@ -70,6 +71,8 @@ const refs = {
   progress: document.querySelector('[data-forge-progress]'),
   progressLabel: document.querySelector('[data-forge-progress-label]'),
   progressBar: document.querySelector('[data-forge-progress-bar]'),
+  appStatus: document.querySelector('[data-forge-app-status]'),
+  stageSteps: Array.from(document.querySelectorAll('[data-forge-step]')),
   guidancePanel: document.querySelector('[data-guidance-panel]'),
   guidanceDiagnosis: document.querySelector('[data-guidance-diagnosis]'),
   guidancePaths: document.querySelector('[data-guidance-paths]'),
@@ -851,6 +854,45 @@ function renderProgress() {
   refs.progressBar.style.width = `${percent}%`;
 }
 
+function resolveAppStep() {
+  if (session.stage === stage.BRIEF || session.stage === stage.GENERATING) {
+    return 'brief';
+  }
+
+  if (session.stage === stage.FOLLOWUPS) {
+    return 'followups';
+  }
+
+  return 'initial';
+}
+
+function renderAppChrome(statusText) {
+  const activeStep = resolveAppStep();
+
+  if (refs.appStatus) {
+    refs.appStatus.textContent = statusText.replace(/\.$/, '');
+  }
+
+  if (refs.inputMode) {
+    const labels = {
+      initial: 'Sort',
+      followups: 'Shape',
+      brief: 'Plan',
+    };
+    refs.inputMode.textContent = labels[activeStep] || 'Sort';
+  }
+
+  refs.stageSteps.forEach((step) => {
+    const isActive = step.dataset.forgeStep === activeStep;
+    step.dataset.active = isActive ? 'true' : 'false';
+    if (isActive) {
+      step.setAttribute('aria-current', 'step');
+    } else {
+      step.removeAttribute('aria-current');
+    }
+  });
+}
+
 function currentPrompt() {
   if (session.stage === stage.GENERATING) {
     return {
@@ -1045,6 +1087,7 @@ function render() {
   refs.briefPanel.hidden = session.stage !== stage.BRIEF;
   refs.status.textContent = statusText;
   if (refs.briefStatus) refs.briefStatus.textContent = statusText;
+  renderAppChrome(statusText);
 
   renderProgress();
   renderTranscript();
