@@ -7,13 +7,13 @@ function buildBillingStartHref(plan = '') {
 
 const ROUTES = {
   life: {
-    title: 'Start free in the portal',
+    title: 'Start free with Daily Direction',
     copy:
-      'You need a clean first step more than more tools. Start free with your email, then continue into one portal account.',
+      'You are not behind. You need one quiet place to sort your life and pick today’s next step.',
     points: [
-      'Email first, no credit card',
-      'One portal account for future upgrades',
-      'Daily direction is the first workspace',
+      'No card',
+      'Sort what matters',
+      'One small move today',
     ],
     plan: 'Best lane now: Free',
     primaryLabel: 'Start free',
