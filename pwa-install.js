@@ -10,6 +10,10 @@
   const scopeHref = new URL(scopePath, window.location.origin).href;
   const reloadGuardKey = `3dvr-service-worker-reload:${scopePath}`;
   const reloadCooldownMs = 30000;
+  const authCacheRecoveryVersion = '2026-06-30-auth-cache-v1';
+  const authCacheRecoveryKey = '3dvr-auth-cache-recovery-version';
+  const authCacheRecoveryReloadKey = `3dvr-auth-cache-recovery-reload:${authCacheRecoveryVersion}`;
+  const authCriticalPaths = new Set(['/', '/index.html', '/profile.html', '/sign-in.html']);
   let restoredFromPageCache = false;
 
   window.addEventListener('pageshow', (event) => {
@@ -70,6 +74,89 @@
     return true;
   };
 
+  const isAuthCriticalPath = () => {
+    const pathname = window.location.pathname || '/';
+    return authCriticalPaths.has(pathname);
+  };
+
+  const shouldRunAuthCacheRecovery = () => {
+    try {
+      return localStorage.getItem(authCacheRecoveryKey) !== authCacheRecoveryVersion;
+    } catch (error) {
+      return true;
+    }
+  };
+
+  const markAuthCacheRecovery = () => {
+    try {
+      localStorage.setItem(authCacheRecoveryKey, authCacheRecoveryVersion);
+    } catch (error) {
+      console.warn('Unable to mark auth cache recovery', error);
+    }
+  };
+
+  const clearPortalShellCaches = async () => {
+    if (!window.caches || typeof window.caches.keys !== 'function') {
+      return false;
+    }
+
+    const keys = await window.caches.keys();
+    const portalCacheKeys = keys.filter((key) => /^3dvr-(html|static)-/.test(key));
+    const results = await Promise.all(portalCacheKeys.map((key) => window.caches.delete(key)));
+    return results.some(Boolean);
+  };
+
+  const updateRootServiceWorker = async () => {
+    if (!navigator.serviceWorker || typeof navigator.serviceWorker.getRegistration !== 'function') {
+      return false;
+    }
+
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    if (!registration) {
+      return false;
+    }
+
+    if (typeof registration.update === 'function') {
+      await registration.update();
+    }
+    requestWaitingActivation(registration);
+    return true;
+  };
+
+  const maybeReloadAfterAuthCacheRecovery = () => {
+    if (!isAuthCriticalPath()) {
+      return;
+    }
+
+    try {
+      if (sessionStorage.getItem(authCacheRecoveryReloadKey) === 'true') {
+        return;
+      }
+      sessionStorage.setItem(authCacheRecoveryReloadKey, 'true');
+    } catch (error) {
+      console.warn('Unable to guard auth cache recovery reload', error);
+    }
+
+    window.location.reload();
+  };
+
+  const recoverPortalAuthCache = async () => {
+    if (!shouldRunAuthCacheRecovery()) {
+      return;
+    }
+
+    try {
+      await Promise.all([
+        clearPortalShellCaches(),
+        updateRootServiceWorker(),
+      ]);
+      markAuthCacheRecovery();
+      maybeReloadAfterAuthCacheRecovery();
+    } catch (error) {
+      console.warn('Portal auth cache recovery skipped', error);
+    }
+  };
+
   const wireServiceWorkerUpdates = (registration) => {
     if (!registration) return;
 
@@ -120,6 +207,7 @@
     }
   };
 
+  recoverPortalAuthCache();
   registerServiceWorker();
 
   const installBanner = document.querySelector('[data-install-banner]');
