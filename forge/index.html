@@ -6,7 +6,7 @@
   <title>3DVR Forge | Turn frustration into a project</title>
   <meta
     name="description"
-    content="3DVR Forge turns messy thoughts, rants, and ideas into a Movement Brief, tiny 7-day experiment, and next actions."
+    content="3DVR Forge helps you sort a stuck idea, pick one next step, and leave with a simple plan."
   >
   <meta name="theme-color" content="#111827">
   <link rel="stylesheet" href="../styles/global.css">
@@ -32,7 +32,7 @@
         <div class="forge-panel forge-conversation" data-forge-panel="conversation">
           <div class="forge-panel__header">
             <span class="eyebrow">3DVR Forge</span>
-            <h1 id="forgeRoomTitle">What’s been bothering you lately?</h1>
+            <h1 id="forgeRoomTitle">What feels stuck?</h1>
           </div>
 
           <div class="forge-progress" data-forge-progress hidden>
@@ -46,17 +46,17 @@
 
           <article class="forge-guidance" data-guidance-panel hidden aria-live="polite">
             <div class="forge-guidance__header">
-              <span class="eyebrow">Forge read</span>
-              <h2>First solution paths</h2>
+              <span class="eyebrow">Next step</span>
+              <h2>Start here</h2>
               <p data-guidance-diagnosis></p>
             </div>
             <div class="forge-guidance__grid">
               <section>
-                <h3>Possible paths</h3>
+                <h3>Try this</h3>
                 <ul data-guidance-paths></ul>
               </section>
               <section>
-                <h3>Do next</h3>
+                <h3>Then do this</h3>
                 <ol data-guidance-actions></ol>
               </section>
             </div>
@@ -64,20 +64,27 @@
 
           <form class="forge-input" data-forge-form>
             <label for="forgeAnswer" class="forge-input__label" data-input-label>
-              Rant, ramble, complain, dream, or describe the thing you can't stop thinking about.
+              One sentence is enough.
             </label>
             <textarea
               id="forgeAnswer"
               rows="7"
               maxlength="2400"
-              placeholder="Rant, complain, dream, or describe the thing you can’t stop thinking about."
+              placeholder="Example: I need money and I do not know what to do first."
               data-forge-answer
               autofocus
               required
             ></textarea>
+            <div class="forge-presets" data-forge-presets aria-label="Quick start ideas">
+              <button type="button" data-preset-idea="I need money and I do not know what to do first.">Need money</button>
+              <button type="button" data-preset-idea="I need better work and I do not know where to start.">Need work</button>
+              <button type="button" data-preset-idea="I have an idea but it feels too big.">Have idea</button>
+              <button type="button" data-preset-idea="I feel stuck and need one small next step.">Feel stuck</button>
+            </div>
             <div class="forge-input__actions">
-              <button class="cta primary" type="submit" data-submit-answer>Send to Forge</button>
-              <button class="cta ghost forge-spark" type="button" data-spark-idea>Spark idea</button>
+              <button class="cta primary" type="submit" data-submit-answer>Help me sort it</button>
+              <button class="cta ghost forge-easy-answer" type="button" data-easy-answer hidden>Use simple answer</button>
+              <button class="cta ghost forge-spark" type="button" data-spark-idea>Use example</button>
               <button class="cta ghost" type="button" data-reset-forge>Reset</button>
             </div>
             <p class="forge-status" data-forge-status role="status" aria-live="polite">
@@ -88,29 +95,29 @@
 
         <aside class="forge-panel forge-brief" data-forge-panel="brief" hidden aria-labelledby="movementBriefTitle">
           <div class="forge-panel__header">
-            <span class="eyebrow">Movement Brief</span>
-            <h2 id="movementBriefTitle">Movement Brief</h2>
+            <span class="eyebrow">Plan</span>
+            <h2 id="movementBriefTitle">Your next step plan</h2>
           </div>
 
-          <div class="forge-brief__actions" aria-label="Movement Brief actions">
-            <button class="cta ghost" type="button" data-copy-brief aria-label="Copy Movement Brief">Copy</button>
-            <button class="cta ghost" type="button" data-download-brief aria-label="Download Movement Brief as Markdown">Download</button>
-            <button class="cta ghost" type="button" data-reset-brief aria-label="Forge another brief">New brief</button>
+          <div class="forge-brief__actions" aria-label="Plan actions">
+            <button class="cta ghost" type="button" data-copy-brief aria-label="Copy plan">Copy</button>
+            <button class="cta ghost" type="button" data-download-brief aria-label="Download plan as Markdown">Download</button>
+            <button class="cta ghost" type="button" data-reset-brief aria-label="Start a new plan">New plan</button>
           </div>
-          <p class="forge-status" data-brief-status role="status" aria-live="polite">Movement Brief ready.</p>
+          <p class="forge-status" data-brief-status role="status" aria-live="polite">Plan ready.</p>
 
           <div class="movement-brief-grid" data-brief-output></div>
 
           <div class="forge-next-moves" aria-labelledby="nextMoveTitle">
             <div>
               <span class="eyebrow">Next move</span>
-              <h3 id="nextMoveTitle">Do not overbuild yet.</h3>
+              <h3 id="nextMoveTitle">Pick one thing to use now.</h3>
             </div>
             <div class="forge-next-moves__buttons">
-              <button type="button" data-next-move="testMessage">Make test message</button>
-              <button type="button" data-next-move="codexPrompt">Make Codex prompt</button>
-              <button type="button" data-next-move="landingCopy">Make landing page copy</button>
-              <button type="button" data-next-move="checklist">Make 7-day checklist</button>
+              <button type="button" data-next-move="testMessage">Copy message</button>
+              <button type="button" data-next-move="checklist">7-day list</button>
+              <button type="button" data-next-move="landingCopy">Page words</button>
+              <button type="button" data-next-move="codexPrompt">Build prompt</button>
             </div>
             <article class="next-output" data-next-output hidden>
               <div class="next-output__header">
@@ -120,27 +127,6 @@
               <pre data-next-output-body></pre>
             </article>
           </div>
-
-          <article class="forge-offer" aria-labelledby="forgeOfferTitle">
-            <div>
-              <span class="eyebrow">Sell this next</span>
-              <h3 id="forgeOfferTitle">Turn this brief into a paid launch sprint.</h3>
-              <p>Use the brief as the deposit trigger: a 72-hour pass that sharpens the offer, builds the first page, writes the test message, and sets up a tiny reply tracker.</p>
-            </div>
-            <ul class="forge-offer__list">
-              <li>Offer and test message review</li>
-              <li>Landing page or build prompt pass</li>
-              <li>Reply tracker and 7-day follow-up</li>
-            </ul>
-            <div class="forge-offer__actions">
-              <a
-                class="cta primary"
-                href="../ideas/forge-revenue-sprint.html"
-              >Start $300 sprint</a>
-              <a class="cta ghost" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Go $50 Builder</a>
-              <a class="cta ghost" href="../sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dpro">Start $20 Founder</a>
-            </div>
-          </article>
         </aside>
       </section>
     </main>

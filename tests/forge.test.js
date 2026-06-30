@@ -12,36 +12,40 @@ describe('3DVR Forge product route', () => {
     assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
     assert.match(html, /src="\/gun-init\.js"/);
     assert.match(html, /3DVR Forge/);
-    assert.match(html, /What(?:&rsquo;|’)s been bothering you lately\?/);
+    assert.match(html, /What feels stuck\?/);
     assert.match(html, /data-forge-form/);
     assert.match(html, /data-forge-answer/);
+    assert.match(html, /data-forge-presets/);
+    assert.match(html, /data-preset-idea="I need money and I do not know what to do first\."/);
+    assert.match(html, /Need money<\/button>/);
     assert.match(html, /data-forge-progress/);
     assert.match(html, /data-guidance-panel/);
-    assert.match(html, /data-spark-idea>Spark idea<\/button>/);
-    assert.match(html, /Forge read/);
+    assert.match(html, /data-easy-answer hidden>Use simple answer<\/button>/);
+    assert.match(html, /data-spark-idea>Use example<\/button>/);
+    assert.match(html, /Next step/);
+    assert.match(html, /Start here/);
     assert.match(html, /autofocus/);
-    assert.match(html, /Send to Forge/);
+    assert.match(html, /Help me sort it/);
     assert.match(html, /Ready\./);
     assert.match(html, /data-brief-output/);
     assert.match(html, /data-brief-status/);
-    assert.match(html, /aria-label="Copy Movement Brief">Copy<\/button>/);
-    assert.match(html, /aria-label="Download Movement Brief as Markdown">Download<\/button>/);
-    assert.match(html, /aria-label="Forge another brief">New brief<\/button>/);
-    assert.match(html, /Sell this next/);
-    assert.match(html, /Turn this brief into a paid launch sprint\./);
-    assert.match(html, /href="\.\.\/ideas\/forge-revenue-sprint\.html"/);
-    assert.match(html, /Start \$300 sprint<\/a>/);
-    assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Go \$50 Builder<\/a>/);
-    assert.match(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dpro">Start \$20 Founder<\/a>/);
-    assert.match(html, /Make test message/);
-    assert.match(html, /Make Codex prompt/);
-    assert.match(html, /Make landing page copy/);
-    assert.match(html, /Make 7-day checklist/);
+    assert.match(html, /aria-label="Copy plan">Copy<\/button>/);
+    assert.match(html, /aria-label="Download plan as Markdown">Download<\/button>/);
+    assert.match(html, /aria-label="Start a new plan">New plan<\/button>/);
+    assert.doesNotMatch(html, /Sell this next/);
+    assert.doesNotMatch(html, /Turn this brief into a paid launch sprint\./);
+    assert.doesNotMatch(html, /Start \$300 sprint<\/a>/);
+    assert.doesNotMatch(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Go \$50 Builder<\/a>/);
+    assert.doesNotMatch(html, /href="\.\.\/sign-in\.html\?redirect=%2Fbilling%2F%3Fplan%3Dpro">Start \$20 Founder<\/a>/);
+    assert.match(html, /Copy message/);
+    assert.match(html, /Build prompt/);
+    assert.match(html, /Page words/);
+    assert.match(html, /7-day list/);
     assert.doesNotMatch(html, /data-enter-forge/);
     assert.doesNotMatch(html, /<section class="forge-hero"/);
     assert.doesNotMatch(html, /Rant\. Reflect\. Forge a project\./);
     assert.doesNotMatch(html, /Readable output/);
-    assert.match(html, /sign-in\.html\?redirect=%2Fbilling/);
+    assert.doesNotMatch(html, /sign-in\.html\?redirect=%2Fbilling/);
     assert.doesNotMatch(html, /create an account/i);
   });
 
@@ -68,7 +72,7 @@ describe('3DVR Forge product route', () => {
     assert.match(app, /refs\.spark\.hidden = isBusy \|\| Boolean\(session\.initial\) \|\| session\.stage !== stage\.INITIAL/);
     assert.match(app, /refs\.reset\.hidden = !session\.initial && session\.stage === stage\.INITIAL/);
     assert.match(app, /if \(!session\.initial\) return/);
-    assert.match(app, /button:\s*'Send to Forge'/);
+    assert.match(app, /button:\s*'Help me sort it'/);
     assert.match(app, /subscribeToSharedDefaults/);
     assert.match(app, /waitForSharedSecret\('openai'/);
     assert.match(app, /readDefaultSecret\(data, 'openai'\)/);
@@ -94,47 +98,44 @@ describe('3DVR Forge product route', () => {
     assert.match(app, /function renderGuidance\(\)/);
     assert.match(app, /function renderProgress\(\)/);
     assert.match(app, /function sparkIdea\(\)/);
-    assert.match(app, /Spark loaded\. Edit it or send it\./);
-    assert.match(app, /Question \$\{active\} of \$\{total\}/);
+    assert.match(app, /function usePresetIdea\(event\)/);
+    assert.match(app, /function useSimpleAnswer\(\)/);
+    assert.match(app, /Example loaded\. Edit it or send it\./);
+    assert.match(app, /Step \$\{active\} of \$\{total\}/);
     assert.match(app, /What I see:/);
-    assert.match(app, /Possible solution paths:/);
-    assert.match(app, /Do next:/);
-    assert.match(app, /Updating solution paths from your answer/);
-    assert.match(app, /Forge updated the solution paths/);
+    assert.match(app, /Try this:/);
+    assert.match(app, /Then do this:/);
+    assert.match(app, /Updating the plan/);
+    assert.match(app, /Plan updated/);
     assert.match(app, /function chooseFollowUps\(initial\)/);
     assert.match(app, /function buildMockMovementBrief\(currentSession\)/);
     assert.match(app, /normalizeFollowUpsResponse/);
     assert.match(app, /normalizeBriefResponse/);
-    assert.match(app, /Local fallback brief ready/);
-    assert.match(app, /Local solution paths loaded/);
-    assert.match(app, /Forge suggested first solution paths/);
+    assert.match(app, /Plan ready/);
+    assert.match(app, /Simple path loaded/);
+    assert.match(app, /Start here\. Answer two easy steps/);
     assert.match(app, /7-Day Revenue Signal Test/);
-    assert.match(app, /This is cash pressure, not a giant product problem yet/);
+    assert.match(app, /This looks like money pressure/);
     assert.match(app, /paid micro-offer and direct outreach test/);
     assert.doesNotMatch(app, /data-enter-forge/);
-    assert.match(app, /Who else has this problem\?/);
-    assert.match(app, /What have you already tried\?/);
-    assert.match(app, /What would a tiny version look like in 7 days\?/);
-    assert.match(app, /What skills or resources do you already have\?/);
-    assert.match(app, /Do you want this to become a tool, service, community, content project, or business\?/);
+    assert.match(app, /Who is this for\? You can say me\./);
+    assert.match(app, /What would help this week\?/);
+    assert.match(app, /What do you already have\? A skill, tool, friend, or place to start\?/);
+    assert.match(app, /What should this become first\? A page, service, tool, or message\?/);
 
     [
-      'Project Name',
-      'Core Frustration',
-      'Audience',
-      'Project Concept',
-      'Tiny 7-Day Experiment',
-      'First 3 Actions',
-      'Test Message',
-      'Codex Build Prompt',
-      'Reality Check',
+      'Name',
+      'Do these 3 things',
+      'Message to send',
+      '7-day test',
+      'Watch out',
     ].forEach((section) => {
       assert.match(app, new RegExp(section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
 
     assert.match(app, /Good raw material\. Too vague right now/);
-    assert.match(app, /This is probably not a startup yet\. It is a test\./);
-    assert.match(app, /Do not build an app yet/);
+    assert.match(app, /Build after one yes/);
+    assert.match(app, /Send the message before building/);
     assert.match(app, /navigator\.clipboard\.writeText/);
     assert.match(app, /type: 'text\/markdown'/);
     assert.match(app, /safeWriteStorage\(STORAGE_KEY/);
@@ -155,9 +156,11 @@ describe('3DVR Forge product route', () => {
     assert.match(css, /\.forge-progress\s*\{/);
     assert.match(css, /\.forge-guidance\s*\{/);
     assert.match(css, /\.forge-spark\s*\{/);
+    assert.match(css, /\.forge-easy-answer\s*\{/);
+    assert.match(css, /\.forge-presets\s*\{/);
     assert.match(css, /\.forge-message p\s*\{[\s\S]*?white-space:\s*pre-wrap;/);
-    assert.match(css, /\.forge-offer\s*\{/);
-    assert.match(css, /\.forge-offer__actions/);
+    assert.doesNotMatch(css, /\.forge-offer\s*\{/);
+    assert.doesNotMatch(css, /\.forge-offer__actions/);
     assert.match(css, /\.forge-brief__actions\s*\{/);
     assert.match(css, /\.forge-next-moves__buttons\s*\{/);
     assert.match(css, /min-width:\s*0/);
@@ -175,7 +178,7 @@ describe('3DVR Forge product route', () => {
     assert.match(html, /href="forge\/" class="cta primary">Enter the Forge<\/a>/);
     assert.match(html, /href="forge\/" class="app-card" data-app-keywords="[^"]*\bfrustration\b[^"]*\bmovement brief\b[^"]*"/);
     assert.match(html, /<span class="app-card__title">3DVR Forge<\/span>/);
-    assert.match(html, /Rant, reflect, and turn messy thoughts into a Movement Brief and 7-day test\./);
+    assert.match(html, /Get clear, pick one step, and leave with a simple plan or message\./);
     assert.match(html, /href="ideas\/forge-revenue-sprint\.html"/);
     assert.match(html, /<span class="app-card__title">Forge Sprint<\/span>/);
     assert.match(html, /Turn a Movement Brief into a buyable 72-hour offer page, first test message, and reply tracker\./);
