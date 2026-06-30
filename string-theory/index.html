@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>String Theory Visualizer | 3DVR Portal</title>
+  <meta name="theme-color" content="#05070d">
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#controls">Skip to controls</a>
+  <main class="string-shell">
+    <canvas id="string-canvas" aria-label="Interactive Three.js string theory visualizer"></canvas>
+
+    <header class="scene-head">
+      <p class="eyebrow">Three.js toy model</p>
+      <h1>String Theory</h1>
+      <nav aria-label="String theory links">
+        <a href="../index.html">Portal</a>
+        <a href="../science/">Science</a>
+        <button id="reset-view" type="button">Reset</button>
+        <button id="pause" type="button" aria-pressed="false">Pause</button>
+      </nav>
+    </header>
+
+    <section class="control-panel" id="controls" aria-labelledby="controls-title">
+      <div class="panel-title">
+        <p class="eyebrow">Controls</p>
+        <h2 id="controls-title">Shape the string</h2>
+      </div>
+
+      <label>
+        <span>Mode</span>
+        <select id="mode">
+          <option value="open">Open string</option>
+          <option value="closed">Closed loop</option>
+          <option value="brane">Brane wave</option>
+          <option value="compact">Compact dimension</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Energy <output id="energy-value">1.2</output></span>
+        <input id="energy" type="range" min="0.2" max="3" step="0.1" value="1.2">
+      </label>
+
+      <label>
+        <span>Tension <output id="tension-value">1.0</output></span>
+        <input id="tension" type="range" min="0.3" max="2.4" step="0.1" value="1">
+      </label>
+
+      <label>
+        <span>Modes <output id="modes-value">3</output></span>
+        <input id="modes" type="range" min="1" max="7" step="1" value="3">
+      </label>
+
+      <label>
+        <span>Compact curl <output id="curl-value">4</output></span>
+        <input id="curl" type="range" min="1" max="9" step="1" value="4">
+      </label>
+
+      <p class="status" id="status" aria-live="polite">Rendering vibrating strings.</p>
+    </section>
+  </main>
+</body>
+</html>
