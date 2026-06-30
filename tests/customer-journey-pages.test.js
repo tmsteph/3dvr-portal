@@ -106,6 +106,11 @@ describe('portal customer journey pages', () => {
     assert.match(html, /href="sign-in\.html\?redirect=%2Findex\.html" data-auth-entry>Sign in<\/a>/);
     assert.match(html, /function updatePortalAuthEntryLinks\(\)/);
     assert.match(html, /const label = signedIn \? 'Profile' : 'Sign in'/);
+    assert.match(html, /function isGunAuthInProgressError\(message = ''\)/);
+    assert.match(html, /function restoreStoredGunSession\(alias, password, attempt = 0\)/);
+    assert.match(html, /attempt < 8/);
+    assert.match(html, /setTimeout\(\(\) => restoreStoredGunSession\(alias, password, attempt \+ 1\), 500\)/);
+    assert.match(html, /clearStoredAuthSession\(\)/);
     assert.doesNotMatch(html, /sign-in\.html\?upgrade=guest/);
     assert.match(html, /You are already in\./);
     assert.match(html, /The portal remembers this browser\./);
