@@ -310,6 +310,40 @@
       line-height: 1.35;
     }
 
+    .response-loop {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid rgba(155, 231, 199, 0.2);
+      border-radius: 16px;
+      background: rgba(155, 231, 199, 0.08);
+    }
+
+    .response-loop[hidden] {
+      display: none;
+    }
+
+    .response-loop p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .response-loop__actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .response-loop__actions .button {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      text-align: center;
+    }
+
     .entry-list {
       display: grid;
       gap: 10px;
@@ -374,6 +408,10 @@
       .topbar a,
       .button {
         flex: 1 1 9rem;
+      }
+
+      .response-loop__actions {
+        grid-template-columns: 1fr;
       }
 
       h1 {
@@ -477,6 +515,17 @@
               <strong id="latestStep">Save a check-in to pick one step.</strong>
             </div>
             <p class="section-copy">Keep it small. A small step counts.</p>
+            <div class="response-loop" id="responseLoop" hidden>
+              <strong>Your next step is saved.</strong>
+              <p>Want to do anything else?</p>
+              <div class="response-loop__actions">
+                <a class="button" id="textThomasLink" href="sms:?&body=I%20tried%20Daily%20Direction.%20My%20next%20step%20is%3A%20">Text this to Thomas</a>
+                <button class="button" type="button" id="copyStepButton">Copy my next step</button>
+                <button class="button" type="button" id="copyFreeLinkButton">Save my free link</button>
+                <a class="button" href="../friends-family/">See support options</a>
+              </div>
+              <p id="responseStatus" class="save-status" aria-live="polite"></p>
+            </div>
           </div>
         </section>
 

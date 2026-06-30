@@ -188,8 +188,7 @@ describe('3DVR Forge product route', () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
     assert.match(html, /data-view-mode="workshop" data-active-room=""/);
-    assert.match(html, /<a href="forge\/">Forge<\/a>/);
-    assert.match(html, /href="forge\/" class="cta primary">Enter the Forge<\/a>/);
+    assert.match(html, /href="forge\/" class="cta ghost">I have an idea<\/a>/);
     assert.match(html, /href="forge\/" class="app-card" data-app-keywords="[^"]*\bfrustration\b[^"]*\bmovement brief\b[^"]*"/);
     assert.match(html, /<span class="app-card__title">3DVR Forge<\/span>/);
     assert.match(html, /Get clear, pick one step, and leave with a simple plan or message\./);
