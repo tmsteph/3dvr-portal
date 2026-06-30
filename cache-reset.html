@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>Reset 3DVR Portal Cache</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+      padding: 24px;
+    }
+    main {
+      width: min(100%, 460px);
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      background: #161b22;
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+    }
+    p {
+      margin: 0 0 14px;
+      color: #9ba3b4;
+    }
+    a {
+      color: #8cc8ff;
+      font-weight: 700;
+    }
+    .status {
+      min-height: 1.5em;
+      color: #b8f1c5;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Refreshing Portal</h1>
+    <p>This clears cached portal files and service workers only. Saved app data and sign-in data stay in this browser.</p>
+    <p class="status" id="status">Starting reset...</p>
+    <p><a href="/">Return to portal</a></p>
+  </main>
+  <script>
+    (async () => {
+      const status = document.getElementById('status');
+      const recoveryVersion = '2026-06-30-auth-cache-v2';
+      const setStatus = (message) => {
+        if (status) status.textContent = message;
+      };
+
+      try {
+        setStatus('Clearing cached portal files...');
+        if (window.caches && typeof window.caches.keys === 'function') {
+          const keys = await window.caches.keys();
+          await Promise.all(keys.map((key) => window.caches.delete(key)));
+        }
+
+        setStatus('Removing old portal service workers...');
+        if (navigator.serviceWorker && typeof navigator.serviceWorker.getRegistrations === 'function') {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((registration) => registration.unregister()));
+        }
+
+        try {
+          localStorage.setItem('3dvr-auth-cache-recovery-version', recoveryVersion);
+        } catch (error) {
+          console.warn('Could not store portal cache reset marker', error);
+        }
+
+        setStatus('Opening a fresh portal...');
+        const nextUrl = `/?portalCacheReset=${encodeURIComponent(recoveryVersion)}&t=${Date.now()}`;
+        window.setTimeout(() => {
+          window.location.replace(nextUrl);
+        }, 400);
+      } catch (error) {
+        console.error('Portal cache reset failed', error);
+        setStatus('Reset hit a browser error. Use the link below to return.');
+      }
+    })();
+  </script>
+</body>
+</html>

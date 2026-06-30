@@ -10,7 +10,7 @@
   const scopeHref = new URL(scopePath, window.location.origin).href;
   const reloadGuardKey = `3dvr-service-worker-reload:${scopePath}`;
   const reloadCooldownMs = 30000;
-  const authCacheRecoveryVersion = '2026-06-30-auth-cache-v1';
+  const authCacheRecoveryVersion = '2026-06-30-auth-cache-v2';
   const authCacheRecoveryKey = '3dvr-auth-cache-recovery-version';
   const authCacheRecoveryReloadKey = `3dvr-auth-cache-recovery-reload:${authCacheRecoveryVersion}`;
   const authCriticalPaths = new Set(['/', '/index.html', '/profile.html', '/sign-in.html']);
@@ -95,32 +95,31 @@
     }
   };
 
-  const clearPortalShellCaches = async () => {
+  const clearPortalOriginCaches = async () => {
     if (!window.caches || typeof window.caches.keys !== 'function') {
       return false;
     }
 
     const keys = await window.caches.keys();
-    const portalCacheKeys = keys.filter((key) => /^3dvr-(html|static)-/.test(key));
-    const results = await Promise.all(portalCacheKeys.map((key) => window.caches.delete(key)));
+    const results = await Promise.all(keys.map((key) => window.caches.delete(key)));
     return results.some(Boolean);
   };
 
-  const updateRootServiceWorker = async () => {
-    if (!navigator.serviceWorker || typeof navigator.serviceWorker.getRegistration !== 'function') {
+  const unregisterPortalServiceWorkers = async () => {
+    if (!navigator.serviceWorker || typeof navigator.serviceWorker.getRegistrations !== 'function') {
       return false;
     }
 
-    const registration = await navigator.serviceWorker.getRegistration('/');
-    if (!registration) {
-      return false;
-    }
-
-    if (typeof registration.update === 'function') {
-      await registration.update();
-    }
-    requestWaitingActivation(registration);
-    return true;
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    const sameOriginRegistrations = registrations.filter((registration) => {
+      try {
+        return new URL(registration.scope).origin === window.location.origin;
+      } catch (error) {
+        return false;
+      }
+    });
+    const results = await Promise.all(sameOriginRegistrations.map((registration) => registration.unregister()));
+    return results.some(Boolean);
   };
 
   const maybeReloadAfterAuthCacheRecovery = () => {
@@ -147,8 +146,8 @@
 
     try {
       await Promise.all([
-        clearPortalShellCaches(),
-        updateRootServiceWorker(),
+        clearPortalOriginCaches(),
+        unregisterPortalServiceWorkers(),
       ]);
       markAuthCacheRecovery();
       maybeReloadAfterAuthCacheRecovery();
@@ -207,8 +206,9 @@
     }
   };
 
-  recoverPortalAuthCache();
-  registerServiceWorker();
+  recoverPortalAuthCache().finally(() => {
+    registerServiceWorker();
+  });
 
   const installBanner = document.querySelector('[data-install-banner]');
   const installButton = installBanner?.querySelector('[data-install-button]');
