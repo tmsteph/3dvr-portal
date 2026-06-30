@@ -22,7 +22,13 @@ describe('portal customer journey pages', () => {
     assert.match(html, /data-guide-chip="I feel scattered and need to organize my life\."/);
     assert.match(html, /data-guide-result hidden/);
     assert.match(html, /data-guide-show-dock/);
+    assert.match(html, /data-owned-app-studio hidden/);
+    assert.match(html, /Only you can edit this draft\./);
+    assert.match(html, /data-owned-app-builder/);
+    assert.match(html, /Save draft/);
+    assert.match(html, /Copy build prompt/);
     assert.match(html, /const portalGuideRoutes =/);
+    assert.match(html, /id: 'app-admin'/);
     assert.match(html, /const chooseGuideRoute =/);
     assert.match(html, /const requestGuideRoute =/);
     assert.match(html, /fetch\('\/api\/openai-site'/);
@@ -35,6 +41,11 @@ describe('portal customer journey pages', () => {
     assert.match(html, /rememberPortalBehavior/);
     assert.match(html, /portal-auto-identity:updated/);
     assert.match(html, /lastGuideRoute/);
+    assert.match(html, /OWNED_APPS_STORAGE_KEY = 'portal:owned-apps:v1'/);
+    assert.match(html, /WEB_BUILDER_PREFILL_KEY = 'web-builder-prefill-request'/);
+    assert.match(html, /canAdminOwnedApp/);
+    assert.match(html, /handleOwnedAppIntent/);
+    assert.match(html, /Only show admin controls when the active owner id matches/);
     assert.match(html, /Nine doors into the portal/);
     assert.match(html, /🧭 My Purpose/);
     assert.match(html, /🌱 My Life/);
@@ -136,6 +147,8 @@ describe('portal customer journey pages', () => {
     assert.match(css, /\.portal-guide__actions/);
     assert.match(css, /\.portal-guide__status/);
     assert.match(css, /\.portal-guide__memory/);
+    assert.match(css, /\.portal-app-studio/);
+    assert.match(css, /\.portal-app-studio__list button\[data-active="true"\]/);
     assert.match(css, /@media \(min-width: 721px\) \{[\s\S]*?\.hero-actions \{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(9rem,\s*1fr\)\);[\s\S]*?\.hero-actions \.cta \{[\s\S]*?padding:\s*0\.58rem 1rem;/);
     assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
     assert.doesNotMatch(css, /botanical-border/);

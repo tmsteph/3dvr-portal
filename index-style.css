@@ -949,6 +949,119 @@ body[data-view-mode="human-os"]:not([data-active-room=""]) .human-os-map {
   display: none;
 }
 
+.portal-app-studio {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.1rem;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 1.1rem;
+  background: rgba(3, 7, 18, 0.52);
+}
+
+.portal-app-studio[hidden] {
+  display: none;
+}
+
+.portal-app-studio__header {
+  display: grid;
+  gap: 0.85rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.portal-app-studio__header h3,
+.portal-app-studio__header p {
+  margin: 0;
+}
+
+.portal-app-studio__header h3 {
+  font-size: clamp(1.25rem, 1.2vw + 1rem, 1.8rem);
+}
+
+.portal-app-studio__header p {
+  color: var(--color-text-muted);
+}
+
+.portal-app-studio__grid {
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.portal-app-studio label {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.portal-app-studio input,
+.portal-app-studio textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 0.85rem;
+  background: rgba(3, 7, 18, 0.62);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 500;
+}
+
+.portal-app-studio input {
+  min-height: 2.75rem;
+  padding: 0.7rem 0.85rem;
+}
+
+.portal-app-studio textarea {
+  padding: 0.85rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.portal-app-studio__actions,
+.portal-app-studio__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.portal-app-studio__owned {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.portal-app-studio__list button {
+  min-width: 0;
+  min-height: 2.2rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.08);
+  color: rgba(226, 232, 240, 0.86);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-app-studio__list button[data-active="true"] {
+  border-color: rgba(34, 211, 238, 0.58);
+  background: rgba(34, 211, 238, 0.16);
+  color: var(--color-text);
+}
+
+@media (min-width: 721px) {
+  .portal-app-studio__header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
 
 @keyframes breath {
   0%,
