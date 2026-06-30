@@ -29,6 +29,7 @@ test('portal root and unversioned styles/scripts revalidate on mobile browsers',
   assert.equal(findHeaderValue(rootRule.headers, 'Cache-Control'), 'public, max-age=0, must-revalidate');
   assert.equal(findHeaderValue(indexRule.headers, 'Cache-Control'), 'public, max-age=0, must-revalidate');
   assert.equal(findHeaderValue(cacheResetRule.headers, 'Cache-Control'), 'no-store');
+  assert.equal(findHeaderValue(cacheResetRule.headers, 'Clear-Site-Data'), '"cache"');
   assert.equal(findHeaderValue(codeAssetRule.headers, 'Cache-Control'), 'public, max-age=0, must-revalidate');
   assert.equal(findHeaderValue(mediaAssetRule.headers, 'Cache-Control'), 'public, max-age=31536000, immutable');
 });
