@@ -1,0 +1,228 @@
+:root {
+  --bg: #05070d;
+  --panel: rgba(8, 12, 22, 0.72);
+  --panel-strong: rgba(8, 12, 22, 0.88);
+  --line: rgba(214, 226, 255, 0.18);
+  --ink: #f7fbff;
+  --muted: #adbad3;
+  --cyan: #50e6ff;
+  --gold: #f9d36a;
+  --pink: #ff6ad5;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 8;
+  padding: 0.58rem 0.75rem;
+  border-radius: 8px;
+  background: var(--cyan);
+  color: #001318;
+  transform: translateY(-150%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.string-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+}
+
+#string-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: radial-gradient(circle at 50% 45%, #111a31 0, var(--bg) 62%);
+  touch-action: none;
+}
+
+.scene-head,
+.control-panel {
+  position: fixed;
+  z-index: 2;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.scene-head {
+  top: clamp(0.8rem, 2vw, 1.35rem);
+  left: clamp(0.8rem, 2vw, 1.35rem);
+  width: min(28rem, calc(100% - 1.6rem));
+  padding: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--cyan);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.scene-head h1,
+.panel-title h2 {
+  margin: 0;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.scene-head h1 {
+  font-size: clamp(2rem, 6vw, 4.6rem);
+}
+
+.scene-head nav,
+.control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.95rem;
+}
+
+.scene-head a,
+.scene-head button,
+.control-panel button,
+.control-panel select {
+  min-height: 2.35rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.55rem 0.72rem;
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.scene-head a:hover,
+.scene-head button:hover,
+.control-panel button:hover,
+.control-panel select:hover,
+.scene-head a:focus-visible,
+.scene-head button:focus-visible,
+.control-panel select:focus-visible,
+.control-panel input:focus-visible {
+  border-color: rgba(80, 230, 255, 0.7);
+  outline: 2px solid rgba(80, 230, 255, 0.24);
+  outline-offset: 2px;
+}
+
+.control-panel {
+  right: clamp(0.8rem, 2vw, 1.35rem);
+  bottom: clamp(0.8rem, 2vw, 1.35rem);
+  width: min(22rem, calc(100% - 1.6rem));
+  padding: 1rem;
+  display: grid;
+  gap: 0.82rem;
+}
+
+.panel-title {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.panel-title h2 {
+  font-size: 1.12rem;
+}
+
+.control-panel label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.control-panel label > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 760;
+}
+
+.control-panel input[type="range"] {
+  width: 100%;
+  accent-color: var(--cyan);
+}
+
+.control-panel select {
+  width: 100%;
+  background: var(--panel-strong);
+  color-scheme: dark;
+}
+
+.status {
+  min-height: 1.2rem;
+  margin: 0;
+  color: var(--gold);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  body {
+    overflow: auto;
+  }
+
+  .string-shell {
+    min-height: 100dvh;
+    display: grid;
+    align-content: space-between;
+    gap: min(28vh, 12rem);
+    padding: 0.75rem;
+  }
+
+  #string-canvas {
+    position: fixed;
+  }
+
+  .scene-head,
+  .control-panel {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+  }
+
+  .control-panel {
+    align-self: end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #string-canvas {
+    touch-action: auto;
+  }
+}
