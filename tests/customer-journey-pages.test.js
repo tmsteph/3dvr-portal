@@ -15,11 +15,18 @@ describe('portal customer journey pages', () => {
     assert.match(html, /Tell the portal what you need\./);
     assert.match(html, /data-guide-form/);
     assert.match(html, /data-guide-prompt/);
+    assert.match(html, /data-guide-submit/);
+    assert.match(html, /data-guide-status/);
     assert.match(html, /data-guide-chip="I feel scattered and need to organize my life\."/);
     assert.match(html, /data-guide-result hidden/);
     assert.match(html, /data-guide-show-dock/);
     assert.match(html, /const portalGuideRoutes =/);
     assert.match(html, /const chooseGuideRoute =/);
+    assert.match(html, /const requestGuideRoute =/);
+    assert.match(html, /fetch\('\/api\/openai-site'/);
+    assert.match(html, /guide:\s*true/);
+    assert.match(html, /AI guide is thinking/);
+    assert.match(html, /Local guide ready\. AI is unavailable\./);
     assert.match(html, /const showGuideMatches =/);
     assert.match(html, /Nine doors into the portal/);
     assert.match(html, /🧭 My Purpose/);
@@ -120,6 +127,7 @@ describe('portal customer journey pages', () => {
     assert.match(css, /\.portal-guide\s*\{/);
     assert.match(css, /\.portal-guide__chips/);
     assert.match(css, /\.portal-guide__actions/);
+    assert.match(css, /\.portal-guide__status/);
     assert.match(css, /@media \(min-width: 721px\) \{[\s\S]*?\.hero-actions \{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(9rem,\s*1fr\)\);[\s\S]*?\.hero-actions \.cta \{[\s\S]*?padding:\s*0\.58rem 1rem;/);
     assert.match(css, /font-size:\s*clamp\(2rem,\s*8\.8vw,\s*2\.35rem\)/);
     assert.doesNotMatch(css, /botanical-border/);

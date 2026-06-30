@@ -319,7 +319,8 @@
               <button type="button" data-guide-chip="I need money, work, or a better follow-up system.">Money</button>
               <button type="button" data-guide-chip="I want to build a page, app, or project.">Build</button>
             </div>
-            <button class="cta primary" type="submit">Guide me</button>
+            <button class="cta primary" type="submit" data-guide-submit>Guide me</button>
+            <p class="portal-guide__status" data-guide-status aria-live="polite"></p>
           </form>
         </div>
 
@@ -1605,7 +1606,10 @@
     const guideCopy = document.querySelector('[data-guide-copy]');
     const guideSteps = document.querySelector('[data-guide-steps]');
     const guidePrimary = document.querySelector('[data-guide-primary]');
+    const guideSubmit = document.querySelector('[data-guide-submit]');
+    const guideStatus = document.querySelector('[data-guide-status]');
     const guideShowDock = document.querySelector('[data-guide-show-dock]');
+    const GUIDE_API_TIMEOUT_MS = 14000;
     let activeAppLane = 'all';
     const roomMeta = {
       purpose: {
@@ -2056,6 +2060,7 @@
     };
 
     let lastGuideRoute = portalGuideRoutes.find((route) => route.id === 'life') || portalGuideRoutes[0];
+    let isGuideBusy = false;
 
     const scoreGuideRoute = (route, query) =>
       route.keywords.reduce((score, keyword) => {
@@ -2083,6 +2088,102 @@
       return bestRoute;
     };
 
+    const getGuideRouteSummaries = () =>
+      portalGuideRoutes.map((route) => ({
+        id: route.id,
+        room: route.room,
+        title: route.title,
+        label: route.label,
+        copy: route.copy,
+        search: route.search,
+        keywords: route.keywords,
+      }));
+
+    const normalizeGuideSteps = (steps, fallbackSteps) => {
+      const normalized = Array.isArray(steps)
+        ? steps.map((step) => String(step || '').trim()).filter(Boolean).slice(0, 3)
+        : [];
+
+      fallbackSteps.forEach((step) => {
+        if (normalized.length < 3) {
+          normalized.push(step);
+        }
+      });
+
+      return normalized.slice(0, 3);
+    };
+
+    const parseGuideApiError = async (response) => {
+      const errorText = await response.text();
+      if (!errorText) {
+        return 'The AI guide is not available.';
+      }
+
+      try {
+        const parsed = JSON.parse(errorText);
+        return parsed?.error || parsed?.message || errorText;
+      } catch {
+        return errorText;
+      }
+    };
+
+    const setGuideBusy = (isBusy) => {
+      isGuideBusy = isBusy;
+      if (guideSubmit) {
+        guideSubmit.disabled = isBusy;
+        guideSubmit.textContent = isBusy ? 'Thinking...' : 'Guide me';
+      }
+      guideChipButtons.forEach((button) => {
+        button.disabled = isBusy;
+      });
+    };
+
+    const mergeGuideResult = (guide = {}, fallbackRoute) => {
+      const route = portalGuideRoutes.find((item) => item.id === guide.routeId) || fallbackRoute;
+
+      return {
+        ...route,
+        label: String(guide.label || route.label || '').trim() || route.label,
+        title: String(guide.title || route.title || '').trim() || route.title,
+        copy: String(guide.copy || route.copy || '').trim() || route.copy,
+        steps: normalizeGuideSteps(guide.steps, route.steps),
+        source: 'ai',
+      };
+    };
+
+    const requestGuideRoute = async (prompt, fallbackRoute) => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), GUIDE_API_TIMEOUT_MS);
+
+      try {
+        const response = await fetch('/api/openai-site', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            guide: true,
+            prompt,
+            routes: getGuideRouteSummaries(),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(await parseGuideApiError(response));
+        }
+
+        const result = await response.json();
+        return mergeGuideResult(result?.guide, fallbackRoute);
+      } catch (error) {
+        if (error?.name === 'AbortError') {
+          throw new Error('The AI guide timed out.');
+        }
+
+        throw error;
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+
     const renderGuideRoute = (route) => {
       if (!route || !guideResult) return;
 
@@ -2105,14 +2206,33 @@
       guideResult.hidden = false;
     };
 
-    const submitGuidePrompt = (value = '') => {
+    const submitGuidePrompt = async (value = '') => {
+      if (isGuideBusy) return;
       const prompt = value.trim();
-      const route = chooseGuideRoute(prompt);
-      renderGuideRoute(route);
-      guideResult?.scrollIntoView({
-        behavior: prefersReducedMotionQuery?.matches ? 'auto' : 'smooth',
-        block: 'nearest',
-      });
+      if (!prompt) {
+        if (guideStatus) guideStatus.textContent = 'Type one sentence first.';
+        guidePrompt?.focus();
+        return;
+      }
+
+      const fallbackRoute = chooseGuideRoute(prompt);
+      setGuideBusy(true);
+      if (guideStatus) guideStatus.textContent = 'AI guide is thinking...';
+
+      try {
+        const route = await requestGuideRoute(prompt, fallbackRoute);
+        renderGuideRoute(route);
+        if (guideStatus) guideStatus.textContent = 'AI guide ready.';
+      } catch (error) {
+        renderGuideRoute({ ...fallbackRoute, source: 'local-fallback' });
+        if (guideStatus) guideStatus.textContent = 'Local guide ready. AI is unavailable.';
+      } finally {
+        setGuideBusy(false);
+        guideResult?.scrollIntoView({
+          behavior: prefersReducedMotionQuery?.matches ? 'auto' : 'smooth',
+          block: 'nearest',
+        });
+      }
     };
 
     const showGuideMatches = () => {

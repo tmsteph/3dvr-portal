@@ -918,6 +918,20 @@ body[data-view-mode="human-os"]:not([data-active-room=""]) .human-os-map {
   outline: none;
 }
 
+.portal-guide__chips button:disabled,
+.portal-guide__form .cta:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.portal-guide__status {
+  min-height: 1.25rem;
+  margin: -0.15rem 0 0;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
 .portal-guide__steps {
   display: grid;
   gap: 0.55rem;
