@@ -42,6 +42,19 @@
       ]
     },
     {
+      "source": "/api/cache-reset",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Clear-Site-Data",
+          "value": "\"cache\""
+        }
+      ]
+    },
+    {
       "source": "/(.*)\\.(css|js)",
       "headers": [
         {
@@ -225,6 +238,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/cache-reset",
+      "destination": "/cache-reset.html"
+    },
     {
       "source": "/crm.webmanifest",
       "has": [
