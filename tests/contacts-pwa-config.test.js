@@ -91,6 +91,10 @@ describe('contacts PWA configuration', () => {
 
     assert.match(authIdentitySource, /const SHARED_COOKIE_NAME = 'portalIdentity';/);
     assert.match(authIdentitySource, /syncStorageFromSharedIdentity/);
+    assert.match(authIdentitySource, /currentOauthAccountId/);
+    assert.match(authIdentitySource, /hasMatchingGunCredential/);
+    assert.match(authIdentitySource, /hasMatchingOauthSession/);
+    assert.match(authIdentitySource, /clearSharedIdentity\(\)/);
     assert.match(authIdentitySource, /global\.AuthIdentity =/);
   });
 
