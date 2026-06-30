@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Life | 3dvr Portal</title>
+  <title>Daily Direction | 3dvr Portal</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="../gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
@@ -11,508 +11,383 @@
   <style>
     :root {
       --bg: #07131d;
-      --bg-soft: #0f1d2b;
-      --panel: rgba(16, 29, 44, 0.88);
-      --panel-soft: rgba(23, 41, 62, 0.92);
-      --line: rgba(144, 193, 255, 0.16);
-      --text: #f4f8fc;
-      --muted: #b8cbe0;
+      --panel: rgba(14, 27, 41, 0.92);
+      --panel-soft: rgba(22, 40, 58, 0.78);
+      --line: rgba(148, 197, 255, 0.18);
+      --text: #f6fbff;
+      --muted: #b7c8d8;
       --blue: #8cc4ff;
-      --mint: #95e6c2;
+      --mint: #9be7c7;
       --gold: #f4d27a;
-      --rose: #ff9fba;
-      --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
-      --radius: 24px;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+      --radius: 18px;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
-    html, body {
+    html,
+    body {
+      width: 100%;
+      max-width: 100%;
       margin: 0;
-      min-height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      min-height: 100vh;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(140, 196, 255, 0.18), transparent 30%),
-        radial-gradient(circle at 88% 14%, rgba(149, 230, 194, 0.13), transparent 26%),
-        radial-gradient(circle at 20% 88%, rgba(244, 210, 122, 0.1), transparent 28%),
-        linear-gradient(180deg, #06101a 0%, #0b1622 40%, #0f1b2a 100%);
+        radial-gradient(circle at 12% 12%, rgba(140, 196, 255, 0.18), transparent 28%),
+        linear-gradient(180deg, #06101a 0%, #0d1b29 100%);
     }
 
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background:
-        radial-gradient(circle at 18% 20%, rgba(255,255,255,0.05), transparent 0.7rem),
-        radial-gradient(circle at 78% 28%, rgba(255,255,255,0.04), transparent 0.6rem),
-        radial-gradient(circle at 52% 82%, rgba(255,255,255,0.03), transparent 0.8rem);
-      background-size: 220px 220px, 280px 280px, 320px 320px;
-      opacity: 0.35;
+    a {
+      color: inherit;
     }
 
-    a { color: inherit; }
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
 
     .shell {
-      width: min(1200px, calc(100% - 32px));
+      width: min(100% - 28px, 860px);
       margin: 0 auto;
-      padding: 22px 0 46px;
+      padding: 18px 0 36px;
     }
 
     .topbar {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 18px;
-      padding: 14px 18px;
-      border-radius: 18px;
-      background: rgba(8, 16, 28, 0.78);
+      margin-bottom: 16px;
+      padding: 12px 14px;
       border: 1px solid var(--line);
-      backdrop-filter: blur(12px);
+      border-radius: var(--radius);
+      background: rgba(8, 17, 29, 0.76);
       box-shadow: var(--shadow);
-      flex-wrap: wrap;
     }
 
-    .topbar__brand {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .topbar__brand strong {
+    .topbar strong {
+      display: block;
       font-size: 1rem;
-      letter-spacing: 0.02em;
     }
 
-    .topbar__brand span {
-      font-size: 0.88rem;
+    .topbar span {
+      display: block;
+      margin-top: 2px;
       color: var(--muted);
+      font-size: 0.9rem;
     }
 
-    .topbar__links {
+    .topbar nav {
       display: flex;
       flex-wrap: wrap;
+      justify-content: flex-end;
       gap: 8px;
     }
 
-    .topbar__links a,
-    .button {
+    .topbar a,
+    .button,
+    .quick-picks button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 10px 14px;
+      min-height: 42px;
+      padding: 10px 13px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
       text-decoration: none;
-      border: 1px solid transparent;
-      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
-      font-weight: 700;
+      font-weight: 800;
+      cursor: pointer;
     }
 
-    .topbar__links a {
-      background: rgba(255,255,255,0.04);
-      border-color: rgba(255,255,255,0.06);
-    }
-
-    .topbar__links a:hover,
-    .button:hover {
-      transform: translateY(-1px);
-    }
-
-    .hero {
-      position: relative;
-      overflow: hidden;
-      padding: 28px;
-      margin-bottom: 20px;
-      border-radius: var(--radius);
-      background: linear-gradient(145deg, rgba(12, 24, 37, 0.94), rgba(17, 33, 51, 0.96));
+    .hero,
+    .card {
       border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
       box-shadow: var(--shadow);
     }
 
-    .hero::after {
-      content: "";
-      position: absolute;
-      inset: auto -20px -60px auto;
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(140,196,255,0.22), transparent 66%);
-      pointer-events: none;
+    .hero {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: clamp(20px, 5vw, 34px);
     }
 
     .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
+      width: fit-content;
+      padding: 7px 10px;
+      border: 1px solid rgba(140, 196, 255, 0.18);
       border-radius: 999px;
       background: rgba(140, 196, 255, 0.1);
-      border: 1px solid rgba(140, 196, 255, 0.16);
       color: var(--blue);
-      font-size: 0.8rem;
-      letter-spacing: 0.14em;
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      margin-bottom: 16px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
     }
 
     h1 {
-      margin: 0 0 12px;
-      font-size: clamp(2.2rem, 4.2vw, 4rem);
+      max-width: 11ch;
+      margin-bottom: 0;
+      font-size: clamp(2.35rem, 10vw, 4rem);
       line-height: 0.98;
-      max-width: 10.5ch;
     }
 
     .lead {
-      margin: 0;
-      max-width: 68ch;
+      max-width: 42rem;
+      margin-bottom: 0;
       color: var(--muted);
-      line-height: 1.7;
-      font-size: 1.03rem;
+      font-size: 1.08rem;
+      line-height: 1.55;
     }
 
-    .hero-actions {
+    .hero-actions,
+    .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 22px;
+      gap: 10px;
+    }
+
+    .button {
+      border: 0;
     }
 
     .button--primary {
-      background: linear-gradient(135deg, #8cc4ff, #95e6c2);
-      color: #08111f;
+      background: linear-gradient(135deg, var(--blue), var(--mint));
+      color: #06101a;
     }
 
     .button--secondary {
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      border-color: var(--line);
-    }
-
-    .hero-stats {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 24px;
-    }
-
-    .stat {
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .stat span {
-      display: block;
-      color: var(--muted);
-      font-size: 0.88rem;
-      margin-bottom: 8px;
-    }
-
-    .stat strong {
-      display: block;
-      font-size: 1.45rem;
-      line-height: 1.1;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-      gap: 20px;
-    }
-
-    .card {
-      border-radius: var(--radius);
-      background: var(--panel);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
+      grid-template-columns: minmax(0, 1.05fr) minmax(260px, 0.95fr);
+      gap: 16px;
+      align-items: start;
     }
 
     .card__body {
-      padding: 22px;
+      display: grid;
+      gap: 16px;
+      padding: clamp(18px, 4vw, 24px);
     }
 
     .section-title {
-      margin: 0 0 8px;
-      font-size: 1.35rem;
+      margin-bottom: 0;
+      font-size: 1.4rem;
+      line-height: 1.2;
     }
 
     .section-copy {
-      margin: 0;
+      margin-bottom: 0;
       color: var(--muted);
-      line-height: 1.65;
-    }
-
-    .panel-grid {
-      display: grid;
-      gap: 18px;
+      line-height: 1.55;
     }
 
     .form-grid {
       display: grid;
-      gap: 14px;
-      margin-top: 18px;
-    }
-
-    .two-up {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      gap: 15px;
     }
 
     label {
       display: grid;
       gap: 8px;
       color: var(--muted);
-      font-size: 0.93rem;
+      font-weight: 750;
+    }
+
+    label strong {
+      color: var(--text);
+      font-size: 1.02rem;
     }
 
     input,
     textarea {
       width: 100%;
+      min-width: 0;
+      padding: 13px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.03);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text);
-      font: inherit;
-      padding: 12px 13px;
       outline: none;
     }
 
     textarea {
-      min-height: 94px;
+      min-height: 92px;
       resize: vertical;
     }
 
     input:focus,
     textarea:focus {
-      border-color: rgba(140, 196, 255, 0.5);
-      box-shadow: 0 0 0 4px rgba(140, 196, 255, 0.1);
+      border-color: rgba(140, 196, 255, 0.62);
+      box-shadow: 0 0 0 4px rgba(140, 196, 255, 0.12);
     }
 
     input[type="range"] {
       padding: 0;
-      accent-color: var(--blue);
+      accent-color: var(--mint);
     }
 
-    output {
+    output,
+    .big-number {
       color: var(--gold);
-      font-weight: 800;
+      font-weight: 900;
     }
 
-    .category-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .category-card {
-      padding: 14px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .category-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 10px;
-      color: var(--text);
-      font-weight: 700;
-    }
-
-    .actions {
+    .quick-picks {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
+    }
+
+    .quick-picks button {
+      min-height: 38px;
+      padding: 8px 11px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .quick-picks button:hover,
+    .quick-picks button:focus-visible {
+      color: var(--text);
+      border-color: rgba(140, 196, 255, 0.45);
+      outline: none;
     }
 
     .save-status {
+      min-height: 1.35em;
       margin: 0;
       color: var(--muted);
-      min-height: 1.4em;
       font-size: 0.94rem;
+      line-height: 1.45;
     }
 
     .dashboard {
       display: grid;
-      gap: 18px;
+      gap: 16px;
     }
 
-    .metric-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .metric {
-      padding: 16px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .metric span {
-      display: block;
-      color: var(--muted);
-      font-size: 0.86rem;
-      margin-bottom: 8px;
-    }
-
-    .metric strong {
-      font-size: 1.3rem;
-    }
-
-    .bars {
-      display: grid;
-      gap: 12px;
-    }
-
-    .bar-row {
+    .next-step {
       display: grid;
       gap: 8px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      background: var(--panel-soft);
     }
 
-    .bar-row__head {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
+    .next-step span {
       color: var(--muted);
-      font-size: 0.92rem;
+      font-size: 0.86rem;
+      font-weight: 800;
     }
 
-    .bar {
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.06);
-      overflow: hidden;
-    }
-
-    .bar > span {
-      display: block;
-      height: 100%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, #8cc4ff, #95e6c2);
+    .next-step strong {
+      font-size: 1.1rem;
+      line-height: 1.35;
     }
 
     .entry-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
       display: grid;
       gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
     }
 
     .entry-item {
+      display: grid;
+      gap: 8px;
       padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 16px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255, 255, 255, 0.04);
     }
 
     .entry-item strong {
-      display: block;
-      margin-bottom: 6px;
+      line-height: 1.3;
     }
 
-    .entry-meta {
+    .entry-meta,
+    .entry-copy {
+      margin: 0;
       color: var(--muted);
-      font-size: 0.88rem;
-      margin-bottom: 8px;
-    }
-
-    .entry-facts {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-
-    .entry-fact {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
-      color: var(--muted);
-      font-size: 0.8rem;
-    }
-
-    .entry-stack {
-      display: grid;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .entry-block {
-      padding: 10px 12px;
-      border-radius: 14px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .entry-block strong {
-      margin-bottom: 4px;
-      font-size: 0.82rem;
-      letter-spacing: 0.02em;
-      color: var(--blue);
+      line-height: 1.45;
     }
 
     .entry-copy {
       color: var(--text);
-      line-height: 1.55;
-      margin: 0;
       white-space: pre-wrap;
     }
 
-    .links-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .links-row a {
-      color: var(--mint);
-      text-decoration: none;
-      font-weight: 700;
-    }
-
     .footer-note {
-      text-align: center;
+      margin: 18px 0 0;
       color: var(--muted);
-      padding: 18px 0 0;
+      text-align: center;
       font-size: 0.92rem;
     }
 
-    @media (max-width: 980px) {
-      .layout,
-      .two-up,
-      .metric-grid,
-      .category-grid,
-      .hero-stats {
+    @media (max-width: 760px) {
+      .shell {
+        width: min(100% - 20px, 860px);
+      }
+
+      .topbar,
+      .layout {
         grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: flex-start;
+      }
+
+      .topbar nav,
+      .hero-actions,
+      .actions,
+      .quick-picks {
+        width: 100%;
+      }
+
+      .topbar a,
+      .button {
+        flex: 1 1 9rem;
+      }
+
+      h1 {
+        max-width: 100%;
       }
     }
 
-    @media (max-width: 680px) {
-      .shell { width: min(100% - 20px, 1200px); }
-      .hero,
-      .card__body { padding: 18px; }
-      h1 { max-width: 100%; }
-    }
-
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
+      *,
+      *::before,
+      *::after {
         animation: none !important;
-        transition: none !important;
         scroll-behavior: auto !important;
+        transition: none !important;
       }
     }
   </style>
@@ -521,131 +396,71 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <div class="topbar__brand">
-        <strong>Life</strong>
-        <span>Clarity, alignment, and one real next move inside the portal.</span>
+      <div>
+        <strong>Daily Direction</strong>
+        <span>Check in. Pick one step.</span>
       </div>
-      <nav class="topbar__links" aria-label="Life navigation">
-        <a href="../index.html">Home</a>
-        <a href="../cell/index.html">Cell</a>
+      <nav aria-label="Daily Direction links">
+        <a href="../index.html">Portal</a>
         <a href="../notes/">Notes</a>
-        <a href="../contacts/index.html">Contacts</a>
-        <a href="../crm/index.html">CRM</a>
       </nav>
     </header>
 
     <section class="hero">
-      <span class="eyebrow">Life OS</span>
-      <h1>Clarity first. Then action.</h1>
-      <p class="lead">
-        Life OS is the builder-facing check-in loop for 3dvr. Track mood, alignment, avoidance, mission, and the one task that would actually move life forward.
-        The data stays inside the portal on Gun so it can sync across browsers and still fit the rest of your operating system.
-      </p>
+      <span class="eyebrow">Free plan</span>
+      <h1>Take one small step.</h1>
+      <p class="lead">You do not need a big plan. Check in, name what needs care, and pick one next move.</p>
       <div class="hero-actions">
-        <a class="button button--primary" href="#checkin">Start a check-in</a>
-        <a class="button button--secondary" href="../cell/index.html">Open Cell</a>
-        <a class="button button--secondary" href="../notes/">Open Notes</a>
-      </div>
-      <div class="hero-stats" aria-label="Life overview">
-        <div class="stat">
-          <span>Daily reset</span>
-          <strong>Clarity + action</strong>
-        </div>
-        <div class="stat">
-          <span>Inner signal</span>
-          <strong>Mood + alignment</strong>
-        </div>
-        <div class="stat">
-          <span>Builder scope</span>
-          <strong>Mission in the loop</strong>
-        </div>
+        <a class="button button--primary" href="#checkin">Start</a>
+        <a class="button button--secondary" href="../index.html">Back to Portal</a>
       </div>
     </section>
 
     <section class="layout" aria-labelledby="lifeTitle">
       <article class="card" id="checkin">
         <div class="card__body">
-          <span class="eyebrow">Daily check-in</span>
-          <h2 class="section-title" id="lifeTitle">What is true today?</h2>
-          <p class="section-copy">
-            Keep this lightweight and honest. Name the signal, name the avoidance, and pick the one task that actually matters.
-          </p>
+          <span class="eyebrow">Today</span>
+          <h2 class="section-title" id="lifeTitle">How are you?</h2>
+          <p class="section-copy">Answer in plain words. Short is good.</p>
 
           <form id="lifeForm" class="form-grid">
-            <div class="two-up">
-              <label for="lifeDate">
-                Date
-                <input id="lifeDate" name="lifeDate" type="date" />
-              </label>
-              <label for="moodScore">
-                Mood
-                <output id="moodValue" for="moodScore">7</output>
-                <input id="moodScore" name="moodScore" type="range" min="1" max="10" step="1" value="7" />
-              </label>
-            </div>
+            <input id="lifeDate" name="lifeDate" type="hidden" />
 
-            <label for="alignmentScore">
-              Alignment
-              <output id="alignmentValue" for="alignmentScore">7</output>
-              <input id="alignmentScore" name="alignmentScore" type="range" min="1" max="10" step="1" value="7" />
+            <label for="moodScore">
+              <strong>How do you feel?</strong>
+              <span><output id="moodValue" for="moodScore">3</output> out of 5</span>
+              <input id="moodScore" name="moodScore" type="range" min="1" max="5" step="1" value="3" />
             </label>
 
             <label for="todayText">
-              What happened today?
-              <textarea id="todayText" name="todayText" placeholder="A short summary of the day."></textarea>
+              <strong>What needs care?</strong>
+              <textarea id="todayText" name="todayText" placeholder="My body, money, home, work, or people..."></textarea>
             </label>
 
-            <label for="avoidanceText">
-              What am I avoiding?
-              <textarea id="avoidanceText" name="avoidanceText" placeholder="The thing I keep circling around instead of facing."></textarea>
-            </label>
-
-            <label for="trueTaskText">
-              One true task
-              <input id="trueTaskText" name="trueTaskText" type="text" placeholder="The one thing that would actually move life forward." />
-            </label>
-
-            <label for="tomorrowText">
-              What matters tomorrow?
-              <textarea id="tomorrowText" name="tomorrowText" placeholder="The one thing to protect next."></textarea>
-            </label>
-
-            <label for="visionText">
-              Who am I becoming / what am I building?
-              <textarea id="visionText" name="visionText" placeholder="The direction, life, or system I am trying to build on purpose."></textarea>
-            </label>
-
-            <div class="category-grid" aria-label="Life categories">
-              <div class="category-card">
-                <div class="category-head"><span>Mind</span><output id="mindValue" for="mindScore">7</output></div>
-                <input id="mindScore" name="mindScore" type="range" min="1" max="10" step="1" value="7" />
-              </div>
-              <div class="category-card">
-                <div class="category-head"><span>Body</span><output id="bodyValue" for="bodyScore">7</output></div>
-                <input id="bodyScore" name="bodyScore" type="range" min="1" max="10" step="1" value="7" />
-              </div>
-              <div class="category-card">
-                <div class="category-head"><span>Money</span><output id="moneyValue" for="moneyScore">7</output></div>
-                <input id="moneyScore" name="moneyScore" type="range" min="1" max="10" step="1" value="7" />
-              </div>
-              <div class="category-card">
-                <div class="category-head"><span>Relationships</span><output id="relationshipsValue" for="relationshipsScore">7</output></div>
-                <input id="relationshipsScore" name="relationshipsScore" type="range" min="1" max="10" step="1" value="7" />
-              </div>
-              <div class="category-card">
-                <div class="category-head"><span>Mission</span><output id="missionValue" for="missionScore">7</output></div>
-                <input id="missionScore" name="missionScore" type="range" min="1" max="10" step="1" value="7" />
-              </div>
+            <div class="quick-picks" aria-label="Quick care picks">
+              <button type="button" data-need="My body needs care.">Body</button>
+              <button type="button" data-need="My money needs care.">Money</button>
+              <button type="button" data-need="My home needs care.">Home</button>
+              <button type="button" data-need="My work needs care.">Work</button>
+              <button type="button" data-need="My people need care.">People</button>
             </div>
 
-            <label for="weeklyText">
-              Weekly reflection
-              <textarea id="weeklyText" name="weeklyText" placeholder="What worked, what didn’t, and what should change next week?"></textarea>
+            <label for="trueTaskText">
+              <strong>What is one small step?</strong>
+              <input id="trueTaskText" name="trueTaskText" type="text" placeholder="Drink water." />
             </label>
 
+            <div class="quick-picks" aria-label="Quick step picks">
+              <button type="button" data-step="Drink water.">Water</button>
+              <button type="button" data-step="Take a short walk.">Walk</button>
+              <button type="button" data-step="Clean one small spot.">Clean</button>
+              <button type="button" data-step="Text one person.">Text</button>
+              <button type="button" data-step="Write one note.">Note</button>
+            </div>
+
             <div class="actions">
-              <button class="button button--primary" type="submit">Save check-in</button>
-              <button class="button button--secondary" type="button" id="clearDraft">Clear draft</button>
+              <button class="button button--primary" type="submit">Save</button>
+              <button class="button button--secondary" type="button" id="clearDraft">Clear</button>
             </div>
             <p id="saveStatus" class="save-status" role="status" aria-live="polite"></p>
           </form>
@@ -655,82 +470,29 @@
       <aside class="dashboard">
         <section class="card">
           <div class="card__body">
-            <span class="eyebrow">Life dashboard</span>
-            <div class="metric-grid">
-              <div class="metric">
-                <span>Average mood</span>
-                <strong id="averageMood">--</strong>
-              </div>
-              <div class="metric">
-                <span>Average alignment</span>
-                <strong id="averageAlignment">--</strong>
-              </div>
-              <div class="metric">
-                <span>7-day trend</span>
-                <strong id="trendLabel">--</strong>
-              </div>
-              <div class="metric">
-                <span>Active streak</span>
-                <strong id="streakValue">--</strong>
-              </div>
+            <span class="eyebrow">Next</span>
+            <h3 class="section-title">Do this next</h3>
+            <div class="next-step">
+              <span>Saved step</span>
+              <strong id="latestStep">Save a check-in to pick one step.</strong>
             </div>
+            <p class="section-copy">Keep it small. A small step counts.</p>
           </div>
         </section>
 
         <section class="card">
           <div class="card__body">
-            <span class="eyebrow">Category balance</span>
-            <h3 class="section-title">How the big areas are moving</h3>
-            <div class="bars" id="categoryBars" aria-live="polite"></div>
-          </div>
-        </section>
-
-        <section class="card">
-          <div class="card__body">
-            <span class="eyebrow">Vision</span>
-            <h3 class="section-title">Current vision</h3>
-            <p class="section-copy" id="currentVision">No vision saved yet. Use the check-in form when you want to name what you are building.</p>
-          </div>
-        </section>
-
-        <section class="card">
-          <div class="card__body">
-            <span class="eyebrow">Reflection</span>
-            <h3 class="section-title">Latest weekly note</h3>
-            <p class="section-copy" id="latestReflection">No reflections yet. Save one when you want to review the week.</p>
-          </div>
-        </section>
-
-        <section class="card">
-          <div class="card__body">
-            <span class="eyebrow">Recent entries</span>
+            <span class="eyebrow">Saved</span>
+            <h3 class="section-title">Last notes</h3>
             <ul class="entry-list" id="entryList"></ul>
-          </div>
-        </section>
-
-        <section class="card">
-          <div class="card__body">
-            <span class="eyebrow">Connect the loop</span>
-            <h3 class="section-title">Move between apps</h3>
-            <p class="section-copy">
-              Life pairs well with Cell for accountability, Notes for longer thinking, and CRM when a goal turns into a real opportunity.
-            </p>
-            <div class="links-row">
-              <a href="../cell/index.html">Open Cell</a>
-              <a href="../notes/">Open Notes</a>
-              <a href="../crm/index.html">Open CRM</a>
-            </div>
           </div>
         </section>
       </aside>
     </section>
 
-    <p class="footer-note">
-      Stored under <code>3dvr-portal/life</code> in Gun, with a local cache fallback for offline drafts.
-    </p>
+    <p class="footer-note">Saves here. Can sync later.</p>
   </main>
 
-  <script src="./app.js?v=20260329-life-mvp"></script>
-  <script defer src="/issue-launcher.js"></script>
+  <script src="./app.js?v=20260630-daily-direction"></script>
 </body>
 </html>
