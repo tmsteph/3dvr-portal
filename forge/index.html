@@ -19,18 +19,32 @@
 <body class="landing theme-dark forge-page">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="landing-shell forge-shell">
-    <header class="top-nav">
-      <nav class="top-buttons" aria-label="Forge navigation">
+    <header class="forge-appbar">
+      <a class="forge-appbar__brand" href="../index.html" aria-label="Back to portal">
+        <span class="forge-appbar__mark" aria-hidden="true">3F</span>
+        <span>
+          <strong>Forge</strong>
+          <small>3DVR</small>
+        </span>
+      </a>
+      <nav class="forge-appbar__nav" aria-label="Forge navigation">
         <a href="../index.html">Portal</a>
-        <a href="../launch-room/">Launch Room</a>
-        <a href="../web-builder-app/">Codex Bench</a>
+        <a href="../launch-room/">Launch</a>
+        <a href="../web-builder-app/">Bench</a>
       </nav>
+      <span class="forge-appbar__status" data-forge-app-status>Ready</span>
     </header>
 
     <main id="mainContent" class="landing-content">
       <section class="forge-workspace" aria-labelledby="forgeRoomTitle">
+        <div class="forge-stage-rail" data-forge-stage-rail aria-label="Forge steps">
+          <span data-forge-step="initial">Sort</span>
+          <span data-forge-step="followups">Shape</span>
+          <span data-forge-step="brief">Plan</span>
+        </div>
+
         <div class="forge-panel forge-conversation" data-forge-panel="conversation">
-          <div class="forge-panel__header">
+          <div class="forge-panel__header forge-screen-header">
             <span class="eyebrow">3DVR Forge</span>
             <h1 id="forgeRoomTitle">What feels stuck?</h1>
           </div>
@@ -63,6 +77,10 @@
           </article>
 
           <form class="forge-input" data-forge-form>
+            <div class="forge-input__topline">
+              <span>Today</span>
+              <span data-forge-input-mode>Sort</span>
+            </div>
             <label for="forgeAnswer" class="forge-input__label" data-input-label>
               One sentence is enough.
             </label>
@@ -94,7 +112,7 @@
         </div>
 
         <aside class="forge-panel forge-brief" data-forge-panel="brief" hidden aria-labelledby="movementBriefTitle">
-          <div class="forge-panel__header">
+          <div class="forge-panel__header forge-screen-header">
             <span class="eyebrow">Plan</span>
             <h2 id="movementBriefTitle">Your next step plan</h2>
           </div>

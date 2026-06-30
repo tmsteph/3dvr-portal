@@ -7,14 +7,23 @@ describe('3DVR Forge product route', () => {
     const html = await readFile(new URL('../forge/index.html', import.meta.url), 'utf8');
 
     assert.match(html, /<title>3DVR Forge \| Turn frustration into a project<\/title>/);
+    assert.match(html, /class="forge-appbar"/);
+    assert.match(html, /class="forge-appbar__brand" href="\.\.\/index\.html"/);
+    assert.match(html, /data-forge-app-status>Ready<\/span>/);
     assert.match(html, /href="\.\.\/index\.html">Portal<\/a>/);
-    assert.match(html, /href="\.\.\/launch-room\/">Launch Room<\/a>/);
+    assert.match(html, /href="\.\.\/launch-room\/">Launch<\/a>/);
+    assert.match(html, /href="\.\.\/web-builder-app\/">Bench<\/a>/);
+    assert.match(html, /class="forge-stage-rail" data-forge-stage-rail/);
+    assert.match(html, /data-forge-step="initial">Sort<\/span>/);
+    assert.match(html, /data-forge-step="followups">Shape<\/span>/);
+    assert.match(html, /data-forge-step="brief">Plan<\/span>/);
     assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
     assert.match(html, /src="\/gun-init\.js"/);
     assert.match(html, /3DVR Forge/);
     assert.match(html, /What feels stuck\?/);
     assert.match(html, /data-forge-form/);
     assert.match(html, /data-forge-answer/);
+    assert.match(html, /data-forge-input-mode>Sort<\/span>/);
     assert.match(html, /data-forge-presets/);
     assert.match(html, /data-preset-idea="I need money and I do not know what to do first\."/);
     assert.match(html, /Need money<\/button>/);
@@ -97,6 +106,8 @@ describe('3DVR Forge product route', () => {
     assert.match(app, /function formatGuidanceMessage\(guidance\)/);
     assert.match(app, /function renderGuidance\(\)/);
     assert.match(app, /function renderProgress\(\)/);
+    assert.match(app, /function renderAppChrome\(statusText\)/);
+    assert.match(app, /function resolveAppStep\(\)/);
     assert.match(app, /function sparkIdea\(\)/);
     assert.match(app, /function usePresetIdea\(event\)/);
     assert.match(app, /function useSimpleAnswer\(\)/);
@@ -147,13 +158,16 @@ describe('3DVR Forge product route', () => {
     const css = await readFile(new URL('../forge/styles.css', import.meta.url), 'utf8');
 
     assert.match(css, /html,\s*body\s*\{\s*overflow-x:\s*hidden;/);
-    assert.match(css, /\.forge-shell\s*\{\s*width:\s*min\(100%,\s*1180px\);/);
+    assert.match(css, /\.forge-shell\s*\{\s*width:\s*min\(100%,\s*1100px\);/);
     assert.match(css, /\.forge-workspace\s*\{\s*display:\s*grid;/);
-    assert.match(css, /width:\s*min\(100%,\s*760px\);/);
+    assert.match(css, /width:\s*min\(100%,\s*860px\);/);
     assert.match(css, /body\[data-forge-stage="brief"\]\s+\.forge-workspace/);
     assert.match(css, /\.forge-transcript:empty/);
     assert.match(css, /\.forge-page\s+\[hidden\]\s*\{[\s\S]*?display:\s*none !important;/);
     assert.match(css, /\.forge-progress\s*\{/);
+    assert.match(css, /\.forge-appbar\s*\{/);
+    assert.match(css, /\.forge-stage-rail\s*\{/);
+    assert.match(css, /\.forge-input__topline\s*\{/);
     assert.match(css, /\.forge-guidance\s*\{/);
     assert.match(css, /\.forge-spark\s*\{/);
     assert.match(css, /\.forge-easy-answer\s*\{/);
