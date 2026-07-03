@@ -15,12 +15,18 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the weekly milestones through v0.0.51', async () => {
+  it('updates the release index with the weekly milestones through v0.0.52', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Latest Release/);
+    assert.match(html, /href="v0\.0\.52\.html">v0\.0\.52</);
+    assert.match(html, /Week of June 29, 2026/);
+    assert.match(html, /href="\.\.\/life\/index\.html">Daily Direction</);
+    assert.match(html, /href="\.\.\/friends-family\/">Friends &amp; Family Pass</);
+    assert.match(html, /href="\.\.\/docs\/3dvr-long-term-plan-roadmap\.md">long-term roadmap</);
+    assert.match(html, /href="\.\.\/docs\/no-account-stripe-payment-plan\.md">no-account Stripe payment plan</);
     assert.match(html, /href="v0\.0\.51\.html">v0\.0\.51</);
     assert.match(html, /Week of June 22, 2026/);
     assert.match(html, /href="\.\.\/forge\/">3DVR Forge</);
@@ -83,7 +89,8 @@ describe('release hub backfill', () => {
 
   it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
-      ['v0.0.51.html', /Week of June 22, 2026/, /Money Printer and paid sprint paths/i, /pull\/905/],
+      ['v0.0.52.html', /Week of June 29, 2026/, /Free-first portal and Monday release path/i, /pull\/977/],
+      ['v0.0.51.html', /Week of June 22, 2026/, /Money Printer and paid sprint paths/i, /href="v0\.0\.52\.html"/],
       ['v0.0.50.html', /Week of June 15, 2026/, /Launch Site publishing/i, /href="v0\.0\.51\.html"/],
       ['v0.0.49.html', /Week of June 8, 2026/, /Games and flight controls/i, /href="v0\.0\.50\.html"/],
       ['v0.0.48.html', /Week of June 1, 2026/, /Focus Flow direction/i, /href="v0\.0\.49\.html"/],
@@ -113,11 +120,24 @@ describe('release hub backfill', () => {
   });
 
   it('links shipped apps and docs inline where the release summaries mention them', async () => {
+    const release52 = await readFile(new URL('v0.0.52.html', baseDir), 'utf8');
     const release51 = await readFile(new URL('v0.0.51.html', baseDir), 'utf8');
     const release50 = await readFile(new URL('v0.0.50.html', baseDir), 'utf8');
     const release49 = await readFile(new URL('v0.0.49.html', baseDir), 'utf8');
     const release47 = await readFile(new URL('v0.0.47.html', baseDir), 'utf8');
     const release48 = await readFile(new URL('v0.0.48.html', baseDir), 'utf8');
+
+    assert.match(release52, /href="\.\.\/friends-family\/">Friends &amp; Family Pass</);
+    assert.match(release52, /href="\.\.\/life\/index\.html">Daily Direction</);
+    assert.match(release52, /href="\.\.\/index\.html">portal home</);
+    assert.match(release52, /href="\.\.\/forge\/">3DVR Forge</);
+    assert.match(release52, /href="\.\.\/string-theory\/">String Theory Visualizer</);
+    assert.match(release52, /href="\.\.\/docs\/3dvr-long-term-plan-roadmap\.md">3DVR Long-Term Plan and Roadmap</);
+    assert.match(release52, /href="\.\.\/docs\/no-account-stripe-payment-plan\.md">No-Account Stripe Payment Plan</);
+    assert.match(release52, /Friday, July 3, 2026/);
+    assert.match(release52, /Monday,\s+July 6, 2026/);
+    assert.match(release52, /pull\/906/);
+    assert.match(release52, /pull\/977/);
 
     assert.match(release51, /href="\.\.\/crm\/">CRM</);
     assert.match(release51, /href="\.\.\/games\.html">Games</);
