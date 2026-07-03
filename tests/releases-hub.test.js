@@ -134,7 +134,7 @@ describe('release hub backfill', () => {
     assert.match(release52, /href="\.\.\/string-theory\/">String Theory Visualizer</);
     assert.match(release52, /href="\.\.\/docs\/3dvr-long-term-plan-roadmap\.md">3DVR Long-Term Plan and Roadmap</);
     assert.match(release52, /href="\.\.\/docs\/no-account-stripe-payment-plan\.md">No-Account Stripe Payment Plan</);
-    assert.match(release52, /Friday, July 3, 2026/);
+    assert.match(release52, /The portal is easier to start, easier to recover, and clearer about the next money path/);
     assert.match(release52, /Monday,\s+July 6, 2026/);
     assert.match(release52, /pull\/906/);
     assert.match(release52, /pull\/977/);
