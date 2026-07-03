@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.52 (Week of June 29, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.51.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.52</h1>
+  <div class="tag">Week of June 29, 2026</div>
+  <div class="release-summary">
+    <p>
+      This release gets the portal current for the Friday, July 3, 2026 decision meeting and the Monday,
+      July 6, 2026 production release. The focus is narrower: make the free path obvious, keep sign-in from
+      trapping returning users, and document the next money path before building more billing machinery.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Free-first portal and Monday release path:</strong>
+        <a href="../friends-family/">Friends &amp; Family Pass</a> launched in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/907">PR #907</a>, then the free offer copy was tightened in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/914">PR #914</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/921">PR #921</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/922">PR #922</a>. The portal now points first-time people
+        toward <a href="../life/index.html">Daily Direction</a> and one small next step instead of requiring them to
+        understand the whole app dock.
+      </li>
+      <li>
+        <strong>Daily Direction, guide mode, and owned app drafts:</strong>
+        <a href="../index.html">portal home</a> gained the prompt guide in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/926">PR #926</a>, real AI-backed routing in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/927">PR #927</a>, a simpler
+        <a href="../life/index.html">Daily Direction</a> app in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/928">PR #928</a>, automatic portal identity in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/929">PR #929</a>, and user-owned app draft controls in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/930">PR #930</a>.
+      </li>
+      <li>
+        <strong>Forge and visual exploration:</strong>
+        <a href="../forge/">3DVR Forge</a> became more guided in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/923">PR #923</a>, more focused on life direction in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/924">PR #924</a>, and more app-like in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/925">PR #925</a>. The portal also added the
+        <a href="../string-theory/">String Theory Visualizer</a> in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/931">PR #931</a>.
+      </li>
+      <li>
+        <strong>Sign-in and cache recovery:</strong>
+        the visible sign-in links came back in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/938">PR #938</a>, the friends/family invite tightened in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/939">PR #939</a>, normal sign-in links were fixed in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/940">PR #940</a>, and the stale identity/cache sequence
+        was hardened across <a href="https://github.com/tmsteph/3dvr-portal/pull/941">PR #941</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/947">PR #947</a>.
+      </li>
+      <li>
+        <strong>Roadmap and billing decision docs:</strong>
+        <a href="../docs/3dvr-long-term-plan-roadmap.md">3DVR Long-Term Plan and Roadmap</a> landed in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/976">PR #976</a>. The
+        <a href="../docs/no-account-stripe-payment-plan.md">No-Account Stripe Payment Plan</a> landed in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/977">PR #977</a> so the next billing move can be simple:
+        plan card, Stripe link, receipt, optional portal setup.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Merged PRs</h2>
+    <ul class="link-list">
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/906">#906 Update portal releases through v0.0.51</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/907">#907 Add Friends and Family Pass</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/914">#914 Clarify Friends and Family offer outcomes</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/921">#921 Simplify Friends and Family offer copy</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/922">#922 Simplify offer reading level</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/923">#923 Improve Forge guidance flow</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/924">#924 Focus free plan on life direction</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/925">#925 Make Forge feel more app-like</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/926">#926 Add prompt guide mode to portal</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/927">#927 Add AI-backed portal guide</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/928">#928 Simplify Daily Direction app</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/929">#929 Add automatic portal identity</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/930">#930 Add homepage owned app studio</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/931">#931 Add string theory visualizer</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/938">#938 Restore visible sign in links</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/939">#939 Tighten friends family invite</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/940">#940 Fix normal sign in links</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/941">#941 Fix portal auth restore race</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/942">#942 Bust portal auth cache</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/943">#943 Self-heal portal auth cache</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/944">#944 Aggressively reset portal auth cache</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/945">#945 Add native cache clear header to reset page</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/946">#946 Add API cache reset escape hatch</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/947">#947 Harden stale portal identity cookies</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/951">#951 Refocus portal on the free Daily Direction path</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/976">#976 Add long-term 3DVR roadmap documentation</a></li>
+      <li><a href="https://github.com/tmsteph/3dvr-portal/pull/977">#977 Document no-account Stripe payment plan</a></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Release Cadence</h2>
+    <p>
+      v0.0.52 catches work merged after <a href="https://github.com/tmsteph/3dvr-portal/pull/905">PR #905</a>
+      and through <a href="https://github.com/tmsteph/3dvr-portal/pull/977">PR #977</a>. For Monday,
+      July 6, 2026, the clean shipping story is: start free, use Daily Direction, keep sign-in optional until it
+      helps, and test direct Stripe payment links before adding account-heavy billing work.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
