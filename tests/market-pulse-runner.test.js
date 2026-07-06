@@ -136,4 +136,6 @@ test('market pulse automation is wired to npm and scheduled GitHub Actions', asy
   assert.match(workflow, /workflow_dispatch/);
   assert.match(workflow, /npm run market:pulse -- --json/);
   assert.match(workflow, /MARKET_PULSE_MARKET/);
+  const script = await readFile(new URL('../scripts/growth/run-market-pulse.mjs', import.meta.url), 'utf8');
+  assert.match(script, /process\.exit\(exitCode\)/);
 });

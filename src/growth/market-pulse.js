@@ -586,6 +586,24 @@ export function serializeMarketPulseForGun(pulse = {}) {
   };
 }
 
+export function serializeDirectoryListingForGun(listing = {}) {
+  return {
+    id: normalizeText(listing.id),
+    title: normalizeText(listing.title),
+    market: normalizeText(listing.market),
+    pain: normalizeText(listing.pain),
+    recommendedOffer: normalizeText(listing.recommendedOffer),
+    suggestedPrice: normalizeText(listing.suggestedPrice),
+    confidence: normalizeText(listing.confidence),
+    confidenceScore: Number(listing.confidenceScore || 0),
+    approvalStatus: normalizeText(listing.approvalStatus),
+    approved: Boolean(listing.approved),
+    evidenceJson: JSON.stringify(Array.isArray(listing.evidence) ? listing.evidence : []),
+    updatedAt: normalizeText(listing.updatedAt),
+    source: normalizeText(listing.source),
+  };
+}
+
 export function deserializeMarketPulseFromGun(record = {}) {
   return {
     runId: normalizeText(record.runId),
@@ -639,7 +657,7 @@ export async function createMarketPulseClient(options = {}) {
       await putNode(runsNode.get(pulse.runId), latestRecord);
       const approvedListings = (pulse.directoryListings || []).filter((item) => item.approved);
       for (const listing of approvedListings) {
-        await putNode(directoryNode.get(listing.id), listing);
+        await putNode(directoryNode.get(listing.id), serializeDirectoryListingForGun(listing));
       }
       return {
         runId: pulse.runId,

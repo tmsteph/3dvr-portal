@@ -363,3 +363,45 @@ test('runAutopilotCycle uses checkout URL as destination fallback', async () => 
   assert.equal(result.monetization.checkoutConfigured, true);
   assert.equal(result.monetization.checkoutCtaLabel, 'Start Paid Plan');
 });
+
+test('runAutopilotCycle uses public friends-family page when checkout is missing', async () => {
+  const result = await runAutopilotCycle({
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { rows: [] };
+      },
+      async text() {
+        return '';
+      }
+    }),
+    env: {
+      MONEY_AUTOPILOT_PUBLISH: 'false',
+      MONEY_AUTOPILOT_PROMOTION: 'false'
+    },
+    autoDiscover: false,
+    runLoopImpl: async payload => ({
+      runId: 'money-default-destination',
+      generatedAt: '2026-02-13T00:00:00.000Z',
+      input: payload,
+      topOpportunity: {
+        id: 'op-1',
+        title: 'Default destination opportunity',
+        problem: 'Traffic needs somewhere useful to land.',
+        solution: 'Send traffic to the public free/support path.',
+        suggestedPrice: '$5/mo'
+      },
+      warnings: [],
+      signals: [],
+      opportunities: [],
+      adDrafts: [{ channel: 'email', headline: 'Try a small next step', body: 'Start free.', cta: 'Start free' }],
+      executionChecklist: []
+    })
+  });
+
+  assert.equal(result.publish.destinationUrl, 'https://portal.3dvr.tech/friends-family/');
+  assert.equal(result.promotion.destinationUrl, 'https://portal.3dvr.tech/friends-family/');
+  assert.equal(result.monetization.checkoutConfigured, false);
+  assert.match(result.warnings.join('\n'), /friends-family/);
+});

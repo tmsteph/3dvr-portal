@@ -4,6 +4,7 @@ import {
   buildMarketPulse,
   deserializeMarketPulseFromGun,
   runMarketPulseCycle,
+  serializeDirectoryListingForGun,
   serializeMarketPulseForGun,
 } from '../src/growth/market-pulse.js';
 
@@ -69,6 +70,20 @@ test('market pulse gun serialization keeps dashboard arrays recoverable', () => 
   assert.equal(restored.marketFit.verdict.length > 0, true);
   assert.equal(restored.tests.length, 2);
   assert.match(restored.automationPolicy.marketResearch, /runner|scheduler/i);
+});
+
+test('directory listing serialization avoids raw arrays in Gun directory writes', () => {
+  const pulse = buildMarketPulse(demand, {
+    generatedAt: '2026-05-14T10:00:00.000Z',
+    runId: 'market-pulse-test',
+  });
+  const listing = pulse.directoryListings[0];
+  const serialized = serializeDirectoryListingForGun(listing);
+
+  assert.equal(Array.isArray(serialized.evidence), false);
+  assert.equal(typeof serialized.evidenceJson, 'string');
+  assert.deepEqual(JSON.parse(serialized.evidenceJson), listing.evidence);
+  assert.equal(serialized.approved, true);
 });
 
 test('runMarketPulseCycle writes approved listings through the injected client', async () => {

@@ -11,7 +11,8 @@ const DEFAULT_AUTOPILOT_PROFILE = {
   autoDiscover: true,
   discoverySeeds: ['freelance', 'small business', 'automation', 'client onboarding', 'lead follow up'],
   publishPathPrefix: 'money-ai/offers',
-  checkoutCtaLabel: 'Start Paid Plan'
+  checkoutCtaLabel: 'Start Paid Plan',
+  defaultDestinationUrl: 'https://portal.3dvr.tech/friends-family/'
 };
 
 const MARKET_PROFILES = [
@@ -545,7 +546,7 @@ export function resolveAutopilotConfig(options = {}) {
       defaultDestinationUrl: String(
         options.defaultDestinationUrl
         || env.MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL
-        || ''
+        || DEFAULT_AUTOPILOT_PROFILE.defaultDestinationUrl
       ).trim()
     },
     monetization: {
@@ -932,13 +933,15 @@ export async function runAutopilotCycle(options = {}) {
     ...report,
     monetization: {
       ...(report.monetization || {}),
-      checkoutUrl: config.monetization.checkoutUrl,
-      checkoutCtaLabel: config.monetization.checkoutCtaLabel
+      checkoutUrl: config.monetization.checkoutUrl || config.promotion.defaultDestinationUrl,
+      checkoutCtaLabel: config.monetization.checkoutUrl
+        ? config.monetization.checkoutCtaLabel
+        : 'Start Free'
     }
   };
 
   if (!config.monetization.checkoutUrl) {
-    warnings.push('Checkout URL not configured. Offer CTA will use /free-trial.html.');
+    warnings.push(`Checkout URL not configured. Campaign traffic will use ${config.promotion.defaultDestinationUrl}.`);
   }
 
   const offerHtml = buildOfferHtml({
@@ -1026,8 +1029,8 @@ export async function runAutopilotCycle(options = {}) {
 
   publish.destinationUrl = publish.vercel.url
     || publish.github.htmlUrl
-    || config.promotion.defaultDestinationUrl
     || config.monetization.checkoutUrl
+    || config.promotion.defaultDestinationUrl
     || '';
 
   const promotionTasks = buildPromotionTasks(
