@@ -439,6 +439,18 @@ function render() {
 }
 
 function normalizeListing(data = {}, id = '') {
+  let evidence = [];
+  if (Array.isArray(data.evidence)) {
+    evidence = data.evidence;
+  } else if (data.evidenceJson) {
+    try {
+      const parsed = JSON.parse(String(data.evidenceJson || ''));
+      evidence = Array.isArray(parsed) ? parsed : [];
+    } catch (_error) {
+      evidence = [];
+    }
+  }
+
   return {
     id: String(data.id || id || '').trim(),
     title: String(data.title || '').trim(),
@@ -450,7 +462,7 @@ function normalizeListing(data = {}, id = '') {
     confidenceScore: Number(data.confidenceScore || 0),
     approved: Boolean(data.approved || data.approvalStatus === 'approved'),
     approvalStatus: String(data.approvalStatus || '').trim(),
-    evidence: Array.isArray(data.evidence) ? data.evidence : [],
+    evidence,
     updatedAt: String(data.updatedAt || '').trim(),
     source: String(data.source || '').trim(),
   };
