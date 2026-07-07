@@ -86,6 +86,38 @@
         </article>
       </section>
 
+      <section class="mp-band" aria-labelledby="reviewQueueTitle">
+        <div class="mp-section-heading mp-section-heading--wide">
+          <span class="eyebrow">Trust-preserving operator</span>
+          <h2 id="reviewQueueTitle">Message review queue</h2>
+          <p>
+            Codex can research, draft, update CRM, and recommend next actions. Messages that risk trust wait here
+            until a human approves, edits, skips, bans the lead, or saves the draft for later.
+          </p>
+        </div>
+        <div class="trust-loop" aria-label="Money Printer trust loop">
+          <span>Market</span>
+          <span>Offer</span>
+          <span>Lead</span>
+          <span>Trust</span>
+          <span>Payment</span>
+          <span>Fulfillment</span>
+          <span>Follow-up</span>
+        </div>
+        <div class="review-policy">
+          <strong>The human remains the trust layer.</strong>
+          <p>
+            GREEN can be auto-sent only when it matches a pre-approved low-risk relationship template.
+            YELLOW and RED stay queued. Cold outreach, pricing, promises, billing, legal language, and sensitive
+            personal details require review.
+          </p>
+          <p>
+            Review actions: Approve &amp; Send, Edit, Skip, Ban Lead, or Save for Later.
+          </p>
+        </div>
+        <div id="messageReviewQueue" class="message-review-grid" aria-live="polite"></div>
+      </section>
+
       <section class="mp-band" aria-labelledby="runtimeStatusTitle">
         <div class="mp-section-heading">
           <span class="eyebrow">AI / Runtime Status</span>
