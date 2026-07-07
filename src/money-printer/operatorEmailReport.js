@@ -55,13 +55,18 @@ function summarizeReport(report = {}) {
     merged,
     prUrl,
     actionRequired,
-    headline: actionRequired ? 'Action needed' : 'No action needed',
+    headline: actionRequired ? 'Please review this' : 'Handled. No action needed.',
     status: blocked ? 'Blocked' : needsReview ? 'Review needed' : 'Handled',
     summary: blocked
-      ? 'Money Printer stopped or hit a failure that needs Thomas.'
+      ? 'Money Printer stopped or hit a failure. Check the buttons below.'
       : needsReview
-        ? 'Money Printer prepared something that needs human review before it moves.'
-        : 'Money Printer completed the safe loop and handled the GREEN change.',
+        ? 'Money Printer prepared something, but it needs a human decision before it moves.'
+        : 'Money Printer completed the safe loop. A GREEN change was merged or handled.',
+    nextAction: blocked
+      ? 'Open the PR or server log and decide whether to fix, skip, or rerun.'
+      : needsReview
+        ? 'Open the PR, review the change, then merge or close it.'
+        : 'Nothing. You can ignore this email unless you want to inspect the run.',
     color: blocked ? '#b91c1c' : needsReview ? '#b45309' : '#0f766e'
   };
 }
@@ -103,11 +108,15 @@ export function buildOperatorReportEmailHtml({ report = {}, text = '', to = '' }
         <h1 style="margin:0 0 12px;font-size:28px;line-height:1.1;">${escapeHtml(summary.headline)}</h1>
         <div style="display:inline-block;margin:0 0 16px;padding:6px 10px;border-radius:999px;background:${summary.color};color:#ffffff;font-weight:700;">${escapeHtml(summary.status)} · ${escapeHtml(summary.risk)}</div>
         <p style="margin:0 0 16px;font-size:16px;line-height:1.5;">${escapeHtml(summary.summary)}</p>
+        <div style="margin:0 0 16px;padding:14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;">
+          <p style="margin:0 0 4px;color:#475569;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">One thing to do</p>
+          <p style="margin:0;font-size:17px;line-height:1.45;font-weight:700;">${escapeHtml(summary.nextAction)}</p>
+        </div>
         <div>${primaryButtons}</div>
       </div>
 
       <div style="margin-top:16px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;padding:20px;">
-        <h2 style="margin:0 0 12px;font-size:18px;">Run Summary</h2>
+        <h2 style="margin:0 0 12px;font-size:18px;">What happened</h2>
         <ul style="margin:0;padding-left:20px;line-height:1.7;">
           <li>Command: <strong>${escapeHtml(report.command || 'unknown')}</strong></li>
           <li>Auto-merge allowed: <strong>${report.selfReview?.autoMergeAllowed ? 'yes' : 'no'}</strong></li>

@@ -166,7 +166,8 @@ test('operator report email html highlights actions when review is needed', () =
     }
   });
 
-  assert.match(html, /Action needed/);
+  assert.match(html, /Please review this/);
+  assert.match(html, /One thing to do/);
   assert.match(html, /Review PR/);
   assert.match(html, /https:\/\/github\.com\/tmsteph\/3dvr-portal\/pull\/999/);
   assert.match(html, /mailto:thomas%40example\.com/);
@@ -191,6 +192,7 @@ test('operator report email html says no action is needed for merged green runs'
     }
   });
 
-  assert.match(html, /No action needed/);
+  assert.match(html, /Handled\. No action needed\./);
+  assert.match(html, /Nothing\. You can ignore this email/);
   assert.match(html, /Open PR/);
 });

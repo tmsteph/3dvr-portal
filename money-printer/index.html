@@ -6,7 +6,7 @@
   <title>money-printer | 3DVR Portal</title>
   <meta
     name="description"
-    content="An open-source AI venture engine for turning ideas into operating businesses."
+    content="Money Printer helps 3DVR choose the next money move while keeping risky actions gated for review."
   >
   <link rel="stylesheet" href="../styles/global.css">
   <link rel="stylesheet" href="../index-style.css">
@@ -30,25 +30,19 @@
     <main id="mainContent" class="landing-content money-printer-main">
       <section class="mp-hero" aria-labelledby="moneyPrinterTitle">
         <div class="mp-hero__copy">
-          <span class="hero-eyebrow">Founder Control Room</span>
-          <h1 id="moneyPrinterTitle">money-printer</h1>
+          <span class="hero-eyebrow">Money Printer</span>
+          <h1 id="moneyPrinterTitle">Pick the next money move.</h1>
           <p class="hero-tagline">
-            An open-source AI venture engine for turning ideas into operating businesses.
+            Money Printer helps 3DVR find a useful offer, prepare the next action, and keep risky messages waiting for review.
           </p>
           <p class="mp-hero__promise">
-            Give it the mission. Give it the tools. It starts building.
-          </p>
-          <p class="mp-hero__movement">
-            Purpose → Movement → Project → Business → Automations → Community
-          </p>
-          <p class="mp-hero__promise">
-            First live experiment: <a href="../ideas/offer-audit.html">sell a $300 48-hour offer audit</a>.
+            Nothing gets sent, charged, or promised from this page without a human review.
           </p>
         </div>
 
         <form id="missionForm" class="mission-console" autocomplete="off">
           <label for="missionInput">
-            <span>What mission, skill, market, or business direction should the AI explore?</span>
+            <span>What should we try to sell or improve next?</span>
             <textarea
               id="missionInput"
               name="mission"
@@ -57,42 +51,62 @@
             ></textarea>
           </label>
           <div class="mission-console__actions">
-            <button class="mp-button mp-button--primary" type="submit">Generate Money Machine</button>
+            <button class="mp-button mp-button--primary" type="submit">Find the next move</button>
             <p id="missionStatus" class="mission-console__status" aria-live="polite">
-              The system will create a business config, generate opportunities, score experiments, and recommend
-              next actions.
+              Start here. Money Printer will suggest one offer, one test, and one next action.
             </p>
           </div>
         </form>
+      </section>
 
-        <div class="mp-signal-strip" aria-label="money-printer principles">
-          <span>Find pain. Generate offers. Launch experiments. Compound toward cashflow.</span>
-          <span>3DVR helps independent builders turn purpose into operating businesses.</span>
-          <span>Not magic. Relentless opportunity loops.</span>
+      <section class="mp-journey" aria-labelledby="journeyTitle">
+        <div class="mp-section-heading">
+          <span class="eyebrow">Simple path</span>
+          <h2 id="journeyTitle">What to do here</h2>
+          <p>Use this page in order. The advanced tools are still here, but they are no longer the first thing you have to understand.</p>
+        </div>
+        <div class="journey-grid">
+          <article class="journey-card">
+            <span class="journey-card__step">1</span>
+            <h3>Choose a money direction</h3>
+            <p>Write the market, offer, or problem. Money Printer turns it into a next action.</p>
+            <a class="mp-button mp-button--primary" href="#missionInput">Start here</a>
+          </article>
+          <article class="journey-card">
+            <span class="journey-card__step">2</span>
+            <h3>Review before trust is at risk</h3>
+            <p>Drafts wait in the queue. Approve, edit, skip, ban, or save them.</p>
+            <a class="mp-button" href="#reviewQueueTitle">Open queue</a>
+          </article>
+          <article class="journey-card">
+            <span class="journey-card__step">3</span>
+            <h3>Let the server improve safely</h3>
+            <p>The DigitalOcean operator can make tiny GREEN fixes and PRs. Risky work stays manual.</p>
+            <a class="mp-button" href="#advancedTools">Open advanced</a>
+          </article>
         </div>
       </section>
 
       <section class="mp-band" aria-labelledby="dashboardTitle">
         <div class="mp-section-heading">
-          <span class="eyebrow">Money Printer Dashboard</span>
-          <h2 id="dashboardTitle">Revenue-focused operating state</h2>
-          <p>Mock metrics update as the machine creates ideas, experiments, validation tests, and bot outputs.</p>
+          <span class="eyebrow">Today</span>
+          <h2 id="dashboardTitle">Current state</h2>
+          <p>The most useful numbers and next action. Deeper experiment tools are below Advanced.</p>
         </div>
         <div id="metricsGrid" class="metrics-grid" aria-live="polite"></div>
         <article class="next-money-action" aria-labelledby="nextMoneyActionTitle">
-          <span class="mp-card-label">Next Best Money Action</span>
-          <h3 id="nextMoneyActionTitle">Choose the next revenue move</h3>
-          <p id="nextBestMoneyAction">Generate the money machine to pick a concrete action.</p>
+          <span class="mp-card-label">Next action</span>
+          <h3 id="nextMoneyActionTitle">Do this next</h3>
+          <p id="nextBestMoneyAction">Use the prompt above to pick a concrete action.</p>
         </article>
       </section>
 
       <section class="mp-band" aria-labelledby="reviewQueueTitle">
         <div class="mp-section-heading mp-section-heading--wide">
-          <span class="eyebrow">Trust-preserving operator</span>
+          <span class="eyebrow">Human review</span>
           <h2 id="reviewQueueTitle">Message review queue</h2>
           <p>
-            Codex can research, draft, update CRM, and recommend next actions. Messages that risk trust wait here
-            until a human approves, edits, skips, bans the lead, or saves the draft for later.
+            Drafts live here before anything risky happens. Approve only what you are comfortable sending.
           </p>
         </div>
         <div class="trust-loop" aria-label="Money Printer trust loop">
@@ -107,24 +121,24 @@
         <div class="review-policy">
           <strong>The human remains the trust layer.</strong>
           <p>
-            GREEN can be auto-sent only when it matches a pre-approved low-risk relationship template.
-            YELLOW and RED stay queued. Cold outreach, pricing, promises, billing, legal language, and sensitive
-            personal details require review.
-          </p>
-          <p>
-            Review actions: Approve &amp; Send, Edit, Skip, Ban Lead, or Save for Later.
+            GREEN is low risk. YELLOW needs review. RED should stop. Cold outreach, pricing, promises, billing, legal language, and sensitive details stay gated.
           </p>
         </div>
         <div id="messageReviewQueue" class="message-review-grid" aria-live="polite"></div>
       </section>
 
+      <details id="advancedTools" class="mp-advanced">
+        <summary>
+          <span>Advanced tools</span>
+          <small>Business config, ideas, bots, connectors, and runtime details</small>
+        </summary>
+
       <section class="mp-band" aria-labelledby="runtimeStatusTitle">
         <div class="mp-section-heading">
-          <span class="eyebrow">AI / Runtime Status</span>
-          <h2 id="runtimeStatusTitle">Cockpit view, engine runs in CLI/server</h2>
+          <span class="eyebrow">Operator status</span>
+          <h2 id="runtimeStatusTitle">Server and connector status</h2>
           <p>
-            Browser status is intentionally secret-free. Real OpenAI, GitHub, Vercel, and Codex readiness comes from
-            <code>npm run money-printer -- ai-status</code> on the server or local CLI.
+            Browser status is secret-free. Real OpenAI, GitHub, Vercel, and Codex readiness comes from the server or local CLI.
           </p>
         </div>
         <div id="runtimeStatusGrid" class="runtime-status-grid" aria-live="polite"></div>
@@ -154,7 +168,7 @@
         <div class="mp-section-heading mp-section-heading--wide">
           <span class="eyebrow">Opportunity Engine</span>
           <h2 id="opportunityTitle">Opportunity Engine</h2>
-          <p>Find pain. Generate offers. Launch experiments. Compound toward cashflow.</p>
+          <p>Generate ideas, score them, and turn the best one into a small test.</p>
         </div>
         <div class="engine-controls" aria-label="Opportunity engine controls">
           <button class="mp-button" type="button" data-action="generate-ideas">Generate 5 Business Ideas</button>
@@ -236,6 +250,7 @@
           </p>
         </div>
       </section>
+      </details>
     </main>
 
     <footer>

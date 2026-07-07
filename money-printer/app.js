@@ -162,14 +162,10 @@ function money(value) {
 function renderMetrics() {
   const metrics = buildMetrics(state);
   const metricCards = [
-    ['Ideas Generated', metrics.ideasGenerated],
-    ['Experiments Active', metrics.experimentsActive],
-    ['Offers Launched', metrics.offersLaunched],
-    ['Leads Found', metrics.leadsFound],
+    ['Ideas', metrics.ideasGenerated],
+    ['Active tests', metrics.experimentsActive],
     ['Replies', metrics.replies],
-    ['Calls Booked', metrics.callsBooked],
-    ['Revenue Tracked', money(metrics.revenueTracked)],
-    ['Next Best Money Action', metrics.nextBestMoneyAction]
+    ['Revenue', money(metrics.revenueTracked)]
   ].map(([label, value]) => {
     const card = document.createElement('article');
     card.className = 'metric-card';
@@ -214,7 +210,13 @@ function renderMessageReviewQueue() {
     return;
   }
 
-  elements.messageReviewQueue.innerHTML = items.map(item => `
+  elements.messageReviewQueue.innerHTML = items.map(item => {
+    const recommendedAction = item.riskLevel === 'GREEN'
+      ? 'Looks safe, but review the words first.'
+      : item.riskLevel === 'YELLOW'
+        ? 'Read carefully before sending.'
+        : 'Do not send until this is rewritten.';
+    return `
     <article class="message-review-card" data-risk="${safeText(riskTone(item.riskLevel))}">
       <div class="message-review-card__top">
         <div>
@@ -223,21 +225,18 @@ function renderMessageReviewQueue() {
         </div>
         <strong class="risk-badge" data-risk="${safeText(riskTone(item.riskLevel))}">${safeText(item.riskLevel)}</strong>
       </div>
+      <p class="review-next-step">${safeText(recommendedAction)}</p>
       <dl class="review-explainer">
         <div>
-          <dt>Why generated</dt>
+          <dt>Why this exists</dt>
           <dd>${safeText(item.whyGenerated)}</dd>
-        </div>
-        <div>
-          <dt>Why relevant</dt>
-          <dd>${safeText(item.whyLeadRelevant)}</dd>
         </div>
         <div>
           <dt>Offer</dt>
           <dd>${safeText(item.offerConnection || item.offer)}</dd>
         </div>
         <div>
-          <dt>Risk score</dt>
+          <dt>Risk reason</dt>
           <dd>${safeText(item.riskExplanation)}</dd>
         </div>
       </dl>
@@ -251,9 +250,12 @@ function renderMessageReviewQueue() {
           <textarea data-review-field="body" data-review-id="${safeText(item.id)}" rows="8">${safeText(item.body)}</textarea>
         </label>
       </div>
-      <ul class="safeguard-list">
-        ${(item.safeguards || []).map(note => `<li>${safeText(note)}</li>`).join('')}
-      </ul>
+      <details class="safeguard-details">
+        <summary>Show safeguards</summary>
+        <ul class="safeguard-list">
+          ${(item.safeguards || []).map(note => `<li>${safeText(note)}</li>`).join('')}
+        </ul>
+      </details>
       <div class="review-actions">
         ${item.actions.map(action => `
           <button class="mp-button ${action === 'approve-send' ? 'mp-button--primary' : ''}" type="button" data-review-action="${safeText(action)}" data-review-id="${safeText(item.id)}">
@@ -262,20 +264,20 @@ function renderMessageReviewQueue() {
         `).join('')}
       </div>
     </article>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderRuntimeStatus() {
   const github = connectorStatuses.find(status => status.id === 'github');
   const vercel = connectorStatuses.find(status => status.id === 'vercel');
   const cards = [
-    ['Mode', 'Browser mock cockpit', 'CLI/server can run mock or openai mode.'],
-    ['Model', 'Configured in runtime env', 'MONEY_PRINTER_MODEL / MONEY_PRINTER_FAST_MODEL / MONEY_PRINTER_REASONING_MODEL.'],
-    ['Live connectors', 'Disabled in browser', 'Execution requires local approval plus env flags on the CLI/server.'],
-    ['GitHub', github?.status || 'Mock mode', 'Issue creation is available from the CLI when explicitly configured.'],
-    ['Vercel', vercel?.status || 'Mock mode', 'Project/deployment inspection is CLI/server-side to protect tokens.'],
-    ['Codex', 'Prompt-ready', 'Prompts save to .money-printer/codex-prompts; execution is opt-in.'],
-    ['Daemon ready', 'Yes', 'Run npm run money-printer -- daemon --once --ai from the engine machine.']
+    ['Page mode', 'Safe browser view', 'This page does not expose secrets or send outreach.'],
+    ['Server loop', 'Runs on DigitalOcean', 'Every 6 hours it can propose tiny safe PRs.'],
+    ['GitHub', github?.status || 'Server-only', 'PR creation and GREEN auto-merge run from the server.'],
+    ['Vercel', vercel?.status || 'Server-only', 'Deploys follow the normal GitHub/Vercel path.'],
+    ['Email reports', 'Needs HTTPS email fix', 'Gmail SMTP is blocked from the droplet right now.'],
+    ['Human gate', 'Still required', 'Cold outreach, billing, auth, and risky work stay manual.']
   ].map(([label, value, detail]) => {
     const card = document.createElement('article');
     card.className = 'runtime-status-card';
@@ -695,7 +697,7 @@ function runGenerateMachine() {
   state = createMoneyMachineState(state, elements.missionInput.value);
   saveState();
   render();
-  setStatus('Money machine generated: config, 5 scored ideas, command brief, validation test, and next action updated.');
+  setStatus('Next move ready. Check the Current state section and review any queued drafts before sending.');
 }
 
 function promoteIdea(ideaId) {
