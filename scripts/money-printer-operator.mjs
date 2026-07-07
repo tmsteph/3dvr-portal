@@ -234,7 +234,7 @@ async function runPropose(rootDir, options = {}) {
     rootDir,
     testsPassed: report.verification.passed,
     commands: verificationCommands,
-    outPath: selfReviewPath,
+    out: selfReviewPath,
     summary: 'Money Printer proposed a documentation-only operator report update.',
     rollbackPlan: 'Revert the PR commit or restore docs/money-printer-operator-report.md from main.',
     nextSuggestedAction: 'If GREEN, open a PR for the documentation-only report update. If not GREEN, ask Thomas to review.'
