@@ -21,14 +21,23 @@ describe('portal logo branding', () => {
     assert.match(html, /portal-swirl-logo\.js/);
     assert.match(html, /data-portal-swirl-logo/);
     assert.match(html, /3dvr portal 3D swirl logo/);
+    assert.match(html, /role="button"/);
+    assert.match(html, /aria-pressed="false"/);
+    assert.match(html, /Press to pause or resume/);
     assert.match(css, /\.portal-swirl-logo/);
+    assert.match(css, /\.portal-swirl-logo\[data-logo-paused="true"\]/);
     assert.match(swirlScript, /THREE_CDN_URL/);
     assert.match(swirlScript, /three\.js\/r128\/three\.min\.js/);
     assert.match(swirlScript, /CylinderGeometry/);
     assert.match(swirlScript, /TorusGeometry/);
     assert.match(swirlScript, /CanvasTexture/);
-    assert.match(swirlScript, /BASE_FACE_SPIN/);
+    assert.match(swirlScript, /const BASE_FACE_SPIN = TAU \/ 5200/);
     assert.match(swirlScript, /extraFaceSpin/);
+    assert.match(swirlScript, /paused: false/);
+    assert.match(swirlScript, /const setPaused = \(paused\) =>/);
+    assert.match(swirlScript, /root\.dataset\.logoPaused = String\(state\.paused\)/);
+    assert.match(swirlScript, /root\.setAttribute\('aria-pressed', String\(state\.paused\)\)/);
+    assert.match(swirlScript, /const togglePaused = \(\) =>/);
     assert.match(swirlScript, /MAX_EXTRA_SPIN = 0\.105/);
     assert.match(swirlScript, /makeTextTexture/);
     assert.match(
@@ -79,6 +88,11 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /getTouchFlipScale/);
     assert.match(swirlScript, /updateTouchRamp/);
     assert.match(swirlScript, /state\.extraFaceSpin - distance \* DRAG_WIND_FACTOR \* getSpinBoost\(\) \* touchSpinScale/);
+    assert.match(swirlScript, /const baseSpin = state\.paused \? 0 : reducedMotion \? BASE_FACE_SPIN \* 0\.28 : BASE_FACE_SPIN/);
+    assert.match(swirlScript, /const extraSpin = state\.paused \? 0 : state\.extraFaceSpin/);
+    assert.match(swirlScript, /if \(wasTap\) \{\s*togglePaused\(\);/);
+    assert.match(swirlScript, /if \(event\.key === ' '\) \{\s*togglePaused\(\);/);
+    assert.match(swirlScript, /paused: state\.paused/);
     assert.match(swirlScript, /touchRampCount: state\.touchRampCount/);
     assert.match(swirlScript, /touchInstability: state\.touchInstability/);
     assert.match(swirlScript, /const axis = absX >= absY \? 'y' : 'x'/);
