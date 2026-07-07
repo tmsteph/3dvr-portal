@@ -62,9 +62,11 @@ body.money-printer-page {
 }
 
 .mp-hero,
+.mp-journey,
 .mp-band,
 .mp-split,
-.mp-docs {
+.mp-docs,
+.mp-advanced {
   border: 1px solid var(--mp-line);
   background: rgba(8, 12, 18, 0.78);
   box-shadow: 0 20px 64px rgba(0, 0, 0, 0.28);
@@ -213,10 +215,97 @@ body.money-printer-page {
 }
 
 .mp-band,
+.mp-journey,
 .mp-docs {
   display: grid;
   gap: 1rem;
   padding: 1rem;
+}
+
+.journey-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.journey-card {
+  display: grid;
+  gap: 0.65rem;
+  align-content: start;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid rgba(160, 174, 192, 0.2);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(147, 197, 253, 0.08), rgba(45, 212, 191, 0.05)),
+    var(--mp-panel);
+}
+
+.journey-card__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(45, 212, 191, 0.42);
+  border-radius: 999px;
+  background: rgba(45, 212, 191, 0.12);
+  color: #d5fffa;
+  font-weight: 900;
+}
+
+.journey-card h3,
+.journey-card p {
+  margin: 0;
+}
+
+.journey-card h3 {
+  font-size: 1.1rem;
+}
+
+.journey-card p {
+  color: var(--mp-muted);
+}
+
+.mp-advanced {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+
+.mp-advanced > summary {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mp-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mp-advanced > summary span {
+  color: var(--mp-text);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.mp-advanced > summary small {
+  color: var(--mp-muted);
+  font-size: 0.92rem;
+}
+
+.mp-advanced[open] {
+  display: grid;
+  gap: 1rem;
+  padding-bottom: 1rem;
+}
+
+.mp-advanced[open] > .mp-band,
+.mp-advanced[open] > .mp-split,
+.mp-advanced[open] > .mp-docs {
+  margin-inline: 1rem;
+  box-shadow: none;
 }
 
 .mp-split {
@@ -709,6 +798,16 @@ body.money-printer-page {
   color: var(--mp-muted);
 }
 
+.review-next-step {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.09);
+  color: #fde68a;
+  font-weight: 800;
+}
+
 .message-review-grid {
   display: grid;
   gap: 1rem;
@@ -811,6 +910,17 @@ body.money-printer-page {
   margin: 0.9rem 0;
 }
 
+.safeguard-details {
+  margin: 0.8rem 0;
+  color: var(--mp-muted);
+}
+
+.safeguard-details summary {
+  cursor: pointer;
+  color: #d5fffa;
+  font-weight: 800;
+}
+
 .review-actions {
   display: flex;
   flex-wrap: wrap;
@@ -830,6 +940,10 @@ body.money-printer-page {
 
   .metrics-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .journey-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .runtime-status-grid {
