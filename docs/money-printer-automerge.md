@@ -22,6 +22,8 @@ node scripts/money-printer-self-review.mjs
 
 `propose` creates one documentation-only safe improvement, runs focused checks, generates an ignored self-review report under `.money-printer/operator/`, and classifies the change.
 
+When `propose --create-pr` starts from `main` or `master`, the operator creates a timestamped branch before writing the safe improvement. Scheduled runs should not commit directly to `main`.
+
 `--email-report` sends the internal Thomas operator report after the run. `--email-dry-run` verifies the report path and email configuration without sending.
 
 PR creation and auto-merge are opt-in:

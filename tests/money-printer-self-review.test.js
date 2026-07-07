@@ -100,6 +100,8 @@ test('operator proposal commits only the reviewed safe improvement', () => {
   const source = readFileSync(new URL('../scripts/money-printer-operator.mjs', import.meta.url), 'utf8');
 
   assert.match(source, /self-review-latest\.md/);
+  assert.match(source, /ensureProposalBranch\(rootDir, options\)/);
+  assert.match(source, /git\(rootDir, \['switch', '-c', nextBranch\]\)/);
   assert.match(source, /out: selfReviewPath/);
   assert.doesNotMatch(source, /outPath: selfReviewPath/);
   assert.match(source, /\['add', 'docs\/money-printer-operator-report\.md'\]/);

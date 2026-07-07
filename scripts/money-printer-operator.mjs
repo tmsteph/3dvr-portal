@@ -133,6 +133,29 @@ function commandOutputSummary(result) {
   return text.slice(0, 500);
 }
 
+function autonomousBranchName(date = new Date()) {
+  const stamp = date.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+  return `codex/money-printer-autonomous-${stamp}`;
+}
+
+function ensureProposalBranch(rootDir, options = {}) {
+  const branch = git(rootDir, ['branch', '--show-current']);
+  if (!['main', 'master'].includes(branch)) {
+    return {
+      originalBranch: branch,
+      branch,
+      created: false
+    };
+  }
+  const nextBranch = options.branchName || autonomousBranchName();
+  git(rootDir, ['switch', '-c', nextBranch]);
+  return {
+    originalBranch: branch,
+    branch: nextBranch,
+    created: true
+  };
+}
+
 async function runVerification(rootDir) {
   const commands = [
     ['node', ['--check', 'scripts/money-printer-self-review.mjs']],
@@ -240,7 +263,9 @@ async function runReport(rootDir, options = {}) {
 }
 
 async function runPropose(rootDir, options = {}) {
+  const branchContext = ensureProposalBranch(rootDir, options);
   const report = await buildReport(rootDir, 'propose');
+  report.branchContext = branchContext;
   report.safeImprovementPath = await writeSafeImprovement(rootDir);
   report.verification = await runVerification(rootDir);
   const operatorDir = await ensureOperatorDir(rootDir);
@@ -315,6 +340,7 @@ Flags:
   --create-pr              Commit, push, and open a PR when the self-review is not RED.
   --auto-merge             Merge the PR only if self-review is GREEN and checks passed.
   --base <branch>          PR base, default main.
+  --branch-name <name>     Branch to create when proposal starts from main/master.
   --title <text>           PR title.
   --commit-message <text>  Commit message for proposal mode.
   --email                  Alias for --email-report.
@@ -345,6 +371,7 @@ async function main() {
       createPr: args.createPr,
       autoMerge: args.autoMerge,
       base: args.base,
+      branchName: args.branchName,
       title: args.title,
       commitMessage: args.commitMessage,
       emailReport: args.emailReport || args.email,
@@ -381,6 +408,8 @@ export {
   runReport,
   runPropose,
   runVerification,
+  autonomousBranchName,
+  ensureProposalBranch,
   sendOperatorReportEmail,
   writeSafeImprovement
 };
