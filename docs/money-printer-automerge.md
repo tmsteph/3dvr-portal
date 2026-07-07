@@ -18,7 +18,7 @@ node scripts/money-printer-self-review.mjs
 
 `report` inspects the repo and writes a local email-ready report under `.money-printer/operator/`.
 
-`propose` creates one documentation-only safe improvement, runs focused checks, generates `SELF_REVIEW.md`, and classifies the change.
+`propose` creates one documentation-only safe improvement, runs focused checks, generates an ignored self-review report under `.money-printer/operator/`, and classifies the change.
 
 PR creation and auto-merge are opt-in:
 
@@ -86,7 +86,9 @@ Examples:
 
 ## Self Review
 
-Every run can generate `SELF_REVIEW.md` with:
+The standalone self-review command can generate `SELF_REVIEW.md`. Operator proposal runs write the same report shape to `.money-printer/operator/self-review-latest.md` and use that file as the PR body, without committing the generated artifact.
+
+Every self-review includes:
 
 - summary
 - files changed

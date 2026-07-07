@@ -177,7 +177,7 @@ async function buildReport(rootDir, command) {
 async function openPullRequest(rootDir, options = {}) {
   const branch = git(rootDir, ['branch', '--show-current']);
   const title = options.title || 'Money Printer autonomous safe improvement';
-  const bodyPath = path.join(rootDir, 'SELF_REVIEW.md');
+  const bodyPath = options.bodyPath || path.join(rootDir, 'SELF_REVIEW.md');
   const body = await readFile(bodyPath, 'utf8').catch(() => 'Money Printer self-review unavailable.');
   gh(rootDir, ['pr', 'create', '--base', options.base || 'main', '--head', branch, '--title', title, '--body', body]);
   const url = gh(rootDir, ['pr', 'view', '--json', 'url', '--jq', '.url']);
@@ -227,11 +227,14 @@ async function runPropose(rootDir, options = {}) {
   const report = await buildReport(rootDir, 'propose');
   report.safeImprovementPath = await writeSafeImprovement(rootDir);
   report.verification = await runVerification(rootDir);
+  const operatorDir = await ensureOperatorDir(rootDir);
+  const selfReviewPath = path.join(operatorDir, 'self-review-latest.md');
   const verificationCommands = report.verification.commands.map(item => `${item.command}: ${item.ok ? 'pass' : 'fail'}`);
   const review = await runSelfReview({
     rootDir,
     testsPassed: report.verification.passed,
     commands: verificationCommands,
+    outPath: selfReviewPath,
     summary: 'Money Printer proposed a documentation-only operator report update.',
     rollbackPlan: 'Revert the PR commit or restore docs/money-printer-operator-report.md from main.',
     nextSuggestedAction: 'If GREEN, open a PR for the documentation-only report update. If not GREEN, ask Thomas to review.'
@@ -246,12 +249,13 @@ async function runPropose(rootDir, options = {}) {
   };
 
   if (parseBool(options.createPr) && review.risk !== 'RED') {
-    git(rootDir, ['add', 'docs/money-printer-operator-report.md', 'SELF_REVIEW.md']);
+    git(rootDir, ['add', 'docs/money-printer-operator-report.md']);
     git(rootDir, ['commit', '-m', options.commitMessage || 'Add Money Printer operator report']);
     git(rootDir, ['push', '-u', 'origin', git(rootDir, ['branch', '--show-current'])]);
     report.pr = await openPullRequest(rootDir, {
       base: options.base || 'main',
-      title: options.title || 'Money Printer autonomous operator report'
+      title: options.title || 'Money Printer autonomous operator report',
+      bodyPath: selfReviewPath
     });
     report.merge = await mergePullRequestIfGreen(rootDir, review, report.pr, {
       autoMerge: options.autoMerge

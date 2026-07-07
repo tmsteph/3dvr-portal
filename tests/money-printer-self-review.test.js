@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   RISK_LEVELS,
@@ -93,4 +94,12 @@ test('detects secret-like paths and renders the required self-review sections', 
   assert.match(markdown, /Safety Checks/);
   assert.match(markdown, /Rollback Plan/);
   assert.match(markdown, /Next Suggested Action/);
+});
+
+test('operator proposal commits only the reviewed safe improvement', () => {
+  const source = readFileSync(new URL('../scripts/money-printer-operator.mjs', import.meta.url), 'utf8');
+
+  assert.match(source, /self-review-latest\.md/);
+  assert.match(source, /\['add', 'docs\/money-printer-operator-report\.md'\]/);
+  assert.doesNotMatch(source, /\['add', 'docs\/money-printer-operator-report\.md', 'SELF_REVIEW\.md'\]/);
 });
