@@ -21,12 +21,17 @@ import {
 } from '../src/money-printer/moneyPrinterCore.js';
 import { readConnectorStatuses } from '../src/money-printer/moneyPrinterConnectors.js';
 import { createMoneyPrinterStorage } from '../src/money-printer/moneyPrinterStorage.js';
+import {
+  createMessageReviewItem,
+  seedTrustReviewQueue
+} from '../src/money-printer/messageReview.js';
 
 const elements = {
   form: document.getElementById('missionForm'),
   missionInput: document.getElementById('missionInput'),
   missionStatus: document.getElementById('missionStatus'),
   metricsGrid: document.getElementById('metricsGrid'),
+  messageReviewQueue: document.getElementById('messageReviewQueue'),
   runtimeStatusGrid: document.getElementById('runtimeStatusGrid'),
   nextBestMoneyAction: document.getElementById('nextBestMoneyAction'),
   businessConfigPreview: document.getElementById('businessConfigPreview'),
@@ -43,12 +48,35 @@ const elements = {
 };
 
 const moneyPrinterStorage = createMoneyPrinterStorage();
+const MESSAGE_REVIEW_STORAGE_KEY = '3dvr.moneyPrinter.messageReviewQueue.v1';
 let connectorStatuses = [];
 let state = moneyPrinterStorage.hydrate();
+let messageReviewQueue = loadMessageReviewQueue();
 
 function saveState() {
   if (!moneyPrinterStorage.write(state)) {
     setStatus('Local browser storage is unavailable, so this session will not persist after refresh.');
+  }
+}
+
+function loadMessageReviewQueue() {
+  try {
+    const raw = window.localStorage.getItem(MESSAGE_REVIEW_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed) && parsed.length) {
+      return parsed.map(item => createMessageReviewItem(item));
+    }
+  } catch (_error) {
+    // Fall back to seeded review examples.
+  }
+  return seedTrustReviewQueue();
+}
+
+function saveMessageReviewQueue() {
+  try {
+    window.localStorage.setItem(MESSAGE_REVIEW_STORAGE_KEY, JSON.stringify(messageReviewQueue));
+  } catch (_error) {
+    setStatus('Message review queue could not be saved locally.');
   }
 }
 
@@ -114,6 +142,14 @@ function titleFromKey(value = '') {
     .trim();
 }
 
+function safeText(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function money(value) {
   const numeric = Number(value || 0);
   return new Intl.NumberFormat('en-US', {
@@ -146,6 +182,87 @@ function renderMetrics() {
 
   replaceChildren(elements.metricsGrid, metricCards);
   elements.nextBestMoneyAction.textContent = metrics.nextBestMoneyAction;
+}
+
+function riskTone(riskLevel = '') {
+  if (riskLevel === 'GREEN') return 'green';
+  if (riskLevel === 'RED') return 'red';
+  return 'yellow';
+}
+
+function actionLabel(action) {
+  return {
+    'approve-send': 'Approve & Send',
+    edit: 'Edit',
+    skip: 'Skip',
+    'ban-lead': 'Ban Lead',
+    'save-later': 'Save for Later'
+  }[action] || action;
+}
+
+function renderMessageReviewQueue() {
+  if (!elements.messageReviewQueue) return;
+  const items = [...messageReviewQueue].sort((left, right) => {
+    const order = { RED: 0, YELLOW: 1, GREEN: 2 };
+    const byRisk = (order[left.riskLevel] ?? 3) - (order[right.riskLevel] ?? 3);
+    if (byRisk) return byRisk;
+    return String(right.updatedAt || '').localeCompare(String(left.updatedAt || ''));
+  });
+
+  if (!items.length) {
+    elements.messageReviewQueue.innerHTML = '<p class="empty-state">No messages are queued for review.</p>';
+    return;
+  }
+
+  elements.messageReviewQueue.innerHTML = items.map(item => `
+    <article class="message-review-card" data-risk="${safeText(riskTone(item.riskLevel))}">
+      <div class="message-review-card__top">
+        <div>
+          <span class="mp-card-label">${safeText(item.status)}</span>
+          <h3>${safeText(item.leadName)}</h3>
+        </div>
+        <strong class="risk-badge" data-risk="${safeText(riskTone(item.riskLevel))}">${safeText(item.riskLevel)}</strong>
+      </div>
+      <dl class="review-explainer">
+        <div>
+          <dt>Why generated</dt>
+          <dd>${safeText(item.whyGenerated)}</dd>
+        </div>
+        <div>
+          <dt>Why relevant</dt>
+          <dd>${safeText(item.whyLeadRelevant)}</dd>
+        </div>
+        <div>
+          <dt>Offer</dt>
+          <dd>${safeText(item.offerConnection || item.offer)}</dd>
+        </div>
+        <div>
+          <dt>Risk score</dt>
+          <dd>${safeText(item.riskExplanation)}</dd>
+        </div>
+      </dl>
+      <div class="message-draft">
+        <label>
+          <span>Subject</span>
+          <input data-review-field="subject" data-review-id="${safeText(item.id)}" value="${safeText(item.subject)}" />
+        </label>
+        <label>
+          <span>Message</span>
+          <textarea data-review-field="body" data-review-id="${safeText(item.id)}" rows="8">${safeText(item.body)}</textarea>
+        </label>
+      </div>
+      <ul class="safeguard-list">
+        ${(item.safeguards || []).map(note => `<li>${safeText(note)}</li>`).join('')}
+      </ul>
+      <div class="review-actions">
+        ${item.actions.map(action => `
+          <button class="mp-button ${action === 'approve-send' ? 'mp-button--primary' : ''}" type="button" data-review-action="${safeText(action)}" data-review-id="${safeText(item.id)}">
+            ${safeText(actionLabel(action))}
+          </button>
+        `).join('')}
+      </div>
+    </article>
+  `).join('');
 }
 
 function renderRuntimeStatus() {
@@ -509,6 +626,7 @@ function renderTools() {
 
 function render() {
   renderMetrics();
+  renderMessageReviewQueue();
   renderRuntimeStatus();
   renderBusinessConfig();
   renderFounderBrief();
@@ -518,6 +636,50 @@ function render() {
   renderBots();
   renderAutonomyZones();
   renderTools();
+}
+
+function updateReviewItem(id, patch) {
+  messageReviewQueue = messageReviewQueue.map(item => (
+    item.id === id
+      ? createMessageReviewItem({ ...item, ...patch, updatedAt: new Date().toISOString() })
+      : item
+  ));
+  saveMessageReviewQueue();
+  renderMessageReviewQueue();
+}
+
+function handleReviewAction(action, id) {
+  const item = messageReviewQueue.find(entry => entry.id === id);
+  if (!item) return;
+  if (action === 'approve-send') {
+    updateReviewItem(id, {
+      status: item.canAutoSend ? 'approved-auto-send-ready' : 'approved-human-send-required',
+      whyGenerated: `${item.whyGenerated} Human approved this draft.`
+    });
+    setStatus(item.canAutoSend
+      ? 'GREEN message approved. It can use the pre-approved send path.'
+      : 'Message approved. Human send remains required for this risk level.');
+    return;
+  }
+  if (action === 'edit') {
+    updateReviewItem(id, { status: 'editing' });
+    setStatus('Draft opened for editing. Risk will be recalculated as you change it.');
+    return;
+  }
+  if (action === 'skip') {
+    updateReviewItem(id, { status: 'skipped' });
+    setStatus('Message skipped. Lead is preserved for later context.');
+    return;
+  }
+  if (action === 'ban-lead') {
+    updateReviewItem(id, { status: 'banned', riskLevel: 'RED' });
+    setStatus('Lead banned from this review queue.');
+    return;
+  }
+  if (action === 'save-later') {
+    updateReviewItem(id, { status: 'saved-later' });
+    setStatus('Message saved for later review.');
+  }
 }
 
 function commit(message) {
@@ -658,10 +820,25 @@ document.addEventListener('click', event => {
       [botId]: createPromptOutput(botId)
     };
     commit('Prompt template shown for the selected bot.');
+    return;
+  }
+
+  const reviewButton = event.target.closest('[data-review-action]');
+  if (reviewButton) {
+    handleReviewAction(reviewButton.dataset.reviewAction, reviewButton.dataset.reviewId);
   }
 });
 
 document.addEventListener('change', event => {
+  const reviewField = event.target.closest('[data-review-field]');
+  if (reviewField) {
+    updateReviewItem(reviewField.dataset.reviewId, {
+      [reviewField.dataset.reviewField]: reviewField.value,
+      status: 'edited-review-required'
+    });
+    return;
+  }
+
   const select = event.target.closest('[data-experiment-status]');
   if (!select) {
     return;
