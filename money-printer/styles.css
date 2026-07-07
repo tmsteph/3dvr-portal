@@ -678,6 +678,145 @@ body.money-printer-page {
   padding: 0.08rem 0.25rem;
 }
 
+.trust-loop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 1rem 0;
+}
+
+.trust-loop span,
+.risk-badge {
+  border: 1px solid rgba(160, 174, 192, 0.22);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #d7fbe8;
+  padding: 0.35rem 0.62rem;
+  font-weight: 800;
+  font-size: 0.76rem;
+}
+
+.review-policy {
+  border: 1px solid rgba(45, 212, 191, 0.24);
+  border-radius: 8px;
+  background: rgba(45, 212, 191, 0.08);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.review-policy p {
+  margin-bottom: 0;
+  color: var(--mp-muted);
+}
+
+.message-review-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.message-review-card {
+  border: 1px solid rgba(160, 174, 192, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 8, 13, 0.72);
+  padding: 1rem;
+}
+
+.message-review-card[data-risk="green"] {
+  border-color: rgba(134, 239, 172, 0.42);
+}
+
+.message-review-card[data-risk="yellow"] {
+  border-color: rgba(251, 191, 36, 0.44);
+}
+
+.message-review-card[data-risk="red"] {
+  border-color: rgba(251, 113, 133, 0.48);
+}
+
+.message-review-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.message-review-card h3 {
+  margin: 0.15rem 0 0;
+}
+
+.risk-badge[data-risk="green"] {
+  background: rgba(134, 239, 172, 0.12);
+  color: #bbf7d0;
+}
+
+.risk-badge[data-risk="yellow"] {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+}
+
+.risk-badge[data-risk="red"] {
+  background: rgba(251, 113, 133, 0.12);
+  color: #fecdd3;
+}
+
+.review-explainer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.review-explainer div {
+  border: 1px solid rgba(160, 174, 192, 0.14);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.review-explainer dt,
+.message-draft span {
+  color: #d5fffa;
+  font-weight: 800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.review-explainer dd {
+  margin: 0.25rem 0 0;
+  color: var(--mp-muted);
+}
+
+.message-draft {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.message-draft label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.message-draft input,
+.message-draft textarea {
+  width: 100%;
+  border: 1px solid rgba(160, 174, 192, 0.22);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.86);
+  color: var(--mp-text);
+  padding: 0.7rem;
+  font: inherit;
+}
+
+.safeguard-list {
+  color: var(--mp-muted);
+  margin: 0.9rem 0;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 @media (min-width: 760px) {
   .mp-hero {
     grid-template-columns: minmax(0, 0.94fr) minmax(340px, 0.72fr);
@@ -756,5 +895,11 @@ body.money-printer-page {
   .idea-score-grid,
   .traction-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .review-explainer {
+    grid-template-columns: 1fr;
   }
 }

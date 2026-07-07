@@ -32,6 +32,9 @@ describe('money-printer MVP', () => {
     assert.match(html, /id="missionInput"/);
     assert.match(html, /Generate Money Machine/);
     assert.match(html, /Money Printer Dashboard/);
+    assert.match(html, /Message review queue/);
+    assert.match(html, /The human remains the trust layer\./);
+    assert.match(html, /Approve &amp; Send|Approve & Send/);
     assert.match(html, /AI \/ Runtime Status/);
     assert.match(html, /npm run money-printer -- ai-status/);
     assert.match(html, /Opportunity Engine/);
@@ -101,6 +104,7 @@ describe('money-printer MVP', () => {
 
   it('exposes a browser-free core API for future CLI and daemon reuse', async () => {
     const core = await import(new URL('moneyPrinterCore.js', srcDir));
+    const review = await import(new URL('messageReview.js', srcDir));
     const required = [
       'createDefaultBusinessConfig',
       'updateBusinessConfigFromMission',
@@ -120,6 +124,8 @@ describe('money-printer MVP', () => {
     assert.equal(state.ideas.length, 5);
     assert.match(state.businessConfig.mission, /local service businesses/);
     assert.match(core.runBotLoop('executive-agent', state).title, /Executive Agent/);
+    assert.equal(typeof review.assessMessageRisk, 'function');
+    assert.equal(typeof review.createMessageReviewItem, 'function');
   });
 
   it('documents mock connector environment variables without secrets', async () => {
