@@ -273,6 +273,16 @@
       "destination": "/purpose/index.html"
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "growth.3dvr.tech"
+        }
+      ],
+      "destination": "/growth-desk/index.html"
+    },
+    {
       "source": "/webhooks/stripe",
       "destination": "/api/webhooks/stripe"
     },
