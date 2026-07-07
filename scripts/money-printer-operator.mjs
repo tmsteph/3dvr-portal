@@ -9,6 +9,7 @@ import {
   buildSelfReviewMarkdown,
   runSelfReview
 } from './money-printer-self-review.mjs';
+import { sendOperatorReportEmail } from '../src/money-printer/operatorEmailReport.js';
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = { _: [] };
@@ -91,7 +92,7 @@ async function writeThomasReport(rootDir, report) {
   const filePath = path.join(dir, 'thomas-email-latest.md');
   const body = `# Money Printer Operator Report
 
-This is an email-ready report. Real email sending is disabled in v1.
+This is an internal operator report. Real outreach sending is not connected to this report path.
 
 ## Summary
 
@@ -111,6 +112,19 @@ ${report.next || 'Review the operator output.'}
 `;
   await writeFile(filePath, body, 'utf8');
   return filePath;
+}
+
+async function maybeSendOperatorReport(rootDir, report, options = {}) {
+  if (!parseBool(options.emailReport)) {
+    return null;
+  }
+  const email = await sendOperatorReportEmail({
+    rootDir,
+    reportPath: report.thomasReportPath,
+    dryRun: parseBool(options.emailDryRun)
+  });
+  report.emailReport = email;
+  return email;
 }
 
 function commandOutputSummary(result) {
@@ -204,7 +218,7 @@ async function mergePullRequestIfGreen(rootDir, review, pr, options = {}) {
   };
 }
 
-async function runReport(rootDir) {
+async function runReport(rootDir, options = {}) {
   const report = await buildReport(rootDir, 'report');
   const review = await runSelfReview({
     rootDir,
@@ -220,6 +234,8 @@ async function runReport(rootDir) {
   const dir = await ensureOperatorDir(rootDir);
   report.reportPath = await writeJson(path.join(dir, 'latest-report.json'), report);
   report.thomasReportPath = await writeThomasReport(rootDir, report);
+  await maybeSendOperatorReport(rootDir, report, options);
+  report.reportPath = await writeJson(path.join(dir, 'latest-report.json'), report);
   return report;
 }
 
@@ -271,6 +287,11 @@ async function runPropose(rootDir, options = {}) {
   const dir = await ensureOperatorDir(rootDir);
   report.reportPath = await writeJson(path.join(dir, 'latest-proposal.json'), report);
   report.thomasReportPath = await writeThomasReport(rootDir, report);
+  await maybeSendOperatorReport(rootDir, report, {
+    emailReport: options.emailReport,
+    emailDryRun: options.emailDryRun
+  });
+  report.reportPath = await writeJson(path.join(dir, 'latest-proposal.json'), report);
   return report;
 }
 
@@ -279,8 +300,11 @@ function printHelp() {
 
 Usage:
   node scripts/money-printer-operator.mjs report
+  node scripts/money-printer-operator.mjs report --email-report --email-dry-run
+  node scripts/money-printer-operator.mjs report --email
   node scripts/money-printer-operator.mjs propose
   node scripts/money-printer-operator.mjs propose --create-pr --auto-merge
+  node scripts/money-printer-operator.mjs propose --create-pr --auto-merge --email-report
 
 Commands:
   report      Inspect repo state and write an email-ready local report.
@@ -293,9 +317,12 @@ Flags:
   --base <branch>          PR base, default main.
   --title <text>           PR title.
   --commit-message <text>  Commit message for proposal mode.
+  --email                  Alias for --email-report.
+  --email-report           Send the internal Thomas report after the run.
+  --email-dry-run          Verify email config and log without sending.
   --json                   Print JSON.
 
-Real email sending, outreach, billing, deployment changes, schedulers, and secrets are not implemented in v1.
+Report email is internal-only. Outreach, billing, deployment changes, schedulers, and secrets are not connected to this command.
 `);
 }
 
@@ -309,14 +336,19 @@ async function main() {
   const command = args._[0] || 'report';
   let result;
   if (command === 'report') {
-    result = await runReport(rootDir);
+    result = await runReport(rootDir, {
+      emailReport: args.emailReport || args.email,
+      emailDryRun: args.emailDryRun || args.dryRun
+    });
   } else if (command === 'propose') {
     result = await runPropose(rootDir, {
       createPr: args.createPr,
       autoMerge: args.autoMerge,
       base: args.base,
       title: args.title,
-      commitMessage: args.commitMessage
+      commitMessage: args.commitMessage,
+      emailReport: args.emailReport || args.email,
+      emailDryRun: args.emailDryRun || args.dryRun
     });
   } else {
     throw new Error(`Unknown command: ${command}`);
@@ -331,6 +363,9 @@ async function main() {
   console.log(`Auto-merge: ${result.selfReview?.autoMergeAllowed ? 'allowed' : 'blocked'}`);
   console.log(`Report: ${path.relative(rootDir, result.reportPath || '')}`);
   console.log(`Thomas report: ${path.relative(rootDir, result.thomasReportPath || '')}`);
+  if (result.emailReport) {
+    console.log(`Email report: ${result.emailReport.sent ? 'sent' : result.emailReport.skipped ? `skipped (${result.emailReport.reason})` : result.emailReport.failed ? `failed (${result.emailReport.reason})` : result.emailReport.reason}`);
+  }
   if (result.pr?.url) console.log(`PR: ${result.pr.url}`);
   if (result.merge) console.log(`Merge: ${result.merge.merged ? 'merged' : `not merged (${result.merge.reason})`}`);
 }
@@ -346,5 +381,6 @@ export {
   runReport,
   runPropose,
   runVerification,
+  sendOperatorReportEmail,
   writeSafeImprovement
 };

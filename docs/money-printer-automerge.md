@@ -12,6 +12,8 @@ This first version is intentionally local/manual. It does not install a cron, sy
 
 ```bash
 node scripts/money-printer-operator.mjs report
+node scripts/money-printer-operator.mjs report --email-report --email-dry-run
+node scripts/money-printer-operator.mjs report --email
 node scripts/money-printer-operator.mjs propose
 node scripts/money-printer-self-review.mjs
 ```
@@ -19,6 +21,8 @@ node scripts/money-printer-self-review.mjs
 `report` inspects the repo and writes a local email-ready report under `.money-printer/operator/`.
 
 `propose` creates one documentation-only safe improvement, runs focused checks, generates an ignored self-review report under `.money-printer/operator/`, and classifies the change.
+
+`--email-report` sends the internal Thomas operator report after the run. `--email-dry-run` verifies the report path and email configuration without sending.
 
 PR creation and auto-merge are opt-in:
 
@@ -103,11 +107,52 @@ The PR body should include the self-review summary when the operator opens a PR.
 
 ## Notification
 
-Real email sending is not implemented in v1. The operator writes an email-ready report for Thomas at:
+The operator writes an email-ready report for Thomas at:
 
 `.money-printer/operator/thomas-email-latest.md`
 
-That keeps the reporting path testable without adding Gmail, SMTP, SMS, or outreach risk.
+Internal report email can use Gmail or SMTP when configured. This path is not outreach and does not load lead/contact sending.
+
+Suggested configuration:
+
+```bash
+OPERATOR_EMAIL_TO=thomas@example.com
+OPERATOR_EMAIL_FROM="3DVR Money Printer <3dvr.tech@gmail.com>"
+GMAIL_USER=3dvr.tech@gmail.com
+GMAIL_APP_PASSWORD=...
+```
+
+SMTP is also supported:
+
+```bash
+OPERATOR_EMAIL_TO=thomas@example.com
+OPERATOR_EMAIL_FROM="3DVR Money Printer <operator@example.com>"
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=operator@example.com
+SMTP_PASS=...
+```
+
+Dry run:
+
+```bash
+node scripts/money-printer-operator.mjs report --email-report --email-dry-run
+```
+
+Real internal report email:
+
+```bash
+node scripts/money-printer-operator.mjs report --email
+```
+
+Intentionally not allowed through this path:
+
+- cold outreach
+- lead/contact sending
+- SMS
+- Stripe or billing actions
+- deployment changes
+- scheduler changes
 
 ## Current Status
 
