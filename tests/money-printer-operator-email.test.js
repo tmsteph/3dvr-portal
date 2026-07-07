@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
+  buildOperatorReportEmailHtml,
   resolveOperatorEmailConfig,
   sendOperatorReportEmail
 } from '../src/money-printer/operatorEmailReport.js';
@@ -108,6 +109,8 @@ test('operator report email sends report body through provided transport', async
     assert.equal(sent[0].to, 'thomas@example.com');
     assert.match(sent[0].from, /3DVR Money Printer/);
     assert.match(sent[0].text, /Money Printer Operator Report/);
+    assert.match(sent[0].html, /Open Money Printer/);
+    assert.match(sent[0].html, /Reply with decision/);
   });
 });
 
@@ -138,4 +141,56 @@ test('operator email config and logs never expose secret values', async () => {
     const log = await readFile(result.logPath, 'utf8');
     assert.equal(log.includes('do-not-print-this-secret'), false);
   });
+});
+
+test('operator report email html highlights actions when review is needed', () => {
+  const html = buildOperatorReportEmailHtml({
+    to: 'thomas@example.com',
+    text: '# plain report',
+    report: {
+      command: 'propose',
+      branch: 'codex/example',
+      selfReview: {
+        risk: 'YELLOW',
+        autoMergeAllowed: false
+      },
+      pr: {
+        url: 'https://github.com/tmsteph/3dvr-portal/pull/999'
+      },
+      merge: {
+        merged: false
+      },
+      verification: {
+        commands: [{ command: 'node --test tests/example.test.js', ok: true }]
+      }
+    }
+  });
+
+  assert.match(html, /Action needed/);
+  assert.match(html, /Review PR/);
+  assert.match(html, /https:\/\/github\.com\/tmsteph\/3dvr-portal\/pull\/999/);
+  assert.match(html, /mailto:thomas%40example\.com/);
+});
+
+test('operator report email html says no action is needed for merged green runs', () => {
+  const html = buildOperatorReportEmailHtml({
+    to: 'thomas@example.com',
+    text: '# plain report',
+    report: {
+      command: 'propose',
+      selfReview: {
+        risk: 'GREEN',
+        autoMergeAllowed: true
+      },
+      pr: {
+        url: 'https://github.com/tmsteph/3dvr-portal/pull/1000'
+      },
+      merge: {
+        merged: true
+      }
+    }
+  });
+
+  assert.match(html, /No action needed/);
+  assert.match(html, /Open PR/);
 });
