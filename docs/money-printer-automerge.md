@@ -113,9 +113,18 @@ The operator writes an email-ready report for Thomas at:
 
 `.money-printer/operator/thomas-email-latest.md`
 
-Internal report email can use Gmail or SMTP when configured. This path is not outreach and does not load lead/contact sending.
+Internal report email can use the portal's Vercel API route, Gmail, or SMTP when configured. This path is not outreach and does not load lead/contact sending.
 
-Suggested configuration:
+Recommended DigitalOcean setup:
+
+```bash
+OPERATOR_REPORT_EMAIL_ENDPOINT=https://portal.3dvr.tech/api/calendar/reminder-email
+OPERATOR_REPORT_EMAIL_TOKEN=...
+```
+
+The Vercel route sends through the portal deployment's existing `nodemailer` Gmail configuration, so the DigitalOcean server only makes an HTTPS request and avoids cloud SMTP blocks.
+
+Direct Gmail configuration:
 
 ```bash
 OPERATOR_EMAIL_TO=thomas@example.com
