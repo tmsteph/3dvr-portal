@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Start an Offer | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="Start free, make a simple offer, and only pay 3DVR when money comes through your page."
+  >
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <a class="brand" href="../index.html">3DVR Portal</a>
+      <nav aria-label="Offer links">
+        <a href="../life/">Daily Direction</a>
+        <a href="../launch-room/">Launch Room</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      <section class="hero" aria-labelledby="offer-title">
+        <p class="kicker">Free to start</p>
+        <h1 id="offer-title">Start free. Launch free. Pay only when you earn.</h1>
+        <p class="lead">Make one small offer. Share it. If people pay through 3DVR later, 3DVR takes a small fee.</p>
+      </section>
+
+      <section class="builder" aria-labelledby="builder-title">
+        <div class="panel form-panel">
+          <div class="panel-head">
+            <p class="step">Step 1</p>
+            <h2 id="builder-title">Make your offer</h2>
+          </div>
+
+          <form id="offer-form" class="offer-form">
+            <label for="skill">What can you help with?</label>
+            <input id="skill" name="skill" type="text" autocomplete="off" placeholder="Guitar lessons" required>
+
+            <label for="person">Who is it for?</label>
+            <input id="person" name="person" type="text" autocomplete="off" placeholder="New players">
+
+            <label for="result">What do they get?</label>
+            <textarea id="result" name="result" rows="3" placeholder="A first song, simple practice plan, and help staying on track"></textarea>
+
+            <label for="price">Starter price</label>
+            <input id="price" name="price" type="text" autocomplete="off" placeholder="$40/session">
+
+            <div class="actions">
+              <button class="button primary" type="submit">Make Launch Card</button>
+              <button class="button ghost" type="button" id="reset-offer">Clear</button>
+            </div>
+          </form>
+        </div>
+
+        <aside class="panel promise-panel" aria-labelledby="promise-title">
+          <p class="step">How it works</p>
+          <h2 id="promise-title">No money needed today.</h2>
+          <ol class="plain-list">
+            <li>Make a simple offer.</li>
+            <li>Share it with a few people.</li>
+            <li>Turn on payments when ready.</li>
+            <li>3DVR earns a small fee only when you get paid.</li>
+          </ol>
+          <p class="note">Payment setup is not live in this app yet. This is the offer draft.</p>
+        </aside>
+      </section>
+
+      <section class="launch-card" aria-labelledby="card-title">
+        <div class="card-preview" id="launch-card-preview">
+          <p class="mini">Launch Card</p>
+          <h2 id="card-title">Your simple offer</h2>
+          <p id="card-line">Tell us what you can help with. We will turn it into a clear first offer.</p>
+          <div class="card-row">
+            <span>For</span>
+            <strong id="card-person">Someone who needs this</strong>
+          </div>
+          <div class="card-row">
+            <span>Gets</span>
+            <strong id="card-result">A small win</strong>
+          </div>
+          <div class="card-row">
+            <span>Starts at</span>
+            <strong id="card-price">Pick a fair starter price</strong>
+          </div>
+        </div>
+
+        <div class="panel next-panel">
+          <p class="step">Step 2</p>
+          <h2>Share it</h2>
+          <p class="small">Start with one person. Keep it normal.</p>
+          <textarea id="share-message" rows="5" readonly>I am testing a simple offer with 3DVR. Want to take a quick look?</textarea>
+          <div class="actions">
+            <button class="button primary" type="button" id="copy-message">Copy Message</button>
+            <button class="button ghost" type="button" id="save-offer">Save Draft</button>
+          </div>
+          <p id="status" class="status" role="status" aria-live="polite">Ready.</p>
+        </div>
+      </section>
+
+      <section class="terms-strip" aria-label="Simple terms">
+        <div>
+          <strong>Free Builder</strong>
+          <span>$0 today</span>
+        </div>
+        <div>
+          <strong>Success fee</strong>
+          <span>Only on payments through 3DVR</span>
+        </div>
+        <div>
+          <strong>You keep most</strong>
+          <span>Fees come after refunds and payment costs</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
