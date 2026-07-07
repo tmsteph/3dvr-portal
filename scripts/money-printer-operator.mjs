@@ -121,6 +121,7 @@ async function maybeSendOperatorReport(rootDir, report, options = {}) {
   const email = await sendOperatorReportEmail({
     rootDir,
     reportPath: report.thomasReportPath,
+    report,
     dryRun: parseBool(options.emailDryRun)
   });
   report.emailReport = email;
