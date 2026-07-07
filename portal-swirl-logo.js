@@ -1,7 +1,7 @@
 (() => {
   const THREE_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
   const TAU = Math.PI * 2;
-  const BASE_FACE_SPIN = -TAU / 5200;
+  const BASE_FACE_SPIN = TAU / 5200;
   const DRAG_WIND_FACTOR = 0.00065;
   const MAX_EXTRA_SPIN = 0.105;
   const SPIN_DECAY = 0.99;
@@ -258,6 +258,8 @@
       ready: false,
       mode: 'initializing',
       dragging: false,
+      paused: false,
+      pointerMoved: false,
       lastX: 0,
       lastY: 0,
       dragDX: 0,
@@ -351,6 +353,19 @@
       } catch {
         // Pointer capture is optional; release behavior should never block settling.
       }
+    };
+
+    const setPaused = (paused) => {
+      state.paused = Boolean(paused);
+      if (state.paused) {
+        state.extraFaceSpin = 0;
+      }
+      root.dataset.logoPaused = String(state.paused);
+      root.setAttribute('aria-pressed', String(state.paused));
+    };
+
+    const togglePaused = () => {
+      setPaused(!state.paused);
     };
 
     const getGesture = () => {
@@ -487,6 +502,7 @@
     const startDrag = (event) => {
       const point = getPointer(event);
       state.dragging = true;
+      state.pointerMoved = false;
       state.lastX = point.x;
       state.lastY = point.y;
       state.dragDX = 0;
@@ -504,6 +520,9 @@
       const dx = point.x - state.lastX;
       const dy = point.y - state.lastY;
       const distance = Math.hypot(dx, dy);
+      if (distance > 3) {
+        state.pointerMoved = true;
+      }
       state.lastX = point.x;
       state.lastY = point.y;
       state.dragDX = dx;
@@ -532,6 +551,12 @@
       state.dragging = false;
       releasePointer(event);
 
+      const wasTap = !state.pointerMoved && Math.hypot(state.gestureDX, state.gestureDY) < 6;
+      if (wasTap) {
+        togglePaused();
+        return;
+      }
+
       const gesture = getGesture();
       updateSwipeStreak(gesture);
       addDirectionalFlipImpulse(gesture);
@@ -554,15 +579,21 @@
       window.addEventListener('pointercancel', endDrag);
 
       root.addEventListener('keydown', (event) => {
-        if (event.key === 'ArrowRight' || event.key === ' ') {
-          state.extraFaceSpin = clamp(state.extraFaceSpin - 0.012, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+        if (event.key === ' ') {
+          togglePaused();
+          event.preventDefault();
+        } else if (event.key === 'ArrowRight') {
+          setPaused(false);
+          state.extraFaceSpin = clamp(state.extraFaceSpin + 0.012, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
           registerFlipGesture('y', 1, FLIP_DISTANCE_FULL_CHARGE);
           event.preventDefault();
         } else if (event.key === 'ArrowLeft') {
-          state.extraFaceSpin = clamp(state.extraFaceSpin - 0.008, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
+          setPaused(false);
+          state.extraFaceSpin = clamp(state.extraFaceSpin + 0.008, -MAX_EXTRA_SPIN, MAX_EXTRA_SPIN);
           registerFlipGesture('y', -1, FLIP_DISTANCE_FULL_CHARGE);
           event.preventDefault();
         } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          setPaused(false);
           registerFlipGesture('x', event.key === 'ArrowUp' ? -1 : 1, FLIP_DISTANCE_FULL_CHARGE);
           event.preventDefault();
         }
@@ -710,8 +741,9 @@
         state.flipY = lerp(state.flipY, nearestGoodFaceAngle(state.flipY), FLIP_HOME_EASE);
       }
 
-      const baseSpin = reducedMotion ? BASE_FACE_SPIN * 0.28 : BASE_FACE_SPIN;
-      state.faceSpin += (baseSpin + state.extraFaceSpin) * spinElapsed;
+      const baseSpin = state.paused ? 0 : reducedMotion ? BASE_FACE_SPIN * 0.28 : BASE_FACE_SPIN;
+      const extraSpin = state.paused ? 0 : state.extraFaceSpin;
+      state.faceSpin += (baseSpin + extraSpin) * spinElapsed;
       render();
     };
 
@@ -725,6 +757,7 @@
         getState: () => ({
           mode: state.mode,
           dragging: state.dragging,
+          paused: state.paused,
           faceSpin: state.faceSpin,
           extraFaceSpin: state.extraFaceSpin,
           targetX: state.targetX,

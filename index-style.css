@@ -611,6 +611,14 @@ body.landing {
   cursor: grabbing;
 }
 
+.portal-swirl-logo[data-logo-paused="true"] {
+  cursor: pointer;
+}
+
+.portal-swirl-logo[data-logo-paused="true"]::after {
+  opacity: 0.32;
+}
+
 .portal-swirl-logo:focus-visible {
   outline: 3px solid rgba(56, 189, 248, 0.45);
   outline-offset: 5px;
