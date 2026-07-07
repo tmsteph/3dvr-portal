@@ -87,7 +87,9 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /getTouchWobbleScale/);
     assert.match(swirlScript, /getTouchFlipScale/);
     assert.match(swirlScript, /updateTouchRamp/);
-    assert.match(swirlScript, /state\.extraFaceSpin - distance \* DRAG_WIND_FACTOR \* getSpinBoost\(\) \* touchSpinScale/);
+    assert.match(swirlScript, /state\.extraFaceSpin \+ distance \* DRAG_WIND_FACTOR \* getSpinBoost\(\) \* touchSpinScale/);
+    assert.match(swirlScript, /state\.extraFaceSpin \+ FLIP_SPIN_BOOST \* impulseScale/);
+    assert.match(swirlScript, /state\.extraFaceSpin \+\s*Math\.hypot\(state\.dragDX, state\.dragDY\) \* 0\.0018 \* getSpinBoost\(\) \* getTouchSpinScale\(\)/);
     assert.match(swirlScript, /const baseSpin = state\.paused \? 0 : reducedMotion \? BASE_FACE_SPIN \* 0\.28 : BASE_FACE_SPIN/);
     assert.match(swirlScript, /const extraSpin = state\.paused \? 0 : state\.extraFaceSpin/);
     assert.match(swirlScript, /if \(wasTap\) \{\s*togglePaused\(\);/);
