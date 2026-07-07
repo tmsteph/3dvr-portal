@@ -114,6 +114,81 @@ test('operator report email sends report body through provided transport', async
   });
 });
 
+test('operator report email can send through the portal endpoint instead of SMTP', async () => {
+  await withTempRoot(async root => {
+    const reportPath = await writeReport(root);
+    const requests = [];
+    const result = await sendOperatorReportEmail({
+      rootDir: root,
+      reportPath,
+      report: {
+        command: 'propose',
+        selfReview: { risk: 'GREEN', autoMergeAllowed: true }
+      },
+      env: {
+        HOME: root,
+        OPERATOR_EMAIL_TO: 'thomas@example.com',
+        OPERATOR_REPORT_EMAIL_ENDPOINT: 'https://portal.3dvr.tech/api/calendar/reminder-email',
+        OPERATOR_REPORT_EMAIL_TOKEN: 'operator-token'
+      },
+      async fetchImpl(url, options) {
+        requests.push({ url, options });
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({ ok: true, sent: true });
+          }
+        };
+      }
+    });
+
+    assert.equal(result.sent, true);
+    assert.equal(result.reason, 'sent via portal endpoint');
+    assert.equal(result.config.transport, 'portal-endpoint');
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, 'https://portal.3dvr.tech/api/calendar/reminder-email');
+    assert.equal(requests[0].options.headers['X-Operator-Token'], 'operator-token');
+    const payload = JSON.parse(requests[0].options.body);
+    assert.equal(payload.mode, 'operator-alert');
+    assert.deepEqual(payload.to, ['thomas@example.com']);
+    assert.match(payload.text, /Money Printer Operator Report/);
+    assert.match(payload.summary, /GREEN/);
+    assert.equal(payload.metadata.command, 'propose');
+  });
+});
+
+test('operator report email logs portal endpoint failures without exposing token', async () => {
+  await withTempRoot(async root => {
+    const reportPath = await writeReport(root);
+    const result = await sendOperatorReportEmail({
+      rootDir: root,
+      reportPath,
+      env: {
+        HOME: root,
+        OPERATOR_REPORT_EMAIL_ENDPOINT: 'https://portal.3dvr.tech/api/calendar/reminder-email',
+        OPERATOR_REPORT_EMAIL_TOKEN: 'do-not-log-token'
+      },
+      async fetchImpl() {
+        return {
+          ok: false,
+          status: 401,
+          async text() {
+            return JSON.stringify({ error: 'Unauthorized.' });
+          }
+        };
+      }
+    });
+
+    assert.equal(result.sent, false);
+    assert.equal(result.failed, true);
+    assert.match(result.reason, /Unauthorized/);
+    const log = await readFile(result.logPath, 'utf8');
+    assert.equal(log.includes('do-not-log-token'), false);
+    assert.match(log, /portal-endpoint/);
+  });
+});
+
 test('operator email config and logs never expose secret values', async () => {
   const config = resolveOperatorEmailConfig({
     OPERATOR_EMAIL_TO: 'thomas@example.com',
