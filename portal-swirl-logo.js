@@ -487,7 +487,7 @@
       }
       state.wobbleVelocityZ += wobbleSign * FLIP_WOBBLE_IMPULSE * 0.5 * impulseScale;
       state.extraFaceSpin = clamp(
-        state.extraFaceSpin - FLIP_SPIN_BOOST * impulseScale,
+        state.extraFaceSpin + FLIP_SPIN_BOOST * impulseScale,
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
@@ -531,7 +531,7 @@
       state.gestureDY += dy;
       const touchSpinScale = getTouchSpinScale();
       state.extraFaceSpin = clamp(
-        state.extraFaceSpin - distance * DRAG_WIND_FACTOR * getSpinBoost() * touchSpinScale,
+        state.extraFaceSpin + distance * DRAG_WIND_FACTOR * getSpinBoost() * touchSpinScale,
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
@@ -561,7 +561,7 @@
       updateSwipeStreak(gesture);
       addDirectionalFlipImpulse(gesture);
       state.extraFaceSpin = clamp(
-        state.extraFaceSpin -
+        state.extraFaceSpin +
           Math.hypot(state.dragDX, state.dragDY) * 0.0018 * getSpinBoost() * getTouchSpinScale(),
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
