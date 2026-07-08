@@ -6,6 +6,7 @@ import {
   buildSelfReviewMarkdown,
   classifyChange,
   classifyPath,
+  describeChangeIntent,
   isSecretLikePath
 } from '../scripts/money-printer-self-review.mjs';
 
@@ -89,11 +90,31 @@ test('detects secret-like paths and renders the required self-review sections', 
   const markdown = buildSelfReviewMarkdown(review);
 
   assert.match(markdown, /Money Printer Self Review/);
+  assert.match(markdown, /## Intent/);
+  assert.match(markdown, /## What Changed/);
+  assert.match(markdown, /## Why It Matters/);
   assert.match(markdown, /Risk Classification/);
   assert.match(markdown, /Auto-Merge Decision/);
   assert.match(markdown, /Safety Checks/);
   assert.match(markdown, /Rollback Plan/);
   assert.match(markdown, /Next Suggested Action/);
+});
+
+test('renders descriptive intent for Money Printer operator changes', () => {
+  const review = classifyChange({
+    testsPassed: true,
+    files: [
+      { path: 'scripts/money-printer-operator.mjs', status: 'M', additions: 10, deletions: 2 },
+      { path: 'tests/money-printer-self-review.test.js', status: 'M', additions: 3, deletions: 0 }
+    ],
+    commands: ['node --test tests/money-printer-self-review.test.js']
+  });
+  const markdown = buildSelfReviewMarkdown(review);
+
+  assert.match(describeChangeIntent(review.files), /explains its own work/i);
+  assert.match(markdown, /Improve how Money Printer explains its own work before Thomas reviews or receives a report\./);
+  assert.match(markdown, /Updated 2 files in Money Printer operator scripts and test coverage\./);
+  assert.match(markdown, /operator report becomes easier to skim/i);
 });
 
 test('operator proposal commits only the reviewed safe improvement', () => {
@@ -103,6 +124,9 @@ test('operator proposal commits only the reviewed safe improvement', () => {
   assert.match(source, /ensureProposalBranch\(rootDir, options\)/);
   assert.match(source, /git\(rootDir, \['switch', '-c', nextBranch\]\)/);
   assert.match(source, /out: selfReviewPath/);
+  assert.match(source, /intent: report\.impact\.intent/);
+  assert.match(source, /whatChanged: report\.impact\.whatChanged/);
+  assert.match(source, /whyItMatters: report\.impact\.whyItMatters/);
   assert.doesNotMatch(source, /outPath: selfReviewPath/);
   assert.match(source, /\['add', 'docs\/money-printer-operator-report\.md'\]/);
   assert.doesNotMatch(source, /\['add', 'docs\/money-printer-operator-report\.md', 'SELF_REVIEW\.md'\]/);

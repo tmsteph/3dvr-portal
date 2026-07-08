@@ -202,6 +202,9 @@ export function classifyChange(input = {}) {
 
   return {
     summary: input.summary || 'Money Printer autonomous self-review.',
+    intent: input.intent || describeChangeIntent(files),
+    whatChanged: input.whatChanged || describeWhatChanged(files),
+    whyItMatters: input.whyItMatters || describeWhyItMatters(files),
     files: fileReviews,
     fileCount: fileReviews.length,
     additions,
@@ -220,6 +223,67 @@ export function classifyChange(input = {}) {
   };
 }
 
+function humanList(items = []) {
+  const cleanItems = unique(items.map(item => String(item || '').trim()).filter(Boolean));
+  if (!cleanItems.length) return '';
+  if (cleanItems.length === 1) return cleanItems[0];
+  if (cleanItems.length === 2) return `${cleanItems[0]} and ${cleanItems[1]}`;
+  return `${cleanItems.slice(0, -1).join(', ')}, and ${cleanItems.at(-1)}`;
+}
+
+function fileArea(filePath = '') {
+  const normalized = cleanPath(filePath);
+  if (normalized.startsWith('docs/')) return 'documentation';
+  if (normalized.startsWith('tests/')) return 'test coverage';
+  if (normalized.startsWith('scripts/money-printer')) return 'Money Printer operator scripts';
+  if (normalized.startsWith('src/money-printer')) return 'Money Printer runtime code';
+  if (normalized.startsWith('money-printer/')) return 'Money Printer browser UI';
+  if (normalized === 'index.html') return 'portal homepage';
+  return normalized.split('/')[0] || 'repo files';
+}
+
+export function describeChangeIntent(files = []) {
+  const areas = humanList(files.map(file => fileArea(file.path || file)));
+  if (!files.length) {
+    return 'Inspect the repository and report the current Money Printer state without changing product code.';
+  }
+  if (files.every(file => cleanPath(file.path || file).startsWith('docs/'))) {
+    return 'Keep Money Printer documentation current so the operator has a clearer operating record.';
+  }
+  if (files.some(file => cleanPath(file.path || file).startsWith('scripts/money-printer'))) {
+    return 'Improve how Money Printer explains its own work before Thomas reviews or receives a report.';
+  }
+  if (files.some(file => cleanPath(file.path || file).startsWith('src/money-printer'))) {
+    return 'Improve Money Printer behavior while keeping trust-sensitive actions gated.';
+  }
+  return `Improve ${areas || 'the repo'} with a small, reviewed change.`;
+}
+
+export function describeWhatChanged(files = []) {
+  if (!files.length) {
+    return 'No files changed. This run only produced an operator status report.';
+  }
+  const areas = humanList(files.map(file => fileArea(file.path || file)));
+  const fileCount = files.length;
+  return `Updated ${fileCount} file${fileCount === 1 ? '' : 's'} in ${areas}.`;
+}
+
+export function describeWhyItMatters(files = []) {
+  if (!files.length) {
+    return 'Thomas gets a current status snapshot without risking production behavior.';
+  }
+  if (files.some(file => cleanPath(file.path || file).startsWith('scripts/money-printer'))) {
+    return 'The operator report becomes easier to skim, with clearer intent before anyone decides whether to trust or merge the work.';
+  }
+  if (files.some(file => cleanPath(file.path || file).startsWith('tests/'))) {
+    return 'The change is backed by regression coverage, reducing the chance that Money Printer drifts silently.';
+  }
+  if (files.every(file => cleanPath(file.path || file).startsWith('docs/'))) {
+    return 'Better records make the scheduled operator loop easier to audit later.';
+  }
+  return 'This gives Thomas a clearer reason to approve, skip, or ask for a rewrite.';
+}
+
 function formatCheck(value) {
   return value ? 'pass' : 'blocked';
 }
@@ -231,6 +295,18 @@ export function buildSelfReviewMarkdown(review = {}) {
 ## Summary
 
 ${review.summary || 'Money Printer autonomous self-review.'}
+
+## Intent
+
+${review.intent || describeChangeIntent(review.files || [])}
+
+## What Changed
+
+${review.whatChanged || describeWhatChanged(review.files || [])}
+
+## Why It Matters
+
+${review.whyItMatters || describeWhyItMatters(review.files || [])}
 
 ## Files Changed
 
@@ -392,6 +468,9 @@ export async function runSelfReview(options = {}) {
     testsPassed: options.testsPassed,
     commands: options.commands,
     limits: options.limits,
+    intent: options.intent,
+    whatChanged: options.whatChanged,
+    whyItMatters: options.whyItMatters,
     rollbackPlan: options.rollbackPlan,
     nextSuggestedAction: options.nextSuggestedAction
   });
@@ -421,6 +500,9 @@ Flags:
   --tests-passed <bool>   Whether verification passed.
   --command <text>        Verification command. Repeat is not required; use semicolon text.
   --summary <text>        Self-review summary.
+  --intent <text>         Plain-language intent for the PR/email.
+  --what-changed <text>   Plain-language description of what changed.
+  --why-it-matters <text> Plain-language reason the change matters.
   --out <path>            Output path, default SELF_REVIEW.md.
   --json                  Print JSON report.
 `);
@@ -447,6 +529,9 @@ async function main() {
     testsPassed: parseBool(args.testsPassed),
     commands,
     summary: args.summary,
+    intent: args.intent,
+    whatChanged: args.whatChanged,
+    whyItMatters: args.whyItMatters,
     out: args.out || 'SELF_REVIEW.md'
   });
   if (args.json) {

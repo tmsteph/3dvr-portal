@@ -90,6 +90,7 @@ async function writeJson(filePath, payload) {
 async function writeThomasReport(rootDir, report) {
   const dir = await ensureOperatorDir(rootDir);
   const filePath = path.join(dir, 'thomas-email-latest.md');
+  const impact = report.impact || {};
   const body = `# Money Printer Operator Report
 
 This is an internal operator report. Real outreach sending is not connected to this report path.
@@ -101,6 +102,18 @@ This is an internal operator report. Real outreach sending is not connected to t
 - auto-merge allowed: ${report.selfReview?.autoMergeAllowed ? 'yes' : 'no'}
 - PR: ${report.pr?.url || 'not opened'}
 - merged: ${report.merge?.merged ? 'yes' : 'no'}
+
+## Intent
+
+${impact.intent || report.selfReview?.intent || 'Report what Money Printer did and why it did it.'}
+
+## What changed
+
+${impact.whatChanged || report.selfReview?.whatChanged || 'No change details recorded.'}
+
+## Why it matters
+
+${impact.whyItMatters || report.selfReview?.whyItMatters || 'No impact note recorded.'}
 
 ## Verification
 
@@ -267,6 +280,11 @@ async function runPropose(rootDir, options = {}) {
   const branchContext = ensureProposalBranch(rootDir, options);
   const report = await buildReport(rootDir, 'propose');
   report.branchContext = branchContext;
+  report.impact = {
+    intent: 'Keep the autonomous Money Printer loop auditable by refreshing its operator report document.',
+    whatChanged: 'Updated docs/money-printer-operator-report.md with a new generated timestamp and the current safe-improvement guardrail reminder.',
+    whyItMatters: 'Thomas can see that the scheduled loop is alive while the change stays limited to documentation and avoids billing, outreach, secrets, auth, deployment, and schedulers.'
+  };
   report.safeImprovementPath = await writeSafeImprovement(rootDir);
   report.verification = await runVerification(rootDir);
   const operatorDir = await ensureOperatorDir(rootDir);
@@ -278,12 +296,18 @@ async function runPropose(rootDir, options = {}) {
     commands: verificationCommands,
     out: selfReviewPath,
     summary: 'Money Printer proposed a documentation-only operator report update.',
+    intent: report.impact.intent,
+    whatChanged: report.impact.whatChanged,
+    whyItMatters: report.impact.whyItMatters,
     rollbackPlan: 'Revert the PR commit or restore docs/money-printer-operator-report.md from main.',
     nextSuggestedAction: 'If GREEN, open a PR for the documentation-only report update. If not GREEN, ask Thomas to review.'
   });
   report.selfReview = {
     risk: review.risk,
     autoMergeAllowed: review.autoMergeAllowed,
+    intent: review.intent,
+    whatChanged: review.whatChanged,
+    whyItMatters: review.whyItMatters,
     outPath: review.outPath,
     files: review.files,
     safetyChecks: review.safetyChecks,

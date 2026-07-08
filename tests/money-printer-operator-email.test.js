@@ -123,7 +123,12 @@ test('operator report email can send through the portal endpoint instead of SMTP
       reportPath,
       report: {
         command: 'propose',
-        selfReview: { risk: 'GREEN', autoMergeAllowed: true }
+        selfReview: { risk: 'GREEN', autoMergeAllowed: true },
+        impact: {
+          intent: 'Make operator reports easier to understand.',
+          whatChanged: 'Added intent text to the report.',
+          whyItMatters: 'Thomas can review faster.'
+        }
       },
       env: {
         HOME: root,
@@ -154,6 +159,9 @@ test('operator report email can send through the portal endpoint instead of SMTP
     assert.deepEqual(payload.to, ['thomas@example.com']);
     assert.match(payload.text, /Money Printer Operator Report/);
     assert.match(payload.summary, /GREEN/);
+    assert.match(payload.summary, /Intent: Make operator reports easier to understand\./);
+    assert.match(payload.summary, /Changed: Added intent text to the report\./);
+    assert.match(payload.summary, /Why: Thomas can review faster\./);
     assert.equal(payload.metadata.command, 'propose');
   });
 });
@@ -243,6 +251,9 @@ test('operator report email html highlights actions when review is needed', () =
 
   assert.match(html, /Please review this/);
   assert.match(html, /One thing to do/);
+  assert.match(html, /Intent/);
+  assert.match(html, /What changed/);
+  assert.match(html, /Why it matters/);
   assert.match(html, /Review PR/);
   assert.match(html, /https:\/\/github\.com\/tmsteph\/3dvr-portal\/pull\/999/);
   assert.match(html, /mailto:thomas%40example\.com/);
@@ -256,7 +267,10 @@ test('operator report email html says no action is needed for merged green runs'
       command: 'propose',
       selfReview: {
         risk: 'GREEN',
-        autoMergeAllowed: true
+        autoMergeAllowed: true,
+        intent: 'Show Thomas the reason for the run.',
+        whatChanged: 'Created a tiny report update.',
+        whyItMatters: 'The email is easier to skim.'
       },
       pr: {
         url: 'https://github.com/tmsteph/3dvr-portal/pull/1000'
@@ -269,5 +283,8 @@ test('operator report email html says no action is needed for merged green runs'
 
   assert.match(html, /Handled\. No action needed\./);
   assert.match(html, /Nothing\. You can ignore this email/);
+  assert.match(html, /Show Thomas the reason for the run\./);
+  assert.match(html, /Created a tiny report update\./);
+  assert.match(html, /The email is easier to skim\./);
   assert.match(html, /Open PR/);
 });
