@@ -361,11 +361,6 @@
         state.extraFaceSpin = 0;
       }
       root.dataset.logoPaused = String(state.paused);
-      root.setAttribute('aria-pressed', String(state.paused));
-    };
-
-    const togglePaused = () => {
-      setPaused(!state.paused);
     };
 
     const getGesture = () => {
@@ -502,6 +497,7 @@
     const startDrag = (event) => {
       const point = getPointer(event);
       state.dragging = true;
+      setPaused(true);
       state.pointerMoved = false;
       state.lastX = point.x;
       state.lastY = point.y;
@@ -553,7 +549,7 @@
 
       const wasTap = !state.pointerMoved && Math.hypot(state.gestureDX, state.gestureDY) < 6;
       if (wasTap) {
-        togglePaused();
+        setPaused(false);
         return;
       }
 
@@ -566,6 +562,7 @@
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
+      setPaused(false);
     };
 
     const setupInteraction = () => {
@@ -580,7 +577,7 @@
 
       root.addEventListener('keydown', (event) => {
         if (event.key === ' ') {
-          togglePaused();
+          if (!event.repeat) setPaused(true);
           event.preventDefault();
         } else if (event.key === 'ArrowRight') {
           setPaused(false);
@@ -595,6 +592,12 @@
         } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
           setPaused(false);
           registerFlipGesture('x', event.key === 'ArrowUp' ? -1 : 1, FLIP_DISTANCE_FULL_CHARGE);
+          event.preventDefault();
+        }
+      });
+      root.addEventListener('keyup', (event) => {
+        if (event.key === ' ') {
+          setPaused(false);
           event.preventDefault();
         }
       });
