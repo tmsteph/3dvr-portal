@@ -177,10 +177,18 @@ function buildOperatorReportSummary(report = {}) {
   const risk = clean(report.selfReview?.risk || 'unknown');
   const pr = clean(report.pr?.url);
   const merged = report.merge?.merged ? 'merged' : 'not merged';
+  const intent = clean(report.impact?.intent || report.selfReview?.intent);
+  const whatChanged = clean(report.impact?.whatChanged || report.selfReview?.whatChanged);
+  const whyItMatters = clean(report.impact?.whyItMatters || report.selfReview?.whyItMatters);
+  const detail = [
+    intent ? `Intent: ${intent}` : '',
+    whatChanged ? `Changed: ${whatChanged}` : '',
+    whyItMatters ? `Why: ${whyItMatters}` : ''
+  ].filter(Boolean).join(' ');
   if (pr) {
-    return `Money Printer finished a ${risk} run and ${merged}. PR: ${pr}`;
+    return `Money Printer finished a ${risk} run and ${merged}. ${detail} PR: ${pr}`.replace(/\s+/g, ' ').trim();
   }
-  return `Money Printer finished a ${risk} run with no PR URL recorded.`;
+  return `Money Printer finished a ${risk} run with no PR URL recorded. ${detail}`.replace(/\s+/g, ' ').trim();
 }
 
 function buildOperatorReportActionItems(report = {}) {

@@ -29,6 +29,9 @@ function summarizeReport(report = {}) {
   const merged = Boolean(report.merge?.merged);
   const prUrl = clean(report.pr?.url);
   const failed = Boolean(report.emailReport?.failed);
+  const intent = clean(report.impact?.intent || report.selfReview?.intent);
+  const whatChanged = clean(report.impact?.whatChanged || report.selfReview?.whatChanged);
+  const whyItMatters = clean(report.impact?.whyItMatters || report.selfReview?.whyItMatters);
   const blocked = risk === 'RED' || (report.pr?.blocked) || failed;
   const needsReview = risk === 'YELLOW' || (prUrl && !merged);
   const actionRequired = blocked || needsReview;
@@ -44,6 +47,9 @@ function summarizeReport(report = {}) {
       : needsReview
         ? 'Money Printer prepared something, but it needs a human decision before it moves.'
         : 'Money Printer completed the safe loop. A GREEN change was merged or handled.',
+    intent: intent || 'Explain what Money Printer did and why it matters.',
+    whatChanged: whatChanged || 'No detailed change note was recorded.',
+    whyItMatters: whyItMatters || 'No impact note was recorded.',
     nextAction: blocked
       ? 'Open the PR or server log and decide whether to fix, skip, or rerun.'
       : needsReview
@@ -105,6 +111,14 @@ export function buildOperatorReportEmailHtml({ report = {}, text = '', to = '' }
           <li>Merged: <strong>${summary.merged ? 'yes' : 'no'}</strong></li>
           <li>Branch: <strong>${escapeHtml(report.branch || '')}</strong></li>
         </ul>
+        <div style="margin-top:14px;padding:14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;">
+          <p style="margin:0 0 4px;color:#475569;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Intent</p>
+          <p style="margin:0 0 12px;font-size:15px;line-height:1.5;">${escapeHtml(summary.intent)}</p>
+          <p style="margin:0 0 4px;color:#475569;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">What changed</p>
+          <p style="margin:0 0 12px;font-size:15px;line-height:1.5;">${escapeHtml(summary.whatChanged)}</p>
+          <p style="margin:0 0 4px;color:#475569;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Why it matters</p>
+          <p style="margin:0;font-size:15px;line-height:1.5;">${escapeHtml(summary.whyItMatters)}</p>
+        </div>
       </div>
 
       <div style="margin-top:16px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;padding:20px;">
