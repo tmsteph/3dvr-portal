@@ -8,6 +8,7 @@ describe('portal logo branding', () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
     const css = await readFile(new URL('../index-style.css', import.meta.url), 'utf8');
     const swirlScript = await readFile(new URL('../portal-swirl-logo.js', import.meta.url), 'utf8');
+    const swirlHtml = html.match(/<div\s+class="portal-swirl-logo"[\s\S]*?<\/div>\s*<\/div>\s*<span class="hero-eyebrow">/)?.[0] || '';
 
     assert.match(logo, /3dvr portal logo/);
     assert.match(logo, />3dvr</);
@@ -22,8 +23,8 @@ describe('portal logo branding', () => {
     assert.match(html, /data-portal-swirl-logo/);
     assert.match(html, /3dvr portal 3D swirl logo/);
     assert.match(html, /role="button"/);
-    assert.match(html, /aria-pressed="false"/);
-    assert.match(html, /Press to pause or resume/);
+    assert.doesNotMatch(swirlHtml, /aria-pressed=/);
+    assert.match(html, /Press and hold to pause/);
     assert.match(css, /\.portal-swirl-logo/);
     assert.match(css, /\.portal-swirl-logo\[data-logo-paused="true"\]/);
     assert.match(swirlScript, /THREE_CDN_URL/);
@@ -36,8 +37,8 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /paused: false/);
     assert.match(swirlScript, /const setPaused = \(paused\) =>/);
     assert.match(swirlScript, /root\.dataset\.logoPaused = String\(state\.paused\)/);
-    assert.match(swirlScript, /root\.setAttribute\('aria-pressed', String\(state\.paused\)\)/);
-    assert.match(swirlScript, /const togglePaused = \(\) =>/);
+    assert.doesNotMatch(swirlScript, /root\.setAttribute\('aria-pressed'/);
+    assert.doesNotMatch(swirlScript, /const togglePaused = \(\) =>/);
     assert.match(swirlScript, /MAX_EXTRA_SPIN = 0\.105/);
     assert.match(swirlScript, /makeTextTexture/);
     assert.match(
@@ -92,8 +93,10 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /state\.extraFaceSpin \+\s*Math\.hypot\(state\.dragDX, state\.dragDY\) \* 0\.0018 \* getSpinBoost\(\) \* getTouchSpinScale\(\)/);
     assert.match(swirlScript, /const baseSpin = state\.paused \? 0 : reducedMotion \? BASE_FACE_SPIN \* 0\.28 : BASE_FACE_SPIN/);
     assert.match(swirlScript, /const extraSpin = state\.paused \? 0 : state\.extraFaceSpin/);
-    assert.match(swirlScript, /if \(wasTap\) \{\s*togglePaused\(\);/);
-    assert.match(swirlScript, /if \(event\.key === ' '\) \{\s*togglePaused\(\);/);
+    assert.match(swirlScript, /state\.dragging = true;\s*setPaused\(true\);/);
+    assert.match(swirlScript, /if \(wasTap\) \{\s*setPaused\(false\);/);
+    assert.match(swirlScript, /if \(event\.key === ' '\) \{\s*if \(!event\.repeat\) setPaused\(true\);/);
+    assert.match(swirlScript, /root\.addEventListener\('keyup', \(event\) => \{\s*if \(event\.key === ' '\) \{\s*setPaused\(false\);/);
     assert.match(swirlScript, /paused: state\.paused/);
     assert.match(swirlScript, /touchRampCount: state\.touchRampCount/);
     assert.match(swirlScript, /touchInstability: state\.touchInstability/);
