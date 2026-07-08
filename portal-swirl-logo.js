@@ -87,10 +87,10 @@
     const center = size / 2;
     const radius = size * 0.45;
 
-    const shell = context.createRadialGradient(size * 0.34, size * 0.24, 60, center, center, size * 0.66);
-    shell.addColorStop(0, '#e0f7ff');
-    shell.addColorStop(0.18, '#38bdf8');
-    shell.addColorStop(0.56, '#0f766e');
+    const shell = context.createRadialGradient(center, center, radius * 0.08, center, center, size * 0.66);
+    shell.addColorStop(0, '#9de7f8');
+    shell.addColorStop(0.28, '#2aa7bf');
+    shell.addColorStop(0.62, '#0f766e');
     shell.addColorStop(1, '#07111f');
     context.fillStyle = shell;
     context.fillRect(0, 0, size, size);
@@ -102,11 +102,11 @@
       context.save();
       context.rotate((arm / 7) * TAU);
       const gradient = context.createLinearGradient(0, 0, radius, radius * 0.32);
-      gradient.addColorStop(0, 'rgba(248, 250, 252, 0.92)');
-      gradient.addColorStop(0.48, 'rgba(125, 211, 252, 0.72)');
-      gradient.addColorStop(1, 'rgba(251, 191, 36, 0.52)');
+      gradient.addColorStop(0, 'rgba(226, 246, 252, 0.58)');
+      gradient.addColorStop(0.5, 'rgba(125, 211, 252, 0.42)');
+      gradient.addColorStop(1, 'rgba(251, 191, 36, 0.24)');
       context.strokeStyle = gradient;
-      context.lineWidth = 46;
+      context.lineWidth = 38;
       context.lineCap = 'round';
       context.beginPath();
       for (let index = 0; index <= 88; index += 1) {
@@ -624,9 +624,9 @@
       context.rotate(state.currentZ + state.wobbleZ);
       context.scale(tiltScaleX, tiltScaleY);
 
-      const faceGradient = context.createRadialGradient(-radius * 0.35, -radius * 0.42, radius * 0.06, 0, 0, radius);
-      faceGradient.addColorStop(0, '#e0f7ff');
-      faceGradient.addColorStop(0.22, '#38bdf8');
+      const faceGradient = context.createRadialGradient(0, 0, radius * 0.08, 0, 0, radius);
+      faceGradient.addColorStop(0, '#9de7f8');
+      faceGradient.addColorStop(0.28, '#2aa7bf');
       faceGradient.addColorStop(0.62, '#0f766e');
       faceGradient.addColorStop(1, '#07111f');
       context.beginPath();
@@ -647,8 +647,8 @@
           if (index === 0) context.moveTo(x, y);
           else context.lineTo(x, y);
         }
-        context.strokeStyle = 'rgba(186, 230, 253, 0.62)';
-        context.lineWidth = Math.max(4, radius * 0.085);
+        context.strokeStyle = 'rgba(186, 230, 253, 0.38)';
+        context.lineWidth = Math.max(4, radius * 0.066);
         context.lineCap = 'round';
         context.stroke();
         context.restore();
