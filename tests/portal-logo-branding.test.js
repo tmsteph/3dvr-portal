@@ -8,7 +8,8 @@ describe('portal logo branding', () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
     const css = await readFile(new URL('../index-style.css', import.meta.url), 'utf8');
     const swirlScript = await readFile(new URL('../portal-swirl-logo.js', import.meta.url), 'utf8');
-    const swirlHtml = html.match(/<div\s+class="portal-swirl-logo"[\s\S]*?<\/div>\s*<\/div>\s*<span class="hero-eyebrow">/)?.[0] || '';
+    const heroLeadHtml = html.match(/<span class="hero-eyebrow">Human O\.S\.<\/span>[\s\S]*?<p class="hero-tagline">/)?.[0] || '';
+    const swirlHtml = html.match(/<div\s+class="portal-swirl-brand">[\s\S]*?<\/div>\s*<p class="hero-tagline">/)?.[0] || '';
 
     assert.match(logo, /3dvr portal logo/);
     assert.match(logo, />3dvr</);
@@ -21,6 +22,8 @@ describe('portal logo branding', () => {
     assert.match(css, /\.app-boot-enabled \.app-boot/);
     assert.match(html, /portal-swirl-logo\.js/);
     assert.match(html, /data-portal-swirl-logo/);
+    assert.match(heroLeadHtml, /<h1 id="landing-title">Find your purpose\. Organize your life\. Launch your world\.<\/h1>[\s\S]*?class="portal-swirl-brand"/);
+    assert.match(swirlHtml, /class="portal-swirl-frame"/);
     assert.match(html, /3dvr portal 3D swirl logo/);
     assert.match(html, /role="button"/);
     assert.doesNotMatch(swirlHtml, /aria-pressed=/);
@@ -117,9 +120,13 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /state\.extraFaceSpin = clamp\(/);
     assert.match(swirlScript, /state\.wobbleVelocityY \+= dx \* DRAG_WOBBLE_FACTOR \* wobbleMultiplier/);
     assert.match(swirlScript, /state\.wobbleX = clamp\(state\.wobbleX \+ state\.wobbleVelocityX \* frames/);
+    assert.match(css, /\.hero-main > h1 \{[\s\S]*?max-width: 17ch;/);
+    assert.match(css, /\.portal-swirl-frame \{/);
+    assert.match(css, /\.portal-swirl-frame::before,/);
     assert.match(css, /width: clamp\(7\.4rem, 19vw, 10rem\)/);
-    assert.match(css, /@media \(min-width: 960px\) \{[\s\S]*?\.portal-swirl-brand \{[\s\S]*?width: 100%;[\s\S]*?justify-content: center;/);
+    assert.match(css, /@media \(min-width: 960px\) \{[\s\S]*?\.portal-swirl-brand \{[\s\S]*?width: fit-content;[\s\S]*?justify-self: center;/);
     assert.match(css, /@media \(min-width: 960px\) \{[\s\S]*?\.portal-swirl-logo \{[\s\S]*?width: clamp\(12rem, 18vw, 15\.5rem\)/);
+    assert.match(css, /@media \(max-width: 640px\) \{[\s\S]*?\.portal-swirl-brand \{[\s\S]*?width: fit-content;[\s\S]*?justify-self: center;/);
     assert.match(css, /width: clamp\(8\.4rem, 38vw, 10\.2rem\)/);
     assert.match(swirlScript, /window\.__portalSwirlLogo/);
   });

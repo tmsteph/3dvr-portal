@@ -566,15 +566,69 @@ body.landing {
   display: grid;
   gap: 1rem;
   align-content: start;
+  justify-items: start;
   min-width: 0;
   text-align: left;
 }
 
+.hero-main > .hero-eyebrow,
+.hero-main > h1,
+.hero-main > .hero-tagline {
+  justify-self: center;
+  text-align: center;
+}
+
+.hero-main > h1 {
+  max-width: 17ch;
+}
+
+.hero-main > .hero-tagline {
+  max-width: 42rem;
+}
+
+.hero-main > .hero-actions {
+  justify-content: center;
+  justify-self: center;
+}
+
 .portal-swirl-brand {
+  position: relative;
   display: grid;
   place-items: center;
   width: fit-content;
-  margin-bottom: 0.1rem;
+  padding: clamp(0.7rem, 1.4vw, 1.1rem);
+  margin: 0.2rem auto 0.25rem;
+  isolation: isolate;
+}
+
+.portal-swirl-frame {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.16), transparent 58%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.42), rgba(2, 6, 23, 0.12));
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.6),
+    0 0 80px rgba(34, 211, 238, 0.16),
+    inset 0 0 38px rgba(125, 211, 252, 0.1);
+  pointer-events: none;
+}
+
+.portal-swirl-frame::before,
+.portal-swirl-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0.55rem;
+  border-radius: inherit;
+  border: 1px solid rgba(251, 191, 36, 0.18);
+}
+
+.portal-swirl-frame::after {
+  inset: 1.05rem;
+  border-color: rgba(45, 212, 191, 0.18);
 }
 
 .portal-swirl-logo {
@@ -2113,9 +2167,9 @@ footer a {
 
 @media (min-width: 960px) {
   .portal-swirl-brand {
-    width: 100%;
-    justify-content: center;
-    margin-bottom: 0.35rem;
+    width: fit-content;
+    justify-self: center;
+    margin-bottom: 0.45rem;
   }
 
   .portal-swirl-logo {
@@ -2151,8 +2205,8 @@ footer a {
   }
 
   .portal-swirl-brand {
-    width: 100%;
-    justify-content: center;
+    width: fit-content;
+    justify-self: center;
   }
 
   .portal-swirl-logo {
