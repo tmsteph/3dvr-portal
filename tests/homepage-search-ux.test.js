@@ -148,3 +148,13 @@ test('homepage top navigation keeps Daily Direction one click away', async () =>
     /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="life\/index\.html">Daily Direction<\/a>/
   );
 });
+
+test('homepage syncs shared identity before falling back to guest mode', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /<script src="auth-identity\.js"><\/script>/);
+  assert.match(html, /AuthIdentity\.syncStorageFromSharedIdentity\(localStorage\)/);
+  assert.match(html, /const authMethod = \(localStorage\.getItem\('authMethod'\) \|\| ''\)\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(html, /signedIn && alias && authMethod === 'oauth'/);
+  assert.match(html, /localStorage\.removeItem\('guestDisplayName'\)/);
+});
