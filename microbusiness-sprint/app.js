@@ -13,17 +13,19 @@ function clean(value, fallback) {
 
 function buildMailto(payload) {
   const body = [
-    'I want to start a 3DVR Microbusiness Launch Sprint.',
+    'I want to start the 3DVR Microbusiness Launch Sprint.',
+    '',
+    'Price anchor: $500 launch sprint',
     '',
     `Calling: ${payload.calling}`,
     `Audience: ${payload.audience}`,
     `Pain: ${payload.pain}`,
     `Paid result: ${payload.paidResult}`,
     '',
-    'Please help me turn this into the first paid offer.'
+    'Please help me turn this into one paid offer, landing page, lead/payment path, outreach script, and validation list.'
   ].join('\n');
 
-  return `mailto:tmsteph1290@gmail.com?subject=${encodeURIComponent('3DVR Microbusiness Launch Sprint')}&body=${encodeURIComponent(body)}`;
+  return `mailto:3dvr.tech@gmail.com?subject=${encodeURIComponent('3DVR Microbusiness Launch Sprint')}&body=${encodeURIComponent(body)}`;
 }
 
 builder?.addEventListener('submit', event => {
@@ -33,17 +35,17 @@ builder?.addEventListener('submit', event => {
     calling: clean(form.get('calling'), 'a skill or calling that keeps returning'),
     audience: clean(form.get('audience'), 'one reachable audience'),
     pain: clean(form.get('pain'), 'one painful moment they already feel'),
-    paidResult: clean(form.get('paidResult'), 'one useful result delivered within 7 days')
+    paidResult: clean(form.get('paidResult'), 'one paid offer, landing page, lead/payment path, outreach script, and validation list')
   };
 
   outputs.title.textContent = `${payload.audience}: ${payload.paidResult}`;
-  outputs.summary.textContent = `The sprint starts with ${payload.calling}. The first offer should help ${payload.audience} move through "${payload.pain}" and pay for "${payload.paidResult}".`;
+  outputs.summary.textContent = `The $500 sprint starts with ${payload.calling}. The first offer should help ${payload.audience} move through "${payload.pain}" and pay for "${payload.paidResult}".`;
   outputs.steps.innerHTML = '';
 
   [
     `Interview 3 people in ${payload.audience}.`,
-    `Write one promise around "${payload.paidResult}".`,
-    'Launch a short page and ask for a paid yes before expanding the build.'
+    `Write one $500 launch-sprint promise around "${payload.paidResult}".`,
+    'Launch a short page, lead/payment path, and outreach script before expanding the build.'
   ].forEach(step => {
     const item = document.createElement('li');
     item.textContent = step;
