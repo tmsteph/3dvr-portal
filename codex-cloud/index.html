@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codex Cloud | 3DVR Portal</title>
+    <link rel="stylesheet" href="/styles/global.css" />
+    <link rel="stylesheet" href="/codex-cloud/styles.css" />
+  </head>
+  <body class="codex-cloud-page">
+    <main class="codex-shell">
+      <header class="codex-header">
+        <div>
+          <a class="back-link" href="/">Portal</a>
+          <h1>Codex Cloud</h1>
+          <p>Server-hosted Codex workspace on debian-web.</p>
+        </div>
+        <div class="codex-actions" aria-label="Codex Cloud controls">
+          <a class="button button--ghost" href="https://codex.167.233.174.20.nip.io/" target="_blank" rel="noopener">Open Full Window</a>
+          <button class="button button--primary" type="button" data-reload-terminal>Reload</button>
+        </div>
+      </header>
+
+      <section class="status-strip" aria-label="Connection details">
+        <div>
+          <span class="status-label">Host</span>
+          <strong>debian-web</strong>
+        </div>
+        <div>
+          <span class="status-label">Workspace</span>
+          <strong>/opt/3dvr</strong>
+        </div>
+        <div>
+          <span class="status-label">Terminal</span>
+          <strong>Protected HTTPS</strong>
+        </div>
+      </section>
+
+      <section class="terminal-panel" aria-label="Codex Cloud terminal">
+        <iframe
+          title="Codex Cloud terminal"
+          src="https://codex.167.233.174.20.nip.io/"
+          allow="clipboard-read; clipboard-write"
+          referrerpolicy="no-referrer"
+          data-terminal-frame
+        ></iframe>
+      </section>
+    </main>
+
+    <script>
+      const terminalFrame = document.querySelector('[data-terminal-frame]');
+      const reloadButton = document.querySelector('[data-reload-terminal]');
+
+      reloadButton?.addEventListener('click', () => {
+        if (!terminalFrame) return;
+        terminalFrame.src = terminalFrame.src;
+      });
+    </script>
+  </body>
+</html>
