@@ -51,10 +51,13 @@ test('friends and family page uses defensive mobile sizing', async () => {
   assert.match(html, /@media \(max-width: 760px\)\s*\{[\s\S]*?\.offer-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr;/);
 });
 
-test('portal home links the pass in navigation, support lanes, app dock, and rooms', async () => {
+test('portal home keeps the pass discoverable in support lanes, app dock, and rooms', async () => {
   const html = await readFile(portalUrl, 'utf8');
 
-  assert.match(html, /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="friends-family\/">Support<\/a>/);
+  assert.doesNotMatch(
+    html,
+    /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="friends-family\/">Support<\/a>/
+  );
   assert.match(
     html,
     /<a href="friends-family\/" class="shortcut-card">[\s\S]*?<span class="shortcut-card__title">Friends &amp; Family Pass<\/span>/

@@ -124,13 +124,20 @@ test('homepage app search can find the manifestation practice', async () => {
   assert.match(html, /wish, outcome, obstacle, and if\/then plan/);
 });
 
-test('homepage top navigation keeps Games one click away', async () => {
+test('homepage top navigation stays focused after Search apps', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.match(
     html,
-    /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="games\.html">Games<\/a>/
+    /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="free-page\/">Free Website<\/a>/
   );
+  assert.match(html, /<a href="start\/">Start<\/a>/);
+  assert.match(html, /<a href="life\/index\.html">Daily Direction<\/a>/);
+  assert.match(html, /<a href="start\/#paid-lanes">Plans<\/a>/);
+  assert.match(html, /data-auth-entry>Sign in<\/a>/);
+  assert.doesNotMatch(html, /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="games\.html">Games<\/a>/);
+  assert.doesNotMatch(html, /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?<a href="share\.html">Share<\/a>/);
+  assert.doesNotMatch(html, /<nav class="top-buttons" id="landingQuickLinks"[\s\S]*?>[\s\S]*GitHub[\s\S]*?<\/nav>/);
 });
 
 test('homepage top navigation keeps Daily Direction one click away', async () => {
