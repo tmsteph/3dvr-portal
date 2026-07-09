@@ -2112,6 +2112,16 @@ footer a {
 }
 
 @media (min-width: 960px) {
+  .portal-swirl-brand {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 0.35rem;
+  }
+
+  .portal-swirl-logo {
+    width: clamp(12rem, 18vw, 15.5rem);
+  }
+
   .shortcut-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

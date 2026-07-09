@@ -118,6 +118,8 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /state\.wobbleVelocityY \+= dx \* DRAG_WOBBLE_FACTOR \* wobbleMultiplier/);
     assert.match(swirlScript, /state\.wobbleX = clamp\(state\.wobbleX \+ state\.wobbleVelocityX \* frames/);
     assert.match(css, /width: clamp\(7\.4rem, 19vw, 10rem\)/);
+    assert.match(css, /@media \(min-width: 960px\) \{[\s\S]*?\.portal-swirl-brand \{[\s\S]*?width: 100%;[\s\S]*?justify-content: center;/);
+    assert.match(css, /@media \(min-width: 960px\) \{[\s\S]*?\.portal-swirl-logo \{[\s\S]*?width: clamp\(12rem, 18vw, 15\.5rem\)/);
     assert.match(css, /width: clamp\(8\.4rem, 38vw, 10\.2rem\)/);
     assert.match(swirlScript, /window\.__portalSwirlLogo/);
   });
