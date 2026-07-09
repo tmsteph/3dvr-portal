@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta
+    name="description"
+    content="3DVR Microbusiness Launch Sprint helps people turn a calling, skill, or rough idea into a paid microbusiness offer and launch plan."
+  >
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://portal.3dvr.tech/microbusiness-sprint/">
+  <title>Microbusiness Launch Sprint | 3DVR Portal</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="sprint-page">
+  <header class="campaign-topbar">
+    <a class="brand-lockup" href="../index.html" aria-label="3DVR Portal home">
+      <img src="../icons/icon-192.png" width="40" height="40" alt="">
+      <span>
+        <strong>3DVR</strong>
+        <small>Microbusiness Sprint</small>
+      </span>
+    </a>
+    <nav aria-label="Campaign navigation">
+      <a href="#sprint-tool">Shape it</a>
+      <a href="#offer">Offer</a>
+      <a href="../billing/?plan=founder">Start</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="sprint-hero" aria-labelledby="campaign-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Calling -> offer -> first sale</p>
+        <h1 id="campaign-title">Turn the thing you keep thinking about into a tiny business people can buy.</h1>
+        <p class="lede">
+          A focused 3DVR sprint for builders, operators, artists, parents, technicians, and restless people who
+          know they are meant to do more than trade every hour for someone else's roadmap.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#sprint-tool">Draft your sprint</a>
+          <a class="button button-secondary" href="../billing/?plan=builder">Choose Builder</a>
+        </div>
+      </div>
+
+      <aside class="hero-proof" aria-label="Sprint deliverables">
+        <img src="../icons/icon-512.png" width="88" height="88" alt="">
+        <dl>
+          <div>
+            <dt>Day 1</dt>
+            <dd>Find the practical business angle inside your calling.</dd>
+          </div>
+          <div>
+            <dt>Day 2</dt>
+            <dd>Package one paid offer with a simple promise and price.</dd>
+          </div>
+          <div>
+            <dt>Day 3</dt>
+            <dd>Launch the page, outreach list, and first validation loop.</dd>
+          </div>
+        </dl>
+      </aside>
+    </section>
+
+    <section id="sprint-tool" class="sprint-tool" aria-labelledby="tool-title">
+      <div class="tool-intro">
+        <p class="eyebrow">Start here</p>
+        <h2 id="tool-title">Draft the first useful version.</h2>
+        <p>
+          Keep it honest. A small clear offer can start moving today; a giant perfect plan usually waits.
+        </p>
+      </div>
+
+      <form class="brief-builder" id="briefBuilder">
+        <label>
+          What skill, frustration, or calling keeps coming back?
+          <textarea name="calling" rows="4" placeholder="I keep helping people organize messy event tech, workflows, or launch ideas."></textarea>
+        </label>
+
+        <label>
+          Who would you help first?
+          <input name="audience" type="text" placeholder="Freelancers, local service owners, overwhelmed creators">
+        </label>
+
+        <label>
+          What painful moment can you make easier?
+          <input name="pain" type="text" placeholder="They have an idea but no clear offer, page, or next action">
+        </label>
+
+        <label>
+          What could someone pay for within 7 days?
+          <input name="paidResult" type="text" placeholder="A live offer page, customer script, and first outreach list">
+        </label>
+
+        <div class="builder-actions">
+          <button class="button button-primary" type="submit">Build sprint brief</button>
+          <a class="button button-secondary" href="../billing/?plan=founder">Start at $20/mo</a>
+        </div>
+      </form>
+
+      <aside class="sprint-brief" aria-live="polite">
+        <p class="brief-label">Sprint Brief</p>
+        <h3 data-output="title">Your microbusiness sprint</h3>
+        <p data-output="summary">Answer the prompts to create a first offer, first audience, and next actions.</p>
+        <ol data-output="steps">
+          <li>Pick one audience.</li>
+          <li>Name one painful moment.</li>
+          <li>Sell one result before building the empire.</li>
+        </ol>
+        <a
+          class="button button-primary"
+          data-output="mailto"
+          href="mailto:tmsteph1290@gmail.com?subject=3DVR%20Microbusiness%20Sprint"
+        >
+          Send this to 3DVR
+        </a>
+      </aside>
+    </section>
+
+    <section id="offer" class="offer-strip" aria-labelledby="offer-title">
+      <div>
+        <p class="eyebrow">Campaign offer</p>
+        <h2 id="offer-title">The first offer is the sprint itself.</h2>
+        <p>
+          We sell direct help turning a person's calling into one live microbusiness experiment. The portal becomes
+          the workspace, and each sprint creates proof, pages, leads, and future product requirements.
+        </p>
+      </div>
+      <div class="price-grid">
+        <a class="price-tile" href="../billing/?plan=founder">
+          <span>Founder</span>
+          <strong>$20/mo</strong>
+          <small>For first pages and fuzzy ideas.</small>
+        </a>
+        <a class="price-tile featured" href="../billing/?plan=builder">
+          <span>Builder</span>
+          <strong>$50/mo</strong>
+          <small>For operators ready to launch and validate.</small>
+        </a>
+        <a class="price-tile" href="mailto:tmsteph1290@gmail.com?subject=3DVR%20Embedded%20Sprint">
+          <span>Embedded</span>
+          <strong>$200/mo</strong>
+          <small>For recurring workflow pain and teams.</small>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
