@@ -2,11 +2,11 @@
   const THREE_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
   const TAU = Math.PI * 2;
   const BASE_FACE_SPIN = TAU / 5200;
-  const DRAG_WIND_FACTOR = 0.000325;
-  const MAX_EXTRA_SPIN = 0.1;
-  const PULL_WINDUP_FACTOR = 0.00003;
-  const MAX_PULL_WINDUP_SPIN = 0.004;
-  const SPIN_DECAY = 0.99;
+  const DRAG_WIND_FACTOR = 0.00012;
+  const MAX_EXTRA_SPIN = 0.035;
+  const PULL_WINDUP_FACTOR = 0.00007;
+  const MAX_PULL_WINDUP_SPIN = 0.012;
+  const SPIN_DECAY = 0.995;
   const FLIP_DECAY = 0.965;
   const MIN_FLIP_VELOCITY = 0.005;
   const TILT_X_LIMIT = 0.18;
@@ -19,14 +19,15 @@
   const FLIP_ENERGY_DECAY = 0.4;
   const FLIP_STREAK_WINDOW = 3200;
   const SWIPE_STREAK_MAX = 5;
-  const SWIPE_TILT_GAIN = 0.12;
+  const SWIPE_TILT_GAIN = 0.2;
   const SWIPE_SPIN_GAIN = 0.12;
+  const HOLD_PAUSE_DELAY_MS = 260;
   const QUICK_TAP_MAX_MS = 280;
   const QUICK_TAP_PULL_DISTANCE = 72;
   const TOUCH_RAMP_WINDOW = 2400;
   const TOUCH_RAMP_MAX = 6;
   const FIRST_TOUCH_SPIN_SCALE = 0.38;
-  const TOUCH_SPIN_GAIN = 0.13;
+  const TOUCH_SPIN_GAIN = 0.18;
   const FIRST_TOUCH_WOBBLE_SCALE = 0.48;
   const TOUCH_WOBBLE_GAIN = 0.32;
   const FIRST_TOUCH_FLIP_SCALE = 0.74;
@@ -38,24 +39,26 @@
   const FLIP_IMPULSE_X = 0.22;
   const FLIP_IMPULSE_Y = 0.26;
   const FLIP_CROSS_IMPULSE = 0.055;
-  const FLIP_SPIN_BOOST = 0.013;
-  const FLIP_BUILD_SPIN_STEP = 0.006;
-  const FLIP_BUILD_IMPULSE_STEP = 0.014;
+  const FLIP_SPIN_BOOST = 0.006;
+  const FLIP_BUILD_SPIN_STEP = 0.0025;
+  const FLIP_BUILD_IMPULSE_STEP = 0.024;
   const FLIP_BUILD_WOBBLE_STEP = 0.026;
-  const TARGET_SETTLE_BASE = 0.94;
-  const CURRENT_SETTLE_BASE = 0.86;
+  const TARGET_SETTLE_BASE = 0.965;
+  const CURRENT_SETTLE_BASE = 0.9;
   const FLIP_HOME_EASE = 0.075;
   const UPRIGHT_TEXT_HOME_EASE = 0.12;
   const GOOD_FACE_STEP = Math.PI;
   const UPRIGHT_TEXT_STEP = TAU;
   const DRAG_WOBBLE_FACTOR = 0.0009;
   const DRAG_TWIST_WOBBLE_FACTOR = 0.00042;
-  const DRAG_WOBBLE_STREAK_GAIN = 0.32;
+  const DRAG_WOBBLE_STREAK_GAIN = 0.48;
   const FLIP_WOBBLE_IMPULSE = 0.075;
   const WOBBLE_SPRING = 0.12;
   const WOBBLE_DECAY = 0.89;
   const MAX_WOBBLE = 0.18;
   const MAX_WOBBLE_Z = 0.09;
+  const SPARK_BURST_MAX = 18;
+  const SPARK_LIFETIME_MS = 720;
   const ROOT_SELECTOR = '[data-portal-swirl-logo]';
   const CANVAS_SELECTOR = '[data-portal-swirl-canvas]';
 
@@ -276,6 +279,7 @@
       dragStartedAt: 0,
       lastPointerDownDuration: 0,
       lastTapStimulatedAt: 0,
+      holdPauseTimer: 0,
       lastTimestamp: 0,
       faceSpin: 0,
       extraFaceSpin: 0,
@@ -313,6 +317,7 @@
       camera: null,
       token: null,
       fallbackContext: null,
+      sparkLayer: null,
       frame: 0,
     };
 
@@ -369,6 +374,64 @@
     const setPaused = (paused) => {
       state.paused = Boolean(paused);
       root.dataset.logoPaused = String(state.paused);
+    };
+
+    const clearHoldPauseTimer = () => {
+      if (!state.holdPauseTimer) return;
+      window.clearTimeout(state.holdPauseTimer);
+      state.holdPauseTimer = 0;
+    };
+
+    const ensureSparkLayer = () => {
+      if (state.sparkLayer) return state.sparkLayer;
+      const layer = document.createElement('span');
+      layer.setAttribute('aria-hidden', 'true');
+      Object.assign(layer.style, {
+        position: 'absolute',
+        inset: '-10%',
+        overflow: 'hidden',
+        borderRadius: '50%',
+        pointerEvents: 'none',
+        zIndex: '3',
+      });
+      root.appendChild(layer);
+      state.sparkLayer = layer;
+      return layer;
+    };
+
+    const spawnSparks = (count = 6, intensity = 1) => {
+      const layer = ensureSparkLayer();
+      const rect = getRect();
+      const size = Math.max(2, Math.min(rect.width, rect.height));
+      const burstCount = Math.min(count, SPARK_BURST_MAX);
+
+      for (let index = 0; index < burstCount; index += 1) {
+        const spark = document.createElement('span');
+        spark.dataset.portalSpark = 'true';
+        const angle = Math.random() * TAU;
+        const distance = size * (0.18 + Math.random() * 0.24) * intensity;
+        const sparkSize = 2 + Math.random() * 3.5 * intensity;
+        const hue = 38 + Math.random() * 34;
+        Object.assign(spark.style, {
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: `${sparkSize}px`,
+          height: `${sparkSize}px`,
+          borderRadius: '999px',
+          background: `hsl(${hue} 95% 64%)`,
+          boxShadow: `0 0 ${8 + sparkSize * 2}px hsl(${hue} 95% 58% / 0.8)`,
+          opacity: '0.9',
+          transform: 'translate(-50%, -50%) scale(0.8)',
+          transition: `transform ${SPARK_LIFETIME_MS}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${SPARK_LIFETIME_MS}ms ease-out`,
+        });
+        layer.appendChild(spark);
+        window.requestAnimationFrame(() => {
+          spark.style.transform = `translate(calc(-50% + ${Math.cos(angle) * distance}px), calc(-50% + ${Math.sin(angle) * distance}px)) scale(0.18)`;
+          spark.style.opacity = '0';
+        });
+        window.setTimeout(() => spark.remove(), SPARK_LIFETIME_MS + 80);
+      }
     };
 
     const getGesture = () => {
@@ -512,6 +575,7 @@
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
+      spawnSparks(12, 1.15);
       state.flipStreakCount = 0;
       state.flipStreakEnergy = 0;
     };
@@ -531,17 +595,22 @@
       updateSwipeStreak(gesture);
       addDirectionalFlipImpulse(gesture);
       state.extraFaceSpin = clamp(
-        state.extraFaceSpin + QUICK_TAP_PULL_DISTANCE * 0.00045 * getSpinBoost() * getTouchSpinScale(),
+        state.extraFaceSpin + QUICK_TAP_PULL_DISTANCE * 0.00018 * getSpinBoost() * getTouchSpinScale(),
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
       state.wobbleVelocityY += FLIP_BUILD_WOBBLE_STEP * getTouchWobbleScale();
+      spawnSparks(5, 0.74);
     };
 
     const startDrag = (event) => {
       const point = getPointer(event);
       state.dragging = true;
-      setPaused(true);
+      clearHoldPauseTimer();
+      state.holdPauseTimer = window.setTimeout(() => {
+        if (state.dragging && !state.pointerMoved) setPaused(true);
+        state.holdPauseTimer = 0;
+      }, HOLD_PAUSE_DELAY_MS);
       state.pointerMoved = false;
       state.lastX = point.x;
       state.lastY = point.y;
@@ -563,6 +632,8 @@
       const dy = point.y - state.lastY;
       const distance = Math.hypot(dx, dy);
       if (distance > 3) {
+        clearHoldPauseTimer();
+        if (state.paused) setPaused(false);
         state.pointerMoved = true;
       }
       state.lastX = point.x;
@@ -596,6 +667,7 @@
     const endDrag = (event = {}) => {
       if (!state.dragging) return;
       state.dragging = false;
+      clearHoldPauseTimer();
       releasePointer(event);
 
       const wasTap = !state.pointerMoved && Math.hypot(state.gestureDX, state.gestureDY) < 6;
@@ -614,10 +686,11 @@
       addDirectionalFlipImpulse(gesture);
       state.extraFaceSpin = clamp(
         state.extraFaceSpin +
-          Math.hypot(state.dragDX, state.dragDY) * 0.0009 * getSpinBoost() * getTouchSpinScale(),
+          Math.hypot(state.dragDX, state.dragDY) * 0.00035 * getSpinBoost() * getTouchSpinScale(),
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
+      spawnSparks(7, 0.88);
       setPaused(false);
     };
 
@@ -810,7 +883,7 @@
       }
 
       const baseSpin = state.paused ? 0 : reducedMotion ? BASE_FACE_SPIN * 0.28 : BASE_FACE_SPIN;
-      const extraSpin = state.paused ? 0 : state.extraFaceSpin;
+      const extraSpin = state.paused || state.dragging ? 0 : state.extraFaceSpin;
       const pullWindupSpin = state.dragging ? state.pullWindupSpin : 0;
       state.faceSpin += (baseSpin + extraSpin + pullWindupSpin) * spinElapsed;
       render();
