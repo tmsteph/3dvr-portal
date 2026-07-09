@@ -2,21 +2,68 @@ import { runMoneyLoop } from './engine.js';
 import { collectDemandSignals } from './sources.js';
 
 const DEFAULT_AUTOPILOT_PROFILE = {
-  market: 'people turning a skill, calling, or small service into a first paid microbusiness',
-  keywords: ['microbusiness launch', 'service business validation', 'landing page sprint', 'first paid offer'],
-  channels: ['email', 'linkedin', 'reddit', 'local outreach', 'direct calls'],
+  market: 'people who need a simple first website for a project, service, or small business',
+  keywords: ['free one page website', 'simple website', 'local business website', 'service page'],
+  channels: ['email', 'text', 'linkedin', 'local outreach', 'direct calls'],
   budget: 150,
   limit: 24,
   maxBudget: 300,
   autoDiscover: false,
-  discoverySeeds: ['microbusiness', 'service business', 'paid offer', 'landing page', 'customer validation'],
+  discoverySeeds: ['free website', 'simple website', 'service page', 'local business', 'portfolio page'],
   publishPathPrefix: 'money-ai/offers',
-  checkoutCtaLabel: 'Book the Launch Sprint',
-  defaultDestinationUrl: 'https://portal.3dvr.tech/microbusiness-sprint/',
-  offerProfile: 'microbusiness-launch-sprint'
+  checkoutCtaLabel: 'Keep It Live',
+  defaultDestinationUrl: 'https://portal.3dvr.tech/free-page/',
+  offerProfile: 'free-page-starter'
 };
 
 const FIRST_PARTY_OFFER_PROFILES = {
+  'free-page-starter': {
+    id: '3dvr-free-page-starter',
+    title: '3DVR Free Page',
+    audience: 'friends, freelancers, creators, local service people, and small businesses that need a simple web presence before they need a full site',
+    problem: 'Most people do not need a complex brand project first. They need one clean page they can send in a text, bio, email signature, or referral conversation.',
+    solution: 'A free one-page website draft with a clear headline, offer, proof, and contact path. If it helps, keep it live and request small updates for $5/month.',
+    mvp: 'One public page with a headline, services or offer, proof/examples, contact CTA, and a small made-by-3DVR footer.',
+    suggestedPrice: 'Free draft, then $5/month to keep it live',
+    painScore: 74,
+    willingnessToPay: 58,
+    speedToBuild: 96,
+    competitionGap: 62,
+    evidence: [
+      '3DVR already has live small-page examples for Dave and Donovan.',
+      'The portal already includes a site launcher and a $5/month starter billing plan.'
+    ],
+    executionChecklist: [
+      'Send the free page offer to 10 people who have a skill, project, service, or local reputation.',
+      'Collect their name, offer, audience, main CTA, and best contact link.',
+      'Draft the page using the 3DVR Launch Site builder or a simple static template.',
+      'Ask whether the page is useful enough to keep live for $5/month.',
+      'Use every finished page as a proof example for the next outreach message.'
+    ],
+    adDrafts: [
+      {
+        id: 'free-page-text-1',
+        channel: 'text',
+        headline: 'Want a simple page for what you do?',
+        body: 'I am testing a tiny 3DVR offer: I will make you a clean one-page website for free. If it is useful, you can keep it live for $5/month. If not, no worries.',
+        cta: 'Send the basics'
+      },
+      {
+        id: 'free-page-email-1',
+        channel: 'email',
+        headline: 'I can make you a simple one-page website',
+        body: 'I am making free one-page websites for people with a service, creative project, side hustle, or local business. The page gives you one clean link to share. Keeping it live is optional at $5/month.',
+        cta: 'Send the basics'
+      },
+      {
+        id: 'free-page-linkedin-1',
+        channel: 'linkedin',
+        headline: 'A free first website page',
+        body: 'Not everyone needs a full site first. I am helping people get one simple page live: what you do, who it is for, proof, and a contact path.',
+        cta: 'Get a free page'
+      }
+    ]
+  },
   'microbusiness-launch-sprint': {
     id: '3dvr-microbusiness-launch-sprint',
     title: '3DVR Microbusiness Launch Sprint',

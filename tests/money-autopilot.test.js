@@ -99,15 +99,15 @@ test('resolveAutopilotConfig applies budget cap and defaults', () => {
   assert.equal(config.budget, 250);
   assert.equal(config.autoDiscover, false);
   assert.equal(config.monetization.checkoutUrl, 'https://buy.stripe.com/example123');
-  assert.equal(config.monetization.checkoutCtaLabel, 'Book the Launch Sprint');
+  assert.equal(config.monetization.checkoutCtaLabel, 'Keep It Live');
 });
 
-test('resolveAutopilotConfig defaults to the microbusiness launch sprint profile', () => {
+test('resolveAutopilotConfig defaults to the free page starter profile', () => {
   const config = resolveAutopilotConfig({ env: {} });
 
-  assert.equal(config.market, 'people turning a skill, calling, or small service into a first paid microbusiness');
+  assert.equal(config.market, 'people who need a simple first website for a project, service, or small business');
   assert.equal(config.autoDiscover, false);
-  assert.equal(config.offerProfile, 'microbusiness-launch-sprint');
+  assert.equal(config.offerProfile, 'free-page-starter');
 });
 
 test('buildOfferHtml renders top opportunity details', () => {
@@ -256,8 +256,8 @@ test('runAutopilotCycle executes loop and returns publish/promotion summaries', 
   assert.equal(result.publish.vercel.reason, 'vercel deploy disabled');
   assert.equal(result.promotion.reason, 'promotion dispatch disabled');
   assert.equal(result.marketSelection.mode, 'configured');
-  assert.equal(result.topOpportunity.title, '3DVR Microbusiness Launch Sprint');
-  assert.match(result.artifacts.offerHtml, /3DVR Microbusiness Launch Sprint/);
+  assert.equal(result.topOpportunity.title, '3DVR Free Page');
+  assert.match(result.artifacts.offerHtml, /3DVR Free Page/);
 });
 
 test('runAutopilotCycle sanitizes discovered keywords before running loop', async () => {
@@ -371,11 +371,11 @@ test('runAutopilotCycle uses checkout URL as destination fallback', async () => 
 
   assert.equal(result.publish.destinationUrl, 'https://buy.stripe.com/example123');
   assert.equal(result.monetization.checkoutConfigured, true);
-  assert.equal(result.monetization.checkoutCtaLabel, 'Book the Launch Sprint');
-  assert.equal(result.topOpportunity.title, '3DVR Microbusiness Launch Sprint');
+  assert.equal(result.monetization.checkoutCtaLabel, 'Keep It Live');
+  assert.equal(result.topOpportunity.title, '3DVR Free Page');
 });
 
-test('runAutopilotCycle uses public microbusiness campaign page when checkout is missing', async () => {
+test('runAutopilotCycle uses public free page campaign page when checkout is missing', async () => {
   const result = await runAutopilotCycle({
     fetchImpl: async () => ({
       ok: true,
@@ -411,8 +411,8 @@ test('runAutopilotCycle uses public microbusiness campaign page when checkout is
     })
   });
 
-  assert.equal(result.publish.destinationUrl, 'https://portal.3dvr.tech/microbusiness-sprint/');
-  assert.equal(result.promotion.destinationUrl, 'https://portal.3dvr.tech/microbusiness-sprint/');
+  assert.equal(result.publish.destinationUrl, 'https://portal.3dvr.tech/free-page/');
+  assert.equal(result.promotion.destinationUrl, 'https://portal.3dvr.tech/free-page/');
   assert.equal(result.monetization.checkoutConfigured, false);
-  assert.match(result.warnings.join('\n'), /microbusiness-sprint/);
+  assert.match(result.warnings.join('\n'), /free-page/);
 });

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Free One-Page Website | 3DVR</title>
+  <meta name="description" content="3DVR will make a clean one-page website for free. Keep it live with small edits for $5/month if you like it.">
+  <link rel="canonical" href="https://portal.3dvr.tech/free-page/">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <header class="site-header">
+    <a class="brand" href="../">
+      <span class="brand-mark">3D</span>
+      <span>3DVR</span>
+    </a>
+    <nav aria-label="Free page navigation">
+      <a href="#examples">Examples</a>
+      <a href="#brief">Start</a>
+      <a class="nav-pill" href="../billing/?plan=starter">Keep it live</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">A tiny offer for friends, freelancers, creators, and local operators</p>
+        <h1>I’ll make you a clean one-page website for free.</h1>
+        <p class="lead">Send the basics for a project, service, creative thing, side hustle, or local business. I’ll make a simple first page. If you like it, keep it live and request small updates for $5/month.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#brief">Send the basics</a>
+          <a class="button secondary" href="#examples">See examples</a>
+        </div>
+      </div>
+
+      <aside class="proof-card" aria-label="What is included">
+        <p class="card-kicker">What you get</p>
+        <ul>
+          <li>One simple public page</li>
+          <li>Clear headline, services, and contact CTA</li>
+          <li>Optional booking, email, payment, or social link</li>
+          <li>Small “made by 3DVR” footer</li>
+          <li>No pressure: free draft, optional $5/month upkeep</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section id="examples" class="examples" aria-labelledby="examples-heading">
+      <div class="section-heading">
+        <p class="eyebrow">Recent shape</p>
+        <h2 id="examples-heading">Small pages that make a real person easier to hire.</h2>
+      </div>
+      <div class="example-grid">
+        <a class="example-card dave" href="https://3dvr.tech/dave/" target="_blank" rel="noopener">
+          <span>Dave</span>
+          <strong>Creative services page</strong>
+          <p>Simple offer, selected work, process, and contact path.</p>
+        </a>
+        <a class="example-card donovan" href="https://donovan.3dvr.tech/" target="_blank" rel="noopener">
+          <span>Donovan</span>
+          <strong>Lighting operator page</strong>
+          <p>One focused page for a skilled operator to share fast.</p>
+        </a>
+        <div class="example-card yours">
+          <span>Your page</span>
+          <strong>A clean first website</strong>
+          <p>Enough to send in a text, bio, email signature, or local referral.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="brief" class="brief-section" aria-labelledby="brief-heading">
+      <div>
+        <p class="eyebrow">Two-minute brief</p>
+        <h2 id="brief-heading">Tell me who the page is for.</h2>
+        <p class="section-copy">This is intentionally lightweight. If you can explain what you do in a text message, that is enough to start.</p>
+      </div>
+
+      <form class="brief-card" id="freePageBrief">
+        <label>
+          Your name or business
+          <input name="name" type="text" placeholder="Example: Dave AV, Rosa's Garden Care" autocomplete="organization">
+        </label>
+        <label>
+          What do you want people to hire, book, buy, or understand?
+          <textarea name="offer" rows="4" placeholder="I do lighting for corporate events. I want people to see my work and email me for availability."></textarea>
+        </label>
+        <label>
+          Who should the page speak to?
+          <input name="audience" type="text" placeholder="Event planners, neighbors, small business owners, parents, etc.">
+        </label>
+        <label>
+          Main action button
+          <input name="action" type="text" placeholder="Email me, book a call, follow on Instagram, pay deposit...">
+        </label>
+        <label>
+          Best contact link
+          <input name="contact" type="text" placeholder="Email, phone, booking link, Instagram, Stripe link...">
+        </label>
+        <button class="button primary wide" type="submit">Create email to 3DVR</button>
+      </form>
+    </section>
+
+    <section class="handoff" aria-live="polite">
+      <div>
+        <p class="eyebrow">Ready when you are</p>
+        <h2>Send the brief to <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>.</h2>
+        <p id="handoffCopy">Fill out the brief and I’ll generate the email for you.</p>
+      </div>
+      <a id="mailtoLink" class="button secondary" href="mailto:3dvr.tech@gmail.com?subject=Free%203DVR%20page">Email 3DVR</a>
+    </section>
+
+    <section class="keep-live">
+      <div>
+        <p class="eyebrow">$5/month if it helps</p>
+        <h2>Keep the page live, request small edits, and help fund the next one.</h2>
+        <p>This is the honest starter plan: free draft first, then $5/month only if the page is worth keeping online.</p>
+      </div>
+      <a class="button primary" href="../billing/?plan=starter">Keep it live for $5/month</a>
+    </section>
+
+    <section class="operator-note">
+      <p>Already know what you want? Use the internal <a href="../launch-site/">3DVR Launch Site builder</a> to assemble the page faster.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>3DVR makes small web systems for people turning skills into useful work.</p>
+  </footer>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
