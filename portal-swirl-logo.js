@@ -2,8 +2,10 @@
   const THREE_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
   const TAU = Math.PI * 2;
   const BASE_FACE_SPIN = TAU / 5200;
-  const DRAG_WIND_FACTOR = 0.00065;
-  const MAX_EXTRA_SPIN = 0.18;
+  const DRAG_WIND_FACTOR = 0.000325;
+  const MAX_EXTRA_SPIN = 0.1;
+  const PULL_WINDUP_FACTOR = 0.00003;
+  const MAX_PULL_WINDUP_SPIN = 0.004;
   const SPIN_DECAY = 0.99;
   const FLIP_DECAY = 0.965;
   const MIN_FLIP_VELOCITY = 0.005;
@@ -18,11 +20,13 @@
   const FLIP_STREAK_WINDOW = 3200;
   const SWIPE_STREAK_MAX = 5;
   const SWIPE_TILT_GAIN = 0.12;
-  const SWIPE_SPIN_GAIN = 0.24;
+  const SWIPE_SPIN_GAIN = 0.12;
+  const QUICK_TAP_MAX_MS = 280;
+  const QUICK_TAP_PULL_DISTANCE = 72;
   const TOUCH_RAMP_WINDOW = 2400;
   const TOUCH_RAMP_MAX = 6;
   const FIRST_TOUCH_SPIN_SCALE = 0.38;
-  const TOUCH_SPIN_GAIN = 0.26;
+  const TOUCH_SPIN_GAIN = 0.13;
   const FIRST_TOUCH_WOBBLE_SCALE = 0.48;
   const TOUCH_WOBBLE_GAIN = 0.32;
   const FIRST_TOUCH_FLIP_SCALE = 0.74;
@@ -34,8 +38,8 @@
   const FLIP_IMPULSE_X = 0.22;
   const FLIP_IMPULSE_Y = 0.26;
   const FLIP_CROSS_IMPULSE = 0.055;
-  const FLIP_SPIN_BOOST = 0.026;
-  const FLIP_BUILD_SPIN_STEP = 0.012;
+  const FLIP_SPIN_BOOST = 0.013;
+  const FLIP_BUILD_SPIN_STEP = 0.006;
   const FLIP_BUILD_IMPULSE_STEP = 0.014;
   const FLIP_BUILD_WOBBLE_STEP = 0.026;
   const TARGET_SETTLE_BASE = 0.94;
@@ -269,9 +273,13 @@
       dragDY: 0,
       gestureDX: 0,
       gestureDY: 0,
+      dragStartedAt: 0,
+      lastPointerDownDuration: 0,
+      lastTapStimulatedAt: 0,
       lastTimestamp: 0,
       faceSpin: 0,
       extraFaceSpin: 0,
+      pullWindupSpin: 0,
       targetX: 0,
       targetY: 0,
       targetZ: 0,
@@ -512,6 +520,24 @@
       registerFlipGesture(axis, direction, distance);
     };
 
+    const stimulateQuickTap = () => {
+      const now = window.performance?.now?.() ?? Date.now();
+      state.lastTapStimulatedAt = now;
+      const gesture = {
+        axis: 'y',
+        direction: 1,
+        distance: QUICK_TAP_PULL_DISTANCE,
+      };
+      updateSwipeStreak(gesture);
+      addDirectionalFlipImpulse(gesture);
+      state.extraFaceSpin = clamp(
+        state.extraFaceSpin + QUICK_TAP_PULL_DISTANCE * 0.00045 * getSpinBoost() * getTouchSpinScale(),
+        -MAX_EXTRA_SPIN,
+        MAX_EXTRA_SPIN,
+      );
+      state.wobbleVelocityY += FLIP_BUILD_WOBBLE_STEP * getTouchWobbleScale();
+    };
+
     const startDrag = (event) => {
       const point = getPointer(event);
       state.dragging = true;
@@ -523,6 +549,8 @@
       state.dragDY = 0;
       state.gestureDX = 0;
       state.gestureDY = 0;
+      state.dragStartedAt = window.performance?.now?.() ?? Date.now();
+      state.pullWindupSpin = 0;
       updateTouchRamp();
       capturePointer(event);
       event.preventDefault();
@@ -544,6 +572,11 @@
       state.gestureDX += dx;
       state.gestureDY += dy;
       const touchSpinScale = getTouchSpinScale();
+      state.pullWindupSpin = clamp(
+        state.pullWindupSpin + distance * PULL_WINDUP_FACTOR * getSpinBoost() * touchSpinScale,
+        0,
+        MAX_PULL_WINDUP_SPIN,
+      );
       state.extraFaceSpin = clamp(
         state.extraFaceSpin + distance * DRAG_WIND_FACTOR * getSpinBoost() * touchSpinScale,
         -MAX_EXTRA_SPIN,
@@ -566,7 +599,12 @@
       releasePointer(event);
 
       const wasTap = !state.pointerMoved && Math.hypot(state.gestureDX, state.gestureDY) < 6;
+      const now = window.performance?.now?.() ?? Date.now();
+      state.lastPointerDownDuration = now - state.dragStartedAt;
       if (wasTap) {
+        if (state.lastPointerDownDuration <= QUICK_TAP_MAX_MS) {
+          stimulateQuickTap();
+        }
         setPaused(false);
         return;
       }
@@ -576,7 +614,7 @@
       addDirectionalFlipImpulse(gesture);
       state.extraFaceSpin = clamp(
         state.extraFaceSpin +
-          Math.hypot(state.dragDX, state.dragDY) * 0.0018 * getSpinBoost() * getTouchSpinScale(),
+          Math.hypot(state.dragDX, state.dragDY) * 0.0009 * getSpinBoost() * getTouchSpinScale(),
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
@@ -592,6 +630,14 @@
       root.addEventListener('lostpointercapture', endDrag);
       window.addEventListener('pointerup', endDrag);
       window.addEventListener('pointercancel', endDrag);
+      root.addEventListener('click', (event) => {
+        const now = window.performance?.now?.() ?? Date.now();
+        if (state.dragging || state.lastPointerDownDuration > QUICK_TAP_MAX_MS) return;
+        if (now - state.lastTapStimulatedAt < 160) return;
+        stimulateQuickTap();
+        setPaused(false);
+        event.preventDefault();
+      });
 
       root.addEventListener('keydown', (event) => {
         if (event.key === ' ') {
@@ -732,6 +778,7 @@
         state.targetX = lerp(state.targetX, 0, targetSettle);
         state.targetY = lerp(state.targetY, 0, targetSettle);
         state.targetZ = lerp(state.targetZ, 0, targetSettle);
+        state.pullWindupSpin = lerp(state.pullWindupSpin, 0, currentSettle);
         state.extraFaceSpin *= Math.pow(SPIN_DECAY, frames);
       }
 
@@ -764,7 +811,8 @@
 
       const baseSpin = state.paused ? 0 : reducedMotion ? BASE_FACE_SPIN * 0.28 : BASE_FACE_SPIN;
       const extraSpin = state.paused ? 0 : state.extraFaceSpin;
-      state.faceSpin += (baseSpin + extraSpin) * spinElapsed;
+      const pullWindupSpin = state.dragging ? state.pullWindupSpin : 0;
+      state.faceSpin += (baseSpin + extraSpin + pullWindupSpin) * spinElapsed;
       render();
     };
 
@@ -781,6 +829,7 @@
           paused: state.paused,
           faceSpin: state.faceSpin,
           extraFaceSpin: state.extraFaceSpin,
+          pullWindupSpin: state.pullWindupSpin,
           targetX: state.targetX,
           targetY: state.targetY,
           targetZ: state.targetZ,
