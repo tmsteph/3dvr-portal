@@ -20,6 +20,11 @@ function clearSharedIdentityCookie() {
   }
 }
 
+function currentSignInHref() {
+  const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
+  return `/sign-in.html?redirect=${encodeURIComponent(currentPath || '/index.html')}`;
+}
+
 function hideUnreadyHomepageSections() {
   const systemLayers = document.getElementById('systemLayers');
   if (systemLayers) {
@@ -88,6 +93,11 @@ function createNavbar() {
   button.innerText = 'Sign Out';
 
   button.addEventListener('click', () => {
+    if (isGuest) {
+      window.location.href = currentSignInHref();
+      return;
+    }
+
     if (!isGuest) {
       try {
         user.leave();
@@ -137,8 +147,8 @@ function createNavbar() {
     stats.href = 'profile.html#profile';
     stats.setAttribute('aria-label', 'View your guest profile details');
     stats.title = 'View your guest profile';
-    button.innerText = 'Sign Out';
-    button.setAttribute('aria-label', 'Sign out of guest mode');
+    button.innerText = 'Sign in';
+    button.setAttribute('aria-label', 'Sign in or create an account');
   }
 
   function updateNameDisplay() {

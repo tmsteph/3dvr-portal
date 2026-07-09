@@ -6,13 +6,16 @@ const navbarUrl = new URL('../navbar.js', import.meta.url);
 const indexUrl = new URL('../index.html', import.meta.url);
 
 describe('guest account entrypoints', () => {
-  it('keeps the floating guest identity action as sign out instead of account creation', async () => {
+  it('turns the floating guest identity action into a normal sign-in link', async () => {
     const source = await readFile(navbarUrl, 'utf8');
     assert.doesNotMatch(source, /function guestUpgradeHref\(\)/);
     assert.doesNotMatch(source, /upgrade=guest/);
     assert.doesNotMatch(source, /Create an account and keep guest progress/);
-    assert.match(source, /button\.innerText = 'Sign Out'/);
-    assert.match(source, /button\.setAttribute\('aria-label', 'Sign out of guest mode'\)/);
+    assert.match(source, /function currentSignInHref\(\)/);
+    assert.match(source, /window\.location\.href = currentSignInHref\(\)/);
+    assert.match(source, /button\.innerText = 'Sign in'/);
+    assert.match(source, /button\.setAttribute\('aria-label', 'Sign in or create an account'\)/);
+    assert.doesNotMatch(source, /button\.setAttribute\('aria-label', 'Sign out of guest mode'\)/);
   });
 
   it('sends the homepage auth modal to normal sign-in without the guest upgrade flag', async () => {
