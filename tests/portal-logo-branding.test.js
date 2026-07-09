@@ -46,7 +46,7 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /root\.dataset\.logoPaused = String\(state\.paused\)/);
     assert.doesNotMatch(swirlScript, /root\.setAttribute\('aria-pressed'/);
     assert.doesNotMatch(swirlScript, /const togglePaused = \(\) =>/);
-    assert.match(swirlScript, /MAX_EXTRA_SPIN = 0\.105/);
+    assert.match(swirlScript, /MAX_EXTRA_SPIN = 0\.18/);
     assert.match(swirlScript, /makeTextTexture/);
     assert.match(
       swirlScript,
@@ -66,7 +66,7 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /TILT_Y_LIMIT = 0\.24/);
     assert.match(swirlScript, /TILT_X_LIMIT = 0\.18/);
     assert.match(swirlScript, /FLIP_STREAK_REQUIRED = 4/);
-    assert.match(swirlScript, /FLIP_STREAK_WINDOW/);
+    assert.match(swirlScript, /FLIP_STREAK_WINDOW = 3200/);
     assert.match(swirlScript, /SWIPE_STREAK_MAX = 5/);
     assert.match(swirlScript, /SWIPE_TILT_GAIN = 0\.12/);
     assert.match(swirlScript, /SWIPE_SPIN_GAIN = 0\.24/);
@@ -81,6 +81,9 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /TOUCH_INSTABILITY_IMPULSE = 0\.012/);
     assert.match(swirlScript, /TOUCH_INSTABILITY_DECAY = 0\.985/);
     assert.match(swirlScript, /FLIP_SPIN_BOOST/);
+    assert.match(swirlScript, /FLIP_BUILD_SPIN_STEP = 0\.012/);
+    assert.match(swirlScript, /FLIP_BUILD_IMPULSE_STEP = 0\.014/);
+    assert.match(swirlScript, /FLIP_BUILD_WOBBLE_STEP = 0\.026/);
     assert.match(swirlScript, /FLIP_CROSS_IMPULSE/);
     assert.match(swirlScript, /WOBBLE_SPRING/);
     assert.match(swirlScript, /TARGET_SETTLE_BASE/);
@@ -108,6 +111,11 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /touchRampCount: state\.touchRampCount/);
     assert.match(swirlScript, /touchInstability: state\.touchInstability/);
     assert.match(swirlScript, /const axis = absX >= absY \? 'y' : 'x'/);
+    assert.doesNotMatch(swirlScript, /if \(state\.paused\) \{\s*state\.extraFaceSpin = 0;/);
+    assert.match(swirlScript, /const buildLevel = Math\.min\(state\.flipStreakCount, FLIP_STREAK_REQUIRED\)/);
+    assert.match(swirlScript, /state\.targetY = clamp\(state\.targetY \+ direction \* buildTilt, -TILT_Y_LIMIT, TILT_Y_LIMIT\)/);
+    assert.match(swirlScript, /state\.targetX = clamp\(state\.targetX \+ direction \* buildTilt, -TILT_X_LIMIT, TILT_X_LIMIT\)/);
+    assert.match(swirlScript, /state\.extraFaceSpin \+ FLIP_BUILD_SPIN_STEP \* buildLevel \* buildScale/);
     assert.match(swirlScript, /if \(state\.flipStreakCount < FLIP_STREAK_REQUIRED\) return/);
     assert.match(swirlScript, /registerFlipGesture\('x', event\.key === 'ArrowUp' \? -1 : 1/);
     assert.match(swirlScript, /state\.flipVelocityY \+= direction \* FLIP_IMPULSE_Y \* impulseScale/);

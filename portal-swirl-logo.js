@@ -3,7 +3,7 @@
   const TAU = Math.PI * 2;
   const BASE_FACE_SPIN = TAU / 5200;
   const DRAG_WIND_FACTOR = 0.00065;
-  const MAX_EXTRA_SPIN = 0.105;
+  const MAX_EXTRA_SPIN = 0.18;
   const SPIN_DECAY = 0.99;
   const FLIP_DECAY = 0.965;
   const MIN_FLIP_VELOCITY = 0.005;
@@ -15,7 +15,7 @@
   const FLIP_DISTANCE_FULL_CHARGE = 110;
   const FLIP_STREAK_REQUIRED = 4;
   const FLIP_ENERGY_DECAY = 0.4;
-  const FLIP_STREAK_WINDOW = 1800;
+  const FLIP_STREAK_WINDOW = 3200;
   const SWIPE_STREAK_MAX = 5;
   const SWIPE_TILT_GAIN = 0.12;
   const SWIPE_SPIN_GAIN = 0.24;
@@ -35,6 +35,9 @@
   const FLIP_IMPULSE_Y = 0.26;
   const FLIP_CROSS_IMPULSE = 0.055;
   const FLIP_SPIN_BOOST = 0.026;
+  const FLIP_BUILD_SPIN_STEP = 0.012;
+  const FLIP_BUILD_IMPULSE_STEP = 0.014;
+  const FLIP_BUILD_WOBBLE_STEP = 0.026;
   const TARGET_SETTLE_BASE = 0.94;
   const CURRENT_SETTLE_BASE = 0.86;
   const FLIP_HOME_EASE = 0.075;
@@ -357,9 +360,6 @@
 
     const setPaused = (paused) => {
       state.paused = Boolean(paused);
-      if (state.paused) {
-        state.extraFaceSpin = 0;
-      }
       root.dataset.logoPaused = String(state.paused);
     };
 
@@ -464,6 +464,24 @@
       state.flipStreakAxis = axis;
       state.flipStreakDirection = direction;
       state.lastFlipGestureAt = now;
+
+      const buildLevel = Math.min(state.flipStreakCount, FLIP_STREAK_REQUIRED);
+      const buildScale = (1 + clamp(state.flipStreakEnergy, 0, MAX_FLIP_ENERGY) * 0.28) * getTouchFlipScale();
+      const buildTilt = FLIP_BUILD_IMPULSE_STEP * buildLevel * buildScale;
+      const buildWobble = FLIP_BUILD_WOBBLE_STEP * buildLevel * buildScale;
+
+      if (axis === 'y') {
+        state.targetY = clamp(state.targetY + direction * buildTilt, -TILT_Y_LIMIT, TILT_Y_LIMIT);
+        state.wobbleVelocityY += direction * buildWobble;
+      } else {
+        state.targetX = clamp(state.targetX + direction * buildTilt, -TILT_X_LIMIT, TILT_X_LIMIT);
+        state.wobbleVelocityX += direction * buildWobble;
+      }
+      state.extraFaceSpin = clamp(
+        state.extraFaceSpin + FLIP_BUILD_SPIN_STEP * buildLevel * buildScale,
+        -MAX_EXTRA_SPIN,
+        MAX_EXTRA_SPIN,
+      );
 
       if (state.flipStreakCount < FLIP_STREAK_REQUIRED) return;
 
