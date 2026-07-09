@@ -2,17 +2,68 @@ import { runMoneyLoop } from './engine.js';
 import { collectDemandSignals } from './sources.js';
 
 const DEFAULT_AUTOPILOT_PROFILE = {
-  market: 'freelancers managing outreach and follow-up',
-  keywords: ['lead follow-up', 'proposal workflow', 'client onboarding'],
-  channels: ['reddit', 'x', 'linkedin', 'email', 'google-ads'],
+  market: 'people turning a skill, calling, or small service into a first paid microbusiness',
+  keywords: ['microbusiness launch', 'service business validation', 'landing page sprint', 'first paid offer'],
+  channels: ['email', 'linkedin', 'reddit', 'local outreach', 'direct calls'],
   budget: 150,
   limit: 24,
   maxBudget: 300,
-  autoDiscover: true,
-  discoverySeeds: ['freelance', 'small business', 'automation', 'client onboarding', 'lead follow up'],
+  autoDiscover: false,
+  discoverySeeds: ['microbusiness', 'service business', 'paid offer', 'landing page', 'customer validation'],
   publishPathPrefix: 'money-ai/offers',
-  checkoutCtaLabel: 'Start Paid Plan',
-  defaultDestinationUrl: 'https://portal.3dvr.tech/friends-family/'
+  checkoutCtaLabel: 'Book the Launch Sprint',
+  defaultDestinationUrl: 'https://portal.3dvr.tech/microbusiness-sprint/',
+  offerProfile: 'microbusiness-launch-sprint'
+};
+
+const FIRST_PARTY_OFFER_PROFILES = {
+  'microbusiness-launch-sprint': {
+    id: '3dvr-microbusiness-launch-sprint',
+    title: '3DVR Microbusiness Launch Sprint',
+    audience: 'people with a skill, calling, service idea, or local network who need a simple paid offer online',
+    problem: 'You can keep thinking about the business forever, but revenue only starts once there is a concrete offer, a page, a way to pay, and a short list of real people to contact.',
+    solution: 'A focused launch sprint that turns one calling or service idea into a paid microbusiness offer, publishes a landing page, connects lead capture or checkout, and creates the first validation call list.',
+    mvp: 'One working offer page, one payment or lead path, one outreach script, and a 20-person validation list.',
+    suggestedPrice: '$500 launch sprint',
+    painScore: 88,
+    willingnessToPay: 82,
+    speedToBuild: 91,
+    competitionGap: 64,
+    evidence: [
+      '3DVR already has portal, launch-room, launch-site, and money-printer workflows for this path.',
+      'The first revenue experiment needs one clear paid sprint before broad automation.'
+    ],
+    executionChecklist: [
+      'Publish the Microbusiness Launch Sprint page with a direct payment or booking CTA.',
+      'Call or message 20 likely buyers from existing relationships and local networks.',
+      'Use one intake form to capture the idea, audience, skill, price, and first customer list.',
+      'Deliver the first sprint manually so the workflow learns from real objections.',
+      'Rewrite the offer after 5 conversations and keep only the strongest buying trigger.'
+    ],
+    adDrafts: [
+      {
+        id: 'microbusiness-email-1',
+        channel: 'email',
+        headline: 'Turn one service idea into a paid launch page this week',
+        body: 'I am opening a small number of 3DVR Microbusiness Launch Sprint spots: offer, page, payment or lead path, and first outreach list. Useful if you have a skill or calling but no clean way to sell it yet.',
+        cta: 'Book the Launch Sprint'
+      },
+      {
+        id: 'microbusiness-linkedin-1',
+        channel: 'linkedin',
+        headline: 'A practical sprint for first revenue',
+        body: 'The goal is not another brainstorm. In one sprint we define a tiny paid offer, publish the page, connect lead capture or checkout, and build the first validation list.',
+        cta: 'Book the Launch Sprint'
+      },
+      {
+        id: 'microbusiness-calls-1',
+        channel: 'direct calls',
+        headline: 'I can help you package this into a small paid offer',
+        body: 'You already have the skill. The missing pieces are the offer, the page, the payment path, and the first buyer conversations. I am testing a focused launch sprint for that.',
+        cta: 'Schedule a call'
+      }
+    ]
+  }
 };
 
 const MARKET_PROFILES = [
@@ -553,10 +604,56 @@ export function resolveAutopilotConfig(options = {}) {
       checkoutUrl,
       checkoutCtaLabel: checkoutCtaLabel || DEFAULT_AUTOPILOT_PROFILE.checkoutCtaLabel
     },
+    offerProfile: String(
+      options.offerProfile
+      || env.MONEY_AUTOPILOT_OFFER_PROFILE
+      || DEFAULT_AUTOPILOT_PROFILE.offerProfile
+    ).trim(),
     analytics: {
       gaPropertyId: String(options.gaPropertyId || env.MONEY_AUTOPILOT_GA_PROPERTY_ID || '').trim(),
       gaAccessToken: String(options.gaAccessToken || env.MONEY_AUTOPILOT_GA_ACCESS_TOKEN || '').trim()
     }
+  };
+}
+
+function applyFirstPartyOfferProfile(report = {}, profileName = '') {
+  const profile = FIRST_PARTY_OFFER_PROFILES[profileName];
+  if (!profile) {
+    return report;
+  }
+
+  const opportunity = {
+    id: profile.id,
+    title: profile.title,
+    problem: profile.problem,
+    audience: profile.audience,
+    solution: profile.solution,
+    mvp: profile.mvp,
+    suggestedPrice: profile.suggestedPrice,
+    painScore: profile.painScore,
+    willingnessToPay: profile.willingnessToPay,
+    speedToBuild: profile.speedToBuild,
+    competitionGap: profile.competitionGap,
+    evidence: profile.evidence.slice(),
+    score: 86
+  };
+
+  return {
+    ...report,
+    topOpportunity: opportunity,
+    opportunities: [
+      opportunity,
+      ...(Array.isArray(report.opportunities) ? report.opportunities.filter(item => item?.id !== opportunity.id) : [])
+    ].slice(0, 6),
+    adDrafts: profile.adDrafts.map(item => ({
+      ...item,
+      linkedOpportunityId: opportunity.id
+    })),
+    executionChecklist: profile.executionChecklist.slice(),
+    monetizationNotes: [
+      'Start with one paid sprint before expanding into subscriptions or automated market discovery.',
+      ...(Array.isArray(report.monetizationNotes) ? report.monetizationNotes : [])
+    ]
   };
 }
 
@@ -929,10 +1026,12 @@ export async function runAutopilotCycle(options = {}) {
     openAiModel: config.openAiModel
   });
 
+  const profiledReport = applyFirstPartyOfferProfile(report, config.offerProfile);
+
   const reportWithMonetization = {
-    ...report,
+    ...profiledReport,
     monetization: {
-      ...(report.monetization || {}),
+      ...(profiledReport.monetization || {}),
       checkoutUrl: config.monetization.checkoutUrl || config.promotion.defaultDestinationUrl,
       checkoutCtaLabel: config.monetization.checkoutUrl
         ? config.monetization.checkoutCtaLabel
@@ -946,7 +1045,7 @@ export async function runAutopilotCycle(options = {}) {
 
   const offerHtml = buildOfferHtml({
     report: reportWithMonetization,
-    opportunity: report.topOpportunity,
+    opportunity: reportWithMonetization.topOpportunity,
     market
   });
 
@@ -981,7 +1080,7 @@ export async function runAutopilotCycle(options = {}) {
     publish.github.reason = 'missing GitHub publish credentials';
   } else {
     publish.github.attempted = true;
-    publish.github.path = buildPublishPath(config, report);
+    publish.github.path = buildPublishPath(config, reportWithMonetization);
 
     if (config.dryRun) {
       publish.github.reason = 'dry run enabled';
@@ -992,7 +1091,7 @@ export async function runAutopilotCycle(options = {}) {
         path: publish.github.path,
         branch: config.publish.ghBranch,
         content: offerHtml,
-        message: `${config.publish.publishCommitMessagePrefix}: ${report.runId}`,
+        message: `${config.publish.publishCommitMessagePrefix}: ${reportWithMonetization.runId}`,
         fetchImpl
       });
 
@@ -1034,9 +1133,9 @@ export async function runAutopilotCycle(options = {}) {
     || '';
 
   const promotionTasks = buildPromotionTasks(
-    report.adDrafts,
+    reportWithMonetization.adDrafts,
     publish.destinationUrl,
-    report.input?.budget || config.budget
+    reportWithMonetization.input?.budget || config.budget
   );
   const promotion = {
     enabled: config.promotion.enabled,
@@ -1064,13 +1163,13 @@ export async function runAutopilotCycle(options = {}) {
       const webhookResult = await dispatchPromotionWebhook({
         webhookUrl: config.promotion.webhookUrl,
         payload: {
-          runId: report.runId,
-          generatedAt: report.generatedAt,
+          runId: reportWithMonetization.runId,
+          generatedAt: reportWithMonetization.generatedAt,
           market,
           keywords,
-          budget: report.input?.budget || config.budget,
+          budget: reportWithMonetization.input?.budget || config.budget,
           destinationUrl: publish.destinationUrl,
-          topOpportunity: report.topOpportunity,
+          topOpportunity: reportWithMonetization.topOpportunity,
           tasks: promotionTasks
         },
         fetchImpl
@@ -1082,19 +1181,19 @@ export async function runAutopilotCycle(options = {}) {
   }
 
   return {
-    runId: report.runId,
-    generatedAt: report.generatedAt,
+    runId: reportWithMonetization.runId,
+    generatedAt: reportWithMonetization.generatedAt,
     market,
     keywords,
-    budget: report.input?.budget || config.budget,
+    budget: reportWithMonetization.input?.budget || config.budget,
     marketSelection,
     analytics,
-    signalsAnalyzed: report.signals.length,
-    warnings: uniqueStrings([...warnings, ...(report.warnings || [])]),
-    topOpportunity: report.topOpportunity,
-    opportunities: report.opportunities,
-    adDrafts: report.adDrafts,
-    executionChecklist: report.executionChecklist,
+    signalsAnalyzed: reportWithMonetization.signals.length,
+    warnings: uniqueStrings([...warnings, ...(reportWithMonetization.warnings || [])]),
+    topOpportunity: reportWithMonetization.topOpportunity,
+    opportunities: reportWithMonetization.opportunities,
+    adDrafts: reportWithMonetization.adDrafts,
+    executionChecklist: reportWithMonetization.executionChecklist,
     publish,
     promotion,
     monetization: {
