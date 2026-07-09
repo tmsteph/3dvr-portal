@@ -51,3 +51,14 @@ test('profile page exposes clear sign-in paths for guest users', async () => {
   assert.match(html, /link\.textContent = isSignedIn \? '👤 Profile' : '🔑 Sign in'/);
   assert.doesNotMatch(html, /sign-in\.html\?upgrade=guest/);
 });
+
+test('profile page recovers signed-in display names from shared identity and alias fallbacks', async () => {
+  const html = await readFile(new URL('../profile.html', import.meta.url), 'utf8');
+
+  assert.match(html, /<script src="auth-identity\.js"><\/script>/);
+  assert.match(html, /AuthIdentity\.syncStorageFromSharedIdentity\(localStorage\)/);
+  assert.match(html, /const storedAliasName = aliasToDisplay\(readStoredAlias\(\)\)/);
+  assert.match(html, /return storedAliasName \|\| 'User'/);
+  assert.match(html, /portalStoredName \|\| aliasName \|\| aliasToDisplay\(readStoredAlias\(\)\) \|\| 'User'/);
+  assert.doesNotMatch(html, /portalStoredName \|\| aliasName \|\| 'Guest'/);
+});

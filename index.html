@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="auth-identity.js"></script>
   <script src="score.js"></script>
   <script src="/pwa-install.js" defer></script>
   <style>
@@ -1276,6 +1277,13 @@
     ]);
     const user = gun.user();
     const portalRoot = gun.get('3dvr-portal');
+    if (window.AuthIdentity && typeof window.AuthIdentity.syncStorageFromSharedIdentity === 'function') {
+      try {
+        window.AuthIdentity.syncStorageFromSharedIdentity(localStorage);
+      } catch (err) {
+        console.warn('Unable to sync portal identity from shared cookie', err);
+      }
+    }
     if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
       window.ScoreSystem.recallUserSession(user);
     } else {
@@ -1507,10 +1515,15 @@
       const signedIn = localStorage.getItem('signedIn') === 'true';
       const alias = localStorage.getItem('alias');
       const password = localStorage.getItem('password');
+      const authMethod = (localStorage.getItem('authMethod') || '').trim().toLowerCase();
 
       if (signedIn && alias && password) {
         localStorage.removeItem('guest');
         restoreStoredGunSession(alias, password);
+      } else if (signedIn && alias && authMethod === 'oauth') {
+        localStorage.removeItem('guest');
+        localStorage.removeItem('guestId');
+        localStorage.removeItem('guestDisplayName');
       } else if (signedIn) {
         clearStoredAuthSession();
       }

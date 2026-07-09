@@ -760,6 +760,14 @@ if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'funct
   }
 }
 
+if (window.AuthIdentity && typeof window.AuthIdentity.syncStorageFromSharedIdentity === 'function') {
+  try {
+    window.AuthIdentity.syncStorageFromSharedIdentity(localStorage);
+  } catch (err) {
+    console.warn('Unable to sync profile identity from shared cookie', err);
+  }
+}
+
 let isSignedIn = localStorage.getItem('signedIn') === 'true';
 if (!isSignedIn && window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
   window.ScoreSystem.ensureGuestIdentity();
@@ -1383,7 +1391,8 @@ function computeDisplayName() {
   if (isSignedIn) {
     if (portalStoredName) return portalStoredName;
     if (aliasName) return aliasName;
-    return 'Guest';
+    const storedAliasName = aliasToDisplay(readStoredAlias());
+    return storedAliasName || 'User';
   }
   if (isGuest) {
     if (guestStoredName) return guestStoredName;
@@ -1650,7 +1659,7 @@ function watchUsername(node) {
       return;
     }
     const fallback = isSignedIn
-      ? (portalStoredName || aliasName || 'Guest')
+      ? (portalStoredName || aliasName || aliasToDisplay(readStoredAlias()) || 'User')
       : (guestStoredName || 'Guest');
     node.get('username').put(fallback);
     handleProfileName(fallback);
