@@ -4,6 +4,7 @@ import { runAutopilotCycle } from '../../src/money/autopilot.js';
 import {
   buildMoneyOperatorBrief,
   leadQueueToCsv,
+  sendEmailBrief,
   sendTelegramBrief
 } from '../../src/money/operatorBrief.js';
 
@@ -12,10 +13,12 @@ function parseArgs(argv = []) {
     out: '',
     briefOut: '',
     queueOut: '',
+    emailOut: '',
     telegramOut: '',
     deliveryOut: '',
     dryRun: '',
     mode: 'auto',
+    sendEmail: '',
     sendTelegram: ''
   };
 
@@ -65,6 +68,7 @@ async function main() {
   if (args.out) outputs.autopilot = await writeOutput(args.out, autopilot);
   if (args.briefOut) outputs.brief = await writeOutput(args.briefOut, brief.markdown, { json: false });
   if (args.queueOut) outputs.queue = await writeOutput(args.queueOut, leadQueueToCsv(brief.leadQueue), { json: false });
+  if (args.emailOut) outputs.email = await writeOutput(args.emailOut, `${brief.markdown}\n`, { json: false });
   if (args.telegramOut) outputs.telegram = await writeOutput(args.telegramOut, `${brief.telegramText}\n`, { json: false });
 
   let delivery = {
@@ -72,8 +76,16 @@ async function main() {
     sent: false,
     skipped: true,
     failed: false,
-    reason: 'telegram delivery not requested'
+    reason: 'operator delivery not requested'
   };
+
+  if (parseBool(args.sendEmail, false)) {
+    delivery = await sendEmailBrief({
+      subject: `3DVR ${brief.title}`,
+      text: brief.markdown,
+      dryRun: parseBool(process.env.MONEY_OPERATOR_EMAIL_DRY_RUN, false)
+    });
+  }
 
   if (parseBool(args.sendTelegram, false)) {
     delivery = await sendTelegramBrief({
@@ -88,7 +100,7 @@ async function main() {
   console.log(`Autopilot run: ${autopilot.runId}`);
   console.log(`Top opportunity: ${autopilot.topOpportunity?.title || 'none'}`);
   console.log(`One thing: ${brief.oneThing}`);
-  console.log(`Telegram: ${delivery.sent ? 'sent' : delivery.reason}`);
+  console.log(`Delivery: ${delivery.sent ? 'sent' : delivery.reason}`);
 
   Object.entries(outputs).forEach(([label, filePath]) => {
     console.log(`${label}: ${filePath}`);

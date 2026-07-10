@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildMoneyOperatorBrief,
   leadQueueToCsv,
+  sendEmailBrief,
   sendTelegramBrief
 } from '../src/money/operatorBrief.js';
 
@@ -151,4 +152,70 @@ test('sendTelegramBrief posts to Telegram when configured', async () => {
   assert.equal(body.chat_id, '123');
   assert.equal(body.disable_web_page_preview, true);
   assert.equal(body.text, 'Day Money Brief');
+});
+
+test('sendEmailBrief skips cleanly when Gmail config is missing', async () => {
+  const result = await sendEmailBrief({
+    subject: '3DVR Day Money Brief',
+    text: 'Day Money Brief',
+    env: {
+      MONEY_OPERATOR_EMAIL_TO: 'thomas@example.com'
+    }
+  });
+
+  assert.equal(result.sent, false);
+  assert.equal(result.skipped, true);
+  assert.match(result.reason, /gmail config missing/);
+});
+
+test('sendEmailBrief supports dry-run without calling Gmail', async () => {
+  let called = false;
+  const result = await sendEmailBrief({
+    subject: '3DVR Day Money Brief',
+    text: 'Day Money Brief',
+    dryRun: true,
+    env: {
+      GMAIL_USER: 'bot@example.com',
+      GMAIL_APP_PASSWORD: 'secret',
+      MONEY_OPERATOR_EMAIL_TO: 'thomas@example.com'
+    },
+    transport: {
+      async sendMail() {
+        called = true;
+      }
+    }
+  });
+
+  assert.equal(called, false);
+  assert.equal(result.sent, false);
+  assert.equal(result.skipped, true);
+  assert.equal(result.reason, 'dry-run');
+});
+
+test('sendEmailBrief sends through configured transport', async () => {
+  const messages = [];
+  const result = await sendEmailBrief({
+    subject: '3DVR Day Money Brief',
+    text: 'Day Money Brief',
+    env: {
+      GMAIL_USER: 'bot@example.com',
+      GMAIL_APP_PASSWORD: 'secret',
+      MONEY_OPERATOR_EMAIL_TO: 'thomas@example.com'
+    },
+    transport: {
+      async sendMail(message) {
+        messages.push(message);
+        return { messageId: 'email-1' };
+      }
+    }
+  });
+
+  assert.equal(result.sent, true);
+  assert.equal(result.reason, 'sent');
+  assert.equal(result.messageId, 'email-1');
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].to, 'thomas@example.com');
+  assert.equal(messages[0].from, '3DVR Operator <bot@example.com>');
+  assert.equal(messages[0].subject, '3DVR Day Money Brief');
+  assert.match(messages[0].html, /Day Money Brief/);
 });
