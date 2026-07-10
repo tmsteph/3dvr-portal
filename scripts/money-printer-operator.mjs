@@ -248,10 +248,28 @@ async function mergePullRequestIfGreen(rootDir, review, pr, options = {}) {
       reason: 'auto-merge flag not enabled'
     };
   }
+  let checks = null;
+  if (parseBool(options.waitChecks)) {
+    const interval = String(Number(options.checkInterval || 10) || 10);
+    const result = runCommand('gh', ['pr', 'checks', pr.url, '--watch', '--interval', interval], { cwd: rootDir });
+    checks = {
+      waited: true,
+      ok: result.ok,
+      output: commandOutputSummary(result)
+    };
+    if (!result.ok) {
+      return {
+        merged: false,
+        reason: 'pull request checks did not pass',
+        checks
+      };
+    }
+  }
   gh(rootDir, ['pr', 'merge', pr.url, '--squash', '--delete-branch']);
   return {
     merged: true,
-    reason: 'GREEN self-review and checks passed'
+    reason: checks ? 'GREEN self-review and pull request checks passed' : 'GREEN self-review and local checks passed',
+    checks
   };
 }
 
@@ -324,7 +342,9 @@ async function runPropose(rootDir, options = {}) {
       bodyPath: selfReviewPath
     });
     report.merge = await mergePullRequestIfGreen(rootDir, review, report.pr, {
-      autoMerge: options.autoMerge
+      autoMerge: options.autoMerge,
+      waitChecks: options.waitChecks,
+      checkInterval: options.checkInterval
     });
   } else if (parseBool(options.createPr) && review.risk === 'RED') {
     report.pr = {
@@ -364,6 +384,8 @@ Flags:
   --root <dir>             Repo root, defaults to cwd.
   --create-pr              Commit, push, and open a PR when the self-review is not RED.
   --auto-merge             Merge the PR only if self-review is GREEN and checks passed.
+  --wait-checks            Wait for GitHub PR checks before auto-merge.
+  --check-interval <sec>   Poll interval for --wait-checks, default 10.
   --base <branch>          PR base, default main.
   --branch-name <name>     Branch to create when proposal starts from main/master.
   --title <text>           PR title.
@@ -395,6 +417,8 @@ async function main() {
     result = await runPropose(rootDir, {
       createPr: args.createPr,
       autoMerge: args.autoMerge,
+      waitChecks: args.waitChecks,
+      checkInterval: args.checkInterval,
       base: args.base,
       branchName: args.branchName,
       title: args.title,

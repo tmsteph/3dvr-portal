@@ -1,0 +1,74 @@
+name: Money Printer Self Improvement
+
+on:
+  schedule:
+    # 11:45 PM Pacific during daylight time.
+    - cron: '45 06 * * *'
+  workflow_dispatch:
+    inputs:
+      auto_merge:
+        description: 'Auto-merge GREEN self-reviewed improvements after checks pass'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  self-improve:
+    name: Propose guarded self-improvement
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git author
+        run: |
+          git config user.name "3DVR Money Printer"
+          git config user.email "actions@github.com"
+
+      - name: Run guarded self-improvement
+        env:
+          AUTO_MERGE_INPUT: ${{ inputs.auto_merge || 'true' }}
+        run: |
+          mkdir -p artifacts/money-printer-self-improve
+          auto_merge_flag=""
+          if [ "$AUTO_MERGE_INPUT" = "true" ]; then
+            auto_merge_flag="--auto-merge"
+          fi
+
+          npm run --silent money-printer:operator -- propose \
+            --create-pr \
+            $auto_merge_flag \
+            --wait-checks \
+            --check-interval 10 \
+            --title "Money Printer autonomous operator report" \
+            --json | tee artifacts/money-printer-self-improve/latest.json
+
+      - name: Collect operator reports
+        if: always()
+        run: |
+          mkdir -p artifacts/money-printer-self-improve/operator
+          cp -R .money-printer/operator/. artifacts/money-printer-self-improve/operator/ 2>/dev/null || true
+
+      - name: Upload self-improvement artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: money-printer-self-improve-${{ github.run_id }}
+          path: artifacts/money-printer-self-improve/
