@@ -1330,6 +1330,11 @@ body[data-view-mode="human-os"]:not([data-active-room=""]) .human-os-map {
   margin-top: 0.15rem;
 }
 
+.workspace-strip--core {
+  justify-self: stretch;
+  width: 100%;
+}
+
 .workspace-strip__label {
   font-size: 0.76rem;
   font-weight: 700;
@@ -1343,6 +1348,10 @@ body[data-view-mode="human-os"]:not([data-active-room=""]) .human-os-map {
   gap: 0.65rem;
   min-width: 0;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.workspace-strip--core .workspace-ribbon {
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
 }
 
 .workspace-pill {
@@ -1383,6 +1392,21 @@ body[data-view-mode="human-os"]:not([data-active-room=""]) .human-os-map {
   font-size: 0.82rem;
   line-height: 1.45;
   color: var(--color-text-muted);
+}
+
+.workspace-strip--core .workspace-pill {
+  gap: 0.22rem;
+  padding: 0.72rem 0.78rem;
+  border-radius: 0.78rem;
+}
+
+.workspace-strip--core .workspace-pill strong {
+  font-size: 0.9rem;
+}
+
+.workspace-strip--core .workspace-pill span {
+  font-size: 0.76rem;
+  line-height: 1.34;
 }
 
 .plan-strip__label {
@@ -2341,6 +2365,10 @@ footer a {
   }
 
   .workspace-ribbon {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-strip--core .workspace-ribbon {
     grid-template-columns: 1fr;
   }
 
