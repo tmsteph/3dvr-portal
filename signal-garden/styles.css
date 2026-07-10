@@ -1,0 +1,231 @@
+:root {
+  color-scheme: dark;
+}
+
+body.signal-page {
+  background:
+    linear-gradient(140deg, rgba(7, 12, 20, 0.98), rgba(13, 33, 39, 0.98) 48%, rgba(31, 23, 34, 0.98)),
+    #080c12;
+  color: #eef7f2;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.signal-nav {
+  background: rgba(7, 12, 20, 0.78);
+  border-color: rgba(214, 243, 109, 0.28);
+  left: 50%;
+  margin: 0;
+  max-width: calc(100% - 24px);
+  position: fixed;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+.signal-nav a {
+  background: rgba(214, 243, 109, 0.16);
+  border-color: rgba(214, 243, 109, 0.34);
+  color: #eef7f2;
+  min-width: 88px;
+}
+
+.signal-nav a:hover,
+.signal-nav a:focus-visible {
+  background: rgba(214, 243, 109, 0.26);
+  color: #ffffff;
+}
+
+.signal-page .skip-link:not(:focus) {
+  height: 1px;
+  left: -999px;
+  overflow: hidden;
+  position: absolute;
+  top: auto;
+  width: 1px;
+}
+
+.signal-shell {
+  height: 100vh;
+  width: 100vw;
+}
+
+.signal-stage {
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.garden-canvas {
+  display: block;
+  height: 100%;
+  touch-action: none;
+  width: 100%;
+}
+
+.signal-hud {
+  bottom: 18px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(78px, 1fr));
+  left: 50%;
+  max-width: min(760px, calc(100% - 24px));
+  position: fixed;
+  transform: translateX(-50%);
+  width: 100%;
+  z-index: 15;
+}
+
+.signal-hud div {
+  background: rgba(7, 12, 20, 0.72);
+  border: 1px solid rgba(179, 220, 205, 0.26);
+  border-radius: 8px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.28);
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.signal-hud span,
+.signal-kicker {
+  color: #b4c9c4;
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.signal-hud strong {
+  color: #ffffff;
+  display: block;
+  font-size: clamp(1rem, 2.6vw, 1.45rem);
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-overlay {
+  align-items: center;
+  background: rgba(4, 8, 14, 0.38);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 30;
+}
+
+.signal-overlay[hidden] {
+  display: none;
+}
+
+.signal-dialog {
+  background: rgba(10, 16, 24, 0.84);
+  border: 1px solid rgba(179, 220, 205, 0.28);
+  border-radius: 8px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.46);
+  max-width: 440px;
+  padding: 22px;
+  text-align: left;
+  width: min(100%, 440px);
+}
+
+.signal-dialog h1 {
+  color: #ffffff;
+  font-size: clamp(2.2rem, 10vw, 4.75rem);
+  line-height: 0.95;
+  margin: 8px 0 14px;
+}
+
+.signal-dialog p {
+  color: #d2dfda;
+  font-size: 1rem;
+  line-height: 1.55;
+  margin: 0 0 18px;
+}
+
+.signal-action {
+  background: #d6f36d;
+  border: 0;
+  border-radius: 8px;
+  color: #14200d;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 900;
+  min-height: 46px;
+  padding: 0 18px;
+}
+
+.signal-action:focus-visible,
+.signal-controls button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.signal-controls {
+  bottom: 104px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(5, 46px);
+  justify-content: center;
+  left: 50%;
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 16;
+}
+
+.signal-controls button {
+  align-items: center;
+  background: rgba(238, 247, 242, 0.14);
+  border: 1px solid rgba(238, 247, 242, 0.24);
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1.3rem;
+  font-weight: 900;
+  height: 46px;
+  justify-content: center;
+  line-height: 1;
+  touch-action: none;
+  width: 46px;
+}
+
+.signal-controls button[data-active="true"] {
+  background: rgba(214, 243, 109, 0.28);
+  border-color: rgba(214, 243, 109, 0.72);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .signal-controls {
+    opacity: 0.72;
+  }
+}
+
+@media (max-width: 620px) {
+  body.signal-page {
+    overflow: hidden;
+  }
+
+  .signal-nav {
+    top: 8px;
+  }
+
+  .signal-hud {
+    bottom: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .signal-controls {
+    bottom: 126px;
+    grid-template-columns: repeat(5, 42px);
+  }
+
+  .signal-controls button {
+    height: 42px;
+    width: 42px;
+  }
+}

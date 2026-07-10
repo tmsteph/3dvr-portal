@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Signal Garden - 3DVR Portal</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="signal-page">
+  <a class="skip-link" href="#signalGarden">Skip to game</a>
+  <nav class="top-buttons signal-nav" aria-label="Signal Garden links">
+    <a href="../index.html">Portal</a>
+    <a href="../games.html">Games</a>
+    <a href="../life/index.html">Daily Direction</a>
+  </nav>
+
+  <main id="signalGarden" class="signal-shell">
+    <section class="signal-stage" aria-label="Signal Garden game">
+      <canvas id="gardenCanvas" class="garden-canvas"></canvas>
+      <div class="signal-hud" aria-live="polite">
+        <div>
+          <span>Score</span>
+          <strong data-score>0</strong>
+        </div>
+        <div>
+          <span>Sparks</span>
+          <strong data-sparks>0/0</strong>
+        </div>
+        <div>
+          <span>Time</span>
+          <strong data-time>60</strong>
+        </div>
+        <div>
+          <span>State</span>
+          <strong data-grade>Seed</strong>
+        </div>
+      </div>
+      <div class="signal-overlay" data-overlay>
+        <div class="signal-dialog" role="dialog" aria-modal="true" aria-labelledby="signalTitle">
+          <span class="signal-kicker">3DVR quick play</span>
+          <h1 id="signalTitle">Signal Garden</h1>
+          <p data-overlay-copy>Collect sparks, keep a streak alive, and wake the field.</p>
+          <button class="signal-action" type="button" data-start>Start</button>
+        </div>
+      </div>
+      <div class="signal-controls" aria-label="Touch controls">
+        <button type="button" data-dir="left" aria-label="Move left" title="Move left">←</button>
+        <button type="button" data-dir="up" aria-label="Move up" title="Move up">↑</button>
+        <button type="button" data-dir="down" aria-label="Move down" title="Move down">↓</button>
+        <button type="button" data-dir="right" aria-label="Move right" title="Move right">→</button>
+        <button type="button" data-boost aria-label="Boost" title="Boost">↯</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
