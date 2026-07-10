@@ -10,7 +10,10 @@ import {
   parseProspectsCsv,
   queueToCsv
 } from '../../src/money/outboundAutopilot.js';
-import { sendTelegramBrief } from '../../src/money/operatorBrief.js';
+import {
+  sendEmailBrief,
+  sendTelegramBrief
+} from '../../src/money/operatorBrief.js';
 
 function parseArgs(argv = []) {
   const args = {
@@ -21,9 +24,11 @@ function parseArgs(argv = []) {
     queueOut: '',
     outcomesOut: '',
     summaryOut: '',
+    emailOut: '',
     telegramOut: '',
     deliveryOut: '',
     dispatchOut: '',
+    sendEmail: '',
     sendTelegram: '',
     dryRun: ''
   };
@@ -109,32 +114,41 @@ async function main() {
   if (args.queueOut) outputs.queue = await writeOutput(args.queueOut, queueToCsv(queue), { json: false });
   if (args.outcomesOut) outputs.outcomes = await writeOutput(args.outcomesOut, outcomeTrackerToCsv(queue), { json: false });
   if (args.summaryOut) outputs.summary = await writeOutput(args.summaryOut, summary, { json: false });
+  if (args.emailOut) outputs.email = await writeOutput(args.emailOut, `${summary}\n`, { json: false });
   if (args.telegramOut) outputs.telegram = await writeOutput(args.telegramOut, `${summary}\n`, { json: false });
   if (args.dispatchOut) outputs.dispatch = await writeOutput(args.dispatchOut, dispatch);
 
-  let telegram = {
+  let delivery = {
     attempted: false,
     sent: false,
     skipped: true,
     failed: false,
-    reason: 'telegram delivery not requested'
+    reason: 'operator delivery not requested'
   };
 
+  if (parseBool(args.sendEmail, false)) {
+    delivery = await sendEmailBrief({
+      subject: '3DVR Outbound Autopilot',
+      text: summary,
+      dryRun: parseBool(process.env.MONEY_OPERATOR_EMAIL_DRY_RUN, false)
+    });
+  }
+
   if (parseBool(args.sendTelegram, false)) {
-    telegram = await sendTelegramBrief({
+    delivery = await sendTelegramBrief({
       text: summary,
       dryRun: parseBool(process.env.MONEY_OPERATOR_TELEGRAM_DRY_RUN, false)
     });
   }
 
-  if (args.deliveryOut) outputs.delivery = await writeOutput(args.deliveryOut, telegram);
+  if (args.deliveryOut) outputs.delivery = await writeOutput(args.deliveryOut, delivery);
 
   console.log('Outbound Autopilot');
   console.log(`Mode: ${args.mode}`);
   console.log(`Prospects scored: ${queue.length}`);
   console.log(`Top prospect: ${queue[0]?.name || queue[0]?.segment || 'none'}`);
   console.log(`Dispatch: ${dispatch.reason}`);
-  console.log(`Telegram: ${telegram.sent ? 'sent' : telegram.reason}`);
+  console.log(`Delivery: ${delivery.sent ? 'sent' : delivery.reason}`);
   Object.entries(outputs).forEach(([label, filePath]) => console.log(`${label}: ${filePath}`));
 }
 

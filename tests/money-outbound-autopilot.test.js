@@ -190,5 +190,8 @@ test('outbound workflow runs scheduled approval-first queue generation', async (
   assert.match(workflow, /MONEY_OUTBOUND_SENDER_WEBHOOK_URL/);
   assert.match(workflow, /outbound-queue\.csv/);
   assert.match(workflow, /outcome-tracker\.csv/);
-  assert.match(workflow, /telegram-delivery\.json/);
+  assert.match(workflow, /sendEmail true/);
+  assert.match(workflow, /email-message\.txt/);
+  assert.match(workflow, /email-delivery\.json/);
+  assert.doesNotMatch(workflow, /sendTelegram true/);
 });

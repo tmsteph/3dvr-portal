@@ -1,3 +1,5 @@
+import { createGmailTransport } from '../../api/_lib/gmail-transport.js';
+
 function clean(value) {
   return String(value || '').trim();
 }
@@ -27,6 +29,19 @@ function bulletList(items = [], fallback = 'None recorded.') {
   const usable = items.map(clean).filter(Boolean);
   if (!usable.length) return `- ${fallback}`;
   return usable.map(item => `- ${item}`).join('\n');
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function markdownToHtml(markdown = '') {
+  return `<pre style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(markdown)}</pre>`;
 }
 
 function inferBriefMode({ mode = 'auto', now = new Date() } = {}) {
@@ -267,6 +282,80 @@ export async function sendTelegramBrief({ text, env = process.env, fetchImpl = f
     }
     result.sent = true;
     result.reason = 'sent';
+    return result;
+  } catch (error) {
+    result.failed = true;
+    result.reason = `send failed: ${error.message}`;
+    return result;
+  }
+}
+
+export async function sendEmailBrief({
+  subject = '3DVR Operator Brief',
+  text,
+  html,
+  env = process.env,
+  dryRun,
+  transport
+} = {}) {
+  const to = clean(
+    env.MONEY_OPERATOR_EMAIL_TO
+    || env.OPERATOR_EMAIL_TO
+    || env.MONEY_PRINTER_OPERATOR_EMAIL_TO
+    || env.MONEY_PRINTER_OWNER_EMAIL
+    || env.GMAIL_USER
+  );
+  const fromAddress = clean(env.GMAIL_USER);
+  const from = clean(env.MONEY_OPERATOR_EMAIL_FROM || env.OPERATOR_EMAIL_FROM)
+    || (fromAddress ? `3DVR Operator <${fromAddress}>` : '');
+  const result = {
+    attempted: false,
+    sent: false,
+    skipped: false,
+    failed: false,
+    dryRun: parseBool(dryRun ?? env.MONEY_OPERATOR_EMAIL_DRY_RUN, false),
+    reason: '',
+    to,
+    messageId: ''
+  };
+
+  if (!clean(text) && !clean(html)) {
+    result.skipped = true;
+    result.reason = 'email body missing';
+    return result;
+  }
+
+  if (!to) {
+    result.skipped = true;
+    result.reason = 'email recipient missing: set MONEY_OPERATOR_EMAIL_TO or OPERATOR_EMAIL_TO';
+    return result;
+  }
+
+  if (!fromAddress || !clean(env.GMAIL_APP_PASSWORD)) {
+    result.skipped = true;
+    result.reason = 'gmail config missing: GMAIL_USER and GMAIL_APP_PASSWORD';
+    return result;
+  }
+
+  if (result.dryRun) {
+    result.skipped = true;
+    result.reason = 'dry-run';
+    return result;
+  }
+
+  result.attempted = true;
+  try {
+    const mailer = transport || createGmailTransport(env);
+    const info = await mailer.sendMail({
+      from,
+      to,
+      subject,
+      text,
+      html: html || markdownToHtml(text)
+    });
+    result.sent = true;
+    result.reason = 'sent';
+    result.messageId = clean(info?.messageId);
     return result;
   } catch (error) {
     result.failed = true;

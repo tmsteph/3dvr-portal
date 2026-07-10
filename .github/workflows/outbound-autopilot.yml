@@ -31,9 +31,10 @@ jobs:
       MONEY_OUTBOUND_DAILY_CAP: ${{ vars.MONEY_OUTBOUND_DAILY_CAP }}
       MONEY_OUTBOUND_SENDER_WEBHOOK_URL: ${{ secrets.MONEY_OUTBOUND_SENDER_WEBHOOK_URL }}
       MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN: ${{ secrets.MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN }}
-      MONEY_OPERATOR_TELEGRAM_BOT_TOKEN: ${{ secrets.MONEY_OPERATOR_TELEGRAM_BOT_TOKEN }}
-      MONEY_OPERATOR_TELEGRAM_CHAT_ID: ${{ secrets.MONEY_OPERATOR_TELEGRAM_CHAT_ID }}
-      MONEY_OPERATOR_TELEGRAM_DRY_RUN: ${{ vars.MONEY_OPERATOR_TELEGRAM_DRY_RUN }}
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      MONEY_OPERATOR_EMAIL_TO: ${{ vars.MONEY_OPERATOR_EMAIL_TO }}
+      MONEY_OPERATOR_EMAIL_DRY_RUN: ${{ vars.MONEY_OPERATOR_EMAIL_DRY_RUN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,14 +57,14 @@ jobs:
           npm run money:outbound -- \
             --mode "$INPUT_MODE" \
             --dailyCap "$INPUT_DAILY_CAP" \
-            --sendTelegram true \
+            --sendEmail true \
             --out artifacts/outbound-autopilot/latest.json \
             --queueOut artifacts/outbound-autopilot/outbound-queue.csv \
             --outcomesOut artifacts/outbound-autopilot/outcome-tracker.csv \
             --summaryOut artifacts/outbound-autopilot/outbound-summary.md \
-            --telegramOut artifacts/outbound-autopilot/telegram-message.txt \
+            --emailOut artifacts/outbound-autopilot/email-message.txt \
             --dispatchOut artifacts/outbound-autopilot/dispatch.json \
-            --deliveryOut artifacts/outbound-autopilot/telegram-delivery.json
+            --deliveryOut artifacts/outbound-autopilot/email-delivery.json
 
       - name: Upload outbound artifact
         uses: actions/upload-artifact@v4
