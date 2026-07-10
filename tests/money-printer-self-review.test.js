@@ -130,4 +130,21 @@ test('operator proposal commits only the reviewed safe improvement', () => {
   assert.doesNotMatch(source, /outPath: selfReviewPath/);
   assert.match(source, /\['add', 'docs\/money-printer-operator-report\.md'\]/);
   assert.doesNotMatch(source, /\['add', 'docs\/money-printer-operator-report\.md', 'SELF_REVIEW\.md'\]/);
+  assert.match(source, /waitChecks: options\.waitChecks/);
+  assert.match(source, /\['pr', 'checks', pr\.url, '--watch', '--interval', interval\]/);
+  assert.match(source, /pull request checks did not pass/);
+});
+
+test('nightly self-improvement workflow uses guarded operator proposal', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/money-printer-self-improve.yml', import.meta.url), 'utf8');
+
+  assert.match(workflow, /Money Printer Self Improvement/);
+  assert.match(workflow, /cron: '45 06 \* \* \*'/);
+  assert.match(workflow, /contents: write/);
+  assert.match(workflow, /pull-requests: write/);
+  assert.match(workflow, /money-printer:operator -- propose/);
+  assert.match(workflow, /--create-pr/);
+  assert.match(workflow, /--wait-checks/);
+  assert.match(workflow, /--auto-merge/);
+  assert.match(workflow, /upload-artifact/);
 });
