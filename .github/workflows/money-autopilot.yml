@@ -2,13 +2,20 @@ name: Money Autopilot
 
 on:
   schedule:
-    - cron: '17 */6 * * *'
+    # 8:15 PM Pacific during daylight time.
+    - cron: '15 03 * * *'
+    # 9:15 AM Pacific during daylight time.
+    - cron: '15 16 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
         description: 'Skip GitHub publish even when publish is enabled'
         required: false
         default: 'false'
+      mode:
+        description: 'Brief mode: auto, day, or night'
+        required: false
+        default: 'auto'
 
 jobs:
   autopilot:
@@ -42,6 +49,9 @@ jobs:
       MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL: ${{ vars.MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL }}
       MONEY_AUTOPILOT_GA_PROPERTY_ID: ${{ vars.MONEY_AUTOPILOT_GA_PROPERTY_ID }}
       MONEY_AUTOPILOT_GA_ACCESS_TOKEN: ${{ secrets.MONEY_AUTOPILOT_GA_ACCESS_TOKEN }}
+      MONEY_OPERATOR_TELEGRAM_BOT_TOKEN: ${{ secrets.MONEY_OPERATOR_TELEGRAM_BOT_TOKEN }}
+      MONEY_OPERATOR_TELEGRAM_CHAT_ID: ${{ secrets.MONEY_OPERATOR_TELEGRAM_CHAT_ID }}
+      MONEY_OPERATOR_TELEGRAM_DRY_RUN: ${{ vars.MONEY_OPERATOR_TELEGRAM_DRY_RUN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,17 +65,43 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run autopilot cycle
+      - name: Run operator brief
+        env:
+          INPUT_MODE: ${{ inputs.mode || 'auto' }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
           mkdir -p artifacts/money-autopilot
+          mode="${INPUT_MODE:-auto}"
+          if [ "$mode" = "auto" ]; then
+            if [ "$EVENT_SCHEDULE" = "15 03 * * *" ]; then
+              mode="night"
+            else
+              mode="day"
+            fi
+          fi
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
-            npm run money:autopilot -- --dryRun true --out artifacts/money-autopilot/latest.json
+            npm run money:operator-brief -- \
+              --dryRun true \
+              --mode "$mode" \
+              --sendTelegram true \
+              --out artifacts/money-autopilot/latest.json \
+              --briefOut artifacts/money-autopilot/operator-brief.md \
+              --queueOut artifacts/money-autopilot/lead-queue.csv \
+              --telegramOut artifacts/money-autopilot/telegram-message.txt \
+              --deliveryOut artifacts/money-autopilot/telegram-delivery.json
           else
-            npm run money:autopilot -- --out artifacts/money-autopilot/latest.json
+            npm run money:operator-brief -- \
+              --mode "$mode" \
+              --sendTelegram true \
+              --out artifacts/money-autopilot/latest.json \
+              --briefOut artifacts/money-autopilot/operator-brief.md \
+              --queueOut artifacts/money-autopilot/lead-queue.csv \
+              --telegramOut artifacts/money-autopilot/telegram-message.txt \
+              --deliveryOut artifacts/money-autopilot/telegram-delivery.json
           fi
 
       - name: Upload autopilot artifact
         uses: actions/upload-artifact@v4
         with:
           name: money-autopilot-${{ github.run_id }}
-          path: artifacts/money-autopilot/latest.json
+          path: artifacts/money-autopilot/
