@@ -1,0 +1,72 @@
+name: Outbound Autopilot
+
+on:
+  schedule:
+    # 9:45 AM Pacific during daylight time, after the morning money brief.
+    - cron: '45 16 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'draft-only, approval-required, or allowlisted-auto-send'
+        required: false
+        default: 'approval-required'
+      daily_cap:
+        description: 'Maximum allowlisted auto-sends per run'
+        required: false
+        default: '3'
+
+jobs:
+  outbound:
+    name: Build outbound queue
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      MONEY_AUTOPILOT_MARKET: ${{ vars.MONEY_AUTOPILOT_MARKET }}
+      MONEY_AUTOPILOT_KEYWORDS: ${{ vars.MONEY_AUTOPILOT_KEYWORDS }}
+      MONEY_AUTOPILOT_CHANNELS: ${{ vars.MONEY_AUTOPILOT_CHANNELS }}
+      MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL: ${{ vars.MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL }}
+      MONEY_OUTBOUND_MODE: ${{ vars.MONEY_OUTBOUND_MODE }}
+      MONEY_OUTBOUND_DAILY_CAP: ${{ vars.MONEY_OUTBOUND_DAILY_CAP }}
+      MONEY_OUTBOUND_SENDER_WEBHOOK_URL: ${{ secrets.MONEY_OUTBOUND_SENDER_WEBHOOK_URL }}
+      MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN: ${{ secrets.MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN }}
+      MONEY_OPERATOR_TELEGRAM_BOT_TOKEN: ${{ secrets.MONEY_OPERATOR_TELEGRAM_BOT_TOKEN }}
+      MONEY_OPERATOR_TELEGRAM_CHAT_ID: ${{ secrets.MONEY_OPERATOR_TELEGRAM_CHAT_ID }}
+      MONEY_OPERATOR_TELEGRAM_DRY_RUN: ${{ vars.MONEY_OPERATOR_TELEGRAM_DRY_RUN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run outbound autopilot
+        env:
+          INPUT_MODE: ${{ inputs.mode || vars.MONEY_OUTBOUND_MODE || 'approval-required' }}
+          INPUT_DAILY_CAP: ${{ inputs.daily_cap || vars.MONEY_OUTBOUND_DAILY_CAP || '3' }}
+        run: |
+          mkdir -p artifacts/outbound-autopilot
+          npm run money:outbound -- \
+            --mode "$INPUT_MODE" \
+            --dailyCap "$INPUT_DAILY_CAP" \
+            --sendTelegram true \
+            --out artifacts/outbound-autopilot/latest.json \
+            --queueOut artifacts/outbound-autopilot/outbound-queue.csv \
+            --outcomesOut artifacts/outbound-autopilot/outcome-tracker.csv \
+            --summaryOut artifacts/outbound-autopilot/outbound-summary.md \
+            --telegramOut artifacts/outbound-autopilot/telegram-message.txt \
+            --dispatchOut artifacts/outbound-autopilot/dispatch.json \
+            --deliveryOut artifacts/outbound-autopilot/telegram-delivery.json
+
+      - name: Upload outbound artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: outbound-autopilot-${{ github.run_id }}
+          path: artifacts/outbound-autopilot/
