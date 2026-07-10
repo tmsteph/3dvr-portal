@@ -20,6 +20,7 @@
     "money-printer:auto-business": "node scripts/money-printer-auto-business.mjs",
     "money:loop": "node scripts/money/run-loop.mjs",
     "money:autopilot": "node scripts/money/run-autopilot.mjs",
+    "money:operator-brief": "node scripts/money/operator-brief.mjs",
     "market:pulse": "node scripts/growth/run-market-pulse.mjs",
     "market:meta-worker": "node scripts/growth/run-meta-market-worker.mjs",
     "playwright:install:linux": "node scripts/playwright/install-runtime.mjs",
