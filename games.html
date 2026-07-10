@@ -150,6 +150,11 @@ h1 {
   --card-glow: linear-gradient(135deg, rgba(56, 189, 248, 0.38), rgba(99, 102, 241, 0.4));
   --icon-bg: linear-gradient(135deg, #020617, #4f46e5);
 }
+
+.game-card.signal {
+  --card-glow: linear-gradient(135deg, rgba(214, 243, 109, 0.38), rgba(242, 166, 90, 0.38));
+  --icon-bg: linear-gradient(135deg, #0f2f2a, #d6f36d);
+}
 </style>
 
   <script defer src="/_vercel/insights/script.js"></script>
@@ -168,6 +173,19 @@ h1 {
 <p class="hub-intro">Pick a launch tile and jump into one of the portal's quick-play experiments.</p>
 
 <div class="game-grid" aria-label="3DVR mini games">
+  <a class="game-card signal" href="signal-garden/">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <path d="M48 12c8 14 20 24 36 30-16 6-28 16-36 30-8-14-20-24-36-30 16-6 28-16 36-30z" fill="currentColor"/>
+        <circle cx="28" cy="30" r="6" fill="#fff" opacity="0.78"/>
+        <circle cx="68" cy="34" r="5" fill="#fff" opacity="0.58"/>
+        <circle cx="56" cy="68" r="7" fill="#fff" opacity="0.66"/>
+        <path d="M28 30c14 7 27 20 28 38M28 30c13-2 27 0 40 4" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity="0.52"/>
+      </svg>
+    </span>
+    <span class="game-title">Signal Garden</span>
+    <p class="game-blurb">A calm arcade field where sparks turn into a living constellation.</p>
+  </a>
   <a class="game-card pong" href="pong.html">
     <span class="game-icon" aria-hidden="true">
       <svg viewBox="0 0 96 96" role="img">
