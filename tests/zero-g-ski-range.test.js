@@ -15,6 +15,16 @@ test('zero-g ski range exposes first-person ski-shooter mechanics', async () => 
   assert.match(html, /const ZOOM_FOV = 48;/);
   assert.match(html, /input\.zoom = true;/);
   assert.doesNotMatch(html, /event\.button === 2\) {\n\s+input\.brake = true;/);
+  assert.match(html, /const terrainBiomes = \[/);
+  assert.match(html, /Frost Flats/);
+  assert.match(html, /Aurora Basin/);
+  assert.match(html, /Ember Ridge/);
+  assert.match(html, /const targetTypes = \[/);
+  assert.match(html, /Scout/);
+  assert.match(html, /Raider/);
+  assert.match(html, /Bulwark/);
+  assert.match(html, /damage: 78,/);
+  assert.match(html, /damage: 14,/);
   assert.match(html, /Disc Launcher/);
   assert.match(html, /Trace Repeater/);
   assert.match(html, /data-action="ski"/);

@@ -568,7 +568,7 @@
 
     <aside class="range-panel" aria-label="Range objective">
       <h2>Training Run</h2>
-      <p id="objectiveText">Ski is on by default. Toggle Shift only when you need walking grip, then pop the drones before the gate timer expires.</p>
+      <p id="objectiveText">Ski is on by default. Read the terrain bands, chain gates, and pick the right angle on mixed drone types.</p>
       <div class="weapon-strip" aria-label="Weapon status">
         <span class="weapon-pill is-active" id="weaponPill0">1 Disc</span>
         <span class="weapon-pill" id="weaponPill1">2 Trace</span>
@@ -587,8 +587,8 @@
     <h1 id="guideTitle">First-person ski-shooter range.</h1>
     <p>
       This redesign makes Zero-G Ski Range feel like a high-speed aerial assault drill:
-      ski the terrain for momentum, feather the jetpack for altitude, and lead moving targets
-      with projectile weapons.
+      ski the changing terrain for momentum, feather the jetpack for altitude, and lead scout,
+      raider, and bulwark drones with heavier projectile weapons.
     </p>
     <p>
       Click <strong>Begin Run</strong> or click the canvas to lock pointer aim. This is an original
@@ -614,7 +614,7 @@
   </button>
 
   <div class="objective-toast" id="objectiveToast">
-    <strong>Route:</strong> ski through cyan gates for speed, then snap to the rose target drones.
+    <strong>Route:</strong> ski through shifting terrain bands, then snap to scout, raider, and bulwark drones.
   </div>
 
   <div class="touch-controls" id="touchControls" role="group" aria-label="Touch controls">
@@ -696,6 +696,66 @@
   const ZOOM_FOV = 48;
   let skiEnabled = true;
 
+  const terrainBiomes = [
+    {
+      name: 'Frost Flats',
+      low: [10, 52, 82],
+      high: [54, 128, 166],
+      accent: [103, 232, 249],
+      fog: 'rgba(103, 232, 249, 0.09)'
+    },
+    {
+      name: 'Aurora Basin',
+      low: [21, 66, 58],
+      high: [66, 154, 118],
+      accent: [134, 239, 172],
+      fog: 'rgba(134, 239, 172, 0.08)'
+    },
+    {
+      name: 'Ember Ridge',
+      low: [70, 38, 47],
+      high: [161, 89, 72],
+      accent: [248, 113, 113],
+      fog: 'rgba(248, 113, 113, 0.08)'
+    }
+  ];
+
+  const targetTypes = [
+    {
+      name: 'Scout',
+      radius: 7,
+      health: 70,
+      score: 85,
+      motion: 1.8,
+      vertical: 13,
+      color: '#67e8f9',
+      core: 'rgba(103, 232, 249, 0.78)',
+      glow: 'rgba(103, 232, 249, 0)'
+    },
+    {
+      name: 'Raider',
+      radius: 9,
+      health: 95,
+      score: 110,
+      motion: 1.25,
+      vertical: 9,
+      color: '#fb7185',
+      core: 'rgba(251, 113, 133, 0.78)',
+      glow: 'rgba(251, 113, 133, 0)'
+    },
+    {
+      name: 'Bulwark',
+      radius: 12,
+      health: 135,
+      score: 150,
+      motion: 0.82,
+      vertical: 6,
+      color: '#f8d47a',
+      core: 'rgba(248, 212, 122, 0.78)',
+      glow: 'rgba(248, 212, 122, 0)'
+    }
+  ];
+
   const player = {
     x: 0,
     y: 0,
@@ -728,8 +788,8 @@
       cooldown: 0.55,
       speed: 112,
       radius: 2.8,
-      damage: 62,
-      splash: 15,
+      damage: 78,
+      splash: 18,
       gravity: 0.22,
       color: '#67e8f9',
       energyCost: 0,
@@ -741,7 +801,7 @@
       cooldown: 0.075,
       speed: 190,
       radius: 1.1,
-      damage: 10,
+      damage: 14,
       splash: 0,
       gravity: 0.03,
       color: '#f8d47a',
@@ -770,12 +830,23 @@
     return canvas.height / Math.min(2, window.devicePixelRatio || 1);
   }
 
+  function biomeForZ(z) {
+    const index = Math.floor((z + 260) / 540);
+    return terrainBiomes[((index % terrainBiomes.length) + terrainBiomes.length) % terrainBiomes.length];
+  }
+
+  function blendColor(low, high, mix) {
+    return low.map((channel, index) => channel + (high[index] - channel) * mix);
+  }
+
   function terrainHeight(x, z) {
     const run = Math.sin(z * 0.012) * 17;
     const cross = Math.cos((x + z * 0.35) * 0.018) * 11;
     const channel = -Math.cos((x * 0.012) + Math.sin(z * 0.01)) * 7;
+    const ridge = Math.sin((x - z * 0.22) * 0.036) * Math.cos(z * 0.007) * 6;
+    const moguls = Math.sin(x * 0.065 + z * 0.041) * Math.sin(z * 0.028) * 3.5;
     const grade = -z * 0.018;
-    return run + cross + channel + grade - 8;
+    return run + cross + channel + ridge + moguls + grade - 8;
   }
 
   function terrainSlope(x, z) {
@@ -844,8 +915,8 @@
     seedGates();
     updateHud();
     syncSkiControls();
-    objectiveText.textContent = 'Ski is on by default. Toggle Shift only when you need walking grip, then pop the drones before the gate timer expires.';
-    objectiveToast.innerHTML = '<strong>Route:</strong> ski through cyan gates for speed, then snap to the rose target drones.';
+    objectiveText.textContent = 'Ski is on by default. Read the terrain bands, chain gates, and pick the right angle on mixed drone types.';
+    objectiveToast.innerHTML = '<strong>Route:</strong> ski through shifting terrain bands, then snap to scout, raider, and bulwark drones.';
   }
 
   function seedStars() {
@@ -868,16 +939,20 @@
   }
 
   function spawnTarget(index, z) {
+    const typeIndex = (index + Math.floor(z / 220)) % targetTypes.length;
+    const type = targetTypes[(typeIndex + targetTypes.length) % targetTypes.length];
     const x = player.x + (Math.random() - 0.5) * 170;
     const y = terrainHeight(x, z) + 34 + Math.random() * 28;
     targets[index] = {
+      type,
       x,
       y,
       z,
       baseX: x,
       baseY: y,
-      radius: 8 + Math.random() * 4,
-      health: 100,
+      radius: type.radius + Math.random() * 2,
+      maxHealth: type.health,
+      health: type.health,
       phase: Math.random() * Math.PI * 2,
       destroyed: false,
       respawnDelay: 0
@@ -1279,10 +1354,10 @@
     if (target.health <= 0 && !target.destroyed) {
       target.destroyed = true;
       target.respawnDelay = 1.8;
-      player.score += 100 * player.combo;
+      player.score += target.type.score * player.combo;
       player.combo = Math.min(9, player.combo + 1);
       player.comboTime = 4.5;
-      objectiveToast.innerHTML = `<strong>Drone down.</strong> Combo x${player.combo}. Keep skiing for the next lane.`;
+      objectiveToast.innerHTML = `<strong>${target.type.name} down.</strong> Combo x${player.combo}. Keep skiing for the next lane.`;
       emitImpact(target.x, target.y, target.z, color, 34);
     }
   }
@@ -1297,8 +1372,8 @@
         return;
       }
       target.phase += delta;
-      target.x = target.baseX + Math.sin(target.phase * 1.3) * 24;
-      target.y = target.baseY + Math.sin(target.phase * 1.9) * 9;
+      target.x = target.baseX + Math.sin(target.phase * target.type.motion) * (20 + target.radius * 1.8);
+      target.y = target.baseY + Math.sin(target.phase * (target.type.motion + 0.55)) * target.type.vertical;
       if (target.z < player.z - 100) {
         spawnTarget(index, player.z + 520 + Math.random() * 260);
       }
@@ -1428,16 +1503,19 @@
     const width = viewWidth();
     const height = viewHeight();
     const horizon = height * (0.55 + player.pitch * 0.26);
+    const biome = biomeForZ(player.z);
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
     gradient.addColorStop(0, '#06102a');
     gradient.addColorStop(0.44, '#0b1c35');
     gradient.addColorStop(1, '#06111d');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = biome.fog;
+    ctx.fillRect(0, horizon, width, height - horizon);
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.strokeStyle = 'rgba(103, 232, 249, 0.08)';
+    ctx.strokeStyle = `rgba(${biome.accent[0]}, ${biome.accent[1]}, ${biome.accent[2]}, 0.08)`;
     ctx.lineWidth = 1;
     for (let i = 0; i < 9; i += 1) {
       const y = horizon + i * 28;
@@ -1505,16 +1583,19 @@
     quads.forEach(quad => {
       const shade = clamp((quad.height + 36) / 72, 0, 1);
       const lane = Math.abs(Math.sin(quad.x * 0.017 + quad.z * 0.01));
-      const r = 8 + shade * 20;
-      const g = 42 + shade * 48 + lane * 12;
-      const b = 68 + shade * 92 + lane * 16;
+      const biome = biomeForZ(quad.z);
+      const color = blendColor(biome.low, biome.high, shade);
+      const accent = biome.accent;
+      const r = color[0] + accent[0] * lane * 0.08;
+      const g = color[1] + accent[1] * lane * 0.08;
+      const b = color[2] + accent[2] * lane * 0.08;
       ctx.fillStyle = `rgba(${r.toFixed(0)}, ${g.toFixed(0)}, ${b.toFixed(0)}, 0.92)`;
       ctx.beginPath();
       ctx.moveTo(quad.points[0].x, quad.points[0].y);
       quad.points.slice(1).forEach(point => ctx.lineTo(point.x, point.y));
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = `rgba(103, 232, 249, ${clamp(0.035 + (1 - quad.depth / 800) * 0.12, 0.02, 0.16)})`;
+      ctx.strokeStyle = `rgba(${accent[0]}, ${accent[1]}, ${accent[2]}, ${clamp(0.035 + (1 - quad.depth / 800) * 0.12, 0.02, 0.16)})`;
       ctx.lineWidth = 0.75;
       ctx.stroke();
     });
@@ -1559,8 +1640,8 @@
       ctx.globalCompositeOperation = 'screen';
       const gradient = ctx.createRadialGradient(point.x, point.y, 1, point.x, point.y, radius * 1.7);
       gradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-      gradient.addColorStop(0.24, 'rgba(251, 113, 133, 0.78)');
-      gradient.addColorStop(1, 'rgba(251, 113, 133, 0)');
+      gradient.addColorStop(0.24, target.type.core);
+      gradient.addColorStop(1, target.type.glow);
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(point.x, point.y, radius * 1.7, 0, Math.PI * 2);
@@ -1568,9 +1649,13 @@
       ctx.strokeStyle = 'rgba(255, 228, 230, 0.92)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+      if (target.type.name === 'Bulwark') {
+        ctx.rect(point.x - radius, point.y - radius, radius * 2, radius * 2);
+      } else {
+        ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+      }
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(251, 113, 133, 0.78)';
+      ctx.strokeStyle = target.type.core;
       ctx.beginPath();
       ctx.moveTo(point.x - radius * 1.6, point.y);
       ctx.lineTo(point.x + radius * 1.6, point.y);
@@ -1582,8 +1667,8 @@
       ctx.save();
       ctx.fillStyle = 'rgba(2, 6, 23, 0.72)';
       ctx.fillRect(point.x - radius, point.y - radius * 2 - 7, radius * 2, 5);
-      ctx.fillStyle = '#fb7185';
-      ctx.fillRect(point.x - radius, point.y - radius * 2 - 7, radius * 2 * clamp(target.health / 100, 0, 1), 5);
+      ctx.fillStyle = target.type.color;
+      ctx.fillRect(point.x - radius, point.y - radius * 2 - 7, radius * 2 * clamp(target.health / target.maxHealth, 0, 1), 5);
       ctx.restore();
     });
   }
