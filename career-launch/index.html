@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Build a practical career direction through a small proof project and real evidence.">
+  <title>Career Launch | 3DVR Portal</title>
+  <link rel="stylesheet" href="../career-pathways/styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body data-pathway-mode="career">
+  <a class="skip-link" href="#pathwayMain">Skip to career questions</a>
+  <div class="pathway-shell">
+    <header class="pathway-header">
+      <a class="pathway-brand" href="../index.html">3DVR Portal</a>
+      <nav aria-label="Career Launch navigation">
+        <a href="../start/">Start Here</a>
+        <a href="../job-tracker/index.html">Job Tracker</a>
+        <a href="../launch-room/">Launch Room</a>
+      </nav>
+    </header>
+    <main id="pathwayMain">
+      <section class="pathway-hero" aria-labelledby="pathwayTitle">
+        <p class="pathway-eyebrow" data-pathway-eyebrow>Career Launch</p>
+        <h1 id="pathwayTitle" data-pathway-title>Find a direction and build proof</h1>
+        <p data-pathway-promise>Find a direction, build proof of your abilities, help real people, and turn that experience into paid work.</p>
+      </section>
+      <section class="pathway-panel" data-form-view aria-labelledby="questionTitle">
+        <div class="pathway-progress">
+          <div class="pathway-progress__meta"><span data-step-count>Step 1 of 8</span><span>Saved locally</span></div>
+          <div class="pathway-progress__track" aria-hidden="true"><span data-progress></span></div>
+        </div>
+        <form class="pathway-question" data-pathway-form>
+          <p class="pathway-step-label" data-step-label>Current situation</p>
+          <h2 id="questionTitle" data-question>What is your current work situation?</h2>
+          <p class="pathway-help" data-help></p>
+          <textarea data-answer rows="6"></textarea>
+          <p class="pathway-error" data-error role="alert"></p>
+          <div class="pathway-actions">
+            <button class="pathway-button" data-action="back" type="button">Back</button>
+            <button class="pathway-button pathway-button--primary" data-action="next" type="submit">Continue</button>
+            <button class="pathway-button pathway-reset" data-action="reset" type="button">Start over</button>
+          </div>
+          <p class="pathway-status" data-status aria-live="polite">Progress is saved in this browser.</p>
+        </form>
+      </section>
+      <section class="pathway-brief" data-brief-view hidden aria-labelledby="briefTitle">
+        <header class="pathway-brief__header">
+          <p class="pathway-eyebrow">Your practical plan</p>
+          <h2 id="briefTitle" data-brief-title tabindex="-1">Career Launch Brief</h2>
+          <p class="pathway-disclaimer" data-disclaimer></p>
+          <div class="pathway-actions">
+            <button class="pathway-button" data-action="edit" type="button">Review answers</button>
+            <button class="pathway-button pathway-button--primary" data-action="copy" type="button">Copy brief</button>
+            <button class="pathway-button" data-action="print" type="button">Print brief</button>
+            <button class="pathway-button pathway-reset" data-action="reset" type="button">Start over</button>
+          </div>
+          <p class="pathway-status" data-status aria-live="polite"></p>
+        </header>
+        <div class="pathway-brief__sections" data-brief-sections></div>
+        <section class="pathway-tools" aria-labelledby="toolsTitle">
+          <h2 id="toolsTitle">Keep moving in the portal</h2>
+          <div class="pathway-tools__grid" data-tool-links></div>
+        </section>
+      </section>
+    </main>
+    <footer class="pathway-footer">Startup skills are opportunity-creation skills.</footer>
+  </div>
+  <script type="module" src="../career-pathways/app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

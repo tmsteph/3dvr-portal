@@ -1,3 +1,5 @@
+import { buildModeBrief, getLaunchRoomMode } from './modes.js';
+
 const STORAGE_KEY = '3dvr.launch-room.movement-brief.v1';
 
 const form = document.getElementById('movementBriefForm');
@@ -7,6 +9,13 @@ const downloadButton = document.querySelector('[data-action="download"]');
 const buildLaunchPageButton = document.querySelector('[data-action="build-launch-page"]');
 const copyLaunchPageButton = document.querySelector('[data-action="copy-launch-page"]');
 const status = document.getElementById('draftStatus');
+const modeSelect = document.getElementById('launchMode');
+const modeTitle = document.querySelector('[data-mode-title]');
+const modeDescription = document.querySelector('[data-mode-description]');
+const briefLabel = document.querySelector('[data-brief-label]');
+const nameLabel = document.querySelector('[data-name-label]');
+const generateLabel = document.querySelector('[data-generate-label]');
+const modeTools = document.querySelector('[data-mode-tools]');
 const fields = {
   movementName: document.getElementById('movementName'),
   worldPain: document.getElementById('worldPain'),
@@ -40,18 +49,6 @@ function clean(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
-function titleCase(value) {
-  return clean(value)
-    .split(' ')
-    .filter(Boolean)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-function fallback(value, phrase) {
-  return clean(value) || phrase;
-}
-
 function loadDraft() {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -81,11 +78,6 @@ function setState(state) {
   });
 }
 
-function asSentence(text) {
-  const normalized = clean(text);
-  return normalized ? `${normalized.replace(/[.?!]+$/, '')}.` : '';
-}
-
 function asClause(text) {
   return clean(text).replace(/[.?!]+$/, '');
 }
@@ -100,44 +92,32 @@ function slugify(text) {
 }
 
 function buildBrief(state) {
-  const movementName = titleCase(state.movementName) || 'A Movement Worth Starting';
-  const worldPain = fallback(
-    state.worldPain,
-    'people feel disconnected from what they care about and unsure where to begin'
-  );
-  const worldWish = fallback(
-    state.worldWish,
-    'a simple way to turn care into a small, real project'
-  );
-  const audience = fallback(
-    state.firstAudience,
-    'someone with an idea they keep putting off'
-  );
-  const tinyProject = fallback(
-    state.tinyProject,
-    'a one-page brief and a first invitation to respond'
-  );
+  return buildModeBrief(modeSelect.value, state);
+}
 
-  return {
-    movementName,
-    mission: `${movementName} helps ${audience} respond to this problem: ${asSentence(worldPain)} It starts by making ${worldWish} feel practical, visible, and close enough to try.`,
-    worldview: `This matters because good ideas often stay private when people feel overwhelmed, unsupported, or unsure how to begin. If ${asClause(worldPain)}, then ${asClause(worldWish)} deserves a real first step. This movement begins small so people can see it, react to it, and help shape what comes next.`,
-    audience,
-    tinyProject,
-    checklist: [
-      `Name the movement clearly: ${movementName}.`,
-      `Say the problem in plain language: ${asSentence(worldPain)}`,
-      `Describe the better future people can picture: ${asSentence(worldWish)}`,
-      `Choose a first audience you can actually reach: ${audience}.`,
-      `Ship the smallest visible version: ${asSentence(tinyProject)}`,
-      'Ask three people what feels useful, confusing, or missing.'
-    ],
-    actions: [
-      `Today: turn this brief into a short project intro people can understand in one minute.`,
-      `This week: share ${asSentence(tinyProject).slice(0, -1)} with ${audience}.`,
-      'Next: collect the first responses and decide what to keep, change, or remove.'
-    ]
-  };
+function renderMode(modeId) {
+  const mode = getLaunchRoomMode(modeId);
+  modeSelect.value = mode.id === 'movement' ? 'start-project' : mode.id;
+  modeTitle.textContent = mode.title;
+  modeDescription.textContent = mode.description;
+  briefLabel.textContent = mode.briefLabel;
+  nameLabel.textContent = mode.nameLabel;
+  generateLabel.textContent = `Generate ${mode.briefLabel}`;
+
+  Object.entries(mode.fields).forEach(([key, [label, placeholder]]) => {
+    document.querySelector(`[data-field-label="${key}"]`).textContent = label;
+    fields[key].placeholder = placeholder;
+  });
+
+  modeTools.replaceChildren(
+    ...mode.tools.map(([label, href]) => {
+      const link = document.createElement('a');
+      link.className = 'cta ghost';
+      link.href = href;
+      link.textContent = label;
+      return link;
+    })
+  );
 }
 
 function briefToMarkdown(brief) {
@@ -269,7 +249,7 @@ async function writeTextToClipboard(text) {
 
 function sync() {
   const state = getState();
-  saveDraft(state);
+  saveDraft({ ...state, mode: modeSelect.value });
   renderBrief(state);
 }
 
@@ -278,7 +258,7 @@ async function copyBrief() {
   const markdown = briefToMarkdown(brief);
 
   await writeTextToClipboard(markdown);
-  status.textContent = 'Movement Brief copied to clipboard.';
+  status.textContent = `${getLaunchRoomMode(modeSelect.value).briefLabel} copied to clipboard.`;
 }
 
 function downloadBrief() {
@@ -294,7 +274,7 @@ function downloadBrief() {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  status.textContent = 'Movement Brief downloaded as Markdown.';
+  status.textContent = `${getLaunchRoomMode(modeSelect.value).briefLabel} downloaded as Markdown.`;
 }
 
 function generateLaunchPage() {
@@ -314,20 +294,29 @@ async function copyLaunchPage() {
   status.textContent = 'Launch Page Draft copied to clipboard.';
 }
 
+const storedDraft = loadDraft();
+const requestedMode = new URLSearchParams(window.location.search).get('mode');
+const initialMode = getLaunchRoomMode(requestedMode || storedDraft.mode || 'start-project');
 const initialState = {
   movementName: '',
   worldPain: '',
   worldWish: '',
   firstAudience: '',
   tinyProject: '',
-  ...loadDraft()
+  ...storedDraft
 };
 
+renderMode(initialMode.id);
 setState(initialState);
 renderBrief(initialState);
 
 Object.values(fields).forEach(input => {
   input.addEventListener('input', sync);
+});
+
+modeSelect.addEventListener('change', () => {
+  renderMode(modeSelect.value);
+  sync();
 });
 
 form.addEventListener('submit', event => {
@@ -344,7 +333,7 @@ clearButton.addEventListener('click', () => {
     firstAudience: '',
     tinyProject: ''
   });
-  saveDraft(getState());
+  saveDraft({ ...getState(), mode: modeSelect.value });
   renderBrief(getState());
   launchPageSection.hidden = true;
   fields.worldPain.focus();

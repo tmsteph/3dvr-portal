@@ -14,6 +14,10 @@ test('purpose movement page ships the 3DVR framing deck', async () => {
   assert.match(html, /3DVR exists to help ordinary people become founders of meaningful movements/);
   assert.match(html, /id="slide-16"/);
   assert.match(html, /href="..\/launch-room\/"/);
+  assert.match(html, /You do not need to leave your job to become a builder/);
+  assert.match(html, /Startup skills are opportunity-creation skills/);
+  assert.match(html, /href="..\/career-launch\/"/);
+  assert.match(html, /href="..\/opportunity-builder\/"/);
 
   assert.match(css, /\.deck-hero/);
   assert.match(css, /\.slide--north-star/);

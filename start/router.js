@@ -16,7 +16,7 @@ const ROUTES = {
       'One small move today',
     ],
     plan: 'Best lane now: Free',
-    primaryLabel: 'Start Daily Direction',
+    primaryLabel: 'Start free',
     primaryHref: '../life/index.html',
     secondaryLabel: 'Open sign-in',
     secondaryHref: '../sign-in.html',

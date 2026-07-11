@@ -1,0 +1,360 @@
+:root {
+  color-scheme: dark;
+  --path-bg: #09111b;
+  --path-panel: #111c29;
+  --path-panel-strong: #172536;
+  --path-border: rgba(148, 163, 184, 0.24);
+  --path-text: #f4f7fb;
+  --path-muted: #aab8c8;
+  --path-accent: #47c7a5;
+  --path-accent-strong: #b9f4df;
+  --path-focus: #f2c94c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--path-bg);
+  color: var(--path-text);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--path-focus);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 20;
+  transform: translateY(-150%);
+  padding: 0.65rem 0.85rem;
+  background: #fff;
+  color: #111827;
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.pathway-shell {
+  width: min(100% - 2rem, 1080px);
+  margin: 0 auto;
+}
+
+.pathway-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--path-border);
+}
+
+.pathway-brand {
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.pathway-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.pathway-header nav a {
+  color: var(--path-muted);
+  font-size: 0.9rem;
+}
+
+.pathway-hero {
+  max-width: 780px;
+  padding: 3rem 0 2rem;
+}
+
+.pathway-eyebrow,
+.pathway-step-label {
+  margin: 0 0 0.45rem;
+  color: var(--path-accent-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pathway-hero h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 8vw, 4rem);
+  line-height: 1.05;
+}
+
+.pathway-hero p:last-child {
+  max-width: 680px;
+  margin: 1rem 0 0;
+  color: var(--path-muted);
+  font-size: 1.08rem;
+}
+
+.pathway-panel,
+.pathway-brief {
+  margin-bottom: 3rem;
+  border: 1px solid var(--path-border);
+  border-radius: 8px;
+  background: var(--path-panel);
+}
+
+.pathway-progress {
+  padding: 1rem 1rem 0;
+}
+
+.pathway-progress__meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+  color: var(--path-muted);
+  font-size: 0.86rem;
+}
+
+.pathway-progress__track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.pathway-progress__track span {
+  display: block;
+  height: 100%;
+  background: var(--path-accent);
+  transition: width 180ms ease;
+}
+
+.pathway-question {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem 1rem;
+}
+
+.pathway-question h2 {
+  max-width: 760px;
+  margin: 0;
+  font-size: clamp(1.4rem, 5vw, 2.15rem);
+  line-height: 1.2;
+}
+
+.pathway-help,
+.pathway-status,
+.pathway-disclaimer {
+  margin: 0;
+  color: var(--path-muted);
+}
+
+.pathway-question textarea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+  border: 1px solid var(--path-border);
+  border-radius: 6px;
+  background: #0b1521;
+  color: var(--path-text);
+  padding: 0.9rem;
+}
+
+.pathway-error {
+  min-height: 1.5rem;
+  margin: 0;
+  color: #fecaca;
+  font-weight: 700;
+}
+
+.pathway-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.pathway-button {
+  min-height: 44px;
+  border: 1px solid var(--path-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--path-text);
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.pathway-button--primary {
+  border-color: var(--path-accent);
+  background: var(--path-accent);
+  color: #062018;
+}
+
+.pathway-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.pathway-reset {
+  margin-left: auto;
+}
+
+.pathway-brief {
+  padding: 1rem;
+}
+
+.pathway-brief__header {
+  display: grid;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--path-border);
+}
+
+.pathway-brief__header h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 6vw, 2.8rem);
+}
+
+.pathway-brief__sections {
+  display: grid;
+  gap: 0;
+}
+
+.pathway-brief__section {
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--path-border);
+  break-inside: avoid;
+}
+
+.pathway-brief__section h3 {
+  margin: 0 0 0.4rem;
+  color: var(--path-accent-strong);
+  font-size: 0.86rem;
+  text-transform: uppercase;
+}
+
+.pathway-brief__section p,
+.pathway-brief__section ol {
+  margin: 0;
+}
+
+.pathway-brief__section ol {
+  display: grid;
+  gap: 0.45rem;
+  padding-left: 1.25rem;
+}
+
+.pathway-tools {
+  padding-top: 1.5rem;
+}
+
+.pathway-tools h2 {
+  margin-top: 0;
+}
+
+.pathway-tools__grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pathway-tools__grid a {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--path-border);
+  border-radius: 6px;
+  background: var(--path-panel-strong);
+  padding: 0.85rem;
+  text-decoration: none;
+}
+
+.pathway-tools__grid span {
+  color: var(--path-muted);
+  font-size: 0.88rem;
+}
+
+.pathway-footer {
+  padding: 0 0 2rem;
+  color: var(--path-muted);
+  font-size: 0.86rem;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (min-width: 760px) {
+  .pathway-progress,
+  .pathway-question,
+  .pathway-brief {
+    padding-left: 1.6rem;
+    padding-right: 1.6rem;
+  }
+
+  .pathway-tools__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .pathway-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pathway-actions .pathway-button:not(.pathway-reset) {
+    flex: 1 1 40%;
+  }
+
+  .pathway-reset {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+    color: #111;
+  }
+
+  .pathway-header,
+  .pathway-hero,
+  .pathway-actions,
+  .pathway-tools,
+  .pathway-footer,
+  [data-status] {
+    display: none !important;
+  }
+
+  .pathway-shell {
+    width: 100%;
+  }
+
+  .pathway-brief {
+    border: 0;
+    background: #fff;
+    color: #111;
+  }
+
+  .pathway-brief__section h3,
+  .pathway-disclaimer {
+    color: #333;
+  }
+}
