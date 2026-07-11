@@ -62,6 +62,7 @@ Planning docs:
 
 - [Guest account migration plan](docs/guest-account-migration-plan.md)
 - [Focus Flow OS plan](docs/focus-flow-os-plan.md)
+- [Career and opportunity onboarding](docs/career-opportunity-onboarding.md)
 
 ### Install individual apps
 

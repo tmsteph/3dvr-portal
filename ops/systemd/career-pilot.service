@@ -1,0 +1,21 @@
+[Unit]
+Description=3DVR career and opportunity onboarding private pilot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/3dvr/worktrees/career-pilot
+ExecStart=/usr/bin/python3 -m http.server 4174 --bind 127.0.0.1 --directory /opt/3dvr/worktrees/career-pilot
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/opt/3dvr/worktrees/career-pilot
+
+[Install]
+WantedBy=multi-user.target
