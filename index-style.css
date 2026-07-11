@@ -1354,6 +1354,12 @@ body[data-view-mode="human-os"]:not([data-active-room=""]) .human-os-map {
   grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
 }
 
+@media (min-width: 641px) {
+  .workspace-strip:not(.workspace-strip--core) .workspace-ribbon {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .workspace-pill {
   display: grid;
   gap: 0.28rem;
