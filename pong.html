@@ -31,9 +31,13 @@
 
   body {
     margin: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
     min-height: 100vh;
     min-height: 100dvh;
     overflow: hidden;
+    overscroll-behavior: none;
     background:
       radial-gradient(circle at 18% 8%, rgba(94, 234, 212, 0.22), transparent 28rem),
       radial-gradient(circle at 88% 2%, rgba(59, 130, 246, 0.2), transparent 24rem),
@@ -62,15 +66,18 @@
   .game-page {
     position: relative;
     z-index: 1;
-    min-height: 100vh;
-    min-height: 100dvh;
-    display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    gap: 0.8rem;
-    padding: var(--safe-top) 1rem var(--safe-bottom);
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
   }
 
   .top-buttons {
+    position: absolute;
+    z-index: 5;
+    top: var(--safe-top);
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     justify-content: center;
     gap: 0.55rem;
@@ -101,7 +108,14 @@
   }
 
   .game-title {
+    position: absolute;
+    z-index: 4;
+    top: calc(var(--safe-top) + 3.15rem);
+    left: 50%;
+    width: min(960px, calc(100vw - 2rem));
+    transform: translateX(-50%);
     text-align: center;
+    pointer-events: none;
   }
 
   h1 {
@@ -113,24 +127,20 @@
   }
 
   .game-title p {
-    max-width: 44rem;
-    margin: 0.42rem auto 0;
-    color: var(--pong-muted);
-    font-size: clamp(0.88rem, 2vw, 1rem);
-    line-height: 1.55;
+    display: none;
   }
 
   .hud {
-    width: min(960px, 100%);
-    margin: 0.75rem auto 0;
+    width: min(720px, 100%);
+    margin: 0.55rem auto 0;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
   .hud-card {
-    min-height: 62px;
-    padding: 0.65rem 0.72rem;
+    min-height: 54px;
+    padding: 0.5rem 0.68rem;
     border: 1px solid rgba(125, 211, 252, 0.2);
     border-radius: 15px;
     background: rgba(8, 18, 31, 0.68);
@@ -157,19 +167,18 @@
   }
 
   .arena-shell {
-    min-height: 0;
-    display: grid;
-    place-items: center;
+    position: absolute;
+    inset: 0;
   }
 
   .arena {
     position: relative;
-    width: min(1040px, calc(100vw - 2rem));
-    height: min(590px, calc(100dvh - 17.2rem));
-    min-height: 330px;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
-    border: 1px solid rgba(125, 211, 252, 0.28);
-    border-radius: 26px;
+    border: 0;
+    border-radius: 0;
     background:
       radial-gradient(circle at 50% 42%, rgba(94, 234, 212, 0.13), transparent 22rem),
       linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(3, 7, 18, 0.9));
@@ -232,7 +241,12 @@
   }
 
   .message-row {
-    min-height: 2.3rem;
+    position: absolute;
+    z-index: 5;
+    right: 1rem;
+    bottom: var(--safe-bottom);
+    left: 1rem;
+    min-height: 2rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -246,6 +260,10 @@
   }
 
   .touch-controls {
+    position: absolute;
+    z-index: 5;
+    bottom: var(--safe-bottom);
+    left: 50%;
     display: none;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.55rem;
@@ -272,31 +290,26 @@
   }
 
   footer {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    color: rgba(148, 163, 184, 0.78);
-    font-size: 0.8rem;
-    text-align: center;
+    display: none;
   }
 
   @media (max-width: 760px) {
     .game-page {
-      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-      gap: 0.55rem;
-      padding-left: 0.72rem;
-      padding-right: 0.72rem;
+      width: 100vw;
+      height: 100dvh;
     }
 
     .top-buttons {
+      width: calc(100vw - 1.44rem);
+      flex-direction: row !important;
       justify-content: space-between;
       flex-wrap: nowrap;
       gap: 0.35rem;
     }
 
     .top-buttons a {
-      flex: 0 1 auto;
+      flex: 1 1 0;
+      width: auto;
       min-height: 34px;
       padding: 0.32rem 0.54rem;
       font-size: 0.66rem;
@@ -311,8 +324,17 @@
       display: none;
     }
 
+    .game-title {
+      top: calc(var(--safe-top) + 2.65rem);
+      width: calc(100vw - 1.44rem);
+    }
+
+    h1 {
+      display: none;
+    }
+
     .hud {
-      margin-top: 0.55rem;
+      margin-top: 0.4rem;
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -332,13 +354,13 @@
     }
 
     .arena {
-      width: calc(100vw - 1.44rem);
-      height: calc(100dvh - 19.75rem);
-      min-height: 310px;
-      border-radius: 20px;
+      width: 100vw;
+      height: 100dvh;
+      border-radius: 0;
     }
 
     .message-row {
+      bottom: calc(var(--safe-bottom) + 3.65rem);
       min-height: 1.4rem;
     }
 
@@ -348,11 +370,9 @@
 
     .touch-controls {
       display: grid;
+      transform: translateX(-50%);
     }
 
-    footer {
-      display: none;
-    }
   }
 
   @media (max-width: 420px) {
@@ -364,10 +384,6 @@
       min-height: 50px;
     }
 
-    .arena {
-      height: calc(100dvh - 19.1rem);
-      min-height: 290px;
-    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -492,9 +508,9 @@ const BASE_BALL_SPEED = 12.8;
 const MAX_BALL_SPEED = 20;
 const PLAYER_SPEED = 17.5;
 const MOUSE_LOCK_SENSITIVITY = 0.038;
-const AI_MAX_SPEED = 9.6;
-const AI_REACTION_SECONDS = 0.34;
-const AI_AIM_ERROR = 1.85;
+const AI_MAX_SPEED = 7.2;
+const AI_REACTION_SECONDS = 0.55;
+const AI_AIM_ERROR = 2.8;
 const VALID_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
 let renderer;
@@ -770,6 +786,12 @@ function resizeRenderer() {
   const height = Math.max(280, Math.round(rect.height));
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  const horizontalFitDistance = FIELD_WIDTH / (2 * Math.tan(verticalFov / 2) * camera.aspect);
+  camera.position.z = Math.max(36, horizontalFitDistance * 1.08);
+  if (scene.fog) {
+    scene.fog.far = Math.max(48, camera.position.z + 24);
+  }
   camera.updateProjectionMatrix();
 }
 
@@ -839,7 +861,7 @@ function chooseAiTarget(deltaSeconds) {
 
   const distance = Math.max(0.1, AI_X - ball.x);
   const travelTime = distance / Math.max(0.1, Math.abs(ball.vx));
-  const softPrediction = ball.y + ball.vy * travelTime * 0.54;
+  const softPrediction = ball.y + ball.vy * travelTime * 0.42;
   const pressureError = Math.min(AI_AIM_ERROR * 1.9, AI_AIM_ERROR + ball.speed * 0.055);
   const aimNoise = (Math.random() - 0.5) * pressureError * 2;
   aiTargetY = clamp(
