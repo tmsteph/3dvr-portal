@@ -7,7 +7,7 @@ describe('portal customer journey pages', () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
     assert.match(html, /data-view-mode="workshop" data-active-room=""/);
     assert.match(html, /Find your purpose\. Organize your life\. Launch your world\./);
-    assert.match(html, /Start small\. Sort one messy thought and pick one next step for today\./);
+    assert.match(html, /<p class="hero-tagline">Sort one through<\/p>/);
     assert.match(html, /Human O\.S\./);
     assert.match(html, /data-view-mode-button="guide"/);
     assert.match(html, />Guide<\/button>/);
