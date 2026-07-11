@@ -1654,6 +1654,59 @@ body[data-view-mode="workshop"] .hero-shortcuts {
   display: none;
 }
 
+.pathway-entry {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: rgba(13, 21, 32, 0.9);
+}
+
+.pathway-entry__grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pathway-entry__card {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: rgba(20, 31, 45, 0.84);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: border-color var(--transition-base), background var(--transition-base);
+}
+
+.pathway-entry__card:hover,
+.pathway-entry__card:focus-visible {
+  border-color: rgba(71, 199, 165, 0.78);
+  background: rgba(25, 42, 55, 0.96);
+}
+
+.pathway-entry__card strong {
+  font-size: 1.05rem;
+}
+
+.pathway-entry__card span {
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.pathway-entry__card b {
+  color: rgba(185, 244, 223, 0.94);
+  font-size: 0.82rem;
+}
+
+@media (min-width: 760px) {
+  .pathway-entry__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .eyebrow {
   display: inline-flex;
   align-items: center;

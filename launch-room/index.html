@@ -29,7 +29,7 @@
       <section class="hero launch-room__hero" aria-labelledby="launchRoomTitle">
         <span class="hero-eyebrow">Purpose → Vision → Movement → Project</span>
         <h1 id="launchRoomTitle">3DVR Launch Room</h1>
-        <p class="hero-tagline">
+        <p class="hero-tagline" data-mode-description>
           Turn a vague frustration into a Movement Brief you can use to start a real project.
         </p>
         <p class="launch-room__emotional-line">
@@ -49,7 +49,7 @@
       <section class="launch-room__workspace" aria-labelledby="workflowTitle">
         <div class="app-hub__intro">
           <span class="eyebrow">Guided flow</span>
-          <h2 id="workflowTitle">From frustration to Movement Brief</h2>
+          <h2 id="workflowTitle" data-mode-title>From frustration to Movement Brief</h2>
           <p>
             Keep the answers short. Specific is better than clever. The brief stays local in this browser for now.
           </p>
@@ -57,33 +57,43 @@
 
         <div class="launch-room__grid">
           <form id="movementBriefForm" class="launch-room__form" autocomplete="off">
+            <label class="brief-field" for="launchMode">
+              <span>What are you trying to do?</span>
+              <select id="launchMode" name="launchMode">
+                <option value="improve-current-work">Improve my current work</option>
+                <option value="begin-career">Begin a career</option>
+                <option value="help-someone">Help someone I know</option>
+                <option value="test-service">Test a service</option>
+                <option value="start-project">Start a project or movement</option>
+              </select>
+            </label>
             <label class="brief-field" for="worldPain">
-              <span>What are you tired of seeing in the world?</span>
+              <span data-field-label="worldPain">What are you tired of seeing in the world?</span>
               <textarea id="worldPain" name="worldPain" rows="4" placeholder="Example: People feel stuck in work that drains them and nobody asks what they actually want to build."></textarea>
             </label>
 
             <label class="brief-field" for="worldWish">
-              <span>What do you wish existed instead?</span>
+              <span data-field-label="worldWish">What do you wish existed instead?</span>
               <textarea id="worldWish" name="worldWish" rows="4" placeholder="Example: A calm place where anyone can name what matters, see a path, and launch a small real project."></textarea>
             </label>
 
             <label class="brief-field" for="firstAudience">
-              <span>Who would you help first?</span>
+              <span data-field-label="firstAudience">Who would you help first?</span>
               <textarea id="firstAudience" name="firstAudience" rows="3" placeholder="Example: Creative parents, burned-out operators, or one friend with a useful idea but no launch plan."></textarea>
             </label>
 
             <label class="brief-field" for="tinyProject">
-              <span>What tiny version could exist this week?</span>
+              <span data-field-label="tinyProject">What tiny version could exist this week?</span>
               <textarea id="tinyProject" name="tinyProject" rows="4" placeholder="Example: A one-page brief, a simple landing page, a 7-day checklist, or a prototype people can react to."></textarea>
             </label>
 
             <label class="brief-field" for="movementName">
-              <span>What should we call this movement?</span>
+              <span data-field-label="movementName">What should we call this movement?</span>
               <input id="movementName" name="movementName" type="text" placeholder="Example: Launch Room, Human Scale Work, or The First Tiny Project">
             </label>
 
             <div class="launch-room__actions">
-              <button class="cta primary" type="submit">Generate My Movement Brief</button>
+              <button class="cta primary" type="submit" data-generate-label>Generate My Movement Brief</button>
               <button class="cta ghost" type="button" data-action="clear">Clear</button>
             </div>
             <p class="launch-room__status" id="draftStatus" aria-live="polite">
@@ -93,7 +103,7 @@
 
           <aside class="launch-room__brief" aria-labelledby="briefTitle">
             <div class="app-hub__intro">
-              <span class="eyebrow">Movement Brief</span>
+              <span class="eyebrow" data-brief-label>Movement Brief</span>
               <h2 id="briefTitle">Readable output</h2>
               <p>
                 This is the first version of the movement document. It can grow later, but it already tells the
@@ -108,7 +118,7 @@
 
             <div class="brief-stack" aria-live="polite">
               <article class="brief-card brief-card--title">
-                <p class="brief-card__label">Movement Name</p>
+                <p class="brief-card__label" data-name-label>Movement Name</p>
                 <h3 data-brief="movementName">Your movement</h3>
               </article>
 
@@ -196,6 +206,14 @@
                 </article>
               </div>
             </section>
+
+            <section class="launch-room__tool-links" aria-labelledby="launchToolsTitle">
+              <div class="app-hub__intro">
+                <span class="eyebrow">Continue</span>
+                <h2 id="launchToolsTitle">Use the next relevant tool</h2>
+              </div>
+              <div class="launch-room__brief-actions" data-mode-tools></div>
+            </section>
           </aside>
         </div>
       </section>
@@ -222,5 +240,6 @@
   </div>
 
   <script type="module" src="./app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
 </body>
 </html>

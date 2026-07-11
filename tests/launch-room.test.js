@@ -45,6 +45,12 @@ test('launch room ships a local-first Movement Brief flow', async () => {
   assert.match(html, /First invitation \/ call to action/);
   assert.match(html, /Simple contact CTA/);
   assert.match(html, /Copy Launch Page/);
+  assert.match(html, /Improve my current work/);
+  assert.match(html, /Begin a career/);
+  assert.match(html, /Help someone I know/);
+  assert.match(html, /Test a service/);
+  assert.match(html, /Start a project or movement/);
+  assert.match(html, /data-mode-tools/);
 
   assert.match(app, /STORAGE_KEY = '3dvr\.launch-room\.movement-brief\.v1'/);
   assert.match(app, /function buildBrief/);
@@ -64,4 +70,6 @@ test('launch room ships a local-first Movement Brief flow', async () => {
   assert.match(app, /type: 'text\/markdown'/);
   assert.match(app, /localStorage/);
   assert.match(app, /replaceChildren/);
+  assert.match(app, /getLaunchRoomMode/);
+  assert.match(app, /buildModeBrief/);
 });

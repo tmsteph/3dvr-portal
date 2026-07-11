@@ -78,7 +78,8 @@
 }
 
 .brief-field input,
-.brief-field textarea {
+.brief-field textarea,
+.brief-field select {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: var(--radius-md);
@@ -86,6 +87,17 @@
   color: var(--color-text);
   padding: 0.88rem 0.95rem;
   resize: vertical;
+}
+
+.brief-field select {
+  appearance: auto;
+}
+
+.launch-room__tool-links {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--surface-border);
 }
 
 .brief-field input:focus-visible,
