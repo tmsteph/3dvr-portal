@@ -28,6 +28,10 @@ describe('Orbital Courier game route', () => {
     assert.match(js, /spawnRoute/);
     assert.match(js, /surfaceDistance/);
     assert.match(js, /PLANET_RADIUS = 32/);
+    assert.match(js, /addScaledVector\(player\.normal, 7\.5\)/);
+    assert.match(js, /addScaledVector\(heading, -12\.5\)/);
+    assert.doesNotMatch(js, /PLANET_RADIUS \+ 82/);
+    assert.match(js, /CylinderGeometry\(0\.3, 0\.7, 4\.4/);
     assert.match(js, /RUN_LENGTH_SECONDS = 150/);
     assert.match(js, /updateRouteGuide/);
     assert.match(js, /Beacon in range/);
