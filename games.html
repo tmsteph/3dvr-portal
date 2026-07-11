@@ -3,30 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>3DVR - Mini Game Hub</title>
+<title>3DVR - Game Hub</title>
 <link rel="stylesheet" href="styles/global.css">
 <style>
 body {
   background:
-    radial-gradient(circle at top left, rgba(100, 221, 255, 0.26), transparent 34rem),
-    radial-gradient(circle at bottom right, rgba(148, 91, 255, 0.22), transparent 30rem),
-    #e9f0f5;
-  color: #222;
+    radial-gradient(circle at top left, rgba(214, 243, 109, 0.14), transparent 30rem),
+    linear-gradient(140deg, rgba(7, 12, 20, 0.98), rgba(13, 33, 39, 0.98) 48%, rgba(31, 23, 34, 0.98)),
+    #080c12;
+  color: #eef7f2;
   font-family: 'Poppins', sans-serif;
   margin: 0;
   padding: 20px;
   min-height: 100vh;
 }
 
+.top-buttons {
+  background: rgba(7, 12, 20, 0.78);
+  border-color: rgba(214, 243, 109, 0.28);
+}
+
+.top-buttons a {
+  background: rgba(214, 243, 109, 0.16);
+  border-color: rgba(214, 243, 109, 0.34);
+  color: #eef7f2;
+}
+
+.top-buttons a:hover,
+.top-buttons a:focus-visible {
+  background: rgba(214, 243, 109, 0.26);
+  color: #ffffff;
+}
+
 h1 {
   text-align: center;
   margin: 0 0 8px;
   font-size: clamp(2.2rem, 7vw, 4rem);
-  color: #1e293b;
+  color: #ffffff;
 }
 
 .hub-intro {
-  color: #475569;
+  color: #b4c9c4;
   font-size: 1.05rem;
   margin: 0 auto 28px;
   max-width: 620px;
@@ -44,12 +61,12 @@ h1 {
 
 .game-card {
   align-items: center;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 24px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.09);
+  background: rgba(10, 16, 24, 0.78);
+  border: 1px solid rgba(179, 220, 205, 0.24);
+  border-radius: 8px;
+  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.28);
   box-sizing: border-box;
-  color: #1e293b;
+  color: #eef7f2;
   cursor: pointer;
   display: flex;
   flex: 0 1 230px;
@@ -66,21 +83,20 @@ h1 {
 
 .game-card::before {
   background: var(--card-glow, linear-gradient(135deg, rgba(56, 189, 248, 0.4), rgba(168, 85, 247, 0.38)));
-  border-radius: 999px;
   content: "";
-  filter: blur(8px);
-  height: 110px;
-  opacity: 0.65;
+  filter: blur(16px);
+  height: 112px;
+  opacity: 0.34;
   position: absolute;
   right: -44px;
   top: -42px;
-  width: 110px;
+  width: 112px;
 }
 
 .game-card:hover,
 .game-card:focus-visible {
-  background: #ffffff;
-  box-shadow: 0 24px 52px rgba(15, 23, 42, 0.16);
+  background: rgba(16, 25, 36, 0.9);
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.36);
   outline: none;
   transform: translateY(-6px) scale(1.02);
 }
@@ -88,8 +104,8 @@ h1 {
 .game-icon {
   align-items: center;
   background: var(--icon-bg, linear-gradient(135deg, #38bdf8, #8b5cf6));
-  border-radius: 28px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), 0 16px 32px rgba(15, 23, 42, 0.16);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 16px 32px rgba(0, 0, 0, 0.24);
   color: #ffffff;
   display: flex;
   height: 116px;
@@ -105,6 +121,7 @@ h1 {
 }
 
 .game-title {
+  color: #ffffff;
   font-size: 1.18rem;
   font-weight: 800;
   line-height: 1.2;
@@ -113,7 +130,7 @@ h1 {
 }
 
 .game-blurb {
-  color: #64748b;
+  color: #b4c9c4;
   font-size: 0.92rem;
   line-height: 1.45;
   margin: 0;
@@ -169,10 +186,10 @@ h1 {
   <a href="https://github.com/tmsteph/3dvr-portal" target="_blank">🚀 GitHub</a>
 </div>
 
-<h1>Mini Game Hub</h1>
+<h1>Game Hub</h1>
 <p class="hub-intro">Pick a launch tile and jump into one of the portal's quick-play experiments.</p>
 
-<div class="game-grid" aria-label="3DVR mini games">
+<div class="game-grid" aria-label="3DVR game hub">
   <a class="game-card signal" href="signal-garden/">
     <span class="game-icon" aria-hidden="true">
       <svg viewBox="0 0 96 96" role="img">

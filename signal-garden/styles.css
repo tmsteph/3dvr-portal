@@ -21,7 +21,7 @@ body.signal-page {
   position: fixed;
   top: 12px;
   transform: translateX(-50%);
-  z-index: 20;
+  z-index: 40;
 }
 
 .signal-nav a {

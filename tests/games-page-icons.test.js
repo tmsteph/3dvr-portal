@@ -16,7 +16,11 @@ describe('games page icons', () => {
     const html = await readFile(new URL('../games.html', import.meta.url), 'utf8');
 
     assert.match(html, /class="hub-intro"/);
-    assert.match(html, /class="game-grid" aria-label="3DVR mini games"/);
+    assert.match(html, /<title>3DVR - Game Hub<\/title>/);
+    assert.match(html, /<h1>Game Hub<\/h1>/);
+    assert.match(html, /class="game-grid" aria-label="3DVR game hub"/);
+    assert.match(html, /#080c12/);
+    assert.match(html, /\.game-card \{[\s\S]*?background: rgba\(10, 16, 24, 0\.78\);/);
     assert.match(html, /\.game-grid \{[\s\S]*?display: flex;[\s\S]*?justify-content: center;/);
     assert.match(html, /\.game-card \{[\s\S]*?flex: 0 1 230px;/);
     assert.match(html, /\.game-icon svg/);

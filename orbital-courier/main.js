@@ -1,10 +1,11 @@
 const THREE = globalThis.THREE;
 
-const PLANET_RADIUS = 18;
-const SURFACE_OFFSET = 1.15;
-const RUN_LENGTH_SECONDS = 120;
-const PICKUP_RADIUS = 1.7;
-const DROPOFF_RADIUS = 1.9;
+const PLANET_RADIUS = 32;
+const SURFACE_OFFSET = 1.35;
+const RUN_LENGTH_SECONDS = 150;
+const PICKUP_RADIUS = 3.2;
+const DROPOFF_RADIUS = 3.4;
+const DETAIL_SCALE = PLANET_RADIUS / 18;
 
 const locations = [
   { name: 'Olive Market', lat: 34, lon: -18 },
@@ -15,6 +16,10 @@ const locations = [
   { name: 'Terrace Loop', lat: 8, lon: -138 },
   { name: 'Hill Studio', lat: 61, lon: -146 },
   { name: 'Dune Station', lat: -9, lon: 12 },
+  { name: 'Glass Orchard', lat: 28, lon: -104 },
+  { name: 'Relay Shrine', lat: -55, lon: 28 },
+  { name: 'Copper Pier', lat: -32, lon: 168 },
+  { name: 'Cloud Mill', lat: 46, lon: -62 },
 ].map((location) => ({
   ...location,
   normal: normalFromLatLon(location.lat, location.lon),
@@ -57,6 +62,8 @@ const dom = {
   time: document.getElementById('time-left'),
   load: document.getElementById('load-state'),
   routeText: document.getElementById('route-text'),
+  targetArrow: document.getElementById('target-arrow'),
+  targetDistance: document.getElementById('target-distance'),
   instruction: document.getElementById('instruction-text'),
   start: document.getElementById('start-button'),
   introStart: document.getElementById('intro-start-button'),
@@ -76,9 +83,9 @@ const dom = {
 };
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0xf0dfbd, 0.011);
+scene.fog = new THREE.FogExp2(0xf0dfbd, 0.006);
 
-const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 220);
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 320);
 let renderer;
 
 try {
@@ -111,6 +118,7 @@ const tempVector = new THREE.Vector3();
 const tempEast = new THREE.Vector3();
 const tempNorth = new THREE.Vector3();
 const tempMove = new THREE.Vector3();
+const tempTarget = new THREE.Vector3();
 const heading = new THREE.Vector3(1, 0, 0);
 
 scene.add(planet, markerGroup, villageGroup, orbitGroup, player.group);
@@ -155,10 +163,12 @@ function createPlanet() {
     opacity: 0.9,
   });
   [
-    { lat: 18, lon: -42, scale: [3.4, 0.1, 2.1] },
-    { lat: -24, lon: 58, scale: [4.1, 0.1, 1.8] },
-    { lat: 43, lon: 142, scale: [2.5, 0.1, 1.5] },
-    { lat: -48, lon: -132, scale: [2.9, 0.1, 1.6] },
+    { lat: 18, lon: -42, scale: [4.8, 0.1, 2.9] },
+    { lat: -24, lon: 58, scale: [5.8, 0.1, 2.6] },
+    { lat: 43, lon: 142, scale: [3.7, 0.1, 2.2] },
+    { lat: -48, lon: -132, scale: [4.2, 0.1, 2.3] },
+    { lat: 2, lon: -168, scale: [3.9, 0.1, 1.8] },
+    { lat: 58, lon: 8, scale: [3.2, 0.1, 1.9] },
   ].forEach((patch) => {
     const mesh = new THREE.Mesh(new THREE.CircleGeometry(1, 36), seaMaterial);
     mesh.scale.set(...patch.scale);
@@ -171,9 +181,9 @@ function createPlanet() {
     roughness: 0.92,
     metalness: 0,
   });
-  for (let index = 0; index < 11; index += 1) {
-    const lon = index * 33 - 154;
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 2.9), pathMaterial);
+  for (let index = 0; index < 16; index += 1) {
+    const lon = index * 23 - 172;
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 4.2), pathMaterial);
     mesh.rotation.y = index * 0.4;
     placeSurfaceObject(mesh, normalFromLatLon(index % 2 ? 14 : -8, lon), 0.06);
     group.add(mesh);
@@ -209,11 +219,11 @@ function createCourier() {
   signal.position.set(-0.24, 1.38, 0);
   group.add(signal);
 
-  group.scale.setScalar(0.92);
+  group.scale.setScalar(1.05);
   return {
     group,
     normal: tempNormal.clone(),
-    speed: 8.8,
+    speed: 13.2,
   };
 }
 
@@ -245,6 +255,7 @@ function createBeacon(color, mode) {
   ring.position.y = 0.1;
   group.add(ring);
 
+  group.scale.setScalar(1.18);
   return group;
 }
 
@@ -263,7 +274,7 @@ function createVillages() {
     roof.rotation.y = Math.PI / 4;
     house.add(roof);
 
-    house.scale.setScalar(index % 3 === 0 ? 1.08 : 0.92);
+    house.scale.setScalar((index % 3 === 0 ? 1.08 : 0.92) * DETAIL_SCALE);
     placeSurfaceObject(house, location.normal, 0.08);
     villageGroup.add(house);
   });
@@ -284,9 +295,13 @@ function createOrbitSignals() {
   });
 
   for (let index = 0; index < 18; index += 1) {
-    const pip = new THREE.Mesh(new THREE.SphereGeometry(index % 4 === 0 ? 0.12 : 0.08, 14, 10), index % 2 ? goldMaterial : mossMaterial);
+    const pip = new THREE.Mesh(new THREE.SphereGeometry(index % 4 === 0 ? 0.18 : 0.12, 14, 10), index % 2 ? goldMaterial : mossMaterial);
     const angle = index / 18 * Math.PI * 2;
-    pip.position.set(Math.cos(angle) * 24, Math.sin(index * 1.7) * 2.6, Math.sin(angle) * 24);
+    pip.position.set(
+      Math.cos(angle) * (PLANET_RADIUS + 10),
+      Math.sin(index * 1.7) * 4.2,
+      Math.sin(angle) * (PLANET_RADIUS + 10),
+    );
     orbitGroup.add(pip);
   }
 }
@@ -377,7 +392,7 @@ function resetRun() {
   state.boostTime = 0;
   state.pulseCooldown = 0;
   dom.intro.hidden = false;
-  dom.intro.querySelector('h2').textContent = 'Carry signal parcels between neighborhoods before the route window closes.';
+  dom.intro.querySelector('h2').textContent = 'Carry signal parcels across the open planet before the route window closes.';
   dom.intro.querySelector('p').textContent = 'Move with WASD, arrows, or the touch stick. Get close to the green pickup beacon, then carry the parcel to the gold drop-off beacon.';
   dom.introStart.textContent = 'Start Route';
   dom.start.textContent = 'Start Route';
@@ -412,9 +427,43 @@ function updateHud() {
   const target = state.carrying ? state.route.dropoff.name : state.route.pickup.name;
   const other = state.carrying ? state.route.pickup.name : state.route.dropoff.name;
   dom.routeText.textContent = `${action} ${target}. Route pair: ${state.route.pickup.name} to ${state.route.dropoff.name}.`;
+  updateRouteGuide();
   dom.instruction.textContent = state.carrying
     ? `Parcel from ${other} onboard. Head to the gold beacon.`
     : `Head to the green beacon at ${target}.`;
+}
+
+function getRouteTarget() {
+  if (!state.route) {
+    return null;
+  }
+
+  return state.carrying ? state.route.dropoff : state.route.pickup;
+}
+
+function updateRouteGuide() {
+  const target = getRouteTarget();
+  if (!target) {
+    dom.targetDistance.textContent = 'Choose a route';
+    dom.targetArrow.style.transform = 'rotate(0rad)';
+    return;
+  }
+
+  const distance = surfaceDistance(player.normal, target.normal);
+  tempTarget.copy(target.normal).addScaledVector(player.normal, -target.normal.dot(player.normal));
+
+  if (tempTarget.lengthSq() > 0.0001) {
+    tempTarget.normalize();
+    const worldUp = Math.abs(player.normal.y) > 0.92 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    tempEast.crossVectors(worldUp, player.normal).normalize();
+    tempNorth.crossVectors(player.normal, tempEast).normalize();
+    const angle = Math.atan2(tempTarget.dot(tempEast), tempTarget.dot(tempNorth));
+    dom.targetArrow.style.transform = `rotate(${angle}rad)`;
+  }
+
+  dom.targetDistance.textContent = distance < 4
+    ? 'Beacon in range'
+    : `${Math.round(distance)}m to ${target.name}`;
 }
 
 function formatTime(value) {
@@ -500,10 +549,10 @@ function updateMarkers(time) {
 }
 
 function updateCamera(delta) {
-  const cameraNormal = player.normal.clone().multiplyScalar(52);
-  const cameraBack = heading.clone().multiplyScalar(-12);
-  const targetPosition = cameraNormal.add(cameraBack).add(new THREE.Vector3(0, 7.5, 0));
-  const lookTarget = player.group.position.clone().multiplyScalar(0.82);
+  const cameraNormal = player.normal.clone().multiplyScalar(PLANET_RADIUS + 82);
+  const cameraBack = heading.clone().multiplyScalar(-24);
+  const targetPosition = cameraNormal.add(cameraBack).add(player.normal.clone().multiplyScalar(5));
+  const lookTarget = player.group.position.clone().add(heading.clone().multiplyScalar(7));
   camera.position.lerp(targetPosition, 1 - Math.pow(0.001, delta));
   camera.lookAt(lookTarget);
 }
@@ -661,7 +710,7 @@ function drawFallback(context, width, height) {
   context.fillStyle = sky;
   context.fillRect(0, 0, width, height);
 
-  const radius = Math.min(width, height) * 0.24;
+  const radius = Math.min(width, height) * 0.3;
   const cx = width * 0.5;
   const cy = height * 0.55;
   context.beginPath();
