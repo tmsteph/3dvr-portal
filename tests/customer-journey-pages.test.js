@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 describe('portal customer journey pages', () => {
   it('gives the portal home a clear concrete entry path', async () => {
     const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../index-style.css', import.meta.url), 'utf8');
     assert.match(html, /data-view-mode="workshop" data-active-room=""/);
     assert.match(html, /Find your purpose\. Organize your life\. Launch your world\./);
     assert.match(html, /Start small\. Sort one messy thought and pick one next step for today\./);
@@ -67,6 +68,10 @@ describe('portal customer journey pages', () => {
     assert.match(html, /href="start\/#paid-lanes" class="cta ghost">I need help building<\/a>/);
     assert.match(html, /data-app-search-trigger>Browse apps<\/a>/);
     assert.match(html, /Featured games/);
+    assert.match(
+      css,
+      /\.workspace-strip:not\(\.workspace-strip--core\) \.workspace-ribbon\s*\{\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/,
+    );
     assert.match(html, /href="stellar-flight\.html"[\s\S]*?Game: Stellar Drift/);
     assert.match(html, /href="jetpack\.html"[\s\S]*?Game: Jetpack Corridor/);
     assert.match(html, /<span class="app-card__title">Stellar Drift<\/span>/);
