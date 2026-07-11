@@ -568,7 +568,7 @@
 
     <aside class="range-panel" aria-label="Range objective">
       <h2>Training Run</h2>
-      <p id="objectiveText">Hold Shift to ski, use slope speed, then pop the drones before the gate timer expires.</p>
+      <p id="objectiveText">Ski is on by default. Toggle Shift only when you need walking grip, then pop the drones before the gate timer expires.</p>
       <div class="weapon-strip" aria-label="Weapon status">
         <span class="weapon-pill is-active" id="weaponPill0">1 Disc</span>
         <span class="weapon-pill" id="weaponPill1">2 Trace</span>
@@ -597,9 +597,9 @@
     <div class="control-list">
       <div class="control-item"><b>Mouse / Drag</b>Look. Pointer lock works on desktop.</div>
       <div class="control-item"><b>WASD</b>Move and strafe. Arrow keys also look.</div>
-      <div class="control-item"><b>Shift</b>Hold ski mode to keep speed on terrain.</div>
+      <div class="control-item"><b>Shift</b>Toggle ski mode on or off. Ski starts enabled.</div>
       <div class="control-item"><b>Space</b>Jetpack. Manage the energy meter.</div>
-      <div class="control-item"><b>Click / F</b>Fire. Right click or E air-brakes.</div>
+      <div class="control-item"><b>Click / F</b>Fire. Right click zooms in. E air-brakes.</div>
       <div class="control-item"><b>1 / 2 / R</b>Switch weapons or reset the run.</div>
     </div>
     <div class="guide-actions">
@@ -621,7 +621,7 @@
     <button type="button" data-action="left" aria-label="Strafe left">Left</button>
     <button type="button" data-action="forward" aria-label="Move forward">Forward</button>
     <button type="button" data-action="right" aria-label="Strafe right">Right</button>
-    <button type="button" data-action="ski" aria-label="Hold ski mode">Ski</button>
+    <button type="button" data-action="ski" aria-label="Toggle ski mode">Ski</button>
     <button type="button" data-action="jet" aria-label="Use jetpack">Jet</button>
     <button type="button" class="primary" data-action="fire" aria-label="Fire weapon">Fire</button>
   </div>
@@ -663,9 +663,10 @@
     back: false,
     left: false,
     right: false,
-    ski: false,
+    ski: true,
     jet: false,
     brake: false,
+    zoom: false,
     fire: false,
     pointerActive: false
   };
@@ -674,7 +675,6 @@
     forward: false,
     left: false,
     right: false,
-    ski: false,
     jet: false
   };
 
@@ -692,6 +692,9 @@
   const POINTER_SENSITIVITY = 0.0022;
   const TOUCH_LOOK_SENSITIVITY = 0.004;
   const KEY_LOOK_SPEED = 1.05;
+  const BASE_FOV = 72;
+  const ZOOM_FOV = 48;
+  let skiEnabled = true;
 
   const player = {
     x: 0,
@@ -713,7 +716,7 @@
   };
 
   const camera = {
-    fov: 72,
+    fov: BASE_FOV,
     focal: 1,
     near: 0.8
   };
@@ -832,12 +835,16 @@
     player.comboTime = 0;
     player.cooldown = 0;
     player.gateStreak = 0;
+    skiEnabled = true;
+    input.ski = true;
+    input.zoom = false;
     projectiles.length = 0;
     particles.length = 0;
     seedTargets();
     seedGates();
     updateHud();
-    objectiveText.textContent = 'Hold Shift to ski, use slope speed, then pop the drones before the gate timer expires.';
+    syncSkiControls();
+    objectiveText.textContent = 'Ski is on by default. Toggle Shift only when you need walking grip, then pop the drones before the gate timer expires.';
     objectiveToast.innerHTML = '<strong>Route:</strong> ski through cyan gates for speed, then snap to the rose target drones.';
   }
 
@@ -924,11 +931,29 @@
     });
   }
 
+  function syncSkiControls() {
+    touchControls.querySelectorAll('[data-action="ski"]').forEach(button => {
+      button.classList.toggle('is-active', skiEnabled);
+      button.setAttribute('aria-pressed', String(skiEnabled));
+    });
+  }
+
+  function toggleSkiMode() {
+    skiEnabled = !skiEnabled;
+    input.ski = skiEnabled;
+    syncSkiControls();
+  }
+
   function handleKeyDown(event) {
     if (event.repeat) {
       return;
     }
     keys.add(event.code);
+    if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+      event.preventDefault();
+      toggleSkiMode();
+      return;
+    }
     if (event.code === 'Digit1') {
       player.weaponIndex = 0;
     }
@@ -958,16 +983,16 @@
     input.back = keys.has('KeyS');
     input.left = keys.has('KeyA') || touchInput.left;
     input.right = keys.has('KeyD') || touchInput.right;
-    input.ski = keys.has('ShiftLeft') || keys.has('ShiftRight') || touchInput.ski;
+    input.ski = skiEnabled;
     input.jet = keys.has('Space') || touchInput.jet;
-    input.brake = keys.has('KeyE') || input.brake;
+    input.brake = keys.has('KeyE');
   }
 
   function resetHoldInputs() {
     input.fire = false;
     input.brake = false;
     input.jet = false;
-    input.ski = false;
+    input.zoom = false;
     input.forward = false;
     input.back = false;
     input.left = false;
@@ -975,7 +1000,6 @@
     touchInput.forward = false;
     touchInput.left = false;
     touchInput.right = false;
-    touchInput.ski = false;
     touchInput.jet = false;
     keys.clear();
   }
@@ -1008,7 +1032,8 @@
       beginPointerRun();
     }
     if (event.pointerType === 'mouse' && event.button === 2) {
-      input.brake = true;
+      input.zoom = true;
+      event.preventDefault();
     }
     if (event.pointerType !== 'mouse') {
       touchLook.pointerId = event.pointerId;
@@ -1024,7 +1049,7 @@
       input.fire = false;
     }
     if (event.pointerType === 'mouse' && event.button === 2) {
-      input.brake = false;
+      input.zoom = false;
     }
     if (touchLook.pointerId === event.pointerId) {
       touchLook.pointerId = null;
@@ -1043,8 +1068,9 @@
     if (action === 'right') {
       touchInput.right = active;
     }
-    if (action === 'ski') {
-      touchInput.ski = active;
+    if (action === 'ski' && active) {
+      toggleSkiMode();
+      return;
     }
     if (action === 'jet') {
       touchInput.jet = active;
@@ -1065,11 +1091,23 @@
       });
       button.addEventListener('pointerup', event => {
         event.preventDefault();
+        if (action === 'ski') {
+          return;
+        }
         setTouchAction(action, false, button);
       });
-      button.addEventListener('pointercancel', () => setTouchAction(action, false, button));
-      button.addEventListener('pointerleave', () => setTouchAction(action, false, button));
+      button.addEventListener('pointercancel', () => {
+        if (action !== 'ski') {
+          setTouchAction(action, false, button);
+        }
+      });
+      button.addEventListener('pointerleave', () => {
+        if (action !== 'ski') {
+          setTouchAction(action, false, button);
+        }
+      });
     });
+    syncSkiControls();
   }
 
   function updateLookFromKeys(delta) {
@@ -1647,7 +1685,7 @@
     const height = viewHeight();
     const speed = horizontalSpeed();
     const skiText = input.ski ? 'SKI' : player.onGround ? 'RUN' : 'AIR';
-    const lockText = document.pointerLockElement === canvas ? 'AIM LOCK' : 'CLICK TO AIM';
+    const lockText = input.zoom ? 'ZOOM' : document.pointerLockElement === canvas ? 'AIM LOCK' : 'CLICK TO AIM';
     ctx.save();
     ctx.fillStyle = 'rgba(2, 6, 23, 0.58)';
     ctx.strokeStyle = 'rgba(103, 232, 249, 0.22)';
@@ -1677,7 +1715,9 @@
   }
 
   function update(delta) {
-    input.brake = keys.has('KeyE') || input.brake;
+    const targetFov = input.zoom ? ZOOM_FOV : BASE_FOV;
+    camera.fov += (targetFov - camera.fov) * Math.min(1, delta * 14);
+    camera.focal = (viewHeight() * 0.5) / Math.tan((camera.fov * Math.PI) / 360);
     updatePlayer(delta);
     fireWeapon();
     updateProjectiles(delta);

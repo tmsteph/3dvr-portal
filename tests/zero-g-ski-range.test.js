@@ -10,6 +10,11 @@ test('zero-g ski range exposes first-person ski-shooter mechanics', async () => 
   assert.match(html, /requestPointerLock/);
   assert.match(html, /const SKI_ACCEL = 90;/);
   assert.match(html, /const JETPACK_FORCE = 62;/);
+  assert.match(html, /let skiEnabled = true;/);
+  assert.match(html, /Toggle ski mode on or off\. Ski starts enabled\./);
+  assert.match(html, /const ZOOM_FOV = 48;/);
+  assert.match(html, /input\.zoom = true;/);
+  assert.doesNotMatch(html, /event\.button === 2\) {\n\s+input\.brake = true;/);
   assert.match(html, /Disc Launcher/);
   assert.match(html, /Trace Repeater/);
   assert.match(html, /data-action="ski"/);
@@ -17,4 +22,3 @@ test('zero-g ski range exposes first-person ski-shooter mechanics', async () => 
   assert.match(html, /function drawWeaponView\(\)/);
   assert.match(html, /function drawTargets\(\)/);
 });
-
