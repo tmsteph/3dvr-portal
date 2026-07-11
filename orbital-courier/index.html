@@ -45,6 +45,10 @@
       <div class="route-panel">
         <span class="route-panel__label">Current route</span>
         <p id="route-text">Press Start Route to begin a delivery run.</p>
+        <div class="route-guide" aria-label="Beacon direction">
+          <span id="target-arrow" class="route-guide__arrow" aria-hidden="true"></span>
+          <span id="target-distance">Choose a route</span>
+        </div>
       </div>
 
       <div class="signal-strip" aria-label="Village signal feed">
@@ -62,8 +66,8 @@
 
     <section id="intro-panel" class="intro-panel" aria-labelledby="intro-title">
       <div>
-        <span class="intro-panel__kicker">Tiny planet, quick errands</span>
-        <h2 id="intro-title">Carry signal parcels between neighborhoods before the route window closes.</h2>
+        <span class="intro-panel__kicker">Open planet, quick errands</span>
+        <h2 id="intro-title">Carry signal parcels across the open planet before the route window closes.</h2>
         <p>Move with WASD, arrows, or the touch stick. Get close to the green pickup beacon, then carry the parcel to the gold drop-off beacon.</p>
       </div>
       <button id="intro-start-button" type="button">Start Route</button>

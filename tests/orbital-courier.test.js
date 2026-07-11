@@ -14,6 +14,8 @@ describe('Orbital Courier game route', () => {
     assert.match(html, /id="start-button"/);
     assert.match(html, /id="pause-button"/);
     assert.match(html, /id="reset-button"/);
+    assert.match(html, /id="target-arrow"/);
+    assert.match(html, /id="target-distance"/);
     assert.match(html, /data-touch-pad/);
     assert.match(html, /id="boost-button"/);
     assert.match(html, /cdnjs\.cloudflare\.com\/ajax\/libs\/three\.js\/r128\/three\.min\.js/);
@@ -25,7 +27,10 @@ describe('Orbital Courier game route', () => {
     assert.match(js, /normalFromLatLon/);
     assert.match(js, /spawnRoute/);
     assert.match(js, /surfaceDistance/);
-    assert.match(js, /RUN_LENGTH_SECONDS = 120/);
+    assert.match(js, /PLANET_RADIUS = 32/);
+    assert.match(js, /RUN_LENGTH_SECONDS = 150/);
+    assert.match(js, /updateRouteGuide/);
+    assert.match(js, /Beacon in range/);
     assert.match(js, /requestAnimationFrame\(animate\)/);
     assert.match(js, /addEventListener\('pointerdown'/);
     assert.match(js, /window\.OrbitalCourier/);
@@ -34,6 +39,7 @@ describe('Orbital Courier game route', () => {
     assert.match(css, /#game-canvas/);
     assert.match(css, /\.touch-pad/);
     assert.match(css, /\.instruction-chip/);
+    assert.match(css, /\.route-guide__arrow/);
     assert.match(css, /@media \(hover: none\), \(pointer: coarse\)/);
 
     assert.match(hub, /class="game-card courier"/);
