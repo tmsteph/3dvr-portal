@@ -122,6 +122,14 @@ describe('portal customer journey pages', () => {
     assert.match(html, /App dock/);
     assert.match(html, /Command center/);
     assert.match(html, /Same account, same apps, deeper levels of control\./);
+    assert.match(html, /<aside id="installPrompt" class="install-banner" hidden aria-label="Install 3DVR Portal">/);
+    assert.match(html, /Install 3DVR Portal for quick access\./);
+    assert.ok(
+      html.indexOf('id="installPrompt"') < html.indexOf('<footer>'),
+      'expected install prompt to live in page flow above the footer'
+    );
+    assert.doesNotMatch(html, /installHideTimeout/);
+    assert.doesNotMatch(html, /scheduleInstallHide/);
     assert.match(html, /data-app-lane-filter="simple" data-active="true"/);
     assert.match(html, /const simpleDockTitles = new Set/);
     assert.match(html, /card\.dataset\.appMode = 'simple'/);
@@ -172,6 +180,9 @@ describe('portal customer journey pages', () => {
     assert.match(css, /animation:\s*search-callout 3\.8s ease-in-out infinite/);
     assert.match(css, /\.top-nav__search::before\s*\{/);
     assert.match(css, /\.top-buttons a\.top-buttons__search-shortcut\s*\{/);
+    assert.match(css, /\.install-banner \{[\s\S]*?margin:\s*2\.5rem auto 1\.25rem;[\s\S]*?border-radius:\s*8px;/);
+    assert.doesNotMatch(css, /\.install-banner \{\s*position:\s*fixed;/);
+    assert.doesNotMatch(css.match(/\.install-banner \{[\s\S]*?\n\}/)?.[0] || '', /z-index/);
   });
 
   it('keeps the free trial page tied to the portal account journey', async () => {

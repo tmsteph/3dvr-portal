@@ -476,7 +476,7 @@
             <button type="button" data-app-lane-filter="ideas" aria-pressed="false">Ideas</button>
             <button type="button" data-app-lane-filter="learning" aria-pressed="false">Learn</button>
             <button type="button" data-app-lane-filter="community" aria-pressed="false">Community</button>
-            <button type="button" data-app-lane-filter="play" aria-pressed="false">Games</button>
+            <button type="button" data-app-lane-filter="play" aria-pressed="false">Game Hub</button>
             <button type="button" data-app-lane-filter="experimental" aria-pressed="false">Experimental</button>
           </div>
         </div>
@@ -684,8 +684,8 @@
           </a>
           <a href="games.html" class="app-card">
             <span class="app-card__icon" aria-hidden="true">🎮</span>
-            <span class="app-card__title">Games</span>
-            <span class="app-card__meta">Compete, sharpen skills, and earn bonus points.</span>
+            <span class="app-card__title">Game Hub</span>
+            <span class="app-card__meta">Pick a quick-play experiment, reset your energy, and earn bonus points.</span>
           </a>
           <a href="signal-garden/" class="app-card" data-app-keywords="signal garden game calm arcade constellation spark focus play">
             <span class="app-card__icon" aria-hidden="true">SG</span>
@@ -1249,6 +1249,21 @@
       </section>
     </main>
 
+    <aside id="installPrompt" class="install-banner" hidden aria-label="Install 3DVR Portal">
+      <div class="install-banner__content">
+        <span class="install-banner__text">Install 3DVR Portal for quick access.</span>
+        <button id="installBtn" class="install-btn cta primary" type="button">Install 3DVR Portal</button>
+      </div>
+      <button
+        id="installPromptClose"
+        class="install-banner__close"
+        type="button"
+        aria-label="Dismiss install prompt"
+      >
+        ×
+      </button>
+    </aside>
+
     <footer>
       3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
     </footer>
@@ -1263,21 +1278,6 @@
         <button type="button" class="cta ghost" onclick="startAccountFromHere()">Sync later</button>
       </div>
     </div>
-  </div>
-
-  <div id="installPrompt" class="install-banner" hidden>
-    <div class="install-banner__content">
-      <span class="install-banner__text">Install 3DVR Portal for quick access.</span>
-      <button id="installBtn" class="install-btn cta primary" type="button">⬇️ Install 3DVR Portal</button>
-    </div>
-    <button
-      id="installPromptClose"
-      class="install-banner__close"
-      type="button"
-      aria-label="Dismiss install prompt"
-    >
-      ×
-    </button>
   </div>
 
   <script>
@@ -1734,28 +1734,17 @@
     const installPromptClose = document.getElementById('installPromptClose');
 
     let deferredPrompt;
-    let installHideTimeout;
-
-    const scheduleInstallHide = () => {
-      clearTimeout(installHideTimeout);
-      installHideTimeout = window.setTimeout(() => {
-        hideInstallPrompt();
-      }, 15000);
-    };
 
     const hideInstallPrompt = () => {
       if (!installPrompt) return;
-      clearTimeout(installHideTimeout);
       installPrompt.classList.remove('install-banner--visible');
       installPrompt.setAttribute('hidden', '');
     };
 
     const showInstallPrompt = () => {
       if (!installPrompt) return;
-      clearTimeout(installHideTimeout);
       installPrompt.removeAttribute('hidden');
       installPrompt.classList.add('install-banner--visible');
-      scheduleInstallHide();
     };
 
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -1781,26 +1770,6 @@
 
     installPromptClose?.addEventListener('click', () => {
       hideInstallPrompt();
-    });
-
-    installPrompt?.addEventListener('mouseenter', () => {
-      clearTimeout(installHideTimeout);
-    });
-
-    installPrompt?.addEventListener('mouseleave', () => {
-      if (installPrompt.classList.contains('install-banner--visible')) {
-        scheduleInstallHide();
-      }
-    });
-
-    installPrompt?.addEventListener('focusin', () => {
-      clearTimeout(installHideTimeout);
-    });
-
-    installPrompt?.addEventListener('focusout', (event) => {
-      if (!installPrompt.contains(event.relatedTarget)) {
-        scheduleInstallHide();
-      }
     });
 
     const topNav = document.querySelector('.top-nav');
@@ -2096,11 +2065,11 @@
         id: 'play',
         room: 'play',
         href: 'games.html',
-        cta: 'Open Games',
+        cta: 'Open Game Hub',
         label: 'Play path',
-        title: 'Games',
+        title: 'Game Hub',
         copy: 'Use play when you need motion, reset, or a quick energy shift.',
-        search: 'games play signal garden jetpack stellar',
+        search: 'game hub games play signal garden jetpack stellar',
         keywords: ['game', 'games', 'play', 'bored', 'fun', 'reset', 'energy'],
         steps: [
           'Pick a quick game or motion room.',
@@ -2230,7 +2199,7 @@
         'Human Economics',
       ],
       play: [
-        'Games',
+        'Game Hub',
         'Signal Garden',
         'Stellar Drift',
         'Jetpack Corridor',
@@ -2262,7 +2231,7 @@
       'Ideas Lab',
       'Projects',
       'Cell',
-      'Games',
+      'Game Hub',
       'Signal Garden',
       'Stellar Drift',
       'Jetpack Corridor',
