@@ -4,6 +4,16 @@ A local command-line system for:
 - building apps with AI
 - finding and closing real-world customers
 
+## Autonomous Venture Sandbox
+
+Run the simulation-only venture pilot without network access or real-world actions:
+
+```sh
+npm run venture:simulate -- --state-dir /tmp/3dvr-venture-sandbox --reset
+```
+
+See [Autonomous-After-Ignition Business](docs/autonomous-after-ignition-business.md) for its architecture, governance, safety boundaries, and promotion gates.
+
 ## Sales Engine
 
 ### Install
