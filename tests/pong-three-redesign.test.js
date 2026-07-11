@@ -28,11 +28,24 @@ describe('Pong Three.js redesign', () => {
   it('keeps the AI intentionally beatable', async () => {
     const html = await readFile(new URL('../pong.html', import.meta.url), 'utf8');
 
-    assert.match(html, /const AI_MAX_SPEED = 9\.6;/);
-    assert.match(html, /const AI_REACTION_SECONDS = 0\.34;/);
-    assert.match(html, /const AI_AIM_ERROR = 1\.85;/);
+    assert.match(html, /const AI_MAX_SPEED = 7\.2;/);
+    assert.match(html, /const AI_REACTION_SECONDS = 0\.55;/);
+    assert.match(html, /const AI_AIM_ERROR = 2\.8;/);
+    assert.match(html, /travelTime \* 0\.42/);
     assert.match(html, /aimNoise/);
     assert.match(html, /aiThinkTimer/);
+  });
+
+  it('keeps the arena full-screen without page scrolling', async () => {
+    const html = await readFile(new URL('../pong.html', import.meta.url), 'utf8');
+
+    assert.match(html, /\.game-page\s*\{[\s\S]*?height: 100dvh;[\s\S]*?overflow: hidden;/);
+    assert.match(html, /\.arena-shell\s*\{[\s\S]*?position: absolute;[\s\S]*?inset: 0;/);
+    assert.match(html, /\.arena\s*\{[\s\S]*?width: 100vw;[\s\S]*?height: 100dvh;/);
+    assert.match(html, /overscroll-behavior: none;/);
+    assert.match(html, /horizontalFitDistance/);
+    assert.match(html, /camera\.position\.z = Math\.max\(36, horizontalFitDistance \* 1\.08\);/);
+    assert.match(html, /scene\.fog\.far = Math\.max\(48, camera\.position\.z \+ 24\);/);
   });
 
   it('locks mouse control after clicking the arena', async () => {
