@@ -83,7 +83,7 @@ const dom = {
 };
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0xf0dfbd, 0.006);
+scene.fog = new THREE.FogExp2(0x8fc8c4, 0.0035);
 
 const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 320);
 let renderer;
@@ -102,7 +102,7 @@ try {
 
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.8));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0xf0dfbd);
+renderer.setClearColor(0x8fc8c4);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.78;
 
@@ -148,12 +148,23 @@ function createPlanet() {
   const group = new THREE.Group();
   const planetGeometry = new THREE.SphereGeometry(PLANET_RADIUS, 96, 64);
   const planetMaterial = new THREE.MeshStandardMaterial({
-    color: 0xc9904e,
+    color: 0xb9783f,
     roughness: 0.9,
     metalness: 0.02,
   });
   const sphere = new THREE.Mesh(planetGeometry, planetMaterial);
   group.add(sphere);
+
+  const atmosphere = new THREE.Mesh(
+    new THREE.SphereGeometry(PLANET_RADIUS + 0.45, 72, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x9ee7dd,
+      transparent: true,
+      opacity: 0.09,
+      side: THREE.BackSide,
+    }),
+  );
+  group.add(atmosphere);
 
   const seaMaterial = new THREE.MeshStandardMaterial({
     color: 0x4a9ca1,
@@ -277,6 +288,25 @@ function createVillages() {
     house.scale.setScalar((index % 3 === 0 ? 1.08 : 0.92) * DETAIL_SCALE);
     placeSurfaceObject(house, location.normal, 0.08);
     villageGroup.add(house);
+
+    const landmarkMaterial = new THREE.MeshStandardMaterial({
+      color: index % 3 === 0 ? 0x2f6f56 : index % 3 === 1 ? 0xd7a640 : 0x4a9ca1,
+      emissive: index % 3 === 0 ? 0x17382b : index % 3 === 1 ? 0x5a4313 : 0x1d4144,
+      emissiveIntensity: 0.35,
+      roughness: 0.55,
+    });
+    const landmark = new THREE.Group();
+    const tower = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.7, 4.4 + (index % 4), 8),
+      landmarkMaterial,
+    );
+    tower.position.y = (4.4 + (index % 4)) / 2;
+    landmark.add(tower);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 12), landmarkMaterial);
+    cap.position.y = 4.7 + (index % 4);
+    landmark.add(cap);
+    placeSurfaceObject(landmark, location.normal, 0.12);
+    villageGroup.add(landmark);
   });
 }
 
@@ -549,11 +579,14 @@ function updateMarkers(time) {
 }
 
 function updateCamera(delta) {
-  const cameraNormal = player.normal.clone().multiplyScalar(PLANET_RADIUS + 82);
-  const cameraBack = heading.clone().multiplyScalar(-24);
-  const targetPosition = cameraNormal.add(cameraBack).add(player.normal.clone().multiplyScalar(5));
-  const lookTarget = player.group.position.clone().add(heading.clone().multiplyScalar(7));
+  const targetPosition = player.group.position.clone()
+    .addScaledVector(player.normal, 7.5)
+    .addScaledVector(heading, -12.5);
+  const lookTarget = player.group.position.clone()
+    .addScaledVector(heading, 12)
+    .addScaledVector(player.normal, 1.6);
   camera.position.lerp(targetPosition, 1 - Math.pow(0.001, delta));
+  camera.up.lerp(player.normal, 1 - Math.pow(0.001, delta)).normalize();
   camera.lookAt(lookTarget);
 }
 
