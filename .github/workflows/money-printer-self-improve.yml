@@ -62,6 +62,7 @@ jobs:
           if [ "$AUTO_MERGE_INPUT" = "true" ]; then
             auto_merge_flag="--auto-merge"
           fi
+          operator_output="$RUNNER_TEMP/money-printer-self-improve-latest.json"
 
           npm run --silent money-printer:operator -- propose \
             --create-pr \
@@ -70,7 +71,8 @@ jobs:
             --check-interval 10 \
             --evidence-dir .money-printer/evidence \
             --title "Money Printer guarded experiment execution" \
-            --json | tee artifacts/money-printer-self-improve/latest.json
+            --json | tee "$operator_output"
+          cp "$operator_output" artifacts/money-printer-self-improve/latest.json
 
       - name: Collect operator reports
         if: always()

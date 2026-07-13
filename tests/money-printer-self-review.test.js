@@ -154,5 +154,8 @@ test('nightly self-improvement workflow uses guarded operator proposal', () => {
   assert.match(workflow, /--create-pr/);
   assert.match(workflow, /--wait-checks/);
   assert.match(workflow, /--auto-merge/);
+  assert.match(workflow, /operator_output="\$RUNNER_TEMP\/money-printer-self-improve-latest\.json"/);
+  assert.match(workflow, /--json \| tee "\$operator_output"/);
+  assert.match(workflow, /cp "\$operator_output" artifacts\/money-printer-self-improve\/latest\.json/);
   assert.match(workflow, /upload-artifact/);
 });
