@@ -24,6 +24,18 @@
       "score": 0.9
     },
     {
+      "id": "market-customer-intake-automation-for-owner-led-service-busin",
+      "title": "Customer Intake automation for owner-led service businesses that need clearer lead follow-up",
+      "hypothesis": "owner-led service businesses that need clearer lead follow-up teams repeatedly lose time on customer intake and need a faster process.",
+      "metric": "qualified_replies",
+      "confidence": 0.82,
+      "effort": 2,
+      "risk": "GREEN",
+      "status": "research",
+      "evidence_run_id": "market-pulse-20260712172802",
+      "score": 0.41
+    },
+    {
       "id": "buyer-language-research",
       "title": "Research recurring buyer language for one narrow service niche",
       "hypothesis": "Using the buyer’s own pain language will improve qualified replies.",
@@ -65,5 +77,46 @@
       "deployment",
       "auth"
     ]
+  },
+  "research": {
+    "latest_run_id": "market-pulse-20260712172802",
+    "observed_at": "2026-07-12T17:28:02.917Z",
+    "fingerprint": "fnv1a-ae33b7d5",
+    "market": "owner-led service businesses that need clearer lead follow-up",
+    "signals_analyzed": 11,
+    "fit_score": 82,
+    "verdict": "strong signal",
+    "strongest_channel": "Hacker News",
+    "opportunity": {
+      "title": "Customer Intake automation for owner-led service businesses that need clearer lead follow-up",
+      "problem": "owner-led service businesses that need clearer lead follow-up teams repeatedly lose time on customer intake and need a faster process.",
+      "score": 80.9
+    },
+    "next_action": "Run the top social probe and collect reaction snapshots before packaging the offer.",
+    "warnings": [
+      "Reddit r/freelance unavailable (HTTP 403)"
+    ]
+  },
+  "sources": {
+    "analytics": {
+      "available": false,
+      "run_id": "money-20260712171841-v58z41",
+      "reason": "GA4 credentials or session count unavailable"
+    },
+    "outbound": {
+      "available": true,
+      "run_id": "money-20260712174048-m51r2m",
+      "queue_size": 4
+    },
+    "revenue": {
+      "available": true,
+      "rows": 4,
+      "reason": "outbound outcome tracker imported"
+    },
+    "research": {
+      "available": true,
+      "run_id": "market-pulse-20260712172802",
+      "signals_analyzed": 11
+    }
   }
 }

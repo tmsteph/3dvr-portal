@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { applyMeasurement, createLearningLedger, rankBacklog } from '../src/money-printer/learningLedger.js';
+import { applyEvidence, applyMeasurement, createLearningLedger, rankBacklog } from '../src/money-printer/learningLedger.js';
 import { updateLearningLedger } from '../scripts/money-printer-learning.mjs';
 
 test('ranks low-risk, high-confidence experiments first', () => {
@@ -39,4 +39,26 @@ test('imports a measurement file into persistent outcome history', async () => {
   const result = await updateLearningLedger({ rootDir, measurementPath: 'measurement.json' });
   assert.equal(result.changed, true);
   assert.equal(result.ledger.outcomes[0].signals.signups, 1);
+});
+
+test('persists each research run once and promotes its opportunity into the backlog', () => {
+  const ledger = createLearningLedger();
+  const evidence = {
+    signals: {},
+    sources: { research: { available: true, run_id: 'pulse-1' } },
+    research: { latest_run_id: 'pulse-1', fingerprint: 'same-finding', fit_score: 82 },
+    experiment: { id: 'market-lead-rescue', title: 'Lead rescue', confidence: 0.82, effort: 2, risk: 'GREEN', status: 'research' }
+  };
+  const first = applyEvidence(ledger, evidence);
+  const second = applyEvidence(first.ledger, evidence);
+  const newRunSameFinding = applyEvidence(first.ledger, {
+    ...evidence,
+    research: { ...evidence.research, latest_run_id: 'pulse-2' },
+    sources: { research: { available: true, run_id: 'pulse-2' } }
+  });
+  assert.equal(first.changed, true);
+  assert.equal(first.researchChanged, true);
+  assert.equal(first.ledger.backlog.some(item => item.id === 'market-lead-rescue'), true);
+  assert.equal(second.changed, false);
+  assert.equal(newRunSameFinding.changed, false);
 });

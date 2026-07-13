@@ -62,4 +62,22 @@ export function applyMeasurement(ledger = createLearningLedger(), measurement = 
   };
 }
 
+export function applyEvidence(ledger = createLearningLedger(), evidence = {}) {
+  const measurement = applyMeasurement(ledger, evidence);
+  let next = measurement.ledger;
+  const researchChanged = Boolean(evidence.research?.fingerprint && evidence.research.fingerprint !== ledger.research?.fingerprint);
+  if (researchChanged) {
+    const backlog = [...(next.backlog || [])];
+    if (evidence.experiment && !backlog.some(item => item.id === evidence.experiment.id)) backlog.push(evidence.experiment);
+    next = { ...next, research: evidence.research, backlog: rankBacklog(backlog) };
+  }
+  const comparableSources = sources => Object.fromEntries(Object.entries(sources || {}).map(([key, value]) => {
+    const { run_id: ignoredRunId, ...stable } = value || {};
+    return [key, stable];
+  }));
+  const sourcesChanged = Boolean(evidence.sources && JSON.stringify(comparableSources(evidence.sources)) !== JSON.stringify(comparableSources(ledger.sources)));
+  if (measurement.changed || researchChanged || sourcesChanged) next = { ...next, sources: evidence.sources || {} };
+  return { changed: measurement.changed || researchChanged || sourcesChanged, ledger: next, outcome: measurement.outcome, researchChanged, sourcesChanged };
+}
+
 export { DEFAULT_BACKLOG };

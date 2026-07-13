@@ -530,6 +530,10 @@ async function fetchGoogleAnalyticsHints(config = {}, fetchImpl = globalThis.fet
 
   const topPaths = [];
   const topSources = [];
+  const sessions = rows.reduce((total, row) => {
+    const value = Number(row?.metricValues?.[0]?.value || 0);
+    return total + (Number.isFinite(value) ? value : 0);
+  }, 0);
 
   rows.slice(0, 15).forEach(row => {
     const dimensions = Array.isArray(row?.dimensionValues) ? row.dimensionValues : [];
@@ -543,6 +547,7 @@ async function fetchGoogleAnalyticsHints(config = {}, fetchImpl = globalThis.fet
     enabled: true,
     source: 'ga4',
     warnings: [],
+    sessions,
     keywords: parseGaKeywordHints(topPaths),
     topPaths: uniqueStrings(topPaths).slice(0, 8),
     topSources: uniqueStrings(topSources).slice(0, 8)
