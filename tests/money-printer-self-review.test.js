@@ -129,10 +129,11 @@ test('operator proposal commits only the reviewed safe improvement', () => {
   assert.match(source, /whyItMatters: report\.impact\.whyItMatters/);
   assert.doesNotMatch(source, /outPath: selfReviewPath/);
   assert.match(source, /updateLearningLedger/);
-  assert.match(source, /learning\.changed/);
-  assert.match(source, /\['add', DEFAULT_LEDGER_PATH\]/);
+  assert.match(source, /executeGuardedImprovement/);
+  assert.match(source, /execution\.changed/);
+  assert.match(source, /\['add', \.\.\.changedPaths\]/);
   assert.doesNotMatch(source, /\['add', DEFAULT_LEDGER_PATH, 'SELF_REVIEW\.md'\]/);
-  assert.match(source, /no new measured signal/i);
+  assert.match(source, /no new evidence-backed GREEN action/i);
   assert.match(source, /waitChecks: options\.waitChecks/);
   assert.match(source, /\['pr', 'checks', pr\.url, '--watch', '--interval', interval\]/);
   assert.match(source, /pull request checks did not pass/);
@@ -149,6 +150,7 @@ test('nightly self-improvement workflow uses guarded operator proposal', () => {
   assert.match(workflow, /Collect latest operating evidence/);
   assert.match(workflow, /--evidence-dir \.money-printer\/evidence/);
   assert.match(workflow, /money-printer:operator -- propose/);
+  assert.match(workflow, /Execute one guarded improvement/);
   assert.match(workflow, /--create-pr/);
   assert.match(workflow, /--wait-checks/);
   assert.match(workflow, /--auto-merge/);

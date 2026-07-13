@@ -68,7 +68,11 @@ export function applyEvidence(ledger = createLearningLedger(), evidence = {}) {
   const researchChanged = Boolean(evidence.research?.fingerprint && evidence.research.fingerprint !== ledger.research?.fingerprint);
   if (researchChanged) {
     const backlog = [...(next.backlog || [])];
-    if (evidence.experiment && !backlog.some(item => item.id === evidence.experiment.id)) backlog.push(evidence.experiment);
+    if (evidence.experiment) {
+      const existingIndex = backlog.findIndex(item => item.id === evidence.experiment.id);
+      if (existingIndex >= 0) backlog[existingIndex] = evidence.experiment;
+      else backlog.push(evidence.experiment);
+    }
     next = { ...next, research: evidence.research, backlog: rankBacklog(backlog) };
   }
   const comparableSources = sources => Object.fromEntries(Object.entries(sources || {}).map(([key, value]) => {

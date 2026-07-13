@@ -11,6 +11,7 @@ import {
 } from './money-printer-self-review.mjs';
 import { sendOperatorReportEmail } from '../src/money-printer/operatorEmailReport.js';
 import { DEFAULT_LEDGER_PATH, updateLearningLedger } from './money-printer-learning.mjs';
+import { executeGuardedImprovement } from '../src/money-printer/guardedExecutor.js';
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = { _: [] };
@@ -176,7 +177,8 @@ async function runVerification(rootDir) {
     ['node', ['--check', 'scripts/money-printer-self-review.mjs']],
     ['node', ['--check', 'scripts/money-printer-operator.mjs']],
     ['node', ['--check', 'scripts/money-printer-learning.mjs']],
-    ['node', ['--test', 'tests/money-printer-self-review.test.js', 'tests/money-printer-learning.test.js']]
+    ['node', ['--check', 'src/money-printer/guardedExecutor.js']],
+    ['node', ['--test', 'tests/money-printer-self-review.test.js', 'tests/money-printer-learning.test.js', 'tests/money-printer-guarded-executor.test.js']]
   ];
   const results = commands.map(([command, args]) => runCommand(command, args, { cwd: rootDir }));
   return {
@@ -281,22 +283,41 @@ async function runPropose(rootDir, options = {}) {
     measurementPath: options.measurementFile || process.env.MONEY_PRINTER_MEASUREMENT_FILE || '',
     evidenceDir: options.evidenceDir || process.env.MONEY_PRINTER_EVIDENCE_DIR || ''
   });
+  const execution = await executeGuardedImprovement({
+    rootDir,
+    ledgerPath: learning.ledgerPath,
+    ledger: learning.ledger
+  });
+  const ledger = execution.ledger;
+  const changed = learning.changed || execution.changed;
   report.learning = {
     changed: learning.changed,
     reason: learning.reason,
     ledgerPath: path.relative(rootDir, learning.ledgerPath),
-    decision: learning.ledger.decision,
-    signals: learning.ledger.current_signals,
-    outcomesRecorded: learning.ledger.outcomes.length,
-    research: learning.ledger.research || null,
-    sources: learning.ledger.sources || {}
+    decision: ledger.decision,
+    signals: ledger.current_signals,
+    outcomesRecorded: ledger.outcomes.length,
+    research: ledger.research || null,
+    sources: ledger.sources || {}
+  };
+  report.execution = {
+    changed: execution.changed,
+    reason: execution.reason,
+    artifactPath: execution.artifactPath || '',
+    execution: execution.execution || null,
+    skipped: execution.skipped || []
   };
   report.impact = {
-    intent: 'Turn the scheduled Money Printer job into a persistent experiment-learning loop.',
-    whatChanged: learning.changed ? `Updated ${DEFAULT_LEDGER_PATH} with ranked experiments and durable measured outcomes.` : 'No repository change: the loop found no new measured signal to learn from.',
-    whyItMatters: 'The loop now compounds verified learning and stops opening timestamp-only PRs when nothing meaningful changed.'
+    intent: 'Turn ranked evidence into one bounded improvement while preserving approval gates.',
+    whatChanged: execution.changed
+      ? `Executed one GREEN experiment and prepared ${execution.artifactPath}.`
+      : learning.changed
+        ? `Updated ${DEFAULT_LEDGER_PATH} with ranked experiments and durable measured outcomes.`
+        : 'No repository change: the loop found no new evidence-backed GREEN action.',
+    whyItMatters: 'The loop now converts research into a concrete validation asset without touching outreach, pricing, billing, credentials, deployment, or auth.'
   };
-  report.safeImprovementPath = learning.ledgerPath;
+  const changedPaths = execution.changedPaths || (learning.changed ? [DEFAULT_LEDGER_PATH] : []);
+  report.safeImprovementPaths = changedPaths;
   report.verification = await runVerification(rootDir);
   const operatorDir = await ensureOperatorDir(rootDir);
   const selfReviewPath = path.join(operatorDir, 'self-review-latest.md');
@@ -306,12 +327,16 @@ async function runPropose(rootDir, options = {}) {
     testsPassed: report.verification.passed,
     commands: verificationCommands,
     out: selfReviewPath,
-    summary: learning.changed ? 'Money Printer updated its experiment learning ledger.' : 'Money Printer found no new learning and made no change.',
+    summary: execution.changed
+      ? 'Money Printer executed one bounded GREEN improvement.'
+      : learning.changed
+        ? 'Money Printer updated its experiment learning ledger.'
+        : 'Money Printer found no new executable learning and made no change.',
     intent: report.impact.intent,
     whatChanged: report.impact.whatChanged,
     whyItMatters: report.impact.whyItMatters,
-    rollbackPlan: `Revert the PR commit or restore ${DEFAULT_LEDGER_PATH} from main.`,
-    nextSuggestedAction: learning.changed ? 'If GREEN, persist the new learning. Otherwise, wait for a new measurement.' : 'Wait for a new measured signal; do not open a PR.'
+    rollbackPlan: `Revert the PR commit or restore ${changedPaths.join(' and ') || DEFAULT_LEDGER_PATH} from main.`,
+    nextSuggestedAction: changed ? 'If GREEN, persist the bounded action. Otherwise, wait for new evidence.' : 'Wait for new evidence; do not open a PR.'
   });
   report.selfReview = {
     risk: review.risk,
@@ -325,13 +350,13 @@ async function runPropose(rootDir, options = {}) {
     reasons: review.reasons
   };
 
-  if (parseBool(options.createPr) && learning.changed && review.risk !== 'RED') {
-    git(rootDir, ['add', DEFAULT_LEDGER_PATH]);
-    git(rootDir, ['commit', '-m', options.commitMessage || 'Update Money Printer learning ledger']);
+  if (parseBool(options.createPr) && changed && review.risk !== 'RED') {
+    git(rootDir, ['add', ...changedPaths]);
+    git(rootDir, ['commit', '-m', options.commitMessage || 'Execute guarded Money Printer improvement']);
     git(rootDir, ['push', '-u', 'origin', git(rootDir, ['branch', '--show-current'])]);
     report.pr = await openPullRequest(rootDir, {
       base: options.base || 'main',
-      title: options.title || 'Money Printer autonomous learning update',
+      title: options.title || 'Money Printer guarded experiment execution',
       bodyPath: selfReviewPath
     });
     report.merge = await mergePullRequestIfGreen(rootDir, review, report.pr, {
@@ -339,7 +364,7 @@ async function runPropose(rootDir, options = {}) {
       waitChecks: options.waitChecks,
       checkInterval: options.checkInterval
     });
-  } else if (parseBool(options.createPr) && learning.changed && review.risk === 'RED') {
+  } else if (parseBool(options.createPr) && changed && review.risk === 'RED') {
     report.pr = {
       url: '',
       blocked: true,
@@ -371,7 +396,7 @@ Usage:
 
 Commands:
   report      Inspect repo state and write an email-ready local report.
-  propose     Update durable experiment learning when new measurements exist.
+  propose     Learn from evidence and execute at most one bounded GREEN action.
 
 Flags:
   --root <dir>             Repo root, defaults to cwd.
@@ -390,7 +415,7 @@ Flags:
   --email-dry-run          Verify email config and log without sending.
   --json                   Print JSON.
 
-Report email is internal-only. Outreach, billing, deployment changes, schedulers, and secrets are not connected to this command.
+Report email is internal-only. GREEN execution is limited to measurement and internal validation artifacts. Outreach, pricing, billing, deployment changes, schedulers, auth, and secrets are not connected to this command.
 `);
 }
 
@@ -457,5 +482,6 @@ export {
   autonomousBranchName,
   ensureProposalBranch,
   sendOperatorReportEmail,
-  updateLearningLedger
+  updateLearningLedger,
+  executeGuardedImprovement
 };

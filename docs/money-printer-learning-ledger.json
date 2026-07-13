@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "primary_metric": "revenue_cents",
   "current_signals": {
     "visits": 0,
@@ -31,7 +31,7 @@
       "confidence": 0.82,
       "effort": 2,
       "risk": "GREEN",
-      "status": "research",
+      "status": "prepared",
       "evidence_run_id": "market-pulse-20260712172802",
       "score": 0.41
     },
@@ -60,8 +60,8 @@
   ],
   "outcomes": [],
   "decision": {
-    "experiment_id": "free-page-conversion-baseline",
-    "reason": "Establish a real funnel baseline before automatically changing copy or outreach."
+    "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
+    "reason": "Executed one bounded GREEN action: prepare-validation-brief."
   },
   "guardrails": {
     "auto_execute": [
@@ -118,5 +118,14 @@
       "run_id": "market-pulse-20260712172802",
       "signals_analyzed": 11
     }
-  }
+  },
+  "executions": [
+    {
+      "execution_key": "market-customer-intake-automation-for-owner-led-service-busin:fnv1a-ae33b7d5",
+      "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
+      "action": "prepare-validation-brief",
+      "artifact_path": "docs/money-printer-experiments/market-customer-intake-automation-for-owner-led-service-busin.md",
+      "executed_at": "2026-07-12T17:28:02.917Z"
+    }
+  ]
 }

@@ -62,3 +62,26 @@ test('persists each research run once and promotes its opportunity into the back
   assert.equal(second.changed, false);
   assert.equal(newRunSameFinding.changed, false);
 });
+
+test('refreshes an existing research experiment when its evidence changes', () => {
+  const first = applyEvidence(createLearningLedger(), {
+    signals: {},
+    research: { latest_run_id: 'pulse-1', fingerprint: 'finding-1' },
+    experiment: { id: 'market-lead-rescue', title: 'Lead rescue', confidence: 0.7, effort: 2, risk: 'GREEN', status: 'research', evidence_run_id: 'pulse-1' }
+  });
+  const prepared = {
+    ...first.ledger,
+    backlog: first.ledger.backlog.map(item => item.id === 'market-lead-rescue' ? { ...item, status: 'prepared' } : item)
+  };
+  const refreshed = applyEvidence(prepared, {
+    signals: {},
+    research: { latest_run_id: 'pulse-2', fingerprint: 'finding-2' },
+    experiment: { id: 'market-lead-rescue', title: 'Lead rescue v2', confidence: 0.85, effort: 2, risk: 'GREEN', status: 'research', evidence_run_id: 'pulse-2' }
+  });
+  const experiment = refreshed.ledger.backlog.find(item => item.id === 'market-lead-rescue');
+
+  assert.equal(refreshed.changed, true);
+  assert.equal(experiment.status, 'research');
+  assert.equal(experiment.evidence_run_id, 'pulse-2');
+  assert.equal(experiment.title, 'Lead rescue v2');
+});
