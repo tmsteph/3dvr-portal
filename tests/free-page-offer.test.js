@@ -14,6 +14,7 @@ test('free page offer presents the tiny website starter offer', () => {
   assert.match(html, /https:\/\/donovan\.3dvr\.tech\//);
   assert.match(html, /\.\.\/billing\/\?plan=starter/);
   assert.match(html, /\.\.\/launch-site\//);
+  assert.match(html, /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/);
 });
 
 test('free page brief builds an email handoff without backend dependencies', () => {
