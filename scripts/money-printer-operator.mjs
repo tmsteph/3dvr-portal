@@ -10,6 +10,7 @@ import {
   runSelfReview
 } from './money-printer-self-review.mjs';
 import { sendOperatorReportEmail } from '../src/money-printer/operatorEmailReport.js';
+import { DEFAULT_LEDGER_PATH, updateLearningLedger } from './money-printer-learning.mjs';
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = { _: [] };
@@ -174,7 +175,8 @@ async function runVerification(rootDir) {
   const commands = [
     ['node', ['--check', 'scripts/money-printer-self-review.mjs']],
     ['node', ['--check', 'scripts/money-printer-operator.mjs']],
-    ['node', ['--test', 'tests/money-printer-self-review.test.js']]
+    ['node', ['--check', 'scripts/money-printer-learning.mjs']],
+    ['node', ['--test', 'tests/money-printer-self-review.test.js', 'tests/money-printer-learning.test.js']]
   ];
   const results = commands.map(([command, args]) => runCommand(command, args, { cwd: rootDir }));
   return {
@@ -185,30 +187,6 @@ async function runVerification(rootDir) {
       result: commandOutputSummary(result)
     }))
   };
-}
-
-async function writeSafeImprovement(rootDir) {
-  const filePath = path.join(rootDir, 'docs', 'money-printer-operator-report.md');
-  const generatedAt = new Date().toISOString();
-  const content = `# Money Printer Operator Report
-
-Generated: ${generatedAt}
-
-## Current Safe Improvement
-
-This report is the v1 safe improvement target for the Money Printer operator.
-
-The operator may update this document during a dry run or proposal cycle because it is documentation-only and does not touch users, billing, sending, deployment, secrets, auth, or schedulers.
-
-## Guardrail Reminder
-
-- GREEN changes may be eligible for auto-merge after tests pass.
-- YELLOW changes may open a PR but need Thomas to merge.
-- RED changes stop before opening a mergeable PR.
-- Real email, SMS, Stripe, billing, auth, deployment, scheduler, secrets, and destructive cleanup remain blocked.
-`;
-  await writeFile(filePath, content, 'utf8');
-  return filePath;
 }
 
 async function buildReport(rootDir, command) {
@@ -298,12 +276,24 @@ async function runPropose(rootDir, options = {}) {
   const branchContext = ensureProposalBranch(rootDir, options);
   const report = await buildReport(rootDir, 'propose');
   report.branchContext = branchContext;
-  report.impact = {
-    intent: 'Keep the autonomous Money Printer loop auditable by refreshing its operator report document.',
-    whatChanged: 'Updated docs/money-printer-operator-report.md with a new generated timestamp and the current safe-improvement guardrail reminder.',
-    whyItMatters: 'Thomas can see that the scheduled loop is alive while the change stays limited to documentation and avoids billing, outreach, secrets, auth, deployment, and schedulers.'
+  const learning = await updateLearningLedger({
+    rootDir,
+    measurementPath: options.measurementFile || process.env.MONEY_PRINTER_MEASUREMENT_FILE || ''
+  });
+  report.learning = {
+    changed: learning.changed,
+    reason: learning.reason,
+    ledgerPath: path.relative(rootDir, learning.ledgerPath),
+    decision: learning.ledger.decision,
+    signals: learning.ledger.current_signals,
+    outcomesRecorded: learning.ledger.outcomes.length
   };
-  report.safeImprovementPath = await writeSafeImprovement(rootDir);
+  report.impact = {
+    intent: 'Turn the scheduled Money Printer job into a persistent experiment-learning loop.',
+    whatChanged: learning.changed ? `Updated ${DEFAULT_LEDGER_PATH} with ranked experiments and durable measured outcomes.` : 'No repository change: the loop found no new measured signal to learn from.',
+    whyItMatters: 'The loop now compounds verified learning and stops opening timestamp-only PRs when nothing meaningful changed.'
+  };
+  report.safeImprovementPath = learning.ledgerPath;
   report.verification = await runVerification(rootDir);
   const operatorDir = await ensureOperatorDir(rootDir);
   const selfReviewPath = path.join(operatorDir, 'self-review-latest.md');
@@ -313,12 +303,12 @@ async function runPropose(rootDir, options = {}) {
     testsPassed: report.verification.passed,
     commands: verificationCommands,
     out: selfReviewPath,
-    summary: 'Money Printer proposed a documentation-only operator report update.',
+    summary: learning.changed ? 'Money Printer updated its experiment learning ledger.' : 'Money Printer found no new learning and made no change.',
     intent: report.impact.intent,
     whatChanged: report.impact.whatChanged,
     whyItMatters: report.impact.whyItMatters,
-    rollbackPlan: 'Revert the PR commit or restore docs/money-printer-operator-report.md from main.',
-    nextSuggestedAction: 'If GREEN, open a PR for the documentation-only report update. If not GREEN, ask Thomas to review.'
+    rollbackPlan: `Revert the PR commit or restore ${DEFAULT_LEDGER_PATH} from main.`,
+    nextSuggestedAction: learning.changed ? 'If GREEN, persist the new learning. Otherwise, wait for a new measurement.' : 'Wait for a new measured signal; do not open a PR.'
   });
   report.selfReview = {
     risk: review.risk,
@@ -332,13 +322,13 @@ async function runPropose(rootDir, options = {}) {
     reasons: review.reasons
   };
 
-  if (parseBool(options.createPr) && review.risk !== 'RED') {
-    git(rootDir, ['add', 'docs/money-printer-operator-report.md']);
-    git(rootDir, ['commit', '-m', options.commitMessage || 'Add Money Printer operator report']);
+  if (parseBool(options.createPr) && learning.changed && review.risk !== 'RED') {
+    git(rootDir, ['add', DEFAULT_LEDGER_PATH]);
+    git(rootDir, ['commit', '-m', options.commitMessage || 'Update Money Printer learning ledger']);
     git(rootDir, ['push', '-u', 'origin', git(rootDir, ['branch', '--show-current'])]);
     report.pr = await openPullRequest(rootDir, {
       base: options.base || 'main',
-      title: options.title || 'Money Printer autonomous operator report',
+      title: options.title || 'Money Printer autonomous learning update',
       bodyPath: selfReviewPath
     });
     report.merge = await mergePullRequestIfGreen(rootDir, review, report.pr, {
@@ -346,7 +336,7 @@ async function runPropose(rootDir, options = {}) {
       waitChecks: options.waitChecks,
       checkInterval: options.checkInterval
     });
-  } else if (parseBool(options.createPr) && review.risk === 'RED') {
+  } else if (parseBool(options.createPr) && learning.changed && review.risk === 'RED') {
     report.pr = {
       url: '',
       blocked: true,
@@ -378,7 +368,7 @@ Usage:
 
 Commands:
   report      Inspect repo state and write an email-ready local report.
-  propose     Create a documentation-only safe improvement and self-review it.
+  propose     Update durable experiment learning when new measurements exist.
 
 Flags:
   --root <dir>             Repo root, defaults to cwd.
@@ -390,6 +380,7 @@ Flags:
   --branch-name <name>     Branch to create when proposal starts from main/master.
   --title <text>           PR title.
   --commit-message <text>  Commit message for proposal mode.
+  --measurement-file <file> Import a JSON signal snapshot into outcome history.
   --email                  Alias for --email-report.
   --email-report           Send the internal Thomas report after the run.
   --email-dry-run          Verify email config and log without sending.
@@ -423,6 +414,7 @@ async function main() {
       branchName: args.branchName,
       title: args.title,
       commitMessage: args.commitMessage,
+      measurementFile: args.measurementFile,
       emailReport: args.emailReport || args.email,
       emailDryRun: args.emailDryRun || args.dryRun
     });
@@ -460,5 +452,5 @@ export {
   autonomousBranchName,
   ensureProposalBranch,
   sendOperatorReportEmail,
-  writeSafeImprovement
+  updateLearningLedger
 };

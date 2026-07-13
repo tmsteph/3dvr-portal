@@ -17,6 +17,7 @@
     "money-printer:ai-status": "node scripts/money-printer-cli.mjs ai-status",
     "money-printer:codex": "node scripts/money-printer-cli.mjs codex",
     "money-printer:operator": "node scripts/money-printer-operator.mjs",
+    "money-printer:learning": "node scripts/money-printer-learning.mjs",
     "money-printer:supervisor": "node scripts/money-printer-supervisor.mjs",
     "money-printer:auto-business": "node scripts/money-printer-auto-business.mjs",
     "money:loop": "node scripts/money/run-loop.mjs",
