@@ -206,7 +206,7 @@ test('runAutopilotCycle executes loop and returns publish/promotion summaries', 
       ok: true,
       status: 200,
       async json() {
-        return { rows: [] };
+        return { rows: [{ dimensionValues: [{ value: 'google / organic' }, { value: '/free-page/' }], metricValues: [{ value: '17' }] }] };
       },
       async text() {
         return '';
@@ -252,6 +252,7 @@ test('runAutopilotCycle executes loop and returns publish/promotion summaries', 
 
   assert.equal(result.runId, 'money-run-1');
   assert.equal(result.publish.github.published, false);
+  assert.equal(result.analytics.sessions, 17);
   assert.equal(result.publish.github.reason, 'github publish disabled');
   assert.equal(result.publish.vercel.reason, 'vercel deploy disabled');
   assert.equal(result.promotion.reason, 'promotion dispatch disabled');

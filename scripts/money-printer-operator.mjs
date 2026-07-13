@@ -278,7 +278,8 @@ async function runPropose(rootDir, options = {}) {
   report.branchContext = branchContext;
   const learning = await updateLearningLedger({
     rootDir,
-    measurementPath: options.measurementFile || process.env.MONEY_PRINTER_MEASUREMENT_FILE || ''
+    measurementPath: options.measurementFile || process.env.MONEY_PRINTER_MEASUREMENT_FILE || '',
+    evidenceDir: options.evidenceDir || process.env.MONEY_PRINTER_EVIDENCE_DIR || ''
   });
   report.learning = {
     changed: learning.changed,
@@ -286,7 +287,9 @@ async function runPropose(rootDir, options = {}) {
     ledgerPath: path.relative(rootDir, learning.ledgerPath),
     decision: learning.ledger.decision,
     signals: learning.ledger.current_signals,
-    outcomesRecorded: learning.ledger.outcomes.length
+    outcomesRecorded: learning.ledger.outcomes.length,
+    research: learning.ledger.research || null,
+    sources: learning.ledger.sources || {}
   };
   report.impact = {
     intent: 'Turn the scheduled Money Printer job into a persistent experiment-learning loop.',
@@ -381,6 +384,7 @@ Flags:
   --title <text>           PR title.
   --commit-message <text>  Commit message for proposal mode.
   --measurement-file <file> Import a JSON signal snapshot into outcome history.
+  --evidence-dir <dir>      Import latest analytics, outbound, and research artifacts.
   --email                  Alias for --email-report.
   --email-report           Send the internal Thomas report after the run.
   --email-dry-run          Verify email config and log without sending.
@@ -415,6 +419,7 @@ async function main() {
       title: args.title,
       commitMessage: args.commitMessage,
       measurementFile: args.measurementFile,
+      evidenceDir: args.evidenceDir,
       emailReport: args.emailReport || args.email,
       emailDryRun: args.emailDryRun || args.dryRun
     });

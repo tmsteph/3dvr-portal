@@ -145,6 +145,9 @@ test('nightly self-improvement workflow uses guarded operator proposal', () => {
   assert.match(workflow, /cron: '45 06 \* \* \*'/);
   assert.match(workflow, /contents: write/);
   assert.match(workflow, /pull-requests: write/);
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /Collect latest operating evidence/);
+  assert.match(workflow, /--evidence-dir \.money-printer\/evidence/);
   assert.match(workflow, /money-printer:operator -- propose/);
   assert.match(workflow, /--create-pr/);
   assert.match(workflow, /--wait-checks/);
