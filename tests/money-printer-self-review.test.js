@@ -128,8 +128,11 @@ test('operator proposal commits only the reviewed safe improvement', () => {
   assert.match(source, /whatChanged: report\.impact\.whatChanged/);
   assert.match(source, /whyItMatters: report\.impact\.whyItMatters/);
   assert.doesNotMatch(source, /outPath: selfReviewPath/);
-  assert.match(source, /\['add', 'docs\/money-printer-operator-report\.md'\]/);
-  assert.doesNotMatch(source, /\['add', 'docs\/money-printer-operator-report\.md', 'SELF_REVIEW\.md'\]/);
+  assert.match(source, /updateLearningLedger/);
+  assert.match(source, /learning\.changed/);
+  assert.match(source, /\['add', DEFAULT_LEDGER_PATH\]/);
+  assert.doesNotMatch(source, /\['add', DEFAULT_LEDGER_PATH, 'SELF_REVIEW\.md'\]/);
+  assert.match(source, /no new measured signal/i);
   assert.match(source, /waitChecks: options\.waitChecks/);
   assert.match(source, /\['pr', 'checks', pr\.url, '--watch', '--interval', interval\]/);
   assert.match(source, /pull request checks did not pass/);

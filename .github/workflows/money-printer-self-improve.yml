@@ -57,7 +57,7 @@ jobs:
             $auto_merge_flag \
             --wait-checks \
             --check-interval 10 \
-            --title "Money Printer autonomous operator report" \
+            --title "Money Printer autonomous learning update" \
             --json | tee artifacts/money-printer-self-improve/latest.json
 
       - name: Collect operator reports

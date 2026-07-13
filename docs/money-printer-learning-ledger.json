@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "primary_metric": "revenue_cents",
+  "current_signals": {
+    "visits": 0,
+    "signups": 0,
+    "qualified_leads": 0,
+    "outreach_sent": 0,
+    "qualified_replies": 0,
+    "calls_booked": 0,
+    "customers": 0,
+    "revenue_cents": 0
+  },
+  "backlog": [
+    {
+      "id": "free-page-conversion-baseline",
+      "title": "Measure the Free Page visit-to-lead conversion rate",
+      "hypothesis": "A visible baseline will expose the highest-leverage funnel bottleneck.",
+      "metric": "qualified_leads",
+      "confidence": 0.9,
+      "effort": 1,
+      "risk": "GREEN",
+      "status": "ready",
+      "score": 0.9
+    },
+    {
+      "id": "buyer-language-research",
+      "title": "Research recurring buyer language for one narrow service niche",
+      "hypothesis": "Using the buyer’s own pain language will improve qualified replies.",
+      "metric": "qualified_replies",
+      "confidence": 0.75,
+      "effort": 2,
+      "risk": "GREEN",
+      "status": "research",
+      "score": 0.375
+    },
+    {
+      "id": "free-page-proof-test",
+      "title": "Test one proof-focused Free Page message",
+      "hypothesis": "Concrete proof will convert more qualified visitors than broad claims.",
+      "metric": "qualified_leads",
+      "confidence": 0.65,
+      "effort": 2,
+      "risk": "YELLOW",
+      "status": "blocked-on-baseline",
+      "score": 0.125
+    }
+  ],
+  "outcomes": [],
+  "decision": {
+    "experiment_id": "free-page-conversion-baseline",
+    "reason": "Establish a real funnel baseline before automatically changing copy or outreach."
+  },
+  "guardrails": {
+    "auto_execute": [
+      "research artifacts",
+      "measurement updates",
+      "internal documentation"
+    ],
+    "approval_required": [
+      "prospect outreach",
+      "pricing",
+      "billing",
+      "credentials",
+      "deployment",
+      "auth"
+    ]
+  }
+}
