@@ -118,7 +118,13 @@ export function deriveEvidence({ autopilot = null, outbound = null, outcomes = [
     research,
     experiment,
     sources: {
-      analytics: { available: analyticsAvailable, run_id: autopilot?.runId || '', reason: analyticsAvailable ? 'GA4 session count imported' : 'GA4 credentials or session count unavailable' },
+      analytics: {
+        available: analyticsAvailable,
+        run_id: autopilot?.runId || '',
+        reason: analyticsAvailable
+          ? `${autopilot.analytics.source || 'analytics'} session count imported`
+          : 'analytics source or session count unavailable'
+      },
       outbound: { available: Boolean(outbound), run_id: outbound?.autopilotRunId || '', queue_size: queue.length },
       revenue: { available: outcomes.length > 0, rows: outcomes.length, reason: outcomes.length ? 'outbound outcome tracker imported' : 'outcome tracker unavailable' },
       research: { available: researchAvailable, run_id: marketPulse?.runId || '', signals_analyzed: Number(marketPulse?.signalsAnalyzed || 0) }

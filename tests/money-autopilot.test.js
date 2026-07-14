@@ -108,6 +108,42 @@ test('resolveAutopilotConfig defaults to the free page starter profile', () => {
   assert.equal(config.market, 'people who need a simple first website for a project, service, or small business');
   assert.equal(config.autoDiscover, false);
   assert.equal(config.offerProfile, 'free-page-starter');
+  assert.equal(config.analytics.source, 'auto');
+});
+
+test('runAutopilotCycle uses first-party Gun analytics without Google credentials', async () => {
+  const result = await runAutopilotCycle({
+    env: {
+      MONEY_AUTOPILOT_ANALYTICS_SOURCE: 'gun',
+      MONEY_AUTOPILOT_PUBLISH: 'false',
+      MONEY_AUTOPILOT_PROMOTION: 'false'
+    },
+    firstPartyAnalyticsImpl: async () => ({
+      enabled: true,
+      source: 'gun-first-party',
+      warnings: [],
+      sessions: 9,
+      pageViews: 12,
+      leads: 2,
+      keywords: [],
+      topPaths: ['/free-page/'],
+      topSources: []
+    }),
+    runLoopImpl: async payload => ({
+      runId: 'money-gun-1',
+      generatedAt: '2026-07-14T05:00:00.000Z',
+      input: payload,
+      warnings: [],
+      signals: [],
+      opportunities: [],
+      adDrafts: [],
+      executionChecklist: []
+    })
+  });
+
+  assert.equal(result.analytics.source, 'gun-first-party');
+  assert.equal(result.analytics.sessions, 9);
+  assert.equal(result.analytics.leads, 2);
 });
 
 test('buildOfferHtml renders top opportunity details', () => {
