@@ -5,23 +5,31 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('research library publishes canonical Markdown as portal pages', async () => {
-  const [library, paperPage, logPage, viewer, paper, science] = await Promise.all([
+  const [library, paperPage, logPage, narratorPage, viewer, paper, narratorNote, science] = await Promise.all([
     read('../research/index.html'),
     read('../research/milestone-supervised-agent-hierarchies/index.html'),
     read('../research/openclaw-distributed-agent-orchestration/index.html'),
+    read('../research/openclaw-live-narrator/index.html'),
     read('../research/viewer.js'),
     read('../docs/research/milestone-supervised-agent-hierarchies.md'),
+    read('../docs/research/openclaw-live-narrator-readable-agent-telemetry.md'),
     read('../science/index.html'),
   ]);
 
   assert.match(library, /Milestone-Supervised Agent Hierarchies/);
   assert.match(library, /OpenClaw as a Distributed Personal Agent Runtime/);
+  assert.match(library, /OpenClaw Live Narrator/);
   assert.match(paperPage, /data-document="\/docs\/research\/milestone-supervised-agent-hierarchies\.md"/);
   assert.match(logPage, /data-document="\/docs\/research\/openclaw-distributed-agent-orchestration\.md"/);
+  assert.match(logPage, /href="\.\.\/openclaw-live-narrator\/"/);
+  assert.match(narratorPage, /data-document="\/docs\/research\/openclaw-live-narrator-readable-agent-telemetry\.md"/);
   assert.match(viewer, /DOMPurify\.sanitize/);
   assert.match(viewer, /fetch\(source/);
   assert.match(paper, /## 12\. Experimental design/);
   assert.match(paper, /## 14\. Limitations and risks/);
+  assert.match(narratorNote, /## 7\. `LIVE_STATUS\.md`/);
+  assert.match(narratorNote, /## 12\. Continuous-improvement loop/);
+  assert.match(narratorNote, /Observe the runtime\. Reduce events into state\./);
   assert.match(science, /href="\/research\/"/);
   assert.match(science, /3DVR Research Library/);
 });
