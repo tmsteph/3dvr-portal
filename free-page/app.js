@@ -32,11 +32,20 @@ function buildMailto(formData) {
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
+function trackLeadIntent() {
+  if (typeof window.gtag !== 'function') return;
+
+  window.gtag('event', 'generate_lead', {
+    method: 'mailto_brief'
+  });
+}
+
 if (form && mailtoLink && handoffCopy) {
   form.addEventListener('submit', event => {
     event.preventDefault();
     const formData = new FormData(form);
     const href = buildMailto(formData);
+    trackLeadIntent();
     mailtoLink.href = href;
     handoffCopy.textContent = 'Your email is ready. Review it, add any links or photos, and send.';
     window.location.href = href;

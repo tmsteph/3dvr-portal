@@ -15,6 +15,8 @@ test('free page offer presents the tiny website starter offer', () => {
   assert.match(html, /\.\.\/billing\/\?plan=starter/);
   assert.match(html, /\.\.\/launch-site\//);
   assert.match(html, /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/);
+  assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-96XRKQ5L65/);
+  assert.match(html, /gtag\('config', 'G-96XRKQ5L65'\)/);
 });
 
 test('free page brief builds an email handoff without backend dependencies', () => {
@@ -22,4 +24,6 @@ test('free page brief builds an email handoff without backend dependencies', () 
   assert.match(script, /Free 3DVR one-page website/);
   assert.match(script, /3dvr\.tech@gmail\.com/);
   assert.match(script, /\$5\/month/);
+  assert.match(script, /gtag\('event', 'generate_lead'/);
+  assert.match(script, /method: 'mailto_brief'/);
 });
