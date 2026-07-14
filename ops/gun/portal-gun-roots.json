@@ -11,6 +11,12 @@
       "notes": "Primary portal workspace graph used by billing, app state, agent ops, money-ai, life, and newer apps."
     },
     {
+      "name": "free-page-analytics",
+      "path": ["3dvr-portal", "analytics", "free-page", "v1", "events"],
+      "depth": 2,
+      "notes": "Privacy-safe, append-only Free Page views and lead-intent events, partitioned by UTC day."
+    },
+    {
       "name": "crm",
       "path": ["3dvr-crm"],
       "depth": 3,

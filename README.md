@@ -402,8 +402,10 @@ Environment controls:
 - `MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL`
 - `MONEY_AUTOPILOT_CHECKOUT_URL` (Stripe Checkout link used as CTA/destination fallback)
 - `MONEY_AUTOPILOT_CHECKOUT_CTA_LABEL` (default: `Start Paid Plan`)
-- `MONEY_AUTOPILOT_GA_PROPERTY_ID`
-- `MONEY_AUTOPILOT_GA_ACCESS_TOKEN`
+- `MONEY_AUTOPILOT_ANALYTICS_SOURCE` (`gun`, `ga4`, or `auto`; the scheduled workflow uses `gun`)
+- `MONEY_AUTOPILOT_GUN_PEERS` (optional comma-separated relay override for first-party analytics reads)
+- `MONEY_AUTOPILOT_GA_PROPERTY_ID` (optional GA4 fallback when the analytics source is `ga4` or `auto`)
+- `MONEY_AUTOPILOT_GA_ACCESS_TOKEN` (optional GA4 fallback; not required for Gun analytics)
 - `MONEY_AUTOPILOT_CRON_ENABLED` (`true`/`false`, required for `/api/money/autopilot-cron`)
 - `CRON_SECRET` (recommended for Vercel Cron auth header)
 - `MONEY_AUTOPILOT_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
@@ -412,6 +414,12 @@ Environment controls:
 - `GROWTH_HOMEPAGE_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
 - `GROWTH_HOMEPAGE_CRON_DRY_RUN` (`true`/`false`)
 - `GROWTH_GUN_PEERS` (optional comma-separated relay override for growth cron reads)
+
+The Free Page writes privacy-safe `page_view` and `generate_lead` records to
+`3dvr-portal/analytics/free-page/v1/events/<UTC day>/<event ID>`. Records contain only the event type,
+page path, timestamp, and a random per-tab session ID. Form fields, email addresses, IP addresses, and user identities
+are never written. The scheduled Money Autopilot reads the last 30 days from this Gun graph and includes unique
+sessions, page views, and lead intents in its analytics evidence.
 
 Portal billing center:
 

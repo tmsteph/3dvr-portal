@@ -1,5 +1,6 @@
 import { runMoneyLoop } from './engine.js';
 import { collectDemandSignals } from './sources.js';
+import { fetchFirstPartyAnalyticsHints } from '../analytics/freePageReader.js';
 
 const DEFAULT_AUTOPILOT_PROFILE = {
   market: 'people who need a simple first website for a project, service, or small business',
@@ -662,6 +663,12 @@ export function resolveAutopilotConfig(options = {}) {
       || DEFAULT_AUTOPILOT_PROFILE.offerProfile
     ).trim(),
     analytics: {
+      source: String(
+        options.analyticsSource
+        || env.MONEY_AUTOPILOT_ANALYTICS_SOURCE
+        || 'auto'
+      ).trim().toLowerCase(),
+      gunPeers: String(options.analyticsGunPeers || env.MONEY_AUTOPILOT_GUN_PEERS || '').trim(),
       gaPropertyId: String(options.gaPropertyId || env.MONEY_AUTOPILOT_GA_PROPERTY_ID || '').trim(),
       gaAccessToken: String(options.gaAccessToken || env.MONEY_AUTOPILOT_GA_ACCESS_TOKEN || '').trim()
     }
@@ -1018,7 +1025,13 @@ export async function runAutopilotCycle(options = {}) {
   const config = resolveAutopilotConfig(options);
   const warnings = [];
 
-  const analytics = await fetchGoogleAnalyticsHints(config.analytics, fetchImpl);
+  const useFirstPartyAnalytics = config.analytics.source === 'gun';
+  const analytics = useFirstPartyAnalytics
+    ? await (options.firstPartyAnalyticsImpl || fetchFirstPartyAnalyticsHints)(config.analytics, {
+      now: now(),
+      client: options.analyticsClient
+    })
+    : await fetchGoogleAnalyticsHints(config.analytics, fetchImpl);
   warnings.push(...analytics.warnings);
 
   let market = config.market;
