@@ -16,6 +16,15 @@ const OVERPASS_ENDPOINTS = Object.freeze([
   'https://overpass.openstreetmap.ru/api/interpreter',
 ]);
 const CHAIN_NAME_PATTERN = /\b(starbucks|mcdonald'?s|subway|cvs|rite aid|walgreens|walmart|target|costco|dunkin|7-eleven|shell|chevron|arco|jack in the box|taco bell|burger king|wendy'?s)\b/i;
+const SEARCH_CATEGORY_TERMS = Object.freeze({
+  coffee: Object.freeze(['coffee shop', 'independent cafe']),
+  food: Object.freeze(['local restaurant', 'catering company']),
+  service: Object.freeze(['auto repair', 'hair salon', 'landscaping service', 'cleaning service']),
+  professional: Object.freeze(['law office', 'accounting firm', 'consulting firm', 'real estate agency']),
+  health: Object.freeze(['dental office', 'physical therapy clinic', 'wellness practice']),
+});
+const BLOCKED_SEARCH_HOST_PATTERN = /(^|\.)(?:ca\.gov|sandiego\.gov|sdcounty\.ca\.gov|yelp\.com|yellowpages\.com|bbb\.org|facebook\.com|instagram\.com|linkedin\.com|wikipedia\.org|indeed\.com|mapquest\.com|chamberofcommerce\.com|angi\.com|thumbtack\.com|expertise\.com)$/i;
+const BLOCKED_SEARCH_TITLE_PATTERN = /\b(?:official website|city of|county of|directory|top \d+|best \d+|near me|jobs?|reviews?|government|department|agency services)\b/i;
 
 const CATEGORY_PRESETS = Object.freeze({
   coffee: Object.freeze([
@@ -303,12 +312,39 @@ Try again in a minute, or narrow the search:
 
 function buildSearchQueries(location, category) {
   const base = String(location || '').trim();
-  const queries = [
-    `${category} ${base}`,
-    `${base} ${category}`,
-    `${category} in ${base}`,
-  ];
+  const terms = SEARCH_CATEGORY_TERMS[category] || [category];
+  const queries = terms.map((term) => `"${term}" "${base}" -directory -jobs -reviews`);
   return [...new Set(queries.filter(Boolean))];
+}
+
+function resolveSearchResultUrl(href) {
+  const raw = String(href || '').trim();
+  if (!raw) return '';
+  const absolute = raw.startsWith('//') ? `https:${raw}` : raw;
+  try {
+    const parsed = new URL(absolute);
+    if (/(^|\.)duckduckgo\.com$/i.test(parsed.hostname)) {
+      const target = parsed.searchParams.get('uddg');
+      return target ? normalizeUrl(decodeURIComponent(target)) : '';
+    }
+    return normalizeUrl(parsed.toString());
+  } catch {
+    return '';
+  }
+}
+
+function isLikelyBusinessSearchResult(title, url) {
+  const name = cleanCsvField(title);
+  if (!name || BLOCKED_SEARCH_TITLE_PATTERN.test(name)) return false;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    if (!host || host.endsWith('.gov') || host.endsWith('.edu')) return false;
+    if (BLOCKED_SEARCH_HOST_PATTERN.test(host)) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function parseDuckDuckGoResults(html) {
@@ -319,9 +355,8 @@ function parseDuckDuckGoResults(html) {
   for (const match of matches) {
     const href = match[1] || '';
     const title = cleanCsvField(stripHtml(match[2] || ''));
-    if (!href || !title) continue;
-    const url = href.startsWith('//') ? `https:${href}` : href;
-    if (!/^https?:\/\//i.test(url)) continue;
+    const url = resolveSearchResultUrl(href);
+    if (!url || !isLikelyBusinessSearchResult(title, url)) continue;
     const key = `${title.toLowerCase()}|${url.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -483,7 +518,16 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exit(1);
-});
+module.exports = {
+  buildSearchQueries,
+  isLikelyBusinessSearchResult,
+  parseDuckDuckGoResults,
+  resolveSearchResultUrl,
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exit(1);
+  });
+}
