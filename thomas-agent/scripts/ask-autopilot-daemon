@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib/platform.sh"
 STATE_DIR="${THREEDVR_AUTOPILOT_STATE_DIR:-$ROOT/state}"
 PID_FILE="$STATE_DIR/autopilot-daemon.pid"
 LOG_FILE="$STATE_DIR/autopilot-daemon.log"

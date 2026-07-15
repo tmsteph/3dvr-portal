@@ -461,8 +461,24 @@ export THREEDVR_AUTOPILOT_EMAIL_ENDPOINT="https://portal.3dvr.tech/api/calendar/
 export THREEDVR_AUTOPILOT_EMAIL_TOKEN="shared_operator_token"
 export THREEDVR_AUTOPILOT_FORM_MODE="review"
 export THREEDVR_AUTOPILOT_AUTO_SEND="true"
-export THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT=1
+export THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT=5
+export THREEDVR_AUTOPILOT_DAILY_SEND_LIMIT=5
+export THREEDVR_AUTOPILOT_CAMPAIGN_SEND_LIMIT=25
+export THREEDVR_AUTOPILOT_CAMPAIGN_ID="2026-07-sd-free-page"
+export THREEDVR_AUTOPILOT_CAMPAIGN_START="2026-07-15"
+export THREEDVR_AUTOPILOT_CAMPAIGN_END="2026-07-21"
+export THREEDVR_AUTOPILOT_PAUSED="true"
+export THREEDVR_OUTREACH_OFFER_PROFILE="free-page"
+export THREEDVR_OUTREACH_POSTAL_ADDRESS="your valid business postal address"
 ```
+
+`THREEDVR_AUTOPILOT_AUTO_SEND` is the master send switch. The daemon can keep researching, enriching, syncing CRM,
+and publishing sales summaries while `THREEDVR_AUTOPILOT_PAUSED=true`. Successful sends are also capped across every
+run for the UTC day and across the named campaign. Previously contacted names and addresses in the outreach log are
+suppressed automatically.
+
+Commercial outreach is blocked unless `THREEDVR_OUTREACH_POSTAL_ADDRESS` is configured. Outbound drafts include an
+advertisement disclosure, the postal address, and a reply-based unsubscribe instruction. Do not use a sample address.
 
 For local installs, either use portal OAuth or set a Gmail app password for the Termux mailbox:
 

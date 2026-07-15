@@ -2,8 +2,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const dns = require('node:dns').promises;
-const nodemailer = require('nodemailer');
 const { getOAuthAccessToken } = require('./oauth-connection');
+const { createGmailTransport } = require('./gmail-transport');
+const { validateCommercialOutreach } = require('./outreach-compliance');
 
 const DEFAULT_TRANSPORT = normalizeText(
   process.env.THREEDVR_OUTREACH_EMAIL_TRANSPORT
@@ -172,13 +173,10 @@ async function sendViaGmail(options) {
     if (!(user && connection.accessToken)) {
       throw new Error('Google OAuth connection is missing an email or access token.');
     }
-    const transport = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user,
-        accessToken: connection.accessToken,
-      },
+    const transport = createGmailTransport(process.env, {
+      type: 'OAuth2',
+      user,
+      accessToken: connection.accessToken,
     });
 
     await transport.sendMail({
@@ -195,10 +193,7 @@ async function sendViaGmail(options) {
     throw new Error('GMAIL_APP_PASSWORD or a Google OAuth connection is required for Gmail outreach email.');
   }
 
-  const transport = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  });
+  const transport = createGmailTransport(process.env, { user, pass });
 
   await transport.sendMail({
     from: `"Thomas @ 3dvr.tech" <${user}>`,
@@ -233,6 +228,13 @@ async function main() {
     process.exit(1);
   }
 
+  if (!options.probeOnly) {
+    const compliance = validateCommercialOutreach(options.text);
+    if (!compliance.ok) {
+      throw new Error(`Commercial outreach blocked: ${compliance.errors.join(' ')}`);
+    }
+  }
+
   const probe = await probeAndReport(options);
   if (options.probeOnly) {
     console.log(`Probe OK for ${options.to} (${probe.domain})`);
@@ -260,6 +262,7 @@ module.exports = {
   probeAndReport,
   sendViaGmail,
   sendViaPortal,
+  validateCommercialOutreach,
 };
 
 if (require.main === module) {

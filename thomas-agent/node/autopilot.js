@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const nodemailer = require('nodemailer');
+const { buildGmailTransportOptions } = require('./gmail-transport');
+const { getCampaignAllowance, successfulRecipientKeys } = require('./campaign-limits');
+const { readOutreachLog } = require('./outreach-log');
 
 const { routeFromContact } = require('./lead-route');
 
@@ -30,6 +33,15 @@ const DEFAULT_EMAIL_COOLDOWN_HOURS = parseInteger(process.env.THREEDVR_AUTOPILOT
 const DEFAULT_EMAIL_TRANSPORT = String(process.env.THREEDVR_AUTOPILOT_EMAIL_TRANSPORT || 'portal').trim().toLowerCase();
 const DEFAULT_AUTO_SEND = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_AUTO_SEND || '').trim());
 const DEFAULT_AUTO_SEND_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT, 1);
+const DEFAULT_DAILY_SEND_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_DAILY_SEND_LIMIT, 5);
+const DEFAULT_CAMPAIGN_SEND_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_CAMPAIGN_SEND_LIMIT, 0);
+const DEFAULT_CAMPAIGN_ID = normalizeText(
+  process.env.THREEDVR_AUTOPILOT_CAMPAIGN_ID || process.env.THREEDVR_OUTREACH_EXPERIMENT_ID
+);
+const DEFAULT_CAMPAIGN_START = normalizeText(process.env.THREEDVR_AUTOPILOT_CAMPAIGN_START);
+const DEFAULT_CAMPAIGN_END = normalizeText(process.env.THREEDVR_AUTOPILOT_CAMPAIGN_END);
+const DEFAULT_PAUSED = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_PAUSED || '').trim());
+const DEFAULT_OUTREACH_POSTAL_ADDRESS = normalizeText(process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS);
 const DEFAULT_NOTIFY_EMAIL = normalizeEmail(
   process.env.THREEDVR_AUTOPILOT_NOTIFY_EMAIL
   || process.env.GMAIL_USER
@@ -111,6 +123,12 @@ Environment:
   THREEDVR_AUTOPILOT_EMAIL_TRANSPORT     portal | auto | gmail
   THREEDVR_AUTOPILOT_AUTO_SEND           true to send first-touch email automatically for mailto leads
   THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT     max automated outreach sends per run
+  THREEDVR_AUTOPILOT_DAILY_SEND_LIMIT    max successful outreach sends across all runs per UTC day
+  THREEDVR_AUTOPILOT_CAMPAIGN_SEND_LIMIT max successful sends for the active campaign (0 disables)
+  THREEDVR_AUTOPILOT_CAMPAIGN_ID         campaign/experiment id stored with outreach logs
+  THREEDVR_AUTOPILOT_CAMPAIGN_START      first active date in YYYY-MM-DD format
+  THREEDVR_AUTOPILOT_CAMPAIGN_END        last active date in YYYY-MM-DD format
+  THREEDVR_AUTOPILOT_PAUSED              true keeps research and CRM sync running but blocks sends
   THREEDVR_AUTOPILOT_EMAIL_ENDPOINT      portal email relay endpoint
   THREEDVR_AUTOPILOT_EMAIL_TOKEN         shared token for portal email relay
   THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE    optional file path for shared relay token
@@ -289,10 +307,16 @@ function outreachPriority(row) {
   return 0;
 }
 
-function pickAutoSendLeads(rows, limit) {
+function pickAutoSendLeads(rows, limit, outreachEntries = []) {
+  const sentKeys = successfulRecipientKeys(outreachEntries);
   return rows
     .filter((row) => normalizeText(row.status).toLowerCase() === 'new')
     .filter((row) => /^mailto:/i.test(normalizeText(row.contact)))
+    .filter((row) => {
+      const nameKey = `name:${normalizeText(row.name).toLowerCase()}`;
+      const contactKey = `contact:${normalizeText(row.contact).toLowerCase()}`;
+      return !sentKeys.has(nameKey) && !sentKeys.has(contactKey);
+    })
     .sort((left, right) => {
       const dateCompare = normalizeText(right.date).localeCompare(normalizeText(left.date));
       if (dateCompare) return dateCompare;
@@ -363,13 +387,13 @@ function updateComboStat(state, combo, { leadsAdded = 0, ok = true, error = '' }
   state.comboStats[combo.key] = current;
 }
 
-async function runScript(scriptName, args = []) {
+async function runScript(scriptName, args = [], options = {}) {
   const file = path.join(SCRIPTS_DIR, scriptName);
   try {
     const result = await execFileAsync(file, args, {
       cwd: ROOT,
       maxBuffer: 1024 * 1024 * 4,
-      env: process.env,
+      env: { ...process.env, ...(options.env || {}) },
     });
     return {
       ok: true,
@@ -531,10 +555,7 @@ function createMailTransport() {
   const user = DEFAULT_GMAIL_USER;
   const pass = normalizeText(process.env.GMAIL_APP_PASSWORD);
   if (!(user && pass)) return null;
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  });
+  return nodemailer.createTransport(buildGmailTransportOptions(process.env, { user, pass }));
 }
 
 async function sendViaPortalEmail(email, summary, actions) {
@@ -640,6 +661,9 @@ function buildActionItems(summary) {
     if (delivered.length) {
       actions.push(`Auto-sent first outreach to ${delivered.join(', ')}`);
     }
+  }
+  if (summary.campaign?.sendBlockedReason) {
+    actions.push(`Campaign sending blocked: ${summary.campaign.sendBlockedReason}`);
   }
   if (summary.routeCounts?.formReady > 0) {
     actions.push(`Review form leads: ${summary.topForm.join(', ') || `${summary.routeCounts.formReady} form lead(s)`}`);
@@ -928,11 +952,35 @@ async function main() {
     }
   }
 
+  const outreachEntries = readOutreachLog();
+  const campaignAllowance = getCampaignAllowance(outreachEntries, {
+    campaignId: DEFAULT_CAMPAIGN_ID,
+    dailyLimit: DEFAULT_DAILY_SEND_LIMIT,
+    totalLimit: DEFAULT_CAMPAIGN_SEND_LIMIT,
+    start: DEFAULT_CAMPAIGN_START,
+    end: DEFAULT_CAMPAIGN_END,
+  });
+  const sendBlockedReason = !DEFAULT_AUTO_SEND
+    ? ''
+    : DEFAULT_PAUSED
+      ? 'THREEDVR_AUTOPILOT_PAUSED is enabled'
+      : !DEFAULT_OUTREACH_POSTAL_ADDRESS
+        ? 'THREEDVR_OUTREACH_POSTAL_ADDRESS is not configured'
+        : !campaignAllowance.active
+          ? 'campaign is outside its active date range'
+          : campaignAllowance.allowed < 1
+            ? 'daily or campaign send limit reached'
+            : '';
+  const runSendLimit = Math.min(DEFAULT_AUTO_SEND_LIMIT, campaignAllowance.allowed);
   const autoSent = [];
-  if (DEFAULT_AUTO_SEND && !options.dryRun) {
-    const candidates = pickAutoSendLeads(readLeads(LEADS_FILE), DEFAULT_AUTO_SEND_LIMIT);
+  if (DEFAULT_AUTO_SEND && !options.dryRun && !sendBlockedReason && runSendLimit > 0) {
+    const candidates = pickAutoSendLeads(readLeads(LEADS_FILE), runSendLimit, outreachEntries);
     for (const candidate of candidates) {
-      const sendResult = await runScript('ask-send', ['--auto', '--mark', candidate.name]);
+      const sendResult = await runScript('ask-send', ['--auto', '--mark', candidate.name], {
+        env: {
+          THREEDVR_OUTREACH_EXPERIMENT_ID: DEFAULT_CAMPAIGN_ID,
+        },
+      });
       autoSent.push({
         name: candidate.name,
         ok: sendResult.ok,
@@ -991,6 +1039,16 @@ async function main() {
     noEmail: options.noEmail,
     formMode: DEFAULT_FORM_MODE,
     intervalMinutes: DEFAULT_INTERVAL_MINUTES,
+    campaign: {
+      id: DEFAULT_CAMPAIGN_ID,
+      start: DEFAULT_CAMPAIGN_START,
+      end: DEFAULT_CAMPAIGN_END,
+      paused: DEFAULT_PAUSED,
+      autoSendEnabled: DEFAULT_AUTO_SEND,
+      runSendLimit,
+      sendBlockedReason,
+      ...campaignAllowance,
+    },
     leadsFile: LEADS_FILE,
     counts,
     beforeCounts,
@@ -1048,6 +1106,7 @@ async function main() {
   console.log(`Autopilot run: ${summary.runId}`);
   console.log(`Counts: ${formatCounts(summary.counts)}`);
   console.log(`Routes: ${formatRouteCounts(summary.routeCounts)}`);
+  console.log(`Campaign: ${summary.campaign.id || 'unscoped'} daily=${summary.campaign.dailySent}/${summary.campaign.dailyLimit} total=${summary.campaign.campaignSent}/${summary.campaign.totalLimit || 'unlimited'}${summary.campaign.sendBlockedReason ? ` blocked=${summary.campaign.sendBlockedReason}` : ''}`);
   if (combo) {
     console.log(`Combo: ${combo.location} / ${combo.category} (${leadsAdded} lead(s) added)`);
   } else {

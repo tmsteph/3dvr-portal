@@ -6,6 +6,7 @@ const {
   countRouteBuckets,
   countStatuses,
   formatRouteCounts,
+  pickAutoSendLeads,
 } = require('../thomas-agent/node/autopilot');
 
 test('countRouteBuckets separates email, form, page-only, and unenriched new leads', () => {
@@ -55,4 +56,16 @@ test('buildActionItems includes form review commands without auto-submitting for
   assert.match(actions.join('\n'), /ask-send "Form Lead"/);
   assert.match(actions.join('\n'), /Review page-only leads: Page Lead/);
   assert.match(actions.join('\n'), /ask-send "Page Lead"/);
+});
+
+test('pickAutoSendLeads does not retry successful recipients from the outreach log', () => {
+  const rows = [
+    { name: 'Already Sent', status: 'new', link: 'https://sent.example', contact: 'mailto:owner@sent.example', date: '2026-07-15' },
+    { name: 'Fresh Lead', status: 'new', link: 'https://fresh.example', contact: 'mailto:owner@fresh.example', date: '2026-07-15' },
+  ];
+  const entries = [
+    { status: 'sent', name: 'Already Sent', contact: 'mailto:owner@sent.example' },
+  ];
+
+  assert.deepEqual(pickAutoSendLeads(rows, 5, entries).map((lead) => lead.name), ['Fresh Lead']);
 });

@@ -196,7 +196,11 @@ esac
 route="$(node "$LEAD_ROUTE_JS" --contact "$contact" --link "$link" --variant "$variant" 2>/dev/null || true)"
 [ -z "$route" ] && route="site"
 
-subject="Question for $name"
+if [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" = "free-page" ]; then
+  subject="A free one-page website for $name"
+else
+  subject="Question for $name"
+fi
 encoded_subject="$(url_encode "$subject")"
 encoded_body="$(url_encode "$message")"
 encoded_email="$(url_encode "$email")"

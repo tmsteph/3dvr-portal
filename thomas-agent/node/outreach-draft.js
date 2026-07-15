@@ -1,7 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { appendContactFooter } = require('./contact-footer');
+const { finalizeCommercialOutreach } = require('./outreach-compliance');
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -32,6 +32,10 @@ function currentModel() {
 
 function currentMode() {
   return normalizeText(process.env.THREEDVR_OUTREACH_MESSAGE_MODE || 'auto').toLowerCase();
+}
+
+function currentOfferProfile() {
+  return normalizeText(process.env.THREEDVR_OUTREACH_OFFER_PROFILE).toLowerCase();
 }
 
 function currentTemperature() {
@@ -86,10 +90,16 @@ function commandExists(filePath) {
 
 function buildTemplateOutreachDraft(lead = {}) {
   const name = normalizeText(lead.name) || 'there';
+  if (currentOfferProfile() === 'free-page') {
+    return {
+      source: 'template-free-page',
+      text: finalizeCommercialOutreach(`Hi ${name} team,\n\nI'm Thomas with 3DVR in San Diego. I'm offering local service businesses a clean one-page website draft at no cost: what you do, proof, and a clear contact path.\n\nWould a simpler page like that be useful for your business? There is no obligation to keep it if it is not useful.\n\nThomas\n3DVR`),
+    };
+  }
   const hint = defaultHint(lead.site, lead.contact);
   return {
     source: 'template',
-    text: appendContactFooter(`Hi ${name} team,\n\nI'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\nThomas\n3DVR`),
+    text: finalizeCommercialOutreach(`Hi ${name} team,\n\nI'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\nThomas\n3DVR`),
   };
 }
 
@@ -97,6 +107,16 @@ function buildPrompt(lead = {}) {
   const name = normalizeText(lead.name);
   const site = normalizeText(lead.site);
   const contact = normalizeText(lead.contact);
+  const offerLines = currentOfferProfile() === 'free-page'
+    ? [
+      '- Offer a clean one-page website draft at no cost, with no obligation to keep it.',
+      '- Ask whether a simpler page would be useful for the business.',
+      '- Say Thomas is with 3DVR in San Diego.',
+    ]
+    : [
+      '- Mention websites, follow-up systems, or online workflows in a natural way.',
+      '- Ask one concise question about whether something in their website or customer flow is harder than it should be.',
+    ];
   return [
     'Write a short first-touch sales email for a small business lead.',
     'Return JSON only with one key: "text".',
@@ -105,8 +125,7 @@ function buildPrompt(lead = {}) {
     '- Plain text only.',
     '- Start with "Hi <business> team,".',
     '- Use first person singular from Thomas at 3DVR.',
-    '- Mention websites, follow-up systems, or online workflows in a natural way.',
-    '- Ask one concise question about whether something in their website or customer flow is harder than it should be.',
+    ...offerLines,
     '- No fake specifics about their site.',
     '- No pricing.',
     '- No hype, no exclamation marks, no markdown.',
@@ -125,6 +144,14 @@ function buildLocalPrompt(lead = {}) {
   const name = normalizeText(lead.name) || 'there';
   const site = normalizeText(lead.site);
   const contact = normalizeText(lead.contact);
+  const offerLines = currentOfferProfile() === 'free-page'
+    ? [
+      'Offer: a clean one-page website draft at no cost, with no obligation to keep it.',
+      'Ask whether a simpler page would be useful for the business.',
+    ]
+    : [
+      'Ask one concrete question about whether something on the site or in the customer flow is harder than it should be.',
+    ];
   return [
     'Write a short first-touch sales email for Thomas at 3DVR.',
     'Return only JSON: {"text":"..."}',
@@ -136,7 +163,7 @@ function buildLocalPrompt(lead = {}) {
     `Lead: ${name}`,
     `Website: ${site || ''}`,
     `Contact: ${contact || ''}`,
-    'Ask one concrete question about whether something on the site or in the customer flow is harder than it should be.',
+    ...offerLines,
     'Keep it under 110 words.',
   ].join('\n');
 }
@@ -162,7 +189,7 @@ function parseLlmJson(raw) {
 function isAcceptableOutreachText(text) {
   const value = normalizeText(text);
   if (!value) return false;
-  if (value.split(/\s+/).length > 110) return false;
+  if (value.split(/\s+/).length > 150) return false;
   if (!/^Hi [^\n]{1,80} team,/i.test(value)) return false;
   if (!/\bThomas\b[\s\S]*\b3DVR\b/i.test(value)) return false;
   if (/^- /m.test(value)) return false;
@@ -226,7 +253,7 @@ async function buildLocalOutreachDraft(lead = {}, { runCommandImpl = runCommand,
   if (!parsed) {
     throw new Error('Local model returned invalid JSON.');
   }
-  const text = appendContactFooter(normalizeText(parsed.text));
+  const text = finalizeCommercialOutreach(normalizeText(parsed.text));
   if (!text) {
     throw new Error('Local model returned empty text.');
   }
@@ -276,7 +303,7 @@ async function buildLlmOutreachDraft(lead = {}, { fetchImpl = fetch } = {}) {
 
   const content = payload?.choices?.[0]?.message?.content;
   const parsed = JSON.parse(String(content || '{}'));
-  const text = appendContactFooter(normalizeText(parsed?.text));
+  const text = finalizeCommercialOutreach(normalizeText(parsed?.text));
   if (!text) {
     throw new Error('OpenAI outreach draft returned empty text.');
   }

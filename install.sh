@@ -111,8 +111,14 @@ THREEDVR_GUN_RELAY=https://gun-relay-3dvr.fly.dev/gun
 THREEDVR_PORTAL_URL=https://portal.3dvr.tech
 THREEDVR_GMAIL_AUTH=oauth-first
 THREEDVR_OAUTH_FILE="${THREEDVR_HOME:-$HOME/.3dvr}/oauth.json"
+# Gmail SMTP defaults stay on 587/STARTTLS so common cloud hosts can reach Gmail reliably.
+THREEDVR_GMAIL_SMTP_HOST=smtp.gmail.com
+THREEDVR_GMAIL_SMTP_PORT=587
+THREEDVR_GMAIL_SMTP_SECURE=false
+THREEDVR_GMAIL_SMTP_REQUIRE_TLS=true
 # Optional outreach defaults for form fills and direct replies.
 THREEDVR_OUTREACH_PHONE=
+THREEDVR_OUTREACH_POSTAL_ADDRESS=
 GMAIL_APP_PASSWORD=
 EOF
 }
