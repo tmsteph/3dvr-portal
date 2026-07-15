@@ -7,7 +7,16 @@ const {
   countStatuses,
   formatRouteCounts,
   pickAutoSendLeads,
+  splitLocations,
 } = require('../thomas-agent/node/autopilot');
+
+test('splitLocations preserves city and state commas', () => {
+  assert.deepEqual(splitLocations('San Diego, CA'), ['San Diego, CA']);
+  assert.deepEqual(
+    splitLocations('San Diego, CA;La Mesa, CA\nEl Cajon, CA'),
+    ['San Diego, CA', 'La Mesa, CA', 'El Cajon, CA']
+  );
+});
 
 test('countRouteBuckets separates email, form, page-only, and unenriched new leads', () => {
   const rows = [

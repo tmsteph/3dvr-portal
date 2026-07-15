@@ -19,7 +19,7 @@ const LEADS_FILE = process.env.THREEDVR_LEADS_FILE || path.join(ROOT, 'leads.csv
 const STATE_DIR = process.env.THREEDVR_AUTOPILOT_STATE_DIR || path.join(ROOT, 'state');
 const STATE_FILE = process.env.THREEDVR_AUTOPILOT_STATE_FILE || path.join(STATE_DIR, 'autopilot-state.json');
 const DEFAULT_TOKEN_FILE = process.env.THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE || path.join(os.homedir(), '.3dvr-agent-operator-email-token');
-const DEFAULT_LOCATIONS = splitList(process.env.THREEDVR_AUTOPILOT_LOCATIONS || process.env.THREEDVR_LEAD_LOCATION || 'La Mesa, CA;San Diego, CA');
+const DEFAULT_LOCATIONS = splitLocations(process.env.THREEDVR_AUTOPILOT_LOCATIONS || process.env.THREEDVR_LEAD_LOCATION || 'La Mesa, CA;San Diego, CA');
 const DEFAULT_CATEGORIES = splitList(process.env.THREEDVR_AUTOPILOT_CATEGORIES || process.env.THREEDVR_LEAD_CATEGORY || 'professional;service');
 const DEFAULT_INTERVAL_MINUTES = parseInteger(process.env.THREEDVR_AUTOPILOT_INTERVAL_MINUTES, 360);
 const DEFAULT_MIN_NEW_LEADS = parseInteger(process.env.THREEDVR_AUTOPILOT_MIN_NEW_LEADS, 5);
@@ -65,6 +65,13 @@ const DEFAULT_CODEX_REPO = process.env.THREEDVR_AUTOPILOT_CODEX_REPO || path.joi
 function splitList(value) {
   return String(value || '')
     .split(/[,\n;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function splitLocations(value) {
+  return String(value || '')
+    .split(/[\n;]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }
@@ -1162,6 +1169,7 @@ module.exports = {
   formatRouteCounts,
   needsEnrichment,
   pickAutoSendLeads,
+  splitLocations,
   topLeadNames,
   topRouteLeadNames,
 };
