@@ -36,7 +36,8 @@ case "${1:-}" in
       exit 0
     fi
     if command -v tmux >/dev/null 2>&1; then
-      tmux new-session -d -s "$TMUX_SESSION" "cd \"$ROOT\" && while true; do \"$SCRIPT_DIR/ask-inbox\" >>\"$LOG_FILE\" 2>&1; sleep \$(( ${INTERVAL_MINUTES} * 60 )); done"
+      printf -v config_file_q '%q' "${THREEDVR_CONFIG_FILE:-}"
+      tmux new-session -d -s "$TMUX_SESSION" "unset THREEDVR_ENV_LOADED; export THREEDVR_CONFIG_FILE=$config_file_q; cd \"$ROOT\" && while true; do \"$SCRIPT_DIR/ask-inbox\" >>\"$LOG_FILE\" 2>&1; sleep \$(( ${INTERVAL_MINUTES} * 60 )); done"
       echo "Started inbox daemon in tmux session $TMUX_SESSION. Log: $LOG_FILE"
     else
       setsid node "$ROOT/node/inbox-monitor-loop.js" >>"$LOG_FILE" 2>&1 &

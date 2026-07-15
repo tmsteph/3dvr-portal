@@ -19,7 +19,15 @@ case "$MODE" in
   loop)
     shift || true
     cd "$ROOT"
+    dry_run="no"
+    for arg in "$@"; do
+      [ "$arg" = "--dry-run" ] && dry_run="yes"
+    done
     "$SCRIPT_DIR/ask-autopilot" "$@"
+    if [ "$dry_run" = "yes" ]; then
+      "$SCRIPT_DIR/ask-crm-sync" --dry-run
+      exec node "$ROOT/node/sales-summary.js"
+    fi
     "$SCRIPT_DIR/ask-crm-sync"
     exec node "$ROOT/node/sales-summary.js" publish
     ;;

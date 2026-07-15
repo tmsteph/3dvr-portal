@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 const { ImapFlow } = require('imapflow');
 const { getOAuthAccessToken } = require('./oauth-connection');
 const { appendContactFooter, buildContactFooter } = require('./contact-footer');
+const { appendOutreachLog, readOutreachLog } = require('./outreach-log');
 const {
   claimLease,
   isHandled,
@@ -463,6 +464,51 @@ function updateLeadStatusByEmail(filePath, email, status) {
   }
 
   return changed;
+}
+
+function latestOutboundForLead(entries, lead, email) {
+  const normalizedEmail = normalizeEmail(email);
+  const leadName = normalizeText(lead?.name).toLowerCase();
+  return entries.slice().reverse().find((entry) => {
+    const status = normalizeText(entry.status).toLowerCase();
+    if (!['sent', 'submitted'].includes(status)) return false;
+    const entryEmail = extractLeadEmail({ contact: entry.contact });
+    if (normalizedEmail && entryEmail === normalizedEmail) return true;
+    return leadName && normalizeText(entry.name).toLowerCase() === leadName;
+  }) || null;
+}
+
+function recordLeadReplyFeedback(message, lead, state, options = {}) {
+  if (!(message && lead && state)) return { recorded: false, reason: 'missing reply context' };
+  const messageId = normalizeText(message.messageId);
+  if (!messageId) return { recorded: false, reason: 'message id missing' };
+  const meta = state.messages[messageId] || {};
+  if (meta.feedbackRecordedAt) return { recorded: false, reason: 'already recorded' };
+
+  const email = normalizeEmail(message.replyToEmail || message.fromEmail || extractLeadEmail(lead));
+  if (!email) return { recorded: false, reason: 'reply email missing' };
+  const entries = options.entries || readOutreachLog(options.logOptions);
+  const outbound = latestOutboundForLead(entries, lead, email);
+  const updated = updateLeadStatusByEmail(options.leadsFile || LEADS_FILE, email, 'replied');
+  const feedback = appendOutreachLog({
+    kind: 'email',
+    status: 'replied',
+    source: 'inbox-monitor',
+    name: lead.name,
+    site: lead.link,
+    contact: lead.contact || `mailto:${email}`,
+    route: 'email',
+    subject: message.subject,
+    experiment: outbound?.experiment || outbound?.experimentId || '',
+    variant: outbound?.variant || lead.variant || '',
+    note: `Inbound reply ${messageId}`,
+  }, options.logOptions);
+
+  meta.feedbackRecordedAt = feedback.timestamp;
+  meta.feedbackExperiment = feedback.experiment;
+  meta.feedbackVariant = feedback.variant;
+  state.messages[messageId] = meta;
+  return { recorded: true, updated, feedback };
 }
 
 function looksLikeBounce(message) {
@@ -1626,6 +1672,12 @@ async function main() {
     upsertMessageState(state, message, lead, {
       publicAgent: !lead && isPublicAgentMessage(message),
     });
+    if (lead && !options.dryRun) {
+      const feedback = recordLeadReplyFeedback(message, lead, state);
+      if (feedback.recorded) {
+        console.log(`Recorded campaign reply feedback for ${lead.name || message.from}.`);
+      }
+    }
   });
   backfillPendingAutoReplies(state, contactedLeadMap);
 
@@ -1777,6 +1829,8 @@ module.exports = {
   printReplyPreviews,
   sendCoordinatedReply,
   updateLeadStatusByEmail,
+  latestOutboundForLead,
+  recordLeadReplyFeedback,
 };
 
 if (require.main === module) {

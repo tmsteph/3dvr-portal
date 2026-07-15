@@ -91,9 +91,13 @@ function commandExists(filePath) {
 function buildTemplateOutreachDraft(lead = {}) {
   const name = normalizeText(lead.name) || 'there';
   if (currentOfferProfile() === 'free-page') {
+    const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
+    const body = variant === 'b'
+      ? `Hi ${name} team,\n\nI'm Thomas with 3DVR in San Diego. I can sketch a clean one-page website that makes your services, proof, and best contact path easy to understand. I'm doing a few of these drafts for local businesses at no cost, with no obligation to use them.\n\nWould you like me to put together a first draft for ${name}?\n\nThomas\n3DVR`
+      : `Hi ${name} team,\n\nI'm Thomas with 3DVR in San Diego. I'm offering local service businesses a clean one-page website draft at no cost: what you do, proof, and a clear contact path.\n\nWould a simpler page like that be useful for your business? There is no obligation to keep it if it is not useful.\n\nThomas\n3DVR`;
     return {
-      source: 'template-free-page',
-      text: finalizeCommercialOutreach(`Hi ${name} team,\n\nI'm Thomas with 3DVR in San Diego. I'm offering local service businesses a clean one-page website draft at no cost: what you do, proof, and a clear contact path.\n\nWould a simpler page like that be useful for your business? There is no obligation to keep it if it is not useful.\n\nThomas\n3DVR`),
+      source: variant === 'b' ? 'template-free-page-b' : 'template-free-page',
+      text: finalizeCommercialOutreach(body),
     };
   }
   const hint = defaultHint(lead.site, lead.contact);

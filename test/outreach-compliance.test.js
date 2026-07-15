@@ -48,3 +48,17 @@ test('free-page campaign copy offers a no-cost draft without invented site claim
     else process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS = previousAddress;
   }
 });
+
+test('free-page experiment variant b changes the call to action and stays compliant', () => {
+  process.env.THREEDVR_OUTREACH_OFFER_PROFILE = 'free-page';
+  process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS = '123 Main St, San Diego, CA 92101';
+  try {
+    const draft = buildTemplateOutreachDraft({ name: 'Acme', experimentVariant: 'b' });
+    assert.equal(draft.source, 'template-free-page-b');
+    assert.match(draft.text, /Would you like me to put together a first draft for Acme/i);
+    assert.equal(validateCommercialOutreach(draft.text).ok, true);
+  } finally {
+    delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
+    delete process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS;
+  }
+});

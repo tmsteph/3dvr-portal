@@ -474,3 +474,23 @@ test('autopilot daemon reloads its selected config inside tmux', async () => {
   assert.match(daemonSource, /unset THREEDVR_ENV_LOADED/);
   assert.match(daemonSource, /export THREEDVR_CONFIG_FILE=\$config_file_q/);
 });
+
+test('inbox daemon reloads its selected campaign config inside tmux', async () => {
+  const daemonSource = await readFile(
+    path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-inbox-daemon'),
+    'utf8'
+  );
+
+  assert.match(daemonSource, /unset THREEDVR_ENV_LOADED/);
+  assert.match(daemonSource, /export THREEDVR_CONFIG_FILE=\$config_file_q/);
+});
+
+test('sales loop propagates dry-run to CRM sync and skips publishing', async () => {
+  const source = await readFile(
+    path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-sales'),
+    'utf8'
+  );
+
+  assert.match(source, /ask-crm-sync" --dry-run/);
+  assert.match(source, /\[ "\$dry_run" = "yes" \]/);
+});

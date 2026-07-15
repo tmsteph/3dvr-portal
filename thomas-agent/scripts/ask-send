@@ -16,6 +16,7 @@ form_mode="no"
 draft_mode="${THREEDVR_EMAIL_DRAFT_MODE:-mailto}"
 message_mode="${THREEDVR_OUTREACH_MESSAGE_MODE:-auto}"
 experiment_id="${THREEDVR_OUTREACH_EXPERIMENT_ID:-}"
+experiment_variant="${THREEDVR_OUTREACH_VARIANT:-}"
 target_name=""
 draft_source="unknown"
 
@@ -130,6 +131,7 @@ name="$(printf '%s' "$line" | awk -F, '{print $1}')"
 link="$(printf '%s' "$line" | awk -F, '{print $2}')"
 contact="$(printf '%s' "$line" | awk -F, '{print $3}')"
 variant="$(printf '%s' "$line" | awk -F, '{print ($8 != "" ? $8 : $6)}')"
+[ -n "$experiment_variant" ] && variant="$experiment_variant"
 
 target="$contact"
 case "$target" in
@@ -150,7 +152,7 @@ if [ "$mode" = "offer" ]; then
   message="$($SCRIPT_DIR/ask-message offer)"
   draft_source="manual-offer"
 else
-  if [ "$message_mode" = "template" ] && printf '%s' "$variant" | grep -Eq '^[abc]$'; then
+  if [ "$message_mode" = "template" ] && [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" != "free-page" ] && printf '%s' "$variant" | grep -Eq '^[abc]$'; then
     message="$("$SCRIPT_DIR/ask-message" "$variant" "$name")"
     draft_source="template-$variant"
   else
@@ -162,6 +164,7 @@ async function main() {
     name: process.env.THREEDVR_OUTREACH_NAME,
     site: process.env.THREEDVR_OUTREACH_SITE,
     contact: process.env.THREEDVR_OUTREACH_CONTACT,
+    experimentVariant: process.env.THREEDVR_OUTREACH_VARIANT,
   }, {
     mode: process.env.THREEDVR_OUTREACH_MESSAGE_MODE,
   });

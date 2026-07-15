@@ -185,6 +185,30 @@ test('ask-send --template uses a/b/c lead variants when present', async () => {
   }
 });
 
+test('ask-send applies a bounded free-page experiment variant without changing lead routing', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
+  const leads = path.join(tmp, 'leads.csv');
+  await writeFile(
+    leads,
+    'name,link,contact,status,date,variant\nVariant Studio,https://example.com,mailto:owner@example.com,new,2026-07-15,osm-service+route=email\n',
+  );
+
+  try {
+    const { stdout } = await run(askSend, ['--template', '--dry-run'], {
+      THREEDVR_LEADS_FILE: leads,
+      THREEDVR_OUTREACH_OFFER_PROFILE: 'free-page',
+      THREEDVR_OUTREACH_VARIANT: 'b',
+      THREEDVR_OUTREACH_POSTAL_ADDRESS: '123 Main St, San Diego, CA 92101',
+    });
+
+    assert.match(stdout, /Would you like me to put together a first draft for Variant Studio/i);
+    assert.match(stdout, /Route: email/);
+    assert.match(stdout, /Postal address: 123 Main St/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test('ask-send can open a Gmail draft and copy the full email', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
   const leads = path.join(tmp, 'leads.csv');

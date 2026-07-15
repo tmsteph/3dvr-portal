@@ -14,6 +14,7 @@ const {
   isPublicAgentMessage,
   looksLikeAutomatedSender,
   subjectMatchesPublicAgentGate,
+  recordLeadReplyFeedback,
 } = require('../thomas-agent/node/inbox-monitor');
 
 test('detects bounce mail and extracts candidate addresses', () => {
@@ -55,6 +56,51 @@ test('marks a lead failed by email address', async () => {
 
     assert.equal(changed, true);
     assert.match(text, /Bad Lead,https:\/\/bad\.example,mailto:bad@example\.com,failed,2026-05-03,opener/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('records a reply once and attributes it to the outbound experiment variant', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-reply-feedback-'));
+  const leads = path.join(tmp, 'leads.csv');
+  const log = path.join(tmp, 'outreach.ndjson');
+  await writeFile(
+    leads,
+    'name,link,contact,status,date,variant\nAcme,https://acme.example,mailto:lead@example.com,contacted,2026-07-15,route=email\n',
+  );
+  const state = { messages: { 'reply-1': {} } };
+  const message = {
+    messageId: 'reply-1',
+    fromEmail: 'lead@example.com',
+    replyToEmail: 'lead@example.com',
+    subject: 'Re: A free one-page website for Acme',
+  };
+  const lead = { name: 'Acme', link: 'https://acme.example', contact: 'mailto:lead@example.com', variant: 'route=email' };
+  const entries = [{
+    experiment: 'campaign', variant: 'b', status: 'sent', name: 'Acme', contact: 'mailto:lead@example.com',
+  }];
+
+  try {
+    const first = recordLeadReplyFeedback(message, lead, state, {
+      entries,
+      leadsFile: leads,
+      logOptions: { filePath: log },
+    });
+    const second = recordLeadReplyFeedback(message, lead, state, {
+      entries,
+      leadsFile: leads,
+      logOptions: { filePath: log },
+    });
+    const leadText = await readFile(leads, 'utf8');
+    const logLines = (await readFile(log, 'utf8')).trim().split('\n').map(JSON.parse);
+
+    assert.equal(first.recorded, true);
+    assert.equal(first.feedback.experiment, 'campaign');
+    assert.equal(first.feedback.variant, 'b');
+    assert.equal(second.recorded, false);
+    assert.match(leadText, /mailto:lead@example\.com,replied/);
+    assert.equal(logLines.length, 1);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }

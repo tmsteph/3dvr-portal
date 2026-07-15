@@ -7,6 +7,7 @@ const { promisify } = require('util');
 const nodemailer = require('nodemailer');
 const { buildGmailTransportOptions } = require('./gmail-transport');
 const { getCampaignAllowance, successfulRecipientKeys } = require('./campaign-limits');
+const { chooseExperimentVariant } = require('./experiment-optimizer');
 const { readOutreachLog } = require('./outreach-log');
 
 const { routeFromContact } = require('./lead-route');
@@ -40,6 +41,10 @@ const DEFAULT_CAMPAIGN_ID = normalizeText(
 );
 const DEFAULT_CAMPAIGN_START = normalizeText(process.env.THREEDVR_AUTOPILOT_CAMPAIGN_START);
 const DEFAULT_CAMPAIGN_END = normalizeText(process.env.THREEDVR_AUTOPILOT_CAMPAIGN_END);
+const DEFAULT_EXPERIMENT_VARIANTS = splitList(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_VARIANTS || 'a;b');
+const DEFAULT_EXPERIMENT_MIN_SAMPLE = parseInteger(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_MIN_SAMPLE, 8);
+const DEFAULT_EXPERIMENT_MIN_REPLIES = parseInteger(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_MIN_REPLIES, 2);
+const DEFAULT_EXPERIMENT_MIN_LIFT = parseNumber(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_MIN_LIFT, 0.05);
 const DEFAULT_PAUSED = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_PAUSED || '').trim());
 const DEFAULT_OUTREACH_POSTAL_ADDRESS = normalizeText(process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS);
 const DEFAULT_NOTIFY_EMAIL = normalizeEmail(
@@ -135,6 +140,10 @@ Environment:
   THREEDVR_AUTOPILOT_CAMPAIGN_ID         campaign/experiment id stored with outreach logs
   THREEDVR_AUTOPILOT_CAMPAIGN_START      first active date in YYYY-MM-DD format
   THREEDVR_AUTOPILOT_CAMPAIGN_END        last active date in YYYY-MM-DD format
+  THREEDVR_AUTOPILOT_EXPERIMENT_VARIANTS semicolon/comma separated bounded message variants, default a;b
+  THREEDVR_AUTOPILOT_EXPERIMENT_MIN_SAMPLE attempts per variant before selecting a winner, default 8
+  THREEDVR_AUTOPILOT_EXPERIMENT_MIN_REPLIES minimum replies before selecting a winner, default 2
+  THREEDVR_AUTOPILOT_EXPERIMENT_MIN_LIFT minimum reply-rate lift before selecting a winner, default 0.05
   THREEDVR_AUTOPILOT_PAUSED              true keeps research and CRM sync running but blocks sends
   THREEDVR_AUTOPILOT_EMAIL_ENDPOINT      portal email relay endpoint
   THREEDVR_AUTOPILOT_EMAIL_TOKEN         shared token for portal email relay
@@ -714,6 +723,7 @@ function buildEmail(summary, actions) {
     '',
     `Counts: ${formatCounts(summary.counts)}`,
     `Routes: ${formatRouteCounts(summary.routeCounts)}`,
+    `Experiment: ${summary.experiment.phase} -> ${summary.experiment.variant || 'off'} (${summary.experiment.reason || 'no decision'})`,
     summary.combo ? `Lead source tested: ${summary.combo.location} / ${summary.combo.category}` : 'Lead source tested: none',
     summary.codex?.mode && summary.codex.mode !== 'off'
       ? `Codex: ${summary.codex.ok ? `${summary.codex.mode} ok` : `issue (${summary.codex.reason || 'unknown'})`}`
@@ -983,13 +993,23 @@ async function main() {
   if (DEFAULT_AUTO_SEND && !options.dryRun && !sendBlockedReason && runSendLimit > 0) {
     const candidates = pickAutoSendLeads(readLeads(LEADS_FILE), runSendLimit, outreachEntries);
     for (const candidate of candidates) {
+      const experimentDecision = chooseExperimentVariant(readOutreachLog(), {
+        campaignId: DEFAULT_CAMPAIGN_ID,
+        variants: DEFAULT_EXPERIMENT_VARIANTS,
+        minSampleSize: DEFAULT_EXPERIMENT_MIN_SAMPLE,
+        minimumReplies: DEFAULT_EXPERIMENT_MIN_REPLIES,
+        minimumLift: DEFAULT_EXPERIMENT_MIN_LIFT,
+      });
       const sendResult = await runScript('ask-send', ['--auto', '--mark', candidate.name], {
         env: {
           THREEDVR_OUTREACH_EXPERIMENT_ID: DEFAULT_CAMPAIGN_ID,
+          THREEDVR_OUTREACH_VARIANT: experimentDecision.variant,
         },
       });
       autoSent.push({
         name: candidate.name,
+        variant: experimentDecision.variant,
+        experimentPhase: experimentDecision.phase,
         ok: sendResult.ok,
         command: sendResult.command,
         stdout: (sendResult.stdout || '').trim(),
@@ -1056,6 +1076,13 @@ async function main() {
       sendBlockedReason,
       ...campaignAllowance,
     },
+    experiment: chooseExperimentVariant(readOutreachLog(), {
+      campaignId: DEFAULT_CAMPAIGN_ID,
+      variants: DEFAULT_EXPERIMENT_VARIANTS,
+      minSampleSize: DEFAULT_EXPERIMENT_MIN_SAMPLE,
+      minimumReplies: DEFAULT_EXPERIMENT_MIN_REPLIES,
+      minimumLift: DEFAULT_EXPERIMENT_MIN_LIFT,
+    }),
     leadsFile: LEADS_FILE,
     counts,
     beforeCounts,
@@ -1114,6 +1141,7 @@ async function main() {
   console.log(`Counts: ${formatCounts(summary.counts)}`);
   console.log(`Routes: ${formatRouteCounts(summary.routeCounts)}`);
   console.log(`Campaign: ${summary.campaign.id || 'unscoped'} daily=${summary.campaign.dailySent}/${summary.campaign.dailyLimit} total=${summary.campaign.campaignSent}/${summary.campaign.totalLimit || 'unlimited'}${summary.campaign.sendBlockedReason ? ` blocked=${summary.campaign.sendBlockedReason}` : ''}`);
+  console.log(`Experiment: phase=${summary.experiment.phase} next=${summary.experiment.variant || 'off'}${summary.experiment.winner ? ` winner=${summary.experiment.winner}` : ''}`);
   if (combo) {
     console.log(`Combo: ${combo.location} / ${combo.category} (${leadsAdded} lead(s) added)`);
   } else {
