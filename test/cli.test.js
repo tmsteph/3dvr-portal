@@ -464,3 +464,13 @@ printf '%s\n' "$@" > "${argsLog}"
 
   await rm(tmp, { recursive: true, force: true });
 });
+
+test('autopilot daemon reloads its selected config inside tmux', async () => {
+  const daemonSource = await readFile(
+    path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-autopilot-daemon'),
+    'utf8'
+  );
+
+  assert.match(daemonSource, /unset THREEDVR_ENV_LOADED/);
+  assert.match(daemonSource, /export THREEDVR_CONFIG_FILE=\$config_file_q/);
+});
