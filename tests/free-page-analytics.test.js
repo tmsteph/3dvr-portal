@@ -63,8 +63,40 @@ test('summarizes unique sessions, views, and leads while ignoring malformed even
     sessions: 1,
     pageViews: 2,
     leads: 1,
+    previewViews: 0,
+    previewVisitors: 0,
+    qualifiedPreviewVisits: 0,
+    claimIntents: 0,
+    claimedRecipients: 0,
     eventCount: 3
   });
+});
+
+test('summarizes personalized preview visits and claim intent without recipient contact data', () => {
+  const events = [
+    createFreePageAnalyticsEvent('preview_view', {
+      id: 'preview-1', sessionId: 'session-1', recipientId: 'recipient-a', now: '2026-07-14T04:00:00.000Z'
+    }),
+    createFreePageAnalyticsEvent('preview_view', {
+      id: 'preview-2', sessionId: 'session-2', recipientId: 'recipient-a', now: '2026-07-14T04:05:00.000Z'
+    }),
+    createFreePageAnalyticsEvent('claim_intent', {
+      id: 'claim-1', sessionId: 'session-2', recipientId: 'recipient-a', now: '2026-07-14T04:06:00.000Z'
+    })
+  ];
+
+  assert.deepEqual(summarizeFreePageAnalytics(events), {
+    sessions: 0,
+    pageViews: 0,
+    leads: 0,
+    previewViews: 2,
+    previewVisitors: 1,
+    qualifiedPreviewVisits: 1,
+    claimIntents: 1,
+    claimedRecipients: 1,
+    eventCount: 3
+  });
+  assert.equal('email' in events[0], false);
 });
 
 test('returns Money Printer compatible analytics from a Gun reader', async () => {

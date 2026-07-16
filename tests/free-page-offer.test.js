@@ -4,6 +4,8 @@ import test from 'node:test';
 
 const html = await readFile(new URL('../free-page/index.html', import.meta.url), 'utf8');
 const script = await readFile(new URL('../free-page/app.js', import.meta.url), 'utf8');
+const previewHtml = await readFile(new URL('../free-page/preview/index.html', import.meta.url), 'utf8');
+const previewScript = await readFile(new URL('../free-page/preview/app.js', import.meta.url), 'utf8');
 
 test('free page offer presents the tiny website starter offer', () => {
   assert.match(html, /I.ll make you a clean one-page website for free/);
@@ -19,6 +21,16 @@ test('free page offer presents the tiny website starter offer', () => {
   assert.match(html, /gtag\('config', 'G-96XRKQ5L65'\)/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
   assert.match(html, /\.\.\/gun-init\.js/);
+});
+
+test('personalized preview is noindex, safely client-rendered, and tracks explicit funnel events', () => {
+  assert.match(previewHtml, /noindex,nofollow/);
+  assert.match(previewHtml, /Claim my free draft/);
+  assert.match(previewHtml, /data-business/);
+  assert.match(previewScript, /textContent = business/);
+  assert.match(previewScript, /track\('preview_view'\)/);
+  assert.match(previewScript, /track\('claim_intent'\)/);
+  assert.doesNotMatch(previewScript, /innerHTML/);
 });
 
 test('free page brief builds an email handoff without backend dependencies', () => {
