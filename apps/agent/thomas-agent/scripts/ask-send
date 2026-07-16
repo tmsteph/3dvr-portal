@@ -1,0 +1,353 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Per-send values from the guarded autopilot must win over persistent config.
+runtime_message_mode_set="${THREEDVR_OUTREACH_MESSAGE_MODE+x}"
+runtime_message_mode="${THREEDVR_OUTREACH_MESSAGE_MODE:-}"
+runtime_experiment_id_set="${THREEDVR_OUTREACH_EXPERIMENT_ID+x}"
+runtime_experiment_id="${THREEDVR_OUTREACH_EXPERIMENT_ID:-}"
+runtime_variant_set="${THREEDVR_OUTREACH_VARIANT+x}"
+runtime_variant="${THREEDVR_OUTREACH_VARIANT:-}"
+runtime_preview_url_set="${THREEDVR_OUTREACH_PREVIEW_URL+x}"
+runtime_preview_url="${THREEDVR_OUTREACH_PREVIEW_URL:-}"
+runtime_recipient_id_set="${THREEDVR_OUTREACH_RECIPIENT_ID+x}"
+runtime_recipient_id="${THREEDVR_OUTREACH_RECIPIENT_ID:-}"
+runtime_request_id_set="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID+x}"
+runtime_request_id="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}"
+source "$SCRIPT_DIR/lib/platform.sh"
+[ "$runtime_message_mode_set" = x ] && export THREEDVR_OUTREACH_MESSAGE_MODE="$runtime_message_mode"
+[ "$runtime_experiment_id_set" = x ] && export THREEDVR_OUTREACH_EXPERIMENT_ID="$runtime_experiment_id"
+[ "$runtime_variant_set" = x ] && export THREEDVR_OUTREACH_VARIANT="$runtime_variant"
+[ "$runtime_preview_url_set" = x ] && export THREEDVR_OUTREACH_PREVIEW_URL="$runtime_preview_url"
+[ "$runtime_recipient_id_set" = x ] && export THREEDVR_OUTREACH_RECIPIENT_ID="$runtime_recipient_id"
+[ "$runtime_request_id_set" = x ] && export THREEDVR_OUTREACH_DRAFT_REQUEST_ID="$runtime_request_id"
+LEAD_ROUTE_JS="$ROOT/node/lead-route.js"
+OUTREACH_LOG_JS="$ROOT/node/outreach-log.js"
+
+FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
+cleanup_file=""
+mode="opener"
+mark_after_send="no"
+dry_run="no"
+enrich_first="no"
+auto_send="no"
+form_mode="no"
+draft_mode="${THREEDVR_EMAIL_DRAFT_MODE:-mailto}"
+message_mode="${THREEDVR_OUTREACH_MESSAGE_MODE:-auto}"
+experiment_id="${THREEDVR_OUTREACH_EXPERIMENT_ID:-}"
+experiment_variant="${THREEDVR_OUTREACH_VARIANT:-}"
+target_name=""
+draft_source="unknown"
+
+usage() {
+  echo 'Usage: ask-send [--offer] [--mark] [--enrich] [--auto] [--form] [--template] [--gmail-draft|--mailto-draft] [--dry-run] ["Business Name"]'
+  echo
+  echo 'Examples:'
+  echo '  ask-send'
+  echo '  ask-send --dry-run'
+  echo '  ask-send --gmail-draft "Dark Horse Coffee Roasters"'
+  echo '  ask-send --enrich "Dark Horse Coffee Roasters"'
+  echo '  ask-send --form "Dark Horse Coffee Roasters"'
+  echo '  ask-send --offer "Scrimshaw Coffee"'
+  echo '  ask-send --mark "Scrimshaw Coffee"'
+  echo '  ask-send --auto --mark "Dark Horse Coffee Roasters"'
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --offer) mode="offer" ;;
+    --mark) mark_after_send="yes" ;;
+    --dry-run) dry_run="yes" ;;
+    --enrich) enrich_first="yes" ;;
+    --auto) auto_send="yes" ;;
+    --form) form_mode="yes" ;;
+    --template) message_mode="template" ;;
+    --gmail-draft) draft_mode="gmail" ;;
+    --mailto-draft) draft_mode="mailto" ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      if [ -z "$target_name" ]; then
+        target_name="$1"
+      else
+        target_name="$target_name $1"
+      fi
+      ;;
+  esac
+  shift
+done
+
+if [ ! -f "$FILE" ]; then
+  echo "No leads file found at $FILE"
+  echo "Run: ask-crawl && ask-enrich"
+  exit 1
+fi
+
+if [ "$form_mode" = "yes" ]; then
+  form_args=()
+  [ "$dry_run" = "yes" ] && form_args+=(--dry-run)
+  [ "$mark_after_send" = "yes" ] && form_args+=(--mark)
+  [ "$mode" = "offer" ] && form_args+=(--offer)
+  [ -n "$target_name" ] && form_args+=("$target_name")
+  exec "$SCRIPT_DIR/ask-form" "${form_args[@]}"
+fi
+
+if [ "$enrich_first" = "yes" ]; then
+  enrich_args=()
+  enrich_output_label="$FILE"
+  if [ "$dry_run" = "yes" ]; then
+    cleanup_file="$(mktemp)"
+    cp "$FILE" "$cleanup_file"
+    FILE="$cleanup_file"
+    enrich_output_label="temporary dry-run file"
+    trap 'if [ -n "$cleanup_file" ]; then rm -f "$cleanup_file"; fi' EXIT
+  fi
+  if [ -n "$target_name" ]; then
+    THREEDVR_LEADS_FILE="$FILE" THREEDVR_ENRICH_OUTPUT_LABEL="$enrich_output_label" "$SCRIPT_DIR/ask-enrich" --name "$target_name" --limit 1 "${enrich_args[@]}"
+  else
+    THREEDVR_LEADS_FILE="$FILE" THREEDVR_ENRICH_OUTPUT_LABEL="$enrich_output_label" "$SCRIPT_DIR/ask-enrich" --limit 1 "${enrich_args[@]}"
+  fi
+fi
+
+pick_priority() {
+  awk -F, '
+    function is_bad_contact(url) {
+      return url ~ /wp-content\/|wp-json\/|feed\/|cdn-cgi\/|contact-form-7\/includes\/css\/|[.\/](css|js|json|xml|txt|pdf|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|eot)([?#].*)?$/
+    }
+
+    function priority(link, contact) {
+      if (contact ~ /^mailto:/) return 4;
+      if (contact ~ /^https?:\/\// && is_bad_contact(contact)) return (link ~ /^https?:\/\// ? 2 : 0);
+      if (contact ~ /^https?:\/\//) return 3;
+      if (link ~ /^https?:\/\//) return 2;
+      if (contact != "") return 1;
+      return 0;
+    }
+
+    NR > 1 && $4 == "new" && ($2 != "" || $3 != "") {
+      print $5 "|" priority($2, $3) "|" NR "|" $0;
+    }
+  ' "$FILE" | sort -t'|' -k1,1r -k2,2nr -k3,3nr | head -n1 | cut -d'|' -f4-
+}
+
+if [ -n "$target_name" ]; then
+  line="$(awk -F, -v name="$target_name" 'NR>1 && $1==name {print; exit}' "$FILE")"
+else
+  line="$(pick_priority)"
+fi
+
+if [ -z "$line" ]; then
+  echo "No matching usable lead."
+  echo
+  echo "Run:"
+  echo "ask-track new"
+  exit 1
+fi
+
+name="$(printf '%s' "$line" | awk -F, '{print $1}')"
+link="$(printf '%s' "$line" | awk -F, '{print $2}')"
+contact="$(printf '%s' "$line" | awk -F, '{print $3}')"
+variant="$(printf '%s' "$line" | awk -F, '{print ($8 != "" ? $8 : $6)}')"
+[ -n "$experiment_variant" ] && variant="$experiment_variant"
+
+target="$contact"
+case "$target" in
+  http://*|https://*)
+    if printf '%s' "$target" | grep -Eqi 'wp-content/|wp-json/|feed/|cdn-cgi/|contact-form-7/includes/css/|(\.|/)(css|js|json|xml|txt|pdf|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|eot)([?#].*)?$'; then
+      target=""
+    fi
+    ;;
+esac
+[ -z "$target" ] && target="$link"
+
+did_send="no"
+probe_email() {
+  node "$ROOT/node/send-outreach-email.js" --probe --to "$1" --subject "$subject" --text "$message"
+}
+
+if [ "$mode" = "offer" ]; then
+  message="$($SCRIPT_DIR/ask-message offer)"
+  draft_source="manual-offer"
+else
+  if [ "$message_mode" = "template" ] && [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" != "free-page" ] && printf '%s' "$variant" | grep -Eq '^[abc]$'; then
+    message="$("$SCRIPT_DIR/ask-message" "$variant" "$name")"
+    draft_source="template-$variant"
+  else
+    draft_json="$(THREEDVR_OUTREACH_MESSAGE_MODE="$message_mode" THREEDVR_OUTREACH_NAME="$name" THREEDVR_OUTREACH_SITE="$link" THREEDVR_OUTREACH_CONTACT="$contact" THREEDVR_OUTREACH_DRAFT_MODULE="$ROOT/node/outreach-draft.js" node - <<'NODE'
+const { buildOutreachDraft } = require(process.env.THREEDVR_OUTREACH_DRAFT_MODULE);
+
+async function main() {
+  const draft = await buildOutreachDraft({
+    name: process.env.THREEDVR_OUTREACH_NAME,
+    site: process.env.THREEDVR_OUTREACH_SITE,
+    contact: process.env.THREEDVR_OUTREACH_CONTACT,
+    experimentVariant: process.env.THREEDVR_OUTREACH_VARIANT,
+    previewUrl: process.env.THREEDVR_OUTREACH_PREVIEW_URL,
+    draftRequestId: process.env.THREEDVR_OUTREACH_DRAFT_REQUEST_ID,
+  }, {
+    mode: process.env.THREEDVR_OUTREACH_MESSAGE_MODE,
+  });
+  process.stdout.write(JSON.stringify(draft));
+}
+
+main().catch((error) => {
+  console.error(error.message || error);
+  process.exit(1);
+});
+NODE
+)"
+    draft_source="$(node -e 'const draft = JSON.parse(process.argv[1] || "{}"); process.stdout.write(String(draft.source || "unknown"));' "$draft_json")"
+    message="$(node -e 'const draft = JSON.parse(process.argv[1] || "{}"); process.stdout.write(String(draft.text || ""));' "$draft_json")"
+  fi
+fi
+
+email=""
+case "$target" in
+  mailto:*)
+    email="${target#mailto:}"
+    email="${email%%\?*}"
+    ;;
+  *@*)
+    case "$target" in
+      http://*|https://*) email="" ;;
+      *) email="${target%%\?*}" ;;
+    esac
+    ;;
+esac
+
+route="$(node "$LEAD_ROUTE_JS" --contact "$contact" --link "$link" --variant "$variant" 2>/dev/null || true)"
+[ -z "$route" ] && route="site"
+
+if [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" = "free-page" ]; then
+  subject="A free one-page website for $name"
+else
+  subject="Question for $name"
+fi
+encoded_subject="$(url_encode "$subject")"
+encoded_body="$(url_encode "$message")"
+encoded_email="$(url_encode "$email")"
+draft_text="$(cat <<MESSAGE
+To: $email
+Subject: $subject
+
+$message
+MESSAGE
+)"
+
+draft_url() {
+  case "$draft_mode" in
+    gmail|gmail-web)
+      printf 'https://mail.google.com/mail/?view=cm&fs=1&to=%s&su=%s&body=%s\n' "$encoded_email" "$encoded_subject" "$encoded_body"
+      ;;
+    mailto|"")
+      printf 'mailto:%s?subject=%s&body=%s\n' "$email" "$encoded_subject" "$encoded_body"
+      ;;
+    *)
+      echo "Unknown draft mode: $draft_mode" >&2
+      return 1
+      ;;
+  esac
+}
+
+echo "OUTREACH READY"
+echo "Name: $name"
+echo "Site: $link"
+echo "Contact: $contact"
+echo "Route: $route"
+echo "Mode: $mode"
+echo "Subject: $subject"
+[ -n "$email" ] && echo "Draft mode: $draft_mode"
+echo
+echo "$message"
+echo
+
+if [ "$dry_run" = "yes" ]; then
+  echo "Dry run: not opening or copying."
+elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
+  if probe_email "$email"; then
+    if node "$ROOT/node/send-outreach-email.js" --to "$email" --subject "$subject" --text "$message"; then
+      did_send="yes"
+      THREEDVR_OUTREACH_LOG_KIND="email" \
+      THREEDVR_OUTREACH_LOG_STATUS="sent" \
+      THREEDVR_OUTREACH_LOG_SOURCE="$draft_source" \
+      THREEDVR_OUTREACH_LOG_NAME="$name" \
+      THREEDVR_OUTREACH_LOG_SITE="$link" \
+      THREEDVR_OUTREACH_LOG_CONTACT="$contact" \
+      THREEDVR_OUTREACH_LOG_ROUTE="$route" \
+      THREEDVR_OUTREACH_LOG_SUBJECT="$subject" \
+      THREEDVR_OUTREACH_LOG_BODY="$message" \
+      THREEDVR_OUTREACH_LOG_EXPERIMENT="$experiment_id" \
+      THREEDVR_OUTREACH_LOG_VARIANT="$variant" \
+      THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+      THREEDVR_OUTREACH_LOG_PREVIEW_URL="${THREEDVR_OUTREACH_PREVIEW_URL:-}" \
+      THREEDVR_OUTREACH_LOG_RECIPIENT_ID="${THREEDVR_OUTREACH_RECIPIENT_ID:-}" \
+      THREEDVR_OUTREACH_LOG_DRAFT_REQUEST_ID="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}" \
+      node "$OUTREACH_LOG_JS" append >/dev/null
+    else
+      THREEDVR_OUTREACH_LOG_KIND="email" \
+      THREEDVR_OUTREACH_LOG_STATUS="send_failed" \
+      THREEDVR_OUTREACH_LOG_SOURCE="$draft_source" \
+      THREEDVR_OUTREACH_LOG_NAME="$name" \
+      THREEDVR_OUTREACH_LOG_SITE="$link" \
+      THREEDVR_OUTREACH_LOG_CONTACT="$contact" \
+      THREEDVR_OUTREACH_LOG_ROUTE="$route" \
+      THREEDVR_OUTREACH_LOG_SUBJECT="$subject" \
+      THREEDVR_OUTREACH_LOG_BODY="$message" \
+      THREEDVR_OUTREACH_LOG_EXPERIMENT="$experiment_id" \
+      THREEDVR_OUTREACH_LOG_VARIANT="$variant" \
+      THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+      THREEDVR_OUTREACH_LOG_PREVIEW_URL="${THREEDVR_OUTREACH_PREVIEW_URL:-}" \
+      THREEDVR_OUTREACH_LOG_RECIPIENT_ID="${THREEDVR_OUTREACH_RECIPIENT_ID:-}" \
+      THREEDVR_OUTREACH_LOG_DRAFT_REQUEST_ID="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}" \
+      THREEDVR_OUTREACH_LOG_NOTE="send command failed" \
+      node "$OUTREACH_LOG_JS" append >/dev/null
+      "$SCRIPT_DIR/ask-track" failed "$name"
+      exit 1
+    fi
+  else
+    THREEDVR_OUTREACH_LOG_KIND="email" \
+    THREEDVR_OUTREACH_LOG_STATUS="probe_failed" \
+    THREEDVR_OUTREACH_LOG_SOURCE="$draft_source" \
+    THREEDVR_OUTREACH_LOG_NAME="$name" \
+    THREEDVR_OUTREACH_LOG_SITE="$link" \
+    THREEDVR_OUTREACH_LOG_CONTACT="$contact" \
+    THREEDVR_OUTREACH_LOG_ROUTE="$route" \
+    THREEDVR_OUTREACH_LOG_SUBJECT="$subject" \
+    THREEDVR_OUTREACH_LOG_BODY="$message" \
+    THREEDVR_OUTREACH_LOG_EXPERIMENT="$experiment_id" \
+    THREEDVR_OUTREACH_LOG_VARIANT="$variant" \
+    THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+    THREEDVR_OUTREACH_LOG_PREVIEW_URL="${THREEDVR_OUTREACH_PREVIEW_URL:-}" \
+    THREEDVR_OUTREACH_LOG_RECIPIENT_ID="${THREEDVR_OUTREACH_RECIPIENT_ID:-}" \
+    THREEDVR_OUTREACH_LOG_DRAFT_REQUEST_ID="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}" \
+    THREEDVR_OUTREACH_LOG_NOTE="deliverability probe failed" \
+    node "$OUTREACH_LOG_JS" append >/dev/null
+    echo "Email probe failed for $email"
+    "$SCRIPT_DIR/ask-track" failed "$name"
+    exit 1
+  fi
+elif [ -n "$email" ]; then
+  compose_url="$(draft_url)" || exit 1
+  copy_text "$draft_text"
+  echo "Copied full email draft to clipboard."
+  echo "Opening email draft:"
+  echo "$compose_url"
+  open_url "$compose_url"
+elif [ "$auto_send" = "yes" ]; then
+  echo "Automatic send only works for direct email leads."
+  echo "Use: ask-send \"$name\""
+  exit 1
+else
+  copy_text "$message"
+  echo "Copied message to clipboard."
+  echo "Opening contact page:"
+  echo "$target"
+  open_url "$target"
+fi
+
+if [ "$mark_after_send" = "yes" ] && [ "$dry_run" != "yes" ] && { [ "$auto_send" != "yes" ] || [ "$did_send" = "yes" ]; }; then
+  "$SCRIPT_DIR/ask-track" contact "$name" "$mode"
+fi

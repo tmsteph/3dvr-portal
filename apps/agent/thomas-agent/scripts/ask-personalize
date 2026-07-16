@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/platform.sh"
+name="$1"
+site="$2"
+contact="$3"
+
+hint="site"
+
+contact_footer() {
+  website="${THREEDVR_CONTACT_WEBSITE:-https://3dvr.tech}"
+  email="${GMAIL_USER:-3dvr.tech@gmail.com}"
+  phone="${THREEDVR_OUTREACH_PHONE:-}"
+  printf 'Website: %s\nEmail: %s\n' "$website" "$email"
+  if [ -n "$phone" ]; then
+    printf 'Phone: %s\n' "$phone"
+  fi
+}
+
+is_phone_number() {
+  case "$1" in
+    +[0-9]*|[0-9]*)
+      printf '%s' "$1" | sed 's/[^0-9]//g' | grep -Eq '^[0-9]{7,}$'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+if is_phone_number "$contact"; then
+  cat <<MESSAGE
+Hi $name,
+
+This is Thomas with 3dvr.tech. I help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+
+Would it be okay if I sent a quick text with a few examples of what we do?
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE
+  exit 0
+fi
+
+case "$site $contact" in
+  *menu*|*Menu*) hint="website, menu, booking, or customer follow-up" ;;
+  *book*|*reserv*|*order*) hint="website, booking, ordering, or customer follow-up" ;;
+  *contact*|*about*) hint="website, contact, or lead follow-up" ;;
+  *event*|*cater*) hint="website, events, catering, or customer follow-up" ;;
+  *) hint="website, booking, lead follow-up, or customer-flow" ;;
+esac
+
+cat <<MESSAGE
+Hi $name team,
+
+I'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+
+Are you running into any $hint problems right now?
+
+If not, no problem. I just wanted to introduce myself.
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE

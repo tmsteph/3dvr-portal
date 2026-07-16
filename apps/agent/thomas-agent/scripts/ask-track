@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
+OUTREACH_LOG_JS="$ROOT/node/outreach-log.js"
+mkdir -p "$(dirname "$FILE")"
+[ ! -f "$FILE" ] && echo "name,link,contact,status,date,variant" > "$FILE"
+
+rewrite_leads_file() {
+  local status="$1"
+  local name="$2"
+  local variant="${3:-}"
+  local tmp_file
+
+  tmp_file="$(mktemp "${FILE}.tmp.XXXXXX")" || return 1
+  if awk -F, -v name="$name" -v v="$variant" -v status="$status" 'BEGIN{OFS=","} NR==1{print;next} $1==name{$4=status; if(v!="") $6=v}1' "$FILE" > "$tmp_file"; then
+    mv "$tmp_file" "$FILE"
+  else
+    rm -f "$tmp_file"
+    return 1
+  fi
+}
+
+rewrite_lead_variant() {
+  local name="$1"
+  local variant="$2"
+  local tmp_file
+
+  tmp_file="$(mktemp "${FILE}.tmp.XXXXXX")" || return 1
+  if awk -F, -v name="$name" -v v="$variant" 'BEGIN{OFS=","} NR==1{variant_col=6; for(i=1;i<=NF;i++){if($i=="variant") variant_col=i} print;next} $1==name{$variant_col=v}1' "$FILE" > "$tmp_file"; then
+    mv "$tmp_file" "$FILE"
+  else
+    rm -f "$tmp_file"
+    return 1
+  fi
+}
+
+case "$1" in
+  add) echo "$2,$3,,$(printf '%s' new),$(date +%F)," >> "$FILE" && echo "Added: $2" ;;
+  contact) rewrite_leads_file "contacted" "$2" "$3" && echo "Contacted: $2 ($3)" ;;
+  variant) rewrite_lead_variant "$2" "$3" && echo "Variant: $2 ($3)" ;;
+  nurture) rewrite_leads_file "nurture" "$2" "$3" && echo "Nurture: $2 ($3)" ;;
+  reply) rewrite_leads_file "replied" "$2" && echo "Replied: $2" ;;
+  failed) rewrite_leads_file "failed" "$2" && echo "Failed: $2" ;;
+  close) rewrite_leads_file "closed" "$2" && echo "Closed: $2" ;;
+  new) awk -F, '
+    function priority(link, contact) {
+      if (contact ~ /^mailto:/) return 4;
+      if (contact ~ /^https?:\/\//) return 3;
+      if (link ~ /^https?:\/\//) return 2;
+      if (contact != "") return 1;
+      return 0;
+    }
+
+    NR > 1 && $4 == "new" {
+      print $5 "|" priority($2, $3) "|" NR "|[ ] " $1 " -> " ($3 != "" ? $3 : $2);
+    }
+  ' "$FILE" | sort -t'|' -k1,1r -k2,2nr -k3,3nr | cut -d'|' -f4- ;;
+  followup) awk -F, 'NR==1{next} $4=="contacted"{print "[x]",$1,"->",($3!=""?$3:$2),"variant:",($6!=""?$6:"-")}' "$FILE" ;;
+  nurture-list) awk -F, 'NR==1{next} $4=="nurture"{print "[~]",$1,"->",($3!=""?$3:$2),"note:",($6!=""?$6:"-")}' "$FILE" ;;
+  view) awk -F, 'BEGIN{OFS=","} NR==1{print;next} {print $1,$4,$6}' "$FILE" ;;
+  sent)
+    if [ "$2" = "grouped" ] || [ "$2" = "archive" ]; then
+      node "$OUTREACH_LOG_JS" "$2" "${3:-20}"
+    elif [ -n "$2" ] && [ "$2" != "list" ]; then
+      node "$OUTREACH_LOG_JS" list "$2"
+    else
+      node "$OUTREACH_LOG_JS" list "${3:-20}"
+    fi
+    ;;
+  failures|faileds)
+    node "$OUTREACH_LOG_JS" failures "${2:-20}"
+    ;;
+  *)
+    echo 'ask-track add "Name" "Link" | ask-track contact "Name" [variant] | ask-track variant "Name" [variant] | ask-track nurture "Name" [note] | ask-track reply "Name" | ask-track failed "Name" | ask-track close "Name" | ask-track new | ask-track followup | ask-track nurture-list | ask-track view | ask-track sent [limit] | ask-track failures [limit]'
+    ;;
+esac

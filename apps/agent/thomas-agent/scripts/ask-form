@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$SCRIPT_DIR/lib/platform.sh" ]; then
+  source "$SCRIPT_DIR/lib/platform.sh"
+fi
+
+resolve_node_binary() {
+  if [ -n "${THREEDVR_FORM_NODE_BINARY:-}" ]; then
+    printf '%s\n' "$THREEDVR_FORM_NODE_BINARY"
+    return 0
+  fi
+
+  if [ -x /usr/bin/node ]; then
+    printf '%s\n' /usr/bin/node
+    return 0
+  fi
+
+  command -v node
+}
+
+NODE_BINARY="$(resolve_node_binary)"
+submit_mode="no"
+dry_run="no"
+target_name=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --*) ;;
+    *) target_name="${target_name:+$target_name }$arg" ;;
+  esac
+done
+
+for arg in "$@"; do
+  case "$arg" in
+    --submit) submit_mode="yes" ;;
+    --dry-run) dry_run="yes" ;;
+  esac
+done
+
+if [ "$submit_mode" = "yes" ] && [ "$dry_run" != "yes" ] && [ -z "${THREEDVR_PLAYWRIGHT_HEADLESS:-}" ]; then
+  export THREEDVR_PLAYWRIGHT_HEADLESS=false
+fi
+
+if [ "$submit_mode" = "yes" ] && [ "$dry_run" != "yes" ] && [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1 && [ -z "${THREEDVR_SKIP_XVFB:-}" ]; then
+  export THREEDVR_SKIP_XVFB=1
+  export NODE_PATH="$ROOT/node_modules${NODE_PATH:+:$NODE_PATH}"
+  xvfb-run -a "$NODE_BINARY" "$ROOT/node/contact-form-fill.js" "$@"
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    if [ -n "$target_name" ]; then
+      "$SCRIPT_DIR/ask-track" failed "$target_name" || true
+    fi
+    exit "$status"
+  fi
+  exit 0
+fi
+
+export NODE_PATH="$ROOT/node_modules${NODE_PATH:+:$NODE_PATH}"
+"$NODE_BINARY" "$ROOT/node/contact-form-fill.js" "$@"
+status=$?
+if [ "$status" -ne 0 ] && [ -n "$target_name" ]; then
+  "$SCRIPT_DIR/ask-track" failed "$target_name" || true
+fi
+exit "$status"

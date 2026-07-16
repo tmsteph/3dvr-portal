@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+BRAIN="$HOME/thomas-agent/brain"
+MODEL="$HOME/.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-1.5B-Instruct-GGUF/snapshots/f86cb2c1fa58255f8052cc32aeede1b7482d4361/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+LLAMA="$HOME/llama.cpp/build/bin/llama-cli"
+
+IDENTITY="$(cat "$BRAIN/identity.md" 2>/dev/null)"
+GOALS="$(cat "$BRAIN/goals.md" 2>/dev/null)"
+VOICE="$(cat "$BRAIN/voice.md" 2>/dev/null)"
+FOCUS="$(cat "$BRAIN/current-focus.md" 2>/dev/null)"
+
+PROMPT="$*"
+
+if [ ! -x "$LLAMA" ]; then
+  echo "Missing llama-cli at: $LLAMA"
+  exit 1
+fi
+
+if [ ! -f "$MODEL" ]; then
+  echo "Missing model file at: $MODEL"
+  exit 1
+fi
+
+FULL_PROMPT="You are Thomas's local agent and practical operator.
+
+$IDENTITY
+
+$GOALS
+
+$VOICE
+
+$FOCUS
+
+Rules:
+- Be decisive and action-oriented.
+- Do not ask for clarification unless absolutely necessary.
+- Make reasonable assumptions and state them briefly.
+- Give practical steps Thomas can use right now.
+- Prefer startup execution, sales action, coding steps, and concrete plans.
+- Keep answers clear and useful, not academic.
+- When asked for a plan, give:
+  1. immediate goal
+  2. practical strategy
+  3. concrete next actions
+  4. a simple example if useful
+
+User request:
+$PROMPT"
+
+"$LLAMA" -m "$MODEL" -p "$FULL_PROMPT" -n 400 --ctx-size 4096

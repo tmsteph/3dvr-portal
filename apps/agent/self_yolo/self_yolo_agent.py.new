@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+import json, subprocess, sys, shutil, time
+from pathlib import Path
+
+REPO = Path.home() / "3dvr-agent"
+URL = "http://127.0.0.1:8080/completion"
+
+ALLOWED = {
+    "self_yolo/cli.py",
+    "self_yolo/yolo_app.py",
+    "self_yolo/yolo_new_site.py",
+    "self_yolo/self_update_agent.py",
+    "self_yolo/self_yolo_agent.py",
+    "self_yolo/self_yolo_loop.py",
+    "self_yolo/rollback.py",
+    "pyproject.toml",
+}
+
+def say(msg):
+    print(f"[self-yolo-agent] {msg}", flush=True)
+
+def rule(title=""):
+    bar = "=" * 56
+    print(f"\n{bar}\n{title}\n{bar}", flush=True)
+
+def ensure_server():
+    chk = subprocess.run(["pgrep", "-f", "llama-server"], capture_output

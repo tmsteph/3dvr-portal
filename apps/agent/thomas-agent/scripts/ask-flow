@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+printf '%s\n' \
+"1. Pick 10 small businesses (Instagram, Google Maps, Facebook)" \
+"2. Run: ask-sales website" \
+"3. Send 1 message to each (no overthinking)" \
+"4. When someone replies, run: ask-reply <type>" \
+"5. Keep it simple, move fast, don't explain too much" \
+"6. Goal: 1 person says yes this week"

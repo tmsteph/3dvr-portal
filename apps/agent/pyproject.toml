@@ -1,0 +1,20 @@
+[project]
+name = "3dvr-agent"
+version = "0.1.0"
+description = "Local self-improving AI dev tool"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+rollback-agent = "self_yolo.rollback:main"
+self-yolo = "self_yolo.cli:main"
+yolo-app = "self_yolo.yolo_app:main"
+yolo-new-site = "self_yolo.yolo_new_site:main"
+self-update-agent = "self_yolo.self_update_agent:main"
+self-yolo-agent = "self_yolo.self_yolo_agent:main"
+self-yolo-loop = "self_yolo.self_yolo_loop:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

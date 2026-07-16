@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+printf '%s\n' \
+"Search: \"$* near me\"" \
+"Open Google Maps" \
+"Pick 10 businesses" \
+"Open each website or Instagram" \
+"Look for: outdated site, no site, broken links, no booking" \
+"Copy name + link into ask-track"

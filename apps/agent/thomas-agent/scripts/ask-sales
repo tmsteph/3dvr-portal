@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib/platform.sh"
+MODE="${1:-general}"
+
+case "$MODE" in
+  status|summary|publish|help|-h|--help)
+    cd "$ROOT"
+    exec node "$ROOT/node/sales-summary.js" "$@"
+    ;;
+  sync-crm|crm-sync)
+    shift || true
+    cd "$ROOT"
+    exec "$SCRIPT_DIR/ask-crm-sync" "$@"
+    ;;
+  loop)
+    shift || true
+    cd "$ROOT"
+    dry_run="no"
+    for arg in "$@"; do
+      [ "$arg" = "--dry-run" ] && dry_run="yes"
+    done
+    "$SCRIPT_DIR/ask-autopilot" "$@"
+    if [ "$dry_run" = "yes" ]; then
+      "$SCRIPT_DIR/ask-crm-sync" --dry-run
+      exec node "$ROOT/node/sales-summary.js"
+    fi
+    "$SCRIPT_DIR/ask-crm-sync"
+    exec node "$ROOT/node/sales-summary.js" publish
+    ;;
+  website)
+    printf '%s\n' \
+    "Hey, I help small businesses get websites cleaned up and launched for \$20/month." \
+    "Need help fixing or improving your website this week?" \
+    "I help with simple website updates and launch support for \$20/month." \
+    "Want me to take a quick look at your site and suggest fixes?" \
+    "I help business owners get unstuck with websites for \$20/month." \
+    "Just following up in case you still want help with your website." \
+    "Still happy to help if you want to get your site moving this week." \
+    "Want me to take a look?" \
+    "Want to get started this week?" \
+    "Should I send details?"
+    ;;
+  app)
+    printf '%s\n' \
+    "Hey, I help people turn app ideas into simple plans and prototypes for \$20/month." \
+    "Need help shaping an app idea into something real this week?" \
+    "I help with app planning, simple prototypes, and tech direction for \$20/month." \
+    "Want me to help map out your app idea?" \
+    "I help business owners get unstuck with app ideas for \$20/month." \
+    "Just following up in case you still want help with your app idea." \
+    "Still happy to help if you want to move your app idea forward this week." \
+    "Want me to help plan it?" \
+    "Want to get started this week?" \
+    "Should I send details?"
+    ;;
+  tech|support)
+    printf '%s\n' \
+    "Hey, I help small businesses with tech problems and setup for \$20/month." \
+    "Need help getting your tech sorted out this week?" \
+    "I help with websites, apps, and general tech support for \$20/month." \
+    "Want me to take a quick look at your setup?" \
+    "I help business owners get unstuck with tech for \$20/month." \
+    "Just following up in case you still want help with your tech setup." \
+    "Still happy to help if you want to get this solved this week." \
+    "Want me to take a look?" \
+    "Want to get started this week?" \
+    "Should I send details?"
+    ;;
+  followup)
+    printf '%s\n' \
+    "Just following up in case you still want help with your website." \
+    "Still happy to help if you want to get this moving this week." \
+    "Checking back in to see if you still want help with your tech setup." \
+    "Wanted to follow up and see if your app idea still needs support." \
+    "Still interested in getting this launched or cleaned up?" \
+    "I can keep it simple and affordable at \$20/month." \
+    "Happy to take a quick look whenever you're ready." \
+    "Want me to send details?" \
+    "Want me to take a look?" \
+    "Want to start this week?"
+    ;;
+  cta)
+    printf '%s\n' \
+    "Want me to take a look?" \
+    "Want to get started this week?" \
+    "Should I send details?" \
+    "Want a quick website review?" \
+    "Want help mapping it out?" \
+    "Should I send a simple plan?" \
+    "Want me to help you launch it?" \
+    "Want to keep it simple at \$20/month?" \
+    "Want me to show you what I’d fix?" \
+    "Should we start this week?"
+    ;;
+  custom)
+    shift || true
+    TOPIC="${*:-your project}"
+    printf '%s\n' \
+    "Hey, I help small businesses with ${TOPIC} for \$20/month." \
+    "Need help getting ${TOPIC} moving this week?" \
+    "I help with simple ${TOPIC} support for \$20/month." \
+    "Want me to take a quick look at ${TOPIC}?" \
+    "I help business owners get unstuck with ${TOPIC} for \$20/month." \
+    "Just following up in case you still want help with ${TOPIC}." \
+    "Still happy to help if you want to move ${TOPIC} forward this week." \
+    "Want me to take a look?" \
+    "Want to get started this week?" \
+    "Should I send details?"
+    ;;
+  *)
+    printf '%s\n' \
+    "Hey, I help small businesses with websites and tech for \$20/month." \
+    "Need help getting your website cleaned up or launched this week?" \
+    "I help with simple websites, app ideas, and tech support for \$20/month." \
+    "Want me to take a quick look at your website or tech setup?" \
+    "I help business owners get unstuck with websites and tech for \$20/month." \
+    "Just following up in case you still want help with your website." \
+    "Still happy to help if you want to get your site moving this week." \
+    "Want me to take a look?" \
+    "Want to get started this week?" \
+    "Should I send details?"
+    ;;
+esac
