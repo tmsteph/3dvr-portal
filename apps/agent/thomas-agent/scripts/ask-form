@@ -16,6 +16,11 @@ resolve_node_binary() {
     return 0
   fi
 
+  if [ -n "${npm_node_execpath:-}" ] && [ -x "$npm_node_execpath" ]; then
+    printf '%s\n' "$npm_node_execpath"
+    return 0
+  fi
+
   command -v node
 }
 

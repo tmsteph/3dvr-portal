@@ -510,7 +510,7 @@ test('runFormCommand dry-run previews the form route without launching a browser
   }
 });
 
-test('ask-form prefers the system node binary when PATH contains a broken node wrapper', () => {
+test('ask-form prefers the known npm node binary when PATH contains a broken node wrapper', () => {
   const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-form-node-'));
   const binDir = path.join(tmp, 'bin');
   const leads = path.join(tmp, 'leads.csv');
@@ -535,6 +535,7 @@ exit 99
     env: {
       ...process.env,
       PATH: `${binDir}:${process.env.PATH}`,
+      npm_node_execpath: process.execPath,
       THREEDVR_LEADS_FILE: leads,
     },
     encoding: 'utf8',
