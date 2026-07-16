@@ -1,7 +1,27 @@
 #!/usr/bin/env bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Per-send values from the guarded autopilot must win over persistent config.
+runtime_message_mode_set="${THREEDVR_OUTREACH_MESSAGE_MODE+x}"
+runtime_message_mode="${THREEDVR_OUTREACH_MESSAGE_MODE:-}"
+runtime_experiment_id_set="${THREEDVR_OUTREACH_EXPERIMENT_ID+x}"
+runtime_experiment_id="${THREEDVR_OUTREACH_EXPERIMENT_ID:-}"
+runtime_variant_set="${THREEDVR_OUTREACH_VARIANT+x}"
+runtime_variant="${THREEDVR_OUTREACH_VARIANT:-}"
+runtime_preview_url_set="${THREEDVR_OUTREACH_PREVIEW_URL+x}"
+runtime_preview_url="${THREEDVR_OUTREACH_PREVIEW_URL:-}"
+runtime_recipient_id_set="${THREEDVR_OUTREACH_RECIPIENT_ID+x}"
+runtime_recipient_id="${THREEDVR_OUTREACH_RECIPIENT_ID:-}"
+runtime_request_id_set="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID+x}"
+runtime_request_id="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}"
 source "$SCRIPT_DIR/lib/platform.sh"
+[ "$runtime_message_mode_set" = x ] && export THREEDVR_OUTREACH_MESSAGE_MODE="$runtime_message_mode"
+[ "$runtime_experiment_id_set" = x ] && export THREEDVR_OUTREACH_EXPERIMENT_ID="$runtime_experiment_id"
+[ "$runtime_variant_set" = x ] && export THREEDVR_OUTREACH_VARIANT="$runtime_variant"
+[ "$runtime_preview_url_set" = x ] && export THREEDVR_OUTREACH_PREVIEW_URL="$runtime_preview_url"
+[ "$runtime_recipient_id_set" = x ] && export THREEDVR_OUTREACH_RECIPIENT_ID="$runtime_recipient_id"
+[ "$runtime_request_id_set" = x ] && export THREEDVR_OUTREACH_DRAFT_REQUEST_ID="$runtime_request_id"
 LEAD_ROUTE_JS="$ROOT/node/lead-route.js"
 OUTREACH_LOG_JS="$ROOT/node/outreach-log.js"
 
@@ -165,6 +185,8 @@ async function main() {
     site: process.env.THREEDVR_OUTREACH_SITE,
     contact: process.env.THREEDVR_OUTREACH_CONTACT,
     experimentVariant: process.env.THREEDVR_OUTREACH_VARIANT,
+    previewUrl: process.env.THREEDVR_OUTREACH_PREVIEW_URL,
+    draftRequestId: process.env.THREEDVR_OUTREACH_DRAFT_REQUEST_ID,
   }, {
     mode: process.env.THREEDVR_OUTREACH_MESSAGE_MODE,
   });
@@ -260,6 +282,9 @@ elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
       THREEDVR_OUTREACH_LOG_EXPERIMENT="$experiment_id" \
       THREEDVR_OUTREACH_LOG_VARIANT="$variant" \
       THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+      THREEDVR_OUTREACH_LOG_PREVIEW_URL="${THREEDVR_OUTREACH_PREVIEW_URL:-}" \
+      THREEDVR_OUTREACH_LOG_RECIPIENT_ID="${THREEDVR_OUTREACH_RECIPIENT_ID:-}" \
+      THREEDVR_OUTREACH_LOG_DRAFT_REQUEST_ID="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}" \
       node "$OUTREACH_LOG_JS" append >/dev/null
     else
       THREEDVR_OUTREACH_LOG_KIND="email" \
@@ -274,6 +299,9 @@ elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
       THREEDVR_OUTREACH_LOG_EXPERIMENT="$experiment_id" \
       THREEDVR_OUTREACH_LOG_VARIANT="$variant" \
       THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+      THREEDVR_OUTREACH_LOG_PREVIEW_URL="${THREEDVR_OUTREACH_PREVIEW_URL:-}" \
+      THREEDVR_OUTREACH_LOG_RECIPIENT_ID="${THREEDVR_OUTREACH_RECIPIENT_ID:-}" \
+      THREEDVR_OUTREACH_LOG_DRAFT_REQUEST_ID="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}" \
       THREEDVR_OUTREACH_LOG_NOTE="send command failed" \
       node "$OUTREACH_LOG_JS" append >/dev/null
       "$SCRIPT_DIR/ask-track" failed "$name"
@@ -292,6 +320,9 @@ elif [ "$auto_send" = "yes" ] && [ -n "$email" ]; then
     THREEDVR_OUTREACH_LOG_EXPERIMENT="$experiment_id" \
     THREEDVR_OUTREACH_LOG_VARIANT="$variant" \
     THREEDVR_OUTREACH_LOG_TRANSPORT="${THREEDVR_OUTREACH_EMAIL_TRANSPORT:-${THREEDVR_AUTOPILOT_EMAIL_TRANSPORT:-portal}}" \
+    THREEDVR_OUTREACH_LOG_PREVIEW_URL="${THREEDVR_OUTREACH_PREVIEW_URL:-}" \
+    THREEDVR_OUTREACH_LOG_RECIPIENT_ID="${THREEDVR_OUTREACH_RECIPIENT_ID:-}" \
+    THREEDVR_OUTREACH_LOG_DRAFT_REQUEST_ID="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}" \
     THREEDVR_OUTREACH_LOG_NOTE="deliverability probe failed" \
     node "$OUTREACH_LOG_JS" append >/dev/null
     echo "Email probe failed for $email"
