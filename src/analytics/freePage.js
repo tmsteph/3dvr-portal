@@ -8,10 +8,13 @@ export const FREE_PAGE_ANALYTICS_PATH = Object.freeze([
 
 export const FREE_PAGE_ANALYTICS_EVENT_TYPES = Object.freeze([
   'page_view',
-  'generate_lead'
+  'generate_lead',
+  'preview_view',
+  'claim_intent'
 ]);
 
 const FREE_PAGE_PATH = '/free-page/';
+const FREE_PAGE_PREVIEW_PATH = '/free-page/preview/';
 
 function safeRandomId() {
   if (globalThis.crypto?.randomUUID) {
@@ -45,16 +48,25 @@ export function createFreePageAnalyticsEvent(eventType, options = {}) {
   const timestamp = (options.now instanceof Date ? options.now : new Date(options.now || Date.now())).toISOString();
   const id = cleanId(options.id || `${Date.now().toString(36)}-${safeRandomId()}`);
   const sessionId = cleanId(options.sessionId);
+  const recipientId = cleanId(options.recipientId);
+  const page = eventType === 'preview_view' || eventType === 'claim_intent'
+    ? FREE_PAGE_PREVIEW_PATH
+    : FREE_PAGE_PATH;
 
   if (!id || !sessionId) {
     throw new Error('Free Page analytics events require event and session IDs.');
   }
 
+  if (page === FREE_PAGE_PREVIEW_PATH && !recipientId) {
+    throw new Error('Personalized preview events require an opaque recipient ID.');
+  }
+
   return {
     id,
     eventType,
-    page: FREE_PAGE_PATH,
+    page,
     sessionId,
+    ...(recipientId ? { recipientId } : {}),
     timestamp,
     day: utcDay(timestamp),
     source: 'first-party-gun'
@@ -126,6 +138,7 @@ export function normalizeFreePageAnalyticsEvent(data = {}, id = '') {
   const eventType = String(data.eventType || '').trim();
   const page = String(data.page || '').trim();
   const sessionId = cleanId(data.sessionId);
+  const recipientId = cleanId(data.recipientId);
   const timestamp = String(data.timestamp || '').trim();
   const normalizedId = cleanId(id || data.id);
 
@@ -133,7 +146,8 @@ export function normalizeFreePageAnalyticsEvent(data = {}, id = '') {
     !normalizedId
     || !sessionId
     || !FREE_PAGE_ANALYTICS_EVENT_TYPES.includes(eventType)
-    || page !== FREE_PAGE_PATH
+    || ![FREE_PAGE_PATH, FREE_PAGE_PREVIEW_PATH].includes(page)
+    || (page === FREE_PAGE_PREVIEW_PATH && !recipientId)
     || Number.isNaN(Date.parse(timestamp))
   ) {
     return null;
@@ -144,6 +158,7 @@ export function normalizeFreePageAnalyticsEvent(data = {}, id = '') {
     eventType,
     page,
     sessionId,
+    ...(recipientId ? { recipientId } : {}),
     timestamp,
     day: utcDay(timestamp),
     source: String(data.source || '').trim()
@@ -165,12 +180,21 @@ export function summarizeFreePageAnalytics(events = [], options = {}) {
   const values = [...uniqueEvents.values()];
   const pageViews = values.filter(event => event.eventType === 'page_view');
   const leads = values.filter(event => event.eventType === 'generate_lead');
+  const previewViews = values.filter(event => event.eventType === 'preview_view');
+  const claimIntents = values.filter(event => event.eventType === 'claim_intent');
   const sessions = new Set(pageViews.map(event => event.sessionId));
+  const previewVisitors = new Set(previewViews.map(event => event.recipientId));
+  const claimedRecipients = new Set(claimIntents.map(event => event.recipientId));
 
   return {
     sessions: sessions.size,
     pageViews: pageViews.length,
     leads: leads.length,
+    previewViews: previewViews.length,
+    previewVisitors: previewVisitors.size,
+    qualifiedPreviewVisits: previewVisitors.size,
+    claimIntents: claimIntents.length,
+    claimedRecipients: claimedRecipients.size,
     eventCount: values.length
   };
 }
