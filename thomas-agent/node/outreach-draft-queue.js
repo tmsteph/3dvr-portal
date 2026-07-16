@@ -36,6 +36,11 @@ function buildPersonalizedPreviewUrl(preview = {}, options = {}) {
   url.searchParams.set('name', normalizeText(preview.name).slice(0, 80));
   if (normalizeText(preview.focus)) url.searchParams.set('focus', normalizeText(preview.focus).slice(0, 180));
   if (normalizeText(preview.action)) url.searchParams.set('action', normalizeText(preview.action).slice(0, 40));
+  const contactEmail = normalizeEmail(preview.contactEmail);
+  if (contactEmail) {
+    // Keep contact details in the fragment so they are not sent in HTTP requests or referrer headers.
+    url.hash = new URLSearchParams({ email: contactEmail }).toString();
+  }
   return url.toString();
 }
 
