@@ -28,6 +28,7 @@ test('free page offer presents the tiny website starter offer', () => {
 test('personalized preview is noindex, safely client-rendered, and tracks explicit funnel events', () => {
   assert.match(previewHtml, /noindex,nofollow/);
   assert.match(previewHtml, /Claim my free draft/);
+  assert.match(previewHtml, /class="brand" href="\.\.\/"[^>]*><span>3dvr<\/span><\/a>/);
   assert.match(previewHtml, /id="contactButton"/);
   assert.match(previewHtml, /data-business/);
   assert.match(previewScript, /textContent = business/);
