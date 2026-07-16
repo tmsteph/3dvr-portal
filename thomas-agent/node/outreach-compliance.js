@@ -9,7 +9,7 @@ function buildCommercialFooter(config = process.env) {
   const optOutText = normalizeText(config.THREEDVR_OUTREACH_OPT_OUT_TEXT)
     || 'To opt out of future messages, reply unsubscribe or stop.';
   return [
-    'Advertisement from 3DVR.',
+    'Business offer from 3dvr.tech.',
     postalAddress ? `Postal address: ${postalAddress}` : '',
     optOutText,
   ].filter(Boolean).join('\n');
@@ -35,8 +35,8 @@ function validateCommercialOutreach(text, config = process.env) {
   } else if (!body.includes(postalAddress)) {
     errors.push('Commercial email is missing the configured postal address.');
   }
-  if (!/\badvertisement\b/i.test(body)) {
-    errors.push('Commercial email is missing an advertisement disclosure.');
+  if (!/\b(?:advertisement|commercial (?:message|offer)|business offer|solicitation)\b/i.test(body)) {
+    errors.push('Commercial email is missing a clear business-offer disclosure.');
   }
   if (!/\b(opt out|unsubscribe|stop)\b/i.test(body)) {
     errors.push('Commercial email is missing a clear opt-out method.');

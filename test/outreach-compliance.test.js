@@ -12,11 +12,11 @@ test('commercial outreach includes disclosure, postal address, and reply-based o
     GMAIL_USER: '3dvr.tech@gmail.com',
     THREEDVR_OUTREACH_POSTAL_ADDRESS: '123 Business Way, San Diego, CA 92101',
   };
-  const text = finalizeCommercialOutreach('Hi Acme team,\n\nWould a free page be useful?\n\nThomas\n3DVR', config);
+  const text = finalizeCommercialOutreach('Hi Acme team,\n\nWould a free page be useful?\n\nThomas\n3dvr.tech', config);
   const result = validateCommercialOutreach(text, config);
 
   assert.equal(result.ok, true);
-  assert.match(text, /Advertisement from 3DVR/);
+  assert.match(text, /Business offer from 3dvr\.tech/);
   assert.match(text, /123 Business Way/);
   assert.match(text, /reply unsubscribe or stop/i);
 });

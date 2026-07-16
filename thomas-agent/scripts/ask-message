@@ -27,7 +27,7 @@ msg_a() {
   cat <<MESSAGE
 Hi,
 
-I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+I'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
 Are you running into any website, booking, lead follow-up, or customer-flow problems right now?
 
@@ -36,7 +36,7 @@ If not, no problem. I just wanted to introduce myself.
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE
 }
 
@@ -44,7 +44,7 @@ msg_b() {
   cat <<MESSAGE
 Hi,
 
-I'm Thomas with 3DVR. We help small businesses turn more website visits into clear next steps.
+I'm Thomas with 3dvr.tech. We help small businesses turn more website visits into clear next steps.
 
 Is there anything about your website, booking/contact flow, or follow-up process that feels harder than it should be right now?
 
@@ -53,7 +53,7 @@ If not, no problem. I just wanted to introduce myself.
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE
 }
 
@@ -61,7 +61,7 @@ msg_c() {
   cat <<MESSAGE
 Hi,
 
-I'm Thomas with 3DVR. We help small businesses make their online customer flow clearer and easier to manage.
+I'm Thomas with 3dvr.tech. We help small businesses make their online customer flow clearer and easier to manage.
 
 Are you dealing with any website, lead follow-up, booking, or customer communication problems right now?
 
@@ -70,7 +70,7 @@ If not, no problem. I just wanted to introduce myself.
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE
 }
 
@@ -78,14 +78,14 @@ msg_offer() {
   cat <<MESSAGE
 Hi,
 
-I'm Thomas with 3DVR. We help small service businesses make websites, follow-up, and customer workflows easier to run.
+I'm Thomas with 3dvr.tech. We help small service businesses make websites, follow-up, and customer workflows easier to run.
 
 If you are trying to clean up your website or customer flow, the simplest starting point is here: $LAUNCH_URL
 
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE
 }
 
@@ -93,14 +93,14 @@ msg_phone() {
   cat <<MESSAGE
 Hi,
 
-This is Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows.
+This is Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows.
 
 Would it be okay if I sent a quick text with a few examples that might fit your business?
 
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE
 }
 
@@ -111,7 +111,7 @@ msg_lead() {
     cat <<MESSAGE
 Hi ${name} team,
 
-I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+I'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
 Are you running into any website, booking, lead follow-up, or customer-flow problems right now?
 
@@ -120,7 +120,7 @@ If not, no problem. I just wanted to introduce myself.
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE
   else
     msg_a
@@ -160,7 +160,7 @@ msg_smart() {
   cat <<MESSAGE
 Hi ${name} team,
 
-I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+I'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
 Are you running into any ${problems} problems right now?
 
@@ -169,7 +169,7 @@ If not, no problem. I just wanted to introduce myself.
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE
 }
 

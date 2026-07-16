@@ -124,7 +124,7 @@ function enqueueDraftRequest(lead = {}, options = {}) {
       maximumWords: 110,
       requiredGreeting: `Hi ${normalizeText(lead.name)} team,`,
       requiredPreviewUrl: previewUrl,
-      sender: 'Thomas at 3DVR in San Diego',
+      sender: 'Thomas at 3dvr.tech in San Diego',
       offer: 'A no-cost one-page website draft with no obligation to keep it.',
       prohibited: ['invented observations', 'pricing', 'guarantees', 'hype', 'alternate recipients'],
     },
@@ -156,7 +156,7 @@ function validateDraftText(request, text, config = process.env) {
   if (!raw.includes(request.preview?.url || 'missing-preview')) {
     errors.push('Draft is missing the exact personalized preview URL.');
   }
-  if (!/\bThomas\b[\s\S]*\b3DVR\b/i.test(raw)) errors.push('Draft must identify Thomas and 3DVR.');
+  if (!/\bThomas\b[\s\S]*\b3dvr\.tech\b/i.test(raw)) errors.push('Draft must identify Thomas and 3dvr.tech.');
   if (/^(?:to|cc|bcc|from|reply-to):/im.test(raw)) errors.push('Draft body cannot set email recipients or headers.');
   if (/\b(?:guaranteed|best in|#1|number one)\b/i.test(raw)) errors.push('Draft contains an unsupported claim.');
 

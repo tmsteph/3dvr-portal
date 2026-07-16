@@ -32,14 +32,14 @@ if is_phone_number "$contact"; then
   cat <<MESSAGE
 Hi $name,
 
-This is Thomas with 3DVR. I help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+This is Thomas with 3dvr.tech. I help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
 Would it be okay if I sent a quick text with a few examples of what we do?
 
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE
   exit 0
 fi
@@ -55,7 +55,7 @@ esac
 cat <<MESSAGE
 Hi $name team,
 
-I'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+I'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
 
 Are you running into any $hint problems right now?
 
@@ -64,5 +64,5 @@ If not, no problem. I just wanted to introduce myself.
 $(contact_footer)
 
 Thomas
-3DVR
+3dvr.tech
 MESSAGE

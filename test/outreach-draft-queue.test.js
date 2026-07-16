@@ -36,11 +36,11 @@ test('accepts and revalidates a compliant Codex draft for the exact recipient', 
   try {
     const lead = { name: 'Acme Studio', link: 'https://acme.example', contact: 'mailto:owner@acme.example' };
     const request = enqueueDraftRequest(lead, { queueDir });
-    const text = `Hi Acme Studio team,\n\nI put together a simple direction for a clearer one-page site: ${request.preview.url}\n\nIf it feels useful, I can build the first draft at no cost, with no obligation to keep it.\n\nThomas\n3DVR`;
+    const text = `Hi Acme Studio team,\n\nI put together a simple direction for a clearer one-page site: ${request.preview.url}\n\nIf it feels useful, I can build the first draft at no cost, with no obligation to keep it.\n\nThomas\n3dvr.tech`;
     completeDraftRequest(request.id, { text, source: 'codex' }, { queueDir, config });
     const draft = loadReadyDraft(lead, { queueDir, config });
     assert.equal(draft.source, 'queue-codex');
-    assert.match(draft.text, /Advertisement from 3DVR/);
+    assert.match(draft.text, /Business offer from 3dvr\.tech/);
     assert.match(draft.text, /reply unsubscribe or stop/i);
     assert.equal(draft.previewUrl, request.preview.url);
   } finally {
@@ -54,7 +54,7 @@ test('rejects drafts that omit the preview or try to set another recipient', () 
     const lead = { name: 'Acme Studio', link: 'https://acme.example', contact: 'mailto:owner@acme.example' };
     const request = enqueueDraftRequest(lead, { queueDir });
     assert.throws(() => completeDraftRequest(request.id, {
-      text: 'To: other@example.com\nHi Acme Studio team,\n\nThomas\n3DVR',
+      text: 'To: other@example.com\nHi Acme Studio team,\n\nThomas\n3dvr.tech',
     }, { queueDir, config }), /missing the exact personalized preview URL|cannot set email recipients/);
   } finally {
     fs.rmSync(queueDir, { recursive: true, force: true });
@@ -69,7 +69,7 @@ test('ask-send consumes a ready queued draft in dry-run mode without sending', (
     const lead = { name: 'Acme Studio', link: 'https://acme.example', contact: 'mailto:owner@acme.example' };
     fs.writeFileSync(leadsFile, 'name,link,contact,status,date,variant\nAcme Studio,https://acme.example,mailto:owner@acme.example,new,2026-07-16,a\n');
     const request = enqueueDraftRequest(lead, { queueDir });
-    const text = `Hi Acme Studio team,\n\nI made a simple direction for a clearer page: ${request.preview.url}\n\nIf it is useful, I can build the first draft at no cost, with no obligation to keep it.\n\nThomas\n3DVR`;
+    const text = `Hi Acme Studio team,\n\nI made a simple direction for a clearer page: ${request.preview.url}\n\nIf it is useful, I can build the first draft at no cost, with no obligation to keep it.\n\nThomas\n3dvr.tech`;
     completeDraftRequest(request.id, { text, source: 'codex' }, { queueDir, config });
 
     const output = execFileSync(path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-send'), ['--dry-run', 'Acme Studio'], {

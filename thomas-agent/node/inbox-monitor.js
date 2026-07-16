@@ -49,7 +49,7 @@ const DEFAULT_AUTO_REPLY_DELAY_MODE = normalizeText(process.env.THREEDVR_INBOX_A
 const DEFAULT_PUBLIC_AUTO_REPLY = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY || '').trim());
 const DEFAULT_PUBLIC_AUTO_REPLY_SUBJECT_TOKEN = normalizeText(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY_SUBJECT || '3dvr-agent').toLowerCase();
 const DEFAULT_PUBLIC_AUTO_REPLY_LIMIT = parseInteger(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY_LIMIT, DEFAULT_AUTO_REPLY_LIMIT);
-const DEFAULT_REPLY_SENDER_NAME = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME || 'Thomas @ 3DVR');
+const DEFAULT_REPLY_SENDER_NAME = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME || 'Thomas at 3dvr.tech');
 const DEFAULT_REPLY_SENDER_EMAIL = normalizeEmail(
   process.env.THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL
   || process.env.GMAIL_USER
@@ -194,7 +194,7 @@ Environment:
   THREEDVR_INBOX_PUBLIC_AUTO_REPLY              true to reply to public subject-gated requests
   THREEDVR_INBOX_PUBLIC_AUTO_REPLY_SUBJECT      required subject token, default 3dvr-agent
   THREEDVR_INBOX_PUBLIC_AUTO_REPLY_LIMIT        max public automated replies per run
-  THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME         default Thomas @ 3DVR
+  THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME         default Thomas at 3dvr.tech
   THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL        default 3dvr.tech@gmail.com
   THREEDVR_INBOX_REPLY_MODE                     local | openai | llm | template, default local
   THREEDVR_INBOX_LLAMA_CLI                      local llama-cli path
@@ -980,18 +980,18 @@ function buildReplyPrompt(lead, message, state) {
   const leadName = leadLabel(lead);
   return {
     system: [
-      'You write short, natural Gmail replies for Thomas at 3DVR.',
+      'You write short, natural Gmail replies for Thomas at 3dvr.tech.',
       'Use the voice of a real founder: direct, practical, warm, not corporate.',
       'The recipient already replied to outreach, so answer like a human continuing the thread.',
       'Be more adaptive than a template. Use the sender message and inferred intent.',
-      '3DVR helps with practical website/product work: reviewing pages, clarifying offers, improving CTAs, building small fixes, and operating outreach. If more context is needed, ask for the URL, goal, or page that matters most.',
+      '3dvr.tech helps with practical website/product work: reviewing pages, clarifying offers, improving CTAs, building small fixes, and operating outreach. If more context is needed, ask for the URL, goal, or page that matters most.',
       'Do not mention AI, automation, prompts, systems, or internal tools unless the user is explicitly testing automation.',
       'Do not invent prices, guarantees, meetings already booked, integrations, or platform features not stated here.',
       'Do not include signatures; the portal adds sender identity separately.',
       'Return only JSON: {"headline":"...","text":"..."}',
     ].join('\n'),
     user: JSON.stringify({
-      business: '3DVR',
+      business: '3dvr.tech',
       senderName: senderFirstName,
       senderEmail: message.fromEmail,
       leadName,
@@ -1013,10 +1013,10 @@ function buildLocalPrompt(lead, message, state) {
   const intent = detectReplyIntent(message);
   const leadName = leadLabel(lead);
   return [
-    'Write one short Gmail reply for Thomas at 3DVR.',
+    'Write one short Gmail reply for Thomas at 3dvr.tech.',
     'Return only JSON: {"headline":"...","text":"..."}',
     'Voice: direct, practical, warm, not corporate.',
-    'Facts: 3DVR helps with website/product work: review pages, clarify offers, improve CTAs, build small fixes, and run outreach.',
+    'Facts: 3dvr.tech helps with website/product work: review pages, clarify offers, improve CTAs, build small fixes, and run outreach.',
     'Do not invent prices, guarantees, integrations, platform features, or meetings.',
     'Do not include a signature.',
     `Sender: ${senderFirstName || message.fromEmail || 'there'}`,

@@ -41,7 +41,7 @@ function run(command, args, env = {}) {
 test('default outreach message is problem-led and not price-forward', async () => {
   const { stdout } = await run(askMessage, ['a']);
 
-  assert.match(stdout, /I'm Thomas with 3DVR/);
+  assert.match(stdout, /I'm Thomas with 3dvr\.tech/);
   assert.match(stdout, /Are you running into any .* problems right now/);
   assert.match(stdout, /I just wanted to introduce myself/);
   assert.doesNotMatch(stdout, /\$20|\$50|month|Launch in 3 Days/i);
@@ -78,14 +78,14 @@ test('phone outreach message is text-first and concise', async () => {
   assert.match(personalized, /Email: 3dvr\.tech@gmail\.com/);
   assert.match(personalized, /Phone: \+18643602659/);
   assert.match(personalized, /Would it be okay if I sent a quick text with a few examples of what we do\?/i);
-  assert.match(personalized, /This is Thomas with 3DVR/);
+  assert.match(personalized, /This is Thomas with 3dvr\.tech/);
   assert.doesNotMatch(personalized, /running into any .* problems right now/i);
 
   assert.match(phoneMessage, /Website: https:\/\/3dvr\.tech/);
   assert.match(phoneMessage, /Email: 3dvr\.tech@gmail\.com/);
   assert.match(phoneMessage, /Phone: \+18643602659/);
   assert.match(phoneMessage, /Would it be okay if I sent a quick text with a few examples that might fit your business\?/i);
-  assert.match(phoneMessage, /This is Thomas with 3DVR/);
+  assert.match(phoneMessage, /This is Thomas with 3dvr\.tech/);
   assert.doesNotMatch(phoneMessage, /Launch in 3 Days/i);
 });
 
@@ -105,7 +105,7 @@ test('ask-send uses a softer subject and first-touch body', async () => {
     assert.match(stdout, /Question for Acme Studio/);
     assert.match(stdout, /Route: email/);
     assert.match(stdout, /Hi Acme Studio team/);
-    assert.match(stdout, /I'm Thomas with 3DVR/);
+    assert.match(stdout, /I'm Thomas with 3dvr\.tech/);
     assert.match(stdout, /Are you running into any .* problems right now/);
     assert.doesNotMatch(stdout, /Quick idea for/);
     assert.doesNotMatch(stdout, /noticed|looking at|specific note/i);
@@ -128,7 +128,7 @@ test('ask-send --template forces the deterministic template copy', async () => {
       THREEDVR_OUTREACH_MESSAGE_MODE: 'local',
     });
 
-    assert.match(stdout, /I'm Thomas with 3DVR/);
+    assert.match(stdout, /I'm Thomas with 3dvr\.tech/);
     assert.match(stdout, /Are you running into any .* problems right now/);
     assert.match(stdout, /Route: email/);
     assert.doesNotMatch(stdout, /local model/i);
@@ -234,7 +234,7 @@ test('ask-send can open a Gmail draft and copy the full email', async () => {
     assert.match(opened, /^https:\/\/mail\.google\.com\/mail\/\?view=cm&fs=1&to=owner%40example\.com&su=Question%20for%20Acme%20Studio&body=/);
     assert.match(copied, /To: owner@example\.com/);
     assert.match(copied, /Subject: Question for Acme Studio/);
-    assert.match(copied, /I'm Thomas with 3DVR/);
+    assert.match(copied, /I'm Thomas with 3dvr\.tech/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
@@ -280,7 +280,7 @@ test('uses mocked LLM outreach replies when OpenAI is configured', async () => {
             choices: [{
               message: {
                 content: JSON.stringify({
-                  text: 'Hi Acme Studio team,\n\nI\'m Thomas with 3DVR. We help small businesses clean up websites and follow-up systems so the next step is clearer.\n\nIs there anything in your website or customer flow that feels harder than it should right now?\n\nIf not, no problem.\n\nThomas\n3DVR',
+                  text: 'Hi Acme Studio team,\n\nI\'m Thomas with 3dvr.tech. We help small businesses clean up websites and follow-up systems so the next step is clearer.\n\nIs there anything in your website or customer flow that feels harder than it should right now?\n\nIf not, no problem.\n\nThomas\n3dvr.tech',
                 }),
               },
             }],
@@ -295,7 +295,7 @@ test('uses mocked LLM outreach replies when OpenAI is configured', async () => {
 
   assert.equal(draft.source, 'openai');
   assert.match(draft.text, /Hi Acme Studio team/);
-  assert.match(draft.text, /Thomas\n3DVR/);
+  assert.match(draft.text, /Thomas\n3dvr\.tech/);
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /chat\/completions/);
   const request = JSON.parse(calls[0].options.body);
@@ -318,7 +318,7 @@ test('uses mocked local model outreach replies', async () => {
     runCommandImpl: async (command, args, options) => {
       calls.push({ command, args, options });
       return JSON.stringify({
-        text: 'Hi Acme Studio team,\n\nI\'m Thomas with 3DVR. We help small businesses clean up websites and follow-up systems so the next step is easier.\n\nIs there anything about your site or customer flow that feels harder than it should right now?\n\nThomas\n3DVR',
+        text: 'Hi Acme Studio team,\n\nI\'m Thomas with 3dvr.tech. We help small businesses clean up websites and follow-up systems so the next step is easier.\n\nIs there anything about your site or customer flow that feels harder than it should right now?\n\nThomas\n3dvr.tech',
       });
     },
   });
@@ -327,7 +327,7 @@ test('uses mocked local model outreach replies', async () => {
 
   assert.equal(draft.source, 'local');
   assert.match(draft.text, /Hi Acme Studio team/);
-  assert.match(draft.text, /Thomas\n3DVR/);
+  assert.match(draft.text, /Thomas\n3dvr\.tech/);
   assert.equal(calls.length, 1);
   assert.ok(calls[0].args.includes('--single-turn'));
   assert.ok(calls[0].args.includes('--simple-io'));
@@ -393,7 +393,7 @@ test('auto outreach mode falls back to template when OpenAI is unavailable', asy
 
   assert.equal(draft.source, 'template');
   assert.match(draft.text, /Hi Acme Studio team/);
-  assert.match(draft.text, /I'm Thomas with 3DVR/);
+  assert.match(draft.text, /I'm Thomas with 3dvr\.tech/);
 });
 
 test('ask-send prints form routes and opens the contact page', async () => {
@@ -419,7 +419,7 @@ test('ask-send prints form routes and opens the contact page', async () => {
     assert.match(stdout, /Copied message to clipboard/);
     assert.match(stdout, /Opening contact page:/);
     assert.match(opened, /^https:\/\/example\.com\/contact\s*$/);
-    assert.match(copied, /I'm Thomas with 3DVR/);
+    assert.match(copied, /I'm Thomas with 3dvr\.tech/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }

@@ -468,7 +468,7 @@ test('runFormCommand logs successful submissions', async () => {
     assert.equal(entries[0].targetUrl, 'https://example.com/contact');
     assert.equal(entries[0].submitted, true);
     assert.equal(entries[0].screenshotPath, screenshotPath);
-    assert.match(entries[0].body, /I'm Thomas with 3DVR/);
+    assert.match(entries[0].body, /I'm Thomas with 3dvr\.tech/);
   } finally {
     restoreEnv('THREEDVR_OUTREACH_LOG_FILE', originalLogFile);
     restoreEnv('THREEDVR_LEADS_FILE', originalLeadsFile);
