@@ -82,6 +82,28 @@ test('asks for the website when a free design request omits it', () => {
   assert.match(draft.text, /business name if you do not have a site/i);
 });
 
+test('builds a concept preview from a plain-language free design request', () => {
+  const input = message({
+    messageId: '<design-concept-1@example.com>',
+    from: 'Avery Owner <avery@example.com>',
+    fromEmail: 'avery@example.com',
+    subject: 'Free Web Design',
+    preview: 'Make me a website about robots!',
+  });
+  const state = { messages: { [input.messageId]: {} } };
+  const draft = buildFreeDesignReplyDraft(input, state);
+
+  assert.equal(draft.source, 'free-design-concept');
+  assert.equal(draft.website, '');
+  assert.equal(draft.concept, 'robots');
+  assert.match(draft.headline, /robots web design is ready/i);
+  assert.match(draft.previewUrl, /^https:\/\/portal\.3dvr\.tech\/free-page\/preview\/\?r=inbound-/);
+  const preview = new URL(draft.previewUrl);
+  assert.equal(preview.searchParams.get('name'), 'Robots');
+  assert.equal(preview.searchParams.get('focus'), 'A bold, clear one-page website about robots.');
+  assert.match(draft.text, new RegExp(draft.previewUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
 test('reply drafts include website, email, and phone contact details', () => {
   const previousPhone = process.env.THREEDVR_OUTREACH_PHONE;
   const previousWebsite = process.env.THREEDVR_INBOX_AUTO_REPLY_WEBSITE;

@@ -778,6 +778,54 @@ function extractRequestedWebsite(message) {
   return '';
 }
 
+function cleanRequestedConcept(value) {
+  const concept = normalizeText(value)
+    .split(/\r?\n(?:On .+ wrote:|From:|Sent from my|>)/i, 1)[0]
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^(?:a website|a site|a page)\s+(?:about|for)\s+/i, '')
+    .replace(/(?:\s+(?:please|thanks|thank you))+[.!?]*$/i, '')
+    .replace(/[.!?,;:]+$/g, '')
+    .trim()
+    .slice(0, 120);
+  if (!concept || concept.length < 2) return '';
+  if (/^(?:a |an |the )?(?:business|my business|our business|company|my company|our company|website|web ?site|site|page|me|us|something|anything)$/i.test(concept)) return '';
+  if (/https?:\/\/|www\.|@/i.test(concept)) return '';
+  return concept;
+}
+
+function extractRequestedConcept(message) {
+  const text = normalizeText(message?.preview)
+    .replace(/\r/g, '')
+    .split(/\n(?:On .+ wrote:|From:|Sent from my|>)/i, 1)[0]
+    .trim();
+  if (!text) return '';
+  const patterns = [
+    /\b(?:make|build|design|create)\s+(?:(?:me|us)\s+)?(?:(?:a|an|the)\s+)?(?:(?:free|simple|clean|one[- ]page)\s+)*(?:web\s*site|website|site|landing\s+page|page)\s+(?:about|for)\s+(.+)/i,
+    /\b(?:web\s*site|website|site|landing\s+page|page)\s+(?:about|for)\s+(.+)/i,
+  ];
+  for (const pattern of patterns) {
+    const concept = cleanRequestedConcept(text.match(pattern)?.[1]);
+    if (concept) return concept;
+  }
+  return '';
+}
+
+function freeDesignRecipientId(message, state) {
+  const messageId = normalizeText(message.messageId) || `${message.fromEmail}|${message.subject}`;
+  const meta = state.messages?.[messageId] || {};
+  if (!meta.freeDesignRecipientId) {
+    meta.freeDesignRecipientId = `inbound-${crypto.randomBytes(12).toString('hex')}`;
+  }
+  if (state.messages && messageId) state.messages[messageId] = meta;
+  return meta.freeDesignRecipientId;
+}
+
+function conceptDisplayName(concept) {
+  const name = normalizeText(concept).replace(/^(?:a|an|the)\s+/i, '');
+  return name.replace(/\b\w/g, character => character.toUpperCase()).slice(0, 80) || 'New Website';
+}
+
 function businessNameFromWebsite(website) {
   if (!website) return 'your business';
   try {
@@ -792,6 +840,31 @@ function businessNameFromWebsite(website) {
 function buildFreeDesignReplyDraft(message, state = { messages: {} }) {
   const greeting = firstName(message.from, message.fromEmail);
   const website = extractRequestedWebsite(message);
+  const concept = website ? '' : extractRequestedConcept(message);
+  if (concept) {
+    const name = conceptDisplayName(concept);
+    const previewUrl = buildPersonalizedPreviewUrl({
+      recipientId: freeDesignRecipientId(message, state),
+      name,
+      focus: `A bold, clear one-page website about ${concept}.`,
+      action: `Explore ${name}`.slice(0, 40),
+    });
+    return {
+      headline: `Your free ${name} web design is ready.`,
+      text: ensureReplyContactFooter([
+        `Hi ${greeting},`,
+        '',
+        `I turned your idea for a website about ${concept} into a free one-page design direction:`,
+        previewUrl,
+        '',
+        'There is no charge and no obligation to use it. Reply with what you like, what you would change, and the main action you want visitors to take.',
+      ].join('\n')),
+      source: 'free-design-concept',
+      website: '',
+      concept,
+      previewUrl,
+    };
+  }
   if (!website) {
     return {
       headline: 'Send the website you want redesigned.',
@@ -803,19 +876,14 @@ function buildFreeDesignReplyDraft(message, state = { messages: {} }) {
       ].join('\n')),
       source: 'free-design-intake',
       website: '',
+      concept: '',
       previewUrl: '',
     };
   }
 
-  const messageId = normalizeText(message.messageId) || `${message.fromEmail}|${message.subject}`;
-  const meta = state.messages?.[message.messageId] || {};
-  if (!meta.freeDesignRecipientId) {
-    meta.freeDesignRecipientId = `inbound-${crypto.randomBytes(12).toString('hex')}`;
-  }
-  if (state.messages && message.messageId) state.messages[message.messageId] = meta;
   const businessName = businessNameFromWebsite(website);
   const previewUrl = buildPersonalizedPreviewUrl({
-    recipientId: meta.freeDesignRecipientId,
+    recipientId: freeDesignRecipientId(message, state),
     name: businessName,
     focus: `A clearer one-page direction based on ${new URL(website).hostname}.`,
     action: 'Get in touch',
@@ -833,6 +901,7 @@ function buildFreeDesignReplyDraft(message, state = { messages: {} }) {
     ].join('\n')),
     source: 'free-design-preview',
     website,
+    concept: '',
     previewUrl,
   };
 }
@@ -1515,6 +1584,7 @@ async function sendFreeDesignReply(message, state) {
           replySource: draft.source,
           replyMode: 'free-design',
           requestedWebsite: draft.website,
+          requestedConcept: draft.concept,
           previewUrl: draft.previewUrl,
         },
       }),
@@ -2065,6 +2135,7 @@ module.exports = {
   subjectMatchesPublicAgentGate,
   subjectMatchesFreeDesignGate,
   extractRequestedWebsite,
+  extractRequestedConcept,
   extractBounceEmails,
   looksLikeBounce,
   pickPublicAgentAutoReplyCandidates,

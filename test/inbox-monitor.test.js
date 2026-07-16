@@ -14,6 +14,7 @@ const {
   isPublicAgentMessage,
   isFreeDesignMessage,
   extractRequestedWebsite,
+  extractRequestedConcept,
   looksLikeAutomatedSender,
   subjectMatchesPublicAgentGate,
   subjectMatchesFreeDesignGate,
@@ -67,6 +68,13 @@ test('free web design intake ignores automated senders and the 3dvr.tech site', 
 
   assert.equal(isFreeDesignMessage(automated), false);
   assert.equal(extractRequestedWebsite(ownSite), '');
+});
+
+test('extracts a specific new-site concept but rejects generic intake copy', () => {
+  assert.equal(extractRequestedConcept({ preview: 'Make me a website about robots!' }), 'robots');
+  assert.equal(extractRequestedConcept({ preview: 'Please create a landing page for a neighborhood flower exchange.' }), 'a neighborhood flower exchange');
+  assert.equal(extractRequestedConcept({ preview: 'Can you make one for my business?' }), '');
+  assert.equal(extractRequestedConcept({ preview: 'I would like a free website.' }), '');
 });
 
 test('builds a bounce alert for the operator', () => {
