@@ -52,6 +52,19 @@ function formatMessage(value = '') {
   return escaped.replace(/\n/g, '<br>');
 }
 
+function formatLeadOutreachMessage(value = '') {
+  return normalizeText(value)
+    .split('\n')
+    .map((line) => {
+      const escaped = escapeHtml(line);
+      if (/^Postal address:/i.test(line.trim())) {
+        return `<span style="font-size: 11px; line-height: 1.45; color: #667085;">${escaped}</span>`;
+      }
+      return escaped;
+    })
+    .join('<br>');
+}
+
 function normalizeRecipientList(value) {
   const list = Array.isArray(value)
     ? value
@@ -356,14 +369,15 @@ function confirmRecoveryVerification({ email, code, verificationId, config = pro
 }
 
 function buildLeadOutreachHtml({ headline, message, senderName, senderEmail }) {
-  const fromLabel = normalizeText(senderName) || 'Thomas @ 3DVR';
+  const fromLabel = normalizeText(senderName) || 'Thomas at 3dvr.tech';
   const replyLabel = normalizeEmail(senderEmail);
+  const includesSender = /\bThomas\b[\s\S]*\b3dvr(?:\.tech)?\b/i.test(message);
 
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-      <p>${formatMessage(headline || 'Quick note from 3DVR')}</p>
-      <p>${formatMessage(message)}</p>
-      <p style="margin-top: 20px;">${escapeHtml(fromLabel)}${replyLabel ? `<br><a href="mailto:${replyLabel}">${escapeHtml(replyLabel)}</a>` : ''}</p>
+      <p>${formatMessage(headline || 'Quick note from 3dvr.tech')}</p>
+      <p>${formatLeadOutreachMessage(message)}</p>
+      ${includesSender ? '' : `<p style="margin-top: 20px;">${escapeHtml(fromLabel)}${replyLabel ? `<br><a href="mailto:${replyLabel}">${escapeHtml(replyLabel)}</a>` : ''}</p>`}
     </div>
   `;
 }
@@ -816,7 +830,7 @@ export function createLeadOutreachEmailHandler(options = {}) {
     const subject = normalizeText(req.body?.subject);
     const text = normalizeText(req.body?.text);
     const headline = normalizeText(req.body?.headline);
-    const senderName = normalizeText(req.body?.senderName || 'Thomas @ 3DVR');
+    const senderName = normalizeText(req.body?.senderName || 'Thomas at 3dvr.tech');
     const senderEmail = normalizeEmail(req.body?.senderEmail || resolveMailCredentials(config).user);
     const inReplyTo = normalizeText(req.body?.inReplyTo);
     const references = normalizeText(req.body?.references);
@@ -843,7 +857,7 @@ export function createLeadOutreachEmailHandler(options = {}) {
     }
 
     const sender = resolveMailCredentials(config).user || 'no-reply@3dvr.tech';
-    const from = `"${senderName || 'Thomas @ 3DVR'}" <${sender}>`;
+    const from = `"${senderName || 'Thomas at 3dvr.tech'}" <${sender}>`;
     const replyTo = senderEmail || undefined;
 
     try {

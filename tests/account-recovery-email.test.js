@@ -432,9 +432,9 @@ describe('account recovery email api', () => {
         mode: 'lead-outreach',
         to: ['tmsteph1290@gmail.com'],
         subject: 'Re: Quick idea for your site',
-        headline: 'Quick note from 3DVR',
-        text: 'I noticed one small customer-flow issue worth tightening.',
-        senderName: 'Thomas @ 3DVR',
+        headline: 'Quick note from 3dvr.tech',
+        text: 'I noticed one small customer-flow issue worth tightening.\n\nThomas\n3dvr.tech\n\nBusiness offer from 3dvr.tech.\nPostal address: 123 Main St, San Diego, CA 92101\nTo opt out, reply stop.',
+        senderName: 'Thomas at 3dvr.tech',
         senderEmail: '3dvr.tech@gmail.com',
         inReplyTo: '<reply-message@example.com>',
         references: '<thread-root@example.com> <reply-message@example.com>'
@@ -453,7 +453,9 @@ describe('account recovery email api', () => {
     assert.equal(sent.replyTo, '3dvr.tech@gmail.com');
     assert.equal(sent.inReplyTo, '<reply-message@example.com>');
     assert.equal(sent.references, '<thread-root@example.com> <reply-message@example.com>');
-    assert.match(sent.html, /Quick note from 3DVR/i);
+    assert.match(sent.html, /Quick note from 3dvr\.tech/i);
+    assert.match(sent.html, /font-size: 11px[^>]*>Postal address:/i);
+    assert.equal((sent.html.match(/Thomas at 3dvr\.tech/gi) || []).length, 0);
     assert.match(sent.text, /customer-flow issue/i);
   });
 });

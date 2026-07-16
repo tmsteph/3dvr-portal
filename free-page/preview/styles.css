@@ -8,7 +8,9 @@
 }
 
 * { box-sizing: border-box; }
+html { overflow-x: clip; }
 body {
+  overflow-x: clip;
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
@@ -17,6 +19,8 @@ body {
 }
 a { color: inherit; }
 .site-header, main, footer { width: min(1120px, calc(100% - 32px)); margin-inline: auto; }
+.site-header > *, .intro, .browser, .mock-site, .claim-card > * { min-width: 0; }
+h1, h2, p, a, strong, span { overflow-wrap: anywhere; }
 .site-header { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; color: var(--muted); }
 .site-header p { margin: 0; }
 .brand { text-decoration: none; font-weight: 800; letter-spacing: .08em; }
@@ -50,4 +54,12 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: .85rem; }
   .mock-proof { grid-template-columns: 1fr; }
   .claim-card { align-items: stretch; flex-direction: column; }
   .claim-button { text-align: center; }
+}
+@media (max-width: 360px) {
+  .site-header, main, footer { width: min(100% - 24px, 1120px); }
+  .browser { margin: 32px 0; border-radius: 18px; }
+  .browser-bar { padding-inline: 12px; }
+  .mock-site { padding: 18px; }
+  .mock-hero { padding: 48px 0 56px; }
+  .claim-card { padding: 22px 18px; }
 }
