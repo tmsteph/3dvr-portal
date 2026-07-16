@@ -5,6 +5,7 @@ const {
   buildLlmReplyDraft,
   buildPublicAgentReplyDraft,
   buildPublicAgentReplyText,
+  buildFreeDesignReplyDraft,
   buildReplyDraft,
   buildReplyHeadline,
   buildReplyText,
@@ -44,6 +45,41 @@ test('detects test replies and produces explicit test copy', () => {
   assert.equal(detectReplyIntent(input), 'test');
   assert.equal(buildReplyHeadline(input, { messages: {} }), 'Test reply received.');
   assert.match(buildReplyText({ name: 'Thomas' }, input, { messages: {} }), /inbox monitor|reply loop|routing/i);
+});
+
+test('builds a personalized free web design reply when a website is supplied', () => {
+  const input = message({
+    messageId: '<design-1@example.com>',
+    from: 'Avery Owner <avery@example.com>',
+    fromEmail: 'avery@example.com',
+    subject: 'Free web design',
+    preview: 'Our current website is https://www.acme-studio.com.',
+  });
+  const state = { messages: { [input.messageId]: {} } };
+  const draft = buildFreeDesignReplyDraft(input, state);
+
+  assert.equal(draft.source, 'free-design-preview');
+  assert.equal(draft.website, 'https://www.acme-studio.com/');
+  assert.match(draft.headline, /Acme Studio web design is ready/i);
+  assert.match(draft.previewUrl, /^https:\/\/portal\.3dvr\.tech\/free-page\/preview\/\?r=inbound-/);
+  assert.match(draft.text, new RegExp(draft.previewUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(draft.text, /no charge and no obligation/i);
+  assert.match(draft.text, /3dvr\.tech@gmail\.com/);
+});
+
+test('asks for the website when a free design request omits it', () => {
+  const input = message({
+    from: 'Avery Owner <avery@example.com>',
+    fromEmail: 'avery@example.com',
+    subject: 'Free web design',
+    preview: 'Can you make one for my business?',
+  });
+  const draft = buildFreeDesignReplyDraft(input, { messages: {} });
+
+  assert.equal(draft.source, 'free-design-intake');
+  assert.equal(draft.previewUrl, '');
+  assert.match(draft.text, /current website URL/i);
+  assert.match(draft.text, /business name if you do not have a site/i);
 });
 
 test('reply drafts include website, email, and phone contact details', () => {
