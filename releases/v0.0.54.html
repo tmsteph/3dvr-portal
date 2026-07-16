@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.54 (Week of July 13, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.53.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.54</h1>
+  <div class="tag">Week of July 13, 2026</div>
+  <div class="release-summary">
+    <p>
+      This week connected the free-page offer to measurable outreach. The portal can now serve a personalized
+      preview, record explicit engagement, and support a guarded path from prospect research to a claimed page.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Evidence-led Money Printer:</strong>
+        the learning loop now connects experiments to evidence and market research, keeps generated reports out of
+        self-review, and executes only through a guarded path in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1144">PR #1144</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1145">PR #1145</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1147">PR #1147</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1148">PR #1148</a>.
+      </li>
+      <li>
+        <strong>Free Page measurement without hidden tracking:</strong>
+        <a href="../free-page/">Free Page</a> added Vercel Analytics, GA4 conversion events, and Gun-backed
+        first-party analytics in <a href="https://github.com/tmsteph/3dvr-portal/pull/1149">PR #1149</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1151">PR #1151</a>.
+      </li>
+      <li>
+        <strong>OpenClaw research library:</strong>
+        the <a href="../research/">research desk</a> now includes notes on distributed-agent orchestration,
+        supervised hierarchies, agent orchestration patterns, and readable live narration from
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1146">PR #1146</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1152">PR #1152</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1153">PR #1153</a>.
+      </li>
+      <li>
+        <strong>Personalized preview funnel:</strong>
+        <a href="../free-page/preview/">personalized Free Page previews</a> can carry opaque recipient attribution,
+        record explicit views and claims, and hand interested owners into the next step. The funnel shipped in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1154">PR #1154</a>.
+      </li>
+      <li>
+        <strong>Folded-phone and email polish:</strong>
+        narrow layouts no longer drift horizontally on folded-phone widths, outreach identifies the business as
+        3dvr.tech, and the required address is visually quieter in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1155">PR #1155</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Release cadence</h2>
+    <p>
+      v0.0.54 is the current weekly release and covers work merged from
+      <a href="https://github.com/tmsteph/3dvr-portal/pull/1144">PR #1144</a> through
+      <a href="https://github.com/tmsteph/3dvr-portal/pull/1155">PR #1155</a>. The product story is now one
+      connected loop: find a qualified business, show a useful preview, measure explicit interest, and make claiming
+      the page simple.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

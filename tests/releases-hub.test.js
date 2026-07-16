@@ -15,12 +15,18 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the weekly milestones through v0.0.52', async () => {
+  it('updates the release index with the weekly milestones through v0.0.54', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Latest Release/);
+    assert.match(html, /href="v0\.0\.54\.html">v0\.0\.54</);
+    assert.match(html, /Week of July 13, 2026/);
+    assert.match(html, /personalized previews/);
+    assert.match(html, /href="v0\.0\.53\.html">v0\.0\.53</);
+    assert.match(html, /Week of July 6, 2026/);
+    assert.match(html, /Free Page<\/a> starter offer/);
     assert.match(html, /href="v0\.0\.52\.html">v0\.0\.52</);
     assert.match(html, /Week of June 29, 2026/);
     assert.match(html, /href="\.\.\/life\/index\.html">Daily Direction</);
@@ -89,6 +95,8 @@ describe('release hub backfill', () => {
 
   it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
+      ['v0.0.54.html', /Week of July 13, 2026/, /Personalized preview funnel/i, /aria-disabled="true"/],
+      ['v0.0.53.html', /Week of July 6, 2026/, /Money Printer becomes an operating loop/i, /href="v0\.0\.54\.html"/],
       ['v0.0.52.html', /Week of June 29, 2026/, /Free-first portal and Monday release path/i, /pull\/977/],
       ['v0.0.51.html', /Week of June 22, 2026/, /Money Printer and paid sprint paths/i, /href="v0\.0\.52\.html"/],
       ['v0.0.50.html', /Week of June 15, 2026/, /Launch Site publishing/i, /href="v0\.0\.51\.html"/],
@@ -120,12 +128,28 @@ describe('release hub backfill', () => {
   });
 
   it('links shipped apps and docs inline where the release summaries mention them', async () => {
+    const release54 = await readFile(new URL('v0.0.54.html', baseDir), 'utf8');
+    const release53 = await readFile(new URL('v0.0.53.html', baseDir), 'utf8');
     const release52 = await readFile(new URL('v0.0.52.html', baseDir), 'utf8');
     const release51 = await readFile(new URL('v0.0.51.html', baseDir), 'utf8');
     const release50 = await readFile(new URL('v0.0.50.html', baseDir), 'utf8');
     const release49 = await readFile(new URL('v0.0.49.html', baseDir), 'utf8');
     const release47 = await readFile(new URL('v0.0.47.html', baseDir), 'utf8');
     const release48 = await readFile(new URL('v0.0.48.html', baseDir), 'utf8');
+
+    assert.match(release54, /href="\.\.\/free-page\/">Free Page</);
+    assert.match(release54, /href="\.\.\/free-page\/preview\/">personalized Free Page previews</);
+    assert.match(release54, /href="\.\.\/research\/">research desk</);
+    assert.match(release54, /pull\/1144/);
+    assert.match(release54, /pull\/1155/);
+
+    assert.match(release53, /href="\.\.\/growth-desk\/">Growth Desk</);
+    assert.match(release53, /href="\.\.\/money-printer\/">Money Printer</);
+    assert.match(release53, /href="\.\.\/offer-garden\/">Offer Garden</);
+    assert.match(release53, /href="\.\.\/signal-garden\/">Signal Garden</);
+    assert.match(release53, /href="\.\.\/career-launch\/">Career Launch</);
+    assert.match(release53, /pull\/1025/);
+    assert.match(release53, /pull\/1143/);
 
     assert.match(release52, /href="\.\.\/friends-family\/">Friends &amp; Family Pass</);
     assert.match(release52, /href="\.\.\/life\/index\.html">Daily Direction</);
