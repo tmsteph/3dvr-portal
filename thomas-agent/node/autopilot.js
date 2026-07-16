@@ -9,6 +9,8 @@ const { buildGmailTransportOptions } = require('./gmail-transport');
 const { getCampaignAllowance, successfulRecipientKeys } = require('./campaign-limits');
 const { chooseExperimentVariant } = require('./experiment-optimizer');
 const { readOutreachLog } = require('./outreach-log');
+const { qualifyLeadWebsite } = require('./lead-quality');
+const { enqueueDraftRequest } = require('./outreach-draft-queue');
 
 const { routeFromContact } = require('./lead-route');
 
@@ -47,6 +49,8 @@ const DEFAULT_EXPERIMENT_MIN_REPLIES = parseInteger(process.env.THREEDVR_AUTOPIL
 const DEFAULT_EXPERIMENT_MIN_LIFT = parseNumber(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_MIN_LIFT, 0.05);
 const DEFAULT_PAUSED = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_PAUSED || '').trim());
 const DEFAULT_OUTREACH_POSTAL_ADDRESS = normalizeText(process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS);
+const DEFAULT_DRAFT_QUEUE = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_DRAFT_QUEUE || '').trim());
+const DEFAULT_QUALITY_GATE = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_AUTOPILOT_QUALITY_GATE || 'true').trim());
 const DEFAULT_NOTIFY_EMAIL = normalizeEmail(
   process.env.THREEDVR_AUTOPILOT_NOTIFY_EMAIL
   || process.env.GMAIL_USER
@@ -145,6 +149,9 @@ Environment:
   THREEDVR_AUTOPILOT_EXPERIMENT_MIN_REPLIES minimum replies before selecting a winner, default 2
   THREEDVR_AUTOPILOT_EXPERIMENT_MIN_LIFT minimum reply-rate lift before selecting a winner, default 0.05
   THREEDVR_AUTOPILOT_PAUSED              true keeps research and CRM sync running but blocks sends
+  THREEDVR_AUTOPILOT_DRAFT_QUEUE          true requires a validated queued Codex draft before sending
+  THREEDVR_AUTOPILOT_QUALITY_GATE         false disables conservative live website verification
+  THREEDVR_OUTREACH_PREVIEW_BASE_URL      personalized preview page base URL
   THREEDVR_AUTOPILOT_EMAIL_ENDPOINT      portal email relay endpoint
   THREEDVR_AUTOPILOT_EMAIL_TOKEN         shared token for portal email relay
   THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE    optional file path for shared relay token
@@ -674,8 +681,16 @@ function buildActionItems(summary) {
   }
   if (Array.isArray(summary.autoSent) && summary.autoSent.length > 0) {
     const delivered = summary.autoSent.filter((entry) => entry.ok).map((entry) => entry.name);
+    const queued = summary.autoSent.filter((entry) => entry.status === 'queued').map((entry) => entry.name);
+    const excluded = summary.autoSent.filter((entry) => entry.status === 'quality_blocked').map((entry) => entry.name);
     if (delivered.length) {
       actions.push(`Auto-sent first outreach to ${delivered.join(', ')}`);
+    }
+    if (queued.length) {
+      actions.push(`Codex drafts queued: ${queued.join(', ')}`);
+    }
+    if (excluded.length) {
+      actions.push(`Website-quality review blocked outreach: ${excluded.join(', ')}`);
     }
   }
   if (summary.campaign?.sendBlockedReason) {
@@ -1000,16 +1015,66 @@ async function main() {
         minimumReplies: DEFAULT_EXPERIMENT_MIN_REPLIES,
         minimumLift: DEFAULT_EXPERIMENT_MIN_LIFT,
       });
+      let quality = { qualified: true, classification: 'not-checked', reason: 'quality gate disabled' };
+      if (DEFAULT_QUALITY_GATE) {
+        quality = await qualifyLeadWebsite(candidate);
+        if (!quality.qualified) {
+          autoSent.push({
+            name: candidate.name,
+            ok: false,
+            status: 'quality_blocked',
+            quality,
+            error: '',
+          });
+          continue;
+        }
+      }
+
+      let queuedDraft = null;
+      if (DEFAULT_DRAFT_QUEUE) {
+        queuedDraft = enqueueDraftRequest({
+          ...candidate,
+          quality,
+          campaignId: DEFAULT_CAMPAIGN_ID,
+          experimentVariant: experimentDecision.variant,
+        }, {
+          campaignId: DEFAULT_CAMPAIGN_ID,
+          experimentVariant: experimentDecision.variant,
+        });
+        if (!queuedDraft.ready) {
+          autoSent.push({
+            name: candidate.name,
+            ok: false,
+            status: 'queued',
+            draftRequestId: queuedDraft.id,
+            previewUrl: queuedDraft.preview.url,
+            quality,
+            error: '',
+          });
+          commands.push('ask-draft-queue pending');
+          continue;
+        }
+      }
       const sendResult = await runScript('ask-send', ['--auto', '--mark', candidate.name], {
         env: {
           THREEDVR_OUTREACH_EXPERIMENT_ID: DEFAULT_CAMPAIGN_ID,
           THREEDVR_OUTREACH_VARIANT: experimentDecision.variant,
+          ...(queuedDraft ? {
+            THREEDVR_OUTREACH_MESSAGE_MODE: 'queue',
+            THREEDVR_OUTREACH_DRAFT_REQUEST_ID: queuedDraft.id,
+            THREEDVR_OUTREACH_PREVIEW_URL: queuedDraft.preview.url,
+            THREEDVR_OUTREACH_RECIPIENT_ID: queuedDraft.preview.recipientId,
+          } : {}),
         },
       });
       autoSent.push({
         name: candidate.name,
+        status: sendResult.ok ? 'sent' : 'send_failed',
         variant: experimentDecision.variant,
         experimentPhase: experimentDecision.phase,
+        draftRequestId: queuedDraft?.id || '',
+        previewUrl: queuedDraft?.preview?.url || '',
+        quality,
         ok: sendResult.ok,
         command: sendResult.command,
         stdout: (sendResult.stdout || '').trim(),
@@ -1072,6 +1137,8 @@ async function main() {
       end: DEFAULT_CAMPAIGN_END,
       paused: DEFAULT_PAUSED,
       autoSendEnabled: DEFAULT_AUTO_SEND,
+      draftQueueEnabled: DEFAULT_DRAFT_QUEUE,
+      qualityGateEnabled: DEFAULT_QUALITY_GATE,
       runSendLimit,
       sendBlockedReason,
       ...campaignAllowance,

@@ -2,6 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { finalizeCommercialOutreach } = require('./outreach-compliance');
+const { loadReadyDraft } = require('./outreach-draft-queue');
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -90,11 +91,14 @@ function commandExists(filePath) {
 
 function buildTemplateOutreachDraft(lead = {}) {
   const name = normalizeText(lead.name) || 'there';
+  const previewLine = normalizeText(lead.previewUrl)
+    ? `\n\nI made a quick direction for the page here: ${normalizeText(lead.previewUrl)}`
+    : '';
   if (currentOfferProfile() === 'free-page') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
-      ? `Hi ${name} team,\n\nI'm Thomas with 3DVR in San Diego. I can sketch a clean one-page website that makes your services, proof, and best contact path easy to understand. I'm doing a few of these drafts for local businesses at no cost, with no obligation to use them.\n\nWould you like me to put together a first draft for ${name}?\n\nThomas\n3DVR`
-      : `Hi ${name} team,\n\nI'm Thomas with 3DVR in San Diego. I'm offering local service businesses a clean one-page website draft at no cost: what you do, proof, and a clear contact path.\n\nWould a simpler page like that be useful for your business? There is no obligation to keep it if it is not useful.\n\nThomas\n3DVR`;
+      ? `Hi ${name} team,\n\nI'm Thomas with 3DVR in San Diego. I can sketch a clean one-page website that makes your services, proof, and best contact path easy to understand. I'm doing a few of these drafts for local businesses at no cost, with no obligation to use them.${previewLine}\n\nWould you like me to put together a first draft for ${name}?\n\nThomas\n3DVR`
+      : `Hi ${name} team,\n\nI'm Thomas with 3DVR in San Diego. I'm offering local service businesses a clean one-page website draft at no cost: what you do, proof, and a clear contact path.${previewLine}\n\nWould a simpler page like that be useful for your business? There is no obligation to keep it if it is not useful.\n\nThomas\n3DVR`;
     return {
       source: variant === 'b' ? 'template-free-page-b' : 'template-free-page',
       text: finalizeCommercialOutreach(body),
@@ -105,6 +109,12 @@ function buildTemplateOutreachDraft(lead = {}) {
     source: 'template',
     text: finalizeCommercialOutreach(`Hi ${name} team,\n\nI'm Thomas with 3DVR. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\nThomas\n3DVR`),
   };
+}
+
+function buildQueuedOutreachDraft(lead = {}, options = {}) {
+  const draft = loadReadyDraft(lead, options);
+  if (!draft) throw new Error('Personalized Codex draft is queued but not ready.');
+  return draft;
 }
 
 function buildPrompt(lead = {}) {
@@ -323,6 +333,9 @@ async function buildOutreachDraft(lead = {}, options = {}) {
   if (mode === 'template') {
     return buildTemplateOutreachDraft(lead);
   }
+  if (mode === 'queue' || mode === 'queued') {
+    return buildQueuedOutreachDraft(lead, options);
+  }
   if (mode === 'local') {
     try {
       return await buildLocalOutreachDraft(lead, options);
@@ -346,6 +359,7 @@ async function buildOutreachDraft(lead = {}, options = {}) {
 
 module.exports = {
   buildTemplateOutreachDraft,
+  buildQueuedOutreachDraft,
   buildLocalOutreachDraft,
   buildLlmOutreachDraft,
   buildOutreachDraft,

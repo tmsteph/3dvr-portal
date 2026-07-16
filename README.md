@@ -468,6 +468,9 @@ export THREEDVR_AUTOPILOT_CAMPAIGN_ID="2026-07-sd-free-page"
 export THREEDVR_AUTOPILOT_CAMPAIGN_START="2026-07-15"
 export THREEDVR_AUTOPILOT_CAMPAIGN_END="2026-07-21"
 export THREEDVR_AUTOPILOT_PAUSED="true"
+export THREEDVR_AUTOPILOT_QUALITY_GATE="true"
+export THREEDVR_AUTOPILOT_DRAFT_QUEUE="true"
+export THREEDVR_OUTREACH_PREVIEW_BASE_URL="https://portal.3dvr.tech/free-page/preview/"
 export THREEDVR_OUTREACH_OFFER_PROFILE="free-page"
 export THREEDVR_OUTREACH_POSTAL_ADDRESS="your valid business postal address"
 ```
@@ -476,6 +479,23 @@ export THREEDVR_OUTREACH_POSTAL_ADDRESS="your valid business postal address"
 and publishing sales summaries while `THREEDVR_AUTOPILOT_PAUSED=true`. Successful sends are also capped across every
 run for the UTC day and across the named campaign. Previously contacted names and addresses in the outreach log are
 suppressed automatically.
+
+With the quality gate enabled, the sender checks the selected lead's live website immediately before queueing or sending.
+Sparse and placeholder pages may proceed; substantial, blocked, unreachable, and uncertain sites fail closed for operator
+review. With the draft queue enabled, a qualified lead receives an opaque personalized preview link and a pending brief in
+`thomas-agent/state/outreach-drafts/`. The campaign does not send that lead until Codex or OpenClaw returns a draft that
+passes the recipient, preview-link, word-count, claim, disclosure, postal-address, and opt-out validators.
+
+```sh
+ask-draft-queue pending
+ask-draft-queue show <draft-id>
+ask-draft-queue complete <draft-id> --text-file /path/to/reviewed-draft.txt
+ask-draft-queue reject <draft-id> --reason "Lead is not a fit"
+```
+
+The existing daily/campaign caps and successful-recipient suppression still run after draft validation. Preview URLs never
+contain the recipient email. The preview page records explicit view and claim events under an opaque recipient ID; it does
+not use a tracking pixel.
 
 Commercial outreach is blocked unless `THREEDVR_OUTREACH_POSTAL_ADDRESS` is configured. Outbound drafts include an
 advertisement disclosure, the postal address, and a reply-based unsubscribe instruction. Do not use a sample address.
