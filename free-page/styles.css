@@ -17,9 +17,11 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
+  overflow-x: clip;
   min-height: 100vh;
   margin: 0;
   color: var(--free-ink);
@@ -74,6 +76,22 @@ main,
 footer {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
+}
+
+.site-header > *,
+.hero > *,
+.brief-section > *,
+.handoff > *,
+.keep-live > * {
+  min-width: 0;
+}
+
+h1,
+h2,
+p,
+a,
+label {
+  overflow-wrap: anywhere;
 }
 
 .site-header {
@@ -433,5 +451,41 @@ footer {
 
   .hero {
     padding-top: 28px;
+  }
+}
+
+@media (max-width: 360px) {
+  .site-header,
+  main,
+  footer {
+    width: min(100% - 24px, 1120px);
+  }
+
+  .site-header {
+    padding-top: 16px;
+  }
+
+  .hero-copy,
+  .proof-card,
+  .brief-card,
+  .handoff,
+  .keep-live,
+  .operator-note {
+    padding: 1.1rem;
+    border-radius: 24px;
+  }
+
+  h1 {
+    font-size: clamp(2.55rem, 16vw, 3.4rem);
+  }
+
+  h2 {
+    font-size: clamp(2rem, 12vw, 2.6rem);
+  }
+
+  .hero-actions .button,
+  .handoff > .button,
+  .keep-live > .button {
+    width: 100%;
   }
 }

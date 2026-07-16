@@ -6,6 +6,8 @@ const html = await readFile(new URL('../free-page/index.html', import.meta.url),
 const script = await readFile(new URL('../free-page/app.js', import.meta.url), 'utf8');
 const previewHtml = await readFile(new URL('../free-page/preview/index.html', import.meta.url), 'utf8');
 const previewScript = await readFile(new URL('../free-page/preview/app.js', import.meta.url), 'utf8');
+const styles = await readFile(new URL('../free-page/styles.css', import.meta.url), 'utf8');
+const previewStyles = await readFile(new URL('../free-page/preview/styles.css', import.meta.url), 'utf8');
 
 test('free page offer presents the tiny website starter offer', () => {
   assert.match(html, /I.ll make you a clean one-page website for free/);
@@ -31,6 +33,17 @@ test('personalized preview is noindex, safely client-rendered, and tracks explic
   assert.match(previewScript, /track\('preview_view'\)/);
   assert.match(previewScript, /track\('claim_intent'\)/);
   assert.doesNotMatch(previewScript, /innerHTML/);
+  assert.match(previewHtml, /Business offer from/);
+  assert.doesNotMatch(previewHtml, /Advertisement from/);
+});
+
+test('free page layouts contain folded-phone overflow guards', () => {
+  for (const css of [styles, previewStyles]) {
+    assert.match(css, /overflow-x:\s*clip/);
+    assert.match(css, /@media \(max-width: 360px\)/);
+    assert.match(css, /overflow-wrap:\s*anywhere/);
+    assert.match(css, /min-width:\s*0/);
+  }
 });
 
 test('free page brief builds an email handoff without backend dependencies', () => {
