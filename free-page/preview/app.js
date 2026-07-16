@@ -9,10 +9,17 @@ const business = clean(params.get('name'), 80) || 'your business';
 const focus = clean(params.get('focus'), 180)
   || 'A focused page can make your main service and best contact path obvious.';
 const action = clean(params.get('action'), 40) || 'Get in touch';
+const fragment = new URLSearchParams(window.location.hash.slice(1));
+const contactEmail = validEmail(fragment.get('email'));
 const analyticsClient = createFreePageAnalyticsClient();
 
 function clean(value, limit) {
   return String(value || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, limit);
+}
+
+function validEmail(value) {
+  const email = clean(value, 254).toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
 }
 
 function slug(value) {
@@ -46,6 +53,19 @@ document.querySelector('[data-headline]').textContent = `${business}, made easie
 document.querySelector('[data-focus]').textContent = focus;
 document.querySelector('[data-action]').textContent = action;
 document.title = `${business} website preview | 3DVR`;
+
+const contactButton = document.querySelector('#contactButton');
+if (contactEmail) {
+  const contactSubject = `Website inquiry for ${business}`;
+  const contactBody = `Hi,\n\nI'm interested in learning more about ${business}.`;
+  contactButton.href = `mailto:${contactEmail}?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`;
+  contactButton.setAttribute('aria-label', `${action} by email`);
+  document.querySelector('#contactNote').textContent = 'The contact button above opens an email to you. Reply to Thomas to adjust the copy, colors, or next step before anything goes public.';
+} else {
+  contactButton.classList.add('is-preview-only');
+  contactButton.setAttribute('aria-disabled', 'true');
+  contactButton.setAttribute('title', 'Preview button');
+}
 
 const claimButton = document.querySelector('#claimButton');
 const subject = `Claiming the free one-page draft for ${business}`;

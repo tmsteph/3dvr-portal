@@ -40,7 +40,9 @@ h1 { margin: 12px 0 20px; font-size: clamp(2.25rem, 6vw, 5rem); line-height: 1.0
 .mock-kicker { color: #247c65; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; font-size: .75rem; }
 .mock-hero h2 { margin: 12px 0; font: 700 clamp(2.2rem, 7vw, 5.5rem)/.98 Georgia, serif; letter-spacing: -.04em; }
 .mock-hero > p:not(.mock-kicker) { max-width: 600px; color: #52606d; font-size: 1.1rem; }
-.mock-button { display: inline-block; margin-top: 18px; padding: 12px 20px; border-radius: 999px; background: #173f4f; color: white; font-weight: 800; }
+.mock-button { display: inline-block; margin-top: 18px; padding: 12px 20px; border-radius: 999px; background: #173f4f; color: white; font-weight: 800; text-decoration: none; }
+.mock-button[href]:hover, .mock-button[href]:focus-visible { background: #247c65; }
+.mock-button.is-preview-only { cursor: default; }
 .mock-proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .mock-proof article { display: grid; gap: 6px; padding-top: 18px; border-top: 1px solid #cbd5d1; }
 .mock-proof span { color: #68747d; }
