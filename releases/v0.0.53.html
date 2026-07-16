@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.53 (Week of July 6, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.52.html">Previous release</a>
+    <a class="release-nav-link" href="v0.0.54.html">Next release</a>
+  </nav>
+  <h1>Release v0.0.53</h1>
+  <div class="tag">Week of July 6, 2026</div>
+  <div class="release-summary">
+    <p>
+      This week turned the portal into a more focused operating surface: a clear free-page offer, a guarded
+      Money Printer workflow, a calmer homepage, and a stronger set of small games and opportunity tools.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Money Printer becomes an operating loop:</strong>
+        <a href="../growth-desk/">Growth Desk</a>, <a href="../money-printer/">Money Printer</a>, and
+        <a href="../offer-garden/">Offer Garden</a> gained review queues, self-review, evidence-rich reports,
+        safe proposal branches, operator email actions, scheduled improvement, and an outbound queue across
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1029">PR #1029</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1035">#1035</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1036">#1036</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1038">#1038</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1042">#1042</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1043">#1043</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1044">#1044</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1046">#1046</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1052">#1052</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1055">#1055</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1056">#1056</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1117">#1117</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1120">#1120</a>.
+      </li>
+      <li>
+        <strong>A direct microbusiness offer:</strong>
+        the Microbusiness Launch Sprint and <a href="../free-page/">Free Page</a> starter offer landed in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1096">PR #1096</a> and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1099">PR #1099</a>, backed by a practical outreach
+        script in <a href="https://github.com/tmsteph/3dvr-portal/pull/1081">PR #1081</a>.
+      </li>
+      <li>
+        <strong>A quieter, clearer portal shell:</strong>
+        navigation, guest identity, desktop recovery, logo scale, and the interactive portal spinner were refined
+        in <a href="https://github.com/tmsteph/3dvr-portal/pull/1105">PR #1105</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1112">PR #1112</a>. Core laptop workspaces were
+        compacted in <a href="https://github.com/tmsteph/3dvr-portal/pull/1122">PR #1122</a>, and the homepage
+        now asks people to start small and pick one next step.
+      </li>
+      <li>
+        <strong>Games gained depth and variety:</strong>
+        <a href="../signal-garden/">Signal Garden</a> joined the portal, while
+        <a href="../games.html">Game Hub</a>, Zero-G Ski Range, <a href="../pong.html">Pong</a>, and
+        <a href="../orbital-courier/">Orbital Courier</a> received focused control, layout, and world-building
+        passes in <a href="https://github.com/tmsteph/3dvr-portal/pull/1123">PR #1123</a> and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1127">PR #1127</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1131">PR #1131</a>.
+      </li>
+      <li>
+        <strong>Opportunity onboarding:</strong>
+        <a href="../career-launch/">Career Launch</a> gained career and opportunity onboarding in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1132">PR #1132</a>. A misplaced pilot document was
+        deliberately reverted in <a href="https://github.com/tmsteph/3dvr-portal/pull/1137">PR #1137</a> without
+        removing the product flow.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Operational notes</h2>
+    <p>
+      Recurring autonomous operator reports were published throughout the week, making the Money Printer's work
+      inspectable without presenting every scheduled report as a separate product feature. This release covers
+      product work merged from <a href="https://github.com/tmsteph/3dvr-portal/pull/1025">PR #1025</a> through
+      <a href="https://github.com/tmsteph/3dvr-portal/pull/1143">PR #1143</a>.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
