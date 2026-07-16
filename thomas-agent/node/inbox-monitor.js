@@ -1,4 +1,5 @@
 const fs = require('fs');
+const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -6,6 +7,7 @@ const { ImapFlow } = require('imapflow');
 const { getOAuthAccessToken } = require('./oauth-connection');
 const { appendContactFooter, buildContactFooter } = require('./contact-footer');
 const { appendOutreachLog, readOutreachLog } = require('./outreach-log');
+const { buildPersonalizedPreviewUrl } = require('./outreach-draft-queue');
 const {
   claimLease,
   isHandled,
@@ -49,6 +51,9 @@ const DEFAULT_AUTO_REPLY_DELAY_MODE = normalizeText(process.env.THREEDVR_INBOX_A
 const DEFAULT_PUBLIC_AUTO_REPLY = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY || '').trim());
 const DEFAULT_PUBLIC_AUTO_REPLY_SUBJECT_TOKEN = normalizeText(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY_SUBJECT || '3dvr-agent').toLowerCase();
 const DEFAULT_PUBLIC_AUTO_REPLY_LIMIT = parseInteger(process.env.THREEDVR_INBOX_PUBLIC_AUTO_REPLY_LIMIT, DEFAULT_AUTO_REPLY_LIMIT);
+const DEFAULT_FREE_DESIGN_AUTO_REPLY = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_INBOX_FREE_DESIGN_AUTO_REPLY || '').trim());
+const DEFAULT_FREE_DESIGN_SUBJECT_TOKEN = normalizeText(process.env.THREEDVR_INBOX_FREE_DESIGN_SUBJECT || 'free web design').toLowerCase();
+const DEFAULT_FREE_DESIGN_AUTO_REPLY_LIMIT = parseInteger(process.env.THREEDVR_INBOX_FREE_DESIGN_AUTO_REPLY_LIMIT, 1);
 const DEFAULT_REPLY_SENDER_NAME = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME || 'Thomas at 3dvr.tech');
 const DEFAULT_REPLY_SENDER_EMAIL = normalizeEmail(
   process.env.THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL
@@ -194,6 +199,9 @@ Environment:
   THREEDVR_INBOX_PUBLIC_AUTO_REPLY              true to reply to public subject-gated requests
   THREEDVR_INBOX_PUBLIC_AUTO_REPLY_SUBJECT      required subject token, default 3dvr-agent
   THREEDVR_INBOX_PUBLIC_AUTO_REPLY_LIMIT        max public automated replies per run
+  THREEDVR_INBOX_FREE_DESIGN_AUTO_REPLY         true to reply to free web design requests
+  THREEDVR_INBOX_FREE_DESIGN_SUBJECT            required subject token, default free web design
+  THREEDVR_INBOX_FREE_DESIGN_AUTO_REPLY_LIMIT   max free-design replies per run, default 1
   THREEDVR_INBOX_AUTO_REPLY_SENDER_NAME         default Thomas at 3dvr.tech
   THREEDVR_INBOX_AUTO_REPLY_SENDER_EMAIL        default 3dvr.tech@gmail.com
   THREEDVR_INBOX_REPLY_MODE                     local | openai | llm | template, default local
@@ -597,7 +605,10 @@ function upsertMessageState(state, message, lead, options = {}) {
   }
   const shouldScheduleReply = lead
     ? DEFAULT_AUTO_REPLY
-    : Boolean(options.publicAgent && DEFAULT_PUBLIC_AUTO_REPLY);
+    : Boolean(
+      (options.publicAgent && DEFAULT_PUBLIC_AUTO_REPLY)
+      || (options.freeDesign && DEFAULT_FREE_DESIGN_AUTO_REPLY)
+    );
   if (!existing.dueAt && shouldScheduleReply) {
     const delayMinutes = chooseDelayMinutes(message, lead);
     const dueAt = new Date(Date.now() + delayMinutes * 60 * 1000);
@@ -609,6 +620,9 @@ function upsertMessageState(state, message, lead, options = {}) {
   existing.leadName = lead?.name || existing.leadName || '';
   if (options.publicAgent) {
     existing.publicAgent = true;
+  }
+  if (options.freeDesign) {
+    existing.freeDesign = true;
   }
   state.messages[message.messageId] = existing;
   return existing;
@@ -717,6 +731,110 @@ function isPublicAgentMessage(message) {
   if (looksLikeBounce(message)) return false;
   if (looksLikeAutomatedSender(message)) return false;
   return Boolean(normalizeEmail(message?.replyToEmail) || normalizeEmail(message?.fromEmail));
+}
+
+function subjectMatchesFreeDesignGate(message, token = DEFAULT_FREE_DESIGN_SUBJECT_TOKEN) {
+  const needle = normalizeText(token).toLowerCase();
+  if (!needle) return false;
+  return normalizeText(message?.subject).toLowerCase().includes(needle);
+}
+
+function isFreeDesignMessage(message) {
+  if (!subjectMatchesFreeDesignGate(message)) return false;
+  if (looksLikeBounce(message)) return false;
+  if (looksLikeAutomatedSender(message)) return false;
+  return Boolean(normalizeEmail(message?.replyToEmail) || normalizeEmail(message?.fromEmail));
+}
+
+function cleanRequestedWebsite(value) {
+  let candidate = normalizeText(value).replace(/[),.;!?]+$/g, '');
+  if (!candidate) return '';
+  if (!/^https?:\/\//i.test(candidate)) candidate = `https://${candidate}`;
+  try {
+    const url = new URL(candidate);
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
+    if (!hostname.includes('.') || hostname === '3dvr.tech' || hostname.endsWith('.3dvr.tech')) return '';
+    if (/^(localhost|127\.|0\.|10\.|192\.168\.|169\.254\.)/.test(hostname)) return '';
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
+function extractRequestedWebsite(message) {
+  const text = `${normalizeText(message?.subject)} ${normalizeText(message?.preview)}`
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ');
+  const matches = [
+    ...(text.match(/https?:\/\/[^\s<>"']+/gi) || []),
+    ...(text.match(/\bwww\.[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s<>"']*)?/gi) || []),
+    ...(text.match(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi) || []),
+  ];
+  for (const match of matches) {
+    const website = cleanRequestedWebsite(match);
+    if (website) return website;
+  }
+  return '';
+}
+
+function businessNameFromWebsite(website) {
+  if (!website) return 'your business';
+  try {
+    const hostname = new URL(website).hostname.toLowerCase().replace(/^www\./, '');
+    const label = hostname.split('.')[0].replace(/[-_]+/g, ' ').trim();
+    return label ? label.replace(/\b\w/g, character => character.toUpperCase()).slice(0, 80) : 'your business';
+  } catch {
+    return 'your business';
+  }
+}
+
+function buildFreeDesignReplyDraft(message, state = { messages: {} }) {
+  const greeting = firstName(message.from, message.fromEmail);
+  const website = extractRequestedWebsite(message);
+  if (!website) {
+    return {
+      headline: 'Send the website you want redesigned.',
+      text: ensureReplyContactFooter([
+        `Hi ${greeting},`,
+        '',
+        'I can make a free one-page web design for you.',
+        'Reply with your current website URL (or the business name if you do not have a site yet) and the main action you want visitors to take.',
+      ].join('\n')),
+      source: 'free-design-intake',
+      website: '',
+      previewUrl: '',
+    };
+  }
+
+  const messageId = normalizeText(message.messageId) || `${message.fromEmail}|${message.subject}`;
+  const meta = state.messages?.[message.messageId] || {};
+  if (!meta.freeDesignRecipientId) {
+    meta.freeDesignRecipientId = `inbound-${crypto.randomBytes(12).toString('hex')}`;
+  }
+  if (state.messages && message.messageId) state.messages[message.messageId] = meta;
+  const businessName = businessNameFromWebsite(website);
+  const previewUrl = buildPersonalizedPreviewUrl({
+    recipientId: meta.freeDesignRecipientId,
+    name: businessName,
+    focus: `A clearer one-page direction based on ${new URL(website).hostname}.`,
+    action: 'Get in touch',
+  });
+
+  return {
+    headline: `Your free ${businessName} web design is ready.`,
+    text: ensureReplyContactFooter([
+      `Hi ${greeting},`,
+      '',
+      `I put together a free one-page web design direction for ${businessName}:`,
+      previewUrl,
+      '',
+      'There is no charge and no obligation to use it. If you want it turned into a finished page, reply with what you like, what you would change, and the best way customers should contact you.',
+    ].join('\n')),
+    source: 'free-design-preview',
+    website,
+    previewUrl,
+  };
 }
 
 function firstName(name, email) {
@@ -1370,6 +1488,54 @@ async function sendPublicAgentReply(message, state) {
   };
 }
 
+async function sendFreeDesignReply(message, state) {
+  if (!DEFAULT_PORTAL_EMAIL_ENDPOINT) return { ok: false, reason: 'portal email endpoint not configured' };
+  if (!DEFAULT_PORTAL_EMAIL_TOKEN) return { ok: false, reason: 'portal email token not configured' };
+  const draft = buildFreeDesignReplyDraft(message, state);
+
+  let response;
+  try {
+    response = await fetchWithTimeout(DEFAULT_PORTAL_EMAIL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
+      },
+      body: JSON.stringify({
+        mode: 'lead-outreach',
+        to: [message.replyToEmail || message.fromEmail],
+        subject: buildReplySubject(message.subject),
+        headline: draft.headline,
+        text: draft.text,
+        senderName: DEFAULT_REPLY_SENDER_NAME,
+        senderEmail: DEFAULT_REPLY_SENDER_EMAIL,
+        inReplyTo: message.messageId,
+        references: buildReferences(message),
+        metadata: {
+          replySource: draft.source,
+          replyMode: 'free-design',
+          requestedWebsite: draft.website,
+          previewUrl: draft.previewUrl,
+        },
+      }),
+    });
+  } catch (error) {
+    return { ok: false, reason: error.message || String(error) };
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    return { ok: false, reason: payload?.error || `portal free-design reply failed: ${response.status}`, status: response.status };
+  }
+  return {
+    ok: true,
+    status: response.status,
+    to: message.replyToEmail || message.fromEmail,
+    subject: buildReplySubject(message.subject),
+    replySource: draft.source,
+  };
+}
+
 function actionIdForMessage(kind, message) {
   return [
     kind,
@@ -1512,6 +1678,22 @@ function pickPublicAgentAutoReplyCandidates(messages, leadMap, state) {
     .slice(0, Math.max(0, DEFAULT_PUBLIC_AUTO_REPLY_LIMIT));
 }
 
+function pickFreeDesignAutoReplyCandidates(messages, leadMap, state) {
+  if (!DEFAULT_FREE_DESIGN_AUTO_REPLY) return [];
+  return messages
+    .map((message) => {
+      const existingLead = leadMap.get(message.replyToEmail) || leadMap.get(message.fromEmail);
+      if (existingLead || !isFreeDesignMessage(message)) return null;
+      const meta = state.messages[message.messageId];
+      if (!meta || !meta.dueAt || meta.autoRepliedAt) return null;
+      const dueAt = new Date(meta.dueAt).getTime();
+      if (!Number.isFinite(dueAt) || dueAt > Date.now()) return null;
+      return { message, meta };
+    })
+    .filter(Boolean)
+    .slice(0, Math.max(0, DEFAULT_FREE_DESIGN_AUTO_REPLY_LIMIT));
+}
+
 function pickReplyPreviewCandidates(messages, leadMap) {
   return messages
     .map((message) => {
@@ -1525,18 +1707,28 @@ function pickReplyPreviewCandidates(messages, leadMap) {
 function classifyInboxMessages(messages, leadMap) {
   const replyCandidates = pickReplyPreviewCandidates(messages, leadMap);
   const replyIds = new Set(replyCandidates.map(({ message }) => message.messageId));
-  const publicAgentCandidates = messages
+  const freeDesignCandidates = messages
     .filter((message) => !replyIds.has(message.messageId))
+    .filter((message) => isFreeDesignMessage(message));
+  const freeDesignIds = new Set(freeDesignCandidates.map((message) => message.messageId));
+  const publicAgentCandidates = messages
+    .filter((message) => !replyIds.has(message.messageId) && !freeDesignIds.has(message.messageId))
     .filter((message) => isPublicAgentMessage(message));
   const publicAgentIds = new Set(publicAgentCandidates.map((message) => message.messageId));
   const bounceCandidates = messages
     .filter((message) => looksLikeBounce(message))
     .filter((message) => !replyIds.has(message.messageId) && !publicAgentIds.has(message.messageId));
   const bounceIds = new Set(bounceCandidates.map((message) => message.messageId));
-  const otherUnread = messages.filter((message) => !replyIds.has(message.messageId) && !publicAgentIds.has(message.messageId) && !bounceIds.has(message.messageId));
+  const otherUnread = messages.filter((message) => (
+    !replyIds.has(message.messageId)
+    && !freeDesignIds.has(message.messageId)
+    && !publicAgentIds.has(message.messageId)
+    && !bounceIds.has(message.messageId)
+  ));
 
   return {
     replyCandidates,
+    freeDesignCandidates,
     publicAgentCandidates,
     bounceCandidates,
     otherUnread,
@@ -1544,16 +1736,18 @@ function classifyInboxMessages(messages, leadMap) {
 }
 
 function buildInboxTriage(messages, leadMap) {
-  const { replyCandidates, publicAgentCandidates, bounceCandidates, otherUnread } = classifyInboxMessages(messages, leadMap);
+  const { replyCandidates, freeDesignCandidates, publicAgentCandidates, bounceCandidates, otherUnread } = classifyInboxMessages(messages, leadMap);
   return {
     summary: {
       total: messages.length,
       replies: replyCandidates.length,
+      freeDesign: freeDesignCandidates.length,
       publicAgent: publicAgentCandidates.length,
       bounces: bounceCandidates.length,
       other: otherUnread.length,
     },
     replyCandidates,
+    freeDesignCandidates,
     publicAgentCandidates,
     bounceCandidates,
     otherUnread,
@@ -1564,6 +1758,7 @@ function printInboxTriage(messages, leadMap) {
   const triage = buildInboxTriage(messages, leadMap);
   console.log('\nInbox triage:');
   console.log(`- contacted replies: ${triage.summary.replies}`);
+  console.log(`- free web design requests: ${triage.summary.freeDesign}`);
   console.log(`- public 3dvr-agent requests: ${triage.summary.publicAgent}`);
   console.log(`- delivery failures: ${triage.summary.bounces}`);
   console.log(`- other unread: ${triage.summary.other}`);
@@ -1585,6 +1780,14 @@ function printInboxTriage(messages, leadMap) {
       if (message.preview) {
         console.log(`  ${message.preview}`);
       }
+    }
+  }
+
+  if (triage.freeDesignCandidates.length) {
+    console.log('\nFree web design requests:');
+    for (const message of triage.freeDesignCandidates.slice(0, 5)) {
+      console.log(`- ${message.from} | ${message.subject}`);
+      if (message.preview) console.log(`  ${message.preview}`);
     }
   }
 
@@ -1659,6 +1862,7 @@ async function main() {
     metadata: {
       mailbox: DEFAULT_MAILBOX,
       publicAutoReply: DEFAULT_PUBLIC_AUTO_REPLY,
+      freeDesignAutoReply: DEFAULT_FREE_DESIGN_AUTO_REPLY,
       leadAutoReply: DEFAULT_AUTO_REPLY,
     },
   }).catch((error) => {
@@ -1669,8 +1873,10 @@ async function main() {
 
   unread.forEach((message) => {
     const lead = contactedLeadMap.get(message.replyToEmail) || contactedLeadMap.get(message.fromEmail);
+    const freeDesign = !lead && isFreeDesignMessage(message);
     upsertMessageState(state, message, lead, {
-      publicAgent: !lead && isPublicAgentMessage(message),
+      freeDesign,
+      publicAgent: !lead && !freeDesign && isPublicAgentMessage(message),
     });
     if (lead && !options.dryRun) {
       const feedback = recordLeadReplyFeedback(message, lead, state);
@@ -1789,6 +1995,39 @@ async function main() {
     }
   }
 
+  const freeDesignAutoReplyCandidates = pickFreeDesignAutoReplyCandidates(unread, contactedLeadMap, state);
+  if (DEFAULT_FREE_DESIGN_AUTO_REPLY && freeDesignAutoReplyCandidates.length) {
+    if (!canSendAutoReply(state)) {
+      console.log('Free-design auto-reply waiting for the minimum gap window.');
+    } else if (options.dryRun) {
+      for (const { message, meta } of freeDesignAutoReplyCandidates) {
+        const draft = buildFreeDesignReplyDraft(message, state);
+        console.log('\nDry run free-design auto-reply preview:\n');
+        console.log(`Due at: ${meta.dueAt}`);
+        console.log(`To: ${message.replyToEmail || message.fromEmail}`);
+        console.log(`Subject: ${buildReplySubject(message.subject)}`);
+        console.log(`Headline: ${draft.headline}`);
+        console.log(draft.text);
+      }
+    } else {
+      for (const { message, meta } of freeDesignAutoReplyCandidates) {
+        if (!canSendAutoReply(state)) break;
+        const result = await sendCoordinatedReply('inbox-free-design-reply', message, () => sendFreeDesignReply(message, state));
+        if (result.skipped) {
+          console.log(`Skipped free-design auto-reply from ${message.fromEmail}: ${result.reason}`);
+          continue;
+        }
+        if (!result.ok) {
+          console.warn(result.reason || `Unable to reply to free-design request from ${message.from}`);
+          continue;
+        }
+        meta.autoRepliedAt = new Date().toISOString();
+        state.lastAutoReplyAt = meta.autoRepliedAt;
+        console.log(`Sent free-design reply to ${message.fromEmail} -> ${result.to} (${result.replySource})`);
+      }
+    }
+  }
+
   const bounceResult = await handleBounceMessages(unread, state);
   if (bounceResult?.ok) {
     console.log(`Alerted ${bounceResult.to} about delivery failure(s).`);
@@ -1808,6 +2047,7 @@ module.exports = {
   buildReplyText,
   buildPublicAgentReplyDraft,
   buildPublicAgentReplyText,
+  buildFreeDesignReplyDraft,
   actionIdForMessage,
   replyContactFooter,
   ensureReplyContactFooter,
@@ -1820,11 +2060,15 @@ module.exports = {
   printInboxTriage,
   detectReplyIntent,
   isPublicAgentMessage,
+  isFreeDesignMessage,
   looksLikeAutomatedSender,
   subjectMatchesPublicAgentGate,
+  subjectMatchesFreeDesignGate,
+  extractRequestedWebsite,
   extractBounceEmails,
   looksLikeBounce,
   pickPublicAgentAutoReplyCandidates,
+  pickFreeDesignAutoReplyCandidates,
   pickReplyPreviewCandidates,
   printReplyPreviews,
   sendCoordinatedReply,

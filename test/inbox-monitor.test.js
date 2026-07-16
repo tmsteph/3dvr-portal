@@ -12,8 +12,11 @@ const {
   updateLeadStatusByEmail,
   buildBounceAlert,
   isPublicAgentMessage,
+  isFreeDesignMessage,
+  extractRequestedWebsite,
   looksLikeAutomatedSender,
   subjectMatchesPublicAgentGate,
+  subjectMatchesFreeDesignGate,
   recordLeadReplyFeedback,
 } = require('../thomas-agent/node/inbox-monitor');
 
@@ -27,6 +30,43 @@ test('detects bounce mail and extracts candidate addresses', () => {
 
   assert.equal(looksLikeBounce(message), true);
   assert.deepEqual(extractBounceEmails(message), ['hello@example.com']);
+});
+
+test('triages subject-gated free web design requests and extracts a safe website', () => {
+  const request = {
+    messageId: 'design-1',
+    from: 'Avery Owner <avery@example.com>',
+    fromEmail: 'avery@example.com',
+    replyToEmail: '',
+    subject: 'Free web design for my business',
+    preview: 'Please redesign https://www.acme-studio.com/services for us.',
+  };
+
+  const triage = classifyInboxMessages([request], new Map());
+  assert.equal(subjectMatchesFreeDesignGate(request), true);
+  assert.equal(isFreeDesignMessage(request), true);
+  assert.equal(extractRequestedWebsite(request), 'https://www.acme-studio.com/services');
+  assert.equal(triage.freeDesignCandidates.length, 1);
+  assert.equal(triage.publicAgentCandidates.length, 0);
+  assert.equal(triage.otherUnread.length, 0);
+});
+
+test('free web design intake ignores automated senders and the 3dvr.tech site', () => {
+  const automated = {
+    from: 'Notifications <notifications@example.com>',
+    fromEmail: 'notifications@example.com',
+    subject: 'Free web design',
+    preview: 'https://example.com',
+  };
+  const ownSite = {
+    from: 'Owner <owner@example.com>',
+    fromEmail: 'owner@example.com',
+    subject: 'Free web design',
+    preview: 'I saw this at https://portal.3dvr.tech/free-page/',
+  };
+
+  assert.equal(isFreeDesignMessage(automated), false);
+  assert.equal(extractRequestedWebsite(ownSite), '');
 });
 
 test('builds a bounce alert for the operator', () => {
