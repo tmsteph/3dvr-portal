@@ -1,10 +1,10 @@
-# Future Portal + Agent Monorepo Design
+# Portal + Agent Monorepo Design
 
-Status: future design; no migration is currently scheduled.
+Status: implemented July 16, 2026.
 
 ## Decision
 
-If `3dvr-agent` is consolidated into `3dvr-portal`, use an incremental monorepo layout. Keep the existing portal at the repository root and import the agent intact under `apps/agent`.
+`3dvr-agent` is consolidated into `3dvr-portal` with an incremental monorepo layout. The existing portal remains at the repository root and the agent lives under `apps/agent` with its prior Git history preserved.
 
 ```text
 3dvr-portal/
@@ -34,14 +34,14 @@ The asymmetric shape is intentional. A monorepo does not require moving every ap
 - Portal and agent secrets remain separate and never move into shared source-controlled configuration.
 - CI uses path filters: portal changes run portal checks, agent changes run agent checks, and cross-cutting changes run both.
 
-## Migration outline
+## Migration record
 
-1. Start from a fresh `origin/main` checkout and leave existing dirty worktrees untouched.
-2. Import the agent with Git history preserved under `apps/agent`.
-3. Add agent-only CI paths and root convenience commands without changing portal deployment behavior.
-4. Verify the complete agent and portal test suites from the combined repository.
-5. Prove the monorepo checkout on Hetzner before switching the active worker path.
-6. Archive the standalone `3dvr-agent` repository as read-only for a transition period; do not delete it.
+1. The migration started from a fresh `origin/main` checkout; existing dirty worktrees were left untouched.
+2. The agent was imported with Git history preserved under `apps/agent`.
+3. Agent-only CI paths and root convenience commands were added without changing the portal's Vercel project root.
+4. Vercel excludes `apps/agent` from the public deployment; the worker remains a separate runtime.
+5. The combined portal and agent suites must pass before the production worker checkout changes.
+6. The standalone `3dvr-agent` repository remains read-only during the transition and is not deleted.
 
 ## Deferred work
 
@@ -59,6 +59,6 @@ packages/
 
 Moving the portal into `apps/portal` is explicitly deferred because it would change Vercel roots, imports, scripts, CI paths, and other established assumptions. The agent can also be separated later by extracting the history of `apps/agent`.
 
-## Trigger to revisit
+## Future review
 
-Revisit this design when atomic portal-and-agent changes are common enough that coordinating two repositories creates material release friction. Until then, keep both repositories operationally independent.
+Revisit the layout only when a concrete shared boundary justifies a package extraction or when moving the portal under `apps/portal` produces more benefit than deployment risk.

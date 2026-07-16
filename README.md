@@ -5,6 +5,20 @@
 
 ---
 
+## Repository layout
+
+The customer-facing portal remains at the repository root so its Vercel deployment is unchanged. The separately deployed 3dvr operator and CLI live in [`apps/agent`](apps/agent/README.md).
+
+```text
+3dvr-portal/
+├── apps/agent/   # 3dvr CLI and Hetzner workers
+├── api/          # portal serverless APIs
+├── tests/        # portal tests
+└── ...           # portal pages and assets
+```
+
+Run `npm test` for the portal, `npm run test:agent` for the agent, or `npm run test:all` for both. The two applications share Git history but keep separate dependencies, environment files, processes, and deployments.
+
 ## What is 3DVR Portal?
 
 The **3DVR Portal** is the entry point and central hub for the 3DVR community: a decentralized, open-source platform where people come together to:

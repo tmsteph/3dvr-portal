@@ -1,4 +1,6 @@
-# 3dvr-agent
+# 3dvr agent
+
+This package lives in `apps/agent` inside the [3dvr-portal monorepo](https://github.com/tmsteph/3dvr-portal). It remains a separate runtime with its own dependencies, configuration, tests, and Hetzner worker processes.
 
 A local command-line system for:
 - building apps with AI
@@ -21,10 +23,10 @@ See [Autonomous-After-Ignition Business](docs/autonomous-after-ignition-business
 One-command install on Debian, Termux, WSL, or macOS:
 
 ```sh
-curl -Ls https://raw.githubusercontent.com/tmsteph/3dvr-agent/main/install.sh | bash
+curl -Ls https://portal.3dvr.tech/install-agent | bash
 ```
 
-The installer clones or updates the repo at `~/.3dvr/agent`, installs Node dependencies, creates
+The installer clones or updates the portal monorepo at `~/.3dvr/portal`, installs the agent dependencies from `apps/agent`, creates
 `~/.3dvr/config/env`, and links `3dvr` into `~/.local/bin` or `$PREFIX/bin` on Termux.
 
 After install:
@@ -45,8 +47,8 @@ npm install -g 3dvr-agent
 From a local checkout:
 
 ```sh
-git clone https://github.com/tmsteph/3dvr-agent.git
-cd 3dvr-agent
+git clone https://github.com/tmsteph/3dvr-portal.git
+cd 3dvr-portal/apps/agent
 ./install.sh
 3dvr setup
 ```
@@ -67,9 +69,10 @@ Installer configuration:
 
 ```sh
 THREEDVR_HOME="$HOME/.3dvr" ./install.sh
-THREEDVR_AGENT_DIR="$HOME/3dvr-agent" ./install.sh
+THREEDVR_REPO_DIR="$HOME/3dvr-portal" ./install.sh
+THREEDVR_AGENT_DIR="$HOME/3dvr-portal/apps/agent" ./install.sh
 THREEDVR_BIN_DIR="$HOME/.local/bin" ./install.sh
-THREEDVR_AGENT_REPO="https://github.com/tmsteph/3dvr-agent.git" ./install.sh
+THREEDVR_AGENT_REPO="https://github.com/tmsteph/3dvr-portal.git" ./install.sh
 ```
 
 ### 3dvr CLI
@@ -243,7 +246,7 @@ Phone-only leads are handled as manual call/text outreach, not as pages to open.
 - ask-self-yolo-agent → guarded self-edit helper with JSON patch edits and README section support
 - ask-self-yolo-loop → repeat the guarded self-edit helper
 - ask-self-update-agent → commit, push, and reinstall the agent repo
-- ask-rollback-agent → git reset --hard helper for the current repo
+- ask-rollback-agent → restore the agent package from an earlier Git revision without resetting portal files
 - ask-sales → outreach messages
 - ask-reply → reply messages
 - ask-post → simple posts

@@ -73,6 +73,9 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
   - Resolve conflicts, run focused tests, push `HEAD:BRANCH_NAME`, then retry `gh pr merge`.
 
 ## Deployment Topology
+- The repository is an asymmetric monorepo: the Vercel portal remains at the root and the separately deployed Hetzner agent lives in `apps/agent`.
+- Keep `apps/agent` excluded from Vercel output. Agent changes use their own dependency install, test workflow, environment, and worker cutover.
+- For agent-specific instructions, follow `apps/agent/AGENTS.md`.
 - Keep `3dvr-portal` and `3dvr-web` on the same branch matrix:
   - `main` -> `portal.3dvr.tech` and `3dvr.tech`
   - `staging` -> `portal-staging.3dvr.tech` and `staging.3dvr.tech`

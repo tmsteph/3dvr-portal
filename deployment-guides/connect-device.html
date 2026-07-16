@@ -155,7 +155,7 @@ work</pre>
     function render() {
       const v = values();
       const fallback = fallbackBootstrap(v);
-      const command = `${installPrefix(v.platform)}curl -Ls https://raw.githubusercontent.com/tmsteph/3dvr-agent/main/install.sh | bash && export PATH="$HOME/.local/bin:$HOME/bin:$PATH" && if 3dvr device help >/dev/null 2>&1; then 3dvr device bootstrap --host ${shellQuote(v.host)} --user ${shellQuote(v.user)} --alias ${shellQuote(v.alias)}; else ${fallback}; fi`;
+      const command = `${installPrefix(v.platform)}curl -Ls https://3dvr.tech/install-agent | bash && export PATH="$HOME/.local/bin:$HOME/bin:$PATH" && if 3dvr device help >/dev/null 2>&1; then 3dvr device bootstrap --host ${shellQuote(v.host)} --user ${shellQuote(v.user)} --alias ${shellQuote(v.alias)}; else ${fallback}; fi`;
       bootstrapCommand.textContent = command;
       approveTemplate.textContent = `ssh ${v.alias}\n3dvr device approve "PASTE_PUBLIC_KEY_FROM_NEW_DEVICE"`;
     }

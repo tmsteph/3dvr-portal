@@ -123,5 +123,13 @@ test('runSelfUpdateAgent and rollback route git commands through injected hooks'
   });
   assert.equal(rollbackResult, 0);
   assert.deepEqual(calls.map((call) => call.kind), ['git', 'git', 'git', 'cmd']);
-  assert.deepEqual(rollbackCalls, [{ repo: '/tmp/agent-repo', args: ['reset', '--hard', 'HEAD~2'] }]);
+  assert.deepEqual(calls.filter((call) => call.kind === 'git').map((call) => call.args), [
+    ['add', '--', '.'],
+    ['commit', '--only', '-m', 'self-update-agent', '--', '.'],
+    ['push'],
+  ]);
+  assert.deepEqual(rollbackCalls, [{
+    repo: '/tmp/agent-repo',
+    args: ['restore', '--source', 'HEAD~2', '--staged', '--worktree', '--', '.'],
+  }]);
 });

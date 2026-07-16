@@ -1,5 +1,9 @@
 # Agent Guidance
 
+- This package lives at `apps/agent` in the `tmsteph/3dvr-portal` monorepo. Keep its dependencies, secrets, tests, and Hetzner processes isolated from the root Vercel portal.
+- Scope agent-only commits and automation to `apps/agent`; never stage or reset unrelated portal files from an agent maintenance command.
+- Run agent commands from this directory with `npm --prefix apps/agent ...` when starting at the repository root.
+
 - Assume other agents may be working in the same repo or on nearby branches.
 - Prefer dedicated worktrees for isolated work instead of sharing one checkout.
 - Pull and merge often so your branch stays close to `origin/main` and you do not build on stale context.

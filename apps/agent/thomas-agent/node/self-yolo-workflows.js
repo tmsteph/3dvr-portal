@@ -11,7 +11,7 @@ const {
   requestCompletion,
 } = require('./yolo-agent');
 
-const DEFAULT_REPO = process.env.THREEDVR_SELF_YOLO_REPO || path.join(os.homedir(), '3dvr-agent');
+const DEFAULT_REPO = process.env.THREEDVR_SELF_YOLO_REPO || path.resolve(__dirname, '..', '..');
 const DEFAULT_SERVER_URL = process.env.THREEDVR_YOLO_SERVER_URL || 'http://127.0.0.1:8080';
 const DEFAULT_MODEL = process.env.THREEDVR_YOLO_MODEL || 'Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q4_K_M';
 const DEFAULT_LLAMA_SERVER = process.env.THREEDVR_LLAMA_SERVER_BIN || path.join(process.env.HOME || '', 'llama.cpp', 'build', 'bin', 'llama-server');
@@ -462,8 +462,8 @@ Examples:
   const git = runtime.runGit || runGit;
   const command = runtime.runCommand || runCommand;
 
-  git(target.repoPath, ['add', target.relative]);
-  const commitRes = git(target.repoPath, ['commit', '-m', `self-yolo-agent: improve ${target.relative}`], {
+  git(target.repoPath, ['add', '--', target.relative]);
+  const commitRes = git(target.repoPath, ['commit', '--only', '-m', `self-yolo-agent: improve ${target.relative}`, '--', target.relative], {
     stdio: 'pipe',
   });
   if (commitRes.stdout || commitRes.stderr) {
@@ -537,7 +537,7 @@ async function runSelfUpdateAgent(argv = process.argv.slice(2), runtime = {}) {
 
 Examples:
   self-update-agent
-  self-update-agent --repo ~/3dvr-agent`);
+  self-update-agent --repo ~/3dvr-portal/apps/agent`);
     return 0;
   }
 
@@ -545,8 +545,8 @@ Examples:
   const git = runtime.runGit || runGit;
   const command = runtime.runCommand || runCommand;
   say('self-update-agent', 'syncing repo...');
-  git(repo, ['add', '.'], { stdio: 'pipe' });
-  git(repo, ['commit', '-m', 'self-update-agent'], { stdio: 'pipe' });
+  git(repo, ['add', '--', '.'], { stdio: 'pipe' });
+  git(repo, ['commit', '--only', '-m', 'self-update-agent', '--', '.'], { stdio: 'pipe' });
   say('self-update-agent', 'pushing...');
   const pushResult = git(repo, ['push'], { stdio: 'pipe' });
   if (pushResult.stdout || pushResult.stderr) {
@@ -575,9 +575,9 @@ Examples:
 
   const target = options.task || 'HEAD~1';
   const repo = options.repo || process.cwd();
-  console.log(`[rollback] resetting ${repo} to ${target}`);
+  console.log(`[rollback] restoring agent files in ${repo} from ${target}`);
   const git = runtime.runGit || runGit;
-  git(repo, ['reset', '--hard', target], { stdio: 'inherit' });
+  git(repo, ['restore', '--source', target, '--staged', '--worktree', '--', '.'], { stdio: 'inherit' });
   console.log('[rollback] done');
   return 0;
 }

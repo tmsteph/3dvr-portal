@@ -98,7 +98,7 @@ Email aliases:
 3dvr self-yolo-agent     guarded patch-edit helper for the agent repo
 3dvr self-yolo-loop      repeat the guarded self-edit helper
 3dvr self-update-agent   commit, push, and reinstall the agent repo
-3dvr rollback-agent      git reset --hard helper for the current repo
+3dvr rollback-agent      restore agent files from an earlier Git revision
 3dvr agent task          route a task to Codex, OpenClaw, Claude, OpenAI, or shell
 3dvr agent queue         enqueue/list remote server tasks
 3dvr agent worker        run queued tasks on this machine

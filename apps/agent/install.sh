@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${THREEDVR_AGENT_REPO:-https://github.com/tmsteph/3dvr-agent.git}"
+REPO_URL="${THREEDVR_AGENT_REPO:-https://github.com/tmsteph/3dvr-portal.git}"
+REPO_SUBDIR="apps/agent"
 INSTALL_HOME="${THREEDVR_HOME:-$HOME/.3dvr}"
-INSTALL_DIR="${THREEDVR_AGENT_DIR:-$INSTALL_HOME/agent}"
+REPO_DIR="${THREEDVR_REPO_DIR:-$INSTALL_HOME/portal}"
+INSTALL_DIR="${THREEDVR_AGENT_DIR:-$REPO_DIR/$REPO_SUBDIR}"
 CONFIG_DIR="$INSTALL_HOME/config"
 CONFIG_FILE="$CONFIG_DIR/env"
 SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"
@@ -66,23 +68,45 @@ install_repo() {
       log "Using current checkout at $INSTALL_DIR"
       return 0
     fi
+    if [ -z "${THREEDVR_AGENT_DIR:-}" ]; then
+      INSTALL_DIR="$script_root"
+      log "Using current checkout at $INSTALL_DIR"
+      return 0
+    fi
   fi
 
-  if [ -d "$INSTALL_DIR/.git" ]; then
-    log "Updating 3dvr-agent in $INSTALL_DIR"
-    git -C "$INSTALL_DIR" pull --ff-only
-    return 0
-  fi
-
-  if [ -e "$INSTALL_DIR" ]; then
-    log "$INSTALL_DIR exists but is not a git checkout."
-    log "Move it aside or set THREEDVR_AGENT_DIR to a different path."
+  if [ -n "${THREEDVR_AGENT_DIR:-}" ]; then
+    if [ -f "$INSTALL_DIR/package.json" ] && [ -x "$INSTALL_DIR/thomas-agent/scripts/3dvr" ]; then
+      log "Using agent source at $INSTALL_DIR"
+      return 0
+    fi
+    log "THREEDVR_AGENT_DIR must point to an existing apps/agent directory."
     exit 1
   fi
 
-  log "Cloning 3dvr-agent into $INSTALL_DIR"
-  mkdir -p "$(dirname "$INSTALL_DIR")"
-  git clone "$REPO_URL" "$INSTALL_DIR"
+  if [ -d "$REPO_DIR/.git" ]; then
+    log "Updating 3dvr-portal in $REPO_DIR"
+    git -C "$REPO_DIR" pull --ff-only
+    if [ ! -f "$INSTALL_DIR/package.json" ]; then
+      log "Agent package not found after update: $INSTALL_DIR"
+      exit 1
+    fi
+    return 0
+  fi
+
+  if [ -e "$REPO_DIR" ]; then
+    log "$REPO_DIR exists but is not a git checkout."
+    log "Move it aside or set THREEDVR_REPO_DIR to a different path."
+    exit 1
+  fi
+
+  log "Cloning 3dvr-portal into $REPO_DIR"
+  mkdir -p "$(dirname "$REPO_DIR")"
+  git clone "$REPO_URL" "$REPO_DIR"
+  if [ ! -f "$INSTALL_DIR/package.json" ]; then
+    log "Agent package not found after clone: $INSTALL_DIR"
+    exit 1
+  fi
 }
 
 install_node_deps() {
@@ -145,7 +169,7 @@ maybe_update_shell_path() {
 }
 
 main() {
-  log "Installing 3dvr-agent"
+  log "Installing the 3dvr agent from the portal monorepo"
   need_command git
   install_repo
   install_node_deps
