@@ -847,7 +847,8 @@ function buildFreeDesignReplyDraft(message, state = { messages: {} }) {
       recipientId: freeDesignRecipientId(message, state),
       name,
       focus: `A bold, clear one-page website about ${concept}.`,
-      action: `Explore ${name}`.slice(0, 40),
+      action: `Email about ${name}`.slice(0, 40),
+      contactEmail: message.fromEmail,
     });
     return {
       headline: `Your free ${name} web design is ready.`,
@@ -886,7 +887,8 @@ function buildFreeDesignReplyDraft(message, state = { messages: {} }) {
     recipientId: freeDesignRecipientId(message, state),
     name: businessName,
     focus: `A clearer one-page direction based on ${new URL(website).hostname}.`,
-    action: 'Get in touch',
+    action: `Email ${businessName}`.slice(0, 40),
+    contactEmail: message.fromEmail,
   });
 
   return {

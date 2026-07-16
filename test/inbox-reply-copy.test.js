@@ -62,6 +62,9 @@ test('builds a personalized free web design reply when a website is supplied', (
   assert.equal(draft.website, 'https://www.acme-studio.com/');
   assert.match(draft.headline, /Acme Studio web design is ready/i);
   assert.match(draft.previewUrl, /^https:\/\/portal\.3dvr\.tech\/free-page\/preview\/\?r=inbound-/);
+  const preview = new URL(draft.previewUrl);
+  assert.equal(preview.searchParams.has('email'), false);
+  assert.equal(new URLSearchParams(preview.hash.slice(1)).get('email'), 'avery@example.com');
   assert.match(draft.text, new RegExp(draft.previewUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(draft.text, /no charge and no obligation/i);
   assert.match(draft.text, /3dvr\.tech@gmail\.com/);
@@ -101,6 +104,9 @@ test('builds a concept preview from a plain-language free design request', () =>
   const preview = new URL(draft.previewUrl);
   assert.equal(preview.searchParams.get('name'), 'Robots');
   assert.equal(preview.searchParams.get('focus'), 'A bold, clear one-page website about robots.');
+  assert.equal(preview.searchParams.get('action'), 'Email about Robots');
+  assert.equal(preview.searchParams.has('email'), false);
+  assert.equal(new URLSearchParams(preview.hash.slice(1)).get('email'), 'avery@example.com');
   assert.match(draft.text, new RegExp(draft.previewUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
