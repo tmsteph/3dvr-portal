@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
+
+if [ ! -f "$FILE" ]; then
+  echo "No leads file found."
+  exit 1
+fi
+
+echo "== Follow-up Leads =="
+awk -F, 'NR==1 {next} $4=="contacted" {print}' "$FILE" | column -s, -t
+
+if ! awk -F, 'NR>1 && $4=="contacted" {found=1} END{exit !found}' "$FILE"; then
+  echo "No contacted leads waiting for follow-up."
+fi

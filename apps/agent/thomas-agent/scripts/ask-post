@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+printf '%s\n' \
+'I help small businesses fix websites and tech for $20/month.' \
+'Most people just need a few things fixed to start getting results.' \
+'I keep it simple, no big rebuilds or complicated setups.' \
+'If your site or tech feels stuck, I can help move it forward.' \
+'Happy to take a quick look and suggest the easiest next step.' \
+'Want me to take a look?'

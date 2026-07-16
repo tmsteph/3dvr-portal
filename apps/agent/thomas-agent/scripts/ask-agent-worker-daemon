@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+STATE_DIR="${THREEDVR_AUTOPILOT_STATE_DIR:-$ROOT/state}"
+PID_FILE="$STATE_DIR/agent-worker.pid"
+LOG_FILE="$STATE_DIR/agent-worker.log"
+TMUX_SESSION="${THREEDVR_AGENT_WORKER_TMUX_SESSION:-3dvr-worker}"
+INTERVAL_SECONDS="${THREEDVR_AGENT_WORKER_INTERVAL_SECONDS:-20}"
+
+mkdir -p "$STATE_DIR"
+
+is_running() {
+  if command -v tmux >/dev/null 2>&1; then
+    tmux has-session -t "$TMUX_SESSION" 2>/dev/null
+    return $?
+  fi
+  [ -f "$PID_FILE" ] || return 1
+  pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+case "${1:-}" in
+  start)
+    if is_running; then
+      echo "Agent worker already running in tmux session $TMUX_SESSION."
+      exit 0
+    fi
+    worker_loop="cd \"$ROOT\" && while true; do \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$LOG_FILE\" 2>&1; sleep \"$INTERVAL_SECONDS\"; done"
+    if command -v tmux >/dev/null 2>&1; then
+      tmux new-session -d -s "$TMUX_SESSION" "$worker_loop"
+      echo "Started agent worker in tmux session $TMUX_SESSION. Log: $LOG_FILE"
+    else
+      setsid sh -c "$worker_loop" >/dev/null 2>&1 &
+      echo "$!" > "$PID_FILE"
+      echo "Started agent worker (pid $!). Log: $LOG_FILE"
+    fi
+    ;;
+  stop)
+    if ! is_running; then
+      echo "Agent worker is not running."
+      rm -f "$PID_FILE"
+      exit 0
+    fi
+    if command -v tmux >/dev/null 2>&1; then
+      tmux kill-session -t "$TMUX_SESSION"
+      echo "Stopped agent worker tmux session $TMUX_SESSION."
+    else
+      pid="$(cat "$PID_FILE")"
+      kill "$pid"
+      rm -f "$PID_FILE"
+      echo "Stopped agent worker (pid $pid)."
+    fi
+    ;;
+  status)
+    if is_running; then
+      echo "Agent worker running in tmux session $TMUX_SESSION."
+      echo "Log: $LOG_FILE"
+    else
+      echo "Agent worker is not running."
+      exit 1
+    fi
+    ;;
+  run-once)
+    exec "$SCRIPT_DIR/ask-agent-queue" run-once "${@:2}"
+    ;;
+  logs)
+    tail -n 40 "$LOG_FILE"
+    ;;
+  *)
+    echo 'Usage: ask-agent-worker-daemon start|stop|status|run-once|logs'
+    exit 1
+    ;;
+esac

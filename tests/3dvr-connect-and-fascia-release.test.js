@@ -7,8 +7,8 @@ test('3DVR Connect ships as the public consent platform route and portal card', 
   const portal = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.match(html, /<title>3DVR Connect \| Open Form<\/title>/);
-  assert.match(html, /3DVR Connect is the consent-based community and play-space platform around Open Form\./);
-  assert.match(html, /Open Form is a sensual menswear and intimacy-wear label around it\./);
+  assert.match(html, /3DVR Connect is the consent-centered community and play-space platform around Open Form\./);
+  assert.match(html, /Sensual linen menswear for sun, skin, and confident movement\./);
   assert.match(html, /<h2 class="section-title">3DVR Connect<\/h2>/);
   assert.match(html, /Placeholder: event listings module and attendance workflows should be built here\./);
   assert.match(html, /Placeholder: membership billing and entitlement wiring should be inserted in Connect flows\./);

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  ask-artifact save "Lead Name" --draft draft.txt --file screenshot.png [--file mock.png]
+  ask-artifact list "Lead Name"
+  ask-artifact open "Lead Name" --draft draft.txt --file screenshot.png [--file mock.png] [--no-open]
+
+Stores outreach drafts and screenshot attachments in Gun:
+  3dvr/crm/outreach-artifacts/<lead-slug>
+USAGE
+}
+
+cmd="${1:-}"
+
+case "$cmd" in
+  save)
+    shift
+    node "$ROOT/node/gun-save-outreach-artifact.js" "$@"
+    ;;
+  list)
+    shift
+    node "$ROOT/node/gun-save-outreach-artifact.js" --list "$@"
+    ;;
+  open)
+    shift
+    node "$ROOT/node/gun-open-outreach-artifact.js" "$@"
+    ;;
+  *)
+    usage
+    ;;
+esac

@@ -8,7 +8,7 @@ async function read(relativePath) {
 
 test('CRM exposes the parallel flow interface from the classic cockpit', async () => {
   const html = await read('crm/index.html');
-  assert.match(html, /href="\.\/flow\.html"/);
+  assert.match(html, /href="\/crm\/flow\.html"/);
   assert.match(html, /Flow view/);
 });
 

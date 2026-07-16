@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/platform.sh"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
+LAUNCH_URL="https://3dvr.tech/launch-in-3-days.html"
+mode="${1:-a}"
+target="$2"
+
+contact_footer() {
+  website="${THREEDVR_CONTACT_WEBSITE:-https://3dvr.tech}"
+  email="${GMAIL_USER:-3dvr.tech@gmail.com}"
+  phone="${THREEDVR_OUTREACH_PHONE:-}"
+  printf 'Website: %s\nEmail: %s\n' "$website" "$email"
+  if [ -n "$phone" ]; then
+    printf 'Phone: %s\n' "$phone"
+  fi
+}
+
+get_lead() {
+  [ -f "$FILE" ] || return 1
+  awk -F, -v name="$target" 'NR>1 && $1==name {print; exit}' "$FILE"
+}
+
+msg_a() {
+  cat <<MESSAGE
+Hi,
+
+I'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+
+Are you running into any website, booking, lead follow-up, or customer-flow problems right now?
+
+If not, no problem. I just wanted to introduce myself.
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE
+}
+
+msg_b() {
+  cat <<MESSAGE
+Hi,
+
+I'm Thomas with 3dvr.tech. We help small businesses turn more website visits into clear next steps.
+
+Is there anything about your website, booking/contact flow, or follow-up process that feels harder than it should be right now?
+
+If not, no problem. I just wanted to introduce myself.
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE
+}
+
+msg_c() {
+  cat <<MESSAGE
+Hi,
+
+I'm Thomas with 3dvr.tech. We help small businesses make their online customer flow clearer and easier to manage.
+
+Are you dealing with any website, lead follow-up, booking, or customer communication problems right now?
+
+If not, no problem. I just wanted to introduce myself.
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE
+}
+
+msg_offer() {
+  cat <<MESSAGE
+Hi,
+
+I'm Thomas with 3dvr.tech. We help small service businesses make websites, follow-up, and customer workflows easier to run.
+
+If you are trying to clean up your website or customer flow, the simplest starting point is here: $LAUNCH_URL
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE
+}
+
+msg_phone() {
+  cat <<MESSAGE
+Hi,
+
+This is Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows.
+
+Would it be okay if I sent a quick text with a few examples that might fit your business?
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE
+}
+
+msg_lead() {
+  line="$(get_lead)"
+  if [ -n "$line" ]; then
+    name="$(printf '%s' "$line" | awk -F, '{print $1}')"
+    cat <<MESSAGE
+Hi ${name} team,
+
+I'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+
+Are you running into any website, booking, lead follow-up, or customer-flow problems right now?
+
+If not, no problem. I just wanted to introduce myself.
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE
+  else
+    msg_a
+  fi
+}
+
+msg_smart() {
+  line="$(get_lead)"
+  if [ -z "$line" ]; then
+    msg_a
+    return
+  fi
+
+  name="$(printf '%s' "$line" | awk -F, '{print $1}')"
+  link="$(printf '%s' "$line" | awk -F, '{print $2}')"
+  contact="$(printf '%s' "$line" | awk -F, '{print $3}')"
+  haystack="$(printf '%s %s %s' "$name" "$link" "$contact" | tr '[:upper:]' '[:lower:]')"
+
+  case "$haystack" in
+    *menu*|*restaurant*|*cafe*|*coffee*|*food*|*bar*|*grill*)
+      problems="website, menu, booking, or customer follow-up"
+      ;;
+    *shop*|*store*|*product*|*cart*|*checkout*)
+      problems="website, checkout, product, or customer follow-up"
+      ;;
+    *book*|*appointment*|*schedule*|*booking*)
+      problems="website, booking, contact, or lead follow-up"
+      ;;
+    *law*|*legal*|*attorney*|*dental*|*clinic*|*health*|*realestate*|*mortgage*)
+      problems="website, trust, booking/contact, or follow-up"
+      ;;
+    *)
+      problems="website, booking, lead follow-up, or customer-flow"
+      ;;
+  esac
+
+  cat <<MESSAGE
+Hi ${name} team,
+
+I'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.
+
+Are you running into any ${problems} problems right now?
+
+If not, no problem. I just wanted to introduce myself.
+
+$(contact_footer)
+
+Thomas
+3dvr.tech
+MESSAGE
+}
+
+case "$mode" in
+  a) msg_a ;;
+  b) msg_b ;;
+  c) msg_c ;;
+  offer) msg_offer ;;
+  phone|text) msg_phone ;;
+  lead|personal) msg_lead ;;
+  smart) msg_smart ;;
+  *)
+    echo 'Usage: ask-message [a|b|c|offer|phone|text|lead|smart] "Business Name"'
+    ;;
+esac

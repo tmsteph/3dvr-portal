@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+MODE="${1:-default}"
+shift 2>/dev/null || true
+
+case "$MODE" in
+  maybe)
+    printf '%s\n' \
+    "Totally, no pressure — I keep it simple at \$20/month and can start small." \
+    "If you want, I can take a quick look and suggest the easiest next step." \
+    "We can keep it light and just fix the main thing first." \
+    "Want me to send a simple plan?"
+    ;;
+  price|howmuch|cost)
+    printf '%s\n' \
+    "I keep it simple at \$20/month for website, app, or tech help." \
+    "That covers ongoing help and small changes without making it complicated." \
+    "If you want, I can send a quick breakdown." \
+    "Want details?"
+    ;;
+  details|info|senddetails)
+    printf '%s\n' \
+    "Absolutely — I help with websites, app ideas, and tech support for \$20/month." \
+    "Usually I start by seeing what you need most, then we keep it simple." \
+    "I can take a look, suggest next steps, and help you get moving." \
+    "Want me to send a simple plan?"
+    ;;
+  later|busy|notnow)
+    printf '%s\n' \
+    "No worries — happy to circle back when timing is better." \
+    "Whenever you're ready, I can help you get it moving without overcomplicating it." \
+    "Want me to check back in next week?"
+    ;;
+  yes|interested)
+    printf '%s\n' \
+    "Awesome — send me what you're working on and I’ll take a look." \
+    "You can send your website, idea, or the main tech issue." \
+    "I’ll help you figure out the simplest next step." \
+    "Want to send it over?"
+    ;;
+  website)
+    printf '%s\n' \
+    "Perfect — send me your website and I’ll take a quick look." \
+    "I can point out what to fix first and help you improve it." \
+    "We can keep it simple at \$20/month." \
+    "Want to send the link?"
+    ;;
+  app)
+    printf '%s\n' \
+    "Nice — send me the app idea and I’ll help map it out." \
+    "I can help simplify it into something realistic and buildable." \
+    "We can keep it simple at \$20/month." \
+    "Want to send the idea?"
+    ;;
+  tech)
+    printf '%s\n' \
+    "Sure — send me the tech issue and I’ll take a look." \
+    "I can help troubleshoot it and figure out the easiest fix." \
+    "We can keep it simple at \$20/month." \
+    "Want to send the details?"
+    ;;
+  custom)
+    TOPIC="${*:-your project}"
+    printf '%s\n' \
+    "Sounds good — send me a little more about ${TOPIC}." \
+    "I can help simplify it and suggest the easiest next step." \
+    "We can keep it simple at \$20/month." \
+    "Want to send the details?"
+    ;;
+  default|*)
+    printf '%s\n' \
+    "Absolutely — send me a little more about what you need help with." \
+    "I help with websites, app ideas, and tech support for \$20/month." \
+    "I can suggest the simplest next step once I see what you're working on." \
+    "Want to send details?"
+    ;;
+esac

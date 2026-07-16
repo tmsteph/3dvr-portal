@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+3dvr server
+
+Use this when Termux can already SSH into the DigitalOcean droplet and this
+machine needs to become the main development machine.
+
+Commands:
+  3dvr server handoff --host HOST [--user root] [--alias do-dev] [--key id_ed25519_do_dev] [--yes]
+  3dvr server doctor [--alias do-dev]
+
+Examples:
+  3dvr server handoff --host 203.0.113.10 --user root --yes
+  3dvr server doctor --alias do-dev
+
+The handoff command creates a workstation SSH key if needed, writes an SSH
+config block, and prints the one Termux command needed to authorize this
+machine on the droplet. It never asks you to paste a private key.
+USAGE
+}
+
+die() {
+  echo "Error: $*" >&2
+  exit 1
+}
+
+quote_sh() {
+  printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+safe_name() {
+  printf '%s' "$1" | sed 's/[^A-Za-z0-9._-]/_/g'
+}
+
+ask_confirm() {
+  prompt="$1"
+  assume_yes="$2"
+  if [ "$assume_yes" = "1" ]; then
+    return 0
+  fi
+  printf '%s [y/N] ' "$prompt"
+  read -r answer || return 1
+  case "$answer" in
+    y|Y|yes|YES) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+parse_common() {
+  alias_name="do-dev"
+  server_user="root"
+  key_name="id_ed25519_do_dev"
+  host=""
+  assume_yes="0"
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --host)
+        host="${2:-}"
+        shift 2
+        ;;
+      --host=*)
+        host="${1#--host=}"
+        shift
+        ;;
+      --user)
+        server_user="${2:-}"
+        shift 2
+        ;;
+      --user=*)
+        server_user="${1#--user=}"
+        shift
+        ;;
+      --alias)
+        alias_name="${2:-}"
+        shift 2
+        ;;
+      --alias=*)
+        alias_name="${1#--alias=}"
+        shift
+        ;;
+      --key)
+        key_name="${2:-}"
+        shift 2
+        ;;
+      --key=*)
+        key_name="${1#--key=}"
+        shift
+        ;;
+      --yes|-y)
+        assume_yes="1"
+        shift
+        ;;
+      --help|-h|help)
+        usage
+        exit 0
+        ;;
+      *)
+        die "Unknown option: $1"
+        ;;
+    esac
+  done
+
+  alias_name="$(safe_name "${alias_name:-do-dev}")"
+  key_name="$(safe_name "${key_name:-id_ed25519_do_dev}")"
+  server_user="${server_user:-root}"
+}
+
+ensure_config_block() {
+  ssh_config="$1"
+  alias_name="$2"
+  host="$3"
+  server_user="$4"
+  key_path="$5"
+
+  mkdir -p "$(dirname "$ssh_config")"
+  touch "$ssh_config"
+  chmod 600 "$ssh_config"
+
+  if grep -Eq "^[[:space:]]*Host[[:space:]]+$alias_name([[:space:]]|\$)" "$ssh_config"; then
+    echo "SSH config already has Host $alias_name."
+    echo "Leaving it unchanged: $ssh_config"
+    return 0
+  fi
+
+  {
+    printf '\n'
+    printf 'Host %s\n' "$alias_name"
+    printf '  HostName %s\n' "$host"
+    printf '  User %s\n' "$server_user"
+    printf '  IdentityFile %s\n' "$key_path"
+    printf '  IdentitiesOnly yes\n'
+  } >> "$ssh_config"
+  echo "Added SSH config: Host $alias_name -> $server_user@$host"
+}
+
+handoff() {
+  parse_common "$@"
+  [ -n "$host" ] || die "Missing --host. Use the droplet IP or hostname that worked from Termux."
+
+  ssh_dir="$HOME/.ssh"
+  key_path="$ssh_dir/$key_name"
+  public_key_path="$key_path.pub"
+  ssh_config="$ssh_dir/config"
+
+  mkdir -p "$ssh_dir"
+  chmod 700 "$ssh_dir"
+
+  if [ ! -f "$key_path" ]; then
+    echo "Creating SSH key: $key_path"
+    ssh-keygen -t ed25519 -f "$key_path" -C "$alias_name-workstation" -N ""
+  else
+    echo "Using existing SSH key: $key_path"
+  fi
+
+  chmod 600 "$key_path"
+  [ -f "$public_key_path" ] && chmod 644 "$public_key_path"
+
+  ensure_config_block "$ssh_config" "$alias_name" "$host" "$server_user" "$key_path"
+
+  public_key="$(cat "$public_key_path")"
+  quoted_public_key="$(quote_sh "$public_key")"
+  quoted_auth_keys="$(quote_sh "~/.ssh/authorized_keys")"
+
+  cat <<EOF
+
+Next: run this in Termux, where droplet SSH already works:
+
+ssh $server_user@$host "mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qxF $quoted_public_key ~/.ssh/authorized_keys 2>/dev/null || echo $quoted_public_key >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+
+Then test from this machine:
+
+3dvr server doctor --alias $alias_name
+
+Direct SSH command:
+
+ssh $alias_name
+EOF
+
+  if ask_confirm "Run a quick local SSH config parse check now?" "$assume_yes"; then
+    ssh -G "$alias_name" >/dev/null
+    echo "Local SSH config parses successfully."
+  fi
+}
+
+doctor() {
+  parse_common "$@"
+  echo "Checking SSH alias: $alias_name"
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$alias_name" 'printf "connected as %s on %s\n" "$(whoami)" "$(hostname)"; uptime' || {
+    cat <<EOF
+
+Could not connect yet.
+
+If Termux can still connect, run:
+  3dvr server handoff --host DROPLET_IP --user $server_user --alias $alias_name
+
+Then copy the printed Termux command into your phone.
+EOF
+    exit 1
+  }
+}
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  handoff|setup) handoff "$@" ;;
+  doctor|check|status) doctor "$@" ;;
+  help|-h|--help) usage ;;
+  *) usage; exit 1 ;;
+esac

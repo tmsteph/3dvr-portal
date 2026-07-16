@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
+
+if [ ! -f "$FILE" ]; then
+  echo "No leads file found."
+  exit 1
+fi
+
+echo "== Lead Status Summary =="
+awk -F, 'NR>1 && $4 != "" {count[$4]++} END {
+  print "new:", count["new"]+0
+  print "contacted:", count["contacted"]+0
+  print "replied:", count["replied"]+0
+  print "closed:", count["closed"]+0
+}' "$FILE"
+
+echo
+echo "== Lead Contact Categories =="
+awk -F, '
+  function is_bad_contact(url) {
+    return url ~ /wp-content\/|wp-json\/|feed\/|cdn-cgi\/|contact-form-7\/includes\/css\/|[.\/](css|js|json|xml|txt|pdf|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|eot)([?#].*)?$/
+  }
+  function category(link, contact) {
+    if (contact ~ /^mailto:/) return "email-ready";
+    if (contact ~ /^https?:\/\// && is_bad_contact(contact)) return (link ~ /^https?:\/\// ? "site-only" : "bad-web-contact");
+    if (contact ~ /^https?:\/\//) return "web-contact";
+    if (link ~ /^https?:\/\//) return "site-only";
+    if (contact != "") return "other-contact";
+    return "unreachable";
+  }
+  NR > 1 {
+    count[category($2, $3)]++
+  }
+  END {
+    print "email-ready:", count["email-ready"]+0
+    print "web-contact:", count["web-contact"]+0
+    print "site-only:", count["site-only"]+0
+    print "bad-web-contact:", count["bad-web-contact"]+0
+    print "other-contact:", count["other-contact"]+0
+    print "unreachable:", count["unreachable"]+0
+  }
+' "$FILE"
+
+echo
+echo "== Leads =="
+column -s, -t < "$FILE"

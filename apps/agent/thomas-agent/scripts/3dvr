@@ -1,0 +1,927 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  SOURCE_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  case "$SOURCE" in
+    /*) ;;
+    *) SOURCE="$SOURCE_DIR/$SOURCE" ;;
+  esac
+done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib/platform.sh"
+
+THREEDVR_HOME="${THREEDVR_HOME:-$HOME/.3dvr}"
+LEADS_FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
+PORTAL_URL="${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}"
+STATE_DIR="${THREEDVR_STATE_DIR:-$THREEDVR_HOME}"
+SESSION_FILE="${THREEDVR_SESSION_FILE:-$STATE_DIR/session.env}"
+CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$THREEDVR_HOME/config/env}"
+
+if [ -f "$CONFIG_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$CONFIG_FILE"
+  set +a
+fi
+
+THREEDVR_HOME="${THREEDVR_HOME:-$HOME/.3dvr}"
+LEADS_FILE="${THREEDVR_LEADS_FILE:-$ROOT/leads.csv}"
+PORTAL_URL="${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}"
+STATE_DIR="${THREEDVR_STATE_DIR:-$THREEDVR_HOME}"
+SESSION_FILE="${THREEDVR_SESSION_FILE:-$STATE_DIR/session.env}"
+
+usage() {
+  cat <<'USAGE'
+3dvr CLI v1
+
+Welcome to 3dvr.
+Use this cockpit to find leads, send outreach, watch replies, and keep the background agent moving.
+
+3dvr                     guided menu
+3dvr next                next best lead action
+3dvr status              agent + inbox + leads status
+3dvr portal              open portal
+3dvr doctor              check local setup
+3dvr setup               first-run setup checklist
+3dvr install             install/update instructions
+3dvr connect [gmail]     connect email with portal OAuth
+
+Leads:
+3dvr lead find           crawl/find new leads
+3dvr lead enrich         find contact/about pages
+3dvr lead next           show next lead + message
+3dvr lead open           open current lead
+3dvr lead message        generate outreach message
+3dvr lead contacted      mark current lead contacted
+3dvr lead auto-send      auto-send the next direct-email lead
+3dvr lead send-current    auto-send the currently loaded lead
+3dvr lead form           open and fill a contact form for the current lead
+3dvr lead followup       show follow-ups due
+3dvr lead list           list leads
+3dvr lead sync-crm       sync local leads into portal CRM
+
+Outreach aliases:
+3dvr outreach find       same as 3dvr lead find
+3dvr outreach next       same as 3dvr next
+3dvr outreach message    same as 3dvr lead message
+3dvr outreach sent       same as 3dvr contacted
+3dvr outreach auto-send   same as 3dvr lead auto-send
+3dvr outreach send-current same as 3dvr lead send-current
+3dvr outreach form        same as 3dvr lead form
+
+Inbox:
+3dvr inbox check         check unread/replies
+3dvr inbox watch         run inbox monitor once with reply previews
+3dvr inbox reply         preview inbox replies
+3dvr inbox send-test     send inbox test email
+
+Auth:
+Email setup supports portal OAuth or a legacy Gmail app password.
+3dvr auth login [google|microsoft]
+3dvr auth import [file]
+3dvr auth status [google|microsoft]
+3dvr auth logout [google|microsoft]
+
+Email aliases:
+3dvr email connect       same as 3dvr auth login google
+3dvr email status        same as 3dvr auth status google
+3dvr email check         same as 3dvr inbox check
+3dvr email test          same as 3dvr inbox send-test
+3dvr send-auto           auto-send the next direct-email lead and mark it contacted
+3dvr yolo                local llama.cpp patch-edit helper
+3dvr yolo-app            generate a page inside the 3dvr-site repo
+3dvr yolo-new-site       generate a new site repo and push it to GitHub
+3dvr self-yolo-agent     guarded patch-edit helper for the agent repo
+3dvr self-yolo-loop      repeat the guarded self-edit helper
+3dvr self-update-agent   commit, push, and reinstall the agent repo
+3dvr rollback-agent      restore agent files from an earlier Git revision
+3dvr agent task          route a task to Codex, OpenClaw, Claude, OpenAI, or shell
+3dvr agent queue         enqueue/list remote server tasks
+3dvr agent worker        run queued tasks on this machine
+3dvr agent codex         install, auth-check, or probe the Codex CLI executor
+3dvr device bootstrap    prepare a new laptop/phone for the DigitalOcean server
+3dvr device approve      authorize a new device public key on the server
+3dvr server handoff      set up this machine for a DigitalOcean dev server
+3dvr server doctor       test the configured dev server SSH connection
+3dvr sales               summarize, publish, or run the sales loop
+3dvr revenue             market research, A/B experiments, and revenue reports
+3dvr crm sync            write local leads and outreach history to portal CRM
+
+Agent:
+3dvr agent status|start|stop|logs|restart|heartbeat|task|queue|worker
+
+Projects:
+3dvr project list|open|new|deploy
+3dvr track [add|contact|nurture|reply|failed|close|new|followup|nurture-list|view|sent|failures]
+3dvr meeting [room] [control]    build or open a meeting pack with smart join, ops, meshcast, and fallback links
+
+Dev:
+3dvr dev yolo            same as 3dvr yolo
+3dvr dev yolo-app        same as 3dvr yolo-app
+3dvr dev yolo-new-site   same as 3dvr yolo-new-site
+3dvr dev self-yolo-agent same as 3dvr self-yolo-agent
+3dvr dev self-yolo-loop  same as 3dvr self-yolo-loop
+3dvr dev self-update-agent same as 3dvr self-update-agent
+3dvr dev rollback-agent  same as 3dvr rollback-agent
+
+Settings:
+3dvr settings [portal|email|relay]
+
+Daily flow:
+3dvr next
+3dvr contacted
+3dvr sent-next
+3dvr inbox check
+3dvr status
+USAGE
+}
+
+menu_header() {
+  lead_summary="$(current_lead_summary 2>/dev/null || true)"
+  active_lead_name="$(pick_active_lead_name 2>/dev/null || true)"
+  if [ -n "$active_lead_name" ]; then
+    auto_send_line="10) Auto-send current         Send the current lead: $active_lead_name, or the next queue item if none is loaded"
+  else
+    auto_send_line="10) Auto-send current         Send the current lead, or the next queue item if none is loaded"
+  fi
+  printf '%s\n' 'Welcome to 3dvr'
+  printf '\n%s\n' 'CRM focus:'
+  if [ -n "$lead_summary" ]; then
+    printf '%s\n\n' "$lead_summary"
+  else
+    printf '%s\n\n' 'No active lead. Use 2 to load the next lead.'
+  fi
+  printf '%s\n' 'What needs attention?'
+  printf '\n'
+  printf '%s\n' '1) Continue outreach          Show the next lead and opener'
+  printf '%s\n' '2) Show lead card             Open the current lead summary'
+  printf '%s\n' '3) Mark contacted             Save the current lead as contacted'
+  printf '%s\n' '4) Check inbox                Look for replies that need attention'
+  printf '%s\n' '5) See agent status           Leads, inbox worker, outreach worker, heartbeat'
+  printf '%s\n' '6) Start/stop background      Manage the local worker'
+  printf '%s\n' '7) Connect email              Gmail now, Outlook later'
+  printf '%s\n' '8) Open portal                Continue in the browser'
+  printf '%s\n' '9) Settings                   Show local config'
+  printf '%s\n' '0) Mark sent + next           Mark the last shown lead, then load the next one'
+  printf '%s\n' "$auto_send_line"
+  printf '\n%s\n' 'Numbers keep you in the cockpit. Commands also work here: `next`, `contacted`, `sent-next`, `send-auto`, `ask-form`, `inbox check`, `status`, `crm`, or direct `ask-*` commands.'
+  printf '%s\n' 'If you already drafted the last lead on mobile, press 0.'
+  printf '%s\n' 'If you want the cockpit to send the loaded lead for you, press 10.'
+}
+
+run_menu_choice() {
+  choice="$1"
+  case "$choice" in
+    1) "$0" next ;;
+    2) "$0" lead card ;;
+    3) "$0" contacted ;;
+    4) "$0" inbox check ;;
+    5) "$0" status ;;
+    6) "$0" agent status ;;
+    7) "$0" connect ;;
+    8) "$0" portal ;;
+    9) "$0" settings ;;
+    0) "$0" sent-next ;;
+    10) "$0" send-current ;;
+    q|quit|exit) return 2 ;;
+    help|-h|--help) usage ;;
+    crm) "$0" lead card ;;
+    ask-*)
+      # shellcheck disable=SC2206,SC2086
+      eval "set -- $choice"
+      cmd="$1"
+      shift
+      if [ -x "$SCRIPT_DIR/$cmd" ]; then
+        exec "$SCRIPT_DIR/$cmd" "$@"
+      fi
+      echo "Unknown command: $cmd"
+      return 1
+      ;;
+    3dvr\ *) run_menu_choice "${choice#3dvr }" ;;
+    *)
+      # shellcheck disable=SC2206
+      parts=($choice)
+      if [ "${#parts[@]}" -eq 0 ]; then
+        return 0
+      fi
+      "$0" "${parts[@]}"
+      ;;
+  esac
+}
+
+menu() {
+  while true; do
+    menu_header
+    printf '\nChoose: '
+    if ! read -r choice; then
+      printf '\n'
+      return 0
+    fi
+    choice="$(printf '%s' "$choice" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$choice" ] || continue
+    printf '\n'
+    set +e
+    run_menu_choice "$choice"
+    status=$?
+    set -e
+    if [ "$status" -eq 2 ]; then
+      return 0
+    fi
+    if [ "$status" -ne 0 ]; then
+      printf '\nCommand failed. Type "help" to see available commands.\n'
+    fi
+    printf '\n'
+  done
+}
+
+print_section() {
+  printf '\n%s\n' "$1"
+  printf '%s\n' "----------------------------------------"
+}
+
+print_next_steps() {
+  cat <<'STEPS'
+
+Useful next commands:
+  3dvr next          show the next best lead action
+  3dvr inbox check   check unread replies
+  3dvr meeting       build or open a meeting pack with smart join and fallback links
+  3dvr connect       connect Gmail with portal OAuth
+  3dvr agent start   start background workers
+STEPS
+}
+
+install_instructions() {
+  cat <<'INSTALL'
+Install 3dvr CLI
+----------------------------------------
+From npm package:
+  npm install -g 3dvr-agent
+
+From this checkout:
+  npm install
+  npm link
+
+Verify:
+  3dvr doctor
+  3dvr setup
+
+Email auth supports portal OAuth or a legacy Gmail app password.
+Connect Gmail through the portal:
+  3dvr connect
+  3dvr auth import
+  3dvr email status
+INSTALL
+}
+
+setup_checklist() {
+  print_section "3dvr setup"
+  printf 'Agent root: %s\n' "$ROOT"
+  printf 'Portal: %s\n' "$PORTAL_URL"
+  printf 'CLI on PATH: %s\n' "$(command -v 3dvr 2>/dev/null || printf 'not found')"
+  printf 'Node: %s\n' "$(node --version 2>/dev/null || printf 'missing')"
+  printf 'npm: %s\n' "$(npm --version 2>/dev/null || printf 'missing')"
+
+  print_section "Email connection"
+  node "$ROOT/node/oauth-connection.js" status google || true
+
+  print_section "Outreach defaults"
+  printf 'From email: %s\n' "${GMAIL_USER:-3dvr.tech@gmail.com}"
+  if [ -n "${GMAIL_APP_PASSWORD:-}" ]; then
+    printf 'Legacy Gmail app password: set\n'
+  else
+    printf 'Legacy Gmail app password: missing\n'
+  fi
+  if [ -n "${THREEDVR_OUTREACH_PHONE:-}" ]; then
+    printf 'Outbound phone: set\n'
+  else
+    printf 'Outbound phone: missing\n'
+  fi
+
+  cat <<'SETUP'
+
+Recommended first run:
+  1. Verify config in ~/.3dvr/config/env
+  2. Set THREEDVR_OUTREACH_PHONE if you want phone-required forms to submit
+  3. Choose one email path:
+     - Portal OAuth: 3dvr connect -> approve in portal -> 3dvr auth import
+     - Legacy Gmail: set GMAIL_APP_PASSWORD in ~/.3dvr/config/env
+  4. Run 3dvr email status
+  5. Run 3dvr inbox check
+  6. Run 3dvr agent start
+
+Notes:
+  - Gmail supports both portal OAuth and the legacy app-password fallback.
+  - The default sender mailbox is 3dvr.tech@gmail.com when GMAIL_USER is unset.
+  - Outlook will use the same `3dvr auth login microsoft` shape when mail support is enabled.
+  - Local tokens stay in ~/.3dvr/oauth.json and are not printed by status commands.
+  - Contact forms that require a phone number need THREEDVR_OUTREACH_PHONE.
+SETUP
+}
+
+current_lead_name() {
+  [ -f "$LEADS_FILE" ] || return 1
+  awk -F, '
+    function priority(link, contact) {
+      if (contact ~ /^mailto:/) return 4;
+      if (contact ~ /^https?:\/\//) return 3;
+      if (link ~ /^https?:\/\//) return 2;
+      if (contact != "") return 1;
+      return 0;
+    }
+    NR > 1 && $4 == "new" && ($2 != "" || $3 != "") {
+      print $5 "|" priority($2, $3) "|" NR "|" $1;
+    }
+  ' "$LEADS_FILE" | sort -t'|' -k1,1r -k2,2nr -k3,3nr | head -n1 | cut -d'|' -f4-
+}
+
+current_lead_line() {
+  [ -f "$LEADS_FILE" ] || return 1
+  name="$(current_lead_name || true)"
+  [ -n "$name" ] || return 1
+  awk -F, -v name="$name" 'NR>1 && $1==name {print; exit}' "$LEADS_FILE"
+}
+
+current_lead_summary() {
+  line="$(current_lead_line || true)"
+  [ -n "$line" ] || return 1
+  name="$(printf '%s' "$line" | awk -F, '{print $1}')"
+  link="$(printf '%s' "$line" | awk -F, '{print $2}')"
+  contact="$(printf '%s' "$line" | awk -F, '{print $3}')"
+  status="$(printf '%s' "$line" | awk -F, '{print $4}')"
+  score="$(printf '%s' "$line" | awk -F, '{print $5}')"
+  printf 'Lead: %s | status: %s | score: %s\n' "$name" "$status" "$score"
+  if printf '%s' "$contact" | grep -q '^mailto:'; then
+    printf 'Category: Email-ready\n'
+  elif printf '%s' "$contact" | grep -q '^https\?://'; then
+    printf 'Category: Web-contact\n'
+  elif printf '%s' "$link" | grep -q '^https\?://'; then
+    printf 'Category: Site-only\n'
+  else
+    printf 'Category: Unreachable\n'
+  fi
+  printf 'Site: %s\n' "${link:-n/a}"
+  printf 'Contact: %s\n' "${contact:-n/a}"
+}
+
+ensure_state_dir() {
+  mkdir -p "$STATE_DIR"
+}
+
+save_last_lead() {
+  name="$1"
+  [ -n "$name" ] || return 0
+  ensure_state_dir
+  printf 'LAST_LEAD_NAME=%q\n' "$name" > "$SESSION_FILE"
+}
+
+load_last_lead() {
+  [ -f "$SESSION_FILE" ] || return 1
+  LAST_LEAD_NAME=""
+  # shellcheck disable=SC1090
+  . "$SESSION_FILE"
+  [ -n "${LAST_LEAD_NAME:-}" ] || return 1
+  printf '%s\n' "$LAST_LEAD_NAME"
+}
+
+clear_last_lead() {
+  rm -f "$SESSION_FILE"
+}
+
+pick_active_lead_name() {
+  load_last_lead || current_lead_name
+}
+
+mark_contacted() {
+  name="$(pick_active_lead_name || true)"
+  [ -n "$name" ] || { echo "No active lead to mark contacted."; exit 1; }
+  "$SCRIPT_DIR/ask-track" contact "$name"
+  clear_last_lead
+}
+
+show_next_lead() {
+  name="$(current_lead_name || true)"
+  if [ -n "$name" ]; then
+    save_last_lead "$name"
+  else
+    clear_last_lead
+  fi
+  exec "$SCRIPT_DIR/ask-next"
+}
+
+send_inbox_test() {
+  to="${THREEDVR_INBOX_TEST_EMAIL:-tmsteph1290@gmail.com}"
+  subject="${THREEDVR_INBOX_TEST_SUBJECT:-3DVR inbox copy test}"
+  text="${THREEDVR_INBOX_TEST_TEXT:-Testing the updated auto-reply copy. Reply with Test and the inbox daemon should respond with the short test-specific message.}"
+  node "$ROOT/node/send-outreach-email.js" --to "$to" --subject "$subject" --text "$text"
+}
+
+auth_login() {
+  provider="${1:-google}"
+  case "$provider" in
+    email|mail|gmail) provider="google" ;;
+    outlook|office365|m365) provider="microsoft" ;;
+  esac
+  case "$provider" in
+    google|microsoft) ;;
+    *) echo "Use: 3dvr auth login google|microsoft"; exit 1 ;;
+  esac
+
+  url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=mail&returnTo=/profile.html#profile-oauth"
+  echo "Opening $provider OAuth in the portal."
+  echo
+  echo "Portal OAuth is one supported setup. Legacy Gmail app-password mail is also supported."
+  echo
+  echo "After approving access:"
+  echo "1. Copy the JSON shown by the portal."
+  echo "2. Run: 3dvr auth import"
+  echo "3. Paste the JSON and press Ctrl-D."
+  echo
+  echo "If the portal says OAuth is not configured, production needs the provider env vars first."
+  open_url "$url"
+}
+
+sanitize_meeting_token() {
+  value="${1:-}"
+  fallback="${2:-3dvrtech}"
+  value="$(printf '%s' "$value" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]_-')"
+  [ -n "$value" ] || value="$fallback"
+  printf '%s\n' "$value"
+}
+
+build_meeting_url() {
+  page="$1"
+  room="$2"
+  control="$3"
+  role="$4"
+  name="$5"
+  profile="${6:-}"
+  codec="${7:-h264}"
+  url="${PORTAL_URL%/}/portal.3dvr.tech/video/$page"
+  query="room=$(sanitize_meeting_token "$room" 3dvrtech)&control=$(sanitize_meeting_token "$control" "$(sanitize_meeting_token "$room" 3dvrtech)")"
+  [ -n "$role" ] && query="$query&role=$(sanitize_meeting_token "$role" participant)"
+  [ -n "$name" ] && query="$query&name=$(sanitize_meeting_token "$name" guest)"
+  [ -n "$profile" ] && query="$query&profile=$(sanitize_meeting_token "$profile" low)"
+  [ -n "$codec" ] && query="$query&codec=$(sanitize_meeting_token "$codec" h264)"
+  printf '%s?%s\n' "$url" "$query"
+}
+
+meeting_urls() {
+  room="$(sanitize_meeting_token "${1:-}" 3dvrtech)"
+  control_input="${2:-$room}"
+  control="$(sanitize_meeting_token "$control_input" "$room")"
+  participant_url="$(build_meeting_url "join.html" "$room" "$control" "participant" "guest" "low" "h264")"
+  director_url="$(build_meeting_url "smart-launcher.html" "$room" "$control" "director" "host" "normal" "h264")"
+  guest_url="$(build_meeting_url "smart-launcher.html" "$room" "$control" "participant" "guest" "low" "h264")"
+  fallback_url="https://vdo.ninja/?room=$room&label&showlabels&codec=h264&vb=120&ab=24&fps=4&scale=96p&stereo=0&buffer=30"
+  ops_url="$(build_meeting_url "ops.html" "$room" "$control" "participant" "guest" "normal" "h264")"
+  meshcast_url="${PORTAL_URL%/}/portal.3dvr.tech/video/meshcast.html"
+  printf '%s\n' "$room"
+  printf '%s\n' "$control"
+  printf '%s\n' "$participant_url"
+  printf '%s\n' "$ops_url"
+  printf '%s\n' "$director_url"
+  printf '%s\n' "$guest_url"
+  printf '%s\n' "$fallback_url"
+  printf '%s\n' "$meshcast_url"
+}
+
+meeting_open_target() {
+  explicit="${1:-auto}"
+  case "$explicit" in
+    join|smart|participant|ops|director|host|guest|fallback|crunch|meshcast|pack)
+      printf '%s\n' "$explicit"
+      return 0
+      ;;
+  esac
+
+  profile="$(sanitize_meeting_token "${THREEDVR_MEETING_PROFILE:-}" "")"
+  case "$profile" in
+    meshcast|crunch|crunched|audio|survival)
+      printf '%s\n' "meshcast"
+      ;;
+    low)
+      printf '%s\n' "join"
+      ;;
+    *)
+      if [ -n "${THREEDVR_MEETING_FORCE_MESHCAST:-}" ]; then
+        printf '%s\n' "meshcast"
+      else
+        printf '%s\n' "join"
+      fi
+      ;;
+  esac
+}
+
+meeting_pack() {
+  room="${1:-}"
+  control="${2:-}"
+  urls="$(meeting_urls "$room" "$control")"
+  room="$(printf '%s\n' "$urls" | sed -n '1p')"
+  control="$(printf '%s\n' "$urls" | sed -n '2p')"
+  participant_url="$(printf '%s\n' "$urls" | sed -n '3p')"
+  ops_url="$(printf '%s\n' "$urls" | sed -n '4p')"
+  director_url="$(printf '%s\n' "$urls" | sed -n '5p')"
+  guest_url="$(printf '%s\n' "$urls" | sed -n '6p')"
+  fallback_url="$(printf '%s\n' "$urls" | sed -n '7p')"
+  meshcast_url="$(printf '%s\n' "$urls" | sed -n '8p')"
+
+  print_section "Meeting pack"
+  printf 'Room: %s\n' "$room"
+  printf 'Control: %s\n' "$control"
+  echo
+  printf '%s\n' "Smart Join:"
+  printf '%s\n' "$participant_url"
+  echo
+  printf '%s\n' "Meeting Ops:"
+  printf '%s\n' "$ops_url"
+  echo
+  printf '%s\n' "Host / Director:"
+  printf '%s\n' "$director_url"
+  echo
+  printf '%s\n' "Guest / Participant:"
+  printf '%s\n' "$guest_url"
+  echo
+  printf '%s\n' "Fallback / Crunch:"
+  printf '%s\n' "$fallback_url"
+  echo
+  printf '%s\n' "Meshcast Meeting:"
+  printf '%s\n' "$meshcast_url"
+  echo
+  printf '%s\n' "Recommended open:"
+  printf '%s\n' "3dvr meeting --open=$(meeting_open_target auto) \"$room\" \"$control\""
+  echo
+  printf '%s\n' "WhatsApp quick copy:"
+  printf '%s\n' "Meeting: $participant_url"
+  printf '%s\n' "Fallback: $fallback_url"
+  printf '%s\n' "Ops: $ops_url"
+}
+
+meeting_whatsapp() {
+  room="${1:-}"
+  control="${2:-}"
+  urls="$(meeting_urls "$room" "$control")"
+  participant_url="$(printf '%s\n' "$urls" | sed -n '3p')"
+  ops_url="$(printf '%s\n' "$urls" | sed -n '4p')"
+  fallback_url="$(printf '%s\n' "$urls" | sed -n '7p')"
+
+  printf '%s\n' "Meeting: $participant_url"
+  printf '%s\n' "Fallback: $fallback_url"
+  printf '%s\n' "Ops: $ops_url"
+}
+
+meeting_open() {
+  mode="${1:-join}"
+  room="${2:-}"
+  control="${3:-}"
+  urls="$(meeting_urls "$room" "$control")"
+  participant_url="$(printf '%s\n' "$urls" | sed -n '3p')"
+  ops_url="$(printf '%s\n' "$urls" | sed -n '4p')"
+  director_url="$(printf '%s\n' "$urls" | sed -n '5p')"
+  guest_url="$(printf '%s\n' "$urls" | sed -n '6p')"
+  fallback_url="$(printf '%s\n' "$urls" | sed -n '7p')"
+  meshcast_url="$(printf '%s\n' "$urls" | sed -n '8p')"
+
+  mode="$(meeting_open_target "$mode")"
+  case "$mode" in
+    join|smart|participant) open_url "$participant_url" ;;
+    ops) open_url "$ops_url" ;;
+    director|host) open_url "$director_url" ;;
+    guest) open_url "$guest_url" ;;
+    fallback|crunch) open_url "$fallback_url" ;;
+    meshcast) open_url "$meshcast_url" ;;
+    pack) meeting_pack "$room" "$control" ;;
+    *) echo "Use: 3dvr meeting [--open|--open=ops|--open=meshcast|--open=director] [room] [control]"; exit 1 ;;
+  esac
+}
+
+project_root() {
+  case "${1:-list}" in
+    portal) printf '%s\n' "/data/data/com.termux/files/home/3dvr-portal" ;;
+    web) printf '%s\n' "/data/data/com.termux/files/home/3dvr-web" ;;
+    agent) printf '%s\n' "/data/data/com.termux/files/home/3dvr-agent" ;;
+    tmsteph) printf '%s\n' "/data/data/com.termux/files/home/tmsteph-redesign-2025" ;;
+    *) return 1 ;;
+  esac
+}
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  "") menu ;;
+  help|-h|--help) usage ;;
+  install) install_instructions ;;
+  setup|onboard) setup_checklist ;;
+  connect) auth_login "${1:-google}" ;;
+  next) show_next_lead ;;
+  contacted) mark_contacted ;;
+  sent-next)
+    mark_contacted
+    echo
+    show_next_lead
+    ;;
+  send-auto)
+    exec "$SCRIPT_DIR/ask-send" --auto --mark
+    ;;
+  send-current)
+    if current="$(pick_active_lead_name 2>/dev/null || true)" && [ -n "$current" ]; then
+      exec "$SCRIPT_DIR/ask-send" --auto --mark "$current"
+    fi
+    exec "$SCRIPT_DIR/ask-send" --auto --mark
+    ;;
+  status)
+    print_section "3dvr status"
+    "$SCRIPT_DIR/ask-status"
+    print_section "Email auth"
+    node "$ROOT/node/oauth-connection.js" status google || true
+    echo
+    print_section "Background workers"
+    "$SCRIPT_DIR/ask-inbox-daemon" status || true
+    echo
+    "$SCRIPT_DIR/ask-autopilot-daemon" status || true
+    echo
+    "$SCRIPT_DIR/ask-agent-heartbeat-daemon" status || true
+    print_next_steps
+    ;;
+  portal) open_url "$PORTAL_URL" ;;
+  doctor)
+    print_section "3dvr doctor"
+    printf 'CLI: %s\n' "$SOURCE"
+    printf 'Agent root: %s\n' "$ROOT"
+    printf 'Portal: %s\n' "$PORTAL_URL"
+    printf 'Leads file: %s\n' "$LEADS_FILE"
+    [ -f "$LEADS_FILE" ] && printf 'Leads file status: found\n' || printf 'Leads file status: missing\n'
+    printf 'Node: %s\n' "$(node --version 2>/dev/null || printf 'missing')"
+    printf 'npm: %s\n' "$(npm --version 2>/dev/null || printf 'missing')"
+    print_section "Email auth"
+    node "$ROOT/node/oauth-connection.js" status google || true
+    print_next_steps
+    ;;
+  start) exec "$0" agent start ;;
+  stop) exec "$0" agent stop ;;
+  logs) exec "$0" agent logs ;;
+  lead|leads|outreach)
+    sub="${1:-next}"
+    shift || true
+    case "$sub" in
+      card)
+        if lead_summary="$(current_lead_summary 2>/dev/null || true)"; then
+          if [ -n "$lead_summary" ]; then
+            print_section "Current lead"
+            printf '%s\n' "$lead_summary"
+            echo
+            echo "Quick actions:"
+            echo "  3dvr next"
+            echo "  3dvr contacted"
+            echo "  3dvr sent-next"
+            echo "  3dvr inbox check"
+          else
+            echo "No active lead."
+            echo "Run: 3dvr next"
+          fi
+        else
+          echo "No active lead."
+          echo "Run: 3dvr next"
+        fi
+        ;;
+      find) exec "$SCRIPT_DIR/ask-crawl" "$@" ;;
+      enrich) exec "$SCRIPT_DIR/ask-enrich" "$@" ;;
+      next) exec "$SCRIPT_DIR/ask-next" "$@" ;;
+      open) exec "$SCRIPT_DIR/ask-send" "$@" ;;
+      send) exec "$SCRIPT_DIR/ask-send" "$@" ;;
+      form) exec "$SCRIPT_DIR/ask-form" "$@" ;;
+      message) exec "$SCRIPT_DIR/ask-message" "$@" ;;
+      contacted|sent) exec "$0" contacted ;;
+      auto-send|send-auto) exec "$0" send-auto ;;
+      send-current|current-send) exec "$0" send-current ;;
+      sync-crm|crm-sync) exec "$SCRIPT_DIR/ask-crm-sync" "$@" ;;
+      followup) exec "$SCRIPT_DIR/ask-track" followup ;;
+      list) exec "$SCRIPT_DIR/ask-track" new ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  crm)
+    sub="${1:-help}"
+    shift || true
+    case "$sub" in
+      sync) exec "$SCRIPT_DIR/ask-crm-sync" "$@" ;;
+      dry-run|preview) exec "$SCRIPT_DIR/ask-crm-sync" --dry-run "$@" ;;
+      open) open_url "$PORTAL_URL/crm/" ;;
+      help|-h|--help)
+        cat <<'CRM_HELP'
+CRM
+
+3dvr crm sync       Sync local 3dvr-agent leads and outreach into portal CRM
+3dvr crm dry-run    Preview the CRM sync without writing
+3dvr crm open       Open portal CRM
+CRM_HELP
+        ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  track)
+    exec "$SCRIPT_DIR/ask-track" "$@"
+    ;;
+  sales)
+    exec "$SCRIPT_DIR/ask-sales" "${1:-status}" "${@:2}"
+    ;;
+  revenue|market|experiments)
+    exec "$SCRIPT_DIR/ask-revenue" "$@"
+    ;;
+  meeting)
+    case "${1:-}" in
+      --open)
+        shift || true
+        meeting_open "auto" "${1:-}" "${2:-}"
+        ;;
+      --open=*)
+        open_target="${1#--open=}"
+        shift || true
+        meeting_open "$open_target" "${1:-}" "${2:-}"
+        ;;
+      --pack)
+        shift || true
+        meeting_pack "${1:-}" "${2:-}"
+        ;;
+      --whatsapp)
+        shift || true
+        meeting_whatsapp "${1:-}" "${2:-}"
+        ;;
+      --help|-h|help)
+        cat <<'MEETING'
+3dvr meeting [room] [control]
+3dvr meeting --pack [room] [control]
+3dvr meeting --whatsapp [room] [control]
+3dvr meeting --open [room] [control]
+3dvr meeting --open=auto|ops|meshcast|director|guest|fallback|pack [room] [control]
+
+Default output is the printable meeting pack.
+Use --open to launch the best page for this device.
+MEETING
+        ;;
+      *)
+        meeting_pack "${1:-}" "${2:-}"
+        ;;
+    esac
+    ;;
+  yolo)
+    exec "$SCRIPT_DIR/ask-yolo" "$@"
+    ;;
+  yolo-app)
+    exec "$SCRIPT_DIR/ask-yolo-app" "$@"
+    ;;
+  yolo-new-site|yolo-site)
+    exec "$SCRIPT_DIR/ask-yolo-new-site" "$@"
+    ;;
+  self-yolo-agent)
+    exec "$SCRIPT_DIR/ask-self-yolo-agent" "$@"
+    ;;
+  self-yolo-loop)
+    exec "$SCRIPT_DIR/ask-self-yolo-loop" "$@"
+    ;;
+  self-update-agent)
+    exec "$SCRIPT_DIR/ask-self-update-agent" "$@"
+    ;;
+  rollback-agent)
+    exec "$SCRIPT_DIR/ask-rollback-agent" "$@"
+    ;;
+  dev)
+    sub="${1:-help}"
+    shift || true
+    case "$sub" in
+      yolo) exec "$SCRIPT_DIR/ask-yolo" "$@" ;;
+      yolo-app) exec "$SCRIPT_DIR/ask-yolo-app" "$@" ;;
+      yolo-new-site|yolo-site) exec "$SCRIPT_DIR/ask-yolo-new-site" "$@" ;;
+      self-yolo-agent) exec "$SCRIPT_DIR/ask-self-yolo-agent" "$@" ;;
+      self-yolo-loop) exec "$SCRIPT_DIR/ask-self-yolo-loop" "$@" ;;
+      self-update-agent) exec "$SCRIPT_DIR/ask-self-update-agent" "$@" ;;
+      rollback-agent) exec "$SCRIPT_DIR/ask-rollback-agent" "$@" ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  inbox)
+    sub="${1:-menu}"
+    shift || true
+    case "$sub" in
+      menu)
+        cat <<'INBOX'
+Inbox
+
+3dvr inbox check       Check unread replies once
+3dvr inbox watch       Run the inbox monitor once
+3dvr inbox reply       Preview inbox replies
+3dvr inbox send-test   Send a test email to the configured test address
+
+Tip:
+  Use `3dvr agent start` when you want the inbox watcher running in the background.
+INBOX
+        ;;
+      check) exec "$SCRIPT_DIR/ask-inbox" "$@" ;;
+      watch) exec "$SCRIPT_DIR/ask-inbox-daemon" run-now "$@" ;;
+      reply) exec "$SCRIPT_DIR/ask-inbox" --reply-preview "$@" ;;
+      send-test) send_inbox_test ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  email|mail)
+    sub="${1:-status}"
+    shift || true
+    case "$sub" in
+      connect|login) auth_login "${1:-google}" ;;
+      import) exec node "$ROOT/node/oauth-connection.js" import "$@" ;;
+      status) exec node "$ROOT/node/oauth-connection.js" status "${1:-google}" ;;
+      refresh) exec node "$ROOT/node/oauth-connection.js" refresh "${1:-google}" ;;
+      logout|remove) exec node "$ROOT/node/oauth-connection.js" logout "${1:-google}" ;;
+      check) exec "$SCRIPT_DIR/ask-inbox" "$@" ;;
+      watch) exec "$SCRIPT_DIR/ask-inbox-daemon" run-now "$@" ;;
+      test|send-test) send_inbox_test ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  auth)
+    sub="${1:-status}"
+    shift || true
+    case "$sub" in
+      login) auth_login "${1:-google}" ;;
+      import) exec node "$ROOT/node/oauth-connection.js" import "$@" ;;
+      status) exec node "$ROOT/node/oauth-connection.js" status "${1:-google}" ;;
+      refresh) exec node "$ROOT/node/oauth-connection.js" refresh "${1:-google}" ;;
+      logout|remove) exec node "$ROOT/node/oauth-connection.js" logout "${1:-google}" ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  agent)
+    sub="${1:-status}"
+    case "$sub" in
+      status) print_section "Inbox worker"; "$SCRIPT_DIR/ask-inbox-daemon" status || true; print_section "Outreach worker"; "$SCRIPT_DIR/ask-autopilot-daemon" status || true; print_section "Task worker"; "$SCRIPT_DIR/ask-agent-worker-daemon" status || true; print_section "Heartbeat"; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" status || true ;;
+      start) echo "Starting inbox, outreach, task, and heartbeat workers..."; "$SCRIPT_DIR/ask-inbox-daemon" start; "$SCRIPT_DIR/ask-autopilot-daemon" start; "$SCRIPT_DIR/ask-agent-worker-daemon" start; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" start; echo "Run `3dvr status` to verify." ;;
+      stop) echo "Stopping inbox, outreach, task, and heartbeat workers..."; "$SCRIPT_DIR/ask-inbox-daemon" stop; "$SCRIPT_DIR/ask-autopilot-daemon" stop; "$SCRIPT_DIR/ask-agent-worker-daemon" stop; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" stop ;;
+      logs) print_section "Inbox logs"; "$SCRIPT_DIR/ask-inbox-daemon" logs; print_section "Outreach logs"; "$SCRIPT_DIR/ask-autopilot-daemon" logs; print_section "Task worker logs"; "$SCRIPT_DIR/ask-agent-worker-daemon" logs; print_section "Heartbeat logs"; "$SCRIPT_DIR/ask-agent-heartbeat-daemon" logs ;;
+      restart) "$0" agent stop || true; "$0" agent start ;;
+      heartbeat) exec "$SCRIPT_DIR/ask-agent-heartbeat-daemon" run-now ;;
+      task)
+        shift || true
+        exec "$SCRIPT_DIR/ask-agent-task" "$@"
+        ;;
+      queue)
+        shift || true
+        exec "$SCRIPT_DIR/ask-agent-queue" "$@"
+        ;;
+      worker)
+        shift || true
+        exec "$SCRIPT_DIR/ask-agent-worker-daemon" "${1:-status}" "${@:2}"
+        ;;
+      codex)
+        shift || true
+        exec "$SCRIPT_DIR/ask-agent-codex" "${1:-status}" "${@:2}"
+        ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  device)
+    sub="${1:-help}"
+    shift || true
+    exec "$SCRIPT_DIR/ask-device" "$sub" "$@"
+    ;;
+  server|servers)
+    sub="${1:-help}"
+    shift || true
+    case "$sub" in
+      handoff|setup) exec "$SCRIPT_DIR/ask-server" handoff "$@" ;;
+      doctor|check|status) exec "$SCRIPT_DIR/ask-server" doctor "$@" ;;
+      help|-h|--help) exec "$SCRIPT_DIR/ask-server" help ;;
+      *) exec "$SCRIPT_DIR/ask-server" "$sub" "$@" ;;
+    esac
+    ;;
+  project)
+    sub="${1:-list}"
+    target="${2:-}"
+    case "$sub" in
+      list) printf '%s\n' "Projects:" "  portal   3dvr-portal" "  web      3dvr-web" "  agent    3dvr-agent" "  tmsteph  tmsteph-redesign-2025" ;;
+      open)
+        path="$(project_root "$target" || true)"
+        [ -n "$path" ] || { echo "Use: 3dvr project open portal|web|agent|tmsteph"; exit 1; }
+        echo "$path"
+        ;;
+      new) echo "Create the repo/project, then add it to 3dvr project list when it becomes part of the core workspace." ;;
+      deploy) echo "Use the target repo deploy flow. Portal/web deploys should be verified live after deployment." ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  settings)
+    sub="${1:-all}"
+    case "$sub" in
+      all) print_section "3dvr settings"; env | grep -E '^(THREEDVR_|GMAIL_USER=|GMAIL_APP_PASSWORD=)' | sort || true; print_next_steps ;;
+      portal) echo "Portal URL: ${THREEDVR_PORTAL_URL:-https://portal.3dvr.tech}" ;;
+      email) print_section "Email settings"; echo "GMAIL_USER=${GMAIL_USER:-3dvr.tech@gmail.com (main mailbox default)}"; echo "GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:+legacy fallback set}"; echo "THREEDVR_OUTREACH_PHONE=${THREEDVR_OUTREACH_PHONE:-missing}"; echo "THREEDVR_GMAIL_AUTH=${THREEDVR_GMAIL_AUTH:-oauth-first}"; node "$ROOT/node/oauth-connection.js" status google || true ;;
+      relay) print_section "Portal relay"; echo "THREEDVR_AUTOPILOT_EMAIL_ENDPOINT=${THREEDVR_AUTOPILOT_EMAIL_ENDPOINT:-unset}"; echo "THREEDVR_AUTOPILOT_EMAIL_TOKEN=${THREEDVR_AUTOPILOT_EMAIL_TOKEN:+set}" ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  *) usage; exit 1 ;;
+esac
