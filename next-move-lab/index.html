@@ -22,11 +22,11 @@
 
   <main id="mainContent" class="lab-shell">
     <section class="hero" aria-labelledby="pageTitle">
-      <p class="eyebrow">Small experiment · private by default</p>
+      <p class="eyebrow">Small experiment · no account required</p>
       <h1 id="pageTitle">What are you trying to figure out?</h1>
       <p>
-        Give us three honest answers. This lab will turn them into one practical next move and point you to the
-        most relevant tool already inside the portal.
+        Give 3dvr Compass three honest answers. AI will surface realistic paths, recommend one experiment, and
+        help you choose a practical next move.
       </p>
     </section>
 
@@ -34,7 +34,10 @@
       <div class="section-heading">
         <p class="eyebrow">Clarity Snapshot</p>
         <h2 id="formTitle">Start with what is true right now.</h2>
-        <p>Your answers stay in this tab and are not saved or sent. This first lab does not require an account.</p>
+        <p>
+          Your answers are sent securely through Vercel AI Gateway to generate guidance. The portal does not add
+          them to an account or saved history. No account is required; leave out private or sensitive information.
+        </p>
       </div>
 
       <form data-next-move-form>
@@ -94,15 +97,16 @@
         </label>
 
         <p class="form-error" data-error role="alert"></p>
-        <button class="button button--primary" type="submit">Create my snapshot</button>
+        <button class="button button--primary" type="submit" data-submit-button>Get AI guidance</button>
+        <p class="ai-status" data-ai-status aria-live="polite"></p>
       </form>
     </section>
 
     <section class="panel result" data-result-view hidden aria-labelledby="resultTitle">
       <div class="section-heading">
-        <p class="eyebrow">Your Clarity Snapshot</p>
+        <p class="eyebrow">3dvr Compass · AI guidance</p>
         <h2 id="resultTitle" data-result-title tabindex="-1"></h2>
-        <p>This is a working hypothesis. Keep what helps and revise what does not.</p>
+        <p>This is a working hypothesis—not a verdict. Keep what helps and revise what does not.</p>
       </div>
 
       <dl class="snapshot-grid">
@@ -111,12 +115,36 @@
         <div><dt>What the plan must respect</dt><dd data-result-constraint></dd></div>
       </dl>
 
+      <article class="insight-card">
+        <p class="eyebrow">What Compass hears</p>
+        <p data-result-hears></p>
+      </article>
+
+      <section class="paths-section" aria-labelledby="pathsTitle">
+        <p class="eyebrow">Three realistic paths</p>
+        <h3 id="pathsTitle">Options worth testing</h3>
+        <div class="path-grid" data-result-paths></div>
+      </section>
+
       <article class="move-card">
-        <p class="eyebrow">Working lens</p>
-        <p data-result-lens></p>
+        <p class="eyebrow">Recommended experiment</p>
+        <h3 data-result-recommendation-title></h3>
+        <p data-result-recommendation-why></p>
+        <h3>Biggest assumption to test</h3>
+        <p data-result-assumption></p>
         <h3>Your next 24-hour move</h3>
         <p data-result-action></p>
       </article>
+
+      <form class="follow-up-card" data-follow-up-form>
+        <label for="followUpAnswer">
+          <span data-result-follow-up-question></span>
+          <small>Answer once and Compass will refine the full recommendation.</small>
+        </label>
+        <textarea id="followUpAnswer" name="followUpAnswer" rows="3" maxlength="600" required></textarea>
+        <button class="button button--primary" type="submit" data-follow-up-button>Refine my next move</button>
+        <p class="ai-status" data-follow-up-status aria-live="polite"></p>
+      </form>
 
       <a class="route-card" data-result-route href="../start/">
         <strong>Continue in the portal</strong>
@@ -136,8 +164,8 @@
     <aside class="scope-note" aria-label="Experiment scope">
       <strong>Why this lab is intentionally small</strong>
       <p>
-        It tests whether a short intake and a useful handoff help people move forward. Advice chat, email continuity,
-        saved plans, and paid guidance can be added only after this basic experience proves useful.
+        It tests whether a short AI-guided conversation helps people move forward. Your plan stays temporary;
+        accounts, saved history, email continuity, and paid guidance remain outside this experiment.
       </p>
     </aside>
   </main>

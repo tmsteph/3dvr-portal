@@ -1,5 +1,6 @@
 import { createForgeHandler } from '../src/forge/api.js';
 import { createGuideHandler } from '../src/guide/api.js';
+import { createNextMoveGuidanceHandler } from '../src/next-move/api.js';
 
 export const DEFAULT_MODEL = 'gpt-4.1-mini';
 export const SUPPORTED_SITE_MODELS = Object.freeze([
@@ -461,6 +462,7 @@ export function createOpenAiSiteRouter(options = {}) {
   const siteHandler = createSiteGeneratorHandler(options);
   const forgeHandler = createForgeHandler(options.forge || options);
   const guideHandler = createGuideHandler(options.guide || options);
+  const nextMoveHandler = createNextMoveGuidanceHandler(options.nextMove || options);
 
   return async function handler(req, res) {
     if (req?.body?.forge === true || req?.query?.provider === 'forge') {
@@ -469,6 +471,10 @@ export function createOpenAiSiteRouter(options = {}) {
 
     if (req?.body?.guide === true || req?.query?.provider === 'guide') {
       return guideHandler(req, res);
+    }
+
+    if (req?.body?.nextMove === true || req?.query?.provider === 'next-move') {
+      return nextMoveHandler(req, res);
     }
 
     return siteHandler(req, res);

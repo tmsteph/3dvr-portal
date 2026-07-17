@@ -248,6 +248,12 @@ form {
   color: #ffbdad;
 }
 
+.ai-status {
+  min-height: 1.5em;
+  margin: -0.65rem 0 0;
+  color: var(--muted);
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -273,6 +279,11 @@ form {
   color: var(--muted);
 }
 
+.button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .snapshot-grid {
   display: grid;
   gap: 0.75rem;
@@ -280,7 +291,10 @@ form {
 }
 
 .snapshot-grid div,
-.move-card {
+.move-card,
+.insight-card,
+.path-card,
+.follow-up-card {
   min-width: 0;
   padding: 1rem;
   border-radius: 1rem;
@@ -300,13 +314,100 @@ form {
   overflow-wrap: anywhere;
 }
 
+.insight-card {
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(124, 229, 215, 0.24);
+}
+
+.insight-card > p:last-child {
+  margin-bottom: 0;
+  font-size: 1.08rem;
+}
+
+.paths-section {
+  margin-block: 1.25rem;
+}
+
+.paths-section > h3 {
+  margin: 0.35rem 0 0.85rem;
+}
+
+.path-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.path-card {
+  border: 1px solid var(--border);
+}
+
+.path-card h4 {
+  margin: 0.2rem 0 0.45rem;
+  font-size: 1.08rem;
+}
+
+.path-card p {
+  margin: 0.25rem 0 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.path-card p:last-child {
+  margin-bottom: 0;
+}
+
+.path-card strong,
+.path-number {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .move-card h3 {
   margin: 1.25rem 0 0.25rem;
   font-size: 1.15rem;
 }
 
+.move-card > .eyebrow + h3 {
+  margin-top: 0.35rem;
+}
+
 .move-card p {
   overflow-wrap: anywhere;
+}
+
+.follow-up-card {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  border: 1px solid rgba(124, 229, 215, 0.45);
+}
+
+.follow-up-card label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 750;
+}
+
+.follow-up-card small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.follow-up-card textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.9rem;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: #091621;
+  color: var(--text);
+}
+
+.follow-up-card .ai-status {
+  margin: 0;
 }
 
 .route-card {
