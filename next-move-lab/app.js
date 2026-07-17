@@ -1,23 +1,75 @@
-import { createClaritySnapshot, snapshotToText } from './snapshot.js';
+import {
+  createClaritySnapshot,
+  createFallbackGuidance,
+  snapshotToText
+} from './snapshot.js';
 
 const form = document.querySelector('[data-next-move-form]');
+const followUpForm = document.querySelector('[data-follow-up-form]');
 const formView = document.querySelector('[data-form-view]');
 const resultView = document.querySelector('[data-result-view]');
 const error = document.querySelector('[data-error]');
 const status = document.querySelector('[data-status]');
+const aiStatus = document.querySelector('[data-ai-status]');
+const followUpStatus = document.querySelector('[data-follow-up-status]');
+const submitButton = document.querySelector('[data-submit-button]');
+const followUpButton = document.querySelector('[data-follow-up-button]');
+
+let latestSnapshot = null;
+let latestGuidance = null;
 
 function selectedMode() {
   return form.querySelector('input[name="mode"]:checked')?.value || '';
 }
 
-function renderSnapshot(snapshot) {
-  document.querySelector('[data-result-title]').textContent = snapshot.title;
+function createPathCard(path, index) {
+  const article = document.createElement('article');
+  article.className = 'path-card';
+
+  const label = document.createElement('p');
+  label.className = 'path-number';
+  label.textContent = `Path ${index + 1}`;
+
+  const title = document.createElement('h4');
+  title.textContent = path.title;
+
+  const fit = document.createElement('p');
+  fit.textContent = path.fit;
+
+  const tradeoffTitle = document.createElement('strong');
+  tradeoffTitle.textContent = 'Tradeoff';
+
+  const tradeoff = document.createElement('p');
+  tradeoff.textContent = path.tradeoff;
+
+  const experimentTitle = document.createElement('strong');
+  experimentTitle.textContent = 'Small test';
+
+  const experiment = document.createElement('p');
+  experiment.textContent = path.experiment;
+
+  article.append(label, title, fit, tradeoffTitle, tradeoff, experimentTitle, experiment);
+  return article;
+}
+
+function renderGuidance(snapshot, guidance, message = '') {
+  latestSnapshot = snapshot;
+  latestGuidance = guidance;
+
+  document.querySelector('[data-result-title]').textContent = guidance.title;
   document.querySelector('[data-result-situation]').textContent = snapshot.situation;
   document.querySelector('[data-result-desired]').textContent = snapshot.desired;
   document.querySelector('[data-result-constraint]').textContent = snapshot.constraint;
-  document.querySelector('[data-result-lens]').textContent = snapshot.lens;
-  document.querySelector('[data-result-action]').textContent = snapshot.nextAction;
+  document.querySelector('[data-result-hears]').textContent = guidance.whatItHears;
+  document.querySelector('[data-result-recommendation-title]').textContent = guidance.recommendation.title;
+  document.querySelector('[data-result-recommendation-why]').textContent = guidance.recommendation.why;
+  document.querySelector('[data-result-assumption]').textContent = guidance.assumptionToTest;
+  document.querySelector('[data-result-action]').textContent = guidance.nextAction;
+  document.querySelector('[data-result-follow-up-question]').textContent = guidance.followUpQuestion;
   document.querySelector('[data-result-disclaimer]').textContent = snapshot.disclaimer;
+
+  const paths = document.querySelector('[data-result-paths]');
+  paths.replaceChildren(...guidance.paths.map(createPathCard));
 
   const route = document.querySelector('[data-result-route]');
   route.href = snapshot.route;
@@ -26,19 +78,110 @@ function renderSnapshot(snapshot) {
 
   formView.hidden = true;
   resultView.hidden = false;
-  resultView.dataset.snapshot = JSON.stringify(snapshot);
+  status.textContent = message;
   document.querySelector('[data-result-title]').focus();
 }
 
-function currentSnapshot() {
-  const encoded = resultView.dataset.snapshot;
-  return encoded ? JSON.parse(encoded) : null;
+function setBusy(button, statusElement, busy, message = '') {
+  button.disabled = busy;
+  button.setAttribute('aria-busy', String(busy));
+  statusElement.textContent = message;
+}
+
+async function requestGuidance(payload) {
+  const response = await fetch('/api/openai-site?provider=next-move', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const requestError = new Error(result.error || 'Compass could not generate guidance.');
+    requestError.code = result.code || '';
+    throw requestError;
+  }
+
+  return result.guidance;
+}
+
+function snapshotFromForm() {
+  return createClaritySnapshot({
+    mode: selectedMode(),
+    situation: form.elements.situation.value,
+    desired: form.elements.desired.value,
+    constraint: form.elements.constraint.value
+  });
+}
+
+async function generateInitialGuidance(event) {
+  event.preventDefault();
+  error.textContent = '';
+  status.textContent = '';
+
+  let snapshot;
+  try {
+    snapshot = snapshotFromForm();
+  } catch (snapshotError) {
+    error.textContent = snapshotError.message;
+    form.querySelector(':invalid, textarea, input')?.focus();
+    return;
+  }
+
+  setBusy(submitButton, aiStatus, true, 'Compass is weighing your options and constraints…');
+
+  try {
+    const guidance = await requestGuidance(snapshot);
+    renderGuidance(snapshot, guidance, 'AI guidance ready. This lab did not add your answers to saved history.');
+  } catch (requestError) {
+    if (requestError.code === 'crisis_support') {
+      error.textContent = requestError.message;
+      error.focus?.();
+      return;
+    }
+
+    renderGuidance(
+      snapshot,
+      createFallbackGuidance(snapshot),
+      'AI is temporarily unavailable, so Compass is showing a local starter snapshot instead.'
+    );
+  } finally {
+    setBusy(submitButton, aiStatus, false);
+  }
+}
+
+async function refineGuidance(event) {
+  event.preventDefault();
+  if (!latestSnapshot || !latestGuidance) return;
+
+  const answer = followUpForm.elements.followUpAnswer.value.trim();
+  if (!answer) {
+    followUpForm.elements.followUpAnswer.focus();
+    return;
+  }
+
+  setBusy(followUpButton, followUpStatus, true, 'Compass is refining the recommendation…');
+
+  try {
+    const guidance = await requestGuidance({
+      ...latestSnapshot,
+      followUpAnswer: answer,
+      previousGuidance: latestGuidance
+    });
+    followUpStatus.textContent = '';
+    renderGuidance(latestSnapshot, guidance, 'Recommendation refined with your follow-up answer.');
+    followUpForm.reset();
+  } catch (requestError) {
+    followUpStatus.textContent = requestError.message;
+  } finally {
+    followUpButton.disabled = false;
+    followUpButton.setAttribute('aria-busy', 'false');
+  }
 }
 
 async function copySnapshot() {
-  const snapshot = currentSnapshot();
-  if (!snapshot) return;
-  const text = snapshotToText(snapshot);
+  if (!latestSnapshot || !latestGuidance) return;
+  const text = snapshotToText(latestSnapshot, latestGuidance);
 
   try {
     await navigator.clipboard.writeText(text);
@@ -52,25 +195,11 @@ async function copySnapshot() {
     textarea.remove();
   }
 
-  status.textContent = 'Snapshot copied.';
+  status.textContent = 'Guidance copied.';
 }
 
-form.addEventListener('submit', event => {
-  event.preventDefault();
-  error.textContent = '';
-
-  try {
-    renderSnapshot(createClaritySnapshot({
-      mode: selectedMode(),
-      situation: form.elements.situation.value,
-      desired: form.elements.desired.value,
-      constraint: form.elements.constraint.value
-    }));
-  } catch (snapshotError) {
-    error.textContent = snapshotError.message;
-    form.querySelector(':invalid, textarea, input')?.focus();
-  }
-});
+form.addEventListener('submit', generateInitialGuidance);
+followUpForm.addEventListener('submit', refineGuidance);
 
 document.querySelector('[data-action="edit"]').addEventListener('click', () => {
   resultView.hidden = true;
@@ -80,11 +209,15 @@ document.querySelector('[data-action="edit"]').addEventListener('click', () => {
 
 document.querySelector('[data-action="reset"]').addEventListener('click', () => {
   form.reset();
-  resultView.dataset.snapshot = '';
+  followUpForm.reset();
+  latestSnapshot = null;
+  latestGuidance = null;
   resultView.hidden = true;
   formView.hidden = false;
   error.textContent = '';
   status.textContent = '';
+  aiStatus.textContent = '';
+  followUpStatus.textContent = '';
   form.querySelector('input[name="mode"]').focus();
 });
 

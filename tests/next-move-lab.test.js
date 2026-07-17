@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   createClaritySnapshot,
+  createFallbackGuidance,
   getNextMoveMode,
   normalizeSnapshotText,
   snapshotToText
@@ -49,17 +50,32 @@ test('snapshot text is normalized, bounded, and exportable', () => {
   assert.match(output, /Next 24-hour move:/);
 });
 
-test('Next Move Lab is an isolated private browser experience', async () => {
+test('fallback guidance remains useful when AI is unavailable', () => {
+  const snapshot = createClaritySnapshot(input);
+  const guidance = createFallbackGuidance(snapshot);
+  const output = snapshotToText(snapshot, guidance);
+
+  assert.equal(guidance.paths.length, 3);
+  assert.match(guidance.recommendation.title, /customer/i);
+  assert.equal(guidance.fallback, true);
+  assert.match(output, /Three|Paths worth testing:/);
+  assert.match(output, /Biggest assumption:/);
+  assert.match(output, /Follow-up question:/);
+});
+
+test('Next Move Lab sends answers only to its isolated AI endpoint', async () => {
   const html = await readFile(new URL('../next-move-lab/index.html', import.meta.url), 'utf8');
   const app = await readFile(new URL('../next-move-lab/app.js', import.meta.url), 'utf8');
   const css = await readFile(new URL('../next-move-lab/styles.css', import.meta.url), 'utf8');
 
   assert.match(html, /What are you trying to figure out\?/);
-  assert.match(html, /answers stay in this tab and are not saved or sent/i);
   assert.match(html, /My life or career/);
   assert.match(html, /A business idea/);
   assert.match(html, /Something I want to build/);
-  assert.doesNotMatch(app, /fetch\(|localStorage|sessionStorage|Gun\(/);
+  assert.match(html, /sent securely through Vercel AI Gateway/i);
+  assert.match(html, /does not add\s+them to an account or saved history/i);
+  assert.match(app, /fetch\('\/api\/openai-site\?provider=next-move'/);
+  assert.doesNotMatch(app, /localStorage|sessionStorage|Gun\(/);
   assert.match(app, /textContent/);
   assert.match(css, /@media \(max-width: 360px\)/);
   assert.match(css, /overflow-x: hidden/);

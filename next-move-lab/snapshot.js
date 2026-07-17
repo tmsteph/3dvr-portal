@@ -65,19 +65,121 @@ export function createClaritySnapshot(input = {}) {
   };
 }
 
-export function snapshotToText(snapshot) {
-  return [
+const FALLBACK_PATHS = Object.freeze({
+  career: Object.freeze([
+    Object.freeze({
+      title: 'Talk to someone doing the work',
+      fit: 'Best when you need reality before choosing a direction.',
+      tradeoff: 'A conversation gives evidence, but it will not make the decision for you.',
+      experiment: 'Ask one person for a 20-minute reality check.'
+    }),
+    Object.freeze({
+      title: 'Make a tiny proof project',
+      fit: 'Best when you learn by doing and need evidence of your ability.',
+      tradeoff: 'It costs time before you know whether the direction fits.',
+      experiment: 'Build one two-hour sample of the work.'
+    }),
+    Object.freeze({
+      title: 'Test an adjacent role',
+      fit: 'Best when income and family constraints make a large leap unsafe.',
+      tradeoff: 'The change may feel slower, but it protects what matters now.',
+      experiment: 'Find one role that uses your current strengths in a better setting.'
+    })
+  ]),
+  startup: Object.freeze([
+    Object.freeze({
+      title: 'Interview one possible customer',
+      fit: 'Best when the problem is still less certain than the solution.',
+      tradeoff: 'You may learn that your favorite idea is not the urgent one.',
+      experiment: 'Ask one person how they solve this problem today.'
+    }),
+    Object.freeze({
+      title: 'Offer the result manually',
+      fit: 'Best when you can deliver value before building software.',
+      tradeoff: 'Manual delivery does not scale, but it reveals what matters.',
+      experiment: 'Write and show one clear service offer to one buyer.'
+    }),
+    Object.freeze({
+      title: 'Run a landing-page test',
+      fit: 'Best when the offer is clear enough to test interest.',
+      tradeoff: 'Clicks are weaker evidence than conversations or payment.',
+      experiment: 'Publish one promise and one call to action.'
+    })
+  ]),
+  build: Object.freeze([
+    Object.freeze({
+      title: 'Build the smallest useful demo',
+      fit: 'Best when one visible result can test the core idea.',
+      tradeoff: 'Most of the full vision must wait.',
+      experiment: 'Create one screen or flow that completes the main job.'
+    }),
+    Object.freeze({
+      title: 'Deliver it manually first',
+      fit: 'Best when you need to understand the workflow before automating it.',
+      tradeoff: 'It feels less like a product, but teaches you faster.',
+      experiment: 'Help one person get the result without building the system.'
+    }),
+    Object.freeze({
+      title: 'Mock up the decision',
+      fit: 'Best when feedback on the concept is more valuable than working code.',
+      tradeoff: 'A mockup cannot prove technical feasibility.',
+      experiment: 'Show a clickable or one-page concept to one intended user.'
+    })
+  ])
+});
+
+export function createFallbackGuidance(snapshot) {
+  const paths = FALLBACK_PATHS[snapshot?.mode] || FALLBACK_PATHS.build;
+
+  return {
+    title: snapshot.title,
+    whatItHears: `You want ${snapshot.desired.toLowerCase()} while respecting ${snapshot.constraint.toLowerCase()}`,
+    paths: paths.map(path => ({ ...path })),
+    recommendation: {
+      title: paths[0].title,
+      why: snapshot.lens
+    },
+    assumptionToTest: 'The first question is whether one real person finds this direction useful enough to engage with.',
+    nextAction: snapshot.nextAction,
+    followUpQuestion: 'What evidence would make this direction feel worth continuing for another week?',
+    fallback: true
+  };
+}
+
+export function snapshotToText(snapshot, guidance = null) {
+  const lines = [
     '3dvr Next Move — Clarity Snapshot',
     '',
-    snapshot.title,
+    guidance?.title || snapshot.title,
     '',
     `Where I am: ${snapshot.situation}`,
     `What I want: ${snapshot.desired}`,
     `What the plan must respect: ${snapshot.constraint}`,
-    '',
-    `Working lens: ${snapshot.lens}`,
-    `Next 24-hour move: ${snapshot.nextAction}`,
-    '',
-    snapshot.disclaimer
-  ].join('\n');
+    ''
+  ];
+
+  if (guidance) {
+    lines.push(`What Compass hears: ${guidance.whatItHears}`, '', 'Paths worth testing:');
+    guidance.paths.forEach((path, index) => {
+      lines.push(
+        `${index + 1}. ${path.title}`,
+        `   Fit: ${path.fit}`,
+        `   Tradeoff: ${path.tradeoff}`,
+        `   Experiment: ${path.experiment}`
+      );
+    });
+    lines.push(
+      '',
+      `Recommendation: ${guidance.recommendation.title}`,
+      guidance.recommendation.why,
+      `Biggest assumption: ${guidance.assumptionToTest}`,
+      `Next 24-hour move: ${guidance.nextAction}`,
+      `Follow-up question: ${guidance.followUpQuestion}`
+    );
+  } else {
+    lines.push(`Working lens: ${snapshot.lens}`, `Next 24-hour move: ${snapshot.nextAction}`);
+  }
+
+  lines.push('', snapshot.disclaimer);
+  return lines.join('\n');
 }
