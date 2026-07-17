@@ -17,14 +17,31 @@
   <a class="skip-link" href="#mainContent">Skip to Next Move Lab</a>
   <header class="lab-header">
     <a class="brand" href="../index.html" aria-label="3dvr portal home">3dvr</a>
-    <span class="lab-label">Next Move Lab</span>
+    <div class="header-tools">
+      <span class="lab-label">Next Move Lab</span>
+      <button class="sound-toggle" type="button" data-sound-toggle aria-pressed="false">
+        <span aria-hidden="true">♪</span>
+        <b>Sound off</b>
+      </button>
+    </div>
   </header>
 
   <main id="mainContent" class="lab-shell">
     <section class="hero" aria-labelledby="pageTitle">
-      <p class="eyebrow">Small experiment · no account required</p>
-      <h1 id="pageTitle">What feels stuck?</h1>
-      <p>Pick one topic. Answer three clear questions.</p>
+      <div class="hero-copy">
+        <p class="eyebrow">One small step</p>
+        <h1 id="pageTitle">What feels stuck?</h1>
+        <p>Pick one topic. Answer three clear questions.</p>
+      </div>
+      <div class="compass-scene" data-compass-scene aria-hidden="true">
+        <div class="star-field"></div>
+        <div class="compass-ring compass-ring--outer"></div>
+        <div class="compass-ring compass-ring--inner"></div>
+        <div class="compass-orb"><span></span></div>
+        <div class="journey-dots">
+          <i></i><i></i><i></i><i></i>
+        </div>
+      </div>
     </section>
 
     <section class="panel" data-form-view aria-labelledby="formTitle">
@@ -38,21 +55,17 @@
         <p class="step-note" data-step-note>Step 1 of 4</p>
         <fieldset class="mode-grid wizard-step" data-step="0">
           <legend>What is this about?</legend>
-          <label class="mode-card">
-            <input type="radio" name="mode" value="career" required>
+          <input type="hidden" name="mode" value="">
+          <button class="mode-card" type="button" data-mode-choice="career">
             <span><strong>My life or job</strong><small>A choice about life or work</small></span>
-          </label>
-          <label class="mode-card">
-            <input type="radio" name="mode" value="startup" required>
+          </button>
+          <button class="mode-card" type="button" data-mode-choice="startup">
             <span><strong>A business idea</strong><small>A customer, offer, or small test</small></span>
-          </label>
-          <label class="mode-card">
-            <input type="radio" name="mode" value="build" required>
+          </button>
+          <button class="mode-card" type="button" data-mode-choice="build">
             <span><strong>Something to build</strong><small>A site, product, or project</small></span>
-          </label>
+          </button>
         </fieldset>
-
-          <button class="button button--primary next-step" type="button" data-next>Next</button>
 
         <div class="detail-questions" data-detail-questions hidden>
           <div class="wizard-step" data-step="1">

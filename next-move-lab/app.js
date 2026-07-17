@@ -5,6 +5,7 @@ import {
   getNextMoveQuestions,
   snapshotToText
 } from './snapshot.js';
+import { createCompassExperience } from './experience.js';
 
 const form = document.querySelector('[data-next-move-form]');
 const followUpForm = document.querySelector('[data-follow-up-form]');
@@ -18,13 +19,17 @@ const submitButton = document.querySelector('[data-submit-button]');
 const followUpButton = document.querySelector('[data-follow-up-button]');
 const detailQuestions = document.querySelector('[data-detail-questions]');
 const steps = [...form.querySelectorAll('[data-step]')];
+const compass = createCompassExperience({
+  form,
+  soundToggle: document.querySelector('[data-sound-toggle]')
+});
 
 let latestSnapshot = null;
 let latestGuidance = null;
 let stepIndex = 0;
 
 function selectedMode() {
-  return form.querySelector('input[name="mode"]:checked')?.value || '';
+  return form.elements.mode.value || '';
 }
 
 function showQuestions(mode) {
@@ -126,6 +131,7 @@ function renderGuidance(snapshot, guidance, message = '') {
 
   formView.hidden = true;
   resultView.hidden = false;
+  compass.reveal();
   status.textContent = message;
   document.querySelector('[data-result-title]').focus();
 }
@@ -177,6 +183,7 @@ async function generateInitialGuidance(event) {
   }
 
   setBusy(submitButton, aiStatus, true, 'Making a short plan…');
+  compass.setThinking(true);
 
   try {
     const guidance = await requestGuidance(snapshot);
@@ -194,6 +201,7 @@ async function generateInitialGuidance(event) {
       'AI is not ready, so here is a simple backup plan.'
     );
   } finally {
+    compass.setThinking(false);
     setBusy(submitButton, aiStatus, false);
   }
 }
@@ -209,6 +217,7 @@ async function refineGuidance(event) {
   }
 
   setBusy(followUpButton, followUpStatus, true, 'Updating your plan…');
+  compass.setThinking(true);
 
   try {
     const guidance = await requestGuidance({
@@ -222,6 +231,7 @@ async function refineGuidance(event) {
   } catch (requestError) {
     followUpStatus.textContent = requestError.message;
   } finally {
+    compass.setThinking(false);
     followUpButton.disabled = false;
     followUpButton.setAttribute('aria-busy', 'false');
   }
@@ -248,13 +258,19 @@ async function copySnapshot() {
 
 form.addEventListener('submit', generateInitialGuidance);
 followUpForm.addEventListener('submit', refineGuidance);
-form.querySelectorAll('input[name="mode"]').forEach(input => {
-  input.addEventListener('change', () => {
-    showQuestions(input.value);
-  });
-});
-
 form.addEventListener('click', event => {
+  const modeChoice = event.target.closest('[data-mode-choice]');
+  if (modeChoice) {
+    const mode = modeChoice.dataset.modeChoice;
+    form.elements.mode.value = mode;
+    form.querySelectorAll('[data-mode-choice]').forEach(button => {
+      button.dataset.selected = String(button === modeChoice);
+    });
+    showQuestions(mode);
+    showStep(1);
+    return;
+  }
+
   const answer = event.target.closest('[data-answer]');
   if (answer) {
     form.elements[answer.dataset.field].value = answer.dataset.answer;
@@ -301,7 +317,8 @@ document.querySelector('[data-action="reset"]').addEventListener('click', () => 
   followUpStatus.textContent = '';
   detailQuestions.hidden = true;
   showStep(0);
-  form.querySelector('input[name="mode"]').focus();
+  compass.reset();
+  form.querySelector('[data-mode-choice], input[name="mode"]')?.focus();
 });
 
 document.querySelector('[data-action="copy"]').addEventListener('click', copySnapshot);
