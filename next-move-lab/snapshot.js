@@ -82,6 +82,24 @@ const QUESTION_SETS = Object.freeze({
   })
 });
 
+const ANSWERS = Object.freeze({
+  career: Object.freeze({
+    situation: ['I have too many choices.', 'I am tired of my job.', 'I do not know what fits.'],
+    desired: ['Pick one path to test.', 'Have more time at home.', 'Make a small plan.'],
+    constraint: ['I need to keep my pay.', 'I have little time.', 'I need to protect family time.']
+  }),
+  startup: Object.freeze({
+    situation: ['I do not know who to help.', 'I have too many ideas.', 'I do not know what to sell.'],
+    desired: ['Find one person to ask.', 'Test a simple offer.', 'Make the first sale.'],
+    constraint: ['I have little time.', 'I have little money.', 'I cannot risk my job.']
+  }),
+  build: Object.freeze({
+    situation: ['I do not know where to start.', 'The idea feels too big.', 'I keep changing the plan.'],
+    desired: ['Pick one small job.', 'Show a first version.', 'Help one real person.'],
+    constraint: ['I have little time.', 'I have little money.', 'It must stay simple.']
+  })
+});
+
 export function normalizeSnapshotText(value = '', maxLength = 600) {
   return String(value)
     .trim()
@@ -95,6 +113,10 @@ export function getNextMoveMode(mode = '') {
 
 export function getNextMoveQuestions(mode = '') {
   return QUESTION_SETS[normalizeSnapshotText(mode, 40)] || null;
+}
+
+export function getNextMoveAnswers(mode = '', question = '') {
+  return ANSWERS[normalizeSnapshotText(mode, 40)]?.[normalizeSnapshotText(question, 40)] || [];
 }
 
 export function createClaritySnapshot(input = {}) {
