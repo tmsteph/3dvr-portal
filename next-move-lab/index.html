@@ -24,7 +24,7 @@
     <section class="hero" aria-labelledby="pageTitle">
       <p class="eyebrow">Small experiment · no account required</p>
       <h1 id="pageTitle">What feels stuck?</h1>
-      <p>Answer three short questions. Get one clear next step.</p>
+      <p>Pick one topic. Answer three clear questions.</p>
     </section>
 
     <section class="panel" data-form-view aria-labelledby="formTitle">
@@ -51,44 +51,25 @@
           </label>
         </fieldset>
 
-        <label class="question" for="situation">
-          <span>2. What feels stuck?</span>
-          <small>Tell us the main problem.</small>
-          <textarea
-            id="situation"
-            name="situation"
-            rows="4"
-            maxlength="600"
-            placeholder="I have a few choices. I do not know which one to try."
-            required
-          ></textarea>
-        </label>
+        <div class="detail-questions" data-detail-questions hidden>
+          <label class="question" for="situation">
+            <span data-question-label="situation"></span>
+            <small data-question-help="situation"></small>
+            <textarea id="situation" name="situation" rows="3" maxlength="600" required></textarea>
+          </label>
 
-        <label class="question" for="desired">
-          <span>3. What do you want?</span>
-          <small>Name one result you can see.</small>
-          <textarea
-            id="desired"
-            name="desired"
-            rows="3"
-            maxlength="600"
-            placeholder="I want one choice I can test this month."
-            required
-          ></textarea>
-        </label>
+          <label class="question" for="desired">
+            <span data-question-label="desired"></span>
+            <small data-question-help="desired"></small>
+            <textarea id="desired" name="desired" rows="3" maxlength="600" required></textarea>
+          </label>
 
-        <label class="question" for="constraint">
-          <span>4. What limit should we know?</span>
-          <small>Think about time, money, family, or health.</small>
-          <textarea
-            id="constraint"
-            name="constraint"
-            rows="3"
-            maxlength="600"
-            placeholder="I have three hours a week and no money to spend."
-            required
-          ></textarea>
-        </label>
+          <label class="question" for="constraint">
+            <span data-question-label="constraint"></span>
+            <small data-question-help="constraint"></small>
+            <textarea id="constraint" name="constraint" rows="3" maxlength="600" required></textarea>
+          </label>
+        </div>
 
         <p class="form-error" data-error role="alert"></p>
         <button class="button button--primary" type="submit" data-submit-button>Show my next step</button>
@@ -134,9 +115,9 @@
         <details class="answers-card">
           <summary>See my answers</summary>
           <dl class="snapshot-grid">
-            <div><dt>What feels stuck</dt><dd data-result-situation></dd></div>
-            <div><dt>What I want</dt><dd data-result-desired></dd></div>
-            <div><dt>My limit</dt><dd data-result-constraint></dd></div>
+            <div><dt data-answer-label="situation"></dt><dd data-result-situation></dd></div>
+            <div><dt data-answer-label="desired"></dt><dd data-result-desired></dd></div>
+            <div><dt data-answer-label="constraint"></dt><dd data-result-constraint></dd></div>
           </dl>
         </details>
       </details>
