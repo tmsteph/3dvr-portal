@@ -41,5 +41,8 @@ jobs:
       - name: Install agent dependencies
         run: npm ci
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
       - name: Run agent checks
         run: npm test
