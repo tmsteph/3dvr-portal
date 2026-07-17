@@ -30,8 +30,8 @@ test('Clarity Snapshot preserves context and returns one bounded next action', (
   assert.equal(snapshot.situation, input.situation);
   assert.equal(snapshot.desired, input.desired);
   assert.equal(snapshot.constraint, input.constraint);
-  assert.match(snapshot.nextAction, /one possible customer/i);
-  assert.match(snapshot.disclaimer, /not medical, legal, financial, or crisis advice/i);
+  assert.match(snapshot.nextAction, /one customer/i);
+  assert.match(snapshot.disclaimer, /not expert advice/i);
   assert.doesNotMatch(JSON.stringify(snapshot), /guarantee/i);
 });
 
@@ -56,6 +56,7 @@ test('fallback guidance remains useful when AI is unavailable', () => {
   const output = snapshotToText(snapshot, guidance);
 
   assert.equal(guidance.paths.length, 3);
+  assert.ok(guidance.whatItHears.length < 80);
   assert.match(guidance.recommendation.title, /customer/i);
   assert.equal(guidance.fallback, true);
   assert.match(output, /Three|Paths worth testing:/);
@@ -68,12 +69,12 @@ test('Next Move Lab sends answers only to its isolated AI endpoint', async () =>
   const app = await readFile(new URL('../next-move-lab/app.js', import.meta.url), 'utf8');
   const css = await readFile(new URL('../next-move-lab/styles.css', import.meta.url), 'utf8');
 
-  assert.match(html, /What are you trying to figure out\?/);
-  assert.match(html, /My life or career/);
+  assert.match(html, /What feels stuck\?/);
+  assert.match(html, /My life or job/);
   assert.match(html, /A business idea/);
-  assert.match(html, /Something I want to build/);
-  assert.match(html, /sent securely through Vercel AI Gateway/i);
-  assert.match(html, /does not add\s+them to an account or saved history/i);
+  assert.match(html, /Something to build/);
+  assert.match(html, /We do not save them/i);
+  assert.match(html, /See more ideas/);
   assert.match(app, /fetch\('\/api\/openai-site\?provider=next-move'/);
   assert.doesNotMatch(app, /localStorage|sessionStorage|Gun\(/);
   assert.match(app, /textContent/);

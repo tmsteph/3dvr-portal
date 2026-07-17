@@ -23,151 +23,139 @@
   <main id="mainContent" class="lab-shell">
     <section class="hero" aria-labelledby="pageTitle">
       <p class="eyebrow">Small experiment · no account required</p>
-      <h1 id="pageTitle">What are you trying to figure out?</h1>
-      <p>
-        Give 3dvr Compass three honest answers. AI will surface realistic paths, recommend one experiment, and
-        help you choose a practical next move.
-      </p>
+      <h1 id="pageTitle">What feels stuck?</h1>
+      <p>Answer three short questions. Get one clear next step.</p>
     </section>
 
     <section class="panel" data-form-view aria-labelledby="formTitle">
       <div class="section-heading">
-        <p class="eyebrow">Clarity Snapshot</p>
-        <h2 id="formTitle">Start with what is true right now.</h2>
-        <p>
-          Your answers are sent securely through Vercel AI Gateway to generate guidance. The portal does not add
-          them to an account or saved history. No account is required; leave out private or sensitive information.
-        </p>
+        <p class="eyebrow">Start here</p>
+        <h2 id="formTitle">Tell us what is going on.</h2>
+        <p>AI reads your answers. We do not save them. Do not share private info.</p>
       </div>
 
       <form data-next-move-form>
         <fieldset class="mode-grid">
-          <legend>1. What kind of next move is this?</legend>
+          <legend>1. What is this about?</legend>
           <label class="mode-card">
             <input type="radio" name="mode" value="career" required>
-            <span><strong>My life or career</strong><small>Direction, purpose, work, or a difficult choice</small></span>
+            <span><strong>My life or job</strong><small>A choice about life or work</small></span>
           </label>
           <label class="mode-card">
             <input type="radio" name="mode" value="startup" required>
-            <span><strong>A business idea</strong><small>An offer, customer, startup, or useful experiment</small></span>
+            <span><strong>A business idea</strong><small>A customer, offer, or small test</small></span>
           </label>
           <label class="mode-card">
             <input type="radio" name="mode" value="build" required>
-            <span><strong>Something I want to build</strong><small>A website, product, project, or first version</small></span>
+            <span><strong>Something to build</strong><small>A site, product, or project</small></span>
           </label>
         </fieldset>
 
         <label class="question" for="situation">
-          <span>2. What feels unclear right now?</span>
-          <small>Share enough context to make the next step honest. Leave out private or sensitive information.</small>
+          <span>2. What feels stuck?</span>
+          <small>Tell us the main problem.</small>
           <textarea
             id="situation"
             name="situation"
             rows="4"
             maxlength="600"
-            placeholder="I have several directions I could take, but I am not sure which one deserves my limited time."
+            placeholder="I have a few choices. I do not know which one to try."
             required
           ></textarea>
         </label>
 
         <label class="question" for="desired">
-          <span>3. What would meaningful progress look like?</span>
-          <small>Choose an observable result, not a perfect life.</small>
+          <span>3. What do you want?</span>
+          <small>Name one result you can see.</small>
           <textarea
             id="desired"
             name="desired"
             rows="3"
             maxlength="600"
-            placeholder="I want one direction I can test this month without risking my current income."
+            placeholder="I want one choice I can test this month."
             required
           ></textarea>
         </label>
 
         <label class="question" for="constraint">
-          <span>4. What must the plan respect?</span>
-          <small>Time, money, family, health, energy, location, or another real constraint.</small>
+          <span>4. What limit should we know?</span>
+          <small>Think about time, money, family, or health.</small>
           <textarea
             id="constraint"
             name="constraint"
             rows="3"
             maxlength="600"
-            placeholder="I have three hours a week and cannot spend money yet."
+            placeholder="I have three hours a week and no money to spend."
             required
           ></textarea>
         </label>
 
         <p class="form-error" data-error role="alert"></p>
-        <button class="button button--primary" type="submit" data-submit-button>Get AI guidance</button>
+        <button class="button button--primary" type="submit" data-submit-button>Show my next step</button>
         <p class="ai-status" data-ai-status aria-live="polite"></p>
       </form>
     </section>
 
     <section class="panel result" data-result-view hidden aria-labelledby="resultTitle">
       <div class="section-heading">
-        <p class="eyebrow">3dvr Compass · AI guidance</p>
+        <p class="eyebrow">Your next move</p>
         <h2 id="resultTitle" data-result-title tabindex="-1"></h2>
-        <p>This is a working hypothesis—not a verdict. Keep what helps and revise what does not.</p>
+        <p>This is one idea. You choose what fits.</p>
       </div>
 
-      <dl class="snapshot-grid">
-        <div><dt>Where you are</dt><dd data-result-situation></dd></div>
-        <div><dt>What you want</dt><dd data-result-desired></dd></div>
-        <div><dt>What the plan must respect</dt><dd data-result-constraint></dd></div>
-      </dl>
-
-      <article class="insight-card">
-        <p class="eyebrow">What Compass hears</p>
-        <p data-result-hears></p>
-      </article>
-
-      <section class="paths-section" aria-labelledby="pathsTitle">
-        <p class="eyebrow">Three realistic paths</p>
-        <h3 id="pathsTitle">Options worth testing</h3>
-        <div class="path-grid" data-result-paths></div>
-      </section>
-
       <article class="move-card">
-        <p class="eyebrow">Recommended experiment</p>
+        <p class="eyebrow">Try this first</p>
         <h3 data-result-recommendation-title></h3>
         <p data-result-recommendation-why></p>
-        <h3>Biggest assumption to test</h3>
-        <p data-result-assumption></p>
-        <h3>Your next 24-hour move</h3>
+        <h3>Do this today</h3>
         <p data-result-action></p>
+      </article>
+
+      <article class="insight-card">
+        <p class="eyebrow">What we hear</p>
+        <p data-result-hears></p>
       </article>
 
       <form class="follow-up-card" data-follow-up-form>
         <label for="followUpAnswer">
           <span data-result-follow-up-question></span>
-          <small>Answer once and Compass will refine the full recommendation.</small>
+          <small>Your answer will make the plan better.</small>
         </label>
         <textarea id="followUpAnswer" name="followUpAnswer" rows="3" maxlength="600" required></textarea>
-        <button class="button button--primary" type="submit" data-follow-up-button>Refine my next move</button>
+        <button class="button button--primary" type="submit" data-follow-up-button>Update my plan</button>
         <p class="ai-status" data-follow-up-status aria-live="polite"></p>
       </form>
 
+      <details class="more-card">
+        <summary>See more ideas</summary>
+        <h3>What needs to be true</h3>
+        <p data-result-assumption></p>
+        <div class="path-grid" data-result-paths></div>
+        <details class="answers-card">
+          <summary>See my answers</summary>
+          <dl class="snapshot-grid">
+            <div><dt>What feels stuck</dt><dd data-result-situation></dd></div>
+            <div><dt>What I want</dt><dd data-result-desired></dd></div>
+            <div><dt>My limit</dt><dd data-result-constraint></dd></div>
+          </dl>
+        </details>
+      </details>
+
       <a class="route-card" data-result-route href="../start/">
-        <strong>Continue in the portal</strong>
+        <strong>Keep going</strong>
         <span></span>
         <b aria-hidden="true">→</b>
       </a>
 
       <p class="disclaimer" data-result-disclaimer></p>
       <div class="actions">
-        <button class="button" type="button" data-action="edit">Edit answers</button>
-        <button class="button button--primary" type="button" data-action="copy">Copy snapshot</button>
+        <button class="button" type="button" data-action="edit">Change answers</button>
+        <button class="button button--primary" type="button" data-action="copy">Copy plan</button>
         <button class="button button--quiet" type="button" data-action="reset">Start over</button>
       </div>
       <p class="status" data-status aria-live="polite"></p>
     </section>
 
-    <aside class="scope-note" aria-label="Experiment scope">
-      <strong>Why this lab is intentionally small</strong>
-      <p>
-        It tests whether a short AI-guided conversation helps people move forward. Your plan stays temporary;
-        accounts, saved history, email continuity, and paid guidance remain outside this experiment.
-      </p>
-    </aside>
   </main>
 
   <footer>
