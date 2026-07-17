@@ -175,6 +175,11 @@ form {
   margin-top: 1.75rem;
 }
 
+.detail-questions {
+  display: grid;
+  gap: 1.35rem;
+}
+
 .mode-grid {
   display: grid;
   gap: 0.7rem;

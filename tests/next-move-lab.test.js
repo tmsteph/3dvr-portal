@@ -5,6 +5,7 @@ import {
   createClaritySnapshot,
   createFallbackGuidance,
   getNextMoveMode,
+  getNextMoveQuestions,
   normalizeSnapshotText,
   snapshotToText
 } from '../next-move-lab/snapshot.js';
@@ -21,6 +22,22 @@ test('Next Move modes route into existing portal tools', () => {
   assert.equal(getNextMoveMode('startup').route, '../launch-room/?mode=test-service');
   assert.equal(getNextMoveMode('build').route, '../free-page/');
   assert.equal(getNextMoveMode('unknown'), null);
+});
+
+test('each mode asks three focused questions with separate jobs', () => {
+  const career = getNextMoveQuestions('career');
+  const startup = getNextMoveQuestions('startup');
+  const build = getNextMoveQuestions('build');
+
+  assert.match(career.situation.label, /choice/i);
+  assert.match(career.constraint.label, /must not get worse/i);
+  assert.match(startup.situation.label, /who/i);
+  assert.match(startup.desired.label, /offer/i);
+  assert.match(startup.constraint.label, /spend/i);
+  assert.match(build.situation.label, /who/i);
+  assert.match(build.desired.label, /one job/i);
+  assert.match(build.constraint.label, /wait until later/i);
+  assert.equal(getNextMoveQuestions('unknown'), null);
 });
 
 test('Clarity Snapshot preserves context and returns one bounded next action', () => {
@@ -69,13 +86,14 @@ test('Next Move Lab sends answers only to its isolated AI endpoint', async () =>
   const app = await readFile(new URL('../next-move-lab/app.js', import.meta.url), 'utf8');
   const css = await readFile(new URL('../next-move-lab/styles.css', import.meta.url), 'utf8');
 
-  assert.match(html, /What feels stuck\?/);
+  assert.match(html, /Pick one topic\. Answer three clear questions\./);
   assert.match(html, /My life or job/);
   assert.match(html, /A business idea/);
   assert.match(html, /Something to build/);
   assert.match(html, /We do not save them/i);
   assert.match(html, /See more ideas/);
   assert.match(app, /fetch\('\/api\/openai-site\?provider=next-move'/);
+  assert.match(app, /getNextMoveQuestions/);
   assert.doesNotMatch(app, /localStorage|sessionStorage|Gun\(/);
   assert.match(app, /textContent/);
   assert.match(css, /@media \(max-width: 360px\)/);

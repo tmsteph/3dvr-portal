@@ -28,6 +28,60 @@ const MODES = Object.freeze({
   })
 });
 
+const QUESTION_SETS = Object.freeze({
+  career: Object.freeze({
+    situation: Object.freeze({
+      label: '2. What choice are you making?',
+      help: 'Name the paths you are choosing between.',
+      placeholder: 'Stay in this job or look for a new one.'
+    }),
+    desired: Object.freeze({
+      label: '3. What would make it a win?',
+      help: 'Name one change you want soon.',
+      placeholder: 'More time with my family each week.'
+    }),
+    constraint: Object.freeze({
+      label: '4. What must not get worse?',
+      help: 'Pick your biggest limit.',
+      placeholder: 'I cannot take a pay cut.'
+    })
+  }),
+  startup: Object.freeze({
+    situation: Object.freeze({
+      label: '2. Who do you want to help?',
+      help: 'Name one kind of person.',
+      placeholder: 'Small event teams that miss new leads.'
+    }),
+    desired: Object.freeze({
+      label: '3. What will you offer first?',
+      help: 'Name one small thing they can try.',
+      placeholder: 'I will set up one simple lead form.'
+    }),
+    constraint: Object.freeze({
+      label: '4. What can you spend on a test?',
+      help: 'Name your time and money limit.',
+      placeholder: 'Three hours and no money this week.'
+    })
+  }),
+  build: Object.freeze({
+    situation: Object.freeze({
+      label: '2. Who will use it?',
+      help: 'Name one kind of person.',
+      placeholder: 'A parent who wants a simple meal plan.'
+    }),
+    desired: Object.freeze({
+      label: '3. What one job should it do?',
+      help: 'Name the first useful result.',
+      placeholder: 'Make a meal plan in five minutes.'
+    }),
+    constraint: Object.freeze({
+      label: '4. What must wait until later?',
+      help: 'Cut one part from the first try.',
+      placeholder: 'Accounts and phone apps can wait.'
+    })
+  })
+});
+
 export function normalizeSnapshotText(value = '', maxLength = 600) {
   return String(value)
     .trim()
@@ -37,6 +91,10 @@ export function normalizeSnapshotText(value = '', maxLength = 600) {
 
 export function getNextMoveMode(mode = '') {
   return MODES[normalizeSnapshotText(mode, 40)] || null;
+}
+
+export function getNextMoveQuestions(mode = '') {
+  return QUESTION_SETS[normalizeSnapshotText(mode, 40)] || null;
 }
 
 export function createClaritySnapshot(input = {}) {

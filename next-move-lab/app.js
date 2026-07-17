@@ -1,6 +1,7 @@
 import {
   createClaritySnapshot,
   createFallbackGuidance,
+  getNextMoveQuestions,
   snapshotToText
 } from './snapshot.js';
 
@@ -14,12 +15,30 @@ const aiStatus = document.querySelector('[data-ai-status]');
 const followUpStatus = document.querySelector('[data-follow-up-status]');
 const submitButton = document.querySelector('[data-submit-button]');
 const followUpButton = document.querySelector('[data-follow-up-button]');
+const detailQuestions = document.querySelector('[data-detail-questions]');
 
 let latestSnapshot = null;
 let latestGuidance = null;
 
 function selectedMode() {
   return form.querySelector('input[name="mode"]:checked')?.value || '';
+}
+
+function showQuestions(mode) {
+  const questions = getNextMoveQuestions(mode);
+  if (!questions) {
+    detailQuestions.hidden = true;
+    return;
+  }
+
+  Object.entries(questions).forEach(([name, question]) => {
+    document.querySelector(`[data-question-label="${name}"]`).textContent = question.label;
+    document.querySelector(`[data-question-help="${name}"]`).textContent = question.help;
+    document.querySelector(`[data-answer-label="${name}"]`).textContent = question.label.replace(/^\d+\.\s*/, '');
+    form.elements[name].placeholder = question.placeholder;
+  });
+
+  detailQuestions.hidden = false;
 }
 
 function createPathCard(path, index) {
@@ -200,6 +219,12 @@ async function copySnapshot() {
 
 form.addEventListener('submit', generateInitialGuidance);
 followUpForm.addEventListener('submit', refineGuidance);
+form.querySelectorAll('input[name="mode"]').forEach(input => {
+  input.addEventListener('change', () => {
+    showQuestions(input.value);
+    form.elements.situation.focus();
+  });
+});
 
 document.querySelector('[data-action="edit"]').addEventListener('click', () => {
   resultView.hidden = true;
@@ -218,6 +243,7 @@ document.querySelector('[data-action="reset"]').addEventListener('click', () => 
   status.textContent = '';
   aiStatus.textContent = '';
   followUpStatus.textContent = '';
+  detailQuestions.hidden = true;
   form.querySelector('input[name="mode"]').focus();
 });
 
