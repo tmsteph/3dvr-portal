@@ -188,6 +188,17 @@ form {
   min-width: 0;
 }
 
+.wizard-actions {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.wizard-actions .button--primary {
+  flex: 1;
+}
+
 .detail-questions {
   display: grid;
   gap: 1.35rem;
@@ -275,6 +286,11 @@ form {
   text-align: left;
   font-weight: 750;
   cursor: pointer;
+}
+
+.answer-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(124, 229, 215, 0.16);
 }
 
 .answer-chip:hover,

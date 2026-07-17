@@ -63,6 +63,9 @@ function showStep(index) {
   detailQuestions.hidden = index === 0;
   document.querySelector('[data-step-note]').textContent = `Step ${index + 1} of 4`;
   submitButton.hidden = index !== 3;
+  form.querySelectorAll('[data-back]').forEach(button => {
+    button.hidden = index < 1;
+  });
   const target = steps[index].querySelector('textarea, input');
   target?.focus();
 }
@@ -255,7 +258,16 @@ form.addEventListener('click', event => {
   const answer = event.target.closest('[data-answer]');
   if (answer) {
     form.elements[answer.dataset.field].value = answer.dataset.answer;
+    form.querySelectorAll(`[data-answer][data-field="${answer.dataset.field}"]`).forEach(button => {
+      button.setAttribute('aria-pressed', String(button === answer));
+    });
     if (stepIndex < 3) showStep(stepIndex + 1);
+    return;
+  }
+
+  const back = event.target.closest('[data-back]');
+  if (back) {
+    showStep(Math.max(0, stepIndex - 1));
     return;
   }
 

@@ -53,7 +53,6 @@
         </fieldset>
 
           <button class="button button--primary next-step" type="button" data-next>Next</button>
-        </fieldset>
 
         <div class="detail-questions" data-detail-questions hidden>
           <div class="wizard-step" data-step="1">
@@ -63,7 +62,10 @@
             <div class="answer-chips" data-answers="situation"></div>
             <textarea id="situation" name="situation" rows="3" maxlength="600" required></textarea>
           </label>
-          <button class="button button--primary next-step" type="button" data-next>Next</button>
+          <div class="wizard-actions">
+            <button class="button button--quiet back-step" type="button" data-back>Back</button>
+            <button class="button button--primary next-step" type="button" data-next>Next</button>
+          </div>
           </div>
 
           <div class="wizard-step" data-step="2" hidden>
@@ -73,7 +75,10 @@
             <div class="answer-chips" data-answers="desired"></div>
             <textarea id="desired" name="desired" rows="3" maxlength="600" required></textarea>
           </label>
-          <button class="button button--primary next-step" type="button" data-next>Next</button>
+          <div class="wizard-actions">
+            <button class="button button--quiet back-step" type="button" data-back>Back</button>
+            <button class="button button--primary next-step" type="button" data-next>Next</button>
+          </div>
           </div>
 
           <div class="wizard-step" data-step="3" hidden>
@@ -83,6 +88,7 @@
             <div class="answer-chips" data-answers="constraint"></div>
             <textarea id="constraint" name="constraint" rows="3" maxlength="600" required></textarea>
           </label>
+          <button class="button button--quiet back-step" type="button" data-back>Back</button>
           </div>
         </div>
 
