@@ -1,6 +1,7 @@
 import {
   createClaritySnapshot,
   createFallbackGuidance,
+  getNextMoveAnswers,
   getNextMoveQuestions,
   snapshotToText
 } from './snapshot.js';
@@ -16,9 +17,11 @@ const followUpStatus = document.querySelector('[data-follow-up-status]');
 const submitButton = document.querySelector('[data-submit-button]');
 const followUpButton = document.querySelector('[data-follow-up-button]');
 const detailQuestions = document.querySelector('[data-detail-questions]');
+const steps = [...form.querySelectorAll('[data-step]')];
 
 let latestSnapshot = null;
 let latestGuidance = null;
+let stepIndex = 0;
 
 function selectedMode() {
   return form.querySelector('input[name="mode"]:checked')?.value || '';
@@ -38,7 +41,30 @@ function showQuestions(mode) {
     form.elements[name].placeholder = question.placeholder;
   });
 
+  document.querySelectorAll('[data-answers]').forEach(group => {
+    const name = group.dataset.answers;
+    group.replaceChildren(...getNextMoveAnswers(mode, name).map(answer => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'answer-chip';
+      button.textContent = answer;
+      button.dataset.answer = answer;
+      button.dataset.field = name;
+      return button;
+    }));
+  });
+
   detailQuestions.hidden = false;
+}
+
+function showStep(index) {
+  stepIndex = index;
+  steps.forEach((step, i) => { step.hidden = i !== index; });
+  detailQuestions.hidden = index === 0;
+  document.querySelector('[data-step-note]').textContent = `Step ${index + 1} of 4`;
+  submitButton.hidden = index !== 3;
+  const target = steps[index].querySelector('textarea, input');
+  target?.focus();
 }
 
 function createPathCard(path, index) {
@@ -222,14 +248,32 @@ followUpForm.addEventListener('submit', refineGuidance);
 form.querySelectorAll('input[name="mode"]').forEach(input => {
   input.addEventListener('change', () => {
     showQuestions(input.value);
-    form.elements.situation.focus();
   });
+});
+
+form.addEventListener('click', event => {
+  const answer = event.target.closest('[data-answer]');
+  if (answer) {
+    form.elements[answer.dataset.field].value = answer.dataset.answer;
+    if (stepIndex < 3) showStep(stepIndex + 1);
+    return;
+  }
+
+  if (!event.target.closest('[data-next]')) return;
+  if (stepIndex === 0 && !selectedMode()) {
+    form.querySelector('input[name="mode"]')?.reportValidity();
+    return;
+  }
+  const field = steps[stepIndex].querySelector('textarea');
+  if (!field || field.value.trim()) showStep(stepIndex + 1);
+  else field.reportValidity();
 });
 
 document.querySelector('[data-action="edit"]').addEventListener('click', () => {
   resultView.hidden = true;
   formView.hidden = false;
-  form.elements.situation.focus();
+  showQuestions(selectedMode());
+  showStep(1);
 });
 
 document.querySelector('[data-action="reset"]').addEventListener('click', () => {
@@ -244,7 +288,10 @@ document.querySelector('[data-action="reset"]').addEventListener('click', () => 
   aiStatus.textContent = '';
   followUpStatus.textContent = '';
   detailQuestions.hidden = true;
+  showStep(0);
   form.querySelector('input[name="mode"]').focus();
 });
 
 document.querySelector('[data-action="copy"]').addEventListener('click', copySnapshot);
+
+showStep(0);

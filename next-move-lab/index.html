@@ -35,8 +35,9 @@
       </div>
 
       <form data-next-move-form>
-        <fieldset class="mode-grid">
-          <legend>1. What is this about?</legend>
+        <p class="step-note" data-step-note>Step 1 of 4</p>
+        <fieldset class="mode-grid wizard-step" data-step="0">
+          <legend>What is this about?</legend>
           <label class="mode-card">
             <input type="radio" name="mode" value="career" required>
             <span><strong>My life or job</strong><small>A choice about life or work</small></span>
@@ -51,28 +52,42 @@
           </label>
         </fieldset>
 
+          <button class="button button--primary next-step" type="button" data-next>Next</button>
+        </fieldset>
+
         <div class="detail-questions" data-detail-questions hidden>
+          <div class="wizard-step" data-step="1">
           <label class="question" for="situation">
             <span data-question-label="situation"></span>
             <small data-question-help="situation"></small>
+            <div class="answer-chips" data-answers="situation"></div>
             <textarea id="situation" name="situation" rows="3" maxlength="600" required></textarea>
           </label>
+          <button class="button button--primary next-step" type="button" data-next>Next</button>
+          </div>
 
+          <div class="wizard-step" data-step="2" hidden>
           <label class="question" for="desired">
             <span data-question-label="desired"></span>
             <small data-question-help="desired"></small>
+            <div class="answer-chips" data-answers="desired"></div>
             <textarea id="desired" name="desired" rows="3" maxlength="600" required></textarea>
           </label>
+          <button class="button button--primary next-step" type="button" data-next>Next</button>
+          </div>
 
+          <div class="wizard-step" data-step="3" hidden>
           <label class="question" for="constraint">
             <span data-question-label="constraint"></span>
             <small data-question-help="constraint"></small>
+            <div class="answer-chips" data-answers="constraint"></div>
             <textarea id="constraint" name="constraint" rows="3" maxlength="600" required></textarea>
           </label>
+          </div>
         </div>
 
         <p class="form-error" data-error role="alert"></p>
-        <button class="button button--primary" type="submit" data-submit-button>Show my next step</button>
+        <button class="button button--primary" type="submit" data-submit-button hidden>Show my next step</button>
         <p class="ai-status" data-ai-status aria-live="polite"></p>
       </form>
     </section>
