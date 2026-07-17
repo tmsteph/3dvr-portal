@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A small audio-visual pause from 3dvr.">
+  <title>Still Becoming | 3dvr Portal</title>
+  <link rel="icon" type="image/svg+xml" href="../brand/portal-logo.svg">
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f6f0df;
+      --muted: rgba(246, 240, 223, 0.72);
+      --line: rgba(246, 240, 223, 0.18);
+      --panel: rgba(13, 15, 18, 0.58);
+      --aqua: #79ffe1;
+      --gold: #ffd16d;
+      --rose: #ff7ea8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #07080a;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.14;
+      mix-blend-mode: overlay;
+      background-image:
+        radial-gradient(circle at 22% 28%, rgba(255, 255, 255, 0.8) 0 1px, transparent 1px),
+        radial-gradient(circle at 70% 44%, rgba(255, 255, 255, 0.7) 0 1px, transparent 1px);
+      background-size: 72px 72px, 110px 110px;
+    }
+
+    .portal-link {
+      position: fixed;
+      top: clamp(16px, 3vw, 32px);
+      right: clamp(16px, 3vw, 32px);
+      z-index: 3;
+      padding: 0.55rem 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 750;
+      text-decoration: none;
+      backdrop-filter: blur(18px);
+    }
+
+    .portal-link:hover {
+      color: var(--ink);
+      border-color: rgba(246, 240, 223, 0.38);
+    }
+
+    .portal-link:focus-visible,
+    button:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 2;
+      min-height: 100%;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      padding: clamp(18px, 3vw, 42px);
+      pointer-events: none;
+    }
+
+    .center {
+      display: grid;
+      align-content: center;
+      max-width: 920px;
+      min-height: 78vh;
+    }
+
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(42px, 8vw, 112px);
+      line-height: 0.88;
+      letter-spacing: 0;
+      text-wrap: balance;
+      text-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+    }
+
+    .line {
+      display: block;
+    }
+
+    .line:nth-child(2) {
+      color: var(--gold);
+      text-shadow: 0 0 34px rgba(255, 209, 109, 0.2), 0 24px 70px rgba(0, 0, 0, 0.48);
+    }
+
+    .line:nth-child(3) {
+      color: var(--aqua);
+      text-shadow: 0 0 34px rgba(121, 255, 225, 0.22), 0 24px 70px rgba(0, 0, 0, 0.48);
+    }
+
+    .words {
+      min-height: 34px;
+      max-width: 560px;
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: clamp(17px, 2vw, 22px);
+      line-height: 1.4;
+    }
+
+    .dock {
+      width: min(760px, 100%);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(20px);
+      pointer-events: auto;
+    }
+
+    button {
+      width: 58px;
+      height: 48px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(121, 255, 225, 0.22), rgba(255, 209, 109, 0.22));
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255, 255, 255, 0.38);
+      background: linear-gradient(135deg, rgba(121, 255, 225, 0.32), rgba(255, 209, 109, 0.32));
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button svg {
+      width: 22px;
+      height: 22px;
+      fill: currentcolor;
+    }
+
+    .meter {
+      min-width: 120px;
+      flex: 1 1 auto;
+    }
+
+    .meter-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .bar {
+      position: relative;
+      height: 9px;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.11);
+    }
+
+    .fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--aqua), var(--gold), var(--rose));
+      box-shadow: 0 0 26px rgba(121, 255, 225, 0.42);
+      transition: width 220ms ease;
+    }
+
+    .hint {
+      max-width: 170px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        padding: 16px;
+      }
+
+      .center {
+        min-height: 72vh;
+      }
+
+      .dock {
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .hint {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      button,
+      .fill {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="stage" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+  <a class="portal-link" href="../">3dvr portal</a>
+
+  <main class="shell">
+    <section class="center" aria-label="Inspiration">
+      <h1>
+        <span class="line">Still</span>
+        <span class="line">becoming.</span>
+        <span class="line">Still here.</span>
+      </h1>
+      <p class="words" id="words">Press play. Let the room breathe with you.</p>
+    </section>
+
+    <section class="dock" aria-label="Audio controls">
+      <button id="play" type="button" aria-label="Play sound">
+        <svg id="playIcon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 5v14l11-7z"></path>
+        </svg>
+      </button>
+      <div class="meter">
+        <div class="meter-top">
+          <span id="state">Ready</span>
+          <span id="time">00:00</span>
+        </div>
+        <div class="bar" aria-hidden="true"><div class="fill" id="fill"></div></div>
+      </div>
+      <div class="hint">Move your pointer to bend the light.</div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('stage');
+    const ctx = canvas.getContext('2d');
+    const playButton = document.getElementById('play');
+    const playIcon = document.getElementById('playIcon');
+    const words = document.getElementById('words');
+    const fill = document.getElementById('fill');
+    const state = document.getElementById('state');
+    const time = document.getElementById('time');
+
+    const phrases = [
+      'Small steps count.',
+      'Your next life is built today.',
+      'Breathe. Choose. Move.',
+      'The door opens while you walk.',
+      'Make one brave thing real.',
+      'You are not late.'
+    ];
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let running = false;
+    let startedAt = 0;
+    let phraseIndex = 0;
+    let phraseTimer = 0;
+    let audio = null;
+    let master = null;
+    let analyser = null;
+    let data = null;
+    let chimeTimer = 0;
+    let playChime = null;
+    let pointer = { x: 0.5, y: 0.5, active: false };
+    let particles = [];
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      particles = Array.from({ length: Math.floor(Math.min(150, Math.max(72, width / 9))) }, (_, i) => ({
+        a: Math.random() * Math.PI * 2,
+        r: Math.random() * Math.min(width, height) * 0.42,
+        s: 0.0016 + Math.random() * 0.0035,
+        z: 0.2 + Math.random() * 0.8,
+        hue: i % 4
+      }));
+    }
+
+    function makeAudio() {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audio = new AudioContext();
+      master = audio.createGain();
+      analyser = audio.createAnalyser();
+      analyser.fftSize = 256;
+      data = new Uint8Array(analyser.frequencyBinCount);
+
+      const delay = audio.createDelay(2);
+      const feedback = audio.createGain();
+      const filter = audio.createBiquadFilter();
+      const compressor = audio.createDynamicsCompressor();
+
+      master.gain.value = 0;
+      delay.delayTime.value = 0.42;
+      feedback.gain.value = 0.34;
+      filter.type = 'lowpass';
+      filter.frequency.value = 2200;
+
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(filter);
+      master.connect(delay);
+      master.connect(filter);
+      filter.connect(compressor);
+      compressor.connect(analyser);
+      analyser.connect(audio.destination);
+
+      const notes = [146.83, 196, 246.94, 329.63, 392, 493.88];
+      notes.forEach((freq, index) => {
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        const pan = audio.createStereoPanner();
+        osc.type = index % 2 ? 'triangle' : 'sine';
+        osc.frequency.value = freq;
+        gain.gain.value = index < 3 ? 0.055 : 0.026;
+        pan.pan.value = (index - 2.5) / 3.2;
+        osc.connect(gain);
+        gain.connect(pan);
+        pan.connect(master);
+        osc.start();
+      });
+
+      const pulse = audio.createOscillator();
+      const pulseGain = audio.createGain();
+      pulse.type = 'sine';
+      pulse.frequency.value = 55;
+      pulseGain.gain.value = 0.025;
+      pulse.connect(pulseGain);
+      pulseGain.connect(master);
+      pulse.start();
+
+      playChime = () => {
+        if (!running || !audio) return;
+        const now = audio.currentTime;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        const pan = audio.createStereoPanner();
+        const freq = notes[Math.floor(Math.random() * notes.length)] * (Math.random() > 0.55 ? 2 : 1);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.006, now + 1.4);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.11, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+        pan.pan.value = Math.random() * 1.5 - 0.75;
+        osc.connect(gain);
+        gain.connect(pan);
+        pan.connect(delay);
+        osc.start(now);
+        osc.stop(now + 1.9);
+        chimeTimer = window.setTimeout(playChime, 850 + Math.random() * 1350);
+      };
+    }
+
+    async function toggleAudio() {
+      if (!audio) makeAudio();
+      if (audio.state === 'suspended') await audio.resume();
+      running = !running;
+      const now = audio.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      master.gain.linearRampToValueAtTime(running ? 0.82 : 0, now + 0.8);
+      window.clearTimeout(chimeTimer);
+
+      if (running) {
+        startedAt = performance.now();
+        state.textContent = 'Playing';
+        playButton.setAttribute('aria-label', 'Pause sound');
+        playIcon.innerHTML = '<path d="M7 5h3v14H7zM14 5h3v14h-3z"></path>';
+        playChime();
+      } else {
+        state.textContent = 'Paused';
+        playButton.setAttribute('aria-label', 'Play sound');
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"></path>';
+      }
+    }
+
+    function draw(now) {
+      requestAnimationFrame(draw);
+      const t = now * 0.001;
+      let energy = 0.18;
+
+      if (analyser && data && running) {
+        analyser.getByteFrequencyData(data);
+        energy = data.reduce((sum, value) => sum + value, 0) / data.length / 255;
+      }
+
+      if (running) {
+        const elapsed = Math.floor((now - startedAt) / 1000);
+        const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const secs = String(elapsed % 60).padStart(2, '0');
+        time.textContent = `${mins}:${secs}`;
+        fill.style.width = `${Math.min(100, elapsed / 1.2)}%`;
+
+        if (now - phraseTimer > 5200) {
+          phraseTimer = now;
+          phraseIndex = (phraseIndex + 1) % phrases.length;
+          words.textContent = phrases[phraseIndex];
+        }
+      }
+
+      const px = pointer.active ? pointer.x : 0.5 + Math.sin(t * 0.16) * 0.08;
+      const py = pointer.active ? pointer.y : 0.48 + Math.cos(t * 0.13) * 0.06;
+
+      const bg = ctx.createLinearGradient(0, 0, width, height);
+      bg.addColorStop(0, '#07080a');
+      bg.addColorStop(0.48, '#121319');
+      bg.addColorStop(1, '#090b0d');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+
+      const glow = ctx.createRadialGradient(
+        width * px,
+        height * py,
+        0,
+        width * px,
+        height * py,
+        Math.max(width, height) * (0.55 + energy * 0.45)
+      );
+      glow.addColorStop(0, `rgba(121, 255, 225, ${0.22 + energy * 0.28})`);
+      glow.addColorStop(0.36, `rgba(255, 209, 109, ${0.12 + energy * 0.18})`);
+      glow.addColorStop(0.68, `rgba(255, 126, 168, ${0.08 + energy * 0.16})`);
+      glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, width, height);
+
+      const cx = width * (0.54 + (px - 0.5) * 0.16);
+      const cy = height * (0.52 + (py - 0.5) * 0.16);
+      const base = Math.min(width, height);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let ring = 0; ring < 7; ring += 1) {
+        const radius = base * (0.13 + ring * 0.075 + energy * 0.05);
+        const start = t * (0.13 + ring * 0.012) + ring * 0.7;
+        ctx.beginPath();
+        ctx.ellipse(
+          cx,
+          cy,
+          radius * (1.2 + Math.sin(t + ring) * 0.08),
+          radius * (0.5 + Math.cos(t * 0.7 + ring) * 0.04),
+          start,
+          0,
+          Math.PI * 2
+        );
+        ctx.strokeStyle = ring % 3 === 0
+          ? `rgba(121, 255, 225, ${0.12 + energy * 0.42})`
+          : ring % 3 === 1
+            ? `rgba(255, 209, 109, ${0.1 + energy * 0.34})`
+            : `rgba(154, 163, 255, ${0.1 + energy * 0.32})`;
+        ctx.lineWidth = 1 + energy * 5;
+        ctx.stroke();
+      }
+
+      particles.forEach((particle, index) => {
+        particle.a += particle.s * (1 + energy * 6);
+        const drift = Math.sin(t * 0.4 + index) * base * 0.015;
+        const x = cx + Math.cos(particle.a) * (particle.r + drift) * (1.15 + (px - 0.5) * 0.28);
+        const y = cy + Math.sin(particle.a * 0.82) * (particle.r * 0.58 + drift) * (1 + (py - 0.5) * 0.22);
+        const size = (0.9 + particle.z * 2.8) * (1 + energy * 1.8);
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = particle.hue === 0
+          ? `rgba(121, 255, 225, ${0.16 + particle.z * 0.46})`
+          : particle.hue === 1
+            ? `rgba(255, 209, 109, ${0.15 + particle.z * 0.42})`
+            : particle.hue === 2
+              ? `rgba(255, 126, 168, ${0.12 + particle.z * 0.36})`
+              : `rgba(154, 163, 255, ${0.12 + particle.z * 0.34})`;
+        ctx.fill();
+      });
+      ctx.restore();
+
+      ctx.fillStyle = `rgba(246, 240, 223, ${0.02 + energy * 0.045})`;
+      for (let y = 0; y < height; y += 5) {
+        ctx.fillRect(0, y, width, 1);
+      }
+    }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('pointermove', event => {
+      pointer.x = event.clientX / Math.max(1, width);
+      pointer.y = event.clientY / Math.max(1, height);
+      pointer.active = true;
+    });
+    window.addEventListener('pointerleave', () => {
+      pointer.active = false;
+    });
+    playButton.addEventListener('click', toggleAudio);
+
+    resize();
+    requestAnimationFrame(draw);
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
