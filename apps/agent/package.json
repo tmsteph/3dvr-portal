@@ -39,8 +39,8 @@
   "homepage": "https://github.com/tmsteph/3dvr-portal/tree/main/apps/agent#readme",
   "dependencies": {
     "gun": "^0.2020.1241",
-    "imapflow": "^1.3.2",
-    "nodemailer": "^8.0.5"
+    "imapflow": "^1.4.7",
+    "nodemailer": "^9.0.3"
   },
   "optionalDependencies": {
     "playwright-core": "^1.59.1"
