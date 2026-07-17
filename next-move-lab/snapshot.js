@@ -1,27 +1,30 @@
 const MODES = Object.freeze({
   career: Object.freeze({
-    title: 'Find a direction worth testing',
-    lens: 'Treat this as a direction to test, not a permanent identity decision.',
-    nextAction: 'Name one person who understands this world and ask for a 20-minute reality-check conversation.',
+    title: 'Try one new path',
+    hears: 'You want a safe way to try a new path.',
+    lens: 'Try one small step before you make a big choice.',
+    nextAction: 'Ask one person in this kind of job for a 20-minute talk.',
     route: '../career-launch/',
-    routeLabel: 'Build a Career Launch Brief',
-    routeDetail: 'Turn this direction into a small proof project and practical career evidence.'
+    routeLabel: 'Make a job plan',
+    routeDetail: 'Turn this idea into one small work sample.'
   }),
   startup: Object.freeze({
-    title: 'Turn the idea into a small test',
-    lens: 'Do not build the whole business yet. Look for evidence that one real person wants the outcome.',
-    nextAction: 'Write a one-sentence offer and show it to one possible customer before building more.',
+    title: 'Test the idea with one person',
+    hears: 'You want to know if one person needs this idea.',
+    lens: 'First, see if one person wants it.',
+    nextAction: 'Write one short offer and show it to one customer.',
     route: '../launch-room/?mode=test-service',
-    routeLabel: 'Plan a tiny service test',
-    routeDetail: 'Define the first audience, smallest useful offer, and a safe validation step.'
+    routeLabel: 'Plan a small test',
+    routeDetail: 'Pick one person, one offer, and one first step.'
   }),
   build: Object.freeze({
-    title: 'Reduce the build to one useful result',
-    lens: 'The first version only needs to help one kind of person take one meaningful action.',
-    nextAction: 'Describe the smallest useful version in one sentence and choose the single action it should make easier.',
+    title: 'Build one useful thing',
+    hears: 'You want to make the idea small enough to try.',
+    lens: 'The first version only needs to help one person do one thing.',
+    nextAction: 'Write one line about the smallest version that can help.',
     route: '../free-page/',
-    routeLabel: 'Create a free page concept',
-    routeDetail: 'Turn the idea into a focused one-page website or redesign preview.'
+    routeLabel: 'Make a free page idea',
+    routeDetail: 'Turn the idea into one simple web page.'
   })
 });
 
@@ -53,6 +56,7 @@ export function createClaritySnapshot(input = {}) {
   return {
     mode: modeId,
     title: mode.title,
+    hears: mode.hears,
     situation,
     desired,
     constraint,
@@ -61,7 +65,7 @@ export function createClaritySnapshot(input = {}) {
     route: mode.route,
     routeLabel: mode.routeLabel,
     routeDetail: mode.routeDetail,
-    disclaimer: 'This is a reflection tool, not medical, legal, financial, or crisis advice.'
+    disclaimer: 'This is an idea, not expert advice.'
   };
 }
 
@@ -69,61 +73,61 @@ const FALLBACK_PATHS = Object.freeze({
   career: Object.freeze([
     Object.freeze({
       title: 'Talk to someone doing the work',
-      fit: 'Best when you need reality before choosing a direction.',
-      tradeoff: 'A conversation gives evidence, but it will not make the decision for you.',
-      experiment: 'Ask one person for a 20-minute reality check.'
+      fit: 'Good when you need facts before you choose.',
+      tradeoff: 'One talk will not make the choice for you.',
+      experiment: 'Ask one person for a 20-minute talk.'
     }),
     Object.freeze({
       title: 'Make a tiny proof project',
-      fit: 'Best when you learn by doing and need evidence of your ability.',
-      tradeoff: 'It costs time before you know whether the direction fits.',
-      experiment: 'Build one two-hour sample of the work.'
+      fit: 'Good when you learn by doing.',
+      tradeoff: 'It takes time before you know if it fits.',
+      experiment: 'Make one small sample in two hours.'
     }),
     Object.freeze({
       title: 'Test an adjacent role',
-      fit: 'Best when income and family constraints make a large leap unsafe.',
-      tradeoff: 'The change may feel slower, but it protects what matters now.',
-      experiment: 'Find one role that uses your current strengths in a better setting.'
+      fit: 'Good when a big change feels too risky.',
+      tradeoff: 'It may feel slow, but it keeps you safe.',
+      experiment: 'Find one job that uses skills you have now.'
     })
   ]),
   startup: Object.freeze([
     Object.freeze({
       title: 'Interview one possible customer',
-      fit: 'Best when the problem is still less certain than the solution.',
-      tradeoff: 'You may learn that your favorite idea is not the urgent one.',
-      experiment: 'Ask one person how they solve this problem today.'
+      fit: 'Good when you are not sure the problem is real.',
+      tradeoff: 'You may learn your best idea is not needed.',
+      experiment: 'Ask one person how they solve it now.'
     }),
     Object.freeze({
       title: 'Offer the result manually',
-      fit: 'Best when you can deliver value before building software.',
-      tradeoff: 'Manual delivery does not scale, but it reveals what matters.',
-      experiment: 'Write and show one clear service offer to one buyer.'
+      fit: 'Good when you can help before you build an app.',
+      tradeoff: 'It is more work, but you learn fast.',
+      experiment: 'Show one clear offer to one buyer.'
     }),
     Object.freeze({
       title: 'Run a landing-page test',
-      fit: 'Best when the offer is clear enough to test interest.',
-      tradeoff: 'Clicks are weaker evidence than conversations or payment.',
-      experiment: 'Publish one promise and one call to action.'
+      fit: 'Good when your offer is clear.',
+      tradeoff: 'A click tells you less than a talk or a sale.',
+      experiment: 'Post one promise and one button.'
     })
   ]),
   build: Object.freeze([
     Object.freeze({
       title: 'Build the smallest useful demo',
-      fit: 'Best when one visible result can test the core idea.',
-      tradeoff: 'Most of the full vision must wait.',
-      experiment: 'Create one screen or flow that completes the main job.'
+      fit: 'Good when one result can test the idea.',
+      tradeoff: 'Most of the big idea must wait.',
+      experiment: 'Make one screen that does the main job.'
     }),
     Object.freeze({
       title: 'Deliver it manually first',
-      fit: 'Best when you need to understand the workflow before automating it.',
-      tradeoff: 'It feels less like a product, but teaches you faster.',
-      experiment: 'Help one person get the result without building the system.'
+      fit: 'Good when you need to learn how the work goes.',
+      tradeoff: 'It feels less like a product, but you learn fast.',
+      experiment: 'Help one person without building the full tool.'
     }),
     Object.freeze({
       title: 'Mock up the decision',
-      fit: 'Best when feedback on the concept is more valuable than working code.',
-      tradeoff: 'A mockup cannot prove technical feasibility.',
-      experiment: 'Show a clickable or one-page concept to one intended user.'
+      fit: 'Good when you need to know if people like the idea.',
+      tradeoff: 'A picture cannot prove the tool will work.',
+      experiment: 'Show one simple page to one person.'
     })
   ])
 });
@@ -133,15 +137,15 @@ export function createFallbackGuidance(snapshot) {
 
   return {
     title: snapshot.title,
-    whatItHears: `You want ${snapshot.desired.toLowerCase()} while respecting ${snapshot.constraint.toLowerCase()}`,
+    whatItHears: snapshot.hears,
     paths: paths.map(path => ({ ...path })),
     recommendation: {
       title: paths[0].title,
       why: snapshot.lens
     },
-    assumptionToTest: 'The first question is whether one real person finds this direction useful enough to engage with.',
+    assumptionToTest: 'One real person wants this enough to try it.',
     nextAction: snapshot.nextAction,
-    followUpQuestion: 'What evidence would make this direction feel worth continuing for another week?',
+    followUpQuestion: 'What would make this worth one more week?',
     fallback: true
   };
 }

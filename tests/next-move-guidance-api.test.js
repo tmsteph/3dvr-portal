@@ -105,11 +105,13 @@ test('Next Move request uses current structured Responses API guidance', () => {
   assert.equal(request.model, 'gpt-5-mini');
   assert.equal(request.store, false);
   assert.deepEqual(request.reasoning, { effort: 'medium' });
-  assert.equal(request.text.verbosity, 'medium');
+  assert.equal(request.text.verbosity, 'low');
   assert.equal(request.text.format.type, 'json_schema');
   assert.equal(request.text.format.strict, true);
   assert.equal(request.safety_identifier, 'safe-user-id');
   assert.match(request.instructions, /three realistic paths/i);
+  assert.match(request.instructions, /third-grade reading level/i);
+  assert.match(request.instructions, /one short sentence/i);
   assert.match(request.instructions, /untrusted context/i);
   assert.match(request.input, /three hours a week/i);
 });
@@ -117,11 +119,13 @@ test('Next Move request uses current structured Responses API guidance', () => {
 test('AI guidance stays bounded without ending mid-sentence', () => {
   const normalized = normalizeNextMoveGuidance({
     ...guidance,
+    whatItHears: 'You need a real customer. This extra sentence should not show.',
     nextAction: `Send one short offer to a former client today. ${'Add unnecessary detail '.repeat(30)}`
   });
 
   assert.equal(normalized.nextAction, 'Send one short offer to a former client today.');
-  assert.ok(normalized.nextAction.length <= 320);
+  assert.equal(normalized.whatItHears, 'You need a real customer.');
+  assert.ok(normalized.nextAction.length <= 140);
 });
 
 test('Next Move handler returns normalized AI guidance without accepting client credentials', async () => {

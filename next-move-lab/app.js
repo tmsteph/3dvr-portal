@@ -37,13 +37,13 @@ function createPathCard(path, index) {
   fit.textContent = path.fit;
 
   const tradeoffTitle = document.createElement('strong');
-  tradeoffTitle.textContent = 'Tradeoff';
+  tradeoffTitle.textContent = 'Hard part';
 
   const tradeoff = document.createElement('p');
   tradeoff.textContent = path.tradeoff;
 
   const experimentTitle = document.createElement('strong');
-  experimentTitle.textContent = 'Small test';
+  experimentTitle.textContent = 'Try this';
 
   const experiment = document.createElement('p');
   experiment.textContent = path.experiment;
@@ -128,11 +128,11 @@ async function generateInitialGuidance(event) {
     return;
   }
 
-  setBusy(submitButton, aiStatus, true, 'Compass is weighing your options and constraints…');
+  setBusy(submitButton, aiStatus, true, 'Making a short plan…');
 
   try {
     const guidance = await requestGuidance(snapshot);
-    renderGuidance(snapshot, guidance, 'AI guidance ready. This lab did not add your answers to saved history.');
+    renderGuidance(snapshot, guidance, 'Your plan is ready. We did not save your answers.');
   } catch (requestError) {
     if (requestError.code === 'crisis_support') {
       error.textContent = requestError.message;
@@ -143,7 +143,7 @@ async function generateInitialGuidance(event) {
     renderGuidance(
       snapshot,
       createFallbackGuidance(snapshot),
-      'AI is temporarily unavailable, so Compass is showing a local starter snapshot instead.'
+      'AI is not ready, so here is a simple backup plan.'
     );
   } finally {
     setBusy(submitButton, aiStatus, false);
@@ -160,7 +160,7 @@ async function refineGuidance(event) {
     return;
   }
 
-  setBusy(followUpButton, followUpStatus, true, 'Compass is refining the recommendation…');
+  setBusy(followUpButton, followUpStatus, true, 'Updating your plan…');
 
   try {
     const guidance = await requestGuidance({
@@ -169,7 +169,7 @@ async function refineGuidance(event) {
       previousGuidance: latestGuidance
     });
     followUpStatus.textContent = '';
-    renderGuidance(latestSnapshot, guidance, 'Recommendation refined with your follow-up answer.');
+    renderGuidance(latestSnapshot, guidance, 'Your plan is updated.');
     followUpForm.reset();
   } catch (requestError) {
     followUpStatus.textContent = requestError.message;
@@ -195,7 +195,7 @@ async function copySnapshot() {
     textarea.remove();
   }
 
-  status.textContent = 'Guidance copied.';
+  status.textContent = 'Plan copied.';
 }
 
 form.addEventListener('submit', generateInitialGuidance);
