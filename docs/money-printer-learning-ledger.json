@@ -100,12 +100,12 @@
   "sources": {
     "analytics": {
       "available": false,
-      "run_id": "money-20260712171841-v58z41",
-      "reason": "GA4 credentials or session count unavailable"
+      "run_id": "money-20260714054125-k93gtg",
+      "reason": "analytics source or session count unavailable"
     },
     "outbound": {
       "available": true,
-      "run_id": "money-20260712174048-m51r2m",
+      "run_id": "money-20260716175003-s1h3sb",
       "queue_size": 4
     },
     "revenue": {
@@ -115,7 +115,7 @@
     },
     "research": {
       "available": true,
-      "run_id": "market-pulse-20260712172802",
+      "run_id": "market-pulse-20260717034143",
       "signals_analyzed": 11
     }
   },
