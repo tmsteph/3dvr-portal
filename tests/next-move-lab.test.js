@@ -87,6 +87,9 @@ test('Next Move Lab sends answers only to its isolated AI endpoint', async () =>
   const css = await readFile(new URL('../next-move-lab/styles.css', import.meta.url), 'utf8');
 
   assert.match(html, /Pick one topic\. Answer three clear questions\./);
+  assert.match(html, /data-mode-choice="career"/);
+  assert.match(html, /data-mode-choice="startup"/);
+  assert.match(html, /data-mode-choice="build"/);
   assert.match(html, /My life or job/);
   assert.match(html, /A business idea/);
   assert.match(html, /Something to build/);
@@ -94,6 +97,8 @@ test('Next Move Lab sends answers only to its isolated AI endpoint', async () =>
   assert.match(html, /See more ideas/);
   assert.match(app, /fetch\('\/api\/openai-site\?provider=next-move'/);
   assert.match(app, /getNextMoveQuestions/);
+  assert.match(app, /showStep\(1\)/);
+  assert.match(app, /form\.elements\.mode\.value = mode/);
   assert.doesNotMatch(app, /localStorage|sessionStorage|Gun\(/);
   assert.match(app, /textContent/);
   assert.match(css, /@media \(max-width: 360px\)/);
