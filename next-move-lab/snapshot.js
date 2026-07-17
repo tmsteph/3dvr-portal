@@ -78,13 +78,13 @@ const FALLBACK_PATHS = Object.freeze({
       experiment: 'Ask one person for a 20-minute talk.'
     }),
     Object.freeze({
-      title: 'Make a tiny proof project',
+      title: 'Make a small work sample',
       fit: 'Good when you learn by doing.',
       tradeoff: 'It takes time before you know if it fits.',
       experiment: 'Make one small sample in two hours.'
     }),
     Object.freeze({
-      title: 'Test an adjacent role',
+      title: 'Try a similar job',
       fit: 'Good when a big change feels too risky.',
       tradeoff: 'It may feel slow, but it keeps you safe.',
       experiment: 'Find one job that uses skills you have now.'
@@ -92,19 +92,19 @@ const FALLBACK_PATHS = Object.freeze({
   ]),
   startup: Object.freeze([
     Object.freeze({
-      title: 'Interview one possible customer',
+      title: 'Talk to one customer',
       fit: 'Good when you are not sure the problem is real.',
       tradeoff: 'You may learn your best idea is not needed.',
       experiment: 'Ask one person how they solve it now.'
     }),
     Object.freeze({
-      title: 'Offer the result manually',
+      title: 'Help by hand first',
       fit: 'Good when you can help before you build an app.',
       tradeoff: 'It is more work, but you learn fast.',
       experiment: 'Show one clear offer to one buyer.'
     }),
     Object.freeze({
-      title: 'Run a landing-page test',
+      title: 'Make one web page',
       fit: 'Good when your offer is clear.',
       tradeoff: 'A click tells you less than a talk or a sale.',
       experiment: 'Post one promise and one button.'
@@ -112,19 +112,19 @@ const FALLBACK_PATHS = Object.freeze({
   ]),
   build: Object.freeze([
     Object.freeze({
-      title: 'Build the smallest useful demo',
+      title: 'Build one small demo',
       fit: 'Good when one result can test the idea.',
       tradeoff: 'Most of the big idea must wait.',
       experiment: 'Make one screen that does the main job.'
     }),
     Object.freeze({
-      title: 'Deliver it manually first',
+      title: 'Help by hand first',
       fit: 'Good when you need to learn how the work goes.',
       tradeoff: 'It feels less like a product, but you learn fast.',
       experiment: 'Help one person without building the full tool.'
     }),
     Object.freeze({
-      title: 'Mock up the decision',
+      title: 'Show a simple picture',
       fit: 'Good when you need to know if people like the idea.',
       tradeoff: 'A picture cannot prove the tool will work.',
       experiment: 'Show one simple page to one person.'

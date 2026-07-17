@@ -110,8 +110,9 @@ test('Next Move request uses current structured Responses API guidance', () => {
   assert.equal(request.text.format.strict, true);
   assert.equal(request.safety_identifier, 'safe-user-id');
   assert.match(request.instructions, /three realistic paths/i);
-  assert.match(request.instructions, /third-grade reading level/i);
-  assert.match(request.instructions, /one short sentence/i);
+  assert.match(request.instructions, /9-year-old/i);
+  assert.match(request.instructions, /18 words or fewer/i);
+  assert.match(request.instructions, /do not use jargon/i);
   assert.match(request.instructions, /untrusted context/i);
   assert.match(request.input, /three hours a week/i);
 });
