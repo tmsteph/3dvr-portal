@@ -1,3 +1,5 @@
+import { migrateLegacyCheckins } from './privacy-migration.js';
+
 const STORAGE_KEY = 'portal-life-checkins';
 const DRAFT_KEY = 'portal-life-draft';
 
@@ -107,8 +109,9 @@ function setValue(id, value) {
 }
 
 function loadStoredEntries() {
-  const parsed = parseJson(window.localStorage.getItem(STORAGE_KEY), []);
-  return Array.isArray(parsed) ? parsed.map((entry) => normalizeEntry(entry)) : [];
+  const migration = migrateLegacyCheckins(window.localStorage);
+  migrationNotice = migration.removedCount > 0;
+  return migration.entries.map((entry) => normalizeEntry(entry));
 }
 
 function saveStoredEntries(entries) {
@@ -329,9 +332,16 @@ function initializeEntries() {
   for (const entry of loadStoredEntries()) {
     entriesById.set(entry.id, entry);
   }
+  if (migrationNotice) {
+    const status = document.getElementById('saveStatus');
+    if (status) {
+      status.textContent = 'Older synced check-ins were removed from this browser for privacy.';
+    }
+  }
   render();
 }
 const entriesById = new Map();
+let migrationNotice = false;
 
 const form = document.getElementById('lifeForm');
 const saveStatus = document.getElementById('saveStatus');
