@@ -100,6 +100,7 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Treat GunJS as the source of truth. Read and write through shared Gun nodes, not device-local storage.
 - When caching, always sync back to the originating Gun node and describe node shapes near the related code.
 - Use explicit node paths (e.g., `gun.get('namespace').get('resource')`) to keep data portable across sessions.
+- Sensitive guest life data may remain device-local until encrypted, owner-scoped sync is implemented and approved.
 
 ## Design & UX
 - Build mobile-first layouts that adapt gracefully to all screen sizes, including ultra-wide and VR displays.

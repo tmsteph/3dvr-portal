@@ -362,7 +362,7 @@ Automation data sync is available in the UI at `/money-ai/`, which writes each r
 - `gun.get('3dvr-portal').get('money-ai').get('runs')`
 - `gun.get('3dvr-portal').get('money-ai').get('opportunities')`
 - `gun.get('3dvr-portal').get('money-ai').get('ads')`
-- `gun.get('3dvr-portal').get('life').get('entries')`
+- Daily Direction check-ins remain in browser storage under `portal-life-checkins` until encrypted, owner-scoped sync is implemented.
 
 Legacy mirror writes also continue to `gun.get('money-ai')` for older clients.
 
