@@ -5,3 +5,7 @@ node_modules/
 .env.*.local
 backups/
 .money-printer/
+.agent-state/LIVE_STATUS.md
+.agent-state/MISSION_LOG.jsonl
+.agent-state/*.json
+.agent-state/.runtime/

@@ -1,2 +1,0 @@
-{"event":"initialized","mission":"life-upgrade-v01","status":"ready","note":"Mission system scaffold created; no product task has been executed."}
-{"event":"blocked","mission":"life-upgrade-v01","at":"2026-07-18T21:47:34.443Z","branch":"## codex/agent-mission-system...origin/main","dirty":true,"task":"verify-stacked-pr","reason":"worktree-dirty"}
