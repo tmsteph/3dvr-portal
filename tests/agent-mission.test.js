@@ -42,6 +42,7 @@ test('draft publication is gated and cannot merge or deploy', async () => {
   const source = await readFile(path.join(root, 'scripts/agent/publish-draft.mjs'), 'utf8');
   assert.match(source, /--publish/);
   assert.match(source, /--draft/);
+  assert.match(source, /git', \['push', '-u', 'origin'/);
   assert.doesNotMatch(source, /gh', \['pr', 'merge/);
   assert.doesNotMatch(source, /vercel/);
 });

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { loadMission, validateMission } from './validate-mission.mjs';
@@ -29,13 +29,19 @@ if (branch !== mission.branch) throw new Error(`Expected branch ${mission.branch
 
 const args = ['pr', 'create', '--draft', '--base', mission.baseBranch, '--head', mission.branch, '--title', mission.draftPullRequest.title];
 const bodyPath = path.join(os.tmpdir(), `3dvr-${mission.id}-draft-body.md`);
-await import('node:fs/promises').then(fs => fs.writeFile(bodyPath, `${mission.draftPullRequest.body}\n`));
-args.push('--body-file', bodyPath);
-console.log(`PLAN: gh ${args.map(value => JSON.stringify(value)).join(' ')}`);
-if (!publish) {
-  console.log('INSPECT-ONLY: pass --publish to open the draft pull request.');
+const existing = await command('gh', ['pr', 'list', '--repo', mission.repository, '--head', mission.branch, '--base', mission.baseBranch, '--json', 'number,url,isDraft']);
+if (existing && existing !== '[]') {
+  console.log(`EXISTING PR: ${existing}`);
 } else {
-  const url = await command('gh', args);
-  console.log(`PUBLISHED DRAFT: ${url}`);
+  await writeFile(bodyPath, `${mission.draftPullRequest.body}\n`);
+  args.push('--body-file', bodyPath);
+  console.log(`PLAN: gh ${args.map(value => JSON.stringify(value)).join(' ')}`);
+  if (!publish) {
+    console.log('INSPECT-ONLY: pass --publish to push the declared branch and open the draft pull request.');
+  } else {
+    await command('git', ['push', '-u', 'origin', mission.branch]);
+    const url = await command('gh', args);
+    console.log(`PUBLISHED DRAFT: ${url}`);
+  }
 }
-await import('node:fs/promises').then(fs => fs.rm(bodyPath, { force: true }));
+await rm(bodyPath, { force: true });
