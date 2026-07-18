@@ -41,6 +41,12 @@ npm run agent:publish-draft -- life-upgrade-v01
 npm run agent:publish-draft -- life-upgrade-v01 --publish
 ```
 
+Codex delegation is opt-in per task. A mission must provide `delegatePrompt`; the runner will not invent a broader implementation request:
+
+```sh
+npm run agent:mission -- life-upgrade-v01 --delegate codex
+```
+
 ## Evidence commands
 
 - `validate-mission.mjs` validates mission structure and scope before execution.

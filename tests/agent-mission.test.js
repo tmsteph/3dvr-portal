@@ -20,6 +20,7 @@ test('mission runner is inspect-only by default and records no product paths', a
   assert.match(source, /worktree is dirty/);
   assert.match(source, /inspect-github\.mjs/);
   assert.match(source, /if \(options\.execute\) await main\(\)/);
+  assert.match(source, /delegatePrompt/);
   assert.doesNotMatch(source, /git reset --hard/);
 });
 

@@ -130,7 +130,21 @@ async function main() {
   console.log(`Checks: ${(task.checks || []).map(commandText).join(' ; ') || 'none'}`);
   if (options.delegate) {
     if (options.delegate !== 'codex') throw new Error(`Unsupported delegate: ${options.delegate}`);
-    console.log('DELEGATION: Codex should receive this task only after human authorization.');
+    if (!task.delegatePrompt) throw new Error(`Task ${task.id} has no scoped delegatePrompt`);
+    const delegated = await runCommand([
+      'codex', 'exec', '--cd', repo, '--skip-git-repo-check', task.delegatePrompt
+    ], repo);
+    console.log(`CODEX ${delegated.code === 0 ? 'COMPLETED' : 'FAILED'}: ${task.id}`);
+    if (delegated.code !== 0) {
+      state.status = 'blocked';
+      state.blockedTask = task.id;
+      state.lastRun = evidence.at;
+      state.evidence = [...(state.evidence || []), { ...evidence, reason: 'codex-failed', code: delegated.code }];
+      await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);
+      await appendFile(logPath, `${JSON.stringify({ event: 'codex-failed', mission: mission.id, task: task.id, code: delegated.code })}\n`);
+      await writeLiveStatus({ mission, state, branchLine, task, status: 'blocked', note: 'review Codex failure evidence' });
+      return;
+    }
   }
   if (!options.execute) {
     console.log('INSPECT-ONLY: pass --execute to run declared checks.');
