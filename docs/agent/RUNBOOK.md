@@ -21,6 +21,26 @@ The runner stores the minimum resumable state in `.agent-state/<mission>.json`, 
 
 If the worktree is dirty, the runner stops and reports the paths. Create or reuse a clean worktree before continuing; do not stash or overwrite another person's work automatically.
 
+Create or reuse a mission worktree only with the explicit mutation flag:
+
+```sh
+npm run agent:worktree -- life-upgrade-v01
+npm run agent:worktree -- life-upgrade-v01 --create
+```
+
+GitHub inspection is read-only:
+
+```sh
+npm run agent:github -- life-upgrade-v01
+```
+
+Draft publication is also opt-in. It verifies the branch and then uses `gh pr create --draft`; it cannot merge or deploy:
+
+```sh
+npm run agent:publish-draft -- life-upgrade-v01
+npm run agent:publish-draft -- life-upgrade-v01 --publish
+```
+
 ## Evidence commands
 
 - `validate-mission.mjs` validates mission structure and scope before execution.

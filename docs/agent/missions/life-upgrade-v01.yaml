@@ -4,6 +4,13 @@
   "description": "Advance the device-only seven-day Life Upgrade flow through stacked review, trusted browser validation, and explicit human approval gates.",
   "branch": "codex/life-upgrade-v01",
   "baseBranch": "fix/life-private-checkins",
+  "repository": "tmsteph/3dvr-portal",
+  "pullRequests": [1169, 1170],
+  "worktreePath": ".agent-worktrees/life-upgrade-v01",
+  "draftPullRequest": {
+    "title": "Add the private seven-day Life Upgrade flow",
+    "body": "Draft stacked PR for Life Upgrade v0.1. Depends on #1169. Review against fix/life-private-checkins. No merge or deployment is authorized by this mission."
+  },
   "approvalGates": ["merge", "deploy"],
   "allowedPaths": ["index.html", "start/index.html", "life-upgrade/", "tests/life-upgrade.test.js"],
   "tasks": [

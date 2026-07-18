@@ -21,6 +21,13 @@ The system turns a human-readable master plan into small, dependency-aware missi
 11. Update `.agent-state/LIVE_STATUS.md`.
 12. Continue to the next safe task, or stop at an approval gate.
 
+The repository-native command surface is:
+
+- `npm run agent:mission -- <mission>` for selection, declared validation, state, and reporting;
+- `npm run agent:worktree -- <mission> --create` for explicit clean-worktree creation/reuse;
+- `npm run agent:github -- <mission>` for read-only PR and check inspection;
+- `npm run agent:publish-draft -- <mission> --publish` for explicit draft PR publication.
+
 ## Safety boundary
 
 The runner may inspect repositories, create clean worktrees, edit scoped files, run tests, commit, push, and open draft PRs when a mission explicitly permits those actions. It must pause for human approval before merging, production deployment, billing or authentication changes, secret access, user-data deletion or migration, relay cleanup, or external communication.

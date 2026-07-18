@@ -81,19 +81,28 @@ async function main() {
   const state = await readState(statePath, mission.id);
   const status = await runCommand(['git', 'status', '--porcelain=v1', '-b'], repo);
   const branchLine = status.stdout.split('\n')[0] || '';
+  const branchName = branchLine.replace(/^##\s+/, '').split(/[.\s]/)[0] || '';
   const dirty = status.stdout.split('\n').slice(1).some(Boolean);
   const task = selectTask(mission, state);
-  const evidence = { at: timestamp(), branch: branchLine, dirty, task: task?.id || null };
+  const evidence = { at: timestamp(), branch: branchLine, branchName, dirty, task: task?.id || null };
 
-  if (dirty) {
+  if (mission.repository && mission.pullRequests?.length) {
+    const github = await runCommand(['node', 'scripts/agent/inspect-github.mjs', mission.id], repo);
+    if (github.code === 0) console.log(`GITHUB:\n${github.stdout.trim()}`);
+    else console.log(`GITHUB INSPECTION UNAVAILABLE: ${github.stderr.trim() || 'gh returned a non-zero status'}`);
+  }
+
+  if (dirty || (mission.branch && branchName !== mission.branch)) {
     state.status = 'blocked';
     state.blockedTask = task?.id || null;
     state.lastRun = evidence.at;
-    state.evidence = [...(state.evidence || []), { ...evidence, reason: 'worktree-dirty' }];
+    const reason = dirty ? 'worktree-dirty' : 'wrong-branch';
+    state.evidence = [...(state.evidence || []), { ...evidence, reason }];
     await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);
-    await appendFile(logPath, `${JSON.stringify({ event: 'blocked', mission: mission.id, ...evidence, reason: 'worktree-dirty' })}\n`);
-    await writeLiveStatus({ mission, state, branchLine, task, status: 'blocked', note: 'create or reuse a clean worktree' });
-    console.log(`BLOCKED: worktree is dirty (${branchLine}). No task was executed.`);
+    await appendFile(logPath, `${JSON.stringify({ event: 'blocked', mission: mission.id, ...evidence, reason })}\n`);
+    const note = dirty ? 'create or reuse a clean worktree' : `switch to expected branch ${mission.branch}`;
+    await writeLiveStatus({ mission, state, branchLine, task, status: 'blocked', note });
+    console.log(`BLOCKED: ${dirty ? `worktree is dirty (${branchLine})` : `expected branch ${mission.branch}, found ${branchName || 'detached HEAD'}`}. No task was executed.`);
     return;
   }
   if (!task) {
