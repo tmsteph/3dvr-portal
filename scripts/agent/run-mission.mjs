@@ -156,8 +156,9 @@ async function main() {
   state.lastRun = evidence.at;
   await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);
   await appendFile(logPath, `${JSON.stringify({ event: 'task-complete', mission: mission.id, task: task.id, ...evidence })}\n`);
-  await writeLiveStatus({ mission, state, branchLine, task, status: 'ready', note: 'run again to select the next unblocked task' });
+  await writeLiveStatus({ mission, state, branchLine, task, status: 'ready', note: options.execute ? 'continuing to the next unblocked task' : 'run with --execute to continue' });
   console.log(`RECORDED: ${task.id}`);
+  if (options.execute) await main();
 }
 
 await main().catch(error => { console.error(`ERROR: ${error.message}`); process.exitCode = 1; });
