@@ -1,3 +1,5 @@
+import { migrateLegacyCheckins } from './privacy-migration.js';
+
 const STORAGE_KEY = 'portal-life-checkins';
 const DRAFT_KEY = 'portal-life-draft';
 
@@ -8,77 +10,6 @@ const defaultCategories = Object.freeze({
   relationships: 3,
   mission: 3
 });
-
-function createLocalGunNodeStub() {
-  const node = {
-    __isGunStub: true,
-    get() {
-      return createLocalGunNodeStub();
-    },
-    put(_value, callback) {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
-      }
-      return node;
-    },
-    map() {
-      return {
-        on() {
-          return { off() {} };
-        }
-      };
-    }
-  };
-
-  return node;
-}
-
-function createLocalGunUserStub() {
-  return {
-    is: null
-  };
-}
-
-function ensureGunContext(factory, label) {
-  const ensureGun = window.ScoreSystem && typeof window.ScoreSystem.ensureGun === 'function'
-    ? window.ScoreSystem.ensureGun.bind(window.ScoreSystem)
-    : null;
-
-  if (ensureGun) {
-    return ensureGun(factory, { label });
-  }
-
-  if (typeof factory === 'function') {
-    try {
-      const instance = factory();
-      if (instance) {
-        return {
-          gun: instance,
-          user: typeof instance.user === 'function' ? instance.user() : createLocalGunUserStub(),
-          isStub: Boolean(instance.__isGunStub)
-        };
-      }
-    } catch (error) {
-      console.warn('Life could not start Gun. Saving on this device.', error);
-    }
-  }
-
-  const gun = {
-    __isGunStub: true,
-    get() {
-      return createLocalGunNodeStub();
-    },
-    user() {
-      return createLocalGunUserStub();
-    }
-  };
-
-  return {
-    gun,
-    user: gun.user(),
-    isStub: true
-  };
-}
 
 function clampMood(value) {
   const number = Number(value);
@@ -178,8 +109,9 @@ function setValue(id, value) {
 }
 
 function loadStoredEntries() {
-  const parsed = parseJson(window.localStorage.getItem(STORAGE_KEY), []);
-  return Array.isArray(parsed) ? parsed.map((entry) => normalizeEntry(entry)) : [];
+  const migration = migrateLegacyCheckins(window.localStorage);
+  migrationNotice = migration.removedCount > 0;
+  return migration.entries.map((entry) => normalizeEntry(entry));
 }
 
 function saveStoredEntries(entries) {
@@ -290,7 +222,7 @@ function updateResponseLoop(entry) {
   }
 
   const step = getEntryStep(entry);
-  const textLink = document.getElementById('textThomasLink');
+  const textLink = document.getElementById('shareTrustedLink');
   if (textLink) {
     textLink.href = `sms:?&body=${encodeURIComponent(buildStepMessage(step))}`;
   }
@@ -324,49 +256,12 @@ function render() {
   renderEntryList(entries);
 }
 
-function mergeEntry(entry, id) {
-  const normalized = normalizeEntry({ ...entry, id }, id);
-  entriesById.set(normalized.id, normalized);
-  saveStoredEntries(getAllEntries());
-  render();
-}
-
 function writeEntry(entry) {
   const id = entry.id || makeId();
   const normalized = normalizeEntry({ ...entry, id }, id);
   entriesById.set(normalized.id, normalized);
   saveStoredEntries(getAllEntries());
   render();
-
-  if (entriesRoot && typeof entriesRoot.get === 'function') {
-    entriesRoot.get(normalized.id).put(normalized, (ack) => {
-      const status = document.getElementById('saveStatus');
-      if (!status) {
-        return;
-      }
-
-      status.textContent = ack && ack.err
-        ? 'Saved on this phone.'
-        : 'Saved.';
-    });
-  }
-}
-
-function loadEntriesFromGun() {
-  if (!entriesRoot || typeof entriesRoot.map !== 'function') {
-    return;
-  }
-
-  const mapped = entriesRoot.map();
-  if (!mapped || typeof mapped.on !== 'function') {
-    return;
-  }
-
-  mapped.on((entry, id) => {
-    if (entry && id) {
-      mergeEntry(entry, id);
-    }
-  });
 }
 
 function syncMoodOutput() {
@@ -437,39 +332,22 @@ function initializeEntries() {
   for (const entry of loadStoredEntries()) {
     entriesById.set(entry.id, entry);
   }
+  if (migrationNotice) {
+    const status = document.getElementById('saveStatus');
+    if (status) {
+      status.textContent = 'Older synced check-ins were removed from this browser for privacy.';
+    }
+  }
   render();
-  loadEntriesFromGun();
 }
-
-const gunContext = ensureGunContext(
-  () => (typeof Gun === 'function'
-    ? Gun({
-      peers: window.__GUN_PEERS__ || [
-        'wss://relay.3dvr.tech/gun',
-        'wss://gun-relay-3dvr.fly.dev/gun'
-      ],
-      axe: true
-    })
-    : null),
-  'life'
-);
-
-const gun = gunContext.gun;
-const user = gunContext.user;
-const portalRoot = gun && typeof gun.get === 'function'
-  ? gun.get('3dvr-portal')
-  : createLocalGunNodeStub();
-const lifeRoot = portalRoot.get('life');
-const entriesRoot = lifeRoot.get('entries');
 const entriesById = new Map();
+let migrationNotice = false;
 
 const form = document.getElementById('lifeForm');
 const saveStatus = document.getElementById('saveStatus');
 
 if (saveStatus) {
-  saveStatus.textContent = gunContext.isStub
-    ? 'Saves on this phone.'
-    : 'Ready.';
+  saveStatus.textContent = 'Your check-ins stay private on this device.';
 }
 
 initializeForm();
@@ -481,10 +359,7 @@ form?.addEventListener('submit', (event) => {
   const draft = getFormDraft();
   const entry = normalizeEntry({
     ...draft,
-    createdAt: new Date().toISOString(),
-    author: window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function'
-      ? window.ScoreSystem.ensureGuestIdentity()
-      : (user && user.is && user.is.pub) || ''
+    createdAt: new Date().toISOString()
   });
 
   writeEntry(entry);
@@ -492,7 +367,7 @@ form?.addEventListener('submit', (event) => {
   applyDraft({ date: toDateInputValue(), mood: entry.mood });
 
   if (saveStatus) {
-    saveStatus.textContent = 'Saved. Do one small step.';
+    saveStatus.textContent = 'Saved privately on this device. Do one small step.';
   }
 });
 

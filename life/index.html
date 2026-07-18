@@ -4,10 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Daily Direction | 3dvr Portal</title>
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-  <script src="../gun-init.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
-  <script src="../score.js"></script>
   <style>
     :root {
       --bg: #07131d;
@@ -519,7 +515,7 @@
               <strong>Your next step is saved.</strong>
               <p>Want to do anything else?</p>
               <div class="response-loop__actions">
-                <a class="button" id="textThomasLink" href="sms:?&body=I%20tried%20Daily%20Direction.%20My%20next%20step%20is%3A%20">Text this to Thomas</a>
+                <a class="button" id="shareTrustedLink" href="sms:?&body=I%20tried%20Daily%20Direction.%20My%20next%20step%20is%3A%20">Share with someone I trust</a>
                 <button class="button" type="button" id="copyStepButton">Copy my next step</button>
                 <button class="button" type="button" id="copyFreeLinkButton">Save my free link</button>
                 <a class="button" href="../friends-family/">See support options</a>
@@ -539,9 +535,9 @@
       </aside>
     </section>
 
-    <p class="footer-note">Saves here. Can sync later.</p>
+    <p class="footer-note">Saved privately on this device. Encrypted sync can come later.</p>
   </main>
 
-  <script src="./app.js?v=20260630-daily-direction"></script>
+  <script type="module" src="./app.js?v=20260630-daily-direction"></script>
 </body>
 </html>
