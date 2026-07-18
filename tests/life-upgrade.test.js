@@ -1,0 +1,98 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import {
+  SCHEMA_VERSION,
+  STORAGE_KEY,
+  STAGES,
+  completeAction,
+  createPlan,
+  deleteStoredPlan,
+  hasUsefulResult,
+  loadStoredPlan,
+  nextStage,
+  updateAction,
+  updatePlan
+} from '../life-upgrade/state.js';
+
+const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+
+test('initial state is a v1 plan with three independent actions', () => {
+  const plan = createPlan();
+  assert.equal(plan.schemaVersion, SCHEMA_VERSION);
+  assert.equal(plan.currentStage, 'check-in');
+  assert.deepEqual(plan.actions, [
+    { text: '', completed: false },
+    { text: '', completed: false },
+    { text: '', completed: false }
+  ]);
+});
+
+test('malformed or missing stored JSON safely returns a usable initial state', () => {
+  assert.deepEqual(loadStoredPlan(null), createPlan());
+  assert.deepEqual(loadStoredPlan('{not-json'), createPlan());
+  assert.equal(loadStoredPlan(JSON.stringify({ schemaVersion: 99 })).schemaVersion, SCHEMA_VERSION);
+});
+
+test('restore preserves workflow position and active upgrade', () => {
+  const restored = loadStoredPlan(JSON.stringify({
+    schemaVersion: SCHEMA_VERSION,
+    currentStage: 'complete',
+    upgrade: 'Kitchen',
+    result: 'A usable prep surface'
+  }));
+  assert.equal(restored.currentStage, 'complete');
+  assert.equal(restored.upgrade, 'Kitchen');
+  assert.equal(nextStage(restored).currentStage, 'evidence');
+});
+
+test('actions can be edited and completed independently', () => {
+  let plan = updateAction(createPlan(), 0, 'Clear one counter');
+  plan = updateAction(plan, 1, 'Put away dishes');
+  plan = completeAction(plan, 0);
+  assert.deepEqual(plan.actions, [
+    { text: 'Clear one counter', completed: true },
+    { text: 'Put away dishes', completed: false },
+    { text: '', completed: false }
+  ]);
+});
+
+test('private evidence is part of the local plan and useful results remain detectable', () => {
+  let plan = updatePlan(createPlan(), {
+    upgrade: 'Kitchen',
+    result: 'A usable prep surface',
+    evidence: 'A finished, clear counter'
+  });
+  plan = updateAction(plan, 0, 'Clear one counter');
+  assert.equal(plan.evidence, 'A finished, clear counter');
+  assert.equal(hasUsefulResult(plan), true);
+});
+
+test('delete-all removes only the Life Upgrade browser record', () => {
+  const removed = [];
+  deleteStoredPlan({ removeItem: (key) => removed.push(key) });
+  assert.deepEqual(removed, [STORAGE_KEY]);
+});
+
+test('page is offline-capable, safely rendered, and has the confirmed delete action', async () => {
+  const html = await read('life-upgrade/index.html');
+  const app = await read('life-upgrade/app.js');
+  assert.equal(STAGES.length, 8);
+  assert.match(html, /Private by default/);
+  assert.match(html, /seven-day upgrade cycle/i);
+  assert.match(html, /Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach/);
+  assert.match(html, /id="deleteAll"/);
+  assert.match(html, /type="module" src="\.\/app\.js"/);
+  assert.doesNotMatch(`${html}\n${app}`, /Gun\(|fetch\(|XMLHttpRequest|WebSocket|sendBeacon|<script[^>]+src="https?:\/\//i);
+  assert.match(app, /textContent/);
+  assert.doesNotMatch(app, /innerHTML/);
+  assert.match(app, /confirm\(/);
+  assert.match(app, /deleteStoredPlan/);
+});
+
+test('portal home and Start page expose the Life Upgrade entry point', async () => {
+  const home = await read('index.html');
+  const start = await read('start/index.html');
+  assert.match(home, /href="life-upgrade\/"/);
+  assert.match(start, /href="\.\.\/life-upgrade\/"/);
+});
