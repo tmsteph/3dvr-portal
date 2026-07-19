@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "life-upgrade-v01",
+  "title": "Finish the safe Life Upgrade v0.1 release path",
+  "repository": "tmsteph/3dvr-portal",
+  "branch": "codex/life-upgrade-v01",
+  "baseBranch": "main",
+  "worktreePath": ".agent-worktrees/life-upgrade-v01",
+  "tasks": [
+    {
+      "id": "inspect-release-state",
+      "title": "Inspect the Life Upgrade PR and dependency state",
+      "kind": "read_only",
+      "checks": [
+        ["git", "status", "-sb"],
+        ["git", "log", "-1", "--oneline", "HEAD"]
+      ],
+      "prompt": "Inspect the Life Upgrade branch and PR state. Do not edit files, commit, push, merge, or deploy. Report only authoritative Git and GitHub evidence."
+    },
+    {
+      "id": "validate-release-evidence",
+      "title": "Run declared Life Upgrade release checks",
+      "dependsOn": ["inspect-release-state"],
+      "kind": "read_only",
+      "checks": [
+        ["node", "--check", "life-upgrade/app.js"],
+        ["node", "--check", "life-upgrade/state.js"],
+        ["node", "--test", "tests/life-upgrade.test.js"],
+        ["node", "--test", "tests/life.test.js"],
+        ["git", "diff", "--check", "origin/main...HEAD"]
+      ],
+      "prompt": "Run the declared Life Upgrade focused checks in the assigned worktree. Do not edit files or change remote state. Stop and report the first failing check."
+    },
+    {
+      "id": "trusted-browser-validation",
+      "title": "Run trusted browser validation",
+      "dependsOn": ["validate-release-evidence"],
+      "kind": "workspace_write",
+      "checks": [
+        ["npm", "run", "playwright:verify"]
+      ],
+      "prompt": "Run the repository browser validation for Life Upgrade at mobile and desktop sizes. Do not edit product files, merge, deploy, or send external messages. Record browser and console evidence."
+    },
+    {
+      "id": "human-merge-approval",
+      "title": "Wait for human approval to merge Life Upgrade",
+      "dependsOn": ["trusted-browser-validation"],
+      "kind": "approval_gate",
+      "requiresApproval": ["merge_pull_request"]
+    }
+  ]
+}
