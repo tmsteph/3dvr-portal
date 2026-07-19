@@ -6,28 +6,44 @@ import {
   deleteStoredPlan,
   getStage,
   hasUsefulResult,
+  hasProgress,
   loadStoredPlan,
   nextStage,
-  serializePlan,
+  saveStoredPlan,
   updateAction,
   updatePlan
 } from './state.js';
 
 const root = document.querySelector('[data-life-upgrade]');
+let storageAvailable = true;
 let plan = loadPlan();
 
 function loadPlan() {
   try {
     return loadStoredPlan(window.localStorage.getItem(STORAGE_KEY));
   } catch {
+    storageAvailable = false;
     return createPlan();
   }
 }
 
-function savePlan() {
-  window.localStorage.setItem(STORAGE_KEY, serializePlan(plan));
+function setStatus(message) {
   const status = document.querySelector('#saveStatus');
-  if (status) status.textContent = 'Saved privately in this browser.';
+  if (status) status.textContent = message;
+}
+
+function savePlan() {
+  let saved = false;
+  try {
+    saved = saveStoredPlan(window.localStorage, plan);
+  } catch {
+    saved = false;
+  }
+  storageAvailable = saved;
+  setStatus(saved
+    ? 'Saved privately in this browser.'
+    : 'Could not save in this browser. Your changes remain on this page until you leave.');
+  return saved;
 }
 
 function render() {
@@ -90,6 +106,7 @@ root?.addEventListener('click', (event) => {
   }
 
   if (event.target.closest('#resetPlan')) {
+    if (hasProgress(plan) && !window.confirm('Start over and replace this Life Upgrade plan?')) return;
     plan = createPlan();
     savePlan();
     render();
@@ -98,13 +115,25 @@ root?.addEventListener('click', (event) => {
 
   if (event.target.closest('#deleteAll')) {
     if (window.confirm('Delete all Life Upgrade data saved in this browser? This cannot be undone.')) {
-      deleteStoredPlan(window.localStorage);
+      let deleted = false;
+      try {
+        deleted = deleteStoredPlan(window.localStorage);
+      } catch {
+        deleted = false;
+      }
+      if (!deleted) {
+        setStatus('Could not delete saved data from this browser. Please try again.');
+        return;
+      }
       plan = createPlan();
       render();
-      const status = document.querySelector('#saveStatus');
-      if (status) status.textContent = 'All Life Upgrade data was deleted from this browser.';
+      storageAvailable = true;
+      setStatus('All Life Upgrade data was deleted from this browser.');
     }
   }
 });
 
 render();
+if (!storageAvailable) {
+  setStatus('Private browser storage is unavailable. Your changes remain on this page until you leave.');
+}

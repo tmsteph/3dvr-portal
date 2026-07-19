@@ -68,8 +68,22 @@ export function loadStoredPlan(rawValue) {
   }
 }
 
+export function saveStoredPlan(storage, plan) {
+  try {
+    storage.setItem(STORAGE_KEY, serializePlan(plan));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function deleteStoredPlan(storage) {
-  storage.removeItem(STORAGE_KEY);
+  try {
+    storage.removeItem(STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function updatePlan(plan, changes) {
@@ -103,6 +117,21 @@ export function nextStage(plan) {
 export function hasUsefulResult(plan) {
   const current = normalizePlan(plan);
   return Boolean(current.upgrade && current.result && current.actions.some((action) => action.text));
+}
+
+export function hasProgress(plan) {
+  const current = normalizePlan(plan);
+  return Boolean(
+    current.updatedAt ||
+    current.currentStage !== 'check-in' ||
+    current.checkIn ||
+    current.upgrade ||
+    current.result ||
+    current.evidence ||
+    current.review ||
+    current.nextMove ||
+    current.actions.some((action) => action.text || action.completed)
+  );
 }
 
 export function serializePlan(plan) {

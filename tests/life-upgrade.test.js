@@ -8,9 +8,11 @@ import {
   completeAction,
   createPlan,
   deleteStoredPlan,
+  hasProgress,
   hasUsefulResult,
   loadStoredPlan,
   nextStage,
+  saveStoredPlan,
   updateAction,
   updatePlan
 } from '../life-upgrade/state.js';
@@ -70,8 +72,16 @@ test('private evidence is part of the local plan and useful results remain detec
 
 test('delete-all removes only the Life Upgrade browser record', () => {
   const removed = [];
-  deleteStoredPlan({ removeItem: (key) => removed.push(key) });
+  assert.equal(deleteStoredPlan({ removeItem: (key) => removed.push(key) }), true);
   assert.deepEqual(removed, [STORAGE_KEY]);
+});
+
+test('storage failures do not throw and progress detection supports confirmed replacement', () => {
+  const plan = updatePlan(createPlan(), { checkIn: 'A real week' });
+  assert.equal(hasProgress(plan), true);
+  assert.equal(hasProgress(createPlan()), false);
+  assert.equal(saveStoredPlan({ setItem: () => { throw new Error('storage full'); } }, plan), false);
+  assert.equal(deleteStoredPlan({ removeItem: () => { throw new Error('storage blocked'); } }), false);
 });
 
 test('page is offline-capable, safely rendered, and has the confirmed delete action', async () => {
@@ -88,6 +98,9 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.doesNotMatch(app, /innerHTML/);
   assert.match(app, /confirm\(/);
   assert.match(app, /deleteStoredPlan/);
+  assert.match(app, /Could not save in this browser/);
+  assert.match(app, /Could not delete saved data/);
+  assert.match(app, /replace this Life Upgrade plan/);
 });
 
 test('portal home and Start page expose the Life Upgrade entry point', async () => {
