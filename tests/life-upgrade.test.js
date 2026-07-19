@@ -89,6 +89,8 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   const app = await read('life-upgrade/app.js');
   assert.equal(STAGES.length, 8);
   assert.match(html, /Private by default/);
+  assert.match(html, /Give this week a shape you can feel/);
+  assert.match(html, /Notice what matters/);
   assert.match(html, /seven-day upgrade cycle/i);
   assert.match(html, /Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach/);
   assert.match(html, /id="deleteAll"/);
@@ -100,6 +102,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(app, /deleteStoredPlan/);
   assert.match(app, /Could not save in this browser/);
   assert.match(app, /Could not delete saved data/);
+  assert.match(app, /data-momentum/);
   assert.match(app, /replace this Life Upgrade plan/);
 });
 

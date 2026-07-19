@@ -15,9 +15,14 @@
       </header>
 
       <section class="intro" aria-labelledby="page-title">
-        <p class="eyebrow">Life Upgrade · v0.1</p>
-        <h1 id="page-title">Make one useful thing real this week.</h1>
-        <p class="lead">The seven-day upgrade cycle helps you check in, choose one upgrade, plan three actions, complete one, and learn from what happened.</p>
+        <p class="eyebrow">A small act of agency · Life Upgrade v0.1</p>
+        <h1 id="page-title">Give this week a shape you can feel.</h1>
+        <p class="lead">You do not need to fix everything. Find one honest starting point and make one useful thing real.</p>
+        <div class="promise" aria-label="The three promises of this cycle">
+          <span><strong>01</strong> Notice what matters</span>
+          <span><strong>02</strong> Make one move</span>
+          <span><strong>03</strong> Keep the proof</span>
+        </div>
         <p class="map-footnote">This is a flexible seven-day cycle, not a replacement for the longer Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach growth map.</p>
         <p class="privacy-note"><span aria-hidden="true">🔒</span> Private by default. This guest plan stays on this device.</p>
       </section>
@@ -26,6 +31,7 @@
         <nav class="map card" aria-label="Flexible eight-stage map">
           <div class="map-heading"><span>Seven-day upgrade cycle</span><span data-stage-count>1 of 8</span></div>
           <div class="progress"><span data-progress></span></div>
+          <p class="momentum" data-momentum>One useful move starts here.</p>
           <div class="stage-list">
             <button type="button" data-stage="check-in">1. Check in</button>
             <button type="button" data-stage="choose">2. Choose one</button>
@@ -43,6 +49,7 @@
           <div class="card-heading">
             <p class="eyebrow" data-stage-label>Check in</p>
             <h2 id="stage-title" data-stage-prompt>What would make this week feel useful?</h2>
+            <p class="stage-support" data-stage-support>Start with what is true. You do not have to make it sound tidy.</p>
           </div>
 
           <div class="fields">
@@ -73,7 +80,7 @@
           </div>
 
           <div class="actions">
-            <button class="primary" type="button" id="nextStage">Save and move to the next stage</button>
+            <button class="primary" type="button" id="nextStage">Keep this and take the next step</button>
             <button class="secondary" type="button" id="resetPlan">Start over</button>
           </div>
           <p class="status" id="saveStatus" role="status" aria-live="polite">Checking private browser storage…</p>
@@ -81,7 +88,7 @@
       </section>
 
       <aside class="summary card" aria-labelledby="summary-title">
-        <p class="eyebrow">Current upgrade</p>
+        <p class="eyebrow">Your reason to keep going</p>
         <h2 id="summary-title">Keep the result in view</h2>
         <p id="summary">Your seven-day result will appear here.</p>
       </aside>

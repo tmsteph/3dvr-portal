@@ -51,8 +51,15 @@ function render() {
   const stage = getStage(plan);
   root.querySelector('[data-stage-label]').textContent = stage.label;
   root.querySelector('[data-stage-prompt]').textContent = stage.prompt;
+  root.querySelector('[data-stage-support]').textContent = stage.support;
   root.querySelector('[data-stage-count]').textContent = `${STAGES.findIndex((item) => item.id === stage.id) + 1} of ${STAGES.length}`;
   root.querySelector('[data-progress]').style.width = `${((STAGES.findIndex((item) => item.id === stage.id) + 1) / STAGES.length) * 100}%`;
+  const completedActions = plan.actions.filter((action) => action.completed).length;
+  root.querySelector('[data-momentum]').textContent = completedActions
+    ? `${completedActions} of 3 real-world moves complete. Keep the next one small.`
+    : hasUsefulResult(plan)
+      ? 'Your result has a shape. Now give it one real-world move.'
+      : 'One useful move starts here.';
 
   root.querySelectorAll('[data-stage]').forEach((button) => {
     const selected = button.dataset.stage === stage.id;

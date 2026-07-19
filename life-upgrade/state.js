@@ -2,14 +2,14 @@ export const STORAGE_KEY = '3dvr-life-upgrade-v01';
 export const SCHEMA_VERSION = 1;
 
 export const STAGES = Object.freeze([
-  { id: 'check-in', label: 'Check in', prompt: 'What would make this week feel useful?' },
-  { id: 'choose', label: 'Choose one', prompt: 'Choose one area to upgrade.' },
-  { id: 'result', label: 'Name the result', prompt: 'What will be different by the end of seven days?' },
-  { id: 'plan', label: 'Plan three', prompt: 'Write three actions that can get you there.' },
-  { id: 'complete', label: 'Complete one', prompt: 'Do one action now or schedule it.' },
-  { id: 'evidence', label: 'Capture evidence', prompt: 'Record what proves movement happened.' },
-  { id: 'review', label: 'Review the week', prompt: 'Notice what worked, what did not, and what you learned.' },
-  { id: 'next', label: 'Choose next', prompt: 'Choose the next move without starting over.' }
+  { id: 'check-in', label: 'Check in', prompt: 'What deserves your attention before the week disappears?', support: 'Start with what is true. You do not have to make it sound tidy.' },
+  { id: 'choose', label: 'Choose one', prompt: 'What part of life is asking for a little care?', support: 'A small surface you can touch is more useful than a giant life category.' },
+  { id: 'result', label: 'Name the result', prompt: 'What would you be proud to point to in seven days?', support: 'Make it visible. “Feel better” can become “one calm morning” or “a sent proposal.”' },
+  { id: 'plan', label: 'Plan three', prompt: 'What three small moves would make that result more likely?', support: 'Give future-you a few easy doors to walk through.' },
+  { id: 'complete', label: 'Complete one', prompt: 'Which move can you make real today?', support: 'Momentum starts when an intention leaves your head and meets the world.' },
+  { id: 'evidence', label: 'Capture evidence', prompt: 'What is different enough to notice?', support: 'Keep the proof for yourself. A finished thing, a photo, or a clear observation all count.' },
+  { id: 'review', label: 'Review the week', prompt: 'What did this week teach you about how you move?', support: 'Learning is part of the upgrade—not a consolation prize when plans change.' },
+  { id: 'next', label: 'Choose next', prompt: 'What is the next kind move—not the biggest one?', support: 'Keep what worked. Adjust what did not. You are allowed to build slowly.' }
 ]);
 
 export function createPlan() {
