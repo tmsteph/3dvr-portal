@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Turn one area of life into one completed useful result within seven days." />
+    <meta name="description" content="Pick one small thing, make it better in seven days, and keep your tiny win." />
     <title>Life Upgrade | 3dvr Portal</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -15,75 +15,82 @@
       </header>
 
       <section class="intro" aria-labelledby="page-title">
-        <p class="eyebrow">Life Upgrade · v0.1</p>
-        <h1 id="page-title">Make one useful thing real this week.</h1>
-        <p class="lead">The seven-day upgrade cycle helps you check in, choose one upgrade, plan three actions, complete one, and learn from what happened.</p>
-        <p class="map-footnote">This is a flexible seven-day cycle, not a replacement for the longer Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach growth map.</p>
+        <p class="eyebrow">Your 7-day game · Life Upgrade</p>
+        <h1 id="page-title">Make one good thing happen this week.</h1>
+        <p class="lead">Pick one small thing. Do it. See what changed.</p>
+        <div class="promise" aria-label="The three steps of this game">
+          <span><strong aria-hidden="true">👀</strong> See what matters</span>
+          <span><strong aria-hidden="true">👟</strong> Take one step</span>
+          <span><strong aria-hidden="true">⭐</strong> Keep your win</span>
+        </div>
+        <p class="map-footnote">This is a flexible seven-day upgrade cycle, not a replacement for the longer Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach growth map.</p>
         <p class="privacy-note"><span aria-hidden="true">🔒</span> Private by default. This guest plan stays on this device.</p>
       </section>
 
       <section class="workspace" aria-label="Life Upgrade workspace">
         <nav class="map card" aria-label="Flexible eight-stage map">
-          <div class="map-heading"><span>Seven-day upgrade cycle</span><span data-stage-count>1 of 8</span></div>
+          <div class="map-heading"><span>Your 7-day game</span><span data-stage-count>1 of 8</span></div>
           <div class="progress"><span data-progress></span></div>
+          <p class="momentum" data-momentum>🎮 Your first tiny win starts here.</p>
           <div class="stage-list">
-            <button type="button" data-stage="check-in">1. Check in</button>
-            <button type="button" data-stage="choose">2. Choose one</button>
-            <button type="button" data-stage="result">3. Name the result</button>
-            <button type="button" data-stage="plan">4. Plan three</button>
-            <button type="button" data-stage="complete">5. Complete one</button>
-            <button type="button" data-stage="evidence">6. Capture evidence</button>
-            <button type="button" data-stage="review">7. Review the week</button>
-            <button type="button" data-stage="next">8. Choose next</button>
+            <button type="button" data-stage="check-in">1. Notice</button>
+            <button type="button" data-stage="choose">2. Pick one</button>
+            <button type="button" data-stage="result">3. Name your win</button>
+            <button type="button" data-stage="plan">4. Make a plan</button>
+            <button type="button" data-stage="complete">5. Do one thing</button>
+            <button type="button" data-stage="evidence">6. Spot the change</button>
+            <button type="button" data-stage="review">7. Look back</button>
+            <button type="button" data-stage="next">8. Pick your next step</button>
           </div>
           <p class="map-footnote">Jump around when life calls for it. The map is a guide, not a test.</p>
         </nav>
 
         <section class="card work-card" aria-labelledby="stage-title">
           <div class="card-heading">
-            <p class="eyebrow" data-stage-label>Check in</p>
-            <h2 id="stage-title" data-stage-prompt>What would make this week feel useful?</h2>
+            <p class="eyebrow" data-stage-label>Notice</p>
+            <h2 id="stage-title" data-stage-prompt>What needs your care this week?</h2>
+            <p class="stage-support" data-stage-support>Just tell the truth. Short is good.</p>
           </div>
 
           <div class="fields">
-            <label>What is taking your attention?
-              <textarea id="checkIn" name="checkIn" rows="3" placeholder="A situation, responsibility, hope, or source of friction."></textarea>
+            <label>What is on your mind?
+              <textarea id="checkIn" name="checkIn" rows="3" placeholder="A problem, hope, job, room, or person."></textarea>
             </label>
-            <label>One area to upgrade
-              <input id="upgrade" name="upgrade" placeholder="My kitchen, sleep, finances, job search..." />
+            <label>Pick one thing
+              <input id="upgrade" name="upgrade" placeholder="My room, sleep, money, or work..." />
             </label>
-            <label>Useful result by seven days
-              <textarea id="result" name="result" rows="3" placeholder="I will be able to see, use, or share..." ></textarea>
+            <label>Your win in 7 days
+              <textarea id="result" name="result" rows="3" placeholder="I will see, use, or share..." ></textarea>
             </label>
             <fieldset>
-              <legend>Three actions</legend>
-            <label class="action-row"><span class="sr-only">Action one</span><input data-action-index="0" placeholder="1. The smallest meaningful action" /><span><input type="checkbox" data-action-complete="0" /> Done</span></label>
-            <label class="action-row"><span class="sr-only">Action two</span><input data-action-index="1" placeholder="2. A second action" /><span><input type="checkbox" data-action-complete="1" /> Done</span></label>
-            <label class="action-row"><span class="sr-only">Action three</span><input data-action-index="2" placeholder="3. A third action" /><span><input type="checkbox" data-action-complete="2" /> Done</span></label>
+              <legend>Three tiny steps</legend>
+            <label class="action-row"><span class="sr-only">Tiny step one</span><input data-action-index="0" placeholder="1. The easiest step" /><span><input type="checkbox" data-action-complete="0" /> Done!</span></label>
+            <label class="action-row"><span class="sr-only">Tiny step two</span><input data-action-index="1" placeholder="2. One more small step" /><span><input type="checkbox" data-action-complete="1" /> Done!</span></label>
+            <label class="action-row"><span class="sr-only">Tiny step three</span><input data-action-index="2" placeholder="3. The last small step" /><span><input type="checkbox" data-action-complete="2" /> Done!</span></label>
           </fieldset>
-            <label>Evidence of movement
-              <textarea id="evidence" name="evidence" rows="3" placeholder="A photo, link, sent message, finished item, measurement, or clear observation."></textarea>
+            <label>What changed?
+              <textarea id="evidence" name="evidence" rows="3" placeholder="A photo, link, sent note, finished thing, or what you saw."></textarea>
             </label>
-            <label>What did the week teach you?
-              <textarea id="review" name="review" rows="3" placeholder="What worked? What got in the way? What would you change?"></textarea>
+            <label>What did you learn?
+              <textarea id="review" name="review" rows="3" placeholder="What worked? What got in the way?"></textarea>
             </label>
-            <label>Next move
-              <input id="nextMove" name="nextMove" placeholder="Continue, adjust, pause, or choose a new upgrade." />
+            <label>Your next step
+              <input id="nextMove" name="nextMove" placeholder="Keep going, change it, or pick a new thing." />
             </label>
           </div>
 
           <div class="actions">
-            <button class="primary" type="button" id="nextStage">Save and move to the next stage</button>
-            <button class="secondary" type="button" id="resetPlan">Start over</button>
+            <button class="primary" type="button" id="nextStage">Save &amp; keep going →</button>
+            <button class="secondary" type="button" id="resetPlan">Start fresh</button>
           </div>
           <p class="status" id="saveStatus" role="status" aria-live="polite">Checking private browser storage…</p>
         </section>
       </section>
 
       <aside class="summary card" aria-labelledby="summary-title">
-        <p class="eyebrow">Current upgrade</p>
-        <h2 id="summary-title">Keep the result in view</h2>
-        <p id="summary">Your seven-day result will appear here.</p>
+        <p class="eyebrow">Your tiny win</p>
+        <h2 id="summary-title">Keep your win in view</h2>
+        <p id="summary">Your 7-day win will show up here.</p>
       </aside>
       <section class="privacy-tools card" aria-labelledby="privacy-tools-title">
         <h2 id="privacy-tools-title">Your private data</h2>

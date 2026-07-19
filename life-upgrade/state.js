@@ -2,14 +2,14 @@ export const STORAGE_KEY = '3dvr-life-upgrade-v01';
 export const SCHEMA_VERSION = 1;
 
 export const STAGES = Object.freeze([
-  { id: 'check-in', label: 'Check in', prompt: 'What would make this week feel useful?' },
-  { id: 'choose', label: 'Choose one', prompt: 'Choose one area to upgrade.' },
-  { id: 'result', label: 'Name the result', prompt: 'What will be different by the end of seven days?' },
-  { id: 'plan', label: 'Plan three', prompt: 'Write three actions that can get you there.' },
-  { id: 'complete', label: 'Complete one', prompt: 'Do one action now or schedule it.' },
-  { id: 'evidence', label: 'Capture evidence', prompt: 'Record what proves movement happened.' },
-  { id: 'review', label: 'Review the week', prompt: 'Notice what worked, what did not, and what you learned.' },
-  { id: 'next', label: 'Choose next', prompt: 'Choose the next move without starting over.' }
+  { id: 'check-in', label: 'Notice', prompt: 'What needs your care this week?', support: 'Just tell the truth. Short is good.' },
+  { id: 'choose', label: 'Pick one', prompt: 'What one thing will you work on?', support: 'Pick a small thing you can touch and change.' },
+  { id: 'result', label: 'Name your win', prompt: 'What would make you proud in 7 days?', support: 'Make it easy to see. “Feel better” could be “one calm morning.”' },
+  { id: 'plan', label: 'Make a plan', prompt: 'What three tiny steps can help?', support: 'Make each step so small you can start today.' },
+  { id: 'complete', label: 'Do one thing', prompt: 'Which step can you do today?', support: 'A small step is still a step. Go!' },
+  { id: 'evidence', label: 'Spot the change', prompt: 'What changed?', support: 'A photo, note, finished thing, or clear thought all count.' },
+  { id: 'review', label: 'Look back', prompt: 'What did you learn?', support: 'Plans can change. That is okay. Notice what helped.' },
+  { id: 'next', label: 'Pick your next step', prompt: 'What small step comes next?', support: 'Keep what worked. Try a new way for what did not.' }
 ]);
 
 export function createPlan() {

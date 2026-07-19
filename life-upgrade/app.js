@@ -51,8 +51,15 @@ function render() {
   const stage = getStage(plan);
   root.querySelector('[data-stage-label]').textContent = stage.label;
   root.querySelector('[data-stage-prompt]').textContent = stage.prompt;
+  root.querySelector('[data-stage-support]').textContent = stage.support;
   root.querySelector('[data-stage-count]').textContent = `${STAGES.findIndex((item) => item.id === stage.id) + 1} of ${STAGES.length}`;
   root.querySelector('[data-progress]').style.width = `${((STAGES.findIndex((item) => item.id === stage.id) + 1) / STAGES.length) * 100}%`;
+  const completedActions = plan.actions.filter((action) => action.completed).length;
+  root.querySelector('[data-momentum]').textContent = completedActions
+    ? `⭐ ${completedActions} of 3 tiny wins done. Keep going!`
+    : hasUsefulResult(plan)
+      ? 'You picked your win. Now take one small step.'
+      : '🎮 Your first tiny win starts here.';
 
   root.querySelectorAll('[data-stage]').forEach((button) => {
     const selected = button.dataset.stage === stage.id;
@@ -73,7 +80,7 @@ function render() {
   });
   root.querySelector('#summary').textContent = hasUsefulResult(plan)
     ? `${plan.upgrade}: ${plan.result}`
-    : 'Your seven-day result will appear here.';
+    : 'Your 7-day win will show up here.';
 }
 
 function handleField(event) {
