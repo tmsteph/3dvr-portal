@@ -5,6 +5,30 @@ This package lives in `apps/agent` inside the [3dvr-portal monorepo](https://git
 A local command-line system for:
 - building apps with AI
 - finding and closing real-world customers
+- resuming small, dependency-aware repository missions
+
+### Repository missions
+
+The mission runner builds on the existing task-orchestrator and its lease/heartbeat
+coordination, while honoring the queue's risk and approval vocabulary. Mission definitions live under
+`apps/agent/missions/`; resumable runtime evidence lives outside Git under
+`~/.3dvr/state/missions/<mission-id>/`:
+
+```sh
+3dvr mission validate life-upgrade-v01
+3dvr mission status life-upgrade-v01
+3dvr mission run life-upgrade-v01
+npm --prefix apps/agent run mission -- run life-upgrade-v01 --execute
+npm --prefix apps/agent run mission -- run life-upgrade-v01 --simulate
+```
+
+The default is inspect-only. `--execute` is required before checks run or a clean
+mission worktree is created. Approval-gated tasks are recorded as waiting and never
+merged or deployed by the runner. State uses a versioned schema; future-schema files
+are preserved rather than silently overwritten. `events.jsonl` is authoritative and
+`LIVE_STATUS.md` is generated from state and evidence. Simulation uses fixture state
+and performs no network writes. Mission status never contains secrets or personal user
+content.
 
 ## Autonomous Venture Sandbox
 

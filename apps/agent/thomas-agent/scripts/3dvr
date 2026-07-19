@@ -103,6 +103,11 @@ Email aliases:
 3dvr agent queue         enqueue/list remote server tasks
 3dvr agent worker        run queued tasks on this machine
 3dvr agent codex         install, auth-check, or probe the Codex CLI executor
+3dvr mission validate ID validate a mission definition
+3dvr mission run ID      resume a dependency-aware repository mission
+3dvr mission status ID   show generated mission status
+3dvr mission events ID   show append-only mission events
+3dvr mission approve ID  approve one scoped gate
 3dvr device bootstrap    prepare a new laptop/phone for the DigitalOcean server
 3dvr device approve      authorize a new device public key on the server
 3dvr server handoff      set up this machine for a DigitalOcean dev server
@@ -880,6 +885,15 @@ INBOX
         shift || true
         exec "$SCRIPT_DIR/ask-agent-codex" "${1:-status}" "${@:2}"
         ;;
+      *) usage; exit 1 ;;
+    esac
+    ;;
+  mission)
+    sub="${1:-help}"
+    shift || true
+    case "$sub" in
+      validate|run|resume|status|pause|cancel|approve|reject|events) exec "$SCRIPT_DIR/ask-mission" "$sub" "$@" ;;
+      help|-h|--help) printf '%s\n' '3dvr mission <validate|status|run|resume|pause|cancel|approve|reject|events> <mission-id>' ;;
       *) usage; exit 1 ;;
     esac
     ;;
