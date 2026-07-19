@@ -36,6 +36,27 @@ function runCommand(command, cwd) {
   });
 }
 
+function parseWorktrees(output) {
+  return output.split('\n\n').filter(Boolean).map(block => {
+    const lines = block.split('\n');
+    return {
+      path: lines.find(line => line.startsWith('worktree '))?.slice('worktree '.length) || '',
+      branch: lines.find(line => line.startsWith('branch '))?.slice('branch '.length).replace(/^refs\/heads\//, '') || ''
+    };
+  }).filter(worktree => worktree.path);
+}
+
+async function resolveMissionWorktree(mission, execute) {
+  const listed = await runCommand(['git', 'worktree', 'list', '--porcelain'], repo);
+  const existing = parseWorktrees(listed.stdout).find(worktree => worktree.branch === mission.branch);
+  if (existing) return { path: existing.path, created: false };
+  const target = path.resolve(repo, mission.worktreePath || `.agent-worktrees/${mission.id}`);
+  if (!execute) return { path: '', target, created: false };
+  const prepared = await runCommand(['node', 'scripts/agent/prepare-worktree.mjs', mission.id, '--create'], repo);
+  if (prepared.code !== 0) throw new Error(prepared.stderr.trim() || `could not prepare ${target}`);
+  return { path: target, created: true };
+}
+
 async function readState(filePath, missionId) {
   try {
     return JSON.parse(await readFile(filePath, 'utf8'));
@@ -79,7 +100,20 @@ async function main() {
   const errors = validateMission(mission);
   if (errors.length) throw new Error(errors.join('; '));
   const state = await readState(statePath, mission.id);
-  const status = await runCommand(['git', 'status', '--porcelain=v1', '-b'], repo);
+  const worktree = await resolveMissionWorktree(mission, options.execute);
+  if (!worktree.path) {
+    state.status = 'blocked';
+    state.blockedTask = selectTask(mission, state)?.id || null;
+    state.lastRun = timestamp();
+    state.evidence = [...(state.evidence || []), { at: state.lastRun, reason: 'mission-worktree-missing', target: worktree.target }];
+    await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);
+    await appendFile(logPath, `${JSON.stringify({ event: 'blocked', mission: mission.id, reason: 'mission-worktree-missing', target: worktree.target })}\n`);
+    await writeLiveStatus({ mission, state, branchLine: 'controller worktree', task: selectTask(mission, state), status: 'blocked', note: `create or reuse ${worktree.target}` });
+    console.log(`BLOCKED: mission worktree is not available. Planned target: ${worktree.target}. Pass --execute to create it.`);
+    return;
+  }
+  const workingRepo = worktree.path;
+  const status = await runCommand(['git', 'status', '--porcelain=v1', '-b'], workingRepo);
   const branchLine = status.stdout.split('\n')[0] || '';
   const branchName = branchLine.replace(/^##\s+/, '').split(/[.\s]/)[0] || '';
   const dirty = status.stdout.split('\n').slice(1).some(Boolean);
@@ -132,8 +166,8 @@ async function main() {
     if (options.delegate !== 'codex') throw new Error(`Unsupported delegate: ${options.delegate}`);
     if (!task.delegatePrompt) throw new Error(`Task ${task.id} has no scoped delegatePrompt`);
     const delegated = await runCommand([
-      'codex', 'exec', '--cd', repo, '--skip-git-repo-check', task.delegatePrompt
-    ], repo);
+      'codex', 'exec', '--cd', workingRepo, '--skip-git-repo-check', task.delegatePrompt
+    ], workingRepo);
     console.log(`CODEX ${delegated.code === 0 ? 'COMPLETED' : 'FAILED'}: ${task.id}`);
     if (delegated.code !== 0) {
       state.status = 'blocked';
@@ -151,7 +185,7 @@ async function main() {
     return;
   }
   for (const command of task.checks || []) {
-    const result = await runCommand(command, repo);
+    const result = await runCommand(command, workingRepo);
     state.evidence = [...(state.evidence || []), { ...evidence, command, code: result.code }];
     console.log(`${result.code === 0 ? 'PASS' : 'FAIL'} ${commandText(command)}`);
     if (result.code !== 0) {

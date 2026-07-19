@@ -37,8 +37,8 @@ The runner never labels a failure as baseline unless the same command reproduces
 ## Mission dependency chain
 
 1. Daily Direction privacy PR #1169.
-2. Life Upgrade v0.1 stacked draft PR #1170.
-3. Rebase Life Upgrade onto `main` after #1169 merges.
+2. Life Upgrade v0.1 draft PR #1170.
+3. Restack Life Upgrade onto `main` after #1169 merges.
 4. Trusted browser validation.
 5. Human approval to merge.
 6. Human approval to deploy.

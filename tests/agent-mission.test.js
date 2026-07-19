@@ -21,6 +21,9 @@ test('mission runner is inspect-only by default and records no product paths', a
   assert.match(source, /inspect-github\.mjs/);
   assert.match(source, /if \(options\.execute\) await main\(\)/);
   assert.match(source, /delegatePrompt/);
+  assert.match(source, /parseWorktrees/);
+  assert.match(source, /resolveMissionWorktree/);
+  assert.match(source, /mission worktree is not available/);
   assert.doesNotMatch(source, /git reset --hard/);
 });
 
@@ -34,8 +37,9 @@ test('approval gates include merge and deployment boundaries', async () => {
 test('mission declares stacked PRs and an explicit worktree path', async () => {
   const mission = await loadMission(path.join(root, 'docs/agent/missions/life-upgrade-v01.yaml'));
   assert.deepEqual(mission.pullRequests, [1169, 1170]);
-  assert.equal(mission.baseBranch, 'fix/life-private-checkins');
+  assert.equal(mission.baseBranch, 'main');
   assert.equal(mission.worktreePath, '.agent-worktrees/life-upgrade-v01');
+  assert.equal(mission.tasks.find(task => task.id === 'rebase-after-privacy-merge').requiresApproval, undefined);
 });
 
 test('draft publication is gated and cannot merge or deploy', async () => {

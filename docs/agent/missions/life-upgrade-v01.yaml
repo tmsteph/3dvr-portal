@@ -3,13 +3,13 @@
   "title": "Private Life Upgrade v0.1",
   "description": "Advance the device-only seven-day Life Upgrade flow through stacked review, trusted browser validation, and explicit human approval gates.",
   "branch": "codex/life-upgrade-v01",
-  "baseBranch": "fix/life-private-checkins",
+  "baseBranch": "main",
   "repository": "tmsteph/3dvr-portal",
   "pullRequests": [1169, 1170],
   "worktreePath": ".agent-worktrees/life-upgrade-v01",
   "draftPullRequest": {
     "title": "Add the private seven-day Life Upgrade flow",
-    "body": "Draft stacked PR for Life Upgrade v0.1. Depends on #1169. Review against fix/life-private-checkins. No merge or deployment is authorized by this mission."
+    "body": "Life Upgrade v0.1 draft PR. The Daily Direction privacy dependency is merged into main. No merge or deployment is authorized by this mission."
   },
   "approvalGates": ["merge", "deploy"],
   "allowedPaths": ["index.html", "start/index.html", "life-upgrade/", "tests/life-upgrade.test.js"],
@@ -31,7 +31,6 @@
       "title": "Rebase Life Upgrade onto main after privacy PR merges",
       "dependsOn": ["verify-stacked-pr"],
       "status": "pending",
-      "requiresApproval": ["merge-dependency"],
       "checks": [["git", "merge-base", "--is-ancestor", "origin/main", "HEAD"]]
     },
     {

@@ -8,6 +8,8 @@ npm run agent:mission -- life-upgrade-v01
 
 The default mode is inspect-only. It reads the mission, checks the current branch and worktree, selects the first unblocked task, and writes an evidence-backed status update. It does not edit product files, commit, push, merge, deploy, or send messages.
 
+The runner looks for an existing clean worktree for the mission branch even when the command is launched from a controller branch. With `--execute`, it creates the declared worktree when none exists, runs checks there, records each completed task, and continues until the next approval gate. A dirty mission worktree always blocks execution.
+
 Use `--execute` only when the mission explicitly allows the selected task's declared commands. Use `--delegate codex` only when a human has authorized implementation delegation for that task.
 
 ```sh
