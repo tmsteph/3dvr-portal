@@ -1,0 +1,139 @@
+import {
+  STAGES,
+  STORAGE_KEY,
+  createPlan,
+  completeAction,
+  deleteStoredPlan,
+  getStage,
+  hasUsefulResult,
+  hasProgress,
+  loadStoredPlan,
+  nextStage,
+  saveStoredPlan,
+  updateAction,
+  updatePlan
+} from './state.js';
+
+const root = document.querySelector('[data-life-upgrade]');
+let storageAvailable = true;
+let plan = loadPlan();
+
+function loadPlan() {
+  try {
+    return loadStoredPlan(window.localStorage.getItem(STORAGE_KEY));
+  } catch {
+    storageAvailable = false;
+    return createPlan();
+  }
+}
+
+function setStatus(message) {
+  const status = document.querySelector('#saveStatus');
+  if (status) status.textContent = message;
+}
+
+function savePlan() {
+  let saved = false;
+  try {
+    saved = saveStoredPlan(window.localStorage, plan);
+  } catch {
+    saved = false;
+  }
+  storageAvailable = saved;
+  setStatus(saved
+    ? 'Saved privately in this browser.'
+    : 'Could not save in this browser. Your changes remain on this page until you leave.');
+  return saved;
+}
+
+function render() {
+  if (!root) return;
+  const stage = getStage(plan);
+  root.querySelector('[data-stage-label]').textContent = stage.label;
+  root.querySelector('[data-stage-prompt]').textContent = stage.prompt;
+  root.querySelector('[data-stage-count]').textContent = `${STAGES.findIndex((item) => item.id === stage.id) + 1} of ${STAGES.length}`;
+  root.querySelector('[data-progress]').style.width = `${((STAGES.findIndex((item) => item.id === stage.id) + 1) / STAGES.length) * 100}%`;
+
+  root.querySelectorAll('[data-stage]').forEach((button) => {
+    const selected = button.dataset.stage === stage.id;
+    button.classList.toggle('is-current', selected);
+    button.setAttribute('aria-current', selected ? 'step' : 'false');
+  });
+  root.querySelector('#checkIn').value = plan.checkIn;
+  root.querySelector('#upgrade').value = plan.upgrade;
+  root.querySelector('#result').value = plan.result;
+  root.querySelector('#evidence').value = plan.evidence;
+  root.querySelector('#review').value = plan.review;
+  root.querySelector('#nextMove').value = plan.nextMove;
+  root.querySelectorAll('[data-action-index]').forEach((input) => {
+    input.value = plan.actions[Number(input.dataset.actionIndex)].text;
+  });
+  root.querySelectorAll('[data-action-complete]').forEach((input) => {
+    input.checked = plan.actions[Number(input.dataset.actionComplete)].completed;
+  });
+  root.querySelector('#summary').textContent = hasUsefulResult(plan)
+    ? `${plan.upgrade}: ${plan.result}`
+    : 'Your seven-day result will appear here.';
+}
+
+function handleField(event) {
+  const target = event.target;
+  if (target.dataset.actionComplete !== undefined) {
+    plan = completeAction(plan, Number(target.dataset.actionComplete), target.checked);
+  } else if (target.dataset.actionIndex) {
+    plan = updateAction(plan, Number(target.dataset.actionIndex), target.value);
+  } else if (target.name) {
+    plan = updatePlan(plan, { [target.name]: target.value });
+  }
+  savePlan();
+}
+
+root?.addEventListener('input', handleField);
+root?.addEventListener('change', handleField);
+root?.addEventListener('click', (event) => {
+  const stageButton = event.target.closest('[data-stage]');
+  if (stageButton) {
+    plan = updatePlan(plan, { currentStage: stageButton.dataset.stage });
+    savePlan();
+    render();
+    return;
+  }
+
+  if (event.target.closest('#nextStage')) {
+    plan = nextStage(plan);
+    savePlan();
+    render();
+  }
+
+  if (event.target.closest('#resetPlan')) {
+    if (hasProgress(plan) && !window.confirm('Start over and replace this Life Upgrade plan?')) return;
+    plan = createPlan();
+    savePlan();
+    render();
+    return;
+  }
+
+  if (event.target.closest('#deleteAll')) {
+    if (window.confirm('Delete all Life Upgrade data saved in this browser? This cannot be undone.')) {
+      let deleted = false;
+      try {
+        deleted = deleteStoredPlan(window.localStorage);
+      } catch {
+        deleted = false;
+      }
+      if (!deleted) {
+        setStatus('Could not delete saved data from this browser. Please try again.');
+        return;
+      }
+      plan = createPlan();
+      render();
+      storageAvailable = true;
+      setStatus('All Life Upgrade data was deleted from this browser.');
+    }
+  }
+});
+
+render();
+if (!storageAvailable) {
+  setStatus('Private browser storage is unavailable. Your changes remain on this page until you leave.');
+}
