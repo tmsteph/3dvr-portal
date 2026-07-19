@@ -2,14 +2,14 @@ export const STORAGE_KEY = '3dvr-life-upgrade-v01';
 export const SCHEMA_VERSION = 1;
 
 export const STAGES = Object.freeze([
-  { id: 'check-in', label: 'Check in', prompt: 'What deserves your attention before the week disappears?', support: 'Start with what is true. You do not have to make it sound tidy.' },
-  { id: 'choose', label: 'Choose one', prompt: 'What part of life is asking for a little care?', support: 'A small surface you can touch is more useful than a giant life category.' },
-  { id: 'result', label: 'Name the result', prompt: 'What would you be proud to point to in seven days?', support: 'Make it visible. “Feel better” can become “one calm morning” or “a sent proposal.”' },
-  { id: 'plan', label: 'Plan three', prompt: 'What three small moves would make that result more likely?', support: 'Give future-you a few easy doors to walk through.' },
-  { id: 'complete', label: 'Complete one', prompt: 'Which move can you make real today?', support: 'Momentum starts when an intention leaves your head and meets the world.' },
-  { id: 'evidence', label: 'Capture evidence', prompt: 'What is different enough to notice?', support: 'Keep the proof for yourself. A finished thing, a photo, or a clear observation all count.' },
-  { id: 'review', label: 'Review the week', prompt: 'What did this week teach you about how you move?', support: 'Learning is part of the upgrade—not a consolation prize when plans change.' },
-  { id: 'next', label: 'Choose next', prompt: 'What is the next kind move—not the biggest one?', support: 'Keep what worked. Adjust what did not. You are allowed to build slowly.' }
+  { id: 'check-in', label: 'Notice', prompt: 'What needs your care this week?', support: 'Just tell the truth. Short is good.' },
+  { id: 'choose', label: 'Pick one', prompt: 'What one thing will you work on?', support: 'Pick a small thing you can touch and change.' },
+  { id: 'result', label: 'Name your win', prompt: 'What would make you proud in 7 days?', support: 'Make it easy to see. “Feel better” could be “one calm morning.”' },
+  { id: 'plan', label: 'Make a plan', prompt: 'What three tiny steps can help?', support: 'Make each step so small you can start today.' },
+  { id: 'complete', label: 'Do one thing', prompt: 'Which step can you do today?', support: 'A small step is still a step. Go!' },
+  { id: 'evidence', label: 'Spot the change', prompt: 'What changed?', support: 'A photo, note, finished thing, or clear thought all count.' },
+  { id: 'review', label: 'Look back', prompt: 'What did you learn?', support: 'Plans can change. That is okay. Notice what helped.' },
+  { id: 'next', label: 'Pick your next step', prompt: 'What small step comes next?', support: 'Keep what worked. Try a new way for what did not.' }
 ]);
 
 export function createPlan() {

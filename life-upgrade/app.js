@@ -56,10 +56,10 @@ function render() {
   root.querySelector('[data-progress]').style.width = `${((STAGES.findIndex((item) => item.id === stage.id) + 1) / STAGES.length) * 100}%`;
   const completedActions = plan.actions.filter((action) => action.completed).length;
   root.querySelector('[data-momentum]').textContent = completedActions
-    ? `${completedActions} of 3 real-world moves complete. Keep the next one small.`
+    ? `⭐ ${completedActions} of 3 tiny wins done. Keep going!`
     : hasUsefulResult(plan)
-      ? 'Your result has a shape. Now give it one real-world move.'
-      : 'One useful move starts here.';
+      ? 'You picked your win. Now take one small step.'
+      : '🎮 Your first tiny win starts here.';
 
   root.querySelectorAll('[data-stage]').forEach((button) => {
     const selected = button.dataset.stage === stage.id;
@@ -80,7 +80,7 @@ function render() {
   });
   root.querySelector('#summary').textContent = hasUsefulResult(plan)
     ? `${plan.upgrade}: ${plan.result}`
-    : 'Your seven-day result will appear here.';
+    : 'Your 7-day win will show up here.';
 }
 
 function handleField(event) {

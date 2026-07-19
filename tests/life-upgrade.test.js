@@ -89,8 +89,8 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   const app = await read('life-upgrade/app.js');
   assert.equal(STAGES.length, 8);
   assert.match(html, /Private by default/);
-  assert.match(html, /Give this week a shape you can feel/);
-  assert.match(html, /Notice what matters/);
+  assert.match(html, /Make one good thing happen this week/);
+  assert.match(html, /See what matters/);
   assert.match(html, /seven-day upgrade cycle/i);
   assert.match(html, /Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach/);
   assert.match(html, /id="deleteAll"/);
