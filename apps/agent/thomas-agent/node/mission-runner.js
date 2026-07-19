@@ -1,310 +1,140 @@
-const { spawn } = require('node:child_process');
+#!/usr/bin/env node
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
+const { validateMission } = require('./mission-schema');
+const { DEFAULT_STATE_ROOT, appendEvent, initialState, loadState, readEvents, saveState, transition } = require('./mission-store');
+const { approve: approveRecord, createApproval } = require('./mission-approvals');
+const { nextTask, plan, retryAllowed } = require('./mission-planner');
+const { renderStatus, writeStatus } = require('./mission-status');
+const { workerResult } = require('./mission-evidence');
+const { inspectRepository } = require('./mission-git');
+const { inspectPullRequest } = require('./mission-github');
 
-const AGENT_ROOT = path.resolve(__dirname, '..', '..');
-const REPO_ROOT = path.resolve(AGENT_ROOT, '..');
-const DEFAULT_MISSIONS_DIR = path.join(AGENT_ROOT, 'missions');
-const DEFAULT_STATE_DIR = process.env.THREEDVR_AGENT_MISSION_STATE_DIR || path.join(AGENT_ROOT, '.mission-state');
-const STATE_SCHEMA_VERSION = 1;
-
-function text(value) {
-  return String(value || '').trim();
-}
-
-function timestamp(now = Date.now()) {
-  return new Date(now).toISOString();
-}
+const ROOT = path.resolve(__dirname, '..', '..');
+const REPOSITORY_ROOT = path.resolve(ROOT, '..', '..');
+const MISSIONS = path.join(ROOT, 'missions');
 
 function parseArgs(argv = process.argv.slice(2)) {
-  const options = {
-    mission: '',
-    repo: REPO_ROOT,
-    missionsDir: DEFAULT_MISSIONS_DIR,
-    stateDir: DEFAULT_STATE_DIR,
-    execute: false,
-    delegate: false,
-    json: false,
-    help: false,
-  };
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
+  const options = { command: 'run', missionId: '', execute: false, simulate: false, delegate: false, json: false, stateRoot: process.env.THREEDVR_MISSION_STATE_ROOT || DEFAULT_STATE_ROOT, repo: REPOSITORY_ROOT, task: '', approvalId: '', headSha: '' };
+  const values = [...argv];
+  if (['run','resume','validate','status','pause','cancel','approve','reject','events'].includes(values[0])) options.command = values.shift();
+  options.missionId = values.shift() || '';
+  for (let i = 0; i < values.length; i += 1) {
+    const arg = values[i];
     if (arg === '--execute') options.execute = true;
+    else if (arg === '--simulate') options.simulate = true;
     else if (arg === '--delegate') options.delegate = true;
-    else if (arg === '--repo') options.repo = argv[++index] || options.repo;
-    else if (arg === '--missions-dir') options.missionsDir = argv[++index] || options.missionsDir;
-    else if (arg === '--state-dir') options.stateDir = argv[++index] || options.stateDir;
     else if (arg === '--json') options.json = true;
-    else if (arg === '-h' || arg === '--help') options.help = true;
+    else if (arg === '--state-root') options.stateRoot = values[++i] || options.stateRoot;
+    else if (arg === '--repo') options.repo = values[++i] || options.repo;
+    else if (arg === '--approval') options.approvalId = values[++i] || '';
+    else if (arg === '--head-sha') options.headSha = values[++i] || '';
     else if (arg.startsWith('-')) throw new Error(`Unknown option: ${arg}`);
-    else if (!options.mission) options.mission = arg;
-    else throw new Error(`Unexpected argument: ${arg}`);
+    else options.task = options.task ? `${options.task} ${arg}` : arg;
   }
-  if (!options.help && !options.mission) {
-    throw new Error('Usage: 3dvr mission run <mission-id> [--execute] [--delegate]');
-  }
-  options.repo = path.resolve(options.repo);
-  options.missionsDir = path.resolve(options.missionsDir);
-  options.stateDir = path.resolve(options.stateDir);
+  if (!options.missionId) throw new Error('Usage: 3dvr mission <validate|status|run|resume|pause|cancel|approve|reject|events> <mission-id>');
+  options.stateRoot = path.resolve(options.stateRoot); options.repo = path.resolve(options.repo);
   return options;
 }
 
-function initialState(missionId) {
-  return {
-    schemaVersion: STATE_SCHEMA_VERSION,
-    mission: missionId,
-    status: 'ready',
-    completedTasks: [],
-    evidence: [],
-    lastRun: null,
-    blockedTask: null,
-  };
-}
-
-function validateMission(mission) {
-  const errors = [];
-  if (!mission || typeof mission !== 'object') return ['mission must be an object'];
-  if (mission.schemaVersion !== 1) errors.push('mission schemaVersion must be 1');
-  if (!text(mission.id)) errors.push('mission id is required');
-  if (!text(mission.branch)) errors.push('mission branch is required');
-  if (!Array.isArray(mission.tasks) || mission.tasks.length === 0) errors.push('mission tasks are required');
-  const ids = new Set();
-  for (const task of mission.tasks || []) {
-    if (!text(task.id)) errors.push('every task needs an id');
-    if (ids.has(task.id)) errors.push(`duplicate task id: ${task.id}`);
-    ids.add(task.id);
-    for (const dependency of task.dependsOn || []) {
-      if (dependency === task.id) errors.push(`task depends on itself: ${task.id}`);
-    }
-  }
-  for (const task of mission.tasks || []) {
-    for (const dependency of task.dependsOn || []) {
-      if (!ids.has(dependency)) errors.push(`unknown dependency ${dependency} for ${task.id}`);
-    }
-  }
-  return errors;
-}
-
-async function loadMission(missionId, missionsDir = DEFAULT_MISSIONS_DIR) {
-  const filePath = path.join(missionsDir, `${missionId}.json`);
-  const mission = JSON.parse(await fs.readFile(filePath, 'utf8'));
-  const errors = validateMission(mission);
-  if (errors.length) throw new Error(errors.join('; '));
+async function loadMission(missionId, missionsDir = MISSIONS) {
+  const mission = JSON.parse(await fs.readFile(path.join(missionsDir, `${missionId}.json`), 'utf8'));
+  const errors = validateMission(mission); if (errors.length) throw new Error(errors.join('; '));
   return mission;
 }
 
-async function readState(statePath, missionId) {
-  try {
-    const state = JSON.parse(await fs.readFile(statePath, 'utf8'));
-    if (state.schemaVersion > STATE_SCHEMA_VERSION) {
-      throw new Error(`state schemaVersion ${state.schemaVersion} is newer than supported version ${STATE_SCHEMA_VERSION}; refusing to overwrite it`);
-    }
-    if (state.schemaVersion !== STATE_SCHEMA_VERSION) return initialState(missionId);
-    return {
-      ...initialState(missionId),
-      ...state,
-      mission: missionId,
-      completedTasks: Array.isArray(state.completedTasks) ? state.completedTasks : [],
-      evidence: Array.isArray(state.evidence) ? state.evidence : [],
-    };
-  } catch (error) {
-    if (error.message.includes('newer than supported')) throw error;
-    if (error.code === 'ENOENT' || error instanceof SyntaxError) return initialState(missionId);
-    throw error;
-  }
-}
-
-function selectNextTask(mission, state) {
-  const completed = new Set(state.completedTasks || []);
-  return mission.tasks.find(task => !completed.has(task.id) && (task.dependsOn || []).every(id => completed.has(id))) || null;
-}
-
-function commandText(command) {
-  return command.map(value => JSON.stringify(value)).join(' ');
-}
-
-function runCommand(command, cwd, spawnImpl = spawn) {
+function commandText(command) { return command.map(value => JSON.stringify(value)).join(' '); }
+function runCommand(command, cwd) {
   return new Promise(resolve => {
-    const child = spawnImpl(command[0], command.slice(1), { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', chunk => { stdout += chunk; });
-    child.stderr.on('data', chunk => { stderr += chunk; });
-    child.on('error', error => resolve({ code: 127, stdout, stderr: `${stderr}${error.message}` }));
-    child.on('close', code => resolve({ code, stdout, stderr }));
+    const child = spawn(command[0], command.slice(1), { cwd, stdio: ['ignore', 'pipe', 'pipe'], env: process.env }); let stdout = ''; let stderr = '';
+    child.stdout.on('data', chunk => { stdout += chunk; }); child.stderr.on('data', chunk => { stderr += chunk; });
+    child.on('error', error => resolve({ code: 127, stdout, stderr: `${stderr}${error.message}` })); child.on('close', code => resolve({ code, stdout, stderr }));
   });
 }
 
-function parseWorktrees(output) {
-  return output.split(/\n\n+/).filter(Boolean).map(block => {
-    const lines = block.split('\n');
-    return {
-      path: lines.find(line => line.startsWith('worktree '))?.slice(9) || '',
-      branch: lines.find(line => line.startsWith('branch '))?.slice(7).replace(/^refs\/heads\//, '') || '',
-    };
-  }).filter(item => item.path);
+async function ensureWorktree(mission, options) {
+  if (!mission.tasks.some(task => task.worktree)) return options.repo;
+  const inspection = await runCommand(['git', 'worktree', 'list', '--porcelain'], options.repo);
+  const blocks = inspection.stdout.split(/\n\n+/).filter(Boolean);
+  const existing = blocks.find(block => block.includes(`branch refs/heads/${mission.branch || ''}`));
+  if (existing) return existing.split('\n').find(line => line.startsWith('worktree ')).slice(9);
+  if (!options.execute) return options.repo;
+  const target = path.join(options.repo, '.agent-worktrees', mission.missionId); await fs.mkdir(path.dirname(target), { recursive: true });
+  const result = await runCommand(['git', 'worktree', 'add', target, `origin/${mission.defaultBranch}`], options.repo);
+  if (result.code !== 0) throw new Error(result.stderr.trim() || 'unable to create isolated worktree');
+  return target;
 }
 
-async function resolveWorktree(mission, options, commandRunner = runCommand) {
-  const listed = await commandRunner(['git', 'worktree', 'list', '--porcelain'], options.repo);
-  const existing = parseWorktrees(listed.stdout).find(item => item.branch === mission.branch);
-  if (existing) return { ...existing, created: false };
-  const target = path.resolve(options.repo, mission.worktreePath || `.agent-worktrees/${mission.id}`);
-  if (!options.execute) return { path: '', branch: mission.branch, target, created: false };
-  const result = await commandRunner(['git', 'worktree', 'add', '-b', mission.branch, target, `origin/${mission.baseBranch || 'main'}`], options.repo);
-  if (result.code !== 0) throw new Error(result.stderr.trim() || `unable to create mission worktree at ${target}`);
-  return { path: target, branch: mission.branch, target, created: true };
+async function persist(mission, state, options) { const events = await readEvents(mission.missionId, options.stateRoot); await saveState(state, options.stateRoot); await writeStatus(mission, state, events, options.stateRoot); return events; }
+async function record(mission, state, options, taskId, type, summary, evidence = {}) { await appendEvent({ missionId: mission.missionId, taskId, source: 'mission-runner', type, severity: 'info', summary, evidence }, options.stateRoot); return persist(mission, state, options); }
+
+async function completeTask(mission, state, task, options, evidence) {
+  state.state = 'running';
+  await transition(state, task.id, 'running', { summary: `${task.id} started.` }, options.stateRoot);
+  await transition(state, task.id, 'validating', { summary: `${task.id} checks are running.` }, options.stateRoot);
+  state.tasks[task.id].evidence = workerResult({ taskId: task.id, status: 'completed', ...evidence });
+  await transition(state, task.id, 'completed', { summary: evidence.summary || `${task.id} completed.`, evidence: state.tasks[task.id].evidence }, options.stateRoot);
+  state.state = 'ready'; state.currentTaskId = null; await persist(mission, state, options);
 }
 
-async function gitStatus(worktree, commandRunner) {
-  const result = await commandRunner(['git', 'status', '--porcelain=v1', '-b'], worktree);
-  const lines = result.stdout.trimEnd().split('\n');
-  return {
-    ...result,
-    branchLine: lines[0] || '',
-    dirty: lines.slice(1).some(Boolean),
-  };
+async function runOne(mission, state, options, hooks = {}) {
+  const selection = plan(mission, state); const task = selection.task;
+  if (selection.complete) { state.state = 'completed'; await record(mission, state, options, null, 'mission.completed', 'Mission completed.', {}); return { status: 'completed' }; }
+  if (!task) { state.state = 'blocked'; state.blockers = selection.blocked.map(item => `${item.id} depends on a failed or cancelled task`); await record(mission, state, options, null, 'mission.blocked', 'Mission is blocked by unresolved dependencies.', { blockers: state.blockers }); return { status: 'blocked', blockers: state.blockers }; }
+  state.currentTaskId = task.id;
+  if (!options.execute) { state.state = 'ready'; state.tasks[task.id].state = 'ready'; await record(mission, state, options, task.id, 'task.ready', `Next unblocked task: ${task.id}. Inspect-only mode did not execute it.`, { taskId: task.id }); return { status: 'ready', taskId: task.id, checks: task.commands }; }
+  if (task.id === 'merge-daily-direction-privacy' && options.execute) {
+    try {
+      const pr = await inspectPullRequest(mission.repository, 1169, options.repo);
+      if (pr.state === 'MERGED') { await completeTask(mission, state, task, options, { summary: 'PR #1169 is already merged; no merge was repeated.', observations: ['satisfied from GitHub evidence'], pullRequest: { number: 1169, state: pr.state, headSha: pr.headRefOid } }); return { status: 'ready', completedTask: task.id, nextTask: nextTask(mission, state)?.id || null }; }
+    } catch (error) { state.blockers = ['GitHub inspection unavailable; privacy merge was not repeated']; await record(mission, state, options, task.id, 'task.blocked', 'Could not verify the existing privacy merge.', { error: error.message }); return { status: 'blocked', taskId: task.id, reason: 'github-inspection-failed' }; }
+  }
+  if (task.approvalGate) {
+    state.state = 'awaiting_approval'; state.tasks[task.id].state = 'awaiting_approval';
+    if (!state.approvals.some(item => item.taskId === task.id && item.status === 'required')) state.approvals.push(createApproval(mission.missionId, task.id, task.approvalGate, options.headSha || 'unknown'));
+    await record(mission, state, options, task.id, 'task.awaiting_approval', `Approval required before ${task.approvalGate.action} on ${task.approvalGate.target}.`, { approval: state.approvals.find(item => item.taskId === task.id) });
+    return { status: 'awaiting_approval', taskId: task.id, approval: state.approvals.find(item => item.taskId === task.id) };
+  }
+  const worktree = await ensureWorktree(mission, options); const repoState = await inspectRepository(worktree);
+  if (!repoState.clean) { state.state = 'blocked'; state.blockers = ['mission worktree is dirty']; await record(mission, state, options, task.id, 'task.blocked', 'Mission worktree is dirty; no files were touched.', { branch: repoState.branch }); return { status: 'blocked', reason: 'dirty-worktree' }; }
+  state.tasks[task.id].attempts += 1; const checks = [];
+  for (const command of task.commands) { const result = await runCommand(command, worktree); checks.push({ command, code: result.code }); if (result.code !== 0) { const retry = retryAllowed(task, state); state.state = retry ? 'ready' : 'failed'; state.tasks[task.id].state = retry ? 'ready' : 'failed'; await record(mission, state, options, task.id, retry ? 'task.retryable_failure' : 'task.failed', `${retry ? 'Retryable' : 'Terminal'} failure: ${commandText(command)}`, { checks, attempts: state.tasks[task.id].attempts, maxAttempts: task.retryPolicy.maxAttempts }); return { status: state.state, taskId: task.id, checks, retry }; } }
+  if (options.delegate && ['codex', 'openclaw'].includes(task.backend)) {
+    const dispatch = hooks.runAgentTask || require('./task-orchestrator').runAgentTask;
+    const result = await dispatch(['--backend', task.backend, '--execute', '--repo', worktree, '--no-print-prompt', task.objective]);
+    await record(mission, state, options, task.id, 'worker.dispatched', `Bounded ${task.backend} dispatch completed with a worker result.`, { backend: task.backend, result: workerResult({ taskId: task.id, ...result }) });
+    if (!result?.ok) { state.state = 'failed'; state.tasks[task.id].state = 'failed'; await persist(mission, state, options); return { status: 'failed', taskId: task.id, reason: 'worker-failed' }; }
+  }
+  await completeTask(mission, state, task, options, { summary: `${task.id} completed with declared checks.`, commandsRun: checks });
+  return { status: 'ready', completedTask: task.id, nextTask: nextTask(mission, state)?.id || null };
 }
 
-async function writeStateAndStatus(state, mission, task, options, branchLine, note) {
-  await fs.mkdir(options.stateDir, { recursive: true });
-  const statePath = path.join(options.stateDir, `${mission.id}.json`);
-  await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);
-  const status = [
-    '# Agent Mission Status', '',
-    `- Mission: ${mission.id}`,
-    `- Last run: ${state.lastRun || 'never'}`,
-    `- Branch: ${branchLine || 'unknown'}`,
-    `- Status: ${state.status}`,
-    `- Selected task: ${task?.id || 'none'}`,
-    `- Completed tasks: ${state.completedTasks.join(', ') || 'none'}`,
-    `- Next action: ${note || task?.title || 'none'}`,
-    '',
-    'Operational evidence only. Do not place secrets or personal user content here.', '',
-  ].join('\n');
-  await fs.writeFile(path.join(options.stateDir, 'LIVE_STATUS.md'), status);
-}
-
-async function appendEvidence(state, options, event) {
-  state.evidence.push({ at: timestamp(), ...event });
-  await fs.mkdir(options.stateDir, { recursive: true });
-  await fs.appendFile(path.join(options.stateDir, 'MISSION_LOG.jsonl'), `${JSON.stringify(event)}\n`);
+async function simulate(mission, state, options) {
+  const gate = mission.tasks.find(task => task.approvalGate?.target === 'tmsteph/3dvr-portal#1170');
+  for (const task of mission.tasks) {
+    if (task.id === gate.id) break;
+    if (state.tasks[task.id].state !== 'completed') await completeTask(mission, state, task, options, { summary: `${task.id} simulated with fixture evidence.`, observations: ['fixture repository and GitHub state used; no network writes'] });
+  }
+  state.state = 'awaiting_approval'; state.currentTaskId = gate.id; state.tasks[gate.id].state = 'awaiting_approval'; state.approvals = [createApproval(mission.missionId, gate.id, gate.approvalGate, 'fixture-life-upgrade-head')];
+  await record(mission, state, options, gate.id, 'task.awaiting_approval', 'Simulation stopped at the Life Upgrade merge approval gate.', { mode: 'simulate', networkWrites: false });
+  return { status: state.state, stoppedAt: gate.id };
 }
 
 async function runMission(argv = process.argv.slice(2), hooks = {}) {
-  const options = { ...parseArgs(argv), ...hooks.options };
-  if (options.help) return { ok: true, help: true };
-  const mission = await loadMission(options.mission, options.missionsDir);
-  const statePath = path.join(options.stateDir, `${mission.id}.json`);
-  const state = await readState(statePath, mission.id);
-  const commandRunner = hooks.runCommand || ((command, cwd) => runCommand(command, cwd, hooks.spawnImpl));
-  const worktree = await resolveWorktree(mission, options, commandRunner);
-  if (!worktree.path) {
-    state.status = 'blocked';
-    state.blockedTask = selectNextTask(mission, state)?.id || null;
-    state.lastRun = timestamp();
-    await appendEvidence(state, options, { event: 'worktree-unavailable', target: worktree.target });
-    await writeStateAndStatus(state, mission, selectNextTask(mission, state), options, 'controller worktree', `run with --execute to create ${worktree.target}`);
-    return { ok: true, status: state.status, reason: 'worktree-unavailable', target: worktree.target };
-  }
-
-  const status = await gitStatus(worktree.path, commandRunner);
-  const task = selectNextTask(mission, state);
-  const branchName = status.branchLine.replace(/^##\s+/, '').split(/[.\s]/)[0];
-  if (status.code !== 0 || status.dirty || branchName !== mission.branch) {
-    state.status = 'blocked';
-    state.blockedTask = task?.id || null;
-    state.lastRun = timestamp();
-    const reason = status.code !== 0 ? 'git-status-failed' : status.dirty ? 'worktree-dirty' : 'wrong-branch';
-    await appendEvidence(state, options, { event: 'blocked', reason, branchLine: status.branchLine });
-    await writeStateAndStatus(state, mission, task, options, status.branchLine, reason === 'worktree-dirty' ? 'clean the mission worktree' : `expected branch ${mission.branch}`);
-    return { ok: false, status: state.status, reason, branchLine: status.branchLine };
-  }
-  if (!task) {
-    state.status = 'complete';
-    state.lastRun = timestamp();
-    await appendEvidence(state, options, { event: 'mission-complete' });
-    await writeStateAndStatus(state, mission, null, options, status.branchLine, 'mission complete');
-    return { ok: true, status: state.status };
-  }
-  if (task.requiresApproval?.length) {
-    state.status = 'waiting_for_approval';
-    state.blockedTask = task.id;
-    state.lastRun = timestamp();
-    await appendEvidence(state, options, { event: 'approval-required', task: task.id, gates: task.requiresApproval });
-    await writeStateAndStatus(state, mission, task, options, status.branchLine, `human approval required: ${task.requiresApproval.join(', ')}`);
-    return { ok: true, status: state.status, task: task.id, gates: task.requiresApproval };
-  }
-  if (!options.execute) {
-    state.status = 'ready';
-    state.blockedTask = task.id;
-    state.lastRun = timestamp();
-    await writeStateAndStatus(state, mission, task, options, status.branchLine, `inspect-only; run with --execute to run ${task.id}`);
-    return { ok: true, status: 'inspect_only', task: task.id, checks: task.checks || [] };
-  }
-
-  if (options.delegate && task.prompt) {
-    const delegate = hooks.runAgentTask || require('./task-orchestrator').runAgentTask;
-    const result = await delegate(['--backend', 'codex', '--execute', '--repo', worktree.path, '--no-print-prompt', task.prompt], hooks.delegateHooks || {});
-    await appendEvidence(state, options, { event: 'delegated', task: task.id, ok: Boolean(result.ok), backend: result.backend || 'codex' });
-    if (!result.ok) {
-      state.status = 'blocked';
-      state.blockedTask = task.id;
-      state.lastRun = timestamp();
-      await writeStateAndStatus(state, mission, task, options, status.branchLine, 'review delegated-task failure');
-      return { ok: false, status: state.status, task: task.id, reason: 'delegation-failed', result };
-    }
-  }
-
-  for (const command of task.checks || []) {
-    const result = await commandRunner(command, worktree.path);
-    await appendEvidence(state, options, { event: 'check', task: task.id, command, code: result.code });
-    if (result.code !== 0) {
-      state.status = 'blocked';
-      state.blockedTask = task.id;
-      state.lastRun = timestamp();
-      await writeStateAndStatus(state, mission, task, options, status.branchLine, `fix failed check: ${commandText(command)}`);
-      return { ok: false, status: state.status, task: task.id, command, code: result.code };
-    }
-  }
-  state.completedTasks = [...new Set([...state.completedTasks, task.id])];
-  state.status = 'ready';
-  state.blockedTask = null;
-  state.lastRun = timestamp();
-  await appendEvidence(state, options, { event: 'task-complete', task: task.id });
-  await writeStateAndStatus(state, mission, selectNextTask(mission, state), options, status.branchLine, 'continue to the next unblocked task');
-  return { ok: true, status: state.status, completedTask: task.id, nextTask: selectNextTask(mission, state)?.id || null };
+  const options = { ...parseArgs(argv), ...(hooks.options || {}) }; const mission = await loadMission(options.missionId, hooks.missionsDir || MISSIONS);
+  let state = await loadState(mission, options.stateRoot);
+  if (options.simulate) { state = initialState(mission); return simulate(mission, state, options); }
+  if (options.command === 'validate') return { status: 'valid', missionId: mission.missionId, taskCount: mission.tasks.length };
+  if (options.command === 'events') return readEvents(mission.missionId, options.stateRoot);
+  if (options.command === 'status') return { ...state, liveStatus: renderStatus(mission, state, await readEvents(mission.missionId, options.stateRoot)) };
+  if (options.command === 'pause' || options.command === 'cancel') { state.state = options.command === 'pause' ? 'blocked' : 'cancelled'; await record(mission, state, options, state.currentTaskId, `mission.${options.command}d`, `Mission ${options.command}d by operator.`, {}); return { status: state.state }; }
+  if (options.command === 'approve' || options.command === 'reject') { const approval = state.approvals.find(item => item.approvalId === options.approvalId); if (!approval) throw new Error('approval id not found'); if (options.command === 'approve') Object.assign(approval, approveRecord(approval, options.headSha || (await inspectRepository(options.repo)).headSha)); else approval.status = 'rejected'; await record(mission, state, options, approval.taskId, `approval.${approval.status}`, `Approval ${approval.status}.`, { approval: { approvalId: approval.approvalId, action: approval.action, target: approval.target, headSha: approval.headSha } }); return { status: approval.status, approval }; }
+  if (options.command === 'resume') options.execute = true;
+  if (options.simulate) return simulate(mission, state, options);
+  return runOne(mission, state, options, hooks);
 }
 
-function usage() {
-  console.log('Usage: 3dvr mission run <mission-id> [--execute] [--delegate] [--json]');
-}
+if (require.main === module) runMission().then(result => { if (process.argv.includes('--json')) console.log(JSON.stringify(result, null, 2)); else console.log(typeof result === 'string' ? result : `${String(result.status || 'done').toUpperCase()}${result.taskId ? `: ${result.taskId}` : ''}`); }).catch(error => { console.error(error.message || error); process.exitCode = 1; });
 
-if (require.main === module) {
-  runMission().then(result => {
-    if (process.argv.includes('--json')) console.log(JSON.stringify(result, null, 2));
-    else if (result.help) usage();
-    else console.log(`${String(result.status || 'done').toUpperCase()}${result.task ? `: ${result.task}` : ''}`);
-  }).catch(error => {
-    console.error(error.message || error);
-    process.exitCode = 1;
-  });
-}
-
-module.exports = {
-  AGENT_ROOT,
-  DEFAULT_STATE_DIR,
-  STATE_SCHEMA_VERSION,
-  appendEvidence,
-  commandText,
-  initialState,
-  loadMission,
-  parseArgs,
-  parseWorktrees,
-  readState,
-  resolveWorktree,
-  runCommand,
-  runMission,
-  selectNextTask,
-  validateMission,
-};
+module.exports = { commandText, loadMission, parseArgs, runCommand, runMission };
