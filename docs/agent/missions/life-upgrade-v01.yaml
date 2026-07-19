@@ -1,0 +1,72 @@
+{
+  "id": "life-upgrade-v01",
+  "title": "Private Life Upgrade v0.1",
+  "description": "Advance the device-only seven-day Life Upgrade flow through stacked review, trusted browser validation, and explicit human approval gates.",
+  "branch": "codex/life-upgrade-v01",
+  "baseBranch": "main",
+  "repository": "tmsteph/3dvr-portal",
+  "pullRequests": [1169, 1170],
+  "worktreePath": ".agent-worktrees/life-upgrade-v01",
+  "draftPullRequest": {
+    "title": "Add the private seven-day Life Upgrade flow",
+    "body": "Life Upgrade v0.1 draft PR. The Daily Direction privacy dependency is merged into main. No merge or deployment is authorized by this mission."
+  },
+  "approvalGates": ["merge", "deploy"],
+  "allowedPaths": ["index.html", "start/index.html", "life-upgrade/", "tests/life-upgrade.test.js"],
+  "tasks": [
+    {
+      "id": "verify-stacked-pr",
+      "title": "Verify stacked draft PR and focused evidence",
+      "dependsOn": [],
+      "status": "pending",
+      "checks": [
+        ["node", "--check", "life-upgrade/app.js"],
+        ["node", "--check", "life-upgrade/state.js"],
+        ["node", "--test", "tests/life-upgrade.test.js"],
+        ["node", "--test", "tests/life.test.js"]
+      ]
+    },
+    {
+      "id": "rebase-after-privacy-merge",
+      "title": "Rebase Life Upgrade onto main after privacy PR merges",
+      "dependsOn": ["verify-stacked-pr"],
+      "status": "pending",
+      "checks": [["git", "merge-base", "--is-ancestor", "origin/main", "HEAD"]]
+    },
+    {
+      "id": "trusted-browser-validation",
+      "title": "Run trusted browser validation",
+      "dependsOn": ["rebase-after-privacy-merge"],
+      "status": "pending",
+      "checks": [["npm", "run", "playwright:ux"]]
+    },
+    {
+      "id": "human-merge-approval",
+      "title": "Pause for human merge approval",
+      "dependsOn": ["trusted-browser-validation"],
+      "status": "pending",
+      "requiresApproval": ["merge"]
+    },
+    {
+      "id": "human-deploy-approval",
+      "title": "Pause for human deployment approval",
+      "dependsOn": ["human-merge-approval"],
+      "status": "pending",
+      "requiresApproval": ["deploy"]
+    },
+    {
+      "id": "private-sync-design",
+      "title": "Design encrypted private sync later",
+      "dependsOn": ["human-deploy-approval"],
+      "status": "pending",
+      "requiresApproval": ["product-scope"]
+    },
+    {
+      "id": "optional-ai-guidance",
+      "title": "Evaluate optional AI guidance later",
+      "dependsOn": ["private-sync-design"],
+      "status": "pending",
+      "requiresApproval": ["product-scope"]
+    }
+  ]
+}
