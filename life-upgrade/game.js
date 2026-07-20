@@ -24,7 +24,11 @@ function makeButtonControl(button, control, state) {
     event.preventDefault();
     state[control] = true;
     button.classList.add('is-held');
-    button.setPointerCapture?.(event.pointerId);
+    try {
+      button.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Some browsers do not expose an active pointer for scripted taps.
+    }
   };
   const off = (event) => {
     event.preventDefault();
@@ -32,13 +36,15 @@ function makeButtonControl(button, control, state) {
     button.classList.remove('is-held');
   };
   const tap = (event) => {
-    if (event.detail === 0) return;
+    // Some mobile browsers and automation drivers report a tap as a
+    // detail-0 click. Treat every click as a short press so keyboard, touch,
+    // and pointer activation all use the same movement path.
     state[control] = true;
     button.classList.add('is-held');
     window.setTimeout(() => {
       state[control] = false;
       button.classList.remove('is-held');
-    }, control === 'fly' ? 450 : 700);
+    }, control === 'fly' ? 550 : 1000);
   };
   button.addEventListener('pointerdown', on);
   button.addEventListener('pointerup', off);
@@ -131,6 +137,12 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
   const landButton = shell?.querySelector('[data-game-land]');
   const questionCard = shell?.querySelector('[data-game-question]');
   const flightControls = shell?.querySelector('.flight-controls');
+  // The first animation frame runs before app.js supplies the current stage
+  // distance. Keep landing locked until that distance has been reached.
+  if (landButton) {
+    landButton.disabled = true;
+    landButton.textContent = 'Fly to answer';
+  }
   const land = () => {
     if (landButton?.disabled) return;
     if (questionCard) questionCard.hidden = false;
@@ -142,7 +154,7 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
 
   let stageIndex = 0;
   let distance = 0;
-  let targetDistance = 0;
+  let targetDistance = 3;
   let frame = 0;
   let last = performance.now();
   let arrived = false;
@@ -157,7 +169,7 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
     frame = window.requestAnimationFrame(render);
     const delta = Math.min(0.04, (now - last) / 1000);
     last = now;
-    const speed = state.fly ? 1.7 : state.forward ? 0.8 : 0;
+    const speed = state.fly ? 1.7 : state.forward ? 1.2 : 0;
     distance = Math.min(targetDistance, distance + speed * delta);
     player.position.x += ((state.right ? 1 : 0) - (state.left ? 1 : 0)) * delta * 3;
     player.position.x = THREE.MathUtils.clamp(player.position.x, -2.3, 2.3);
