@@ -94,6 +94,8 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(html, /class="journey"/);
   assert.match(html, /data-stage-field="check-in"/);
   assert.match(html, /data-suggestion-list/);
+  assert.match(html, /data-game-canvas/);
+  assert.match(html, /data-game-level/);
   assert.match(html, /Not sure\? Pick one/);
   assert.match(html, /7 days/);
   assert.match(html, /Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach/);
@@ -108,6 +110,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(app, /Could not delete saved data/);
   assert.match(app, /data-momentum/);
   assert.match(app, /renderSuggestions/);
+  assert.match(app, /createGame/);
   assert.match(app, /dispatchEvent\(new Event\('input'/);
   assert.match(app, /replace this Life Upgrade plan/);
 });
