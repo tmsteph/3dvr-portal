@@ -98,6 +98,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(html, /data-game-level/);
   assert.match(html, /data-game-control="forward"/);
   assert.match(html, /data-game-land/);
+  assert.match(html, /data-game-question/);
   assert.match(html, /Not sure\? Pick one/);
   assert.match(html, /7 days/);
   assert.match(html, /Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach/);
@@ -114,6 +115,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(app, /renderSuggestions/);
   assert.match(app, /createGame/);
   assert.match(app, /onLand/);
+  assert.match(app, /Fly to the gate and answer/);
   assert.match(app, /dispatchEvent\(new Event\('input'/);
   assert.match(app, /replace this Life Upgrade plan/);
 });

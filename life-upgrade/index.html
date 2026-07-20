@@ -33,8 +33,14 @@
               <button type="button" class="boost" data-game-control="fly">Fly</button>
               <button type="button" class="land" data-game-land disabled>Land to answer</button>
             </div>
+            <div class="game-question" data-game-question hidden>
+              <p class="game-question-state" data-game-question-state>You reached the gate.</p>
+              <h2 data-game-question-prompt>What needs your care this week?</h2>
+              <p data-game-question-support>Answer one small question, then keep flying.</p>
+              <div data-game-question-content></div>
+            </div>
           </section>
-          <div class="card-heading">
+          <div class="card-heading" hidden>
             <p class="eyebrow" data-stage-label>Notice</p>
             <h2 id="stage-title" data-stage-prompt>What needs your care this week?</h2>
             <p class="stage-support" data-stage-support>Just tell the truth. Short is good.</p>

@@ -31,15 +31,26 @@ function makeButtonControl(button, control, state) {
     state[control] = false;
     button.classList.remove('is-held');
   };
+  const tap = (event) => {
+    if (event.detail === 0) return;
+    state[control] = true;
+    button.classList.add('is-held');
+    window.setTimeout(() => {
+      state[control] = false;
+      button.classList.remove('is-held');
+    }, control === 'fly' ? 450 : 700);
+  };
   button.addEventListener('pointerdown', on);
   button.addEventListener('pointerup', off);
   button.addEventListener('pointercancel', off);
   button.addEventListener('lostpointercapture', off);
+  button.addEventListener('click', tap);
   return () => {
     button.removeEventListener('pointerdown', on);
     button.removeEventListener('pointerup', off);
     button.removeEventListener('pointercancel', off);
     button.removeEventListener('lostpointercapture', off);
+    button.removeEventListener('click', tap);
   };
 }
 
@@ -118,8 +129,16 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
     cleanup.push(makeButtonControl(button, button.dataset.gameControl, state));
   });
   const landButton = shell?.querySelector('[data-game-land]');
-  landButton?.addEventListener('click', () => onLand());
-  cleanup.push(() => landButton?.removeEventListener('click', onLand));
+  const questionCard = shell?.querySelector('[data-game-question]');
+  const flightControls = shell?.querySelector('.flight-controls');
+  const land = () => {
+    if (landButton?.disabled) return;
+    if (questionCard) questionCard.hidden = false;
+    flightControls?.classList.add('is-landed');
+    onLand();
+  };
+  landButton?.addEventListener('click', land);
+  cleanup.push(() => landButton?.removeEventListener('click', land));
 
   let stageIndex = 0;
   let distance = 0;
@@ -165,11 +184,13 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
   render(performance.now());
 
   return {
-    update({ stageIndex: nextStage = 0, completedActions = 0, hasResult = false } = {}) {
+    update({ stageIndex: nextStage = 0, completedActions = 0, hasResult = false, answered = false, prompt = '', support = '' } = {}) {
       if (nextStage !== stageIndex) {
         stageIndex = nextStage;
         distance = 0;
         arrived = false;
+        if (questionCard) questionCard.hidden = true;
+        flightControls?.classList.remove('is-landed');
         if (landButton) { landButton.disabled = true; landButton.textContent = 'Fly to answer'; }
       }
       targetDistance = Math.max(2.5, Math.min(12, 3 + nextStage * 1.1 + completedActions * 0.5 + (hasResult ? 0.8 : 0)));
@@ -178,7 +199,17 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
       const messageEl = shell?.querySelector('[data-game-message]');
       if (levelEl) levelEl.textContent = `Level ${level}`;
       if (messageEl) messageEl.textContent = STAGE_MESSAGES[Math.min(nextStage, STAGE_MESSAGES.length - 1)];
+      const promptEl = shell?.querySelector('[data-game-question-prompt]');
+      const supportEl = shell?.querySelector('[data-game-question-support]');
+      const stateEl = shell?.querySelector('[data-game-question-state]');
+      if (promptEl) promptEl.textContent = prompt;
+      if (supportEl) supportEl.textContent = support;
+      if (stateEl && arrived) stateEl.textContent = answered ? '⭐ Nice! Save your answer to unlock the next flight.' : 'You reached the gate.';
       if (landButton && !arrived) landButton.textContent = `Fly ${Math.round((distance / targetDistance) * 100)}%`;
+    },
+    setAnswered(answered) {
+      const stateEl = shell?.querySelector('[data-game-question-state]');
+      if (stateEl && arrived) stateEl.textContent = answered ? '⭐ Nice! Save your answer to unlock the next flight.' : 'You reached the gate.';
     },
     destroy() {
       window.cancelAnimationFrame(frame);
