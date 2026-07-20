@@ -18,12 +18,25 @@ import { createGame } from './game.js';
 const root = document.querySelector('[data-life-upgrade]');
 let storageAvailable = true;
 let plan = loadPlan();
+const gameQuestionContent = root?.querySelector('[data-game-question-content]');
+gameQuestionContent?.append(
+  root?.querySelector('.suggestions'),
+  root?.querySelector('.fields'),
+  root?.querySelector('.actions')
+);
 const game = createGame(root?.querySelector('[data-game-canvas]'), {
   onLand: () => {
     root?.querySelector('[data-stage-field]:not([hidden]) input, [data-stage-field]:not([hidden]) textarea')?.focus();
     setStatus('You landed! Answer the question, then keep going.');
   }
 });
+
+function hasStageAnswer(stageId, currentPlan = plan) {
+  if (stageId === 'plan') return currentPlan.actions.some((action) => action.text);
+  if (stageId === 'complete') return currentPlan.actions.some((action) => action.text || action.completed);
+  const field = { 'check-in': 'checkIn', choose: 'upgrade', result: 'result', evidence: 'evidence', review: 'review', next: 'nextMove' }[stageId];
+  return Boolean(field && currentPlan[field]);
+}
 
 function loadPlan() {
   try {
@@ -59,6 +72,8 @@ function render() {
   root.querySelector('[data-stage-label]').textContent = stage.label;
   root.querySelector('[data-stage-prompt]').textContent = stage.prompt;
   root.querySelector('[data-stage-support]').textContent = stage.support;
+  root.querySelector('[data-game-question-prompt]').textContent = stage.prompt;
+  root.querySelector('[data-game-question-support]').textContent = stage.support;
   root.querySelector('[data-stage-count]').textContent = `${STAGES.findIndex((item) => item.id === stage.id) + 1} of ${STAGES.length}`;
   root.querySelector('[data-progress]').style.width = `${((STAGES.findIndex((item) => item.id === stage.id) + 1) / STAGES.length) * 100}%`;
   renderSuggestions(stage);
@@ -70,7 +85,10 @@ function render() {
   game?.update({
     stageIndex: STAGES.findIndex((item) => item.id === stage.id),
     completedActions,
-    hasResult: hasUsefulResult(plan)
+    hasResult: hasUsefulResult(plan),
+    answered: hasStageAnswer(stage.id),
+    prompt: stage.prompt,
+    support: stage.support
   });
   root.querySelector('[data-momentum]').textContent = completedActions
     ? `⭐ ${completedActions} of 3 tiny wins done. Keep going!`
@@ -135,6 +153,7 @@ function handleField(event) {
     plan = updatePlan(plan, { [target.name]: target.value });
   }
   savePlan();
+  game?.setAnswered(hasStageAnswer(getStage(plan).id));
 }
 
 root?.addEventListener('input', handleField);
@@ -160,6 +179,10 @@ root?.addEventListener('click', (event) => {
   }
 
   if (event.target.closest('#nextStage')) {
+    if (!hasStageAnswer(getStage(plan).id)) {
+      setStatus('Fly to the gate and answer the question first.');
+      return;
+    }
     plan = nextStage(plan);
     savePlan();
     render();
