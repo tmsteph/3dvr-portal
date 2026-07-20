@@ -18,7 +18,12 @@ import { createGame } from './game.js';
 const root = document.querySelector('[data-life-upgrade]');
 let storageAvailable = true;
 let plan = loadPlan();
-const game = createGame(root?.querySelector('[data-game-canvas]'));
+const game = createGame(root?.querySelector('[data-game-canvas]'), {
+  onLand: () => {
+    root?.querySelector('[data-stage-field]:not([hidden]) input, [data-stage-field]:not([hidden]) textarea')?.focus();
+    setStatus('You landed! Answer the question, then keep going.');
+  }
+});
 
 function loadPlan() {
   try {
