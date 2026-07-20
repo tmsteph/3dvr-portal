@@ -59,6 +59,11 @@ h2 { margin-bottom: 8px; line-height: 1.08; letter-spacing: -.025em; }
 .card-heading { margin: clamp(28px, 7vw, 58px) 0 24px; }
 .card-heading h2 { max-width: 25ch; font-size: clamp(1.6rem, 5vw, 2.5rem); }
 .stage-support { max-width: 52ch; margin: 10px 0 0; color: var(--muted); }
+.suggestions { margin: 0 0 22px; }
+.suggestions-label { margin: 0 0 8px; color: var(--muted); font-size: .85rem; font-weight: 750; }
+.suggestion-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.suggestion { border: 1px solid rgba(22, 107, 104, .28); border-radius: 999px; padding: 9px 12px; background: var(--blue); color: var(--teal); font-size: .9rem; font-weight: 750; cursor: pointer; }
+.suggestion:hover, .suggestion:focus-visible { border-color: var(--teal); background: #c9e3e1; transform: translateY(-1px); }
 .fields { display: grid; gap: 16px; }
 .action-row { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .action-row > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: .85rem; }

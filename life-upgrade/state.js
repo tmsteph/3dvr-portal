@@ -2,14 +2,14 @@ export const STORAGE_KEY = '3dvr-life-upgrade-v01';
 export const SCHEMA_VERSION = 1;
 
 export const STAGES = Object.freeze([
-  { id: 'check-in', label: 'Notice', prompt: 'What needs your care this week?', support: 'Just tell the truth. Short is good.' },
-  { id: 'choose', label: 'Pick one', prompt: 'What one thing will you work on?', support: 'Pick a small thing you can touch and change.' },
-  { id: 'result', label: 'Name your win', prompt: 'What would make you proud in 7 days?', support: 'Make it easy to see. “Feel better” could be “one calm morning.”' },
-  { id: 'plan', label: 'Make a plan', prompt: 'What three tiny steps can help?', support: 'Make each step so small you can start today.' },
-  { id: 'complete', label: 'Do one thing', prompt: 'Which step can you do today?', support: 'A small step is still a step. Go!' },
-  { id: 'evidence', label: 'Spot the change', prompt: 'What changed?', support: 'A photo, note, finished thing, or clear thought all count.' },
-  { id: 'review', label: 'Look back', prompt: 'What did you learn?', support: 'Plans can change. That is okay. Notice what helped.' },
-  { id: 'next', label: 'Pick your next step', prompt: 'What small step comes next?', support: 'Keep what worked. Try a new way for what did not.' }
+  { id: 'check-in', label: 'Notice', prompt: 'What needs your care this week?', support: 'Just tell the truth. Short is good.', suggestions: [['My home feels hard to manage', 'checkIn'], ['Work is taking all my energy', 'checkIn'], ['I want more time with my family', 'checkIn']] },
+  { id: 'choose', label: 'Pick one', prompt: 'What one thing will you work on?', support: 'Pick a small thing you can touch and change.', suggestions: [['My room', 'upgrade'], ['My sleep', 'upgrade'], ['My money', 'upgrade']] },
+  { id: 'result', label: 'Name your win', prompt: 'What would make you proud in 7 days?', support: 'Make it easy to see. “Feel better” could be “one calm morning.”', suggestions: [['One clear surface', 'result'], ['Three calm mornings', 'result'], ['One bill paid', 'result']] },
+  { id: 'plan', label: 'Make a plan', prompt: 'What three tiny steps can help?', support: 'Make each step so small you can start today.', suggestions: [['Set a 10-minute timer', 'action-0'], ['Put away 5 things', 'action-1'], ['Take a photo of the win', 'action-2']] },
+  { id: 'complete', label: 'Do one thing', prompt: 'Which step can you do today?', support: 'A small step is still a step. Go!', suggestions: [['Start a 10-minute timer', 'action-0'], ['Do the easiest step first', 'action-1'], ['Ask someone to help', 'action-2']] },
+  { id: 'evidence', label: 'Spot the change', prompt: 'What changed?', support: 'A photo, note, finished thing, or clear thought all count.', suggestions: [['I finished the first step', 'evidence'], ['I can see the difference', 'evidence'], ['I have proof in a photo', 'evidence']] },
+  { id: 'review', label: 'Look back', prompt: 'What did you learn?', support: 'Plans can change. That is okay. Notice what helped.', suggestions: [['Small steps worked', 'review'], ['I needed less time', 'review'], ['I need a new plan', 'review']] },
+  { id: 'next', label: 'Pick your next step', prompt: 'What small step comes next?', support: 'Keep what worked. Try a new way for what did not.', suggestions: [['Do the next small step', 'nextMove'], ['Keep this going', 'nextMove'], ['Pick a new thing', 'nextMove']] }
 ]);
 
 export function createPlan() {

@@ -54,6 +54,7 @@ function render() {
   root.querySelector('[data-stage-support]').textContent = stage.support;
   root.querySelector('[data-stage-count]').textContent = `${STAGES.findIndex((item) => item.id === stage.id) + 1} of ${STAGES.length}`;
   root.querySelector('[data-progress]').style.width = `${((STAGES.findIndex((item) => item.id === stage.id) + 1) / STAGES.length) * 100}%`;
+  renderSuggestions(stage);
   root.querySelectorAll('[data-stage-field]').forEach((field) => {
     const visible = field.dataset.stageField.split(' ').includes(stage.id);
     field.hidden = !visible;
@@ -87,6 +88,31 @@ function render() {
     : 'Your 7-day win will show up here.';
 }
 
+function renderSuggestions(stage) {
+  const wrapper = root.querySelector('[data-suggestions]');
+  const list = root.querySelector('[data-suggestion-list]');
+  list.replaceChildren();
+  wrapper.hidden = !stage.suggestions?.length;
+  if (!stage.suggestions?.length) return;
+
+  stage.suggestions.forEach(([label, target]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'suggestion';
+    button.dataset.suggestion = label;
+    button.dataset.suggestionTarget = target;
+    button.textContent = label;
+    list.append(button);
+  });
+}
+
+function findSuggestionTarget(targetName) {
+  if (targetName.startsWith('action-')) {
+    return root.querySelector(`[data-action-index="${targetName.slice(7)}"]`);
+  }
+  return root.querySelector(`#${targetName}`);
+}
+
 function handleField(event) {
   const target = event.target;
   if (target.dataset.actionComplete !== undefined) {
@@ -102,6 +128,17 @@ function handleField(event) {
 root?.addEventListener('input', handleField);
 root?.addEventListener('change', handleField);
 root?.addEventListener('click', (event) => {
+  const suggestion = event.target.closest('[data-suggestion]');
+  if (suggestion) {
+    const target = findSuggestionTarget(suggestion.dataset.suggestionTarget);
+    if (target) {
+      target.value = suggestion.dataset.suggestion;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+      target.focus();
+    }
+    return;
+  }
+
   const stageButton = event.target.closest('[data-stage]');
   if (stageButton) {
     plan = updatePlan(plan, { currentStage: stageButton.dataset.stage });
