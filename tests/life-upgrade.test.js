@@ -91,6 +91,8 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(html, /Private by default/);
   assert.match(html, /Make one good thing happen this week/);
   assert.match(html, /See what matters/);
+  assert.match(html, /<details class="map card">/);
+  assert.match(html, /data-stage-field="check-in"/);
   assert.match(html, /seven-day upgrade cycle/i);
   assert.match(html, /Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach/);
   assert.match(html, /id="deleteAll"/);

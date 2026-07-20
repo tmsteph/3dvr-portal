@@ -28,11 +28,11 @@
       </section>
 
       <section class="workspace" aria-label="Life Upgrade workspace">
-        <nav class="map card" aria-label="Flexible eight-stage map">
-          <div class="map-heading"><span>Your 7-day game</span><span data-stage-count>1 of 8</span></div>
+        <details class="map card">
+          <summary class="map-heading"><span>Your 7-day game</span><span data-stage-count>1 of 8</span></summary>
           <div class="progress"><span data-progress></span></div>
           <p class="momentum" data-momentum>🎮 Your first tiny win starts here.</p>
-          <div class="stage-list">
+          <nav class="stage-list" aria-label="Choose a step">
             <button type="button" data-stage="check-in">1. Notice</button>
             <button type="button" data-stage="choose">2. Pick one</button>
             <button type="button" data-stage="result">3. Name your win</button>
@@ -41,9 +41,9 @@
             <button type="button" data-stage="evidence">6. Spot the change</button>
             <button type="button" data-stage="review">7. Look back</button>
             <button type="button" data-stage="next">8. Pick your next step</button>
-          </div>
+          </nav>
           <p class="map-footnote">Jump around when life calls for it. The map is a guide, not a test.</p>
-        </nav>
+        </details>
 
         <section class="card work-card" aria-labelledby="stage-title">
           <div class="card-heading">
@@ -53,28 +53,28 @@
           </div>
 
           <div class="fields">
-            <label>What is on your mind?
+            <label data-stage-field="check-in">What is on your mind?
               <textarea id="checkIn" name="checkIn" rows="3" placeholder="A problem, hope, job, room, or person."></textarea>
             </label>
-            <label>Pick one thing
+            <label data-stage-field="choose">Pick one thing
               <input id="upgrade" name="upgrade" placeholder="My room, sleep, money, or work..." />
             </label>
-            <label>Your win in 7 days
+            <label data-stage-field="result">Your win in 7 days
               <textarea id="result" name="result" rows="3" placeholder="I will see, use, or share..." ></textarea>
             </label>
-            <fieldset>
+            <fieldset data-stage-field="plan complete">
               <legend>Three tiny steps</legend>
             <label class="action-row"><span class="sr-only">Tiny step one</span><input data-action-index="0" placeholder="1. The easiest step" /><span><input type="checkbox" data-action-complete="0" /> Done!</span></label>
             <label class="action-row"><span class="sr-only">Tiny step two</span><input data-action-index="1" placeholder="2. One more small step" /><span><input type="checkbox" data-action-complete="1" /> Done!</span></label>
             <label class="action-row"><span class="sr-only">Tiny step three</span><input data-action-index="2" placeholder="3. The last small step" /><span><input type="checkbox" data-action-complete="2" /> Done!</span></label>
           </fieldset>
-            <label>What changed?
+            <label data-stage-field="evidence">What changed?
               <textarea id="evidence" name="evidence" rows="3" placeholder="A photo, link, sent note, finished thing, or what you saw."></textarea>
             </label>
-            <label>What did you learn?
+            <label data-stage-field="review">What did you learn?
               <textarea id="review" name="review" rows="3" placeholder="What worked? What got in the way?"></textarea>
             </label>
-            <label>Your next step
+            <label data-stage-field="next">Your next step
               <input id="nextMove" name="nextMove" placeholder="Keep going, change it, or pick a new thing." />
             </label>
           </div>
