@@ -13,10 +13,12 @@ import {
   updateAction,
   updatePlan
 } from './state.js';
+import { createGame } from './game.js';
 
 const root = document.querySelector('[data-life-upgrade]');
 let storageAvailable = true;
 let plan = loadPlan();
+const game = createGame(root?.querySelector('[data-game-canvas]'));
 
 function loadPlan() {
   try {
@@ -60,6 +62,11 @@ function render() {
     field.hidden = !visible;
   });
   const completedActions = plan.actions.filter((action) => action.completed).length;
+  game?.update({
+    stageIndex: STAGES.findIndex((item) => item.id === stage.id),
+    completedActions,
+    hasResult: hasUsefulResult(plan)
+  });
   root.querySelector('[data-momentum]').textContent = completedActions
     ? `⭐ ${completedActions} of 3 tiny wins done. Keep going!`
     : hasUsefulResult(plan)

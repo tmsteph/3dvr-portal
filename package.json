@@ -58,7 +58,8 @@
   "dependencies": {
     "gun": "^0.2020.1241",
     "nodemailer": "^6.9.8",
-    "stripe": "^12.17.0"
+    "stripe": "^12.17.0",
+    "three": "^0.176.0"
   },
   "devDependencies": {
     "http-server": "^14.1.1",
