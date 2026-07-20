@@ -114,6 +114,7 @@ root?.addEventListener('click', (event) => {
     plan = nextStage(plan);
     savePlan();
     render();
+    root.querySelector('[data-stage-field]:not([hidden]) input, [data-stage-field]:not([hidden]) textarea')?.focus();
   }
 
   if (event.target.closest('#resetPlan')) {

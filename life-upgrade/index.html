@@ -11,41 +11,17 @@
     <main class="shell" data-life-upgrade>
       <header class="topbar">
         <a href="../index.html" class="brand">3dvr.tech</a>
-        <a href="../life/index.html" class="quiet-link">Daily Direction</a>
+      <span class="quiet-link">🔒 Private on this device</span>
       </header>
 
-      <section class="intro" aria-labelledby="page-title">
-        <p class="eyebrow">Your 7-day game · Life Upgrade</p>
-        <h1 id="page-title">Make one good thing happen this week.</h1>
-        <p class="lead">Pick one small thing. Do it. See what changed.</p>
-        <div class="promise" aria-label="The three steps of this game">
-          <span><strong aria-hidden="true">👀</strong> See what matters</span>
-          <span><strong aria-hidden="true">👟</strong> Take one step</span>
-          <span><strong aria-hidden="true">⭐</strong> Keep your win</span>
-        </div>
-        <p class="map-footnote">This is a flexible seven-day upgrade cycle, not a replacement for the longer Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach growth map.</p>
-        <p class="privacy-note"><span aria-hidden="true">🔒</span> Private by default. This guest plan stays on this device.</p>
-      </section>
-
-      <section class="workspace" aria-label="Life Upgrade workspace">
-        <details class="map card">
-          <summary class="map-heading"><span>Your 7-day game</span><span data-stage-count>1 of 8</span></summary>
-          <div class="progress"><span data-progress></span></div>
-          <p class="momentum" data-momentum>🎮 Your first tiny win starts here.</p>
-          <nav class="stage-list" aria-label="Choose a step">
-            <button type="button" data-stage="check-in">1. Notice</button>
-            <button type="button" data-stage="choose">2. Pick one</button>
-            <button type="button" data-stage="result">3. Name your win</button>
-            <button type="button" data-stage="plan">4. Make a plan</button>
-            <button type="button" data-stage="complete">5. Do one thing</button>
-            <button type="button" data-stage="evidence">6. Spot the change</button>
-            <button type="button" data-stage="review">7. Look back</button>
-            <button type="button" data-stage="next">8. Pick your next step</button>
-          </nav>
-          <p class="map-footnote">Jump around when life calls for it. The map is a guide, not a test.</p>
-        </details>
-
+      <section class="journey" aria-label="Your Life Upgrade journey">
         <section class="card work-card" aria-labelledby="stage-title">
+          <div class="journey-head">
+            <div><p class="eyebrow">Life Upgrade</p><p class="journey-kicker">One small win · 7 days</p></div>
+            <span class="stage-count" data-stage-count>1 of 8</span>
+          </div>
+          <div class="progress" aria-label="Journey progress"><span data-progress></span></div>
+          <p class="momentum" data-momentum>🎮 Your first tiny win starts here.</p>
           <div class="card-heading">
             <p class="eyebrow" data-stage-label>Notice</p>
             <h2 id="stage-title" data-stage-prompt>What needs your care this week?</h2>
@@ -84,19 +60,18 @@
             <button class="secondary" type="button" id="resetPlan">Start fresh</button>
           </div>
           <p class="status" id="saveStatus" role="status" aria-live="polite">Checking private browser storage…</p>
+          <aside class="summary" aria-labelledby="summary-title">
+            <p class="eyebrow">Your tiny win</p>
+            <p id="summary">Your 7-day win will show up here.</p>
+          </aside>
         </section>
       </section>
-
-      <aside class="summary card" aria-labelledby="summary-title">
-        <p class="eyebrow">Your tiny win</p>
-        <h2 id="summary-title">Keep your win in view</h2>
-        <p id="summary">Your 7-day win will show up here.</p>
-      </aside>
-      <section class="privacy-tools card" aria-labelledby="privacy-tools-title">
-        <h2 id="privacy-tools-title">Your private data</h2>
-        <p>This plan, including evidence, is saved only in this browser. Deleting it cannot be undone.</p>
-        <button class="secondary" type="button" id="deleteAll">Delete all Life Upgrade data</button>
-      </section>
+      <details class="privacy-tools">
+        <summary>Privacy and reset</summary>
+        <p>This plan stays in this browser. Deleting it cannot be undone.</p>
+        <p class="sr-only">This small game is part of the longer Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach growth map.</p>
+        <button class="secondary" type="button" id="deleteAll">Delete my plan</button>
+      </details>
     </main>
     <script type="module" src="./app.js"></script>
   </body>
