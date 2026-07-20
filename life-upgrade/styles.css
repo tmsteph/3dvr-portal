@@ -33,6 +33,12 @@ h2 { margin-bottom: 8px; line-height: 1.08; letter-spacing: -.025em; }
 .promise strong { font-size: 1.15rem; line-height: 1; }
 .card { min-width: 0; border: 1px solid var(--line); border-radius: 24px; background: var(--paper); box-shadow: var(--shadow); }
 .map { padding: 18px; background: rgba(255, 253, 248, .82); }
+.map summary { cursor: pointer; list-style: none; }
+.map summary::-webkit-details-marker { display: none; }
+.map summary::after { content: '＋'; color: var(--teal); font-size: 1.1rem; }
+.map[open] summary::after { content: '−'; }
+.map summary:focus-visible { outline: 3px solid var(--yellow); outline-offset: 4px; border-radius: 8px; }
+.map:not([open]) { box-shadow: 0 8px 24px rgba(46, 56, 47, .08); }
 .map-heading { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: .82rem; font-weight: 800; }
 .progress { height: 7px; overflow: hidden; border-radius: 99px; background: #e9e1d4; }
 .progress span { display: block; height: 100%; width: 12.5%; border-radius: inherit; background: var(--yellow); transition: width .2s ease; }

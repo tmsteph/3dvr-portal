@@ -54,6 +54,10 @@ function render() {
   root.querySelector('[data-stage-support]').textContent = stage.support;
   root.querySelector('[data-stage-count]').textContent = `${STAGES.findIndex((item) => item.id === stage.id) + 1} of ${STAGES.length}`;
   root.querySelector('[data-progress]').style.width = `${((STAGES.findIndex((item) => item.id === stage.id) + 1) / STAGES.length) * 100}%`;
+  root.querySelectorAll('[data-stage-field]').forEach((field) => {
+    const visible = field.dataset.stageField.split(' ').includes(stage.id);
+    field.hidden = !visible;
+  });
   const completedActions = plan.actions.filter((action) => action.completed).length;
   root.querySelector('[data-momentum]').textContent = completedActions
     ? `⭐ ${completedActions} of 3 tiny wins done. Keep going!`
