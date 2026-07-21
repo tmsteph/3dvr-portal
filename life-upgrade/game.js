@@ -26,7 +26,9 @@ const KEYS = {
 const SEGMENT_MILES = 0.25;
 const SEGMENT_SCENE_LENGTH = 220;
 const PLAYER_SCENE_Z = 3;
-const GATE_ARRIVAL_RADIUS = 1.6;
+// The player can fly above the gate center; use the visible ring's outer
+// radius so a straight flight through the gate counts without a walk tap.
+const GATE_ARRIVAL_RADIUS = 2.4;
 const CRUISE_MPH = 120;
 const BOOST_MPH = 240;
 
