@@ -20,8 +20,10 @@ const KEYS = {
 
 // One question is one quarter-mile flight. At 120 mph that is a 7.5-second
 // run; holding Fly raises the pace to 240 mph and cuts it to 3.75 seconds.
+// Keep the visual lane compact enough that the goal ring is already visible
+// when a new flight begins, while the HUD still represents the full distance.
 const SEGMENT_MILES = 0.25;
-const SEGMENT_SCENE_LENGTH = 120;
+const SEGMENT_SCENE_LENGTH = 52;
 const CRUISE_MPH = 120;
 const BOOST_MPH = 240;
 
@@ -208,8 +210,8 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
     player.position.y = THREE.MathUtils.clamp(player.position.y, -0.5, 2.8);
     player.rotation.z = -player.position.x * 0.12;
     flame.visible = state.fly;
-    // Keep the active gate one full, visible flight away. The previous
-    // implementation moved the world only 3–12 units, so it felt like a hop.
+    // Keep the active gate visible from the beginning of the flight. The
+    // previous 120-unit lane put the ring into the fog until late in the run.
     const sceneProgress = (distance / targetDistance) * SEGMENT_SCENE_LENGTH;
     world.position.z = stageIndex * SEGMENT_SCENE_LENGTH + sceneProgress;
     player.position.z = 3;
