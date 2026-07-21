@@ -28,6 +28,9 @@ const game = createGame(root?.querySelector('[data-game-canvas]'), {
   onArrive: () => {
     root?.querySelector('[data-stage-field]:not([hidden]) input, [data-stage-field]:not([hidden]) textarea')?.focus();
     setStatus('🎉 You reached the gate! Answer this one question, then keep flying.');
+  },
+  onReplay: () => {
+    setStatus('Flight replayed. Fly to the gate whenever you are ready.');
   }
 });
 
@@ -179,10 +182,6 @@ root?.addEventListener('click', (event) => {
   }
 
   if (event.target.closest('#nextStage')) {
-    if (!hasStageAnswer(getStage(plan).id)) {
-      setStatus('Fly to the gate and answer the question first.');
-      return;
-    }
     plan = nextStage(plan);
     savePlan();
     render();

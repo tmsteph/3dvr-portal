@@ -81,6 +81,8 @@ h2 { margin-bottom: 8px; line-height: 1.08; letter-spacing: -.025em; }
 .game-question .actions button { min-width: 0; min-height: 40px; flex: 1 1 auto; padding-inline: 10px; }
 .game-question input, .game-question textarea { padding: 9px 11px; }
 .game-question textarea { height: 56px; min-height: 56px; }
+.game-replay { border: 0; padding: 0; background: transparent; color: #bdf5ff; font-size: .8rem; font-weight: 800; cursor: pointer; }
+.game-replay:hover, .game-replay:focus-visible { color: #fff1b4; text-decoration: underline; }
 .card-heading { margin: clamp(28px, 7vw, 58px) 0 24px; }
 .card-heading h2 { max-width: 25ch; font-size: clamp(1.6rem, 5vw, 2.5rem); }
 .stage-support { max-width: 52ch; margin: 10px 0 0; color: var(--muted); }

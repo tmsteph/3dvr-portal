@@ -82,7 +82,7 @@ function makeButtonControl(button, control, state) {
   };
 }
 
-export function createGame(canvas, { onArrive = () => {} } = {}) {
+export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } = {}) {
   if (!canvas || !window.WebGLRenderingContext) return null;
   let renderer;
   try {
@@ -157,6 +157,7 @@ export function createGame(canvas, { onArrive = () => {} } = {}) {
     cleanup.push(makeButtonControl(button, button.dataset.gameControl, state));
   });
   const questionCard = shell?.querySelector('[data-game-question]');
+  const replayButton = shell?.querySelector('[data-game-replay]');
   const flightControls = shell?.querySelector('.flight-controls');
   const readoutEl = shell?.querySelector('[data-game-readout]');
   // Reaching the gate is the interaction. There is no separate landing action:
@@ -166,6 +167,20 @@ export function createGame(canvas, { onArrive = () => {} } = {}) {
     flightControls?.classList.add('is-landed');
     onArrive();
   };
+  const replay = (event) => {
+    event?.preventDefault();
+    state.left = false;
+    state.right = false;
+    state.forward = false;
+    state.fly = false;
+    distance = 0;
+    arrived = false;
+    if (questionCard) questionCard.hidden = true;
+    flightControls?.classList.remove('is-landed');
+    onReplay();
+  };
+  replayButton?.addEventListener('click', replay);
+  cleanup.push(() => replayButton?.removeEventListener('click', replay));
 
   let stageIndex = 0;
   let distance = 0;
@@ -245,6 +260,7 @@ export function createGame(canvas, { onArrive = () => {} } = {}) {
       const stateEl = shell?.querySelector('[data-game-question-state]');
       if (stateEl && arrived) stateEl.textContent = answered ? '🎉 Nice work! Save this answer to unlock the next flight.' : '🎉 You made it! Take a moment for this one question.';
     },
+    replay,
     destroy() {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
