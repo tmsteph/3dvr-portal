@@ -18,12 +18,12 @@ const KEYS = {
   Space: 'fly'
 };
 
-// One question is one half-mile flight. At 60 mph that is a 30-second run;
-// holding Fly raises the pace to 120 mph and cuts it to 15 seconds.
-const SEGMENT_MILES = 0.5;
+// One question is one quarter-mile flight. At 120 mph that is a 7.5-second
+// run; holding Fly raises the pace to 240 mph and cuts it to 3.75 seconds.
+const SEGMENT_MILES = 0.25;
 const SEGMENT_SCENE_LENGTH = 120;
-const CRUISE_MPH = 60;
-const BOOST_MPH = 120;
+const CRUISE_MPH = 120;
+const BOOST_MPH = 240;
 
 function makeButtonControl(button, control, state) {
   if (!button) return () => {};
