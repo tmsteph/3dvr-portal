@@ -27,6 +27,31 @@ const SEGMENT_SCENE_LENGTH = 52;
 const CRUISE_MPH = 120;
 const BOOST_MPH = 240;
 
+function makeWorldLabel(text, { color = '#d6f36d', fill = 'rgba(7, 20, 38, 0.9)' } = {}) {
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = 512;
+  labelCanvas.height = 128;
+  const context = labelCanvas.getContext('2d');
+  context.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+  context.fillStyle = fill;
+  context.roundRect(8, 8, 496, 112, 28);
+  context.fill();
+  context.strokeStyle = color;
+  context.lineWidth = 5;
+  context.stroke();
+  context.fillStyle = color;
+  context.font = '700 42px system-ui, sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(text, 256, 66);
+  const texture = new THREE.CanvasTexture(labelCanvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.15), material);
+  label.position.y = 2.5;
+  return label;
+}
+
 function makeButtonControl(button, control, state) {
   if (!button) return () => {};
   let tapTimer;
@@ -134,14 +159,43 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
   player.add(flame);
   world.add(player);
 
+  // A distinct launch pad makes the first flight feel like a departure,
+  // rather than dropping the player into an already-running route.
+  const startMarker = new THREE.Group();
+  startMarker.position.set(0, -1.15, 4);
+  const startPad = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.55, 1.8, 0.16, 32),
+    new THREE.MeshStandardMaterial({ color: 0x194e63, emissive: 0x0c6074, emissiveIntensity: 1.5, metalness: 0.35, roughness: 0.45 })
+  );
+  startMarker.add(startPad);
+  const startRing = new THREE.Mesh(
+    new THREE.TorusGeometry(1.45, 0.08, 8, 32),
+    new THREE.MeshBasicMaterial({ color: 0x64f6ff })
+  );
+  startRing.rotation.x = Math.PI / 2;
+  startMarker.add(startRing);
+  const startLabel = makeWorldLabel('START', { color: '#64f6ff', fill: 'rgba(7, 20, 38, 0.96)' });
+  startLabel.scale.setScalar(0.68);
+  startLabel.position.y = 2.4;
+  startMarker.add(startLabel);
+  world.add(startMarker);
+
   const gates = [];
   for (let index = 0; index < 8; index += 1) {
     const gate = new THREE.Group();
     gate.position.set(0, 1.1, -SEGMENT_SCENE_LENGTH - index * SEGMENT_SCENE_LENGTH);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.12, 10, 32), new THREE.MeshStandardMaterial({ color: 0xd6f36d, emissive: 0x415f18, emissiveIntensity: 1.2 }));
+    const isFirst = index === 0;
+    const isFinish = index === 7;
+    const ringColor = isFinish ? 0xffb84d : isFirst ? 0x64f6ff : 0xd6f36d;
+    const ringEmissive = isFinish ? 0x75471a : isFirst ? 0x0e6978 : 0x415f18;
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(isFirst || isFinish ? 2.35 : 2.1, isFirst || isFinish ? 0.15 : 0.12, 10, 32),
+      new THREE.MeshStandardMaterial({ color: ringColor, emissive: ringEmissive, emissiveIntensity: isFirst || isFinish ? 1.7 : 1.2 })
+    );
     gate.add(ring);
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffc857 }));
+    const core = new THREE.Mesh(new THREE.SphereGeometry(isFinish ? 0.34 : 0.26, 12, 8), new THREE.MeshBasicMaterial({ color: isFinish ? 0xffe08a : 0xffc857 }));
     gate.add(core);
+    gate.add(makeWorldLabel(isFinish ? 'FINISH' : `GOAL ${index + 1}`, { color: isFinish ? '#ffb84d' : isFirst ? '#64f6ff' : '#d6f36d' }));
     world.add(gate);
     gates.push(gate);
   }
