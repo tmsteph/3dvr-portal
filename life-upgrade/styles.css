@@ -69,7 +69,7 @@ h2 { margin-bottom: 8px; line-height: 1.08; letter-spacing: -.025em; }
 .flight-controls button { min-width: 40px; min-height: 38px; border: 1px solid rgba(189, 245, 255, .35); border-radius: 11px; padding: 7px 10px; background: rgba(6, 14, 26, .78); color: #eefcff; font-weight: 850; cursor: pointer; pointer-events: auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .flight-controls button.is-held, .flight-controls button:hover { background: rgba(44, 156, 186, .65); }
 .flight-controls .boost { border-color: rgba(255, 179, 71, .6); color: #ffd98d; }
-.game-question { position: absolute; inset: 12px; z-index: 5; overflow: hidden; padding: 12px; border: 1px solid rgba(189, 245, 255, .34); border-radius: 16px; background: rgba(6, 14, 26, .94); color: #eefcff; box-shadow: 0 14px 35px rgba(0, 0, 0, .35); }
+.game-question { position: absolute; inset: 12px; z-index: 5; overflow: hidden; padding: 12px 12px 64px; border: 1px solid rgba(189, 245, 255, .34); border-radius: 16px; background: rgba(6, 14, 26, .94); color: #eefcff; box-shadow: 0 14px 35px rgba(0, 0, 0, .35); }
 .game-question[hidden] { display: none; }
 .game-question h2 { margin: 0 0 2px; color: #fff1b4; font-size: clamp(1.1rem, 4vw, 1.7rem); }
 .game-question-state, .game-question-support { margin: 0 0 4px; color: #bdf5ff; font-size: .8rem; }
@@ -77,8 +77,12 @@ h2 { margin-bottom: 8px; line-height: 1.08; letter-spacing: -.025em; }
 .game-question .suggestions-label, .game-question label, .game-question legend { color: #c5dce2; }
 .game-question input, .game-question textarea { border-color: rgba(189, 245, 255, .28); background: rgba(255, 255, 255, .96); }
 .game-question .fields { gap: 6px; }
-.game-question .actions { flex-wrap: nowrap; margin-top: 6px; }
+.game-question .actions { position: absolute; right: 12px; bottom: 12px; left: 12px; flex-wrap: nowrap; margin-top: 0; }
 .game-question .actions button { min-width: 0; min-height: 40px; flex: 1 1 auto; padding-inline: 10px; }
+.game-question .actions .secondary { display: none; }
+.game-question [data-stage-field~="plan"] .action-row:not(:first-of-type) { display: none; }
+.game-question [data-stage-field~="plan"] .action-row { gap: 4px; }
+.game-question[data-game-stage="plan"] .game-question-support { display: none; }
 .game-question input, .game-question textarea { padding: 9px 11px; }
 .game-question textarea { height: 56px; min-height: 56px; }
 .game-replay { border: 0; padding: 0; background: transparent; color: #bdf5ff; font-size: .8rem; font-weight: 800; cursor: pointer; }

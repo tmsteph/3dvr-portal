@@ -117,6 +117,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(app, /createGame/);
   assert.match(app, /onArrive/);
   assert.match(app, /onReplay/);
+  assert.match(app, /dataset\.gameStage = stage\.id/);
   assert.match(app, /You reached the gate/);
   assert.doesNotMatch(app, /Fly to the gate and answer/);
   assert.match(app, /dispatchEvent\(new Event\('input'/);

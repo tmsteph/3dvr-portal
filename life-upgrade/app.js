@@ -77,6 +77,7 @@ function render() {
   root.querySelector('[data-stage-support]').textContent = stage.support;
   root.querySelector('[data-game-question-prompt]').textContent = stage.prompt;
   root.querySelector('[data-game-question-support]').textContent = stage.support;
+  root.querySelector('[data-game-question]').dataset.gameStage = stage.id;
   root.querySelector('[data-stage-count]').textContent = `${STAGES.findIndex((item) => item.id === stage.id) + 1} of ${STAGES.length}`;
   root.querySelector('[data-progress]').style.width = `${((STAGES.findIndex((item) => item.id === stage.id) + 1) / STAGES.length) * 100}%`;
   renderSuggestions(stage);
