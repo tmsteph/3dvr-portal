@@ -52,8 +52,10 @@ sync.ready.then(async (available) => {
   } else if (hasProgress(plan)) {
     sync.save(plan);
   }
-  root?.querySelector('[data-sync-label]').textContent = '🔐 Saved to your account';
-  root?.querySelector('.account-link').textContent = 'Account sync on';
+  const syncLabel = root?.querySelector('[data-sync-label]');
+  const accountLink = root?.querySelector('.account-link');
+  if (syncLabel) syncLabel.textContent = '🔐 Saved to your account';
+  if (accountLink) accountLink.textContent = 'Account sync on';
 });
 
 function hasStageAnswer(stageId, currentPlan = plan) {
