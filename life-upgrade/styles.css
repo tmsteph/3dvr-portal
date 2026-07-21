@@ -19,9 +19,10 @@ body { height: 100svh; overflow: hidden; margin: 0; color: var(--ink); font: 16p
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 .shell { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(760px, calc(100% - 28px)); height: 100svh; margin: 0 auto; padding: 14px 0 8px; }
-.topbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 0 18px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0 18px; }
 .brand { color: #f4f8f7; font-weight: 850; text-decoration: none; }
 .quiet-link { color: var(--teal); font-size: .82rem; font-weight: 700; }
+.account-link { color: #bdf5ff; font-size: .78rem; font-weight: 800; text-decoration: none; }
 .intro { max-width: 790px; padding: 42px 0 34px; }
 .eyebrow { margin: 0 0 10px; color: var(--teal); font-size: .75rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
 h1, h2, p { margin-top: 0; }
@@ -85,6 +86,13 @@ h2 { margin-bottom: 8px; line-height: 1.08; letter-spacing: -.025em; }
 .game-question[data-game-stage="plan"] .game-question-support { display: none; }
 .game-question input, .game-question textarea { padding: 9px 11px; }
 .game-question textarea { height: 56px; min-height: 56px; }
+.game-question.is-finished > :not(.finish-panel) { display: none; }
+.finish-panel { display: grid; gap: 8px; align-content: center; height: 100%; text-align: center; }
+.finish-panel h2 { margin: 0; color: #fff1b4; font-size: clamp(1.5rem, 6vw, 2.3rem); }
+.finish-panel p { margin: 0; color: #c5dce2; }
+.finish-kicker { color: #ffb84d !important; font-size: .8rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.finish-start { justify-self: center; margin-top: 12px; }
+.finish-note { font-size: .75rem; }
 .game-replay { border: 0; padding: 0; background: transparent; color: #bdf5ff; font-size: .8rem; font-weight: 800; cursor: pointer; }
 .game-replay:hover, .game-replay:focus-visible { color: #fff1b4; text-decoration: underline; }
 .card-heading { margin: clamp(28px, 7vw, 58px) 0 24px; }

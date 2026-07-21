@@ -99,13 +99,16 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(html, /data-game-control="forward"/);
   assert.match(html, /data-game-question/);
   assert.match(html, /data-game-replay/);
+  assert.match(html, /data-finish-panel/);
+  assert.match(html, /data-start-another/);
+  assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun/);
   assert.match(html, /You made it/);
   assert.match(html, /Not sure\? Pick one/);
   assert.match(html, /7 days/);
   assert.match(html, /Stabilize → Understand → Choose → Practice → Help → Earn → Build → Teach/);
   assert.match(html, /id="deleteAll"/);
   assert.match(html, /type="module" src="\.\/app\.js"/);
-  assert.doesNotMatch(`${html}\n${app}`, /Gun\(|fetch\(|XMLHttpRequest|WebSocket|sendBeacon|<script[^>]+src="https?:\/\//i);
+  assert.doesNotMatch(app, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon/i);
   assert.match(app, /textContent/);
   assert.doesNotMatch(app, /innerHTML/);
   assert.match(app, /confirm\(/);
@@ -122,6 +125,8 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.doesNotMatch(app, /Fly to the gate and answer/);
   assert.match(app, /dispatchEvent\(new Event\('input'/);
   assert.match(app, /replace this Life Upgrade plan/);
+  assert.match(app, /Congratulations/);
+  assert.match(app, /sync\.save/);
 });
 
 test('portal home and Start page expose the Life Upgrade entry point', async () => {

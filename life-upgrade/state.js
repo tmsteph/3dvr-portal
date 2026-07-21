@@ -1,4 +1,5 @@
 export const STORAGE_KEY = '3dvr-life-upgrade-v01';
+export const COMPLETED_STORAGE_KEY = '3dvr-life-upgrade-completed-v01';
 export const SCHEMA_VERSION = 1;
 
 export const STAGES = Object.freeze([
@@ -17,6 +18,7 @@ export function createPlan() {
     schemaVersion: SCHEMA_VERSION,
     updatedAt: null,
     currentStage: 'check-in',
+    completedAt: null,
     checkIn: '',
     upgrade: '',
     result: '',
@@ -42,6 +44,7 @@ export function normalizePlan(value) {
     currentStage: STAGES.some((stage) => stage.id === source.currentStage)
       ? source.currentStage
       : plan.currentStage,
+    completedAt: typeof source.completedAt === 'string' ? source.completedAt : plan.completedAt,
     actions: [0, 1, 2].map((index) => {
       const action = actions[index];
       if (typeof action === 'string') return { text: action.trim(), completed: false };
@@ -112,6 +115,10 @@ export function nextStage(plan) {
   const current = normalizePlan(plan);
   const index = STAGES.findIndex((stage) => stage.id === current.currentStage);
   return updatePlan(current, { currentStage: STAGES[Math.min(index + 1, STAGES.length - 1)].id });
+}
+
+export function completePlan(plan) {
+  return updatePlan(plan, { completedAt: new Date().toISOString(), currentStage: 'next' });
 }
 
 export function hasUsefulResult(plan) {

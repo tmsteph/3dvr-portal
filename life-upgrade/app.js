@@ -1,8 +1,10 @@
 import {
   STAGES,
+  COMPLETED_STORAGE_KEY,
   STORAGE_KEY,
   createPlan,
   completeAction,
+  completePlan,
   deleteStoredPlan,
   getStage,
   hasUsefulResult,
@@ -14,10 +16,14 @@ import {
   updatePlan
 } from './state.js';
 import { createGame } from './game.js';
+import { createLifeUpgradeSync } from './sync.js';
 
 const root = document.querySelector('[data-life-upgrade]');
 let storageAvailable = true;
 let plan = loadPlan();
+const sync = createLifeUpgradeSync({
+  onStatus: (message) => setStatus(message)
+});
 const gameQuestionContent = root?.querySelector('[data-game-question-content]');
 gameQuestionContent?.append(
   root?.querySelector('.suggestions'),
@@ -32,6 +38,22 @@ const game = createGame(root?.querySelector('[data-game-canvas]'), {
   onReplay: () => {
     setStatus('Flight replayed. Fly to the gate whenever you are ready.');
   }
+});
+
+sync.ready.then(async (available) => {
+  if (!available) return;
+  const remote = await sync.load(plan);
+  const localTime = Date.parse(plan.updatedAt || '') || 0;
+  const remoteTime = Date.parse(remote?.updatedAt || '') || 0;
+  if (remoteTime > localTime || (!hasProgress(plan) && hasProgress(remote))) {
+    plan = loadStoredPlan(JSON.stringify(remote));
+    savePlan({ announce: false });
+    render();
+  } else if (hasProgress(plan)) {
+    sync.save(plan);
+  }
+  root?.querySelector('[data-sync-label]').textContent = '🔐 Saved to your account';
+  root?.querySelector('.account-link').textContent = 'Account sync on';
 });
 
 function hasStageAnswer(stageId, currentPlan = plan) {
@@ -55,7 +77,7 @@ function setStatus(message) {
   if (status) status.textContent = message;
 }
 
-function savePlan() {
+function savePlan({ announce = true } = {}) {
   let saved = false;
   try {
     saved = saveStoredPlan(window.localStorage, plan);
@@ -63,9 +85,10 @@ function savePlan() {
     saved = false;
   }
   storageAvailable = saved;
-  setStatus(saved
+  if (announce) setStatus(saved
     ? 'Saved privately in this browser.'
     : 'Could not save in this browser. Your changes remain on this page until you leave.');
+  sync.save(plan);
   return saved;
 }
 
@@ -120,6 +143,13 @@ function render() {
   root.querySelector('#summary').textContent = hasUsefulResult(plan)
     ? `${plan.upgrade}: ${plan.result}`
     : 'Your 7-day win will show up here.';
+}
+
+function showFinishPanel(show) {
+  const panel = root.querySelector('[data-finish-panel]');
+  if (!panel) return;
+  panel.hidden = !show;
+  game?.setFinished(show);
 }
 
 function renderSuggestions(stage) {
@@ -183,10 +213,36 @@ root?.addEventListener('click', (event) => {
   }
 
   if (event.target.closest('#nextStage')) {
+    if (getStage(plan).id === 'next') {
+      plan = completePlan(plan);
+      savePlan();
+      render();
+      showFinishPanel(true);
+      setStatus('🏆 Congratulations! You completed this Life Upgrade.');
+      return;
+    }
     plan = nextStage(plan);
     savePlan();
     render();
     root.querySelector('[data-stage-field]:not([hidden]) input, [data-stage-field]:not([hidden]) textarea')?.focus();
+  }
+
+  if (event.target.closest('[data-start-another]')) {
+    try {
+      const completed = JSON.parse(window.localStorage.getItem(COMPLETED_STORAGE_KEY) || '[]');
+      completed.push(plan);
+      window.localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completed.slice(-12)));
+    } catch {
+      // The active plan can still be restarted if archive storage is unavailable.
+    }
+    sync.saveCompleted(plan);
+    plan = createPlan();
+    savePlan();
+    showFinishPanel(false);
+    game?.replay();
+    render();
+    setStatus('New goal ready. Fly to the first gate.');
+    return;
   }
 
   if (event.target.closest('#resetPlan')) {
