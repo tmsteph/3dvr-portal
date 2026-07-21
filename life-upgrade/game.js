@@ -316,6 +316,14 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
       const stateEl = shell?.querySelector('[data-game-question-state]');
       if (stateEl && arrived) stateEl.textContent = answered ? '🎉 Nice work! Save this answer to unlock the next flight.' : '🎉 You made it! Take a moment for this one question.';
     },
+    setFinished(finished) {
+      if (!questionCard) return;
+      questionCard.classList.toggle('is-finished', finished === true);
+      if (finished) {
+        questionCard.hidden = false;
+        flightControls?.classList.add('is-landed');
+      }
+    },
     replay,
     destroy() {
       window.cancelAnimationFrame(frame);

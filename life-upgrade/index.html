@@ -11,7 +11,8 @@
     <main class="shell" data-life-upgrade>
       <header class="topbar">
         <a href="../index.html" class="brand">3dvr.tech</a>
-      <span class="quiet-link">🔒 Private on this device</span>
+      <span class="quiet-link" data-sync-label>🔒 Private on this device</span>
+      <a class="account-link" href="../sign-in.html?redirect=%2Flife-upgrade%2F">Save across devices</a>
       </header>
 
       <section class="journey" aria-label="Your Life Upgrade journey">
@@ -38,6 +39,13 @@
               <p data-game-question-support>Answer one small question, then keep flying.</p>
               <button type="button" class="game-replay" data-game-replay>↻ Replay this flight</button>
               <div data-game-question-content></div>
+              <section class="finish-panel" data-finish-panel hidden aria-live="polite">
+                <p class="finish-kicker">🏆 Goal complete</p>
+                <h2>You made a real change.</h2>
+                <p>Your win is saved. Want to choose another small thing and take another flight?</p>
+                <button type="button" class="primary finish-start" data-start-another>Start another goal →</button>
+                <p class="finish-note">Your finished goal stays in this browser and on your account.</p>
+              </section>
             </div>
           </section>
           <div class="card-heading" hidden>
@@ -96,6 +104,10 @@
         <button class="secondary" type="button" id="deleteAll">Delete my plan</button>
       </details>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script src="../gun-init.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+    <script src="../auth-identity.js"></script>
     <script type="module" src="./app.js"></script>
   </body>
 </html>
