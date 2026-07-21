@@ -82,7 +82,7 @@ function makeButtonControl(button, control, state) {
   };
 }
 
-export function createGame(canvas, { onLand = () => {} } = {}) {
+export function createGame(canvas, { onArrive = () => {} } = {}) {
   if (!canvas || !window.WebGLRenderingContext) return null;
   let renderer;
   try {
@@ -156,24 +156,16 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
   shell?.querySelectorAll('[data-game-control]').forEach((button) => {
     cleanup.push(makeButtonControl(button, button.dataset.gameControl, state));
   });
-  const landButton = shell?.querySelector('[data-game-land]');
   const questionCard = shell?.querySelector('[data-game-question]');
   const flightControls = shell?.querySelector('.flight-controls');
   const readoutEl = shell?.querySelector('[data-game-readout]');
-  // The first animation frame runs before app.js supplies the current stage
-  // distance. Keep landing locked until that distance has been reached.
-  if (landButton) {
-    landButton.disabled = true;
-    landButton.textContent = 'Fly to answer';
-  }
-  const land = () => {
-    if (landButton?.disabled) return;
+  // Reaching the gate is the interaction. There is no separate landing action:
+  // the form opens as soon as the player completes the flight.
+  const arrive = () => {
     if (questionCard) questionCard.hidden = false;
     flightControls?.classList.add('is-landed');
-    onLand();
+    onArrive();
   };
-  landButton?.addEventListener('click', land);
-  cleanup.push(() => landButton?.removeEventListener('click', land));
 
   let stageIndex = 0;
   let distance = 0;
@@ -215,7 +207,7 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
     if (readoutEl) readoutEl.textContent = `${distance.toFixed(2)} / ${targetDistance.toFixed(2)} mi · ${mph || CRUISE_MPH} mph`;
     if (ready && !arrived) {
       arrived = true;
-      if (landButton) { landButton.disabled = false; landButton.textContent = 'Land to answer'; }
+      arrive();
     }
     renderer.render(scene, camera);
   };
@@ -231,7 +223,6 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
         arrived = false;
         if (questionCard) questionCard.hidden = true;
         flightControls?.classList.remove('is-landed');
-        if (landButton) { landButton.disabled = true; landButton.textContent = 'Fly to answer'; }
       }
       targetDistance = SEGMENT_MILES;
       const level = Math.max(1, Math.ceil((nextStage + completedActions + (hasResult ? 1 : 0)) / 2));
@@ -248,12 +239,11 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
       const stateEl = shell?.querySelector('[data-game-question-state]');
       if (promptEl) promptEl.textContent = prompt;
       if (supportEl) supportEl.textContent = support;
-      if (stateEl && arrived) stateEl.textContent = answered ? '⭐ Nice! Save your answer to unlock the next flight.' : 'You reached the gate.';
-      if (landButton && !arrived) landButton.textContent = `Fly ${Math.round((distance / targetDistance) * 100)}%`;
+      if (stateEl && arrived) stateEl.textContent = answered ? '🎉 Nice work! Save this answer to unlock the next flight.' : '🎉 You made it! Take a moment for this one question.';
     },
     setAnswered(answered) {
       const stateEl = shell?.querySelector('[data-game-question-state]');
-      if (stateEl && arrived) stateEl.textContent = answered ? '⭐ Nice! Save your answer to unlock the next flight.' : 'You reached the gate.';
+      if (stateEl && arrived) stateEl.textContent = answered ? '🎉 Nice work! Save this answer to unlock the next flight.' : '🎉 You made it! Take a moment for this one question.';
     },
     destroy() {
       window.cancelAnimationFrame(frame);

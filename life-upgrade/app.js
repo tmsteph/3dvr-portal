@@ -25,9 +25,9 @@ gameQuestionContent?.append(
   root?.querySelector('.actions')
 );
 const game = createGame(root?.querySelector('[data-game-canvas]'), {
-  onLand: () => {
+  onArrive: () => {
     root?.querySelector('[data-stage-field]:not([hidden]) input, [data-stage-field]:not([hidden]) textarea')?.focus();
-    setStatus('You landed! Answer the question, then keep going.');
+    setStatus('🎉 You reached the gate! Answer this one question, then keep flying.');
   }
 });
 
