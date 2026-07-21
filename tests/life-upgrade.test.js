@@ -127,6 +127,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(app, /replace this Life Upgrade plan/);
   assert.match(app, /Congratulations/);
   assert.match(app, /sync\.save/);
+  assert.doesNotMatch(app, /\?\.[^;\n]+\.textContent\s*=/);
 });
 
 test('portal home and Start page expose the Life Upgrade entry point', async () => {
