@@ -20,10 +20,11 @@ const KEYS = {
 
 // One question is one quarter-mile flight. At 120 mph that is a 7.5-second
 // run; holding Fly raises the pace to 240 mph and cuts it to 3.75 seconds.
-// Keep the visual lane long enough that the player visibly flies to the gate
-// instead of passing it early, while the HUD still represents the full distance.
+// Keep the visual lane long enough that the player has to visibly fly to the
+// gate instead of seeing it slide past early, while the HUD still represents
+// the same quarter-mile flight.
 const SEGMENT_MILES = 0.25;
-const SEGMENT_SCENE_LENGTH = 120;
+const SEGMENT_SCENE_LENGTH = 220;
 const CRUISE_MPH = 120;
 const BOOST_MPH = 240;
 
@@ -121,7 +122,7 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
   const shell = canvas.closest('.game-world');
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x071426);
-  scene.fog = new THREE.Fog(0x071426, 42, 260);
+  scene.fog = new THREE.Fog(0x071426, 64, 430);
   const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 280);
   camera.position.set(0, 3.4, 8);
   camera.lookAt(0, 1, -12);
@@ -264,8 +265,8 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
     player.position.y = THREE.MathUtils.clamp(player.position.y, -0.5, 2.8);
     player.rotation.z = -player.position.x * 0.12;
     flame.visible = state.fly;
-    // Keep the active gate visible from the beginning of the flight. The
-    // previous 120-unit lane put the ring into the fog until late in the run.
+    // Translate the route beneath the player. The active gate starts outside
+    // the fog and reaches the player's z position at the end of the lane.
     const sceneProgress = (distance / targetDistance) * SEGMENT_SCENE_LENGTH;
     world.position.z = stageIndex * SEGMENT_SCENE_LENGTH + sceneProgress;
     player.position.z = 3;
