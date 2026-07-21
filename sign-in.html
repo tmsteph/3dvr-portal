@@ -521,7 +521,9 @@
           <div class="actions">
             <button id="auth-submit" type="submit" class="primary-button">Sign in or sign up</button>
           </div>
-          <div class="oauth-panel" aria-labelledby="oauth-options-title">
+          <!-- OAuth remains wired for later, but is intentionally hidden until
+               the provider flows are ready for reliable sign-in. -->
+          <div class="oauth-panel" aria-labelledby="oauth-options-title" hidden>
             <div class="oauth-divider" id="oauth-options-title">Or continue with OAuth</div>
             <div class="oauth-grid">
               <button id="oauth-google" type="button" class="oauth-button" data-provider="google">Continue with Google</button>
