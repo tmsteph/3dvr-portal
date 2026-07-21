@@ -102,6 +102,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(html, /data-finish-panel/);
   assert.match(html, /data-start-another/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun/);
+  assert.match(html, /auth-identity\.js/);
   assert.match(html, /You made it/);
   assert.match(html, /Not sure\? Pick one/);
   assert.match(html, /7 days/);
@@ -127,6 +128,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(app, /replace this Life Upgrade plan/);
   assert.match(app, /Congratulations/);
   assert.match(app, /sync\.save/);
+  assert.match(app, /getDisplayName/);
   assert.doesNotMatch(app, /\?\.[^;\n]+\.textContent\s*=/);
 });
 

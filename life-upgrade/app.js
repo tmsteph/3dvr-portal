@@ -54,8 +54,13 @@ sync.ready.then(async (available) => {
   }
   const syncLabel = root?.querySelector('[data-sync-label]');
   const accountLink = root?.querySelector('.account-link');
-  if (syncLabel) syncLabel.textContent = '🔐 Saved to your account';
-  if (accountLink) accountLink.textContent = 'Account sync on';
+  const displayName = sync.getDisplayName?.();
+  if (syncLabel) syncLabel.textContent = displayName
+    ? `🔐 ${displayName}`
+    : '🔐 Saved to your account';
+  if (accountLink) accountLink.textContent = displayName
+    ? `${displayName}'s account`
+    : 'Account sync on';
 });
 
 function hasStageAnswer(stageId, currentPlan = plan) {

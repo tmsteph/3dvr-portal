@@ -38,12 +38,23 @@ export function createLifeUpgradeSync({ windowObj = window, onStatus = () => {} 
   let secret;
   let ready = false;
 
+  const displayNameFrom = (identity = {}) => {
+    const username = String(identity.username || '').trim();
+    if (username && username.toLowerCase() !== 'guest') return username;
+    const alias = String(identity.alias || '').trim();
+    return alias.includes('@') ? alias.split('@')[0] : alias;
+  };
+
   const init = async () => {
     if (typeof windowObj.Gun !== 'function' || !windowObj.SEA) return false;
     try {
+      // The portal keeps the Gun session in localStorage and mirrors the
+      // display identity in a shared cookie. Hydrate both before recalling Gun
+      // so direct links behave like portal -> Life Upgrade navigation.
+      windowObj.AuthIdentity?.syncStorageFromSharedIdentity?.(windowObj.localStorage);
       gun = windowObj.Gun({ peers: windowObj.__GUN_PEERS__ || [] });
       user = gun.user();
-      user.recall?.({ sessionStorage: true });
+      user.recall?.({ sessionStorage: true, localStorage: true });
       for (let attempt = 0; attempt < 12 && !user.is; attempt += 1) {
         await new Promise((resolve) => windowObj.setTimeout(resolve, 150));
       }
@@ -51,7 +62,11 @@ export function createLifeUpgradeSync({ windowObj = window, onStatus = () => {} 
       if (!user.is?.pub || !secret || typeof windowObj.SEA.encrypt !== 'function') return false;
       node = user.get(SYNC_NODE).get('plan');
       ready = true;
-      onStatus('Account sync is ready.');
+      const identity = windowObj.AuthIdentity?.readSharedIdentity?.() || {};
+      const username = displayNameFrom(identity)
+        || String(windowObj.localStorage?.getItem('username') || '').trim()
+        || String(windowObj.localStorage?.getItem('alias') || '').trim().split('@')[0];
+      onStatus(username ? `Account sync is ready for ${username}.` : 'Account sync is ready.');
       return true;
     } catch {
       return false;
@@ -115,6 +130,12 @@ export function createLifeUpgradeSync({ windowObj = window, onStatus = () => {} 
     },
     isReady() {
       return ready;
+    },
+    getDisplayName() {
+      const identity = windowObj.AuthIdentity?.readSharedIdentity?.() || {};
+      return displayNameFrom(identity)
+        || String(windowObj.localStorage?.getItem('username') || '').trim()
+        || String(windowObj.localStorage?.getItem('alias') || '').trim().split('@')[0];
     }
   };
 }
