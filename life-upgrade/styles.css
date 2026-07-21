@@ -61,6 +61,7 @@ h2 { margin-bottom: 8px; line-height: 1.08; letter-spacing: -.025em; }
 .game-world canvas { display: block; width: 100%; height: 100%; }
 .game-hud { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; justify-content: space-between; color: #bdf5ff; font-size: .8rem; font-weight: 850; pointer-events: none; }
 .game-hud strong { padding: 4px 8px; border-radius: 99px; background: rgba(6, 14, 26, .82); color: #fff1b4; }
+.flight-readout { color: #d9f8ff; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .game-world > p { position: absolute; top: 38px; right: 14px; max-width: 25ch; margin: 0; color: #bdf5ff; font-size: .76rem; font-weight: 750; text-align: right; pointer-events: none; }
 .flight-controls { position: absolute; right: 12px; bottom: 12px; left: 12px; display: flex; align-items: end; justify-content: center; gap: 7px; pointer-events: none; transition: opacity .2s ease; }
 .flight-controls.is-landed { opacity: .12; pointer-events: none; }
@@ -113,5 +114,5 @@ legend { margin-bottom: 1px; }
 .summary h2 { font-size: 1.35rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media (min-width: 800px) { .work-card { padding: 42px 56px; } }
-@media (max-width: 520px) { .promise { grid-template-columns: 1fr; } .promise span { grid-template-columns: auto 1fr; align-items: center; } }
+@media (max-width: 520px) { .promise { grid-template-columns: 1fr; } .promise span { grid-template-columns: auto 1fr; align-items: center; } .game-hud { gap: 6px; font-size: .72rem; } .flight-readout { font-size: .68rem; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } .game-world canvas { opacity: .85; } }

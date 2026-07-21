@@ -18,6 +18,13 @@ const KEYS = {
   Space: 'fly'
 };
 
+// One question is one half-mile flight. At 60 mph that is a 30-second run;
+// holding Fly raises the pace to 120 mph and cuts it to 15 seconds.
+const SEGMENT_MILES = 0.5;
+const SEGMENT_SCENE_LENGTH = 120;
+const CRUISE_MPH = 60;
+const BOOST_MPH = 120;
+
 function makeButtonControl(button, control, state) {
   if (!button) return () => {};
   let tapTimer;
@@ -87,7 +94,7 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
   const shell = canvas.closest('.game-world');
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x071426);
-  scene.fog = new THREE.Fog(0x071426, 22, 110);
+  scene.fog = new THREE.Fog(0x071426, 28, 150);
   const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
   camera.position.set(0, 3.4, 8);
   camera.lookAt(0, 1, -12);
@@ -128,7 +135,7 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
   const gates = [];
   for (let index = 0; index < 8; index += 1) {
     const gate = new THREE.Group();
-    gate.position.set(0, 1.1, -16 - index * 14);
+    gate.position.set(0, 1.1, -SEGMENT_SCENE_LENGTH - index * SEGMENT_SCENE_LENGTH);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.12, 10, 32), new THREE.MeshStandardMaterial({ color: 0xd6f36d, emissive: 0x415f18, emissiveIntensity: 1.2 }));
     gate.add(ring);
     const core = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffc857 }));
@@ -152,6 +159,7 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
   const landButton = shell?.querySelector('[data-game-land]');
   const questionCard = shell?.querySelector('[data-game-question]');
   const flightControls = shell?.querySelector('.flight-controls');
+  const readoutEl = shell?.querySelector('[data-game-readout]');
   // The first animation frame runs before app.js supplies the current stage
   // distance. Keep landing locked until that distance has been reached.
   if (landButton) {
@@ -169,7 +177,7 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
 
   let stageIndex = 0;
   let distance = 0;
-  let targetDistance = 3;
+  let targetDistance = SEGMENT_MILES;
   let frame = 0;
   let last = performance.now();
   let arrived = false;
@@ -184,22 +192,27 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
     frame = window.requestAnimationFrame(render);
     const delta = Math.min(0.04, (now - last) / 1000);
     last = now;
-    const speed = state.fly ? 1.7 : state.forward ? 1.2 : 0;
-    distance = Math.min(targetDistance, distance + speed * delta);
+    const mph = state.fly ? BOOST_MPH : state.forward ? CRUISE_MPH : 0;
+    const milesPerSecond = mph / 3600;
+    distance = Math.min(targetDistance, distance + milesPerSecond * delta);
     player.position.x += ((state.right ? 1 : 0) - (state.left ? 1 : 0)) * delta * 3;
     player.position.x = THREE.MathUtils.clamp(player.position.x, -2.3, 2.3);
     player.position.y += ((state.fly ? 1 : 0) - (state.forward && !state.fly ? 0.35 : 0)) * delta * 2;
     player.position.y = THREE.MathUtils.clamp(player.position.y, -0.5, 2.8);
     player.rotation.z = -player.position.x * 0.12;
     flame.visible = state.fly;
-    world.position.z = distance;
+    // Keep the active gate one full, visible flight away. The previous
+    // implementation moved the world only 3–12 units, so it felt like a hop.
+    const sceneProgress = (distance / targetDistance) * SEGMENT_SCENE_LENGTH;
+    world.position.z = stageIndex * SEGMENT_SCENE_LENGTH + sceneProgress;
     player.position.z = 3;
     const gate = gates[stageIndex];
     if (gate) gate.rotation.z += delta * 0.6;
     camera.position.x += (player.position.x * 0.22 - camera.position.x) * 0.08;
     camera.position.y += (player.position.y + 2.8 - camera.position.y) * 0.08;
-    camera.lookAt(camera.position.x * 0.45, 1.1, -12 + distance * 0.03);
+    camera.lookAt(camera.position.x * 0.45, 1.1, -18 + sceneProgress * 0.08);
     const ready = distance >= targetDistance - 0.02;
+    if (readoutEl) readoutEl.textContent = `${distance.toFixed(2)} / ${targetDistance.toFixed(2)} mi · ${mph || CRUISE_MPH} mph`;
     if (ready && !arrived) {
       arrived = true;
       if (landButton) { landButton.disabled = false; landButton.textContent = 'Land to answer'; }
@@ -220,12 +233,16 @@ export function createGame(canvas, { onLand = () => {} } = {}) {
         flightControls?.classList.remove('is-landed');
         if (landButton) { landButton.disabled = true; landButton.textContent = 'Fly to answer'; }
       }
-      targetDistance = Math.max(2.5, Math.min(12, 3 + nextStage * 1.1 + completedActions * 0.5 + (hasResult ? 0.8 : 0)));
+      targetDistance = SEGMENT_MILES;
       const level = Math.max(1, Math.ceil((nextStage + completedActions + (hasResult ? 1 : 0)) / 2));
       const levelEl = shell?.querySelector('[data-game-level]');
       const messageEl = shell?.querySelector('[data-game-message]');
       if (levelEl) levelEl.textContent = `Level ${level}`;
       if (messageEl) messageEl.textContent = STAGE_MESSAGES[Math.min(nextStage, STAGE_MESSAGES.length - 1)];
+      if (readoutEl) {
+        const mph = state.fly ? BOOST_MPH : state.forward ? CRUISE_MPH : 0;
+        readoutEl.textContent = `${distance.toFixed(2)} / ${targetDistance.toFixed(2)} mi · ${mph || CRUISE_MPH} mph`;
+      }
       const promptEl = shell?.querySelector('[data-game-question-prompt]');
       const supportEl = shell?.querySelector('[data-game-question-support]');
       const stateEl = shell?.querySelector('[data-game-question-state]');
