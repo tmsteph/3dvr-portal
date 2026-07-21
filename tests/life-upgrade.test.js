@@ -131,7 +131,7 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(app, /sync\.save/);
   assert.match(app, /getDisplayName/);
   assert.match(game, /GATE \$\{index \+ 1\}/);
-  assert.match(game, /SEGMENT_SCENE_LENGTH = 120/);
+  assert.match(game, /SEGMENT_SCENE_LENGTH = 220/);
   assert.doesNotMatch(game, /gate\.rotation\.z \+=/);
   assert.doesNotMatch(app, /\?\.[^;\n]+\.textContent\s*=/);
 });
