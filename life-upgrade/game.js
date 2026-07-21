@@ -20,8 +20,12 @@ const KEYS = {
 
 function makeButtonControl(button, control, state) {
   if (!button) return () => {};
+  let tapTimer;
+  let releaseTimer;
   const on = (event) => {
     event.preventDefault();
+    window.clearTimeout(tapTimer);
+    window.clearTimeout(releaseTimer);
     state[control] = true;
     button.classList.add('is-held');
     try {
@@ -32,6 +36,8 @@ function makeButtonControl(button, control, state) {
   };
   const off = (event) => {
     event.preventDefault();
+    window.clearTimeout(tapTimer);
+    window.clearTimeout(releaseTimer);
     state[control] = false;
     button.classList.remove('is-held');
   };
@@ -39,9 +45,16 @@ function makeButtonControl(button, control, state) {
     // Some mobile browsers and automation drivers report a tap as a
     // detail-0 click. Treat every click as a short press so keyboard, touch,
     // and pointer activation all use the same movement path.
-    state[control] = true;
-    button.classList.add('is-held');
-    window.setTimeout(() => {
+    window.clearTimeout(tapTimer);
+    window.clearTimeout(releaseTimer);
+    // A few mobile/WebKit and automation pointer sequences deliver
+    // lostpointercapture after click. Activate on the next task so that late
+    // pointer cleanup cannot cancel a legitimate tap.
+    tapTimer = window.setTimeout(() => {
+      state[control] = true;
+      button.classList.add('is-held');
+    }, 0);
+    releaseTimer = window.setTimeout(() => {
       state[control] = false;
       button.classList.remove('is-held');
     }, control === 'fly' ? 550 : 1000);
@@ -57,6 +70,8 @@ function makeButtonControl(button, control, state) {
     button.removeEventListener('pointercancel', off);
     button.removeEventListener('lostpointercapture', off);
     button.removeEventListener('click', tap);
+    window.clearTimeout(tapTimer);
+    window.clearTimeout(releaseTimer);
   };
 }
 
