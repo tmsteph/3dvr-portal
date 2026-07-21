@@ -25,6 +25,8 @@ const KEYS = {
 // the same quarter-mile flight.
 const SEGMENT_MILES = 0.25;
 const SEGMENT_SCENE_LENGTH = 220;
+const PLAYER_SCENE_Z = 3;
+const GATE_ARRIVAL_RADIUS = 1.6;
 const CRUISE_MPH = 120;
 const BOOST_MPH = 240;
 
@@ -184,7 +186,10 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
   const gates = [];
   for (let index = 0; index < 8; index += 1) {
     const gate = new THREE.Group();
-    gate.position.set(0, 1.1, -SEGMENT_SCENE_LENGTH - index * SEGMENT_SCENE_LENGTH);
+    // Place the gate so its center reaches the player's actual z position at
+    // the end of the rendered lane, rather than opening the question from a
+    // separate timer before the landmark arrives.
+    gate.position.set(0, 1.1, PLAYER_SCENE_Z - SEGMENT_SCENE_LENGTH - index * SEGMENT_SCENE_LENGTH);
     const isFirst = index === 0;
     const isFinish = index === 7;
     const ringColor = isFinish ? 0xffb84d : isFirst ? 0x64f6ff : 0xd6f36d;
@@ -245,6 +250,7 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
   let frame = 0;
   let last = performance.now();
   let arrived = false;
+  const gateWorldPosition = new THREE.Vector3();
   const resize = () => {
     const rect = canvas.getBoundingClientRect();
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
@@ -269,13 +275,16 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
     // the fog and reaches the player's z position at the end of the lane.
     const sceneProgress = (distance / targetDistance) * SEGMENT_SCENE_LENGTH;
     world.position.z = stageIndex * SEGMENT_SCENE_LENGTH + sceneProgress;
-    player.position.z = 3;
+    player.position.z = PLAYER_SCENE_Z;
     // The gate signs stay upright and still. The flight should carry the
     // player to a clear landmark, not make the landmark spin past them.
     camera.position.x += (player.position.x * 0.22 - camera.position.x) * 0.08;
     camera.position.y += (player.position.y + 2.8 - camera.position.y) * 0.08;
     camera.lookAt(camera.position.x * 0.45, 1.1, -18 + sceneProgress * 0.08);
-    const ready = distance >= targetDistance - 0.02;
+    const activeGate = gates[stageIndex];
+    activeGate?.getWorldPosition(gateWorldPosition);
+    const gateDistance = activeGate ? player.position.distanceTo(gateWorldPosition) : Infinity;
+    const ready = gateDistance <= GATE_ARRIVAL_RADIUS;
     if (readoutEl) readoutEl.textContent = `${distance.toFixed(2)} / ${targetDistance.toFixed(2)} mi · ${mph || CRUISE_MPH} mph`;
     if (ready && !arrived) {
       arrived = true;
