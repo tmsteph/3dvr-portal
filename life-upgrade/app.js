@@ -248,7 +248,7 @@ root?.addEventListener('click', (event) => {
     showFinishPanel(false);
     game?.replay();
     render();
-    setStatus('New goal ready. Fly to the first gate.');
+    setStatus('New gate ready. Fly to the first gate.');
     return;
   }
 

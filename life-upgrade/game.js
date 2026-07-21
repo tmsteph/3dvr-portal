@@ -20,10 +20,10 @@ const KEYS = {
 
 // One question is one quarter-mile flight. At 120 mph that is a 7.5-second
 // run; holding Fly raises the pace to 240 mph and cuts it to 3.75 seconds.
-// Keep the visual lane compact enough that the goal ring is already visible
-// when a new flight begins, while the HUD still represents the full distance.
+// Keep the visual lane long enough that the player visibly flies to the gate
+// instead of passing it early, while the HUD still represents the full distance.
 const SEGMENT_MILES = 0.25;
-const SEGMENT_SCENE_LENGTH = 52;
+const SEGMENT_SCENE_LENGTH = 120;
 const CRUISE_MPH = 120;
 const BOOST_MPH = 240;
 
@@ -121,8 +121,8 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
   const shell = canvas.closest('.game-world');
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x071426);
-  scene.fog = new THREE.Fog(0x071426, 28, 150);
-  const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
+  scene.fog = new THREE.Fog(0x071426, 42, 260);
+  const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 280);
   camera.position.set(0, 3.4, 8);
   camera.lookAt(0, 1, -12);
   scene.add(new THREE.HemisphereLight(0x9be8ff, 0x101c37, 2.2));
@@ -195,7 +195,7 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
     gate.add(ring);
     const core = new THREE.Mesh(new THREE.SphereGeometry(isFinish ? 0.34 : 0.26, 12, 8), new THREE.MeshBasicMaterial({ color: isFinish ? 0xffe08a : 0xffc857 }));
     gate.add(core);
-    gate.add(makeWorldLabel(isFinish ? 'FINISH' : `GOAL ${index + 1}`, { color: isFinish ? '#ffb84d' : isFirst ? '#64f6ff' : '#d6f36d' }));
+    gate.add(makeWorldLabel(isFinish ? 'FINISH' : `GATE ${index + 1}`, { color: isFinish ? '#ffb84d' : isFirst ? '#64f6ff' : '#d6f36d' }));
     world.add(gate);
     gates.push(gate);
   }
@@ -269,8 +269,8 @@ export function createGame(canvas, { onArrive = () => {}, onReplay = () => {} } 
     const sceneProgress = (distance / targetDistance) * SEGMENT_SCENE_LENGTH;
     world.position.z = stageIndex * SEGMENT_SCENE_LENGTH + sceneProgress;
     player.position.z = 3;
-    const gate = gates[stageIndex];
-    if (gate) gate.rotation.z += delta * 0.6;
+    // The gate signs stay upright and still. The flight should carry the
+    // player to a clear landmark, not make the landmark spin past them.
     camera.position.x += (player.position.x * 0.22 - camera.position.x) * 0.08;
     camera.position.y += (player.position.y + 2.8 - camera.position.y) * 0.08;
     camera.lookAt(camera.position.x * 0.45, 1.1, -18 + sceneProgress * 0.08);

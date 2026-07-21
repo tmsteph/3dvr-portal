@@ -87,6 +87,7 @@ test('storage failures do not throw and progress detection supports confirmed re
 test('page is offline-capable, safely rendered, and has the confirmed delete action', async () => {
   const html = await read('life-upgrade/index.html');
   const app = await read('life-upgrade/app.js');
+  const game = await read('life-upgrade/game.js');
   assert.equal(STAGES.length, 8);
   assert.match(html, /Private on this device/);
   assert.match(html, /One small win/);
@@ -129,6 +130,9 @@ test('page is offline-capable, safely rendered, and has the confirmed delete act
   assert.match(app, /Congratulations/);
   assert.match(app, /sync\.save/);
   assert.match(app, /getDisplayName/);
+  assert.match(game, /GATE \$\{index \+ 1\}/);
+  assert.match(game, /SEGMENT_SCENE_LENGTH = 120/);
+  assert.doesNotMatch(game, /gate\.rotation\.z \+=/);
   assert.doesNotMatch(app, /\?\.[^;\n]+\.textContent\s*=/);
 });
 
