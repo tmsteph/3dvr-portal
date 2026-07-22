@@ -23,6 +23,7 @@ let longitude = null;
 let weather = null;
 let sunriseMinutes = 360;
 let sunsetMinutes = 1260;
+let biome = 'Temperate woodland';
 
 const pad = n => String(n).padStart(2, '0');
 const clock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), min = m % 60; return `${pad((h % 12) || 12)}:${pad(min)} ${h < 12 ? 'AM' : 'PM'}`; };
@@ -43,6 +44,25 @@ const seasonProfile = season => ({
 }[season] || { forest: '#24483d', trees: '#17352f', accent: '#b2d98e' });
 const weatherLabel = code => code == null ? 'weather off' : code === 0 ? 'clear' : code <= 3 ? 'partly cloudy' : code <= 48 ? 'misty' : code <= 67 ? 'rain nearby' : code <= 77 ? 'snow nearby' : code <= 82 ? 'showers nearby' : 'stormy';
 const isRainy = code => code >= 51 && code <= 82;
+const biomeProfile = name => ({
+  'Tropical forest': { forest: '#1d5948', trees: '#123c32', accent: '#8bd39c', animal: 'monkey' },
+  'Desert': { forest: '#806246', trees: '#584838', accent: '#edc77e', animal: 'fox' },
+  'Grassland': { forest: '#46613b', trees: '#304b32', accent: '#d6c879', animal: 'rabbit' },
+  'Boreal forest': { forest: '#34484a', trees: '#263639', accent: '#c7d8d5', animal: 'deer' },
+  'Tundra': { forest: '#506771', trees: '#354a52', accent: '#d5e8e7', animal: 'fox' },
+}[name] || { forest: '#285446', trees: '#1f4036', accent: '#9ccf91', animal: 'deer' });
+const biomeFor = (lat, currentWeather = weather) => {
+  if (lat == null) return 'Temperate woodland';
+  const absLat = Math.abs(lat);
+  const temp = Number(currentWeather?.temperature);
+  const cloud = Number(currentWeather?.cloud);
+  if (absLat >= 66) return 'Tundra';
+  if (absLat < 23.5 && (Number.isNaN(temp) || temp >= 68)) return 'Tropical forest';
+  if (absLat >= 42 && !Number.isNaN(temp) && temp < 52) return 'Boreal forest';
+  if (absLat >= 15 && absLat <= 38 && !Number.isNaN(temp) && temp >= 68 && (Number.isNaN(cloud) || cloud < 35)) return 'Desert';
+  if (absLat >= 20 && absLat <= 55 && (currentWeather?.code == null || !isRainy(currentWeather.code))) return 'Grassland';
+  return 'Temperate woodland';
+};
 const phase = m => {
   if (m < sunriseMinutes - 30 || m >= sunsetMinutes + 60) return ['Night sky', 'Rest your eyes in the dark.'];
   if (m < sunriseMinutes + 60) return ['First light', 'The day is arriving slowly.'];
@@ -64,6 +84,33 @@ function twilightWarmth(m) {
   const sunset = clamp(1 - Math.abs(m - (sunsetMinutes - 35)) / 165);
   return Math.max(sunrise, sunset);
 }
+function drawAnimal(x, y, scale, type, motion) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.fillStyle = '#17251f'; ctx.strokeStyle = '#17251f'; ctx.lineWidth = 2;
+  const bob = Math.sin(motion * 2.2) * 1.5;
+  if (type === 'deer') {
+    ctx.beginPath(); ctx.ellipse(0, bob, 25, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(17, -5 + bob); ctx.lineTo(28, -19 + bob); ctx.lineTo(38, -21 + bob); ctx.lineTo(42, -13 + bob); ctx.lineTo(29, -8 + bob); ctx.fill();
+    for (const leg of [-14, -3, 10, 18]) { ctx.beginPath(); ctx.moveTo(leg, 7 + bob); ctx.lineTo(leg - 2, 28); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(34, -18 + bob); ctx.lineTo(30, -31 + bob); ctx.moveTo(35, -19 + bob); ctx.lineTo(40, -31 + bob); ctx.stroke();
+  } else if (type === 'rabbit') {
+    ctx.beginPath(); ctx.ellipse(0, 4 + bob, 18, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(17, -4 + bob, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(14, -20 + bob, 4, 13, -.15, 0, Math.PI * 2); ctx.ellipse(22, -20 + bob, 4, 13, .15, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-17, 1 + bob, 6, 0, Math.PI * 2); ctx.fill();
+  } else if (type === 'fox') {
+    ctx.beginPath(); ctx.ellipse(0, 3 + bob, 25, 10, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(20, 0 + bob); ctx.lineTo(37, -10 + bob); ctx.lineTo(32, 3 + bob); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-19, 0 + bob); ctx.quadraticCurveTo(-43, -17 + bob, -40, 11 + bob); ctx.quadraticCurveTo(-28, 4 + bob, -19, 7 + bob); ctx.fill();
+    for (const leg of [-13, 5, 14]) { ctx.beginPath(); ctx.moveTo(leg, 9 + bob); ctx.lineTo(leg - 2, 25); ctx.stroke(); }
+  } else if (type === 'monkey') {
+    ctx.beginPath(); ctx.ellipse(0, 2 + bob, 14, 18, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(16, -12 + bob, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(17, -13 + bob, 4, 0, Math.PI * 2); ctx.fill(); ctx.moveTo(-10, -6 + bob); ctx.quadraticCurveTo(-35, -25 + bob, -27, -43 + bob); ctx.stroke();
+    for (const arm of [-9, 9]) { ctx.beginPath(); ctx.moveTo(arm, -1 + bob); ctx.lineTo(arm + (arm < 0 ? -10 : 10), 18); ctx.stroke(); }
+  } else {
+    ctx.beginPath(); ctx.arc(0, 1 + bob, 13, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(17, -8 + bob, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(14, -18 + bob, 5, 0, Math.PI * 2); ctx.arc(23, -18 + bob, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-10, -5 + bob); ctx.quadraticCurveTo(-35, -28 + bob, -30, 5 + bob); ctx.stroke();
+  }
+  ctx.restore();
+}
 function drawWildlife(w, h, day, motion, season) {
   const profile = seasonProfile(season);
   if (day > .12) {
@@ -83,11 +130,18 @@ function drawWildlife(w, h, day, motion, season) {
       ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fill();
     }
   }
+  if (day > .08 && day < .9) {
+    const animalProfile = biomeProfile(biome);
+    const x = ((motion * 3.5 + 170) % (w + 240)) - 120;
+    const y = h * .78;
+    ctx.globalAlpha = .72;
+    drawAnimal(x, y, Math.max(.55, Math.min(1, w / 900)), animalProfile.animal, motion);
+  }
   ctx.globalAlpha = 1;
 }
 function paint(m) {
   const w = canvas.clientWidth, h = canvas.clientHeight, day = daylight(m), warmth = twilightWarmth(m), season = seasonFor();
-  const profile = seasonProfile(season), topHue = 205 - day * 18 + (18 - (205 - day * 18)) * warmth, bottomHue = 195 - day * 18 + (10 - (195 - day * 18)) * warmth;
+  const profile = biomeProfile(biome), topHue = 205 - day * 18 + (18 - (205 - day * 18)) * warmth, bottomHue = 195 - day * 18 + (10 - (195 - day * 18)) * warmth;
   const top = `hsl(${topHue} ${40 + day * 25 + warmth * 28}% ${18 + day * 55 - warmth * 5}%)`, bottom = `hsl(${bottomHue} ${30 + day * 38 + warmth * 32}% ${18 + day * 48 - warmth * 4}%)`;
   const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, top); g.addColorStop(1, bottom); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   if (warmth > 0) { const glow = ctx.createRadialGradient(w * .52, h * .76, 0, w * .52, h * .76, h * .72); glow.addColorStop(0, `rgba(255, 105, 48, ${warmth * .34})`); glow.addColorStop(1, 'rgba(255, 105, 48, 0)'); ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h); }
@@ -104,7 +158,7 @@ function paint(m) {
 function update(m) {
   customMinutes = m; slider.value = m; sliderTime.textContent = clock(m);
   const [mood, copy] = phase(m), season = seasonFor(); sceneMood.textContent = mood; daylightStatus.textContent = m < sunriseMinutes || m > sunsetMinutes ? 'The stars are out' : `${Math.round(daylight(m) * 100)}% daylight`; daylightCopy.textContent = copy;
-  sceneDetails.textContent = `${season} · ${weather ? `${weatherLabel(weather.code)} · ${Math.round(weather.temperature)}°F` : 'weather off'}`;
+  sceneDetails.textContent = `${season} · ${biome}${weather ? ` · ${weatherLabel(weather.code)} · ${Math.round(weather.temperature)}°F` : ' · region adapts when location is on'}`;
   const span = Math.max(1, sunsetMinutes - sunriseMinutes), angle = (m - sunriseMinutes) / span * Math.PI, x = 50 + Math.cos(angle) * 42, y = 51 - Math.sin(angle) * 40;
   sun.style.left = `${x}%`; sun.style.top = `${y}%`; sun.style.opacity = m >= sunriseMinutes - 30 && m <= sunsetMinutes + 30 ? '1' : '0'; moon.style.left = `${50 + Math.cos(angle + Math.PI) * 42}%`; moon.style.top = `${51 - Math.sin(angle + Math.PI) * 40}%`; moon.style.opacity = m < sunriseMinutes || m > sunsetMinutes ? '1' : '0'; paint(m);
 }
@@ -116,7 +170,7 @@ async function useLocalWeather() {
       latitude = coords.latitude; longitude = coords.longitude;
       const query = new URLSearchParams({ latitude, longitude, current: 'temperature_2m,weather_code,wind_speed_10m,cloud_cover', daily: 'sunrise,sunset', timezone: 'auto', temperature_unit: 'fahrenheit', wind_speed_unit: 'mph' });
       const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`); if (!response.ok) throw new Error('weather request failed');
-      const data = await response.json(); weather = { code: data.current?.weather_code, temperature: data.current?.temperature_2m, wind: data.current?.wind_speed_10m, cloud: data.current?.cloud_cover };
+      const data = await response.json(); weather = { code: data.current?.weather_code, temperature: data.current?.temperature_2m, wind: data.current?.wind_speed_10m, cloud: data.current?.cloud_cover }; biome = biomeFor(latitude, weather);
       sunriseMinutes = minutesFromIso(data.daily?.sunrise?.[0]) ?? sunriseMinutes; sunsetMinutes = minutesFromIso(data.daily?.sunset?.[0]) ?? sunsetMinutes;
       sceneLocation.textContent = `Local sky · ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`; locationButton.textContent = 'Local weather on'; locationButton.disabled = false; update(customMinutes);
     } catch { sceneDetails.textContent = 'Weather unavailable · seasonal sky continues'; locationButton.textContent = 'Try local weather again'; locationButton.disabled = false; }
