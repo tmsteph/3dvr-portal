@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Danny's pocket dictionary: definitions, examples, synonyms, and word origins.">
+  <title>Danny's Dictionary</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page-shell">
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="Danny's Dictionary home"><span class="brand-mark">D</span><span><strong>Danny's Dictionary</strong><small>Words worth looking up.</small></span></a>
+      <span class="made-for">Made for Danny · Encore</span>
+    </header>
+
+    <section class="hero" aria-labelledby="page-title">
+      <p class="kicker">A little more than a definition</p>
+      <h1 id="page-title">Find the word<br><em>behind the word.</em></h1>
+      <p class="intro">Look up a word and get the meaning, a real-world example, close companions, and where it came from.</p>
+      <form id="searchForm" class="search-bar" role="search">
+        <label class="sr-only" for="wordInput">Word to look up</label>
+        <input id="wordInput" name="word" type="search" placeholder="Try “resilient”" autocomplete="off" spellcheck="false" required>
+        <button type="submit">Look it up <span aria-hidden="true">→</span></button>
+      </form>
+      <div class="quick-words" aria-label="Try a word"><span>Try one:</span><button type="button" data-word="craft">craft</button><button type="button" data-word="curious">curious</button><button type="button" data-word="resilient">resilient</button><button type="button" data-word="sonder">sonder</button></div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="result" class="result" aria-live="polite" hidden>
+      <div class="word-heading"><div><p id="partOfSpeech" class="kicker">Word</p><h2 id="wordTitle">—</h2><p id="phonetic" class="phonetic"></p></div><button id="soundButton" class="sound-button" type="button" aria-label="Play pronunciation" hidden>◖◗</button></div>
+      <div class="result-grid">
+        <article class="card definition-card"><div class="card-label"><span>01</span> Meaning</div><div id="definitions"></div></article>
+        <article class="card example-card"><div class="card-label"><span>02</span> In the wild</div><p id="example">—</p></article>
+        <article class="card"><div class="card-label"><span>03</span> Close companions</div><div id="synonyms" class="chips"></div></article>
+        <article class="card origin-card"><div class="card-label"><span>04</span> Word origin</div><p id="etymology">Looking into its history…</p><a id="originSource" href="#" target="_blank" rel="noreferrer">Read the source ↗</a></article>
+      </div>
+      <footer class="sources">Definitions and examples via <a href="https://dictionaryapi.dev/" target="_blank" rel="noreferrer">Free Dictionary API</a>. Word history via <a href="https://www.wiktionary.org/" target="_blank" rel="noreferrer">Wiktionary</a>.</footer>
+    </section>
+    <footer class="page-footer"><a href="https://portal.3dvr.tech/">3DVR Portal</a><span>Keep learning. Keep making.</span></footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
