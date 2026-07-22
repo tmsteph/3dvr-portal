@@ -38,6 +38,16 @@ async function fetchWiktionaryEntry(word) {
   if (!response.ok) throw new Error('Wiktionary unavailable');
   return (await response.json()).parse?.wikitext?.['*'] || '';
 }
+async function fetchWiktionaryDefinitions(word) {
+  const response = await fetch(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`);
+  if (!response.ok) throw new Error('Wiktionary definitions unavailable');
+  return await response.json();
+}
+async function fetchWiktionaryHtml(word) {
+  const response = await fetch(`https://en.wiktionary.org/api/rest_v1/page/html/${encodeURIComponent(word)}`);
+  if (!response.ok) throw new Error('Wiktionary page unavailable');
+  return await response.text();
+}
 function etymologySection(text) {
   return String(text || '').match(/(?:^|\n)===\s*Etymology(?:\s+\d+)?\s*===\s*\n([\s\S]*?)(?=\n===|\n==|$)/i)?.[1] || '';
 }
@@ -48,12 +58,31 @@ function wiktionaryExample(text) {
   const bullet = raw.split('\n').find(line => /^#\*\s*/.test(line) && !line.includes('{{quote-book'));
   return stripWiki(passage || usage || bullet?.replace(/^#\*\s*/, '') || '');
 }
-async function fetchEtymology(word, wikitext) {
+function structuredExamples(data) {
+  return unique((data?.en || [])
+    .filter(entry => entry.language === 'English')
+    .flatMap(entry => entry.definitions || [])
+    .flatMap(definition => definition.examples || definition.parsedExamples?.map(item => item.example) || [])
+    .map(example => String(example).replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"')));
+}
+function renderedEtymology(html) {
+  if (!html || typeof DOMParser === 'undefined') return '';
+  const document = new DOMParser().parseFromString(html, 'text/html');
+  const heading = [...document.querySelectorAll('h2, h3, h4')].find(node => /^etymology(?:\s+\d+)?$/i.test(node.textContent.trim()));
+  if (!heading) return '';
+  const parts = [];
+  for (let node = heading.nextElementSibling; node && !/^h[1-4]$/i.test(node.tagName); node = node.nextElementSibling) {
+    const value = node.textContent.replace(/\s+/g, ' ').trim();
+    if (value) parts.push(value);
+  }
+  return parts.join(' ');
+}
+async function fetchEtymology(word, wikitext, pageHtml = '') {
   els.etymology.textContent = 'Looking into its history…';
   els.originSource.href = `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`;
   try {
-    const text = wikitext || await fetchWiktionaryEntry(word);
-    const section = etymologySection(text);
+    const text = wikitext || (pageHtml ? '' : await fetchWiktionaryEntry(word));
+    const section = renderedEtymology(pageHtml) || etymologySection(text);
     els.etymology.textContent = section ? stripWiki(section) : 'The available entry does not include an etymology yet.';
   } catch { els.etymology.textContent = 'Word history is taking the scenic route. Open the source to explore it.'; }
 }
@@ -71,11 +100,13 @@ async function lookup(value) {
     const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
     if (!response.ok) throw new Error('not found');
     const data = await response.json();
-    const meanings = data.flatMap(entry => entry.meanings || []);
-    const apiSynonyms = unique(meanings.flatMap(meaning => [...(meaning.synonyms || []), ...(meaning.definitions || []).flatMap(definition => definition.synonyms || [])]));
-    const wikitext = await fetchWiktionaryEntry(word).catch(() => '');
-    const extras = { synonyms: apiSynonyms.length ? [] : await fetchSynonyms(word), example: wiktionaryExample(wikitext) };
-    els.title.textContent = data[0]?.word || word; showDefinitions(data, extras); els.result.hidden = false; els.status.textContent = ''; fetchEtymology(word, wikitext);
+    const [wiktionary, pageHtml, relatedWords] = await Promise.all([
+      fetchWiktionaryDefinitions(word).catch(() => null),
+      fetchWiktionaryHtml(word).catch(() => ''),
+      fetchSynonyms(word)
+    ]);
+    const extras = { synonyms: relatedWords, example: structuredExamples(wiktionary)[0] || wiktionaryExample(wiktionary?.en?.map(entry => entry.definitions?.map(definition => definition.examples || []).flat()).flat().join('\n')) };
+    els.title.textContent = data[0]?.word || word; showDefinitions(data, extras); els.result.hidden = false; els.status.textContent = ''; fetchEtymology(word, '', pageHtml);
     history.replaceState(null, '', `?word=${encodeURIComponent(word)}`);
   } catch { els.status.textContent = `No entry found for “${word}”. Try another word.`; }
 }
