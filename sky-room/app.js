@@ -212,7 +212,10 @@ function drawMoon(m, date) {
   const y = 51 - Math.sin((m - sunriseMinutes) / Math.max(1, sunsetMinutes - sunriseMinutes) * Math.PI + Math.PI) * 40;
   moon.textContent = illumination < .08 ? '○' : illumination > .92 ? '●' : illumination < .5 ? '◐' : '◑';
   moon.title = `${moonPhaseLabel(age)} · ${Math.round(illumination * 100)}% illuminated`;
-  moon.setAttribute('aria-label', moon.title); moon.style.left = `${x}%`; moon.style.top = `${y}%`; moon.style.opacity = '1';
+  moon.setAttribute('aria-label', moon.title); moon.style.left = `${x}%`; moon.style.top = `${y}%`;
+  // Keep the phase indicator from reading as a stray half-filled circle in bright daylight.
+  const daylightVisibility = daylight(m);
+  moon.style.opacity = illumination < .04 || daylightVisibility > .42 ? '0' : String(clamp((1 - daylightVisibility) * 1.1));
 }
 function paint(m) {
   const w = canvas.clientWidth, h = canvas.clientHeight, day = daylight(m), warmth = twilightWarmth(m), season = seasonFor(), date = dateForMinutes(m);
