@@ -3,143 +3,126 @@ const ctx = canvas.getContext('2d');
 const slider = document.querySelector('#timeSlider');
 const sliderTime = document.querySelector('#sliderTime');
 const sceneMood = document.querySelector('#sceneMood');
+const sceneLocation = document.querySelector('#sceneLocation');
+const sceneDetails = document.querySelector('#sceneDetails');
 const daylightStatus = document.querySelector('#daylightStatus');
 const daylightCopy = document.querySelector('#daylightCopy');
 const sun = document.querySelector('#sun');
 const moon = document.querySelector('#moon');
 const sceneCard = document.querySelector('.scene-card');
 const fullscreenButton = document.querySelector('#fullscreenButton');
+const locationButton = document.querySelector('#locationButton');
 const ambientModes = [['Still air', 'A quiet sky for focused work.'], ['Soft breeze', 'A little movement to loosen the room.'], ['Night watch', 'Dim the room and let your attention settle.']];
-const stars = Array.from({ length: 80 }, (_, i) => ({
-  x: (i * 97) % 1000 / 1000,
-  y: (i * 53) % 550 / 550,
-  radius: 0.3 + ((i * 17) % 11) / 10,
-}));
+const stars = Array.from({ length: 80 }, (_, i) => ({ x: (i * 97) % 1000 / 1000, y: (i * 53) % 550 / 550, radius: 0.3 + ((i * 17) % 11) / 10 }));
 let mode = 0;
 let live = true;
 let customMinutes = 0;
 let resetTimer;
+let latitude = null;
+let longitude = null;
+let weather = null;
+let sunriseMinutes = 360;
+let sunsetMinutes = 1260;
 
 const pad = n => String(n).padStart(2, '0');
-const clock = m => {
-  m = ((m % 1440) + 1440) % 1440;
-  const h = Math.floor(m / 60), min = m % 60;
-  return `${pad((h % 12) || 12)}:${pad(min)} ${h < 12 ? 'AM' : 'PM'}`;
+const clock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), min = m % 60; return `${pad((h % 12) || 12)}:${pad(min)} ${h < 12 ? 'AM' : 'PM'}`; };
+const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
+const minutesFromIso = iso => { const match = String(iso).match(/T(\d\d):(\d\d)/); return match ? Number(match[1]) * 60 + Number(match[2]) : null; };
+const seasonFor = (date = new Date(), lat = latitude) => {
+  const month = date.getMonth();
+  const northern = lat == null || lat >= 0;
+  const north = month <= 1 || month === 11 ? 'Winter' : month <= 4 ? 'Spring' : month <= 7 ? 'Summer' : month <= 10 ? 'Autumn' : 'Winter';
+  const south = month <= 1 || month === 11 ? 'Summer' : month <= 4 ? 'Autumn' : month <= 7 ? 'Winter' : 'Spring';
+  return northern ? north : south;
 };
+const seasonProfile = season => ({
+  Spring: { forest: '#285446', trees: '#1f4036', accent: '#9ccf91' },
+  Summer: { forest: '#24483d', trees: '#17352f', accent: '#b2d98e' },
+  Autumn: { forest: '#4b4031', trees: '#302b25', accent: '#d8955f' },
+  Winter: { forest: '#34484a', trees: '#263639', accent: '#c7d8d5' },
+}[season] || { forest: '#24483d', trees: '#17352f', accent: '#b2d98e' });
+const weatherLabel = code => code == null ? 'weather off' : code === 0 ? 'clear' : code <= 3 ? 'partly cloudy' : code <= 48 ? 'misty' : code <= 67 ? 'rain nearby' : code <= 77 ? 'snow nearby' : code <= 82 ? 'showers nearby' : 'stormy';
+const isRainy = code => code >= 51 && code <= 82;
 const phase = m => {
-  if (m < 330 || m >= 1260) return ['Night sky', 'Rest your eyes in the dark.'];
-  if (m < 420) return ['First light', 'The day is arriving slowly.'];
-  if (m < 630) return ['Morning', 'A clean beginning, even indoors.'];
-  if (m < 930) return ['High daylight', 'Open, bright, and wide.'];
-  if (m < 1110) return ['Golden hour', 'Warm light for the last stretch.'];
+  if (m < sunriseMinutes - 30 || m >= sunsetMinutes + 60) return ['Night sky', 'Rest your eyes in the dark.'];
+  if (m < sunriseMinutes + 60) return ['First light', 'The day is arriving slowly.'];
+  if (m < sunriseMinutes + 270) return ['Morning', 'A clean beginning, even indoors.'];
+  if (m < sunsetMinutes - 150) return ['High daylight', 'Open, bright, and wide.'];
+  if (m < sunsetMinutes - 30) return ['Golden hour', 'Warm light for the last stretch.'];
   return ['Blue hour', 'The world is turning quiet.'];
 };
 function resize() {
   const d = devicePixelRatio || 1, r = canvas.getBoundingClientRect();
-  canvas.width = r.width * d;
-  canvas.height = r.height * d;
-  ctx.setTransform(d, 0, 0, d, 0, 0);
-}
-function paint(m) {
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  const day = daylight(m);
-  const warmth = twilightWarmth(m);
-  const topHue = 205 - day * 18 + (18 - (205 - day * 18)) * warmth;
-  const bottomHue = 195 - day * 18 + (10 - (195 - day * 18)) * warmth;
-  const top = `hsl(${topHue} ${40 + day * 25 + warmth * 28}% ${18 + day * 55 - warmth * 5}%)`;
-  const bottom = `hsl(${bottomHue} ${30 + day * 38 + warmth * 32}% ${18 + day * 48 - warmth * 4}%)`;
-  const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, top);
-  g.addColorStop(1, bottom);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-
-  // A low, warm horizon glow gives both ends of the day their red shift.
-  if (warmth > 0) {
-    const glow = ctx.createRadialGradient(w * .52, h * .76, 0, w * .52, h * .76, h * .72);
-    glow.addColorStop(0, `rgba(255, 105, 48, ${warmth * .34})`);
-    glow.addColorStop(1, 'rgba(255, 105, 48, 0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  // Stars belong to the dark sky: they fade out continuously as daylight rises.
-  const starAlpha = Math.pow(1 - day, 1.7) * 0.78;
-  ctx.globalAlpha = starAlpha;
-  ctx.fillStyle = '#fff';
-  for (const star of stars) {
-    ctx.beginPath();
-    ctx.arc(star.x * w, star.y * h * 0.55, star.radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  const horizon = h * .77;
-  ctx.fillStyle = day > .1 ? '#24483d' : '#101d2b';
-  ctx.beginPath();
-  ctx.moveTo(0, horizon);
-  for (let x = 0; x <= w; x += 40) ctx.lineTo(x, horizon - 20 - Math.sin(x / 95) * 20 - (x % 120));
-  ctx.lineTo(w, h);
-  ctx.lineTo(0, h);
-  ctx.fill();
-  ctx.fillStyle = day > .1 ? '#17352f' : '#0c1821';
-  for (let x = -20; x < w + 40; x += 55) {
-    const ht = 28 + (x * 13 % 65);
-    ctx.beginPath();
-    ctx.moveTo(x, horizon + 22);
-    ctx.lineTo(x + 22, horizon - ht);
-    ctx.lineTo(x + 44, horizon + 22);
-    ctx.fill();
-  }
-  ctx.globalAlpha = .22;
-  ctx.fillStyle = '#fff';
-  for (let i = 0; i < 4; i++) {
-    ctx.beginPath();
-    ctx.ellipse((i * 280 + 80 + (m / 5)) % (w + 260) - 130, h * (.26 + i * .08), 115, 18, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
+  canvas.width = r.width * d; canvas.height = r.height * d; ctx.setTransform(d, 0, 0, d, 0, 0);
 }
 function daylight(m) {
-  return Math.max(0, Math.sin((m - 360) / 900 * Math.PI));
+  const span = Math.max(1, sunsetMinutes - sunriseMinutes);
+  return clamp(Math.sin((m - sunriseMinutes) / span * Math.PI));
 }
 function twilightWarmth(m) {
-  const sunrise = m >= 300 && m <= 480 ? 1 - Math.abs(m - 390) / 90 : 0;
-  const sunset = m >= 960 && m <= 1260 ? 1 - Math.abs(m - 1110) / 150 : 0;
-  return Math.max(0, sunrise, sunset);
+  const sunrise = clamp(1 - Math.abs(m - (sunriseMinutes + 30)) / 105);
+  const sunset = clamp(1 - Math.abs(m - (sunsetMinutes - 35)) / 165);
+  return Math.max(sunrise, sunset);
+}
+function drawWildlife(w, h, day, motion, season) {
+  const profile = seasonProfile(season);
+  if (day > .12) {
+    ctx.strokeStyle = '#18232a'; ctx.lineWidth = 1.5; ctx.globalAlpha = .55;
+    for (let i = 0; i < 4; i++) {
+      const x = ((motion * (16 + i * 2) + i * 155) % (w + 180)) - 90;
+      const y = h * (.25 + i * .07) + Math.sin(motion * 1.3 + i) * 7;
+      ctx.beginPath(); ctx.arc(x, y, 7, Math.PI * 1.08, Math.PI * 1.92); ctx.arc(x + 13, y, 7, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+    }
+  }
+  if (day > .02 && day < .42 && season !== 'Winter') {
+    ctx.fillStyle = profile.accent;
+    for (let i = 0; i < 5; i++) {
+      const x = ((motion * (7 + i) + i * 121) % (w + 30)) - 15;
+      const y = h * (.67 + (i % 3) * .035) + Math.sin(motion * 2 + i) * 9;
+      ctx.globalAlpha = .35 + Math.sin(motion * 3 + i) * .15;
+      ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+function paint(m) {
+  const w = canvas.clientWidth, h = canvas.clientHeight, day = daylight(m), warmth = twilightWarmth(m), season = seasonFor();
+  const profile = seasonProfile(season), topHue = 205 - day * 18 + (18 - (205 - day * 18)) * warmth, bottomHue = 195 - day * 18 + (10 - (195 - day * 18)) * warmth;
+  const top = `hsl(${topHue} ${40 + day * 25 + warmth * 28}% ${18 + day * 55 - warmth * 5}%)`, bottom = `hsl(${bottomHue} ${30 + day * 38 + warmth * 32}% ${18 + day * 48 - warmth * 4}%)`;
+  const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, top); g.addColorStop(1, bottom); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  if (warmth > 0) { const glow = ctx.createRadialGradient(w * .52, h * .76, 0, w * .52, h * .76, h * .72); glow.addColorStop(0, `rgba(255, 105, 48, ${warmth * .34})`); glow.addColorStop(1, 'rgba(255, 105, 48, 0)'); ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h); }
+  // Stars belong to the dark sky and fade out as daylight rises.
+  ctx.globalAlpha = Math.pow(1 - day, 1.7) * .78; ctx.fillStyle = '#fff';
+  for (const star of stars) { ctx.beginPath(); ctx.arc(star.x * w, star.y * h * .55, star.radius, 0, Math.PI * 2); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  const horizon = h * .77; ctx.fillStyle = profile.forest; ctx.beginPath(); ctx.moveTo(0, horizon); for (let x = 0; x <= w; x += 40) ctx.lineTo(x, horizon - 20 - Math.sin(x / 95) * 20 - (x % 120)); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.fill();
+  ctx.fillStyle = profile.trees; for (let x = -20; x < w + 40; x += 55) { const ht = 28 + (x * 13 % 65); ctx.beginPath(); ctx.moveTo(x, horizon + 22); ctx.lineTo(x + 22, horizon - ht); ctx.lineTo(x + 44, horizon + 22); ctx.fill(); }
+  ctx.globalAlpha = .22; ctx.fillStyle = '#fff'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse((i * 280 + 80 + (performance.now() / 150)) % (w + 260) - 130, h * (.26 + i * .08), 115, 18, 0, 0, Math.PI * 2); ctx.fill(); }
+  if (isRainy(weather?.code)) { ctx.globalAlpha = .16; ctx.strokeStyle = '#d9efff'; ctx.lineWidth = 1; for (let i = 0; i < 24; i++) { const x = (i * 73 + performance.now() / 8) % w; const y = (i * 31) % (h * .7); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 12); ctx.stroke(); } }
+  ctx.globalAlpha = 1; drawWildlife(w, h, day, performance.now() / 1000, season);
 }
 function update(m) {
-  customMinutes = m;
-  slider.value = m;
-  sliderTime.textContent = clock(m);
-  const [mood, copy] = phase(m);
-  sceneMood.textContent = mood;
-  daylightStatus.textContent = m < 360 || m > 1200 ? 'The stars are out' : `${Math.round(daylight(m) * 100)}% daylight`;
-  daylightCopy.textContent = copy;
-  const angle = (m - 360) / 900 * Math.PI;
-  const x = 50 + Math.cos(angle) * 42, y = 51 - Math.sin(angle) * 40;
-  sun.style.left = `${x}%`;
-  sun.style.top = `${y}%`;
-  sun.style.opacity = m > 330 && m < 1260 ? '1' : '0';
-  moon.style.left = `${50 + Math.cos(angle + Math.PI) * 42}%`;
-  moon.style.top = `${51 - Math.sin(angle + Math.PI) * 40}%`;
-  moon.style.opacity = m <= 330 || m >= 1260 ? '1' : '0';
-  paint(m);
+  customMinutes = m; slider.value = m; sliderTime.textContent = clock(m);
+  const [mood, copy] = phase(m), season = seasonFor(); sceneMood.textContent = mood; daylightStatus.textContent = m < sunriseMinutes || m > sunsetMinutes ? 'The stars are out' : `${Math.round(daylight(m) * 100)}% daylight`; daylightCopy.textContent = copy;
+  sceneDetails.textContent = `${season} · ${weather ? `${weatherLabel(weather.code)} · ${Math.round(weather.temperature)}°F` : 'weather off'}`;
+  const span = Math.max(1, sunsetMinutes - sunriseMinutes), angle = (m - sunriseMinutes) / span * Math.PI, x = 50 + Math.cos(angle) * 42, y = 51 - Math.sin(angle) * 40;
+  sun.style.left = `${x}%`; sun.style.top = `${y}%`; sun.style.opacity = m >= sunriseMinutes - 30 && m <= sunsetMinutes + 30 ? '1' : '0'; moon.style.left = `${50 + Math.cos(angle + Math.PI) * 42}%`; moon.style.top = `${51 - Math.sin(angle + Math.PI) * 40}%`; moon.style.opacity = m < sunriseMinutes || m > sunsetMinutes ? '1' : '0'; paint(m);
 }
-function tick() {
-  const now = new Date();
-  document.querySelector('#timeLabel').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  document.querySelector('#dateLabel').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
-  if (live) update(now.getHours() * 60 + now.getMinutes());
-  requestAnimationFrame(tick);
+async function useLocalWeather() {
+  if (!navigator.geolocation) { sceneDetails.textContent = 'Location unavailable · weather off'; return; }
+  locationButton.disabled = true; locationButton.textContent = 'Finding your sky…';
+  navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+    try {
+      latitude = coords.latitude; longitude = coords.longitude;
+      const query = new URLSearchParams({ latitude, longitude, current: 'temperature_2m,weather_code,wind_speed_10m,cloud_cover', daily: 'sunrise,sunset', timezone: 'auto', temperature_unit: 'fahrenheit', wind_speed_unit: 'mph' });
+      const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`); if (!response.ok) throw new Error('weather request failed');
+      const data = await response.json(); weather = { code: data.current?.weather_code, temperature: data.current?.temperature_2m, wind: data.current?.wind_speed_10m, cloud: data.current?.cloud_cover };
+      sunriseMinutes = minutesFromIso(data.daily?.sunrise?.[0]) ?? sunriseMinutes; sunsetMinutes = minutesFromIso(data.daily?.sunset?.[0]) ?? sunsetMinutes;
+      sceneLocation.textContent = `Local sky · ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`; locationButton.textContent = 'Local weather on'; locationButton.disabled = false; update(customMinutes);
+    } catch { sceneDetails.textContent = 'Weather unavailable · seasonal sky continues'; locationButton.textContent = 'Try local weather again'; locationButton.disabled = false; }
+  }, () => { sceneDetails.textContent = 'Location declined · seasonal sky continues'; locationButton.textContent = 'Try local weather again'; locationButton.disabled = false; }, { enableHighAccuracy: false, maximumAge: 900000, timeout: 10000 });
 }
-slider.addEventListener('input', e => { live = false; update(Number(e.target.value)); });
-document.querySelector('#liveButton').addEventListener('click', () => { live = true; document.querySelector('#liveButton').textContent = 'Following live time'; });
-document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => { live = false; update(Number(b.dataset.time)); }));
-fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); });
-document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); setTimeout(() => { resize(); update(customMinutes); }, 50); });
-document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; });
-document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); });
-window.addEventListener('resize', () => { resize(); update(customMinutes); });
-resize();
-tick();
+function tick() { const now = new Date(); document.querySelector('#timeLabel').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); document.querySelector('#dateLabel').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); if (live) update(now.getHours() * 60 + now.getMinutes()); requestAnimationFrame(tick); }
+slider.addEventListener('input', e => { live = false; update(Number(e.target.value)); }); document.querySelector('#liveButton').addEventListener('click', () => { live = true; document.querySelector('#liveButton').textContent = 'Following live time'; }); document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => { live = false; update(Number(b.dataset.time)); })); locationButton.addEventListener('click', useLocalWeather);
+fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); }); document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); setTimeout(() => { resize(); update(customMinutes); }, 50); }); document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; }); document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); }); window.addEventListener('resize', () => { resize(); update(customMinutes); });
+resize(); tick();
