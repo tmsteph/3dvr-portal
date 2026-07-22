@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sky Room | 3DVR Portal</title>
+  <meta name="description" content="A living outdoor room for finding daylight, weather, and a little breathing space while working indoors.">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <script type="module" src="./app.js"></script>
+</head>
+<body class="sky-page">
+  <a class="skip-link" href="#skyMain">Skip to Sky Room</a>
+  <header class="sky-nav">
+    <a class="sky-brand" href="/" aria-label="Back to 3DVR Portal"><span class="sky-brand__mark" aria-hidden="true">☼</span><span><strong>Sky Room</strong><small>Outdoor space, indoors</small></span></a>
+    <nav aria-label="Sky Room navigation"><a href="/">Portal</a><a href="/meditation/">Breathing Room</a></nav>
+  </header>
+
+  <main id="skyMain" class="sky-shell">
+    <section class="sky-hero" aria-labelledby="sky-title">
+      <div class="sky-hero__copy">
+        <p class="eyebrow">A window without walls</p>
+        <h1 id="sky-title">Step outside for a minute.</h1>
+        <p>When the job keeps you inside, let the sky move around you. Set the light to match your energy—or follow the day where you are.</p>
+      </div>
+      <div class="time-readout" aria-live="polite"><span id="timeLabel">--:--</span><small id="dateLabel">Loading local time</small></div>
+    </section>
+
+    <section class="scene-card" aria-labelledby="scene-title">
+      <div class="scene" id="scene" role="img" aria-label="Animated outdoor landscape showing the current time of day">
+        <canvas id="skyCanvas"></canvas>
+        <div class="scene__overlay"><span id="sceneMood">Finding the light…</span><span id="sceneLocation">Your local sky</span></div>
+        <div class="scene__sun" id="sun" aria-hidden="true"></div>
+        <div class="scene__moon" id="moon" aria-hidden="true">☾</div>
+        <div class="scene__horizon" aria-hidden="true"></div>
+      </div>
+      <div class="scene-controls">
+        <div class="control-heading"><div><p class="eyebrow">Time of day</p><h2 id="scene-title">Choose your light.</h2></div><button id="liveButton" class="text-button" type="button">Use live time</button></div>
+        <input id="timeSlider" type="range" min="0" max="1440" step="1" value="720" aria-label="Choose a time of day">
+        <div class="slider-labels"><span>12 AM</span><span id="sliderTime">12:00 PM</span><span>12 AM</span></div>
+        <div class="preset-row" aria-label="Time presets"><button type="button" data-time="390">Dawn <small>6:30 AM</small></button><button type="button" data-time="720">Midday <small>12:00 PM</small></button><button type="button" data-time="1050">Golden hour <small>5:30 PM</small></button><button type="button" data-time="1260">Blue hour <small>9:00 PM</small></button></div>
+      </div>
+    </section>
+
+    <section class="sky-tools" aria-label="Sky Room tools">
+      <article class="tool-card"><span class="tool-icon">↗</span><div><p class="eyebrow">Daylight arc</p><h2 id="daylightStatus">—</h2><p id="daylightCopy">The sky is always changing.</p></div></article>
+      <article class="tool-card"><span class="tool-icon">✦</span><div><p class="eyebrow">A small reset</p><h2>Look far away.</h2><p>Relax your eyes on the horizon for 20 seconds, then take one slow breath.</p></div><button id="resetButton" class="tool-action" type="button">Begin <span>20s</span></button></article>
+      <article class="tool-card"><span class="tool-icon">◌</span><div><p class="eyebrow">Ambient mode</p><h2 id="ambientLabel">Still air</h2><p id="ambientCopy">A quiet sky for focused work.</p></div><button id="ambientButton" class="tool-action" type="button">Change</button></article>
+    </section>
+    <p id="resetStatus" class="reset-status" role="status" aria-live="polite"></p>
+    <p class="privacy-note">Sky Room uses your device clock only. No location or weather data leaves your browser.</p>
+  </main>
+  <footer class="sky-footer"><a href="/">3DVR Portal</a><span>Made for the hours between the outside and the next call.</span></footer>
+</body>
+</html>
