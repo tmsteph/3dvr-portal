@@ -23,6 +23,11 @@ describe('sky room page', () => {
     assert.match(app, /api\.open-meteo\.com\/v1\/forecast/);
     assert.match(app, /seasonFor/);
     assert.match(app, /drawWildlife/);
+    assert.match(app, /biomeFor/);
+    assert.match(app, /drawAnimal/);
+    assert.match(app, /Tropical forest/);
+    assert.match(app, /Boreal forest/);
+    assert.match(app, /region adapts when location is on/);
   });
   it('links the page from the portal app dock', async () => {
     const html = await readFile(indexUrl, 'utf8');
