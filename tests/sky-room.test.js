@@ -13,7 +13,10 @@ describe('sky room page', () => {
     assert.match(html, /Use live time/);
     assert.match(html, /Golden hour/);
     assert.match(html, /fullscreenButton/);
-    assert.match(await readFile(new URL('../sky-room/app.js', import.meta.url), 'utf8'), /requestFullscreen/);
+    const app = await readFile(new URL('../sky-room/app.js', import.meta.url), 'utf8');
+    assert.match(app, /requestFullscreen/);
+    assert.match(app, /Math\.pow\(1 - day, 1\.7\)/);
+    assert.match(app, /Stars belong to the dark sky/);
   });
   it('links the page from the portal app dock', async () => {
     const html = await readFile(indexUrl, 'utf8');
