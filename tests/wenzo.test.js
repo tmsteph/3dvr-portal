@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 describe('Wenzo art gallery', () => {
   it('ships an artist gallery with upload and about surfaces', async () => {
     const html = await readFile(new URL('../wenzo/index.html', import.meta.url), 'utf8');
-    assert.match(html, /Wendy/); assert.match(html, /id="gallery"/); assert.match(html, /id="uploadForm"/); assert.match(html, /type="file"/); assert.match(html, /id="about"/); assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
+    assert.match(html, /Wendy/); assert.match(html, /id="gallery"/); assert.match(html, /id="uploadForm"/); assert.match(html, /type="file"/); assert.match(html, /id="artPreview"/); assert.match(html, /optional.*Untitled/); assert.match(html, /id="about"/); assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
   });
   it('stores resized work in Gun with a local fallback', async () => {
     const app = await readFile(new URL('../wenzo/app.js', import.meta.url), 'utf8');
@@ -17,5 +17,8 @@ describe('Wenzo art gallery', () => {
     assert.match(app, /state\.works\.delete\(id\)/);
     assert.match(app, /deleted: true/);
     assert.match(app, /!work\.deleted/);
+    assert.match(app, /function showPreview\(file\)/);
+    assert.match(app, /URL\.createObjectURL\(file\)/);
+    assert.match(app, /title: clean\(els\.title\.value\) \|\| 'Untitled'/);
   });
 });
