@@ -1,4 +1,17 @@
 {
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "wenzo.3dvr.tech"
+        }
+      ],
+      "destination": "/wenzo/",
+      "permanent": false
+    }
+  ],
   "crons": [
     {
       "path": "/api/growth/homepage-hero-cron",
@@ -304,14 +317,14 @@
       "destination": "/danny/index.html"
     },
     {
-      "source": "/",
+      "source": "/:path*",
       "has": [
         {
           "type": "host",
           "value": "wenzo.3dvr.tech"
         }
       ],
-      "destination": "/wenzo/index.html"
+      "destination": "/wenzo/:path*"
     },
     {
       "source": "/webhooks/stripe",
