@@ -16,7 +16,10 @@ describe('sky room page', () => {
     const app = await readFile(new URL('../sky-room/app.js', import.meta.url), 'utf8');
     assert.match(app, /requestFullscreen/);
     assert.match(app, /Math\.pow\(1 - day, 1\.7\)/);
-    assert.match(app, /Stars belong to the dark sky/);
+    assert.match(app, /function drawCelestialSky\(w, h, day, date\)/);
+    assert.match(app, /constellationLines/);
+    assert.match(app, /const moonAge = date =>/);
+    assert.match(app, /x = 50 - Math\.cos\(angle\) \* 42/);
     assert.match(app, /function twilightWarmth\(m\)/);
     assert.match(app, /rgba\(255, 105, 48/);
     assert.match(html, /locationButton/);

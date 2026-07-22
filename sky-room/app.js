@@ -14,7 +14,30 @@ const fullscreenButton = document.querySelector('#fullscreenButton');
 const locationButton = document.querySelector('#locationButton');
 const biomeSelect = document.querySelector('#biomeSelect');
 const ambientModes = [['Still air', 'A quiet sky for focused work.'], ['Soft breeze', 'A little movement to loosen the room.'], ['Night watch', 'Dim the room and let your attention settle.']];
-const stars = Array.from({ length: 80 }, (_, i) => ({ x: (i * 97) % 1000 / 1000, y: (i * 53) % 550 / 550, radius: 0.3 + ((i * 17) % 11) / 10 }));
+// A small bright-star catalog. RA is hours, declination is degrees. The
+// horizontal projection below makes these move with the observer's sky.
+const starCatalog = [
+  ['Sirius', 6.752, -16.72, 1.5], ['Canopus', 6.399, -52.70, 1.2], ['Arcturus', 14.261, 19.18, 1.35],
+  ['Vega', 18.615, 38.78, 1.25], ['Capella', 5.278, 45.99, 1.2], ['Rigel', 5.242, -8.20, 1.15],
+  ['Procyon', 7.655, 5.23, 1.15], ['Betelgeuse', 5.919, 7.41, 1.1], ['Achernar', 1.629, -57.24, 1.1],
+  ['Altair', 19.846, 8.87, 1.1], ['Aldebaran', 4.599, 16.51, 1.05], ['Antares', 16.49, -26.43, 1.05],
+  ['Spica', 13.42, -11.16, 1], ['Pollux', 7.755, 28.03, .95], ['Fomalhaut', 22.961, -29.62, .95],
+  ['Deneb', 20.69, 45.28, .95], ['Regulus', 10.14, 11.97, .9], ['Castor', 7.577, 31.89, .85],
+  ['Polaris', 2.53, 89.26, .85], ['Bellatrix', 5.419, 6.35, .8], ['Alnilam', 5.603, -1.20, .8],
+  ['Alnitak', 5.679, -1.94, .8], ['Mintaka', 5.533, -0.30, .78], ['Mimosa', 12.795, -59.69, .85],
+  ['Hadar', 14.064, -60.37, .85], ['Shaula', 17.56, -37.10, .8], ['Dubhe', 11.062, 61.75, .75],
+  ['Merak', 11.031, 56.38, .72], ['Alioth', 12.9, 55.96, .7], ['Alkaid', 13.792, 49.31, .7],
+  ['Denebola', 11.818, 14.57, .7], ['Kochab', 14.845, 74.16, .68], ['Markab', 23.079, 15.21, .68],
+  ['Mirach', 1.162, 35.62, .65], ['Alpheratz', .139, 29.09, .65]
+].map(([name, ra, dec, radius]) => ({ name, ra, dec: dec * Math.PI / 180, radius }));
+const constellationLines = {
+  Orion: [['Betelgeuse', 'Bellatrix'], ['Bellatrix', 'Mintaka'], ['Mintaka', 'Alnilam'], ['Alnilam', 'Alnitak'], ['Alnitak', 'Betelgeuse'], ['Betelgeuse', 'Alnilam'], ['Bellatrix', 'Rigel'], ['Rigel', 'Mintaka']],
+  'Big Dipper': [['Dubhe', 'Merak'], ['Merak', 'Alioth'], ['Alioth', 'Alkaid']],
+  'Summer Triangle': [['Vega', 'Deneb'], ['Deneb', 'Altair'], ['Altair', 'Vega']]
+};
+const stars = Array.from({ length: 110 }, (_, i) => ({ x: (i * 97) % 1000 / 1000, y: (i * 53) % 900 / 900, radius: 0.3 + ((i * 17) % 11) / 10 }));
+const DEFAULT_LATITUDE = 32.72;
+const DEFAULT_LONGITUDE = -117.16;
 let mode = 0;
 let live = true;
 let customMinutes = 0;
@@ -31,6 +54,18 @@ const pad = n => String(n).padStart(2, '0');
 const clock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), min = m % 60; return `${pad((h % 12) || 12)}:${pad(min)} ${h < 12 ? 'AM' : 'PM'}`; };
 const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
 const minutesFromIso = iso => { const match = String(iso).match(/T(\d\d):(\d\d)/); return match ? Number(match[1]) * 60 + Number(match[2]) : null; };
+const dateForMinutes = m => { const date = new Date(); date.setHours(Math.floor(m / 60), m % 60, 0, 0); return date; };
+const julianDay = date => date.getTime() / 86400000 + 2440587.5;
+const moonAge = date => { const age = (julianDay(date) - 2451550.1) % 29.530588853; return (age + 29.530588853) % 29.530588853; };
+const siderealHours = date => { const d = julianDay(date) - 2451545; return ((18.697374558 + 24.06570982441908 * d) % 24 + 24) % 24; };
+function projectStar(star, date, lat, lon, w, h) {
+  const ha = (siderealHours(date) + lon / 15 - star.ra) * Math.PI / 12;
+  const altitude = Math.asin(Math.sin(lat) * Math.sin(star.dec) + Math.cos(lat) * Math.cos(star.dec) * Math.cos(ha));
+  if (altitude < -0.08) return null;
+  const azimuth = Math.atan2(-Math.sin(ha), Math.tan(star.dec) * Math.cos(lat) - Math.sin(lat) * Math.cos(ha));
+  return { x: w * (.5 + azimuth / (Math.PI * 2)), y: h * (.72 - altitude / Math.PI * 1.25), radius: star.radius };
+}
+function moonPhaseLabel(age) { return age < 1.85 ? 'New moon' : age < 5.53 ? 'Waxing crescent' : age < 9.22 ? 'First quarter' : age < 12.91 ? 'Waxing gibbous' : age < 16.61 ? 'Full moon' : age < 20.30 ? 'Waning gibbous' : age < 23.99 ? 'Last quarter' : age < 27.68 ? 'Waning crescent' : 'New moon'; }
 const seasonFor = (date = new Date(), lat = latitude) => {
   const month = date.getMonth();
   const northern = lat == null || lat >= 0;
@@ -146,16 +181,35 @@ function drawWildlife(w, h, day, motion, season) {
   }
   ctx.globalAlpha = 1;
 }
+function drawCelestialSky(w, h, day, date) {
+  const lat = (latitude ?? DEFAULT_LATITUDE) * Math.PI / 180, lon = longitude ?? DEFAULT_LONGITUDE;
+  const opacity = Math.pow(1 - day, 1.7) * .82;
+  ctx.globalAlpha = opacity; ctx.fillStyle = '#fff';
+  for (const star of stars) { ctx.beginPath(); ctx.arc(star.x * w, star.y * h * .9, star.radius, 0, Math.PI * 2); ctx.fill(); }
+  const projected = Object.fromEntries(starCatalog.map(star => [star.name, projectStar(star, date, lat, lon, w, h)]));
+  for (const star of Object.values(projected)) if (star) { ctx.beginPath(); ctx.arc(star.x, star.y, star.radius + .45, 0, Math.PI * 2); ctx.fill(); }
+  ctx.globalAlpha = opacity * .34; ctx.strokeStyle = '#b8d8ee'; ctx.lineWidth = 1;
+  for (const lines of Object.values(constellationLines)) for (const [from, to] of lines) {
+    const a = projected[from], b = projected[to]; if (!a || !b) continue;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+function drawMoon(m, date) {
+  const age = moonAge(date), illumination = (1 - Math.cos(age / 29.530588853 * Math.PI * 2)) / 2;
+  const x = 50 + Math.cos((m - sunriseMinutes) / Math.max(1, sunsetMinutes - sunriseMinutes) * Math.PI + Math.PI) * 42;
+  const y = 51 - Math.sin((m - sunriseMinutes) / Math.max(1, sunsetMinutes - sunriseMinutes) * Math.PI + Math.PI) * 40;
+  moon.textContent = illumination < .08 ? '○' : illumination > .92 ? '●' : illumination < .5 ? '◐' : '◑';
+  moon.title = `${moonPhaseLabel(age)} · ${Math.round(illumination * 100)}% illuminated`;
+  moon.setAttribute('aria-label', moon.title); moon.style.left = `${x}%`; moon.style.top = `${y}%`; moon.style.opacity = '1';
+}
 function paint(m) {
-  const w = canvas.clientWidth, h = canvas.clientHeight, day = daylight(m), warmth = twilightWarmth(m), season = seasonFor();
+  const w = canvas.clientWidth, h = canvas.clientHeight, day = daylight(m), warmth = twilightWarmth(m), season = seasonFor(), date = dateForMinutes(m);
   const profile = biomeProfile(biome), topHue = 205 - day * 18 + (18 - (205 - day * 18)) * warmth, bottomHue = 195 - day * 18 + (10 - (195 - day * 18)) * warmth;
   const top = `hsl(${topHue} ${40 + day * 25 + warmth * 28}% ${18 + day * 55 - warmth * 5}%)`, bottom = `hsl(${bottomHue} ${30 + day * 38 + warmth * 32}% ${18 + day * 48 - warmth * 4}%)`;
   const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, top); g.addColorStop(1, bottom); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   if (warmth > 0) { const glow = ctx.createRadialGradient(w * .52, h * .76, 0, w * .52, h * .76, h * .72); glow.addColorStop(0, `rgba(255, 105, 48, ${warmth * .34})`); glow.addColorStop(1, 'rgba(255, 105, 48, 0)'); ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h); }
-  // Stars belong to the dark sky and fade out as daylight rises.
-  ctx.globalAlpha = Math.pow(1 - day, 1.7) * .78; ctx.fillStyle = '#fff';
-  for (const star of stars) { ctx.beginPath(); ctx.arc(star.x * w, star.y * h * .55, star.radius, 0, Math.PI * 2); ctx.fill(); }
-  ctx.globalAlpha = 1;
+  drawCelestialSky(w, h, day, date);
   const horizon = h * .77; ctx.fillStyle = profile.forest; ctx.beginPath(); ctx.moveTo(0, horizon); for (let x = 0; x <= w; x += 40) ctx.lineTo(x, horizon - 20 - Math.sin(x / 95) * 20 - (x % 120)); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.fill();
   ctx.fillStyle = profile.trees; for (let x = -20; x < w + 40; x += 55) { const ht = 28 + (x * 13 % 65); ctx.beginPath(); ctx.moveTo(x, horizon + 22); ctx.lineTo(x + 22, horizon - ht); ctx.lineTo(x + 44, horizon + 22); ctx.fill(); }
   ctx.globalAlpha = .22; ctx.fillStyle = '#fff'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse((i * 280 + 80 + (performance.now() / 150)) % (w + 260) - 130, h * (.26 + i * .08), 115, 18, 0, 0, Math.PI * 2); ctx.fill(); }
@@ -165,9 +219,9 @@ function paint(m) {
 function update(m) {
   customMinutes = m; slider.value = m; sliderTime.textContent = clock(m);
   const [mood, copy] = phase(m), season = seasonFor(); sceneMood.textContent = mood; daylightStatus.textContent = m < sunriseMinutes || m > sunsetMinutes ? 'The stars are out' : `${Math.round(daylight(m) * 100)}% daylight`; daylightCopy.textContent = copy;
-  sceneDetails.textContent = `${season} · ${biome}${weather ? ` · ${weatherLabel(weather.code)} · ${Math.round(weather.temperature)}°F` : biomeMode === 'auto' ? ' · region adapts when location is on' : ' · manual scene'}`;
-  const span = Math.max(1, sunsetMinutes - sunriseMinutes), angle = (m - sunriseMinutes) / span * Math.PI, x = 50 + Math.cos(angle) * 42, y = 51 - Math.sin(angle) * 40;
-  sun.style.left = `${x}%`; sun.style.top = `${y}%`; sun.style.opacity = m >= sunriseMinutes - 30 && m <= sunsetMinutes + 30 ? '1' : '0'; moon.style.left = `${50 + Math.cos(angle + Math.PI) * 42}%`; moon.style.top = `${51 - Math.sin(angle + Math.PI) * 40}%`; moon.style.opacity = m < sunriseMinutes || m > sunsetMinutes ? '1' : '0'; paint(m);
+  sceneDetails.textContent = `${season} · ${biome}${weather ? ` · ${weatherLabel(weather.code)} · ${Math.round(weather.temperature)}°F` : biomeMode === 'auto' ? ' · region adapts when location is on' : ' · manual scene'} · ${moonPhaseLabel(moonAge(dateForMinutes(m)))}`;
+  const span = Math.max(1, sunsetMinutes - sunriseMinutes), angle = (m - sunriseMinutes) / span * Math.PI, x = 50 - Math.cos(angle) * 42, y = 51 - Math.sin(angle) * 40;
+  sun.style.left = `${x}%`; sun.style.top = `${y}%`; sun.style.opacity = m >= sunriseMinutes - 30 && m <= sunsetMinutes + 30 ? '1' : '0'; drawMoon(m, dateForMinutes(m)); paint(m);
 }
 async function useLocalWeather() {
   if (!navigator.geolocation) { sceneDetails.textContent = 'Location unavailable · weather off'; return; }
