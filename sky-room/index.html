@@ -30,13 +30,13 @@
     <section class="scene-card" aria-labelledby="scene-title">
       <div class="scene" id="scene" role="img" aria-label="Animated outdoor landscape showing the current time of day">
         <canvas id="skyCanvas"></canvas>
-        <div class="scene__overlay"><span id="sceneMood">Finding the light…</span><span id="sceneLocation">Your local sky</span></div>
+        <div class="scene__overlay"><span id="sceneMood">Finding the light…</span><span id="sceneLocation">Your local sky</span><span id="sceneDetails">Seasonal sky · weather off</span></div>
         <div class="scene__sun" id="sun" aria-hidden="true"></div>
         <div class="scene__moon" id="moon" aria-hidden="true">☾</div>
         <div class="scene__horizon" aria-hidden="true"></div>
       </div>
       <div class="scene-controls">
-        <div class="control-heading"><div><p class="eyebrow">Time of day</p><h2 id="scene-title">Choose your light.</h2></div><div class="control-actions"><button id="liveButton" class="text-button" type="button">Use live time</button><button id="fullscreenButton" class="text-button" type="button" aria-pressed="false">⛶ Full screen</button></div></div>
+        <div class="control-heading"><div><p class="eyebrow">Time of day</p><h2 id="scene-title">Choose your light.</h2></div><div class="control-actions"><button id="liveButton" class="text-button" type="button">Use live time</button><button id="locationButton" class="text-button" type="button">Use local weather</button><button id="fullscreenButton" class="text-button" type="button" aria-pressed="false">⛶ Full screen</button></div></div>
         <input id="timeSlider" type="range" min="0" max="1440" step="1" value="720" aria-label="Choose a time of day">
         <div class="slider-labels"><span>12 AM</span><span id="sliderTime">12:00 PM</span><span>12 AM</span></div>
         <div class="preset-row" aria-label="Time presets"><button type="button" data-time="390">Dawn <small>6:30 AM</small></button><button type="button" data-time="720">Midday <small>12:00 PM</small></button><button type="button" data-time="1050">Golden hour <small>5:30 PM</small></button><button type="button" data-time="1260">Blue hour <small>9:00 PM</small></button></div>
@@ -49,7 +49,7 @@
       <article class="tool-card"><span class="tool-icon">◌</span><div><p class="eyebrow">Ambient mode</p><h2 id="ambientLabel">Still air</h2><p id="ambientCopy">A quiet sky for focused work.</p></div><button id="ambientButton" class="tool-action" type="button">Change</button></article>
     </section>
     <p id="resetStatus" class="reset-status" role="status" aria-live="polite"></p>
-    <p class="privacy-note">Sky Room uses your device clock only. No location or weather data leaves your browser.</p>
+    <p class="privacy-note">Sky Room uses your device clock locally. Location and weather stay off until you opt in; coordinates are sent only to fetch the local forecast.</p>
   </main>
   <footer class="sky-footer"><a href="/">3DVR Portal</a><span>Made for the hours between the outside and the next call.</span></footer>
 </body>
