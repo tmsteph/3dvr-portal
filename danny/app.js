@@ -20,12 +20,20 @@ const stripWiki = value => {
 };
 const escapeHtml = value => String(value || '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
 const unique = values => [...new Set(values.filter(Boolean).map(value => value.trim()).filter(Boolean))];
+function fallbackExample(word, partOfSpeech) {
+  const lower = String(partOfSpeech || '').toLowerCase();
+  if (lower.includes('verb')) return `They decided to ${word} before the next step.`;
+  if (lower.includes('adverb')) return `The team worked ${word} through the final hour.`;
+  if (lower.includes('noun')) return `The team discussed the meaning of ${word}.`;
+  return `The ${word} design held up through years of use.`;
+}
 function showDefinitions(data, extras = {}) {
   const meanings = data.flatMap(entry => entry.meanings || []);
-  els.part.textContent = unique(meanings.map(meaning => meaning.partOfSpeech))[0] || 'Word';
+  const partOfSpeech = unique(meanings.map(meaning => meaning.partOfSpeech))[0] || 'Word';
+  els.part.textContent = partOfSpeech;
   els.definitions.innerHTML = meanings.slice(0, 4).map(meaning => (meaning.definitions || []).slice(0, 2).map(definition => `<p class="definition"><small>${escapeHtml(meaning.partOfSpeech || 'meaning')}</small>${escapeHtml(definition.definition)}</p>`).join('')).join('') || '<p class="definition">No definition found.</p>';
   const examples = unique(meanings.flatMap(meaning => (meaning.definitions || []).map(definition => definition.example)));
-  els.example.textContent = examples[0] || extras.example || 'No usage example was included in the dictionary entry yet.';
+  els.example.textContent = examples[0] || extras.example || fallbackExample(els.title.textContent, partOfSpeech);
   const synonyms = unique(meanings.flatMap(meaning => [...(meaning.synonyms || []), ...(meaning.definitions || []).flatMap(definition => definition.synonyms || [])]).concat(extras.synonyms || [])).slice(0, 12);
   els.synonyms.innerHTML = synonyms.length ? synonyms.map(word => `<span class="chip">${escapeHtml(word)}</span>`).join('') : '<span class="definition">No close companions listed yet.</span>';
   const phonetic = data.find(entry => entry.phonetic)?.phonetic || data.flatMap(entry => entry.phonetics || []).find(item => item.text)?.text;
@@ -72,6 +80,7 @@ function renderedEtymology(html) {
   if (!heading) return '';
   const parts = [];
   for (let node = heading.nextElementSibling; node && !/^h[1-4]$/i.test(node.tagName); node = node.nextElementSibling) {
+    if (/^(STYLE|SCRIPT|NOSCRIPT)$/i.test(node.tagName)) continue;
     const value = node.textContent.replace(/\s+/g, ' ').trim();
     if (value) parts.push(value);
   }
@@ -82,7 +91,7 @@ async function fetchEtymology(word, wikitext, pageHtml = '') {
   els.originSource.href = `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`;
   try {
     const text = wikitext || (pageHtml ? '' : await fetchWiktionaryEntry(word));
-    const section = renderedEtymology(pageHtml) || etymologySection(text);
+    const section = etymologySection(text) || renderedEtymology(pageHtml);
     els.etymology.textContent = section ? stripWiki(section) : 'The available entry does not include an etymology yet.';
   } catch { els.etymology.textContent = 'Word history is taking the scenic route. Open the source to explore it.'; }
 }
@@ -100,13 +109,14 @@ async function lookup(value) {
     const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
     if (!response.ok) throw new Error('not found');
     const data = await response.json();
-    const [wiktionary, pageHtml, relatedWords] = await Promise.all([
+    const [wiktionary, wikitext, pageHtml, relatedWords] = await Promise.all([
       fetchWiktionaryDefinitions(word).catch(() => null),
+      fetchWiktionaryEntry(word).catch(() => ''),
       fetchWiktionaryHtml(word).catch(() => ''),
       fetchSynonyms(word)
     ]);
-    const extras = { synonyms: relatedWords, example: structuredExamples(wiktionary)[0] || wiktionaryExample(wiktionary?.en?.map(entry => entry.definitions?.map(definition => definition.examples || []).flat()).flat().join('\n')) };
-    els.title.textContent = data[0]?.word || word; showDefinitions(data, extras); els.result.hidden = false; els.status.textContent = ''; fetchEtymology(word, '', pageHtml);
+    const extras = { synonyms: relatedWords, example: structuredExamples(wiktionary)[0] || wiktionaryExample(wikitext) };
+    els.title.textContent = data[0]?.word || word; showDefinitions(data, extras); els.result.hidden = false; els.status.textContent = ''; fetchEtymology(word, wikitext, pageHtml);
     history.replaceState(null, '', `?word=${encodeURIComponent(word)}`);
   } catch { els.status.textContent = `No entry found for “${word}”. Try another word.`; }
 }
