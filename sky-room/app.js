@@ -43,6 +43,7 @@ let mode = 0;
 let live = true;
 let customMinutes = 0;
 let resetTimer;
+let fullscreenIdleTimer;
 let latitude = null;
 let longitude = null;
 let weather = null;
@@ -101,6 +102,15 @@ const biomeFor = (lat, currentWeather = weather) => {
   if (absLat >= 20 && absLat <= 55 && (currentWeather?.code == null || !isRainy(currentWeather.code))) return 'Grassland';
   return 'Temperate woodland';
 };
+const FULLSCREEN_IDLE_MS = 4000;
+function clearFullscreenIdleTimer() { clearTimeout(fullscreenIdleTimer); fullscreenIdleTimer = undefined; }
+function showFullscreenControls() {
+  if (document.fullscreenElement !== sceneCard) return;
+  sceneCard.classList.remove('fullscreen-idle');
+  clearFullscreenIdleTimer();
+  fullscreenIdleTimer = setTimeout(() => sceneCard.classList.add('fullscreen-idle'), FULLSCREEN_IDLE_MS);
+}
+function handleFullscreenInteraction() { showFullscreenControls(); }
 function updateBiomeLabel() {
   sceneLocation.textContent = biomeMode === 'auto'
     ? (latitude == null ? 'Automatic region · location off' : `Local sky · ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`)
@@ -242,5 +252,5 @@ async function useLocalWeather() {
 function tick() { const now = new Date(); document.querySelector('#timeLabel').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); document.querySelector('#dateLabel').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); if (live) update(now.getHours() * 60 + now.getMinutes()); if (reduceMotion) setTimeout(tick, 1000); else requestAnimationFrame(tick); }
 slider.addEventListener('input', e => { live = false; update(Number(e.target.value)); }); document.querySelector('#liveButton').addEventListener('click', () => { live = true; document.querySelector('#liveButton').textContent = 'Following live time'; }); document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => { live = false; update(Number(b.dataset.time)); })); locationButton.addEventListener('click', useLocalWeather);
 biomeSelect.addEventListener('change', event => { biomeMode = event.target.value; biome = biomeMode === 'auto' ? biomeFor(latitude, weather) : biomeMode; updateBiomeLabel(); update(customMinutes); });
-fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); }); document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); setTimeout(() => { resize(); update(customMinutes); }, 50); }); document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; }); document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); }); window.addEventListener('resize', () => { resize(); update(customMinutes); });
+fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); }); document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); if (active) showFullscreenControls(); else { clearFullscreenIdleTimer(); sceneCard.classList.remove('fullscreen-idle'); } setTimeout(() => { resize(); update(customMinutes); }, 50); }); sceneCard.addEventListener('pointermove', handleFullscreenInteraction); sceneCard.addEventListener('pointerdown', handleFullscreenInteraction); sceneCard.addEventListener('keydown', handleFullscreenInteraction); document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; }); document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); }); window.addEventListener('resize', () => { resize(); update(customMinutes); });
 resize(); tick();
