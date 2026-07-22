@@ -35,6 +35,11 @@ describe('sky room page', () => {
     assert.match(html, /Automatic for my location/);
     assert.match(app, /biomeMode/);
     assert.match(app, /updateBiomeLabel/);
+    assert.match(app, /FULLSCREEN_IDLE_MS = 4000/);
+    assert.match(app, /fullscreen-idle/);
+    assert.match(app, /sceneCard\.addEventListener\('pointermove'/);
+    assert.match(app, /sceneCard\.addEventListener\('pointerdown'/);
+    assert.match(app, /sceneCard\.addEventListener\('keydown'/);
   });
   it('links the page from the portal app dock', async () => {
     const html = await readFile(indexUrl, 'utf8');
