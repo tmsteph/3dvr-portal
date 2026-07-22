@@ -13,6 +13,7 @@ const sceneCard = document.querySelector('.scene-card');
 const fullscreenButton = document.querySelector('#fullscreenButton');
 const locationButton = document.querySelector('#locationButton');
 const biomeSelect = document.querySelector('#biomeSelect');
+const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const ambientModes = [['Still air', 'A quiet sky for focused work.'], ['Soft breeze', 'A little movement to loosen the room.'], ['Night watch', 'Dim the room and let your attention settle.']];
 // A small bright-star catalog. RA is hours, declination is degrees. The
 // horizontal projection below makes these move with the observer's sky.
@@ -212,9 +213,10 @@ function paint(m) {
   drawCelestialSky(w, h, day, date);
   const horizon = h * .77; ctx.fillStyle = profile.forest; ctx.beginPath(); ctx.moveTo(0, horizon); for (let x = 0; x <= w; x += 40) ctx.lineTo(x, horizon - 20 - Math.sin(x / 95) * 20 - (x % 120)); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.fill();
   ctx.fillStyle = profile.trees; for (let x = -20; x < w + 40; x += 55) { const ht = 28 + (x * 13 % 65); ctx.beginPath(); ctx.moveTo(x, horizon + 22); ctx.lineTo(x + 22, horizon - ht); ctx.lineTo(x + 44, horizon + 22); ctx.fill(); }
-  ctx.globalAlpha = .22; ctx.fillStyle = '#fff'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse((i * 280 + 80 + (performance.now() / 150)) % (w + 260) - 130, h * (.26 + i * .08), 115, 18, 0, 0, Math.PI * 2); ctx.fill(); }
-  if (isRainy(weather?.code)) { ctx.globalAlpha = .16; ctx.strokeStyle = '#d9efff'; ctx.lineWidth = 1; for (let i = 0; i < 24; i++) { const x = (i * 73 + performance.now() / 8) % w; const y = (i * 31) % (h * .7); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 12); ctx.stroke(); } }
-  ctx.globalAlpha = 1; drawWildlife(w, h, day, performance.now() / 1000, season);
+  const motionNow = reduceMotion ? 0 : performance.now();
+  ctx.globalAlpha = .22; ctx.fillStyle = '#fff'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse((i * 280 + 80 + (motionNow / 150)) % (w + 260) - 130, h * (.26 + i * .08), 115, 18, 0, 0, Math.PI * 2); ctx.fill(); }
+  if (isRainy(weather?.code)) { ctx.globalAlpha = .16; ctx.strokeStyle = '#d9efff'; ctx.lineWidth = 1; for (let i = 0; i < 24; i++) { const x = (i * 73 + motionNow / 8) % w; const y = (i * 31) % (h * .7); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 12); ctx.stroke(); } }
+  ctx.globalAlpha = 1; drawWildlife(w, h, day, motionNow / 1000, season);
 }
 function update(m) {
   customMinutes = m; slider.value = m; sliderTime.textContent = clock(m);
@@ -237,7 +239,7 @@ async function useLocalWeather() {
     } catch { sceneDetails.textContent = 'Weather unavailable · seasonal sky continues'; locationButton.textContent = 'Try local weather again'; locationButton.disabled = false; }
   }, () => { sceneDetails.textContent = 'Location declined · seasonal sky continues'; locationButton.textContent = 'Try local weather again'; locationButton.disabled = false; }, { enableHighAccuracy: false, maximumAge: 900000, timeout: 10000 });
 }
-function tick() { const now = new Date(); document.querySelector('#timeLabel').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); document.querySelector('#dateLabel').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); if (live) update(now.getHours() * 60 + now.getMinutes()); requestAnimationFrame(tick); }
+function tick() { const now = new Date(); document.querySelector('#timeLabel').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); document.querySelector('#dateLabel').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); if (live) update(now.getHours() * 60 + now.getMinutes()); if (reduceMotion) setTimeout(tick, 1000); else requestAnimationFrame(tick); }
 slider.addEventListener('input', e => { live = false; update(Number(e.target.value)); }); document.querySelector('#liveButton').addEventListener('click', () => { live = true; document.querySelector('#liveButton').textContent = 'Following live time'; }); document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => { live = false; update(Number(b.dataset.time)); })); locationButton.addEventListener('click', useLocalWeather);
 biomeSelect.addEventListener('change', event => { biomeMode = event.target.value; biome = biomeMode === 'auto' ? biomeFor(latitude, weather) : biomeMode; updateBiomeLabel(); update(customMinutes); });
 fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); }); document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); setTimeout(() => { resize(); update(customMinutes); }, 50); }); document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; }); document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); }); window.addEventListener('resize', () => { resize(); update(customMinutes); });

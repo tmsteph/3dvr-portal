@@ -11,7 +11,7 @@ const stripWiki = value => {
       const name = parts.shift()?.trim().toLowerCase();
       if (['m', 'l', 'link'].includes(name)) return parts[1] || parts[0] || '';
       if (['der', 'inh', 'bor'].includes(name)) return parts[2] || parts[1] || '';
-      if (['suf', 'prefix'].includes(name)) return parts[1] || '';
+      if (['suf', 'prefix'].includes(name)) return parts.slice(1).filter(Boolean).join(' ');
       return '';
     });
   }
@@ -21,11 +21,7 @@ const stripWiki = value => {
 const escapeHtml = value => String(value || '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
 const unique = values => [...new Set(values.filter(Boolean).map(value => value.trim()).filter(Boolean))];
 function fallbackExample(word, partOfSpeech) {
-  const lower = String(partOfSpeech || '').toLowerCase();
-  if (lower.includes('verb')) return `They decided to ${word} before the next step.`;
-  if (lower.includes('adverb')) return `The team worked ${word} through the final hour.`;
-  if (lower.includes('noun')) return `The team discussed the meaning of ${word}.`;
-  return `The ${word} design held up through years of use.`;
+  return 'No verified usage example was available for this word.';
 }
 function showDefinitions(data, extras = {}) {
   const meanings = data.flatMap(entry => entry.meanings || []);
@@ -102,23 +98,42 @@ async function fetchSynonyms(word) {
     return (await response.json()).map(item => item.word);
   } catch { return []; }
 }
+function withTimeout(promise, milliseconds = 4500) {
+  return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('optional request timed out')), milliseconds))]);
+}
+function showEnrichmentExample(example) {
+  if (example && els.example.textContent.startsWith('No verified usage')) els.example.textContent = example;
+}
+function showEnrichmentSynonyms(synonyms) {
+  const values = unique(synonyms || []).slice(0, 12);
+  els.synonyms.innerHTML = values.length ? values.map(word => `<span class="chip">${escapeHtml(word)}</span>`).join('') : '<span class="definition">No close companions listed yet.</span>';
+}
 async function lookup(value) {
   const word = cleanWord(value); if (!word) return;
+  const lookupId = (lookup.latest = (lookup.latest || 0) + 1);
   els.input.value = word; els.status.textContent = 'Turning the page…'; els.result.hidden = true;
   try {
     const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
     if (!response.ok) throw new Error('not found');
     const data = await response.json();
-    const [wiktionary, wikitext, pageHtml, relatedWords] = await Promise.all([
-      fetchWiktionaryDefinitions(word).catch(() => null),
-      fetchWiktionaryEntry(word).catch(() => ''),
-      fetchWiktionaryHtml(word).catch(() => ''),
-      fetchSynonyms(word)
-    ]);
-    const extras = { synonyms: relatedWords, example: structuredExamples(wiktionary)[0] || wiktionaryExample(wikitext) };
-    els.title.textContent = data[0]?.word || word; showDefinitions(data, extras); els.result.hidden = false; els.status.textContent = ''; fetchEtymology(word, wikitext, pageHtml);
+    if (lookupId !== lookup.latest) return;
+    els.title.textContent = data[0]?.word || word; showDefinitions(data); els.result.hidden = false; els.status.textContent = 'Adding examples, companions, and word history…';
     history.replaceState(null, '', `?word=${encodeURIComponent(word)}`);
-  } catch { els.status.textContent = `No entry found for “${word}”. Try another word.`; }
+    withTimeout(fetchWiktionaryDefinitions(word)).then(wiktionary => {
+      if (lookupId !== lookup.latest) return;
+      showEnrichmentExample(structuredExamples(wiktionary)[0]);
+    }).catch(() => {});
+    withTimeout(fetchSynonyms(word)).then(relatedWords => {
+      if (lookupId !== lookup.latest) return;
+      showEnrichmentSynonyms(relatedWords);
+    }).catch(() => {});
+    Promise.allSettled([withTimeout(fetchWiktionaryEntry(word)), withTimeout(fetchWiktionaryHtml(word))]).then(([wikitext, pageHtml]) => {
+      if (lookupId !== lookup.latest) return;
+      if (wikitext.status === 'fulfilled') showEnrichmentExample(wiktionaryExample(wikitext.value));
+      fetchEtymology(word, wikitext.status === 'fulfilled' ? wikitext.value : '', pageHtml.status === 'fulfilled' ? pageHtml.value : '');
+    });
+    setTimeout(() => { if (lookupId === lookup.latest) els.status.textContent = ''; }, 4800);
+  } catch { if (lookupId === lookup.latest) els.status.textContent = `No entry found for “${word}”. Try another word.`; }
 }
 els.form.addEventListener('submit', event => { event.preventDefault(); lookup(els.input.value); });
 document.querySelectorAll('[data-word]').forEach(button => button.addEventListener('click', () => lookup(button.dataset.word)));
