@@ -235,6 +235,17 @@
       ],
       "destination": "/crm/",
       "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "danny.3dvr.tech"
+        }
+      ],
+      "destination": "/danny/",
+      "permanent": false
     }
   ],
   "rewrites": [
