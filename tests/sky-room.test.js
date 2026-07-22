@@ -14,6 +14,7 @@ describe('sky room page', () => {
     assert.match(html, /Golden hour/);
     assert.match(html, /fullscreenButton/);
     const app = await readFile(new URL('../sky-room/app.js', import.meta.url), 'utf8');
+    const styles = await readFile(new URL('../sky-room/styles.css', import.meta.url), 'utf8');
     assert.match(app, /requestFullscreen/);
     assert.match(app, /Math\.pow\(1 - day, 1\.7\)/);
     assert.match(app, /function drawCelestialSky\(w, h, day, date\)/);
@@ -40,6 +41,8 @@ describe('sky room page', () => {
     assert.match(app, /sceneCard\.addEventListener\('pointermove'/);
     assert.match(app, /sceneCard\.addEventListener\('pointerdown'/);
     assert.match(app, /sceneCard\.addEventListener\('keydown'/);
+    assert.match(styles, /\.scene-card:fullscreen \.scene\{height:100%;min-height:0/);
+    assert.match(styles, /\.scene-card:fullscreen \.scene__horizon\{display:none\}/);
   });
   it('links the page from the portal app dock', async () => {
     const html = await readFile(indexUrl, 'utf8');
