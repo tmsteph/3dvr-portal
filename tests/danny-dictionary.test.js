@@ -13,6 +13,10 @@ test('Danny dictionary ships a complete lookup surface', async () => {
   assert.match(app, /api\.dictionaryapi\.dev/);
   assert.match(app, /en\.wiktionary\.org\/w\/api\.php/);
   assert.match(app, /fetchEtymology/);
+  assert.match(app, /fallbackExample/);
+  assert.match(app, /fetchWiktionaryEntry\(word\)/);
+  assert.match(app, /STYLE\|SCRIPT\|NOSCRIPT/);
+  assert.match(app, /etymologySection\(text\) \|\| renderedEtymology/);
 });
 
 test('Danny dictionary is routed from the custom subdomain', async () => {
