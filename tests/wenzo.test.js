@@ -39,4 +39,8 @@ describe('Wenzo art gallery', () => {
     assert.match(app, /uploadRotation = \(uploadRotation \+ 1\) % 4/);
     assert.match(app, /publishWork\(updated\)/);
   });
+  it('links back to the public 3DVR site from the footer', async () => {
+    const html = await readFile(new URL('../wenzo/index.html', import.meta.url), 'utf8');
+    assert.match(html, /<footer><a href="https:\/\/3dvr\.tech">3DVR Portal<\/a>/);
+  });
 });
