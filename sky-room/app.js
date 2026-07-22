@@ -12,6 +12,7 @@ const moon = document.querySelector('#moon');
 const sceneCard = document.querySelector('.scene-card');
 const fullscreenButton = document.querySelector('#fullscreenButton');
 const locationButton = document.querySelector('#locationButton');
+const biomeSelect = document.querySelector('#biomeSelect');
 const ambientModes = [['Still air', 'A quiet sky for focused work.'], ['Soft breeze', 'A little movement to loosen the room.'], ['Night watch', 'Dim the room and let your attention settle.']];
 const stars = Array.from({ length: 80 }, (_, i) => ({ x: (i * 97) % 1000 / 1000, y: (i * 53) % 550 / 550, radius: 0.3 + ((i * 17) % 11) / 10 }));
 let mode = 0;
@@ -24,6 +25,7 @@ let weather = null;
 let sunriseMinutes = 360;
 let sunsetMinutes = 1260;
 let biome = 'Temperate woodland';
+let biomeMode = 'auto';
 
 const pad = n => String(n).padStart(2, '0');
 const clock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), min = m % 60; return `${pad((h % 12) || 12)}:${pad(min)} ${h < 12 ? 'AM' : 'PM'}`; };
@@ -63,6 +65,11 @@ const biomeFor = (lat, currentWeather = weather) => {
   if (absLat >= 20 && absLat <= 55 && (currentWeather?.code == null || !isRainy(currentWeather.code))) return 'Grassland';
   return 'Temperate woodland';
 };
+function updateBiomeLabel() {
+  sceneLocation.textContent = biomeMode === 'auto'
+    ? (latitude == null ? 'Automatic region · location off' : `Local sky · ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`)
+    : `Selected biome · ${biome}`;
+}
 const phase = m => {
   if (m < sunriseMinutes - 30 || m >= sunsetMinutes + 60) return ['Night sky', 'Rest your eyes in the dark.'];
   if (m < sunriseMinutes + 60) return ['First light', 'The day is arriving slowly.'];
@@ -158,7 +165,7 @@ function paint(m) {
 function update(m) {
   customMinutes = m; slider.value = m; sliderTime.textContent = clock(m);
   const [mood, copy] = phase(m), season = seasonFor(); sceneMood.textContent = mood; daylightStatus.textContent = m < sunriseMinutes || m > sunsetMinutes ? 'The stars are out' : `${Math.round(daylight(m) * 100)}% daylight`; daylightCopy.textContent = copy;
-  sceneDetails.textContent = `${season} · ${biome}${weather ? ` · ${weatherLabel(weather.code)} · ${Math.round(weather.temperature)}°F` : ' · region adapts when location is on'}`;
+  sceneDetails.textContent = `${season} · ${biome}${weather ? ` · ${weatherLabel(weather.code)} · ${Math.round(weather.temperature)}°F` : biomeMode === 'auto' ? ' · region adapts when location is on' : ' · manual scene'}`;
   const span = Math.max(1, sunsetMinutes - sunriseMinutes), angle = (m - sunriseMinutes) / span * Math.PI, x = 50 + Math.cos(angle) * 42, y = 51 - Math.sin(angle) * 40;
   sun.style.left = `${x}%`; sun.style.top = `${y}%`; sun.style.opacity = m >= sunriseMinutes - 30 && m <= sunsetMinutes + 30 ? '1' : '0'; moon.style.left = `${50 + Math.cos(angle + Math.PI) * 42}%`; moon.style.top = `${51 - Math.sin(angle + Math.PI) * 40}%`; moon.style.opacity = m < sunriseMinutes || m > sunsetMinutes ? '1' : '0'; paint(m);
 }
@@ -170,13 +177,14 @@ async function useLocalWeather() {
       latitude = coords.latitude; longitude = coords.longitude;
       const query = new URLSearchParams({ latitude, longitude, current: 'temperature_2m,weather_code,wind_speed_10m,cloud_cover', daily: 'sunrise,sunset', timezone: 'auto', temperature_unit: 'fahrenheit', wind_speed_unit: 'mph' });
       const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`); if (!response.ok) throw new Error('weather request failed');
-      const data = await response.json(); weather = { code: data.current?.weather_code, temperature: data.current?.temperature_2m, wind: data.current?.wind_speed_10m, cloud: data.current?.cloud_cover }; biome = biomeFor(latitude, weather);
+      const data = await response.json(); weather = { code: data.current?.weather_code, temperature: data.current?.temperature_2m, wind: data.current?.wind_speed_10m, cloud: data.current?.cloud_cover }; if (biomeMode === 'auto') biome = biomeFor(latitude, weather);
       sunriseMinutes = minutesFromIso(data.daily?.sunrise?.[0]) ?? sunriseMinutes; sunsetMinutes = minutesFromIso(data.daily?.sunset?.[0]) ?? sunsetMinutes;
-      sceneLocation.textContent = `Local sky · ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`; locationButton.textContent = 'Local weather on'; locationButton.disabled = false; update(customMinutes);
+      updateBiomeLabel(); locationButton.textContent = 'Local weather on'; locationButton.disabled = false; update(customMinutes);
     } catch { sceneDetails.textContent = 'Weather unavailable · seasonal sky continues'; locationButton.textContent = 'Try local weather again'; locationButton.disabled = false; }
   }, () => { sceneDetails.textContent = 'Location declined · seasonal sky continues'; locationButton.textContent = 'Try local weather again'; locationButton.disabled = false; }, { enableHighAccuracy: false, maximumAge: 900000, timeout: 10000 });
 }
 function tick() { const now = new Date(); document.querySelector('#timeLabel').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); document.querySelector('#dateLabel').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); if (live) update(now.getHours() * 60 + now.getMinutes()); requestAnimationFrame(tick); }
 slider.addEventListener('input', e => { live = false; update(Number(e.target.value)); }); document.querySelector('#liveButton').addEventListener('click', () => { live = true; document.querySelector('#liveButton').textContent = 'Following live time'; }); document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => { live = false; update(Number(b.dataset.time)); })); locationButton.addEventListener('click', useLocalWeather);
+biomeSelect.addEventListener('change', event => { biomeMode = event.target.value; biome = biomeMode === 'auto' ? biomeFor(latitude, weather) : biomeMode; updateBiomeLabel(); update(customMinutes); });
 fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); }); document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); setTimeout(() => { resize(); update(customMinutes); }, 50); }); document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; }); document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); }); window.addEventListener('resize', () => { resize(); update(customMinutes); });
 resize(); tick();

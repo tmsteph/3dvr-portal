@@ -28,6 +28,10 @@ describe('sky room page', () => {
     assert.match(app, /Tropical forest/);
     assert.match(app, /Boreal forest/);
     assert.match(app, /region adapts when location is on/);
+    assert.match(html, /biomeSelect/);
+    assert.match(html, /Automatic for my location/);
+    assert.match(app, /biomeMode/);
+    assert.match(app, /updateBiomeLabel/);
   });
   it('links the page from the portal app dock', async () => {
     const html = await readFile(indexUrl, 'utf8');
