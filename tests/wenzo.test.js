@@ -21,4 +21,13 @@ describe('Wenzo art gallery', () => {
     assert.match(app, /URL\.createObjectURL\(file\)/);
     assert.match(app, /title: clean\(els\.title\.value\) \|\| 'Untitled'/);
   });
+  it('opens artwork in an accessible full-screen viewer', async () => {
+    const html = await readFile(new URL('../wenzo/index.html', import.meta.url), 'utf8');
+    const app = await readFile(new URL('../wenzo/app.js', import.meta.url), 'utf8');
+    assert.match(html, /id="lightbox".*role="dialog"/s);
+    assert.match(html, /id="lightboxClose"/);
+    assert.match(app, /function openLightbox\(work\)/);
+    assert.match(app, /event\.key === 'Escape'/);
+    assert.match(app, /aria-label', `View .* full screen`/);
+  });
 });
