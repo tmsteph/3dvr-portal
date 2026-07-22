@@ -19,4 +19,5 @@ test('Danny dictionary is routed from the custom subdomain', async () => {
   const vercel = await readFile(new URL('../vercel.json', import.meta.url), 'utf8');
   assert.match(vercel, /danny\.3dvr\.tech/);
   assert.match(vercel, /\/danny\/index\.html/);
+  assert.match(vercel, /"destination": "\/danny\/"/);
 });
