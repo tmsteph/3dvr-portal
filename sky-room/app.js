@@ -43,13 +43,25 @@ function resize() {
 function paint(m) {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   const day = daylight(m);
-  const top = `hsl(${205 - day * 18} ${40 + day * 25}% ${18 + day * 55}%)`;
-  const bottom = `hsl(${195 - day * 18} ${30 + day * 38}% ${18 + day * 48}%)`;
+  const warmth = twilightWarmth(m);
+  const topHue = 205 - day * 18 + (18 - (205 - day * 18)) * warmth;
+  const bottomHue = 195 - day * 18 + (10 - (195 - day * 18)) * warmth;
+  const top = `hsl(${topHue} ${40 + day * 25 + warmth * 28}% ${18 + day * 55 - warmth * 5}%)`;
+  const bottom = `hsl(${bottomHue} ${30 + day * 38 + warmth * 32}% ${18 + day * 48 - warmth * 4}%)`;
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, top);
   g.addColorStop(1, bottom);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
+
+  // A low, warm horizon glow gives both ends of the day their red shift.
+  if (warmth > 0) {
+    const glow = ctx.createRadialGradient(w * .52, h * .76, 0, w * .52, h * .76, h * .72);
+    glow.addColorStop(0, `rgba(255, 105, 48, ${warmth * .34})`);
+    glow.addColorStop(1, 'rgba(255, 105, 48, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, h);
+  }
 
   // Stars belong to the dark sky: they fade out continuously as daylight rises.
   const starAlpha = Math.pow(1 - day, 1.7) * 0.78;
@@ -90,6 +102,11 @@ function paint(m) {
 }
 function daylight(m) {
   return Math.max(0, Math.sin((m - 360) / 900 * Math.PI));
+}
+function twilightWarmth(m) {
+  const sunrise = m >= 300 && m <= 480 ? 1 - Math.abs(m - 390) / 90 : 0;
+  const sunset = m >= 960 && m <= 1260 ? 1 - Math.abs(m - 1110) / 150 : 0;
+  return Math.max(0, sunrise, sunset);
 }
 function update(m) {
   customMinutes = m;

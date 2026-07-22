@@ -17,6 +17,8 @@ describe('sky room page', () => {
     assert.match(app, /requestFullscreen/);
     assert.match(app, /Math\.pow\(1 - day, 1\.7\)/);
     assert.match(app, /Stars belong to the dark sky/);
+    assert.match(app, /function twilightWarmth\(m\)/);
+    assert.match(app, /rgba\(255, 105, 48/);
   });
   it('links the page from the portal app dock', async () => {
     const html = await readFile(indexUrl, 'utf8');
