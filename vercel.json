@@ -304,6 +304,16 @@
       "destination": "/danny/index.html"
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "wenzo.3dvr.tech"
+        }
+      ],
+      "destination": "/wenzo/index.html"
+    },
+    {
       "source": "/webhooks/stripe",
       "destination": "/api/webhooks/stripe"
     },
