@@ -30,4 +30,13 @@ describe('Wenzo art gallery', () => {
     assert.match(app, /event\.key === 'Escape'/);
     assert.match(app, /aria-label', `View .* full screen`/);
   });
+  it('supports rotating uploads and existing shared works', async () => {
+    const html = await readFile(new URL('../wenzo/index.html', import.meta.url), 'utf8');
+    const app = await readFile(new URL('../wenzo/app.js', import.meta.url), 'utf8');
+    assert.match(html, /id="rotatePreview"/);
+    assert.match(app, /function rotateDataUrl\(dataUrl\)/);
+    assert.match(app, /function rotateWork\(id, button\)/);
+    assert.match(app, /uploadRotation = \(uploadRotation \+ 1\) % 4/);
+    assert.match(app, /publishWork\(updated\)/);
+  });
 });
