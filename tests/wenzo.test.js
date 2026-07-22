@@ -11,4 +11,11 @@ describe('Wenzo art gallery', () => {
     const app = await readFile(new URL('../wenzo/app.js', import.meta.url), 'utf8');
     assert.match(app, /wenzoGallery/); assert.match(app, /localStorage\.setItem\(LOCAL_KEY/); assert.match(app, /toDataURL\('image\/jpeg', \.82\)/); assert.match(app, /root\?\.get\('works'\)\.get\(work\.id\)\.put\(work\)/); assert.match(app, /root\.get\('works'\)\.map\(\)/);
   });
+  it('lets Wendy remove a work from Gun and the local fallback', async () => {
+    const app = await readFile(new URL('../wenzo/app.js', import.meta.url), 'utf8');
+    assert.match(app, /function removeWork\(id\)/);
+    assert.match(app, /state\.works\.delete\(id\)/);
+    assert.match(app, /deleted: true/);
+    assert.match(app, /!work\.deleted/);
+  });
 });
