@@ -12,6 +12,14 @@
     <section id="gallery" class="gallery-section" aria-labelledby="galleryTitle"><div class="section-heading"><div><p class="eyebrow">Selected works</p><h2 id="galleryTitle">The collection</h2></div><p id="galleryCount" class="count">Loading the studio…</p></div><div id="galleryGrid" class="gallery-grid" aria-live="polite"><div class="empty-state"><span>✦</span><p>Opening the gallery…</p></div></div></section>
     <section id="addWork" class="studio-section"><div><p class="eyebrow">The studio door is open</p><h2>Add a new work.</h2><p>Upload a piece from Wendy’s device. It is resized in the browser, then shared through the portal’s Gun graph.</p><p class="privacy-note">Images are public to anyone who can reach this gallery. Add only artwork you want to share.</p></div><form id="uploadForm" class="upload-card"><label class="file-drop" for="artFile"><span class="upload-icon">＋</span><strong id="fileLabel">Choose an image</strong><small>JPG, PNG, GIF, or WebP · up to 8 MB</small><input id="artFile" type="file" accept="image/jpeg,image/png,image/gif,image/webp" required></label><img id="artPreview" class="upload-preview" alt="" hidden><label>Title <small>(optional — defaults to Untitled)</small><input id="artTitle" name="title" placeholder="Untitled"></label><label>Medium or note<input id="artNote" name="note" placeholder="Oil on canvas · 2026"></label><button type="submit">Place it in the gallery <span>→</span></button><p id="uploadStatus" role="status" aria-live="polite">Connecting to the studio…</p></form></section>
     <section id="about" class="about-section"><div class="about-letter"><p class="eyebrow">About the artist</p><h2>Make space for<br>what wants to be seen.</h2></div><div><p>Wendy’s work follows color, texture, and the small surprises that appear when an image is given room to breathe.</p><p>Wenzo is a simple, evolving place for that work to gather — a gallery that can grow one piece at a time.</p></div></section>
-  </main><footer><a href="/">3DVR Portal</a><span>Wenzo · Wendy’s open studio</span></footer>
+  </main>
+  <div id="lightbox" class="lightbox" hidden role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
+    <button id="lightboxClose" class="lightbox__close" type="button" aria-label="Close artwork viewer">×</button>
+    <figure class="lightbox__figure">
+      <img id="lightboxImage" class="lightbox__image" alt="">
+      <figcaption id="lightboxTitle" class="lightbox__caption"></figcaption>
+    </figure>
+  </div>
+  <footer><a href="/">3DVR Portal</a><span>Wenzo · Wendy’s open studio</span></footer>
 </body>
 </html>
