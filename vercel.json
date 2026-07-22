@@ -283,6 +283,16 @@
       "destination": "/growth-desk/index.html"
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "danny.3dvr.tech"
+        }
+      ],
+      "destination": "/danny/index.html"
+    },
+    {
       "source": "/webhooks/stripe",
       "destination": "/api/webhooks/stripe"
     },
