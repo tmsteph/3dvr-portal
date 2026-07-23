@@ -33,6 +33,8 @@ describe('sky room page', () => {
     assert.match(app, /Boreal forest/);
     assert.match(app, /region adapts when location is on/);
     assert.match(html, /biomeSelect/);
+    assert.match(html, /controlsToggle/);
+    assert.match(html, /controlsBody/);
     assert.match(html, /Automatic for my location/);
     assert.match(app, /biomeMode/);
     assert.match(app, /updateBiomeLabel/);
@@ -41,6 +43,8 @@ describe('sky room page', () => {
     assert.match(app, /sceneCard\.addEventListener\('pointermove'/);
     assert.match(app, /sceneCard\.addEventListener\('pointerdown'/);
     assert.match(app, /sceneCard\.addEventListener\('keydown'/);
+    assert.match(app, /setControlsExpanded/);
+    assert.match(app, /max-width: 700px\) and \(orientation: portrait\)/);
     assert.match(styles, /\.scene-card:fullscreen \.scene\{height:100%;min-height:0/);
     assert.match(styles, /\.scene-card:fullscreen \.scene__horizon\{display:none\}/);
   });

@@ -16,3 +16,27 @@
 .scene-card:fullscreen{overflow:hidden}
 .scene-card:fullscreen .scene-controls{position:absolute;right:0;bottom:0;left:0;z-index:3;flex:0 0 auto;background:linear-gradient(180deg,transparent 0,#0b1118d9 44%,#0b1118f2 100%)}
 @media(max-width:700px){.scene-controls{padding:28px 18px 20px}}
+
+/* Portrait keeps the landscape primary; the full control sheet is opt-in. */
+@media(max-width:700px) and (orientation:portrait){
+  .scene-controls{padding:12px 14px 13px}
+  .scene-controls.controls-expanded{padding:18px 14px 16px}
+  .control-heading{align-items:center;flex-direction:row;gap:10px}
+  .control-heading h2{font-size:1.15rem;margin-top:2px}
+  .control-heading .eyebrow{font-size:.62rem}
+  .controls-toggle{display:block;margin-left:auto;padding:7px 11px;font-size:.8rem;white-space:nowrap}
+  .scene-controls:not(.controls-expanded) .control-actions{display:none}
+  .scene-controls.controls-expanded .control-actions{display:flex;width:100%;flex-direction:column;align-items:stretch}
+  .scene-controls.controls-expanded .control-heading{align-items:flex-start;flex-wrap:wrap}
+  .scene-controls.controls-expanded .controls-toggle{order:2}
+  .scene-controls.controls-expanded .control-actions{order:3}
+  .control-actions .biome-picker{display:flex;flex-direction:column;gap:4px}
+  .control-actions .text-button{width:100%;text-align:center}
+  .controls-body #timeSlider{margin:16px 0 3px}
+  .controls-body .preset-row{margin-top:14px}
+  .controls-body .preset-row button{min-width:0;flex:1 1 44%;padding:7px 9px}
+}
+
+/* The disclosure is only needed where the portrait sheet can crowd the scene. */
+.controls-toggle{display:none}
+@media(max-width:700px) and (orientation:portrait){.controls-toggle{display:block}}

@@ -11,6 +11,8 @@ const sun = document.querySelector('#sun');
 const moon = document.querySelector('#moon');
 const sceneCard = document.querySelector('.scene-card');
 const fullscreenButton = document.querySelector('#fullscreenButton');
+const controlsToggle = document.querySelector('#controlsToggle');
+const controlsBody = document.querySelector('#controlsBody');
 const locationButton = document.querySelector('#locationButton');
 const biomeSelect = document.querySelector('#biomeSelect');
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -51,6 +53,7 @@ let sunriseMinutes = 360;
 let sunsetMinutes = 1260;
 let biome = 'Temperate woodland';
 let biomeMode = 'auto';
+let controlsExpanded = true;
 
 const pad = n => String(n).padStart(2, '0');
 const clock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), min = m % 60; return `${pad((h % 12) || 12)}:${pad(min)} ${h < 12 ? 'AM' : 'PM'}`; };
@@ -111,6 +114,13 @@ function showFullscreenControls() {
   fullscreenIdleTimer = setTimeout(() => sceneCard.classList.add('fullscreen-idle'), FULLSCREEN_IDLE_MS);
 }
 function handleFullscreenInteraction() { showFullscreenControls(); }
+function setControlsExpanded(expanded) {
+  controlsExpanded = expanded;
+  sceneCard.querySelector('.scene-controls').classList.toggle('controls-expanded', expanded);
+  controlsBody.hidden = !expanded;
+  controlsToggle.setAttribute('aria-expanded', String(expanded));
+  controlsToggle.innerHTML = expanded ? 'Hide controls <span aria-hidden="true">⌃</span>' : 'Controls <span aria-hidden="true">⌄</span>';
+}
 function updateBiomeLabel() {
   sceneLocation.textContent = biomeMode === 'auto'
     ? (latitude == null ? 'Automatic region · location off' : `Local sky · ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`)
@@ -255,5 +265,7 @@ async function useLocalWeather() {
 function tick() { const now = new Date(); document.querySelector('#timeLabel').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); document.querySelector('#dateLabel').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); if (live) update(now.getHours() * 60 + now.getMinutes()); if (reduceMotion) setTimeout(tick, 1000); else requestAnimationFrame(tick); }
 slider.addEventListener('input', e => { live = false; update(Number(e.target.value)); }); document.querySelector('#liveButton').addEventListener('click', () => { live = true; document.querySelector('#liveButton').textContent = 'Following live time'; }); document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => { live = false; update(Number(b.dataset.time)); })); locationButton.addEventListener('click', useLocalWeather);
 biomeSelect.addEventListener('change', event => { biomeMode = event.target.value; biome = biomeMode === 'auto' ? biomeFor(latitude, weather) : biomeMode; updateBiomeLabel(); update(customMinutes); });
+controlsToggle.addEventListener('click', () => setControlsExpanded(!controlsExpanded));
 fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); }); document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); if (active) showFullscreenControls(); else { clearFullscreenIdleTimer(); sceneCard.classList.remove('fullscreen-idle'); } setTimeout(() => { resize(); update(customMinutes); }, 50); }); sceneCard.addEventListener('pointermove', handleFullscreenInteraction); sceneCard.addEventListener('pointerdown', handleFullscreenInteraction); sceneCard.addEventListener('keydown', handleFullscreenInteraction); document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; }); document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); }); window.addEventListener('resize', () => { resize(); update(customMinutes); });
+if (window.matchMedia?.('(max-width: 700px) and (orientation: portrait)').matches) setControlsExpanded(false);
 resize(); tick();
