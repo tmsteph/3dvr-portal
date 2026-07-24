@@ -87,6 +87,8 @@ async function main() {
     }
   }
   console.log(JSON.stringify(result, null, 2));
-  if (result.failed.length) process.exitCode = 1;
+  // Gun keeps relay sockets open after the work is complete; explicitly end the
+  // worker so scheduled CI runs do not hang after a successful send/dry-run.
+  process.exit(result.failed.length ? 1 : 0);
 }
-main().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });
+main().catch((error) => { console.error(error.stack || error); process.exit(1); });
