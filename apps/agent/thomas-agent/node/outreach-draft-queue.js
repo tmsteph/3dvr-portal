@@ -17,6 +17,10 @@ function normalizeEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
 }
 
+function currentOfferProfile() {
+  return normalizeText(process.env.THREEDVR_OUTREACH_OFFER_PROFILE).toLowerCase();
+}
+
 function cleanId(value) {
   return normalizeText(value).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
 }
@@ -110,6 +114,7 @@ function enqueueDraftRequest(lead = {}, options = {}) {
     focus: lead.previewFocus,
     action: lead.previewAction,
   }, options);
+  const avOperator = currentOfferProfile() === 'av-operator';
   const request = {
     version: 1,
     id,
@@ -130,8 +135,12 @@ function enqueueDraftRequest(lead = {}, options = {}) {
       requiredGreeting: `Hi ${normalizeText(lead.name)} team,`,
       requiredPreviewUrl: previewUrl,
       sender: 'Thomas at 3dvr.tech in San Diego',
-      offer: 'A no-cost one-page website draft with no obligation to keep it.',
-      prohibited: ['invented observations', 'pricing', 'guarantees', 'hype', 'alternate recipients'],
+      offer: avOperator
+        ? 'Thomas as an audio-visual operator for event days at $500/day, covering audio, video, show calls, troubleshooting, load-in, and strike.'
+        : 'A no-cost one-page website draft with no obligation to keep it.',
+      prohibited: avOperator
+        ? ['invented observations', 'guarantees', 'hype', 'alternate recipients']
+        : ['invented observations', 'pricing', 'guarantees', 'hype', 'alternate recipients'],
     },
   };
   writeJsonAtomic(path.join(paths.pending, `${id}.json`), request);
