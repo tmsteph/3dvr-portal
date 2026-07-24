@@ -21,6 +21,7 @@ const SEARCH_CATEGORY_TERMS = Object.freeze({
   food: Object.freeze(['local restaurant', 'catering company']),
   service: Object.freeze(['auto repair', 'hair salon', 'landscaping service', 'cleaning service']),
   professional: Object.freeze(['law office', 'accounting firm', 'consulting firm', 'real estate agency']),
+  'av-operator': Object.freeze(['audio visual company', 'event production company', 'AV rental company', 'live event production']),
   health: Object.freeze(['dental office', 'physical therapy clinic', 'wellness practice']),
 });
 const BLOCKED_SEARCH_HOST_PATTERN = /(^|\.)(?:ca\.gov|sandiego\.gov|sdcounty\.ca\.gov|yelp\.com|yellowpages\.com|bbb\.org|facebook\.com|instagram\.com|linkedin\.com|wikipedia\.org|indeed\.com|mapquest\.com|chamberofcommerce\.com|angi\.com|thumbtack\.com|expertise\.com)$/i;
@@ -59,6 +60,12 @@ const CATEGORY_PRESETS = Object.freeze({
     'node["office"="estate_agent"]',
     'way["office"="estate_agent"]',
   ]),
+  'av-operator': Object.freeze([
+    'node["office"="company"]',
+    'way["office"="company"]',
+    'node["amenity"="theatre"]',
+    'way["amenity"="theatre"]',
+  ]),
   health: Object.freeze([
     'node["amenity"="dentist"]',
     'way["amenity"="dentist"]',
@@ -71,7 +78,7 @@ const CATEGORY_PRESETS = Object.freeze({
 
 function usage() {
   console.log(`Usage:
-  ask-crawl [--location "San Diego, CA"] [--category coffee|food|service|professional|health] [--limit 25] [--radius-km 8] [--dry-run] [--include-chains] [--source overpass|search|auto]
+  ask-crawl [--location "San Diego, CA"] [--category coffee|food|service|professional|health|av-operator] [--limit 25] [--radius-km 8] [--dry-run] [--include-chains] [--source overpass|search|auto]
 
 Examples:
   ask-crawl --location "San Diego, CA" --category service --limit 30
