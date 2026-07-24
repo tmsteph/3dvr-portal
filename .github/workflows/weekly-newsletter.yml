@@ -1,0 +1,37 @@
+name: Weekly Field Guide Newsletter
+
+on:
+  schedule:
+    # Monday 10:30 AM Pacific Standard / 11:30 AM Pacific Daylight.
+    # This stays inside business hours year-round and runs once weekly.
+    - cron: '30 18 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Read the consented list and write no email'
+        required: false
+        default: 'true'
+
+jobs:
+  newsletter:
+    name: Send weekly field guide
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      NEWSLETTER_REPLY_TO: ${{ vars.NEWSLETTER_REPLY_TO }}
+      THREEDVR_GUN_RELAY: ${{ vars.GROWTH_GUN_PEERS }}
+      NEWSLETTER_DRY_RUN: ${{ inputs.dry_run || 'false' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Send newsletter
+        run: node apps/agent/thomas-agent/node/weekly-newsletter.js
