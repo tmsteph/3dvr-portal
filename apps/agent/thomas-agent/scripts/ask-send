@@ -223,6 +223,8 @@ route="$(node "$LEAD_ROUTE_JS" --contact "$contact" --link "$link" --variant "$v
 
 if [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" = "free-page" ]; then
   subject="A free one-page website for $name"
+elif [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" = "av-operator" ]; then
+  subject="AV operator available for upcoming events"
 else
   subject="Question for $name"
 fi

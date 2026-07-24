@@ -104,6 +104,16 @@ function buildTemplateOutreachDraft(lead = {}) {
       text: finalizeCommercialOutreach(body),
     };
   }
+  if (currentOfferProfile() === 'av-operator') {
+    const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
+    const body = variant === 'b'
+      ? `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I am available as an audio-visual operator for event days at $500/day. I can step into an existing crew for audio, video, show calls, troubleshooting, load-in, or strike. Travel and special gear are quoted separately.${previewLine}\n\nDo you need reliable AV crew coverage for an upcoming event?\n\nThomas\n3dvr.tech`
+      : `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I am available for audio-visual operator work at $500/day. I can help with audio, video, show calls, troubleshooting, load-in, and strike, and can join an existing crew.${previewLine}\n\nDo you have any upcoming events that need an experienced AV operator?\n\nThomas\n3dvr.tech`;
+    return {
+      source: variant === 'b' ? 'template-av-operator-b' : 'template-av-operator',
+      text: finalizeCommercialOutreach(body),
+    };
+  }
   const hint = defaultHint(lead.site, lead.contact);
   return {
     source: 'template',
@@ -127,7 +137,14 @@ function buildPrompt(lead = {}) {
       '- Ask whether a simpler page would be useful for the business.',
       '- Say Thomas is with 3dvr.tech in San Diego.',
     ]
-    : [
+    : currentOfferProfile() === 'av-operator'
+      ? [
+        '- Offer Thomas as an audio-visual operator for event days at $500/day.',
+        '- Mention audio, video, show calls, troubleshooting, load-in, and strike.',
+        '- Say travel and special gear are quoted separately.',
+        '- Ask whether they need reliable AV crew coverage for an upcoming event.',
+      ]
+      : [
       '- Mention websites, follow-up systems, or online workflows in a natural way.',
       '- Ask one concise question about whether something in their website or customer flow is harder than it should be.',
     ];
@@ -163,7 +180,13 @@ function buildLocalPrompt(lead = {}) {
       'Offer: a clean one-page website draft at no cost, with no obligation to keep it.',
       'Ask whether a simpler page would be useful for the business.',
     ]
-    : [
+    : currentOfferProfile() === 'av-operator'
+      ? [
+        'Offer: Thomas is available as an audio-visual operator for event days at $500/day.',
+        'Mention audio, video, show calls, troubleshooting, load-in, and strike.',
+        'Ask whether they need reliable AV crew coverage for an upcoming event.',
+      ]
+      : [
       'Ask one concrete question about whether something on the site or in the customer flow is harder than it should be.',
     ];
   return [
