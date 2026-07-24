@@ -1,10 +1,11 @@
-const SPRINT_TAG = 'follow-up-leak-sprint';
-const RECORD_PREFIX = 'follow-up-leak-';
 const gun = window.Gun
   ? window.Gun({ peers: window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'] })
   : null;
+const SPRINT_TAG = 'follow-up-leak-sprint';
 
 const elements = {
+  navToggle: document.getElementById('navToggle'),
+  navMenu: document.getElementById('growthNav'),
   status: document.getElementById('syncStatus'),
   total: document.getElementById('totalCount'),
   ready: document.getElementById('readyCount'),
@@ -13,6 +14,26 @@ const elements = {
   list: document.getElementById('leadList'),
   refresh: document.getElementById('refreshButton'),
 };
+
+const autopilotStateRoot = gun ? gun.get('3dvr').get('ops').get('autopilot').get('state') : null;
+
+function setNav(open) {
+  if (!elements.navToggle || !elements.navMenu) return;
+  elements.navToggle.setAttribute('aria-expanded', String(open));
+  elements.navMenu.classList.toggle('is-open', open);
+}
+
+elements.navToggle?.addEventListener('click', () => {
+  setNav(elements.navToggle.getAttribute('aria-expanded') !== 'true');
+});
+
+elements.navMenu?.addEventListener('click', () => setNav(false));
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.topbar')) setNav(false);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') setNav(false);
+});
 
 const state = {
   records: {},
@@ -28,10 +49,12 @@ function safe(value) {
     .replace(/'/g, '&#39;');
 }
 
-function isSprintRecord(record, id) {
+function isRelevantRecord(record, id) {
   const recordId = String(record?.id || id || '');
-  const tags = String(record?.tags || '');
-  return recordId.startsWith(RECORD_PREFIX) || tags.includes(SPRINT_TAG);
+  const name = String(record?.name || '').trim();
+  // The old desk only showed one sprint tag. The CRM is now the source of truth,
+  // so show every real contact record and leave campaign filtering to the CRM.
+  return Boolean(recordId && name && !recordId.startsWith('system-'));
 }
 
 function classify(record = {}) {
@@ -39,7 +62,7 @@ function classify(record = {}) {
   const tags = String(record.tags || '').toLowerCase();
   if (status === 'lost' || tags.includes('do_not_send')) return 'hold';
   if (tags.includes('manual_verify') || tags.includes('contact_form_or_manual')) return 'manual';
-  if (status.includes('invited') || tags.includes('ready_for_review')) return 'ready';
+  if (record.email || tags.includes('route/email') || status.includes('invited') || tags.includes('ready_for_review')) return 'ready';
   return 'manual';
 }
 
@@ -57,7 +80,7 @@ function crmUrl(record = {}) {
 
 function draftPreview(record = {}) {
   const draft = state.drafts[record.id] || {};
-  return draft.subject || record.nextBestAction || 'Open CRM to review this record.';
+  return draft.subject || record.lastMessageSubject || record.nextBestAction || 'Open CRM to review this record.';
 }
 
 function render() {
@@ -89,7 +112,7 @@ function render() {
     <article class="lead-card">
       <div>
         <h3>${safe(record.name || 'Unnamed record')}</h3>
-        <p>${safe(record.lastSignal || record.primaryPain || 'No signal recorded yet.')}</p>
+        <p>${safe(record.lastMessage || record.lastSignal || record.primaryPain || 'No signal recorded yet.')}</p>
         <div class="lead-card__meta">
           ${statusLabel(record)}
           <span>${safe(record.nextFollowUp ? `Follow up ${record.nextFollowUp}` : 'No follow-up date')}</span>
@@ -98,6 +121,7 @@ function render() {
       </div>
       <div class="lead-card__actions">
         <a class="button primary" href="${safe(crmUrl(record))}">Open CRM record</a>
+        <a class="button approval-button" href="../growth-operator/?record=${encodeURIComponent(record.id || '')}">Inspect outreach</a>
         <a class="button" href="../crm/flow.html">Flow view</a>
         <span>${safe(draftPreview(record))}</span>
       </div>
@@ -116,7 +140,19 @@ function connect() {
     return;
   }
 
-  setStatus('Listening to 3dvr-crm and outreach drafts.');
+  setStatus('Listening to the unified CRM and outreach history.');
+  autopilotStateRoot?.on((data) => {
+    const lastRun = String(data?.lastRunAt || data?.ranAt || '').trim();
+    const blocked = String(data?.campaign?.sendBlockedReason || '').trim();
+    if (lastRun) {
+      setStatus(`Worker last ran ${lastRun}${blocked ? ` · sends paused: ${blocked}` : ' · worker state received'}.`);
+    }
+  });
+  window.setTimeout(() => {
+    if (!Object.keys(state.records).length) {
+      setStatus('No CRM records arrived yet. Check the worker sync/relay before assuming outreach is running.');
+    }
+  }, 8000);
   gun.get('3dvr-crm').map().on((data, id) => {
     if (!id) return;
     if (!data) {
@@ -124,7 +160,7 @@ function connect() {
       render();
       return;
     }
-    if (!isSprintRecord(data, id)) return;
+    if (!isRelevantRecord(data, id)) return;
     state.records[id] = { ...data, id: data.id || id };
     render();
   });
@@ -133,6 +169,26 @@ function connect() {
     if (!id || !data) return;
     state.drafts[id] = data;
     render();
+  });
+
+  gun.get('3dvr-portal').get('crm-touch-log').map().on((data) => {
+    if (!data?.recordId && !data?.crmRecordId) return;
+    const recordId = data.recordId || data.crmRecordId;
+    const record = state.records[recordId];
+    if (!record) return;
+    const existingTime = String(record.lastTouchAt || record.lastContacted || '');
+    const nextTime = String(data.created || data.updated || '');
+    if (nextTime >= existingTime) {
+      state.records[recordId] = {
+        ...record,
+        lastTouchAt: nextTime,
+        lastMessage: data.message || record.lastMessage,
+        lastMessageSubject: data.subject || record.lastMessageSubject,
+        lastDeliveryStatus: data.deliveryStatus || record.lastDeliveryStatus,
+        replyCount: record.replyCount || (data.touchType === 'reply-received' ? 1 : 0),
+      };
+      render();
+    }
   });
 }
 

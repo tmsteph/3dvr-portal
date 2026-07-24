@@ -71,6 +71,11 @@ const gun = typeof Gun === 'function' ? Gun(window.__GUN_PEERS__ || DEFAULT_PEER
 const portalRoot = gun ? gun.get(ROOT_KEY) : null;
 const operatorRoot = portalRoot ? portalRoot.get(OPERATOR_NODE) : null;
 const itemsRoot = operatorRoot ? operatorRoot.get('items') : null;
+const crmRoot = gun ? gun.get('3dvr-crm') : null;
+const touchRoot = portalRoot ? portalRoot.get('crm-touch-log') : null;
+// The worker writes its health state under the server-side agent root. Reading
+// it here makes a dead/stale worker visible even when the CRM queue is empty.
+const autopilotStateRoot = gun ? gun.get('3dvr').get('ops').get('autopilot').get('state') : null;
 const audienceRoot = gun ? gun.get('3dvr-audience-tests').get('v1') : null;
 const agentQueueRoot = portalRoot
   ? portalRoot.get('agentOps').get(AGENT_OWNER_ALIAS).get('taskQueue')
@@ -78,6 +83,7 @@ const agentQueueRoot = portalRoot
 
 const els = {
   syncStatus: document.getElementById('syncStatus'),
+  autopilotStatus: document.getElementById('autopilotStatus'),
   form: document.getElementById('operatorForm'),
   itemName: document.getElementById('itemName'),
   itemEmail: document.getElementById('itemEmail'),
@@ -197,6 +203,36 @@ function normalizeItem(value) {
   };
 }
 
+function stageFromCrm(record) {
+  const status = normalizeText(record.status || '').toLowerCase();
+  if (status.includes('lost') || status.includes('won')) return 'done';
+  if (status.includes('reply') || status.includes('discovery')) return 'working';
+  if (record.lastDeliveryStatus === 'sent' || record.lastMessage) return 'sent';
+  return record.email ? 'drafted' : 'new';
+}
+
+function itemFromCrmRecord(record, id) {
+  if (!record || typeof record !== 'object') return null;
+  const recordId = normalizeText(record.id || id);
+  const name = normalizeText(record.name || record.company);
+  if (!recordId || !name) return null;
+  const item = normalizeItem({
+    id: `crm-${recordId}`,
+    name,
+    email: record.email,
+    lane: 'lead',
+    stage: stageFromCrm(record),
+    offer: record.offerAmount || record.lastCampaign || '',
+    context: record.lastMessage || record.lastSignal || record.primaryPain || '',
+    draft: record.lastMessage || '',
+    nextStep: record.nextBestAction || 'Review the latest CRM activity and decide the next useful action.',
+    source: `crm:${recordId}`,
+    createdAt: record.created || new Date().toISOString(),
+    updatedAt: record.updated || record.lastContacted || new Date().toISOString()
+  });
+  return item;
+}
+
 function getItems() {
   return Object.values(state.items)
     .map(normalizeItem)
@@ -208,6 +244,18 @@ function updateStatus(message) {
   if (els.syncStatus) {
     els.syncStatus.textContent = message;
   }
+}
+
+function updateAutopilotStatus(state = {}) {
+  if (!els.autopilotStatus) return;
+  const lastRun = normalizeText(state.lastRunAt || state.ranAt);
+  const campaign = state.campaign || {};
+  if (!lastRun) {
+    els.autopilotStatus.textContent = 'No worker run has reached the portal yet. Research and sends may be offline.';
+    return;
+  }
+  const blocked = normalizeText(campaign.sendBlockedReason);
+  els.autopilotStatus.textContent = `Last worker run: ${lastRun}${blocked ? ` · Sends paused: ${blocked}` : ' · Worker state received.'}`;
 }
 
 function putGun(node, payload) {
@@ -618,7 +666,58 @@ function subscribeGun() {
     render();
   });
 
-  updateStatus('Gun sync: connected to 3dvr-portal/growthOperator/items.');
+  updateStatus('Connected. Loading CRM contacts and outreach history.');
+}
+
+function subscribeAutopilotState() {
+  if (!autopilotStateRoot) return;
+  autopilotStateRoot.on((state) => updateAutopilotStatus(cleanGunRecord(state)));
+  window.setTimeout(() => {
+    if (!Object.keys(state.items).length && els.autopilotStatus?.textContent.includes('Checking')) {
+      els.autopilotStatus.textContent = 'No CRM records arrived yet. Check the worker sync/relay before assuming outreach is running.';
+    }
+  }, 8000);
+}
+
+function mergeCrmTouch(recordId, touch) {
+  const itemId = `crm-${recordId}`;
+  const item = normalizeItem(state.items[itemId]);
+  if (!item || !touch) return;
+  const touchTime = normalizeText(touch.created || touch.updated);
+  const current = normalizeText(item.updatedAt);
+  if (touchTime && current && touchTime < current) return;
+  const next = normalizeItem({
+    ...item,
+    context: touch.message || touch.summary || item.context,
+    draft: touch.message || item.draft,
+    stage: touch.touchType === 'reply-received' ? 'working' : touch.deliveryStatus === 'sent' ? 'sent' : item.stage,
+    updatedAt: touchTime || new Date().toISOString()
+  });
+  if (next) {
+    state.items[itemId] = next;
+    persistLocalItems();
+    render();
+  }
+}
+
+function subscribeCrm() {
+  if (!crmRoot) return;
+  crmRoot.map().on((record, id) => {
+    const item = itemFromCrmRecord(record, id);
+    if (!item) return;
+    const existing = normalizeItem(state.items[item.id]);
+    // CRM is canonical. Refresh the operator view whenever the CRM record changes,
+    // while preserving a manually edited draft when it is newer.
+    if (!existing || String(item.updatedAt) >= String(existing.updatedAt || '')) {
+      state.items[item.id] = item;
+      persistLocalItems();
+      render();
+    }
+  });
+  touchRoot?.map().on((touch) => {
+    if (!touch?.recordId && !touch?.crmRecordId) return;
+    mergeCrmTouch(touch.recordId || touch.crmRecordId, touch);
+  });
 }
 
 function subscribeAudienceLeads() {
@@ -697,6 +796,8 @@ function init() {
   bindEvents();
   render();
   subscribeGun();
+  subscribeAutopilotState();
+  subscribeCrm();
   subscribeAudienceLeads();
 }
 

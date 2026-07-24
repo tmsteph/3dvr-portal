@@ -11,6 +11,7 @@ const { chooseExperimentVariant } = require('./experiment-optimizer');
 const { readOutreachLog } = require('./outreach-log');
 const { qualifyLeadWebsite } = require('./lead-quality');
 const { enqueueDraftRequest } = require('./outreach-draft-queue');
+const { businessHoursStatus } = require('./send-window');
 
 const { routeFromContact } = require('./lead-route');
 
@@ -986,6 +987,7 @@ async function main() {
   }
 
   const outreachEntries = readOutreachLog();
+  const sendWindow = businessHoursStatus();
   const campaignAllowance = getCampaignAllowance(outreachEntries, {
     campaignId: DEFAULT_CAMPAIGN_ID,
     dailyLimit: DEFAULT_DAILY_SEND_LIMIT,
@@ -999,9 +1001,11 @@ async function main() {
       ? 'THREEDVR_AUTOPILOT_PAUSED is enabled'
       : !DEFAULT_OUTREACH_POSTAL_ADDRESS
         ? 'THREEDVR_OUTREACH_POSTAL_ADDRESS is not configured'
-        : !campaignAllowance.active
-          ? 'campaign is outside its active date range'
-          : campaignAllowance.allowed < 1
+            : !campaignAllowance.active
+              ? 'campaign is outside its active date range'
+              : !sendWindow.allowed
+                ? `outside business hours (${sendWindow.timezone}, ${sendWindow.start}-${sendWindow.end}, Monday-Friday)`
+              : campaignAllowance.allowed < 1
             ? 'daily or campaign send limit reached'
             : '';
   const runSendLimit = Math.min(DEFAULT_AUTO_SEND_LIMIT, campaignAllowance.allowed);
@@ -1149,6 +1153,7 @@ async function main() {
       qualityGateEnabled: DEFAULT_QUALITY_GATE,
       runSendLimit,
       sendBlockedReason,
+      sendWindow,
       ...campaignAllowance,
     },
     experiment: chooseExperimentVariant(readOutreachLog(), {
