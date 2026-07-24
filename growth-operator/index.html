@@ -28,11 +28,11 @@
 
       <div class="hero-grid">
         <div>
-          <p class="eyebrow">Approval-first operator</p>
+          <p class="eyebrow">Autopilot control room</p>
           <h1>Growth Operator</h1>
           <p class="lead">
-            Find likely-fit leads, prepare email, handle support, and keep delivery moving without turning your day
-            into admin work.
+            Find likely-fit leads, prepare email, handle support, and keep delivery moving. See the same contacts and message history as the CRM, inspect what the autopilot is doing, and only use
+            manual actions when a routine campaign cannot handle the next step.
           </p>
           <div class="hero-actions">
             <button id="findLeadsButton" class="button primary" type="button">Find leads</button>
@@ -42,8 +42,9 @@
         </div>
         <aside class="status-card">
           <span>Operating rule</span>
-          <strong>Prepare the work. Send only approved email.</strong>
-          <p id="syncStatus" role="status" aria-live="polite">Connecting to 3dvr-portal/growthOperator and sprint fit-check leads.</p>
+            <strong>Autopilot is on.</strong>
+            <p id="syncStatus" role="status" aria-live="polite">Connecting to the unified CRM and outreach history.</p>
+            <p id="autopilotStatus" class="small" role="status" aria-live="polite">Checking the last worker run…</p>
         </aside>
       </div>
     </header>
@@ -55,7 +56,7 @@
           <strong id="leadQueueCount">0</strong>
         </article>
         <article>
-          <span>Email ready</span>
+            <span>Needs attention</span>
           <strong id="readyEmailCount">0</strong>
         </article>
         <article>
@@ -73,7 +74,7 @@
           <div class="section-head">
             <p class="eyebrow">Quick add</p>
             <h2>Add the person, problem, or customer.</h2>
-            <p>Minimum fields only. The operator can fill in the rest later.</p>
+            <p>Most routine direct-email work is handled automatically. Use this for a specific exception or new contact. The queue also accepts sprint fit-check leads.</p>
           </div>
 
           <form id="operatorForm" class="operator-form">
@@ -109,7 +110,7 @@
           <div class="section-head">
             <p class="eyebrow">Direct email</p>
             <h2>Send path</h2>
-            <p>Uses the existing unified mail route. Keep the token local and send only approved drafts.</p>
+            <p>Routine campaigns send through the autopilot. This token is only for an exceptional one-off manual send.</p>
           </div>
           <label>
             <span>Operator email token</span>
@@ -127,8 +128,8 @@
             <p class="eyebrow">Operator queue</p>
             <h2>Find, email, support, deliver.</h2>
             <p>
-              Everything saves locally first and mirrors to <code>3dvr-portal/growthOperator/items</code>.
-              Sprint fit-checks auto-import from <code>3dvr-audience-tests/v1</code>.
+              CRM contacts and touch history are the source of truth. Operator-only items mirror to
+              <code>3dvr-portal/growthOperator/items</code> and <code>3dvr-audience-tests/v1</code>.
             </p>
           </div>
           <button id="draftAllButton" class="button" type="button">Draft next emails</button>
@@ -147,7 +148,7 @@
         <article>
           <span>2</span>
           <strong>Outreach</strong>
-          <p>Draft short, specific email with the right 3dvr.tech offer and a billing path when appropriate.</p>
+          <p>Routine sends are automatic; this queue is where you inspect history, exceptions, and next actions.</p>
         </article>
         <article>
           <span>3</span>

@@ -2,10 +2,9 @@ name: Money Autopilot
 
 on:
   schedule:
-    # 8:15 PM Pacific during daylight time.
-    - cron: '15 03 * * *'
-    # 9:15 AM Pacific during daylight time.
-    - cron: '15 16 * * *'
+    # One operator brief at 9:15 AM Pacific Standard / 10:15 AM Pacific Daylight.
+    # Keep this inside business hours year-round; do not send overnight briefs.
+    - cron: '15 17 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -74,11 +73,7 @@ jobs:
           mkdir -p artifacts/money-autopilot
           mode="${INPUT_MODE:-auto}"
           if [ "$mode" = "auto" ]; then
-            if [ "$EVENT_SCHEDULE" = "15 03 * * *" ]; then
-              mode="night"
-            else
-              mode="day"
-            fi
+            mode="day"
           fi
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
             npm run money:operator-brief -- \

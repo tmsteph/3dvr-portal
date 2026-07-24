@@ -5,6 +5,7 @@ const dns = require('node:dns').promises;
 const { getOAuthAccessToken } = require('./oauth-connection');
 const { createGmailTransport } = require('./gmail-transport');
 const { validateCommercialOutreach } = require('./outreach-compliance');
+const { businessHoursStatus } = require('./send-window');
 
 const DEFAULT_TRANSPORT = normalizeText(
   process.env.THREEDVR_OUTREACH_EMAIL_TRANSPORT
@@ -226,6 +227,14 @@ async function main() {
   if (!options.probeOnly && !(options.to && options.subject && options.text)) {
     usage();
     process.exit(1);
+  }
+
+  const sendWindow = businessHoursStatus();
+  if (!options.probeOnly && !sendWindow.allowed) {
+    throw new Error(
+      `Outreach is paused outside business hours (${sendWindow.timezone}, ${sendWindow.start}-${sendWindow.end}, Monday-Friday). `
+      + `Current local time: ${sendWindow.weekday} ${sendWindow.localTime}.`
+    );
   }
 
   if (!options.probeOnly) {

@@ -2,8 +2,9 @@ name: Outbound Autopilot
 
 on:
   schedule:
-    # 9:45 AM Pacific during daylight time, after the morning money brief.
-    - cron: '45 16 * * *'
+    # 9:45 AM Pacific Standard / 10:45 AM Pacific Daylight.
+    # Always inside business hours year-round.
+    - cron: '45 17 * * *'
   workflow_dispatch:
     inputs:
       mode:
