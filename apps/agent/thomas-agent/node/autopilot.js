@@ -49,6 +49,7 @@ const DEFAULT_EXPERIMENT_MIN_REPLIES = parseInteger(process.env.THREEDVR_AUTOPIL
 const DEFAULT_EXPERIMENT_MIN_LIFT = parseNumber(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_MIN_LIFT, 0.05);
 const DEFAULT_PAUSED = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_PAUSED || '').trim());
 const DEFAULT_OUTREACH_POSTAL_ADDRESS = normalizeText(process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS);
+const DEFAULT_OFFER_PROFILE = normalizeText(process.env.THREEDVR_OUTREACH_OFFER_PROFILE).toLowerCase();
 const DEFAULT_DRAFT_QUEUE = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_DRAFT_QUEUE || '').trim());
 const DEFAULT_QUALITY_GATE = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_AUTOPILOT_QUALITY_GATE || 'true').trim());
 const DEFAULT_NOTIFY_EMAIL = normalizeEmail(
@@ -1018,6 +1019,13 @@ async function main() {
       let quality = { qualified: true, classification: 'not-checked', reason: 'quality gate disabled' };
       if (DEFAULT_QUALITY_GATE) {
         quality = await qualifyLeadWebsite(candidate);
+        if (DEFAULT_OFFER_PROFILE === 'av-operator' && quality.classification !== 'unverified') {
+          quality = {
+            ...quality,
+            qualified: true,
+            reason: 'verified business site is acceptable for AV operator outreach',
+          };
+        }
         if (!quality.qualified) {
           autoSent.push({
             name: candidate.name,
