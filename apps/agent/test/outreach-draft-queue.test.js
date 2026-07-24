@@ -31,6 +31,24 @@ test('queues one idempotent lead brief with an opaque personalized preview link'
   }
 });
 
+test('queues the AV operator offer when the AV campaign profile is active', () => {
+  const previousProfile = process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
+  process.env.THREEDVR_OUTREACH_OFFER_PROFILE = 'av-operator';
+  try {
+    const queueDir = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-av-queue-'));
+    const request = enqueueDraftRequest({
+      name: 'OnStage Playhouse',
+      site: 'https://example.org',
+      contact: 'mailto:crew@example.org',
+    }, { queueDir, campaignId: 'av-campaign' });
+    assert.match(request.instructions.offer, /audio-visual operator.*\$500\/day/i);
+    assert.doesNotMatch(request.instructions.prohibited.join(' '), /pricing/i);
+  } finally {
+    if (previousProfile === undefined) delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
+    else process.env.THREEDVR_OUTREACH_OFFER_PROFILE = previousProfile;
+  }
+});
+
 test('accepts and revalidates a compliant Codex draft for the exact recipient', () => {
   const queueDir = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-draft-queue-'));
   try {
