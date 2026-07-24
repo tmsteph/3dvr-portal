@@ -62,3 +62,18 @@ test('free-page experiment variant b changes the call to action and stays compli
     delete process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS;
   }
 });
+
+test('av-operator offer states the day rate and event crew work', () => {
+  const previousProfile = process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
+  process.env.THREEDVR_OUTREACH_OFFER_PROFILE = 'av-operator';
+  try {
+    const draft = buildTemplateOutreachDraft({ name: 'Local AV Company', experimentVariant: 'a' });
+    assert.equal(draft.source, 'template-av-operator');
+    assert.match(draft.text, /\$500\/day/);
+    assert.match(draft.text, /audio, video, show calls, troubleshooting, load-in, and strike/i);
+    assert.match(draft.text, /Business offer from 3dvr\.tech/i);
+  } finally {
+    if (previousProfile === undefined) delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
+    else process.env.THREEDVR_OUTREACH_OFFER_PROFILE = previousProfile;
+  }
+});
