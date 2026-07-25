@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /billing/
+Disallow: /crm/
+Disallow: /admin/
+Disallow: /finance/
+Disallow: /contacts/
+Disallow: /sign-in.html
+Disallow: /free-trial.html
+
+Sitemap: https://portal.3dvr.tech/sitemap.xml

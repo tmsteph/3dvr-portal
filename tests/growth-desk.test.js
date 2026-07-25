@@ -12,10 +12,17 @@ test('Growth Desk ships as a CRM-backed operator surface', async () => {
   assert.match(html, /noindex, nofollow/);
   assert.match(html, /Follow-Up Leak Sprint/);
   assert.match(html, /Open sprint in CRM/);
+  assert.match(html, /Inspect outreach queue/);
+  assert.match(html, /You do not need to approve every email/);
+  assert.match(html, /Inspect outreach queue/);
   assert.match(html, /Command Center repo/);
+  assert.match(html, /id="navToggle"/);
+  assert.match(html, /id="growthNav"/);
+  assert.match(script, /setNav/);
   assert.match(script, /const SPRINT_TAG = 'follow-up-leak-sprint';/);
   assert.match(script, /gun\.get\('3dvr-crm'\)/);
   assert.match(script, /crm-outreach-drafts/);
+  assert.match(script, /Inspect outreach/);
   assert.match(portal, /href="growth-desk\/"/);
   assert.match(portal, /<span class="app-card__title">Growth Desk<\/span>/);
   assert.match(vercel, /growth\.3dvr\.tech/);

@@ -46,13 +46,15 @@ a {
 
 .topbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 28px;
+  position: relative;
 }
 
-.topbar a,
+.topbar__brand,
+.topbar__toggle,
+.topbar__menu a,
 .button {
   display: inline-flex;
   min-height: 42px;
@@ -68,10 +70,165 @@ a {
   cursor: pointer;
 }
 
+.topbar__brand {
+  border: 0;
+  padding: 10px 0;
+  background: transparent;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.topbar__toggle {
+  gap: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.topbar__toggle:hover,
+.topbar__toggle:focus-visible,
+.topbar__menu a:hover,
+.topbar__menu a:focus-visible {
+  border-color: rgba(56, 217, 169, 0.65);
+  outline: none;
+}
+
+.topbar__toggle-icon {
+  display: grid;
+  gap: 4px;
+  width: 17px;
+}
+
+.topbar__toggle-icon i {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.topbar__menu {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  gap: 6px;
+  width: min(250px, calc(100vw - 28px));
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(16, 24, 32, 0.97);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top right;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.topbar__menu a {
+  justify-content: flex-start;
+  border-color: transparent;
+  background: transparent;
+}
+
+.topbar__menu.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.topbar__toggle[aria-expanded="true"] .topbar__toggle-icon i:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.topbar__toggle[aria-expanded="true"] .topbar__toggle-icon i:nth-child(2) {
+  opacity: 0;
+}
+
+.topbar__toggle[aria-expanded="true"] .topbar__toggle-icon i:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
 .button.primary {
   border-color: rgba(56, 217, 169, 0.5);
   background: var(--accent);
   color: #07110d;
+}
+
+.approval-button {
+  border-color: rgba(246, 211, 101, 0.55);
+  background: rgba(246, 211, 101, 0.12);
+  color: var(--gold);
+}
+
+.approval-guide {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.8fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin: 0 0 16px;
+  padding: 18px;
+  border: 1px solid rgba(246, 211, 101, 0.36);
+  border-radius: 12px;
+  background: linear-gradient(120deg, rgba(246, 211, 101, 0.13), rgba(255, 255, 255, 0.05));
+}
+
+.autopilot-guide {
+  border-color: rgba(56, 217, 169, 0.42);
+  background: linear-gradient(120deg, rgba(56, 217, 169, 0.14), rgba(255, 255, 255, 0.05));
+}
+
+.autopilot-guide .eyebrow,
+.autopilot-guide .approval-steps strong {
+  color: var(--accent-strong);
+}
+
+.approval-guide h2 {
+  margin-bottom: 6px;
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+}
+
+.approval-guide p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+}
+
+.approval-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.approval-steps li {
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.approval-steps strong,
+.approval-steps span {
+  display: block;
+}
+
+.approval-steps strong {
+  color: var(--gold);
+  font-size: 0.88rem;
+}
+
+.approval-steps span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .hero-grid,
@@ -205,6 +362,17 @@ h2 {
   gap: 16px;
   padding: 16px;
   background: var(--panel-strong);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lead-card > *,
+.lead-card__actions,
+.lead-card__actions a,
+.lead-card__actions span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .lead-card h3 {
@@ -291,6 +459,10 @@ h2 {
   .lead-card__actions {
     min-width: 0;
   }
+
+  .approval-guide {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 520px) {
@@ -299,8 +471,18 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .topbar a,
   .button {
     width: 100%;
+  }
+
+  .topbar__brand {
+    max-width: 65%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .approval-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -14,6 +14,7 @@ test('free page offer presents the tiny website starter offer', () => {
   assert.match(html, /free draft, optional \$5\/month upkeep/i);
   assert.match(html, /Keep it live for \$5\/month/);
   assert.match(html, /3dvr\.tech@gmail\.com/);
+  assert.match(html, /name="email" type="email"[^>]*required/);
   assert.match(html, /https:\/\/3dvr\.tech\/dave\//);
   assert.match(html, /https:\/\/donovan\.3dvr\.tech\//);
   assert.match(html, /\.\.\/billing\/\?plan=starter/);
@@ -60,4 +61,8 @@ test('free page brief builds an email handoff without backend dependencies', () 
   assert.match(script, /method: 'mailto_brief'/);
   assert.match(script, /trackFirstPartyEvent\('page_view'\)/);
   assert.match(script, /trackFirstPartyEvent\('generate_lead'\)/);
+  assert.match(script, /saveBriefToCrm/);
+  assert.match(script, /3dvr-crm/);
+  assert.match(script, /crm-touch-log/);
+  assert.match(script, /Lead captured; draft requested/);
 });

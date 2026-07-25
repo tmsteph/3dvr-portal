@@ -105,6 +105,54 @@ test('buildCrmSyncPayload creates records and stable touch log entries', () => {
   assert.match(payload.touches[2].summary, /Question for Finest City Home and Loans/);
 });
 
+test('buildCrmSyncPayload makes outreach the canonical contact and message history', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [],
+    outreach: [{
+      timestamp: '2026-07-24T06:00:00.000Z',
+      kind: 'email',
+      status: 'sent',
+      name: 'New Campaign Lead',
+      site: 'https://new-lead.example',
+      contact: 'mailto:owner@new-lead.example',
+      route: 'email',
+      subject: 'A practical idea for your business',
+      body: 'Here is the exact message that was sent.',
+      experiment: '2026-07-new-business-launch',
+      variant: 'founder-opener',
+      deliveryStatus: 'sent',
+      nextFollowUp: '2026-07-31',
+    }],
+    now: '2026-07-24T06:01:00.000Z',
+  });
+
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Warm - Follow-up');
+  assert.equal(payload.records[0].lastCampaign, '2026-07-new-business-launch');
+  assert.equal(payload.records[0].lastVariant, 'founder-opener');
+  assert.equal(payload.records[0].lastMessage, 'Here is the exact message that was sent.');
+  assert.equal(payload.records[0].nextFollowUp, '2026-07-31');
+  assert.equal(payload.touches.length, 2);
+  const messageTouch = payload.touches.find(touch => touch.source === '3dvr-agent/outreach-log');
+  assert.equal(messageTouch.message, 'Here is the exact message that was sent.');
+  assert.equal(messageTouch.campaignId, '2026-07-new-business-launch');
+  assert.equal(messageTouch.touchType, 'outreach-sent');
+});
+
+test('buildCrmSyncPayload deduplicates a lead and its outreach by email', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Known Lead', link: 'https://known.example', contact: 'mailto:owner@known.example', status: 'new' }],
+    outreach: [{ name: 'Known Lead', contact: 'mailto:owner@known.example', status: 'replied', timestamp: '2026-07-24T06:00:00.000Z', body: 'Reply received.' }],
+    now: '2026-07-24T06:01:00.000Z',
+  });
+
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Warm - Discovery');
+  assert.equal(payload.records[0].replyCount, 1);
+  assert.equal(payload.touches.length, 2);
+  assert.equal(payload.touches.find(touch => touch.source === '3dvr-agent/outreach-log').touchType, 'reply-received');
+});
+
 test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads', () => {
   assert.equal(shouldSyncLeadToCrm({
     name: 'Starbucks',

@@ -421,6 +421,48 @@ textarea {
   border-radius: 26px;
 }
 
+.share-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border: 1px solid var(--free-line);
+  border-radius: 1.25rem;
+  background: rgba(255, 252, 242, 0.82);
+  box-shadow: var(--free-shadow);
+}
+
+.share-card h2 {
+  margin: 0.2rem 0 0.4rem;
+}
+
+.share-card p {
+  color: var(--free-muted);
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.share-actions .button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.share-status {
+  min-width: 100%;
+  margin: 0;
+  text-align: right;
+  font-size: 0.85rem;
+}
+
 footer {
   padding: 42px 0;
 }
@@ -430,7 +472,8 @@ footer {
   nav,
   .hero-actions,
   .handoff,
-  .keep-live {
+  .keep-live,
+  .share-card {
     align-items: stretch;
     flex-direction: column;
   }
@@ -473,6 +516,17 @@ footer {
   .operator-note {
     padding: 1.1rem;
     border-radius: 24px;
+  }
+
+  .share-actions,
+  .share-status {
+    width: 100%;
+    justify-content: stretch;
+    text-align: left;
+  }
+
+  .share-actions .button {
+    width: 100%;
   }
 
   h1 {

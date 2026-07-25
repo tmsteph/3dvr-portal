@@ -90,6 +90,48 @@ function buildLeadId(lead) {
   return `agent-lead-${slugify(seed || lead.name)}`;
 }
 
+function contactIdentity(value = {}) {
+  const email = normalizeEmail(value.contact || value.email);
+  if (email) return `email:${email}`;
+  const link = normalizeText(value.link || value.site);
+  if (link) return `site:${link.toLowerCase()}`;
+  return `name:${normalizeLower(value.name)}`;
+}
+
+function contactsMatch(left = {}, right = {}) {
+  if (contactIdentity(left) === contactIdentity(right)) return true;
+  const leftName = normalizeLower(left.name);
+  const rightName = normalizeLower(right.name);
+  return Boolean(leftName && rightName && leftName === rightName);
+}
+
+function leadFromOutreachEntry(entry = {}) {
+  return {
+    name: normalizeText(entry.name) || normalizeText(entry.contact) || 'Unknown outreach contact',
+    link: normalizeText(entry.site),
+    contact: normalizeText(entry.contact),
+    status: normalizeLower(entry.status) === 'replied' ? 'replied'
+      : ['sent', 'submitted'].includes(normalizeLower(entry.status)) ? 'contacted'
+        : normalizeText(entry.status) || 'new',
+    date: normalizeText(entry.timestamp),
+    variant: normalizeText(entry.variant),
+  };
+}
+
+function mergeOutreachIntoLead(lead, entries = []) {
+  const relevant = entries.filter(entry => contactsMatch(entry, lead));
+  if (!relevant.length) return lead;
+  const successful = relevant.filter(entry => ['sent', 'submitted', 'replied'].includes(normalizeLower(entry.status)));
+  const replied = relevant.filter(entry => normalizeLower(entry.status) === 'replied');
+  const latest = (successful.length ? successful : relevant).slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
+  return {
+    ...lead,
+    status: replied.length ? 'replied' : successful.length ? 'contacted' : lead.status,
+    date: latest?.timestamp || lead.date,
+    variant: latest?.variant || lead.variant,
+  };
+}
+
 function marketSegmentForLead(lead) {
   const text = `${lead.name} ${lead.link} ${lead.contact} ${lead.variant}`.toLowerCase();
   if (/professional|law|attorney|legal|estate|account|financial|consult/i.test(text)) {
@@ -243,6 +285,8 @@ function buildOutreachTouch(entry, record, options = {}) {
     entry.name,
     entry.subject,
     entry.status,
+    entry.messageId,
+    entry.body,
   ].join('|'))}`;
   return {
     id,
@@ -251,9 +295,23 @@ function buildOutreachTouch(entry, record, options = {}) {
     contactId: '',
     contactName: record.name,
     type: status === 'sent' || status === 'submitted' ? 'message' : 'note',
+    touchType: status === 'replied' ? 'reply-received' : status === 'sent' || status === 'submitted' ? 'outreach-sent' : 'outreach-failed',
     channel: normalizeText(entry.route || kind),
     summary: `${kind} ${status}${entry.subject ? `: ${entry.subject}` : ''}`,
     outcome: normalizeText(entry.note) || (status === 'sent' ? 'Outbound message sent.' : `Outreach logged as ${status}.`),
+    subject: normalizeText(entry.subject),
+    message: String(entry.body || ''),
+    campaignId: normalizeText(entry.campaignId || entry.experiment || entry.experimentId),
+    experiment: normalizeText(entry.experiment || entry.experimentId),
+    variant: normalizeText(entry.variant),
+    messageId: normalizeText(entry.messageId),
+    threadId: normalizeText(entry.threadId),
+    deliveryStatus: normalizeText(entry.deliveryStatus || entry.status),
+    replyStatus: normalizeText(entry.replyStatus || (status === 'replied' ? 'replied' : 'pending')),
+    nextFollowUp: normalizeText(entry.nextFollowUp),
+    targetUrl: normalizeText(entry.targetUrl),
+    previewUrl: normalizeText(entry.previewUrl),
+    recipientId: normalizeText(entry.recipientId),
     source: '3dvr-agent/outreach-log',
     segment: record.marketSegment,
     created: normalizeText(entry.timestamp) || now,
@@ -268,21 +326,48 @@ function buildCrmSyncPayload({
   limit = 0,
   includeAll = false,
 } = {}) {
-  const qualifiedLeads = leads.filter((lead) => shouldSyncLeadToCrm(lead, { includeAll }));
+  const outreachOnlyLeads = outreach
+    .filter(entry => normalizeText(entry.name) || normalizeText(entry.contact))
+    .filter(entry => normalizeText(entry.contact) || normalizeText(entry.site))
+    .filter(entry => !leads.some(lead => contactsMatch(lead, entry)))
+    .map(leadFromOutreachEntry);
+  const qualifiedLeads = [...leads, ...outreachOnlyLeads]
+    .filter((lead) => shouldSyncLeadToCrm(lead, { includeAll }));
   const selectedLeads = limit > 0 ? qualifiedLeads.slice(0, limit) : qualifiedLeads;
-  const records = selectedLeads.map((lead) => buildCrmRecord(lead, { now }));
+  const records = selectedLeads.map((lead) => buildCrmRecord(mergeOutreachIntoLead(lead, outreach), { now }));
+  const byIdentity = new Map();
   const byName = new Map();
   const byId = new Map();
   selectedLeads.forEach((lead, index) => {
-    byName.set(normalizeLower(lead.name), { lead, record: records[index] });
+    byIdentity.set(contactIdentity(lead), { lead, record: records[index] });
+    if (normalizeLower(lead.name)) byName.set(normalizeLower(lead.name), { lead, record: records[index] });
     byId.set(records[index].id, { lead, record: records[index] });
   });
 
   const touches = records.map((record) => buildLeadTouch(byId.get(record.id).lead, record, { now }));
   for (const entry of outreach) {
-    const match = byName.get(normalizeLower(entry.name));
+    const match = byIdentity.get(contactIdentity(entry)) || byName.get(normalizeLower(entry.name));
     if (!match) continue;
     touches.push(buildOutreachTouch(entry, match.record, { now }));
+  }
+
+  for (const record of records) {
+    const entries = outreach.filter(entry => contactsMatch(entry, record));
+    const successful = entries.filter(entry => ['sent', 'submitted'].includes(normalizeLower(entry.status)));
+    const replies = entries.filter(entry => normalizeLower(entry.status) === 'replied');
+    const latest = entries.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
+    if (!latest) continue;
+    record.lastContacted = successful.length ? isoDate(latest.timestamp, new Date(now)) : record.lastContacted;
+    record.lastTouchType = replies.length ? 'reply-received' : 'outreach-sent';
+    record.replyCount = replies.length;
+    record.lastReplyAt = replies.length ? replies[replies.length - 1].timestamp : '';
+    record.lastCampaign = normalizeText(latest.campaignId || latest.experiment || latest.experimentId);
+    record.lastVariant = normalizeText(latest.variant);
+    record.lastMessageSubject = normalizeText(latest.subject);
+    record.lastMessage = String(latest.body || '');
+    record.lastDeliveryStatus = normalizeText(latest.deliveryStatus || latest.status);
+    record.nextFollowUp = normalizeText(latest.nextFollowUp) || record.nextFollowUp;
+    record.updated = now;
   }
 
   return { records, touches };
@@ -419,10 +504,13 @@ portal CRM stays useful. Use --include-all for a full import.`);
 
 module.exports = {
   buildCrmRecord,
+  contactIdentity,
   buildCrmSyncPayload,
   buildLeadId,
   buildLeadTouch,
   buildOutreachTouch,
+  leadFromOutreachEntry,
+  mergeOutreachIntoLead,
   marketSegmentForLead,
   nextActionForLead,
   normalizeEmail,

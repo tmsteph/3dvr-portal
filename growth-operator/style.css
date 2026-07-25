@@ -26,6 +26,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 12% 0%, rgba(94, 234, 212, 0.1), transparent 24rem),
     linear-gradient(180deg, rgba(246, 211, 101, 0.04), transparent 22rem),
@@ -264,6 +265,16 @@ textarea {
   gap: 0.75rem;
 }
 
+.metric-grid,
+.operator-grid,
+.workflow-grid,
+.panel,
+.queue-item,
+.queue-item > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .queue-item {
   display: grid;
   gap: 0.75rem;
@@ -283,6 +294,18 @@ textarea {
   align-items: start;
   justify-content: space-between;
   gap: 1rem;
+  min-width: 0;
+}
+
+.queue-top > div,
+.queue-top strong,
+.queue-top p,
+.queue-meta,
+.queue-meta span,
+.draft-box {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .queue-top strong,

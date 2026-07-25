@@ -19,7 +19,7 @@
     },
     {
       "path": "/api/money/autopilot-cron",
-      "schedule": "17 1 * * *"
+      "schedule": "17 16 * * 1-5"
     }
   ],
   "headers": [
@@ -259,6 +259,28 @@
       ],
       "destination": "/danny/",
       "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "thomas-av.3dvr.tech"
+        }
+      ],
+      "destination": "/thomas-av/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "thomas-cs.3dvr.tech"
+        }
+      ],
+      "destination": "/thomas-cs/",
+      "permanent": false
     }
   ],
   "rewrites": [
@@ -315,6 +337,26 @@
         }
       ],
       "destination": "/danny/index.html"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "thomas-av.3dvr.tech"
+        }
+      ],
+      "destination": "/thomas-av/:path*"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "thomas-cs.3dvr.tech"
+        }
+      ],
+      "destination": "/thomas-cs/:path*"
     },
     {
       "source": "/:path*",
