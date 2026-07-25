@@ -36,6 +36,7 @@ async function upsertSubscriber(input) {
   const email = normalizeEmail(input.email);
   const source = String(input.source || 'blog').trim().slice(0, 120) || 'blog';
   const consentedAt = new Date(input.consentedAt || Date.now());
+  const resubscribe = input.resubscribe === true;
   if (!emailPattern.test(email) || Number.isNaN(consentedAt.getTime())) throw new Error('Enter a valid email.');
   await pool.query(`
     INSERT INTO newsletter_subscribers (email, source, consented_at, updated_at)
@@ -43,9 +44,9 @@ async function upsertSubscriber(input) {
     ON CONFLICT (email) DO UPDATE SET
       source = EXCLUDED.source,
       consented_at = LEAST(newsletter_subscribers.consented_at, EXCLUDED.consented_at),
-      unsubscribed_at = NULL,
+      unsubscribed_at = CASE WHEN $4 THEN NULL ELSE newsletter_subscribers.unsubscribed_at END,
       updated_at = NOW()
-  `, [email, source, consentedAt.toISOString()]);
+  `, [email, source, consentedAt.toISOString(), resubscribe]);
   return email;
 }
 

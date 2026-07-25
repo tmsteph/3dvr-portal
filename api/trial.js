@@ -126,7 +126,8 @@ export function createTrialHandler(options = {}) {
         await saveNewsletterSubscriber({
           email: normalizedEmail,
           source: normalizedSource,
-          consentedAt: signedUpAt
+          consentedAt: signedUpAt,
+          resubscribe: true
         }, config);
         await transporter.sendMail({
           from: `"3DVR Field Guide" <${config.GMAIL_USER}>`,
