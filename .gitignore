@@ -5,3 +5,7 @@ node_modules/
 .env.*.local
 backups/
 .money-printer/
+
+# Local Gun runtime cache and ad-hoc visual verification artifact.
+/radata/
+/sky-room-production-portrait.png
