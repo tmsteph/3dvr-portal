@@ -4,6 +4,7 @@ const source = document.querySelector('input[name="source"]')?.value || location
 const gun = typeof Gun === 'function' ? Gun(window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun']) : null;
 const crm = gun?.get('3dvr-crm');
 const touchLog = gun?.get('3dvr-portal')?.get('crm-touch-log');
+const pendingKey = '3dvr-blog-signups-pending';
 
 const slug = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80) || 'subscriber';
 const put = (node, payload) => new Promise(resolve => {
@@ -22,6 +23,29 @@ const saveDirect = async (record, touch) => {
   return false;
 };
 
+const readPending = () => {
+  try { return JSON.parse(localStorage.getItem(pendingKey) || '[]'); } catch (_) { return []; }
+};
+
+const writePending = items => {
+  try { localStorage.setItem(pendingKey, JSON.stringify(items.slice(-20))); } catch (_) {}
+};
+
+const queueSignup = (record, touch) => {
+  writePending([...readPending().filter(item => item.record?.id !== record.id), {record, touch}]);
+};
+
+const syncPending = async () => {
+  const items = readPending();
+  for (const item of items) {
+    if (await saveDirect(item.record, item.touch)) {
+      writePending(readPending().filter(current => current.record?.id !== item.record.id));
+    }
+  }
+};
+
+syncPending();
+
 form?.addEventListener('submit', async event => {
   event.preventDefault();
   const data = new FormData(form); const email = String(data.get('email') || '').trim().toLowerCase();
@@ -32,6 +56,12 @@ form?.addEventListener('submit', async event => {
   const record = {id, recordType:'person', name:email, email, tags:['blog-subscriber','digital-nomad','inbound'], status:'new', warmth:'warm', source:`blog:${source}`, nextBestAction:'Send the next practical transition note; honor unsubscribe requests.', created:now, updated:now, notes:`Opt-in signup from ${source}. Consent recorded ${now}.`};
   const touch = {id:`touch-blog-${slug(email)}-${Date.now()}`,recordId:id,contactName:email,contactEmail:email,type:'inbound',channel:'blog',source:`blog:${source}`,summary:'Opt-in email subscriber captured from article.',outcome:'Subscribed; permission-based content only.',message:JSON.stringify({email,source,consent:true}),created:now,updated:now};
   const saved = await saveDirect(record, touch);
-  status.textContent = saved ? 'You’re on the list. Watch your inbox for the next practical note.' : 'The connection is still unavailable. Please try again in a moment.';
-  if (saved) form.reset();
+  if (saved) {
+    status.textContent = 'You are on the list. Check your email for the next note.';
+    form.reset();
+  } else {
+    queueSignup(record, touch);
+    status.textContent = 'Saved on this phone. We will try the server again soon.';
+    form.reset();
+  }
 });
