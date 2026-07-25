@@ -13,10 +13,23 @@ damage trust.
 - Buyer: production companies, staffing firms, hotels, corporate event teams,
   and touring organizations.
 - Proof: the verified A/V resume and `thomas-av.3dvr.tech`.
+- Role order: A1/audio lead first; V1/video operations second; technical
+  coordination or event-technology project-management roles third. Keep each
+  role lane and message distinct.
 - CTA: send the resume or discuss an available role/crew gap.
 - Measure: replies, interviews, booked days, and effective hourly/day rate.
 
-### 2. 3DVR launch subscription — recurring base
+### 2. Career and project leverage — prove it through Thomas first
+
+- User outcome: help a person turn real experience into better work, a credible
+  profile, targeted opportunities, interview readiness, and a weekly plan; or
+  help them choose and ship a small first project.
+- First proof: Thomas's own A/V role search, using the same profile, targeting,
+  outreach, review, and weekly-accountability workflow that future users need.
+- Product posture: improve and validate the existing Career Launch and project
+  tools with real outcomes before building a broad AI product.
+
+### 3. 3DVR launch subscription — recurring base
 
 - Buyer: a founder or owner-led business with a real launch or website gap.
 - Offer: personalized first-page draft, then $5/month keep-live, $20/month
@@ -25,7 +38,7 @@ damage trust.
 - Measure: qualified founder conversations, drafts requested, paid starts,
   retained subscribers, and monthly recurring revenue.
 
-### 3. Technical systems support — leverage
+### 4. Technical systems support — leverage
 
 - Buyer: a small team losing time at the boundary of software, computers,
   networks, and workflows.

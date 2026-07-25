@@ -29,9 +29,14 @@ platform or a fresh agent context.
 
 ## Business lanes
 
-1. A/V employment and freelance coverage for immediate cash.
-2. 3DVR launch subscriptions for recurring revenue.
-3. Technical systems support for diagnostics, fixed sprints, and retainers.
+1. A/V employment and freelance coverage for immediate cash: A1/audio lead
+   first, V1/video operations second, and technical coordination/event-technology
+   project-management roles third.
+2. Career and project leverage: prove the Career Launch workflow on Thomas's
+   own search before expanding it into a broader product that helps others
+   advance their careers and start small projects.
+3. 3DVR launch subscriptions for recurring revenue.
+4. Technical systems support for diagnostics, fixed sprints, and retainers.
 
 The verified A/V and CS resumes are downloadable from their respective career
 sites. Do not invent credentials, dates, employers, rates, or project claims.
@@ -66,4 +71,3 @@ git status --short --branch
 git log --oneline --decorate -10 origin/main
 npm test -- apps/agent/test/revenue-ops.test.js apps/agent/test/crm-sync.test.js
 ```
-
