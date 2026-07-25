@@ -1,13 +1,10 @@
-const crypto = require('crypto');
 const { ImapFlow } = require('imapflow');
 const { createGmailTransport } = require('./gmail-transport');
-const { portalCrmNode, gun } = require('./gun-db');
-
-const NEWSLETTER_ROOT = gun.get('3dvr-portal').get('newsletter-weekly');
-const RELAY_READ_MS = Number.parseInt(process.env.NEWSLETTER_RELAY_READ_MS || '4000', 10);
 const DRY_RUN = /^(1|true|yes|on)$/i.test(String(process.env.NEWSLETTER_DRY_RUN || '').trim());
 const FROM = process.env.NEWSLETTER_FROM || process.env.GMAIL_USER || '3dvr.tech@gmail.com';
 const REPLY_TO = process.env.NEWSLETTER_REPLY_TO || '3dvr.tech@gmail.com';
+const STORE_URL = text(process.env.NEWSLETTER_STORE_URL).replace(/\/$/, '');
+const STORE_TOKEN = text(process.env.NEWSLETTER_STORE_TOKEN);
 
 function nowIso() { return new Date().toISOString(); }
 function weekKey(date = new Date()) {
@@ -17,24 +14,21 @@ function weekKey(date = new Date()) {
   const yearStart = new Date(Date.UTC(copy.getUTCFullYear(), 0, 1));
   return `${copy.getUTCFullYear()}-W${String(Math.ceil((((copy - yearStart) / 86400000) + 1) / 7)).padStart(2, '0')}`;
 }
-function emailKey(email) { return crypto.createHash('sha256').update(email).digest('hex').slice(0, 24); }
 function text(value) { return String(value || '').trim(); }
-function isSubscriber(record) {
-  const tags = Array.isArray(record?.tags) ? record.tags : text(record?.tags).split(',');
-  const tagSet = new Set(tags.map((tag) => text(tag).toLowerCase()));
-  const status = text(record?.status).toLowerCase();
-  return Boolean(record?.email)
-    && tagSet.has('blog-subscriber')
-    && !tagSet.has('unsubscribed')
-    && !tagSet.has('newsletter-unsubscribed')
-    && !['unsubscribed', 'do-not-contact', 'bounced'].includes(status)
-    && /consent recorded|permission-based|subscribed/i.test(text(record?.notes) + ' ' + text(record?.nextBestAction));
+async function store(path, options = {}) {
+  if (!STORE_URL || !STORE_TOKEN) throw new Error('NEWSLETTER_STORE_URL and NEWSLETTER_STORE_TOKEN are required.');
+  const response = await fetch(`${STORE_URL}${path}`, {
+    ...options,
+    headers: { authorization: `Bearer ${STORE_TOKEN}`, 'content-type': 'application/json', ...(options.headers || {}) },
+    signal: AbortSignal.timeout(10_000)
+  });
+  if (!response.ok) throw new Error(`Newsletter store returned ${response.status}.`);
+  return response.json();
 }
-function once(node, timeout = RELAY_READ_MS) {
-  return new Promise((resolve) => {
-    let done = false;
-    const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, timeout);
-    node.once((data) => { if (!done) { done = true; clearTimeout(timer); resolve(data || null); } });
+async function saveSubscriber(record) {
+  return store('/v1/subscribers', {
+    method: 'POST',
+    body: JSON.stringify({ email: record.email, source: record.source || 'mailbox-import', consentedAt: record.consentedAt || record.at || nowIso() })
   });
 }
 async function collectMailboxSubscribers() {
@@ -56,7 +50,7 @@ async function collectMailboxSubscribers() {
           const record = JSON.parse(match[0]);
           const email = text(record.email).toLowerCase();
           if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && record.consent === true) {
-            found.set(email, { id: `subscriber-${emailKey(email)}`, email, tags: ['blog-subscriber', 'digital-nomad', 'inbound'], status: 'new', notes: `Consent recorded ${text(record.at) || nowIso()}. Imported from signup mailbox.` });
+            found.set(email, { email, source: record.source || 'mailbox-import', consentedAt: text(record.at) || nowIso() });
           }
         } catch (_) {}
       }
@@ -68,26 +62,11 @@ async function collectMailboxSubscribers() {
   }
   return [...found.values()];
 }
-function put(node, payload) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Gun write timeout')), 5000);
-    node.put(payload, (ack) => { clearTimeout(timer); if (ack?.err) reject(new Error(ack.err)); else resolve(ack || {}); });
-  });
-}
 async function collectSubscribers() {
   const mailboxSubscribers = await collectMailboxSubscribers();
-  return new Promise((resolve) => {
-    const found = new Map();
-    portalCrmNode().map().once((record) => {
-      if (!isSubscriber(record)) return;
-      const email = text(record.email).toLowerCase();
-      found.set(email, { ...record, email });
-    });
-    setTimeout(() => {
-      for (const subscriber of mailboxSubscribers) found.set(subscriber.email, subscriber);
-      resolve([...found.values()].sort((a, b) => a.email.localeCompare(b.email)));
-    }, RELAY_READ_MS);
-  });
+  for (const subscriber of mailboxSubscribers) await saveSubscriber(subscriber);
+  const result = await store('/v1/subscribers');
+  return (result.subscribers || []).map(record => ({ ...record, email: text(record.email).toLowerCase() }));
 }
 function issue() {
   return {
@@ -103,22 +82,20 @@ async function main() {
   const transport = DRY_RUN ? null : createGmailTransport();
   const result = { week, dryRun: DRY_RUN, subscribers: subscribers.length, sent: 0, skipped: 0, failed: [] };
   for (const subscriber of subscribers) {
-    const id = emailKey(subscriber.email);
-    const node = NEWSLETTER_ROOT.get(week).get(id);
-    const prior = await once(node, 1800);
-    if (prior?.status === 'sent') { result.skipped += 1; continue; }
-    const started = nowIso();
-    await put(node, { id, week, email: subscriber.email, status: DRY_RUN ? 'dry-run' : 'sending', startedAt: started, updatedAt: started });
+    const path = `/v1/sends/${encodeURIComponent(week)}/${encodeURIComponent(subscriber.email)}`;
+    const prior = await store(path);
+    if (prior.send?.status === 'sent') { result.skipped += 1; continue; }
+    await store(path, { method: 'PUT', body: JSON.stringify({ status: DRY_RUN ? 'dry-run' : 'sending' }) });
     try {
       if (!DRY_RUN) await transport.sendMail({
         from: FROM, to: subscriber.email, replyTo: REPLY_TO, subject: mail.subject,
         text: mail.text, html: mail.html,
         headers: { 'List-Unsubscribe': `<mailto:${REPLY_TO}?subject=unsubscribe>`, 'Precedence': 'bulk' },
       });
-      await put(node, { id, week, email: subscriber.email, status: DRY_RUN ? 'dry-run' : 'sent', sentAt: nowIso(), updatedAt: nowIso(), subject: mail.subject });
+      await store(path, { method: 'PUT', body: JSON.stringify({ status: DRY_RUN ? 'dry-run' : 'sent', subject: mail.subject }) });
       result.sent += 1;
     } catch (error) {
-      await put(node, { id, week, email: subscriber.email, status: 'failed', error: text(error.message).slice(0, 300), updatedAt: nowIso() });
+      await store(path, { method: 'PUT', body: JSON.stringify({ status: 'failed', error: text(error.message).slice(0, 300) }) });
       result.failed.push({ email: subscriber.email, error: text(error.message).slice(0, 300) });
     }
   }

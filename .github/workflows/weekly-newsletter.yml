@@ -20,8 +20,9 @@ jobs:
     env:
       GMAIL_USER: ${{ secrets.GMAIL_USER }}
       GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      NEWSLETTER_STORE_TOKEN: ${{ secrets.NEWSLETTER_STORE_TOKEN }}
       NEWSLETTER_REPLY_TO: ${{ vars.NEWSLETTER_REPLY_TO }}
-      THREEDVR_GUN_RELAY: ${{ vars.GROWTH_GUN_PEERS }}
+      NEWSLETTER_STORE_URL: ${{ vars.NEWSLETTER_STORE_URL }}
       NEWSLETTER_DRY_RUN: ${{ inputs.dry_run || 'false' }}
     steps:
       - name: Checkout repository

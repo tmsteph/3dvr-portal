@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
+import { saveNewsletterSubscriber } from './_lib/newsletter-store.js';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -120,6 +121,13 @@ export function createTrialHandler(options = {}) {
       }
       const signedUpAt = new Date().toISOString();
       try {
+        // Postgres is the canonical subscriber ledger. The mailbox copy below
+        // remains a recovery trail while the rest of the CRM moves off Gun.
+        await saveNewsletterSubscriber({
+          email: normalizedEmail,
+          source: normalizedSource,
+          consentedAt: signedUpAt
+        }, config);
         await transporter.sendMail({
           from: `"3DVR Field Guide" <${config.GMAIL_USER}>`,
           to: normalizedEmail,

@@ -1,0 +1,19 @@
+[Unit]
+Description=3DVR newsletter Postgres API
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/3dvr-newsletter-store
+EnvironmentFile=/etc/3dvr/newsletter-store.env
+ExecStart=/usr/bin/node /opt/3dvr-newsletter-store/server.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
