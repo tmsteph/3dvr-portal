@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { ImapFlow } = require('imapflow');
 const { createGmailTransport } = require('./gmail-transport');
 const { portalCrmNode, gun } = require('./gun-db');
 
@@ -36,13 +37,45 @@ function once(node, timeout = RELAY_READ_MS) {
     node.once((data) => { if (!done) { done = true; clearTimeout(timer); resolve(data || null); } });
   });
 }
+async function collectMailboxSubscribers() {
+  const user = text(process.env.GMAIL_USER);
+  const pass = text(process.env.GMAIL_APP_PASSWORD);
+  if (!user || !pass) return [];
+  const client = new ImapFlow({ host: process.env.THREEDVR_GMAIL_IMAP_HOST || 'imap.gmail.com', port: 993, secure: true, auth: { user, pass }, logger: false });
+  const found = new Map();
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const ids = await client.search({ header: ['X-3DVR-Blog-Signup', 'record'] }, { uid: true });
+      for await (const message of client.fetch(ids.slice(-500), { source: true }, { uid: true })) {
+        const raw = Buffer.isBuffer(message.source) ? message.source.toString('utf8') : text(message.source);
+        const match = raw.match(/\{\s*"type"\s*:\s*"blog-signup"[\s\S]*?\}/);
+        if (!match) continue;
+        try {
+          const record = JSON.parse(match[0]);
+          const email = text(record.email).toLowerCase();
+          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && record.consent === true) {
+            found.set(email, { id: `subscriber-${emailKey(email)}`, email, tags: ['blog-subscriber', 'digital-nomad', 'inbound'], status: 'new', notes: `Consent recorded ${text(record.at) || nowIso()}. Imported from signup mailbox.` });
+          }
+        } catch (_) {}
+      }
+    } finally { lock.release(); }
+  } catch (error) {
+    console.warn(`Mailbox subscriber import skipped: ${text(error.message)}`);
+  } finally {
+    await client.logout().catch(() => {});
+  }
+  return [...found.values()];
+}
 function put(node, payload) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Gun write timeout')), 5000);
     node.put(payload, (ack) => { clearTimeout(timer); if (ack?.err) reject(new Error(ack.err)); else resolve(ack || {}); });
   });
 }
-function collectSubscribers() {
+async function collectSubscribers() {
+  const mailboxSubscribers = await collectMailboxSubscribers();
   return new Promise((resolve) => {
     const found = new Map();
     portalCrmNode().map().once((record) => {
@@ -50,7 +83,10 @@ function collectSubscribers() {
       const email = text(record.email).toLowerCase();
       found.set(email, { ...record, email });
     });
-    setTimeout(() => resolve([...found.values()].sort((a, b) => a.email.localeCompare(b.email))), RELAY_READ_MS);
+    setTimeout(() => {
+      for (const subscriber of mailboxSubscribers) found.set(subscriber.email, subscriber);
+      resolve([...found.values()].sort((a, b) => a.email.localeCompare(b.email)));
+    }, RELAY_READ_MS);
   });
 }
 function issue() {
