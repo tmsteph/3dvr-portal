@@ -35,6 +35,19 @@ const queueSignup = (record, touch) => {
   writePending([...readPending().filter(item => item.record?.id !== record.id), {record, touch}]);
 };
 
+const saveToServer = async ({email, consent, source: signupSource}) => {
+  try {
+    const response = await fetch('/api/trial', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({kind: 'blog-signup', email, consent, source: signupSource})
+    });
+    return response.ok;
+  } catch (_) {
+    return false;
+  }
+};
+
 const syncPending = async () => {
   const items = readPending();
   for (const item of items) {
@@ -55,9 +68,12 @@ form?.addEventListener('submit', async event => {
   const now = new Date().toISOString(); const id = `subscriber-${slug(email)}`;
   const record = {id, recordType:'person', name:email, email, tags:['blog-subscriber','digital-nomad','inbound'], status:'new', warmth:'warm', source:`blog:${source}`, nextBestAction:'Send the next practical transition note; honor unsubscribe requests.', created:now, updated:now, notes:`Opt-in signup from ${source}. Consent recorded ${now}.`};
   const touch = {id:`touch-blog-${slug(email)}-${Date.now()}`,recordId:id,contactName:email,contactEmail:email,type:'inbound',channel:'blog',source:`blog:${source}`,summary:'Opt-in email subscriber captured from article.',outcome:'Subscribed; permission-based content only.',message:JSON.stringify({email,source,consent:true}),created:now,updated:now};
-  const saved = await saveDirect(record, touch);
+  // Email is the main signup path. Gun is only a CRM mirror, so a relay outage
+  // never makes a real subscriber think their signup failed.
+  const savedToServer = await saveToServer({email, consent: true, source});
+  const saved = savedToServer || await saveDirect(record, touch);
   if (saved) {
-    status.textContent = 'You are on the list. Check your email for the next note.';
+    status.textContent = savedToServer ? 'You are on the list. Check your email.' : 'You are on the list. Check your email for the next note.';
     form.reset();
   } else {
     queueSignup(record, touch);

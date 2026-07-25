@@ -105,7 +105,44 @@ export function createTrialHandler(options = {}) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { email } = req.body;
+    const { email, kind, consent, source } = req.body || {};
+
+    // Keep the blog form on an existing serverless route. The Hobby plan has a
+    // function limit, and this route already has the configured mail transport.
+    if (kind === 'blog-signup') {
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      const normalizedSource = String(source || 'blog').trim().slice(0, 120);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || consent !== true) {
+        return res.status(400).json({ error: 'Enter an email and check the box.' });
+      }
+      if (!config.GMAIL_USER || !config.GMAIL_APP_PASSWORD) {
+        return res.status(503).json({ error: 'Email is not ready yet.' });
+      }
+      const signedUpAt = new Date().toISOString();
+      try {
+        await transporter.sendMail({
+          from: `"3DVR Field Guide" <${config.GMAIL_USER}>`,
+          to: normalizedEmail,
+          replyTo: config.GMAIL_USER,
+          subject: 'You are on the 3DVR list',
+          text: `Hi,\n\nYou are on the list. You will get one short note each week.\n\nTo stop these emails, reply with unsubscribe.\n\n— Thomas / 3DVR`,
+          headers: { 'List-Unsubscribe': `<mailto:${config.GMAIL_USER}?subject=unsubscribe>`, 'Precedence': 'bulk', 'X-3DVR-Blog-Signup': 'confirmed' }
+        });
+        // A structured mailbox copy is the durable source while the optional
+        // Gun CRM mirror is offline. The inbox worker can import it later.
+        await transporter.sendMail({
+          from: `"3DVR Blog Signup" <${config.GMAIL_USER}>`,
+          to: config.GMAIL_USER,
+          subject: `Blog signup: ${normalizedEmail}`,
+          text: JSON.stringify({ type: 'blog-signup', email: normalizedEmail, consent: true, source: normalizedSource, at: signedUpAt }),
+          headers: { 'X-3DVR-Blog-Signup': 'record' }
+        });
+        return res.status(200).json({ success: true });
+      } catch (err) {
+        console.error('Blog signup failed:', err);
+        return res.status(503).json({ error: 'Email is not ready yet. Please try again soon.' });
+      }
+    }
 
     if (!email || !email.includes('@')) {
       return res.status(400).json({ error: 'A valid email address is required.' });
