@@ -1,0 +1,13 @@
+selfhost.3dvr.tech {
+  handle_path /api/newsletter/* {
+    reverse_proxy 127.0.0.1:8787
+  }
+
+  root * /var/www/3dvr-test
+  file_server
+}
+
+:80 {
+  root * /var/www/3dvr-test
+  file_server
+}
