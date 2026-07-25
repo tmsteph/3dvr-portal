@@ -14,8 +14,12 @@ const put = (node, payload) => new Promise(resolve => {
 });
 
 const saveDirect = async (record, touch) => {
-  const saved = await Promise.all([put(crm?.get(record.id), record), put(touchLog?.get(touch.id), touch)]);
-  return saved.every(Boolean);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const saved = await Promise.all([put(crm?.get(record.id), record), put(touchLog?.get(touch.id), touch)]);
+    if (saved.every(Boolean)) return true;
+    await new Promise(resolve => setTimeout(resolve, 700));
+  }
+  return false;
 };
 
 form?.addEventListener('submit', async event => {
@@ -27,17 +31,7 @@ form?.addEventListener('submit', async event => {
   const now = new Date().toISOString(); const id = `subscriber-${slug(email)}`;
   const record = {id, recordType:'person', name:email, email, tags:['blog-subscriber','digital-nomad','inbound'], status:'new', warmth:'warm', source:`blog:${source}`, nextBestAction:'Send the next practical transition note; honor unsubscribe requests.', created:now, updated:now, notes:`Opt-in signup from ${source}. Consent recorded ${now}.`};
   const touch = {id:`touch-blog-${slug(email)}-${Date.now()}`,recordId:id,contactName:email,contactEmail:email,type:'inbound',channel:'blog',source:`blog:${source}`,summary:'Opt-in email subscriber captured from article.',outcome:'Subscribed; permission-based content only.',message:JSON.stringify({email,source,consent:true}),created:now,updated:now};
-  let saved = false;
-  try {
-    const response = await fetch('/api/newsletter/subscribe', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({email, source, consent: true}),
-    });
-    saved = response.ok && (await response.json()).ok === true;
-  } catch (error) {
-    console.warn('Server-side signup failed; trying direct relay.', error);
-  }
-  if (!saved) saved = await saveDirect(record, touch);
+  const saved = await saveDirect(record, touch);
   status.textContent = saved ? 'You’re on the list. Watch your inbox for the next practical note.' : 'The connection is still unavailable. Please try again in a moment.';
   if (saved) form.reset();
 });
