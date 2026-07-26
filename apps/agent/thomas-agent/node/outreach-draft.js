@@ -91,10 +91,13 @@ function commandExists(filePath) {
 
 function buildTemplateOutreachDraft(lead = {}) {
   const name = normalizeText(lead.name) || 'there';
+  const offerProfile = currentOfferProfile();
   const previewLine = normalizeText(lead.previewUrl)
-    ? `\n\nI made a sample page:\n${normalizeText(lead.previewUrl)}`
+    ? offerProfile === 'av-operator'
+      ? `\n\nMy work:\n${normalizeText(lead.previewUrl)}`
+      : `\n\nI made a sample page:\n${normalizeText(lead.previewUrl)}`
     : '';
-  if (currentOfferProfile() === 'free-page') {
+  if (offerProfile === 'free-page') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
       ? `Hi ${name} team,\n\nI'm Thomas in San Diego. I make simple web pages for local businesses. The first draft is free. You do not have to use it.${previewLine}\n\nWould you like me to make one for ${name}?\n\nThomas`
@@ -104,7 +107,7 @@ function buildTemplateOutreachDraft(lead = {}) {
       text: finalizeCommercialOutreach(body),
     };
   }
-  if (currentOfferProfile() === 'av-operator') {
+  if (offerProfile === 'av-operator') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
       ? `Hi ${name} team,\n\nI'm Thomas in San Diego. I am free for AV work at $500 a day. I can help with audio, video, show calls, load-in, and strike.${previewLine}\n\nDo you need help on a show?\n\nThomas`

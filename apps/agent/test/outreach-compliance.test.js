@@ -67,10 +67,16 @@ test('av-operator offer states the day rate and event crew work', () => {
   const previousProfile = process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
   process.env.THREEDVR_OUTREACH_OFFER_PROFILE = 'av-operator';
   try {
-    const draft = buildTemplateOutreachDraft({ name: 'Local AV Company', experimentVariant: 'a' });
+    const draft = buildTemplateOutreachDraft({
+      name: 'Local AV Company',
+      experimentVariant: 'a',
+      previewUrl: 'https://thomas-av.3dvr.tech/',
+    });
     assert.equal(draft.source, 'template-av-operator');
     assert.match(draft.text, /\$500 a day/);
     assert.match(draft.text, /audio and video/i);
+    assert.match(draft.text, /My work:\s+https:\/\/thomas-av\.3dvr\.tech\//i);
+    assert.doesNotMatch(draft.text, /sample page/i);
     assert.match(draft.text, /Business offer from 3dvr\.tech/i);
   } finally {
     if (previousProfile === undefined) delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
