@@ -132,9 +132,11 @@ function enqueueDraftRequest(lead = {}, options = {}) {
     preview: { recipientId, url: previewUrl },
     instructions: {
       maximumWords: 110,
+      targetWords: 75,
       requiredGreeting: `Hi ${normalizeText(lead.name)} team,`,
       requiredPreviewUrl: previewUrl,
       sender: 'Thomas at 3dvr.tech in San Diego',
+      readingLevel: 'third grade',
       offer: avOperator
         ? 'Thomas as an audio-visual operator for event days at $500/day, covering audio, video, show calls, troubleshooting, load-in, and strike.'
         : 'A no-cost one-page website draft with no obligation to keep it.',

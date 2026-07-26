@@ -92,13 +92,13 @@ function commandExists(filePath) {
 function buildTemplateOutreachDraft(lead = {}) {
   const name = normalizeText(lead.name) || 'there';
   const previewLine = normalizeText(lead.previewUrl)
-    ? `\n\nI made a quick direction for the page here: ${normalizeText(lead.previewUrl)}`
+    ? `\n\nI made a sample page:\n${normalizeText(lead.previewUrl)}`
     : '';
   if (currentOfferProfile() === 'free-page') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
-      ? `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I can sketch a clean one-page website that makes your services, proof, and best contact path easy to understand. I'm doing a few of these drafts for local businesses at no cost, with no obligation to use them.${previewLine}\n\nWould you like me to put together a first draft for ${name}?\n\nThomas\n3dvr.tech`
-      : `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I'm offering local service businesses a clean one-page website draft at no cost: what you do, proof, and a clear contact path.${previewLine}\n\nWould a simpler page like that be useful for your business? There is no obligation to keep it if it is not useful.\n\nThomas\n3dvr.tech`;
+      ? `Hi ${name} team,\n\nI'm Thomas in San Diego. I make simple web pages for local businesses. The first draft is free. You do not have to use it.${previewLine}\n\nWould you like me to make one for ${name}?\n\nThomas`
+      : `Hi ${name} team,\n\nI'm Thomas in San Diego. I can make you a simple one-page website for free. It will show what you do and how to reach you.${previewLine}\n\nWould this help your business?\n\nThomas`;
     return {
       source: variant === 'b' ? 'template-free-page-b' : 'template-free-page',
       text: finalizeCommercialOutreach(body),
@@ -107,8 +107,8 @@ function buildTemplateOutreachDraft(lead = {}) {
   if (currentOfferProfile() === 'av-operator') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
-      ? `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I am available as an audio-visual operator for event days at $500/day. I can step into an existing crew for audio, video, show calls, troubleshooting, load-in, or strike. Travel and special gear are quoted separately.${previewLine}\n\nDo you need reliable AV crew coverage for an upcoming event?\n\nThomas\n3dvr.tech`
-      : `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I am available for audio-visual operator work at $500/day. I can help with audio, video, show calls, troubleshooting, load-in, and strike, and can join an existing crew.${previewLine}\n\nDo you have any upcoming events that need an experienced AV operator?\n\nThomas\n3dvr.tech`;
+      ? `Hi ${name} team,\n\nI'm Thomas in San Diego. I am free for AV work at $500 a day. I can help with audio, video, show calls, load-in, and strike.${previewLine}\n\nDo you need help on a show?\n\nThomas`
+      : `Hi ${name} team,\n\nI'm Thomas in San Diego. I am free for AV work at $500 a day. I work in audio and video, and I can join your crew for a show.${previewLine}\n\nDo you need an AV tech soon?\n\nThomas`;
     return {
       source: variant === 'b' ? 'template-av-operator-b' : 'template-av-operator',
       text: finalizeCommercialOutreach(body),
@@ -149,21 +149,20 @@ function buildPrompt(lead = {}) {
       '- Ask one concise question about whether something in their website or customer flow is harder than it should be.',
     ];
   return [
-    'Write a short first-touch sales email for a small business lead.',
+    'Write a very short first email from Thomas.',
     'Return JSON only with one key: "text".',
     'Constraints:',
-    '- Keep it under 110 words.',
+    '- Keep it under 75 words before the required legal footer.',
+    '- Use words and sentences a third grader can read.',
     '- Plain text only.',
     '- Start with "Hi <business> team,".',
-    '- Use first person singular from Thomas at 3dvr.tech.',
+    '- Write as Thomas, not as a company team.',
     ...offerLines,
     '- No fake specifics about their site.',
     '- No pricing.',
     '- No hype, no exclamation marks, no markdown.',
     '- If a contact phone number is configured, include the same footer block used by the inbox replies.',
-    '- Close with exactly:',
-    'Thomas',
-    '3dvr.tech',
+    '- Close with exactly: Thomas',
     '',
     `Business name: ${name}`,
     `Website: ${site || 'unknown'}`,
@@ -190,18 +189,18 @@ function buildLocalPrompt(lead = {}) {
       'Ask one concrete question about whether something on the site or in the customer flow is harder than it should be.',
     ];
   return [
-    'Write a short first-touch sales email for Thomas at 3dvr.tech.',
+    'Write a very short first email from Thomas.',
     'Return only JSON: {"text":"..."}',
-    'Voice: direct, practical, warm, not corporate.',
+    'Voice: direct, warm, and human. Use words a third grader can read.',
     'Facts: 3dvr.tech helps with website work, follow-up systems, clearer offers, and small workflow fixes.',
     'Do not invent prices, guarantees, integrations, or meetings.',
-    'Do not include a signature beyond Thomas and 3dvr.tech.',
+    'Do not include a signature beyond Thomas.',
     'If a contact phone number is configured, include the same footer block used by the inbox replies.',
     `Lead: ${name}`,
     `Website: ${site || ''}`,
     `Contact: ${contact || ''}`,
     ...offerLines,
-    'Keep it under 110 words.',
+    'Keep it under 75 words before the legal footer.',
   ].join('\n');
 }
 

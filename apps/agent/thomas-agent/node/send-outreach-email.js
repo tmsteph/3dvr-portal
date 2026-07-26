@@ -141,9 +141,9 @@ async function sendViaPortal(options) {
       mode: 'lead-outreach',
       to: [options.to],
       subject: options.subject,
-      headline: 'Quick note from 3dvr.tech',
+      headline: 'Quick note from Thomas',
       text: options.text,
-      senderName: 'Thomas at 3dvr.tech',
+      senderName: 'Thomas',
       senderEmail,
     }),
   });

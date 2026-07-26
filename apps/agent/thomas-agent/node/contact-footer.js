@@ -12,11 +12,13 @@ function buildContactFooter({
   website = process.env.THREEDVR_CONTACT_WEBSITE || 'https://3dvr.tech',
   email = process.env.GMAIL_USER || '3dvr.tech@gmail.com',
   phone = process.env.THREEDVR_OUTREACH_PHONE || '',
+  includeEmail = true,
 } = {}) {
-  const lines = [
-    `Website: ${normalizeText(website) || 'https://3dvr.tech'}`,
-    `Email: ${normalizeEmail(email) || '3dvr.tech@gmail.com'}`,
-  ];
+  const lines = [`Website: ${normalizeText(website) || 'https://3dvr.tech'}`];
+
+  if (includeEmail) {
+    lines.push(`Email: ${normalizeEmail(email) || '3dvr.tech@gmail.com'}`);
+  }
 
   const normalizedPhone = normalizeText(phone);
   if (normalizedPhone) {

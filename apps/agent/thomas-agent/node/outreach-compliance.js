@@ -20,6 +20,7 @@ function finalizeCommercialOutreach(text, config = process.env) {
     website: config.THREEDVR_CONTACT_WEBSITE || 'https://3dvr.tech',
     email: config.GMAIL_USER || '3dvr.tech@gmail.com',
     phone: config.THREEDVR_OUTREACH_PHONE || '',
+    includeEmail: false,
   });
   const footer = buildCommercialFooter(config);
   if (body.includes(footer)) return body;

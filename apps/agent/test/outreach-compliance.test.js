@@ -19,6 +19,7 @@ test('commercial outreach includes disclosure, postal address, and reply-based o
   assert.match(text, /Business offer from 3dvr\.tech/);
   assert.match(text, /123 Business Way/);
   assert.match(text, /reply unsubscribe or stop/i);
+  assert.doesNotMatch(text, /Email: 3dvr\.tech@gmail\.com/i);
 });
 
 test('commercial outreach is blocked when a physical postal address is missing', () => {
@@ -37,8 +38,7 @@ test('free-page campaign copy offers a no-cost draft without invented site claim
   try {
     const draft = buildTemplateOutreachDraft({ name: 'Acme Studio' });
     assert.equal(draft.source, 'template-free-page');
-    assert.match(draft.text, /one-page website draft at no cost/i);
-    assert.match(draft.text, /no obligation/i);
+    assert.match(draft.text, /one-page website for free/i);
     assert.doesNotMatch(draft.text, /noticed|looked at|problem with your site/i);
     assert.equal(validateCommercialOutreach(draft.text, process.env).ok, true);
   } finally {
@@ -55,7 +55,7 @@ test('free-page experiment variant b changes the call to action and stays compli
   try {
     const draft = buildTemplateOutreachDraft({ name: 'Acme', experimentVariant: 'b' });
     assert.equal(draft.source, 'template-free-page-b');
-    assert.match(draft.text, /Would you like me to put together a first draft for Acme/i);
+    assert.match(draft.text, /Would you like me to make one for Acme/i);
     assert.equal(validateCommercialOutreach(draft.text).ok, true);
   } finally {
     delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
@@ -69,8 +69,8 @@ test('av-operator offer states the day rate and event crew work', () => {
   try {
     const draft = buildTemplateOutreachDraft({ name: 'Local AV Company', experimentVariant: 'a' });
     assert.equal(draft.source, 'template-av-operator');
-    assert.match(draft.text, /\$500\/day/);
-    assert.match(draft.text, /audio, video, show calls, troubleshooting, load-in, and strike/i);
+    assert.match(draft.text, /\$500 a day/);
+    assert.match(draft.text, /audio and video/i);
     assert.match(draft.text, /Business offer from 3dvr\.tech/i);
   } finally {
     if (previousProfile === undefined) delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
