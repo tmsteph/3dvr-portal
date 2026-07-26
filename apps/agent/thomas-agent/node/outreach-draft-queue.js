@@ -108,13 +108,19 @@ function enqueueDraftRequest(lead = {}, options = {}) {
   const paths = ensureQueue(queueDir);
   const id = `draft-${crypto.randomBytes(12).toString('hex')}`;
   const recipientId = `lead-${crypto.randomBytes(12).toString('hex')}`;
-  const previewUrl = buildPersonalizedPreviewUrl({
+  let previewUrl = buildPersonalizedPreviewUrl({
     recipientId,
     name: lead.name,
     focus: lead.previewFocus,
     action: lead.previewAction,
   }, options);
   const avOperator = currentOfferProfile() === 'av-operator';
+  const avJobSearch = avOperator
+    && /^(?:1|true|yes|on)$/i.test(normalizeText(process.env.THREEDVR_OUTREACH_AV_JOB_SEARCH));
+  if (avJobSearch) {
+    previewUrl = normalizeText(process.env.THREEDVR_OUTREACH_AV_PROFILE_URL)
+      || 'https://thomas-av.3dvr.tech/';
+  }
   const request = {
     version: 1,
     id,
