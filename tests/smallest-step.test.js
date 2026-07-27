@@ -26,9 +26,13 @@ test('Smallest Step ships as a private GUN-backed portal app', async () => {
     readFile(new URL('../index.html', import.meta.url), 'utf8')
   ]);
   assert.match(html, /What is the smallest step you can take right now/);
+  assert.match(html, /Visualize your ideal life\./);
+  assert.doesNotMatch(html, /What does it look and feel like when life is going right/);
+  assert.doesNotMatch(html, /Make it small enough to begin in five minutes/);
   assert.match(html, /analytics" content="disabled/);
   assert.match(html, /theme-color" content="#0d1513"/);
   assert.match(css, /color-scheme:\s*dark/);
+  assert.match(css, /100dvh/);
   assert.match(js, /get\('3dvr-portal'\)\.get\('smallest-step'\)/);
   assert.match(js, /get\('steps'\)\.get\(record\.id\)\.put\(record/);
   assert.match(manifest, /smallest-step\/\?source=pwa/);
