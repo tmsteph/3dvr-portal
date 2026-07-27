@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smallest Step | 3DVR Portal</title>
+  <meta name="description" content="Picture the life you want, choose one tiny move, and build proof through action.">
+  <meta name="theme-color" content="#f4efe5">
+  <meta name="analytics" content="disabled">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="./smallest-step.css">
+  <link rel="manifest" href="/app-manifests/smallest-step.webmanifest">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
+  <script src="/score.js"></script>
+  <script type="module" src="./smallest-step.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to Smallest Step</a>
+  <header><a class="brand" href="/"><b>→</b><span><strong>Smallest Step</strong><small>by 3DVR</small></span></a><a href="/">Portal</a></header>
+  <main id="mainContent">
+    <section class="hero">
+      <p class="eyebrow">A quiet practice for becoming</p>
+      <h1>See the life.<br>Take the step.</h1>
+      <p class="lead">You do not need the whole path. You only need the smallest honest move you can make now.</p>
+    </section>
+    <form id="stepForm">
+      <section class="card">
+        <i>1</i><div><label for="visionInput">Picture your ideal life</label><p>What does it look and feel like when life is going right?</p>
+        <textarea id="visionInput" rows="5" maxlength="1200" placeholder="I wake up with time for my family. My work is meaningful, calm, and free…"></textarea></div>
+      </section>
+      <section class="card">
+        <i>2</i><div><label for="stepInput">What is the smallest step you can take right now?</label><p>Make it small enough to begin in five minutes.</p>
+        <input id="stepInput" maxlength="280" placeholder="Open the document and write one sentence">
+        <div class="examples"><button type="button" data-example="Send one honest message">Send one message</button><button type="button" data-example="Walk for five minutes">Walk five minutes</button><button type="button" data-example="Write the first sentence">Write one sentence</button></div></div>
+      </section>
+      <section class="commit">
+        <p class="eyebrow">Make it real</p><h2>Tiny action is proof.</h2>
+        <button class="primary" type="submit">Save my step</button>
+        <p id="syncStatus" class="status" aria-live="polite">Preparing private sync…</p>
+      </section>
+    </form>
+    <section class="proof">
+      <div class="heading"><div><p class="eyebrow">Proof of movement</p><h2>Your recent steps</h2></div><p><strong id="completedCount">0</strong> completed</p></div>
+      <div id="recentSteps" class="steps" aria-live="polite"><p class="empty">Your first small step will appear here.</p></div>
+    </section>
+    <aside><p>Manifestation here means pairing a clear vision with real behavior. The app does not promise that thoughts alone control outcomes.</p><a href="/intention-lab/">Open the deeper Intention Lab</a></aside>
+  </main>
+  <footer><a href="/">3DVR Portal</a><span>Small moves compound.</span></footer>
+</body>
+</html>

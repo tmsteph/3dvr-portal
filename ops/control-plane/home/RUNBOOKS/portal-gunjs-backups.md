@@ -54,11 +54,19 @@ Run this from a repo checkout with dependencies installed:
 npm run gun:backup
 ```
 
+The snapshot command now stops at three independent safety boundaries by default: a 10-minute
+process timeout, 500 total Gun node reads, and 256 MB RSS. These limits make the JSON layer
+inspection-friendly without allowing it to compete with the OpenClaw gateway for all host memory.
+Keep this job in a separate service/container or on the relay host; never launch it as a child of
+the OpenClaw gateway service.
+
 Useful overrides:
 
 ```sh
 GUN_BACKUP_OUT_DIR=/var/backups/3dvr/gun-snapshots \
 GUN_BACKUP_PEERS='wss://gun-relay-3dvr.fly.dev/gun https://gun-relay-3dvr.fly.dev/gun' \
+GUN_BACKUP_MAX_NODES=500 \
+GUN_BACKUP_MAX_MEMORY_MB=256 \
 npm run gun:backup
 ```
 
@@ -85,7 +93,7 @@ Run both layers nightly and keep stdout/stderr in system logs:
 
 ```cron
 15 7 * * * cd /opt/3dvr-portal && GUN_RAD_DIR=/path/to/radata ops/gun/archive-rad.sh
-30 7 * * * cd /opt/3dvr-portal && npm run gun:backup
+30 7 * * * cd /opt/3dvr-portal && GUN_BACKUP_MAX_NODES=500 GUN_BACKUP_MAX_MEMORY_MB=256 npm run gun:backup
 ```
 
 ## Restore Notes

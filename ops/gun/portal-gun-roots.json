@@ -17,6 +17,13 @@
       "notes": "Privacy-safe, append-only Free Page views and lead-intent events, partitioned by UTC day."
     },
     {
+      "name": "smallest-step",
+      "path": ["3dvr-portal", "smallest-step"],
+      "depth": 2,
+      "critical": true,
+      "notes": "Smallest Step visions, immediate actions, completion state, and author indexes."
+    },
+    {
       "name": "crm",
       "path": ["3dvr-crm"],
       "depth": 3,

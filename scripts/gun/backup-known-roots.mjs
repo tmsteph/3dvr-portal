@@ -14,6 +14,8 @@ const DEFAULT_TIMEOUT_MS = 1000;
 const DEFAULT_CONNECT_TIMEOUT_MS = 15000;
 const DEFAULT_HARD_TIMEOUT_MS = 600000;
 const DEFAULT_MAX_KEYS_PER_NODE = 150;
+const DEFAULT_MAX_NODES = 500;
+const DEFAULT_MAX_MEMORY_MB = 256;
 const nativeSetTimeout = globalThis.setTimeout.bind(globalThis);
 const nativeClearTimeout = globalThis.clearTimeout.bind(globalThis);
 
@@ -30,6 +32,8 @@ Options:
   --connect-timeout-ms <n>   Peer connection timeout. Default: ${DEFAULT_CONNECT_TIMEOUT_MS}
   --hard-timeout-ms <n>      Whole-process timeout. Default: ${DEFAULT_HARD_TIMEOUT_MS}
   --max-keys <n>             Max child keys traversed per node. Default: ${DEFAULT_MAX_KEYS_PER_NODE}
+  --max-nodes <n>            Max total Gun nodes read. Default: ${DEFAULT_MAX_NODES}
+  --max-memory-mb <n>        Stop traversal above this RSS. Default: ${DEFAULT_MAX_MEMORY_MB}
   --dry-run                  Print planned backup targets without connecting.
   --help                     Show this help.
 
@@ -43,6 +47,8 @@ Environment:
   GUN_BACKUP_CONNECT_TIMEOUT_MS
   GUN_BACKUP_HARD_TIMEOUT_MS
   GUN_BACKUP_MAX_KEYS
+  GUN_BACKUP_MAX_NODES
+  GUN_BACKUP_MAX_MEMORY_MB
   GUN_BACKUP_DEBUG=1        Print phase logs to stderr.
 `;
 }
@@ -83,6 +89,8 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
       'GUN_BACKUP_HARD_TIMEOUT_MS'
     ),
     maxKeys: parsePositiveInt(env.GUN_BACKUP_MAX_KEYS, DEFAULT_MAX_KEYS_PER_NODE, 'GUN_BACKUP_MAX_KEYS'),
+    maxNodes: parsePositiveInt(env.GUN_BACKUP_MAX_NODES, DEFAULT_MAX_NODES, 'GUN_BACKUP_MAX_NODES'),
+    maxMemoryMb: parsePositiveInt(env.GUN_BACKUP_MAX_MEMORY_MB, DEFAULT_MAX_MEMORY_MB, 'GUN_BACKUP_MAX_MEMORY_MB'),
     debug: env.GUN_BACKUP_DEBUG === '1',
     dryRun: false
   };
@@ -115,6 +123,10 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
       options.hardTimeoutMs = parsePositiveInt(argv[++index], DEFAULT_HARD_TIMEOUT_MS, '--hard-timeout-ms');
     } else if (arg === '--max-keys') {
       options.maxKeys = parsePositiveInt(argv[++index], DEFAULT_MAX_KEYS_PER_NODE, '--max-keys');
+    } else if (arg === '--max-nodes') {
+      options.maxNodes = parsePositiveInt(argv[++index], DEFAULT_MAX_NODES, '--max-nodes');
+    } else if (arg === '--max-memory-mb') {
+      options.maxMemoryMb = parsePositiveInt(argv[++index], DEFAULT_MAX_MEMORY_MB, '--max-memory-mb');
     } else {
       throw new Error(`Unknown option: ${arg}`);
     }
@@ -212,6 +224,16 @@ function onceWithTimeout(node, timeoutMs) {
 }
 
 async function snapshotNode(node, context, depth, seen, pathParts) {
+  if (context.nodesRead >= context.maxNodes) {
+    context.warnings.push(`Node budget reached at ${pathParts.join('/')}: ${context.maxNodes}`);
+    return { _backup: { status: 'node-budget', path: pathParts.join('/') } };
+  }
+  const rssMb = process.memoryUsage().rss / 1048576;
+  if (rssMb >= context.maxMemoryMb) {
+    context.warnings.push(`Memory budget reached at ${pathParts.join('/')}: ${rssMb.toFixed(1)} MB RSS`);
+    return { _backup: { status: 'memory-budget', path: pathParts.join('/'), rssMb: Math.round(rssMb) } };
+  }
+  context.nodesRead += 1;
   const { timedOut, value } = await onceWithTimeout(node, context.timeoutMs);
   const pathLabel = pathParts.join('/');
   if (timedOut) {
@@ -364,21 +386,30 @@ async function runBackup(options) {
       timeoutMs: options.timeoutMs,
       connectTimeoutMs: options.connectTimeoutMs,
       hardTimeoutMs: options.hardTimeoutMs,
-      maxKeys: options.maxKeys
+      maxKeys: options.maxKeys,
+      maxNodes: options.maxNodes,
+      maxMemoryMb: options.maxMemoryMb
     },
     roots: [],
     warnings
   };
 
+  const traversalBudget = {
+    timeoutMs: options.timeoutMs,
+    maxKeys: options.maxKeys,
+    maxNodes: options.maxNodes,
+    maxMemoryMb: options.maxMemoryMb,
+    nodesRead: 0,
+    warnings
+  };
   for (const root of selectedRoots) {
     debugLog(options, `snapshotting ${root.path.join('/')} at depth ${root.depth}`);
     const rootStarted = Date.now();
-    const context = { timeoutMs: options.timeoutMs, maxKeys: options.maxKeys, warnings };
     const seen = new Set();
     let status = 'ok';
     let data;
     try {
-      data = await snapshotNode(getNodeFromPath(gun, root.path), context, root.depth, seen, root.path);
+      data = await snapshotNode(getNodeFromPath(gun, root.path), traversalBudget, root.depth, seen, root.path);
     } catch (error) {
       status = 'error';
       data = { _backup: { status: 'error', message: error.message } };
@@ -400,6 +431,7 @@ async function runBackup(options) {
 
   snapshot.finishedAt = new Date().toISOString();
   snapshot.durationMs = new Date(snapshot.finishedAt).getTime() - startedAt.getTime();
+  snapshot.nodesRead = traversalBudget.nodesRead;
 
   await mkdir(options.outDir, { recursive: true });
   const fileName = `portal-gun-known-roots-${timestampForFile(startedAt)}.json`;
