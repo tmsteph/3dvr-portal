@@ -95,6 +95,19 @@ function init() {
     list: document.getElementById('recentSteps'), count: document.getElementById('completedCount'),
   };
   if (!refs.form) return;
+  const switchView = name => {
+    const next = ['today', 'steps', 'guide'].includes(name) ? name : 'today';
+    document.querySelectorAll('[data-view]').forEach(view => {
+      const active = view.dataset.view === next;
+      view.hidden = !active;
+      view.classList.toggle('active', active);
+    });
+    document.querySelectorAll('[data-view-target]').forEach(button => {
+      button.setAttribute('aria-selected', String(button.dataset.viewTarget === next));
+    });
+    if (history.replaceState) history.replaceState(null, '', `#${next}`);
+  };
+  document.querySelectorAll('[data-view-target]').forEach(button => button.addEventListener('click', () => switchView(button.dataset.viewTarget)));
   const context = gunContext();
   const state = { author: author(context.user), root: context.gun?.get('3dvr-portal').get('smallest-step'), steps: new Map() };
   refs.form.addEventListener('submit', event => {
@@ -108,8 +121,14 @@ function init() {
     state.root?.get('authors').get(record.author.id).get('steps').get(record.id).put(true);
     refs.step.value = '';
     render(refs, state);
+    switchView('steps');
   });
-  document.querySelectorAll('[data-example]').forEach(button => button.addEventListener('click', () => { refs.step.value = button.dataset.example; refs.step.focus(); }));
+  document.querySelectorAll('[data-example]').forEach(button => button.addEventListener('click', () => {
+    refs.step.value = button.dataset.example;
+    switchView('today');
+    refs.step.focus();
+  }));
+  switchView(location.hash.slice(1));
   if (!state.root) { status(refs, 'Offline mode. Sync will resume automatically.', true); return; }
   status(refs, context.isStub ? 'Offline mode. Sync will resume automatically.' : 'GUN sync ready.', context.isStub);
   state.root.get('steps').map().on((record, key) => {

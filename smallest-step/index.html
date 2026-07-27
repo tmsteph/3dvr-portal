@@ -23,23 +23,54 @@
     <a class="portal-link" href="/" aria-label="Back to 3DVR Portal">×</a>
   </header>
   <main id="mainContent">
-    <form id="stepForm">
-      <p class="intro">You do not need the whole path. You need the smallest honest move you can make right now.</p>
-      <section class="card">
-        <label for="visionInput"><span>1</span>Visualize your ideal life.</label>
-        <textarea id="visionInput" rows="4" maxlength="1200" placeholder="I have time for my family. My work is meaningful, calm, and free…"></textarea>
-      </section>
-      <section class="card">
-        <label for="stepInput"><span>2</span>What is the smallest step you can take right now?</label>
-        <input id="stepInput" maxlength="280" placeholder="Open the document and write one sentence">
-      </section>
-      <button class="primary" type="submit">Save my step <span aria-hidden="true">→</span></button>
-      <p id="syncStatus" class="status" aria-live="polite">Preparing private sync…</p>
-    </form>
-    <details class="proof">
-      <summary><span>Recent steps</span><span><strong id="completedCount">0</strong> done <i>⌃</i></span></summary>
+    <section class="view active" data-view="today">
+      <form id="stepForm">
+        <p class="intro">You do not need the whole path. You need the smallest honest move you can make right now.</p>
+        <section class="card">
+          <label for="visionInput"><span>1</span>Visualize your ideal life.</label>
+          <textarea id="visionInput" rows="4" maxlength="1200" placeholder="I have time for my family. My work is meaningful, calm, and free…"></textarea>
+        </section>
+        <section class="card">
+          <label for="stepInput"><span>2</span>What is the smallest step you can take right now?</label>
+          <input id="stepInput" maxlength="280" placeholder="Open the document and write one sentence">
+        </section>
+        <button class="primary" type="submit">Save my step <span aria-hidden="true">→</span></button>
+        <p id="syncStatus" class="status" aria-live="polite">Preparing private sync…</p>
+      </form>
+    </section>
+    <section class="view history-view" data-view="steps" hidden>
+      <div class="view-heading">
+        <p class="eyebrow">Proof of movement</p>
+        <h1>Saved steps</h1>
+        <p>Every honest move counts.</p>
+      </div>
       <div id="recentSteps" class="steps" aria-live="polite"><p class="empty">Your first small step will appear here.</p></div>
-    </details>
+    </section>
+    <section class="view guide-view" data-view="guide" hidden>
+      <div class="view-heading">
+        <p class="eyebrow">How it works</p>
+        <h1>See it. Move toward it.</h1>
+      </div>
+      <article class="guide-card">
+        <h2>Start tiny</h2>
+        <p>You do not need to know the whole path. Choose something honest that you can begin in five minutes.</p>
+        <div class="examples">
+          <button type="button" data-example="Send one honest message">Send one message</button>
+          <button type="button" data-example="Walk for five minutes">Walk five minutes</button>
+          <button type="button" data-example="Write the first sentence">Write one sentence</button>
+        </div>
+      </article>
+      <article class="guide-card">
+        <h2>Thought plus action</h2>
+        <p>Manifestation here means pairing a clear vision with real behavior. The app does not promise that thoughts alone control outcomes.</p>
+        <a href="/intention-lab/">Open the deeper Intention Lab →</a>
+      </article>
+    </section>
   </main>
+  <nav class="tabbar" aria-label="Smallest Step">
+    <button type="button" data-view-target="today" aria-selected="true"><span aria-hidden="true">✦</span>Today</button>
+    <button type="button" data-view-target="steps" aria-selected="false"><span aria-hidden="true">✓</span>Steps <b id="completedCount">0</b></button>
+    <button type="button" data-view-target="guide" aria-selected="false"><span aria-hidden="true">?</span>Guide</button>
+  </nav>
 </body>
 </html>
