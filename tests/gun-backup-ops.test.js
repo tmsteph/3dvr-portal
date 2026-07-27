@@ -21,6 +21,7 @@ test('Gun backup operations include host archive, known roots, and repo-safe out
 
   assert.equal(manifest.version, 1);
   assert.ok(rootNames.has('portal'));
+  assert.ok(rootNames.has('smallest-step'));
   assert.ok(rootNames.has('crm'));
   assert.ok(rootNames.has('guests'));
   assert.ok(rootNames.has('ai'));
@@ -35,6 +36,11 @@ test('Gun backup operations include host archive, known roots, and repo-safe out
   assert.match(snapshotScript, /gun\/lib\/server\.js/);
   assert.match(snapshotScript, /GUN_BACKUP_PEERS/);
   assert.match(snapshotScript, /GUN_BACKUP_ROOTS/);
+  assert.match(snapshotScript, /GUN_BACKUP_MAX_NODES/);
+  assert.match(snapshotScript, /GUN_BACKUP_MAX_MEMORY_MB/);
+  assert.match(snapshotScript, /process\.memoryUsage\(\)\.rss/);
+  assert.match(snapshotScript, /status: 'node-budget'/);
+  assert.match(snapshotScript, /status: 'memory-budget'/);
   assert.match(snapshotScript, /--root/);
   assert.match(snapshotScript, /portal-gun-known-roots-/);
   assert.match(snapshotScript, /sha256/);
