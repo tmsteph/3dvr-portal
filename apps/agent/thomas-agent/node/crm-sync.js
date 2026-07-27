@@ -193,7 +193,7 @@ function buildCrmRecord(lead, options = {}) {
     ? isoDate(lead.date, new Date(now))
     : '';
   const nextFollowUp = status === 'contacted'
-    ? isoDate(addDays(new Date(lastContacted || now), 7))
+    ? isoDate(addDays(new Date(lastContacted || now), 21))
     : '';
   const tags = [
     'source/3dvr-agent',

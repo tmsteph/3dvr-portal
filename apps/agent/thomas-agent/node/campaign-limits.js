@@ -64,10 +64,81 @@ function successfulRecipientKeys(entries = []) {
   return keys;
 }
 
+function isFollowupEntry(entry = {}) {
+  const text = [
+    entry.source,
+    entry.variant,
+    entry.subject,
+    entry.note,
+  ].map(normalizeText).join(' ').toLowerCase();
+  return /\bfollow[\s-]?up\b/.test(text);
+}
+
+function recipientEntries(entries = [], lead = {}) {
+  const name = normalizeText(lead.name).toLowerCase();
+  const contact = normalizeText(lead.contact).toLowerCase();
+  return entries
+    .filter(successfulOutreach)
+    .filter((entry) => {
+      const entryName = normalizeText(entry.name).toLowerCase();
+      const entryContact = normalizeText(entry.contact).toLowerCase();
+      return Boolean(
+        (name && entryName === name)
+        || (contact && entryContact === contact)
+      );
+    })
+    .sort((left, right) => normalizeText(left.timestamp).localeCompare(normalizeText(right.timestamp)));
+}
+
+function getFollowupEligibility(entries = [], lead = {}, options = {}) {
+  const minimumDays = parseLimit(options.minimumDays, 21);
+  const maximumFollowups = parseLimit(options.maximumFollowups, 1);
+  const now = new Date(options.now || Date.now());
+  const history = recipientEntries(entries, lead);
+  const followups = history.filter(isFollowupEntry);
+  const first = history[0];
+  const firstSentAt = first ? new Date(first.timestamp) : null;
+  const ageDays = firstSentAt && Number.isFinite(firstSentAt.getTime())
+    ? Math.floor((now.getTime() - firstSentAt.getTime()) / 86400000)
+    : null;
+
+  if (!history.length) {
+    return { eligible: false, retired: false, reason: 'no successful initial outreach', followupCount: 0, ageDays };
+  }
+  if (followups.length >= maximumFollowups) {
+    return {
+      eligible: false,
+      retired: true,
+      reason: 'maximum no-response follow-ups reached',
+      followupCount: followups.length,
+      ageDays,
+    };
+  }
+  if (ageDays === null || ageDays < minimumDays) {
+    return {
+      eligible: false,
+      retired: false,
+      reason: `wait at least ${minimumDays} days after initial outreach`,
+      followupCount: followups.length,
+      ageDays,
+    };
+  }
+  return {
+    eligible: true,
+    retired: false,
+    reason: 'one final no-response follow-up allowed',
+    followupCount: followups.length,
+    ageDays,
+  };
+}
+
 module.exports = {
   campaignIsActive,
+  getFollowupEligibility,
   getCampaignAllowance,
+  isFollowupEntry,
   parseLimit,
+  recipientEntries,
   successfulOutreach,
   successfulRecipientKeys,
 };
