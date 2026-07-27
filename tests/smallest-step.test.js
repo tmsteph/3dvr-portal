@@ -28,6 +28,10 @@ test('Smallest Step ships as a private GUN-backed portal app', async () => {
   assert.match(html, /What is the smallest step you can take right now/);
   assert.match(html, /Visualize your ideal life\./);
   assert.match(html, /You do not need the whole path\. You need the smallest honest move you can make right now\./);
+  assert.match(html, /data-view="steps"/);
+  assert.match(html, /data-view="guide"/);
+  assert.match(html, /Saved steps/);
+  assert.match(html, /Open the deeper Intention Lab/);
   assert.doesNotMatch(html, /What does it look and feel like when life is going right/);
   assert.doesNotMatch(html, /Make it small enough to begin in five minutes/);
   assert.match(html, /analytics" content="disabled/);
@@ -36,6 +40,7 @@ test('Smallest Step ships as a private GUN-backed portal app', async () => {
   assert.match(css, /100dvh/);
   assert.match(js, /get\('3dvr-portal'\)\.get\('smallest-step'\)/);
   assert.match(js, /get\('steps'\)\.get\(record\.id\)\.put\(record/);
+  assert.match(js, /switchView\('steps'\)/);
   assert.match(manifest, /smallest-step\/\?source=pwa/);
   assert.match(portal, /href="smallest-step\/"/);
 });
