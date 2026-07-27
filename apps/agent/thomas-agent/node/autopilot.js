@@ -6,7 +6,11 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const nodemailer = require('nodemailer');
 const { buildGmailTransportOptions } = require('./gmail-transport');
-const { getCampaignAllowance, successfulRecipientKeys } = require('./campaign-limits');
+const {
+  getCampaignAllowance,
+  getFollowupEligibility,
+  successfulRecipientKeys,
+} = require('./campaign-limits');
 const { chooseExperimentVariant } = require('./experiment-optimizer');
 const { readOutreachLog } = require('./outreach-log');
 const { qualifyLeadWebsite } = require('./lead-quality');
@@ -44,6 +48,8 @@ const DEFAULT_CAMPAIGN_ID = normalizeText(
 );
 const DEFAULT_CAMPAIGN_START = normalizeText(process.env.THREEDVR_AUTOPILOT_CAMPAIGN_START);
 const DEFAULT_CAMPAIGN_END = normalizeText(process.env.THREEDVR_AUTOPILOT_CAMPAIGN_END);
+const DEFAULT_FOLLOWUP_MINIMUM_DAYS = parseInteger(process.env.THREEDVR_OUTREACH_FOLLOWUP_MINIMUM_DAYS, 21);
+const DEFAULT_FOLLOWUP_MAXIMUM = parseInteger(process.env.THREEDVR_OUTREACH_FOLLOWUP_MAXIMUM, 1);
 const DEFAULT_EXPERIMENT_VARIANTS = splitList(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_VARIANTS || 'a;b');
 const DEFAULT_EXPERIMENT_MIN_SAMPLE = parseInteger(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_MIN_SAMPLE, 8);
 const DEFAULT_EXPERIMENT_MIN_REPLIES = parseInteger(process.env.THREEDVR_AUTOPILOT_EXPERIMENT_MIN_REPLIES, 2);
@@ -714,8 +720,8 @@ function buildActionItems(summary) {
   if (summary.counts.new >= DEFAULT_NOTIFY_NEW_LEADS) {
     actions.push(`Review/send new outreach: ${summary.topNew.join(', ') || `${summary.counts.new} new lead(s)`}`);
   }
-  if (summary.counts.contacted > 0) {
-    actions.push(`Check follow-ups for ${summary.counts.contacted} contacted lead(s)`);
+  if (summary.followups?.eligible > 0) {
+    actions.push(`Review ${summary.followups.eligible} final follow-up candidate(s); each gets one maximum`);
   }
   if (summary.openAiCosts?.limitExceeded) {
     actions.push(`OpenAI spend guard hit: $${summary.openAiCosts.totalUsd.toFixed(2)} / $${summary.openAiCosts.limitUsd.toFixed(2)}`);
@@ -1108,6 +1114,24 @@ async function main() {
   const topReplied = topLeadNames(finalRows, 'replied');
   const topForm = topRouteLeadNames(finalRows, 'form');
   const topPageOnly = topRouteLeadNames(finalRows, 'contact-page').concat(topRouteLeadNames(finalRows, 'site'));
+  const followupPolicies = finalRows
+    .filter((row) => normalizeText(row.status).toLowerCase() === 'contacted')
+    .map((row) => ({
+      lead: row,
+      ...getFollowupEligibility(outreachEntries, row, {
+        minimumDays: DEFAULT_FOLLOWUP_MINIMUM_DAYS,
+        maximumFollowups: DEFAULT_FOLLOWUP_MAXIMUM,
+      }),
+    }));
+  const followups = {
+    minimumDays: DEFAULT_FOLLOWUP_MINIMUM_DAYS,
+    maximumPerNoResponseLead: DEFAULT_FOLLOWUP_MAXIMUM,
+    eligible: followupPolicies.filter((entry) => entry.eligible).length,
+    waiting: followupPolicies.filter((entry) => !entry.eligible && !entry.retired).length,
+    retired: followupPolicies.filter((entry) => entry.retired).length,
+    eligibleNames: followupPolicies.filter((entry) => entry.eligible).map((entry) => entry.lead.name),
+    retiredNames: followupPolicies.filter((entry) => entry.retired).map((entry) => entry.lead.name),
+  };
 
   const codex = await readCodexSummary(options.statusProbe);
   let openAiCosts = { available: false, reason: 'cost checks disabled' };
@@ -1125,7 +1149,7 @@ async function main() {
     commands.push('ask-next');
     commands.push('ask-send --enrich --mark "Lead Name"');
   }
-  if (counts.contacted > 0) {
+  if (followups.eligible > 0) {
     commands.push('ask-track followup');
   }
   if (routeCounts.formReady > 0 && topForm[0]) {
@@ -1156,7 +1180,7 @@ async function main() {
       sendWindow,
       ...campaignAllowance,
     },
-    experiment: chooseExperimentVariant(readOutreachLog(), {
+    experiment: chooseExperimentVariant(outreachEntries, {
       campaignId: DEFAULT_CAMPAIGN_ID,
       variants: DEFAULT_EXPERIMENT_VARIANTS,
       minSampleSize: DEFAULT_EXPERIMENT_MIN_SAMPLE,
@@ -1165,6 +1189,7 @@ async function main() {
     }),
     leadsFile: LEADS_FILE,
     counts,
+    followups,
     beforeCounts,
     beforeRouteCounts,
     beforeEnrichmentNeeded,
@@ -1219,6 +1244,7 @@ async function main() {
 
   console.log(`Autopilot run: ${summary.runId}`);
   console.log(`Counts: ${formatCounts(summary.counts)}`);
+  console.log(`Follow-ups: eligible=${summary.followups.eligible} waiting=${summary.followups.waiting} retired=${summary.followups.retired} minimumDays=${summary.followups.minimumDays} maximum=${summary.followups.maximumPerNoResponseLead}`);
   console.log(`Routes: ${formatRouteCounts(summary.routeCounts)}`);
   console.log(`Campaign: ${summary.campaign.id || 'unscoped'} daily=${summary.campaign.dailySent}/${summary.campaign.dailyLimit} total=${summary.campaign.campaignSent}/${summary.campaign.totalLimit || 'unlimited'}${summary.campaign.sendBlockedReason ? ` blocked=${summary.campaign.sendBlockedReason}` : ''}`);
   console.log(`Experiment: phase=${summary.experiment.phase} next=${summary.experiment.variant || 'off'}${summary.experiment.winner ? ` winner=${summary.experiment.winner}` : ''}`);
