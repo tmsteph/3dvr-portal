@@ -1,0 +1,36 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  background: #0b1118;
+  color: #f4f7f5;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100svh; background: radial-gradient(circle at top, #18302d 0, #0b1118 42%); }
+.app-shell { width: min(100% - 32px, 620px); margin: auto; padding: 28px 0 22px; }
+header { margin-bottom: 24px; }
+.back { color: #9fc7bd; text-decoration: none; }
+.eyebrow { color: #78d3bc; font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+h1 { margin: 8px 0; font-size: clamp(2rem, 10vw, 3.5rem); line-height: .95; }
+h2 { margin: 6px 0 16px; }
+header > p:last-child, footer { color: #aebbb7; line-height: 1.5; }
+form, .result, .notice { display: grid; gap: 18px; padding: 22px; border: 1px solid #29423d; border-radius: 22px; background: rgba(13, 24, 28, .92); box-shadow: 0 24px 80px #0007; }
+label { display: grid; gap: 8px; color: #dce7e3; font-size: .9rem; font-weight: 650; }
+small { color: #82948f; font-weight: 400; }
+input { width: 100%; min-height: 50px; padding: 0 14px; border: 1px solid #36524b; border-radius: 12px; background: #091014; color: #fff; font: inherit; }
+input:focus { outline: 3px solid #78d3bc45; border-color: #78d3bc; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.money-input { display: flex; align-items: center; padding-left: 14px; border: 1px solid #36524b; border-radius: 12px; background: #091014; }
+.money-input input { border: 0; background: transparent; }
+.button { min-height: 50px; display: inline-grid; place-items: center; padding: 0 18px; border: 0; border-radius: 12px; background: #78d3bc; color: #07110e; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
+.button:disabled { opacity: .6; cursor: wait; }
+.secondary { background: #243732; color: #ecf8f4; }
+.status { min-height: 1.3em; margin: -6px 0 0; color: #efb873; }
+.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.text-button { justify-self: center; border: 0; background: none; color: #9fc7bd; text-decoration: underline; cursor: pointer; }
+footer { padding: 20px 8px 0; text-align: center; font-size: .8rem; }
+[hidden] { display: none !important; }
+@media (max-width: 480px) {
+  .split, .actions { grid-template-columns: 1fr; }
+  .app-shell { width: min(100% - 20px, 620px); padding-top: 18px; }
+}

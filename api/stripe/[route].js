@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { resolvePlanFromSubscription } from '../../src/money/access.js';
 import { createStripeCheckoutHandler } from '../../src/billing/api-checkout.js';
+import { createCustomPaymentHandler } from '../../src/billing/api-custom-payment.js';
 import { createStripeStatusHandler } from '../../src/billing/api-status.js';
 
 const SAMPLE_STOREFRONT_PRODUCTS = Object.freeze({
@@ -854,6 +855,10 @@ export function createStripeDashboardHandler({
     stripeClient: resolvedStripeClient,
     config,
   });
+  const customPaymentHandler = createCustomPaymentHandler({
+    stripeClient: resolvedStripeClient,
+    config,
+  });
 
   return async function handler(req, res) {
     const route = getRouteValue(req);
@@ -862,6 +867,9 @@ export function createStripeDashboardHandler({
     }
     if (route === 'status') {
       return statusHandler(req, res);
+    }
+    if (route === 'custom-payment') {
+      return customPaymentHandler(req, res);
     }
     if (route === 'storefront-checkout') {
       try {

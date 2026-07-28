@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1118">
+  <meta name="robots" content="noindex">
+  <title>Custom Payment | 3DVR Portal</title>
+  <meta name="description" content="Create a secure Stripe checkout link for a custom 3DVR payment.">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script defer src="/gun-init.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header>
+      <a href="/" class="back" aria-label="Back to portal">← Portal</a>
+      <p class="eyebrow">3DVR • Stripe</p>
+      <h1>Custom Payment</h1>
+      <p>Create the checkout, then send the secure Stripe link. Your customer does not need an account.</p>
+    </header>
+
+    <section id="customer-result" class="result" hidden>
+      <p class="eyebrow">3DVR Payment</p>
+      <h2 id="customer-result-title">Payment received</h2>
+      <p id="customer-result-copy">Thank you. Stripe will email your receipt.</p>
+    </section>
+
+    <section id="signed-out" class="notice" hidden>
+      <p>Sign in to create payment links.</p>
+      <a class="button" href="/sign-in.html?redirect=%2Fcustom-payment%2F">Sign in</a>
+    </section>
+
+    <form id="payment-form" autocomplete="on">
+      <label>
+        Customer name
+        <input name="customerName" autocomplete="name" required maxlength="120" placeholder="Jane Smith">
+      </label>
+      <label>
+        Customer email
+        <input name="customerEmail" type="email" autocomplete="email" required placeholder="jane@example.com">
+      </label>
+      <div class="split">
+        <label>
+          Amount
+          <span class="money-input"><span>$</span><input name="amount" type="number" inputmode="decimal" min="1" step="0.01" required placeholder="75.00"></span>
+        </label>
+        <label>
+          Reference <small>optional</small>
+          <input name="reference" maxlength="80" placeholder="BC-104">
+        </label>
+      </div>
+      <label>
+        What is it for?
+        <input name="description" required maxlength="120" placeholder="250 business cards">
+      </label>
+      <button id="create-button" class="button" type="submit">Create payment link</button>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </form>
+
+    <section id="result" class="result" hidden>
+      <p class="eyebrow">Ready to send</p>
+      <h2>Payment link created</h2>
+      <input id="payment-link" readonly aria-label="Payment link">
+      <div class="actions">
+        <button id="copy-button" class="button" type="button">Copy link</button>
+        <button id="share-button" class="button secondary" type="button" hidden>Share</button>
+        <a id="preview-link" class="button secondary" target="_blank" rel="noreferrer">Preview</a>
+      </div>
+      <button id="new-button" class="text-button" type="button">Create another</button>
+    </section>
+
+    <footer>Cards are entered on Stripe. 3DVR never sees or stores card details.</footer>
+  </main>
+</body>
+</html>
