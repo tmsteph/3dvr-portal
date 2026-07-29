@@ -50,6 +50,8 @@ describe('custom payment', () => {
       customerName: 'Buyer Name',
       description: '250 business cards',
       reference: 'BC-104',
+      quoteId: 'quote-104',
+      crmRecordId: 'lead-104',
       origin: config.PORTAL_ORIGIN
     });
 
@@ -59,6 +61,8 @@ describe('custom payment', () => {
     assert.equal(payload.line_items[0].price_data.unit_amount, 12550);
     assert.equal(payload.line_items[0].price_data.product_data.name, '250 business cards');
     assert.equal(payload.metadata.customer_name, 'Buyer Name');
+    assert.equal(payload.metadata.quote_id, 'quote-104');
+    assert.equal(payload.metadata.crm_record_id, 'lead-104');
     assert.equal(payload.success_url, 'https://portal.3dvr.tech/custom-payment/?payment=success');
   });
 
@@ -99,7 +103,9 @@ describe('custom payment', () => {
         customerEmail: 'BUYER@example.com',
         amount: '75.25',
         description: '  Business card print run ',
-        reference: ' JOB-12 '
+        reference: ' JOB-12 ',
+        quoteId: ' quote-12 ',
+        crmRecordId: ' lead-12 '
       })
     }, res);
 
@@ -108,5 +114,7 @@ describe('custom payment', () => {
     assert.equal(create.mock.calls.length, 1);
     assert.equal(create.mock.calls[0].arguments[0].line_items[0].price_data.unit_amount, 7525);
     assert.equal(create.mock.calls[0].arguments[0].customer_email, 'buyer@example.com');
+    assert.equal(create.mock.calls[0].arguments[0].metadata.quote_id, 'quote-12');
+    assert.equal(create.mock.calls[0].arguments[0].metadata.crm_record_id, 'lead-12');
   });
 });

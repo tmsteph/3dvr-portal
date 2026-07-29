@@ -12,6 +12,8 @@ export function buildOperatorPaymentSessionPayload({
   customerName,
   description,
   reference,
+  quoteId,
+  crmRecordId,
   origin
 }) {
   const metadata = {
@@ -19,7 +21,9 @@ export function buildOperatorPaymentSessionPayload({
     customer_name: customerName,
     customer_email: customerEmail,
     reference,
-    description
+    description,
+    quote_id: quoteId,
+    crm_record_id: crmRecordId
   };
   const compactMetadata = Object.fromEntries(
     Object.entries(metadata).filter(([, value]) => Boolean(value))
@@ -83,6 +87,8 @@ export function createCustomPaymentHandler(options = {}) {
     const customerName = cleanText(body.customerName, 120);
     const description = cleanText(body.description, 120);
     const reference = cleanText(body.reference, 80);
+    const quoteId = cleanText(body.quoteId, 100);
+    const crmRecordId = cleanText(body.crmRecordId, 100);
     const amountCents = normalizeCustomAmount(body.amount);
 
     if (!customerName) {
@@ -106,6 +112,8 @@ export function createCustomPaymentHandler(options = {}) {
           customerName,
           description,
           reference,
+          quoteId,
+          crmRecordId,
           origin
         })
       );

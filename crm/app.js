@@ -2893,6 +2893,7 @@ function buildDetailActions(record) {
   return `
     <button data-action="ensure-contact" data-record-id="${safeAttr(record.id)}" class="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1.5 rounded">${safe(getContactButtonLabel(record))}</button>
     <a href="${safeAttr(buildEmailOperatorHref(record))}" class="inline-flex items-center justify-center bg-sky-500 hover:bg-sky-400 text-white text-sm px-3 py-1.5 rounded">Queue outreach</a>
+    <a href="../quote-builder/?crmRecordId=${encodeURIComponent(record.id)}" class="inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-3 py-1.5 rounded">Build quote</a>
     <button data-action="log-touch" data-record-id="${safeAttr(record.id)}" class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1.5 rounded">Log touch</button>
     <button data-action="quick-follow-up" data-record-id="${safeAttr(record.id)}" class="bg-amber-500 hover:bg-amber-600 text-white text-sm px-3 py-1.5 rounded">+7d follow-up</button>
     <button data-action="edit-record" data-record-id="${safeAttr(record.id)}" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1.5 rounded">Edit</button>
