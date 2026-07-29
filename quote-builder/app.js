@@ -295,7 +295,6 @@ async function buildAuth() {
 
 async function createPaymentLink() {
   let quote = readQuote();
-  if (!quote.customerEmail) throw new Error('Add the customer email before creating a payment link.');
   if (quote.totalCents < 100) throw new Error('The quote total must be at least $1.');
 
   statusMessage.textContent = 'Creating secure Stripe checkout…';
@@ -314,6 +313,7 @@ async function createPaymentLink() {
         reference: quote.reference,
         quoteId: quote.id,
         crmRecordId: quote.crmRecordId,
+        collectCustomerEmail: !quote.customerEmail,
         ...auth,
       }),
     });

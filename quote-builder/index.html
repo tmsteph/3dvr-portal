@@ -52,8 +52,8 @@
             <input id="customer-name" maxlength="120" required>
           </label>
           <label>
-            Customer email
-            <input id="customer-email" type="email" maxlength="200">
+            Customer email <small>optional</small>
+            <input id="customer-email" type="email" maxlength="200" placeholder="Customer can enter this at checkout">
           </label>
           <label>
             Quote number
@@ -97,7 +97,7 @@
         <div class="actions">
           <button id="save-quote" class="button" type="button">Save quote</button>
           <button id="print-quote" class="button secondary" type="button">Print / Save PDF</button>
-          <button id="create-payment" class="button accent" type="button">Create payment link</button>
+          <button id="create-payment" class="button accent" type="button">Create customer payment link</button>
           <button id="new-quote" class="text-button" type="button">Start new</button>
         </div>
         <section id="payment-result" class="payment-result" hidden>
