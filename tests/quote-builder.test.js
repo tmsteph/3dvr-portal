@@ -72,9 +72,11 @@ describe('quote builder', () => {
 
     assert.match(html, /Pull from CRM/);
     assert.match(html, /Print \/ Save PDF/);
-    assert.match(html, /Create payment link/);
+    assert.match(html, /Create customer payment link/);
+    assert.match(html, /Customer can enter this at checkout/);
     assert.match(app, /gun\.get\('3dvr-crm'\)/);
     assert.match(app, /\/api\/stripe\/custom-payment/);
+    assert.match(app, /collectCustomerEmail: !quote\.customerEmail/);
     assert.match(css, /@media print/);
     assert.match(css, /\.no-print/);
     assert.match(portal, /href="quote-builder\/"/);

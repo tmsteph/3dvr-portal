@@ -66,6 +66,24 @@ describe('custom payment', () => {
     assert.equal(payload.success_url, 'https://portal.3dvr.tech/custom-payment/?payment=success');
   });
 
+  it('lets Stripe collect the customer email at checkout when requested', () => {
+    const payload = buildOperatorPaymentSessionPayload({
+      amountCents: 25800,
+      customerEmail: '',
+      customerName: 'Pedri',
+      description: '3DVR quote PEDRI-001',
+      reference: 'PEDRI-001',
+      quoteId: 'pedri-draft',
+      crmRecordId: 'lead-pedri',
+      collectCustomerEmail: true,
+      origin: config.PORTAL_ORIGIN
+    });
+
+    assert.equal('customer_email' in payload, false);
+    assert.equal(payload.customer_creation, 'always');
+    assert.equal(payload.metadata.customer_email, undefined);
+  });
+
   it('requires portal billing authentication before creating a link', async () => {
     const stripe = { checkout: { sessions: { create: mock.fn() } } };
     const handler = createCustomPaymentHandler({ stripeClient: stripe, config });
@@ -116,5 +134,34 @@ describe('custom payment', () => {
     assert.equal(create.mock.calls[0].arguments[0].customer_email, 'buyer@example.com');
     assert.equal(create.mock.calls[0].arguments[0].metadata.quote_id, 'quote-12');
     assert.equal(create.mock.calls[0].arguments[0].metadata.crm_record_id, 'lead-12');
+  });
+
+  it('creates a checkout that asks the customer for email when the quote has none', async () => {
+    const create = mock.fn(async () => ({
+      id: 'cs_customer_email',
+      url: 'https://checkout.stripe.com/c/pay/cs_customer_email'
+    }));
+    const handler = createCustomPaymentHandler({
+      stripeClient: { checkout: { sessions: { create } } },
+      config
+    });
+    const res = response();
+
+    await handler({
+      method: 'POST',
+      body: await authBody({
+        customerName: 'Pedri',
+        customerEmail: '',
+        collectCustomerEmail: true,
+        amount: '258',
+        description: '3DVR quote PEDRI-001',
+        quoteId: 'pedri-draft',
+        crmRecordId: 'lead-pedri'
+      })
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal('customer_email' in create.mock.calls[0].arguments[0], false);
+    assert.equal(create.mock.calls[0].arguments[0].metadata.quote_id, 'pedri-draft');
   });
 });

@@ -14,6 +14,7 @@ export function buildOperatorPaymentSessionPayload({
   reference,
   quoteId,
   crmRecordId,
+  collectCustomerEmail = false,
   origin
 }) {
   const metadata = {
@@ -29,9 +30,8 @@ export function buildOperatorPaymentSessionPayload({
     Object.entries(metadata).filter(([, value]) => Boolean(value))
   );
 
-  return {
+  const payload = {
     mode: 'payment',
-    customer_email: customerEmail,
     customer_creation: 'always',
     billing_address_collection: 'auto',
     payment_intent_data: {
@@ -53,6 +53,12 @@ export function buildOperatorPaymentSessionPayload({
     success_url: `${origin}/custom-payment/?payment=success`,
     cancel_url: `${origin}/custom-payment/?payment=cancel`
   };
+
+  if (!collectCustomerEmail) {
+    payload.customer_email = customerEmail;
+  }
+
+  return payload;
 }
 
 export function createCustomPaymentHandler(options = {}) {
@@ -89,12 +95,13 @@ export function createCustomPaymentHandler(options = {}) {
     const reference = cleanText(body.reference, 80);
     const quoteId = cleanText(body.quoteId, 100);
     const crmRecordId = cleanText(body.crmRecordId, 100);
+    const collectCustomerEmail = body.collectCustomerEmail === true;
     const amountCents = normalizeCustomAmount(body.amount);
 
     if (!customerName) {
       return res.status(400).json({ error: 'Enter the customer name.' });
     }
-    if (!isValidBillingEmail(customerEmail)) {
+    if (!collectCustomerEmail && !isValidBillingEmail(customerEmail)) {
       return res.status(400).json({ error: 'Enter a valid customer email.' });
     }
     if (!description) {
@@ -114,6 +121,7 @@ export function createCustomPaymentHandler(options = {}) {
           reference,
           quoteId,
           crmRecordId,
+          collectCustomerEmail,
           origin
         })
       );
