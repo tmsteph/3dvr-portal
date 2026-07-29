@@ -100,12 +100,10 @@ describe('custom payment', () => {
     assert.equal(payload.line_items[0].price_data.product_data.name, 'Custom 3DVR payment');
     assert.deepEqual(payload.custom_fields.map(field => field.key), [
       'customer_name',
-      'payment_for',
-      'reference'
+      'payment_for'
     ]);
     assert.equal(payload.custom_fields[0].optional, false);
     assert.equal(payload.custom_fields[1].optional, false);
-    assert.equal(payload.custom_fields[2].optional, true);
   });
 
   it('requires portal billing authentication before creating a link', async () => {
@@ -215,8 +213,7 @@ describe('custom payment', () => {
     assert.equal('customer_email' in payload, false);
     assert.deepEqual(payload.custom_fields.map(field => field.key), [
       'customer_name',
-      'payment_for',
-      'reference'
+      'payment_for'
     ]);
   });
 });

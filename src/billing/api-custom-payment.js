@@ -78,14 +78,6 @@ export function buildOperatorPaymentSessionPayload({
         optional: false
       });
     }
-    if (!reference) {
-      customFields.push({
-        key: 'reference',
-        label: { type: 'custom', custom: 'Reference or job number (optional)' },
-        type: 'text',
-        optional: true
-      });
-    }
     if (customFields.length) payload.custom_fields = customFields;
   }
 

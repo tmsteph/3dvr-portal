@@ -13,6 +13,7 @@ describe('custom payment page', () => {
     assert.match(html, /Customer name/);
     assert.match(html, /Customer email/);
     assert.match(html, /What is it for\? <small>optional/);
+    assert.match(html, /Internal reference <small>optional • customer won’t see this prompt/);
     assert.match(html, /Stripe asks the customer for anything you leave blank/);
     assert.ok(app.includes('/api/stripe/custom-payment'));
     assert.match(app, /collectMissingFields = true/);
