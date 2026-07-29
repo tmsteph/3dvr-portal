@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1118">
+  <meta name="robots" content="noindex">
+  <title>Quote Builder | 3DVR Portal</title>
+  <meta name="description" content="Build customer quotes from CRM records and turn them into secure Stripe payment links.">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script defer src="/gun-init.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header no-print">
+      <a href="/" class="back">← Portal</a>
+      <p class="eyebrow">3DVR • Sales</p>
+      <h1>Quote Builder</h1>
+      <p>Build the quote, save it to CRM, then make a payment link when the customer is ready.</p>
+    </header>
+
+    <section id="signed-out" class="notice no-print" hidden>
+      <p>Sign in to build and save quotes.</p>
+      <a class="button" href="/sign-in.html?redirect=%2Fquote-builder%2F">Sign in</a>
+    </section>
+
+    <div id="workspace" hidden>
+      <section class="editor no-print" aria-label="Quote editor">
+        <div class="editor-heading">
+          <div>
+            <p class="eyebrow">Customer and quote</p>
+            <h2>Quote details</h2>
+          </div>
+          <select id="saved-quotes" aria-label="Open saved quote">
+            <option value="">New quote</option>
+          </select>
+        </div>
+
+        <div class="form-grid">
+          <label class="wide">
+            Pull from CRM
+            <select id="crm-record">
+              <option value="">Choose a customer</option>
+            </select>
+          </label>
+          <label>
+            Customer name
+            <input id="customer-name" maxlength="120" required>
+          </label>
+          <label>
+            Customer email
+            <input id="customer-email" type="email" maxlength="200">
+          </label>
+          <label>
+            Quote number
+            <input id="reference" maxlength="80">
+          </label>
+          <label>
+            Status
+            <select id="quote-status"></select>
+          </label>
+        </div>
+
+        <div class="line-heading">
+          <div>
+            <p class="eyebrow">Products and services</p>
+            <h2>Line items</h2>
+          </div>
+          <button id="add-item" class="button secondary" type="button">Add item</button>
+        </div>
+        <div id="line-items" class="line-items"></div>
+
+        <div class="form-grid totals-inputs">
+          <label>
+            Tax rate %
+            <input id="tax-rate" type="number" inputmode="decimal" min="0" max="100" step="0.01" value="0">
+          </label>
+          <label>
+            Shipping
+            <span class="money-input"><span>$</span><input id="shipping" type="number" inputmode="decimal" min="0" step="0.01" value="0"></span>
+          </label>
+          <label class="wide">
+            Artwork / fulfillment notes <small>internal and customer-safe</small>
+            <textarea id="artwork-notes" rows="3" maxlength="600"></textarea>
+          </label>
+          <label class="wide">
+            Terms
+            <textarea id="terms" rows="3" maxlength="600">Quote valid for 14 days. Production begins after artwork approval and payment.</textarea>
+          </label>
+        </div>
+
+        <p id="status-message" class="status" role="status" aria-live="polite"></p>
+        <div class="actions">
+          <button id="save-quote" class="button" type="button">Save quote</button>
+          <button id="print-quote" class="button secondary" type="button">Print / Save PDF</button>
+          <button id="create-payment" class="button accent" type="button">Create payment link</button>
+          <button id="new-quote" class="text-button" type="button">Start new</button>
+        </div>
+        <section id="payment-result" class="payment-result" hidden>
+          <label>
+            Secure Stripe link
+            <input id="payment-link" readonly>
+          </label>
+          <button id="copy-payment" class="button secondary" type="button">Copy link</button>
+          <a id="preview-payment" class="button secondary" target="_blank" rel="noreferrer">Preview</a>
+        </section>
+      </section>
+
+      <section id="quote-preview" class="quote-paper" aria-label="Customer quote">
+        <div class="quote-brand">
+          <div>
+            <p class="eyebrow">3DVR.tech</p>
+            <h2>Quote</h2>
+          </div>
+          <div class="quote-meta">
+            <strong id="preview-reference">Draft quote</strong>
+            <span id="preview-date"></span>
+          </div>
+        </div>
+        <div class="customer-block">
+          <span>Prepared for</span>
+          <strong id="preview-customer">Choose a customer</strong>
+          <span id="preview-email"></span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr>
+          </thead>
+          <tbody id="preview-items"></tbody>
+        </table>
+        <div class="quote-totals">
+          <div><span>Subtotal</span><strong id="preview-subtotal">$0.00</strong></div>
+          <div id="preview-tax-row"><span>Tax</span><strong id="preview-tax">$0.00</strong></div>
+          <div id="preview-shipping-row"><span>Shipping</span><strong id="preview-shipping">$0.00</strong></div>
+          <div class="grand-total"><span>Total</span><strong id="preview-total">$0.00</strong></div>
+        </div>
+        <div id="preview-notes-wrap" class="quote-copy">
+          <h3>Artwork and fulfillment</h3>
+          <p id="preview-notes"></p>
+        </div>
+        <div class="quote-copy">
+          <h3>Terms</h3>
+          <p id="preview-terms"></p>
+        </div>
+        <footer>
+          <strong>3DVR.tech</strong>
+          <span>3dvr.tech@gmail.com</span>
+        </footer>
+      </section>
+
+      <aside class="internal-summary no-print">
+        <p class="eyebrow">Private • Never prints</p>
+        <h2>Internal margin</h2>
+        <div><span>Known costs entered</span><strong id="internal-cost">$0.00</strong></div>
+        <div><span>Revenue after known costs</span><strong id="internal-margin">$0.00</strong></div>
+        <p class="internal-note">Enter every supplier cost before treating this as final margin.</p>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>
