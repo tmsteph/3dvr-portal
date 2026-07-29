@@ -12,9 +12,10 @@ describe('custom payment page', () => {
 
     assert.match(html, /Customer name/);
     assert.match(html, /Customer email/);
-    assert.match(html, /What is it for/);
-    assert.match(html, /does not need an account/);
+    assert.match(html, /What is it for\? <small>optional/);
+    assert.match(html, /Stripe asks the customer for anything you leave blank/);
     assert.ok(app.includes('/api/stripe/custom-payment'));
+    assert.match(app, /collectMissingFields = true/);
     assert.match(app, /navigator\.clipboard/);
     assert.ok(portal.includes('href="custom-payment/"'));
   });
