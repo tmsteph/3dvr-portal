@@ -84,6 +84,30 @@ describe('custom payment', () => {
     assert.equal(payload.metadata.customer_email, undefined);
   });
 
+  it('collects blank quick-payment details from the customer in Stripe', () => {
+    const payload = buildOperatorPaymentSessionPayload({
+      amountCents: 7500,
+      customerEmail: '',
+      customerName: '',
+      description: '',
+      reference: '',
+      collectCustomerEmail: true,
+      collectMissingFields: true,
+      origin: config.PORTAL_ORIGIN
+    });
+
+    assert.equal('customer_email' in payload, false);
+    assert.equal(payload.line_items[0].price_data.product_data.name, 'Custom 3DVR payment');
+    assert.deepEqual(payload.custom_fields.map(field => field.key), [
+      'customer_name',
+      'payment_for',
+      'reference'
+    ]);
+    assert.equal(payload.custom_fields[0].optional, false);
+    assert.equal(payload.custom_fields[1].optional, false);
+    assert.equal(payload.custom_fields[2].optional, true);
+  });
+
   it('requires portal billing authentication before creating a link', async () => {
     const stripe = { checkout: { sessions: { create: mock.fn() } } };
     const handler = createCustomPaymentHandler({ stripeClient: stripe, config });
@@ -163,5 +187,36 @@ describe('custom payment', () => {
     assert.equal(res.statusCode, 200);
     assert.equal('customer_email' in create.mock.calls[0].arguments[0], false);
     assert.equal(create.mock.calls[0].arguments[0].metadata.quote_id, 'pedri-draft');
+  });
+
+  it('creates a quick-payment checkout with only an operator-entered amount', async () => {
+    const create = mock.fn(async () => ({
+      id: 'cs_open_payment',
+      url: 'https://checkout.stripe.com/c/pay/cs_open_payment'
+    }));
+    const handler = createCustomPaymentHandler({
+      stripeClient: { checkout: { sessions: { create } } },
+      config
+    });
+    const res = response();
+
+    await handler({
+      method: 'POST',
+      body: await authBody({
+        amount: '75',
+        collectCustomerEmail: true,
+        collectMissingFields: true
+      })
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    const payload = create.mock.calls[0].arguments[0];
+    assert.equal(payload.line_items[0].price_data.unit_amount, 7500);
+    assert.equal('customer_email' in payload, false);
+    assert.deepEqual(payload.custom_fields.map(field => field.key), [
+      'customer_name',
+      'payment_for',
+      'reference'
+    ]);
   });
 });

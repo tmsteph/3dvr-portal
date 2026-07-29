@@ -18,8 +18,8 @@
     <header>
       <a href="/" class="back" aria-label="Back to portal">← Portal</a>
       <p class="eyebrow">3DVR • Stripe</p>
-      <h1>Custom Payment</h1>
-      <p>Create the checkout, then send the secure Stripe link. Your customer does not need an account.</p>
+      <h1>Quick Payment</h1>
+      <p>Enter what you know. Stripe asks the customer for anything you leave blank.</p>
     </header>
 
     <section id="customer-result" class="result" hidden>
@@ -35,12 +35,12 @@
 
     <form id="payment-form" autocomplete="on">
       <label>
-        Customer name
-        <input name="customerName" autocomplete="name" required maxlength="120" placeholder="Jane Smith">
+        Customer name <small>optional</small>
+        <input name="customerName" autocomplete="name" maxlength="120" placeholder="Customer can enter this">
       </label>
       <label>
-        Customer email
-        <input name="customerEmail" type="email" autocomplete="email" required placeholder="jane@example.com">
+        Customer email <small>optional</small>
+        <input name="customerEmail" type="email" autocomplete="email" placeholder="Customer can enter this">
       </label>
       <div class="split">
         <label>
@@ -53,8 +53,8 @@
         </label>
       </div>
       <label>
-        What is it for?
-        <input name="description" required maxlength="120" placeholder="250 business cards">
+        What is it for? <small>optional</small>
+        <input name="description" maxlength="120" placeholder="Customer can enter this">
       </label>
       <button id="create-button" class="button" type="submit">Create payment link</button>
       <p id="status" class="status" role="status" aria-live="polite"></p>

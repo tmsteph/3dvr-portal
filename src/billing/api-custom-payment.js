@@ -15,8 +15,10 @@ export function buildOperatorPaymentSessionPayload({
   quoteId,
   crmRecordId,
   collectCustomerEmail = false,
+  collectMissingFields = false,
   origin
 }) {
+  const sessionDescription = description || 'Custom 3DVR payment';
   const metadata = {
     payment_source: 'custom-payment',
     customer_name: customerName,
@@ -35,7 +37,7 @@ export function buildOperatorPaymentSessionPayload({
     customer_creation: 'always',
     billing_address_collection: 'auto',
     payment_intent_data: {
-      description,
+      description: sessionDescription,
       metadata: compactMetadata
     },
     line_items: [{
@@ -44,7 +46,7 @@ export function buildOperatorPaymentSessionPayload({
         currency: 'usd',
         unit_amount: amountCents,
         product_data: {
-          name: description,
+          name: sessionDescription,
           metadata: compactMetadata
         }
       }
@@ -56,6 +58,35 @@ export function buildOperatorPaymentSessionPayload({
 
   if (!collectCustomerEmail) {
     payload.customer_email = customerEmail;
+  }
+
+  if (collectMissingFields) {
+    const customFields = [];
+    if (!customerName) {
+      customFields.push({
+        key: 'customer_name',
+        label: { type: 'custom', custom: 'Your name' },
+        type: 'text',
+        optional: false
+      });
+    }
+    if (!description) {
+      customFields.push({
+        key: 'payment_for',
+        label: { type: 'custom', custom: 'What is this payment for?' },
+        type: 'text',
+        optional: false
+      });
+    }
+    if (!reference) {
+      customFields.push({
+        key: 'reference',
+        label: { type: 'custom', custom: 'Reference or job number (optional)' },
+        type: 'text',
+        optional: true
+      });
+    }
+    if (customFields.length) payload.custom_fields = customFields;
   }
 
   return payload;
@@ -96,15 +127,16 @@ export function createCustomPaymentHandler(options = {}) {
     const quoteId = cleanText(body.quoteId, 100);
     const crmRecordId = cleanText(body.crmRecordId, 100);
     const collectCustomerEmail = body.collectCustomerEmail === true;
+    const collectMissingFields = body.collectMissingFields === true;
     const amountCents = normalizeCustomAmount(body.amount);
 
-    if (!customerName) {
+    if (!collectMissingFields && !customerName) {
       return res.status(400).json({ error: 'Enter the customer name.' });
     }
     if (!collectCustomerEmail && !isValidBillingEmail(customerEmail)) {
       return res.status(400).json({ error: 'Enter a valid customer email.' });
     }
-    if (!description) {
+    if (!collectMissingFields && !description) {
       return res.status(400).json({ error: 'Enter what the payment is for.' });
     }
     if (!amountCents || amountCents < 100 || amountCents > 99999999) {
@@ -122,6 +154,7 @@ export function createCustomPaymentHandler(options = {}) {
           quoteId,
           crmRecordId,
           collectCustomerEmail,
+          collectMissingFields,
           origin
         })
       );

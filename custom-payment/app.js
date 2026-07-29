@@ -95,6 +95,8 @@ form.addEventListener('submit', async event => {
 
   try {
     const fields = Object.fromEntries(new FormData(form))
+    fields.collectCustomerEmail = !fields.customerEmail
+    fields.collectMissingFields = true
     const auth = await buildAuth()
     const response = await fetch('/api/stripe/custom-payment', {
       method: 'POST',
