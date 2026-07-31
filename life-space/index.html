@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111713">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Life Space · 3DVR</title>
+  <link rel="manifest" href="/app-manifests/life-space.webmanifest">
+  <script src="/pwa-install.js" defer></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <header class="brand-row">
+        <a class="home-link" href="/" aria-label="Portal home">3DVR</a>
+        <button class="quiet-button mobile-only" id="close-sidebar" aria-label="Close spaces">×</button>
+      </header>
+      <div class="sidebar-title">
+        <div><p class="eyebrow">Your private place</p><h1>Life Space</h1></div>
+        <button class="square-button" id="add-space" aria-label="Add a space">＋</button>
+      </div>
+      <label class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Find anything"></label>
+      <nav id="space-list" class="space-list" aria-label="Spaces"></nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-action" id="export-data">Export backup</button>
+        <button class="sidebar-action" id="import-data">Import backup</button>
+        <input id="import-file" type="file" accept="application/json" hidden>
+        <p><span class="status-dot"></span><span id="save-status">Saved on this device</span></p>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <button class="square-button mobile-only" id="open-sidebar" aria-label="Open spaces">☰</button>
+        <div class="space-heading">
+          <input id="space-name" aria-label="Space name" value="My Life">
+          <p id="space-summary">Everything can have a place.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="quiet-button" id="undo" title="Undo" disabled>↶</button>
+          <button class="quiet-button" id="redo" title="Redo" disabled>↷</button>
+          <button class="quiet-button" id="zoom-out" title="Zoom out">−</button>
+          <button class="zoom-label" id="zoom-reset" title="Reset view">100%</button>
+          <button class="quiet-button" id="zoom-in" title="Zoom in">＋</button>
+          <button class="quiet-button" id="help-button" title="Help">?</button>
+        </div>
+      </header>
+
+      <section class="canvas-wrap" id="canvas-wrap">
+        <div class="canvas-grid"></div>
+        <div class="board" id="board" aria-label="Visual workspace">
+          <svg class="drawing-layer" id="drawing-layer" xmlns="http://www.w3.org/2000/svg" aria-label="Drawings"></svg>
+          <div class="card-layer" id="card-layer"></div>
+        </div>
+        <div class="empty-board" id="empty-board">
+          <div class="empty-orbit">✦</div>
+          <h2>Put your life where you can see it.</h2>
+          <p>Add a thought, photo, link, file, or sketch. Move things until the space feels like you.</p>
+          <button class="primary-button" data-add="note">Add your first thought</button>
+        </div>
+      </section>
+
+      <div class="tool-dock" role="toolbar" aria-label="Add to this space">
+        <button data-add="note"><span>✎</span>Note</button>
+        <button data-add="checklist"><span>✓</span>List</button>
+        <button data-add="link"><span>↗</span>Link</button>
+        <button data-add="image"><span>▧</span>Photo</button>
+        <button data-add="file"><span>⌁</span>File</button>
+        <button id="draw-tool"><span>〰</span>Draw</button>
+      </div>
+      <input id="image-input" type="file" accept="image/*" multiple hidden>
+      <input id="file-input" type="file" multiple hidden>
+    </main>
+  </div>
+
+  <dialog id="link-dialog">
+    <form method="dialog" id="link-form">
+      <div class="dialog-head"><div><p class="eyebrow">Save something useful</p><h2>Add a link</h2></div><button value="cancel" class="quiet-button">×</button></div>
+      <label>Title<input id="link-title" placeholder="What is this?"></label>
+      <label>Web address<input id="link-url" type="url" placeholder="https://"></label>
+      <label>Note<textarea id="link-note" placeholder="Why did you save it?"></textarea></label>
+      <menu><button value="cancel" class="secondary-button">Cancel</button><button value="default" class="primary-button" id="save-link">Add link</button></menu>
+    </form>
+  </dialog>
+
+  <dialog id="help-dialog">
+    <div class="dialog-head"><div><p class="eyebrow">A room, not a filing cabinet</p><h2>How Life Space works</h2></div><button class="quiet-button" data-close-dialog>×</button></div>
+    <div class="help-grid">
+      <article><b>Move freely</b><p>Drag cards by their top edge. Drag empty space to pan. Pinch or use the zoom controls.</p></article>
+      <article><b>Edit naturally</b><p>Click text and type. Changes save automatically. Resize a card from its lower corner.</p></article>
+      <article><b>Keep it yours</b><p>Your workspace and files stay in this browser. Export a backup whenever you want to move devices.</p></article>
+      <article><b>Draw over it</b><p>Turn on Draw, sketch with a mouse, pen, or finger, then turn it off to move things again.</p></article>
+    </div>
+    <button class="primary-button wide" data-close-dialog>Start making space</button>
+  </dialog>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

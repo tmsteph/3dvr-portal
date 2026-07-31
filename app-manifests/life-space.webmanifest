@@ -1,0 +1,15 @@
+{
+  "name": "3DVR Life Space",
+  "short_name": "Life Space",
+  "description": "A private visual space for notes, photos, links, files, lists, and sketches.",
+  "start_url": "/life-space/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f1411",
+  "theme_color": "#111713",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
