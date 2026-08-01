@@ -144,6 +144,8 @@ npm run dev
 
 ### Money Printer
 
+The canonical product architecture is [Money Printer: Business Nervous System](docs/money-printer-business-nervous-system.md). It defines the full demand → offer → customer → workforce → delivery → reputation loop, its human approval gates, channel-policy constraints, the current implementation gaps, and the phased build order. Operator activity that does not materially advance that loop should remain silent.
+
 The `money-printer` app is available at `/money-printer/`. It is the cockpit for a local-first venture operator that
 generates ideas, scores opportunities, creates validation tests, promotes experiments, drafts founder briefs, plans
 connector operations, and recommends the next best money action.
