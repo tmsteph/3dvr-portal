@@ -49,8 +49,10 @@ test('Life Space raises touched cards and pans the world from the card body', ()
 
 test('Life Space provides responsive mobile controls', () => {
   assert.match(html, /viewport-fit=cover/);
+  assert.match(html, /interactive-widget=overlays-content/);
   assert.match(css, /@media\(max-width:760px\)/);
   assert.match(css, /safe-area-inset-bottom/);
+  assert.match(css, /\.app-shell,\.workspace\{height:100vh;height:100lvh\}/);
   assert.match(css, /touch-action:none/);
   assert.match(html, /life-space\.webmanifest/);
 });
