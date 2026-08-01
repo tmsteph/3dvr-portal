@@ -39,6 +39,22 @@ function makeId(prefix = 'record') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function normalizeFingerprintPart(value) {
+  return text(value).toLowerCase().replace(/\s+/g, ' ');
+}
+
+export function opportunitySignalFingerprint(input = {}) {
+  const explicitId = normalizeFingerprintPart(input.externalId || input.sourceId);
+  if (explicitId) {
+    return [normalizeFingerprintPart(input.acquisitionMode), explicitId].join(':');
+  }
+  return [
+    normalizeFingerprintPart(input.sourceLabel || input.source),
+    normalizeFingerprintPart(input.buyerWords || input.evidence),
+    normalizeFingerprintPart(input.need)
+  ].join('|');
+}
+
 export function createDemandSignal(input = {}, now = new Date()) {
   const createdAt = timestamp(input.createdAt, now.toISOString());
   return {
@@ -48,6 +64,8 @@ export function createDemandSignal(input = {}, now = new Date()) {
     buyerWords: text(input.buyerWords || input.evidence),
     sourceLabel: text(input.sourceLabel || input.source, 'Manual forward'),
     sourceUrl: text(input.sourceUrl),
+    externalId: text(input.externalId || input.sourceId),
+    sourceFingerprint: text(input.sourceFingerprint) || opportunitySignalFingerprint(input),
     acquisitionMode: text(input.acquisitionMode, 'manual-forward'),
     policyStatus: text(input.policyStatus, 'human-provided'),
     contactPermission: text(input.contactPermission, 'review-required'),
@@ -127,6 +145,16 @@ export function addOpportunity(state = {}, input = {}, now = new Date()) {
     opportunities: [opportunity, ...current.opportunities],
     updatedAt: now.toISOString()
   };
+}
+
+export function ingestOpportunity(state = {}, input = {}, now = new Date()) {
+  const current = createOpportunityEngineState(state, now);
+  const fingerprint = opportunitySignalFingerprint(input);
+  const duplicate = current.signals.find(signal => signal.sourceFingerprint === fingerprint);
+  if (duplicate) {
+    return { state: current, created: false, duplicateSignalId: duplicate.id };
+  }
+  return { state: addOpportunity(current, { ...input, sourceFingerprint: fingerprint }, now), created: true };
 }
 
 export function updateOpportunity(state = {}, opportunityId, patch = {}, now = new Date()) {

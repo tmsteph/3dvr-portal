@@ -30,7 +30,7 @@ import {
   mergeOpportunityEngineStates
 } from '../src/money-printer/opportunityEngineSync.js';
 import {
-  addOpportunity,
+  ingestOpportunity,
   readOpportunityEngineState,
   sortOpportunityClusters,
   updateOpportunity,
@@ -1027,7 +1027,13 @@ elements.opportunityCaptureForm?.addEventListener('submit', event => {
   event.preventDefault();
   const formData = new FormData(elements.opportunityCaptureForm);
   const now = new Date();
-  opportunityEngineState = addOpportunity(opportunityEngineState, {
+  const acquisitionMode = String(formData.get('acquisitionMode') || 'manual-forward');
+  const sourcePolicy = acquisitionMode === 'first-party-form'
+    ? { sourceLabel: '3DVR form submission', policyStatus: 'first-party' }
+    : acquisitionMode === 'email-reply'
+      ? { sourceLabel: 'Email reply', policyStatus: 'first-party' }
+      : { sourceLabel: 'Manual forward', policyStatus: 'human-provided' };
+  const ingestion = ingestOpportunity(opportunityEngineState, {
     need: formData.get('need'),
     buyerWords: formData.get('buyerWords'),
     location: formData.get('location'),
@@ -1038,13 +1044,18 @@ elements.opportunityCaptureForm?.addEventListener('submit', event => {
     estimatedCostMin: formData.get('estimatedCostMax'),
     suggestedResponse: formData.get('suggestedResponse'),
     nextAction: formData.get('nextAction'),
-    sourceLabel: 'Manual forward',
-    acquisitionMode: 'manual-forward',
-    policyStatus: 'human-provided',
+    ...sourcePolicy,
+    externalId: formData.get('externalId'),
+    acquisitionMode,
     contactPermission: 'review-required',
     confidence: 60,
     createdAt: now.toISOString()
   }, now);
+  if (!ingestion.created) {
+    elements.opportunityCaptureStatus.textContent = 'Already in the inbox. The duplicate was not added.';
+    return;
+  }
+  opportunityEngineState = ingestion.state;
   saveOpportunityEngineState();
   elements.opportunityCaptureForm.reset();
   elements.opportunityCapturePanel.open = false;

@@ -72,6 +72,18 @@
             <small>Paste a request you found or received</small>
           </summary>
           <form id="opportunityCaptureForm" class="opportunity-capture" autocomplete="off">
+          <label class="opportunity-field">
+            <span>How did it arrive?</span>
+            <select name="acquisitionMode">
+              <option value="email-reply">Email reply</option>
+              <option value="first-party-form">3DVR form submission</option>
+              <option value="manual-forward" selected>Manually forwarded post</option>
+            </select>
+          </label>
+          <label class="opportunity-field">
+            <span>Message or submission ID</span>
+            <input name="externalId" placeholder="Optional, prevents duplicates">
+          </label>
           <label class="opportunity-field opportunity-field--wide">
             <span>What do they need?</span>
             <input name="need" required placeholder="Example: 200 business cards by tomorrow morning">
@@ -111,7 +123,7 @@
           </label>
             <div class="opportunity-capture__actions opportunity-field--wide">
               <button class="mp-button mp-button--primary" type="submit">Add to Opportunity Inbox</button>
-              <p id="opportunityCaptureStatus" aria-live="polite">Saved locally in this browser with manual-source provenance.</p>
+              <p id="opportunityCaptureStatus" aria-live="polite">Source and permission are preserved. Repeated messages are added only once.</p>
             </div>
           </form>
         </details>
