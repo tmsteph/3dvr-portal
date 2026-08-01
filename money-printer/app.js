@@ -25,11 +25,24 @@ import {
   createMessageReviewItem,
   seedTrustReviewQueue
 } from '../src/money-printer/messageReview.js';
+import {
+  addOpportunity,
+  readOpportunityEngineState,
+  sortOpportunityClusters,
+  updateOpportunity,
+  writeOpportunityEngineState
+} from '../src/money-printer/opportunityEngine.js';
 
 const elements = {
   form: document.getElementById('missionForm'),
   missionInput: document.getElementById('missionInput'),
   missionStatus: document.getElementById('missionStatus'),
+  opportunityCaptureForm: document.getElementById('opportunityCaptureForm'),
+  opportunityCapturePanel: document.getElementById('opportunityCapturePanel'),
+  opportunityCaptureStatus: document.getElementById('opportunityCaptureStatus'),
+  opportunityFilter: document.getElementById('opportunityFilter'),
+  opportunityInbox: document.getElementById('opportunityInbox'),
+  opportunitySummary: document.getElementById('opportunitySummary'),
   metricsGrid: document.getElementById('metricsGrid'),
   messageReviewQueue: document.getElementById('messageReviewQueue'),
   runtimeStatusGrid: document.getElementById('runtimeStatusGrid'),
@@ -52,6 +65,7 @@ const MESSAGE_REVIEW_STORAGE_KEY = '3dvr.moneyPrinter.messageReviewQueue.v1';
 let connectorStatuses = [];
 let state = moneyPrinterStorage.hydrate();
 let messageReviewQueue = loadMessageReviewQueue();
+let opportunityEngineState = readOpportunityEngineState();
 
 function saveState() {
   if (!moneyPrinterStorage.write(state)) {
@@ -159,6 +173,174 @@ function money(value) {
   }).format(Number.isFinite(numeric) ? numeric : 0);
 }
 
+function moneyRange(minimum, maximum) {
+  const min = Number(minimum || 0);
+  const max = Number(maximum || min);
+  if (!min && !max) return 'Unknown';
+  return min === max ? money(min) : `${money(min)}–${money(max)}`;
+}
+
+function saveOpportunityEngineState() {
+  if (!writeOpportunityEngineState(opportunityEngineState)) {
+    elements.opportunityCaptureStatus.textContent = 'Browser storage is unavailable; this opportunity will not survive a refresh.';
+  }
+}
+
+function opportunityPrimarySignal(opportunity = {}) {
+  return Array.isArray(opportunity.signals) ? opportunity.signals[0] || {} : {};
+}
+
+function renderOpportunityInbox() {
+  if (!elements.opportunityInbox) return;
+  const filter = elements.opportunityFilter?.value || 'active';
+  const all = sortOpportunityClusters(opportunityEngineState.opportunities);
+  const visible = all.filter(opportunity => {
+    if (filter === 'all') return true;
+    if (filter === 'passed') return ['passed', 'expired'].includes(opportunity.status);
+    return !['passed', 'expired', 'won'].includes(opportunity.status);
+  });
+
+  const activeCount = all.filter(opportunity => !['passed', 'expired', 'won'].includes(opportunity.status)).length;
+  elements.opportunitySummary.textContent = activeCount
+    ? `${activeCount} active ${activeCount === 1 ? 'opportunity' : 'opportunities'}, ranked by actionability.`
+    : 'No qualified opportunities yet. Forward a real request to begin.';
+
+  if (!visible.length) {
+    replaceChildren(elements.opportunityInbox, [
+      textElement('p', 'empty-state', filter === 'active'
+        ? 'No active opportunities. Add a real request above; Money Printer will preserve the evidence and next action.'
+        : 'No opportunities match this filter.')
+    ]);
+    return;
+  }
+
+  const cards = visible.map(opportunity => {
+    const signal = opportunityPrimarySignal(opportunity);
+    const marginMin = Math.max(0, Number(signal.estimatedValueMin || 0) - Number(signal.estimatedCostMax || 0));
+    const card = document.createElement('article');
+    card.className = 'opportunity-card';
+    card.dataset.status = opportunity.status;
+
+    const top = document.createElement('div');
+    top.className = 'opportunity-card__top';
+    const heading = document.createElement('div');
+    heading.append(
+      textElement('span', 'mp-card-label', opportunity.status.replace(/-/g, ' ')),
+      textElement('h3', '', opportunity.title)
+    );
+    const score = textElement('strong', 'opportunity-score', `${opportunity.actionabilityScore}`);
+    score.title = 'Actionability score';
+    top.append(heading, score);
+
+    const economics = document.createElement('div');
+    economics.className = 'opportunity-economics';
+    [
+      ['Value', moneyRange(signal.estimatedValueMin, signal.estimatedValueMax)],
+      ['Cost', moneyRange(signal.estimatedCostMin, signal.estimatedCostMax)],
+      ['Margin floor', signal.estimatedValueMin ? money(marginMin) : 'Unknown'],
+      ['Confidence', `${signal.confidence}%`]
+    ].forEach(([label, value]) => {
+      const item = document.createElement('div');
+      item.append(textElement('span', '', label), textElement('strong', '', value));
+      economics.append(item);
+    });
+
+    const evidence = document.createElement('blockquote');
+    evidence.className = 'opportunity-evidence';
+    evidence.textContent = signal.buyerWords || 'No buyer wording saved.';
+
+    const details = document.createElement('dl');
+    details.className = 'opportunity-details';
+    [
+      ['Location', signal.location],
+      ['Urgency', titleFromKey(signal.urgency)],
+      ['Source', `${signal.sourceLabel} · ${signal.acquisitionMode}`],
+      ['Permission', `${signal.policyStatus} · ${signal.contactPermission}`]
+    ].forEach(([label, value]) => {
+      const row = document.createElement('div');
+      row.append(textElement('dt', '', label), textElement('dd', '', value));
+      details.append(row);
+    });
+
+    const response = document.createElement('div');
+    response.className = 'opportunity-response';
+    response.append(
+      textElement('span', 'mp-card-label', 'Suggested response'),
+      textElement('p', '', opportunity.suggestedResponse || 'Draft a helpful response before review.'),
+      textElement('span', 'mp-card-label', 'Next action'),
+      textElement('strong', '', opportunity.nextAction)
+    );
+
+    const actions = document.createElement('div');
+    actions.className = 'opportunity-actions';
+    if (!['passed', 'expired', 'won'].includes(opportunity.status)) {
+      actions.append(
+        button('Review response', {
+          className: 'mp-button mp-button--primary',
+          'data-opportunity-action': 'review',
+          'data-opportunity-id': opportunity.id
+        }),
+        button('Pass', {
+          'data-opportunity-action': 'pass',
+          'data-opportunity-id': opportunity.id
+        })
+      );
+    }
+    card.append(top, economics, evidence, details, response, actions);
+    return card;
+  });
+  replaceChildren(elements.opportunityInbox, cards);
+}
+
+function addOpportunityToReviewQueue(opportunity) {
+  const signal = opportunityPrimarySignal(opportunity);
+  const reviewKey = `opportunity:${opportunity.id}`;
+  const existing = messageReviewQueue.find(item => item.leadId === reviewKey);
+  if (existing) return false;
+  messageReviewQueue = [createMessageReviewItem({
+    id: `review-${opportunity.id}`,
+    leadId: reviewKey,
+    leadName: opportunity.title,
+    whyGenerated: `Opportunity Inbox evidence: ${signal.buyerWords || opportunity.title}`,
+    offer: opportunity.title,
+    offerConnection: `Connects to the evidence-backed Opportunity Inbox item: ${opportunity.title}.`,
+    subject: `About ${opportunity.title}`,
+    body: opportunity.suggestedResponse || '',
+    riskLevel: 'YELLOW',
+    riskExplanation: 'This is a first contact or reply prepared from manually forwarded evidence. Human review and sending are required.',
+    safeguards: [
+      `Source: ${signal.sourceLabel} (${signal.acquisitionMode})`,
+      `Permission: ${signal.policyStatus}; ${signal.contactPermission}`,
+      'No automatic send is enabled from Opportunity Inbox.'
+    ],
+    canAutoSend: false,
+    status: 'review-required'
+  }), ...messageReviewQueue];
+  saveMessageReviewQueue();
+  return true;
+}
+
+function handleOpportunityAction(action, opportunityId) {
+  const opportunity = opportunityEngineState.opportunities.find(item => item.id === opportunityId);
+  if (!opportunity) return;
+  if (action === 'review') {
+    const added = addOpportunityToReviewQueue(opportunity);
+    opportunityEngineState = updateOpportunity(opportunityEngineState, opportunityId, { status: 'reviewing' });
+    saveOpportunityEngineState();
+    renderOpportunityInbox();
+    renderMessageReviewQueue();
+    setStatus(added ? 'Response added to the human review queue. Nothing was sent.' : 'This response is already in the human review queue.');
+    document.getElementById('reviewQueueTitle')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  if (action === 'pass') {
+    opportunityEngineState = updateOpportunity(opportunityEngineState, opportunityId, { status: 'passed' });
+    saveOpportunityEngineState();
+    renderOpportunityInbox();
+    elements.opportunityCaptureStatus.textContent = 'Opportunity passed and preserved for learning.';
+  }
+}
+
 function renderMetrics() {
   const metrics = buildMetrics(state);
   const metricCards = [
@@ -186,9 +368,9 @@ function riskTone(riskLevel = '') {
   return 'yellow';
 }
 
-function actionLabel(action) {
+function actionLabel(action, item = {}) {
   return {
-    'approve-send': 'Approve & Send',
+    'approve-send': item.canAutoSend ? 'Approve & Send' : 'Approve draft',
     edit: 'Edit',
     skip: 'Skip',
     'ban-lead': 'Ban Lead',
@@ -259,7 +441,7 @@ function renderMessageReviewQueue() {
       <div class="review-actions">
         ${item.actions.map(action => `
           <button class="mp-button ${action === 'approve-send' ? 'mp-button--primary' : ''}" type="button" data-review-action="${safeText(action)}" data-review-id="${safeText(item.id)}">
-            ${safeText(actionLabel(action))}
+            ${safeText(actionLabel(action, item))}
           </button>
         `).join('')}
       </div>
@@ -627,6 +809,7 @@ function renderTools() {
 }
 
 function render() {
+  renderOpportunityInbox();
   renderMetrics();
   renderMessageReviewQueue();
   renderRuntimeStatus();
@@ -774,6 +957,37 @@ elements.form.addEventListener('submit', event => {
   runGenerateMachine();
 });
 
+elements.opportunityCaptureForm?.addEventListener('submit', event => {
+  event.preventDefault();
+  const formData = new FormData(elements.opportunityCaptureForm);
+  const now = new Date();
+  opportunityEngineState = addOpportunity(opportunityEngineState, {
+    need: formData.get('need'),
+    buyerWords: formData.get('buyerWords'),
+    location: formData.get('location'),
+    urgency: formData.get('urgency'),
+    estimatedValueMin: formData.get('estimatedValueMin'),
+    estimatedValueMax: formData.get('estimatedValueMin'),
+    estimatedCostMax: formData.get('estimatedCostMax'),
+    estimatedCostMin: formData.get('estimatedCostMax'),
+    suggestedResponse: formData.get('suggestedResponse'),
+    nextAction: formData.get('nextAction'),
+    sourceLabel: 'Manual forward',
+    acquisitionMode: 'manual-forward',
+    policyStatus: 'human-provided',
+    contactPermission: 'review-required',
+    confidence: 60,
+    createdAt: now.toISOString()
+  }, now);
+  saveOpportunityEngineState();
+  elements.opportunityCaptureForm.reset();
+  elements.opportunityCapturePanel.open = false;
+  elements.opportunityCaptureStatus.textContent = 'Opportunity saved with its evidence. No contact was made.';
+  renderOpportunityInbox();
+});
+
+elements.opportunityFilter?.addEventListener('change', renderOpportunityInbox);
+
 elements.missionInput.addEventListener('input', () => {
   state.mission = elements.missionInput.value;
   saveState();
@@ -828,6 +1042,12 @@ document.addEventListener('click', event => {
   const reviewButton = event.target.closest('[data-review-action]');
   if (reviewButton) {
     handleReviewAction(reviewButton.dataset.reviewAction, reviewButton.dataset.reviewId);
+    return;
+  }
+
+  const opportunityButton = event.target.closest('[data-opportunity-action]');
+  if (opportunityButton) {
+    handleOpportunityAction(opportunityButton.dataset.opportunityAction, opportunityButton.dataset.opportunityId);
   }
 });
 
@@ -853,6 +1073,9 @@ document.addEventListener('change', event => {
 
 async function boot() {
   elements.missionInput.value = state.mission || DEFAULT_MISSION;
+  if (elements.opportunityCapturePanel) {
+    elements.opportunityCapturePanel.open = opportunityEngineState.opportunities.length === 0;
+  }
   render();
   try {
     connectorStatuses = await readConnectorStatuses();

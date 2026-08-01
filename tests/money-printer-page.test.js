@@ -38,6 +38,10 @@ describe('money-printer MVP', () => {
     assert.match(html, /Advanced tools/);
     assert.match(html, /Server and connector status/);
     assert.match(html, /Opportunity Engine/);
+    assert.match(html, /Opportunity Inbox/);
+    assert.match(html, /id="opportunityCaptureForm"/);
+    assert.match(html, /id="opportunityInbox"/);
+    assert.match(html, /Nothing here contacts anyone automatically/);
     assert.match(html, /Founder Command Brief/);
     assert.match(html, /Bot Dashboard/);
     assert.match(html, /Autonomy Zones/);
@@ -55,6 +59,7 @@ describe('money-printer MVP', () => {
       'moneyPrinterExperiments.js',
       'moneyPrinterConnectors.js',
       'moneyPrinterStorage.js',
+      'opportunityEngine.js',
       'moneyPrinterData.js',
       'ToolConnector.js'
     ];

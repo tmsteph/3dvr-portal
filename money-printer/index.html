@@ -59,6 +59,77 @@
         </form>
       </section>
 
+      <section class="mp-band opportunity-inbox" aria-labelledby="opportunityInboxTitle">
+        <div class="mp-section-heading mp-section-heading--wide">
+          <span class="eyebrow">3DVR Opportunity Engine</span>
+          <h2 id="opportunityInboxTitle">Opportunity Inbox</h2>
+          <p>Real needs with source evidence, economics, permission state, and one next action. Nothing here contacts anyone automatically.</p>
+        </div>
+
+        <details id="opportunityCapturePanel" class="opportunity-capture-panel">
+          <summary>
+            <span>Forward an opportunity</span>
+            <small>Paste a request you found or received</small>
+          </summary>
+          <form id="opportunityCaptureForm" class="opportunity-capture" autocomplete="off">
+          <label class="opportunity-field opportunity-field--wide">
+            <span>What do they need?</span>
+            <input name="need" required placeholder="Example: 200 business cards by tomorrow morning">
+          </label>
+          <label class="opportunity-field opportunity-field--wide">
+            <span>Their actual words</span>
+            <textarea name="buyerWords" required rows="3" placeholder="Paste the relevant request or inquiry here."></textarea>
+          </label>
+          <label class="opportunity-field">
+            <span>Location</span>
+            <input name="location" placeholder="San Diego">
+          </label>
+          <label class="opportunity-field">
+            <span>Urgency</span>
+            <select name="urgency">
+              <option value="immediate">Immediate</option>
+              <option value="high">High</option>
+              <option value="medium" selected>Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+          <label class="opportunity-field">
+            <span>Estimated value</span>
+            <input name="estimatedValueMin" inputmode="decimal" type="number" min="0" placeholder="250">
+          </label>
+          <label class="opportunity-field">
+            <span>Estimated cost</span>
+            <input name="estimatedCostMax" inputmode="decimal" type="number" min="0" placeholder="140">
+          </label>
+          <label class="opportunity-field opportunity-field--wide">
+            <span>Suggested response</span>
+            <textarea name="suggestedResponse" rows="3" placeholder="Draft a helpful response. It will still require review."></textarea>
+          </label>
+          <label class="opportunity-field opportunity-field--wide">
+            <span>Next action</span>
+            <input name="nextAction" placeholder="Confirm artwork and collect deposit">
+          </label>
+            <div class="opportunity-capture__actions opportunity-field--wide">
+              <button class="mp-button mp-button--primary" type="submit">Add to Opportunity Inbox</button>
+              <p id="opportunityCaptureStatus" aria-live="polite">Saved locally in this browser with manual-source provenance.</p>
+            </div>
+          </form>
+        </details>
+
+        <div class="opportunity-toolbar">
+          <p id="opportunitySummary" aria-live="polite">No qualified opportunities yet.</p>
+          <label>
+            <span>Show</span>
+            <select id="opportunityFilter">
+              <option value="active">Active</option>
+              <option value="all">All</option>
+              <option value="passed">Passed</option>
+            </select>
+          </label>
+        </div>
+        <div id="opportunityInbox" class="opportunity-grid" aria-live="polite"></div>
+      </section>
+
       <section class="mp-journey" aria-labelledby="journeyTitle">
         <div class="mp-section-heading">
           <span class="eyebrow">Simple path</span>
