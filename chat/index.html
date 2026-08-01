@@ -80,7 +80,7 @@
         <div id="notification-settings" class="chat-card chat-card--accent">
           <div class="chat-card__header">
             <span class="chat-card__eyebrow">Notifications</span>
-            <h2 class="chat-card__title">Stay in the loop</h2>
+            <h2 class="chat-card__title">While Chat is running</h2>
           </div>
           <p id="notification-status" class="chat-card__muted">Checking permissions…</p>
           <button
@@ -845,7 +845,16 @@ function displayMessages() {
       (message.sender || 'Anonymous');
     const time = message.createdAt ? timeAgoOrFullDate(message.createdAt) : '';
 
-    msgDiv.innerHTML = `<div><strong>${username}:</strong> ${message.text}</div><div class="meta">${time}</div>`;
+    const content = document.createElement('div');
+    const author = document.createElement('strong');
+    author.textContent = `${username}:`;
+    content.append(author, document.createTextNode(` ${String(message.text || '')}`));
+
+    const metadata = document.createElement('div');
+    metadata.className = 'meta';
+    metadata.textContent = time;
+
+    msgDiv.append(content, metadata);
     messagesDiv.appendChild(msgDiv);
   }
 
@@ -996,6 +1005,20 @@ window.addEventListener('hashchange', () => {
   }
 });
 
+async function ensureChatServiceWorkerRegistration() {
+  if (!('serviceWorker' in navigator)) return null;
+
+  try {
+    const existing = await navigator.serviceWorker.getRegistration('/');
+    const registration = existing || await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
+    serviceWorkerRegistration = registration;
+    return registration;
+  } catch (error) {
+    console.error('Service worker registration failed for chat notifications', error);
+    return null;
+  }
+}
+
 function initNotifications() {
   if (!notificationToggleButton || !notificationStatusText) return;
 
@@ -1005,24 +1028,9 @@ function initNotifications() {
     return;
   }
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready
-      .then((registration) => {
-        serviceWorkerRegistration = registration;
-        return registration;
-      })
-      .catch(() => navigator.serviceWorker.register('/service-worker.js', { scope: '/' }))
-      .then((registration) => {
-        if (registration) {
-          serviceWorkerRegistration = registration;
-        }
-      })
-      .catch((error) => {
-        console.error('Service worker registration failed for chat notifications', error);
-      });
-  }
+  ensureChatServiceWorkerRegistration();
 
-  const savedPreference = localStorage.getItem(notificationsPreferenceKey) === 'true';
+  const savedPreference = safeGetStorage(notificationsPreferenceKey) === 'true';
   if (savedPreference && Notification.permission === 'granted') {
     notificationsEnabled = true;
   }
@@ -1049,9 +1057,9 @@ function updateNotificationUI() {
   notificationToggleButton.textContent = notificationsEnabled ? 'Disable Notifications' : 'Enable Notifications';
 
   if (notificationsEnabled && Notification.permission === 'granted') {
-    notificationStatusText.textContent = 'Notifications are on. We will alert you about new messages.';
+    notificationStatusText.textContent = 'On while Chat is open or running in the background.';
   } else {
-    notificationStatusText.textContent = 'Notifications are off. Click enable to stay updated.';
+    notificationStatusText.textContent = 'Off. Enable alerts while Chat is running.';
   }
 }
 
@@ -1060,14 +1068,14 @@ function toggleNotifications() {
 
   if (notificationsEnabled) {
     notificationsEnabled = false;
-    localStorage.setItem(notificationsPreferenceKey, 'false');
+    safeSetStorage(notificationsPreferenceKey, 'false');
     updateNotificationUI();
     return;
   }
 
   if (Notification.permission === 'granted') {
     notificationsEnabled = true;
-    localStorage.setItem(notificationsPreferenceKey, 'true');
+    safeSetStorage(notificationsPreferenceKey, 'true');
     updateNotificationUI();
     sendNotificationPreview();
     return;
@@ -1075,7 +1083,7 @@ function toggleNotifications() {
 
   Notification.requestPermission().then(permission => {
     notificationsEnabled = permission === 'granted';
-    localStorage.setItem(notificationsPreferenceKey, notificationsEnabled ? 'true' : 'false');
+    safeSetStorage(notificationsPreferenceKey, notificationsEnabled ? 'true' : 'false');
 
     if (permission === 'denied') {
       notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
@@ -1170,7 +1178,7 @@ function sendNotificationPreview() {
   showChatNotification(
     'Chat notifications enabled',
     {
-      body: 'We will let you know when someone posts a new message.',
+      body: 'Alerts are ready while Chat is open or running in the background.',
       tag: 'chat-notification-preview',
       data: { room: currentRoom }
     },

@@ -56,7 +56,7 @@ test('root service worker does not cache stale portal HTML or Vercel checkpoints
   const source = await readProjectFile('service-worker.js');
   const staticAssetsBlock = source.match(/const STATIC_ASSETS = \[[\s\S]*?\];/)?.[0] || '';
 
-  assert.match(source, /const CACHE_VERSION = 'v18';/);
+  assert.match(source, /const CACHE_VERSION = 'v19';/);
   assert.match(source, /const AUTH_CRITICAL_HTML_PATHS = new Set\(\[/);
   assert.match(source, /'\/index\.html'/);
   assert.match(source, /'\/profile\.html'/);
