@@ -80,3 +80,29 @@ test('operator makes the latest message obvious after back navigation', async ()
   assert.equal(await page.getByRole('button', { name: 'Jump to the latest message' }).isHidden(), true);
   await browser.close();
 });
+
+test('operator saves and reopens past conversations on mobile', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('3dvr.operator.conversations.v2')) localStorage.setItem('3dvr.operator.history.v1', JSON.stringify([
+      { role: 'user', content: 'Plan the family camping trip' },
+      { role: 'assistant', content: 'I can help with that.' }
+    ]));
+  });
+  await page.goto(`${PORTAL_ORIGIN}/operator/`);
+  await page.locator('#operator-log').getByText('Plan the family camping trip').waitFor();
+  await page.getByRole('button', { name: 'New conversation' }).click();
+  assert.equal(await page.locator('.message').count(), 0);
+  await page.getByRole('button', { name: 'Past conversations' }).click();
+  await page.getByRole('button', { name: /Plan the family camping trip/ }).click();
+  await page.getByText('I can help with that.').waitFor();
+  await page.reload();
+  await page.locator('#operator-log').getByText('Plan the family camping trip').waitFor();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('3dvr.operator.conversations.v2') || 'null'));
+  assert.equal(saved.conversations.filter(item => item.messages.length).length, 1);
+  assert.equal(await page.evaluate(() => localStorage.getItem('3dvr.operator.history.v1')), null);
+  const dimensions = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth }));
+  assert.ok(dimensions.width <= dimensions.viewport, `horizontal overflow: ${dimensions.width} > ${dimensions.viewport}`);
+  await browser.close();
+});
